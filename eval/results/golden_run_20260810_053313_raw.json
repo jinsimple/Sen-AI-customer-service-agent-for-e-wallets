@@ -1,0 +1,40 @@
+[
+  {
+    "case_id": "ERRQA-004",
+    "cell": "wrong_recipient x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Blocker",
+    "checks": [
+      [
+        "khong_tao_ticket_hop_le",
+        false
+      ],
+      [
+        "cite_TXN20260504000571",
+        false
+      ],
+      [
+        "khong_tao_trung_ticket",
+        false
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã kiểm tra lại và thấy rằng bạn đã báo cáo vụ chuyển nhầm 813.000đ vào ngày 28/05. Hiện tại, tình trạng của khiếu nại này là \"đang điều tra\". \n\nCSKH sẽ xem xét và liên hệ lại với bạn trong thời gian sớm nhất. Nếu bạn cần thêm thông tin hoặc hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng về việc chuyển nhầm 813.000đ. Tuy nhiên, mình không tìm thấy giao dịch nào khớp với thông tin bạn cung cấp vào ngày 04/05. \n\nHiện tại, có một số giao dịch gần đây với số tiền 813.000đ, nhưng không phải vào ngày bạn nói. Bạn có thể cung cấp thêm thông tin như mã giao dịch hoặc số điện thoại liên quan đến giao dịch này để mình có thể tra cứu chính xác hơn không?",
+      "Mình đã kiểm tra lại và thấy rằng bạn đã báo cáo vụ chuyển nhầm 813.000đ vào ngày 28/05. Hiện tại, tình trạng của khiếu nại này là \"đang điều tra\". \n\nCSKH sẽ xem xét và liên hệ lại với bạn trong thời gian sớm nhất. Nếu bạn cần thêm thông tin hoặc hỗ trợ gì khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển nhầm 813.000đ lúc 10:19 ngày 04/05, lấy lại được không ạ?",
+      "Vụ chuyển nhầm 813.000đ hôm đó tôi báo rồi mà chưa thấy ai liên hệ, tình trạng sao rồi bạn?"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "lookup_transaction",
+      "get_customer_history",
+      "get_customer_history"
+    ],
+    "extra_turns_used": 0
+  }
+]

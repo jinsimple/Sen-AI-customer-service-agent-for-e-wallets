@@ -1,0 +1,100 @@
+[
+  {
+    "case_id": "FRAUDQA-001",
+    "cell": "money_not_received x to_bank",
+    "difficulty": "clear",
+    "edge_type": "fraud_suspect",
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260726000002",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ cho khiếu nại của bạn với mã ticket là **TCK-8b5307b814e7**. Chuyên viên CSKH sẽ kiểm tra và liên hệ lại với bạn trong thời gian sớm nhất, dự kiến trước **14/08/2026**.\n\nCảm ơn bạn đã kiên nhẫn, nếu có thêm câu hỏi nào khác, bạn cứ thoải mái hỏi nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì chưa thấy tiền về tài khoản. Để mình tra ngay giúp bạn thông tin về giao dịch này. Bạn có thể cho mình biết thêm mã giao dịch hoặc số điện thoại liên kết với tài khoản không?",
+      "Giao dịch rút tiền của bạn với mã TXN20260726000002 đã được thực hiện thành công. Cụ thể như sau:\n\n- **Số tiền rút:** 4.000.000đ\n- **Phí giao dịch:** 3.300đ\n- **Thời gian giao dịch:** Ngày 26/07/2026, hoàn tất lúc 12:24\n- **Tình trạng:** Thành công\n- **Tài khoản nhận:** Tài khoản ngân hàng STB\n\nNếu bạn chưa nhận được tiền về tài khoản, có thể do một số lý do từ phía ngân hàng. Mình sẽ tạo một hồ sơ để chuyên viên CSKH kiểm tra thêm cho bạn. \n\nBạn có đồng ý không?",
+      "Mình đã tạo hồ sơ cho khiếu nại của bạn với mã ticket là **TCK-8b5307b814e7**. Chuyên viên CSKH sẽ kiểm tra và liên hệ lại với bạn trong thời gian sớm nhất, dự kiến trước **14/08/2026**.\n\nCảm ơn bạn đã kiên nhẫn, nếu có thêm câu hỏi nào khác, bạn cứ thoải mái hỏi nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi rút 4.000.000đ về tài khoản STB nhưng chưa thấy tiền về.",
+      "Mã giao dịch của tôi là TXN20260726000002. Số điện thoại liên kết thì mình không nhớ rõ lắm, bạn ơi.",
+      "Có, tôi đồng ý. Cảm ơn bạn đã hỗ trợ!"
+    ],
+    "tool_calls": [
+      "lookup_transaction",
+      "create_ticket"
+    ],
+    "extra_turns_used": 2
+  },
+  {
+    "case_id": "FRAUDQA-002",
+    "cell": "refund x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": "fraud_suspect",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        false
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260713000011",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn thành công. Dưới đây là thông tin chi tiết:\n\n- **Mã hồ sơ khiếu nại:** CMP-a65a141fee70\n- **Mã ticket:** TCK-160e78925af0\n- **Độ ưu tiên:** Bình thường\n- **Thời gian xử lý dự kiến:** Trước 05:16 ngày 09/09/2026\n\nĐội ngũ CSKH sẽ xem xét và liên hệ với bạn trong thời gian sớm nhất. Nếu bạn cần thêm hỗ trợ gì, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình đã tìm thấy giao dịch mà bạn đề cập. Cụ thể như sau:\n\n- **Mã giao dịch:** TXN20260713000011\n- **Số tiền:** 2.400.000 VNĐ\n- **Trạng thái:** Thành công\n- **Thời gian giao dịch:** 10:46:53 ngày 13/07/2026\n- **Chiều giao dịch:** Tiền vào ví\n\nNếu bạn cảm thấy không an toàn với yêu cầu chuyển tiền này, mình khuyên bạn không nên thực hiện chuyển khoản cho người đó. Bạn có thể báo cáo sự việc này để được hỗ trợ thêm.\n\nBạn có muốn mình tạo hồ sơ khiếu nại về giao dịch này không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn thành công. Dưới đây là thông tin chi tiết:\n\n- **Mã hồ sơ khiếu nại:** CMP-a65a141fee70\n- **Mã ticket:** TCK-160e78925af0\n- **Độ ưu tiên:** Bình thường\n- **Thời gian xử lý dự kiến:** Trước 05:16 ngày 09/09/2026\n\nĐội ngũ CSKH sẽ xem xét và liên hệ với bạn trong thời gian sớm nhất. Nếu bạn cần thêm hỗ trợ gì, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "co nguoi la chuyen vao vi toi 2.400.000 roi nhan tin doi toi chuyen tra vao stk 88000000000030 ngan hang ACB, toi phai lam sao",
+      "Mình không nhớ rõ về việc báo cáo, nhưng mình không muốn thực hiện chuyển khoản cho người đó. Bạn có thể giúp mình tạo hồ sơ khiếu nại không?"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  }
+]

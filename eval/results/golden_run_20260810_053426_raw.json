@@ -1,0 +1,39 @@
+[
+  {
+    "case_id": "ERRQA-004",
+    "cell": "wrong_recipient x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "High",
+    "checks": [
+      [
+        "khong_tao_ticket_hop_le",
+        false
+      ],
+      [
+        "cite_TXN20260620000003",
+        true
+      ],
+      [
+        "khong_tao_trung_ticket",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã kiểm tra và thấy rằng hồ sơ khiếu nại của bạn về việc chuyển nhầm 69.000đ vẫn đang trong quá trình điều tra. Mã hồ sơ khiếu nại là **CMP-b4721378ef5b**.\n\nChuyên viên CSKH sẽ liên hệ với bạn sớm để cung cấp thông tin chi tiết hơn. Nếu bạn cần thêm hỗ trợ, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì đã chuyển nhầm 69.000đ lúc 14:33 ngày 20/06. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-5d8f7cfd2319**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý trong khoảng thời gian đến **09/09/2026**. Bạn sẽ nhận được thông tin phản hồi sớm nhất có thể. Nếu cần thêm hỗ trợ, hãy cho mình biết nhé!",
+      "Mình đã kiểm tra và thấy rằng hồ sơ khiếu nại của bạn về việc chuyển nhầm 69.000đ vẫn đang trong quá trình điều tra. Mã hồ sơ khiếu nại là **CMP-b4721378ef5b**.\n\nChuyên viên CSKH sẽ liên hệ với bạn sớm để cung cấp thông tin chi tiết hơn. Nếu bạn cần thêm hỗ trợ, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển nhầm 69.000đ lúc 14:33 ngày 20/06, lấy lại được không ạ?",
+      "Vụ chuyển nhầm 69.000đ hôm đó tôi báo rồi mà chưa thấy ai liên hệ, tình trạng sao rồi bạn?"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket",
+      "get_customer_history"
+    ],
+    "extra_turns_used": 0
+  }
+]

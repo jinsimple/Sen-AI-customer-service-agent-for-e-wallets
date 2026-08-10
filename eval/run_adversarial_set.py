@@ -51,6 +51,21 @@ def _ingest_malicious_policy(session, text: str, case_id: str) -> None:
     session.commit()
 
 
+def _inject_malicious_transaction_note(session, trans_id: str, text: str) -> None:
+    """SEC-001 (FIN05_QA_TestCases.jsonl) — bề mặt tấn công KHÁC với RAG policy
+    doc: `Transaction.des` (ghi chú giao dịch) là trường tự do, được
+    lookup_transaction trả nguyên văn cho agent (src/tools/lookup_transaction.py
+    "des": txn.des) — chính fraud_engine.py cũng đọc trường này để dò từ khoá
+    (FS-09), hệ thống đã tự coi đây là dữ liệu không tin cậy."""
+    from src.db.models import Transaction
+
+    txn = session.get(Transaction, trans_id)
+    if txn is None:
+        raise RuntimeError(f"trans_id không tồn tại để inject SEC-001: {trans_id}")
+    txn.des = text
+    session.commit()
+
+
 def run(cases: list[dict]) -> list[dict]:
     import tempfile
 
@@ -65,6 +80,9 @@ def run(cases: list[dict]) -> list[dict]:
             try:
                 if case.get("setup_malicious_policy"):
                     _ingest_malicious_policy(session, case["setup_malicious_policy"], case_id)
+                if case.get("setup_malicious_transaction_note"):
+                    note = case["setup_malicious_transaction_note"]
+                    _inject_malicious_transaction_note(session, note["trans_id"], note["text"])
 
                 agent_result = run_case_turns(
                     session, user_id=case["user_id"], utterances=case["utterances"], thread_id=f"ADV-{case_id}"

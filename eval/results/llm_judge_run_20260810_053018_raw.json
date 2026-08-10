@@ -1,0 +1,16 @@
+[
+  {
+    "case_id": "UXQA-001",
+    "source_qa_id": "UX-001",
+    "passed": false,
+    "reason": "Câu trả lời không thể hiện sự đồng cảm với khách hàng và không nêu rõ rằng giao dịch đã thành công đúng như khách thực hiện. Câu hỏi 'bạn cho rằng đây là giao dịch không hợp lệ?' có thể khiến khách cảm thấy bị phủ nhận cảm xúc.",
+    "reply": "Mình đã tra cứu và thấy có một giao dịch trừ 59.000đ vào ngày 21/07/2026 lúc 19:42. Giao dịch này có mã giao dịch là **TXN20260721000071** và thuộc loại giao dịch nội bộ (internal wallet).\n\nBạn có thể cho mình biết rõ hơn về lý do bạn cho rằng đây là giao dịch không hợp lệ? Mình sẽ giúp bạn tạo hồ sơ khiếu nại để chuyên viên kiểm tra."
+  },
+  {
+    "case_id": "UXQA-002",
+    "source_qa_id": "UX-003",
+    "passed": false,
+    "reason": "LỖI CHẠY CASE: ToolError('user_id không tồn tại: USR-A')",
+    "reply": ""
+  }
+]

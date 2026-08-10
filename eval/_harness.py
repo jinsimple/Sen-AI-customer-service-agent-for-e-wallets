@@ -116,12 +116,18 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
     all_customer_texts = list(utterances)
     all_agent_replies: list[str] = []
     all_tool_calls: list[dict] = []
+    all_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     result: dict[str, Any] = {}
+
+    def _add_usage(r: dict[str, Any]) -> None:
+        for k, v in (r.get("usage") or {}).items():
+            all_usage[k] = all_usage.get(k, 0) + v
 
     for text in utterances:
         result = run_agent_turn(session, user_id=case["user_id"], message=text, thread_id=thread_id)
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
+        _add_usage(result)
 
     extra_turns_used = 0
     while result.get("ticket_id") is None and extra_turns_used < max_extra_turns:
@@ -135,9 +141,11 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
         result = run_agent_turn(session, user_id=case["user_id"], message=customer_reply, thread_id=thread_id)
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
+        _add_usage(result)
         extra_turns_used += 1
 
     result["tool_calls"] = all_tool_calls
+    result["usage"] = all_usage
 
     result["all_customer_texts"] = all_customer_texts
     result["all_agent_replies"] = all_agent_replies
@@ -269,13 +277,34 @@ def check_expected(session: Session, result: dict[str, Any], expected: dict[str,
         ))
     else:
         # Không tạo ticket lượt này — hợp lệ nếu case kỳ vọng cần hỏi thêm
-        # (missing_info/ambiguous) hoặc chưa tra ra giao dịch (not_found).
-        expects_no_ticket = expected.get("must_ask_clarifying_question") or expected.get("authority") is None
+        # (missing_info/ambiguous), chưa tra ra giao dịch (not_found), HOẶC
+        # case đa lượt kiểu ERR-004 (chống trùng ticket) mà ticket đã tạo ở
+        # LƯỢT TRƯỚC trong cùng hội thoại — result chỉ phản ánh lượt CUỐI nên
+        # ticket_id ở đây là None dù đã tạo đúng 1 lần trước đó (xem check
+        # khong_tao_trung_ticket bên dưới, dựa trên tool_calls tích luỹ).
+        already_has_ticket_from_earlier_turn = expected.get("must_not_create_duplicate_ticket") and any(
+            c.get("tool_name") == "create_ticket" for c in (result.get("tool_calls") or [])
+        )
+        expects_no_ticket = (
+            expected.get("must_ask_clarifying_question")
+            or expected.get("authority") is None
+            or already_has_ticket_from_earlier_turn
+        )
         checks.append(("khong_tao_ticket_hop_le", bool(expects_no_ticket)))
 
     tool_calls_blob = json.dumps(result.get("tool_calls", []), ensure_ascii=False)
     for trans_id in expected.get("must_cite_trans_ids") or []:
         checks.append((f"cite_{trans_id}", trans_id in tool_calls_blob))
+
+    if expected.get("must_not_create_duplicate_ticket"):
+        # ERR-004 (FIN05_QA_TestCases.jsonl) — case nhiều lượt: khách hỏi lại
+        # cùng khiếu nại đã có ticket trong CÙNG hội thoại. Đếm trên
+        # `tool_calls` TÍCH LUỸ qua mọi lượt (run_case_turns_adaptive, không
+        # chỉ lượt cuối) — đúng đúng 1 lần create_ticket, không tạo trùng.
+        n_create_ticket = sum(
+            1 for c in (result.get("tool_calls") or []) if c.get("tool_name") == "create_ticket"
+        )
+        checks.append(("khong_tao_trung_ticket", n_create_ticket == 1))
 
     return checks
 

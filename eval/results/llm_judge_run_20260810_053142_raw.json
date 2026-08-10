@@ -1,0 +1,16 @@
+[
+  {
+    "case_id": "UXQA-001",
+    "source_qa_id": "UX-001",
+    "passed": false,
+    "reason": "Câu trả lời không thể hiện sự đồng cảm với khách hàng và có giọng văn lạnh lùng. Không có câu nào thể hiện sự lo lắng hay bức xúc của khách. Hơn nữa, agent đã đề nghị tạo hồ sơ khiếu nại mà không có căn cứ lỗi hệ thống, điều này không đúng.",
+    "reply": "Mình đã tra cứu và thấy có một giao dịch trừ 59.000đ vào ngày 21/07/2026 lúc 19:42. Giao dịch này có mã là **TXN20260721000071** và được thực hiện từ ví nội bộ của bạn.\n\nĐể mình giúp bạn xử lý vấn đề này, bạn có thể cho mình biết rõ hơn về lý do bạn cho rằng đây là giao dịch oan uổng không? Sau đó, mình sẽ tạo hồ sơ khiếu nại cho bạn."
+  },
+  {
+    "case_id": "UXQA-002",
+    "source_qa_id": "UX-003",
+    "passed": true,
+    "reason": "Câu trả lời sử dụng ngôn ngữ dễ hiểu và không lộ chi tiết kỹ thuật nội bộ. Agent đã xin lỗi và thông báo về khó khăn hiện tại, đồng thời hẹn khách hàng thử lại sau.",
+    "reply": "Mình đã cố gắng kiểm tra giao dịch TXN-0001 của bạn, nhưng hiện tại hệ thống gặp vấn đề và chưa thể lấy được thông tin. Bạn có thể chờ một chút và mình sẽ kiểm tra lại sau. Nếu bạn cần hỗ trợ ngay, mình có thể tạo một hồ sơ để chuyên viên CSKH liên hệ với bạn. Bạn có muốn làm vậy không?"
+  }
+]

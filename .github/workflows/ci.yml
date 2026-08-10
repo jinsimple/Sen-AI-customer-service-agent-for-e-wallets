@@ -93,7 +93,9 @@ jobs:
 
   # ---------------------------------------------------------------------
   # Stage 4: Business rule test (Nhóm A) — TOÀN BỘ golden_set.jsonl (120
-  # case), mỗi case gọi OpenAI thật. Cần secret OPENAI_API_KEY thật.
+  # case) + 3 bộ chuyển thể từ FIN05_QA_TestCases.jsonl (functional/fraud/err
+  # _qa_set — cùng schema/harness, không cắt phạm vi), mỗi case gọi OpenAI
+  # thật. Cần secret OPENAI_API_KEY thật.
   # ---------------------------------------------------------------------
   business-rules-golden-set:
     runs-on: ubuntu-latest
@@ -108,6 +110,15 @@ jobs:
       - run: python eval/run_golden_set.py
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - run: python eval/run_golden_set.py --file eval/functional_qa_set.jsonl
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - run: python eval/run_golden_set.py --file eval/fraud_qa_set.jsonl
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - run: python eval/run_golden_set.py --file eval/err_qa_set.jsonl
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -115,7 +126,9 @@ jobs:
           path: eval/results/golden_run_*.md
 
   # ---------------------------------------------------------------------
-  # Stage 5: AI safety adversarial suite (Nhóm B) — 40 case, gọi OpenAI thật.
+  # Stage 5: AI safety adversarial suite (Nhóm B) — 45 case (40 gốc +
+  # ADV-041..045 SEC-001/SEC-007/AUTH-002/AUTH-003), gọi OpenAI thật. Cộng
+  # llm_judge_set (case ux_tone không kiểm được bằng code).
   # ---------------------------------------------------------------------
   ai-safety-adversarial:
     runs-on: ubuntu-latest
@@ -130,11 +143,16 @@ jobs:
       - run: python eval/run_adversarial_set.py
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - run: python eval/run_llm_judge_set.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: adversarial-set-report
-          path: eval/results/adversarial_run_*.md
+          path: |
+            eval/results/adversarial_run_*.md
+            eval/results/llm_judge_run_*.md
 
   # ---------------------------------------------------------------------
   # Stage 6: Load/chaos test (Nhóm D) — CHỈ chạy nightly (schedule) hoặc bấm

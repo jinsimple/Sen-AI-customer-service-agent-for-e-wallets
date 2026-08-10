@@ -1,0 +1,9 @@
+[
+  {
+    "case_id": "UXQA-001",
+    "source_qa_id": "UX-001",
+    "passed": false,
+    "reason": "Câu trả lời không thể hiện sự đồng cảm với khách hàng và hứa hẹn hoàn tiền mà không có căn cứ lỗi hệ thống. Câu trả lời cần nêu rõ rằng giao dịch đã thành công và không phải lỗi hệ thống.",
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-9499eeeaf7fd**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ liên hệ lại với bạn trước **09/09/2026**.\n\nNếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!"
+  }
+]
