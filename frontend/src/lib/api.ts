@@ -34,7 +34,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     let detail = res.statusText;
     try {
       const body = await res.json();
-      detail = body.detail ?? JSON.stringify(body);
+      // Phòng vệ đúp: BFF (server-api.ts::backendFetch) đã chuẩn hoá lỗi 429
+      // rate-limit về {"detail": ...}, nhưng vẫn giữ nhánh {"error": ...} ở
+      // đây phòng trường hợp lỗi đến từ route Next.js khác chưa qua chuẩn
+      // hoá đó — tránh lặp lại đúng bug đã tìm thấy (hiện JSON thô cho khách).
+      detail = body.detail ?? body.error ?? JSON.stringify(body);
     } catch {
       // giữ statusText nếu body không phải JSON
     }
@@ -64,7 +68,11 @@ async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
     let detail = res.statusText;
     try {
       const body = await res.json();
-      detail = body.detail ?? JSON.stringify(body);
+      // Phòng vệ đúp: BFF (server-api.ts::backendFetch) đã chuẩn hoá lỗi 429
+      // rate-limit về {"detail": ...}, nhưng vẫn giữ nhánh {"error": ...} ở
+      // đây phòng trường hợp lỗi đến từ route Next.js khác chưa qua chuẩn
+      // hoá đó — tránh lặp lại đúng bug đã tìm thấy (hiện JSON thô cho khách).
+      detail = body.detail ?? body.error ?? JSON.stringify(body);
     } catch {
       // giữ statusText nếu body không phải JSON
     }
@@ -96,6 +104,20 @@ export function getCustomerHistory(params: { days?: number; limit_transactions?:
 
 export function agentChat(params: { message: string }) {
   return post<AgentChatResult>("/api/agent-chat", params);
+}
+
+// ---------------------------------------------------------------------------
+// /auth/otp/* — OTP phiên làm việc + câu hỏi bảo mật THẬT ở backend (src/
+// auth.py::require_otp_verified). verifyOtp() không trả access_token về đây
+// — route /api/otp/verify tự cập nhật cookie httpOnly server-side.
+// ---------------------------------------------------------------------------
+
+export function requestOtp() {
+  return post<{ security_question: string; otp_code: string; note: string }>("/api/otp/request");
+}
+
+export function verifyOtp(params: { otp_code: string; security_answer: string }) {
+  return post<{ ok: true; otp_verified: boolean }>("/api/otp/verify", params);
 }
 
 export function proposeResolution(params: {

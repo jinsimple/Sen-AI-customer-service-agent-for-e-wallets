@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ApiError, agentChat, getCustomerHistory } from "@/lib/api";
+import { ApiError, agentChat, getCustomerHistory, requestOtp, verifyOtp } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, type ComplaintType, type CustomerHistory } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
 
@@ -28,7 +28,15 @@ const SENSITIVE_TOOLS = new Set(["lookup_transaction", "get_customer_history"]);
 type Msg =
   | { id: string; from: "bot"; text: string; chips?: { label: string; onClick: () => void }[]; cite?: string }
   | { id: string; from: "user"; text: string }
-  | { id: string; from: "otp"; resolved: boolean };
+  | {
+      id: string;
+      from: "otp";
+      resolved: boolean;
+      securityQuestion: string;
+      demoOtpCode: string;
+      checking: boolean;
+      error: string | null;
+    };
 
 type Stage = "greeting" | "otp" | "chat" | "busy";
 
@@ -41,13 +49,24 @@ function nid() {
   return crypto.randomUUID();
 }
 
-function OtpBoxes({ disabled }: { disabled: boolean }) {
+function OtpForm({
+  disabled,
+  checking,
+  error,
+  onSubmit,
+}: {
+  disabled: boolean;
+  checking: boolean;
+  error: string | null;
+  onSubmit: (otpCode: string, securityAnswer: string) => void;
+}) {
   // Controlled (không thao tác DOM tay) — bắt buộc để gõ ĐÈ lên ô đã có sẵn
   // số hoạt động đúng: input maxLength=1 chưa được bôi đen thì trình duyệt
   // chặn ký tự mới (đã đạt maxLength), onChange không bắn, không tự nhảy ô.
   // onFocus bôi đen nội dung cũ để gõ đè luôn thay thế được, dù gõ theo thứ
   // tự nào hay quay lại ô đã điền.
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
+  const [answer, setAnswer] = useState("");
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
   function handleChange(i: number, value: string) {
@@ -66,25 +85,58 @@ function OtpBoxes({ disabled }: { disabled: boolean }) {
     }
   }
 
+  const canSubmit = !disabled && !checking && digits.every(Boolean) && answer.trim().length > 0;
+
   return (
-    <div className="otp-row">
-      {digits.map((d, i) => (
-        <input
-          key={i}
-          ref={(el) => {
-            refs.current[i] = el;
-          }}
-          className="otp-box"
-          inputMode="numeric"
-          maxLength={1}
-          value={d}
-          disabled={disabled}
-          onChange={(e) => handleChange(i, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          onFocus={(e) => e.target.select()}
-        />
-      ))}
-    </div>
+    <>
+      <div className="otp-row">
+        {digits.map((d, i) => (
+          <input
+            key={i}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            className="otp-box"
+            inputMode="numeric"
+            maxLength={1}
+            value={d}
+            disabled={disabled || checking}
+            onChange={(e) => handleChange(i, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(i, e)}
+            onFocus={(e) => e.target.select()}
+          />
+        ))}
+      </div>
+      <input
+        className="otp-answer"
+        style={{ marginTop: 8, width: "100%" }}
+        placeholder="Câu trả lời bảo mật"
+        value={answer}
+        disabled={disabled || checking}
+        onChange={(e) => setAnswer(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && canSubmit && onSubmit(digits.join(""), answer)}
+      />
+      {error && (
+        <div className="dim" style={{ color: "var(--danger, #d33)", fontSize: 12, marginTop: 6 }}>
+          {error}
+        </div>
+      )}
+      {!error && !canSubmit && !checking && (digits.some(Boolean) || answer) && (
+        <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
+          {!digits.every(Boolean)
+            ? "Nhập đủ 6 số OTP để tiếp tục."
+            : "Nhập câu trả lời bảo mật để tiếp tục."}
+        </div>
+      )}
+      <button
+        className="btn btn-gold btn-sm"
+        style={{ marginTop: 12 }}
+        disabled={!canSubmit}
+        onClick={() => onSubmit(digits.join(""), answer)}
+      >
+        {checking ? "Đang xác thực..." : "Xác nhận"}
+      </button>
+    </>
   );
 }
 
@@ -136,6 +188,28 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
   // có mã giao dịch mà không nói rõ vấn đề gì (agent từng tạo ticket vội khi
   // nhận tin mơ hồ kiểu đó, dù prompt đã dặn rõ — LLM không tuân thủ tuyệt
   // đối 100%, nên chặn hẳn ở tầng UI).
+  // Gọi /auth/otp/request THẬT (backend giờ xác thực thật, không còn là gate
+  // UI thuần — xem src/auth.py::require_otp_verified) rồi mới hiện form OTP +
+  // câu hỏi bảo mật. Thất bại (mất mạng...) thì báo lỗi, không hiện form giả.
+  async function beginOtpFlow() {
+    try {
+      const { security_question, otp_code } = await requestOtp();
+      push({
+        id: nid(),
+        from: "otp",
+        resolved: false,
+        securityQuestion: security_question,
+        demoOtpCode: otp_code,
+        checking: false,
+        error: null,
+      });
+      setStage("otp");
+    } catch {
+      push({ id: nid(), from: "bot", text: "Không xin được mã OTP lúc này, bạn thử lại giúp mình nhé." });
+      setStage("chat");
+    }
+  }
+
   function startComplaint(
     c: (typeof COMPLAINT_CHIPS)[number],
     tx: NonNullable<CustomerHistory["recent_transactions"]>[number]
@@ -153,12 +227,26 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
       text: `Mình hiểu bạn đang lo vì ${c.label.toLowerCase()} — để bảo vệ tài khoản của bạn, mình cần xác thực nhanh trước khi tra cứu nhé.`,
     });
     pendingStarterRef.current = starter;
-    push({ id: nid(), from: "otp", resolved: false });
-    setStage("otp");
+    void beginOtpFlow();
   }
 
-  function confirmOtp(msgId: string) {
-    setMessages((prev) => prev.map((m) => (m.id === msgId && m.from === "otp" ? { ...m, resolved: true } : m)));
+  async function submitOtp(msgId: string, otpCode: string, securityAnswer: string) {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId && m.from === "otp" ? { ...m, checking: true, error: null } : m))
+    );
+    try {
+      await verifyOtp({ otp_code: otpCode, security_answer: securityAnswer });
+    } catch (e) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId && m.from === "otp"
+            ? { ...m, checking: false, error: e instanceof ApiError ? e.message : "Xác thực thất bại, thử lại." }
+            : m
+        )
+      );
+      return;
+    }
+    setMessages((prev) => prev.map((m) => (m.id === msgId && m.from === "otp" ? { ...m, resolved: true, checking: false } : m)));
     otpVerifiedRef.current = true;
     const starter = pendingStarterRef.current;
     pendingStarterRef.current = null;
@@ -222,8 +310,7 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
           from: "bot",
           text: "Mình vừa cần tra thông tin liên quan tới giao dịch/tài khoản của bạn — xác thực nhanh OTP phiên làm việc để tiếp tục nhé.",
         });
-        push({ id: nid(), from: "otp", resolved: false });
-        setStage("otp");
+        void beginOtpFlow();
         return;
       }
       setStage("chat");
@@ -317,13 +404,20 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
                 return (
                   <div className="bubble-row from-bot" key={m.id}>
                     <div className="bubble bubble-bot">
-                      <OtpBoxes disabled={m.resolved} />
                       <div className="otp-meta">
-                        <span>Mã OTP phiên làm việc (mô phỏng) — gửi tới {phone}</span>
+                        <span>
+                          Mã OTP phiên làm việc (mô phỏng — gửi tới {phone}): <strong>{m.demoOtpCode}</strong>
+                        </span>
                       </div>
-                      <button className="btn btn-gold btn-sm" style={{ marginTop: 12 }} disabled={m.resolved} onClick={() => confirmOtp(m.id)}>
-                        Xác nhận
-                      </button>
+                      <div className="otp-meta" style={{ marginTop: 4 }}>
+                        <span>Câu hỏi bảo mật: {m.securityQuestion}</span>
+                      </div>
+                      <OtpForm
+                        disabled={m.resolved}
+                        checking={m.checking}
+                        error={m.error}
+                        onSubmit={(code, answer) => void submitOtp(m.id, code, answer)}
+                      />
                     </div>
                   </div>
                 );

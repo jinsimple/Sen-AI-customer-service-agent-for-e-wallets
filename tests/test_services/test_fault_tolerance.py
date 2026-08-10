@@ -6,12 +6,18 @@ dang) khi lỗi xảy ra giữa chừng.
 """
 from __future__ import annotations
 
+import datetime as dt
+
 import pytest
 
 from src.agents.tools.customer_tools import build_customer_tools
 from src.db.models import Complaint, Ticket
 from src.services.complaint_intake import create_ticket_with_fraud_check
 from src.tools.base import ToolError
+
+_FRESH_OTP = dt.datetime.utcnow().timestamp()  # test D4/D5 kiểm lỗi hệ thống
+# ngoài, không phải luồng OTP (đã có tests/test_api/test_otp.py riêng) — cần
+# khách "đã xác thực" để không bị chặn OTP che lấp lỗi đang test.
 
 # ---------------------------------------------------------------------------
 # D4 — tool bên ngoài (lookup_transaction/get_customer_history) lỗi/timeout.
@@ -21,7 +27,7 @@ from src.tools.base import ToolError
 
 
 def test_lookup_transaction_tool_error_returns_graceful_dict(sample_db, monkeypatch):
-    tools = build_customer_tools(sample_db, user_id="USR-A")
+    tools = build_customer_tools(sample_db, user_id="USR-A", otp_verified_at=_FRESH_OTP)
     lookup = next(t for t in tools if t.name == "lookup_transaction")
 
     def _raise_tool_error(*args, **kwargs):
@@ -40,7 +46,7 @@ def test_lookup_transaction_unexpected_exception_is_not_silently_swallowed(sampl
     """Lỗi hệ thống KHÔNG PHẢI ToolError (vd TimeoutError/ConnectionError thật
     từ 1 dependency ngoài) — xác nhận hành vi THẬT của wrapper (không bắt được
     ToolError khác nhóm), để biết rõ giới hạn thay vì giả định đã xử lý hết."""
-    tools = build_customer_tools(sample_db, user_id="USR-A")
+    tools = build_customer_tools(sample_db, user_id="USR-A", otp_verified_at=_FRESH_OTP)
     lookup = next(t for t in tools if t.name == "lookup_transaction")
 
     def _raise_connection_error(*args, **kwargs):
@@ -75,7 +81,7 @@ def test_run_agent_turn_propagates_openai_error_without_partial_ticket(sample_db
         def invoke(self, *a, **kw):
             raise RuntimeError("giả lập OpenAI API lỗi 500")
 
-    def _boom_build_agent(session, *, user_id, customer_name):
+    def _boom_build_agent(session, *, user_id, customer_name, otp_verified_at):
         raise RuntimeError("giả lập OpenAI API lỗi 500")
 
     monkeypatch.setattr(graph_module, "_build_agent", _boom_build_agent)

@@ -38,6 +38,11 @@ class RouteCheck:
 
 
 ROUTES: list[RouteCheck] = [
+    RouteCheck("POST", "/auth/otp/request", "/auth/otp/request", {"customer"}, body={}),
+    RouteCheck(
+        "POST", "/auth/otp/verify", "/auth/otp/verify", {"customer"},
+        body={"otp_code": "000000", "security_answer": "wrong"},
+    ),
     RouteCheck("POST", "/tools/lookup_transaction", "/tools/lookup_transaction", ALL_ROLES, body={"trans_id": "TXN-NOPE"}),
     RouteCheck("POST", "/tools/get_customer_history", "/tools/get_customer_history", {"customer"}, body={}),
     RouteCheck(
@@ -84,7 +89,16 @@ PUBLIC_ROUTES = {
 @pytest.fixture()
 def client(sample_db):
     def _override_session():
-        yield sample_db
+        # Phải commit/rollback ĐÚNG như get_session() thật (src/api/deps.py)
+        # — xem ghi chú tương tự ở tests/test_api/test_otp.py (bug thật tìm
+        # được 2026-08-10: fixture chỉ yield không commit/rollback che mất 1
+        # lỗi rollback thật trong verify_otp()).
+        try:
+            yield sample_db
+            sample_db.commit()
+        except Exception:
+            sample_db.rollback()
+            raise
 
     app.dependency_overrides[get_session] = _override_session
     yield TestClient(app)

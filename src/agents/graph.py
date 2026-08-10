@@ -21,7 +21,11 @@ from src.agents.prompt import build_system_prompt
 from src.agents.tools.customer_tools import build_customer_tools
 from src.config import OPENAI_API_KEY, OPENAI_MODEL
 from src.db.models import User
+from src.observability.langchain_callback import OTelTracingCallbackHandler
+from src.observability.tracing import get_tracer
 from src.tools.base import ToolError
+
+_tracer = get_tracer("fin05.agent")
 
 # Singleton module-level: agent được build lại mỗi request (session/tools
 # gắn với request đó), nhưng checkpointer dùng chung 1 instance nên lịch sử
@@ -30,20 +34,49 @@ from src.tools.base import ToolError
 # phiên đăng nhập khác nhau" (Brief).
 _CHECKPOINTER = MemorySaver()
 
+# Sentinel — phân biệt "không truyền otp_verified_at" (backward-compat: coi như
+# vừa xác thực XONG, dùng bởi eval harness/test hiện có vốn giả định "khách đã
+# xác thực OTP trước khi vào chat") với "truyền None thật" (current_user thật
+# CHƯA TỪNG xác thực — /agent/chat luôn truyền tường minh, xem src/api/main.py).
+# Tính "now" lúc GỌI HÀM (không phải lúc module nạp) để không lệch thời gian
+# nếu test suite chạy lâu.
+_ALWAYS_FRESH = object()
 
-def _build_agent(session: Session, *, user_id: str, customer_name: str):
+
+def _build_agent(session: Session, *, user_id: str, customer_name: str, otp_verified_at: float | None):
     model = ChatOpenAI(model=OPENAI_MODEL, temperature=0.2, api_key=OPENAI_API_KEY)
-    tools = build_customer_tools(session, user_id=user_id)
+    tools = build_customer_tools(session, user_id=user_id, otp_verified_at=otp_verified_at)
     system_prompt = build_system_prompt(current_time=dt.datetime.utcnow(), customer_name=customer_name)
     return create_agent(model, tools, system_prompt=system_prompt, checkpointer=_CHECKPOINTER)
 
 
-def run_agent_turn(session: Session, *, user_id: str, message: str, thread_id: str | None = None) -> dict[str, Any]:
+def run_agent_turn(
+    session: Session,
+    *,
+    user_id: str,
+    message: str,
+    thread_id: str | None = None,
+    otp_verified_at: float | None = _ALWAYS_FRESH,
+) -> dict[str, Any]:
+    """`otp_verified_at`: timestamp (epoch giây) lúc xác thực OTP+câu hỏi bảo
+    mật gần nhất (src/auth.py) — truyền THẬT từ current_user.otp_verified_at ở
+    /agent/chat (src/api/main.py), có thể là None nếu khách CHƯA TỪNG xác thực.
+    Không truyền tham số này (mặc định `_ALWAYS_FRESH`) nghĩa là coi như vừa
+    xác thực XONG — để KHÔNG phá vỡ eval/golden_set.jsonl + adversarial_set
+    hiện có: các case đó vốn giả định "khách đã xác thực OTP trước khi vào
+    chat" (đúng câu mở đầu system prompt), không phải kiểm tra luồng OTP —
+    luồng OTP thật được test riêng ở tests/test_api/test_otp.py +
+    frontend/e2e/auth.spec.ts."""
+    if otp_verified_at is _ALWAYS_FRESH:
+        otp_verified_at = dt.datetime.utcnow().timestamp()
+
     user = session.get(User, user_id)
     if user is None:
         raise ToolError(f"user_id không tồn tại: {user_id}")
 
-    agent = _build_agent(session, user_id=user_id, customer_name=user.full_name)
+    agent = _build_agent(
+        session, user_id=user_id, customer_name=user.full_name, otp_verified_at=otp_verified_at
+    )
     # thread_id mặc định = user_id (hành vi thật, không đổi). eval/_harness.py
     # truyền thread_id riêng biệt mỗi case để cô lập bộ nhớ hội thoại
     # (checkpointer module-level dùng chung — nếu không cô lập, nhiều case
@@ -53,7 +86,19 @@ def run_agent_turn(session: Session, *, user_id: str, message: str, thread_id: s
     state_before = agent.get_state(config)
     prev_len = len(state_before.values.get("messages", [])) if state_before.values else 0
 
-    result = agent.invoke({"messages": [HumanMessage(content=message)]}, config=config)
+    # Span gốc "agent_turn" — 1 lượt chat là 1 vòng lặp ReAct nhiều bước (LLM
+    # generation + tool call xen kẽ), KHÔNG PHẢI 1 khối duy nhất (Giai đoạn 1
+    # checklist observability). `callbacks=[handler]` (KHÔNG dùng
+    # `.configurable`) tạo span con cho MỖI vòng gọi LLM/tool bên trong, tự
+    # nối cây cha-con qua context OTel hiện hành (span gốc đang active).
+    with _tracer.start_as_current_span("agent_turn") as root_span:
+        root_span.set_attribute("fin05.user_id", user_id)
+        root_span.set_attribute("fin05.thread_id", thread_id or user_id)
+        root_span.set_attribute("fin05.otp_verified", otp_verified_at is not None)
+        result = agent.invoke(
+            {"messages": [HumanMessage(content=message)]},
+            config={**config, "callbacks": [OTelTracingCallbackHandler()]},
+        )
     all_messages = result["messages"]
     turn_messages = all_messages[prev_len:]
 
@@ -87,9 +132,20 @@ def run_agent_turn(session: Session, *, user_id: str, message: str, thread_id: s
     if ticket_id is not None:
         write_investigation_logs_for_ticket(session, ticket_id=ticket_id, all_messages=all_messages)
 
+    # Token usage cộng dồn của LƯỢT NÀY (mọi vòng gọi model bên trong, kể cả
+    # vòng gọi tool trung gian) — dùng để đo cost thật (eval/measure_quality.py),
+    # KHÔNG ảnh hưởng contract cũ (chỉ thêm key mới, không đổi key sẵn có).
+    usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    for m in turn_messages:
+        meta = isinstance(m, AIMessage) and getattr(m, "usage_metadata", None)
+        if meta:
+            for k in usage:
+                usage[k] += meta.get(k, 0) or 0
+
     return {
         "reply": reply,
         "tool_calls": tool_calls_out,
         "ticket_id": ticket_id,
         "should_escalate": should_escalate,
+        "usage": usage,
     }

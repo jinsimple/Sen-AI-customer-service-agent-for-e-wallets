@@ -8,6 +8,8 @@ payload NGUYÊN VĂN dạng dữ liệu thô, không "thực thi"/biến dạng 
 """
 from __future__ import annotations
 
+import datetime as dt
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -30,7 +32,19 @@ XSS_PAYLOADS = [
 @pytest.fixture()
 def client(sample_db):
     def _override_session():
-        yield sample_db
+        # Phải commit/rollback ĐÚNG như get_session() thật (src/api/deps.py)
+        # — phát hiện thật (2026-08-10): fixture cũ chỉ `yield sample_db`
+        # không commit/rollback, làm lộ SAI 1 bug thật (route mutate rồi
+        # raise HTTPException, get_session() thật rollback cuốn ngược mutate
+        # đó — src/api/main.py::verify_otp, failed_attempts không bao giờ
+        # thật sự tăng qua HTTP) vì test đọc state trong cùng 1 session còn
+        # nguyên trong bộ nhớ dù backend thật đã rollback mất.
+        try:
+            yield sample_db
+            sample_db.commit()
+        except Exception:
+            sample_db.rollback()
+            raise
 
     app.dependency_overrides[get_session] = _override_session
     yield TestClient(app)
@@ -38,7 +52,9 @@ def client(sample_db):
 
 
 def _auth(role: str, user_id: str) -> dict:
-    token = create_access_token(user_id=user_id, role=role)
+    # otp_verified_at=vừa xác thực xong — các test injection ở đây kiểm input
+    # độc hại, không phải luồng OTP (đã có tests/test_api/test_otp.py riêng).
+    token = create_access_token(user_id=user_id, role=role, otp_verified_at=dt.datetime.utcnow())
     return {"Authorization": f"Bearer {token}"}
 
 

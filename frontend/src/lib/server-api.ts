@@ -45,7 +45,13 @@ export async function backendFetch<T>(
     let detail = res.statusText;
     try {
       const body = await res.json();
-      detail = body.detail ?? JSON.stringify(body);
+      // FastAPI (HTTPException) trả {"detail": "..."}, nhưng slowapi (rate
+      // limit 429, xem src/api/main.py) trả {"error": "..."} — thiếu nhánh
+      // này khiến lỗi rơi xuống JSON.stringify(body) và hiện nguyên văn JSON
+      // thô cho khách (phát hiện thật: bấm "Xác nhận" OTP liên tục chạm rate
+      // limit, màn hình hiện {"error":"Rate limit exceeded: ..."} thay vì lời
+      // Việt dễ hiểu).
+      detail = body.detail ?? body.error ?? JSON.stringify(body);
     } catch {
       // giữ statusText nếu body không phải JSON
     }

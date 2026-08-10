@@ -38,6 +38,36 @@ SLA_LEGAL_GENERAL_DAYS = 30
 SLA_SERVICE_FIRST_RESPONSE_HOURS = 48
 SLA_SERVICE_FRAUD_BUSINESS_DAYS = 7
 
+# Seed cố định dùng khi sinh dataset (scripts/gen_dataset.py --seed, mặc định
+# 20260802 — PRD §9). Backend cần lại giá trị này để tái tính câu trả lời bảo
+# mật demo (User.security_answer_hash = sha256(f"ans-{seed}-{user_id}")) lúc
+# xác thực OTP thật (src/auth.py) — KHÔNG lưu answer plaintext ở đâu cả, chỉ
+# tái tạo công thức để so hash, giữ đúng nguyên tắc không lưu bí mật dạng thô.
+DATASET_SEED = 20260802
+
+# Ngưỡng khoá phiên xác thực OTP sau N lần sai — dùng LẠI đúng
+# min_failed_attempts của FS-06 (data/schema/fraud_signals.yaml) để nhất quán
+# với định nghĩa "bất thường xác thực" mà fraud_engine.py đã dùng, không tự
+# đặt số riêng.
+OTP_MAX_FAILED_ATTEMPTS = 3
+
+# AUTH-005/007/008 (FIN05_QA_TestCases.jsonl) — quyết định thiết kế đã chốt
+# sau khi đối chiếu chuẩn ngành (nghiên cứu 2026-08-10, xem docs/TESTING.md):
+# - Thao tác CHỈ XEM (lookup_transaction, get_customer_history — bao gồm cả
+#   xem trạng thái ticket/khiếu nại đã có, AUTH-005 nhánh (e)): áp đúng
+#   NIST SP 800-63B / OWASP ASVS 5.0 Level 2 cho phiên AAL2 — tối đa 12 giờ
+#   kể từ lúc xác thực OTP, không phân biệt còn hoạt động hay không (bản đơn
+#   giản hoá của "30 phút không hoạt động HOẶC 12 giờ tối đa" — hệ thống hiện
+#   tại là JWT stateless, không theo dõi hoạt động realtime giữa các request
+#   nên chỉ áp mốc tuyệt đối, không áp mốc "không hoạt động").
+OTP_VIEW_MAX_MINUTES = 12 * 60
+
+# - create_ticket (dẫn tới khả năng hoàn tiền thật, hậu quả tài chính) cần
+#   xác thực TƯƠI HƠN — mô hình step-up 2 tầng theo rủi ro (chuẩn ngành: cửa
+#   sổ hiệu lực step-up phổ biến 15-60 phút, chọn mốc chặt 15 phút vì đây là
+#   hành động có hậu quả tài chính, không phải chỉ xem).
+OTP_STEPUP_FRESH_MINUTES = 15
+
 # BR-06: định dạng masking PDPA cho thông tin bên thứ ba.
 PHONE_MASK_VISIBLE_PREFIX = 3
 PHONE_MASK_VISIBLE_SUFFIX = 4

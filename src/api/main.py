@@ -21,10 +21,12 @@ user nào — đây là lỗ hổng nghiêm trọng nhất đã vá.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import logging
+import random
 import time
-from pathlib import Path
+import uuid
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -42,13 +44,22 @@ from src.api.schemas import (
     GetCustomerHistoryRequest,
     LoginRequest,
     LookupTransactionRequest,
+    OtpVerifyRequest,
     PolicySearchRequest,
     ProposeResolutionRequest,
     RequestMoreInfoRequest,
 )
-from src.auth import CurrentUser, create_access_token, get_current_user, require_role, try_decode
-from src.config import ROOT_DIR
+from src.auth import (
+    CurrentUser,
+    create_access_token,
+    get_current_user,
+    require_otp_verified,
+    require_role,
+    try_decode,
+)
+from src.config import DATASET_SEED, OTP_MAX_FAILED_ATTEMPTS, ROOT_DIR
 from src.db.models import (
+    AuthSession,
     Complaint,
     Escalation,
     InvestigationLog,
@@ -58,6 +69,9 @@ from src.db.models import (
     ToolResult,
     User,
 )
+from src.observability.context import bind_context, clear_context
+from src.observability.logging_config import configure_logging
+from src.observability.tracing import configure_tracing, instrument_fastapi_app
 from src.rag.ingest import delete_document as _delete_policy_document
 from src.rag.ingest import ingest_document
 from src.rag.search import search_policy_text
@@ -69,11 +83,20 @@ from src.tools.get_customer_history import get_customer_history as _get_customer
 from src.tools.lookup_transaction import lookup_transaction as _lookup_transaction
 from src.tools.propose_resolution import propose_resolution as _propose_resolution
 
+configure_logging()  # JSON stdout, gắn correlation_id/user_id tự động — xem
+# src/observability/logging_config.py. Gọi Ở ĐÂY (module import time, trước
+# khi bất kỳ route/middleware nào chạy) để MỌI logger trong process (kể cả
+# uvicorn.access nếu propagate) dùng chung 1 format ngay từ request đầu tiên.
+configure_tracing()  # OTel -> Jaeger (OTEL_EXPORTER_OTLP_ENDPOINT, mặc định
+# localhost:4317) — graceful-degrade nếu Jaeger không sống, xem tracing.py.
+
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(title="FIN-05 AI Agent CSKH — Backend", version="0.1.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+instrument_fastapi_app(app)  # auto-instrument tầng HTTP (Giai đoạn 4) — span
+# request/response tự động, KHÔNG tự viết tay span cho những gì framework đã lo.
 
 # KHÔNG có CORSMiddleware — cố ý. Frontend (Next.js, frontend/) gọi qua BFF
 # proxy (route handler server-side, xem frontend/src/app/api/), tức là
@@ -107,15 +130,36 @@ if not _access_logger.handlers:
 async def audit_log_middleware(request: Request, call_next):
     start = time.monotonic()
     identity = "anonymous"
+    user_id = None
     auth_header = request.headers.get("authorization", "")
     if auth_header.lower().startswith("bearer "):
         current_user = try_decode(auth_header.split(" ", 1)[1])
-        identity = f"{current_user.user_id}:{current_user.role}" if current_user else "invalid-token"
-    response = await call_next(request)
+        if current_user:
+            identity = f"{current_user.user_id}:{current_user.role}"
+            user_id = current_user.user_id
+        else:
+            identity = "invalid-token"
+
+    # correlation_id: nhận lại `X-Request-ID` nếu client/proxy đã gắn sẵn (vd
+    # Caddy, xem docs/DEPLOY.md), tự sinh nếu không có — gắn 1 LẦN Ở ĐÂY qua
+    # contextvars (src/observability/context.py), mọi log/span bên trong
+    # request này (kể cả sâu trong agent/tool) tự động thừa hưởng, không cần
+    # truyền tay qua tham số hàm. `reset()` trong finally — BẮT BUỘC theo
+    # đúng checklist observability Giai đoạn 2, chống rò rỉ context sang
+    # request kế tiếp nếu thread/task bị tái sử dụng.
+    correlation_id = request.headers.get("x-request-id") or f"req-{uuid.uuid4().hex[:16]}"
+    tokens = bind_context(correlation_id=correlation_id, user_id=user_id)
+    try:
+        response = await call_next(request)
+    finally:
+        clear_context(tokens)
+    response.headers["X-Correlation-Id"] = correlation_id
+
     _access_logger.info(
         json.dumps(
             {
                 "ts": dt.datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
                 "ip": request.client.host if request.client else None,
                 "method": request.method,
                 "path": request.url.path,
@@ -159,6 +203,115 @@ def login(request: Request, req: LoginRequest, session: Session = Depends(get_se
 
 
 # ---------------------------------------------------------------------------
+# /auth/otp/* — OTP phiên làm việc + câu hỏi bảo mật THẬT ở backend (Brief §7
+# #4). TRƯỚC bản vá này, OTP chỉ là gate UI mô phỏng ở frontend
+# (ChatClient.tsx) — backend không kiểm tra gì, nghĩa là gọi thẳng
+# /tools/lookup_transaction bằng JWT hợp lệ vẫn lấy được dữ liệu nhạy cảm mà
+# không cần xác thực OTP (phát hiện thật khi đối chiếu bộ QA test AUTH-*).
+# `AuthSession`/`User.security_answer_hash` đã có sẵn trong data model (dùng
+# để tính FS-06/FS-11 từ dữ liệu lịch sử) — giờ mới có endpoint thật ghi/đọc
+# lúc runtime.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/auth/otp/request")
+@limiter.limit("10/minute")
+def request_otp(
+    request: Request,
+    current_user: CurrentUser = Depends(require_role("customer")),
+    session: Session = Depends(get_session),
+):
+    user = session.get(User, current_user.user_id)
+    otp_code = f"{random.randint(0, 999999):06d}"
+    session.add(
+        AuthSession(
+            session_id=new_id("SES"),
+            user_id=current_user.user_id,
+            otp_code=otp_code,
+            otp_status="pending",
+            security_q_passed=False,
+            failed_attempts=0,
+            created_at=dt.datetime.utcnow(),
+        )
+    )
+    return {
+        "security_question": user.security_question,
+        "otp_code": otp_code,
+        "note": (
+            "Môi trường demo — mã OTP trả trực tiếp ở đây để tiện test/tự động hoá "
+            "(sản phẩm thật sẽ gửi qua SMS, KHÔNG BAO GIỜ trả OTP qua API response). "
+            "Câu trả lời bảo mật KHÔNG được trả qua API — xem docs/TESTING.md để biết "
+            "công thức tính (chỉ áp dụng ở môi trường demo/seed cố định)."
+        ),
+    }
+
+
+@app.post("/auth/otp/verify")
+@limiter.limit("10/minute")
+def verify_otp(
+    request: Request,
+    req: OtpVerifyRequest,
+    current_user: CurrentUser = Depends(require_role("customer")),
+    session: Session = Depends(get_session),
+):
+    user = session.get(User, current_user.user_id)
+    auth_session = session.scalar(
+        select(AuthSession)
+        .where(AuthSession.user_id == current_user.user_id)
+        .order_by(AuthSession.created_at.desc())
+    )
+    if auth_session is None:
+        raise HTTPException(status_code=400, detail="Chưa yêu cầu OTP — gọi /auth/otp/request trước")
+    if auth_session.locked_at is not None:
+        raise HTTPException(
+            status_code=403, detail="Phiên xác thực đã bị khoá do sai quá nhiều lần — yêu cầu OTP mới"
+        )
+
+    expected_answer = f"ans-{DATASET_SEED}-{current_user.user_id}"
+    otp_ok = req.otp_code == auth_session.otp_code
+    answer_ok = hashlib.sha256(req.security_answer.encode()).hexdigest() == user.security_answer_hash
+    # Demo: chấp nhận thêm đúng công thức plaintext (không phải hash) để tiện
+    # test tay/Playwright mà không cần tự tính SHA-256 — vẫn giữ đường hash
+    # thật ở trên cho trường hợp client tự hash trước khi gửi.
+    if not answer_ok:
+        answer_ok = req.security_answer == expected_answer
+
+    if not (otp_ok and answer_ok):
+        auth_session.failed_attempts += 1
+        # commit() Ở ĐÂY, TRƯỚC KHI raise — get_session() (src/api/deps.py)
+        # rollback() bất kỳ exception nào thoát khỏi route, kể cả
+        # HTTPException chủ động raise. Thiếu commit() này thì failed_attempts
+        # vừa tăng bị CUỐN NGƯỢC mỗi lần, khoá sau N lần sai KHÔNG BAO GIỜ
+        # thật sự xảy ra qua HTTP thật — phát hiện thật lúc test tay qua UI
+        # (bấm sai nhiều lần liên tục không thấy khoá), dù test tự động
+        # trước đó pass NHẦM vì fixture test dùng chung 1 Session không qua
+        # commit/rollback như get_session() thật (xem test_otp.py).
+        if auth_session.failed_attempts >= OTP_MAX_FAILED_ATTEMPTS:
+            auth_session.locked_at = dt.datetime.utcnow()
+            session.commit()
+            raise HTTPException(
+                status_code=403,
+                detail=f"Sai quá {OTP_MAX_FAILED_ATTEMPTS} lần — phiên xác thực đã bị khoá, yêu cầu OTP mới",
+            )
+        session.commit()
+        raise HTTPException(status_code=401, detail="Mã OTP hoặc câu trả lời bảo mật không đúng")
+
+    auth_session.otp_status = "verified"
+    auth_session.security_q_passed = True
+    # utcfromtimestamp (KHÔNG phải fromtimestamp — tránh lệch theo timezone máy
+    # chủ) để tái tạo đúng iat gốc, giữ nguyên thread_id hội thoại (user_id:iat,
+    # xem src/agents/graph.py) không đổi giữa chừng phiên chat khi cấp JWT mới.
+    now = dt.datetime.utcnow()
+    new_token = create_access_token(
+        user_id=current_user.user_id,
+        role=current_user.role,
+        otp_verified_at=now,
+        iat=dt.datetime.utcfromtimestamp(current_user.iat),
+    )
+    return {"access_token": new_token, "otp_verified": True}
+
+
+# ---------------------------------------------------------------------------
 # /tools/* — agent gọi. Danh tính (user_id) luôn lấy từ token, không nhận từ
 # body — đóng lỗ hổng "tự khai user_id bất kỳ để đọc/tạo dữ liệu hộ người khác".
 # ---------------------------------------------------------------------------
@@ -170,6 +323,14 @@ def lookup_transaction(
     current_user: CurrentUser = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    # KHÔNG gắn require_otp_verified ở đây (dù có ở agent path — xem
+    # customer_tools.py) — route này còn phục vụ CSKH/sếp tra cứu khi xử lý
+    # ticket (ALL_ROLES) và khách hàng dùng gián tiếp qua rail "Giao dịch gần
+    # đây" (ChatClient.tsx) NGAY KHI vào trang, trước khi có cơ hội xác thực
+    # OTP — chặn ở đây sẽ phá UX xem thông tin cơ bản đã có từ trước khi làm
+    # việc này. Thao tác THẬT SỰ nhạy cảm (agent chủ động điều tra/tạo ticket
+    # giữa hội thoại) đã được chặn đúng chỗ — xem create_ticket bên dưới và
+    # customer_tools.py.
     return _handle_tool_error(
         _lookup_transaction, session, requesting_user_id=current_user.user_id, **req.model_dump()
     )
@@ -181,6 +342,7 @@ def get_customer_history(
     current_user: CurrentUser = Depends(require_role("customer")),
     session: Session = Depends(get_session),
 ):
+    # Lý do không gắn require_otp_verified: xem comment ở lookup_transaction.
     return _handle_tool_error(
         _get_customer_history, session, user_id=current_user.user_id, **req.model_dump()
     )
@@ -190,6 +352,7 @@ def get_customer_history(
 def create_ticket(
     req: CreateTicketRequest,
     current_user: CurrentUser = Depends(require_role("customer")),
+    _otp: CurrentUser = Depends(require_otp_verified),
     session: Session = Depends(get_session),
 ):
     # fraud_signals KHÔNG do caller truyền — tự tính ở tầng service (§4.1
@@ -245,6 +408,7 @@ def agent_chat(
         user_id=current_user.user_id,
         message=req.message,
         thread_id=f"{current_user.user_id}:{current_user.iat}",
+        otp_verified_at=current_user.otp_verified_at,
     )
 
 

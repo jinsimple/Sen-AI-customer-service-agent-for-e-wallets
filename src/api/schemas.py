@@ -68,6 +68,11 @@ class RequestMoreInfoRequest(BaseModel):
     note: Optional[str] = None
 
 
+class OtpVerifyRequest(BaseModel):
+    otp_code: str
+    security_answer: str
+
+
 class AgentChatRequest(BaseModel):
     message: str
 
