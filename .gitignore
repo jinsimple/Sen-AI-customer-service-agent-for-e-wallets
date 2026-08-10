@@ -28,9 +28,24 @@ env/
 .DS_Store
 Thumbs.db
 
-# Data (never commit large data)
-data/
-*.db
+# Data — chính sách theo FIN05-Data-Brief.md §3.3: commit dữ liệu nhỏ + manifest
+# (ground truth thật là generator + seed + checksum), không commit 2 file lớn
+# (transactions.jsonl, transaction_events.jsonl — sinh lại bằng `make data`,
+# byte-identical theo seed 20260802).
+data/*
+!data/raw/
+!data/schema/
+!data/generated/
+data/generated/*
+!data/generated/manifest.json
+!data/generated/users.jsonl
+!data/generated/wallets.jsonl
+!data/generated/bank_accounts.jsonl
+!data/generated/complaints.jsonl
+!data/generated/tickets.jsonl
+!data/generated/auth_sessions.jsonl
+data/app.db
+data/app.db-*
 *.sqlite3
 
 # Logs
@@ -58,3 +73,4 @@ out/
 # AI logs — tracked structure, ignored content
 .ai-log/*.jsonl
 .ai-log/archive/
+logs/*.log

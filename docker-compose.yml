@@ -1,19 +1,85 @@
-version: "3.8"
+name: fin05
 
+# Bảo mật mạng: CHỈ service `caddy` publish port ra host (80/443). backend/
+# frontend/postgres không có `ports:` nào — không container nào trong 3 service
+# đó chạm được từ bên ngoài Docker, chỉ gọi nhau qua tên service trong mạng nội
+# bộ compose tạo sẵn. Đây là lớp bảo vệ network-level bổ sung cho thiết kế BFF
+# đã có (frontend là điểm gọi FastAPI duy nhất) — xem docs/DEPLOY.md.
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    restart: unless-stopped
     env_file:
       - .env
+    environment:
+      # Ghép từ POSTGRES_* trong .env — không set DATABASE_URL tay ở .env,
+      # tránh lệch với `postgres` service ở trên (single source of truth).
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     volumes:
-      - ./data:/app/data
-    restart: unless-stopped
+      - chroma_data:/app/data/rag_index
+      - logs_data:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Tên service Docker Compose (`backend`) resolve qua DNS nội bộ — KHÔNG
+      # phải localhost. Route handler (server-api.ts) đọc biến này lúc chạy
+      # request thật, nên không cần build lại image khi đổi.
+      BACKEND_URL: http://backend:8010
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Mặc định "localhost" để `docker compose up` chạy thử cục bộ không cần
+      # domain/internet thật (Caddy tự dùng chứng chỉ nội bộ cho localhost).
+      # Production set SITE_DOMAIN=app.adaptivealgo.uk trong .env thật trên VPS
+      # — xem docs/DEPLOY.md — Caddy tự xin Let's Encrypt cho domain đó.
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  postgres_data:
+  chroma_data:
+  logs_data:
+  caddy_data:
+  caddy_config:

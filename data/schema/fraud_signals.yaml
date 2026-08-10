@@ -1,0 +1,172 @@
+# FIN-05 — 12 tín hiệu dấu hiệu gian lận (Data Brief §4.5)
+#
+# CẢNH BÁO NGUỒN: mọi ngưỡng trong file này là GIẢ ĐỊNH THIẾT KẾ của team
+# (assumption: true), CHƯA được ví điện tử hay chuyên gia Risk nào xác nhận.
+# Hai mốc 10.000.000đ / 20.000.000đ mượn theo ngưỡng sinh trắc học
+# QĐ 2345/QĐ-NHNN nhưng CHƯA ĐỐI CHIẾU BẢN GỐC — xem business_rules.md BR-14.
+# Không được trình bày bất kỳ con số nào ở đây như số liệu đã kiểm chứng.
+
+version: 1
+assumption: true
+
+policy:
+  # Tầng A: 1 tín hiệu bật là escalate ngay (priority critical)
+  tier_a: [FS-01, FS-06, FS-07, FS-10, FS-12]
+  # Tầng B: cần >= 2 tín hiệu cùng bật mới escalate (priority high)
+  tier_b: [FS-02, FS-03, FS-04, FS-05, FS-08, FS-09, FS-11]
+  tier_b_min_to_escalate: 2
+  priority_tier_a: critical
+  priority_tier_b: high
+  escalation_target: supervisor
+
+signals:
+  FS-01:
+    name: hoan_tien_ve_dich_khac_nguon_goc
+    tier: A
+    assumption: true
+    rule: >
+      Đích hoàn tiền khách yêu cầu khác bên gửi gốc của giao dịch,
+      VÀ chủ sở hữu đích hoàn khác chủ sở hữu nguồn gốc.
+      Hoàn về tài khoản khác nhưng cùng chủ (vd tài khoản gốc đã đóng) KHÔNG bật.
+    params: {}
+
+  FS-02:
+    name: nguon_la_doi_hoan_gap
+    tier: B
+    assumption: true
+    rule: >
+      Bên gửi có 0 giao dịch với khách trong cửa sổ trước giao dịch,
+      VÀ khiếu nại phát sinh trong vòng N giờ sau giao dịch.
+    params:
+      window_prior_days: 90
+      complaint_within_hours: 24
+
+  FS-03:
+    name: chuoi_tang_dan_cung_nguoi_nhan
+    tier: B
+    assumption: true
+    rule: >
+      >= min_chain giao dịch tới cùng bên nhận trong cửa sổ,
+      mỗi lần sau >= growth_factor lần liền trước.
+    params:
+      window_hours: 24
+      min_chain: 3
+      growth_factor: 1.5
+
+  FS-04:
+    name: lech_manh_khoi_hanh_vi_lich_su
+    tier: B
+    assumption: true
+    rule: >
+      amount >= p95_multiplier × p95 (giao dịch gửi đi của khách trong history_days,
+      không tính giao dịch đang xét) VÀ bên nhận lần đầu xuất hiện.
+    params:
+      p95_multiplier: 10
+      history_days: 90
+
+  FS-05:
+    name: nguoi_nhan_moi_gia_tri_lon_ngoai_gio
+    tier: B
+    assumption: true
+    source_note: "Mốc 10tr mượn QĐ 2345/QĐ-NHNN — CHƯA đối chiếu bản gốc (BR-14)"
+    rule: >
+      Bên nhận lần đầu xuất hiện VÀ amount >= min_amount
+      VÀ giờ tạo giao dịch trong [night_start_hour, 24) hoặc [0, night_end_hour).
+    params:
+      min_amount: 10000000
+      night_start_hour: 23
+      night_end_hour: 5
+
+  FS-06:
+    name: rut_sach_sau_bat_thuong_xac_thuc
+    tier: A
+    assumption: true
+    rule: >
+      Có auth_session với failed_attempts >= min_failed_attempts hoặc locked_at
+      trong auth_window_hours trước giao dịch, VÀ giao dịch gửi đi làm số dư còn lại
+      <= (1 - drain_ratio) số dư trước giao dịch.
+    params:
+      auth_window_hours: 24
+      min_failed_attempts: 3
+      drain_ratio: 0.9
+
+  FS-07:
+    name: fan_in_roi_rut_ngay
+    tier: A
+    assumption: true
+    rule: >
+      Ví bên nhận nhận tiền từ >= fanin_min_senders người gửi khác nhau trong
+      fanin_window_hours, rồi chuyển to_bank >= payout_ratio tổng nhận
+      trong payout_within_minutes sau lần nhận cuối.
+    params:
+      fanin_min_senders: 5
+      fanin_window_hours: 24
+      payout_ratio: 0.8
+      payout_within_minutes: 60
+
+  FS-08:
+    name: kyc_thap_gia_tri_lon
+    tier: B
+    assumption: true
+    source_note: "Mốc 20tr/ngày mượn QĐ 2345/QĐ-NHNN — CHƯA đối chiếu bản gốc (BR-14)"
+    rule: >
+      users.kyc_level == kyc_level VÀ tổng CHUYỂN ĐI trong 24h
+      (tính cả giao dịch đang xét) >= daily_outbound_min.
+      Tiền NHẬN VÀO không tính — xem case bẫy (nhận lương).
+    params:
+      kyc_level: 0
+      daily_outbound_min: 20000000
+
+  FS-09:
+    name: tu_khoa_kich_ban_lua_dao
+    tier: B
+    assumption: true
+    rule: >
+      description_raw (lời khách kể) hoặc des (nội dung chuyển tiền) khớp >= 1
+      nhóm từ khoá. So khớp trên văn bản đã bỏ dấu + lowercase.
+      Danh sách do team tự soạn theo các kịch bản phổ biến — CẦN đối chiếu
+      danh mục của Cục An toàn thông tin trước khi pitch (BR-15).
+    params:
+      keyword_groups:
+        gia_danh_co_quan: ["cong an", "vien kiem sat", "toa an", "lenh bat", "rua tien", "dieu tra"]
+        nhiem_vu_hoa_hong: ["nhiem vu", "chot don", "hoa hong", "viec nhe luong cao", "don hang ao"]
+        dau_tu_ao: ["san forex", "room dau tu", "chuyen gia doc lenh", "chot loi", "nap them de rut"]
+        chiem_tai_khoan: ["bi hack", "mat nick", "chiem tai khoan", "muon tien gap qua tin nhan"]
+        gia_danh_cskh: ["nhan vien vi goi", "tong dai goi", "nang cap tai khoan", "xac minh tai khoan"]
+        qua_hai_quan: ["phi hai quan", "qua tang tu nuoc ngoai", "gui qua ve viet nam"]
+
+  FS-10:
+    name: khach_khai_da_dua_otp
+    tier: A
+    assumption: true
+    rule: >
+      complaints.otp_disclosed == true. Cờ do agent gắn từ lời kể sau khi hỏi
+      xác nhận lại — chỉ nhắc tới chữ "OTP" trong hội thoại KHÔNG đủ để bật.
+    params: {}
+
+  FS-11:
+    name: truc_loi_chinh_sach_hoan_tien
+    tier: B
+    assumption: true
+    rule: >
+      Trong window_days: số khiếu nại của khách có ticket hitl_status=approved
+      >= min_approved_refunds, HOẶC (số khiếu nại >= ratio_min_complaints VÀ
+      tỉ lệ khiếu nại / giao dịch gửi đi >= complaint_tx_ratio).
+      Tín hiệu NỘI BỘ cho supervisor — cấm ám chỉ với khách (§4.5.4).
+    params:
+      window_days: 90
+      min_approved_refunds: 3
+      complaint_tx_ratio: 0.10
+      ratio_min_complaints: 3
+
+  FS-12:
+    name: ben_nhan_da_bi_gan_co
+    tier: A
+    assumption: true
+    rule: >
+      Ví bên nhận đang frozen tại thời điểm khiếu nại, HOẶC xuất hiện trong
+      >= min_distinct_complainants khiếu nại của những khách khác nhau
+      trong window_days.
+    params:
+      window_days: 90
+      min_distinct_complainants: 3

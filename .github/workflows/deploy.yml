@@ -1,0 +1,31 @@
+name: Deploy
+
+# Push lên main -> SSH vào VPS -> git pull + rebuild container. Không cần
+# container registry (build thẳng trên VPS) — đơn giản nhất cho quy mô pilot.
+# Cần 3 secret trong GitHub repo Settings > Secrets and variables > Actions:
+#   DEPLOY_HOST      IP public của VPS Oracle Cloud
+#   DEPLOY_USER      user SSH trên VPS (thường "ubuntu")
+#   DEPLOY_SSH_KEY   private key của deploy key riêng (xem docs/DEPLOY.md)
+# Xem docs/DEPLOY.md để biết cách tạo 3 secret này.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # cho phép bấm chạy tay từ tab Actions khi cần deploy lại không đổi code
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH và deploy lại trên VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/fin05
+            git pull origin main
+            docker compose up -d --build
+            docker image prune -f

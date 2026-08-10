@@ -1,0 +1,8 @@
+# Reverse proxy + HTTPS tự động (Let's Encrypt) — xem docs/DEPLOY.md.
+# {$SITE_DOMAIN} lấy từ biến môi trường SITE_DOMAIN (docker-compose.yml).
+# Mặc định "localhost" khi chạy thử cục bộ (Caddy tự dùng cert nội bộ, không
+# cần internet); production set SITE_DOMAIN=app.adaptivealgo.uk trong .env
+# thật trên VPS để Caddy tự xin chứng chỉ Let's Encrypt cho domain đó.
+{$SITE_DOMAIN} {
+	reverse_proxy frontend:3000
+}

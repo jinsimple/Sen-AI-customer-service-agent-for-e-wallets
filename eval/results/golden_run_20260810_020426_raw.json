@@ -1,0 +1,206 @@
+[
+  {
+    "case_id": "CASE-001",
+    "cell": "wrong_recipient x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260602000001",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-044dc58eef6a**. Bộ phận CSKH sẽ tiếp nhận và xử lý trong khoảng thời gian đến ngày **09/09/2026**. \n\nNếu có thêm câu hỏi nào khác, bạn cứ cho mình biết nhé!",
+    "tool_calls": [
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "CASE-010",
+    "cell": "wrong_recipient x from_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260531000004",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-10eab61483d9**. Nội dung khiếu nại là bạn đã chuyển nhầm 1.371.000đ cho số điện thoại 0766000097 (M. T. Tuấn) qua giao dịch TXN20260531000004.\n\nĐội ngũ CSKH sẽ tiếp nhận và xử lý hồ sơ của bạn trong thời gian tới, dự kiến sẽ phản hồi trước **02:03 ngày 14/08/2026**. Nếu có thêm thông tin gì cần hỗ trợ, bạn cứ cho mình biết nhé!",
+    "tool_calls": [
+      "lookup_transaction",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "CASE-019",
+    "cell": "wrong_recipient x to_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260609000001",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-5fe5674af06e**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ liên hệ lại với bạn trước **02:04 ngày 14/08/2026**.\n\nNếu bạn có thêm câu hỏi nào khác, đừng ngần ngại cho mình biết nhé!",
+    "tool_calls": [
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "CASE-028",
+    "cell": "money_not_received x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "High",
+    "checks": [
+      [
+        "khong_tao_ticket_hop_le",
+        false
+      ],
+      [
+        "cite_TXN20260611000004",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng vì chưa thấy tiền về. Giao dịch của bạn với mã TXN20260611000004 đã được thực hiện thành công với số tiền 1.755.000đ. Tuy nhiên, hiện tại giao dịch vẫn đang trong trạng thái \"đang xử lý\" và chưa hoàn tất.\n\nBạn sẽ nhận được tiền trong thời gian sớm nhất. Nếu có bất kỳ câu hỏi nào khác, hãy cho mình biết nhé!",
+    "tool_calls": [
+      "lookup_transaction"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "CASE-037",
+    "cell": "money_not_received x from_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260618000001",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho giao dịch của bạn với mã ticket là TCK-51412f7c3da3. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra trong thời gian tới, dự kiến sẽ có phản hồi trước 02:04 ngày 14/08/2026.\n\nCảm ơn bạn đã kiên nhẫn chờ đợi! Nếu có thêm câu hỏi nào, bạn cứ thoải mái hỏi nhé.",
+    "tool_calls": [
+      "lookup_transaction",
+      "create_ticket"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "CASE-046",
+    "cell": "money_not_received x to_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "High",
+    "checks": [
+      [
+        "khong_tao_ticket_hop_le",
+        false
+      ],
+      [
+        "cite_TXN20260621000005",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng vì chưa thấy tiền về. Giao dịch của bạn với mã TXN20260621000005 có số tiền 933.000đ, hiện đang trong trạng thái \"đang xử lý\" (processing). \n\nGiao dịch này được thực hiện vào ngày 21/06/2026 và đang được chuyển đến tài khoản ngân hàng của người nhận. Thời gian hoàn tất giao dịch vẫn chưa xác định được. \n\nBạn sẽ nhận được thông báo khi giao dịch hoàn tất. Nếu cần thêm thông tin, hãy cho mình biết nhé!",
+    "tool_calls": [
+      "lookup_transaction"
+    ],
+    "extra_turns_used": 0
+  }
+]

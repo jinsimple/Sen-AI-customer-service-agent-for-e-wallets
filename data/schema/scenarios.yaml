@@ -1,0 +1,74 @@
+# FIN-05 — Ma trận kịch bản (Data Brief §3.2)
+# File này là NGUỒN SỰ THẬT về cấu trúc golden set:
+# generator đọc nó để sinh, test I8 đọc nó để kiểm phủ.
+# Sửa quota ở đây mà không sinh lại dataset ⟹ I8 fail — đó là chủ đích.
+
+version: 1
+seed_default: 20260802
+
+window:
+  start_date: 2026-05-04     # 90 ngày, kết thúc 2026-08-01
+  days: 90
+
+population:
+  customers: 200
+  cskh: 4
+  supervisor: 2
+  transactions: 60000
+  background_complaints: 600
+
+matrix:
+  complaint_types: [wrong_recipient, money_not_received, double_charge, refund]
+  scopes: [internal_wallet, from_bank, to_bank]
+  difficulties: [clear, ambiguous, trap]
+  cases_per_combo: 3          # 4 × 3 × 3 × 3 = 108
+
+edge_cases:
+  not_found: 3
+  missing_info:
+    per_field: 3              # 10 trường × 3 = 30
+    fields: [trans_id, rec_code, amount, fee, created_at,
+             rec_wal_id, rec_bank_account_id, send_bank_account_id, scope, channel]
+  fraud_suspect:              # đặc tả §4.5.6 — tổng 33
+    positives: 12
+    traps: 12
+    boundary: 4
+    forbidden_behavior: 5
+  partner_timeout: 3
+  over_authority: 3
+
+split:
+  # 2 dev : 1 held-out cho MỖI stratum (ô × độ khó, hoặc nhóm edge).
+  # Với stratum 3 case, 2:1 là cách chia duy nhất giữ mọi stratum
+  # đều có mặt ở held-out ⟹ tỉ lệ toàn cục là 120/60 (66,7/33,3).
+  rule: stratified_2_to_1
+  dev: 120
+  heldout: 60
+
+authority_map:
+  internal_wallet: {authority: cskh, escalation_target: null}
+  from_bank: {authority: escalate_only, escalation_target: partner_bank}
+  to_bank: {authority: escalate_only, escalation_target: partner_bank}
+
+channel_map:
+  internal_wallet: [p2p]
+  from_bank: [card_topup, bank_transfer]
+  to_bank: [withdrawal, bank_transfer]
+
+sla:
+  legal:                      # trần pháp lý — tính sla_due_at (BR-01, BR-02)
+    bank_business_days: 4
+    general_days: 30
+    verified: false
+  service:                    # cam kết dịch vụ nội bộ — wording trả khách (§6.6)
+    first_response_hours: 48
+    fraud_business_days: 7
+
+distributions:                # CHỈ áp cho dữ liệu nền (Data Brief §4.3)
+  scope: {internal_wallet: 0.55, from_bank: 0.25, to_bank: 0.20}
+  status: {success: 0.76, processing: 0.10, failed: 0.07,
+           refunded: 0.04, pending: 0.02, on_hold: 0.01}
+  complaint_type: {wrong_recipient: 0.65, money_not_received: 0.15,
+                   double_charge: 0.05, refund: 0.15}
+  amount_lognormal: {median: 200000, sigma: 1.05, min: 10000, max: 200000000}
+  peak_hours: [[11, 13], [19, 22]]

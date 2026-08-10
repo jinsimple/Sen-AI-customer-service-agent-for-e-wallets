@@ -1,0 +1,29 @@
+{
+  "counts": {
+    "auth_sessions.jsonl": 303,
+    "bank_accounts.jsonl": 245,
+    "complaints.jsonl": 600,
+    "golden_set.jsonl": 120,
+    "heldout_set.jsonl": 60,
+    "tickets.jsonl": 600,
+    "transaction_events.jsonl": 215944,
+    "transactions.jsonl": 60000,
+    "users.jsonl": 206,
+    "wallets.jsonl": 200
+  },
+  "generated_at": "2026-08-02T00:00:00",
+  "generator_version": "1.0.0",
+  "seed": 20260802,
+  "sha256": {
+    "auth_sessions.jsonl": "d26ec7c15f46ddd8b8e7b0b28cfe89636117e7459a1db9f228e1abc6d2dbf4d4",
+    "bank_accounts.jsonl": "5d818668c21522e146ec70b01bb7e7cdb39067264e28a6c1a2606b08dfe59ec8",
+    "complaints.jsonl": "31a1aad9e0805a77e34ee6c24cce0e99403469c0aeaef4405dfdbf04001cc82b",
+    "golden_set.jsonl": "7cf6157c624ccacb8c3c3d6bd8c9096690a78fc207f0692480b2a3a47c9711f5",
+    "heldout_set.jsonl": "0ff067632d6325252b5cebdbaac2daf43a7f16d1c765ff25dcae01009d9eecab",
+    "tickets.jsonl": "23866a510e4c1b74a71ff37af82852e45d7f91357300e1f09e54c24782319689",
+    "transaction_events.jsonl": "cd7e52950378193a00f5ac220a07848aee0bfa8aa16f373a211e09c33c593ec6",
+    "transactions.jsonl": "e759fd8431b849ce9dadb896bd714999db438c009b6e5a6447d5cda3f599662f",
+    "users.jsonl": "0d221a89fcaf07f2584745c3052494ce8fbf8c4cec6fc8a736a4928b8e457a00",
+    "wallets.jsonl": "9a50a95df54f27c44cfcfb11febe83bbb76b31f5ee38cd2568ba4a944b84eae1"
+  }
+}

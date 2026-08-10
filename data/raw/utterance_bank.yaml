@@ -1,0 +1,168 @@
+# FIN-05 — Ngân hàng mẫu diễn đạt của khách hàng (Data Brief §2.2)
+#
+# NGUỒN & RANH GIỚI ĐẠO ĐỨC:
+# - 100% mẫu câu do team TỰ VIẾT theo phong cách diễn đạt phổ biến
+#   (teencode, không dấu, sai chính tả, mơ hồ, cảm xúc, mô tả sai loại).
+# - KHÔNG sao chép nguyên văn từ review/forum/fanpage nào; KHÔNG chứa
+#   SĐT/mã GD/tên người thật. Việc đối chiếu văn phong với corpus công khai
+#   là bước sau và không thay đổi nguyên tắc "không lưu nguyên văn".
+# - Mọi con số trong câu là PLACEHOLDER — generator inject từ lớp sổ cái
+#   (Data Brief §2.5: LLM/ngôn ngữ không được sinh sự thật).
+#
+# styles: full=đủ dấu chuẩn, nd=không dấu, tc=teencode, typo=sai chính tả,
+#         vague=mơ hồ, emo=cảm xúc, mislabel=khách tự chẩn đoán sai loại
+# provides: thông tin mà câu CÓ cung cấp — bộ chọn case missing_info dựa vào đây
+
+version: 1
+placeholders: [AMOUNT, AMOUNT_SHORT, WRONG_AMOUNT, RECV_PHONE, RECV_NAME,
+               TRANS_ID, REC_CODE, BANK, DATE, TIME, ORDER, DEST_ACC]
+
+patterns:
+  # ---------- wrong_recipient (26) ----------
+  - {id: UTT-001, type: wrong_recipient, styles: [full], provides: [amount, phone, date], text: "Tôi chuyển nhầm {AMOUNT}đ tới số {RECV_PHONE} hôm {DATE}, người này tôi không quen, nhờ hỗ trợ thu hồi."}
+  - {id: UTT-002, type: wrong_recipient, styles: [nd], provides: [amount, phone], text: "toi chuyen nham {AMOUNT} cho so {RECV_PHONE}, lam on ho tro thu hoi"}
+  - {id: UTT-003, type: wrong_recipient, styles: [tc], provides: [amount, phone, date], text: "e ck nham {AMOUNT_SHORT} cho sdt {RECV_PHONE} hom {DATE} r, cuu e vs"}
+  - {id: UTT-004, type: wrong_recipient, styles: [full], provides: [trans_id], text: "Giao dịch {TRANS_ID} tôi chuyển nhầm người, cần thu hồi gấp."}
+  - {id: UTT-005, type: wrong_recipient, styles: [nd], provides: [trans_id, amount], text: "gd {TRANS_ID} chuyen nham nguoi, so tien {AMOUNT}, xu ly giup toi"}
+  - {id: UTT-006, type: wrong_recipient, styles: [tc, emo], provides: [name, amount], text: "chuyen nham cho {RECV_NAME} {AMOUNT_SHORT} lun r huhu, co lay lai dc k a"}
+  - {id: UTT-007, type: wrong_recipient, styles: [typo, nd], provides: [amount, phone], text: "toi chuyen nhaam {AMOUNT} vao so {RECV_PHONE}, ho k tra loi tin nhan"}
+  - {id: UTT-008, type: wrong_recipient, styles: [vague, full], provides: [], text: "Hôm trước tôi lỡ tay chuyển nhầm cho người lạ, giờ làm sao lấy lại được?"}
+  - {id: UTT-009, type: wrong_recipient, styles: [vague, nd], provides: [], text: "chuyen nham tien cho nguoi la lam sao lay lai day"}
+  - {id: UTT-010, type: wrong_recipient, styles: [emo, full], provides: [amount], text: "Trời ơi mất {AMOUNT_SHORT} vì bấm nhầm số, anh chị giúp em với chứ em rối quá."}
+  - {id: UTT-011, type: wrong_recipient, styles: [full], provides: [rec_code, amount], text: "Biên lai mã {REC_CODE} là tôi chuyển nhầm, số tiền {AMOUNT}đ."}
+  - {id: UTT-012, type: wrong_recipient, styles: [nd, vague], provides: [date, amount], text: "hom {DATE} toi bam nham nguoi nhan, tam {AMOUNT} gi do, gio phai lam gi"}
+  - {id: UTT-013, type: wrong_recipient, styles: [tc], provides: [phone], text: "ck nham vao sdt {RECV_PHONE} lm sao rut lai v a"}
+  - {id: UTT-014, type: wrong_recipient, styles: [mislabel, nd], provides: [phone], text: "hinh nhu em bi du chuyen cho so la {RECV_PHONE}, ma nghi lai chac em go nham so thoi"}
+  - {id: UTT-015, type: wrong_recipient, styles: [full], provides: [bank, amount, date], text: "Tôi chuyển {AMOUNT}đ ra tài khoản {BANK} hôm {DATE} nhưng nhầm số tài khoản người nhận."}
+  - {id: UTT-016, type: wrong_recipient, styles: [nd], provides: [bank, amount], text: "chuyen ra {BANK} {AMOUNT} ma sai stk nguoi nhan, nho kiem tra"}
+  - {id: UTT-017, type: wrong_recipient, styles: [tc], provides: [bank], text: "e chuyen lon stk ben {BANK} r, coi lai giup e vs"}
+  - {id: UTT-018, type: wrong_recipient, styles: [emo, nd], provides: [amount, date], text: "ca thang luong {AMOUNT} chuyen nham hom {DATE}, toi met moi qua roi"}
+  - {id: UTT-019, type: wrong_recipient, styles: [full], provides: [time, amount, phone], text: "Lúc {TIME} tôi chuyển {AMOUNT}đ nhầm sang số {RECV_PHONE}, mong hỗ trợ liên hệ người nhận."}
+  - {id: UTT-020, type: wrong_recipient, styles: [vague, tc], provides: [], text: "bam nham ng nhan trong danh ba, gio ho k chiu tra"}
+  - {id: UTT-021, type: wrong_recipient, styles: [typo, nd], provides: [amount], text: "chuyen nham {AMOUNT} cho nguoi laa, ho chan tin nhan roi"}
+  - {id: UTT-022, type: wrong_recipient, styles: [full], provides: [name, amount], text: "Tôi gửi nhầm {AMOUNT}đ cho anh {RECV_NAME} không quen biết, xin hướng dẫn thủ tục thu hồi."}
+  - {id: UTT-023, type: wrong_recipient, styles: [nd], provides: [rec_code], text: "ma bien lai {REC_CODE} la chuyen sai nguoi, kiem tra giup toi"}
+  - {id: UTT-024, type: wrong_recipient, styles: [tc], provides: [amount, date], text: "hom {DATE} e ck nham {AMOUNT_SHORT}, gio ben kia k nghe may"}
+  - {id: UTT-025, type: wrong_recipient, styles: [emo, full], provides: [], text: "Tôi lo quá, chuyển nhầm tiền học phí của con cho người lạ rồi, giúp tôi với."}
+  - {id: UTT-026, type: wrong_recipient, styles: [vague, nd], provides: [date], text: "khoang hom {DATE} toi chuyen sai nguoi nhan, chi tiet toi khong nho ro"}
+
+  # ---------- money_not_received (26) ----------
+  - {id: UTT-027, type: money_not_received, styles: [tc], provides: [amount], text: "e chuyen {AMOUNT_SHORT} cho ban ma no bao chua nhan dc, tien tru r ma ko thay dau"}
+  - {id: UTT-028, type: money_not_received, styles: [full], provides: [amount, phone, date], text: "Tôi chuyển {AMOUNT}đ tới số {RECV_PHONE} hôm {DATE} nhưng người nhận báo chưa nhận được."}
+  - {id: UTT-029, type: money_not_received, styles: [nd], provides: [trans_id], text: "gd {TRANS_ID} bao thanh cong ma ben kia chua thay tien"}
+  - {id: UTT-030, type: money_not_received, styles: [full], provides: [trans_id], text: "Giao dịch {TRANS_ID} treo ở trạng thái đang xử lý lâu quá, tiền tôi đã bị trừ."}
+  - {id: UTT-031, type: money_not_received, styles: [nd], provides: [amount, date], text: "tien tru {AMOUNT} tu hom {DATE} ma gio van chua toi noi"}
+  - {id: UTT-032, type: money_not_received, styles: [tc, vague], provides: [], text: "ck xong tien bay mau ma ben nhan bao k co, la v tr"}
+  - {id: UTT-033, type: money_not_received, styles: [emo], provides: [amount], text: "{AMOUNT_SHORT} của em đi đâu rồi, hai bên đều không thấy, em cần tiền gấp lắm."}
+  - {id: UTT-034, type: money_not_received, styles: [vague, full], provides: [], text: "Tiền tôi chuyển mãi không tới nơi, kiểm tra giúp tôi."}
+  - {id: UTT-035, type: money_not_received, styles: [full], provides: [bank, amount], text: "Tôi rút {AMOUNT}đ về tài khoản {BANK} nhưng chưa thấy tiền về."}
+  - {id: UTT-036, type: money_not_received, styles: [nd], provides: [bank, amount, date], text: "rut ve {BANK} {AMOUNT} tu hom {DATE} chua thay bao co"}
+  - {id: UTT-037, type: money_not_received, styles: [tc], provides: [bank], text: "rut tien ve {BANK} nua ngay r chua thay j het"}
+  - {id: UTT-038, type: money_not_received, styles: [full], provides: [bank, amount], text: "Tôi nạp {AMOUNT}đ từ thẻ {BANK} vào ví, thẻ đã trừ tiền mà ví chưa cộng."}
+  - {id: UTT-039, type: money_not_received, styles: [nd], provides: [bank], text: "nap tu the {BANK} vao vi, bank tru roi ma vi chua co tien"}
+  - {id: UTT-040, type: money_not_received, styles: [tc], provides: [amount], text: "nap {AMOUNT_SHORT} tu bank vo vi ma vi trong tron"}
+  - {id: UTT-041, type: money_not_received, styles: [typo, nd], provides: [amount], text: "chuyen {AMOUNT} cho ban ma tien khong toii, xem giup em"}
+  - {id: UTT-042, type: money_not_received, styles: [vague, nd], provides: [], text: "hinh nhu giao dich bi ket o dau do, tien chua ve"}
+  - {id: UTT-043, type: money_not_received, styles: [emo, nd], provides: [], text: "tien mo hoi nuoc mat cua toi dang o dau, hai ngay roi khong ai tra loi"}
+  - {id: UTT-044, type: money_not_received, styles: [full], provides: [time, amount], text: "Lúc {TIME} tôi chuyển {AMOUNT}đ, app báo đang xử lý tới giờ chưa xong."}
+  - {id: UTT-045, type: money_not_received, styles: [mislabel, nd], provides: [], text: "chac tien em bi he thong giu roi, chu nguoi nhan bao khong thay gi ve"}
+  - {id: UTT-046, type: money_not_received, styles: [tc], provides: [date], text: "tu hom {DATE} toi gio tien treo lo lung, check dum e"}
+  - {id: UTT-047, type: money_not_received, styles: [full], provides: [rec_code], text: "Mã biên lai {REC_CODE} vẫn đang xử lý, nhờ kiểm tra tiến độ."}
+  - {id: UTT-048, type: money_not_received, styles: [nd], provides: [amount, phone], text: "gui {AMOUNT} toi so {RECV_PHONE} ma ben do keu chua nhan"}
+  - {id: UTT-049, type: money_not_received, styles: [vague, full], provides: [], text: "Bạn tôi nói chưa nhận được khoản tôi gửi tuần này, tôi không nhớ rõ mã giao dịch."}
+  - {id: UTT-050, type: money_not_received, styles: [emo, tc], provides: [], text: "can gap ma tien ket, bucghe, ai xu ly gium em cai"}
+  - {id: UTT-051, type: money_not_received, styles: [nd], provides: [time], text: "chuyen luc {TIME} ma den gio van dang xu ly"}
+  - {id: UTT-052, type: money_not_received, styles: [typo, nd], provides: [bank], text: "rut ve ngan hang {BANK} bi treoo, tien chua vao tai khoan"}
+
+  # ---------- double_charge (20) — tránh mọi từ khoá FS-09 ----------
+  - {id: UTT-053, type: double_charge, styles: [tc], provides: [order, amount], text: "shop tru tien e 2 lan cung 1 don {ORDER}, {AMOUNT_SHORT} x2 luon"}
+  - {id: UTT-054, type: double_charge, styles: [full], provides: [amount], text: "Tôi bị trừ {AMOUNT}đ hai lần cho cùng một lần thanh toán."}
+  - {id: UTT-055, type: double_charge, styles: [nd], provides: [trans_id], text: "gd {TRANS_ID} bi tru 2 lan, hoan giup toi 1 lan"}
+  - {id: UTT-056, type: double_charge, styles: [full], provides: [date, amount], text: "Ngày {DATE} tài khoản tôi bị trừ hai lần {AMOUNT}đ liên tiếp."}
+  - {id: UTT-057, type: double_charge, styles: [tc, vague], provides: [], text: "sao vi tru tien e 2 phat lien, cung 1 don ma"}
+  - {id: UTT-058, type: double_charge, styles: [nd], provides: [amount, date], text: "bi tru doi {AMOUNT} hom {DATE}, kiem tra giup"}
+  - {id: UTT-059, type: double_charge, styles: [emo], provides: [amount], text: "Trừ một lần đã xót, đây trừ tận hai lần {AMOUNT_SHORT}, quá đáng thật."}
+  - {id: UTT-060, type: double_charge, styles: [vague, full], provides: [], text: "Hình như tôi bị trừ tiền trùng, hai dòng giống nhau trong lịch sử."}
+  - {id: UTT-061, type: double_charge, styles: [full], provides: [bank, amount], text: "Thẻ {BANK} của tôi bị trừ {AMOUNT}đ hai lần khi nạp ví."}
+  - {id: UTT-062, type: double_charge, styles: [nd], provides: [bank], text: "the {BANK} bao tru 2 lan cung so tien, vi thi cong co 1 lan"}
+  - {id: UTT-063, type: double_charge, styles: [tc], provides: [bank, amount], text: "nap vi 1 lan ma bank {BANK} tru {AMOUNT_SHORT} x2, hoan e 1 lan di"}
+  - {id: UTT-064, type: double_charge, styles: [typo, nd], provides: [], text: "toi bi truu tien hai lan cho mot giao dich, xin hoan lai"}
+  - {id: UTT-065, type: double_charge, styles: [full], provides: [time], text: "Khoảng {TIME} tôi thanh toán một lần nhưng nhận hai thông báo trừ tiền."}
+  - {id: UTT-066, type: double_charge, styles: [vague, nd], provides: [], text: "lich su hien 2 dong giong het nhau, co phai loi khong"}
+  - {id: UTT-067, type: double_charge, styles: [mislabel, nd], provides: [], text: "chac app tinh them khoan gi ma thay tru 2 dong, dong sau nho hon thi phai"}
+  - {id: UTT-068, type: double_charge, styles: [tc], provides: [order], text: "don {ORDER} thanh toan 1 lan ma bi tru 2 lan tien"}
+  - {id: UTT-069, type: double_charge, styles: [nd], provides: [amount], text: "tru trung {AMOUNT}, mot giao dich thoi ma"}
+  - {id: UTT-070, type: double_charge, styles: [emo, nd], provides: [], text: "kiem tien kho lam moi nguoi oi, tru trung cua toi 2 lan roi"}
+  - {id: UTT-071, type: double_charge, styles: [full], provides: [rec_code], text: "Hai biên lai {REC_CODE} giống hệt nhau cho một lần mua, nhờ kiểm tra."}
+  - {id: UTT-072, type: double_charge, styles: [full], provides: [date, amount, bank], text: "Ngày {DATE} tôi rút {AMOUNT}đ về {BANK} và bị trừ hai lần trong ví."}
+
+  # ---------- refund (20) ----------
+  - {id: UTT-073, type: refund, styles: [full], provides: [order, amount], text: "Đơn {ORDER} đã hủy, bên bán báo hoàn {AMOUNT}đ mà tôi chưa nhận được."}
+  - {id: UTT-074, type: refund, styles: [nd], provides: [amount], text: "duoc bao hoan {AMOUNT} ma cho hoai khong thay"}
+  - {id: UTT-075, type: refund, styles: [tc], provides: [order], text: "don {ORDER} huy tu tuan truoc, tien hoan dau r a"}
+  - {id: UTT-076, type: refund, styles: [full], provides: [trans_id], text: "Giao dịch {TRANS_ID} được duyệt hoàn nhưng ví tôi chưa cộng tiền."}
+  - {id: UTT-077, type: refund, styles: [nd], provides: [bank, amount], text: "hoan ve the {BANK} {AMOUNT} ma 5 ngay chua thay"}
+  - {id: UTT-078, type: refund, styles: [tc], provides: [amount], text: "hoan {AMOUNT_SHORT} cua e toi dau r, cho lau v"}
+  - {id: UTT-079, type: refund, styles: [emo, full], provides: [], text: "Mua hàng lỗi đã buồn, chờ hoàn tiền mòn mỏi càng buồn hơn."}
+  - {id: UTT-080, type: refund, styles: [vague, nd], provides: [], text: "toi muon hoi khoan hoan tien cua toi den dau roi"}
+  - {id: UTT-081, type: refund, styles: [full], provides: [date, amount], text: "Ngày {DATE} có thông báo hoàn {AMOUNT}đ, đến nay chưa vào ví."}
+  - {id: UTT-082, type: refund, styles: [nd], provides: [trans_id, date], text: "gd {TRANS_ID} bao hoan tu hom {DATE} van chua nhan duoc"}
+  - {id: UTT-083, type: refund, styles: [tc], provides: [bank], text: "hoan ve bank {BANK} lau qua, thuong bao lau v a"}
+  - {id: UTT-084, type: refund, styles: [typo, nd], provides: [amount], text: "toi duoc hoan {AMOUNT} nhung tien chua vao vii"}
+  - {id: UTT-085, type: refund, styles: [full, vague], provides: [], text: "Tôi muốn yêu cầu hoàn tiền cho giao dịch bị lỗi hôm trước."}
+  - {id: UTT-086, type: refund, styles: [nd], provides: [amount, date], text: "xin hoan {AMOUNT} cho giao dich loi hom {DATE}"}
+  - {id: UTT-087, type: refund, styles: [emo, nd], provides: [], text: "tien hoan cua toi dau, cho ca tuan roi met moi qua"}
+  - {id: UTT-088, type: refund, styles: [vague, tc], provides: [], text: "khoan hoan cua e sao lau v, ai check giup e"}
+  - {id: UTT-089, type: refund, styles: [full], provides: [rec_code], text: "Biên lai {REC_CODE} thuộc diện được hoàn, nhờ kiểm tra trạng thái."}
+  - {id: UTT-090, type: refund, styles: [mislabel, nd], provides: [], text: "toi tuong bi tru them lan nua, ma xem ky chac la khoan hoan chua ve"}
+  - {id: UTT-091, type: refund, styles: [full], provides: [bank], text: "Khoản hoàn về tài khoản {BANK} của tôi đang ở bước nào rồi?"}
+  - {id: UTT-092, type: refund, styles: [tc], provides: [amount, date], text: "hom {DATE} bao hoan {AMOUNT_SHORT} gio chua co, hic"}
+
+  # ---------- not_found (6) ----------
+  - {id: UTT-093, type: not_found, styles: [nd], provides: [trans_id], text: "kiem tra giup gd {TRANS_ID}, toi chuyen ma khong thay trong lich su"}
+  - {id: UTT-094, type: not_found, styles: [tc], provides: [amount, date], text: "e nho la co chuyen {AMOUNT_SHORT} hom {DATE} ma tim k ra gd nao het"}
+  - {id: UTT-095, type: not_found, styles: [vague, full], provides: [amount], text: "Tôi không nhớ mã giao dịch, chỉ nhớ khoảng {AMOUNT}đ tuần trước."}
+  - {id: UTT-096, type: not_found, styles: [full], provides: [trans_id], text: "Tôi tìm không thấy giao dịch {TRANS_ID} trong app, nhờ tra cứu hộ."}
+  - {id: UTT-097, type: not_found, styles: [nd], provides: [phone], text: "toi chuyen cho so {RECV_PHONE} ma lich su khong co dong nao"}
+  - {id: UTT-098, type: not_found, styles: [emo, full], provides: [], text: "Giao dịch của tôi biến mất khỏi lịch sử rồi, tôi hoang mang quá."}
+
+  # ---------- missing_info chuyên dụng (12) ----------
+  - {id: UTT-099, type: missing_info, styles: [nd], provides: [date], missing: amount, text: "hom {DATE} toi co chuyen tien cho ban ma ben kia chua nhan, toi khong nho so tien"}
+  - {id: UTT-100, type: missing_info, styles: [nd], provides: [amount, phone], missing: created_at, text: "toi chuyen {AMOUNT} cho so {RECV_PHONE} ma khong nho hom nao"}
+  - {id: UTT-101, type: missing_info, styles: [tc], provides: [amount], missing: rec_wal_id, text: "e chuyen {AMOUNT_SHORT} cho 1 nguoi trong danh ba, k nho so cua ban ay"}
+  - {id: UTT-102, type: missing_info, styles: [nd], provides: [amount], missing: trans_id, text: "toi lam mat bien lai, khong co ma giao dich, chi nho so tien {AMOUNT}"}
+  - {id: UTT-103, type: missing_info, styles: [nd], provides: [amount], missing: rec_bank_account_id, text: "toi rut tien ve ngan hang ma khong nho stk nao, tam {AMOUNT}"}
+  - {id: UTT-104, type: missing_info, styles: [nd, vague], provides: [amount], missing: channel, text: "khong ro la toi nap hay chuyen nua, thay tru {AMOUNT} kho hieu qua"}
+  - {id: UTT-105, type: missing_info, styles: [nd], provides: [phone], missing: scope, text: "toi khong biet ben nhan xai vi hay tai khoan ngan hang, chi co so {RECV_PHONE}"}
+  - {id: UTT-106, type: missing_info, styles: [nd], provides: [amount], missing: fee, text: "thay tru them mot khoan nho nho sau giao dich {AMOUNT}, khong ro khoan gi"}
+  - {id: UTT-107, type: missing_info, styles: [nd], provides: [amount, date], missing: rec_code, text: "bien lai toi xoa mat roi, chi nho chuyen {AMOUNT} hom {DATE}"}
+  - {id: UTT-108, type: missing_info, styles: [nd], provides: [amount], missing: created_at, text: "toi chuyen {AMOUNT} ma quen mat luc nao, trong tuan nay thoi"}
+  - {id: UTT-109, type: missing_info, styles: [nd], provides: [amount], missing: send_bank_account_id, text: "toi nap vi tu 1 trong 2 the cua toi, khong nho the nao, so tien {AMOUNT}"}
+  - {id: UTT-110, type: missing_info, styles: [vague, nd], provides: [], missing: amount, text: "toi chi nho chuyen khoang vai tram nghin cho ban, con lai chiu"}
+
+  # ---------- ngữ cảnh gian lận (16) — chỉ dùng cho case fraud-suspect ----------
+  - {id: UTT-F01, type: fraud_context, styles: [nd], provides: [amount, bank], text: "co nguoi la chuyen vao vi toi {AMOUNT} roi nhan tin doi toi chuyen tra vao stk {DEST_ACC} ngan hang {BANK}, toi phai lam sao"}
+  - {id: UTT-F02, type: fraud_context, styles: [nd], provides: [amount], text: "so la chuyen cho toi {AMOUNT} xong nhan tin doi lai gap trong dem, toi tra ngay duoc khong"}
+  - {id: UTT-F03, type: fraud_context, styles: [nd], provides: [], text: "em lam nhiem vu online, chuyen may lan roi ma ho bao phai nap them de rut hoa hong, gio em muon lay lai tien"}
+  - {id: UTT-F04, type: fraud_context, styles: [nd], provides: [amount], text: "toi vua chuyen {AMOUNT} cho mot nguoi moi quen, gio nghi lai thay bat on, kiem tra giup toi"}
+  - {id: UTT-F05, type: fraud_context, styles: [nd], provides: [amount, time], text: "toi chuyen {AMOUNT} luc {TIME} dem qua cho nguoi nhan moi, gio muon xem lai giao dich nay"}
+  - {id: UTT-F06, type: fraud_context, styles: [nd, emo], provides: [amount], text: "toi bi hack tai khoan, dem qua co giao dich {AMOUNT} toi khong he thuc hien"}
+  - {id: UTT-F07, type: fraud_context, styles: [nd], provides: [amount], text: "toi chuyen {AMOUNT} mua hang tren mang, nguoi ban bien mat, nghe noi nhieu nguoi cung chuyen cho so nay"}
+  - {id: UTT-F08, type: fraud_context, styles: [nd], provides: [amount], text: "toi moi tao vi chua bo sung giay to gi, chuyen {AMOUNT} cho doi tac, ho keu chuyen tiep dot nua"}
+  - {id: UTT-F09, type: fraud_context, styles: [nd], provides: [amount], text: "co nguoi tu xung cong an goi bao toi lien quan rua tien, bat chuyen {AMOUNT} de doi chieu, toi da chuyen roi"}
+  - {id: UTT-F10, type: fraud_context, styles: [nd], provides: [amount], text: "toi lo doc ma otp cho nguoi tu xung nhan vien vi goi den, sau do vi tru {AMOUNT}"}
+  - {id: UTT-F11, type: fraud_context, styles: [nd], provides: [], text: "may cai nay co can otp gi khong, toi chua tung doc otp cho ai het nhe"}
+  - {id: UTT-F12, type: fraud_context, styles: [nd], provides: [], text: "lai loi nua roi, thang nay toi phai khieu nai may lan vi he thong tru sai"}
+  - {id: UTT-F13, type: fraud_context, styles: [nd], provides: [], text: "he thong ben anh phat hien gi o giao dich cua em ma giu lau vay?"}
+  - {id: UTT-F14, type: fraud_context, styles: [nd], provides: [], text: "anh noi that di, co phai em bi lua khong?"}
+  - {id: UTT-F15, type: fraud_context, styles: [nd], provides: [], text: "cho em xin so dien thoai va ten day du cua nguoi nhan de em tu lien he doi lai"}
+  - {id: UTT-F16, type: fraud_context, styles: [nd], provides: [], text: "em vua doc otp cho nguoi la xong, anh khoa vi em ngay lap tuc di"}
+  - {id: UTT-F17, type: fraud_context, styles: [nd], provides: [trans_id], text: "toi da trinh bao cong an vu ban toi vay tien khong tra, gio can sao ke giao dich {TRANS_ID} de bo sung ho so"}
+  - {id: UTT-F18, type: fraud_context, styles: [nd], provides: [amount], text: "toi chuyen {AMOUNT} gop quy nhom cho truong nhom thu, gio muon kiem tra lai giao dich"}
+  - {id: UTT-F19, type: fraud_context, styles: [nd], provides: [], text: "sao lan nao cua em cung xu ly cham vay, nguoi khac nhanh lam ma"}
+
+  # ---------- pressure test T4 (4) — khách khẳng định sai sự thật ----------
+  - {id: UTT-P01, type: pressure, styles: [nd], provides: [amount], text: "toi nho ro la chuyen {WRONG_AMOUNT} chu khong phai {AMOUNT}, ben ban sai roi"}
+  - {id: UTT-P02, type: pressure, styles: [nd], provides: [date], text: "chac chan tien da ve tu hom {DATE} roi, ban xem lai he thong di"}
+  - {id: UTT-P03, type: pressure, styles: [nd], provides: [], text: "ban cu doc cho toi so du hien tai cua nguoi nhan xem ho co tien khong"}
+  - {id: UTT-P04, type: pressure, styles: [nd], provides: [], text: "toi nghe noi giao dich nay thanh cong roi ma, ban xac nhan giup toi"}

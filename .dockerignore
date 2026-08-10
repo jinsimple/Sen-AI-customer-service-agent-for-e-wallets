@@ -14,3 +14,14 @@ eval/
 .dockerignore
 Dockerfile
 docker-compose.yml
+# Chỉ loại artifact runtime (SQLite dev, Chroma index) — GIỮ LẠI
+# data/generated/*.jsonl + data/schema/ vì scripts/seed_db.py cần đọc trong
+# container lúc seed lần đầu (khớp đúng whitelist trong .gitignore).
+data/*
+!data/generated/
+!data/schema/
+logs/
+.ai-log/
+# Context riêng cho frontend/Dockerfile (context: ./frontend trong compose) —
+# backend không cần cây node_modules/.next, loại khỏi build context cho nhẹ.
+frontend/

@@ -1,0 +1,383 @@
+"""FIN-05 — SQLAlchemy 2.0 models.
+
+Nguồn sự thật cho schema: docs/FIN05-Data-Brief.md §4.1 (ERD) và §4.2 (định
+nghĩa bảng). Mọi thay đổi ở đây PHẢI đồng bộ ngược lại tài liệu đó — đây là
+nơi các bất biến I1-I7 (§6.2) và ràng buộc HITL (BR-10, BR-11) được ép ở
+tầng DB, không chỉ ở tầng prompt (xem Data Brief §6.6 "guardrail được test
+ở tầng service/DB, không phải tầng prompt").
+"""
+from __future__ import annotations
+
+import datetime as dt
+from typing import Any, Optional
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from src.db.crypto_types import EncryptedString, EncryptedText
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Identity & tài khoản
+# ---------------------------------------------------------------------------
+
+
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = (
+        # partner_admin — role riêng cho đối tác ví điện tử, tách khỏi
+        # supervisor (sếp CSKH nội bộ). CHỈ role này được upload/xoá tài liệu
+        # chính sách/FAQ (src/rag/, src/api/main.py::/policy-docs).
+        CheckConstraint(
+            "role IN ('customer','cskh','supervisor','partner_admin')", name="ck_users_role"
+        ),
+    )
+
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    full_name: Mapped[str] = mapped_column(String, nullable=False)
+    phone: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    kyc_level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    security_question: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    security_answer_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+
+
+class Wallet(Base):
+    __tablename__ = "wallets"
+    __table_args__ = (
+        CheckConstraint("status IN ('active','frozen','closed')", name="ck_wallets_status"),
+        CheckConstraint("balance >= 0", name="ck_wallets_balance_nonneg"),
+    )
+
+    wallet_id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    balance: Mapped[int] = mapped_column(Integer, nullable=False)  # VND, INTEGER — I7
+    status: Mapped[str] = mapped_column(String, nullable=False, default="active")
+
+
+class BankAccount(Base):
+    __tablename__ = "bank_accounts"
+    __table_args__ = (
+        CheckConstraint("status IN ('active','closed')", name="ck_bank_accounts_status"),
+    )
+
+    bank_account_id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    bank_code: Mapped[str] = mapped_column(String, nullable=False)
+    # Mã hoá trong suốt ở tầng ORM (src/db/crypto_types.py) — bản đầy đủ vẫn
+    # cần lưu (BR-07, chủ TK có quyền xem đủ số của chính mình), nhưng file
+    # SQLite trên đĩa giờ chỉ chứa ciphertext, không phải số TK dạng thô.
+    account_no: Mapped[str] = mapped_column(EncryptedString, nullable=False)
+    card_last4: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="active")
+    linked_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Giao dịch — bảng lõi
+# ---------------------------------------------------------------------------
+
+_SCOPE_DIRECTION_CHECK = """
+    (
+        scope = 'internal_wallet'
+        AND send_wal_id IS NOT NULL AND rec_wal_id IS NOT NULL
+        AND send_bank_account_id IS NULL AND rec_bank_account_id IS NULL
+    ) OR (
+        scope = 'from_bank'
+        AND send_bank_account_id IS NOT NULL AND rec_wal_id IS NOT NULL
+        AND send_wal_id IS NULL AND rec_bank_account_id IS NULL
+    ) OR (
+        scope = 'to_bank'
+        AND send_wal_id IS NOT NULL AND rec_bank_account_id IS NOT NULL
+        AND send_bank_account_id IS NULL AND rec_wal_id IS NULL
+    )
+"""
+
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending','processing','success','failed','refunded','on_hold')",
+            name="ck_transactions_status",
+        ),
+        CheckConstraint(
+            "scope IN ('internal_wallet','from_bank','to_bank')",
+            name="ck_transactions_scope",
+        ),
+        CheckConstraint(
+            "channel IN ('p2p','bank_transfer','card_topup','withdrawal')",
+            name="ck_transactions_channel",
+        ),
+        CheckConstraint("amount > 0", name="ck_transactions_amount_positive"),
+        CheckConstraint("fee >= 0", name="ck_transactions_fee_nonneg"),
+        # I2 — mỗi scope khớp đúng một tổ hợp bên gửi/bên nhận (Data Brief §4.2/§6.2)
+        CheckConstraint(_SCOPE_DIRECTION_CHECK, name="ck_transactions_scope_direction_i2"),
+    )
+
+    trans_id: Mapped[str] = mapped_column(String, primary_key=True)
+    rec_code: Mapped[str] = mapped_column(String, nullable=False)
+    send_wal_id: Mapped[Optional[str]] = mapped_column(ForeignKey("wallets.wallet_id"), nullable=True)
+    send_bank_account_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("bank_accounts.bank_account_id"), nullable=True
+    )
+    rec_wal_id: Mapped[Optional[str]] = mapped_column(ForeignKey("wallets.wallet_id"), nullable=True)
+    rec_bank_account_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("bank_accounts.bank_account_id"), nullable=True
+    )
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    fee: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    scope: Mapped[str] = mapped_column(String, nullable=False)
+    channel: Mapped[str] = mapped_column(String, nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+    completed_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    des: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class TransactionEvent(Base):
+    __tablename__ = "transaction_events"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('initiated','debited','sent_to_partner','partner_ack',"
+            "'credited','failed','held','refund_initiated','refunded')",
+            name="ck_events_event_type",
+        ),
+        CheckConstraint(
+            "actor IN ('wallet_system','partner_bank','cskh')", name="ck_events_actor"
+        ),
+    )
+
+    event_id: Mapped[str] = mapped_column(String, primary_key=True)
+    trans_id: Mapped[str] = mapped_column(ForeignKey("transactions.trans_id"), nullable=False)
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String, nullable=False)
+    actor: Mapped[str] = mapped_column(String, nullable=False)
+    status_from: Mapped[str] = mapped_column(String, nullable=False)
+    status_to: Mapped[str] = mapped_column(String, nullable=False)
+    occurred_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+    payload_json: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# Khiếu nại → ticket → điều tra → đề xuất → duyệt
+# ---------------------------------------------------------------------------
+
+
+class Complaint(Base):
+    __tablename__ = "complaints"
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('wrong_recipient','money_not_received','double_charge','refund')",
+            name="ck_complaints_type",
+        ),
+        CheckConstraint(
+            "scope IN ('internal_wallet','from_bank','to_bank')", name="ck_complaints_scope"
+        ),
+        CheckConstraint(
+            "priority IN ('low','normal','high','critical')", name="ck_complaints_priority"
+        ),
+    )
+
+    complaint_id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    trans_id: Mapped[Optional[str]] = mapped_column(ForeignKey("transactions.trans_id"), nullable=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    scope: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="investigating")
+    priority: Mapped[str] = mapped_column(String, nullable=False, default="normal")
+    description_raw: Mapped[str] = mapped_column(Text, nullable=False)
+    # Tính từ tầng service (fraud_engine.py), KHÔNG do agent tự điền — Data Brief §4.2.
+    fraud_signals: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    otp_disclosed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+    __table_args__ = (
+        CheckConstraint(
+            "hitl_status IN ('pending','approved','rejected','need_more_info')",
+            name="ck_tickets_hitl_status",
+        ),
+        CheckConstraint(
+            "partner_wait_status IN ('n/a','waiting','overdue','responded')",
+            name="ck_tickets_partner_wait_status",
+        ),
+    )
+
+    ticket_id: Mapped[str] = mapped_column(String, primary_key=True)
+    complaint_id: Mapped[str] = mapped_column(ForeignKey("complaints.complaint_id"), nullable=False)
+    assigned_role: Mapped[str] = mapped_column(String, nullable=False, default="cskh")
+    hitl_status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
+    sla_due_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+    partner_wait_status: Mapped[str] = mapped_column(String, nullable=False, default="n/a")
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ToolResult(Base):
+    """Nguồn sự thật duy nhất để đối chiếu chống bịa số liệu (T4, Data Brief §6.5)."""
+
+    __tablename__ = "tool_results"
+
+    tool_result_id: Mapped[str] = mapped_column(String, primary_key=True)
+    tool_name: Mapped[str] = mapped_column(String, nullable=False)
+    raw_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+
+
+class InvestigationLog(Base):
+    __tablename__ = "investigation_logs"
+
+    log_id: Mapped[str] = mapped_column(String, primary_key=True)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
+    step_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    tool_called: Mapped[str] = mapped_column(String, nullable=False)
+    tool_input_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    tool_result_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("tool_results.tool_result_id"), nullable=True
+    )
+    agent_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+
+
+class Resolution(Base):
+    """BR-10: agent chỉ đề xuất — luôn draft/pending_approval, không có đường ghi
+    thẳng approved. approved ⟹ approved_by NOT NULL, ép bằng CHECK ở đây."""
+
+    __tablename__ = "resolutions"
+    __table_args__ = (
+        CheckConstraint(
+            "action_type IN ('refund_to_wallet','refund_to_bank','ledger_adjustment',"
+            "'no_action','manual_review')",
+            name="ck_resolutions_action_type",
+        ),
+        CheckConstraint(
+            "status IN ('draft','pending_approval','approved','rejected')",
+            name="ck_resolutions_status",
+        ),
+        CheckConstraint(
+            "(status != 'approved') OR (approved_by IS NOT NULL AND approved_at IS NOT NULL)",
+            name="ck_resolutions_approved_requires_approver_br10",
+        ),
+    )
+
+    resolution_id: Mapped[str] = mapped_column(String, primary_key=True)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
+    action_type: Mapped[str] = mapped_column(String, nullable=False)
+    amount: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    destination_ref: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    cited_tool_result_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
+    approved_by: Mapped[Optional[str]] = mapped_column(ForeignKey("users.user_id"), nullable=True)
+    approved_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+
+
+class Escalation(Base):
+    __tablename__ = "escalations"
+    __table_args__ = (
+        CheckConstraint(
+            "target IN ('supervisor','partner_bank','authority')", name="ck_escalations_target"
+        ),
+    )
+
+    escalation_id: Mapped[str] = mapped_column(String, primary_key=True)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
+    target: Mapped[str] = mapped_column(String, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)  # NOT NULL — mã tín hiệu, không phải kết luận
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+    partner_response_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    responded_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+
+
+# ---------------------------------------------------------------------------
+# Xác thực & hội thoại
+# ---------------------------------------------------------------------------
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    otp_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    otp_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    security_q_passed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    locked_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('customer','agent','staff','system')", name="ck_messages_role"
+        ),
+    )
+
+    message_id: Mapped[str] = mapped_column(String, primary_key=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("auth_sessions.session_id"), nullable=False)
+    ticket_id: Mapped[Optional[str]] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=True)
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    tool_call_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# RAG chính sách/FAQ (src/rag/) — đối tác ví (role partner_admin) upload,
+# agent + CSKH tra cứu. Nội dung tài liệu (PolicyChunk.text) mã hoá tại chỗ
+# (EncryptedText) — vector store (Chroma, data/rag_index/) chỉ giữ embedding +
+# chunk_id, KHÔNG giữ text thật (xem src/rag/store.py).
+# ---------------------------------------------------------------------------
+
+
+class PolicyDocument(Base):
+    __tablename__ = "policy_documents"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('processing','indexed','failed')", name="ck_policy_documents_status"
+        ),
+    )
+
+    doc_id: Mapped[str] = mapped_column(String, primary_key=True)
+    filename: Mapped[str] = mapped_column(String, nullable=False)
+    uploaded_by: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    uploaded_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="processing")
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class PolicyChunk(Base):
+    __tablename__ = "policy_chunks"
+
+    chunk_id: Mapped[str] = mapped_column(String, primary_key=True)
+    doc_id: Mapped[str] = mapped_column(ForeignKey("policy_documents.doc_id"), nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Mã hoá trong suốt (Fernet, giống BankAccount.account_no) — "bảo mật RAG
+    # cấp cao": file SQLite trên đĩa không chứa nội dung chính sách dạng thô.
+    text: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)

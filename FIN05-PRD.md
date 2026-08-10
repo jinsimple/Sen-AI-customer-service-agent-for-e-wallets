@@ -95,12 +95,12 @@ Với vai trò sếp/người có thẩm quyền phê duyệt, tôi muốn xem �
 **US-011 — CSKH xem & lọc hàng chờ**
 Với vai trò nhân viên CSKH, tôi muốn lọc/sắp xếp hàng chờ theo trạng thái và ưu tiên, để xử lý đúng case cấp bách trước.
 - Lọc tối thiểu: chờ duyệt / chờ đối tác ngân hàng / vượt thẩm quyền / khẩn cấp
-- Ticket nghi gian lận Tầng A nổi bật rõ hơn ticket thường
+- Ticket nghi gian lận (tín hiệu FS-06 bật) nổi bật rõ hơn ticket thường
 - Ticket đối tác quá hạn SLA có trạng thái/cảnh báo riêng
 
 **US-012 — CSKH tiếp nhận mọi case trước khi trình sếp**
 Với vai trò nhân viên CSKH, tôi muốn tiếp nhận đầy đủ hồ sơ điều tra cho mọi loại case kể cả khẩn cấp, để luôn là điểm kiểm tra đầu tiên trước khi việc lên sếp.
-- Không case nào (kể cả nghi gian lận Tầng A) đi thẳng từ AI lên sếp, bỏ qua CSKH
+- Không case nào (kể cả nghi gian lận) đi thẳng từ AI lên sếp, bỏ qua CSKH
 - CSKH thấy đủ: loại khiếu nại, phạm vi, mức ưu tiên, toàn bộ investigation trail trước khi trình
 - CSKH không có nút "duyệt" cho bất kỳ case nào — chỉ có "trình sếp" / "yêu cầu điều tra thêm"
 
@@ -110,13 +110,12 @@ Với vai trò nhân viên CSKH, tôi muốn tạo yêu cầu tra soát cho case
 - Yêu cầu ghi rõ ngân hàng đối tác, lý do, thời điểm gửi
 - Quá hạn SLA chưa phản hồi → ticket chuyển "quá hạn chờ đối tác", CSKH nhận cảnh báo
 
-**US-014 — Escalate nghi gian lận theo 2 tầng**
-Với vai trò nhân viên CSKH, tôi muốn hệ thống phân loại mức khẩn cấp theo số lượng/loại tín hiệu gian lận bật, để ưu tiên đúng mức mà không ngập trong cảnh báo giả.
-- 1 tín hiệu Tầng A → escalate ngay, ưu tiên khẩn
-- Tầng B: 1 tín hiệu → chỉ ghi nhận cho CSKH thấy; ≥2 tín hiệu cùng bật mới escalate
+**US-014 — Escalate khi có tín hiệu gian lận**
+Với vai trò nhân viên CSKH, tôi muốn hệ thống tự động escalate ưu tiên khẩn khi tín hiệu gian lận FS-06 bật, để không bỏ sót case rủi ro cao.
+- Tín hiệu FS-06 bật (OTP sai nhiều lần + rút ≥90% số dư) → escalate ngay, ưu tiên khẩn
 - AI không bao giờ kết luận "gian lận" — chỉ trình bày tín hiệu quan sát được
 - Gắn cờ không tự động khoá ví — 2 hành động độc lập
-- Case có dấu hiệu giống đáng ngờ nhưng có căn cứ hợp pháp rõ ràng → không bị escalate nhầm
+- Case có dấu hiệu giống đáng ngờ nhưng có căn cứ hợp pháp rõ ràng (VD khách tự xác nhận thao tác đúng ý mình) → không bị escalate nhầm
 
 **US-015 — Chặn hành động ngoài thẩm quyền**
 Với vai trò nhân viên CSKH, tôi muốn hệ thống tự chặn và giải thích khi tôi cố thao tác vượt quyền, để không lỡ duyệt nhầm case không thuộc quyền mình.
@@ -179,24 +178,19 @@ Thẩm quyền quyết định **luôn luôn** là sếp, không phụ thuộc p
 
 ---
 
-## 5. Bộ tín hiệu gian lận (12 tín hiệu, kích hoạt 2 tầng)
+## 5. Tín hiệu gian lận (1 tín hiệu, phạm vi MVP)
 
-Tín hiệu là **điều kiện định tuyến** (chuyển người xử lý), không phải bằng chứng phạm tội — agent không bao giờ kết luận gian lận.
+Tín hiệu là **điều kiện định tuyến** (chuyển CSKH ưu tiên khẩn), không phải bằng chứng phạm tội — agent không bao giờ kết luận gian lận.
 
-| Nhóm | Tín hiệu |
-|---|---|
-| Trên giao dịch bị khiếu nại | FS-01 hoàn về đích khác nguồn gốc · FS-02 nguồn lạ + đòi hoàn <24h · FS-03 chuỗi tăng dần ≥3 lần cùng người nhận · FS-04 lệch ≥10× p95 lịch sử · FS-05 người nhận mới + ≥10tr + ngoài giờ |
-| Trên hành vi tài khoản | FS-06 rút ≥90% số dư sau bất thường xác thực · FS-07 nhận từ ≥5 nguồn rồi rút ngay · FS-08 KYC mức 0 + ≥20tr/ngày · FS-12 bên nhận đã bị gắn cờ/bị ≥3 khách tố |
-| Trong lời kể của khách | FS-09 khớp 6 nhóm từ khoá kịch bản lừa đảo · FS-10 khách khai đã đưa OTP/mật khẩu |
-| Chiều ngược lại | FS-11 trục lợi chính sách hoàn tiền (≥3 lần được duyệt trong 90 ngày) |
+**Tín hiệu duy nhất — `FS-06` (rút sạch sau bất thường xác thực):** khách xác thực OTP sai nhiều lần liên tiếp (hoặc phiên bị khoá) trong 24h trước giao dịch, VÀ giao dịch đó rút/chuyển ≥90% số dư ví.
 
-**Chính sách 2 tầng:**
-- **Tầng A** (FS-01, 06, 07, 10, 12) — chỉ cần 1 tín hiệu là escalate ngay, ưu tiên tối cao.
-- **Tầng B** (7 tín hiệu còn lại) — cần ≥2 tín hiệu cùng bật mới escalate; 1 tín hiệu đơn lẻ chỉ ghi lại cho CSKH thấy khi mở ticket.
+**Chính sách kích hoạt:** tín hiệu bật → escalate ngay, ưu tiên khẩn cho CSKH. Chỉ có 1 tín hiệu nên không cần luật gộp nhiều tín hiệu (không còn khái niệm Tầng A/Tầng B).
 
 Gắn cờ **không** tự động khoá ví — hai hành động độc lập, tách biệt hoàn toàn (một dương tính giả không được phép làm khách hàng lương thiện mất quyền dùng tiền của chính họ).
 
-Ngưỡng cụ thể của từng tín hiệu là giả định thiết kế, chưa được doanh nghiệp xác nhận (trừ FS-05/FS-08 đã đối chiếu được với Quyết định 2345/QĐ-NHNN — xem Brief §7).
+Ngưỡng cụ thể (số lần OTP sai, % số dư rút) là giả định thiết kế cho demo, chưa được doanh nghiệp xác nhận.
+
+> **Ghi chú phạm vi:** bản thiết kế đầy đủ ban đầu có 12 tín hiệu (FS-01…FS-12, 2 tầng kích hoạt — xem lịch sử ở `FIN05-Data-Brief.md`). Đã cắt xuống 1 tín hiệu (FS-06) để vừa timeline 2 tuần/1 người; có thể mở rộng lại nếu còn thời gian sau khi phần lõi (chat agent + HITL) chạy ổn.
 
 ---
 
@@ -212,9 +206,9 @@ Ngưỡng cụ thể của từng tín hiệu là giả định thiết kế, ch
       - Đối chiếu trạng thái, timeline, log liên quan
       - Xác định phạm vi giao dịch (nội bộ / từ ngân hàng / ra ngân hàng)
       - Xác định loại khiếu nại (1 trong 4 nhóm)
-      - Chấm bộ 12 tín hiệu gian lận theo chính sách 2 tầng
+      - Kiểm tra tín hiệu gian lận FS-06 (OTP sai nhiều lần + rút ≥90% số dư)
 [6] Agent trình bày kết luận + đề xuất (trích dẫn tool result cho mọi số liệu)
-[7] CSKH tiếp nhận — LUÔN LUÔN, không có ngoại lệ kể cả case Tầng A khẩn cấp
+[7] CSKH tiếp nhận — LUÔN LUÔN, không có ngoại lệ kể cả case nghi gian lận khẩn cấp
       - Xem đầy đủ investigation trail
       - Không có quyền tự duyệt — chỉ "trình sếp" hoặc "yêu cầu điều tra thêm"
 [8] Sếp phê duyệt — quyết định cuối cùng cho MỌI case
@@ -256,7 +250,7 @@ Ngưỡng cụ thể của từng tín hiệu là giả định thiết kế, ch
 |---|---|---|---|
 | `lookup_transaction` | SĐT / mã GD / thời gian / số tiền | Trạng thái, số tiền, thời gian, phạm vi (3 giá trị), 2 bên liên quan (che theo PDPA) | Không có kết quả → `not_found`, không tự suy diễn |
 | `get_customer_history` | user_id | Danh sách khiếu nại trước đó | Chỉ trả về của chính khách đang xác thực |
-| `score_fraud_signals` | transaction_id, customer_history | 12 tín hiệu FS-01…FS-12 (bật/tắt) + tầng kích hoạt | Không tự kết luận gian lận, chỉ trả tín hiệu |
+| `score_fraud_signals` | transaction_id, customer_history | Tín hiệu FS-06 (bật/tắt) | Không tự kết luận gian lận, chỉ trả tín hiệu |
 | `create_ticket` | transaction_id, loại, phạm vi, ưu tiên, log | ticket_id | Bắt buộc có transaction_id hợp lệ, trừ case không tìm thấy GD |
 | `propose_resolution` | ticket_id, phương án, căn cứ | resolution_draft (chờ duyệt) | Không có hiệu lực cho tới khi sếp duyệt |
 | `escalate_ticket` | ticket_id, đích escalate, lý do | escalation_id | Bắt buộc kèm lý do; log ai/khi nào |
@@ -274,7 +268,7 @@ Ngưỡng cụ thể của từng tín hiệu là giả định thiết kế, ch
 | complaints / tickets | 600 / 600 | ~1,0% tổng giao dịch |
 | auth_sessions | 303 | Gồm phiên khoá & thất bại OTP (US-006) |
 
-**Bộ case có nhãn:** 180 case (120 dev / 60 held-out) — mỗi case mang khối `expected` (đáp án đúng) và `forbidden` (hành vi bị cấm), dùng làm assertion tự động khi test agent. Chi tiết đầy đủ về phương pháp, kiểm định, và hạn chế đã biết: xem `FIN05-Data-Brief.md`.
+**Bộ case có nhãn:** 153 case (102 dev / 51 held-out) — mỗi case mang khối `expected` (đáp án đúng) và `forbidden` (hành vi bị cấm), dùng làm assertion tự động khi test agent. Chi tiết đầy đủ về phương pháp, kiểm định, và hạn chế đã biết: xem `FIN05-Data-Brief.md`.
 
 ---
 
@@ -320,7 +314,7 @@ Xem Brief §5. Nhấn mạnh: không kết nối core banking/NAPAS thật, khô
 ## 14. Câu hỏi mở còn lại
 
 Danh sách đầy đủ và ưu tiên: xem `FIN05-Data-Brief.md` §7. Tóm tắt các câu quan trọng nhất:
-- Ngưỡng thật của từng tín hiệu gian lận FS-01…FS-12
+- Ngưỡng thật của tín hiệu gian lận FS-06 (số lần OTP sai, % số dư rút coi là bất thường)
 - Số tầng thẩm quyền thật của một ví điện tử
 - Tỉ lệ khiếu nại thật trên tổng giao dịch, và độ lệch theo phạm vi giao dịch
 - Ngưỡng N lần hỏi lại trước khi coi là không tìm thấy giao dịch (đề xuất hiện tại N = 2)

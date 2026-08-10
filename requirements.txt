@@ -10,13 +10,31 @@ langchain>=0.3.0
 langchain-openai>=0.3.0
 langgraph>=0.2.0
 
-# Database (uncomment as needed)
-# sqlalchemy>=2.0.0
-# alembic>=1.14.0
-# psycopg2-binary>=2.9.0
+# Database — backend thật (src/db, scripts/seed_db.py) đã dùng, xem FIN05-Backend-Handoff.md
+sqlalchemy>=2.0
+alembic>=1.13
+pyyaml>=6.0
+# Driver Postgres cho môi trường live (docker-compose.yml, DATABASE_URL=postgresql+psycopg2://...)
+# — bản binary, không cần build-essential/libpq-dev trong image. Dev cục bộ vẫn
+# mặc định SQLite (src/config.py), driver này chỉ được dùng khi DATABASE_URL trỏ Postgres.
+psycopg2-binary>=2.9
 
-# Vector Store (uncomment as needed)
-# chromadb>=0.5.0
+# Bảo mật — JWT (src/auth.py), mã hoá field nhạy cảm (src/db/crypto_types.py),
+# rate limit (src/api/main.py)
+pyjwt>=2.9
+cryptography>=43.0
+slowapi>=0.1.9
+
+# Vector Store — RAG chính sách/FAQ (src/rag/), xem docs/... upload role partner_admin
+chromadb>=0.5.0
+langchain-chroma>=0.2.0
+langchain-text-splitters>=0.3.0
+
+# Parse tài liệu upload cho RAG — src/rag/parsers.py (chỉ .md/.txt/.pdf/.docx,
+# KHÔNG hỗ trợ .doc nhị phân cũ, xem ghi chú trong parsers.py)
+pypdf>=5.0
+python-docx>=1.1
+python-multipart>=0.0.9
 
 # Dev tools
 ruff>=0.8.0

@@ -52,7 +52,7 @@ Ba yếu tố này là kim chỉ nam định vị sản phẩm — bổ sung gó
 - Dữ liệu giao dịch **mô phỏng** có kiểm định (xem `FIN05-Data-Brief.md`) — không kết nối core banking thật
 - Agent chat xử lý đủ cả 4 loại khiếu nại
 - Phân loại theo cả loại khiếu nại **và** phạm vi giao dịch (nội bộ ví / từ ngân hàng / ra ngân hàng)
-- Điều tra đa bước có log/giải thích lập luận, gồm bộ 12 tín hiệu gian lận (2 tầng kích hoạt)
+- Điều tra đa bước có log/giải thích lập luận, gồm 1 tín hiệu gian lận đơn giản (OTP sai nhiều lần rồi rút ≥90% số dư ngay sau đó)
 - HITL bắt buộc cho mọi đề xuất liên quan tiền — CSKH tiếp nhận, sếp phê duyệt
 - Memory hội thoại + lịch sử khách trong phiên làm việc
 - Xử lý lỗi khi không tìm thấy giao dịch, khi mô tả mơ hồ, khi đối tác ngân hàng quá hạn phản hồi
@@ -71,17 +71,16 @@ Ba yếu tố này là kim chỉ nam định vị sản phẩm — bổ sung gó
 3. **Tuân thủ PDPA (Nghị định 13/2023/NĐ-CP)** — không lộ thông tin của người khác (che một phần thông tin người nhận trong case chuyển nhầm).
 4. **Xác thực danh tính bắt buộc** — trước thao tác nhạy cảm: OTP phiên làm việc + câu hỏi bảo mật (không bao giờ hỏi mật khẩu/OTP giao dịch thật, đúng khuyến cáo chống lừa đảo của các ví thật).
 5. **AI không bao giờ vượt cấp** — mọi kết quả điều tra của AI (kể cả case nghi gian lận) đều phải qua CSKH tiếp nhận trước; CSKH không có quyền tự duyệt bất kỳ case nào; sếp là cấp duyệt duy nhất.
-6. **Gắn cờ nghi vấn ≠ khoá ví** — tín hiệu gian lận là điều kiện định tuyến (chuyển người xử lý), không phải kết luận; hai hành động luôn tách biệt.
+6. **Gắn cờ nghi vấn ≠ khoá ví** — tín hiệu gian lận là điều kiện định tuyến (chuyển CSKH ưu tiên khẩn), không phải kết luận; hai hành động luôn tách biệt.
 
 ## 8. Giả định quan trọng (đã cập nhật — một phần đã xác minh, một phần vẫn chờ chuyên gia)
 
 **Đã xác minh với nguồn công khai:**
-- Ngưỡng 10 triệu đồng/lần và 20 triệu đồng/ngày (dùng làm ngưỡng tham chiếu cho tín hiệu gian lận FS-05, FS-08) khớp với Quyết định 2345/QĐ-NHNN — nhưng cần lưu ý đây vốn là ngưỡng **bắt buộc xác thực sinh trắc học**, không phải ngưỡng NHNN định nghĩa riêng cho gian lận; đội chủ động mượn ngưỡng này làm mốc rủi ro.
 - Khung pháp lý hiện hành cho trung gian thanh toán là **Nghị định 52/2024/NĐ-CP** (hiệu lực 1/7/2024) và **Thông tư 40/2024/TT-NHNN** (hiệu lực 17/7/2024, thay thế Thông tư 39/2014/TT-NHNN đã hết hiệu lực) — yêu cầu tổ chức trung gian thanh toán phải có quy trình giải quyết tra soát/khiếu nại riêng.
 
 **Vẫn là giả định thiết kế, chưa được doanh nghiệp xác nhận:**
 - Cấu trúc phân cấp CSKH (giả định 4 CSKH + 2 supervisor, 3 tầng escalate: supervisor / ngân hàng đối tác / cơ quan chức năng).
-- 14 ngưỡng trong bộ 12 tín hiệu gian lận, ngoài 2 ngưỡng đã đối chiếu ở trên.
+- Ngưỡng cụ thể của tín hiệu gian lận (số lần OTP sai, % số dư rút) — hiện đặt ở mức mô phỏng cho demo, chưa được doanh nghiệp xác nhận.
 - Tỉ lệ khiếu nại thực tế trên tổng giao dịch (đang mô phỏng ~1,0%) và độ lệch khiếu nại nghiêng về nhóm chạm ngân hàng (~78%).
 - SLA xử lý tra soát liên ngân hàng dùng mốc phổ biến theo quy định NHNN, không phải cam kết thật của một ngân hàng cụ thể.
 

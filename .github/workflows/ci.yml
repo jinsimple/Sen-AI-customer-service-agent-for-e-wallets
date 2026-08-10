@@ -1,32 +1,185 @@
 name: CI
 
+# 6 stage đúng theo FIN05-StressTest-Plan.md mục 8 (đã thích ứng — xem
+# docs/TESTING.md), giữ NGUYÊN nhịp độ gốc: Stage 1-5 chạy MỌI PR/push vào
+# main (bao gồm chạy TOÀN BỘ golden_set/adversarial_set, không rút gọn), Stage
+# 6 (tải/chaos) tách job riêng chạy nightly vì tốn thời gian thật — không
+# phải vì giảm phạm vi.
+
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: "0 20 * * *" # 03:00 giờ VN — Stage 6 (load test) chạy nightly
+  workflow_dispatch: {}
+
+env:
+  # JWT_SECRET_KEY/FIELD_ENCRYPTION_KEY: src/config.py raise lỗi ngay lúc
+  # import nếu thiếu (cố ý, chống "trông như bảo mật nhưng không có key thật")
+  # — CI chỉ chạy trên DB tạm/ephemeral mỗi lần nên sinh key MỚI mỗi run,
+  # không cần lưu cố định trong GitHub Secrets. OPENAI_API_KEY thì PHẢI là
+  # secret thật (Settings > Secrets and variables > Actions) mới chạy được
+  # Stage 4/5 (gọi LLM thật) — thiếu secret đó 2 stage này sẽ fail rõ ràng,
+  # không fail âm thầm.
+  JWT_SECRET_KEY: ci-ephemeral-not-for-production-use-only-in-ci-runs
+  FIELD_ENCRYPTION_KEY: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9"
 
 jobs:
+  # ---------------------------------------------------------------------
+  # Stage 1: Lint + Unit test
+  # ---------------------------------------------------------------------
   lint-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Lint with ruff
-        run: ruff check src/ tests/
-
-      - name: Run tests
+      - run: pip install -r requirements.txt
+      - name: Lint với ruff
+        run: ruff check src/ tests/ eval/
+      - name: Chạy toàn bộ pytest (unit + integration, không gọi LLM thật)
         run: pytest tests/ -v --tb=short
         env:
-          APP_ENV: test
-          OPENAI_API_KEY: test-key
+          OPENAI_API_KEY: test-key-not-used-by-unit-tests
+
+  # ---------------------------------------------------------------------
+  # Stage 2: Dependency & secret scan (C5, C7)
+  # ---------------------------------------------------------------------
+  dependency-and-secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks cần full history để quét secret trong các commit cũ
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt pip-audit
+      - name: Quét CVE gói Python (C7)
+        run: pip-audit --strict
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - name: Quét CVE gói npm (C7, bổ sung — bản gốc bỏ sót JS side)
+        run: npm audit --prefix frontend --audit-level=high
+      - name: Quét secret lỡ commit (C5)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------
+  # Stage 3: AppSec test (Nhóm C) — ma trận phân quyền + injection
+  # ---------------------------------------------------------------------
+  appsec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pytest tests/test_api/ -v
+        env:
+          OPENAI_API_KEY: test-key-not-used-by-authz-tests
+
+  # ---------------------------------------------------------------------
+  # Stage 4: Business rule test (Nhóm A) — TOÀN BỘ golden_set.jsonl (120
+  # case), mỗi case gọi OpenAI thật. Cần secret OPENAI_API_KEY thật.
+  # ---------------------------------------------------------------------
+  business-rules-golden-set:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'schedule' }} # Stage 6 (nightly) không cần chạy lại stage này
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python eval/run_golden_set.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: golden-set-report
+          path: eval/results/golden_run_*.md
+
+  # ---------------------------------------------------------------------
+  # Stage 5: AI safety adversarial suite (Nhóm B) — 40 case, gọi OpenAI thật.
+  # ---------------------------------------------------------------------
+  ai-safety-adversarial:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'schedule' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python eval/run_adversarial_set.py
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: adversarial-set-report
+          path: eval/results/adversarial_run_*.md
+
+  # ---------------------------------------------------------------------
+  # Stage 6: Load/chaos test (Nhóm D) — CHỈ chạy nightly (schedule) hoặc bấm
+  # tay (workflow_dispatch), KHÔNG chạy trên PR — đúng bản gốc mục 8: tốn
+  # thời gian thật (cần server sống + nhiều phút chạy), không phải giảm phạm
+  # vi. D3 (soak 1-2h thật) không chạy tự động ở đây — chạy thủ công theo
+  # hướng dẫn trong tests/load/locustfile.py trước milestone lớn.
+  # ---------------------------------------------------------------------
+  load-test-nightly:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt locust
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Khởi động backend + seed dữ liệu tối thiểu
+        run: |
+          python -m alembic upgrade head
+          python scripts/seed_db.py
+          nohup uvicorn src.api.main:app --host 0.0.0.0 --port 8010 &
+          sleep 5
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - name: Build + khởi động frontend (locustfile nhắm /api/* qua BFF, đúng đường đi thật)
+        run: |
+          npm ci --prefix frontend
+          npm run build --prefix frontend
+          BACKEND_URL=http://localhost:8010 nohup npm run start --prefix frontend -- -p 3000 &
+          sleep 8
+      - name: D1+D2 rút gọn (vài phút, không phải soak 1-2h) qua BFF
+        run: |
+          locust -f tests/load/locustfile.py --host http://localhost:3000 \
+            --headless -u 30 -r 5 --run-time 5m --csv=eval/results/load_nightly
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-report
+          path: eval/results/load_nightly*
