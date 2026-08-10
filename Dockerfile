@@ -19,6 +19,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PYTHONUSERBASE=/install
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
+# Model NER cho PII scrubbing hybrid (src/observability/pii.py) — dùng thẳng
+# `pip install --user <wheel URL>` thay vì `spacy download` (lệnh tiện ích
+# của spaCy KHÔNG tôn trọng PYTHONUSERBASE/--user — phát hiện thật lúc build:
+# model cài vào site-packages toàn cục của stage builder, KHÔNG nằm trong
+# /install nên bị rớt mất khi COPY --from=builder /install sang stage 2,
+# runtime báo "Can't find model 'xx_ent_wiki_sm'"). pip install --user thì
+# tôn trọng PYTHONUSERBASE, model nằm chung chỗ với các gói khác, copy đúng.
+RUN pip install --no-cache-dir --user \
+    https://github.com/explosion/spacy-models/releases/download/xx_ent_wiki_sm-3.8.0/xx_ent_wiki_sm-3.8.0-py3-none-any.whl
 
 # ---- Stage 2: Production ----
 FROM python:3.12-slim

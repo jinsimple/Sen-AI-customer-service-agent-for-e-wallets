@@ -7,6 +7,14 @@ có), và có đúng vài bản ghi cần cho mỗi test bên trong `sample_db`.
 from __future__ import annotations
 
 import datetime as dt
+import os
+
+# Test/CI không có Jaeger sống — `OTEL_SDK_DISABLED` là biến chuẩn của OTel
+# SDK (không phải tự chế), khiến get_tracer() trả no-op tracer, tránh spam
+# lỗi "failed to connect... 4317" mỗi lần chạy pytest (đã xác nhận thật: xem
+# lịch sử — không set biến này log lỗi export che mất kết quả test thật).
+# PHẢI set TRƯỚC khi bất kỳ module nào import src.observability.tracing.
+os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 
 import pytest
 from sqlalchemy.orm import Session, sessionmaker

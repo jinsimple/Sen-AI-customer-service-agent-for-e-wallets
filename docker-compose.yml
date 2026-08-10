@@ -32,6 +32,11 @@ services:
       # Ghép từ POSTGRES_* trong .env — không set DATABASE_URL tay ở .env,
       # tránh lệch với `postgres` service ở trên (single source of truth).
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # DNS nội bộ compose — `jaeger` resolve tới service bên dưới, không
+      # phải localhost. Backend graceful-degrade nếu jaeger chưa sẵn sàng lúc
+      # khởi động (src/observability/tracing.py — BatchSpanProcessor tự
+      # retry/nuốt lỗi ở background thread, KHÔNG chặn healthcheck).
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
     volumes:
       - chroma_data:/app/data/rag_index
       - logs_data:/app/logs
@@ -43,6 +48,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  jaeger:
+    # all-in-one: nhận trace qua OTLP (4317 gRPC), có UI xem trace (16686) —
+    # đủ cho demo/dự án 1 service, không cần tách Collector/Query/Storage
+    # riêng như triển khai Jaeger quy mô lớn.
+    image: jaegertracing/all-in-one:1.62.0
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      # CHỈ bind loopback (127.0.0.1), KHÔNG "16686:16686" (= mọi interface)
+      # — đúng nguyên tắc "chỉ caddy publish port ra ngoài" ở đầu file: UI
+      # Jaeger chứa nội dung trace (đã scrub PII nhưng vẫn là dữ liệu nội bộ)
+      # không nên public. Xem trên VPS thật qua SSH tunnel:
+      # `ssh -L 16686:localhost:16686 user@host` rồi mở localhost:16686 máy mình.
+      - "127.0.0.1:16686:16686"
 
   frontend:
     build:

@@ -151,3 +151,7 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
 - **Deploy lại thủ công** (không đợi push code): `cd /opt/fin05 && git pull
   && docker compose up -d --build`, hoặc vào tab Actions trên GitHub bấm "Run
   workflow" (đã bật `workflow_dispatch`).
+- **Xem trace agent (Jaeger UI)** — chỉ bind loopback trên VPS (không public,
+  xem docs/TESTING.md phần Observability), truy cập qua SSH tunnel:
+  `ssh -L 16686:localhost:16686 <user>@<vps-ip>` rồi mở
+  `http://localhost:16686` trên máy mình, chọn service `fin05-backend`.

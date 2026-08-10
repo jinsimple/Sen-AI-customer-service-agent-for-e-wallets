@@ -15,7 +15,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.db.models import Complaint, Transaction, User, Wallet
+from src.observability.logging_config import get_logger
 from src.tools.base import ToolError, record_tool_result
+
+_logger = get_logger("fin05.tools.get_customer_history")
 
 
 def get_customer_history(
@@ -43,6 +46,13 @@ def get_customer_history(
     xem OpenAI agent safety guide: "design workflows so ambiguous data never
     directly drives agent behavior", nên đẩy phát hiện mơ hồ xuống tầng tool,
     không chỉ dựa vào lời văn)."""
+    # Hàm này KHÔNG nhận correlation_id — log vẫn tự gắn được đúng correlation_id
+    # + user_id của request đang xử lý qua contextvars (src/observability/
+    # context.py), chứng minh cơ chế "gắn 1 lần ở entry point, hàm con tự thừa
+    # hưởng" hoạt động đúng ngay cả ở tầng sâu nhất (tool), không cần sửa chữ
+    # ký hàm để truyền tay.
+    _logger.info("get_customer_history_called", extra={"days": days, "has_amount": amount is not None})
+
     user = session.get(User, user_id)
     if user is None:
         raise ToolError(f"user_id không tồn tại: {user_id}")

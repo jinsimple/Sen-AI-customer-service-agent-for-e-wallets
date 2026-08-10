@@ -1,0 +1,163 @@
+"""Callback handler LangChain -> OTel Span — Giai đoạn 1 checklist
+observability: agent là 1 vòng lặp ReAct (LLM sinh -> tool call -> LLM đọc
+kết quả -> ...), KHÔNG PHẢI 1 khối "process_request" duy nhất. Mỗi lượt gọi
+LLM VÀ mỗi tool call là 1 Span con của span gốc "agent_turn" (mở ở
+src/agents/graph.py::run_agent_turn) — nối cây cha-con qua context OTel hiện
+hành (KHÔNG tự quản lý parent_id tay), tự đóng đúng nhờ context manager.
+
+Span LLM đánh dấu rõ là "generation" (`gen_ai.*` attributes theo GenAI
+Semantic Conventions chuẩn của OTel — KHÔNG tự đặt tên field tuỳ ý, xem
+checklist Giai đoạn 4) — khác biệt với span tool thường (không cần
+token/cost). Toàn bộ text tự do (prompt/tool input-output) bị `scrub_pii()`
+TRƯỚC KHI gắn vào span attribute — scrub PHẢI chạy trước khi rời khỏi
+process, không phải sau khi đã gửi lên Jaeger."""
+from __future__ import annotations
+
+import json
+from typing import Any
+from uuid import UUID
+
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.messages import BaseMessage, SystemMessage
+from opentelemetry import context as otel_context
+from opentelemetry import trace
+from opentelemetry.trace import Span, StatusCode
+
+from src.observability.pii import scrub_pii
+from src.observability.tracing import get_tracer
+
+_MAX_ATTR_LEN = 1000  # cắt bớt input/output dài — span attribute không phải kho lưu trữ
+
+
+def _truncate(text: str) -> str:
+    return text if len(text) <= _MAX_ATTR_LEN else text[:_MAX_ATTR_LEN] + "…(cắt bớt)"
+
+
+def _scrub_and_truncate(text: str) -> str:
+    return _truncate(scrub_pii(text) or "")
+
+
+class OTelTracingCallbackHandler(BaseCallbackHandler):
+    """1 instance DÙNG RIÊNG cho ĐÚNG 1 lượt `agent.invoke()` (tạo mới mỗi
+    lượt trong run_agent_turn, giống cách build_customer_tools() đã tạo mới
+    mỗi request) — `_spans` keyed theo run_id (UUID LangChain tự sinh, duy
+    nhất mỗi lượt gọi con), không chia sẻ state giữa các lượt/request khác
+    nhau."""
+
+    def __init__(self) -> None:
+        self._tracer = get_tracer("fin05.agent")
+        self._spans: dict[UUID, tuple[Span, Any]] = {}  # run_id -> (span, otel_context_token)
+
+    def _start_span(self, run_id: UUID, name: str, attributes: dict[str, Any]) -> None:
+        span = self._tracer.start_span(name, attributes=attributes)
+        ctx = trace.set_span_in_context(span)
+        token = otel_context.attach(ctx)
+        self._spans[run_id] = (span, token)
+
+    def _end_span(self, run_id: UUID, *, error: BaseException | None = None, extra_attrs: dict[str, Any] | None = None) -> None:
+        entry = self._spans.pop(run_id, None)
+        if entry is None:
+            return
+        span, token = entry
+        if extra_attrs:
+            for k, v in extra_attrs.items():
+                span.set_attribute(k, v)
+        if error is not None:
+            span.set_status(StatusCode.ERROR, str(error))
+            span.record_exception(error)
+        span.end()
+        otel_context.detach(token)
+
+    # --- LLM generation spans (gen_ai.* — GenAI Semantic Conventions) -----
+
+    def on_chat_model_start(
+        self,
+        serialized: dict[str, Any],
+        messages: list[list[BaseMessage]],
+        *,
+        run_id: UUID,
+        parent_run_id: UUID | None = None,
+        **kwargs: Any,
+    ) -> None:
+        # `serialized["kwargs"]["model_name"]` — KHÔNG phải "model" (phát hiện
+        # thật lúc verify trace trên Jaeger: field sai tên khiến span luôn
+        # ghi "ChatOpenAI" — tên CLASS — thay vì "gpt-4o-mini" thật).
+        model = (serialized.get("kwargs") or {}).get("model_name") or serialized.get("name") or "unknown"
+        # CHỈ đưa message KHÔNG PHẢI system prompt vào preview — system prompt
+        # là văn bản TĨNH do dev viết (src/agents/prompt.py), không chứa PII
+        # khách hàng, và lặp lại y hệt ở MỌI span khiến trace khó đọc. Phát
+        # hiện thật lúc verify: scrub PII (đúng, cần thiết cho message THẬT
+        # của khách/tool) chạy trên system prompt làm nó vụn thành chuỗi
+        # "[NAME]" rải rác, không đọc lại được — hại debug mà không có lợi ích
+        # bảo mật nào (system prompt vốn không có PII để che).
+        flat = [m for batch in messages for m in batch if not isinstance(m, SystemMessage)]
+        prompt_preview = _scrub_and_truncate(" | ".join(m.content if isinstance(m.content, str) else str(m.content) for m in flat))
+        self._start_span(
+            run_id,
+            "gen_ai.generation",
+            {
+                "gen_ai.system": "openai",
+                "gen_ai.request.model": model,
+                "gen_ai.operation.name": "chat",
+                "gen_ai.prompt.preview": prompt_preview,
+            },
+        )
+
+    def on_llm_end(self, response: Any, *, run_id: UUID, **kwargs: Any) -> None:
+        usage = {}
+        try:
+            gen = response.generations[0][0]
+            msg = getattr(gen, "message", None)
+            if msg is not None and getattr(msg, "usage_metadata", None):
+                usage = msg.usage_metadata
+            elif response.llm_output and "token_usage" in response.llm_output:
+                tu = response.llm_output["token_usage"]
+                usage = {
+                    "input_tokens": tu.get("prompt_tokens", 0),
+                    "output_tokens": tu.get("completion_tokens", 0),
+                    "total_tokens": tu.get("total_tokens", 0),
+                }
+            completion_preview = _scrub_and_truncate(getattr(gen, "text", "") or "")
+        except (IndexError, AttributeError):
+            completion_preview = ""
+
+        self._end_span(
+            run_id,
+            extra_attrs={
+                "gen_ai.usage.input_tokens": usage.get("input_tokens", 0),
+                "gen_ai.usage.output_tokens": usage.get("output_tokens", 0),
+                "gen_ai.completion.preview": completion_preview,
+            },
+        )
+
+    def on_llm_error(self, error: BaseException, *, run_id: UUID, **kwargs: Any) -> None:
+        self._end_span(run_id, error=error)
+
+    # --- Tool call spans ----------------------------------------------
+
+    def on_tool_start(
+        self,
+        serialized: dict[str, Any],
+        input_str: str,
+        *,
+        run_id: UUID,
+        parent_run_id: UUID | None = None,
+        inputs: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        tool_name = serialized.get("name", "unknown_tool")
+        args_preview = _scrub_and_truncate(json.dumps(inputs, ensure_ascii=False, default=str) if inputs else input_str)
+        self._start_span(run_id, f"tool.{tool_name}", {"tool.name": tool_name, "tool.input.preview": args_preview})
+
+    def on_tool_end(self, output: Any, *, run_id: UUID, **kwargs: Any) -> None:
+        # LangGraph bọc kết quả tool thành ToolMessage trước khi gọi callback
+        # (khác `.invoke()` gọi tool trực tiếp trả thẳng dict/str) — phát hiện
+        # thật lúc verify trace trên Jaeger: thiếu unwrap `.content` khiến
+        # preview chỉ hiện repr Pydantic ("content='...' additional_kwargs=...")
+        # thay vì JSON đọc được.
+        content = getattr(output, "content", output)
+        output_str = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False, default=str)
+        self._end_span(run_id, extra_attrs={"tool.output.preview": _scrub_and_truncate(output_str)})
+
+    def on_tool_error(self, error: BaseException, *, run_id: UUID, **kwargs: Any) -> None:
+        self._end_span(run_id, error=error)

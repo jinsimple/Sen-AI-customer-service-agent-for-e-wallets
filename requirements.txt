@@ -22,7 +22,13 @@ psycopg2-binary>=2.9
 # Bảo mật — JWT (src/auth.py), mã hoá field nhạy cảm (src/db/crypto_types.py),
 # rate limit (src/api/main.py)
 pyjwt>=2.9
-cryptography>=43.0
+# >=50.0 KHÔNG chỉ là cận dưới tuỳ ý — pin CHẶT ở đây để pip không tự ý hạ
+# xuống <49.0 khi cài presidio-anonymizer (KHÔNG dùng ở đây, xem pii.py,
+# nhưng phòng trường hợp sau này ai đó thêm nó vào) — bản <49.0 có 3 CVE đã
+# biết (PYSEC-2026-3552/3553/3554), phát hiện thật lúc cài Presidio
+# 2026-08-10: pip lặng lẽ hạ cryptography 50.0.0 xuống 48.0.1 làm dependency
+# của presidio-anonymizer, không cảnh báo gì cho tới khi chạy pip-audit.
+cryptography>=50.0.0
 slowapi>=0.1.9
 
 # Vector Store — RAG chính sách/FAQ (src/rag/), xem docs/... upload role partner_admin
@@ -35,6 +41,29 @@ langchain-text-splitters>=0.3.0
 pypdf>=5.0
 python-docx>=1.1
 python-multipart>=0.0.9
+
+# Observability (src/observability/) — checklist observability-monitoring,
+# xem docs/TESTING.md phần "Observability". Chọn OpenTelemetry (không phải
+# Langfuse) vì là chuẩn quốc tế trung lập (CNCF) tự host được (Jaeger,
+# docker-compose.yml service `jaeger`) — dữ liệu KHÔNG rời hạ tầng nội bộ,
+# phù hợp dữ liệu giao dịch/khách hàng ví điện tử (quyết định 2026-08-10).
+opentelemetry-sdk>=1.44.0
+opentelemetry-exporter-otlp-proto-grpc>=1.44.0
+opentelemetry-instrumentation-fastapi>=0.65b0
+# PII scrubbing (src/observability/pii.py) — Microsoft Presidio làm engine
+# chính (quyết định 2026-08-10: dữ liệu khách hàng tương lai có thể có nhiều
+# loại PII khác ngoài SĐT/CCCD/tên — Presidio có sẵn catalog recognizer,
+# thêm loại mới chỉ cần đăng ký thêm 1 PatternRecognizer). CHỈ dùng
+# presidio-analyzer (phát hiện) — KHÔNG dùng presidio-anonymizer (che/thay
+# thế), vì presidio-anonymizer ép cryptography<49.0 (xem ghi chú ở
+# cryptography phía trên) — tự làm phần thay thế ký tự, đã verify kỹ.
+# spaCy + model đa ngôn ngữ `xx_ent_wiki_sm` (~11MB, KHÔNG cài qua pip thường
+# — cần bước riêng `python -m spacy download xx_ent_wiki_sm`, xem Dockerfile)
+# là NLP engine bên trong Presidio. Giới hạn thật với tiếng Việt đã ghi rõ
+# trong docstring pii.py — scrubber graceful-degrade về regex fallback nếu
+# thiếu presidio-analyzer/model.
+presidio-analyzer>=2.2.0
+spacy>=3.8.0
 
 # Dev tools
 ruff>=0.8.0

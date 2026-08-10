@@ -149,6 +149,17 @@ s=$(curl -s -b "$JAR_CSKH" -o /dev/null -w "%{http_code}" "$FRONTEND/api/tickets
 check "Gọi lại /api/tickets sau logout phải 401" "$s" "401"
 
 echo
+echo "== 9) Observability — correlation_id gắn vào MỌI response (đủ để nối trace-log-request) =="
+corr=$(curl -s -D - -o /dev/null "$BACKEND/health" | grep -i "^x-correlation-id:" | tr -d '\r\n')
+if [[ -n "$corr" ]]; then
+  echo "  OK   Header X-Correlation-Id có mặt ($corr)"
+  PASS=$((PASS+1))
+else
+  echo "  FAIL Thiếu header X-Correlation-Id — xem src/api/main.py::audit_log_middleware"
+  FAIL=$((FAIL+1))
+fi
+
+echo
 echo "=============================================="
 echo "KẾT QUẢ: $PASS pass / $FAIL fail"
 echo "=============================================="

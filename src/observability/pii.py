@@ -1,0 +1,156 @@
+"""PII scrubbing — BẮT BUỘC chạy TRƯỚC KHI dữ liệu được log hay gửi lên
+backend trace (Jaeger) — Giai đoạn 3 checklist observability. Áp dụng cho mọi
+văn bản tự do có thể chứa PII trước khi đưa vào JSON log hay span attribute:
+tin nhắn khách hàng, reply agent, args/kết quả tool.
+
+Dùng **Microsoft Presidio** (`presidio-analyzer`) làm engine chính — quyết
+định 2026-08-10, thay cho quyết định trước đó (spaCy gọi thẳng): sản phẩm
+nhận diện khách hàng sẽ mở rộng thêm nhiều loại PII theo thời gian (số thẻ,
+IBAN, ví crypto, IP...), Presidio có sẵn catalog recognizer cho các loại đó —
+thêm 1 loại PII mới về sau chỉ cần đăng ký thêm 1 `PatternRecognizer`, không
+phải tự viết regex quét thủ công từng loại. Presidio tự dùng spaCy làm NLP
+engine bên trong (vẫn model `xx_ent_wiki_sm` đã verify trước đó), gắn thêm
+sẵn EmailRecognizer/PhoneRecognizer/IbanRecognizer/CryptoRecognizer/
+IpRecognizer/UrlRecognizer/DateRecognizer — không cần tự viết cho các loại
+"tương lai" đó nữa.
+
+CHỈ dùng `presidio-analyzer` (phát hiện), KHÔNG dùng `presidio-anonymizer`
+(che/thay thế) — lý do thật phát hiện lúc cài: `presidio-anonymizer` ép
+`cryptography<49.0.0`, ĐÈ xuống bản có 3 CVE đã biết (PYSEC-2026-3552/3553/
+3554), trong khi dự án đang dùng `cryptography>=50.0.0` cho mã hoá field tại
+chỗ (`src/db/crypto_types.py`). Tự làm phần thay thế ký tự (đã có sẵn, verify
+kỹ) rẻ hơn nhiều so với đánh đổi 1 lỗ hổng đã biết trong thư viện mã hoá cốt
+lõi — không đáng.
+
+Vẫn giữ 1 `PatternRecognizer` tự viết cho SĐT/CCCD/CMND/số tài khoản VN
+(Presidio không có sẵn recognizer riêng cho định dạng VN) — đăng ký CHUNG vào
+1 `AnalyzerEngine` với các recognizer có sẵn, không phải 2 tầng tách rời như
+thiết kế trước.
+
+PHÁT HIỆN THẬT khi verify (xem tests/test_observability/test_pii.py) — ghi
+lại trung thực, không tô hồng:
+  - Tầng NER (`SpacyRecognizer` bên trong Presidio, vẫn dùng `xx_ent_wiki_sm`)
+    KHÔNG chuyên tiếng Việt — gán SAI NHÃN loại thực thể cho tên người (ra
+    LOCATION/ORGANIZATION thay vì PERSON) khá thường xuyên, và VẪN BỎ SÓT một
+    số tên người tiếng Việt hoàn toàn. Vì mục tiêu là CHE (không phải phân
+    loại), scrubber che theo ĐÚNG loại Presidio trả về (không ép về PERSON) —
+    chấp nhận over-redact, không nới lỏng để giảm false positive, đúng
+    nguyên tắc checklist Giai đoạn 3. Follow-up thật (chưa làm): model NER
+    tiếng Việt chuyên biệt (underthesea/VnCoreNLP) sẽ chính xác hơn.
+  - Graceful-degrade: thiếu `presidio-analyzer` (chưa cài) hoặc model NER
+    thất bại lúc load → rơi về CHỈ lớp regex VN (SĐT/CCCD/email cơ bản tự
+    viết) thay vì crash toàn app.
+"""
+from __future__ import annotations
+
+import functools
+import logging
+import re
+
+_logger = logging.getLogger("fin05.observability.pii")
+
+# --- Regex fallback (KHÔNG cần Presidio) — dùng khi presidio-analyzer chưa
+# cài/lỗi load, giữ tối thiểu 3 loại PII cấu trúc rõ nhất. -------------------
+_FALLBACK_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+_FALLBACK_PHONE_RE = re.compile(r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)")
+_FALLBACK_ID_RE = re.compile(r"(?<![\w-])\d{9,14}(?!\d)")
+
+
+def scrub_regex(text: str) -> str:
+    """Chỉ lớp regex — dùng riêng trong test để CHỨNG MINH vì sao cần lớp NER
+    (tên người tự do sẽ LỌT qua lớp này), và làm fallback khi Presidio không
+    khả dụng. KHÔNG dùng trực tiếp cho log thật (dùng `scrub_pii`)."""
+    out = _FALLBACK_EMAIL_RE.sub("[EMAIL]", text)
+    out = _FALLBACK_PHONE_RE.sub("[PHONE]", out)
+    out = _FALLBACK_ID_RE.sub("[ID_NUMBER]", out)
+    return out
+
+
+# SĐT/CCCD/CMND/số tài khoản VN — Presidio không có sẵn recognizer riêng cho
+# định dạng VN, đăng ký thêm vào registry chung. Cùng pattern đã verify ở
+# bản trước (giữ nguyên ID nội bộ có tiền tố chữ như TXN.../TCK... không bị
+# che — đó là mã tra cứu, không phải PII).
+_VN_PHONE_REGEX = r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)"
+_VN_ID_REGEX = r"(?<![\w-])\d{9,14}(?!\d)"
+
+
+@functools.lru_cache(maxsize=1)
+def _load_analyzer():
+    """Lazy singleton — chỉ dựng AnalyzerEngine lúc thật sự cần (nạp model
+    NER tốn vài trăm ms). Trả None nếu presidio-analyzer/spaCy/model chưa
+    sẵn sàng — PHẢI graceful-degrade về regex fallback, không crash app."""
+    try:
+        from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer, RecognizerRegistry
+        from presidio_analyzer.nlp_engine import NlpEngineProvider
+
+        nlp_engine = NlpEngineProvider(
+            nlp_configuration={
+                "nlp_engine_name": "spacy",
+                "models": [{"lang_code": "vi", "model_name": "xx_ent_wiki_sm"}],
+            }
+        ).create_engine()
+
+        registry = RecognizerRegistry(supported_languages=["vi"])
+        # Catalog có sẵn của Presidio cho "vi" — Email/Phone/Iban/Crypto/Ip/
+        # Url/Date/MedicalLicense/MacAddress + SpacyRecognizer (NER tên
+        # người/tổ chức/địa danh) — đây chính là phần "tương lai có thêm
+        # nhiều loại PII khác" không cần tự viết regex riêng cho từng loại.
+        registry.load_predefined_recognizers(languages=["vi"], nlp_engine=nlp_engine)
+        registry.add_recognizer(
+            PatternRecognizer(
+                supported_entity="VN_PHONE_NUMBER",
+                supported_language="vi",
+                patterns=[Pattern(name="vn_phone", regex=_VN_PHONE_REGEX, score=0.9)],
+            )
+        )
+        registry.add_recognizer(
+            PatternRecognizer(
+                supported_entity="VN_ID_NUMBER",
+                supported_language="vi",
+                patterns=[Pattern(name="vn_id", regex=_VN_ID_REGEX, score=0.6)],
+            )
+        )
+        return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["vi"])
+    except Exception as e:  # thiếu presidio-analyzer, thiếu spaCy, hoặc thiếu model
+        _logger.warning("pii_presidio_unavailable_fallback_regex_only", extra={"error": repr(e)})
+        return None
+
+
+def _merge_overlapping(spans: list[tuple[int, int, str]]) -> list[tuple[int, int, str]]:
+    """Presidio có thể trả nhiều recognizer TRÙNG/CHỒNG lấn 1 vùng ký tự (vd
+    EMAIL_ADDRESS chồng URL trên phần domain) — gộp thành 1 khối để tránh xử
+    lý 2 lần đè lên nhau làm hỏng offset khi thay chuỗi. Gộp nhãn loại lại
+    (an toàn hơn chọn 1 loại) — đúng nguyên tắc "che nhầm còn hơn để lọt"."""
+    if not spans:
+        return []
+    spans = sorted(spans, key=lambda s: s[0])
+    merged = [spans[0]]
+    for start, end, label in spans[1:]:
+        last_start, last_end, last_label = merged[-1]
+        if start <= last_end:
+            merged[-1] = (last_start, max(last_end, end), f"{last_label}/{label}" if label not in last_label else last_label)
+        else:
+            merged.append((start, end, label))
+    return merged
+
+
+def scrub_pii(text: str | None) -> str | None:
+    """DÙNG HÀM NÀY cho mọi log/span attribute có khả năng chứa văn bản tự do
+    của khách/agent. Presidio (đủ khả dụng) hoặc regex fallback (xem
+    docstring module)."""
+    if not text:
+        return text
+
+    analyzer = _load_analyzer()
+    if analyzer is None:
+        return scrub_regex(text)
+
+    results = analyzer.analyze(text=text, language="vi")
+    if not results:
+        return text
+
+    spans = _merge_overlapping([(r.start, r.end, r.entity_type) for r in results])
+    chars = list(text)
+    for start, end, label in sorted(spans, key=lambda s: s[0], reverse=True):
+        chars[start:end] = list(f"[{label}]")
+    return "".join(chars)
