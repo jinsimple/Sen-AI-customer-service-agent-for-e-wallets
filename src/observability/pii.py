@@ -27,19 +27,37 @@ Vẫn giữ 1 `PatternRecognizer` tự viết cho SĐT/CCCD/CMND/số tài kho�
 1 `AnalyzerEngine` với các recognizer có sẵn, không phải 2 tầng tách rời như
 thiết kế trước.
 
+**NER tên người tiếng Việt (quyết định 2026-08-11, sau khi phát hiện gap
+thật ở bản trước):** `SpacyRecognizer` bên trong Presidio dùng model đa ngôn
+ngữ nhỏ (`xx_ent_wiki_sm`) — KHÔNG chuyên tiếng Việt, bỏ sót nhiều tên người
+tiếng Việt (case cụ thể: "Anh Lê Hoàng Nam..." — xem lịch sử
+tests/test_observability/test_pii.py). Thêm `_VietnameseNameRecognizer`
+(`EntityRecognizer` tự viết, gọi `underthesea.ner()`) làm lớp BỔ SUNG cho
+`SpacyRecognizer`, KHÔNG thay thế — 2 recognizer chạy song song, kết quả gộp
+qua `_merge_overlapping` sẵn có. underthesea bắt được case spaCy bỏ sót,
+nhưng PHÁT HIỆN THẬT lúc verify: gán nhãn B-PER (sai) cho vài chuỗi không
+phải tên người — mã giao dịch có tiền tố+số (`TXN20260810000123`) và viết
+tắt toàn hoa (`CCCD`). Lọc 2 loại false-positive này bằng quy tắc đơn giản,
+không phải danh sách tiền tố cứng (tên người tiếng Việt thật không chứa chữ
+số, và không toàn hoa) — xem `_plausible_person_span()`.
+
 PHÁT HIỆN THẬT khi verify (xem tests/test_observability/test_pii.py) — ghi
 lại trung thực, không tô hồng:
-  - Tầng NER (`SpacyRecognizer` bên trong Presidio, vẫn dùng `xx_ent_wiki_sm`)
-    KHÔNG chuyên tiếng Việt — gán SAI NHÃN loại thực thể cho tên người (ra
-    LOCATION/ORGANIZATION thay vì PERSON) khá thường xuyên, và VẪN BỎ SÓT một
-    số tên người tiếng Việt hoàn toàn. Vì mục tiêu là CHE (không phải phân
-    loại), scrubber che theo ĐÚNG loại Presidio trả về (không ép về PERSON) —
-    chấp nhận over-redact, không nới lỏng để giảm false positive, đúng
-    nguyên tắc checklist Giai đoạn 3. Follow-up thật (chưa làm): model NER
-    tiếng Việt chuyên biệt (underthesea/VnCoreNLP) sẽ chính xác hơn.
-  - Graceful-degrade: thiếu `presidio-analyzer` (chưa cài) hoặc model NER
-    thất bại lúc load → rơi về CHỈ lớp regex VN (SĐT/CCCD/email cơ bản tự
-    viết) thay vì crash toàn app.
+  - `SpacyRecognizer` gán SAI NHÃN loại thực thể cho tên người (ra
+    LOCATION/ORGANIZATION thay vì PERSON) khá thường xuyên. Vì mục tiêu là
+    CHE (không phải phân loại), scrubber che theo ĐÚNG loại Presidio trả về
+    (không ép về PERSON) — chấp nhận over-redact, không nới lỏng để giảm
+    false positive, đúng nguyên tắc checklist Giai đoạn 3.
+  - underthesea vẫn bỏ sót một số tên (case "Trần Thị Bích" — nhưng case này
+    ĐÃ được `SpacyRecognizer` bắt riêng, nên pipeline gộp vẫn che đúng; đây
+    là ví dụ cụ thể cho lý do giữ CẢ HAI recognizer thay vì thay thế nhau).
+    Chưa có case nào cả 2 recognizer cùng bỏ sót được ghi nhận tại thời điểm
+    này — nếu phát sinh, cập nhật ghi chú này, không âm thầm giữ nguyên.
+  - Graceful-degrade: thiếu `presidio-analyzer`/`underthesea` (chưa cài) hoặc
+    model NER thất bại lúc load → rơi về CHỈ lớp regex VN (SĐT/CCCD/email cơ
+    bản tự viết) thay vì crash toàn app. `_VietnameseNameRecognizer` load lỗi
+    riêng không kéo sập cả `AnalyzerEngine` — vẫn còn `SpacyRecognizer` +
+    catalog Presidio khác hoạt động bình thường.
 """
 from __future__ import annotations
 
@@ -72,6 +90,64 @@ def scrub_regex(text: str) -> str:
 # che — đó là mã tra cứu, không phải PII).
 _VN_PHONE_REGEX = r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)"
 _VN_ID_REGEX = r"(?<![\w-])\d{9,14}(?!\d)"
+
+
+def _plausible_person_span(span: str) -> bool:
+    """Lọc false-positive THẬT phát hiện lúc verify underthesea.ner() trên dữ
+    liệu của dự án: mã giao dịch/ticket nội bộ (vd `TXN20260810000123`, tiền
+    tố new_id() + số, xem src/tools/base.py::new_id) và viết tắt toàn hoa (vd
+    `CCCD`) đôi lúc bị gán nhãn B-PER sai. Tên người tiếng Việt thật KHÔNG
+    chứa chữ số và KHÔNG viết toàn hoa — quy tắc chung, không phải danh sách
+    tiền tố ID cứng (không cần cập nhật khi có prefix ID mới)."""
+    if any(ch.isdigit() for ch in span):
+        return False
+    if span.isupper():
+        return False
+    return True
+
+
+def _underthesea_person_spans(text: str) -> list[tuple[int, int, str]]:
+    """underthesea.ner() trả token (có thể ghép nhiều từ, vd 'Lê Hoàng Nam')
+    dưới dạng chuỗi CON của text gốc (không word-segment bằng dấu '_') — map
+    lại offset ký tự bằng con trỏ tuần tự (`str.find` từ vị trí sau token
+    trước), đúng thứ tự token trả về. Bỏ qua token không tìm thấy (không nên
+    xảy ra trong thực nghiệm, nhưng an toàn hơn là tính sai offset)."""
+    from underthesea import ner as underthesea_ner
+
+    spans: list[tuple[int, int, str]] = []
+    cursor = 0
+    for token, _pos, _chunk, ner_tag in underthesea_ner(text):
+        idx = text.find(token, cursor)
+        if idx == -1:
+            continue
+        end = idx + len(token)
+        if ner_tag in ("B-PER", "I-PER") and _plausible_person_span(token):
+            spans.append((idx, end, "PERSON_VN"))
+        cursor = end
+    return spans
+
+
+class _VietnameseNameRecognizer:
+    """`presidio_analyzer.EntityRecognizer` tự viết bọc `underthesea.ner()` —
+    lớp NER tiếng Việt chuyên biệt BỔ SUNG cho `SpacyRecognizer` (đa ngôn ngữ,
+    xem docstring module), không thay thế. Đăng ký riêng, tách khỏi try/except
+    chính của `_load_analyzer()` — thiếu `underthesea`/lỗi load KHÔNG được
+    kéo sập toàn bộ AnalyzerEngine (vẫn còn SpacyRecognizer + catalog khác)."""
+
+    def __new__(cls):
+        from presidio_analyzer import EntityRecognizer, RecognizerResult
+
+        class _Impl(EntityRecognizer):
+            def load(self) -> None:  # underthesea tự lazy-load model bên trong
+                pass
+
+            def analyze(self, text, entities, nlp_artifacts=None):
+                return [
+                    RecognizerResult(entity_type="PERSON_VN", start=start, end=end, score=0.75)
+                    for start, end, _label in _underthesea_person_spans(text)
+                ]
+
+        return _Impl(supported_entities=["PERSON_VN"], supported_language="vi", name="VietnameseNameRecognizer")
 
 
 @functools.lru_cache(maxsize=1)
@@ -110,6 +186,10 @@ def _load_analyzer():
                 patterns=[Pattern(name="vn_id", regex=_VN_ID_REGEX, score=0.6)],
             )
         )
+        try:
+            registry.add_recognizer(_VietnameseNameRecognizer())
+        except Exception as e:  # thiếu underthesea — KHÔNG kéo sập cả analyzer
+            _logger.warning("pii_underthesea_unavailable_spacy_only", extra={"error": repr(e)})
         return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["vi"])
     except Exception as e:  # thiếu presidio-analyzer, thiếu spaCy, hoặc thiếu model
         _logger.warning("pii_presidio_unavailable_fallback_regex_only", extra={"error": repr(e)})

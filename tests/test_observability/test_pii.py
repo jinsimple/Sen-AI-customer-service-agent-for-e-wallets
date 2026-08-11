@@ -1,9 +1,8 @@
 """Giai đoạn 3 (observability checklist) — verify PII scrubbing THẬT (engine
-Presidio, xem src/observability/pii.py), không suy luận từ đọc code. Bài test
-bắt buộc theo đúng checklist: chạy CHỈ regex trên câu có tên người → xác nhận
-tên LỌT; chạy pipeline đầy đủ (Presidio) → xác nhận bắt được — đồng thời ghi
-nhận trung thực giới hạn thật của model NER đa ngôn ngữ nhỏ bên trong
-Presidio (bỏ sót 1 số tên, gán nhãn loại không đáng tin). Test check TÊN ĐÃ
+Presidio + underthesea, xem src/observability/pii.py), không suy luận từ đọc
+code. Bài test bắt buộc theo đúng checklist: chạy CHỈ regex trên câu có tên
+người → xác nhận tên LỌT; chạy pipeline đầy đủ → xác nhận bắt được — đồng
+thời ghi nhận trung thực giới hạn thật còn lại (nếu có). Test check TÊN ĐÃ
 BIẾN MẤT khỏi output, KHÔNG check đúng 1 nhãn cụ thể (vd [PERSON]) — nhãn
 loại NER cho tiếng Việt không ổn định, chính xác của mask quan trọng hơn tên
 nhãn hiển thị."""
@@ -56,18 +55,50 @@ def test_hybrid_still_catches_structured_pii_too():
     assert "001234567890" not in out
 
 
-def test_hybrid_known_gap_documented_not_silently_claimed_fixed():
-    """Giới hạn THẬT của model NER đa ngôn ngữ nhỏ — ghi nhận trung thực
-    thay vì báo cáo hybrid bắt được 100% tên tiếng Việt. Case này model
-    KHÔNG nhận diện được span thực thể nào — nếu spaCy sau này cập nhật và
-    bắt được case này, test sẽ tự fail và cần cập nhật lại docstring/ghi
-    chú giới hạn ở src/observability/pii.py cho khớp thực tế mới."""
+def test_underthesea_catches_case_spacy_alone_used_to_miss():
+    """2026-08-11: thêm `_VietnameseNameRecognizer` (underthesea) làm lớp bổ
+    sung cho SpacyRecognizer — case này TRƯỚC ĐÓ là "known gap" ghi nhận
+    trung thực (spaCy đa ngôn ngữ bỏ sót hoàn toàn), giờ verify THẬT đã bắt
+    được, không còn là gap nữa. Nếu assertion này fail nghĩa là
+    underthesea/dependency liên quan có vấn đề — không phải quay lại trạng
+    thái "known gap" cũ mà cần điều tra lại."""
     text = "Anh Lê Hoàng Nam vừa gọi điện phàn nàn về phí giao dịch."
     out = scrub_pii(text)
-    assert "Lê Hoàng Nam" in out, (
-        "Nếu assertion này fail nghĩa là NER đã bắt được case trước đây bị bỏ sót — "
-        "cập nhật lại ghi chú giới hạn trong src/observability/pii.py, đừng chỉ xoá test."
-    )
+    assert "Lê Hoàng Nam" not in out
+
+
+def test_underthesea_catches_compound_name_with_title():
+    """Tên ghép dài + có chức danh xen giữa — case khác hẳn case trên, kiểm
+    underthesea cụ thể (không tái dùng case đã biết)."""
+    text = "Chị Nguyễn Thị Thanh Hường - Trưởng phòng CSKH - đã duyệt hồ sơ."
+    out = scrub_pii(text)
+    assert "Nguyễn Thị Thanh Hường" not in out
+
+
+def test_underthesea_does_not_false_positive_on_internal_ids_or_abbreviations():
+    """PHÁT HIỆN THẬT lúc verify underthesea.ner(): gán nhãn B-PER (sai) cho
+    mã giao dịch có tiền tố+số (TXN.../TCK...) và viết tắt toàn hoa (CCCD) —
+    xem _plausible_person_span() trong pii.py. Test này xác nhận filter hoạt
+    động: KHÔNG được để lộ nghĩa là hỏng filter, làm mất khả năng tra cứu ID
+    nội bộ (đây là guarantee đã có từ trước, thêm underthesea không được phá
+    vỡ)."""
+    text = "Giao dịch TXN20260810000123 và ticket TCK-abc123def456 đã tạo."
+    out = scrub_pii(text)
+    assert "TXN20260810000123" in out
+    assert "TCK-abc123def456" in out
+
+
+def test_underthesea_still_documented_gap_when_both_recognizers_miss():
+    """Chưa tìm được case nào CẢ HAI recognizer (SpacyRecognizer +
+    underthesea) cùng bỏ sót tại thời điểm 2026-08-11 — "Trần Thị Bích" từng
+    là ví dụ (underthesea bỏ sót) nhưng SpacyRecognizer đã bắt riêng, nên
+    pipeline gộp vẫn che đúng. Test này giữ nguyên tinh thần minh bạch: nếu
+    sau này phát hiện case cả 2 cùng bỏ sót, thêm test ghi nhận trung thực
+    tại đây thay vì im lặng bỏ qua — hiện tại xác nhận pipeline gộp vẫn che
+    đúng case đã biết underthesea một mình bỏ sót."""
+    text = "Tôi chuyển nhầm cho Trần Thị Bích 270.000 đồng vào chiều qua."
+    out = scrub_pii(text)
+    assert "Trần Thị Bích" not in out
 
 
 def test_presidio_catches_pii_types_beyond_original_scope():

@@ -171,18 +171,29 @@ trong thư viện mã hoá cốt lõi. `requirements.txt` đã pin chặt
 `cryptography>=50.0.0` kèm ghi chú lý do, phòng ai đó sau này lỡ thêm
 presidio-anonymizer.
 
-**Giới hạn THẬT đã verify** (không tô hồng): tầng NER bên trong Presidio vẫn
-là model đa ngôn ngữ nhỏ, gán SAI NHÃN loại thực thể tiếng Việt (ra
-LOCATION/ORGANIZATION thay vì PERSON) nên scrubber che theo ĐÚNG loại
-Presidio trả về, không ép về 1 nhãn cố định (chấp nhận over-redact); model
-vẫn BỎ SÓT một số tên tiếng Việt hoàn toàn (case cụ thể ghi lại ở
-`tests/test_observability/test_pii.py`). Follow-up thật (chưa làm): model
-NER tiếng Việt chuyên biệt (underthesea/VnCoreNLP) sẽ chính xác hơn. Verify:
+**NER tiếng Việt chuyên biệt — `underthesea` (2026-08-11, vá follow-up đã ghi
+nhận ở bản trước):** `SpacyRecognizer` bên trong Presidio vẫn là model đa
+ngôn ngữ nhỏ, gán SAI NHÃN loại thực thể tiếng Việt (ra LOCATION/ORGANIZATION
+thay vì PERSON — scrubber che theo ĐÚNG loại Presidio trả về, không ép về 1
+nhãn cố định, chấp nhận over-redact) và BỎ SÓT một số tên hoàn toàn. Thêm
+`_VietnameseNameRecognizer` (`src/observability/pii.py`, bọc
+`underthesea.ner()`) làm lớp BỔ SUNG — 2 recognizer chạy song song, kết quả
+gộp qua `_merge_overlapping`. Verify THẬT: case "Anh Lê Hoàng Nam..." (từng
+là known gap ghi nhận trước đó) giờ bắt được. PHÁT HIỆN THẬT lúc verify:
+underthesea gán nhãn B-PER SAI cho mã giao dịch có tiền tố+số
+(`TXN20260810000123`) và viết tắt toàn hoa (`CCCD`) — lọc bằng quy tắc "tên
+người không chứa chữ số, không toàn hoa" (`_plausible_person_span`), verify
+riêng bằng test xác nhận mã giao dịch KHÔNG bị che nhầm (guarantee tra cứu ID
+nội bộ có từ trước, không bị phá vỡ khi thêm underthesea).
+
+Giới hạn còn lại (trung thực, không tô hồng): chưa ghi nhận case nào CẢ HAI
+recognizer cùng bỏ sót — nếu phát sinh sẽ cập nhật thẳng vào
+`tests/test_observability/test_pii.py`, không âm thầm bỏ qua. Verify đầy đủ:
 `pytest tests/test_observability/test_pii.py` — chạy CHỈ regex trên câu có
-tên người → xác nhận tên LỌT; chạy Presidio → xác nhận bắt được; có test
-riêng chứng minh giá trị thật của Presidio so với bản tự viết trước đó (bắt
-được địa chỉ ví crypto — loại PII KHÔNG nằm trong bộ regex cũ) và test
-graceful-degrade về regex fallback khi thiếu `presidio-analyzer`.
+tên người → xác nhận tên LỌT; chạy pipeline đầy đủ (Presidio + underthesea)
+→ xác nhận bắt được; test riêng cho giá trị của Presidio so với bản tự viết
+trước đó (bắt được địa chỉ ví crypto — loại PII KHÔNG nằm trong bộ regex cũ);
+test graceful-degrade về regex fallback khi thiếu `presidio-analyzer`.
 
 **Distributed tracing** (`src/observability/tracing.py`,
 `langchain_callback.py`): 1 span gốc `agent_turn`/lượt chat

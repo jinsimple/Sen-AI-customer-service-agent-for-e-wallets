@@ -67,6 +67,11 @@ opentelemetry-instrumentation-fastapi>=0.65b0
 # là NLP engine bên trong Presidio. Giới hạn thật với tiếng Việt đã ghi rõ
 # trong docstring pii.py — scrubber graceful-degrade về regex fallback nếu
 # thiếu presidio-analyzer/model.
+# underthesea (quyết định 2026-08-11) — NER tiếng Việt chuyên biệt, BỔ SUNG
+# cho SpacyRecognizer đa ngôn ngữ ở trên (không thay thế), vá gap thật đã
+# ghi nhận: model đa ngôn ngữ bỏ sót nhiều tên người tiếng Việt. Model tải
+# kèm sẵn trong gói pip, không cần bước cài riêng như xx_ent_wiki_sm.
+underthesea>=9.0.0
 presidio-analyzer>=2.2.0
 spacy>=3.8.0
 
