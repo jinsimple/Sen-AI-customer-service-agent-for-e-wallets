@@ -122,12 +122,41 @@ Công thức câu trả lời bảo mật demo: `ans-{DATASET_SEED}-{user_id}` (
 `User.security_answer_hash` đã seed sẵn — CHỈ dùng cho demo/test, không phải cơ chế
 thật cho production có người dùng thật).
 
-**Giới hạn hạ tầng test còn lại (không phải quyết định thiết kế còn treo):** ngưỡng
-15 phút/12h đã chốt và test đầy đủ ở tầng API/unit (`tests/test_api/test_otp.py`,
-dựng JWT với `otp_verified_at` lùi về quá khứ). Test browser-level (Playwright)
-thật sự kiểm hết hạn thì cần chờ 15 phút/12 giờ thật hoặc dựng hạ tầng inject JWT
-thủ công vào cookie `fin05_session` phía Node (cần thêm dependency ký JWT, chưa
-cài) — xem `frontend/e2e/auth.spec.ts` (test.skip AUTH-007/008, lý do đã cập nhật).
+**Hạ tầng test browser-level (2026-08-11, đã dựng xong):** ngưỡng 15 phút/12h đã
+chốt và test đầy đủ ở tầng API/unit (`tests/test_api/test_otp.py`, dựng JWT với
+`otp_verified_at` lùi về quá khứ), VÀ giờ có thêm tầng browser thật
+(`frontend/e2e/auth.spec.ts`, `frontend/e2e/helpers/otp-forge.ts`) — ký lại JWT
+thật bằng `jsonwebtoken` (cùng `JWT_SECRET_KEY`/`HS256` backend đang dùng), tiêm
+thẳng vào cookie `fin05_session` qua `context.addCookies()`.
+
+Phát hiện thật lúc dựng (đổi hướng so với kế hoạch ban đầu, ghi lại minh bạch):
+- Gate 12h (AUTH-007) CHỈ nằm trong lớp bọc tool của agent
+  (`customer_tools.py`), không có ở route HTTP `/tools/lookup_transaction`/
+  `/tools/get_customer_history` (2 route đó còn phục vụ CSKH, không qua OTP
+  khách hàng) — không có đường BFF nào chạm được gate này ngoài
+  `/agent/chat`. Cờ hiện OTP-form của `ChatClient.tsx`
+  (`otpVerifiedRef`) cũng là state CLIENT-SIDE "đã hỏi 1 lần/phiên", tách biệt
+  hoàn toàn với `otp_verified_at` thật ở backend — test qua `.otp-row` không
+  phân biệt được fresh/stale. Test AUTH-007 vì vậy gọi thẳng `/api/agent-chat`
+  (vẫn qua browser context + BFF thật, không mock) với câu hỏi định hướng mạnh
+  đã verify ổn định 2 chiều, đọc trực tiếp `tool_calls[].result.status` thay vì
+  suy luận qua UI.
+- Gate 15 phút (AUTH-008, `/tools/create_ticket`) không có route BFF riêng ở
+  frontend (chỉ gọi được qua tool-calling của agent) — test gọi thẳng backend
+  thật bằng token đã forge (vẫn token thật, chỉ bỏ qua hop BFF — BFF chỉ proxy
+  thêm header, đã test riêng qua AUTH-001/004/006).
+- **Bug thật phát hiện lúc verify (chưa sửa — ngoài phạm vi đợt này, chỉ né
+  đúng cách trong test):** `dt.datetime.utcnow().timestamp()` (dùng ở
+  `src/auth.py::otp_fresh_within`, `src/agents/graph.py`,
+  `src/agents/tools/customer_tools.py`) trừ NHẦM offset múi giờ local — verify
+  bằng `python3 -c "print(dt.datetime.utcnow().timestamp() - time.time())"`
+  trên máy dev (múi giờ UTC+7) ra đúng `-25200` giây. VÔ HẠI trong vận hành
+  thật (verify lẫn check đều lệch NHƯ NHAU trên cùng 1 server, tự triệt tiêu —
+  chỉ đúng nếu deploy timezone UTC, cần xác nhận), CHỈ lộ khi ngoại lai đưa 1
+  mốc thời gian "đúng" (đồng hồ máy chạy Playwright) vào so sánh — test forge
+  timestamp phải neo vào `otp_verified_at` THẬT server vừa cấp (không phải
+  `Date.now()` của máy chạy test), xem comment đầy đủ ở `otp-forge.ts`. Follow-up
+  thật (chưa làm): đổi sang `dt.datetime.now(dt.UTC).timestamp()` ở 3 chỗ trên.
 
 ## Observability (`src/observability/`) — Trace/Log/PII, đợt 2026-08-10
 
@@ -280,7 +309,7 @@ ngay khi đó, không giữ mãi.
 | `SEC-007` | Mạo danh nhân viên nội bộ đòi quyền | ADV-043 |
 | `AUTH-002/003` | Không hỏi thật mật khẩu/OTP, chống ép bỏ qua xác thực | ADV-044/045 |
 | `AUTH-001/004/006` | OTP thật + Playwright | xem mục OTP ở trên |
-| `AUTH-005/007/008` | Đã chốt thiết kế + cài đặt + test API/unit đầy đủ (2 ngưỡng: 12h xem / 15 phút step-up create_ticket) — còn thiếu hạ tầng browser-level time-travel, không phải quyết định treo | ngưỡng: mục OTP ở trên; test: `tests/test_api/test_otp.py`; Playwright: `frontend/e2e/auth.spec.ts` (test.skip, lý do đã cập nhật) |
+| `AUTH-005/007/008` | Đã chốt thiết kế + cài đặt + test API/unit VÀ browser-level đầy đủ (2 ngưỡng: 12h xem / 15 phút step-up create_ticket) | ngưỡng: mục OTP ở trên; test: `tests/test_api/test_otp.py`; Playwright: `frontend/e2e/auth.spec.ts` (AUTH-007/008, gọi thẳng `/api/agent-chat`/backend thay vì qua `.otp-row` — lý do ở mục OTP) |
 | `ERR-002` | **Chưa làm** — cần mock 2 nguồn dữ liệu mâu thuẫn (không có field 2-nguồn tự nhiên trong schema thật), để lại làm sau thay vì bịa dữ liệu giả không phản ánh đúng hệ thống |
 | `ERR-004` | Case 2 lượt, xác nhận không tạo trùng ticket qua `tool_calls` tích luỹ | `eval/err_qa_set.jsonl` |
 | `COMP-001` | Đã khớp sẵn (Nghị định 52/2024 + TT 40/2024) | — |
