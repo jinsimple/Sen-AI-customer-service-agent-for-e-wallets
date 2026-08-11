@@ -56,6 +56,10 @@ pytest tests/test_api/test_otp.py -v
 cd frontend && npx playwright test          # headless, dùng lại server đang chạy
 cd frontend && npx playwright test --ui     # xem trực quan khi cần debug
 
+# Bảo vệ quyết định risk-accepted CVE (nhanh, cần `pip install pip-audit` cục bộ,
+# tự skip nếu chưa cài — xem mục "Rủi ro đã chấp nhận" bên dưới)
+pytest tests/test_security/ -v
+
 # Toàn bộ unit/integration hiện có + mới
 pytest tests/ -v
 ruff check src/ tests/ eval/
@@ -286,6 +290,18 @@ Xử lý: `ci.yml` (job `dependency-and-secret-scan`) dùng
 đủ tại chỗ. Kiểm tra định kỳ bằng `pip-audit -r requirements.txt` KHÔNG kèm
 `--ignore-vuln` để biết khi nào chromadb phát hành bản vá — gỡ dòng ignore
 ngay khi đó, không giữ mãi.
+
+**Bảo vệ bằng test tự động (2026-08-11):**
+`tests/test_security/test_dependency_audit.py` chạy `pip-audit` ngay ở
+`pytest tests/ -q` (bắt sớm ở máy dev, không đợi CI Stage 2) — verify CHÍNH
+XÁC tập hợp CVE hiện có khớp `{"PYSEC-2026-311"}`, không chỉ "còn CVE nào đó"
+chung chung: có CVE MỚI ngoài danh sách → fail (không để `--ignore-vuln` vô
+tình che luôn phát hiện mới); chromadb hết CVE (đã có bản vá) → CŨNG fail
+(nhắc gỡ `--ignore-vuln` thay vì giữ mãi 1 ignore không còn cần thiết). Verify
+thật bằng cách sửa tạm danh sách kỳ vọng sai rồi chạy lại — xác nhận test
+FAIL đúng lúc trước khi tin dùng, không phải test tự động pass ngầm. Bỏ qua
+tự động (`skip`) nếu máy chưa cài `pip-audit` — CI (`ci.yml`) luôn cài trước
+khi chạy job này.
 
 ## Những gì đã thay đổi so với bản gốc (chỉ sửa lạc hậu, không giảm phạm vi)
 
