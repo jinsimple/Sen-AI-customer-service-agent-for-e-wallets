@@ -170,7 +170,11 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
     push({
       id: nid(),
       from: "bot",
-      text: "Chào bạn, mình là Sen — mình có thể giúp gì cho bạn hôm nay? Bạn có thể gõ trực tiếp câu hỏi, hoặc bấm \"Báo lỗi giao dịch này\" ở một giao dịch cụ thể bên trái.",
+      // DISC-002 (FIN05_QA_TestCases.jsonl, EU AI Act Art.50) — nêu rõ "trợ
+      // lý AI" ngay trong chính tin nhắn chào, không chỉ ở tiêu đề trang/
+      // nhãn cố định bên ngoài khung chat (2 chỗ đó có sẵn nhưng không đủ
+      // theo đúng nghĩa "banner/câu mở đầu" mà chuẩn minh bạch yêu cầu).
+      text: "Chào bạn, mình là Sen — trợ lý AI của ví, có thể giúp gì cho bạn hôm nay? Bạn có thể gõ trực tiếp câu hỏi, hoặc bấm \"Báo lỗi giao dịch này\" ở một giao dịch cụ thể bên trái.",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -451,6 +455,8 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
               disabled={!inputEnabled}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              // CONSUME-001 — khớp AgentChatRequest.message (src/api/schemas.py)
+              maxLength={4000}
             />
             <button
               className="icon-btn send"
