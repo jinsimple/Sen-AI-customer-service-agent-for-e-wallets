@@ -6,7 +6,7 @@ import { listTickets } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, HITL_STATUS_LABEL, SCOPE_LABEL, type TicketSummary } from "@/lib/types";
 import { formatDateTime, formatSlaRemaining } from "@/lib/format";
 
-type FilterKey = "all" | "pending" | "partner" | "critical";
+type FilterKey = "all" | "pending" | "partner" | "critical" | "handoff";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -22,13 +22,14 @@ export default function DashboardPage() {
   }, []);
 
   const counts = useMemo(() => {
-    if (!tickets) return { all: 0, pending: 0, partner: 0, critical: 0 };
+    if (!tickets) return { all: 0, pending: 0, partner: 0, critical: 0, handoff: 0 };
     return {
       all: tickets.length,
       pending: tickets.filter((t) => t.hitl_status === "pending").length,
       partner: tickets.filter((t) => t.partner_wait_status === "waiting" || t.partner_wait_status === "overdue")
         .length,
       critical: tickets.filter((t) => t.priority === "critical").length,
+      handoff: tickets.filter((t) => t.human_handoff_requested).length,
     };
   }, [tickets]);
 
@@ -39,6 +40,7 @@ export default function DashboardPage() {
     if (filter === "partner")
       list = list.filter((t) => t.partner_wait_status === "waiting" || t.partner_wait_status === "overdue");
     if (filter === "critical") list = list.filter((t) => t.priority === "critical");
+    if (filter === "handoff") list = list.filter((t) => t.human_handoff_requested);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(
@@ -86,6 +88,12 @@ export default function DashboardPage() {
           <span className="dot dot-pulse" style={{ background: "var(--danger)" }} />
           Khẩn cấp — nghi gian lận ({counts.critical})
         </span>
+        <span
+          className={`filter-chip${filter === "handoff" ? " active" : ""}`}
+          onClick={() => setFilter("handoff")}
+        >
+          Khách yêu cầu người thật ({counts.handoff})
+        </span>
         <div className="search-box">
           <svg className="icon icon-sm" viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="7" />
@@ -122,7 +130,14 @@ export default function DashboardPage() {
               return (
                 <tr key={t.ticket_id} className={`clickable ${rowClass}`} onClick={() => router.push(`/tickets/${t.ticket_id}`)}>
                   <td className="mono">{t.ticket_id}</td>
-                  <td>{t.customer_name ?? "—"}</td>
+                  <td>
+                    {t.customer_name ?? "—"}
+                    {t.human_handoff_requested && (
+                      <span className="badge badge-warning" style={{ marginLeft: 6 }}>
+                        Yêu cầu người thật
+                      </span>
+                    )}
+                  </td>
                   <td>{t.complaint_type ? COMPLAINT_TYPE_LABEL[t.complaint_type] : "—"}</td>
                   <td>
                     <span className="badge badge-neutral">{t.scope ? SCOPE_LABEL[t.scope] : "—"}</span>

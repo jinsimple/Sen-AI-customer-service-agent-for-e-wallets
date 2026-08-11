@@ -105,3 +105,53 @@ def create_ticket_with_fraud_check(
         fraud_signals=fired,
         now=now,
     )
+
+
+def flag_human_handoff(
+    session: Session,
+    *,
+    user_id: str,
+    reason: str,
+    ticket_id: Optional[str] = None,
+    now: Optional[dt.datetime] = None,
+) -> dict[str, Any]:
+    """CTRL-001 (FIN05_QA_TestCases.jsonl, 2026-08-11) — khách chủ động yêu
+    cầu gặp người thật (ISO/IEC 25059 'user controllability'). Kiến trúc
+    CSKH vẫn bất đồng bộ (dashboard, không phải live chat) — hàm này tạo/
+    đánh dấu 1 Ticket THẬT với `human_handoff_requested=True` để CSKH thấy
+    và ưu tiên xử lý, KHÔNG giả vờ có người đang chat trực tiếp ngay lúc này.
+
+    `ticket_id`: nếu agent ĐÃ tạo ticket cho đúng vấn đề đang nói trong hội
+    thoại này (tránh tạo trùng, cùng nguyên tắc đã áp dụng cho create_ticket)
+    — chỉ set cờ lên ticket đó, PHẢI thuộc đúng `user_id` (chặn agent bị dụ
+    flag nhầm ticket của người khác qua tham số này).
+    Không có `ticket_id` — tạo ticket MỚI, complaint_type='other' (khách yêu
+    cầu người thật không nhất thiết mô tả 1 trong 4 loại khiếu nại cụ thể).
+    """
+    now = now or dt.datetime.utcnow()
+
+    if ticket_id is not None:
+        ticket = session.get(Ticket, ticket_id)
+        if ticket is None:
+            raise ValueError(f"ticket_id không tồn tại: {ticket_id}")
+        complaint = session.get(Complaint, ticket.complaint_id)
+        if complaint is None or complaint.user_id != user_id:
+            raise ValueError(f"ticket_id không thuộc user_id đang chat: {ticket_id}")
+        ticket.human_handoff_requested = True
+        ticket.updated_at = now
+        session.flush()
+        return {"ticket_id": ticket.ticket_id, "human_handoff_requested": True, "created_new_ticket": False}
+
+    created = create_ticket_with_fraud_check(
+        session,
+        user_id=user_id,
+        complaint_type="other",
+        scope="internal_wallet",
+        description_raw=reason,
+        trans_id=None,
+        now=now,
+    )
+    ticket = session.get(Ticket, created["ticket_id"])
+    ticket.human_handoff_requested = True
+    session.flush()
+    return {**created, "human_handoff_requested": True, "created_new_ticket": True}

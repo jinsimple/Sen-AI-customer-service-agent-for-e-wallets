@@ -460,6 +460,7 @@ def list_tickets(
                 "priority": c.priority if c else None,
                 "fraud_signals": c.fraud_signals if c else [],
                 "customer_name": u.full_name if u else None,
+                "human_handoff_requested": t.human_handoff_requested,
             }
         )
     return out
@@ -492,6 +493,7 @@ def get_ticket_detail(
             "hitl_status": ticket.hitl_status,
             "sla_due_at": ticket.sla_due_at.isoformat(),
             "partner_wait_status": ticket.partner_wait_status,
+            "human_handoff_requested": ticket.human_handoff_requested,
         },
         "complaint": {
             "complaint_id": complaint.complaint_id,

@@ -1,6 +1,8 @@
 // Khớp response thật của src/api/schemas.py + src/api/main.py (backend FastAPI).
 
-export type ComplaintType = "wrong_recipient" | "money_not_received" | "double_charge" | "refund";
+// "other" (CTRL-001, 2026-08-11) — khách yêu cầu gặp người thật không kèm
+// mô tả khớp 1 trong 4 loại khiếu nại giao dịch cụ thể.
+export type ComplaintType = "wrong_recipient" | "money_not_received" | "double_charge" | "refund" | "other";
 export type Scope = "internal_wallet" | "from_bank" | "to_bank";
 export type Priority = "low" | "normal" | "high" | "critical";
 export type HitlStatus = "pending" | "approved" | "rejected" | "need_more_info";
@@ -71,6 +73,7 @@ export interface TicketSummary {
   priority: Priority | null;
   fraud_signals: string[];
   customer_name: string | null;
+  human_handoff_requested: boolean;
 }
 
 export interface TicketDetail {
@@ -79,6 +82,7 @@ export interface TicketDetail {
     hitl_status: HitlStatus;
     sla_due_at: string;
     partner_wait_status: PartnerWaitStatus;
+    human_handoff_requested: boolean;
   };
   complaint: {
     complaint_id: string;
@@ -141,6 +145,7 @@ export const COMPLAINT_TYPE_LABEL: Record<ComplaintType, string> = {
   money_not_received: "Tiền chưa về",
   double_charge: "Trừ tiền 2 lần",
   refund: "Hoàn tiền",
+  other: "Khác (yêu cầu hỗ trợ chung)",
 };
 
 export const SCOPE_LABEL: Record<Scope, string> = {

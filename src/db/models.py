@@ -184,7 +184,12 @@ class Complaint(Base):
     __tablename__ = "complaints"
     __table_args__ = (
         CheckConstraint(
-            "type IN ('wrong_recipient','money_not_received','double_charge','refund')",
+            # 'other' (2026-08-11, CTRL-001 FIN05_QA_TestCases.jsonl) — khách
+            # yêu cầu gặp người thật KHÔNG kèm mô tả khớp 1 trong 4 loại khiếu
+            # nại giao dịch cụ thể (vd hỏi han chung, chưa mô tả vấn đề gì) —
+            # vẫn cần 1 Complaint/Ticket thật để CSKH nhận diện & xử lý, không
+            # ép agent tự đoán bừa 1 trong 4 loại không khớp thực tế.
+            "type IN ('wrong_recipient','money_not_received','double_charge','refund','other')",
             name="ck_complaints_type",
         ),
         CheckConstraint(
@@ -228,6 +233,11 @@ class Ticket(Base):
     hitl_status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     sla_due_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
     partner_wait_status: Mapped[str] = mapped_column(String, nullable=False, default="n/a")
+    # CTRL-001 (2026-08-11) — khách chủ động yêu cầu gặp người thật (không
+    # phải mọi ticket khẩn cấp/ưu tiên đều do khách yêu cầu — tách riêng
+    # khỏi priority/fraud_signals, đúng tinh thần ISO/IEC 25059 "user
+    # controllability"). CSKH dashboard lọc/đánh dấu riêng cờ này.
+    human_handoff_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
 

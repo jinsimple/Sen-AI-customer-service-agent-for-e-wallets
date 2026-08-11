@@ -20,11 +20,13 @@ import unicodedata
 from typing import Optional
 
 from langchain_core.tools import tool
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.config import OTP_STEPUP_FRESH_MINUTES, OTP_VIEW_MAX_MINUTES
+from src.db.models import Wallet
 from src.rag.search import search_policy_text
-from src.services.complaint_intake import create_ticket_with_fraud_check
+from src.services.complaint_intake import create_ticket_with_fraud_check, flag_human_handoff
 from src.tools.base import ToolError
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
 from src.tools.lookup_transaction import lookup_transaction as _lookup_transaction
@@ -106,6 +108,44 @@ def _sanitize_lookup_result(payload: dict) -> dict:
     return payload
 
 
+def _enforce_requester_is_party(session: Session, payload: dict, *, requesting_user_id: str) -> dict:
+    """ATLAS-001 (FIN05_QA_TestCases.jsonl, 2026-08-11) — lỗ hổng bảo mật thật
+    phát hiện lúc đối chiếu: `lookup_transaction()` dùng chung
+    (`src/tools/lookup_transaction.py`) chỉ che TÊN/SĐT của phía bên kia
+    (PDPA, `_party_info`) khi trả `status=found` — KHÔNG kiểm tra người hỏi
+    (`requesting_user_id`) có thực sự là 1 bên (sender/receiver) của CHÍNH
+    giao dịch đó hay không, ở CẢ 3 nhánh tra cứu (trans_id/rec_code/
+    phone+amount). Một khách đoán đúng SĐT+số tiền của người khác (dù không
+    liên quan gì tới giao dịch đó) vẫn tra ra được số tiền/trạng thái/thời
+    gian/ghi chú — đúng bề mặt tấn công ATLAS-001 (MITRE ATLAS Exfiltration)
+    mô tả. Đây chính là nguyên tắc module đã tự nêu ở docstring đầu file
+    ("không có đường nào để tham số khác mở rộng sang user khác") nhưng chưa
+    thực sự thực thi cho tool này — vá Ở LỚP WRAPPER KHÁCH HÀNG này (không
+    sửa `_lookup_transaction()` dùng chung — route HTTP thô
+    `/tools/lookup_transaction` còn phục vụ CSKH tra cứu giao dịch của BẤT KỲ
+    khách nào khi xử lý ticket, không được siết theo user).
+
+    Giữ nguyên hành vi ĐÚNG hiện có: khách tự nêu SĐT/tên NGƯỜI NHẬN trong ca
+    "chuyển nhầm" vẫn tra được — lúc đó khách (người gửi) vẫn là 1 bên thật
+    của giao dịch, `own_wallet_ids` sẽ khớp `send_wal_id` nên không bị chặn.
+    """
+    if payload.get("status") != "found":
+        return payload
+    txn = payload.get("transaction") or {}
+    own_wallet_ids = set(
+        session.scalars(select(Wallet.wallet_id).where(Wallet.user_id == requesting_user_id))
+    )
+    sender_wallet_id = (txn.get("sender") or {}).get("wallet_id")
+    receiver_wallet_id = (txn.get("receiver") or {}).get("wallet_id")
+    is_party = sender_wallet_id in own_wallet_ids or receiver_wallet_id in own_wallet_ids
+    if not is_party:
+        # KHÔNG hé lộ dù chỉ "có tồn tại giao dịch khớp" — trả nguyên dạng
+        # not_found, đúng nguyên tắc PDPA "che nhầm còn hơn để lộ" đã áp dụng
+        # nhất quán trong dự án (xem pii.py, _sanitize_lookup_result...).
+        return {"status": "not_found"}
+    return payload
+
+
 def _parse_dt(value: Optional[str]) -> Optional[dt.datetime]:
     if not value:
         return None
@@ -184,18 +224,18 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
                 "message": "cần trans_id, hoặc rec_code, hoặc (phone kèm amount) để tra cứu",
             }
         try:
-            return _sanitize_lookup_result(
-                _lookup_transaction(
-                    session,
-                    trans_id=trans_id,
-                    rec_code=rec_code,
-                    phone=phone,
-                    amount=amount,
-                    date_from=_parse_dt(date_from),
-                    date_to=_parse_dt(date_to),
-                    requesting_user_id=user_id,
-                )
+            result = _lookup_transaction(
+                session,
+                trans_id=trans_id,
+                rec_code=rec_code,
+                phone=phone,
+                amount=amount,
+                date_from=_parse_dt(date_from),
+                date_to=_parse_dt(date_to),
+                requesting_user_id=user_id,
             )
+            result = _enforce_requester_is_party(session, result, requesting_user_id=user_id)
+            return _sanitize_lookup_result(result)
         except ToolError as e:
             return {"status": "error", "message": str(e)}
 
@@ -273,6 +313,33 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
             return {"status": "error", "message": str(e)}
 
     @tool
+    def request_human_handoff(reason: str, ticket_id: Optional[str] = None) -> dict:
+        """Khách YÊU CẦU RÕ RÀNG được nói chuyện/chuyển cho nhân viên CSKH
+        thật (vd "cho tôi gặp người thật", "chuyển tôi cho nhân viên") — gọi
+        tool này NGAY, không cố giữ khách lại bằng cách hỏi thêm quá 1 lần,
+        không lặp vòng né tránh. KHÔNG cần OTP (đây là routing request, không
+        phải thao tác chạm dữ liệu tài khoản).
+
+        `ticket_id`: nếu ĐÃ tạo ticket cho đúng vấn đề đang nói trong hội
+        thoại này (từ kết quả create_ticket trước đó), truyền lại để tránh
+        tạo hồ sơ trùng — chỉ đánh dấu ưu tiên lên ticket đó. Không có/chưa
+        tạo → để trống, tool tự tạo hồ sơ mới.
+
+        `reason`: tóm tắt ngắn gọn khách cần hỗ trợ gì (nếu khách đã nói),
+        để CSKH đọc nhanh khi tiếp nhận — không bịa nếu khách chưa nói lý do,
+        ghi đúng "khách yêu cầu hỗ trợ trực tiếp, chưa nêu chi tiết".
+
+        LƯU Ý QUAN TRỌNG khi báo lại cho khách: hệ thống CSKH hiện xử lý BẤT
+        ĐỒNG BỘ (qua hàng chờ ticket, không phải chat trực tiếp real-time) —
+        PHẢI nói đúng "đã ưu tiên chuyển cho nhân viên CSKH xử lý trực tiếp,
+        sẽ phản hồi sớm nhất", TUYỆT ĐỐI KHÔNG ngụ ý khách đang chat với
+        người thật ngay lúc này."""
+        try:
+            return flag_human_handoff(session, user_id=user_id, reason=reason, ticket_id=ticket_id)
+        except (ToolError, ValueError) as e:
+            return {"status": "error", "message": str(e)}
+
+    @tool
     def search_policy(query: str) -> dict:
         """Tra chính sách/phí/quy định chung của ví (KHÔNG phải tra 1 giao
         dịch cụ thể — dùng lookup_transaction/get_customer_history cho việc
@@ -291,4 +358,4 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
         except ToolError as e:
             return {"status": "error", "message": str(e)}
 
-    return [lookup_transaction, get_customer_history, create_ticket, search_policy]
+    return [lookup_transaction, get_customer_history, create_ticket, search_policy, request_human_handoff]
