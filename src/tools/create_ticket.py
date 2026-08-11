@@ -21,7 +21,7 @@ from src.tools.sla import compute_sla_due_at
 from sqlalchemy.orm import Session
 
 VALID_COMPLAINT_TYPES = {"wrong_recipient", "money_not_received", "double_charge", "refund", "other"}
-VALID_SCOPES = {"internal_wallet", "from_bank", "to_bank"}
+VALID_SCOPES = {"internal_wallet", "from_bank", "to_bank", "unknown"}
 
 
 def create_ticket(

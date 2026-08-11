@@ -263,7 +263,13 @@ def check_expected(session: Session, result: dict[str, Any], expected: dict[str,
             checks.append(("ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo", False))
             return checks
         checks.append(("complaint_type", complaint.type == expected.get("complaint_type")))
-        checks.append(("scope", complaint.scope == expected.get("scope")))
+        # expected.scope=None (case NOTFOUND — dataset không biết trước phạm
+        # vi thật) khớp với complaint.scope="unknown" (sentinel thật DB dùng,
+        # 2026-08-11 — cột scope NOT NULL, không có giá trị None thật nào để
+        # so trực tiếp, xem migration 59fa55b72a23).
+        expected_scope = expected.get("scope")
+        scope_ok = complaint.scope == "unknown" if expected_scope is None else complaint.scope == expected_scope
+        checks.append(("scope", scope_ok))
         checks.append(("priority", complaint.priority == expected.get("priority")))
         # Runtime chỉ đánh giá FS-06 (src/tools/fraud_policy.py) — so khớp
         # phần giao với {FS-06}, KHÔNG so toàn bộ nhãn FS-01..12 (đó là nhãn

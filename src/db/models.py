@@ -193,7 +193,13 @@ class Complaint(Base):
             name="ck_complaints_type",
         ),
         CheckConstraint(
-            "scope IN ('internal_wallet','from_bank','to_bank')", name="ck_complaints_scope"
+            # 'unknown' (2026-08-11, phát hiện qua functional_qa_set.jsonl case
+            # NOTFOUND) — sau khi đã hỏi hết {CLARIFY_QUESTION_MAX_ROUNDS} lượt +
+            # 1 câu hỏi phạm vi mà khách vẫn không xác định được (vd khách không
+            # rành ví-ví/ngân hàng khác nhau thế nào), trước đây agent bị ép đoán
+            # bừa 1 trong 3 giá trị thật — song song với 'other' của complaint_type
+            # ở trên, cho phép CSKH tự xác định thủ công thay vì AI bịa.
+            "scope IN ('internal_wallet','from_bank','to_bank','unknown')", name="ck_complaints_scope"
         ),
         CheckConstraint(
             "priority IN ('low','normal','high','critical')", name="ck_complaints_priority"
