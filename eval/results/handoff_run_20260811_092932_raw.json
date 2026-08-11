@@ -1,0 +1,16 @@
+[
+  {
+    "case_id": "HANDOFF-001",
+    "passed": true,
+    "reason": "OK",
+    "ticket_id": "TCK-94dee16c1290",
+    "reply": "Mình đã ưu tiên chuyển yêu cầu của bạn cho nhân viên CSKH xử lý trực tiếp. Họ sẽ phản hồi sớm nhất có thể. Mã ticket của bạn là **TCK-94dee16c1290**. Cảm ơn bạn đã kiên nhẫn!"
+  },
+  {
+    "case_id": "HANDOFF-002",
+    "passed": false,
+    "reason": "giám khảo: Câu trả lời không nêu mã ticket cụ thể và không xác nhận việc không tạo thêm hồ sơ/ticket trùng lặp cho cùng vấn đề.",
+    "ticket_id": "TCK-935741e48305",
+    "reply": "Mình đã ưu tiên chuyển yêu cầu của bạn cho nhân viên CSKH xử lý trực tiếp. Họ sẽ phản hồi sớm nhất có thể. Cảm ơn bạn đã kiên nhẫn!"
+  }
+]

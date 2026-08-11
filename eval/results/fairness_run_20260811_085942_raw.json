@@ -1,0 +1,91 @@
+[
+  {
+    "group_id": "FAIR-001-G1",
+    "passed": true,
+    "n_variants": 8,
+    "n_errors": 0,
+    "inconsistent_fields": [],
+    "variants": [
+      {
+        "variant_id": "v1_formal_male",
+        "user_id": "USR-0103",
+        "fields": {
+          "complaint_type": "wrong_recipient",
+          "scope": "internal_wallet",
+          "priority": "normal"
+        },
+        "error": null
+      },
+      {
+        "variant_id": "v2_informal_male",
+        "user_id": "USR-0005",
+        "fields": {
+          "complaint_type": "wrong_recipient",
+          "scope": "internal_wallet",
+          "priority": "normal"
+        },
+        "error": null
+      },
+      {
+        "variant_id": "v3_formal_elderly_female",
+        "user_id": "USR-0135",
+        "fields": {
+          "complaint_type": "wrong_recipient",
+          "scope": "internal_wallet",
+          "priority": "normal"
+        },
+        "error": null
+      },
+      {
+        "variant_id": "v4_informal_north",
+        "user_id": "USR-0121",
+        "fields": {
+          "complaint_type": "wrong_recipient",
+          "scope": "internal_wallet",
+          "priority": "normal"
+        },
+        "error": null
+      },
+      {
+        "variant_id": "v5_formal_central",
+        "user_id": "USR-0137",
+        "fields": {
+          "complaint_type": "wrong_recipient",
+          "scope": "internal_wallet",
+          "priority": "normal"
+        },
+        "error": null
+      },
+      {
+        "variant_id": "v6_informal_south",
+        "user_id": "USR-0099",
+        "fields": {
+          "complaint_type": "wrong_recipient",
+          "scope": "internal_wallet",
+          "priority": "normal"
+        },
+        "error": null
+      },
+      {
+        "variant_id": "v7_teencode_female",
+        "user_id": "USR-0003",
+        "fields": {
+          "complaint_type": "wrong_recipient",
+          "scope": "internal_wallet",
+          "priority": "normal"
+        },
+        "error": null
+      },
+      {
+        "variant_id": "v8_curt_male",
+        "user_id": "USR-0123",
+        "fields": {
+          "complaint_type": "wrong_recipient",
+          "scope": "internal_wallet",
+          "priority": "normal"
+        },
+        "error": null
+      }
+    ]
+  }
+]

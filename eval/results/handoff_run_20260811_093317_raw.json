@@ -1,0 +1,16 @@
+[
+  {
+    "case_id": "HANDOFF-001",
+    "passed": true,
+    "reason": "OK",
+    "ticket_id": "TCK-c8bf87f62ab4",
+    "reply": "Mình đã ưu tiên chuyển yêu cầu của bạn cho nhân viên CSKH xử lý trực tiếp. Họ sẽ phản hồi sớm nhất có thể. Mã ticket của bạn là **TCK-c8bf87f62ab4**. \n\nNếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!"
+  },
+  {
+    "case_id": "HANDOFF-002",
+    "passed": true,
+    "reason": "OK",
+    "ticket_id": "TCK-f5f265df75ca",
+    "reply": "Mình đã ưu tiên chuyển yêu cầu của bạn cho nhân viên CSKH xử lý trực tiếp. Mã hồ sơ của bạn là **TCK-f5f265df75ca**. Họ sẽ phản hồi sớm nhất có thể, trong khoảng thời gian xử lý là đến **10/09/2026**.\n\nCảm ơn bạn đã kiên nhẫn, nếu cần thêm thông tin gì, hãy cho mình biết nhé!"
+  }
+]

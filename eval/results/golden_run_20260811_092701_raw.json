@@ -1,0 +1,1122 @@
+[
+  {
+    "case_id": "FUNCQA-001-HAPPY",
+    "cell": "wrong_recipient x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000027",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng về việc chuyển nhầm 455.000đ. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-2741e9283a80**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian dự kiến đến **10/09/2026**. Bạn sẽ nhận được phản hồi sớm nhất từ họ. Nếu có thêm câu hỏi nào khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng về việc chuyển nhầm 455.000đ. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-2741e9283a80**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian dự kiến đến **10/09/2026**. Bạn sẽ nhận được phản hồi sớm nhất từ họ. Nếu có thêm câu hỏi nào khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển nhầm 455.000đ lúc 14:29 ngày 15/06, lấy lại được không ạ?"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "FUNCQA-001-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn về việc chuyển nhầm số tiền 137.777.138đ. Mã ticket của bạn là **TCK-5877813fd8f9**. \n\nĐội ngũ CSKH sẽ tiếp nhận và xử lý yêu cầu của bạn trong thời gian tới, dự kiến sẽ phản hồi trước **10/09/2026**. Bạn không cần lo lắng, họ sẽ liên hệ với bạn để giải quyết vấn đề này. \n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo vì chuyển nhầm số tiền lớn như vậy. Tuy nhiên, mình không tìm thấy giao dịch nào với số tiền 137.777.138đ trong lịch sử giao dịch của bạn. Bạn có thể cung cấp thêm thông tin như mã giao dịch hoặc số điện thoại liên quan đến giao dịch này không? Điều này sẽ giúp mình tra cứu chính xác hơn.",
+      "Mình đã kiểm tra lịch sử giao dịch gần đây của bạn và thấy có một số giao dịch, nhưng không có giao dịch nào với số tiền 137.777.138đ. Dưới đây là một số giao dịch gần đây:\n\n1. **Giao dịch**: TXN20260731000339 - **Số tiền**: 457.000đ - **Trạng thái**: Thành công - **Thời gian**: 31/07/2026\n2. **Giao dịch**: TXN20260731000023 - **Số tiền**: 47.000đ - **Trạng thái**: Đang xử lý - **Thời gian**: 31/07/2026\n3. **Giao dịch**: TXN20260731000675 - **Số tiền**: 253.000đ - **Trạng thái**: Thành công - **Thời gian**: 31/07/2026\n4. **Giao dịch**: TXN20260730000027 - **Số tiền**: 169.000đ - **Trạng thái**: Thành công - **Thời gian**: 30/07/2026\n5. **Giao dịch**: TXN20260729000023 - **Số tiền**: 324.000đ - **Trạng thái**: Thành công - **Thời gian**: 29/07/2026\n\nCó thể bạn nhớ nhầm số tiền hoặc thời gian giao dịch. Bạn có thể kiểm tra lại thông tin và cho mình biết thêm chi tiết nào khác không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn về việc chuyển nhầm số tiền 137.777.138đ. Mã ticket của bạn là **TCK-5877813fd8f9**. \n\nĐội ngũ CSKH sẽ tiếp nhận và xử lý yêu cầu của bạn trong thời gian tới, dự kiến sẽ phản hồi trước **10/09/2026**. Bạn không cần lo lắng, họ sẽ liên hệ với bạn để giải quyết vấn đề này. \n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển nhầm khoảng 137.777.138đ, hình như hôm qua, lấy lại được không ạ?",
+      "Mình không nhớ rõ mã giao dịch, nhưng số điện thoại thì vẫn là số cũ. Bạn có thể giúp mình kiểm tra được không?",
+      "Mình không nhớ rõ thông tin giao dịch, nhưng chắc chắn là mình đã chuyển nhầm số tiền đó. Bạn có thể giúp mình kiểm tra lại được không?"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 2
+  },
+  {
+    "case_id": "FUNCQA-002-HAPPY",
+    "cell": "money_not_received x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000027",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-492875109961**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra trong thời gian tới. Dự kiến họ sẽ phản hồi lại cho bạn trước **09:11 ngày 10/09/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì bên nhận chưa thấy tiền về. Mình đã tra cứu và tìm thấy giao dịch bạn đề cập:\n\n- **Mã giao dịch:** TXN20260615000027\n- **Số tiền:** 455.000đ\n- **Thời gian:** 14:29 ngày 15/06/2026\n- **Trạng thái:** Thành công\n- **Chiều giao dịch:** Gửi đi từ ví nội bộ\n\nVì giao dịch này đã thành công, bạn có thể kiểm tra lại với bên nhận xem họ đã xác nhận chưa. Nếu họ vẫn chưa nhận được, mình có thể tạo một hồ sơ khiếu nại để chuyên viên CSKH kiểm tra thêm cho bạn. Bạn có muốn mình tạo hồ sơ không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-492875109961**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra trong thời gian tới. Dự kiến họ sẽ phản hồi lại cho bạn trước **09:11 ngày 10/09/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển 455.000đ lúc 14:29 ngày 15/06 mà bên kia báo chưa nhận được tiền.",
+      "Mình đã kiểm tra với bên nhận nhưng họ vẫn chưa thấy tiền về. Bạn tạo hồ sơ khiếu nại giúp mình nhé. Cảm ơn bạn!"
+    ],
+    "tool_calls": [
+      "lookup_transaction",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "FUNCQA-002-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ cho khiếu nại của bạn với mã ticket là **TCK-f6808a26215f**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra thông tin trong vòng 30 ngày, dự kiến sẽ phản hồi bạn trước **ngày 10/09/2026**.\n\nNếu bạn cần thêm hỗ trợ gì, đừng ngần ngại cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình đã tra cứu nhưng không tìm thấy giao dịch nào với số tiền 137.777.139đ trong lịch sử giao dịch gần đây của bạn. Có thể giao dịch này đã xảy ra lâu hơn 90 ngày hoặc có thể có thông tin khác cần xác minh.\n\nBạn có nhớ thêm thông tin nào khác về giao dịch này không? Ví dụ như tên người nhận hoặc thời gian gần đây hơn? Điều này sẽ giúp mình tìm kiếm chính xác hơn.",
+      "Cảm ơn bạn đã cung cấp thông tin. Vì mình vẫn chưa tìm thấy giao dịch nào khớp với số tiền bạn đã chuyển, mình sẽ cần thêm thông tin để xác minh.\n\nBạn có thể cho mình biết giao dịch này thuộc phạm vi nào không? Ví dụ như giao dịch nội bộ ví, từ ngân hàng, hay rút ra ngân hàng? Điều này sẽ giúp mình tạo hồ sơ để chuyên viên CSKH kiểm tra kỹ hơn.",
+      "Mình đã tạo hồ sơ cho khiếu nại của bạn với mã ticket là **TCK-f6808a26215f**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra thông tin trong vòng 30 ngày, dự kiến sẽ phản hồi bạn trước **ngày 10/09/2026**.\n\nNếu bạn cần thêm hỗ trợ gì, đừng ngần ngại cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển 137.777.139đ mà bên kia báo chưa nhận được tiền, không nhớ rõ lúc nào.",
+      "Mình không nhớ rõ tên người nhận hay thời gian cụ thể, chỉ nhớ là mình đã chuyển 137.777.139đ thôi.",
+      "Mình không nhớ rõ giao dịch này thuộc phạm vi nào bạn ơi."
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 2
+  },
+  {
+    "case_id": "FUNCQA-003-HAPPY",
+    "cell": "double_charge x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000027",
+        true
+      ],
+      [
+        "cite_TXN20260616000530",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng vì bị trừ tiền 2 lần cho cùng một giao dịch. Mình đã tạo hồ sơ khiếu nại cho bạn với thông tin như sau:\n\n1. **Mã ticket:** TCK-be8c30191556\n2. **Mã khiếu nại:** CMP-072d7a5da86a\n3. **Thời gian xử lý dự kiến:** 10/09/2026\n\nNgoài ra, mình cũng đã tạo một hồ sơ khác cho giao dịch tương tự với mã ticket TCK-6da46f22269c và mã khiếu nại CMP-6550e8d0a775.\n\nĐội ngũ CSKH sẽ xem xét và liên hệ với bạn trong thời gian sớm nhất. Nếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì bị trừ tiền 2 lần cho cùng một giao dịch. Mình đã tạo hồ sơ khiếu nại cho bạn với thông tin như sau:\n\n1. **Mã ticket:** TCK-be8c30191556\n2. **Mã khiếu nại:** CMP-072d7a5da86a\n3. **Thời gian xử lý dự kiến:** 10/09/2026\n\nNgoài ra, mình cũng đã tạo một hồ sơ khác cho giao dịch tương tự với mã ticket TCK-6da46f22269c và mã khiếu nại CMP-6550e8d0a775.\n\nĐội ngũ CSKH sẽ xem xét và liên hệ với bạn trong thời gian sớm nhất. Nếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi bị trừ tiền 2 lần cho cùng 1 lần thao tác: lần đầu 455.000đ lúc 14:29 ngày 15/06, lần hai 382.000đ lúc 15:51 ngày 16/06."
+    ],
+    "tool_calls": [
+      "lookup_transaction",
+      "lookup_transaction",
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket",
+      "create_ticket"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "FUNCQA-003-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-2348c00**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề này. Bạn sẽ nhận được phản hồi trong khoảng thời gian đến **10/09/2026**.\n\nNếu bạn cần hỗ trợ thêm, đừng ngần ngại hỏi nhé!",
+    "all_agent_replies": [
+      "Mình đã tra cứu lịch sử giao dịch của bạn, nhưng không tìm thấy giao dịch nào trùng khớp với số tiền 137.777.140đ trong 90 ngày gần đây. Có thể bạn nhớ thêm thông tin nào khác về thời gian hoặc chi tiết giao dịch không? Điều này sẽ giúp mình hỗ trợ bạn tốt hơn.",
+      "Mình đã tra cứu lại trong 30 ngày gần đây, nhưng vẫn không tìm thấy giao dịch nào trùng khớp với số tiền 137.777.140đ. Có thể bạn có thêm thông tin nào khác về giao dịch này không? Ví dụ như tên người nhận hoặc số điện thoại liên quan đến giao dịch. Điều này sẽ giúp mình hỗ trợ bạn tốt hơn.",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-2348c00**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề này. Bạn sẽ nhận được phản hồi trong khoảng thời gian đến **10/09/2026**.\n\nNếu bạn cần hỗ trợ thêm, đừng ngần ngại hỏi nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi thấy bị trừ tiền 2 lần khoảng 137.777.140đ, nhưng không nhớ chính xác thời gian.",
+      "Mình không nhớ rõ thời gian cụ thể, chỉ biết là khoảng thời gian gần đây thôi.",
+      "Mình không nhớ rõ tên người nhận hay số điện thoại liên quan đến giao dịch đó."
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 2
+  },
+  {
+    "case_id": "FUNCQA-004-HAPPY",
+    "cell": "refund x internal_wallet",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000027",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng vì chưa thấy tiền hoàn về. Mình đã kiểm tra và xác nhận rằng bạn đã được duyệt hoàn tiền 455.000đ vào lúc 14:29 ngày 15/06, nhưng giao dịch này vẫn chưa vào ví của bạn.\n\nMình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-adc0438e99a7**. Bộ phận CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi lại bạn trước **09:14 ngày 10/09/2026**. \n\nNếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì chưa thấy tiền hoàn về. Mình đã kiểm tra và xác nhận rằng bạn đã được duyệt hoàn tiền 455.000đ vào lúc 14:29 ngày 15/06, nhưng giao dịch này vẫn chưa vào ví của bạn.\n\nMình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-adc0438e99a7**. Bộ phận CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi lại bạn trước **09:14 ngày 10/09/2026**. \n\nNếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi được duyệt hoàn tiền 455.000đ lúc 14:29 ngày 15/06 nhưng đến giờ vẫn chưa thấy vào ví/tài khoản."
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "FUNCQA-004-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "Pass",
+    "checks": [
+      [
+        "khong_tao_ticket_hop_le",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng vì chưa thấy tiền hoàn về — để mình tra ngay giúp bạn thông tin về giao dịch này. Mình sẽ kiểm tra lịch sử giao dịch gần đây của bạn để tìm hiểu thêm. Một chút thời gian nhé! \n\n### Gọi tool get_customer_history\n- amount: 137777141\n- days: 90\n\nMình sẽ lấy thông tin ngay.",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì chưa thấy tiền hoàn về — để mình tra ngay giúp bạn thông tin về giao dịch này. Mình sẽ kiểm tra lịch sử giao dịch gần đây của bạn để tìm hiểu thêm. Một chút thời gian nhé! \n\n### Gọi tool get_customer_history\n- amount: 137777141\n- days: 90\n\nMình sẽ lấy thông tin ngay."
+    ],
+    "all_customer_texts": [
+      "Tôi được duyệt hoàn tiền khoảng 137.777.141đ nhưng chưa thấy về, không rõ lúc nào."
+    ],
+    "tool_calls": [],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "FUNCQA-005-HAPPY",
+    "cell": "wrong_recipient x from_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000010",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng về việc chuyển nhầm 359.000đ lúc 20:20 ngày 15/06. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-255578e9191a**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **09:15 ngày 17/08/2026**. Bạn sẽ nhận được thông tin từ họ sớm nhất có thể. Nếu cần hỗ trợ thêm, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng về việc chuyển nhầm 359.000đ lúc 20:20 ngày 15/06. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-255578e9191a**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **09:15 ngày 17/08/2026**. Bạn sẽ nhận được thông tin từ họ sớm nhất có thể. Nếu cần hỗ trợ thêm, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển nhầm 359.000đ lúc 20:20 ngày 15/06, lấy lại được không ạ?"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "FUNCQA-005-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-e1e829342a55**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề này. Bạn sẽ nhận được phản hồi trong khoảng thời gian đến **10/09/2026**.\n\nNếu có thêm thông tin gì cần hỗ trợ, bạn cứ cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì đã chuyển nhầm số tiền lớn như vậy. Tuy nhiên, mình không tìm thấy giao dịch nào với số tiền 137.777.142đ trong lịch sử giao dịch của bạn hôm qua. \n\nBạn có thể cung cấp thêm thông tin như mã giao dịch hoặc số điện thoại liên quan đến giao dịch này không? Điều này sẽ giúp mình tra cứu chính xác hơn.",
+      "Mình đã kiểm tra lại nhưng vẫn không tìm thấy giao dịch nào với số tiền 137.777.142đ trong lịch sử giao dịch của bạn. Có thể giao dịch này không được thực hiện qua ví của bạn hoặc có thể có thông tin khác cần xác minh.\n\nBạn có thể cho mình biết giao dịch này thuộc phạm vi nào không? Ví dụ như giao dịch nội bộ ví, từ ngân hàng, hay ra ngân hàng? Điều này sẽ giúp mình tạo hồ sơ để chuyên viên CSKH kiểm tra kỹ hơn.",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-e1e829342a55**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề này. Bạn sẽ nhận được phản hồi trong khoảng thời gian đến **10/09/2026**.\n\nNếu có thêm thông tin gì cần hỗ trợ, bạn cứ cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển nhầm khoảng 137.777.142đ, hình như hôm qua, lấy lại được không ạ?",
+      "Mình không nhớ mã giao dịch, nhưng số điện thoại thì vẫn đúng như thông tin đã đăng ký. Bạn có thể giúp mình kiểm tra lại không?",
+      "Mình không nhớ rõ giao dịch này thuộc phạm vi nào, nhưng mình chắc chắn là mình đã chuyển nhầm qua ví."
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 2
+  },
+  {
+    "case_id": "FUNCQA-006-HAPPY",
+    "cell": "money_not_received x from_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000010",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-ac7e0437b4ac**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi bạn trước **17/08/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo vì bên nhận chưa thấy tiền về. Theo thông tin mình tra cứu, giao dịch bạn chuyển 359.000đ vào lúc 20:20 ngày 15/06 đã được thực hiện thành công với mã giao dịch là **TXN20260615000010**.\n\nGiao dịch này có chiều hướng từ ngân hàng vào ví của bạn. Bạn có thể kiểm tra lại với bên nhận xem họ đã xác nhận chưa. Nếu họ vẫn chưa nhận được, mình có thể tạo hồ sơ khiếu nại để chuyên viên hỗ trợ bạn. Bạn có muốn tiếp tục không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-ac7e0437b4ac**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi bạn trước **17/08/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển 359.000đ lúc 20:20 ngày 15/06 mà bên kia báo chưa nhận được tiền.",
+      "Mình đã kiểm tra với bên nhận nhưng họ vẫn chưa thấy tiền về. Mình muốn tạo hồ sơ khiếu nại để được hỗ trợ. Cảm ơn bạn!"
+    ],
+    "tool_calls": [
+      "lookup_transaction",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "FUNCQA-006-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-83c168cc11c3**. Nội dung khiếu nại là bạn đã chuyển 137.777.143đ nhưng bên nhận chưa nhận được tiền.\n\nĐội ngũ CSKH sẽ tiếp nhận và xử lý hồ sơ của bạn trong thời gian tới, dự kiến sẽ phản hồi trước **17/08/2026**. Nếu có thêm thông tin gì, bạn có thể liên hệ lại nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì bên kia chưa nhận được số tiền 137.777.143đ. Tuy nhiên, mình không tìm thấy giao dịch nào tương ứng với số tiền này trong lịch sử giao dịch của bạn.\n\nBạn có thể cung cấp thêm thông tin như mã giao dịch hoặc thời gian cụ thể hơn để mình có thể hỗ trợ tốt hơn không?",
+      "Mình đã kiểm tra lịch sử giao dịch gần đây của bạn, và dưới đây là một số giao dịch gần nhất:\n\n1. **Giao dịch**: TXN20260729000007\n   - **Số tiền**: 1.363.000đ\n   - **Trạng thái**: Thành công\n   - **Thời gian**: 29/07/2026\n\n2. **Giao dịch**: TXN20260729000503\n   - **Số tiền**: 373.000đ\n   - **Trạng thái**: Thành công\n   - **Thời gian**: 29/07/2026\n\n3. **Giao dịch**: TXN20260731000463\n   - **Số tiền**: 204.000đ\n   - **Trạng thái**: Đang giữ\n   - **Thời gian**: 31/07/2026\n\nTuy nhiên, không có giao dịch nào với số tiền 137.777.143đ. Bạn có thể nhớ thêm thông tin nào khác không, hoặc có thể cung cấp cho mình thời gian gần nhất bạn đã thực hiện giao dịch này?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-83c168cc11c3**. Nội dung khiếu nại là bạn đã chuyển 137.777.143đ nhưng bên nhận chưa nhận được tiền.\n\nĐội ngũ CSKH sẽ tiếp nhận và xử lý hồ sơ của bạn trong thời gian tới, dự kiến sẽ phản hồi trước **17/08/2026**. Nếu có thêm thông tin gì, bạn có thể liên hệ lại nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển 137.777.143đ mà bên kia báo chưa nhận được tiền, không nhớ rõ lúc nào.",
+      "Mình không nhớ rõ mã giao dịch, bạn ơi.",
+      "Mình không nhớ rõ thời gian cụ thể, nhưng mình chắc chắn đã chuyển 137.777.143đ. Mình không có thông tin gì thêm để cung cấp."
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 2
+  },
+  {
+    "case_id": "FUNCQA-007-HAPPY",
+    "cell": "double_charge x from_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000010",
+        true
+      ],
+      [
+        "cite_TXN20260619000015",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng vì bị trừ tiền hai lần cho cùng một giao dịch. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-35b147759021**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **17/08/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì bị trừ tiền hai lần cho cùng một giao dịch. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-35b147759021**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **17/08/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi bị trừ tiền 2 lần cho cùng 1 lần thao tác: lần đầu 359.000đ lúc 20:20 ngày 15/06, lần hai 96.000đ lúc 09:59 ngày 19/06."
+    ],
+    "tool_calls": [
+      "lookup_transaction",
+      "lookup_transaction",
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "FUNCQA-007-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-d88e4bd7d9f4**. Đội ngũ CSKH sẽ tiếp nhận và kiểm tra vấn đề này. Bạn sẽ nhận được phản hồi trong khoảng thời gian đến **ngày 10/09/2026**.\n\nNếu có thêm thông tin nào khác, bạn có thể chia sẻ với mình nhé!",
+    "all_agent_replies": [
+      "Mình đã tra cứu lịch sử giao dịch của bạn, nhưng không tìm thấy giao dịch nào trùng khớp với số tiền 137.777.144đ trong khoảng thời gian gần đây. \n\nCó thể bạn nhớ thêm thông tin nào khác về giao dịch này không? Ví dụ như thời gian cụ thể hơn hoặc tên người nhận? Điều này sẽ giúp mình tìm kiếm chính xác hơn.",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-d88e4bd7d9f4**. Đội ngũ CSKH sẽ tiếp nhận và kiểm tra vấn đề này. Bạn sẽ nhận được phản hồi trong khoảng thời gian đến **ngày 10/09/2026**.\n\nNếu có thêm thông tin nào khác, bạn có thể chia sẻ với mình nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi thấy bị trừ tiền 2 lần khoảng 137.777.144đ, nhưng không nhớ chính xác thời gian.",
+      "Mình không nhớ rõ thời gian cụ thể hay tên người nhận, chỉ biết là bị trừ tiền 2 lần."
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "FUNCQA-008-HAPPY",
+    "cell": "refund x from_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        false
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000010",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng vì chưa thấy tiền hoàn 359.000đ vào ví/tài khoản. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-1ee53800569d**. \n\nChuyên viên CSKH sẽ xem xét và phản hồi cho bạn trong khoảng thời gian đến **17/08/2026**. Nếu bạn cần hỗ trợ thêm, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì chưa thấy tiền hoàn 359.000đ vào ví/tài khoản. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-1ee53800569d**. \n\nChuyên viên CSKH sẽ xem xét và phản hồi cho bạn trong khoảng thời gian đến **17/08/2026**. Nếu bạn cần hỗ trợ thêm, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi được duyệt hoàn tiền 359.000đ lúc 20:20 ngày 15/06 nhưng đến giờ vẫn chưa thấy vào ví/tài khoản."
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "FUNCQA-008-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-34c1f94f9995**. Chuyên viên CSKH sẽ kiểm tra lại vấn đề hoàn tiền của bạn và phản hồi trong khoảng thời gian đến **10/09/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình đã tra cứu nhưng không tìm thấy giao dịch nào liên quan đến số tiền hoàn 137.777.145đ trong lịch sử giao dịch của bạn. \n\nCó thể bạn đã được duyệt hoàn tiền nhưng chưa có giao dịch cụ thể nào được ghi nhận. Bạn có thể cung cấp thêm thông tin về giao dịch này, chẳng hạn như thời gian dự kiến hoặc mã giao dịch, để mình có thể hỗ trợ tốt hơn không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-34c1f94f9995**. Chuyên viên CSKH sẽ kiểm tra lại vấn đề hoàn tiền của bạn và phản hồi trong khoảng thời gian đến **10/09/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi được duyệt hoàn tiền khoảng 137.777.145đ nhưng chưa thấy về, không rõ lúc nào.",
+      "Mình không nhớ rõ thời gian cụ thể hay mã giao dịch bạn ơi. Mong bạn giúp mình kiểm tra thêm nhé!"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "FUNCQA-009-HAPPY",
+    "cell": "wrong_recipient x to_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000014",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang lo lắng về việc chuyển nhầm 265.000đ lúc 19:30 ngày 15/06. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-f7ad1a09d406**. \n\nChuyên viên CSKH sẽ xem xét và phản hồi cho bạn trong khoảng thời gian đến **17/08/2026**. Bạn sẽ nhận được thông tin sớm nhất có thể. Nếu cần thêm hỗ trợ, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng về việc chuyển nhầm 265.000đ lúc 19:30 ngày 15/06. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-f7ad1a09d406**. \n\nChuyên viên CSKH sẽ xem xét và phản hồi cho bạn trong khoảng thời gian đến **17/08/2026**. Bạn sẽ nhận được thông tin sớm nhất có thể. Nếu cần thêm hỗ trợ, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển nhầm 265.000đ lúc 19:30 ngày 15/06, lấy lại được không ạ?"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 0
+  },
+  {
+    "case_id": "FUNCQA-009-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-a38904ff8d5b**. Chuyên viên CSKH sẽ xem xét và phản hồi cho bạn trong thời gian tới, dự kiến trước **10/09/2026**.\n\nNếu bạn cần hỗ trợ thêm, đừng ngần ngại hỏi nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì đã chuyển nhầm số tiền lớn như vậy. Tuy nhiên, mình không tìm thấy giao dịch nào tương ứng với số tiền 137.777.146đ trong ngày hôm qua.\n\nBạn có thể cung cấp thêm thông tin như mã giao dịch hoặc số điện thoại liên quan đến giao dịch này không? Điều này sẽ giúp mình tra cứu chính xác hơn.",
+      "Mình đã tra cứu nhưng vẫn không tìm thấy giao dịch nào tương ứng với số tiền 137.777.146đ từ số điện thoại bạn cung cấp trong vòng 90 ngày qua.\n\nCó thể giao dịch này đã không được thực hiện qua ví điện tử của bạn, hoặc có thể có thông tin khác cần xác minh. Bạn có thể kiểm tra lại thông tin giao dịch hoặc cung cấp thêm chi tiết nào khác không? Nếu không, mình có thể tạo một hồ sơ khiếu nại để chuyên viên CSKH xem xét giúp bạn. Bạn có muốn làm vậy không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-a38904ff8d5b**. Chuyên viên CSKH sẽ xem xét và phản hồi cho bạn trong thời gian tới, dự kiến trước **10/09/2026**.\n\nNếu bạn cần hỗ trợ thêm, đừng ngần ngại hỏi nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển nhầm khoảng 137.777.146đ, hình như hôm qua, lấy lại được không ạ?",
+      "Mình không nhớ rõ mã giao dịch bạn ơi, nhưng số điện thoại mình dùng cho ví điện tử là số này. Mong bạn giúp mình!",
+      "Mình không nhớ rõ thông tin giao dịch, nhưng mình muốn tạo hồ sơ khiếu nại để được hỗ trợ. Cảm ơn bạn!"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 2
+  },
+  {
+    "case_id": "FUNCQA-010-HAPPY",
+    "cell": "money_not_received x to_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Pass",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000014",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-3c09944e48cd**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi bạn trước **17/08/2026**.\n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì bên nhận chưa thấy tiền. Theo thông tin mình tra cứu, có một giao dịch chuyển 265.000đ vào lúc 19:30 ngày 15/06/2026 với mã giao dịch là **TXN20260615000014**. Giao dịch này đã thành công.\n\nBạn có thể kiểm tra lại với bên nhận xem họ đã nhận được tiền chưa. Nếu họ vẫn chưa nhận được, mình có thể tạo hồ sơ khiếu nại để chuyên viên CSKH hỗ trợ bạn. Bạn có muốn mình làm vậy không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-3c09944e48cd**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi bạn trước **17/08/2026**.\n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển 265.000đ lúc 19:30 ngày 15/06 mà bên kia báo chưa nhận được tiền.",
+      "Mình đã kiểm tra với bên nhận nhưng họ vẫn chưa nhận được tiền. Bạn giúp mình tạo hồ sơ khiếu nại nhé. Cảm ơn bạn!"
+    ],
+    "tool_calls": [
+      "lookup_transaction",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "FUNCQA-010-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-2ee4e5af206b**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề của bạn. Thời gian xử lý dự kiến sẽ hoàn tất vào **10/09/2026**.\n\nNếu bạn có thêm câu hỏi nào khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình đã kiểm tra nhưng không tìm thấy giao dịch nào trị giá 137.777.147đ trong lịch sử giao dịch của bạn. Có thể bạn đã chuyển tiền từ một tài khoản khác hoặc có sự nhầm lẫn trong số tiền.\n\nBạn có thể cung cấp thêm thông tin như mã giao dịch hoặc thời gian cụ thể hơn để mình có thể hỗ trợ tốt hơn không?",
+      "Mình đã kiểm tra lại lịch sử giao dịch gần đây của bạn, nhưng vẫn không tìm thấy giao dịch nào trị giá 137.777.147đ. Dưới đây là một số giao dịch gần đây của bạn:\n\n1. **TXN20260801000009** - 279.000đ - Thành công - Ngày 01/08/2026\n2. **TXN20260731000010** - 199.000đ - Thành công - Ngày 31/07/2026\n3. **TXN20260731000455** - 346.000đ - Đang chờ - Ngày 31/07/2026\n4. **TXN20260730000012** - 98.000đ - Thành công - Ngày 30/07/2026\n5. **TXN20260729000351** - 545.000đ - Thành công - Ngày 29/07/2026\n\nCó thể bạn đã chuyển tiền từ một tài khoản khác hoặc có sự nhầm lẫn trong số tiền. Nếu bạn có thêm thông tin nào khác, hãy cho mình biết để mình có thể hỗ trợ tốt hơn. Nếu không, mình có thể tạo hồ sơ khiếu nại cho bạn để chuyên viên kiểm tra thêm. Bạn có muốn làm vậy không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-2ee4e5af206b**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề của bạn. Thời gian xử lý dự kiến sẽ hoàn tất vào **10/09/2026**.\n\nNếu bạn có thêm câu hỏi nào khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi chuyển 137.777.147đ mà bên kia báo chưa nhận được tiền, không nhớ rõ lúc nào.",
+      "Mình không nhớ rõ mã giao dịch và cũng không có thông tin cụ thể về thời gian. Bạn có thể giúp mình kiểm tra lại được không?",
+      "Mình không nhớ rõ mã giao dịch, nhưng mình chắc chắn đã chuyển 137.777.147đ. Bạn có thể tạo hồ sơ khiếu nại giúp mình được không? Cảm ơn!"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 2
+  },
+  {
+    "case_id": "FUNCQA-011-HAPPY",
+    "cell": "double_charge x to_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "Blocker",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000014",
+        false
+      ],
+      [
+        "cite_TXN20260618000635",
+        false
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ cho bạn với mã ticket là **TCK-3a557c7c19bb**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề của bạn. Họ sẽ phản hồi lại bạn trong khoảng thời gian đến **10/09/2026**.\n\nNếu bạn cần hỗ trợ thêm, đừng ngần ngại hỏi nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì bị trừ tiền hai lần cho cùng một thao tác. Để giúp bạn, mình sẽ cần xác nhận thông tin giao dịch gần đây của bạn.\n\nMình đã tra cứu lịch sử giao dịch của bạn và không tìm thấy giao dịch nào trùng khớp với số tiền và thời gian bạn đã cung cấp. Bạn có thể cho mình biết số điện thoại mà bạn đã sử dụng để thực hiện giao dịch này không?",
+      "Mình đã tạo hồ sơ cho bạn với mã ticket là **TCK-3a557c7c19bb**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề của bạn. Họ sẽ phản hồi lại bạn trong khoảng thời gian đến **10/09/2026**.\n\nNếu bạn cần hỗ trợ thêm, đừng ngần ngại hỏi nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi bị trừ tiền 2 lần cho cùng 1 lần thao tác: lần đầu 265.000đ lúc 19:30 ngày 15/06, lần hai 291.000đ lúc 08:31 ngày 18/06.",
+      "Mình không nhớ rõ số điện thoại đã sử dụng để thực hiện giao dịch đó bạn ơi."
+    ],
+    "tool_calls": [
+      "lookup_transaction",
+      "lookup_transaction",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "FUNCQA-011-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        true
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-4aff9a67fcf0**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề này. Bạn sẽ nhận được phản hồi trong khoảng thời gian đến **10/09/2026**.\n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình đã tra cứu lịch sử giao dịch của bạn trong 90 ngày qua, nhưng không tìm thấy giao dịch nào trùng khớp với số tiền khoảng 137.777.148đ. \n\nBạn có thể cung cấp thêm thông tin cụ thể hơn về thời gian hoặc bất kỳ chi tiết nào khác liên quan đến giao dịch này không? Điều này sẽ giúp mình hỗ trợ bạn tốt hơn.",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-4aff9a67fcf0**. Chuyên viên CSKH sẽ tiếp nhận và kiểm tra vấn đề này. Bạn sẽ nhận được phản hồi trong khoảng thời gian đến **10/09/2026**.\n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi thấy bị trừ tiền 2 lần khoảng 137.777.148đ, nhưng không nhớ chính xác thời gian.",
+      "Mình không nhớ rõ thời gian cụ thể, nhưng chắc chắn là số tiền đó đã bị trừ. Mình không có thông tin gì thêm để cung cấp."
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "FUNCQA-012-HAPPY",
+    "cell": "refund x to_bank",
+    "difficulty": "clear",
+    "edge_type": null,
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        false
+      ],
+      [
+        "scope",
+        true
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ],
+      [
+        "cite_TXN20260615000014",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-5a5c67922549**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **17/08/2026**.\n\nNếu bạn có thêm câu hỏi nào khác, đừng ngần ngại hỏi nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang lo lắng vì chưa thấy tiền hoàn về. Theo thông tin mình tra cứu, giao dịch hoàn tiền 265.000đ của bạn được thực hiện lúc 19:30 ngày 15/06/2026 và đã hoàn tất vào lúc 19:39 ngày 16/06/2026. \n\nGiao dịch này có mã giao dịch là **TXN20260615000014** và đã thành công. Tuy nhiên, nếu bạn vẫn chưa nhận được tiền vào tài khoản, có thể có một số lý do khác nhau.\n\nMình khuyên bạn nên kiểm tra lại tài khoản ngân hàng của mình hoặc liên hệ với ngân hàng để xác minh tình trạng giao dịch. Nếu cần, mình có thể tạo một hồ sơ khiếu nại để chuyên viên CSKH hỗ trợ bạn thêm. Bạn có muốn mình làm vậy không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-5a5c67922549**. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **17/08/2026**.\n\nNếu bạn có thêm câu hỏi nào khác, đừng ngần ngại hỏi nhé!"
+    ],
+    "all_customer_texts": [
+      "Tôi được duyệt hoàn tiền 265.000đ lúc 19:30 ngày 15/06 nhưng đến giờ vẫn chưa thấy vào ví/tài khoản.",
+      "Mình đã kiểm tra tài khoản ngân hàng nhưng vẫn chưa thấy tiền về. Bạn tạo hồ sơ khiếu nại giúp mình nhé. Cảm ơn bạn!"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "lookup_transaction",
+      "create_ticket"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "FUNCQA-012-NOTFOUND",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "complaint_type",
+        false
+      ],
+      [
+        "scope",
+        false
+      ],
+      [
+        "priority",
+        true
+      ],
+      [
+        "fraud_signal_fs06",
+        true
+      ],
+      [
+        "must_escalate_immediately",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-66f21af43352**. Chuyên viên CSKH sẽ xem xét trường hợp của bạn và phản hồi trong thời gian tới, dự kiến trước **10/09/2026**.\n\nNếu bạn cần thêm thông tin hoặc hỗ trợ gì khác, đừng ngần ngại hỏi nhé! Cảm ơn bạn đã kiên nhẫn!",
+    "all_agent_replies": [
+      "Mình đã kiểm tra nhưng không tìm thấy giao dịch nào tương ứng với số tiền 137.777.149đ trong lịch sử giao dịch của bạn. Có thể giao dịch này chưa được thực hiện hoặc có vấn đề gì đó trong quá trình hoàn tiền.\n\nNgoài ra, mình thấy bạn đã từng khiếu nại về việc chưa nhận được tiền (mã khiếu nại CMP-00179) vào ngày 31/07/2026, nhưng khiếu nại này đã bị từ chối.\n\nBạn có thể cung cấp thêm thông tin về giao dịch này không? Ví dụ như thời gian giao dịch hoặc mã giao dịch, để mình có thể hỗ trợ tốt hơn.",
+      "Mình đã tra cứu lịch sử giao dịch gần đây của bạn trong 90 ngày qua. Dưới đây là một số giao dịch gần đây:\n\n1. **Giao dịch**: TXN20260801000009\n   - **Số tiền**: 279.000đ\n   - **Trạng thái**: Thành công\n   - **Thời gian**: 01/08/2026\n\n2. **Giao dịch**: TXN20260731000010\n   - **Số tiền**: 199.000đ\n   - **Trạng thái**: Thành công\n   - **Thời gian**: 31/07/2026\n\n3. **Giao dịch**: TXN20260731000455\n   - **Số tiền**: 346.000đ\n   - **Trạng thái**: Đang chờ xử lý\n   - **Thời gian**: 31/07/2026\n\nHiện tại, mình không thấy giao dịch nào với số tiền 137.777.149đ mà bạn đã đề cập. Có thể giao dịch này chưa được thực hiện hoặc có vấn đề trong quá trình hoàn tiền.\n\nNếu bạn cần hỗ trợ thêm hoặc muốn khiếu nại về vấn đề này, mình có thể tạo hồ sơ cho bạn để chuyên viên CSKH xem xét. Bạn có muốn mình làm vậy không?",
+      "Mình hiểu bạn đang rất cần hỗ trợ về việc hoàn tiền 137.777.149đ. Tuy nhiên, mình đã tra cứu lịch sử giao dịch của bạn và không tìm thấy giao dịch nào tương ứng với số tiền này.\n\nNếu bạn chắc chắn rằng đã được duyệt hoàn tiền, mình có thể tạo hồ sơ khiếu nại để chuyên viên CSKH kiểm tra kỹ hơn về trường hợp của bạn. Bạn có muốn mình tạo hồ sơ này không?",
+      "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-66f21af43352**. Chuyên viên CSKH sẽ xem xét trường hợp của bạn và phản hồi trong thời gian tới, dự kiến trước **10/09/2026**.\n\nNếu bạn cần thêm thông tin hoặc hỗ trợ gì khác, đừng ngần ngại hỏi nhé! Cảm ơn bạn đã kiên nhẫn!"
+    ],
+    "all_customer_texts": [
+      "Tôi được duyệt hoàn tiền khoảng 137.777.149đ nhưng chưa thấy về, không rõ lúc nào.",
+      "Mình không nhớ rõ thời gian giao dịch, cũng như không có thông tin về mã giao dịch bạn ơi.",
+      "Mình không nhớ rõ mã giao dịch của mình, nhưng mình chắc chắn đã được duyệt hoàn tiền 137.777.149đ. Bạn có thể giúp mình kiểm tra lại không?",
+      "Vâng, tôi muốn tạo hồ sơ khiếu nại để kiểm tra kỹ hơn về trường hợp này. Cảm ơn bạn!"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "create_ticket"
+    ],
+    "extra_turns_used": 3
+  }
+]
