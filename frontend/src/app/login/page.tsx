@@ -22,11 +22,20 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    // Timeout phía client (10s) — BUG-01 (FIN05-QA-Test-Report.md): nút "Đang
+    // đăng nhập…" từng bị báo treo vô hạn không có lối thoát. fetch() không tự
+    // có timeout — nếu request thật sự treo (mạng, backend đơ), trước đây
+    // không có gì làm loading=false. AbortController đảm bảo LUÔN có phản hồi
+    // rõ ràng trong 10s, đúng khuyến nghị "không bao giờ để loading treo vô
+    // hạn" của báo cáo — dù thời điểm sửa không tái hiện lại được hang gốc.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
     try {
       const res = await fetch("/api/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phone.trim(), role }),
+        signal: controller.signal,
       });
       const body = await res.json();
       if (!res.ok) {
@@ -35,9 +44,14 @@ export default function LoginPage() {
       }
       router.push(roleHome(role));
       router.refresh();
-    } catch {
-      setError("Không kết nối được máy chủ — kiểm tra backend đã chạy chưa (make run).");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("Máy chủ phản hồi quá lâu (>10s) — thử lại giúp mình nhé.");
+      } else {
+        setError("Không kết nối được máy chủ — kiểm tra backend đã chạy chưa (make run).");
+      }
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   }

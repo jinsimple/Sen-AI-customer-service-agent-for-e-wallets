@@ -25,11 +25,34 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
+// Timeout mặc định 60s — UX-01 (FIN05-QA-Test-Report.md): mọi hành động
+// async (gửi chat, duyệt case...) phải có trần thời gian rõ ràng, KHÔNG bao
+// giờ treo vô hạn (cùng gốc với BUG-01 ở trang login, nhưng request() này là
+// điểm dùng chung cho agentChat/approveResolution/... nên sửa 1 chỗ áp dụng
+// hết). 60s (không phải 10s như login) vì agentChat gọi LLM thật, đã đo thực
+// tế có lượt cần 15-20s+ khi tải cao — timeout phải đủ rộng để không huỷ
+// nhầm request đang chạy đúng, chỉ chặn trường hợp treo thật sự.
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+async function request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = init ?? {};
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      ...fetchInit,
+      headers: { "Content-Type": "application/json", ...(fetchInit.headers ?? {}) },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(0, `Máy chủ phản hồi quá lâu (>${Math.round(timeoutMs / 1000)}s) — thử lại giúp mình nhé.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -61,9 +84,22 @@ function del<T>(path: string): Promise<T> {
 }
 
 // Upload file — KHÔNG dùng request() vì hàm đó luôn ép Content-Type:
-// application/json; multipart cần fetch tự tính boundary từ FormData.
+// application/json; multipart cần fetch tự tính boundary từ FormData. Vẫn áp
+// timeout riêng — file lớn/mạng chậm cũng không được treo vô hạn (UX-01).
 async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
-  const res = await fetch(path, { method: "POST", body: formData });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(path, { method: "POST", body: formData, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(0, `Máy chủ phản hồi quá lâu (>${Math.round(DEFAULT_TIMEOUT_MS / 1000)}s) — thử lại giúp mình nhé.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {

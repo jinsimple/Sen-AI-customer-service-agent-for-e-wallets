@@ -24,6 +24,13 @@ export class ServerApiError extends Error {
   }
 }
 
+// 65s — hơi rộng hơn timeout phía trình duyệt (60s, xem lib/api.ts) để dưới
+// điều kiện bình thường lỗi timeout thật luôn tới từ phía trình duyệt trước
+// (thông báo có ý nghĩa hơn cho khách), timeout ở đây chỉ là lưới an toàn
+// tài nguyên phía server (không giữ connection/handler treo vô hạn nếu
+// backend thật sự đơ) — UX-01 (FIN05-QA-Test-Report.md), cùng gốc BUG-01.
+const BACKEND_FETCH_TIMEOUT_MS = 65_000;
+
 export async function backendFetch<T>(
   path: string,
   token: string,
@@ -33,14 +40,27 @@ export async function backendFetch<T>(
   // Content-Type: application/json ở đây, để fetch/undici tự tính boundary
   // multipart đúng. Ép JSON lên body FormData sẽ làm FastAPI không parse được.
   const isFormData = init?.body instanceof FormData;
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      Authorization: `Bearer ${token}`,
-      ...(init?.headers ?? {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), BACKEND_FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${BACKEND_URL}${path}`, {
+      ...init,
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        Authorization: `Bearer ${token}`,
+        ...(init?.headers ?? {}),
+      },
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ServerApiError(504, "Backend phản hồi quá lâu — thử lại giúp mình nhé.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {
