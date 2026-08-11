@@ -2,14 +2,21 @@
 
 /* Design token "Mận Sen" — port nguyên từ FIN05-Wireframe-UXUI.html để giữ
    đúng thiết kế đã chốt (không suy diễn lại). Font qua next/font (layout.tsx)
-   thay vì @font-face base64 vì Next.js tự tối ưu/subset font. */
+   thay vì @font-face base64 vì Next.js tự tối ưu/subset font.
+
+   --text-faint (2026-08-11, UX-06 FIN05-QA-Test-Report.md): giá trị port gốc
+   chỉ đạt 3.05:1 (light) / 3.70:1 (dark) trên nền tương ứng — dưới ngưỡng
+   WCAG 2.1 AA 4.5:1 cho chữ thường, phát hiện thật qua axe-core
+   (frontend/e2e/accessibility.spec.ts). Đã chỉnh tối/sáng thêm 1 bậc (vẫn
+   cùng tông tím-xám, vẫn rõ ràng "faint" hơn --text-dim) để đạt ≥4.5:1 trên
+   mọi nền đang dùng (--surface trắng lẫn --bg tím nhạt/tối). */
 
 :root{
   --navy:#4C1D95; --navy-2:#7C3AED; --navy-soft:#6D28D9;
   --gold:#C026D3; --gold-bg:#FDE9FB; --gold-ink:#86198F;
   --bg:#FAF5FF; --surface:#FFFFFF; --surface-2:#F5EDFC;
   --border:#EADCF7; --border-strong:#D8BFEE;
-  --text:#241228; --text-dim:#6B5E73; --text-faint:#9C8FA3;
+  --text:#241228; --text-dim:#6B5E73; --text-faint:#786980;
   --success:#15803D; --success-bg:#DCFCE7;
   --warning:#B45309; --warning-bg:#FFEDD5;
   --danger:#DC2626; --danger-bg:#FEE2E2;
@@ -23,7 +30,7 @@
 :root[data-theme="dark"]{
   --bg:#150C24; --surface:#1E1233; --surface-2:#241539;
   --border:#33224A; --border-strong:#453160;
-  --text:#F1E9FA; --text-dim:#B7A8C4; --text-faint:#7C6D89;
+  --text:#F1E9FA; --text-dim:#B7A8C4; --text-faint:#8F81A0;
   --gold-bg:#3A1440; --gold-ink:#F0ABFC;
   --success-bg:#0F2A1B; --warning-bg:#3A2410; --danger-bg:#3A1414; --info-bg:#2B1A4A; --critical-bg:#3A1440;
   --shadow-sm: 0 1px 2px rgba(0,0,0,.35); --shadow-md: 0 4px 14px rgba(0,0,0,.45); --shadow-lg: 0 16px 40px rgba(0,0,0,.6);
@@ -32,7 +39,7 @@
   :root:not([data-theme="light"]){
     --bg:#150C24; --surface:#1E1233; --surface-2:#241539;
     --border:#33224A; --border-strong:#453160;
-    --text:#F1E9FA; --text-dim:#B7A8C4; --text-faint:#7C6D89;
+    --text:#F1E9FA; --text-dim:#B7A8C4; --text-faint:#8F81A0;
     --gold-bg:#3A1440; --gold-ink:#F0ABFC;
     --success-bg:#0F2A1B; --warning-bg:#3A2410; --danger-bg:#3A1414; --info-bg:#2B1A4A; --critical-bg:#3A1440;
     --shadow-sm: 0 1px 2px rgba(0,0,0,.35); --shadow-md: 0 4px 14px rgba(0,0,0,.45); --shadow-lg: 0 16px 40px rgba(0,0,0,.6);
@@ -104,7 +111,11 @@ button{ font-family:inherit; }
 main{ flex:1; padding:28px; max-width:1440px; margin:0 auto; width:100%; }
 
 .page-head{ margin-bottom:24px; }
-.eyebrow{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--navy-2); background:var(--info-bg); padding:4px 10px; border-radius:999px; margin-bottom:10px; }
+/* color: --gold-ink (không phải --navy-2 gốc, chỉ đạt 4.16:1 trên
+   --info-bg — dưới WCAG AA 4.5:1, phát hiện thật qua axe-core, xem ghi chú
+   --text-faint phía trên) — tái dùng token sẵn có (đã dùng cho badge-critical
+   cùng kiểu tint-badge) thay vì bịa màu mới, đạt 6.02:1. */
+.eyebrow{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--gold-ink); background:var(--info-bg); padding:4px 10px; border-radius:999px; margin-bottom:10px; }
 .page-head h1{ font-size:24px; }
 .page-head .sub{ margin-top:6px; color:var(--text-dim); font-size:14px; max-width:760px; }
 
