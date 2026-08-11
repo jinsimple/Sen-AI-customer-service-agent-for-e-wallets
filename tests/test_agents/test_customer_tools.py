@@ -11,6 +11,7 @@ tham số agent thật sẽ truyền."""
 from __future__ import annotations
 
 import datetime as dt
+from concurrent.futures import ThreadPoolExecutor
 
 from src.agents.tools.customer_tools import build_customer_tools
 
@@ -52,3 +53,28 @@ def test_wrong_recipient_flow_by_recipient_phone_still_works(sample_db):
     result = tools["lookup_transaction"].invoke({"phone": "0901000002", "amount": 270_000})
     assert result["status"] == "found"
     assert result["transaction"]["trans_id"] == "TXN-0001"
+
+
+def test_concurrent_tool_calls_do_not_crash_shared_session(sample_db):
+    """Phát hiện thật (2026-08-11, functional_qa_set.jsonl FUNCQA-011-HAPPY):
+    LangGraph's ToolNode chạy nhiều tool call trong CÙNG 1 lượt SONG SONG qua
+    ThreadPoolExecutor (vd model tra 2 giao dịch nghi trừ 2 lần cùng lúc) —
+    nhưng cả 5 tool đóng cứng dùng CHUNG 1 session SQLAlchemy (không
+    thread-safe), gây `InvalidRequestError: Session is already flushing`
+    khi 2 thread cùng lúc chạm session. `_session_lock` trong
+    build_customer_tools() phải serialize hoá việc này — mô phỏng đúng kịch
+    bản 2 tool call song song (lookup_transaction ghi tool_result qua
+    session.add()+flush()) và xác nhận không crash, cả 2 đều trả kết quả
+    đúng."""
+    tools = {t.name: t for t in build_customer_tools(sample_db, user_id="USR-A", otp_verified_at=_NOW)}
+    lookup = tools["lookup_transaction"]
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(lookup.invoke, {"trans_id": "TXN-0001"}),
+            executor.submit(lookup.invoke, {"trans_id": "TXN-0002"}),
+        ]
+        results = [f.result() for f in futures]  # raise ngay nếu thread nào crash
+
+    assert {r["status"] for r in results} == {"found"}
+    assert {r["transaction"]["trans_id"] for r in results} == {"TXN-0001", "TXN-0002"}

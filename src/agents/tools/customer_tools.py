@@ -15,7 +15,9 @@ thủ công của CSKH qua webapp (Brief §7.5: AI không bao giờ vượt cấ
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import re
+import threading
 import unicodedata
 from typing import Optional
 
@@ -193,7 +195,29 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
     NIST 800-63B AAL2); create_ticket (hậu quả tài chính thật) dùng
     OTP_STEPUP_FRESH_MINUTES (15 phút, step-up chặt hơn)."""
 
+    # Phát hiện thật (2026-08-11, functional_qa_set.jsonl FUNCQA-011-HAPPY):
+    # khi model gọi ≥2 tool trong CÙNG 1 lượt (vd tra 2 giao dịch nghi trừ 2
+    # lần), LangGraph's ToolNode chạy các tool call đó SONG SONG qua
+    # ThreadPoolExecutor — nhưng cả 5 tool ở đây đều đóng cứng dùng CHUNG 1
+    # `session` SQLAlchemy (không thread-safe), gây
+    # `InvalidRequestError: Session is already flushing` khi 2 thread cùng
+    # lúc chạm session (vd cả 2 lookup_transaction cùng gọi
+    # record_tool_result() -> session.add()+flush()). Khoá `_session_lock`
+    # (mới cho MỖI request/lượt chat qua build_customer_tools(), không phải
+    # global) serialize hoá truy cập session giữa các tool call song song
+    # trong cùng 1 lượt — không ảnh hưởng tới các user/session khác.
+    _session_lock = threading.Lock()
+
+    def _locked(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            with _session_lock:
+                return fn(*args, **kwargs)
+
+        return wrapper
+
     @tool
+    @_locked
     def lookup_transaction(
         trans_id: Optional[str] = None,
         rec_code: Optional[str] = None,
@@ -240,6 +264,7 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
             return {"status": "error", "message": str(e)}
 
     @tool
+    @_locked
     def get_customer_history(
         days: int = 90, limit_transactions: int = 20, amount: Optional[int] = None
     ) -> dict:
@@ -270,6 +295,7 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
             return {"status": "error", "message": str(e)}
 
     @tool
+    @_locked
     def create_ticket(
         complaint_type: str,
         scope: str,
@@ -286,7 +312,9 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
         - scope: đúng 1 trong internal_wallet (nội bộ ví-ví), from_bank (nạp
           từ ngân hàng), to_bank (rút ra ngân hàng) — lấy từ dữ liệu
           transaction đã tra được (trường "scope"), KHÔNG hỏi khách đoán,
-          trừ trường hợp không tra ra giao dịch nào cả.
+          trừ trường hợp không tra ra giao dịch nào cả. Không tra ra giao
+          dịch VÀ khách cũng không xác định được phạm vi (dù đã hỏi) → dùng
+          "unknown", KHÔNG tự đoán bừa 1 trong 3 giá trị thật.
         - trans_id: mã giao dịch đã xác nhận qua lookup_transaction. Nếu đã
           hỏi lại khách nhiều lần vẫn không tra ra, gọi với trans_id=None —
           KHÔNG bịa một mã giao dịch.
@@ -313,6 +341,7 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
             return {"status": "error", "message": str(e)}
 
     @tool
+    @_locked
     def request_human_handoff(reason: str, ticket_id: Optional[str] = None) -> dict:
         """Khách YÊU CẦU RÕ RÀNG được nói chuyện/chuyển cho nhân viên CSKH
         thật (vd "cho tôi gặp người thật", "chuyển tôi cho nhân viên") — gọi
@@ -340,6 +369,7 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
             return {"status": "error", "message": str(e)}
 
     @tool
+    @_locked
     def search_policy(query: str) -> dict:
         """Tra chính sách/phí/quy định chung của ví (KHÔNG phải tra 1 giao
         dịch cụ thể — dùng lookup_transaction/get_customer_history cho việc
