@@ -76,7 +76,22 @@ def get_customer_history(
         if len(amount_matches) == 0:
             amount_match = {"status": "not_found"}
         elif len(amount_matches) == 1:
-            amount_match = {"status": "found", "trans_id": amount_matches[0].trans_id}
+            # scope PHẢI có ở đây (không chỉ trans_id) — thiếu trường này khiến
+            # agent phải tự đoán scope khi tạo ticket qua nhánh amount_match=found
+            # (khác nhánh multiple_matches bên dưới vốn đã có sẵn scope cho từng
+            # candidate). Phát hiện thật qua functional_qa_set.jsonl: các case
+            # money_not_received/double_charge tra ra giao dịch qua amount_match
+            # (không qua lookup_transaction) đều bị lệch scope vì thiếu dữ liệu
+            # này, không phải lỗi suy luận của agent.
+            match = amount_matches[0]
+            amount_match = {
+                "status": "found",
+                "trans_id": match.trans_id,
+                "scope": match.scope,
+                "amount": match.amount,
+                "created_at": match.created_at.isoformat() if match.created_at else None,
+                "direction": "out" if match.send_wal_id in wallet_ids else "in",
+            }
         else:
             amount_match = {
                 "status": "multiple_matches",
