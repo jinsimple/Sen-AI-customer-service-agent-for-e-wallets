@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 from typing import Any
 
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.errors import GraphRecursionError
 from sqlalchemy.orm import Session
 
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
@@ -23,9 +25,20 @@ from src.config import OPENAI_API_KEY, OPENAI_MODEL
 from src.db.models import User
 from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.tracing import get_tracer
+from src.services.complaint_intake import flag_human_handoff
 from src.tools.base import ToolError
 
 _tracer = get_tracer("fin05.agent")
+_logger = logging.getLogger("fin05.agents.graph")
+
+# CONSUME-002 (FIN05_QA_TestCases.jsonl, OWASP LLM10:2025 Unbounded
+# Consumption) — mặc định thật của langgraph đang cài (xác nhận trực tiếp
+# `langgraph._internal._config.DEFAULT_RECURSION_LIMIT`) là 10007 bước, thực
+# chất tương đương KHÔNG có giới hạn (đốt hết ngân sách OpenAI/timeout rất
+# lâu trước khi chạm ngưỡng đó nếu agent kẹt vòng lặp gọi tool mơ hồ liên
+# tục). 20 đủ cho vài vòng ReAct thật (LLM suy luận + gọi tool xen kẽ), thấp
+# hơn nhiều để chặn lặp vô hạn.
+_AGENT_RECURSION_LIMIT = 20
 
 # Singleton module-level: agent được build lại mỗi request (session/tools
 # gắn với request đó), nhưng checkpointer dùng chung 1 instance nên lịch sử
@@ -95,10 +108,40 @@ def run_agent_turn(
         root_span.set_attribute("fin05.user_id", user_id)
         root_span.set_attribute("fin05.thread_id", thread_id or user_id)
         root_span.set_attribute("fin05.otp_verified", otp_verified_at is not None)
-        result = agent.invoke(
-            {"messages": [HumanMessage(content=message)]},
-            config={**config, "callbacks": [OTelTracingCallbackHandler()]},
-        )
+        try:
+            result = agent.invoke(
+                {"messages": [HumanMessage(content=message)]},
+                config={
+                    **config,
+                    "callbacks": [OTelTracingCallbackHandler()],
+                    "recursion_limit": _AGENT_RECURSION_LIMIT,
+                },
+            )
+        except GraphRecursionError:
+            # Vòng lặp ReAct vượt quá _AGENT_RECURSION_LIMIT (thật sự xảy ra
+            # — không phải lý thuyết, xem case CONSUME-002) — KHÔNG để lỗi
+            # rơi ra ngoài thành 500, chuyển hẳn cho người xử lý thay vì lặp
+            # vô hạn/crash. root_span vẫn ghi nhận đúng (context manager tự
+            # đóng dù có exception), chỉ không có span con của lượt hỏng.
+            _logger.warning(
+                "agent_recursion_limit_reached",
+                extra={"user_id": user_id, "thread_id": thread_id or user_id},
+            )
+            root_span.set_attribute("fin05.recursion_limit_reached", True)
+            handoff = flag_human_handoff(
+                session,
+                user_id=user_id,
+                reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
+            )
+            return {
+                "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là "
+                + handoff["ticket_id"]
+                + ".",
+                "tool_calls": [],
+                "ticket_id": handoff["ticket_id"],
+                "should_escalate": False,
+                "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+            }
     all_messages = result["messages"]
     turn_messages = all_messages[prev_len:]
 

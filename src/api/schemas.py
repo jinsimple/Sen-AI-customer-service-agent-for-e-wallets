@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LookupTransactionRequest(BaseModel):
@@ -74,7 +74,13 @@ class OtpVerifyRequest(BaseModel):
 
 
 class AgentChatRequest(BaseModel):
-    message: str
+    # max_length=4000 (CONSUME-001, FIN05_QA_TestCases.jsonl, OWASP LLM10:2025
+    # Unbounded Consumption) — trước đây KHÔNG giới hạn gì, 1 message dài bất
+    # thường (vd flood hàng chục nghìn ký tự) vẫn được chuyển thẳng vào ngữ
+    # cảnh LLM, tốn token/tiền không kiểm soát. 4000 ký tự đủ rộng cho hội
+    # thoại CSKH thật (khiếu nại dài nhất trong dataset mẫu chưa tới 500 ký
+    # tự), FastAPI/Pydantic tự trả 422 rõ ràng khi vượt — không cần code tay.
+    message: str = Field(max_length=4000)
 
 
 class PolicySearchRequest(BaseModel):
