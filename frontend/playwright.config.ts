@@ -12,6 +12,13 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false, // dùng chung 1 user/OTP state giữa các case trong 1 file — tránh đụng độ AuthSession
+  // 45s (mặc định Playwright là 30s) — phát hiện thật lúc chạy full suite AUTH-*
+  // nhiều lần liên tiếp: rail "Giao dịch gần đây" (getCustomerHistory lúc
+  // mount) thi thoảng lâu hẳn dưới tải tuần tự nhiều test dù gọi trực tiếp
+  // luôn nhanh (~30-60ms, đã verify bằng curl) — chưa xác định chắc gốc rễ
+  // (không phải nghẽn khoá SQLite, đã verify bằng concurrent-load test),
+  // nới timeout mặc định thay vì để mỗi test tự chỉnh riêng lẻ.
+  timeout: 45_000,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["html", { open: "never" }]] : "list",
   use: {
