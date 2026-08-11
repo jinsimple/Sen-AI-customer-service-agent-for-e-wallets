@@ -32,6 +32,11 @@ cryptography>=50.0.0
 slowapi>=0.1.9
 
 # Vector Store — RAG chính sách/FAQ (src/rag/), xem docs/... upload role partner_admin
+# CVE-2026-45829 (PYSEC-2026-311): bản mới nhất (1.5.9) vẫn trong khoảng ảnh
+# hưởng, chưa có bản vá — rủi ro không áp dụng cho cách dùng ở đây (client
+# nhúng qua PersistentClient, không chạy chromadb server), xem chi tiết +
+# quyết định risk-accepted ở ci.yml (job dependency-and-secret-scan) và
+# docs/TESTING.md.
 chromadb>=0.5.0
 langchain-chroma>=0.2.0
 langchain-text-splitters>=0.3.0

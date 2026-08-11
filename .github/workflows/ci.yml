@@ -61,7 +61,19 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt pip-audit
       - name: Quét CVE gói Python (C7)
-        run: pip-audit --strict
+        # --ignore-vuln PYSEC-2026-311 (chromadb, CVE-2026-45829,
+        # GHSA-f4j7-r4q5-qw2c): code injection pre-auth qua endpoint HTTP
+        # /api/v2/tenants/{tenant}/databases/{db}/collections khi
+        # trust_remote_code=true — CHỈ khai thác được nếu chạy chromadb như
+        # server độc lập. Dự án dùng chromadb.PersistentClient (nhúng trong
+        # tiến trình, src/rag/store.py) — KHÔNG có server/port nào cho
+        # chroma (xem docker-compose.yml, chỉ mount volume), grep
+        # trust_remote_code toàn repo = 0 kết quả -> bề mặt tấn công không
+        # tồn tại trong cách triển khai này. CHƯA có bản vá (1.5.9 là bản
+        # mới nhất, vẫn trong khoảng ảnh hưởng) nên không thể nâng cấp —
+        # xác nhận định kỳ bằng `pip-audit -r requirements.txt` KHÔNG kèm
+        # --ignore-vuln, gỡ dòng ignore này ngay khi có bản vá.
+        run: pip-audit --strict --ignore-vuln PYSEC-2026-311
       - uses: actions/setup-node@v4
         with:
           node-version: "20"

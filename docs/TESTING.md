@@ -224,6 +224,29 @@ qua SSH tunnel (`ssh -L 16686:localhost:16686 user@host`), không qua Caddy.
 - **Stage 7 (Playwright e2e, nhóm identity)** — cùng nhịp nightly/tay như Stage 6 (cần dựng đủ backend+frontend thật).
 - Stage 4/5 cần secret `OPENAI_API_KEY` thật trong GitHub Actions (Settings → Secrets and variables → Actions) — thiếu sẽ fail rõ ràng, không fail âm thầm.
 
+## Rủi ro đã chấp nhận có ghi chú (không phải phát hiện bị bỏ sót)
+
+**`chromadb` — CVE-2026-45829 / `PYSEC-2026-311` (phát hiện 2026-08-11 qua
+`pip-audit --strict`, đúng lệnh CI Stage 2 chạy):** code injection pre-auth
+qua endpoint HTTP `/api/v2/tenants/{tenant}/databases/{db}/collections` khi
+tạo collection với `trust_remote_code=true` trỏ tới model repository độc
+hại. Ảnh hưởng chromadb `1.0.0`→`1.5.9` (bản mới nhất trên PyPI tại thời
+điểm phát hiện) — **chưa có bản vá**, không thể xử lý bằng nâng cấp.
+
+Đối chiếu cách dự án dùng thư viện: `src/rag/store.py` dùng
+`chromadb.PersistentClient` — client nhúng trong tiến trình, KHÔNG chạy
+chromadb như server HTTP riêng (`docker-compose.yml` chỉ mount volume
+`chroma_data`, không có service/port nào cho chroma). Grep toàn repo
+`trust_remote_code` — 0 kết quả. Bề mặt tấn công thật của CVE này (endpoint
+HTTP server + `trust_remote_code=true`) không tồn tại trong cách triển khai
+hiện tại.
+
+Xử lý: `ci.yml` (job `dependency-and-secret-scan`) dùng
+`pip-audit --strict --ignore-vuln PYSEC-2026-311` kèm comment giải thích đầy
+đủ tại chỗ. Kiểm tra định kỳ bằng `pip-audit -r requirements.txt` KHÔNG kèm
+`--ignore-vuln` để biết khi nào chromadb phát hành bản vá — gỡ dòng ignore
+ngay khi đó, không giữ mãi.
+
 ## Những gì đã thay đổi so với bản gốc (chỉ sửa lạc hậu, không giảm phạm vi)
 
 - "8 quyết định thiết kế cứng" → 6 ràng buộc bắt buộc thật (`FIN05-Brief.md` §7).
