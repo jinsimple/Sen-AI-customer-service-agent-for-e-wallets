@@ -42,7 +42,95 @@ jobs:
       - name: Lint với ruff
         run: ruff check src/ tests/ eval/
       - name: Chạy toàn bộ pytest (unit + integration, không gọi LLM thật)
-        run: pytest tests/ -v --tb=short
+        # -m "not security_finding": loại test finding P0 CHƯA VÁ (xem job
+        # security-findings-gate bên dưới) — tách riêng để 1 job đỏ có tên rõ
+        # ràng, không lẫn vào hàng trăm test bình thường của job này (xem
+        # docs/TESTING.md mục "v2 bổ sung" và pytest.ini).
+        run: pytest tests/ -v --tb=short -m "not security_finding"
+        env:
+          OPENAI_API_KEY: test-key-not-used-by-unit-tests
+
+  # ---------------------------------------------------------------------
+  # Stage 1c: Migration chain test (FIN05-StressTest-Plan-v4 M4-01/02/03) —
+  # rủi ro cao nhất khi deploy domain thật lần đầu (DB production chạy
+  # `alembic upgrade head` từ RỖNG). Test SQLite (dùng ở lint-and-test) KHÔNG
+  # chứng minh được điều này — Postgres có ràng buộc FK/type chặt hơn nhiều.
+  # Dùng GitHub Actions `services:` để có Postgres THẬT trên `localhost` —
+  # KHÁC docker-compose.yml của app (service đó cố ý không publish port ra
+  # host, xem tests/test_observability/test_network_isolation.py).
+  # ---------------------------------------------------------------------
+  db-migration-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fin05_ci
+          POSTGRES_PASSWORD: fin05-ci-ephemeral-password
+          POSTGRES_DB: fin05_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fin05_ci -d fin05_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Migration chain test trên Postgres thật
+        run: pytest tests/test_migrations/ -v --tb=short
+        env:
+          DATABASE_URL: postgresql+psycopg2://fin05_ci:fin05-ci-ephemeral-password@localhost:5432/fin05_ci
+          OPENAI_API_KEY: test-key-not-used-by-migration-tests
+
+  # ---------------------------------------------------------------------
+  # Stage 1d: Frontend lint + typecheck + unit test (FIN05-StressTest-Plan-v4
+  # F4-01/F4-02) — phát hiện thật lúc thêm: trước đây CI KHÔNG có bước nào
+  # chạy eslint/tsc cho frontend cả (chỉ có `npm audit` ở dependency-and-
+  # secret-scan) — lỗi type/lint chỉ bị bắt khi build thật hoặc chạy tay.
+  # Vitest (mới, xem vitest.config.ts) TÁCH khỏi Playwright — nhanh, không
+  # cần dựng backend/docker compose, chạy được mọi PR.
+  # ---------------------------------------------------------------------
+  frontend-lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - name: Lint (eslint)
+        run: npm run lint --prefix frontend
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck --prefix frontend
+      - name: Unit test (Vitest)
+        run: npm run test:unit --prefix frontend
+
+  # ---------------------------------------------------------------------
+  # Stage 1b: Security findings gate (FIN05-StressTest-Plan-v2, P0-1/P0-3/
+  # P0-4/P0-5) — CHẶN CI theo đúng chủ đích (quyết định 2026-08-11, xem
+  # docs/TESTING.md): các test này FAIL cho tới khi từng finding được vá
+  # thật, hoặc chính thức "chấp nhận rủi ro" (cập nhật test theo quyết định,
+  # giống cách CVE chromadb đã xử lý — không xoá/skip test).
+  # ---------------------------------------------------------------------
+  security-findings-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Test finding bảo mật P0 chưa vá (kỳ vọng ĐỎ cho tới khi vá/chấp nhận rủi ro)
+        run: pytest tests/ -v --tb=short -m security_finding
         env:
           OPENAI_API_KEY: test-key-not-used-by-unit-tests
 
@@ -259,3 +347,60 @@ jobs:
         with:
           name: playwright-report
           path: frontend/playwright-report/
+
+  # ---------------------------------------------------------------------
+  # Stage 8: Live-chat E2E (FIN05-StressTest-Plan-v4 L4-01..L4-05) — KHÁC
+  # Stage 7 (uvicorn/npm trần, không có Caddy): live-chat CẦN mạng Docker
+  # thật (`docker compose up`, Caddy → backend) để /ws/live-chat route đúng
+  # — bug thật (tin nhắn lặp, session mồ côi, dashboard không realtime) chỉ
+  # lộ ra qua đúng topology này (xem playwright.livechat.config.ts). Nightly
+  # only — build + khởi động cả 5 service tốn thời gian thật.
+  # ---------------------------------------------------------------------
+  livechat-e2e-nightly:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Tạo .env cho docker compose (giá trị CI ephemeral, OPENAI_API_KEY thật từ secret)
+        run: |
+          cat > .env <<EOF
+          POSTGRES_USER=fin05_ci
+          POSTGRES_PASSWORD=fin05-ci-ephemeral-password
+          POSTGRES_DB=fin05_ci
+          JWT_SECRET_KEY=ci-ephemeral-not-for-production-use-only-in-ci-runs
+          FIELD_ENCRYPTION_KEY=MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          SITE_DOMAIN=localhost
+          EOF
+      - name: docker compose up (đủ 5 service) + chờ healthy
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 30); do
+            unhealthy=$(docker compose ps --format json | python3 -c "
+          import json, sys
+          rows = [json.loads(l) for l in sys.stdin]
+          print(sum(1 for r in rows if r.get('Health') not in ('healthy', '')))
+          ")
+            [ "$unhealthy" = "0" ] && break
+            sleep 5
+          done
+      - name: Seed dữ liệu demo (users.jsonl cần cho login test)
+        run: docker compose exec -T backend su appuser -c "python3 scripts/seed_db.py" || true
+      - run: npm ci --prefix frontend
+      - name: Cài Playwright browser
+        run: npx --prefix frontend playwright install --with-deps chromium
+      - name: Chạy Playwright (live-chat E2E)
+        run: npm run test:e2e:livechat --prefix frontend
+      - name: Docker logs (khi fail, để debug)
+        if: failure()
+        run: docker compose logs backend --tail=200
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: livechat-playwright-report
+          path: frontend/playwright-report-livechat/

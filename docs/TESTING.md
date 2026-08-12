@@ -35,6 +35,17 @@ python eval/run_adversarial_set.py
 # Nhóm llm_judge — case KHÔNG kiểm được bằng code (giọng văn, đồng cảm...)
 python eval/run_llm_judge_set.py
 
+# StressTest-v4 6.1/B-09 — chống bịa số liệu, đối chiếu TỪNG CON SỐ trong lời
+# đáp với ToolResult thật (khác "cite_" check của golden_set, chỉ xác nhận có
+# gọi đúng tool, không đối chiếu số agent NÓI RA)
+python eval/run_number_grounding_check.py
+
+# StressTest-v4 6.1/B-07 — vòng lặp hỏi-lại-làm-rõ có THẬT SỰ dừng đúng
+# CLARIFY_QUESTION_MAX_ROUNDS hay không (khách hàng ảo cố tình mơ hồ mọi
+# lượt) — khác tests/test_agents/test_clarify_loop.py (chỉ verify wiring
+# system prompt, không gọi LLM thật)
+python eval/run_clarify_loop_check.py
+
 # Nhóm C — appsec (nhanh, không gọi LLM)
 pytest tests/test_api/ -v
 
@@ -48,6 +59,16 @@ TARGET_TICKET_ID=TCK-xxx TARGET_RESOLUTION_ID=RES-xxx locust -f tests/load/locus
 
 # Nhóm D3 — soak (1-2h thật, chạy thủ công trước milestone lớn, KHÔNG chạy trong dev thường ngày)
 locust -f tests/load/locustfile.py --host http://localhost:3000 --headless -u 20 -r 2 --run-time 2h
+
+# StressTest-v4 6.3 — load /ws/live-chat (Locust không hỗ trợ WebSocket thật,
+# locustfile.py chỉ tải được REST). Bước 1 seed N ticket thật, bước 2 chạy tải:
+python scripts/load/ws_live_chat_load.py --seed 20 --out /tmp/ws_tickets.json
+python scripts/load/ws_live_chat_load.py --tickets /tmp/ws_tickets.json --messages-per-client 20 --rate 1.0
+
+# StressTest-v4 6.3 — Postgres reconnect-after-drop (cần docker compose up -d
+# sẵn, Postgres thật — verify pool_pre_ping=True, src/db/session.py, tự phục
+# hồi kết nối sau khi container postgres restart mà KHÔNG cần restart backend)
+bash scripts/chaos/postgres_reconnect_after_drop.sh
 
 # Nhóm Identity — OTP backend (nhanh, không cần server sống, cùng pytest chung)
 pytest tests/test_api/test_otp.py -v
@@ -302,6 +323,89 @@ thật bằng cách sửa tạm danh sách kỳ vọng sai rồi chạy lại �
 FAIL đúng lúc trước khi tin dùng, không phải test tự động pass ngầm. Bỏ qua
 tự động (`skip`) nếu máy chưa cài `pip-audit` — CI (`ci.yml`) luôn cài trước
 khi chạy job này.
+
+## v2 bổ sung (2026-08-11) — FIN05-StressTest-Plan-v2
+
+Nguồn: `docs/FIN05-StressTest-Plan-v2.md` (do "claude bảo mật" viết dựa trên
+`docs/FIN05-Feature-Inventory-Security-Review.md`). Tài liệu đó được viết mà
+KHÔNG biết bộ test "v1" (mô tả ở các mục trên) đã tồn tại — phần lớn nội
+dung ~60 test case đề xuất **đã được implement từ trước**, chỉ khác tên/vị
+trí. Đối chiếu gap-analysis đầy đủ (COVERED/UPDATED/NEW/BY-DESIGN cho từng
+ID) nằm ở đầu file plan đã dùng khi triển khai — tóm tắt phần THẬT SỰ MỚI
+dưới đây. **Namespace `ST2-` cho mọi ID mới** — tránh nhầm với `B1-B10`
+(OWASP LLM Top 10) đã dùng trong `eval/adversarial_set.jsonl`.
+
+### 4 finding P0 — test ĐỎ có chủ đích, CHẶN CI (quyết định người dùng 2026-08-11)
+
+Khác với mục "Rủi ro đã chấp nhận" ở trên (đã CÓ quyết định, chỉ còn ghi
+chú) — 4 finding dưới đây **CHƯA có quyết định vá/chấp nhận rủi ro**, test
+viết ra để buộc phải quyết định, không phải để pass ngầm định:
+
+| ID | Test | File | Vá bằng cách nào |
+|---|---|---|---|
+| ST2-P0-1 | `security_answer_hash` là SHA-256 trần không salt | `tests/test_security/test_security_answer_hash.py` | Đổi `src/api/main.py:278` + `scripts/gen_dataset.py:230` sang bcrypt/argon2 + salt riêng mỗi user, kèm migration dữ liệu user thật đã có |
+| ST2-P0-3 | Live-chat không che PII gõ tay trước khi lưu | `tests/test_api/test_live_chat_pii_gap.py` | Áp `masking.py`/`scrub_pii` vào `live_chat.py::record_message` — cân nhắc CSKH vẫn cần SĐT thật để gọi lại khách |
+| ST2-P0-4 | Rate-limit `/auth/login` khoá theo IP dùng chung (kiến trúc BFF, mọi khách qua 1 container `frontend`) | `tests/test_api/test_auth_login.py` | Đổi key rate-limit sang theo `phone`/định danh user thay vì `get_remote_address` |
+| ST2-P0-5 | Không có cơ chế thu hồi JWT trước khi hết hạn tự nhiên (8h) | `tests/test_security/test_jwt_revocation.py` | Thêm blacklist token đã logout, hoặc session store tra cứu mỗi request, hoặc rút ngắn TTL + refresh token |
+
+Chạy riêng: `pytest tests/ -m security_finding -v` (job CI
+`security-findings-gate`, `.github/workflows/ci.yml`, chạy mọi PR). Job
+`lint-and-test` chạy `-m "not security_finding"` để không lẫn 4 test này
+vào hàng trăm test bình thường. **Lưu ý:** job CI chạy được không đồng
+nghĩa branch protection THẬT SỰ chặn merge — cần bật "required status
+check" cho `security-findings-gate` ở GitHub Settings → Branches (thao tác
+tay, ngoài phạm vi file trong repo).
+
+Khi vá xong 1 finding: sửa code + cập nhật lại test tương ứng cho khớp
+thuật toán/thiết kế mới (test sẽ tự chuyển xanh, không cần viết lại từ
+đầu — mỗi file có ghi chú "khi PO quyết định vá..." ngay trong docstring).
+
+### Finding khác phát hiện được trong lúc viết (không nằm trong 4 P0 trên, CHƯA chặn CI)
+
+- **IDOR thật ở `POST /tools/lookup_transaction`** (`tests/test_api/test_tools_rest_parity.py`,
+  đánh dấu `xfail(strict=True)`) — route REST gọi thẳng `_lookup_transaction`
+  dùng chung, KHÔNG áp `_enforce_requester_is_party` (wrapper đó chỉ có ở
+  `build_customer_tools()` cho đường AI). Một khách hàng (JWT hợp lệ của
+  chính họ) gọi trực tiếp route này với `trans_id` bất kỳ vẫn tra ra được
+  amount/fee/status/scope/channel/`des` đầy đủ — chỉ tên/SĐT/STK 2 bên bị
+  che. **Chưa có quyết định người dùng để nâng thành CI-blocking** như 4
+  finding P0 — hiện `xfail` (hiện rõ trong report pytest dạng `xfailed`,
+  không bị `-m "not security_finding"` ẩn mất, và nếu ai vá xong quên gỡ
+  `xfail` thì `strict=True` sẽ tự báo `XPASS` = lỗi, nhắc gỡ).
+- **`request_human_handoff` copy vẫn mô tả CSKH bất đồng bộ** — cả tool
+  docstring (`src/agents/tools/customer_tools.py:361-365`) lẫn system prompt
+  (`src/agents/prompt.py:63`) lẫn `flag_human_handoff` docstring
+  (`src/services/complaint_intake.py:118-121`) đều CÒN NGUYÊN chỉ thị
+  "KHÔNG ngụ ý khách đang chat trực tiếp ngay lúc này" — viết từ thời CTRL-001
+  còn là MVP ticket-flag, CHƯA cập nhật sau khi live-chat WebSocket thật ra
+  đời (2026-08-11). Hệ quả: AI vẫn nói "sẽ phản hồi sớm nhất" (ngụ ý bất
+  đồng bộ) trong khi phía sau, frontend ĐÃ âm thầm mở một kết nối WebSocket
+  chat trực tiếp thật. `eval/handoff_qa_set.jsonl` (HANDOFF-001/002) hiện
+  **vẫn đúng** so với hành vi thật hiện tại (không sửa) — nhưng đây là gap
+  UX/product-copy cần quyết định có chủ đích (đổi cả AI text lẫn eval set
+  cùng lúc), không phải lỗi kiểm thử. **Lưu ý riêng:** `eval/handoff_qa_set.jsonl`
+  hiện KHÔNG được bất kỳ script `run_*.py` nào chạy (schema `expected_output_contains`/
+  `forbidden_output_contains` không khớp `run_golden_set.py` lẫn
+  `run_adversarial_set.py`) — dữ liệu mồ côi từ trước, không liên quan tới
+  đợt này, cần 1 harness riêng hoặc chuyển đổi schema nếu muốn dùng thật.
+- **Crash bug đã SỬA (không phải finding chờ quyết định):** payload WS
+  không phải JSON object (vd `[1,2,3]`) làm `msg.get(...)` raise
+  `AttributeError`, crash task của đúng kết nối đó — vá bằng cách thêm
+  `isinstance(msg, dict)` check (`src/api/live_chat_ws.py`), có test hồi quy
+  `tests/test_api/test_live_chat_ws.py::test_malformed_ws_payload_does_not_crash_connection`.
+
+### Test mới khác (không đỏ, không xfail — chạy như test thường)
+
+`tests/test_config/` (mới, fail-fast secrets + single-worker config),
+`tests/test_agents/test_request_human_handoff.py`/`test_clarify_loop.py`/
+`test_audit_trail_completeness.py`, `tests/test_observability/test_network_isolation.py`/
+`test_genai_spans.py`, thêm case vào `tests/test_rag/test_parsers.py` (PDF
+hỏng) và `tests/test_api/test_live_chat_ws.py` (vé không phải JWT, payload
+dị dạng). Giới hạn đã biết (ghi rõ trong từng docstring, không giả vờ đã
+test đủ): test H-nhóm (load/chaos 1-2h, restart backend giữa live-chat) và
+network-isolation THẬT (curl từ ngoài container) chỉ verify được qua
+`docker compose up` thật — CI hiện tại (`load-test-nightly`) chạy
+uvicorn/npm trực tiếp trên runner, không có mạng Docker/Caddy thật.
 
 ## Những gì đã thay đổi so với bản gốc (chỉ sửa lạc hậu, không giảm phạm vi)
 
