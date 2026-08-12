@@ -6,5 +6,5 @@ export default async function TicketDetailPage({ params }: PageProps<"/tickets/[
   const session = await getServerSession();
   if (!session) redirect("/login");
   const { id } = await params;
-  return <TicketDetailClient ticketId={id} viewerRole={session.role} />;
+  return <TicketDetailClient ticketId={id} viewerRole={session.role} viewerUserId={session.user_id} />;
 }

@@ -345,7 +345,40 @@ class AuthSession(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 
 
+class ChatSession(Base):
+    """Live chat (2026-08-11) — 1 phiên chat 2 chiều thời gian thực giữa
+    khách và CSKH, LUÔN gắn 1 ticket có sẵn (ticket_id NOT NULL) — đúng tinh
+    thần "escalation path, không phải kênh song song với AI" đã chốt, và
+    đảm bảo luôn có Complaint/InvestigationLog để bàn giao ngữ cảnh AI đã
+    điều tra cho CSKH nhận ca. claimed_by NULL = đang chờ, có giá trị = CSKH
+    nào đó đã nhận (claim-based routing, không round-robin/ML)."""
+
+    __tablename__ = "chat_sessions"
+    __table_args__ = (
+        CheckConstraint("status IN ('waiting','active','closed')", name="ck_chat_sessions_status"),
+        CheckConstraint("csat_score IS NULL OR csat_score BETWEEN 1 AND 5", name="ck_chat_sessions_csat_score"),
+    )
+
+    chat_session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
+    customer_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="waiting")
+    claimed_by: Mapped[Optional[str]] = mapped_column(ForeignKey("users.user_id"), nullable=True)
+    started_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+    claimed_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    closed_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    csat_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    csat_submitted_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+
+
 class Message(Base):
+    """Trước 2026-08-11 bảng này tồn tại nhưng chưa từng dùng (0 dòng dữ
+    liệu, session_id FK sai đối tượng auth_sessions = phiên ĐĂNG NHẬP thay
+    vì phiên CHAT) — tái dùng lại cho live chat, đổi FK sang ChatSession.
+    content dùng EncryptedText (mã hoá at-rest, cùng khoá với
+    PolicyChunk.text) — transcript chat có thể chứa SĐT/số tài khoản/số
+    tiền, không được lưu plaintext."""
+
     __tablename__ = "messages"
     __table_args__ = (
         CheckConstraint(
@@ -354,10 +387,10 @@ class Message(Base):
     )
 
     message_id: Mapped[str] = mapped_column(String, primary_key=True)
-    session_id: Mapped[str] = mapped_column(ForeignKey("auth_sessions.session_id"), nullable=False)
+    chat_session_id: Mapped[str] = mapped_column(ForeignKey("chat_sessions.chat_session_id"), nullable=False)
     ticket_id: Mapped[Optional[str]] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=True)
     role: Mapped[str] = mapped_column(String, nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     tool_call_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 

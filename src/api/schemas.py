@@ -85,3 +85,13 @@ class AgentChatRequest(BaseModel):
 
 class PolicySearchRequest(BaseModel):
     query: str
+
+
+class LiveChatWsTicketRequest(BaseModel):
+    """Live chat (2026-08-11) — khách bấm "gặp người thật" cho 1 ticket ĐÃ
+    có sẵn (human_handoff_requested, tạo qua request_human_handoff)."""
+    ticket_id: str
+
+
+class LiveChatCsatRequest(BaseModel):
+    score: int = Field(ge=1, le=5)

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ApiError, agentChat, getCustomerHistory, requestOtp, verifyOtp } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ApiError, agentChat, getCustomerHistory, requestLiveChatWsTicket, requestOtp, verifyOtp } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, type ComplaintType, type CustomerHistory } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
+import { useLiveChatSocket, type LiveChatEvent } from "@/lib/useLiveChatSocket";
 
 // Complaint.status (khác Ticket.hitl_status) — trong dataset/pipeline hiện
 // tại chỉ dùng "investigating"/"resolved", nhưng không có CHECK constraint
@@ -28,6 +29,8 @@ const SENSITIVE_TOOLS = new Set(["lookup_transaction", "get_customer_history"]);
 type Msg =
   | { id: string; from: "bot"; text: string; chips?: { label: string; onClick: () => void }[]; cite?: string }
   | { id: string; from: "user"; text: string }
+  | { id: string; from: "staff"; text: string }
+  | { id: string; from: "system"; text: string }
   | {
       id: string;
       from: "otp";
@@ -146,6 +149,18 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
   const [stage, setStage] = useState<Stage>("greeting");
   const [input, setInput] = useState("");
   const [lastTicket, setLastTicket] = useState<{ ticket_id: string; should_escalate: boolean } | null>(null);
+  // Live chat (2026-08-11) — khách yêu cầu người thật (request_human_handoff,
+  // CTRL-001) không trả ticket_id ở TOP LEVEL của AgentChatResult (chỉ
+  // create_ticket làm vậy, xem src/agents/graph.py) — phải tự dò trong
+  // tool_calls để biết đúng ticket_id cần mở panel chat trực tiếp.
+  const [liveChatTicketId, setLiveChatTicketId] = useState<string | null>(null);
+  // Live chat (2026-08-11, phản hồi thật từ test tay) — tin nhắn CSKH gộp
+  // THẲNG vào cùng .chat-thread với AI, KHÔNG mở 1 khung chat riêng biệt bên
+  // dưới — cảm giác phải là "AI bàn giao cho người thật trong CÙNG 1 cuộc
+  // trò chuyện", không phải 2 cửa sổ tách rời.
+  const [liveChatWsTicket, setLiveChatWsTicket] = useState<string | null>(null);
+  const [liveChatSessionId, setLiveChatSessionId] = useState<string | null>(null);
+  const liveChatConnectStartedRef = useRef(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const greetedRef = useRef(false);
   // Xác thực 1 lần/phiên — sau khi true, không hỏi lại OTP dù chip/rail/agent
@@ -178,6 +193,66 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  // Mở vé WS + kết nối NGAY khi phát hiện handoff — ref-guard chặn
+  // StrictMode double-invoke (đúng nguyên nhân đã gây tin nhắn lặp/tách khi
+  // gửi, phát hiện thật 2026-08-11 — cùng pattern với greetedRef ở trên).
+  useEffect(() => {
+    if (!liveChatTicketId || liveChatConnectStartedRef.current) return;
+    liveChatConnectStartedRef.current = true;
+    requestLiveChatWsTicket(liveChatTicketId)
+      .then((res) => {
+        setLiveChatSessionId(res.chat_session_id);
+        setLiveChatWsTicket(res.ws_ticket);
+      })
+      .catch(() => {
+        push({ id: nid(), from: "system", text: "Không mở được kết nối chat trực tiếp — thử lại giúp mình nhé." });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveChatTicketId]);
+
+  const handleLiveChatEvent = useCallback((event: LiveChatEvent) => {
+    if (event.type === "message") {
+      if (event.role === "staff") {
+        setMessages((prev) => (prev.some((m) => m.id === event.message_id) ? prev : [...prev, { id: event.message_id, from: "staff", text: event.content }]));
+      } else {
+        // Echo tin nhắn CHÍNH KHÁCH vừa gửi — nguồn sự thật duy nhất là
+        // server, không echo cục bộ lúc gửi để tránh hiện trùng.
+        setMessages((prev) => (prev.some((m) => m.id === event.message_id) ? prev : [...prev, { id: event.message_id, from: "user", text: event.content }]));
+      }
+    } else if (event.type === "system") {
+      setMessages((prev) => [...prev, { id: nid(), from: "system", text: event.text }]);
+    } else if (event.type === "session_closed") {
+      // Phiên chat trực tiếp đã kết thúc (CSKH bấm "Kết thúc chat", hoặc
+      // chính khách vừa mất kết nối rồi phía server tự đóng — xem
+      // close_customer_session_on_disconnect) — quay lại nói chuyện với Sen,
+      // KHÔNG để khách gõ tiếp vào 1 phiên đã chết trong im lặng.
+      setMessages((prev) => [...prev, { id: nid(), from: "system", text: "Phiên chat trực tiếp đã kết thúc. Bạn có thể tiếp tục hỏi Sen." }]);
+      setLiveChatSessionId(null);
+      setLiveChatWsTicket(null);
+      setLiveChatTicketId(null);
+    } else if (event.type === "error") {
+      setMessages((prev) => [...prev, { id: nid(), from: "system", text: event.text }]);
+    }
+  }, []);
+
+  const { status: liveChatStatus, sendMessage: sendLiveChatMessage } = useLiveChatSocket(liveChatWsTicket, handleLiveChatEvent);
+
+  // Cảnh báo rời trang khi đang chat trực tiếp với CSKH (2026-08-11) — F5/
+  // đóng tab NGẮT kết nối WS, phía server tự đóng phiên NGAY (xem
+  // close_customer_session_on_disconnect trong live_chat_ws.py) — khách cần
+  // biết trước rằng rời trang lúc này nghĩa là kết thúc phiên chat trực
+  // tiếp ở CẢ 2 đầu, không chỉ riêng màn hình của họ. Trình duyệt hiện đại
+  // không cho tuỳ biến nội dung hộp thoại native, chỉ bật/tắt được nó.
+  useEffect(() => {
+    if (!liveChatSessionId || liveChatStatus !== "open") return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [liveChatSessionId, liveChatStatus]);
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" });
@@ -295,6 +370,14 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
       if (result.ticket_id) {
         setLastTicket({ ticket_id: result.ticket_id, should_escalate: !!result.should_escalate });
       }
+      const handoffCall = result.tool_calls.find((c) => c.tool_name === "request_human_handoff");
+      const handoffTicketId = handoffCall?.result?.ticket_id;
+      if (typeof handoffTicketId === "string") {
+        setLiveChatTicketId(handoffTicketId);
+        if (!result.ticket_id) {
+          setLastTicket({ ticket_id: handoffTicketId, should_escalate: false });
+        }
+      }
       // Làm mới rail "Lịch sử khiếu nại" sau MỌI lượt có chạm tool (không chỉ
       // lúc vừa tạo ticket mới) — agent có thể chỉ NHẮC lại 1 ticket đã tạo
       // trước đó (không trả ticket_id lượt này), khách vẫn cần thấy đúng dữ
@@ -328,14 +411,35 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
     }
   }
 
+  const liveChatSendingRef = useRef(false);
+  // Phát hiện thật (2026-08-11): ô nhập đôi khi còn sót chữ sau khi gửi dù
+  // setInput("") đã chạy — buộc React remount hẳn <input> (đổi key) sau MỖI
+  // lần gửi (cả 2 nhánh AI/live-chat) để chắc chắn sạch bất kể timing.
+  const [inputResetKey, setInputResetKey] = useState(0);
+
   function handleSend() {
     const text = input.trim();
     if (!text || stage === "otp" || stage === "busy") return;
+    // Sau khi đã kết nối chat trực tiếp, MỌI tin nhắn đi qua CSKH, không qua
+    // AI nữa — cùng cửa sổ, chỉ đổi "người nghe" phía sau.
+    if (liveChatSessionId) {
+      if (liveChatSendingRef.current) return;
+      liveChatSendingRef.current = true;
+      window.setTimeout(() => {
+        liveChatSendingRef.current = false;
+      }, 400);
+      if (sendLiveChatMessage(liveChatSessionId, text)) {
+        setInput("");
+        setInputResetKey((k) => k + 1);
+      }
+      return;
+    }
     setInput("");
+    setInputResetKey((k) => k + 1);
     void sendToAgent(text);
   }
 
-  const inputEnabled = stage === "chat" || stage === "greeting";
+  const inputEnabled = (stage === "chat" || stage === "greeting") && !(liveChatTicketId && !liveChatSessionId);
 
   return (
     <>
@@ -404,6 +508,20 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
                   </div>
                 );
               }
+              if (m.from === "staff") {
+                return (
+                  <div className="bubble-row from-bot" key={m.id}>
+                    <div className="bubble bubble-bot">{m.text}</div>
+                  </div>
+                );
+              }
+              if (m.from === "system") {
+                return (
+                  <div className="bubble-row" key={m.id}>
+                    <div className="bubble-system">{m.text}</div>
+                  </div>
+                );
+              }
               if (m.from === "otp") {
                 return (
                   <div className="bubble-row from-bot" key={m.id}>
@@ -450,11 +568,14 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
           </div>
           <div className="chat-input">
             <input
+              key={inputResetKey}
               placeholder={inputEnabled ? "Nhập tin nhắn..." : "Chọn một lựa chọn phía trên để tiếp tục"}
               value={input}
               disabled={!inputEnabled}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.repeat) handleSend();
+              }}
               // CONSUME-001 — khớp AgentChatRequest.message (src/api/schemas.py)
               maxLength={4000}
             />
@@ -501,6 +622,14 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
               </div>
             )}
           </div>
+          {liveChatTicketId && (
+            <div className="card" style={{ marginTop: 12 }}>
+              <div className="rail-title">Chat trực tiếp CSKH</div>
+              <div className="dim" style={{ fontSize: 12 }}>
+                {liveChatStatus === "connecting" ? "Đang kết nối..." : liveChatStatus === "open" ? "Đã kết nối" : liveChatStatus === "closed" ? "Mất kết nối" : "Lỗi kết nối"}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

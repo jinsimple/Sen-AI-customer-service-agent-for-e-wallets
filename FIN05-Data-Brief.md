@@ -201,8 +201,17 @@ erDiagram
     tickets ||--o{ escalations : escalates
     tickets ||--o{ messages : "discussed in"
     investigation_logs }o--|| tool_results : cites
-    auth_sessions ||--o{ messages : contains
+    tickets ||--o{ chat_sessions : "escalated to"
+    users ||--o{ chat_sessions : "claims (staff) / opens (customer)"
+    chat_sessions ||--o{ messages : contains
 ```
+
+Live chat (2026-08-11) — `messages` trước đó tồn tại trong schema nhưng
+CHƯA từng dùng thật (0 dòng dữ liệu, `session_id` FK sai đối tượng
+`auth_sessions` = phiên ĐĂNG NHẬP, không phải phiên chat). Bảng
+`chat_sessions` mới thay `auth_sessions` làm cha của `messages` — 1 phiên
+chat 2 chiều thời gian thực, LUÔN gắn 1 `ticket` có sẵn (escalation path,
+không phải kênh song song với AI — xem §4.2 bên dưới).
 
 ### 4.2 Định nghĩa bảng
 
@@ -277,7 +286,9 @@ erDiagram
 
 **`auth_sessions`** — `session_id` PK, `user_id` FK, `otp_code` (giả lập), `otp_status`, `security_q_passed` BOOL, `failed_attempts` INT, `locked_at`.
 
-**`messages`** — `message_id` PK, `session_id` FK, `ticket_id` FK nullable, `role` (`customer`/`agent`/`staff`/`system`), `content`, `tool_call_ids` JSON, `created_at`.
+**`chat_sessions`** (2026-08-11, live chat) — `chat_session_id` PK, `ticket_id` FK NOT NULL (mọi phiên chat PHẢI gắn 1 ticket có sẵn — escalation path, không phải kênh song song với AI), `customer_id` FK→`users`, `status` (`waiting`/`active`/`closed`), `claimed_by` FK→`users` nullable (NULL = đang chờ, claim-based routing — CSKH/sếp nào rảnh trước nhận trước, không round-robin/ML), `started_at`, `claimed_at` nullable, `closed_at` nullable, `csat_score` INT nullable (1-5), `csat_submitted_at` nullable.
+
+**`messages`** — `message_id` PK, `chat_session_id` FK→`chat_sessions` (trước 2026-08-11 là `session_id` FK→`auth_sessions` — sai đối tượng, bảng chưa từng có dữ liệu thật nên đổi FK an toàn), `ticket_id` FK nullable, `role` (`customer`/`agent`/`staff`/`system`), `content` (mã hoá at-rest — `EncryptedText`, cùng khoá với `policy_chunks.text`), `tool_call_ids` JSON, `created_at`.
 > `ticket_id` là bắt buộc cho F8: không có nó thì nhân viên không truy được hội thoại nào đã sinh ra ticket đang xem. Nullable vì các lượt trao đổi trước khi ticket được tạo vẫn phải lưu.
 
 ### 4.3 Phân bố mục tiêu của dữ liệu nền

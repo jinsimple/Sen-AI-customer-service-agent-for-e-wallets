@@ -37,11 +37,15 @@ from sqlalchemy.orm import Session
 
 from src.agents.graph import run_agent_turn
 from src.api.deps import get_session
+from src.api.live_chat_ws import live_chat_websocket_endpoint
+from src.api.live_chat_ws import manager as _live_chat_manager
 from src.api.schemas import (
     AgentChatRequest,
     CreateTicketRequest,
     EscalateTicketRequest,
     GetCustomerHistoryRequest,
+    LiveChatCsatRequest,
+    LiveChatWsTicketRequest,
     LoginRequest,
     LookupTransactionRequest,
     OtpVerifyRequest,
@@ -60,9 +64,11 @@ from src.auth import (
 from src.config import DATASET_SEED, OTP_MAX_FAILED_ATTEMPTS, ROOT_DIR
 from src.db.models import (
     AuthSession,
+    ChatSession,
     Complaint,
     Escalation,
     InvestigationLog,
+    Message,
     PolicyDocument,
     Resolution,
     Ticket,
@@ -75,7 +81,7 @@ from src.observability.tracing import configure_tracing, instrument_fastapi_app
 from src.rag.ingest import delete_document as _delete_policy_document
 from src.rag.ingest import ingest_document
 from src.rag.search import search_policy_text
-from src.services import reporting
+from src.services import live_chat, reporting
 from src.services.complaint_intake import create_ticket_with_fraud_check
 from src.tools.base import ToolError, new_id
 from src.tools.escalate_ticket import escalate_ticket as _escalate_ticket
@@ -646,6 +652,17 @@ def request_more_info(
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    # FIN05-StressTest-Plan-v4 S4-06 — phát hiện thật: route này KHÔNG có
+    # guard trạng thái (khác approve_resolution/reject_resolution cùng file,
+    # cả 2 đều chặn nếu resolution đã quyết) — CSKH có thể vô tình gọi lại
+    # request-more-info trên 1 ticket ĐÃ approved/rejected, âm thầm lật
+    # ngược về need_more_info, phá vỡ audit trail (ticket "đã xong" lại hiện
+    # "cần thêm thông tin"). Chặn đúng 2 trạng thái cuối (terminal).
+    if ticket.hitl_status in ("approved", "rejected"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ticket đã ở trạng thái cuối ({ticket.hitl_status}) — không thể yêu cầu thêm thông tin",
+        )
 
     now = dt.datetime.utcnow()
     ticket.hitl_status = "need_more_info"
@@ -767,6 +784,179 @@ def policy_search(
     session: Session = Depends(get_session),
 ):
     return _handle_tool_error(search_policy_text, session, query=req.query)
+
+
+# ---------------------------------------------------------------------------
+# Live chat (2026-08-11) — nâng cấp CTRL-001 từ ticket-flag bất đồng bộ lên
+# chat 2 chiều thời gian thực. WS handshake dùng vé dùng-1-lần (ws-ticket,
+# TTL ngắn) thay vì header Authorization: Bearer — browser không gắn được
+# header tuỳ ý vào `new WebSocket(url)`, và JWT thật không bao giờ nhét vào
+# query param. Xem src/api/live_chat_ws.py cho lý do không cần Redis + toàn
+# bộ connection-manager.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/live-chat/ws-ticket")
+def live_chat_ws_ticket(
+    req: LiveChatWsTicketRequest,
+    current_user: CurrentUser = Depends(require_role("customer")),
+    session: Session = Depends(get_session),
+):
+    # KHÔNG gác OTP ở đây (đã bỏ require_otp_view_fresh, phát hiện thật
+    # 2026-08-11 qua test tay) — request_human_handoff (tool AI tạo ticket
+    # dẫn tới route này) CỐ Ý không cần OTP vì đây chỉ là routing request,
+    # không phải thao tác chạm dữ liệu (docstring tool trong customer_tools.py).
+    # Bắt khách xác thực OTP CHỈ ĐỂ MỞ được cửa sổ chat sau khi đã được phép
+    # yêu cầu người thật KHÔNG cần OTP là mâu thuẫn logic — và vì lỗi 403 bị
+    # nuốt âm thầm ở frontend (không có UI hiển thị), khách bấm "gặp người
+    # thật" xong không thấy gì xảy ra, tưởng tính năng hỏng. Nhất quán với
+    # request_human_handoff: mở phiên chat không tự nó là hành động nhạy cảm,
+    # nội dung nhạy cảm (nếu có) nằm ở tin nhắn trong hội thoại, không phải ở
+    # việc mở kết nối.
+    if not _live_chat_manager.ws_ticket_limiter.allow(current_user.user_id):
+        raise HTTPException(status_code=429, detail="Bạn mở phiên chat quá nhanh, vui lòng thử lại sau ít phút")
+    chat_session = _handle_tool_error(
+        live_chat.open_chat_session, session, ticket_id=req.ticket_id, customer_id=current_user.user_id
+    )
+    ws_ticket = _live_chat_manager.mint_ticket(
+        user_id=current_user.user_id, role=current_user.role, chat_session_id=chat_session["chat_session_id"]
+    )
+    return {"ws_ticket": ws_ticket, "chat_session_id": chat_session["chat_session_id"]}
+
+
+@app.post("/live-chat/staff/ws-ticket")
+def live_chat_staff_ws_ticket(current_user: CurrentUser = Depends(require_role("cskh", "supervisor"))):
+    ws_ticket = _live_chat_manager.mint_ticket(user_id=current_user.user_id, role=current_user.role)
+    return {"ws_ticket": ws_ticket}
+
+
+@app.get("/live-chat/sessions/by-ticket/{ticket_id}")
+def live_chat_session_by_ticket(
+    ticket_id: str,
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    session: Session = Depends(get_session),
+):
+    """CSKH mở panel chat cho 1 ticket đã human_handoff_requested — cần biết
+    chat_session_id để claim/tham gia, không tự nhớ (frontend không lưu id
+    này lâu dài, khách là bên tạo phiên qua ws-ticket). LẤY PHIÊN GẦN NHẤT
+    BẤT KỂ STATUS (kể cả 'closed') — phát hiện thật 2026-08-11: khách F5/
+    thoát khi đang chat khiến phiên tự đóng (xem release_staff_sessions/
+    close_customer_session_on_disconnect), nhưng CSKH mở lại ticket đó vẫn
+    cần thấy lịch sử hội thoại + số điện thoại khách để liên hệ lại, không
+    chỉ khi phiên còn 'waiting'/'active'. Trả kèm context (có SĐT khách)
+    LUÔN LUÔN — trước đây chỉ đẩy qua WS lúc claim thành công, CSKH mở ticket
+    có phiên đã đóng sẽ không bao giờ nhận được claim_success nên không thấy
+    được SĐT."""
+    chat_session = session.scalars(
+        select(ChatSession).where(ChatSession.ticket_id == ticket_id).order_by(ChatSession.started_at.desc())
+    ).first()
+    if chat_session is None:
+        return {"chat_session": None, "context": None}
+    context = _handle_tool_error(live_chat.get_handoff_context, session, ticket_id=ticket_id)
+    return {
+        "chat_session": {
+            "chat_session_id": chat_session.chat_session_id,
+            "status": chat_session.status,
+            "claimed_by": chat_session.claimed_by,
+        },
+        "context": context,
+    }
+
+
+@app.get("/live-chat/sessions/{chat_session_id}/messages")
+def live_chat_session_messages(
+    chat_session_id: str,
+    current_user: CurrentUser = Depends(require_role("customer", "cskh", "supervisor")),
+    session: Session = Depends(get_session),
+):
+    """Lịch sử tin nhắn thật của 1 phiên — trước đây KHÔNG có route nào đọc
+    lại bảng `messages`, chỉ có push realtime qua WS lúc đang mở kết nối.
+    CSKH mở lại 1 ticket có phiên đã đóng (khách đã thoát) cần xem LẠI ĐƯỢC
+    nội dung khách đã gõ trước khi rời đi, không chỉ biết "khách từng muốn
+    gặp người thật" một cách chung chung."""
+    chat_session = session.get(ChatSession, chat_session_id)
+    if chat_session is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
+    if current_user.role == "customer" and chat_session.customer_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Phiên chat này không thuộc về bạn")
+    messages = session.scalars(
+        select(Message).where(Message.chat_session_id == chat_session_id).order_by(Message.created_at)
+    ).all()
+    return {
+        "messages": [
+            {"message_id": m.message_id, "role": m.role, "content": m.content, "created_at": m.created_at.isoformat()}
+            for m in messages
+        ]
+    }
+
+
+@app.get("/live-chat/sessions/waiting")
+async def live_chat_sessions_waiting(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    session: Session = Depends(get_session),
+):
+    # Dọn lười (lazy sweep) phiên 'waiting' mồ côi TRƯỚC khi trả danh sách —
+    # phát hiện thật 2026-08-11: khách đăng xuất/mất mạng đột ngột có thể
+    # không gửi được khung đóng kết nối WS, phiên treo mãi ở hàng chờ dù
+    # khách đã đi từ lâu (xem sweep_stale_waiting_sessions).
+    await _live_chat_manager.sweep_stale_waiting_sessions()
+    waiting = session.scalars(select(ChatSession).where(ChatSession.status == "waiting").order_by(ChatSession.started_at)).all()
+    return {
+        "sessions": [
+            {"chat_session_id": s.chat_session_id, "ticket_id": s.ticket_id, "customer_id": s.customer_id, "started_at": s.started_at.isoformat()}
+            for s in waiting
+        ]
+    }
+
+
+@app.post("/live-chat/sessions/{chat_session_id}/claim")
+async def live_chat_claim_session(
+    chat_session_id: str,
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    session: Session = Depends(get_session),
+):
+    claimed = _handle_tool_error(
+        live_chat.claim_session, session, chat_session_id=chat_session_id, staff_id=current_user.user_id
+    )
+    if claimed is None:
+        raise HTTPException(status_code=409, detail="Phiên chat này đã có chuyên viên khác nhận")
+    context = _handle_tool_error(live_chat.get_handoff_context, session, ticket_id=claimed["ticket_id"])
+    await _live_chat_manager.notify_claimed(chat_session_id=chat_session_id, staff_user_id=current_user.user_id, context=context)
+    return claimed
+
+
+@app.post("/live-chat/sessions/{chat_session_id}/close")
+async def live_chat_close_session(
+    chat_session_id: str,
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    session: Session = Depends(get_session),
+):
+    """CSKH kết thúc phiên chat — khách được chuyển sang màn hình đánh giá
+    CSAT ngay (broadcast "closed" tới participant của phiên qua WS)."""
+    chat_session = session.get(ChatSession, chat_session_id)
+    if chat_session is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
+    closed = _handle_tool_error(live_chat.close_session, session, chat_session_id=chat_session_id)
+    await _live_chat_manager.send_to_session(chat_session_id, {"type": "session_closed", "chat_session_id": chat_session_id})
+    return closed
+
+
+@app.post("/live-chat/sessions/{chat_session_id}/csat")
+def live_chat_submit_csat(
+    chat_session_id: str,
+    req: LiveChatCsatRequest,
+    current_user: CurrentUser = Depends(require_role("customer")),
+    session: Session = Depends(get_session),
+):
+    chat_session = session.get(ChatSession, chat_session_id)
+    if chat_session is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
+    if chat_session.customer_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Phiên chat này không thuộc về bạn")
+    return _handle_tool_error(live_chat.submit_csat, session, chat_session_id=chat_session_id, score=req.score)
+
+
+app.add_api_websocket_route("/ws/live-chat", live_chat_websocket_endpoint)
 
 
 @app.get("/health")

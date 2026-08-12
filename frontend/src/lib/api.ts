@@ -11,6 +11,7 @@ import type {
   TicketDetail,
   TicketSummary,
 } from "@/lib/types";
+import type { LiveChatContext } from "@/lib/useLiveChatSocket";
 
 // Client Component gọi các route nội bộ /api/* (BFF, xem frontend/src/app/api/)
 // — KHÔNG bao giờ gọi thẳng FastAPI. Route nội bộ đọc JWT từ cookie httpOnly
@@ -251,4 +252,59 @@ export function deletePolicyDoc(docId: string) {
 
 export function searchPolicy(query: string) {
   return post<PolicySearchResult>("/api/policy-search", { query });
+}
+
+// ---------------------------------------------------------------------------
+// /live-chat — chat 2 chiều thời gian thực với CSKH (2026-08-11), nâng cấp
+// CTRL-001 (ticket-flag bất đồng bộ) lên WebSocket thật. Vé (ws_ticket) mint
+// qua route BFF này rồi dùng để mở kết nối `new WebSocket(...)` TRỰC TIẾP
+// (không qua BFF — xem useLiveChatSocket.ts) tới Caddy -> backend.
+// ---------------------------------------------------------------------------
+
+export function requestLiveChatWsTicket(ticketId: string) {
+  return post<{ ws_ticket: string; chat_session_id: string }>("/api/live-chat/ws-ticket", { ticket_id: ticketId });
+}
+
+export function requestStaffWsTicket() {
+  return post<{ ws_ticket: string }>("/api/live-chat/staff-ws-ticket");
+}
+
+export function listWaitingChatSessions() {
+  return get<{ sessions: { chat_session_id: string; ticket_id: string; customer_id: string; started_at: string }[] }>(
+    "/api/live-chat/sessions/waiting"
+  );
+}
+
+export function getChatSessionByTicket(ticketId: string) {
+  // context (2026-08-11) — trả kèm LUÔN, kể cả phiên đã 'closed', để CSKH mở
+  // lại ticket sau khi khách đã thoát chat vẫn thấy SĐT để liên hệ lại
+  // (trước đây context chỉ đẩy qua WS lúc claim, phiên đã đóng không claim
+  // được nữa nên không bao giờ nhận được).
+  return get<{
+    chat_session: { chat_session_id: string; status: string; claimed_by: string | null } | null;
+    context: LiveChatContext | null;
+  }>(`/api/live-chat/sessions/by-ticket/${ticketId}`);
+}
+
+export function getLiveChatMessages(chatSessionId: string) {
+  return get<{ messages: { message_id: string; role: string; content: string; created_at: string }[] }>(
+    `/api/live-chat/sessions/${chatSessionId}/messages`
+  );
+}
+
+export function claimChatSession(chatSessionId: string) {
+  return post<{ chat_session_id: string; ticket_id: string; status: string; claimed_by: string | null }>(
+    `/api/live-chat/sessions/${chatSessionId}/claim`
+  );
+}
+
+export function closeChatSession(chatSessionId: string) {
+  return post<{ chat_session_id: string; status: string }>(`/api/live-chat/sessions/${chatSessionId}/close`);
+}
+
+export function submitChatCsat(chatSessionId: string, score: number) {
+  return post<{ chat_session_id: string; csat_score: number | null }>(
+    `/api/live-chat/sessions/${chatSessionId}/csat`,
+    { score }
+  );
 }

@@ -19,6 +19,7 @@ import {
 } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import type { Role } from "@/lib/session";
+import LiveChatPanel from "@/components/LiveChatPanel";
 
 const ACTION_TYPES = [
   { value: "refund_to_wallet", label: "Hoàn về ví" },
@@ -31,9 +32,11 @@ const ACTION_TYPES = [
 export default function TicketDetailClient({
   ticketId,
   viewerRole,
+  viewerUserId,
 }: {
   ticketId: string;
   viewerRole: Role;
+  viewerUserId: string;
 }) {
   const router = useRouter();
   const backHref = viewerRole === "supervisor" ? "/approve" : "/dashboard";
@@ -66,7 +69,7 @@ export default function TicketDetailClient({
   }, [ticketId]);
 
   useEffect(() => {
-    load();
+    void Promise.resolve().then(load);
   }, [load]);
 
   const citedIds = [
@@ -235,6 +238,9 @@ export default function TicketDetailClient({
         </div>
 
         <div className="flex-col gap-lg">
+          {detail.ticket.human_handoff_requested && (viewerRole === "cskh" || viewerRole === "supervisor") && (
+            <LiveChatPanel ticketId={detail.ticket.ticket_id} viewerRole={viewerRole} viewerUserId={viewerUserId} />
+          )}
           <div className="card">
             <div className="card-title">Thông tin giao dịch</div>
             {!c?.trans_id && <div className="dim" style={{ fontSize: 13 }}>Khách không tra ra được giao dịch (case not_found).</div>}

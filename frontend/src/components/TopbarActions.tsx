@@ -8,14 +8,16 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const saved = (typeof window !== "undefined" && localStorage.getItem("fin05-theme")) as
-      | "light"
-      | "dark"
-      | null;
-    if (saved) {
-      setTheme(saved);
-      document.documentElement.setAttribute("data-theme", saved);
-    }
+    void Promise.resolve().then(() => {
+      const saved = (typeof window !== "undefined" && localStorage.getItem("fin05-theme")) as
+        | "light"
+        | "dark"
+        | null;
+      if (saved) {
+        setTheme(saved);
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    });
   }, []);
 
   function toggleTheme() {

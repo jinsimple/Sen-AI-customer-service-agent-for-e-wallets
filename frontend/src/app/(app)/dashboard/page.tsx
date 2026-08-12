@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { listTickets } from "@/lib/api";
+import { listTickets, listWaitingChatSessions, requestStaffWsTicket } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, HITL_STATUS_LABEL, SCOPE_LABEL, type TicketSummary } from "@/lib/types";
 import { formatDateTime, formatSlaRemaining } from "@/lib/format";
+import { useLiveChatSocket, type LiveChatEvent } from "@/lib/useLiveChatSocket";
+
+interface WaitingChatSession {
+  chat_session_id: string;
+  ticket_id: string;
+  customer_id: string;
+  started_at: string;
+}
 
 type FilterKey = "all" | "pending" | "partner" | "critical" | "handoff";
 
@@ -14,12 +22,54 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
+  const [waitingChats, setWaitingChats] = useState<WaitingChatSession[]>([]);
 
   useEffect(() => {
     listTickets({ limit: 100 })
       .then(setTickets)
       .catch((e) => setError(e.message ?? "Không tải được hàng chờ"));
   }, []);
+
+  const loadWaitingChats = useCallback(() => {
+    listWaitingChatSessions()
+      .then((res) => setWaitingChats(res.sessions))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadWaitingChats();
+    // Poll 60s làm lưới an toàn (vd WS mất kết nối tạm thời) — cập nhật
+    // TỨC THỜI thật sự đến từ WS bên dưới (queue_update), không phải từ đây.
+    const interval = setInterval(loadWaitingChats, 60_000);
+    return () => clearInterval(interval);
+  }, [loadWaitingChats]);
+
+  // Live chat (2026-08-11, phát hiện thật qua test tay) — CSKH đang đứng ở
+  // Dashboard PHẢI thấy ticket chờ mới ngay khi khách bấm "gặp người thật",
+  // không phải đợi refresh/poll — mở 1 kết nối WS staff riêng cho trang này
+  // (KHÁC kết nối trong LiveChatPanel, vốn chỉ mở SAU KHI đã vào 1 ticket cụ
+  // thể) chỉ để lắng nghe broadcast "queue_update" rồi fetch lại danh sách.
+  const [staffWsTicket, setStaffWsTicket] = useState<string | null>(null);
+  const wsConnectStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (wsConnectStartedRef.current) return;
+    wsConnectStartedRef.current = true;
+    requestStaffWsTicket()
+      .then((res) => setStaffWsTicket(res.ws_ticket))
+      .catch(() => {});
+  }, []);
+
+  const handleDashboardWsEvent = useCallback(
+    (event: LiveChatEvent) => {
+      if (event.type === "queue_update" || event.type === "session_claimed") {
+        loadWaitingChats();
+      }
+    },
+    [loadWaitingChats]
+  );
+
+  useLiveChatSocket(staffWsTicket, handleDashboardWsEvent);
 
   const counts = useMemo(() => {
     if (!tickets) return { all: 0, pending: 0, partner: 0, critical: 0, handoff: 0 };
@@ -63,6 +113,26 @@ export default function DashboardPage() {
           (tín hiệu FS-06) nổi bật rõ hơn ticket thường.
         </p>
       </div>
+
+      {waitingChats.length > 0 && (
+        <div className="card" style={{ marginBottom: 18, borderColor: "var(--warning)" }}>
+          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <span className="dot dot-pulse" style={{ background: "var(--warning)" }} />
+            Khách đang chờ chat trực tiếp ({waitingChats.length})
+          </div>
+          <div className="flex-col gap-sm" style={{ marginTop: 10 }}>
+            {waitingChats.map((s) => (
+              <div key={s.chat_session_id} className="flex between center-y">
+                <span className="mono" style={{ fontSize: 13 }}>{s.ticket_id}</span>
+                <span className="faint" style={{ fontSize: 12 }}>Chờ từ {formatDateTime(s.started_at)}</span>
+                <span className="btn btn-primary" onClick={() => router.push(`/tickets/${s.ticket_id}`)}>
+                  Mở &amp; nhận
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="filter-bar">
         <span className={`filter-chip${filter === "all" ? " active" : ""}`} onClick={() => setFilter("all")}>

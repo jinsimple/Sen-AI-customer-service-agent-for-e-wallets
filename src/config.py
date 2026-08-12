@@ -106,3 +106,13 @@ RAG_CHUNK_SIZE = 800
 RAG_CHUNK_OVERLAP = 150
 RAG_SEARCH_TOP_K = 4
 MAX_UPLOAD_SIZE_MB = 10
+
+# Live chat (2026-08-11) — lớp phòng vệ THỨ 2 bên cạnh dọn phiên lúc WS ngắt
+# kết nối SẠCH (release_staff_sessions/close_customer_session_on_disconnect,
+# src/api/live_chat_ws.py): mạng rớt đột ngột/trình duyệt bị kill không gửi
+# được khung đóng kết nối, server có thể không bao giờ nhận WebSocketDisconnect
+# — phiên 'waiting' sẽ treo mãi nếu chỉ dựa vào tín hiệu disconnect. Bất kỳ
+# phiên 'waiting' nào (chưa ai nhận) quá cũ coi như khách đã rời đi từ lâu —
+# 30 phút đủ rộng để không đóng nhầm 1 khách đang chờ thật (ETA hiển thị cho
+# khách chỉ là ước tính, không có SLA cam kết cứng ở tầng live-chat).
+LIVE_CHAT_STALE_WAITING_MINUTES = 30

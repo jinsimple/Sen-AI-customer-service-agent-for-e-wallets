@@ -4,5 +4,18 @@
 # cần internet); production set SITE_DOMAIN=app.adaptivealgo.uk trong .env
 # thật trên VPS để Caddy tự xin chứng chỉ Let's Encrypt cho domain đó.
 {$SITE_DOMAIN} {
-	reverse_proxy frontend:3000
+	# Live chat (2026-08-11) — NGOẠI LỆ CÓ CHỦ ĐÍCH DUY NHẤT cho nguyên tắc
+	# "backend không lộ ra ngoài trừ qua BFF" (docker-compose.yml: backend
+	# không có `ports:`, chỉ gọi được qua Docker DNS nội bộ). Trình duyệt
+	# không gắn được header Authorization vào WebSocket handshake thẳng qua
+	# Next.js route handler như REST — phải nối trực tiếp Caddy -> backend
+	# cho ĐÚNG 1 path này, dùng vé dùng-1-lần TTL ngắn thay cho JWT (xem
+	# src/api/live_chat_ws.py). Caddy tự nhận diện header Upgrade: websocket
+	# và forward đúng, không cần cấu hình gì thêm.
+	handle /ws/live-chat* {
+		reverse_proxy backend:8010
+	}
+	handle {
+		reverse_proxy frontend:3000
+	}
 }
