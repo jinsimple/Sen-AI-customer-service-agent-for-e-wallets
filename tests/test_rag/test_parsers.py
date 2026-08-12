@@ -100,3 +100,17 @@ def test_reject_empty_file():
 def test_reject_non_utf8_text():
     with pytest.raises(UnsupportedDocumentError, match="UTF-8"):
         extract_text("bad.txt", b"\xff\xfe\x00\x01invalid")
+
+
+def test_reject_corrupted_pdf_with_valid_magic_bytes():
+    """FIN05-StressTest-Plan-v2 ST2-D-05 (nhánh nhỏ còn thiếu của P0-2,
+    docs/FIN05-Feature-Inventory-Security-Review.md §11) — KHÁC
+    test_reject_spoofed_pdf_extension (sai magic bytes hoàn toàn): file này
+    có ĐÚNG header `%PDF-` (qua được kiểm magic bytes ở extract_text) nhưng
+    thân file rỗng/hỏng — mô phỏng PDF bị cắt cụt/tải hỏng giữa chừng, không
+    phải giả mạo đuôi file. Xác nhận `_extract_pdf` (src/rag/parsers.py:34,
+    có sẵn try/except bọc pypdf) trả lỗi CÓ KIỂM SOÁT (UnsupportedDocumentError),
+    không để lỗi pypdf thô rơi ra ngoài thành 500 ở /policy-docs."""
+    corrupted = b"%PDF-1.4\n" + b"\x00\x01\x02 khong phai cau truc PDF that " * 5
+    with pytest.raises(UnsupportedDocumentError):
+        extract_text("corrupted.pdf", corrupted)

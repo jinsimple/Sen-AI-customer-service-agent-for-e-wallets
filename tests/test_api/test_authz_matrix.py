@@ -72,6 +72,32 @@ ROUTES: list[RouteCheck] = [
     RouteCheck("GET", "/policy-docs", "/policy-docs", {"partner_admin"}, safe_success_check=True),
     RouteCheck("DELETE", "/policy-docs/{doc_id}", "/policy-docs/DOC-NOPE", {"partner_admin"}),
     RouteCheck("POST", "/policy-search", "/policy-search", {"cskh", "supervisor"}, body={"query": "test"}),
+    RouteCheck("POST", "/live-chat/ws-ticket", "/live-chat/ws-ticket", {"customer"}, body={"ticket_id": "TCK-NOPE"}),
+    RouteCheck("POST", "/live-chat/staff/ws-ticket", "/live-chat/staff/ws-ticket", {"cskh", "supervisor"}, body={}),
+    RouteCheck(
+        "GET", "/live-chat/sessions/waiting", "/live-chat/sessions/waiting", {"cskh", "supervisor"},
+        safe_success_check=True,
+    ),
+    RouteCheck(
+        "GET", "/live-chat/sessions/by-ticket/{ticket_id}", "/live-chat/sessions/by-ticket/TCK-NOPE",
+        {"cskh", "supervisor"}, safe_success_check=True,
+    ),
+    RouteCheck(
+        "POST", "/live-chat/sessions/{chat_session_id}/claim", "/live-chat/sessions/CHS-NOPE/claim",
+        {"cskh", "supervisor"}, body={},
+    ),
+    RouteCheck(
+        "POST", "/live-chat/sessions/{chat_session_id}/close", "/live-chat/sessions/CHS-NOPE/close",
+        {"cskh", "supervisor"}, body={},
+    ),
+    RouteCheck(
+        "POST", "/live-chat/sessions/{chat_session_id}/csat", "/live-chat/sessions/CHS-NOPE/csat",
+        {"customer"}, body={"score": 5},
+    ),
+    RouteCheck(
+        "GET", "/live-chat/sessions/{chat_session_id}/messages", "/live-chat/sessions/CHS-NOPE/messages",
+        {"customer", "cskh", "supervisor"}, safe_success_check=True,
+    ),
 ]
 
 # Route công khai (không cần token), ngoài phạm vi phân quyền nghiệp vụ, hoặc

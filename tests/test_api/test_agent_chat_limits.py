@@ -36,6 +36,47 @@ def test_agent_chat_request_rejects_message_over_limit():
 # ---------------------------------------------------------------------------
 
 
+class _RecursionLimitCapturingAgent:
+    """Bắt CHÍNH XÁC giá trị `recursion_limit` được truyền vào `.invoke()` —
+    2 test CONSUME-002 bên dưới chỉ verify HÀNH VI khi GraphRecursionError
+    xảy ra (agent luôn raise ngay), KHÔNG verify _AGENT_RECURSION_LIMIT
+    (src/agents/graph.py) có thật sự được thread đúng vào config LangGraph
+    hay không — 1 dòng gõ sai/xoá nhầm ở đó sẽ không bị bất kỳ test nào ở
+    trên bắt được vì chúng không đọc `config`. FIN05-StressTest-Plan-v4 6.2
+    ("recursion limit exact-threshold test") — verify WIRING bằng cách bắt
+    tham số thật, KHÔNG gọi agent thật lặp đủ 20 vòng (tốn kém, không xác
+    định được, và không mang lại giá trị hơn so với verify wiring)."""
+
+    class _State:
+        values: dict = {}
+
+    def __init__(self):
+        self.last_config: dict | None = None
+
+    def get_state(self, config):
+        return self._State()
+
+    def invoke(self, *a, **kw):
+        self.last_config = kw.get("config")
+        return {"messages": []}
+
+
+def test_run_agent_turn_threads_configured_recursion_limit_into_langgraph_config(sample_db, monkeypatch):
+    import src.agents.graph as graph_module
+
+    agent = _RecursionLimitCapturingAgent()
+
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at):
+        return agent
+
+    monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)
+
+    graph_module.run_agent_turn(sample_db, user_id="USR-A", message="test")
+
+    assert agent.last_config is not None, "agent.invoke() không được gọi hoặc không truyền config"
+    assert agent.last_config.get("recursion_limit") == graph_module._AGENT_RECURSION_LIMIT == 20
+
+
 class _RecursionBoomAgent:
     """Giả lập agent LangGraph kẹt vòng lặp — get_state() cần cho
     run_agent_turn() tính prev_len TRƯỚC khi gọi invoke()."""
