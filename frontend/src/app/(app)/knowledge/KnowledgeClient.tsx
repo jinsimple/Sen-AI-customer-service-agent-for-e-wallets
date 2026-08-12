@@ -34,7 +34,7 @@ export default function KnowledgeClient() {
   }
 
   useEffect(() => {
-    load();
+    void Promise.resolve().then(load);
   }, []);
 
   async function handleUpload(e: React.FormEvent) {

@@ -46,6 +46,16 @@ export async function backendFetch<T>(
   try {
     res = await fetch(`${BACKEND_URL}${path}`, {
       ...init,
+      // Proxy cho dữ liệu tài chính/phiên đăng nhập theo user — không bao giờ
+      // được cache. Next.js (kể cả Route Handler, kể cả method GET) mặc định
+      // vẫn cache fetch qua "HMR cache" lúc `next dev` DÙ ĐÃ set no-store ở
+      // mức route (xem node_modules/next/dist/docs/.../fetch.md mục
+      // Troubleshooting) — phát hiện thật: sau khi supervisor duyệt xong
+      // (POST thành công, backend đã đổi status), GET /api/resolutions ngay
+      // sau đó vẫn trả bản ghi cũ, card không biến mất khỏi hàng chờ dù
+      // backend đã đúng. Set no-store tường minh ở đây (điểm gọi fetch duy
+      // nhất tới backend thật) để không phụ thuộc cấu hình mặc định.
+      cache: "no-store",
       headers: {
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         Authorization: `Bearer ${token}`,
