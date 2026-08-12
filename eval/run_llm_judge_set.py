@@ -38,6 +38,23 @@ def _run_one(session, case: dict) -> dict:
             result = run_case_turns(
                 session, user_id=case["user_id"], utterances=case["utterances"], thread_id=thread_id
             )
+    elif case.get("setup") == "rag_empty":
+        # GAP-AGENT-RAG-001 — RAG rỗng ở TẦNG AGENT thật (khác
+        # tests/test_rag/test_search_empty_index.py, vốn chỉ test hàm
+        # search_policy_text() thuần, không qua LLM thật). Chroma dùng chung
+        # 1 index thật trên đĩa (không tách riêng theo eval session như DB
+        # SQLite tạm) — nên KHÔNG thể tạo "kho rỗng thật" chỉ bằng cách seed
+        # ít dữ liệu, phải patch thẳng store.search() để mô phỏng đúng tình
+        # huống collection rỗng/không có chunk nào khớp, rồi để AGENT THẬT
+        # (không mock LLM) tự quyết định trả lời gì — đây mới là điều B-09/
+        # grounding thật sự cần verify: LLM có tự bịa chính sách khi không
+        # có gì để trích dẫn hay không.
+        from src.rag import store as rag_store
+
+        with patch.object(rag_store, "search", return_value=[]):
+            result = run_case_turns(
+                session, user_id=case["user_id"], utterances=case["utterances"], thread_id=thread_id
+            )
     else:
         result = run_case_turns(session, user_id=case["user_id"], utterances=case["utterances"], thread_id=thread_id)
     return result
