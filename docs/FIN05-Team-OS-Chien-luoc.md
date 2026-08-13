@@ -242,3 +242,33 @@ Một lưu ý về heldout_set: đội bạn đã tách 60 case held-out rất b
 ---
 
 *Kèm theo tài liệu này là bộ file cấu hình chạy được ngay — xem `README.md` trong cùng gói.*
+
+---
+
+## Ghi chú triển khai thực tế (bổ sung 2026-08-13)
+
+Tài liệu trên là **chiến lược**, giữ lại vì phần chẩn đoán và 7 nguyên lý vẫn
+đúng và hữu ích. Nhưng bộ file cấu hình đi kèm gói gốc (`contracts/`,
+`tests/test_invariants.py`) **đã bị thay hoàn toàn** khi triển khai thật, vì
+chúng mô tả một sản phẩm khác với FIN-05 đang chạy:
+
+| Gói gốc mô tả | Code thật |
+|---|---|
+| 5 tool tên tiếng Việt (`tra_cuu_giao_dich`, `soan_de_xuat`…) | 5 tool tiếng Anh (`lookup_transaction`, `search_policy`…) — **trùng khớp 0/5** |
+| FSM ticket 10 trạng thái nối tiếp (`draft → … → executed`) | 3 trục **trực giao**: `Resolution.status` · `Ticket.hitl_status` · `Ticket.partner_wait_status` |
+| 3 role | 4 role — thiếu hẳn `partner_admin` (phát sinh cùng tính năng RAG) |
+| `fraud-signals` có Tầng A/B | Phạm vi MVP chỉ dùng `FS-06`, đã bỏ khái niệm Tầng A/B |
+
+**Bài học quan trọng nhất:** bộ test bất biến của gói gốc quét `src/` bằng
+regex tìm tên hàm (`def .*refund.*`). Trong codebase này không hàm nào khớp
+(hàm thật tên `approve_resolution`), nên test **pass vì không tìm thấy gì để
+kiểm** — 17/17 xanh mà không kiểm chứng bất cứ điều gì. Đây đúng là kiểu thất
+bại mà chính tài liệu cảnh báo ở mục 4 ("test xanh nhưng sản phẩm sai").
+
+Bản triển khai thật (`contracts/`, `tests/test_invariants.py` ở gốc repo) làm
+ngược lại: **introspect app đang chạy** (đọc `app.routes`, moi `allowed_roles`
+từ closure của `require_role()`, đọc `CheckConstraint` qua AST, gọi thẳng
+`build_customer_tools()`) rồi so khớp với contract. Đã chứng minh bắt được vi
+phạm qua 5 kịch bản phá có chủ đích.
+
+Xem `CLAUDE.md` §3 và `docs/DECISIONS.md` để biết chi tiết.
