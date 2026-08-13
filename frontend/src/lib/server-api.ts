@@ -81,7 +81,21 @@ export async function backendFetch<T>(
       // thô cho khách (phát hiện thật: bấm "Xác nhận" OTP liên tục chạm rate
       // limit, màn hình hiện {"error":"Rate limit exceeded: ..."} thay vì lời
       // Việt dễ hiểu).
-      detail = body.detail ?? body.error ?? JSON.stringify(body);
+      // Riêng lỗi 422 validation, FastAPI trả detail là MẢNG object
+      // [{loc, msg, type}...] — đưa thẳng vào Error(message) sẽ bị ép chuỗi
+      // thành "[object Object]" trên màn hình khách (QA-05, biên bản 13/08,
+      // bắt được ở /api/otp/verify lẫn /api/resolutions/.../approve).
+      if (Array.isArray(body.detail)) {
+        detail = body.detail
+          .map((d: { loc?: unknown[]; msg?: string }) => {
+            const field = Array.isArray(d.loc) ? d.loc.slice(1).join(".") : "";
+            return field ? `${field}: ${d.msg ?? "không hợp lệ"}` : d.msg ?? "không hợp lệ";
+          })
+          .join("; ");
+        detail = `Dữ liệu gửi lên chưa hợp lệ — ${detail}`;
+      } else {
+        detail = body.detail ?? body.error ?? JSON.stringify(body);
+      }
     } catch {
       // giữ statusText nếu body không phải JSON
     }

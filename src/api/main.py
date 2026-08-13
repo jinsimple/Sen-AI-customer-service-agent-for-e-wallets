@@ -234,8 +234,8 @@ def _handle_tool_error(fn, *args, **kwargs):
 #     hợp lệ khác chung IP như trước.
 # ---------------------------------------------------------------------------
 
-_login_phone_limiter = RedisSlidingWindowLimiter(max_calls=10, window_seconds=60)
-_login_ip_limiter = RedisSlidingWindowLimiter(max_calls=60, window_seconds=60)
+_login_phone_limiter = RedisSlidingWindowLimiter(max_calls=10, window_seconds=60, name="login_phone")
+_login_ip_limiter = RedisSlidingWindowLimiter(max_calls=60, window_seconds=60, name="login_ip")
 _password_hasher = PasswordHasher()
 # Hash "mồi" hợp lệ về ĐỊNH DẠNG (không khớp mật khẩu thật nào) — dùng để
 # verify GIẢ khi không tìm thấy user theo phone, giữ THỜI GIAN XỬ LÝ tương
@@ -339,7 +339,7 @@ def logout(req: RefreshTokenRequest, current_user: CurrentUser = Depends(get_cur
 # current_user resolve qua Depends) — thêm lớp thứ 2 khoá theo user_id THẬT
 # (đã có current_user ở đây, khác /auth/login), chặn brute-force mã OTP nhắm
 # 1 user cụ thể kể cả nếu 1 kẻ tấn công đổi IP liên tục.
-_otp_request_user_limiter = RedisSlidingWindowLimiter(max_calls=10, window_seconds=60)
+_otp_request_user_limiter = RedisSlidingWindowLimiter(max_calls=10, window_seconds=60, name="otp_request")
 
 # Chặn đồng thời cho /agent/chat (ADR-012). Con số 20 chọn từ ĐO THẬT, không
 # phải đoán: 1 lượt chat = ~15.136 token, hạn mức OpenAI 200.000 TPM => ~13
@@ -1095,6 +1095,8 @@ def live_chat_ws_ticket(
 
 @app.post("/live-chat/staff/ws-ticket")
 def live_chat_staff_ws_ticket(current_user: CurrentUser = Depends(require_role("cskh", "supervisor"))):
+    if not _live_chat_manager.staff_ws_ticket_limiter.allow(current_user.user_id):
+        raise HTTPException(status_code=429, detail="Bạn xin vé kết nối quá nhanh, thử lại sau ít phút giúp mình nhé")
     ws_ticket = _live_chat_manager.mint_ticket(user_id=current_user.user_id, role=current_user.role)
     return {"ws_ticket": ws_ticket}
 

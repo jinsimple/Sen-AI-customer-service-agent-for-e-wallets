@@ -13,15 +13,29 @@ from src.redis_client import get_default_client
 
 
 class RedisSlidingWindowLimiter:
-    def __init__(self, *, max_calls: int, window_seconds: float):
+    """`name` BẮT BUỘC — mỗi limiter phải có vùng khoá Redis riêng.
+
+    Không có tham số này thì mọi limiter dùng chung khoá `ratelimit:{key}`,
+    và vì `key` thường là `user_id`, các hạn mức KHÁC NHAU của cùng một người
+    ăn lẫn vào nhau. Đo thật (2026-08-13): khách gửi 5 tin live-chat
+    (hạn mức riêng 60 tin/giờ) rồi mở phiên chat LẦN ĐẦU (hạn mức riêng
+    5 lần/phút, chưa dùng lần nào) -> bị 429 ngay. Chiều ngược lại còn tệ
+    hơn: `zremrangebyscore` của limiter cửa sổ 60s XOÁ luôn dữ liệu trong
+    cửa sổ 3600s của limiter kia, làm hạn mức 60 tin/giờ bị vô hiệu âm thầm.
+    Bắt buộc truyền tên (không đặt mặc định) để lỗi này không quay lại qua
+    một limiter mới nào đó quên đặt tên.
+    """
+
+    def __init__(self, *, max_calls: int, window_seconds: float, name: str):
         self._max_calls = max_calls
         self._window_seconds = window_seconds
+        self._name = name
 
     def allow(self, key: str) -> bool:
         client = get_default_client()
         now = time.time()
         window_start = now - self._window_seconds
-        redis_key = f"ratelimit:{key}"
+        redis_key = f"ratelimit:{self._name}:{key}"
         client.zremrangebyscore(redis_key, 0, window_start)
         if client.zcard(redis_key) >= self._max_calls:
             return False

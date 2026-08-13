@@ -383,4 +383,72 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       if (staffCContext) await staffCContext.close();
     }
   });
+
+  // ---------------------------------------------------------------------
+  // L4-07 (R4, 13/08) — fan-out liên worker: >=5 tin MỖI CHIỀU, xen kẽ.
+  //
+  // Vì sao cần dù L4-01 đã nhắn 2 chiều: L4-01 chỉ gửi ĐÚNG 1 tin mỗi
+  // chiều. Sau ADR-015 (Redis pub/sub, 4 worker), lỗi vỡ fan-out là lỗi IM
+  // LẶNG — tin biến mất, không exception — và chỉ xảy ra khi khách với CSKH
+  // rơi vào 2 worker KHÁC nhau. Một cặp kết nối nằm trên cùng 1 worker sẽ
+  // pass mọi lần dù fan-out hỏng hoàn toàn. Nhắn nhiều lượt xen kẽ trên
+  // cùng cặp kết nối KHÔNG đổi được worker (WS giữ nguyên kết nối), nên test
+  // này bổ sung thêm: assert từng tin xuất hiện ĐÚNG 1 LẦN (bắt cả lỗi lặp
+  // tin do nhận cả bản local lẫn bản vọng từ Redis — đúng thứ _INSTANCE_ID
+  // trong ADR-015 sinh ra để chặn).
+  //
+  // Kiểm phủ nhiều CẶP worker khác nhau: xem
+  // scripts/../qa loop tầng WebSocket trong báo cáo QA 13/08 (lặp N phiên,
+  // mỗi phiên 1 cặp kết nối mới) — test UI này giữ 1 phiên cho nhanh và để
+  // chứng minh đường đi THẬT qua trình duyệt.
+  test("L4-07 — 5 tin mỗi chiều xen kẽ, không mất tin, không lặp tin", async ({ browser }) => {
+    const customerContext: BrowserContext = await browser.newContext();
+    const staffContext: BrowserContext = await browser.newContext();
+    const customerPage = await customerContext.newPage();
+    const staffPage = await staffContext.newPage();
+
+    try {
+      await loginAs(customerPage, CUSTOMER_PHONE, "/chat");
+      await requestHumanHandoffAndWaitConnected(customerPage);
+
+      await loginAs(staffPage, STAFF_PHONE, "/dashboard");
+      await expect(staffPage.getByText("Khách đang chờ chat trực tiếp")).toBeVisible({ timeout: 20_000 });
+      await staffPage.getByText("Mở & nhận").first().click();
+      await staffPage.getByRole("button", { name: "Nhận phiên chat này" }).click();
+      await expect(staffPage.getByText("Đã kết nối")).toBeVisible({ timeout: 10_000 });
+
+      const stamp = Date.now(); // chuỗi duy nhất mỗi lần chạy — chạy lại không đụng tin cũ
+      const ROUNDS = 5;
+      for (let i = 1; i <= ROUNDS; i++) {
+        const fromStaff = `cskh-${stamp}-${i}`;
+        await sendMessage(staffPage, fromStaff);
+        await expect(
+          customerPage.locator(".chat-thread .bubble", { hasText: fromStaff }),
+          `tin CSKH->khách vòng ${i} phải tới đúng 1 lần`,
+        ).toHaveCount(1, { timeout: 15_000 });
+
+        const fromCustomer = `khach-${stamp}-${i}`;
+        await sendMessage(customerPage, fromCustomer);
+        await expect(
+          staffPage.locator(".chat-thread .bubble", { hasText: fromCustomer }),
+          `tin khách->CSKH vòng ${i} phải tới đúng 1 lần`,
+        ).toHaveCount(1, { timeout: 15_000 });
+      }
+
+      // Cuối phiên: soát lại TOÀN BỘ 10 tin vẫn còn đủ ở cả hai phía (bắt
+      // trường hợp tin tới rồi biến mất khi render lại/backlog ghi đè).
+      for (let i = 1; i <= ROUNDS; i++) {
+        await expect(customerPage.locator(".chat-thread .bubble", { hasText: `cskh-${stamp}-${i}` })).toHaveCount(1);
+        await expect(customerPage.locator(".chat-thread .bubble", { hasText: `khach-${stamp}-${i}` })).toHaveCount(1);
+        await expect(staffPage.locator(".chat-thread .bubble", { hasText: `cskh-${stamp}-${i}` })).toHaveCount(1);
+        await expect(staffPage.locator(".chat-thread .bubble", { hasText: `khach-${stamp}-${i}` })).toHaveCount(1);
+      }
+
+      await staffPage.getByRole("button", { name: "Kết thúc chat" }).click();
+      await expect(customerPage.getByText("Phiên chat trực tiếp đã kết thúc")).toBeVisible({ timeout: 10_000 });
+    } finally {
+      await customerContext.close();
+      await staffContext.close();
+    }
+  });
 });

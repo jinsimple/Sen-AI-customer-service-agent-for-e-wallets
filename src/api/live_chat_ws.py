@@ -1,12 +1,11 @@
-"""Live chat WebSocket (2026-08-11) — connection-manager + handler in-process.
+"""Live chat WebSocket — connection-manager + handler.
 
-Không dùng Redis: `Dockerfile` đã có quyết định + lý do sẵn (uvicorn chạy
-ĐÚNG 1 worker vì MemorySaver — src/agents/graph.py — giữ state hội thoại AI
-trong RAM 1 process, nhiều worker sẽ làm khách mất trí nhớ agent). Cùng lý do
-đó áp dụng y hệt cho state live-chat (ai đang kết nối, ai đang nhận ca) — 1
-dict Python in-memory là đủ và AN TOÀN cho quy mô hiện tại (~4 CSKH + 2
-supervisor / ~50 phiên đồng thời). Nếu sau này scale >1 worker mới cần Redis
-pub/sub — đơn giản hoá có chủ đích, không phải thiếu sót.
+Socket là thứ DUY NHẤT còn nằm trong RAM từng process (bản chất WebSocket —
+không chuyển đi đâu được); mọi state khác đã ra store dùng chung khi bật
+multi-worker: fan-out tin nhắn qua Redis pub/sub (ADR-015), rate-limit qua
+Redis sliding window (đợt Auth Flow 2026-08-12), và vé handshake qua Redis
+TTL+GETDEL (QA-01, biên bản QA 13/08 — vé trong dict RAM làm handshake fail
+~3/4 số lần với 4 worker vì REST cấp vé ở worker A, WS rơi vào worker B).
 
 Giao thức WS tối giản — 1 loại message nhận vào duy nhất (`send_message`):
 khách luôn tự động "vào" đúng chat_session_id gắn trong vé lúc kết nối; CSKH
@@ -20,7 +19,6 @@ import datetime as dt
 import json
 import logging
 import secrets
-import time
 from collections import defaultdict
 from typing import Any
 
@@ -31,10 +29,17 @@ from src.config import LIVE_CHAT_STALE_WAITING_MINUTES
 from src.db.models import ChatSession
 from src.db.session import SessionLocal
 from src.rate_limit import RedisSlidingWindowLimiter
+from src.redis_client import get_default_client
 from src.services import live_chat
 from src.tools.base import ToolError
 
 _WS_TICKET_TTL_SECONDS = 30
+# Vé PHẢI nằm ở store dùng chung (QA-01): mint qua REST và consume qua WS
+# handshake không có gì bảo đảm rơi vào cùng worker. Redis rớt thì mint/consume
+# ném lỗi và handshake fail RÕ RÀNG — cố ý không fallback về RAM, vì fallback
+# đó chính là bug chập chờn cũ quay lại dưới dạng khó bắt hơn (cùng triết lý
+# ADR-013: không fallback im lặng).
+_WS_TICKET_KEY = "fin05:ws_ticket:"
 _logger = logging.getLogger("fin05.live_chat_ws")
 
 
@@ -54,8 +59,6 @@ async def _vong_lap_subscriber(mgr: ConnectionManager) -> None:
     hạ tầng cloud (đúng ghi chú keepalive/health_check đã đúc kết trong
     playbook đóng gói), tự thử lại thay vì im lặng dừng fan-out vĩnh viễn.
     """
-    from src.redis_client import get_default_client
-
     while True:
         try:
             pubsub = get_default_client().pubsub(ignore_subscribe_messages=True)
@@ -88,7 +91,6 @@ class ConnectionManager:
     """Singleton module-level (cùng pattern _CHECKPOINTER ở graph.py)."""
 
     def __init__(self):
-        self._tickets: dict[str, dict[str, Any]] = {}
         self._session_sockets: dict[str, set[WebSocket]] = defaultdict(set)
         self._user_sockets: dict[str, set[WebSocket]] = defaultdict(set)
         self._staff_sockets: set[WebSocket] = set()
@@ -97,25 +99,37 @@ class ConnectionManager:
         # mất sạch state mỗi lần restart backend (rate-limit "reset" âm thầm
         # sau mọi lần deploy/restart). Cùng thuật toán sliding window, chỉ
         # đổi nơi lưu — không đổi ngưỡng/ngữ nghĩa.
-        self.ws_ticket_limiter = RedisSlidingWindowLimiter(max_calls=5, window_seconds=60)
-        self.message_limiter = RedisSlidingWindowLimiter(max_calls=60, window_seconds=3600)
+        self.ws_ticket_limiter = RedisSlidingWindowLimiter(max_calls=5, window_seconds=60, name="ws_ticket")
+        # QA-11: đường cấp vé của CSKH/sếp trước đây KHÔNG gắn limiter nào (đo
+        # thật: 40/40 lần đều 200, trong khi khách bị chặn đúng sau 5). Hạn mức
+        # rộng hơn khách CÓ CHỦ ĐÍCH, không phải sao chép thiếu: nhân viên trực
+        # ca nối lại WS mỗi lần mạng chập chờn/đổi tab, khoá họ ở mức 5 lần/phút
+        # là chặn đúng người đang phục vụ khách. 20/phút vẫn chặn được lạm dụng
+        # (kịch bản bơm vé hàng loạt) mà không đụng nhịp làm việc thật.
+        self.staff_ws_ticket_limiter = RedisSlidingWindowLimiter(
+            max_calls=20, window_seconds=60, name="ws_ticket_staff"
+        )
+        self.message_limiter = RedisSlidingWindowLimiter(max_calls=60, window_seconds=3600, name="live_chat_msg")
 
     def mint_ticket(self, *, user_id: str, role: str, chat_session_id: str | None = None) -> str:
         ticket = secrets.token_urlsafe(24)
-        self._tickets[ticket] = {
-            "user_id": user_id,
-            "role": role,
-            "chat_session_id": chat_session_id,
-            "expires_at": time.monotonic() + _WS_TICKET_TTL_SECONDS,
-        }
+        if _WS_TICKET_TTL_SECONDS <= 0:
+            # TTL <= 0 nghĩa là "hết hạn ngay" — không lưu gì (Redis từ chối
+            # ex<=0), consume sẽ trả None. Giữ ngữ nghĩa cho test canh TTL.
+            return ticket
+        get_default_client().set(
+            _WS_TICKET_KEY + ticket,
+            json.dumps({"user_id": user_id, "role": role, "chat_session_id": chat_session_id}),
+            ex=_WS_TICKET_TTL_SECONDS,
+        )
         return ticket
 
     def consume_ticket(self, ticket: str) -> dict[str, Any] | None:
-        """Dùng 1 lần — xoá NGAY dù thành công hay hết hạn (chống replay)."""
-        data = self._tickets.pop(ticket, None)
-        if data is None or time.monotonic() > data["expires_at"]:
-            return None
-        return data
+        """Dùng 1 lần — GETDEL đọc+xoá trong MỘT lệnh atomic (chống replay):
+        2 handshake tranh nhau cùng 1 vé thì đúng 1 bên nhận được, kể cả khi
+        chúng rơi vào 2 worker khác nhau."""
+        raw = get_default_client().getdel(_WS_TICKET_KEY + ticket)
+        return json.loads(raw) if raw else None
 
     async def register(self, ws: WebSocket, *, user_id: str, chat_session_id: str | None, is_staff: bool) -> None:
         # Phát hiện thật (2026-08-11): 1 user có thể tạo ra kết nối WS "mồ côi"
@@ -141,6 +155,31 @@ class ConnectionManager:
             self._session_sockets[chat_session_id].add(ws)
         if is_staff:
             self._staff_sockets.add(ws)
+            # QA-13 lớp 2 — CSKH nối (hoặc NỐI LẠI) sau khi đã nhận ca: vé WS
+            # của nhân viên không mang chat_session_id (lúc xin vé họ chưa
+            # nhận ca nào), nên nếu chỉ dựa vào notify_claimed thì một lần
+            # rớt mạng/đổi tab là socket mới vĩnh viễn không thuộc phiên nào
+            # — tin của khách lại biến mất im lặng. Nguồn sự thật là DB
+            # (chat_sessions.claimed_by), không phải RAM của process nào.
+            for cs_id in self._active_session_ids_claimed_by(user_id):
+                self._session_sockets[cs_id].add(ws)
+
+    @staticmethod
+    def _active_session_ids_claimed_by(staff_id: str) -> list[str]:
+        with SessionLocal() as session:
+            rows = session.execute(
+                select(ChatSession.chat_session_id).where(
+                    ChatSession.claimed_by == staff_id, ChatSession.status == "active"
+                )
+            ).all()
+        return [r[0] for r in rows]
+
+    def _dang_ky_cskh_vao_phien_local(self, chat_session_id: str, staff_user_id: str) -> None:
+        """Gắn mọi socket LOCAL của CSKH đó vào phiên. Gọi ở 2 nơi: worker xử
+        lý REST claim (trực tiếp) và mọi worker khác (qua pub/sub kind
+        'claim') — xem QA-13."""
+        for ws in list(self._user_sockets.get(staff_user_id, ())):
+            self._session_sockets[chat_session_id].add(ws)
 
     def unregister(self, ws: WebSocket, *, user_id: str) -> None:
         self._user_sockets[user_id].discard(ws)
@@ -196,6 +235,10 @@ class ConnectionManager:
             await self._deliver_user_local(target, payload)
         elif kind == "staff":
             await self._deliver_staff_local(payload)
+        elif kind == "claim" and target:
+            # QA-13 lớp 1 — KHÔNG giao tin, chỉ ĐĂNG KÝ: worker này có thể
+            # đang giữ socket của CSKH vừa nhận ca ở worker khác.
+            self._dang_ky_cskh_vao_phien_local(target, str(payload.get("staff_user_id") or ""))
 
     async def send_to_session(self, chat_session_id: str, payload: dict[str, Any]) -> None:
         await self._deliver_session_local(chat_session_id, payload)
@@ -319,8 +362,16 @@ class ConnectionManager:
         đó làm participant của phiên (không cần round-trip "join_session"
         riêng), đẩy ngữ cảnh AI đã điều tra, và gỡ khỏi hàng chờ hiển thị cho
         các CSKH khác."""
-        for ws in list(self._user_sockets.get(staff_user_id, ())):
-            self._session_sockets[chat_session_id].add(ws)
+        # QA-13 (đo 13/08: mất 25/60 tin, TOÀN BỘ chiều khách→CSKH, 5/6 phiên):
+        # đăng ký local CHỈ có tác dụng trên worker xử lý REST claim này. Socket
+        # WS của CSKH nằm ở worker nào là ngẫu nhiên (vé WS trong Redis từ bản
+        # vá QA-01), nên 3/4 trường hợp nó nằm ở worker KHÁC và không bao giờ
+        # được ghi vào _session_sockets ở đó ⇒ tin của khách publish tới worker
+        # đó không tìm thấy người nhận. Không exception, không log — tin biến
+        # mất. Phải phát cho MỌI worker cùng đăng ký, đúng tinh thần ADR-015
+        # ("giao/áp local trước, rồi publish cho worker khác").
+        self._dang_ky_cskh_vao_phien_local(chat_session_id, staff_user_id)
+        await self._publish("claim", chat_session_id, {"staff_user_id": staff_user_id})
         await self.send_to_user(staff_user_id, {"type": "claim_success", "chat_session_id": chat_session_id, "context": context})
         await self.broadcast_to_staff({"type": "session_claimed", "chat_session_id": chat_session_id})
         await self.send_to_session(chat_session_id, {"type": "system", "text": "Chuyên viên CSKH đã tham gia hội thoại."})

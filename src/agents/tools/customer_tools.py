@@ -35,6 +35,38 @@ from src.tools.lookup_transaction import lookup_transaction as _lookup_transacti
 from src.tools.masking import mask_account_no, mask_full_name, mask_phone  # PII-OK: import hàm CHE, không phải đọc PII
 
 
+class TurnAbandonedError(Exception):
+    """Lượt chat đã bị bỏ rơi (timeout) — luồng nền KHÔNG được chạm DB nữa."""
+
+
+class TurnGuard:
+    """Bảo vệ `session` dùng chung giữa luồng chính và luồng nền của MỘT lượt.
+
+    Vì sao cần (QA-12, biên bản QA 13/08): `run_agent_turn` chạy agent trong
+    thread riêng để `.result(timeout=...)` trả quyền điều khiển lại đúng hạn,
+    nhưng Python KHÔNG kill được thread — hết giờ thì luồng nền vẫn chạy tiếp
+    và vẫn cầm `session` của lượt đó. Hệ quả đo được thật:
+
+    - **Ticket ma**: luồng bị bỏ rơi vẫn gọi tiếp tool ghi DB, sinh ticket THỨ
+      HAI cho cùng một lượt chat trong khi khách đã được báo mã ticket fallback
+      (tái hiện 4/4 case). Vi phạm ràng buộc cứng #3 — số liệu khách nhận được
+      không còn khớp hệ thống.
+    - **Tranh chấp session**: luồng chính và luồng nền cùng chạm 1 Session
+      SQLAlchemy (không thread-safe); ở request thật, `get_session` còn đóng
+      session ngay khi response trả xong, trong khi luồng nền vẫn dùng tiếp —
+      đúng kịch bản ăn mòn pool khi tải cao.
+
+    `abandoned` đặt ở luồng chính, đọc ở luồng nền TRONG KHI GIỮ `lock` — nên
+    khi luồng chính lấy được `lock` thì tool call dở dang (nếu có) đã xong hẳn,
+    và mọi tool call sau đó chắc chắn thấy cờ và từ chối chạm DB. Không có kẽ
+    hở giữa hai luồng.
+    """
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.abandoned = threading.Event()
+
+
 def _strip_diacritics(text: str) -> str:
     """'Tôi bị lừa đảo' -> 'toi bi lua dao' — cùng cách scripts/fraud_engine.py
     dùng cho từ khoá FS-09, tái dùng ở đây để chặn injection gõ không dấu."""
@@ -228,7 +260,13 @@ def _otp_fresh(otp_verified_at: float | None, max_minutes: int) -> bool:
     return age_minutes <= max_minutes
 
 
-def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: float | None = None) -> list:
+def build_customer_tools(
+    session: Session,
+    *,
+    user_id: str,
+    otp_verified_at: float | None = None,
+    guard: TurnGuard | None = None,
+) -> list:
     """Danh sách tool gắn sẵn với đúng 1 khách (user_id) và 1 DB session của
     request hiện tại — gọi lại cho mỗi lượt chat, không tái sử dụng qua các
     session/user khác. `otp_verified_at` (timestamp epoch giây, None nếu chưa
@@ -254,12 +292,22 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
     # (mới cho MỖI request/lượt chat qua build_customer_tools(), không phải
     # global) serialize hoá truy cập session giữa các tool call song song
     # trong cùng 1 lượt — không ảnh hưởng tới các user/session khác.
-    _session_lock = threading.Lock()
+    #
+    # Cùng khoá đó giờ kiêm việc thứ hai: bàn giao session lại cho luồng chính
+    # khi lượt bị bỏ rơi vì timeout (TurnGuard, QA-12). `guard` mặc định None
+    # để các nơi gọi cũ (test bất biến gọi thẳng build_customer_tools) không
+    # phải đổi.
+    _guard = guard or TurnGuard()
 
     def _locked(fn):
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-            with _session_lock:
+            with _guard.lock:
+                if _guard.abandoned.is_set():
+                    # Khách đã nhận câu trả lời fallback và mã ticket của lượt
+                    # này rồi — ghi thêm bất cứ thứ gì nữa là sinh dữ liệu mồ
+                    # côi mà khách không hề được báo.
+                    raise TurnAbandonedError("lượt chat đã bị bỏ (timeout) — không ghi DB nữa")
                 return fn(*args, **kwargs)
 
         return wrapper

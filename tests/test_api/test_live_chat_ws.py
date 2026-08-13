@@ -48,8 +48,11 @@ def test_ws_ticket_consumed_once_and_expires():
     manager = ConnectionManager()
     ticket = manager.mint_ticket(user_id="USR-A", role="customer", chat_session_id="CHS-1")
 
+    # Kho vé chuyển từ dict RAM sang Redis (QA-01, 13/08): `expires_at` cũ là
+    # time.monotonic() — vô nghĩa liên process, TTL giờ do Redis giữ. So khớp
+    # ĐÚNG BẰNG (không phải chỉ chứa) để bắt được trường lạ lọt vào payload vé.
     first = manager.consume_ticket(ticket)
-    assert first == {"user_id": "USR-A", "role": "customer", "chat_session_id": "CHS-1", "expires_at": first["expires_at"]}
+    assert first == {"user_id": "USR-A", "role": "customer", "chat_session_id": "CHS-1"}
 
     second = manager.consume_ticket(ticket)
     assert second is None, "vé dùng 1 lần phải bị xoá ngay sau lần dùng đầu tiên"

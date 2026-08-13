@@ -66,7 +66,7 @@ def test_run_agent_turn_threads_configured_recursion_limit_into_langgraph_config
 
     agent = _RecursionLimitCapturingAgent()
 
-    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at):
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None):
         return agent
 
     monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)
@@ -94,7 +94,7 @@ class _RecursionBoomAgent:
 def test_run_agent_turn_handles_recursion_limit_gracefully(sample_db, monkeypatch):
     import src.agents.graph as graph_module
 
-    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at):
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None):
         return _RecursionBoomAgent()
 
     monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)
@@ -119,7 +119,7 @@ def test_run_agent_turn_recursion_limit_creates_only_one_ticket(sample_db, monke
     tra đơn giản: đúng 1 ticket được tạo cho đúng 1 lần recursion error."""
     import src.agents.graph as graph_module
 
-    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at):
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None):
         return _RecursionBoomAgent()
 
     monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)

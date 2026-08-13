@@ -81,7 +81,7 @@ def test_run_agent_turn_propagates_openai_error_without_partial_ticket(sample_db
         def invoke(self, *a, **kw):
             raise RuntimeError("giả lập OpenAI API lỗi 500")
 
-    def _boom_build_agent(session, *, user_id, customer_name, otp_verified_at):
+    def _boom_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None):
         raise RuntimeError("giả lập OpenAI API lỗi 500")
 
     monkeypatch.setattr(graph_module, "_build_agent", _boom_build_agent)
@@ -151,16 +151,14 @@ def test_run_agent_turn_times_out_gracefully_instead_of_hanging(sample_db, monke
     thời hạn, không rơi thành 500."""
     import time
 
-    from sqlalchemy.orm import sessionmaker
-
     import src.agents.graph as graph_module
 
     monkeypatch.setattr(graph_module, "AGENT_TURN_TIMEOUT_SECONDS", 0.3)
-    # SessionLocal module-level trỏ vào DATABASE_URL thật (data/app.db) —
-    # phải trỏ lại đúng engine test (cùng convention test_live_chat_ws.py đã
-    # dùng cho các hàm khác cũng gọi SessionLocal() ngoài phạm vi request),
-    # nếu không nhánh timeout sẽ ghi nhầm vào DB thật khi chạy test.
-    monkeypatch.setattr(graph_module, "SessionLocal", sessionmaker(bind=sample_db.get_bind(), future=True))
+    # QA-10 (13/08): KHÔNG monkeypatch SessionLocal nữa — bản vá làm nhánh
+    # timeout mở session mới trên ĐÚNG engine được tiêm. Monkeypatch cũ chính
+    # là thứ che mất lỗ hổng: test xanh trong khi chạy thật (eval harness,
+    # không monkeypatch) ticket rơi vào DB mặc định của app. Assert cuối hàm
+    # giờ là lưới hồi quy thật cho QA-10 — bỏ DI đi là nó đỏ ngay.
 
     class _HangingModel:
         def bind_tools(self, *a, **kw):
@@ -179,7 +177,7 @@ def test_run_agent_turn_times_out_gracefully_instead_of_hanging(sample_db, monke
         def invoke(self, *a, **kw):
             return _HangingModel().invoke()
 
-    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at):
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None):
         return _FakeAgent()
 
     monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)
@@ -196,8 +194,9 @@ def test_run_agent_turn_times_out_gracefully_instead_of_hanging(sample_db, monke
     assert "chuyên viên hỗ trợ trực tiếp" in result["reply"]
     assert result["ticket_id"]
 
-    # Ticket handoff được ghi qua session RIÊNG (đã monkeypatch SessionLocal ở
-    # trên trỏ đúng engine test) — không phải viết vào DB thật, và sample_db
-    # (session khác connection) phải thấy được sau khi commit xong.
+    # QA-10: ticket handoff ghi qua session RIÊNG (thread-safe) nhưng trên
+    # ĐÚNG engine được tiêm — nên sample_db phải thấy được sau commit. Nếu
+    # nhánh timeout quay lại dùng DB mặc định của app, count không tăng và
+    # test đỏ.
     sample_db.expire_all()
     assert sample_db.query(Ticket).count() == tickets_before + 1

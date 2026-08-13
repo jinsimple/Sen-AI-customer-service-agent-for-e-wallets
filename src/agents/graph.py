@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
 from src.agents.prompt import build_system_prompt
-from src.agents.tools.customer_tools import build_customer_tools
+from src.agents.tools.customer_tools import TurnGuard, build_customer_tools
 from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
     DATABASE_URL,
@@ -34,7 +34,6 @@ from src.config import (
     OPENAI_TIMEOUT_SECONDS,
 )
 from src.db.models import User
-from src.db.session import SessionLocal
 from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.pii import scrub_pii
 from src.observability.tracing import get_tracer
@@ -150,7 +149,14 @@ _CHECKPOINTER = _build_checkpointer()
 _ALWAYS_FRESH = object()
 
 
-def _build_agent(session: Session, *, user_id: str, customer_name: str, otp_verified_at: float | None):
+def _build_agent(
+    session: Session,
+    *,
+    user_id: str,
+    customer_name: str,
+    otp_verified_at: float | None,
+    guard: TurnGuard | None = None,
+):
     model = ChatOpenAI(
         model=OPENAI_MODEL,
         temperature=0.2,
@@ -158,7 +164,9 @@ def _build_agent(session: Session, *, user_id: str, customer_name: str, otp_veri
         timeout=OPENAI_TIMEOUT_SECONDS,
         max_retries=OPENAI_MAX_RETRIES,
     )
-    tools = build_customer_tools(session, user_id=user_id, otp_verified_at=otp_verified_at)
+    tools = build_customer_tools(
+        session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard
+    )
     # KHÔNG truyền customer_name — họ tên thật không được rời hệ thống lên LLM
     # (ADR-010). Giữ tham số ở chữ ký hàm để không vỡ caller cũ.
     system_prompt = build_system_prompt(current_time=dt.datetime.utcnow())
@@ -189,8 +197,11 @@ def run_agent_turn(
     if user is None:
         raise ToolError(f"user_id không tồn tại: {user_id}")
 
+    # 1 guard cho MỖI lượt (không phải global) — bàn giao `session` giữa luồng
+    # chính và luồng nền khi lượt bị bỏ rơi vì timeout, xem TurnGuard (QA-12).
+    guard = TurnGuard()
     agent = _build_agent(
-        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at  # PII-OK: cố ý truyền None, không đưa họ tên lên LLM
+        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at, guard=guard  # PII-OK: cố ý truyền None, không đưa họ tên lên LLM
     )
     # thread_id mặc định = user_id (hành vi thật, không đổi). eval/_harness.py
     # truyền thread_id riêng biệt mỗi case để cô lập bộ nhớ hội thoại
@@ -253,26 +264,30 @@ def run_agent_turn(
             )
             root_span.set_attribute("fin05.recursion_limit_reached", not is_timeout)
             root_span.set_attribute("fin05.turn_timeout", is_timeout)
-            if is_timeout:
-                # KHÔNG dùng `session` dùng chung ở đây — thread nền (_invoke)
-                # vẫn có thể đang chạy dở, cầm session đó cho 1 tool call
-                # (SQLAlchemy Session không an toàn khi 2 thread cùng đụng
-                # 1 lúc, khác nhánh GraphRecursionError bên dưới — nhánh đó
-                # invoke() đã CHẮC CHẮN trả về xong, không còn thread nào
-                # khác đụng session). Mở session RIÊNG, tự commit/đóng.
-                with SessionLocal() as timeout_session:
-                    handoff = flag_human_handoff(
-                        timeout_session,
-                        user_id=user_id,
-                        reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
-                    )
-                    timeout_session.commit()
-            else:
+            # Bàn giao session lại cho luồng này TRƯỚC KHI ghi (QA-12). Đặt cờ
+            # rồi mới giành khoá: tool call dở dang (nếu có) chạy nốt xong mới
+            # nhả khoá, và mọi tool call SAU đó thấy cờ nên từ chối chạm DB —
+            # luồng nền bị bỏ rơi không thể sinh ticket thứ hai cho cùng lượt
+            # chat này nữa (đo thật: 4/4 case từng sinh ticket ma).
+            #
+            # Ghi bằng CHÍNH `session` được tiêm, không mở session thứ hai:
+            # mở connection thứ hai vào cùng DB trong khi connection thứ nhất
+            # đang giữ transaction ghi dở là nguyên nhân "database is locked"
+            # (QA-12) — và cũng thừa, vì sau khi giành được khoá thì session
+            # này đã an toàn tuyệt đối. Dùng session được tiêm cũng chính là
+            # thứ giữ QA-10: ticket luôn nằm đúng DB mà caller chỉ định.
+            guard.abandoned.set()
+            with guard.lock:
                 handoff = flag_human_handoff(
                     session,
                     user_id=user_id,
                     reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
                 )
+                # Commit tường minh: khách vừa được báo mã ticket này, nên nó
+                # PHẢI tồn tại thật, không phụ thuộc caller có commit hay
+                # không (eval harness rollback giữa các case) — báo mã ticket
+                # không tra được chính là bịa số liệu, ràng buộc cứng #3.
+                session.commit()
             return {
                 "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là "
                 + handoff["ticket_id"]
