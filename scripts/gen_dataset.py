@@ -22,6 +22,45 @@ from pathlib import Path
 from random import Random
 
 import yaml
+from argon2 import PasswordHasher
+
+# AUTH5-01C (đợt nâng cấp Auth Flow 2026-08-12) — security_answer_hash không
+# còn gate quyền (AUTH5-01, xem src/api/main.py::verify_otp), nhưng vẫn nâng
+# hash sang argon2id có salt (thay SHA-256 trần) như vệ sinh bảo mật cho dữ
+# liệu vẫn lưu trong DB — instance dùng chung, argon2-cffi tự sinh salt ngẫu
+# nhiên MỖI LẦN gọi .hash(), kể cả cùng input.
+_PASSWORD_HASHER = PasswordHasher()
+
+# Đăng nhập bằng mật khẩu (quyết định 2026-08-12, thay luồng phone+role chọn
+# tay) — user demo dùng xuyên suốt toàn bộ e2e/manual test (customer=
+# USR-0001, cskh=USR-0201, supervisor=USR-0205 — đã verify ĐÚNG các user_id
+# này ứng với số điện thoại cố định các file test đã dùng từ trước, xem
+# frontend/e2e/*.spec.ts) được gán 1 MẬT KHẨU ĐƠN GIẢN DÙNG CHUNG, dễ gõ tay
+# khi test. USR-0145 (SĐT 0974000145) — customer THỨ 2, riêng cho
+# frontend/e2e/auth.spec.ts (cố ý tách khỏi USR-0001 để không lẫn state
+# rate-limit/OTP giữa 2 bộ test, xem comment gốc trong file đó) — cũng cần
+# mật khẩu biết trước nên nằm trong danh sách này. User thứ 4 (partner_admin,
+# USR-PA01) không sinh ở đây (ngoài pipeline gen_dataset.py, xem
+# scripts/seed_demo_scenarios.py), gán CÙNG mật khẩu này ở đó cho nhất quán.
+# TOÀN BỘ user còn lại trong dataset (không ai dùng để test tay) nhận mật
+# khẩu ngẫu nhiên cao entropy — không ai cần nhớ, chỉ cần tồn tại hash hợp lệ
+# (không có cột password NULL nào sau đợt này).
+TEST_ACCOUNT_USER_IDS = {"USR-0001", "USR-0145", "USR-0201", "USR-0205"}
+SHARED_TEST_PASSWORD = "Demo@123"
+_PASSWORD_CHARSET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*"
+
+
+def _random_secure_password(rng: Random, length: int = 28) -> str:
+    """Nhận `rng` truyền tay (Builder.password_rng — RNG RIÊNG, KHÔNG phải
+    self.rng dùng cho phone/tên/..., xem ghi chú ở Builder.__init__ — trộn
+    chung sẽ làm dịch chuyển toàn bộ chuỗi ngẫu nhiên phía sau, đổi cả số
+    điện thoại mọi user giữa các lần chạy). Vẫn giữ đúng tinh thần "1 nguồn
+    ngẫu nhiên đã seed, tái lập được từng byte" của cả file (xem docstring
+    đầu file) — chỉ là 2 STREAM tách biệt thay vì 1, cùng seed gốc luôn ra
+    CÙNG mật khẩu ngẫu nhiên cho từng user, dù không ai cần biết giá trị đó
+    (chỉ hash được lưu, plaintext không lưu ở đâu cả)."""
+    return "".join(rng.choice(_PASSWORD_CHARSET) for _ in range(length))
+
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -126,6 +165,17 @@ class Ids:
 class Builder:
     def __init__(self, seed: int, out_dir: Path, eval_dir: Path | None = None):
         self.rng = Random(seed)
+        # RNG RIÊNG cho mật khẩu (đợt thêm đăng nhập mật khẩu 2026-08-12) —
+        # PHÁT HIỆN THẬT lúc verify: ban đầu dùng CHUNG self.rng, mỗi lần gọi
+        # _random_secure_password() "mượn" thêm draw từ CHÍNH stream đang
+        # dùng để sinh phone/tên — dịch chuyển toàn bộ chuỗi ngẫu nhiên phía
+        # SAU, khiến số điện thoại của MỌI user (trừ user đầu tiên) đổi khác
+        # giữa các lần chạy dù CÙNG --seed, phá nguyên tắc "cùng seed ra
+        # dataset byte-identical" đã cam kết ở đầu file — không phải giả
+        # định, đã tái hiện bằng cách so sánh phone USR-0145/0201/0205 trước/
+        # sau khi thêm mật khẩu. RNG tách biệt (seed phái sinh nhưng KHÔNG
+        # bao giờ được self.rng gọi tới) giữ nguyên vẹn toàn bộ chuỗi gốc.
+        self.password_rng = Random(f"{seed}:passwords")
         self.seed = seed
         self.out_dir = out_dir
         self.eval_dir = eval_dir or ROOT / "eval"
@@ -222,12 +272,14 @@ class Builder:
             ov = self.overrides.get(uid, {})
             kyc = ov.get("kyc_level", self.rng.choices([0, 1, 2], weights=[15, 55, 30])[0])
             q = self.rng.choice(SECURITY_QUESTIONS)
+            password = SHARED_TEST_PASSWORD if uid in TEST_ACCOUNT_USER_IDS else _random_secure_password(self.password_rng)
             self.users.append({
                 "user_id": uid, "role": role, "full_name": make_name(),
                 "phone": f"{self.rng.choice(PHONE_PREFIXES)}{self.rng.randrange(10)}00{i:04d}",
                 "email": f"user{i:04d}@example.test", "kyc_level": kyc if role == "customer" else 2,
                 "security_question": q,
-                "security_answer_hash": hashlib.sha256(f"ans-{self.seed}-{uid}".encode()).hexdigest(),
+                "security_answer_hash": _PASSWORD_HASHER.hash(f"ans-{self.seed}-{uid}"),
+                "password_hash": _PASSWORD_HASHER.hash(password),
                 "created_at": (datetime.combine(self.day0, datetime.min.time())
                                - timedelta(days=self.rng.randint(30, 400))).isoformat(),
             })

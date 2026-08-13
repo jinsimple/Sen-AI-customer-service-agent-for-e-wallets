@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from scripts.gen_dataset import _PASSWORD_HASHER, SHARED_TEST_PASSWORD
 from src.db.models import (
     AuthSession,
     BankAccount,
@@ -89,8 +90,13 @@ def main() -> None:
     # không thuộc pipeline gen_dataset.py tái lập được (Data Brief §5.3, chỉ
     # sinh customer/cskh/supervisor), nên seed thủ công 1 user demo ở đây,
     # idempotent theo SĐT để chạy lại script nhiều lần không lỗi trùng khoá.
+    #
+    # password_hash — CÙNG mật khẩu test dùng chung với 3 user demo còn lại
+    # (scripts/gen_dataset.py::SHARED_TEST_PASSWORD), để 4 role test tay đều
+    # dùng 1 mật khẩu duy nhất, dễ nhớ.
     demo_pa_phone = "0900000001"
-    if session.scalar(select(User).where(User.phone == demo_pa_phone)) is None:
+    demo_pa = session.scalar(select(User).where(User.phone == demo_pa_phone))
+    if demo_pa is None:
         session.add(
             User(
                 user_id="USR-PA01",
@@ -98,11 +104,17 @@ def main() -> None:
                 full_name="Đối tác ví — Quản trị chính sách",
                 phone=demo_pa_phone,
                 kyc_level=0,
+                password_hash=_PASSWORD_HASHER.hash(SHARED_TEST_PASSWORD),
                 created_at=dt.datetime.utcnow(),
             )
         )
         session.commit()
         print(f"Đã tạo user demo partner_admin: USR-PA01 / {demo_pa_phone}")
+    elif demo_pa.password_hash is None:
+        # Backfill — user demo đã tồn tại TỪ TRƯỚC đợt thêm mật khẩu (2026-08-12).
+        demo_pa.password_hash = _PASSWORD_HASHER.hash(SHARED_TEST_PASSWORD)
+        session.commit()
+        print(f"Đã backfill password_hash cho user demo partner_admin đã có sẵn: {demo_pa_phone}")
 
     created_tickets: list[str] = []
 
@@ -169,7 +181,6 @@ def main() -> None:
         rationale="Đối chiếu 2 giao dịch cùng idempotency_key — điều chỉnh sổ cái nội bộ.",
         amount=tx.amount, cited_tool_result_ids=[r3["tool_result_id"]],
     )
-    from src.db.models import Resolution
     res3 = session.get(Resolution, p3["resolution_id"])
     res3.status = "approved"
     res3.approved_by = supervisor.user_id
