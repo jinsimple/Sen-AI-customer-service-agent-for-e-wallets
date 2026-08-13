@@ -333,6 +333,14 @@ class Escalation(Base):
 
 
 class AuthSession(Base):
+    """`resolution_id IS NULL` = challenge OTP step-up của khách hàng (luồng
+    gốc). `resolution_id IS NOT NULL` = challenge OTP riêng cho 1 lần sếp
+    duyệt tài chính cụ thể (đợt nâng cấp Auth Flow 2026-08-12, AUTH5-04/05/
+    05B) — tái dùng nguyên cơ chế failed_attempts/locked_at đã có thay vì
+    tạo bảng mới. `amount_snapshot` chụp lại `Resolution.amount` NGAY LÚC
+    xin OTP — PSD2 dynamic linking: nếu CSKH sửa số tiền sau đó, snapshot
+    lệch với số tiền hiện tại của resolution, buộc xin OTP mới (AUTH5-05B)."""
+
     __tablename__ = "auth_sessions"
 
     session_id: Mapped[str] = mapped_column(String, primary_key=True)
