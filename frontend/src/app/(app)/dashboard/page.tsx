@@ -24,11 +24,15 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [waitingChats, setWaitingChats] = useState<WaitingChatSession[]>([]);
 
-  useEffect(() => {
+  const loadTickets = useCallback(() => {
     listTickets({ limit: 100 })
       .then(setTickets)
       .catch((e) => setError(e.message ?? "Không tải được hàng chờ"));
   }, []);
+
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
 
   const loadWaitingChats = useCallback(() => {
     listWaitingChatSessions()
@@ -40,9 +44,15 @@ export default function DashboardPage() {
     loadWaitingChats();
     // Poll 60s làm lưới an toàn (vd WS mất kết nối tạm thời) — cập nhật
     // TỨC THỜI thật sự đến từ WS bên dưới (queue_update), không phải từ đây.
-    const interval = setInterval(loadWaitingChats, 60_000);
+    // Lưới này phải phủ CẢ HAI nguồn: trước bản vá BUGREPRO-001 nó chỉ nạp
+    // lại waitingChats, nên khi WS rớt thì bảng ticket + mọi chip đếm đứng
+    // yên vô thời hạn mà không có dấu hiệu gì cho CSKH biết.
+    const interval = setInterval(() => {
+      loadWaitingChats();
+      loadTickets();
+    }, 60_000);
     return () => clearInterval(interval);
-  }, [loadWaitingChats]);
+  }, [loadWaitingChats, loadTickets]);
 
   // Live chat (2026-08-11, phát hiện thật qua test tay) — CSKH đang đứng ở
   // Dashboard PHẢI thấy ticket chờ mới ngay khi khách bấm "gặp người thật",
@@ -64,9 +74,17 @@ export default function DashboardPage() {
     (event: LiveChatEvent) => {
       if (event.type === "queue_update" || event.type === "session_claimed") {
         loadWaitingChats();
+        // BUGREPRO-001/002 (QA/QC test tay 12/08/2026, xác nhận lại bằng đọc
+        // code 13/08) — TRƯỚC bản vá này chỉ `waitingChats` được nạp lại, còn
+        // `tickets` chỉ fetch ĐÚNG MỘT LẦN lúc mount (useEffect deps rỗng).
+        // Mà chip "Khách yêu cầu người thật (N)" lại đếm từ `tickets`, nên
+        // khách bấm "gặp người thật" xong thì CSKH đang mở sẵn dashboard KHÔNG
+        // bao giờ thấy số đếm nhúc nhích — đứng yên tới khi reload cả trang.
+        // Poll 60s bên dưới cũng chỉ chạm `waitingChats`, không cứu được.
+        loadTickets();
       }
     },
-    [loadWaitingChats]
+    [loadWaitingChats, loadTickets]
   );
 
   useLiveChatSocket(staffWsTicket, handleDashboardWsEvent);
