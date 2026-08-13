@@ -135,11 +135,24 @@ class SupervisorUser(HttpUser):
         """D6 — approve cùng 1 resolution trong lúc CskhUser đang sửa ticket
         liên quan (xem CskhUser.d6_concurrent_request_more_info). Backend
         (resolution.status not in draft/pending_approval -> 400) phải chặn
-        approve kép — không được để 2 lần approve cùng thành công."""
+        approve kép — không được để 2 lần approve cùng thành công.
+
+        AUTH5-04 (đợt nâng cấp Auth Flow 2026-08-12) — approve giờ cần OTP
+        riêng cho ĐÚNG resolution_id, xin ngay trước mỗi lần gọi (không cache
+        — mỗi actor ảo giả lập 1 lượt xin+duyệt độc lập, đúng luồng UI thật)."""
         if not self.logged_in or not TARGET_RESOLUTION_ID:
             return
+        otp_resp = self.client.post(
+            f"/api/resolutions/{TARGET_RESOLUTION_ID}/request-approval-otp",
+            name="/api/resolutions/[id]/request-approval-otp [D6]",
+        )
+        if otp_resp.status_code != 200:
+            return
+        otp_body = otp_resp.json()
         self.client.post(
-            f"/api/resolutions/{TARGET_RESOLUTION_ID}/approve", name="/api/resolutions/[id]/approve [D6]"
+            f"/api/resolutions/{TARGET_RESOLUTION_ID}/approve",
+            json={"session_id": otp_body.get("session_id", ""), "otp_code": otp_body.get("otp_code", "")},
+            name="/api/resolutions/[id]/approve [D6]",
         )
 
 

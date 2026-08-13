@@ -38,10 +38,12 @@ class RouteCheck:
 
 
 ROUTES: list[RouteCheck] = [
+    # AUTH5-06 — mọi role đã đăng nhập đều đăng xuất được (không chỉ customer).
+    RouteCheck("POST", "/auth/logout", "/auth/logout", ALL_ROLES, body={"refresh_token": "nope"}),
     RouteCheck("POST", "/auth/otp/request", "/auth/otp/request", {"customer"}, body={}),
     RouteCheck(
         "POST", "/auth/otp/verify", "/auth/otp/verify", {"customer"},
-        body={"otp_code": "000000", "security_answer": "wrong"},
+        body={"session_id": "SES-NOPE", "otp_code": "000000"},
     ),
     RouteCheck("POST", "/tools/lookup_transaction", "/tools/lookup_transaction", ALL_ROLES, body={"trans_id": "TXN-NOPE"}),
     RouteCheck("POST", "/tools/get_customer_history", "/tools/get_customer_history", {"customer"}, body={}),
@@ -60,7 +62,14 @@ ROUTES: list[RouteCheck] = [
     RouteCheck("POST", "/agent/chat", "/agent/chat", {"customer"}, body={"message": "test"}),
     RouteCheck("GET", "/tickets", "/tickets", {"cskh", "supervisor"}, safe_success_check=True),
     RouteCheck("GET", "/tickets/{ticket_id}", "/tickets/TCK-NOPE", {"cskh", "supervisor"}, safe_success_check=True),
-    RouteCheck("POST", "/resolutions/{resolution_id}/approve", "/resolutions/RES-NOPE/approve", {"supervisor"}),
+    RouteCheck(
+        "POST", "/resolutions/{resolution_id}/request-approval-otp",
+        "/resolutions/RES-NOPE/request-approval-otp", {"supervisor"},
+    ),
+    RouteCheck(
+        "POST", "/resolutions/{resolution_id}/approve", "/resolutions/RES-NOPE/approve", {"supervisor"},
+        body={"session_id": "SES-NOPE", "otp_code": "000000"},
+    ),
     RouteCheck("POST", "/resolutions/{resolution_id}/reject", "/resolutions/RES-NOPE/reject", {"supervisor"}),
     RouteCheck("GET", "/resolutions", "/resolutions", {"cskh", "supervisor"}, safe_success_check=True),
     RouteCheck(
@@ -104,6 +113,13 @@ ROUTES: list[RouteCheck] = [
 # do FastAPI tự sinh (Swagger/OpenAPI) — loại khỏi yêu cầu "phải có trong ROUTES".
 PUBLIC_ROUTES = {
     ("POST", "/auth/login"),
+    # AUTH5-02 (đợt nâng cấp Auth Flow 2026-08-12) — /auth/refresh nhận diện
+    # bằng refresh_token trong body (không phải Bearer JWT, xem
+    # RefreshTokenRequest), nên KHÔNG có khái niệm "role sai"/"thiếu token"
+    # kiểu Bearer ở đây — coi như route công khai trong ma trận này, hành vi
+    # thật (từ chối refresh_token không hợp lệ) đã có test riêng ở
+    # tests/test_api/test_auth_jwt_refresh.py.
+    ("POST", "/auth/refresh"),
     ("GET", "/health"),
     ("GET", "/openapi.json"),
     ("GET", "/docs"),

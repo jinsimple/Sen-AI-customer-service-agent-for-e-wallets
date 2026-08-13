@@ -17,10 +17,37 @@ import os
 os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 
 import pytest
+from argon2 import PasswordHasher
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.db.models import BankAccount, Base, Transaction, User, Wallet
 from src.db.session import get_engine
+from src.redis_client import get_default_client
+
+# Đăng nhập bằng mật khẩu (quyết định 2026-08-12) — mọi user fixture cần
+# password_hash hợp lệ, nếu không MỌI test gọi /auth/login qua sample_db sẽ
+# 401 (đúng chủ đích của _DUMMY_PASSWORD_HASH ở src/api/main.py::login khi
+# password_hash NULL). Cùng giá trị "Demo@123" dùng ở scripts/gen_dataset.py
+# (không import trực tiếp script đó vào test — giữ tests/ tách biệt khỏi
+# scripts/, chỉ trùng giá trị hằng số để người đọc không phải nhớ 2 mật khẩu
+# khác nhau).
+TEST_PASSWORD = "Demo@123"
+_TEST_PASSWORD_HASHER = PasswordHasher()
+
+
+@pytest.fixture(autouse=True)
+def _flush_redis_between_tests():
+    """Đợt nâng cấp Auth Flow (2026-08-12) — JWT revocation/refresh-token
+    (src/auth.py) VÀ rate-limit (src/rate_limit.py, thay InMemoryRateLimiter
+    cũ) giờ lưu trên Redis (fakeredis trong test, xem src/redis_client.py).
+    fakeredis dùng 1 FakeServer SINGLETON cho cả tiến trình pytest (khác DB —
+    mỗi test có 1 SQLite file riêng qua db_session/tmp_path) — nếu không dọn,
+    state rate-limit/revocation RÒ RỈ giữa các test dùng chung user_id (rất
+    phổ biến, "USR-A" xuất hiện khắp nơi), gây fail giả kiểu 429 ở test không
+    liên quan gì tới rate-limit. flushdb() TRƯỚC mỗi test — cô lập hoàn toàn,
+    cùng tinh thần db_session tạo SQLite file mới mỗi test."""
+    get_default_client().flushdb()
+    yield
 
 
 @pytest.fixture()
@@ -41,11 +68,12 @@ def sample_db(db_session: Session) -> Session:
     """2 khách, 1 CSKH, 1 supervisor; vài ví/TK ngân hàng; 3 giao dịch."""
     now = dt.datetime(2026, 8, 1, 10, 0, 0)
 
+    pw_hash = _TEST_PASSWORD_HASHER.hash(TEST_PASSWORD)
     users = [
-        User(user_id="USR-A", role="customer", full_name="Nguyễn Văn A", phone="0901000001", kyc_level=2, created_at=now),
-        User(user_id="USR-B", role="customer", full_name="Trần Thị B", phone="0901000002", kyc_level=1, created_at=now),
-        User(user_id="USR-CSKH", role="cskh", full_name="CSKH Một", phone="0901000003", kyc_level=2, created_at=now),
-        User(user_id="USR-SUP", role="supervisor", full_name="Sếp Một", phone="0901000004", kyc_level=2, created_at=now),
+        User(user_id="USR-A", role="customer", full_name="Nguyễn Văn A", phone="0901000001", kyc_level=2, password_hash=pw_hash, created_at=now),
+        User(user_id="USR-B", role="customer", full_name="Trần Thị B", phone="0901000002", kyc_level=1, password_hash=pw_hash, created_at=now),
+        User(user_id="USR-CSKH", role="cskh", full_name="CSKH Một", phone="0901000003", kyc_level=2, password_hash=pw_hash, created_at=now),
+        User(user_id="USR-SUP", role="supervisor", full_name="Sếp Một", phone="0901000004", kyc_level=2, password_hash=pw_hash, created_at=now),
     ]
     db_session.add_all(users)
     db_session.flush()  # không có relationship() giữa models -> UOW không tự suy được

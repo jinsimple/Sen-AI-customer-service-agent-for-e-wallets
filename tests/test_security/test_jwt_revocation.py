@@ -1,27 +1,19 @@
-"""FIN05-StressTest-Plan-v2 ST2-P0-5 (docs/FIN05-Feature-Inventory-Security-
-Review.md §11, câu hỏi "JWT 8 giờ, không có refresh token/revocation list").
+"""ST2-P0-5/AUTH5-02/03/06 — VIẾT LẠI sau khi implement (đợt nâng cấp Auth
+Flow, 2026-08-12): backend giờ CÓ cơ chế thu hồi JWT thật —
+`POST /auth/logout` (src/api/main.py) xoá refresh token + set
+`revoked_before[user_id]` (Redis, src/auth.py::set_revoked_before_now) —
+access token cũ hơn mốc đó bị từ chối ở các route có check
+`is_access_token_revoked` (require_otp_verified, approve/reject — xem lý do
+phạm vi có chủ đích trong docstring require_otp_verified).
 
-`src/auth.py::get_current_user` xác thực JWT THUẦN qua chữ ký (`jwt.decode`)
-— không tra cứu bất kỳ trạng thái phía server nào (DB/cache/session store)
-để biết token đã bị thu hồi hay chưa. "Đăng xuất" ở frontend
-(`frontend/src/components/TopbarActions.tsx::logout`) chỉ gọi `DELETE
-/api/session` — route Next.js NỘI BỘ xoá cookie phía trình duyệt, không hề
-chạm backend/JWT. Hệ quả: 1 JWT bị đánh cắp (session cookie hijack, log
-rò rỉ...) vẫn dùng được TRỌN 8 giờ dù người dùng đã "đăng xuất" hay đổi mật
-khẩu.
-
-Test khẳng định HÀNH VI AN TOÀN MONG MUỐN (backend phải có ít nhất 1 cơ chế
-thu hồi JWT trước khi hết hạn tự nhiên) — FAIL NGAY hôm nay bằng bằng chứng
-CẤU TRÚC (không có route/cơ chế nào như vậy tồn tại trong `app.routes`),
-không phải suy đoán."""
+Không còn `@pytest.mark.security_finding` — route đã tồn tại thật, test này
+giờ là regression cấu trúc bình thường (bảo vệ route không bị xoá nhầm),
+không phải bằng chứng 1 finding chưa vá."""
 from __future__ import annotations
-
-import pytest
 
 from src.api.main import app
 
 
-@pytest.mark.security_finding
 def test_backend_has_a_jwt_revocation_mechanism():
     revocation_paths = {"/auth/logout", "/auth/revoke", "/auth/sessions/revoke"}
     existing_paths = {r.path for r in app.routes if hasattr(r, "path")}
@@ -29,12 +21,6 @@ def test_backend_has_a_jwt_revocation_mechanism():
 
     assert matched, (
         "Không có route logout/revoke nào ở backend "
-        f"(đã kiểm: {sorted(revocation_paths)}) — JWT phát hành ra luôn có "
-        "hiệu lực cho tới khi hết hạn tự nhiên (JWT_EXPIRE_MINUTES=8*60, "
-        "src/config.py), kể cả sau khi 'đăng xuất' (chỉ xoá cookie phía "
-        "frontend, xem TopbarActions.tsx::logout) hay đổi mật khẩu. Cần "
-        "thêm cơ chế thu hồi (blacklist token đã logout, hoặc session "
-        "store tra cứu mỗi request, hoặc rút ngắn TTL + refresh token) "
-        "trước khi chấp nhận test này pass — xem "
-        "docs/FIN05-Feature-Inventory-Security-Review.md §11."
+        f"(đã kiểm: {sorted(revocation_paths)}) — regression: route "
+        "/auth/logout đã bị xoá nhầm khỏi src/api/main.py."
     )

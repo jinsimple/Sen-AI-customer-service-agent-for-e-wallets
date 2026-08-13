@@ -1,103 +1,146 @@
-"""FIN05-StressTest-Plan-v2 ST2-P0-1 (docs/FIN05-Feature-Inventory-Security-
-Review.md §11 finding "security_answer_hash") — chứng minh bug BẰNG TEST, cố
-tình để ở trạng thái ĐỎ, KHÔNG tự sửa `src/api/main.py:277` cùng lúc (chỉ PO
-mới quyết định vá lúc nào — vá thuật toán hash ảnh hưởng dữ liệu user thật,
-cần migration riêng).
+"""AUTH5-01/01C (đợt nâng cấp Auth Flow, 2026-08-12, NIST SP 800-63B-4) —
+VIẾT LẠI theo đúng ghi chú tự để lại trong bản gốc của file này ("nếu dòng
+self-check FAIL nghĩa là code đã đổi... cập nhật lại 2 test theo thuật toán
+mới thay vì chỉnh test cho pass lại").
 
-Cả 2 test dưới đây khẳng định HÀNH VI AN TOÀN MONG MUỐN (hash phải có salt
-ngẫu nhiên riêng mỗi lần/mỗi user, định dạng phải tự mô tả thuật toán như
-bcrypt/argon2) — và vì vậy FAIL NGAY hôm nay, đúng chủ đích, vì thực tế
-`verify_otp` (src/api/main.py:278) so khớp bằng
-`hashlib.sha256(req.security_answer.encode()).hexdigest() == user.security_answer_hash`,
-và dữ liệu thật sinh ra qua `scripts/gen_dataset.py:230`:
-`hashlib.sha256(f"ans-{seed}-{uid}".encode()).hexdigest()` — cả 2 đều là
-SHA-256 THUẦN, không trộn salt/per-user-secret nào. Không dùng test đo thời
-gian brute-force (flaky, phụ thuộc máy chạy CI) — chứng minh trực tiếp bằng
-chính công thức thật đang dùng.
+Quyết định THẬT (PO chốt qua AskUserQuestion, 2026-08-12) khác hướng tài liệu
+gốc giả định (chỉ nâng hash bcrypt/argon2): câu hỏi bảo mật (KBA) BỊ BỎ HẲN
+khỏi vai trò xác thực — `POST /auth/otp/verify` giờ CHỈ kiểm mã OTP, không
+còn so khớp `security_answer_hash` (xem src/api/main.py::verify_otp). Đây là
+bản vá MẠNH HƠN "chỉ nâng hash" mà AUTH5-01 gốc đề xuất — loại bỏ hẳn class
+lỗ hổng, không chỉ giảm nhẹ. `security_answer_hash` vẫn nâng lên argon2id có
+salt (AUTH5-01C) như vệ sinh bảo mật cho dữ liệu vẫn lưu (hỗ trợ CSKH nhận
+diện khách qua hotline), dù không còn gate route nào.
 
-Khi PO quyết định vá (đổi sang bcrypt/argon2 + salt) — sửa lại 2 hàm
-`_verify_otp_hash_formula`/công thức sinh dữ liệu bên dưới cho khớp thuật
-toán mới, 2 test này sẽ tự chuyển xanh, không cần viết lại từ đầu.
-"""
+Không còn `@pytest.mark.security_finding` — đây là hành vi ĐÚNG đã implement,
+không phải finding chờ vá."""
 from __future__ import annotations
 
-import hashlib
-
 import pytest
+from argon2 import PasswordHasher
+from fastapi.testclient import TestClient
+
+from src.api.deps import get_session
+from src.api.main import app
+from src.auth import create_access_token
+from src.config import DATASET_SEED
 
 
-def _verify_otp_hash_formula(answer: str) -> str:
-    """Sao chép NGUYÊN VĂN công thức thật ở src/api/main.py:278 — nếu công
-    thức thật đổi (thêm salt) mà hàm này không cập nhật theo, 2 test dưới sẽ
-    lệch pha với thực tế thay vì âm thầm pass sai (self-check bằng
-    test_gen_dataset_formula_stays_in_sync_with_verify_otp)."""
-    return hashlib.sha256(answer.encode()).hexdigest()
-
-
-@pytest.mark.security_finding
 def test_security_answer_hash_differs_across_calls_for_same_input():
-    """MONG MUỐN: hash câu trả lời bảo mật phải dùng salt ngẫu nhiên riêng
-    mỗi lần hash (bcrypt/argon2 tự sinh salt mới mỗi lần gọi, kể cả cùng 1
-    input) — 2 lần hash CÙNG 1 câu trả lời phải ra 2 giá trị KHÁC nhau.
-    FAIL hôm nay vì SHA-256 thuần là hàm xác định (deterministic): cùng
-    input luôn ra cùng output, không có chỗ nào cho salt chen vào."""
+    """argon2id tự sinh salt ngẫu nhiên mỗi lần .hash(), kể cả cùng input —
+    2 lần hash CÙNG 1 câu trả lời phải ra 2 giá trị KHÁC nhau (khác SHA-256
+    trần trước đây, luôn xác định/deterministic)."""
+    hasher = PasswordHasher()
     same_answer = "Nguyễn Thị Bình"
 
-    first = _verify_otp_hash_formula(same_answer)
-    second = _verify_otp_hash_formula(same_answer)
+    first = hasher.hash(same_answer)
+    second = hasher.hash(same_answer)
 
-    assert first != second, (
-        "verify_otp (src/api/main.py:278) đang dùng hashlib.sha256() TRẦN, "
-        "không salt — cùng input luôn ra cùng hash, nghĩa là 1 rainbow table "
-        "dùng chung được cho toàn bộ user nếu DB rò rỉ. Cần đổi sang "
-        "bcrypt/argon2 (tự sinh salt ngẫu nhiên mỗi lần/mỗi user) trước khi "
-        "chấp nhận test này pass — xem "
-        "docs/FIN05-Feature-Inventory-Security-Review.md §11."
-    )
+    assert first != second
+    # Cả 2 vẫn phải verify đúng lại được câu trả lời gốc — không chỉ khác
+    # nhau ngẫu nhiên vô nghĩa.
+    hasher.verify(first, same_answer)
+    hasher.verify(second, same_answer)
 
 
-@pytest.mark.security_finding
 def test_security_answer_hash_format_is_not_a_raw_fixed_length_digest():
-    """MONG MUỐN: `security_answer_hash` lưu ở định dạng tự mô tả thuật toán
-    + salt nhúng sẵn (bcrypt bắt đầu '$2a$'/'$2b$', argon2 bắt đầu
-    '$argon2'), không phải chuỗi hex 64 ký tự cố định (đặc trưng riêng của
-    digest thô như SHA-256/SHA3-256 không salt). FAIL hôm nay — đối chiếu
-    TRỰC TIẾP công thức sinh dữ liệu thật `scripts/gen_dataset.py:230`
-    (`hashlib.sha256(f"ans-{seed}-{uid}".encode()).hexdigest()`), không suy
-    đoán tách biệt khỏi dữ liệu thật."""
-    from src.config import DATASET_SEED
+    """Định dạng lưu thật (scripts/gen_dataset.py) phải tự mô tả thuật toán +
+    salt nhúng sẵn (argon2 bắt đầu '$argon2'), không phải hex digest cố định
+    64 ký tự (đặc trưng SHA-256 trần không salt)."""
+    hasher = PasswordHasher()
+    stored_hash = hasher.hash(f"ans-{DATASET_SEED}-USR-DEMO-0001")
 
-    uid = "USR-DEMO-0001"
-    stored_hash = hashlib.sha256(f"ans-{DATASET_SEED}-{uid}".encode()).hexdigest()
-
-    is_proper_password_hash_format = stored_hash.startswith(("$2a$", "$2b$", "$2y$", "$argon2", "$scrypt$"))
-    assert is_proper_password_hash_format, (
-        f"security_answer_hash hiện là digest thô 64 hex char "
-        f"({stored_hash[:16]}...), không phải định dạng bcrypt/argon2/scrypt "
-        "có salt nhúng sẵn trong chính chuỗi hash — cần vá "
-        "scripts/gen_dataset.py:230 + src/api/main.py:278 đồng bộ, kèm "
-        "migration cho user thật đã tồn tại (nếu có)."
-    )
+    assert stored_hash.startswith("$argon2"), f"security_answer_hash phải là argon2id, được: {stored_hash[:20]}..."
+    assert len(stored_hash) != 64, "vẫn có hình dạng hex digest cố định — chưa thật sự đổi thuật toán"
 
 
-def test_gen_dataset_formula_stays_in_sync_with_verify_otp():
-    """Không phải test bảo mật — test 'khoá' để 2 công thức sao chép tay ở
-    trên (_verify_otp_hash_formula) và trong docstring module không lặng lẽ
-    lệch pha với 2 file nguồn thật. Đọc trực tiếp source `src/api/main.py`
-    và `scripts/gen_dataset.py`, xác nhận công thức SHA-256 trần vẫn còn ở
-    đúng vị trí đã ghi — nếu dòng này FAIL nghĩa là code đã đổi (khả năng đã
-    vá!), cần cập nhật lại 2 test ở trên theo thuật toán mới thay vì chỉnh
-    test này cho pass lại."""
+def test_gen_dataset_formula_stays_in_sync_with_new_hasher():
+    """Test 'khoá' — đọc TRỰC TIẾP source, xác nhận scripts/gen_dataset.py
+    thật sự dùng PasswordHasher (argon2id), không lặng lẽ quay lại sha256."""
     from src.config import ROOT_DIR
 
-    main_src = (ROOT_DIR / "src" / "api" / "main.py").read_text(encoding="utf-8")
     gen_dataset_src = (ROOT_DIR / "scripts" / "gen_dataset.py").read_text(encoding="utf-8")
-
-    assert "hashlib.sha256(req.security_answer.encode()).hexdigest() == user.security_answer_hash" in main_src, (
-        "Công thức so khớp câu trả lời bảo mật ở src/api/main.py đã đổi — "
-        "cập nhật lại 2 test P0-1 phía trên theo thuật toán mới."
-    )
-    assert 'hashlib.sha256(f"ans-{self.seed}-{uid}".encode()).hexdigest()' in gen_dataset_src, (
+    assert "_PASSWORD_HASHER.hash(f\"ans-{self.seed}-{uid}\")" in gen_dataset_src, (
         "Công thức sinh security_answer_hash ở scripts/gen_dataset.py đã đổi — "
-        "cập nhật lại 2 test P0-1 phía trên theo thuật toán mới."
+        "cập nhật lại test này theo thuật toán mới."
     )
+    assert "hashlib.sha256(f\"ans-{self.seed}-{uid}\"" not in gen_dataset_src, (
+        "security_answer_hash vẫn còn dùng SHA-256 trần — nâng cấp AUTH5-01C chưa hoàn tất."
+    )
+
+
+@pytest.fixture()
+def client(sample_db):
+    def _override_session():
+        try:
+            yield sample_db
+            sample_db.commit()
+        except Exception:
+            sample_db.rollback()
+            raise
+
+    app.dependency_overrides[get_session] = _override_session
+    app.state.limiter.reset()
+    yield TestClient(app)
+    app.state.limiter.reset()
+    app.dependency_overrides.clear()
+
+
+def test_verify_otp_no_longer_gates_on_security_answer(client, sample_db):
+    """AUTH5-01 THẬT (không phải finding nữa) — /auth/otp/verify chấp nhận
+    request THIẾU security_answer hoàn toàn (schema OtpVerifyRequest đã bỏ
+    field này) miễn otp_code đúng. Trước bản vá: request này bị 422 (thiếu
+    field bắt buộc) hoặc 401 (answer sai) — giờ phải 200."""
+    from src.db.models import AuthSession
+    from src.tools.base import new_id
+
+    session_id = new_id("SES")
+    sample_db.add(
+        AuthSession(
+            session_id=session_id,
+            user_id="USR-A",
+            otp_code="123456",
+            otp_status="pending",
+            security_q_passed=False,
+            failed_attempts=0,
+        )
+    )
+    sample_db.commit()
+
+    token = create_access_token(user_id="USR-A", role="customer")
+    resp = client.post(
+        "/auth/otp/verify",
+        json={"session_id": session_id, "otp_code": "123456"},  # KHÔNG có security_answer
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["otp_verified"] is True
+
+
+def test_verify_otp_rejects_correct_otp_alone_is_still_gated_by_otp_itself(client, sample_db):
+    """Đối chứng: KHÔNG phải mọi request đều qua — otp_code SAI vẫn bị từ
+    chối (401), chứng minh OTP vẫn là gate thật, chỉ có câu hỏi bảo mật là bị
+    bỏ, không phải bỏ luôn toàn bộ xác thực."""
+    from src.db.models import AuthSession
+    from src.tools.base import new_id
+
+    session_id = new_id("SES")
+    sample_db.add(
+        AuthSession(
+            session_id=session_id,
+            user_id="USR-A",
+            otp_code="123456",
+            otp_status="pending",
+            security_q_passed=False,
+            failed_attempts=0,
+        )
+    )
+    sample_db.commit()
+
+    token = create_access_token(user_id="USR-A", role="customer")
+    resp = client.post(
+        "/auth/otp/verify",
+        json={"session_id": session_id, "otp_code": "000000"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 401

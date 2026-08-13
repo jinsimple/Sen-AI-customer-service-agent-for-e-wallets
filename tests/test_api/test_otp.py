@@ -33,15 +33,12 @@ from src.api.deps import get_session
 from src.api.main import app
 from src.auth import create_access_token
 from src.config import (
-    DATASET_SEED,
     JWT_ALGORITHM,
     JWT_SECRET_KEY,
     OTP_MAX_FAILED_ATTEMPTS,
     OTP_STEPUP_FRESH_MINUTES,
     OTP_VIEW_MAX_MINUTES,
 )
-
-_DEMO_ANSWER = f"ans-{DATASET_SEED}-USR-A"  # công thức demo, xem src/api/main.py::verify_otp
 
 
 @pytest.fixture()
@@ -61,7 +58,16 @@ def client(sample_db):
             raise
 
     app.dependency_overrides[get_session] = _override_session
+    # slowapi Limiter là singleton module-level (src/api/main.py::limiter) —
+    # state rate-limit sống SUỐT phiên pytest nếu không reset (cùng phát hiện
+    # thật đã ghi ở tests/test_api/test_auth_login.py) — thêm
+    # test_otp_request_rate_limited_per_user (AUTH5-05E, đợt nâng cấp Auth
+    # Flow 2026-08-12) gọi /auth/otp/request 11 lần làm lộ ra gap này ở CHÍNH
+    # file test này (trước đó mỗi test chỉ gọi 1-2 lần, chưa đủ cộng dồn chạm
+    # ngưỡng 10/phút).
+    app.state.limiter.reset()
     yield TestClient(app)
+    app.state.limiter.reset()
     app.dependency_overrides.clear()
 
 
@@ -189,37 +195,49 @@ def test_otp_request_returns_code_and_question(client):
     assert "security_question" in body
 
 
+def test_otp_request_rate_limited_per_user(client):
+    """AUTH5-05E — khoá theo user_id (không chỉ IP), chặn brute-force mã OTP
+    nhắm 1 user cụ thể kể cả khi kẻ tấn công đổi IP liên tục."""
+    login_token = _login_token()
+    for _ in range(10):
+        resp = client.post("/auth/otp/request", headers=_auth(login_token))
+        assert resp.status_code == 200
+    blocked = client.post("/auth/otp/request", headers=_auth(login_token))
+    assert blocked.status_code == 429
+
+
 def test_otp_verify_wrong_code_increments_failed_attempts(client):
     login_token = _login_token()
-    client.post("/auth/otp/request", headers=_auth(login_token))
+    session_id = client.post("/auth/otp/request", headers=_auth(login_token)).json()["session_id"]
     resp = client.post(
         "/auth/otp/verify",
         headers=_auth(login_token),
-        json={"otp_code": "000000", "security_answer": _DEMO_ANSWER},
+        json={"session_id": session_id, "otp_code": "000000"},
     )
     assert resp.status_code == 401
 
 
 def test_otp_verify_locks_after_max_failed_attempts(client):
     login_token = _login_token()
-    client.post("/auth/otp/request", headers=_auth(login_token))
+    session_id = client.post("/auth/otp/request", headers=_auth(login_token)).json()["session_id"]
     for _ in range(OTP_MAX_FAILED_ATTEMPTS - 1):
         resp = client.post(
-            "/auth/otp/verify", headers=_auth(login_token), json={"otp_code": "000000", "security_answer": "sai"}
+            "/auth/otp/verify", headers=_auth(login_token), json={"session_id": session_id, "otp_code": "000000"}
         )
         assert resp.status_code == 401
     # Lần cuối chạm ngưỡng -> khoá (403), không phải 401 sai bình thường nữa.
     resp = client.post(
-        "/auth/otp/verify", headers=_auth(login_token), json={"otp_code": "000000", "security_answer": "sai"}
+        "/auth/otp/verify", headers=_auth(login_token), json={"session_id": session_id, "otp_code": "000000"}
     )
     assert resp.status_code == 403
     assert "khoá" in resp.json()["detail"]
 
-    # Đã khoá -> thử lại với mã ĐÚNG vẫn phải bị chặn (không cho vượt qua khoá).
+    # Đã khoá -> gọi lại lần nữa vẫn phải bị chặn (403), không quay lại 401
+    # "sai bình thường" — khoá phải chặn TUYỆT ĐỐI, không tự mở lại.
     resp = client.post(
         "/auth/otp/verify",
         headers=_auth(login_token),
-        json={"otp_code": "000000", "security_answer": _DEMO_ANSWER},
+        json={"session_id": session_id, "otp_code": "000000"},
     )
     assert resp.status_code == 403
 
@@ -227,12 +245,13 @@ def test_otp_verify_locks_after_max_failed_attempts(client):
 def test_otp_verify_correct_then_create_ticket_succeeds(client):
     login_token = _login_token()
     otp_resp = client.post("/auth/otp/request", headers=_auth(login_token))
+    session_id = otp_resp.json()["session_id"]
     otp_code = otp_resp.json()["otp_code"]
 
     verify_resp = client.post(
         "/auth/otp/verify",
         headers=_auth(login_token),
-        json={"otp_code": otp_code, "security_answer": _DEMO_ANSWER},
+        json={"session_id": session_id, "otp_code": otp_code},
     )
     assert verify_resp.status_code == 200
     new_token = verify_resp.json()["access_token"]
@@ -248,6 +267,21 @@ def test_otp_verify_correct_then_create_ticket_succeeds(client):
     assert resp.status_code != 403
 
 
+def test_otp_verify_session_id_must_belong_to_caller(client):
+    """Vá race condition 2026-08-13 — session_id là khoá tra cứu chính, nhưng
+    vẫn phải xác nhận đúng chủ sở hữu, không cho verify hộ session của người
+    khác dù đoán trúng session_id (không phải bí mật, chỉ là khoá chính)."""
+    victim_token = create_access_token(user_id="USR-B", role="customer")
+    victim_session = client.post("/auth/otp/request", headers=_auth(victim_token)).json()
+    attacker_token = _login_token()  # USR-A
+    resp = client.post(
+        "/auth/otp/verify",
+        headers=_auth(attacker_token),
+        json={"session_id": victim_session["session_id"], "otp_code": victim_session["otp_code"]},
+    )
+    assert resp.status_code == 400
+
+
 def test_otp_verify_preserves_original_iat_for_thread_continuity(client):
     """thread_id hội thoại = user_id:iat (src/agents/graph.py) — cấp lại JWT
     lúc verify OTP KHÔNG được đổi iat, nếu không sẽ làm agent "quên" ngữ cảnh
@@ -255,11 +289,11 @@ def test_otp_verify_preserves_original_iat_for_thread_continuity(client):
     login_token = _login_token()
     original_iat = jwt.decode(login_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])["iat"]
 
-    otp_code = client.post("/auth/otp/request", headers=_auth(login_token)).json()["otp_code"]
+    otp_resp = client.post("/auth/otp/request", headers=_auth(login_token)).json()
     verify_resp = client.post(
         "/auth/otp/verify",
         headers=_auth(login_token),
-        json={"otp_code": otp_code, "security_answer": _DEMO_ANSWER},
+        json={"session_id": otp_resp["session_id"], "otp_code": otp_resp["otp_code"]},
     )
     new_token = verify_resp.json()["access_token"]
     new_iat = jwt.decode(new_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])["iat"]

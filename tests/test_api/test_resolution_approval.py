@@ -3,7 +3,12 @@ giao dịch (nội bộ ví / từ ngân hàng / ra ngân hàng), không có nh�
 chặn riêng. `approve_resolution` (src/api/main.py) vốn không rẽ nhánh theo
 scope — test này XÁC NHẬN THẬT điều đó qua cả 3 phạm vi bằng TestClient, thay
 vì chỉ suy luận từ đọc code. Cũng xác nhận log actor+timestamp đầy đủ
-(`approved_by`/`approved_at`) như PERM-002 yêu cầu."""
+(`approved_by`/`approved_at`) như PERM-002 yêu cầu.
+
+AUTH5-04 (đợt nâng cấp Auth Flow 2026-08-12): `approve` giờ đòi OTP riêng cho
+ĐÚNG resolution_id (xin qua `request-approval-otp` trước) — helper
+`_approve_with_fresh_otp()` làm đúng 2 bước này thay vì gọi approve trực
+tiếp như trước."""
 from __future__ import annotations
 
 import datetime as dt
@@ -44,6 +49,19 @@ def _auth(role: str, user_id: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _approve_with_fresh_otp(client, resolution_id: str, headers: dict):
+    """AUTH5-04 — xin OTP riêng cho ĐÚNG resolution_id rồi mới duyệt, đúng
+    luồng API mới (2 bước, không còn duyệt trực tiếp)."""
+    otp_resp = client.post(f"/resolutions/{resolution_id}/request-approval-otp", headers=headers)
+    assert otp_resp.status_code == 200, otp_resp.text
+    otp = otp_resp.json()
+    return client.post(
+        f"/resolutions/{resolution_id}/approve",
+        headers=headers,
+        json={"session_id": otp["session_id"], "otp_code": otp["otp_code"]},
+    )
+
+
 @pytest.mark.parametrize("scope", SCOPES)
 def test_supervisor_can_approve_every_scope(client, sample_db, scope):
     ticket = create_ticket(
@@ -58,9 +76,7 @@ def test_supervisor_can_approve_every_scope(client, sample_db, scope):
         sample_db, ticket_id=ticket["ticket_id"], action_type="no_action", rationale="ly do test"
     )
 
-    resp = client.post(
-        f"/resolutions/{resolution['resolution_id']}/approve", headers=_auth("supervisor", "USR-SUP")
-    )
+    resp = _approve_with_fresh_otp(client, resolution["resolution_id"], _auth("supervisor", "USR-SUP"))
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["status"] == "approved"
