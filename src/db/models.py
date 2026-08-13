@@ -54,6 +54,13 @@ class User(Base):
     kyc_level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     security_question: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     security_answer_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Đăng nhập bằng mật khẩu (quyết định 2026-08-12, thay luồng phone+role
+    # chọn tay trước đó) — argon2id có salt (cùng thư viện/pattern đã dùng
+    # cho security_answer_hash, xem scripts/gen_dataset.py). Nullable vì lý
+    # do kỹ thuật migration (thêm cột vào bảng đã có dữ liệu), nhưng THỰC TẾ
+    # luôn được seed đầy đủ — verify_otp không có "user không mật khẩu" nào
+    # được tạo mới sau đợt này.
+    password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
 
 
@@ -350,6 +357,8 @@ class AuthSession(Base):
     security_q_passed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     locked_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    resolution_id: Mapped[Optional[str]] = mapped_column(ForeignKey("resolutions.resolution_id"), nullable=True)
+    amount_snapshot: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 
 
