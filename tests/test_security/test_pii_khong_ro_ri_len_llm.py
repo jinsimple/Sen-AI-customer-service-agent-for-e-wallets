@@ -175,3 +175,75 @@ def test_khong_con_duong_nao_khac_dua_pii_len_llm():
         + "\n  ".join(vi_pham)
         + "\n→ Nếu đã bút danh hoá và cố ý, đánh dấu '# PII-OK: <lý do>' ở cuối dòng."
     )
+
+
+# ===========================================================================
+# 5. ĐẦU VÀO — tin nhắn khách TỰ GÕ (lỗ hổng lớn nhất, vá 2026-08-13)
+# ===========================================================================
+#
+# Bản vá trước chỉ chặn PII trong KẾT QUẢ TOOL. Nhưng khách gõ thẳng PII của
+# CHÍNH MÌNH vào ô chat ("mình là Bách, sđt 0987654321") thì nó đi nguyên văn
+# lên OpenAI — dù tài khoản đăng nhập là tài khoản seed giả.
+#
+# Chuẩn ngành fintech 2026 yêu cầu gate CẢ ĐẦU VÀO lẫn đầu ra, không chỉ đầu ra.
+# Tái dùng src/observability/pii.py (regex + Presidio + underthesea) vốn đã có
+# sẵn nhưng trước đây chỉ chạy cho LOG.
+
+from src.observability.pii import scrub_pii  # noqa: E402
+
+
+def test_dau_vao_che_ho_ten_va_sdt_khach_tu_go():
+    """Khách tự khai PII trong tin nhắn -> phải bị che trước khi rời hệ thống."""
+    goc = "mình là Bách, sđt 0987654321, bị trừ tiền 2 lần"
+    sach = scrub_pii(goc)
+    assert "0987654321" not in sach, f"SĐT lọt lên LLM: {sach}"
+    assert "Bách" not in sach, f"Họ tên lọt lên LLM: {sach}"
+
+
+def test_dau_vao_giu_nguyen_du_lieu_nghiep_vu():
+    """Test đối trọng — che quá tay thì agent hết tra cứu được.
+
+    Mã giao dịch, mã biên lai và SỐ TIỀN là thứ agent bắt buộc phải thấy để
+    gọi tool. Che nhầm chúng còn tệ hơn không che gì: agent không tra được,
+    khách không được giải quyết, mà PII thì vẫn có thể lọt chỗ khác.
+    """
+    truong_hop = [
+        ("mã giao dịch TXN20260810000001 chưa về tiền", "TXN20260810000001"),
+        ("biên lai RC-0001 bị lỗi", "RC-0001"),
+        ("tôi chuyển 5000000 hôm qua", "5000000"),
+        ("chuyển nhầm 270k cho bạn", "270k"),
+    ]
+    for goc, phai_con in truong_hop:
+        sach = scrub_pii(goc)
+        assert phai_con in sach, (
+            f"Che quá tay — mất dữ liệu nghiệp vụ {phai_con!r}\n  gốc:  {goc}\n  sau: {sach}"
+        )
+
+
+def test_dai_tu_nhan_xung_khong_bi_coi_la_ten_nguoi():
+    """'tôi'/'mình'/'em' là đại từ, không phải tên — che đi thì mất chủ ngữ.
+
+    Phát hiện thật lúc đo: "tôi chuyển 5tr cho số 09..." thành "[PERSON] chuyển
+    5tr cho số [VN_PHONE]" — agent mất luôn thông tin ai là người chuyển.
+    """
+    for dai_tu in ("tôi", "mình", "em", "anh", "chị"):
+        cau = f"{dai_tu} bị trừ tiền 2 lần"
+        sach = scrub_pii(cau)
+        assert sach.startswith(dai_tu), f"Đại từ {dai_tu!r} bị che nhầm: {sach}"
+
+
+def test_duong_gui_llm_that_su_di_qua_scrub():
+    """Canh đúng ĐƯỜNG THẬT, không chỉ canh hàm scrub_pii chạy được.
+
+    Test 3 hàm trên chứng minh scrub_pii đúng; test này chứng minh nó ĐƯỢC GỌI
+    ở đúng chỗ tin nhắn rời hệ thống (src/agents/graph.py). Thiếu test này thì
+    ai đó gỡ lời gọi ra, 3 test kia vẫn xanh.
+    """
+    from pathlib import Path
+
+    goc = Path(__file__).resolve().parent.parent.parent
+    src = (goc / "src" / "agents" / "graph.py").read_text(encoding="utf-8")
+    assert "scrub_pii(message)" in src, (
+        "Tin nhắn khách KHÔNG còn đi qua scrub_pii trước khi vào HumanMessage — "
+        "PII khách tự gõ sẽ rời hệ thống nguyên văn."
+    )

@@ -92,6 +92,64 @@ _VN_PHONE_REGEX = r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)"
 _VN_ID_REGEX = r"(?<![\w-])\d{9,14}(?!\d)"
 
 
+# Đại từ nhân xưng + xưng hô tiếng Việt — KHÔNG phải tên người, dù NER hay
+# gán nhãn B-PER. Phát hiện thật 2026-08-13 lúc đo scrub trên tin nhắn khách:
+# "tôi chuyển 5tr cho số 09..." bị biến thành "[PERSON] chuyển ..." làm agent
+# mất luôn chủ ngữ của câu. Đây là danh sách ĐÓNG (đại từ tiếng Việt là tập
+# hữu hạn, không sinh thêm), khác với quy tắc chung ở _plausible_person_span.
+_DAI_TU_KHONG_PHAI_TEN = {
+    "tôi", "tui", "mình", "em", "anh", "chị", "cô", "chú", "bác", "ông", "bà",
+    "con", "cháu", "bạn", "cậu", "tớ", "ta", "họ", "nó", "ai",
+}
+
+
+def _cat_gon_dai_tu(text: str, start: int, end: int, label: str) -> tuple[int, int, str] | None:
+    """Cắt đại từ/động từ thừa ở HAI ĐẦU span nhãn PERSON, trả None nếu rỗng.
+
+    VÌ SAO CẦN (đo thật 2026-08-13 trên tin nhắn khách):
+    NER tiếng Việt gán nhãn cho CỤM NHIỀU TỪ, không phải đúng tên: "tôi bị"
+    -> PERSON, "anh bị trừ" -> PERSON, "chị" -> ORGANIZATION. Che nguyên cụm
+    làm câu mất chủ ngữ ("[PERSON] trừ tiền 2 lần") — agent không còn hiểu ai
+    làm gì. Lọc theo chuỗi khớp chính xác KHÔNG ăn vì span là "tôi bị" chứ
+    không phải "tôi".
+
+    Cắt gọn thay vì bỏ cả span để giữ đúng hai chiều: "anh Huy" -> vẫn che
+    "Huy" (tên thật) nhưng trả lại "anh" cho câu.
+
+    CHỈ áp dụng cho nhãn người — không đụng SĐT/CCCD/email (đó là PII cứng,
+    không có chuyện cắt gọn).
+    """
+    if "PERSON" not in label.upper() and "ORGANIZATION" not in label.upper():
+        return (start, end, label)
+
+    span = text[start:end]
+    # Cắt từ đầu
+    while True:
+        m = re.match(r"^\s*(\w+)", span)
+        if not m or m.group(1).lower() not in _DAI_TU_KHONG_PHAI_TEN:
+            break
+        start += m.end()
+        span = text[start:end]
+    # Cắt từ cuối: bỏ token cuối nếu là đại từ hoặc từ nối thường gặp
+    while True:
+        m = re.search(r"(\w+)\s*$", span)
+        if not m or m.group(1).lower() not in _DAI_TU_KHONG_PHAI_TEN | _TU_NOI_THUONG_GAP:
+            break
+        end -= len(span) - m.start()
+        span = text[start:end]
+
+    span = text[start:end].strip()
+    if not span or span.lower() in _DAI_TU_KHONG_PHAI_TEN | _TU_NOI_THUONG_GAP:
+        return None
+    # Căn lại biên sau khi strip
+    lech_trai = len(text[start:end]) - len(text[start:end].lstrip())
+    return (start + lech_trai, start + lech_trai + len(span), label)
+
+
+# Động từ/từ nối hay bị NER gộp nhầm vào span tên người trong câu khiếu nại.
+_TU_NOI_THUONG_GAP = {"bị", "trừ", "là", "cho", "của", "đã", "được", "vừa", "chuyển", "nhận"}
+
+
 def _plausible_person_span(span: str) -> bool:
     """Lọc false-positive THẬT phát hiện lúc verify underthesea.ner() trên dữ
     liệu của dự án: mã giao dịch/ticket nội bộ (vd `TXN20260810000123`, tiền
@@ -102,6 +160,8 @@ def _plausible_person_span(span: str) -> bool:
     if any(ch.isdigit() for ch in span):
         return False
     if span.isupper():
+        return False
+    if span.strip().lower() in _DAI_TU_KHONG_PHAI_TEN:
         return False
     return True
 
@@ -229,7 +289,12 @@ def scrub_pii(text: str | None) -> str | None:
     if not results:
         return text
 
-    spans = _merge_overlapping([(r.start, r.end, r.entity_type) for r in results])
+    raw_spans = [(r.start, r.end, r.entity_type) for r in results]
+    raw_spans = [s for s in (_cat_gon_dai_tu(text, *s) for s in raw_spans) if s]
+    if not raw_spans:
+        return text
+
+    spans = _merge_overlapping(raw_spans)
     chars = list(text)
     for start, end, label in sorted(spans, key=lambda s: s[0], reverse=True):
         chars[start:end] = list(f"[{label}]")

@@ -33,6 +33,7 @@ from src.config import (
 from src.db.models import User
 from src.db.session import SessionLocal
 from src.observability.langchain_callback import OTelTracingCallbackHandler
+from src.observability.pii import scrub_pii
 from src.observability.tracing import get_tracer
 from src.services.complaint_intake import flag_human_handoff
 from src.tools.base import ToolError
@@ -127,7 +128,7 @@ def run_agent_turn(
         root_span.set_attribute("fin05.otp_verified", otp_verified_at is not None)
         def _invoke():
             return agent.invoke(
-                {"messages": [HumanMessage(content=message)]},
+                {"messages": [HumanMessage(content=scrub_pii(message) or message)]},
                 config={
                     **config,
                     "callbacks": [OTelTracingCallbackHandler()],

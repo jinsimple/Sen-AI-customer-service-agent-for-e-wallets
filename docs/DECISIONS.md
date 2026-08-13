@@ -152,6 +152,69 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
   `scripts/preflight.sh`, `frontend/package.json` (`dev` chạy preflight trước;
   `dev:force` để bỏ qua khi cố ý).
 
+## ADR-010 — Không dữ liệu định danh nào của khách rời hệ thống lên LLM
+
+- **Ngày:** 2026-08-13 · **Trạng thái:** Đang hiệu lực
+- **Bối cảnh:** Rà soát phát hiện họ tên thật + số điện thoại của khách đi thẳng vào
+  payload gửi OpenAI, không qua bước che nào. `src/observability/pii.py` (regex +
+  Presidio + underthesea) đã có sẵn nhưng **chỉ chạy cho log**, không chạm prompt.
+  Chạm OWASP **LLM02:2025 Sensitive Information Disclosure** (nhảy từ #6 lên #2 bảng
+  2025) và **NĐ 13/2023 Điều 25** — gọi OpenAI API chính là chuyển dữ liệu cá nhân
+  công dân VN ra nước ngoài.
+- **Quyết định:** chặn ở **cả hai đầu**, đúng khuyến nghị chuẩn ngành fintech 2026
+  (gate input lẫn output, không chỉ output):
+  1. Bỏ hẳn `customer_name` khỏi system prompt — agent xưng "quý khách".
+  2. `_scrub_pii_cho_llm()` che `full_name`/`phone`/`account_no` ở mọi kết quả tool.
+  3. `scrub_pii()` áp lên tin nhắn khách **tự gõ** trước khi vào `HumanMessage`.
+- **Lý do vá ở lớp wrapper agent, KHÔNG vá `src/tools/lookup_transaction.py`:**
+  `_party_info` cố ý trả PII nguyên văn cho chính chủ — **đúng** cho đường CSKH gọi
+  REST (nhân viên nội bộ, dữ liệu không rời hệ thống). Chỉ đường agent mới cần chặn.
+  Cùng pattern đã dùng cho lỗ hổng ATLAS-001: chặn đúng đường cần chặn, không hạ cấp
+  đường còn lại.
+- **Lý do BÁC BỎ "che sạch cho an toàn":** che quá tay thì agent mất mã giao dịch/số
+  tiền và hết tra cứu được — tệ hơn không che, vì khách không được giải quyết mà PII
+  vẫn có thể lọt chỗ khác. Đo thật cho thấy phải cắt gọn span NER (`_cat_gon_dai_tu`):
+  NER gán "tôi bị" → PERSON, che nguyên cụm làm câu mất chủ ngữ. Có test đối trọng
+  canh chiều này.
+- **Hệ quả:** `src/agents/prompt.py`, `src/agents/tools/customer_tools.py`,
+  `src/agents/graph.py`, `src/observability/pii.py`,
+  `tests/test_security/test_pii_khong_ro_ri_len_llm.py` (11 test).
+- **Giới hạn — nói rõ để không hiểu nhầm:** đây là **masking** (che một chiều), KHÔNG
+  phải **tokenization** (thay bằng token hoàn nguyên được qua vault). Với đường LLM thì
+  masking đúng — agent không cần hoàn nguyên tên khách. Nghiệp vụ nào sau này cần hiển
+  thị lại giá trị gốc thì phải nâng lên tokenization thật.
+- **VẪN CÒN dữ liệu rời hệ thống:** số tiền, mã giao dịch, thời gian, nội dung khách
+  gõ. Đó là thứ agent buộc phải có để làm việc. Bản vá thu hẹp phạm vi, **không** xoá
+  bỏ nghĩa vụ hồ sơ pháp lý — xem ADR-011.
+
+## ADR-011 — Hoãn hồ sơ pháp lý chuyển dữ liệu, KÈM MỐC KÍCH HOẠT
+
+- **Ngày:** 2026-08-13 · **Trạng thái:** Đang hiệu lực · **Người quyết:** PO
+- **Bối cảnh:** ADR-010 thu hẹp nhưng không xoá việc dữ liệu rời hệ thống. Chuẩn ngành
+  yêu cầu: DPA + Zero Data Retention với nhà cung cấp (tài liệu ngành gọi ZDR là "tiêu
+  chuẩn vàng"), sổ đăng ký nhà cung cấp ICT (DORA Điều 28), và Hồ sơ đánh giá tác động
+  chuyển dữ liệu ra nước ngoài (NĐ 13/2023 Mẫu 06, gửi A05 Bộ Công an trong 60 ngày).
+- **Quyết định:** HOÃN hồ sơ Mẫu 06, ZDR và sổ đăng ký ICT. Vẫn LÀM ngay: ký DPA với
+  OpenAI (5 phút, và đang gửi dữ liệu thật qua API rồi), scrub PII hai đầu (ADR-010),
+  thông báo demo ở màn hình chat.
+- **Lý do:** dự án chạy trên dữ liệu seed tổng hợp (`data/generated/users.jsonl`), chưa
+  xử lý dữ liệu cá nhân của khách hàng thật → đồng hồ 60 ngày chưa chạy. ZDR cần thoả
+  thuận doanh nghiệp, không hợp giai đoạn demo (tài khoản hiện là Personal, hạn mức $20).
+- **Rủi ro tồn dư đã nhận diện:** 150 người test là **người thật gõ chữ thật**. Dù tài
+  khoản là seed giả, một bạn gõ "mình là Bách, sđt 09..." thì đó là PII thật của chính
+  bạn đó. Vì hoãn hồ sơ nên scrub đầu vào (ADR-010) trở thành **lớp bảo vệ duy nhất**
+  — quan trọng hơn, không phải bớt đi.
+- **MỐC KÍCH HOẠT — hoãn hết hiệu lực NGAY khi một trong các điều sau xảy ra:**
+  1. Có người dùng thật với dữ liệu tài chính thật.
+  2. Kết nối vào hệ thống ví thật, kể cả môi trường staging của đối tác.
+  3. Đưa sản phẩm cho ZaloPay hoặc ví khác dùng thử với dữ liệu của họ.
+  Khi đó Mẫu 06 + ZDR + sổ đăng ký ICT chuyển thành **bắt buộc trước khi chạy**.
+- **Lý do BÁC BỎ "làm đầy đủ ngay từ bây giờ":** hồ sơ Mẫu 06 cần pháp nhân và người
+  chịu trách nhiệm; ZDR cần thoả thuận doanh nghiệp. Làm sớm trên một demo chưa có dữ
+  liệu thật là tốn công vào thứ sẽ phải làm lại khi pháp nhân/phạm vi thay đổi.
+- **Lý do ADR này tồn tại:** "demo mà, không cần" là câu rất dễ nói lại ở phiên sau khi
+  bối cảnh ĐÃ ĐỔI mà không ai để ý. Mốc kích hoạt ở trên là thứ chặn vòng lặp đó.
+
 ---
 
 ## Mẫu ADR mới
