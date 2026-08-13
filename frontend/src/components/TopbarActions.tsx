@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import EnvBadge from "./EnvBadge";
 
 export default function TopbarActions({ fullName, role }: { fullName: string; role: string }) {
   const router = useRouter();
@@ -37,6 +38,9 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
 
   return (
     <div className="topbar-actions">
+      {/* Nhãn môi trường đứng ĐẦU TIÊN, trước mọi thứ khác — nếu 2 cửa sổ
+          hiện 2 nhãn khác nhau thì biết ngay đang lệch stack. Xem ADR-009. */}
+      <EnvBadge compact />
       <button className="theme-toggle" onClick={toggleTheme} type="button">
         <svg className="icon icon-sm" viewBox="0 0 24 24">
           {theme === "dark" ? (

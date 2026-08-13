@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { roleHome, type Role } from "@/lib/session";
+import EnvBadge from "@/components/EnvBadge";
 
 // Đăng nhập bằng mật khẩu thật (quyết định 2026-08-12, thay luồng phone+role
 // chọn tay trước đó) — vai trò giờ lấy từ RESPONSE của server (user tìm
@@ -103,6 +104,11 @@ export default function LoginPage() {
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>
+          {/* Nhãn môi trường ngay tại màn đăng nhập — đúng thời điểm cần biết
+              mình sắp đăng nhập vào hệ thống/database nào. Xem ADR-009. */}
+          <div style={{ marginBottom: 14 }}>
+            <EnvBadge />
+          </div>
           <h3>Đăng nhập</h3>
           <p className="sub">Nhập số điện thoại và mật khẩu tài khoản của bạn.</p>
 

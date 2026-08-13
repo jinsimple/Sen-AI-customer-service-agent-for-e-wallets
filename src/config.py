@@ -23,6 +23,37 @@ EVAL_DIR = ROOT_DIR / "eval"
 DB_PATH = ROOT_DIR / "data" / "app.db"
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
+# ---------------------------------------------------------------------------
+# ĐỊNH DANH MÔI TRƯỜNG (2026-08-13) — sinh ra sau một sự cố thật, không phải
+# tính năng trang trí.
+#
+# Sự cố: Docker stack (Caddy :80 -> Postgres) và stack dev cục bộ
+# (next dev :3000 -> uvicorn :8010 -> SQLite) chạy SONG SONG. PO mở cửa sổ
+# khách ở `localhost` và cửa sổ CSKH ở `localhost:3000` — hai giao diện GIỐNG
+# HỆT NHAU nhưng nói chuyện với HAI DATABASE KHÁC NHAU. Khách tạo ticket vào
+# Postgres, CSKH đọc từ SQLite nên vĩnh viễn thấy 0, F5 bao nhiêu lần cũng vô
+# ích. Mất nhiều giờ điều tra vì mọi tầng code đều đúng.
+#
+# Bài học tổng quát: môi trường VÔ HÌNH là lỗi thiết kế. Hệ thống phải TỰ KHAI
+# BÁO nó là ai — nhìn là biết, không phải suy luận từ số cổng.
+#
+# CHỈ suy ra từ scheme + tên database. TUYỆT ĐỐI không đưa user/password/host
+# vào đây: giá trị này được trả ra qua /health (endpoint công khai).
+# ---------------------------------------------------------------------------
+APP_ENV = os.environ.get("APP_ENV", "development")
+
+
+def _db_identity(url: str) -> tuple[str, str]:
+    """Trả (loại_db, tên_db) từ DATABASE_URL, đã lược bỏ mọi thông tin nhạy cảm."""
+    scheme = url.split("://", 1)[0].split("+", 1)[0] or "unknown"
+    tail = url.rsplit("/", 1)[-1].split("?", 1)[0] if "/" in url else ""
+    if scheme == "sqlite":
+        tail = tail or "(bộ nhớ)"
+    return scheme, tail or "(không rõ)"
+
+
+DB_KIND, DB_NAME = _db_identity(DATABASE_URL)
+
 # BR-13: ngưỡng N lần hỏi lại trước khi tạo ticket tra thủ công — CHƯA chốt
 # với team (business_rules.md BR-13, verified: false). Cô lập ở đây để đổi
 # một chỗ khi PO chốt.

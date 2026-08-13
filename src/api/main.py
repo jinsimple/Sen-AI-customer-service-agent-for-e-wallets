@@ -71,7 +71,15 @@ from src.auth import (
     set_revoked_before_now,
     try_decode,
 )
-from src.config import OTP_MAX_FAILED_ATTEMPTS, REDIS_URL, RESOLUTION_APPROVAL_OTP_FRESH_MINUTES, ROOT_DIR
+from src.config import (
+    APP_ENV,
+    DB_KIND,
+    DB_NAME,
+    OTP_MAX_FAILED_ATTEMPTS,
+    REDIS_URL,
+    RESOLUTION_APPROVAL_OTP_FRESH_MINUTES,
+    ROOT_DIR,
+)
 from src.db.models import (
     AuthSession,
     ChatSession,
@@ -1187,4 +1195,20 @@ app.add_api_websocket_route("/ws/live-chat", live_chat_websocket_endpoint)
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    """Liveness — CỐ Ý không chạm DB/Redis (readiness mới được phép).
+
+    Trả kèm ĐỊNH DANH MÔI TRƯỜNG (2026-08-13) để nhìn là biết đang nói chuyện
+    với stack nào, không phải suy từ số cổng. Sinh ra sau sự cố thật: Docker
+    stack (Postgres) và stack dev cục bộ (SQLite) chạy song song, hai cửa sổ
+    trình duyệt giống hệt nhau nhưng khác database — xem ghi chú ở
+    src/config.py và ADR-009.
+
+    `db_kind`/`db_name` chỉ là scheme + tên database, KHÔNG có host/user/mật
+    khẩu (endpoint này công khai, không yêu cầu xác thực).
+    """
+    return {
+        "status": "ok",
+        "env": APP_ENV,
+        "db_kind": DB_KIND,
+        "db_name": DB_NAME,
+    }
