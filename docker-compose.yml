@@ -21,6 +21,18 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    # Revocation store JWT refresh token + rate-limit dùng chung (login/OTP/
+    # live-chat, đợt nâng cấp Auth Flow 2026-08-12) — src/redis_client.py.
+    # KHÔNG có `ports:` — cùng nguyên tắc "chỉ caddy publish port" ở đầu file.
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -32,6 +44,9 @@ services:
       # Ghép từ POSTGRES_* trong .env — không set DATABASE_URL tay ở .env,
       # tránh lệch với `postgres` service ở trên (single source of truth).
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # Ghi đè REDIS_URL=fake://local-dev của .env (dùng cho `make run` ngoài
+      # docker) bằng Redis thật của service bên trên.
+      REDIS_URL: redis://redis:6379/0
       # DNS nội bộ compose — `jaeger` resolve tới service bên dưới, không
       # phải localhost. Backend graceful-degrade nếu jaeger chưa sẵn sàng lúc
       # khởi động (src/observability/tracing.py — BatchSpanProcessor tự
@@ -42,6 +57,8 @@ services:
       - logs_data:/app/logs
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health')"]

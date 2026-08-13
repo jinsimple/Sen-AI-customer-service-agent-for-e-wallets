@@ -25,6 +25,9 @@ env:
   # không fail âm thầm.
   JWT_SECRET_KEY: ci-ephemeral-not-for-production-use-only-in-ci-runs
   FIELD_ENCRYPTION_KEY: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9"
+  # fake:// -> fakeredis (src/redis_client.py) — CI không cần Redis thật, đúng
+  # convention playbooks/production-packaging-checklist.md.
+  REDIS_URL: fake://ci
 
 jobs:
   # ---------------------------------------------------------------------
