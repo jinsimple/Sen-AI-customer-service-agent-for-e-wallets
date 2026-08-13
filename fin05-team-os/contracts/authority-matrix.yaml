@@ -1,0 +1,132 @@
+# contracts/authority-matrix.yaml
+# NGUỒN SỰ THẬT về thẩm quyền. Code, test, và báo cáo bảo mật đều đọc từ file này.
+# Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
+#
+# NGUYÊN TẮC: "ngoài thẩm quyền" định nghĩa theo ROLE, không theo hạn mức tiền.
+
+version: "1.0.0"
+source: "PRD 2.1 §4 · ADR-002"
+
+roles:
+  customer:
+    ten: "Khách hàng"
+    mo_ta: "Người dùng cuối của ví"
+  cskh:
+    ten: "Nhân viên CSKH"
+    mo_ta: "Tiếp nhận, điều tra, tạo ticket. KHÔNG có quyền duyệt bất cứ gì chạm tiền."
+  supervisor:
+    ten: "Sếp / Người phê duyệt"
+    mo_ta: "Người duy nhất quyết định cuối cùng, cho MỌI phạm vi giao dịch."
+  ai_agent:
+    ten: "AI Agent"
+    mo_ta: "Điều tra qua tool, phân loại, đề xuất. KHÔNG BAO GIỜ quyết định."
+
+scopes:
+  noi_bo_vi:      "Giao dịch ví ↔ ví trong cùng hệ thống"
+  tu_ngan_hang:   "Nạp tiền từ ngân hàng vào ví"
+  ra_ngan_hang:   "Rút/chuyển tiền từ ví ra ngân hàng"
+
+# ---------------------------------------------------------------------------
+# Ma trận: hành động × role. Giá trị: allow | deny | propose_only
+# propose_only = được tạo đề xuất, KHÔNG được thực thi.
+# ---------------------------------------------------------------------------
+actions:
+
+  tra_cuu_giao_dich:
+    mo_ta: "Tra cứu trạng thái giao dịch qua tool"
+    ai_agent: allow
+    cskh: allow
+    supervisor: allow
+    customer: deny          # khách hàng chỉ thấy qua agent, đã che thông tin bên thứ ba
+
+  tao_ticket:
+    mo_ta: "Tạo ticket khiếu nại"
+    ai_agent: propose_only  # AI soạn nội dung, CSKH là người tạo
+    cskh: allow
+    supervisor: allow
+    customer: deny
+
+  tiep_nhan_ticket:
+    mo_ta: "Chuyển ticket sang trạng thái cskh_received"
+    ai_agent: deny          # RÀNG BUỘC CỨNG 2 — AI không vượt cấp
+    cskh: allow
+    supervisor: allow
+    customer: deny
+
+  de_xuat_huong_xu_ly:
+    mo_ta: "Đưa ra hướng xử lý có căn cứ"
+    ai_agent: propose_only
+    cskh: propose_only
+    supervisor: allow
+    customer: deny
+
+  # --- Nhóm chạm tiền: CHỈ supervisor. Không ngoại lệ, không phân biệt phạm vi. ---
+  thuc_thi_hoan_tien:
+    mo_ta: "Thực thi hoàn tiền cho khách hàng"
+    cham_tien: true
+    ai_agent: deny
+    cskh: deny              # kể cả scope noi_bo_vi — xem ADR-002
+    supervisor: allow
+    customer: deny
+
+  dieu_chinh_so_du:
+    mo_ta: "Điều chỉnh số dư ví"
+    cham_tien: true
+    ai_agent: deny
+    cskh: deny
+    supervisor: allow
+    customer: deny
+
+  gui_tra_soat_ngan_hang:
+    mo_ta: "Gửi yêu cầu tra soát sang ngân hàng đối tác"
+    cham_tien: true         # tạo nghĩa vụ tài chính với đối tác
+    ai_agent: propose_only
+    cskh: propose_only
+    supervisor: allow
+    customer: deny
+
+  # --- Nhóm rủi ro: tách bạch tuyệt đối ---
+  gan_co_nghi_gian_lan:
+    mo_ta: "Gắn cờ nghi ngờ gian lận lên case"
+    ai_agent: allow         # gắn cờ là hành động thông tin, không phải hành động tài chính
+    cskh: allow
+    supervisor: allow
+    customer: deny
+    ghi_chu: >
+      RÀNG BUỘC CỨNG 5 — gắn cờ KHÔNG được nối trực tiếp sang khoa_vi.
+      Hai hành động độc lập hoàn toàn. Module gắn cờ không được import module khoá ví.
+
+  khoa_vi:
+    mo_ta: "Khoá ví khách hàng"
+    cham_tien: true
+    ai_agent: deny
+    cskh: deny
+    supervisor: allow
+    customer: deny
+
+# ---------------------------------------------------------------------------
+# Bất biến — test/test_invariants.py đọc phần này
+# ---------------------------------------------------------------------------
+invariants:
+  - id: INV-01
+    mo_ta: "Mọi action có cham_tien=true chỉ được allow cho supervisor"
+    nguon: "CLAUDE.md §2.1 — HITL tuyệt đối"
+  - id: INV-02
+    mo_ta: "ai_agent không được allow ở bất kỳ action nào có cham_tien=true"
+    nguon: "CLAUDE.md §2.1"
+  - id: INV-03
+    mo_ta: "ai_agent = deny cho tiep_nhan_ticket (không vượt cấp CSKH)"
+    nguon: "CLAUDE.md §2.2"
+  - id: INV-04
+    mo_ta: "Thẩm quyền không được phụ thuộc vào scope hay số tiền"
+    nguon: "PRD 2.1 §4.6 — ngoài thẩm quyền định nghĩa theo role"
+
+# ---------------------------------------------------------------------------
+# CÂU HỎI MỞ — chờ chuyên gia ví điện tử (PRD §8.3)
+# ---------------------------------------------------------------------------
+open_questions:
+  - "Số tầng thẩm quyền thật của một ví điện tử? Hiện giả định 3 tầng:
+     supervisor → ngân hàng đối tác → cơ quan chức năng (4 CSKH + 2 supervisor)."
+  - "Có tồn tại vai 'CSKH cấp 2' được duyệt case nội bộ nhỏ trong thực tế không?
+     Dự án cố ý KHÔNG mô hình hoá vai này — cần xác nhận đây là lựa chọn thiết kế
+     hợp lý chứ không phải thiếu sót."

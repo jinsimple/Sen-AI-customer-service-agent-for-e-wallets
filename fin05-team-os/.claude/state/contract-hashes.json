@@ -1,0 +1,8 @@
+{
+  "contracts": {
+    "agent-tools.yaml": "7ac1f7158fb1",
+    "authority-matrix.yaml": "cdc333ce54b3",
+    "ticket-state-machine.yaml": "aeaadb7efab4"
+  },
+  "note": "Baseline đã được Bách duyệt. Cập nhật qua --update."
+}

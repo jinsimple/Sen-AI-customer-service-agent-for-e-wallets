@@ -1,0 +1,39 @@
+name: Team-OS
+
+# Hai cổng chặn của dự án:
+#   1. Ràng buộc cứng (HITL, không vượt cấp, cấm bịa số liệu) — không được đỏ, không được bỏ qua
+#   2. Artifact lỗi thời so với contracts/ — cảnh báo, không chặn merge
+#
+# Cổng 1 chính là thứ bạn mở ra chạy trước mặt chuyên gia ở buổi pitch tuần 6.
+
+on:
+  push:
+    branches: [main, "sprint-*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  invariants:
+    name: Ràng buộc cứng
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pytest pyyaml
+      - name: 5 ràng buộc cứng (CLAUDE.md §2)
+        run: pytest tests/test_invariants.py -v
+
+  contracts:
+    name: Phát hiện artifact lỗi thời
+    runs-on: ubuntu-latest
+    continue-on-error: true      # cảnh báo, không chặn merge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml
+      - name: check_contracts
+        run: python scripts/check_contracts.py --verbose

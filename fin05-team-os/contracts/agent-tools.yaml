@@ -1,0 +1,107 @@
+# contracts/agent-tools.yaml
+# NGUỒN SỰ THẬT về các tool AI agent được phép gọi.
+# Đây là file chống "bịa số liệu" ở tầng hạ tầng: mọi con số agent nói ra phải
+# truy vết được tới một tool_call_id sinh từ một trong các tool dưới đây.
+
+version: "1.0.0"
+source: "PRD 2.1 §5 · ADR-004"
+
+# Quy tắc chung áp cho MỌI tool
+global_rules:
+  - "Mọi kết quả trả về đều mang tool_call_id duy nhất."
+  - "Agent KHÔNG được render bất kỳ con số nào không kèm tool_call_id nguồn."
+  - "Tool không tìm thấy dữ liệu → trả về status='not_found', KHÔNG trả về giá trị mặc định 0."
+  - "Thông tin bên thứ ba phải được che ngay tại tầng tool, không che ở tầng hiển thị."
+
+tools:
+
+  tra_cuu_giao_dich:
+    mo_ta: "Tra cứu một giao dịch theo mã hoặc theo (số ví, thời gian, số tiền)"
+    input:
+      transaction_id: {type: string, required: false}
+      wallet_id:      {type: string, required: false}
+      time_range:     {type: string, required: false}
+      amount:         {type: integer, required: false}
+    output:
+      tool_call_id:   {type: string}
+      status:         {type: enum, values: [found, not_found, ambiguous]}
+      transaction:
+        id:           {type: string}
+        amount:       {type: integer}
+        state:        {type: enum, values: [pending, settled, failed, reversed, holding]}
+        scope:        {type: enum, values: [noi_bo_vi, tu_ngan_hang, ra_ngan_hang]}
+        counterparty: {type: string, masked: true}   # PDPA — che tại tầng tool
+        created_at:   {type: datetime}
+    ghi_chu: >
+      status='ambiguous' khi khớp nhiều hơn 1 giao dịch. Agent PHẢI hỏi lại,
+      không được tự chọn giao dịch gần nhất.
+
+  tra_cuu_so_du:
+    mo_ta: "Tra số dư ví tại một thời điểm"
+    input:
+      wallet_id: {type: string, required: true}
+      at:        {type: datetime, required: false}
+    output:
+      tool_call_id: {type: string}
+      status:       {type: enum, values: [found, not_found]}
+      balance:      {type: integer}
+      at:           {type: datetime}
+
+  tra_cuu_trang_thai_ngan_hang:
+    mo_ta: "Tra trạng thái đối soát với ngân hàng đối tác"
+    input:
+      transaction_id: {type: string, required: true}
+    output:
+      tool_call_id: {type: string}
+      status:       {type: enum, values: [found, not_found, timeout, conflict]}
+      bank_state:   {type: string}
+      ghi_chu: "status='conflict' khi ngân hàng báo khác ledger nội bộ — agent phải escalate, không tự diễn giải"
+
+  danh_gia_tin_hieu_gian_lan:
+    mo_ta: "Chấm 12 tín hiệu FS-01…FS-12 cho một case"
+    input:
+      case_id: {type: string, required: true}
+    output:
+      tool_call_id: {type: string}
+      status:       {type: enum, values: [found, not_found]}
+      signals:      {type: list, items: {id: string, hit: boolean, evidence: string}}
+      tier:         {type: enum, values: [none, A, B]}
+    ghi_chu: >
+      Tool này CHỈ chấm điểm. Nó KHÔNG được gọi bất kỳ hành động nào.
+      RÀNG BUỘC CỨNG 5 — gắn cờ ≠ khoá ví.
+
+  soan_de_xuat:
+    mo_ta: "Soạn nội dung đề xuất hướng xử lý"
+    input:
+      case_id: {type: string, required: true}
+    output:
+      tool_call_id: {type: string}
+      status:       {type: enum, values: [ok, not_found, insufficient_evidence]}
+      draft:        {type: string}
+      citations:    {type: list, items: string}   # danh sách tool_call_id được trích
+    ghi_chu: >
+      citations không được rỗng nếu draft có chứa số liệu.
+      status='insufficient_evidence' khi chưa đủ căn cứ để đề xuất — agent phải nói ra
+      điều đó với CSKH, KHÔNG được đề xuất dựa trên suy đoán. (CLAUDE.md §2.3)
+
+# Tool KHÔNG tồn tại và không bao giờ được tạo
+forbidden_tools:
+  - ten: "thuc_thi_hoan_tien"
+    ly_do: "RÀNG BUỘC CỨNG 1 — không có đường đi nào cho AI thực thi tài chính"
+  - ten: "dieu_chinh_so_du"
+    ly_do: "RÀNG BUỘC CỨNG 1"
+  - ten: "khoa_vi"
+    ly_do: "RÀNG BUỘC CỨNG 1 + 5"
+  - ten: "escalate_len_supervisor"
+    ly_do: "RÀNG BUỘC CỨNG 2 — mọi thứ phải qua CSKH tiếp nhận trước"
+
+invariants:
+  - id: INV-08
+    mo_ta: "Không tool nào trong danh sách forbidden_tools được tồn tại trong src/"
+    nguon: "CLAUDE.md §2.1, §2.2, §2.5"
+  - id: INV-09
+    mo_ta: "Mọi output tool đều có trường tool_call_id"
+    nguon: "CLAUDE.md §2.3 — cấm bịa số liệu"
+  - id: INV-10
+    mo_ta: "Không tool nào trả giá trị số mặc định khi not_found"
+    nguon: "CLAUDE.md §2.3"
