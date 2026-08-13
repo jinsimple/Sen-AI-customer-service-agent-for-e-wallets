@@ -9,11 +9,9 @@ Cập nhật: **2026-08-13** · Phiên vừa rồi: Claude Code (cài Team-OS l�
 
 ## Vừa xong
 
-- **Cài lớp đồng bộ Team-OS** (phiên này): `CLAUDE.md` (hiến pháp), `docs/DECISIONS.md`
-  (8 ADR hồi tố), file này, `contracts/` (3 file sinh NGƯỢC từ code thật),
-  `tests/test_invariants.py` (19 test introspect app đang chạy), `scripts/check_contracts.py`.
-  Công cụ đồng bộ sang Claude Desktop: `scripts/export_project_knowledge.py`,
-  `scripts/brief.py`, `scripts/harvest_prompt.md`.
+- **Cài lớp đồng bộ Team-OS**: `CLAUDE.md`, `docs/DECISIONS.md` (9 ADR), file này,
+  `contracts/` (3 file sinh NGƯỢC từ code thật), `tests/test_invariants.py` (19 test
+  introspect app đang chạy), `scripts/{check_contracts,brief,export_project_knowledge}.py`.
 - **Sửa BUGREPRO-001/002**: chip "Khách yêu cầu người thật (N)" và bảng ticket không cập
   nhật khi có khách mới — `tickets` chỉ fetch 1 lần lúc mount, WS `queue_update` và poll
   60s đều không chạm tới. 4 test vitest bảo vệ, đã chứng minh bắt được bug.
@@ -39,9 +37,10 @@ Cập nhật: **2026-08-13** · Phiên vừa rồi: Claude Code (cài Team-OS l�
   BR-10 · sửa contract) — cả 5 đều ĐỎ đúng chỗ.
 - `contracts/` baseline hash đã chốt. `check_contracts.py` sạch (exit 0).
 - Full suite: **294 backend + 34 frontend** xanh. `ruff` sạch.
-- **BUGREPRO-001 phần "kể cả sau F5" CHƯA XÁC NHẬN.** Đã sửa nguyên nhân chính (WS
-  `queue_update` không nạp lại `tickets`), nhưng phần F5-cũng-fail không tái hiện được
-  từ code — cache BFF đã `no-store`. **Cần QA/QC test tay lại trên bản mới để chốt.**
+- **BUGREPRO-001 ĐÃ ĐÓNG** — không phải bug sản phẩm, là hiện vật môi trường: 2 stack
+  (Docker→Postgres, dev→SQLite) chạy song song, 2 cửa sổ ở 2 cổng khác nhau = 2 database.
+  Đã chặn tái diễn bằng nhãn môi trường + preflight (ADR-009). BUGREPRO-002 là bug thật,
+  đã sửa. **Khi test: mở CẢ HAI cửa sổ cùng địa chỉ, kiểm nhãn môi trường giống nhau.**
 - Chưa có `contracts/fraud-signals.yaml` và `contracts/api.openapi.yaml` — chưa cần gấp,
   fraud policy MVP chỉ dùng FS-06 (đã ghi trong `resolution-state-machine.yaml`).
 - QUEUEARCH-001..008 (tách hàng đợi live-chat khỏi hàng chờ ticket) — **chưa làm**, đang
@@ -49,16 +48,13 @@ Cập nhật: **2026-08-13** · Phiên vừa rồi: Claude Code (cài Team-OS l�
 
 ## Việc kế tiếp đề xuất
 
-1. Chạy `/standup` đầu mỗi phiên của MỌI con Claude — đây là thứ giải quyết bài toán
-   phân mảnh, không phải bản thân contract.
-2. Cho 3 con Claude còn lại (QA/QC · UX/UI · Tester) đọc `CLAUDE.md` §4 để biết vùng
-   quyền ghi của mình. Tester đặc biệt: **không đọc `src/`**.
-3. Bổ sung ADR cho các quyết định UX/UI (theme màu, wireframe) — hiện `DECISIONS.md` mới
-   chỉ có quyết định backend/auth.
+1. Chạy `/standup` đầu mỗi phiên của MỌI con Claude — thứ giải quyết bài toán phân mảnh.
+2. 3 vai còn lại (QA/QC · UX/UI · Tester) đọc `CLAUDE.md` §4 để biết vùng quyền ghi.
+   Tester đặc biệt: **không đọc `src/`**.
+3. Bổ sung ADR cho quyết định UX/UI (theme màu, wireframe) — `DECISIONS.md` hiện mới có
+   quyết định backend/auth/hạ tầng.
 
 ## Sau demo (không làm bây giờ)
 
-- `contracts/tone-of-voice.yaml` — contract hoá giọng văn xoa dịu (một trong ba trụ định
-  vị cạnh tranh, hiện chưa có cơ chế kiểm nào).
-- `eval/heldout_set.jsonl` — **CHỈ CHẠY MỘT LẦN, gần cuối**. Chạy lặp rồi sửa theo kết quả
-  là tự làm rò rỉ tập kiểm định.
+- `contracts/tone-of-voice.yaml` — contract hoá giọng văn xoa dịu (chưa có cơ chế kiểm).
+- `eval/heldout_set.jsonl` — **CHỈ CHẠY MỘT LẦN, gần cuối** (chạy lặp = rò rỉ tập kiểm định).

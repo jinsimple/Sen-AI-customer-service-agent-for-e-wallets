@@ -117,6 +117,41 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
 - **Hệ quả:** `test_refresh_token_reuse_revokes_whole_family`. Đã kiểm thật qua curl
   4 bước (login → refresh → reuse token cũ → token mới cũng bị từ chối).
 
+## ADR-009 — Môi trường phải TỰ KHAI BÁO, không suy từ số cổng
+
+- **Ngày:** 2026-08-13 · **Trạng thái:** Đang hiệu lực
+- **Bối cảnh — sự cố thật, mất nhiều giờ điều tra:** Docker stack (Caddy `:80` →
+  Postgres) và stack dev cục bộ (`next dev :3000` → `uvicorn :8010` → SQLite) chạy song
+  song. PO mở cửa sổ khách ở `localhost` và cửa sổ CSKH ở `localhost:3000`. Hai giao diện
+  **giống hệt nhau** nhưng là hai hệ thống với hai database khác nhau: khách tạo ticket
+  `TCK-6657099ba1b6` vào Postgres, CSKH đọc từ SQLite nên vĩnh viễn thấy 0 ticket, F5 bao
+  nhiêu lần cũng vô ích. Đã báo cáo thành bug P0 (BUGREPRO-001) trong khi **mọi tầng code
+  đều đúng**.
+- **Quyết định:** hệ thống phải tự khai báo danh tính môi trường ở nơi người dùng nhìn
+  thấy, không bắt suy luận từ số cổng trên thanh địa chỉ.
+  1. `GET /health` trả thêm `env` / `db_kind` / `db_name`.
+  2. Nhãn môi trường (`EnvBadge`) hiện ở topbar **mọi trang** và ở **màn đăng nhập** —
+     tự ẩn khi `env === "production"`.
+  3. `scripts/preflight.sh` cảnh báo khi phát hiện 2 stack; nối vào `npm run dev`.
+- **Lý do:** ba lớp phòng thủ ở ba thời điểm khác nhau — *trước khi chạy* (preflight),
+  *lúc đăng nhập* (badge ở /login), *trong lúc dùng* (badge ở topbar). Một lớp hỏng vẫn
+  còn hai lớp. Riêng badge là lớp quan trọng nhất vì nó bắt được **mọi biến thể** của lỗi
+  này: gõ nhầm cổng, tab cũ còn mở từ stack trước, hai người test trên hai máy khác nhau.
+- **Lý do BÁC BỎ phương án khác:**
+  - *Chặn cứng không cho chạy 2 stack:* đôi khi chạy song song là chủ đích (so sánh hành
+    vi, test migration). Chặn cứng sẽ bị vô hiệu hoá bằng cách khác, và ta mất luôn cảnh
+    báo. Cảnh báo + bắt xác nhận giữ được tính có-ý-thức mà không cản trở.
+  - *Đổi cổng dev sang số khác cho đỡ nhầm:* không giải quyết gốc — vẫn là hai stack vô
+    hình, chỉ đổi con số dễ nhầm này lấy con số dễ nhầm khác.
+  - *Chỉ ghi vào README:* tài liệu không xuất hiện đúng lúc mắc lỗi. Nhãn thì có.
+- **Bảo mật:** `db_kind`/`db_name` chỉ là scheme + tên database, **không** có host/user/
+  mật khẩu — `/health` là endpoint công khai. Đã kiểm bằng test với URL Postgres có
+  credential thật.
+- **Hệ quả:** `src/config.py::_db_identity`, `src/api/main.py::health`,
+  `frontend/src/components/EnvBadge.tsx`, `frontend/src/app/api/env-info/route.ts`,
+  `scripts/preflight.sh`, `frontend/package.json` (`dev` chạy preflight trước;
+  `dev:force` để bỏ qua khi cố ý).
+
 ---
 
 ## Mẫu ADR mới
