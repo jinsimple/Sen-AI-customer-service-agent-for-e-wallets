@@ -11,10 +11,25 @@ thần đó thay vì đợi user report:
        utterances (số khách tự cung cấp) -> cờ nghi vấn để người xem lại, KHÔNG
        phải oracle NLU hoàn hảo (giống check_forbidden ở _harness.py).
 
+VÁ QA-03 (biên bản QA 13/08): mã định danh hệ thống trong reply (TCK-/RES-/
+CHS-...) chứa chuỗi số dài — đường fallback-timeout trả mã ticket mà KHÔNG có
+tool_call ghi lại, làm heuristic cũ cờ nhầm chính mã ticket THẬT thành "bịa"
+(7/7 cờ của cả baseline lẫn run 13/08 đều là loại này, đã đối chiếu DB).
+Giờ tách 3 lớp, không gộp:
+    - `unfounded_amounts`      — số KHÔNG thuộc ID hệ thống nào: nghi bịa thật.
+    - (loại thẳng)             — số thuộc ID hệ thống ĐÃ XÁC MINH tồn tại
+                                 (result.ticket_id hoặc tra thấy trong DB phiên đo).
+    - `unverified_system_ids`  — số thuộc ID hệ thống KHÔNG xác minh được:
+                                 vẫn hiện ra cho người xem, không âm thầm bỏ.
+
 Dùng:
     python eval/measure_quality.py                    # 24 case mẫu (stratified theo cell), golden_set
     python eval/measure_quality.py --n 40              # tuỳ chỉnh cỡ mẫu
     python eval/measure_quality.py --file eval/adversarial_set.jsonl --n 15
+    python eval/measure_quality.py --rescore eval/results/<run>_raw.json
+        # chấm LẠI offline một file raw đã lưu bằng thước mới — không gọi LLM,
+        # không tốn phí; ID hệ thống trong chế độ này chỉ phân loại được là
+        # "chưa đối chiếu DB" (DB tạm của run gốc đã bị xoá).
 
 Giá OPENAI_MODEL là ƯỚC LƯỢNG (hardcode theo giá công bố tại thời điểm viết,
 không phải số hoá đơn thật) — chỉ để có cảm nhận thứ tự độ lớn (order of
@@ -57,6 +72,10 @@ _PRICE_PER_1M_TOKENS: dict[str, tuple[float, float]] = {
 # phải "số liệu giao dịch" cần grounding vào tool result.
 _AMOUNT_RE = re.compile(r"\d{1,3}(?:[.,]\d{3})+|\d{4,}")
 
+# Mã định danh hệ thống xuất hiện trong reply (vd "mã ticket của bạn là
+# TCK-38750618ef4b") — phần hex chứa chuỗi số dài, KHÔNG phải số tiền.
+_SYSTEM_ID_RE = re.compile(r"\b(?:TCK|RES|CHS|SES|TR|MSG)-[0-9A-Za-z]{4,}\b")
+
 
 def _digits_only(s: str) -> str:
     return re.sub(r"\D", "", s)
@@ -71,13 +90,53 @@ def _grounding_digit_runs(tool_calls: list[dict], utterances: list[str]) -> set[
     return _extract_amount_digit_runs(blob)
 
 
-def flag_unfounded_amounts(reply: str, tool_calls: list[dict], utterances: list[str]) -> list[str]:
-    """Trả danh sách chuỗi số (đã bỏ dấu phân tách) xuất hiện trong `reply` mà
-    KHÔNG tìm thấy trong dữ liệu tool đã tra hay lời khách tự gõ — ứng viên
-    "bịa số liệu", cần người xem lại trước khi kết luận (không phải oracle)."""
+def split_unfounded_amounts(
+    reply: str,
+    tool_calls: list[dict],
+    utterances: list[str],
+    verified_ids: set[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    """Phân loại chuỗi số trong `reply` không khớp dữ liệu tool/lời khách:
+
+    Trả `(suspects, unverified_system_ids)`:
+    - `suspects`: số KHÔNG nằm trong bất kỳ ID hệ thống nào của reply — ứng
+      viên bịa thật, cần người xem lại (vẫn không phải oracle).
+    - `unverified_system_ids`: số nằm trong một ID hệ thống của reply nhưng ID
+      đó KHÔNG có trong `verified_ids` — hiện ra minh bạch thay vì âm thầm bỏ
+      (một mã TCK bịa hoàn toàn vẫn phải nhìn thấy được).
+    Số nằm trong ID hệ thống ĐÃ xác minh (`verified_ids`) bị loại hẳn — đó là
+    mã thật hệ thống sinh ra, không phải agent bịa (gốc QA-03)."""
+    verified_ids = verified_ids or set()
     reply_amounts = _extract_amount_digit_runs(reply)
     grounded = _grounding_digit_runs(tool_calls, utterances)
-    return sorted(a for a in reply_amounts if a not in grounded)
+    reply_ids = _SYSTEM_ID_RE.findall(reply)
+    suspects: list[str] = []
+    unverified: list[str] = []
+    for a in sorted(reply_amounts - grounded):
+        owner = next((tok for tok in reply_ids if a in _digits_only(tok)), None)
+        if owner is None:
+            suspects.append(a)
+        elif owner not in verified_ids:
+            unverified.append(f"{a} (trong {owner})")
+    return suspects, unverified
+
+
+def _verify_reply_system_ids(session, reply: str, result: dict) -> set[str]:
+    """Xác minh các ID hệ thống trong reply: khớp `result.ticket_id` (payload
+    có cấu trúc từ agent — kể cả đường fallback) hoặc tra thấy trong DB phiên
+    đo. Import model tại chỗ để chế độ --rescore chạy được không cần src/DB."""
+    from src.db.models import ChatSession, Resolution, Ticket
+
+    lookup = {"TCK": Ticket, "RES": Resolution, "CHS": ChatSession}
+    verified: set[str] = set()
+    for tok in set(_SYSTEM_ID_RE.findall(reply)):
+        if tok == result.get("ticket_id"):
+            verified.add(tok)
+            continue
+        model = lookup.get(tok.split("-", 1)[0])
+        if model is not None and session.get(model, tok) is not None:
+            verified.add(tok)
+    return verified
 
 
 def _sample_stratified_by_cell(cases: list[dict], n: int) -> list[dict]:
@@ -132,17 +191,26 @@ def run(cases: list[dict]) -> list[dict]:
                         check_forbidden(r, case.get("forbidden"), utterances=all_customer_texts)
                     )
                 unfounded_amounts = []
+                unverified_system_ids = []
                 for r in all_replies:
-                    unfounded_amounts.extend(flag_unfounded_amounts(r, tool_calls, all_customer_texts))
+                    verified = _verify_reply_system_ids(session, r, agent_result)
+                    suspects, unverified = split_unfounded_amounts(
+                        r, tool_calls, all_customer_texts, verified_ids=verified
+                    )
+                    unfounded_amounts.extend(suspects)
+                    unverified_system_ids.extend(unverified)
 
+                ticket_id = agent_result.get("ticket_id")
                 error = None
             except Exception as e:  # lỗi khi chạy case là 1 phát hiện thật, không phải lý do bỏ case
                 elapsed = time.perf_counter() - t0
                 checks = []
                 forbidden_violations = [f"LỖI CHẠY CASE: {e!r}"]
                 unfounded_amounts = []
+                unverified_system_ids = []
                 usage = {}
                 reply = ""
+                ticket_id = None
                 error = repr(e)
             session.rollback()
 
@@ -154,6 +222,8 @@ def run(cases: list[dict]) -> list[dict]:
                     "checks_failed": [name for name, ok in checks if not ok],
                     "forbidden_violations": forbidden_violations,
                     "unfounded_amounts": unfounded_amounts,
+                    "unverified_system_ids": unverified_system_ids,
+                    "ticket_id": ticket_id,
                     "reply": reply,
                     "error": error,
                 }
@@ -203,6 +273,8 @@ def write_report(results: list[dict], out_path: Path) -> None:
         "",
         f"- {len(hallucinated)}/{total} case có ít nhất 1 số tiền trong reply KHÔNG khớp dữ liệu tool/lời khách"
         f" ({len(hallucinated) / total * 100:.1f}%)" if total else "- (không có case)",
+        f"- {sum(1 for r in results if r.get('unverified_system_ids'))}/{total} case có số nằm trong ID hệ thống"
+        " CHƯA đối chiếu được DB (xem chi tiết — không tính vào tỉ lệ bịa, không âm thầm bỏ)",
         "",
         "## 4. Lỗi hệ thống / vi phạm chất lượng khác",
         "",
@@ -218,6 +290,13 @@ def write_report(results: list[dict], out_path: Path) -> None:
             lines.append(f"- Số nghi vấn: {', '.join(r['unfounded_amounts'])}")
             lines.append(f"- Reply: {r['reply'][:300]!r}")
             lines.append("")
+
+    sysid_cases = [r for r in results if r.get("unverified_system_ids")]
+    if sysid_cases:
+        lines += ["## Số trong ID hệ thống CHƯA đối chiếu DB (minh bạch, không tính vào mục 3)", ""]
+        for r in sysid_cases:
+            lines.append(f"- {r['case_id']}: {', '.join(r['unverified_system_ids'])}")
+        lines.append("")
 
     if errored:
         lines += ["## Chi tiết case lỗi hệ thống", ""]
@@ -235,12 +314,49 @@ def write_report(results: list[dict], out_path: Path) -> None:
     )
 
 
+def rescore(raw_path: Path) -> None:
+    """Chấm LẠI một file raw đã lưu bằng thước QA-03 — offline, không gọi LLM.
+
+    File raw cũ không lưu tool_calls nên KHÔNG tính lại grounding từ đầu —
+    chỉ PHÂN LOẠI LẠI các số đã bị cờ: số nằm trong một ID hệ thống của chính
+    reply đó chuyển sang `unverified_system_ids` (DB tạm của run gốc đã xoá,
+    không đối chiếu tồn tại được — người xem tự đối chiếu DB thật nếu cần);
+    số còn lại giữ nguyên là nghi bịa thật."""
+    results = json.loads(raw_path.read_text(encoding="utf-8"))
+    for r in results:
+        reply_ids = _SYSTEM_ID_RE.findall(r.get("reply") or "")
+        suspects: list[str] = []
+        unverified: list[str] = []
+        for a in r.get("unfounded_amounts") or []:
+            owner = next((tok for tok in reply_ids if a in _digits_only(tok)), None)
+            if owner is None:
+                suspects.append(a)
+            else:
+                unverified.append(f"{a} (trong {owner})")
+        r["unfounded_amounts"] = suspects
+        r["unverified_system_ids"] = (r.get("unverified_system_ids") or []) + unverified
+
+    out_json = raw_path.with_name(raw_path.stem + "_rescored.json")
+    out_json.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    out_md = raw_path.with_name(raw_path.stem + "_rescored.md")
+    write_report(results, out_md)
+    print(f"Rescore JSON: {out_json}", file=sys.stderr)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--file", type=Path, default=EVAL_DIR / "golden_set.jsonl")
     parser.add_argument("--n", type=int, default=24, help="Cỡ mẫu (stratified theo cell nếu có)")
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument(
+        "--rescore", type=Path, default=None,
+        help="Chấm lại offline một file *_raw.json đã lưu bằng thước QA-03 (không gọi LLM, không tốn phí)",
+    )
     args = parser.parse_args()
+
+    if args.rescore is not None:
+        rescore(args.rescore)
+        return
 
     all_cases = load_jsonl(args.file)
     cases = _sample_stratified_by_cell(all_cases, args.n)

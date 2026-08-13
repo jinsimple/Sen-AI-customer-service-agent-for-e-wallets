@@ -1,0 +1,63 @@
+[
+  {
+    "case_id": "CASE-109",
+    "elapsed_seconds": 6.01,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0
+    },
+    "checks_failed": [
+      "complaint_type",
+      "scope"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": "TCK-5f267df87252",
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-5f267df87252.",
+    "error": null
+  },
+  {
+    "case_id": "CASE-064",
+    "elapsed_seconds": 43.918,
+    "usage": {},
+    "checks_failed": [],
+    "forbidden_violations": [
+      "LỖI CHẠY CASE: OperationalError('(sqlite3.OperationalError) database is locked')"
+    ],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": null,
+    "reply": "",
+    "error": "OperationalError('(sqlite3.OperationalError) database is locked')"
+  },
+  {
+    "case_id": "CASE-055",
+    "elapsed_seconds": 32.397,
+    "usage": {},
+    "checks_failed": [],
+    "forbidden_violations": [
+      "LỖI CHẠY CASE: OperationalError('(sqlite3.OperationalError) database is locked')"
+    ],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": null,
+    "reply": "",
+    "error": "OperationalError('(sqlite3.OperationalError) database is locked')"
+  },
+  {
+    "case_id": "CASE-073",
+    "elapsed_seconds": 49.127,
+    "usage": {},
+    "checks_failed": [],
+    "forbidden_violations": [
+      "LỖI CHẠY CASE: OperationalError('(sqlite3.OperationalError) database is locked')"
+    ],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": null,
+    "reply": "",
+    "error": "OperationalError('(sqlite3.OperationalError) database is locked')"
+  }
+]

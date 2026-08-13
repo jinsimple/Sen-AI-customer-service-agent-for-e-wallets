@@ -1,0 +1,674 @@
+[
+  {
+    "case_id": "CASE-109",
+    "elapsed_seconds": 89.399,
+    "usage": {
+      "input_tokens": 42750,
+      "output_tokens": 539,
+      "total_tokens": 43289
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang lo lắng về giao dịch này. Tuy nhiên, mình vẫn không tìm thấy giao dịch nào với mã TXN20260623999901 trong hệ thống. Nếu bạn không nhớ rõ thông tin nào khác, mình khuyên bạn nên kiểm tra lại trong ứng dụng hoặc trên biên lai giao dịch để có thêm thông tin. Nếu có bất kỳ thông tin nào khác mà bạn có thể cung cấp, mình sẽ rất vui lòng hỗ trợ bạn!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-064",
+    "elapsed_seconds": 46.14,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-82bea9df9a18.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-055",
+    "elapsed_seconds": 35.26,
+    "usage": {
+      "input_tokens": 28022,
+      "output_tokens": 475,
+      "total_tokens": 28497
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình biết rằng bạn chỉ nhớ giao dịch với mã TXN20260626000001. Mình đã tạo hồ sơ khiếu nại cho bạn về việc bị trừ tiền hai lần 340.000đ vào ngày 26/06/2026. \n\nMã ticket của bạn là **TCK-78516f0d76c6**. Đội ngũ CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi sớm nhất vào ngày **12/09/2026**. \n\nNếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-073",
+    "elapsed_seconds": 24.479,
+    "usage": {
+      "input_tokens": 34026,
+      "output_tokens": 459,
+      "total_tokens": 34485
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình biết bạn đã cung cấp mã giao dịch TXN20260707000001. Mình đã tạo một hồ sơ khiếu nại cho bạn về việc bị trừ tiền hai lần khi rút 1.524.000đ về ngân hàng. \n\nMã ticket của bạn là **TCK-a9fcfbf5b17b**. Bộ phận CSKH sẽ tiếp nhận và xử lý hồ sơ này trong thời gian tới, dự kiến sẽ phản hồi trước **19/08/2026**. \n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-037",
+    "elapsed_seconds": 112.834,
+    "usage": {
+      "input_tokens": 35497,
+      "output_tokens": 290,
+      "total_tokens": 35787
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-9ed1b946d2ce.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-028",
+    "elapsed_seconds": 5.161,
+    "usage": {
+      "input_tokens": 12693,
+      "output_tokens": 146,
+      "total_tokens": 12839
+    },
+    "checks_failed": [
+      "khong_tao_ticket_hop_le"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang lo lắng về giao dịch này. Mình đã tìm thấy giao dịch với mã TXN20260611000004, có số tiền 1.755.000đ, được thực hiện vào ngày 11/06/2026. Tuy nhiên, giao dịch này hiện đang trong trạng thái \"đang xử lý\" và chưa hoàn tất.\n\nVì vậy, bạn sẽ cần chờ thêm một thời gian nữa để số tiền này được chuyển vào tài khoản. Nếu bạn cần thêm thông tin hoặc muốn khiếu nại về giao dịch này, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-046",
+    "elapsed_seconds": 4.358,
+    "usage": {
+      "input_tokens": 12694,
+      "output_tokens": 160,
+      "total_tokens": 12854
+    },
+    "checks_failed": [
+      "khong_tao_ticket_hop_le"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang lo lắng về giao dịch này. Mình đã tìm thấy giao dịch với mã TXN20260621000005, có số tiền 933.000đ, đang trong trạng thái \"đang xử lý\" (processing) và chưa hoàn tất. Giao dịch này được thực hiện để mua đồ ăn vặt và được gửi từ ví của bạn đến tài khoản ngân hàng của người nhận.\n\nVì giao dịch vẫn đang trong quá trình xử lý, bạn sẽ cần chờ thêm một thời gian nữa để tiền được chuyển đến tài khoản của người nhận. Nếu bạn cần hỗ trợ thêm hoặc có câu hỏi khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-091",
+    "elapsed_seconds": 75.517,
+    "usage": {
+      "input_tokens": 20033,
+      "output_tokens": 141,
+      "total_tokens": 20174
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-06a236406ad6.",
+    "error": null,
+    "unverified_system_ids": [
+      "236406 (trong TCK-06a236406ad6)"
+    ]
+  },
+  {
+    "case_id": "CASE-082",
+    "elapsed_seconds": 27.526,
+    "usage": {
+      "input_tokens": 26179,
+      "output_tokens": 351,
+      "total_tokens": 26530
+    },
+    "checks_failed": [
+      "complaint_type"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình biết bạn không thực hiện giao dịch này và đã tạo hồ sơ khiếu nại cho bạn. Mã ticket của bạn là **TCK-3d73892a0963**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **14:34 ngày 12/09/2026**. Bạn không cần lo lắng về việc hoàn tiền, vì đây là quy trình mà chuyên viên sẽ xem xét.\n\nNếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-100",
+    "elapsed_seconds": 70.534,
+    "usage": {
+      "input_tokens": 13891,
+      "output_tokens": 142,
+      "total_tokens": 14033
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-9cadf50aa9fa.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-010",
+    "elapsed_seconds": 35.583,
+    "usage": {
+      "input_tokens": 38921,
+      "output_tokens": 292,
+      "total_tokens": 39213
+    },
+    "checks_failed": [
+      "khong_tao_ticket_hop_le"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu bạn đang rất cần hỗ trợ. Tuy nhiên, mình vẫn không tìm thấy giao dịch nào với số tiền 1.371.000đ trong lịch sử giao dịch của bạn. \n\nNếu bạn có thêm thông tin nào khác như thời gian gần đây mà bạn thực hiện giao dịch, hoặc có thể kiểm tra lại số điện thoại mà bạn đã sử dụng, mình sẽ cố gắng hỗ trợ bạn tốt hơn.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-001",
+    "elapsed_seconds": 24.648,
+    "usage": {
+      "input_tokens": 33331,
+      "output_tokens": 349,
+      "total_tokens": 33680
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là TCK-f49610ed2a3c. Chuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước 14:37 ngày 12/09/2026. \n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-019",
+    "elapsed_seconds": 3.724,
+    "usage": {
+      "input_tokens": 12709,
+      "output_tokens": 105,
+      "total_tokens": 12814
+    },
+    "checks_failed": [
+      "khong_tao_ticket_hop_le"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang cảm thấy mệt mỏi. Về giao dịch bạn đề cập, mình đã tìm thấy một giao dịch chuyển 1.629.000đ vào ngày 09/06/2026 lúc 14:05. Giao dịch này đã thành công và được thực hiện từ ví của bạn ra ngân hàng.\n\nNếu bạn cần hỗ trợ thêm về vấn đề này, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-110",
+    "elapsed_seconds": 66.226,
+    "usage": {
+      "input_tokens": 26544,
+      "output_tokens": 258,
+      "total_tokens": 26802
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-aeebbc50acec.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-065",
+    "elapsed_seconds": 33.883,
+    "usage": {
+      "input_tokens": 27933,
+      "output_tokens": 231,
+      "total_tokens": 28164
+    },
+    "checks_failed": [
+      "scope",
+      "cite_TXN20260628000002"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang gặp vấn đề với giao dịch TXN20260628000001 bị trừ 2 lần. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-49ce5ffe7a07**. CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **14:38 ngày 12/09/2026**. \n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-056",
+    "elapsed_seconds": 41.385,
+    "usage": {
+      "input_tokens": 42083,
+      "output_tokens": 479,
+      "total_tokens": 42562
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-fe6b605ca83d**. CSKH sẽ tiếp nhận và xử lý yêu cầu của bạn trong thời gian tới, dự kiến sẽ phản hồi trước **12/09/2026**.\n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-074",
+    "elapsed_seconds": 35.579,
+    "usage": {
+      "input_tokens": 28403,
+      "output_tokens": 615,
+      "total_tokens": 29018
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình biết rằng bạn đang băn khoăn về giao dịch thứ hai. Mình đã xác nhận giao dịch đầu tiên với mã TXN20260705000001:\n\n- **Số tiền**: 352.000đ\n- **Thời gian**: 11:37:59 ngày 05/07/2026\n- **Trạng thái**: Thành công\n- **Phạm vi**: Rút tiền về ngân hàng\n- **Người gửi**: Đ. Q. Châu (SĐT: 091***0142)\n- **Người nhận**: C. M. Thảo (Ngân hàng VTB)\n\nVề giao dịch thứ hai mà bạn không nhớ rõ, mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-544b8c007d95**. CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **19/08/2026**.\n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-038",
+    "elapsed_seconds": 29.308,
+    "usage": {
+      "input_tokens": 20064,
+      "output_tokens": 196,
+      "total_tokens": 20260
+    },
+    "checks_failed": [
+      "khong_tao_ticket_hop_le"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang lo lắng về giao dịch này. Tuy nhiên, mình không tìm thấy giao dịch nào với mã TXN20260620000001 trong hệ thống. \n\nTrong lịch sử giao dịch gần đây của bạn, có một số giao dịch khác nhưng không có giao dịch nào tương ứng với mã này. Nếu bạn có thêm thông tin nào khác về giao dịch này, như số tiền hoặc thời gian cụ thể, mình có thể giúp bạn tra cứu thêm. \n\nNgoài ra, mình cũng thấy bạn đã có một khiếu nại trước đó về việc chưa nhận được tiền, mã số khiếu nại là CMP-00001, hiện đang trong quá trình điều tra. Nếu bạn cần hỗ trợ thêm về vấn đề này, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-029",
+    "elapsed_seconds": 5.978,
+    "usage": {
+      "input_tokens": 12692,
+      "output_tokens": 131,
+      "total_tokens": 12823
+    },
+    "checks_failed": [
+      "khong_tao_ticket_hop_le"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang lo lắng về giao dịch này. Mình đã tìm thấy giao dịch với mã TXN20260611000005. Giao dịch này có số tiền 2.120.000đ và hiện đang trong trạng thái \"đang xử lý\" (processing). \n\nVì vậy, tiền chưa về tài khoản của bạn là do giao dịch vẫn chưa hoàn tất. Bạn hãy chờ thêm một thời gian nữa nhé. Nếu có bất kỳ câu hỏi nào khác, mình sẵn sàng hỗ trợ!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-047",
+    "elapsed_seconds": 5.338,
+    "usage": {
+      "input_tokens": 12749,
+      "output_tokens": 145,
+      "total_tokens": 12894
+    },
+    "checks_failed": [
+      "khong_tao_ticket_hop_le"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang lo lắng về giao dịch bị trừ tiền. Mình đã tìm thấy giao dịch mà bạn đề cập. Cụ thể, vào ngày 18/06/2026, bạn đã thực hiện một giao dịch chuyển 2.234.000đ với mã giao dịch là **TXN20260618000003**. Giao dịch này có trạng thái là **đang xử lý** và thuộc phạm vi **rút tiền ra ngân hàng**.\n\nNếu bạn cần thêm thông tin hoặc muốn khiếu nại về giao dịch này, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-092",
+    "elapsed_seconds": 204.079,
+    "usage": {
+      "input_tokens": 68319,
+      "output_tokens": 544,
+      "total_tokens": 68863
+    },
+    "checks_failed": [
+      "complaint_type",
+      "scope"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-5cd5682ec32f**. CSKH sẽ xem xét vấn đề này và phản hồi cho bạn trong thời gian tới, dự kiến trước **14:43 ngày 12/09/2026**.\n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-083",
+    "elapsed_seconds": 37.736,
+    "usage": {
+      "input_tokens": 27266,
+      "output_tokens": 496,
+      "total_tokens": 27762
+    },
+    "checks_failed": [
+      "complaint_type"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu bạn đang gặp vấn đề với giao dịch 233.000đ đã hoàn thành nhưng chưa vào ví. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-a5b0085bff4f**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **12/09/2026**. Bạn không cần lo lắng về việc hoàn tiền, đội ngũ sẽ kiểm tra và liên hệ lại với bạn sớm nhất có thể.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-101",
+    "elapsed_seconds": 19.148,
+    "usage": {
+      "input_tokens": 19127,
+      "output_tokens": 164,
+      "total_tokens": 19291
+    },
+    "checks_failed": [
+      "khong_tao_ticket_hop_le"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang lo lắng về khoản hoàn 2.382.000đ của mình. Mình đã tìm thấy giao dịch này, nó được thực hiện vào ngày 16/07/2026 lúc 18:37 và có trạng thái là thành công. Giao dịch này được chuyển đi từ ví của bạn đến ngân hàng (scope: to_bank).\n\nNếu bạn cần thêm thông tin hoặc muốn khiếu nại về giao dịch này, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-011",
+    "elapsed_seconds": 106.195,
+    "usage": {
+      "input_tokens": 40457,
+      "output_tokens": 517,
+      "total_tokens": 40974
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-94ff7f8ea2b2.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-002",
+    "elapsed_seconds": 16.598,
+    "usage": {
+      "input_tokens": 19481,
+      "output_tokens": 272,
+      "total_tokens": 19753
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-b52340db52df**. Bộ phận CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **12/09/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-020",
+    "elapsed_seconds": 130.195,
+    "usage": {
+      "input_tokens": 45211,
+      "output_tokens": 304,
+      "total_tokens": 45515
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-d63e04cdcd78.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-067",
+    "elapsed_seconds": 46.303,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-f6d2ab1c478e.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-058",
+    "elapsed_seconds": 67.693,
+    "usage": {
+      "input_tokens": 48022,
+      "output_tokens": 511,
+      "total_tokens": 48533
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình đã kiểm tra lại giao dịch mã TXN20260627000002. Giao dịch này cũng được thực hiện vào ngày 27/06/2026, với số tiền 2.668.000đ và đã hoàn tất thành công. Mô tả giao dịch là \"mua đồ ăn vặt\", thực hiện lúc 11:15:16.\n\nVì bạn đã bị trừ tiền hai lần cho cùng một loại giao dịch, mình sẽ tạo một hồ sơ khiếu nại cho bạn. Bạn có xác nhận rằng bạn chưa từng cung cấp OTP cho ai không?",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-076",
+    "elapsed_seconds": 47.052,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-9b5cbe0dd228.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-040",
+    "elapsed_seconds": 43.725,
+    "usage": {
+      "input_tokens": 27929,
+      "output_tokens": 200,
+      "total_tokens": 28129
+    },
+    "checks_failed": [
+      "scope",
+      "cite_TXN20260617000001",
+      "cite_TXN20260617000002"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình hiểu rằng bạn đang lo lắng về việc chưa nhận được tiền rút 800.000đ. Mình đã kiểm tra và không tìm thấy giao dịch nào tương ứng với yêu cầu rút tiền này.\n\nMình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-6a06a74864fa**. Bộ phận CSKH sẽ xem xét và phản hồi cho bạn trong thời gian tới, dự kiến trước **19/08/2026**. Bạn không cần lo lắng, họ sẽ liên hệ với bạn sớm nhất có thể.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-031",
+    "elapsed_seconds": 33.685,
+    "usage": {
+      "input_tokens": 26568,
+      "output_tokens": 391,
+      "total_tokens": 26959
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình biết rằng bạn đang chờ đợi giao dịch này. Mình đã tạo hồ sơ khiếu nại cho giao dịch mã TXN20260608000007 trị giá 844.000đ, hiện đang trong trạng thái \"đang xử lý\". Mã ticket của bạn là **TCK-be8895f900e1**.\n\nĐội ngũ CSKH sẽ tiếp nhận và xử lý hồ sơ của bạn trong thời gian tới, dự kiến sẽ phản hồi trước 14:53 ngày 12/09/2026. Nếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-049",
+    "elapsed_seconds": 23.852,
+    "usage": {
+      "input_tokens": 26629,
+      "output_tokens": 403,
+      "total_tokens": 27032
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình biết bạn đang chờ đợi giao dịch này. Mình đã tạo hồ sơ khiếu nại cho giao dịch **TXN20260619000005** với số tiền **2.340.000đ**. Mã ticket của bạn là **TCK-01f88ab22b4a**. \n\nĐội ngũ CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi trước **19/08/2026**. Bạn không cần lo lắng, họ sẽ liên hệ với bạn sớm nhất có thể. Nếu cần thêm thông tin gì, bạn cứ hỏi nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-094",
+    "elapsed_seconds": 148.423,
+    "usage": {
+      "input_tokens": 45818,
+      "output_tokens": 315,
+      "total_tokens": 46133
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-bf43857f0de7.",
+    "error": null,
+    "unverified_system_ids": [
+      "43857 (trong TCK-bf43857f0de7)"
+    ]
+  },
+  {
+    "case_id": "CASE-085",
+    "elapsed_seconds": 31.085,
+    "usage": {
+      "input_tokens": 25431,
+      "output_tokens": 188,
+      "total_tokens": 25619
+    },
+    "checks_failed": [
+      "cite_TXN20260705000007",
+      "cite_TXN20260705000008"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình đã ưu tiên chuyển yêu cầu của bạn cho nhân viên CSKH xử lý trực tiếp. Họ sẽ phản hồi sớm nhất có thể. Mã ticket của bạn là **TCK-17f3d91c7cdd** và thời gian dự kiến để nhận phản hồi là trước **12/09/2026**. \n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-103",
+    "elapsed_seconds": 28.778,
+    "usage": {
+      "input_tokens": 52353,
+      "output_tokens": 373,
+      "total_tokens": 52726
+    },
+    "checks_failed": [
+      "cite_TXN20260718000002",
+      "cite_TXN20260718000003"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình biết bạn đang rất bối rối với tình huống này. Tuy nhiên, mình vẫn không tìm thấy giao dịch nào với mã giao dịch và số tiền mà bạn cung cấp. Bạn có thể kiểm tra lại mã giao dịch hoặc cung cấp thêm thông tin khác như thời gian giao dịch hoặc tên người nhận không? Điều này sẽ giúp mình hỗ trợ bạn tốt hơn.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-013",
+    "elapsed_seconds": 144.942,
+    "usage": {
+      "input_tokens": 84145,
+      "output_tokens": 543,
+      "total_tokens": 84688
+    },
+    "checks_failed": [
+      "complaint_type",
+      "scope",
+      "cite_TXN20260531000007"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-6f7d3f40c95**. Chuyên viên CSKH sẽ kiểm tra và phản hồi bạn trong thời gian sớm nhất, dự kiến trước **14:59 ngày 12/09/2026**.\n\nNếu bạn cần thêm thông tin gì khác, đừng ngần ngại hỏi nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-004",
+    "elapsed_seconds": 82.274,
+    "usage": {
+      "input_tokens": 45559,
+      "output_tokens": 492,
+      "total_tokens": 46051
+    },
+    "checks_failed": [
+      "cite_TXN20260531000003"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn về giao dịch chuyển nhầm cho người nhận P. V. Phong. Mã ticket của bạn là **TCK-b0b08637a880**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý hồ sơ của bạn trong thời gian tới, dự kiến sẽ phản hồi trước **ngày 12/09/2026**. \n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-022",
+    "elapsed_seconds": 104.869,
+    "usage": {
+      "input_tokens": 29615,
+      "output_tokens": 331,
+      "total_tokens": 29946
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-46df7dd466e4.",
+    "error": null,
+    "unverified_system_ids": []
+  },
+  {
+    "case_id": "CASE-068",
+    "elapsed_seconds": 47.032,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0
+    },
+    "checks_failed": [
+      "ticket_hoặc_complaint_không_tồn_tại_sau_khi_tạo"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là TCK-38750618ef4b.",
+    "error": null,
+    "unverified_system_ids": [
+      "38750618 (trong TCK-38750618ef4b)"
+    ]
+  },
+  {
+    "case_id": "CASE-059",
+    "elapsed_seconds": 21.057,
+    "usage": {
+      "input_tokens": 27153,
+      "output_tokens": 418,
+      "total_tokens": 27571
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "reply": "Mình biết rằng bạn đang rất lo lắng về vấn đề này. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-466400457830**. Chuyên viên CSKH sẽ xem xét và phản hồi cho bạn trong thời gian sớm nhất, dự kiến là trước **12/09/2026**.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "error": null,
+    "unverified_system_ids": []
+  }
+]
