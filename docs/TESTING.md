@@ -450,3 +450,74 @@ bản bỏ dấu (`_strip_diacritics`, cùng cách `fraud_engine.py` dùng cho F
 Ngưỡng cụ thể của `FS-06` (số lần OTP sai, % số dư rút) hiện đặt ở mức mô phỏng cho
 demo, chưa được ZaloPay xác nhận (`FIN05-Brief.md` §8). Danh sách câu hỏi đầy đủ cho
 chuyên gia nghiệp vụ: `FIN05-Data-Brief.md` §7.
+
+## Auth5 bổ sung (2026-08-12) — FIN05-Auth-Flow-Security-Upgrade
+
+Nguồn: `FIN05-Auth-Flow-Security-Upgrade.md` + `FIN05_Auth5_Handoff.md` (do
+"claude bảo mật" viết, đối chiếu luồng auth hiện tại với NIST SP 800-63B-4,
+PSD2 SCA, OWASP ASVS 5.0, PCI DSS v4.0). 27 case `AUTH5-*`
+(`FIN05_Auth5_TestCases.jsonl`, cũng gộp vào `FIN05_QA_TestCases.jsonl`
+chính, 176 case tổng). Namespace `AUTH5-` cho mọi ID mới.
+
+### 2 quyết định PO đã chốt qua AskUserQuestion (không tự đoán)
+
+1. **Câu hỏi bảo mật (KBA)** → bỏ hẳn khỏi vai trò xác thực (không phải chỉ
+   nâng hash) — mạnh hơn hẳn đề xuất gốc "chỉ đổi sang bcrypt/argon2".
+   `security_question`/`security_answer_hash` VẪN giữ trong `User` model,
+   chỉ để hỗ trợ CSKH nhận diện khách qua hotline, không gate route nào.
+2. **Revocation store + đồng bộ hạ tầng** → Redis, làm đúng chuẩn — không
+   chỉ dùng cho JWT revocation riêng lẻ mà ĐỒNG BỘ cho toàn bộ rate-limit
+   (login, OTP, live-chat ws-ticket/message) — xem `src/redis_client.py`,
+   `src/rate_limit.py`. **Không** migrate `ConnectionManager` (live-chat
+   WebSocket broadcast) sang Redis pub/sub đa-worker: 1-worker uvicorn vẫn
+   là bắt buộc kiến trúc vì `MemorySaver` (LangGraph, hội thoại AI giữ RAM 1
+   process) — đổi live-chat sang pub/sub sẽ KHÔNG unlock được multi-worker
+   thật nếu không đổi luôn LangGraph checkpointer (dự án tách biệt, lớn hơn
+   hẳn, ngoài phạm vi đợt này).
+
+### Bảng mapping AUTH5-* → trạng thái
+
+| ID | Trạng thái | Ghi chú |
+|---|---|---|
+| AUTH5-01/AAL-001 | Implemented | Bỏ hẳn KBA khỏi `verify_otp` — `tests/test_security/test_security_answer_hash.py` |
+| AUTH5-01B | N/A, ghi chú | Không có route "quên mật khẩu"/khôi phục tài khoản nào (đăng nhập passwordless, `LoginRequest` không có cột password) — giải quyết trọn vẹn bởi AUTH5-01, không cần route riêng |
+| AUTH5-01C | Implemented | argon2id có salt thay SHA-256 trần — `scripts/gen_dataset.py`, cùng file test trên |
+| AUTH5-02/02C | Implemented | Access token 15 phút + refresh token (chuỗi ngẫu nhiên, Redis) — `src/auth.py`, `tests/test_api/test_auth_jwt_refresh.py` |
+| AUTH5-02B | Implemented | TTL refresh 7 ngày khách hàng / 1 ngày role nội bộ |
+| AUTH5-03/03B | Implemented | Rotation + reuse detection (thu hồi cả family) — sống sót qua restart backend (Redis, không phải in-memory) |
+| AUTH5-04/05/05B | Implemented | OTP step-up RIÊNG cho từng `resolution_id`, gắn `amount_snapshot` (PSD2 dynamic linking) — `tests/test_api/test_resolution_approval_otp.py` |
+| AUTH5-05C/05D | Covered gián tiếp | Mô hình step-up theo PHIÊN (không phải theo từng request) là quyết định thiết kế đã có từ AUTH-006/008 — case resolution-approval (05/05B) mới thật sự cần binding theo case cụ thể, đã làm |
+| AUTH5-05E | Implemented | Rate-limit `/auth/otp/request` theo user_id (không chỉ IP) — `tests/test_api/test_otp.py::test_otp_request_rate_limited_per_user` |
+| AUTH5-06 | Implemented | `/auth/logout` thu hồi refresh token + `revoked_before[user_id]` — check ở `require_otp_verified`/approve/reject (phạm vi có chủ đích, xem docstring `require_otp_verified`) |
+| AUTH5-06B | Chưa làm (P2) | Toast thông báo khi bị revoke — không phải điều kiện hoàn thành đợt này |
+| AUTH5-07/08B | N/A | `LoginRequest` không có cột password — không có gì để kiểm tra rò rỉ/rotation định kỳ |
+| AUTH5-08 | Implemented | `/auth/login` đổi khoá IP-only → khoá theo PHONE (+ khoá IP riêng, ngưỡng rộng hơn làm lớp chống flood thô) — `tests/test_api/test_auth_login.py` |
+| AUTH5-09/10 | Covered | Không nhánh nào trong OTP mới (chỉ còn `otp_ok`) cho phép bypass; 1 yếu tố sai → từ chối thẳng, không có "remember me" |
+| AUTH5-AAL-002 | Implemented | Supervisor: AAL2 + OTP step-up theo case — cùng `test_resolution_approval_otp.py` |
+| AUTH5-AAL-003 | Chưa làm (roadmap) | Passkey/FIDO2 cho `partner_admin` — trung hạn theo đúng tài liệu gốc, không cấp bách cho UAT |
+| AUTH5-MIGRATE-001 | Implemented | Access token phát TRƯỚC đợt nâng cấp (không có refresh_token đi kèm) vẫn qua `get_current_user` bình thường tới hết hạn tự nhiên |
+| AUTH5-MIGRATE-002 | Ghi chú | Rollback chỉ cần đổi lại `JWT_ACCESS_EXPIRE_MINUTES` — không có dữ liệu Postgres nào bị đổi (mọi state mới nằm ở Redis, tự hết hạn qua TTL) |
+| AUTH5-REG-001 | Gate bắt buộc | `pytest tests/test_api/test_otp.py tests/test_api/test_auth_login.py tests/test_api/test_authz_matrix.py -v` xanh 100% sau toàn bộ thay đổi trên |
+
+### Hạ tầng mới: Redis
+
+`src/redis_client.py` (client factory, hỗ trợ `REDIS_URL=fake://...` →
+fakeredis cho CI/test) + `src/rate_limit.py` (`RedisSlidingWindowLimiter`,
+thay `InMemoryRateLimiter` cũ ở `live_chat_ws.py`). `docker-compose.yml`
+thêm service `redis` (không publish port, cùng nguyên tắc "chỉ caddy publish
+port" đã có). CI (`ci.yml`) dùng `REDIS_URL: fake://ci` — không cần Redis
+thật.
+
+### Gotcha đã bắt được lúc viết test (không phải suy đoán)
+
+`datetime.utcnow().timestamp()` trên máy có timezone khác UTC diễn giải giờ
+theo LOCAL timezone (không phải UTC) — khác cách PyJWT tự mã hoá claim
+`iat`/`exp` (`calendar.timegm()`, luôn coi naive datetime LÀ UTC). Dùng
+`.timestamp()` để lưu `login_iat` cho refresh token rồi dựng lại bằng
+`utcfromtimestamp()` khi rotate làm access token MỚI có `iat` lệch khỏi bản
+gốc đúng bằng độ lệch timezone máy chạy (bắt được nhờ
+`test_refresh_preserves_original_iat_for_thread_continuity` lệch đúng 7 giờ
+trên máy dev) — phá `thread_id` hội thoại AI (`user_id:iat`,
+`src/agents/graph.py`) ngay sau lần refresh access token đầu tiên. Sửa bằng
+`calendar.timegm(now.utctimetuple())` ở `src/api/main.py::login`/`verify_otp`
+thay vì `.timestamp()`.
