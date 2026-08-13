@@ -2,6 +2,11 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0
 pydantic>=2.10.0
+# KHÔNG được xoá dù `grep pydantic_settings src/` ra rỗng: đây là dependency
+# TRUYỀN của chromadb (chromadb/config.py: `from pydantic_settings import
+# BaseSettings`). Đã thử gỡ thật 2026-08-13 -> sập toàn bộ app ngay lúc import
+# src.api.main. Giữ tường minh ở đây để không phụ thuộc vào việc chromadb mãi
+# mãi khai báo nó.
 pydantic-settings>=2.7.0
 python-dotenv>=1.0.0
 
@@ -46,7 +51,6 @@ slowapi>=0.1.9
 # quyết định risk-accepted ở ci.yml (job dependency-and-secret-scan) và
 # docs/TESTING.md.
 chromadb>=0.5.0
-langchain-chroma>=0.2.0
 langchain-text-splitters>=0.3.0
 
 # Parse tài liệu upload cho RAG — src/rag/parsers.py (chỉ .md/.txt/.pdf/.docx,
