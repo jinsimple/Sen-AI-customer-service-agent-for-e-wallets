@@ -28,6 +28,12 @@
   --danger:#DC2626; --danger-bg:#FEE2E2;
   --info:#7C3AED; --info-bg:#F5D0FE;
   --critical:#86198F; --critical-bg:#FDE9FB;
+  /* Thanh topbar/tabnav CỐ Ý giữ tối bất kể light/dark mode (bản sắc
+     thương hiệu) — nhưng vẫn phải đổi theo palette màu đang chọn, nên tách
+     riêng 7 token "chrome" này (không nằm trong khối light/dark ở dưới). */
+  --chrome-bar:#170F2B; --chrome-border:#2C1B47; --chrome-pill-bg:#3A2359;
+  --chrome-pill-border:#4A2E70; --chrome-text:#E7D9F5; --chrome-text-dim:#C4B3D9;
+  --chrome-hover:#29184A;
   --font-ui: 'Nunito', -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
   --radius:12px; --radius-sm:8px;
@@ -97,30 +103,63 @@ button{ font-family:inherit; }
   font-weight:800; font-size:16px; flex:none;
 }
 .brand-text b{ display:block; font-size:14.5px; letter-spacing:.01em; }
-.brand-text span{ display:block; font-size:11.5px; color:#C4B3D9; margin-top:1px; }
+.brand-text span{ display:block; font-size:11.5px; color:var(--chrome-text-dim); margin-top:1px; }
 .topbar-actions{ display:flex; align-items:center; gap:10px; }
 .theme-toggle{
-  display:flex; align-items:center; gap:7px; background:#3A2359; color:#E7D9F5;
-  border:1px solid #4A2E70; padding:7px 12px; border-radius:999px; font-size:12.5px; cursor:pointer;
+  display:flex; align-items:center; gap:7px; background:var(--chrome-pill-bg); color:var(--chrome-text);
+  border:1px solid var(--chrome-pill-border); padding:7px 12px; border-radius:999px; font-size:12.5px; cursor:pointer;
   transition:background .18s ease;
 }
-.theme-toggle:hover{ background:#4A2E70; }
-.who-pill{ font-size:11.5px; color:#C4B3D9; border:1px solid #4A2E70; padding:6px 10px; border-radius:999px; }
+.theme-toggle:hover{ background:var(--chrome-hover); }
+.who-pill{ font-size:11.5px; color:var(--chrome-text-dim); border:1px solid var(--chrome-pill-border); padding:6px 10px; border-radius:999px; }
 
 .tabnav{
-  background:#170F2B; border-bottom:1px solid #2C1B47;
+  background:var(--chrome-bar); border-bottom:1px solid var(--chrome-border);
   padding:10px 28px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
 }
 .tabgroup{ display:flex; align-items:center; gap:6px; }
-.tabgroup-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:#8A76A8; margin-right:4px; font-weight:700; }
-.tab-sep{ width:1px; height:20px; background:#2C1B47; }
+.tabgroup-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--chrome-text-dim); margin-right:4px; font-weight:700; }
+.tab-sep{ width:1px; height:20px; background:var(--chrome-border); }
 .tab-btn{
-  appearance:none; border:1px solid transparent; background:transparent; color:#C9B8DC;
+  appearance:none; border:1px solid transparent; background:transparent; color:var(--chrome-text-dim);
   font-size:13px; font-weight:600; padding:8px 13px; border-radius:8px; cursor:pointer;
   transition:background .15s ease, color .15s ease;
 }
-.tab-btn:hover{ background:#29184A; color:#fff; }
+.tab-btn:hover{ background:var(--chrome-hover); color:#fff; }
 .tab-btn.active{ background:var(--gold); color:#fff; }
+
+/* ---------- Palette picker (góc trên phải, cạnh theme-toggle) ---------- */
+.palette-picker{ position:relative; }
+.palette-trigger{
+  display:flex; align-items:center; gap:8px; background:var(--chrome-pill-bg); color:var(--chrome-text);
+  border:1px solid var(--chrome-pill-border); padding:6px 10px 6px 8px; border-radius:999px; font-size:12.5px; cursor:pointer;
+  transition:background .18s ease;
+}
+.palette-trigger:hover{ background:var(--chrome-hover); }
+.palette-trigger .icon{ color:var(--chrome-text-dim); }
+.swatch-pair{ display:flex; flex:none; }
+.swatch-pair span{ width:14px; height:14px; border-radius:50%; border:1.5px solid rgba(255,255,255,.55); }
+.swatch-pair span+span{ margin-left:-5px; }
+.palette-menu{
+  position:absolute; top:calc(100% + 8px); right:0; width:280px; max-height:400px; overflow-y:auto;
+  background:var(--surface); border:1px solid var(--border-strong); border-radius:14px;
+  box-shadow:var(--shadow-lg); padding:8px; z-index:60; display:none;
+}
+.palette-menu.open{ display:block; }
+.palette-menu-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-faint); font-weight:700; padding:8px 10px 6px; }
+.palette-option{
+  display:flex; align-items:center; gap:10px; width:100%; background:transparent; border:1px solid transparent;
+  padding:8px 10px; border-radius:10px; cursor:pointer; text-align:left; color:var(--text);
+}
+.palette-option:hover{ background:var(--surface-2); }
+.palette-option.active{ background:var(--surface-2); border-color:var(--border-strong); }
+.palette-option .dots{ display:flex; flex:none; gap:4px; }
+.palette-option .dots span{ width:16px; height:16px; border-radius:50%; border:1px solid rgba(0,0,0,.08); }
+.palette-option .meta{ flex:1; min-width:0; }
+.palette-option .meta b{ display:block; font-size:13px; }
+.palette-option .meta small{ display:block; font-size:11px; color:var(--text-dim); margin-top:1px; }
+.palette-option .check{ color:var(--gold); flex:none; visibility:hidden; }
+.palette-option.active .check{ visibility:visible; }
 
 main{ flex:1; padding:28px; max-width:1440px; margin:0 auto; width:100%; }
 .view{ display:none; }
@@ -431,6 +470,17 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
     </div>
     <div class="topbar-actions">
       <span class="who-pill">Bản mid-fi · v1 · T121 · 05/08/2026</span>
+      <div class="palette-picker" id="palettePicker">
+        <button class="palette-trigger" id="paletteTrigger" type="button" aria-haspopup="true" aria-expanded="false">
+          <span class="swatch-pair" id="paletteSwatch"><span></span><span></span></span>
+          <span id="paletteLabel">Tím Sen</span>
+          <svg class="icon icon-sm"><use href="#i-chevron-down"></use></svg>
+        </button>
+        <div class="palette-menu" id="paletteMenu" role="menu" aria-label="Chọn bảng màu">
+          <div class="palette-menu-label">9 phương án màu — FIN05-Theme-Options.md</div>
+          <div id="paletteList"></div>
+        </div>
+      </div>
       <button class="theme-toggle" id="themeToggle" type="button">
         <svg class="icon" id="themeIcon"><use href="#i-moon"></use></svg>
         <span id="themeLabel">Chế độ tối</span>
@@ -1158,6 +1208,115 @@ function toggleChip(el){
 // /chat, /dashboard, hoặc /approve sau khi đăng nhập (xem note trong tab Đăng nhập).
 var loginRoleTab = 'chat';
 
+// ---------------------------------------------------------------------
+// 9 phương án màu (FIN05-Theme-Options.md) — "chrome" là 7 token riêng cho
+// thanh topbar/tabnav (cố ý LUÔN tối, bất kể light/dark mode, giữ bản sắc
+// thương hiệu) nên KHÔNG nằm trong light/dark, áp dụng như nhau ở cả 2 chế
+// độ. success/warning/danger/info/critical (+ -bg) CỐ Ý không đổi theo
+// palette nào — quy ước bắt buộc trong tài liệu: 3 màu trạng thái giữ
+// nguyên ý nghĩa xuyên suốt mọi theme, không đổi ngữ nghĩa khi đổi thương
+// hiệu.
+// ---------------------------------------------------------------------
+var PALETTES = {
+  default: { name:'Tím Sen (mặc định file)', swatch:['#4C1D95','#C026D3'],
+    chrome:{ '--chrome-bar':'#170F2B','--chrome-border':'#2C1B47','--chrome-pill-bg':'#3A2359','--chrome-pill-border':'#4A2E70','--chrome-text':'#E7D9F5','--chrome-text-dim':'#C4B3D9','--chrome-hover':'#29184A' },
+    light:{ '--navy':'#4C1D95','--navy-2':'#7C3AED','--navy-soft':'#6D28D9','--gold':'#C026D3','--gold-bg':'#FDE9FB','--gold-ink':'#86198F','--bg':'#FAF5FF','--surface':'#FFFFFF','--surface-2':'#F5EDFC','--border':'#EADCF7','--border-strong':'#D8BFEE','--text':'#241228','--text-dim':'#6B5E73','--text-faint':'#9C8FA3' },
+    dark:{ '--navy':'#4C1D95','--navy-2':'#7C3AED','--navy-soft':'#6D28D9','--gold':'#C026D3','--gold-bg':'#3A1440','--gold-ink':'#F0ABFC','--bg':'#150C24','--surface':'#1E1233','--surface-2':'#241539','--border':'#33224A','--border-strong':'#453160','--text':'#F1E9FA','--text-dim':'#B7A8C4','--text-faint':'#7C6D89' } },
+  teal: { name:'Sen Xanh Ngọc', swatch:['#0F6E56','#C9A227'],
+    chrome:{ '--chrome-bar':'#0A2B22','--chrome-border':'#154438','--chrome-pill-bg':'#123A2E','--chrome-pill-border':'#1D5A46','--chrome-text':'#DFF3EA','--chrome-text-dim':'#9FC9B8','--chrome-hover':'#1A4C3B' },
+    light:{ '--navy':'#0F6E56','--navy-2':'#17A47D','--navy-soft':'#12805F','--gold':'#C9A227','--gold-bg':'#FBF3D9','--gold-ink':'#7A5D0C','--bg':'#FAF9F6','--surface':'#FFFFFF','--surface-2':'#E1F5EE','--border':'#D3ECE1','--border-strong':'#AEDBC8','--text':'#04342C','--text-dim':'#3E6358','--text-faint':'#7B978C' },
+    dark:{ '--navy':'#0F6E56','--navy-2':'#17A47D','--navy-soft':'#12805F','--gold':'#C9A227','--gold-bg':'#3A2E0A','--gold-ink':'#F0D875','--bg':'#08211B','--surface':'#0F332A','--surface-2':'#123A2F','--border':'#1D4F41','--border-strong':'#296B57','--text':'#E7F5EF','--text-dim':'#9FC2B5','--text-faint':'#6C8B7E' } },
+  ocean: { name:'Đại Dương Tín Nhiệm', swatch:['#0C447C','#D99A2B'],
+    chrome:{ '--chrome-bar':'#08213A','--chrome-border':'#12395B','--chrome-pill-bg':'#0F3255','--chrome-pill-border':'#1D507A','--chrome-text':'#DCEBF8','--chrome-text-dim':'#9BB9D1','--chrome-hover':'#164470' },
+    light:{ '--navy':'#0C447C','--navy-2':'#2E7FCB','--navy-soft':'#1D62A0','--gold':'#D99A2B','--gold-bg':'#FCEFD9','--gold-ink':'#7A4E08','--bg':'#F7FAFD','--surface':'#FFFFFF','--surface-2':'#E6F1FB','--border':'#D3E6F5','--border-strong':'#AECFEA','--text':'#042C53','--text-dim':'#3F5A74','--text-faint':'#7C93A6' },
+    dark:{ '--navy':'#0C447C','--navy-2':'#2E7FCB','--navy-soft':'#1D62A0','--gold':'#D99A2B','--gold-bg':'#3A2A0C','--gold-ink':'#F2C878','--bg':'#071B2E','--surface':'#0D2942','--surface-2':'#0F3049','--border':'#1C4666','--border-strong':'#295F86','--text':'#E6F1FB','--text-dim':'#9DB9CC','--text-faint':'#6C859A' } },
+  terracotta: { name:'Đất Ấm', swatch:['#993C1D','#E08A3C'],
+    chrome:{ '--chrome-bar':'#2B1006','--chrome-border':'#4A2213','--chrome-pill-bg':'#3D1B0D','--chrome-pill-border':'#5C3018','--chrome-text':'#F7E4D8','--chrome-text-dim':'#D2A991','--chrome-hover':'#522714' },
+    light:{ '--navy':'#993C1D','--navy-2':'#C1552A','--navy-soft':'#AA491F','--gold':'#E08A3C','--gold-bg':'#FCEADD','--gold-ink':'#7A3B0C','--bg':'#FDF8F4','--surface':'#FFFFFF','--surface-2':'#FAECE7','--border':'#F1DDD2','--border-strong':'#E4C2AE','--text':'#4A1B0C','--text-dim':'#7A5647','--text-faint':'#A68A7B' },
+    dark:{ '--navy':'#993C1D','--navy-2':'#C1552A','--navy-soft':'#AA491F','--gold':'#E08A3C','--gold-bg':'#3A210C','--gold-ink':'#F2B37E','--bg':'#241008','--surface':'#33170D','--surface-2':'#3B1B10','--border':'#54291A','--border-strong':'#6F3624','--text':'#FBEDE5','--text-dim':'#CBA795','--text-faint':'#8F7060' } },
+  indigo: { name:'Ca Đêm Tối Màu', swatch:['#3C3489','#B98A2E'],
+    chrome:{ '--chrome-bar':'#181440','--chrome-border':'#2C2760','--chrome-pill-bg':'#241F53','--chrome-pill-border':'#38316F','--chrome-text':'#E9E6FA','--chrome-text-dim':'#B3ABDE','--chrome-hover':'#332C69' },
+    light:{ '--navy':'#3C3489','--navy-2':'#5A50B8','--navy-soft':'#4A4299','--gold':'#B98A2E','--gold-bg':'#F5EAD3','--gold-ink':'#6B4B0C','--bg':'#FAFAFA','--surface':'#FFFFFF','--surface-2':'#EEEDFE','--border':'#E0DEFB','--border-strong':'#C7C3F5','--text':'#26215C','--text-dim':'#5B5580','--text-faint':'#918CAD' },
+    dark:{ '--navy':'#3C3489','--navy-2':'#5A50B8','--navy-soft':'#4A4299','--gold':'#B98A2E','--gold-bg':'#332708','--gold-ink':'#E8C878','--bg':'#1C1C1E','--surface':'#26262A','--surface-2':'#2C2C31','--border':'#38383C','--border-strong':'#48484D','--text':'#EDEDED','--text-dim':'#A8A8AC','--text-faint':'#77777B' } },
+  mono: { name:'Tối Giản Đơn Sắc', swatch:['#1F1F1F','#0F6E56'],
+    chrome:{ '--chrome-bar':'#141414','--chrome-border':'#2B2B2B','--chrome-pill-bg':'#232323','--chrome-pill-border':'#3A3A3A','--chrome-text':'#F0F0EE','--chrome-text-dim':'#B5B5B0','--chrome-hover':'#303030' },
+    light:{ '--navy':'#1F1F1F','--navy-2':'#3D3D3D','--navy-soft':'#2E2E2E','--gold':'#0F6E56','--gold-bg':'#E1F5EE','--gold-ink':'#0B4E3D','--bg':'#FFFFFF','--surface':'#FFFFFF','--surface-2':'#F5F5F2','--border':'#E2E1DC','--border-strong':'#CFCEC7','--text':'#1F1F1F','--text-dim':'#6B6B68','--text-faint':'#9C9B96' },
+    dark:{ '--navy':'#1F1F1F','--navy-2':'#3D3D3D','--navy-soft':'#2E2E2E','--gold':'#0F6E56','--gold-bg':'#0F332A','--gold-ink':'#6FD9B5','--bg':'#141414','--surface':'#1D1D1D','--surface-2':'#222222','--border':'#333331','--border-strong':'#454542','--text':'#F2F2F0','--text-dim':'#ABABA6','--text-faint':'#78776F' } },
+  coral: { name:'Ngọc Bích San Hô', swatch:['#0E7C86','#FF6B5B'],
+    chrome:{ '--chrome-bar':'#062024','--chrome-border':'#0F3A3F','--chrome-pill-bg':'#0B3034','--chrome-pill-border':'#1A4E53','--chrome-text':'#D9F2F2','--chrome-text-dim':'#8FC2C4','--chrome-hover':'#134247' },
+    light:{ '--navy':'#0E7C86','--navy-2':'#1AA5B0','--navy-soft':'#128F99','--gold':'#FF6B5B','--gold-bg':'#FFE7E3','--gold-ink':'#9A2E1F','--bg':'#F5FBFB','--surface':'#FFFFFF','--surface-2':'#DFF3F3','--border':'#C9E8E8','--border-strong':'#A3D6D6','--text':'#0A2E31','--text-dim':'#3E6266','--text-faint':'#7B9C9E' },
+    dark:{ '--navy':'#0E7C86','--navy-2':'#1AA5B0','--navy-soft':'#128F99','--gold':'#FF6B5B','--gold-bg':'#3A140F','--gold-ink':'#FF9E90','--bg':'#071D1F','--surface':'#0C2C2F','--surface-2':'#0F3438','--border':'#1B4B4F','--border-strong':'#276669','--text':'#E4F6F6','--text-dim':'#9FC7C9','--text-faint':'#6C9092' } },
+  lime: { name:'Than Chì Chanh Cốm', swatch:['#1C1F26','#A6D608'],
+    chrome:{ '--chrome-bar':'#101319','--chrome-border':'#242833','--chrome-pill-bg':'#1B1F27','--chrome-pill-border':'#333947','--chrome-text':'#EDEFF3','--chrome-text-dim':'#A6ACBB','--chrome-hover':'#2A303C' },
+    light:{ '--navy':'#1C1F26','--navy-2':'#3A4150','--navy-soft':'#2B303B','--gold':'#A6D608','--gold-bg':'#EFFAD1','--gold-ink':'#4C6404','--bg':'#FAFBFC','--surface':'#FFFFFF','--surface-2':'#EEF0F3','--border':'#DEE2E7','--border-strong':'#C4CAD2','--text':'#14161B','--text-dim':'#565C68','--text-faint':'#8C919B' },
+    dark:{ '--navy':'#1C1F26','--navy-2':'#3A4150','--navy-soft':'#2B303B','--gold':'#A6D608','--gold-bg':'#2A3305','--gold-ink':'#D3F26E','--bg':'#111318','--surface':'#191C22','--surface-2':'#1E212A','--border':'#2E323C','--border-strong':'#40454F','--text':'#F1F2F4','--text-dim':'#A6ACB8','--text-faint':'#767C88' } },
+  rose: { name:'Hồng Đất Sa Mạc', swatch:['#A64B5C','#C99A4A'],
+    chrome:{ '--chrome-bar':'#2A1017','--chrome-border':'#472029','--chrome-pill-bg':'#3B1B22','--chrome-pill-border':'#5B2E38','--chrome-text':'#F7E3E7','--chrome-text-dim':'#CB9DA5','--chrome-hover':'#4E2530' },
+    light:{ '--navy':'#A64B5C','--navy-2':'#C56B7C','--navy-soft':'#B65C6D','--gold':'#C99A4A','--gold-bg':'#F8EEDA','--gold-ink':'#6B4E14','--bg':'#FDF7F5','--surface':'#FFFFFF','--surface-2':'#F7E9E7','--border':'#EFD9D6','--border-strong':'#E0BCB8','--text':'#3D1620','--text-dim':'#6E4048','--text-faint':'#A47D82' },
+    dark:{ '--navy':'#A64B5C','--navy-2':'#C56B7C','--navy-soft':'#B65C6D','--gold':'#C99A4A','--gold-bg':'#332608','--gold-ink':'#E8C685','--bg':'#221014','--surface':'#301A1F','--surface-2':'#371E24','--border':'#4E2D34','--border-strong':'#693C44','--text':'#FAEDEF','--text-dim':'#CBA3A9','--text-faint':'#8F6E73' } }
+};
+var currentPalette = 'default';
+var rootEl = document.documentElement;
+
+function applyPalette(key){
+  var p = PALETTES[key] || PALETTES.default;
+  currentPalette = key;
+  // Chỉ ưu tiên data-theme khi đã CHỌN RÕ (sáng/tối) — chưa chọn thì đọc
+  // prefers-color-scheme của OS, khớp đúng hành vi khối @media đã có sẵn
+  // trong CSS (không override cứng thành light khi máy đang ở dark mode).
+  var explicit = rootEl.getAttribute('data-theme');
+  var mode = explicit === 'dark' ? 'dark' : explicit === 'light' ? 'light' :
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  var vars = Object.assign({}, p.chrome, p[mode]);
+  Object.keys(vars).forEach(function(k){ rootEl.style.setProperty(k, vars[k]); });
+  document.getElementById('paletteLabel').textContent = p.name;
+  var dots = document.getElementById('paletteSwatch').querySelectorAll('span');
+  dots[0].style.background = p.swatch[0];
+  dots[1].style.background = p.swatch[1];
+  document.querySelectorAll('.palette-option').forEach(function(el){
+    el.classList.toggle('active', el.dataset.key === key);
+  });
+}
+
+function buildPaletteMenu(){
+  var list = document.getElementById('paletteList');
+  list.innerHTML = '';
+  Object.keys(PALETTES).forEach(function(key){
+    var p = PALETTES[key];
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'palette-option';
+    btn.dataset.key = key;
+    btn.setAttribute('role', 'menuitemradio');
+    btn.innerHTML =
+      '<span class="dots"><span style="background:' + p.swatch[0] + '"></span><span style="background:' + p.swatch[1] + '"></span></span>' +
+      '<span class="meta"><b>' + p.name + '</b></span>' +
+      '<svg class="icon check"><use href="#i-check"></use></svg>';
+    btn.addEventListener('click', function(){
+      applyPalette(key);
+      try{ localStorage.setItem('fin05-palette', key); }catch(e){}
+      closePaletteMenu();
+    });
+    list.appendChild(btn);
+  });
+}
+buildPaletteMenu();
+
+var paletteTrigger = document.getElementById('paletteTrigger');
+var paletteMenu = document.getElementById('paletteMenu');
+function openPaletteMenu(){ paletteMenu.classList.add('open'); paletteTrigger.setAttribute('aria-expanded', 'true'); }
+function closePaletteMenu(){ paletteMenu.classList.remove('open'); paletteTrigger.setAttribute('aria-expanded', 'false'); }
+paletteTrigger.addEventListener('click', function(e){
+  e.stopPropagation();
+  paletteMenu.classList.contains('open') ? closePaletteMenu() : openPaletteMenu();
+});
+document.addEventListener('click', function(e){
+  if(!document.getElementById('palettePicker').contains(e.target)){ closePaletteMenu(); }
+});
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){ closePaletteMenu(); }
+});
+
 var themeToggle = document.getElementById('themeToggle');
 var themeIcon = document.getElementById('themeIcon');
 var themeLabel = document.getElementById('themeLabel');
@@ -1165,6 +1324,7 @@ function applyTheme(t){
   document.documentElement.setAttribute('data-theme', t);
   themeIcon.innerHTML = '<use href="#i-' + (t === 'dark' ? 'sun' : 'moon') + '"></use>';
   themeLabel.textContent = t === 'dark' ? 'Chế độ sáng' : 'Chế độ tối';
+  applyPalette(currentPalette); // đổi light/dark thì áp lại bộ màu light/dark của ĐÚNG palette đang chọn
 }
 themeToggle.addEventListener('click', function(){
   var cur = document.documentElement.getAttribute('data-theme');
@@ -1172,6 +1332,11 @@ themeToggle.addEventListener('click', function(){
   applyTheme(next);
   try{ localStorage.setItem('fin05-theme', next); }catch(e){}
 });
+(function(){
+  var savedPalette = null;
+  try{ savedPalette = localStorage.getItem('fin05-palette'); }catch(e){}
+  applyPalette(savedPalette && PALETTES[savedPalette] ? savedPalette : 'default');
+})();
 (function(){
   var saved = null;
   try{ saved = localStorage.getItem('fin05-theme'); }catch(e){}
