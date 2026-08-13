@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from typing import Any
 
 from langchain.agents import create_agent
@@ -21,8 +22,15 @@ from sqlalchemy.orm import Session
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
 from src.agents.prompt import build_system_prompt
 from src.agents.tools.customer_tools import build_customer_tools
-from src.config import OPENAI_API_KEY, OPENAI_MODEL
+from src.config import (
+    AGENT_TURN_TIMEOUT_SECONDS,
+    OPENAI_API_KEY,
+    OPENAI_MAX_RETRIES,
+    OPENAI_MODEL,
+    OPENAI_TIMEOUT_SECONDS,
+)
 from src.db.models import User
+from src.db.session import SessionLocal
 from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.tracing import get_tracer
 from src.services.complaint_intake import flag_human_handoff
@@ -57,7 +65,13 @@ _ALWAYS_FRESH = object()
 
 
 def _build_agent(session: Session, *, user_id: str, customer_name: str, otp_verified_at: float | None):
-    model = ChatOpenAI(model=OPENAI_MODEL, temperature=0.2, api_key=OPENAI_API_KEY)
+    model = ChatOpenAI(
+        model=OPENAI_MODEL,
+        temperature=0.2,
+        api_key=OPENAI_API_KEY,
+        timeout=OPENAI_TIMEOUT_SECONDS,
+        max_retries=OPENAI_MAX_RETRIES,
+    )
     tools = build_customer_tools(session, user_id=user_id, otp_verified_at=otp_verified_at)
     system_prompt = build_system_prompt(current_time=dt.datetime.utcnow(), customer_name=customer_name)
     return create_agent(model, tools, system_prompt=system_prompt, checkpointer=_CHECKPOINTER)
@@ -108,8 +122,8 @@ def run_agent_turn(
         root_span.set_attribute("fin05.user_id", user_id)
         root_span.set_attribute("fin05.thread_id", thread_id or user_id)
         root_span.set_attribute("fin05.otp_verified", otp_verified_at is not None)
-        try:
-            result = agent.invoke(
+        def _invoke():
+            return agent.invoke(
                 {"messages": [HumanMessage(content=message)]},
                 config={
                     **config,
@@ -117,22 +131,60 @@ def run_agent_turn(
                     "recursion_limit": _AGENT_RECURSION_LIMIT,
                 },
             )
-        except GraphRecursionError:
-            # Vòng lặp ReAct vượt quá _AGENT_RECURSION_LIMIT (thật sự xảy ra
-            # — không phải lý thuyết, xem case CONSUME-002) — KHÔNG để lỗi
-            # rơi ra ngoài thành 500, chuyển hẳn cho người xử lý thay vì lặp
-            # vô hạn/crash. root_span vẫn ghi nhận đúng (context manager tự
-            # đóng dù có exception), chỉ không có span con của lượt hỏng.
+
+        # AGENT_TURN_TIMEOUT_SECONDS — OPENAI_TIMEOUT_SECONDS chỉ chặn TỪNG
+        # lượt gọi OpenAI riêng lẻ; 1 lượt /agent/chat có thể cần NHIỀU lượt
+        # gọi xen kẽ với tool (ReAct), nên tổng thời gian vẫn có thể vượt xa
+        # (đo thật: 70s cho 1 request) nếu không chặn RIÊNG ở đây. Chạy trong
+        # thread riêng để `.result(timeout=...)` trả lỗi có kiểm soát cho
+        # client kịp lúc. CỐ Ý KHÔNG dùng `with ThreadPoolExecutor(...) as
+        # executor:` — `__exit__` mặc định gọi `shutdown(wait=True)`, tức
+        # BLOCK tới khi thread dở xong mới thoát `with`, xoá sạch tác dụng
+        # của timeout. `shutdown(wait=False)` khi timeout: không huỷ được
+        # lượt gọi OpenAI đang chạy dở bên dưới (Python không kill thread
+        # được), nhưng trả quyền điều khiển lại cho client NGAY, không đợi.
+        executor = ThreadPoolExecutor(max_workers=1)
+        try:
+            result = executor.submit(_invoke).result(timeout=AGENT_TURN_TIMEOUT_SECONDS)
+            executor.shutdown(wait=True)  # thread thật sự đã xong lúc .result() trả về, wait=True không tốn gì thêm
+        except (GraphRecursionError, FutureTimeoutError) as e:
+            # wait=False luôn an toàn ở đây: nếu thread đã xong (nhánh
+            # GraphRecursionError) thì trả về ngay lập tức; nếu chưa (nhánh
+            # timeout thật) thì không chờ, đúng mục đích.
+            executor.shutdown(wait=False)
+            # Vòng lặp ReAct vượt quá _AGENT_RECURSION_LIMIT HOẶC vượt trần
+            # thời gian tổng (thật sự xảy ra — không phải lý thuyết, xem case
+            # CONSUME-002) — KHÔNG để lỗi rơi ra ngoài thành 500, chuyển hẳn
+            # cho người xử lý thay vì treo vô thời hạn/crash. root_span vẫn
+            # ghi nhận đúng (context manager tự đóng dù có exception), chỉ
+            # không có span con của lượt hỏng.
+            is_timeout = isinstance(e, FutureTimeoutError)
             _logger.warning(
-                "agent_recursion_limit_reached",
+                "agent_turn_timeout" if is_timeout else "agent_recursion_limit_reached",
                 extra={"user_id": user_id, "thread_id": thread_id or user_id},
             )
-            root_span.set_attribute("fin05.recursion_limit_reached", True)
-            handoff = flag_human_handoff(
-                session,
-                user_id=user_id,
-                reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
-            )
+            root_span.set_attribute("fin05.recursion_limit_reached", not is_timeout)
+            root_span.set_attribute("fin05.turn_timeout", is_timeout)
+            if is_timeout:
+                # KHÔNG dùng `session` dùng chung ở đây — thread nền (_invoke)
+                # vẫn có thể đang chạy dở, cầm session đó cho 1 tool call
+                # (SQLAlchemy Session không an toàn khi 2 thread cùng đụng
+                # 1 lúc, khác nhánh GraphRecursionError bên dưới — nhánh đó
+                # invoke() đã CHẮC CHẮN trả về xong, không còn thread nào
+                # khác đụng session). Mở session RIÊNG, tự commit/đóng.
+                with SessionLocal() as timeout_session:
+                    handoff = flag_human_handoff(
+                        timeout_session,
+                        user_id=user_id,
+                        reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
+                    )
+                    timeout_session.commit()
+            else:
+                handoff = flag_human_handoff(
+                    session,
+                    user_id=user_id,
+                    reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
+                )
             return {
                 "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là "
                 + handoff["ticket_id"]

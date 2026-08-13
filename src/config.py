@@ -85,6 +85,27 @@ BANK_ACCOUNT_MASK_VISIBLE_SUFFIX = 4
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
+# Đo đạc thật 2026-08-13 (stress /agent/chat qua Playwright repeat-each): SDK
+# openai-python mặc định KHÔNG timeout (chờ tới khi OS/socket tự đóng), và
+# ChatOpenAI mặc định `max_retries=2` — 1 lượt gọi chậm/lỗi transient có thể
+# kéo dài hàng chục giây (đã đo thấy 23-33s thật), và vì route `/agent/chat`
+# chạy sync trong threadpool, 1 request Playwright timeout bỏ dở KHÔNG huỷ
+# được lượt gọi OpenAI đang chạy phía server — nó tiếp tục chiếm 1 thread +
+# rate-limit budget, dồn lại qua nhiều test làm hàng loạt request SAU đó cũng
+# chậm theo. Set trần rõ ràng để 1 lượt gọi hỏng luôn fail nhanh, không kéo
+# theo cả chuỗi.
+OPENAI_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_TIMEOUT_SECONDS", "20"))
+OPENAI_MAX_RETRIES = int(os.environ.get("OPENAI_MAX_RETRIES", "1"))
+
+# 1 lượt /agent/chat = 1 vòng ReAct nhiều bước (LLM sinh + gọi tool xen kẽ,
+# tới _AGENT_RECURSION_LIMIT=20 bước) — OPENAI_TIMEOUT_SECONDS ở trên chỉ
+# chặn TỪNG lượt gọi OpenAI riêng lẻ, không chặn TỔNG thời gian cả lượt chat
+# (đo thật: 1 request /agent/chat tốn 70s vì cần nhiều bước, mỗi bước gần
+# chạm trần OPENAI_TIMEOUT_SECONDS). Đây là trần TỔNG cho cả agent.invoke(),
+# xử lý giống GraphRecursionError (chuyển sang human handoff thay vì treo vô
+# thời hạn hay 500) — xem src/agents/graph.py::run_agent_turn.
+AGENT_TURN_TIMEOUT_SECONDS = float(os.environ.get("AGENT_TURN_TIMEOUT_SECONDS", "45"))
+
 # Bảo mật (src/auth.py, src/db/crypto_types.py) — KHÔNG có giá trị mặc định
 # cho 2 key này: một key đoán được/rỗng là lỗ hổng giả vờ có bảo mật, còn tệ
 # hơn không có gì (nhìn như đã ép JWT nhưng ai cũng ký giả được token). Thiếu

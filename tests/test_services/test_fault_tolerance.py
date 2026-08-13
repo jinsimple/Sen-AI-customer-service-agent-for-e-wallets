@@ -134,3 +134,70 @@ def test_create_ticket_db_error_mid_transaction_rolls_back_cleanly(sample_db, mo
     # test này xác nhận đúng invariant đó ở tầng service.
     assert sample_db.query(Complaint).count() == complaints_before
     assert sample_db.query(Ticket).count() == tickets_before
+
+
+# ---------------------------------------------------------------------------
+# AGENT_TURN_TIMEOUT_SECONDS (đo đạc + vá 2026-08-13) — 1 lượt /agent/chat có
+# thể cần nhiều lượt gọi OpenAI xen kẽ tool (ReAct), đo thật thấy 1 request
+# tốn tới 70s dưới tải đồng thời (nhiều lượt LLM thật dồn dập trong stress
+# test). OPENAI_TIMEOUT_SECONDS chỉ chặn TỪNG lượt gọi OpenAI riêng lẻ —
+# test này xác nhận có 1 trần TỔNG THẬT SỰ áp dụng cho agent.invoke().
+# ---------------------------------------------------------------------------
+
+
+def test_run_agent_turn_times_out_gracefully_instead_of_hanging(sample_db, monkeypatch):
+    """agent.invoke() "treo" lâu hơn AGENT_TURN_TIMEOUT_SECONDS -> run_agent_turn
+    phải TRẢ VỀ (không đợi hết) với reply handoff người thật, không hang vô
+    thời hạn, không rơi thành 500."""
+    import time
+
+    from sqlalchemy.orm import sessionmaker
+
+    import src.agents.graph as graph_module
+
+    monkeypatch.setattr(graph_module, "AGENT_TURN_TIMEOUT_SECONDS", 0.3)
+    # SessionLocal module-level trỏ vào DATABASE_URL thật (data/app.db) —
+    # phải trỏ lại đúng engine test (cùng convention test_live_chat_ws.py đã
+    # dùng cho các hàm khác cũng gọi SessionLocal() ngoài phạm vi request),
+    # nếu không nhánh timeout sẽ ghi nhầm vào DB thật khi chạy test.
+    monkeypatch.setattr(graph_module, "SessionLocal", sessionmaker(bind=sample_db.get_bind(), future=True))
+
+    class _HangingModel:
+        def bind_tools(self, *a, **kw):
+            return self
+
+        def invoke(self, *a, **kw):
+            time.sleep(2.0)  # > AGENT_TURN_TIMEOUT_SECONDS (0.3s) đã monkeypatch ở trên
+            raise AssertionError("không được chạy tới đây — .result(timeout=...) đã trả lỗi trước")
+
+    class _FakeAgent:
+        def get_state(self, config):
+            from types import SimpleNamespace
+
+            return SimpleNamespace(values={})
+
+        def invoke(self, *a, **kw):
+            return _HangingModel().invoke()
+
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at):
+        return _FakeAgent()
+
+    monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)
+
+    tickets_before = sample_db.query(Ticket).count()
+    start = time.monotonic()
+    result = graph_module.run_agent_turn(sample_db, user_id="USR-A", message="tôi bị chuyển nhầm tiền")
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 1.5, (
+        f"run_agent_turn phải trả về ngay sau AGENT_TURN_TIMEOUT_SECONDS (0.3s), "
+        f"không đợi hết .invoke() giả lập (2s) — mất {elapsed:.2f}s, cho thấy timeout không có tác dụng"
+    )
+    assert "chuyên viên hỗ trợ trực tiếp" in result["reply"]
+    assert result["ticket_id"]
+
+    # Ticket handoff được ghi qua session RIÊNG (đã monkeypatch SessionLocal ở
+    # trên trỏ đúng engine test) — không phải viết vào DB thật, và sample_db
+    # (session khác connection) phải thấy được sau khi commit xong.
+    sample_db.expire_all()
+    assert sample_db.query(Ticket).count() == tickets_before + 1
