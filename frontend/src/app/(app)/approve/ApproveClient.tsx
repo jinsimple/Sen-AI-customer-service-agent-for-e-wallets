@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ApiError, approveResolution, listResolutions, rejectResolution } from "@/lib/api";
+import { ApiError, approveResolution, listResolutions, rejectResolution, requestResolutionApprovalOtp } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, SCOPE_LABEL, type ResolutionListItem } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
 
@@ -11,6 +11,15 @@ export default function ApproveClient() {
   const [history, setHistory] = useState<ResolutionListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // AUTH5-04 (đợt nâng cấp Auth Flow 2026-08-12) — duyệt giờ cần OTP RIÊNG
+  // cho ĐÚNG resolution_id đang duyệt (PSD2 dynamic linking, gắn với đúng số
+  // tiền tại thời điểm xin OTP). Môi trường demo: backend trả mã trực tiếp
+  // qua response (không qua SMS thật) — hiện luôn cho sếp thấy, cùng cách
+  // /auth/otp/request đã làm cho luồng khách hàng, KHÔNG bắt gõ tay số đã
+  // biết sẵn.
+  const [pendingOtp, setPendingOtp] = useState<{ resolutionId: string; sessionId: string; otpCode: string } | null>(
+    null
+  );
 
   async function load() {
     setError(null);
@@ -33,10 +42,24 @@ export default function ApproveClient() {
     void Promise.resolve().then(load);
   }, []);
 
-  async function handleApprove(id: string) {
+  async function handleRequestApprovalOtp(id: string) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await requestResolutionApprovalOtp(id);
+      setPendingOtp({ resolutionId: id, sessionId: res.session_id, otpCode: res.otp_code });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Không xin được mã OTP duyệt");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleConfirmApprove(id: string, sessionId: string, otpCode: string) {
     setBusyId(id);
     try {
-      await approveResolution(id);
+      await approveResolution(id, sessionId, otpCode);
+      setPendingOtp(null);
       await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Duyệt thất bại");
@@ -100,16 +123,41 @@ export default function ApproveClient() {
               </div>
             ) : null}
 
-            <div className="flex gap-sm wrap" style={{ marginTop: 16 }}>
-              <button className="btn btn-success" disabled={busyId === r.resolution_id} onClick={() => handleApprove(r.resolution_id)}>
-                <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
-                Duyệt
-              </button>
-              <button className="btn btn-danger-outline" disabled={busyId === r.resolution_id} onClick={() => handleReject(r.resolution_id)}>
-                <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                Từ chối
-              </button>
-            </div>
+            {pendingOtp?.resolutionId === r.resolution_id ? (
+              <div className="note callout-gold approval-otp-row" style={{ marginTop: 16 }}>
+                <div>
+                  Mã OTP xác nhận duyệt: <strong className="mono approval-otp-code">{pendingOtp.otpCode}</strong>{" "}
+                  (còn hiệu lực 10 phút, chỉ dùng được cho đúng đề xuất này)
+                </div>
+                <div className="flex gap-sm wrap" style={{ marginTop: 8 }}>
+                  <button
+                    className="btn btn-success"
+                    disabled={busyId === r.resolution_id}
+                    onClick={() => handleConfirmApprove(r.resolution_id, pendingOtp.sessionId, pendingOtp.otpCode)}
+                  >
+                    Xác nhận duyệt
+                  </button>
+                  <button className="btn btn-outline" disabled={busyId === r.resolution_id} onClick={() => setPendingOtp(null)}>
+                    Huỷ
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-sm wrap" style={{ marginTop: 16 }}>
+                <button
+                  className="btn btn-success"
+                  disabled={busyId === r.resolution_id}
+                  onClick={() => handleRequestApprovalOtp(r.resolution_id)}
+                >
+                  <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
+                  Duyệt
+                </button>
+                <button className="btn btn-danger-outline" disabled={busyId === r.resolution_id} onClick={() => handleReject(r.resolution_id)}>
+                  <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                  Từ chối
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>

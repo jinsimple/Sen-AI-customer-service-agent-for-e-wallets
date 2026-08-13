@@ -17,9 +17,25 @@ export interface Session {
   full_name: string;
   phone: string;
   access_token: string;
+  // AUTH5-02/02C (đợt nâng cấp Auth Flow 2026-08-12) — access_token giờ
+  // ngắn hạn (15 phút, JWT_ACCESS_EXPIRE_MINUTES) nên PHẢI đi kèm
+  // refresh_token để middleware.ts tự làm mới mà không bắt đăng nhập lại
+  // liên tục. Cùng cookie httpOnly với access_token (không tách cookie
+  // riêng — kiến trúc BFF ở đây chỉ có 1 điểm ghi/đọc session phía server,
+  // tách thêm 1 cookie thứ 2 không tăng thêm bảo mật thật vì JS trình
+  // duyệt vốn đã không đọc được cookie này, chỉ tăng chỗ phải đồng bộ).
+  refresh_token: string;
 }
 
 export const SESSION_COOKIE = "fin05_session";
+
+// AUTH5-02B — role nội bộ rủi ro cao hơn nếu refresh_token bị đánh cắp
+// (chạm dữ liệu nhiều khách), TTL cookie ngắn hơn hẳn khách hàng — PHẢI
+// khớp JWT_REFRESH_EXPIRE_DAYS_CUSTOMER/STAFF ở src/config.py (backend).
+export function sessionCookieMaxAgeSeconds(role: Role): number {
+  const days = role === "customer" ? 7 : 1;
+  return days * 24 * 60 * 60;
+}
 
 export function roleHome(role: Role): string {
   if (role === "customer") return "/chat";
@@ -37,6 +53,7 @@ export function parseSessionCookie(raw: string | undefined): Session | null {
       typeof parsed.user_id === "string" &&
       typeof parsed.role === "string" &&
       typeof parsed.access_token === "string" &&
+      typeof parsed.refresh_token === "string" &&
       ["customer", "cskh", "supervisor", "partner_admin"].includes(parsed.role)
     ) {
       return parsed as Session;

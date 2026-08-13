@@ -48,6 +48,7 @@ const mockHistory = {
 beforeEach(() => {
   vi.mocked(getCustomerHistory).mockResolvedValue(mockHistory);
   vi.mocked(requestOtp).mockResolvedValue({
+    session_id: "SES-mock-001",
     security_question: "Tên đệm của mẹ bạn là gì?",
     otp_code: "123456",
     note: "mock — không dùng trong test này",
@@ -93,6 +94,8 @@ describe("ChatClient — chip chọn loại khiếu nại", () => {
     await user.click(screen.getByText("Tiền chưa về"));
 
     await waitFor(() => expect(requestOtp).toHaveBeenCalled());
-    expect(await screen.findByText(/Tên đệm của mẹ bạn là gì/)).toBeInTheDocument();
+    // AUTH5-01 (2026-08-12) — câu hỏi bảo mật đã bỏ khỏi vai trò xác thực,
+    // form OTP chỉ còn hiện mã OTP mô phỏng.
+    expect(await screen.findByText("123456")).toBeInTheDocument();
   });
 });

@@ -150,10 +150,12 @@ export function agentChat(params: { message: string }) {
 // ---------------------------------------------------------------------------
 
 export function requestOtp() {
-  return post<{ security_question: string; otp_code: string; note: string }>("/api/otp/request");
+  return post<{ session_id: string; security_question: string; otp_code: string; note: string }>(
+    "/api/otp/request"
+  );
 }
 
-export function verifyOtp(params: { otp_code: string; security_answer: string }) {
+export function verifyOtp(params: { session_id: string; otp_code: string }) {
   return post<{ ok: true; otp_verified: boolean }>("/api/otp/verify", params);
 }
 
@@ -209,9 +211,19 @@ export function listResolutions(status: string = "pending_approval") {
   return get<ResolutionListItem[]>(`/api/resolutions?status=${encodeURIComponent(status)}`);
 }
 
-export function approveResolution(resolutionId: string) {
+// AUTH5-04 (đợt nâng cấp Auth Flow 2026-08-12) — sếp phải xin OTP RIÊNG cho
+// đúng resolution_id này trước, rồi mới approveResolution() được (gắn với
+// đúng số tiền tại thời điểm xin — đổi số tiền sau đó buộc xin lại).
+export function requestResolutionApprovalOtp(resolutionId: string) {
+  return post<{ session_id: string; resolution_id: string; otp_code: string; note: string }>(
+    `/api/resolutions/${resolutionId}/request-approval-otp`
+  );
+}
+
+export function approveResolution(resolutionId: string, sessionId: string, otpCode: string) {
   return post<{ resolution_id: string; status: string; approved_by: string }>(
-    `/api/resolutions/${resolutionId}/approve`
+    `/api/resolutions/${resolutionId}/approve`,
+    { session_id: sessionId, otp_code: otpCode }
   );
 }
 

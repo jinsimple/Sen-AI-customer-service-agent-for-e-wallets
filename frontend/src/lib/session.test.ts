@@ -19,6 +19,7 @@ describe("parseSessionCookie", () => {
     full_name: "Nguyễn Văn A",
     phone: "0901000001",
     access_token: "fake.jwt.token",
+    refresh_token: "fake-refresh-token",
   };
 
   it("parse đúng cookie hợp lệ", () => {

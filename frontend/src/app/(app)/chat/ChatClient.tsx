@@ -35,7 +35,7 @@ type Msg =
       id: string;
       from: "otp";
       resolved: boolean;
-      securityQuestion: string;
+      sessionId: string;
       demoOtpCode: string;
       checking: boolean;
       error: string | null;
@@ -61,15 +61,18 @@ function OtpForm({
   disabled: boolean;
   checking: boolean;
   error: string | null;
-  onSubmit: (otpCode: string, securityAnswer: string) => void;
+  onSubmit: (otpCode: string) => void;
 }) {
   // Controlled (không thao tác DOM tay) — bắt buộc để gõ ĐÈ lên ô đã có sẵn
   // số hoạt động đúng: input maxLength=1 chưa được bôi đen thì trình duyệt
   // chặn ký tự mới (đã đạt maxLength), onChange không bắn, không tự nhảy ô.
   // onFocus bôi đen nội dung cũ để gõ đè luôn thay thế được, dù gõ theo thứ
   // tự nào hay quay lại ô đã điền.
+  //
+  // AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4) — bỏ
+  // hẳn ô "câu trả lời bảo mật": KBA không còn là authenticator, mã OTP là
+  // yếu tố step-up duy nhất (xem src/api/main.py::verify_otp).
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
-  const [answer, setAnswer] = useState("");
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
   function handleChange(i: number, value: string) {
@@ -86,9 +89,10 @@ function OtpForm({
     if (e.key === "Backspace" && !digits[i] && i > 0) {
       refs.current[i - 1]?.focus();
     }
+    if (e.key === "Enter" && canSubmit) onSubmit(digits.join(""));
   }
 
-  const canSubmit = !disabled && !checking && digits.every(Boolean) && answer.trim().length > 0;
+  const canSubmit = !disabled && !checking && digits.every(Boolean);
 
   return (
     <>
@@ -110,32 +114,21 @@ function OtpForm({
           />
         ))}
       </div>
-      <input
-        className="otp-answer"
-        style={{ marginTop: 8, width: "100%" }}
-        placeholder="Câu trả lời bảo mật"
-        value={answer}
-        disabled={disabled || checking}
-        onChange={(e) => setAnswer(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && canSubmit && onSubmit(digits.join(""), answer)}
-      />
       {error && (
         <div className="dim" style={{ color: "var(--danger, #d33)", fontSize: 12, marginTop: 6 }}>
           {error}
         </div>
       )}
-      {!error && !canSubmit && !checking && (digits.some(Boolean) || answer) && (
+      {!error && !canSubmit && !checking && digits.some(Boolean) && (
         <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
-          {!digits.every(Boolean)
-            ? "Nhập đủ 6 số OTP để tiếp tục."
-            : "Nhập câu trả lời bảo mật để tiếp tục."}
+          Nhập đủ 6 số OTP để tiếp tục.
         </div>
       )}
       <button
         className="btn btn-gold btn-sm"
         style={{ marginTop: 12 }}
         disabled={!canSubmit}
-        onClick={() => onSubmit(digits.join(""), answer)}
+        onClick={() => onSubmit(digits.join(""))}
       >
         {checking ? "Đang xác thực..." : "Xác nhận"}
       </button>
@@ -268,16 +261,18 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
   // nhận tin mơ hồ kiểu đó, dù prompt đã dặn rõ — LLM không tuân thủ tuyệt
   // đối 100%, nên chặn hẳn ở tầng UI).
   // Gọi /auth/otp/request THẬT (backend giờ xác thực thật, không còn là gate
-  // UI thuần — xem src/auth.py::require_otp_verified) rồi mới hiện form OTP +
-  // câu hỏi bảo mật. Thất bại (mất mạng...) thì báo lỗi, không hiện form giả.
+  // UI thuần — xem src/auth.py::require_otp_verified) rồi mới hiện form OTP.
+  // AUTH5-01 (2026-08-12) — không còn hỏi câu hỏi bảo mật (KBA bỏ khỏi vai
+  // trò authenticator), chỉ mã OTP. Thất bại (mất mạng...) thì báo lỗi,
+  // không hiện form giả.
   async function beginOtpFlow() {
     try {
-      const { security_question, otp_code } = await requestOtp();
+      const { session_id, otp_code } = await requestOtp();
       push({
         id: nid(),
         from: "otp",
         resolved: false,
-        securityQuestion: security_question,
+        sessionId: session_id,
         demoOtpCode: otp_code,
         checking: false,
         error: null,
@@ -309,12 +304,12 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
     void beginOtpFlow();
   }
 
-  async function submitOtp(msgId: string, otpCode: string, securityAnswer: string) {
+  async function submitOtp(msgId: string, sessionId: string, otpCode: string) {
     setMessages((prev) =>
       prev.map((m) => (m.id === msgId && m.from === "otp" ? { ...m, checking: true, error: null } : m))
     );
     try {
-      await verifyOtp({ otp_code: otpCode, security_answer: securityAnswer });
+      await verifyOtp({ session_id: sessionId, otp_code: otpCode });
     } catch (e) {
       setMessages((prev) =>
         prev.map((m) =>
@@ -531,14 +526,11 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
                           Mã OTP phiên làm việc (mô phỏng — gửi tới {phone}): <strong>{m.demoOtpCode}</strong>
                         </span>
                       </div>
-                      <div className="otp-meta" style={{ marginTop: 4 }}>
-                        <span>Câu hỏi bảo mật: {m.securityQuestion}</span>
-                      </div>
                       <OtpForm
                         disabled={m.resolved}
                         checking={m.checking}
                         error={m.error}
-                        onSubmit={(code, answer) => void submitOtp(m.id, code, answer)}
+                        onSubmit={(code) => void submitOtp(m.id, m.sessionId, code)}
                       />
                     </div>
                   </div>
