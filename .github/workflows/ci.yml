@@ -31,6 +31,42 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------
+  # Stage 0: RÀNG BUỘC CỨNG (CLAUDE.md §2) — cổng chặn cao nhất của dự án.
+  #
+  # Tách riêng khỏi lint-and-test có chủ đích: đây là 5 ràng buộc không được
+  # phép thoả hiệp (HITL tuyệt đối, AI không vượt cấp, cấm bịa số liệu, xác
+  # thực, gắn cờ ≠ khoá ví). Một job riêng có tên rõ ràng để khi đỏ, biết ngay
+  # là vi phạm hiến pháp chứ không phải test thường hỏng.
+  #
+  # Job này cũng canh CONTRACT DRIFT: test introspect app đang chạy rồi so
+  # khớp với contracts/. Thêm route, đổi guard, đổi tên tool mà quên cập nhật
+  # contract → ĐỎ. Đây là cơ chế thay thế việc bắt agent này viết file tóm tắt
+  # cho agent kia đọc.
+  #
+  # Chạy nhanh (~2s) và không cần dịch vụ ngoài → đặt đầu tiên, fail fast.
+  # ---------------------------------------------------------------------
+  invariants:
+    name: Ràng buộc cứng + contract drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 5 ràng buộc cứng (CLAUDE.md §2)
+        run: pytest tests/test_invariants.py -v
+        env:
+          OPENAI_API_KEY: test-key-not-used-by-unit-tests
+          # Tắt tracing: test gọi thẳng tool.invoke() để kiểm chốt chặn OTP,
+          # không được để mỗi lần chạy CI bắn trace lên LangSmith.
+          LANGCHAIN_TRACING_V2: "false"
+          LANGSMITH_TRACING: "false"
+      - name: Phát hiện artifact lỗi thời so với contracts/
+        run: python scripts/check_contracts.py --verbose
+
+  # ---------------------------------------------------------------------
   # Stage 1: Lint + Unit test
   # ---------------------------------------------------------------------
   lint-and-test:
