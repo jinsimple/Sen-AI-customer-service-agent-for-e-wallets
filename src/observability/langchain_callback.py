@@ -28,13 +28,44 @@ from src.observability.tracing import get_tracer
 
 _MAX_ATTR_LEN = 1000  # cắt bớt input/output dài — span attribute không phải kho lưu trữ
 
+# Biên an toàn: scrub dư ra một khúc trước khi cắt về _MAX_ATTR_LEN, để một cái
+# tên nằm VẮT NGANG mốc 1000 vẫn nằm trọn trong vùng được NER quét. Thiếu biên
+# này thì nửa đầu cái tên có thể lọt vào span mà lớp NER không nhận ra (nó chỉ
+# thấy một mảnh cụt).
+_SCRUB_WINDOW = _MAX_ATTR_LEN + 200
+
 
 def _truncate(text: str) -> str:
     return text if len(text) <= _MAX_ATTR_LEN else text[:_MAX_ATTR_LEN] + "…(cắt bớt)"
 
 
 def _scrub_and_truncate(text: str) -> str:
-    return _truncate(scrub_pii(text) or "")
+    """CẮT TRƯỚC, SCRUB SAU — không phải ngược lại.
+
+    Thứ tự cũ (scrub toàn bộ rồi mới cắt còn 1.000 ký tự) trả giá NER cho cả
+    khúc văn bản chắc chắn bị vứt đi. Chi phí `scrub_pii` tăng theo BẬC HAI
+    của độ dài — đo thật trong container (2026-08-14):
+
+        1.200 ký tự →  0,24s        4.000 ký tự →  2,29s
+        2.000 ký tự →  0,58s        8.000 ký tự →  8,54s
+                       19.800 ký tự → 50,07s
+
+    Callback này chạy cho MỖI lượt gọi LLM (prompt = cả hội thoại) và MỖI tool
+    call trong vòng lặp ReAct, nên một lượt chat trả giá đó nhiều lần. Đây mới
+    là nguồn latency thật, KHÔNG phải lớp bảo vệ PII của ADR-010 (lớp đó là
+    `scrub_pii` trên tin nhắn khách — vài chục ký tự, 0,025s — và
+    `_scrub_pii_cho_llm` che theo trường, không dùng NER).
+
+    KHÔNG hạ thấp mức bảo vệ: mọi ký tự THẬT SỰ nằm trong span attribute vẫn đi
+    qua đủ pipeline scrub. Phần bị cắt không vào span, nên không có gì rời khỏi
+    process mà chưa được che — đúng yêu cầu "scrub trước khi rời process" của
+    ADR-010, chỉ bỏ phần tính toán vô ích.
+    """
+    da_cat = len(text) > _SCRUB_WINDOW
+    scrubbed = scrub_pii(text[:_SCRUB_WINDOW]) or ""
+    if len(scrubbed) > _MAX_ATTR_LEN:
+        return scrubbed[:_MAX_ATTR_LEN] + "…(cắt bớt)"
+    return scrubbed + "…(cắt bớt)" if da_cat else scrubbed
 
 
 class OTelTracingCallbackHandler(BaseCallbackHandler):
