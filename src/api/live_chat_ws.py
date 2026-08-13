@@ -20,7 +20,7 @@ import logging
 import secrets
 import time
 from collections import defaultdict
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy import select
@@ -28,37 +28,12 @@ from sqlalchemy import select
 from src.config import LIVE_CHAT_STALE_WAITING_MINUTES
 from src.db.models import ChatSession
 from src.db.session import SessionLocal
+from src.rate_limit import RedisSlidingWindowLimiter
 from src.services import live_chat
 from src.tools.base import ToolError
 
 _WS_TICKET_TTL_SECONDS = 30
 _logger = logging.getLogger("fin05.live_chat_ws")
-
-
-class InMemoryRateLimiter:
-    """Sliding-window đơn giản, khoá theo key tuỳ ý — dùng cho cả mint-vé
-    (ws-ticket) lẫn giới hạn gửi tin nhắn/giờ. slowapi (HTTP-only decorator)
-    không áp dụng được bên trong WS handler, và route ws-ticket cần khoá
-    theo user_id chứ không phải IP — mọi khách hiện gọi qua chung 1 container
-    frontend (kiến trúc BFF, xem main.py `Limiter(key_func=get_remote_address)`),
-    khoá theo IP ở đó thực chất là giới hạn CHUNG cho mọi khách, không phải
-    riêng từng người — không lặp lại đặc điểm đó ở route mới này."""
-
-    def __init__(self, *, max_calls: int, window_seconds: float):
-        self._max_calls = max_calls
-        self._window_seconds = window_seconds
-        self._calls: dict[str, list[float]] = defaultdict(list)
-
-    def allow(self, key: str) -> bool:
-        now = time.monotonic()
-        window_start = now - self._window_seconds
-        calls = [t for t in self._calls[key] if t >= window_start]
-        if len(calls) >= self._max_calls:
-            self._calls[key] = calls
-            return False
-        calls.append(now)
-        self._calls[key] = calls
-        return True
 
 
 class ConnectionManager:
@@ -69,10 +44,15 @@ class ConnectionManager:
         self._session_sockets: dict[str, set[WebSocket]] = defaultdict(set)
         self._user_sockets: dict[str, set[WebSocket]] = defaultdict(set)
         self._staff_sockets: set[WebSocket] = set()
-        self.ws_ticket_limiter = InMemoryRateLimiter(max_calls=5, window_seconds=60)
-        self.message_limiter = InMemoryRateLimiter(max_calls=60, window_seconds=3600)
+        # Đồng bộ Redis (đợt nâng cấp Auth Flow 2026-08-12, xem
+        # src/rate_limit.py) — trước đây in-memory dict riêng của process,
+        # mất sạch state mỗi lần restart backend (rate-limit "reset" âm thầm
+        # sau mọi lần deploy/restart). Cùng thuật toán sliding window, chỉ
+        # đổi nơi lưu — không đổi ngưỡng/ngữ nghĩa.
+        self.ws_ticket_limiter = RedisSlidingWindowLimiter(max_calls=5, window_seconds=60)
+        self.message_limiter = RedisSlidingWindowLimiter(max_calls=60, window_seconds=3600)
 
-    def mint_ticket(self, *, user_id: str, role: str, chat_session_id: Optional[str] = None) -> str:
+    def mint_ticket(self, *, user_id: str, role: str, chat_session_id: str | None = None) -> str:
         ticket = secrets.token_urlsafe(24)
         self._tickets[ticket] = {
             "user_id": user_id,
@@ -82,14 +62,14 @@ class ConnectionManager:
         }
         return ticket
 
-    def consume_ticket(self, ticket: str) -> Optional[dict[str, Any]]:
+    def consume_ticket(self, ticket: str) -> dict[str, Any] | None:
         """Dùng 1 lần — xoá NGAY dù thành công hay hết hạn (chống replay)."""
         data = self._tickets.pop(ticket, None)
         if data is None or time.monotonic() > data["expires_at"]:
             return None
         return data
 
-    async def register(self, ws: WebSocket, *, user_id: str, chat_session_id: Optional[str], is_staff: bool) -> None:
+    async def register(self, ws: WebSocket, *, user_id: str, chat_session_id: str | None, is_staff: bool) -> None:
         # Phát hiện thật (2026-08-11): 1 user có thể tạo ra kết nối WS "mồ côi"
         # (vd tab cũ không dọn sạch, mất mạng chập chờn không kích hoạt đúng
         # sự kiện disconnect) — nếu không dọn, kết nối cũ vẫn nằm trong

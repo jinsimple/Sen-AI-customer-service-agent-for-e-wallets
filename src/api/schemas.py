@@ -49,6 +49,19 @@ class ProposeResolutionRequest(BaseModel):
     cited_tool_result_ids: Optional[list[str]] = None
 
 
+class ApproveResolutionRequest(BaseModel):
+    """AUTH5-04/05/05B (đợt nâng cấp Auth Flow 2026-08-12) — sếp phải xin OTP
+    riêng cho ĐÚNG resolution_id này (POST .../request-approval-otp) trước,
+    rồi mới duyệt được — không dùng chung OTP đã xác thực cho case khác.
+
+    `session_id` (vá race condition, 2026-08-13 — cùng lý do OtpVerifyRequest)
+    — tra thẳng theo khoá chính AuthSession, không còn "mới nhất theo
+    resolution_id"."""
+
+    session_id: str
+    otp_code: str
+
+
 class EscalateTicketRequest(BaseModel):
     ticket_id: str
     target: str
@@ -56,12 +69,23 @@ class EscalateTicketRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """Không có mật khẩu — Brief §7 chỉ yêu cầu OTP phiên + câu hỏi bảo mật
-    cho thao tác nhạy cảm, không có hạ tầng mật khẩu thật trong dataset
-    (`users` không có cột password). Định danh bằng phone + role khai báo,
-    role phải khớp role thật của user trong DB mới cho vào."""
+    """Đăng nhập bằng mật khẩu thật (quyết định 2026-08-12 — thay luồng
+    phone+role chọn tay trước đó). KHÔNG còn field `role` — vai trò lấy từ
+    chính user tìm được qua `phone` trong DB, không do client tự khai (đúng
+    nguyên tắc "danh tính không bao giờ tự khai" đã áp dụng xuyên suốt file
+    này)."""
+
     phone: str
-    role: str
+    password: str
+
+
+class RefreshTokenRequest(BaseModel):
+    """AUTH5-02/03 (đợt nâng cấp Auth Flow 2026-08-12) — refresh_token KHÔNG
+    phải JWT (chuỗi ngẫu nhiên, xem src/auth.py::mint_refresh_token), gửi
+    trong body vì backend không có quyền truy cập cookie trình duyệt (kiến
+    trúc BFF — chỉ Next.js route handler đọc cookie httpOnly rồi forward)."""
+
+    refresh_token: str
 
 
 class RequestMoreInfoRequest(BaseModel):
@@ -69,8 +93,21 @@ class RequestMoreInfoRequest(BaseModel):
 
 
 class OtpVerifyRequest(BaseModel):
+    """AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12) — `security_answer` đã bỏ:
+    câu hỏi bảo mật không còn là authenticator (NIST SP 800-63B-4), mã OTP là
+    yếu tố step-up duy nhất.
+
+    `session_id` (vá race condition, 2026-08-13) — bắt buộc, phải khớp ĐÚNG
+    AuthSession trả về từ /auth/otp/request vừa gọi. Trước đây verify chỉ tra
+    "AuthSession mới nhất của user" — dưới tải đồng thời thật (FastAPI chạy
+    route sync trong threadpool, nhiều thread cùng ghi SQLite WAL), 1 request
+    verify có thể đọc phải snapshot CŨ chưa thấy AuthSession vừa tạo, so
+    nhầm với mã OTP của phiên trước đó và từ chối nhầm mã đúng. Tra thẳng
+    theo session_id (khoá chính) loại bỏ hoàn toàn sự mơ hồ này — không phụ
+    thuộc "mới nhất theo thời gian" nữa."""
+
+    session_id: str
     otp_code: str
-    security_answer: str
 
 
 class AgentChatRequest(BaseModel):

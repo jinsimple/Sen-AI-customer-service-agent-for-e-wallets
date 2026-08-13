@@ -20,14 +20,17 @@ user nào — đây là lỗ hổng nghiêm trọng nhất đã vá.
 """
 from __future__ import annotations
 
+import calendar
 import datetime as dt
-import hashlib
 import json
 import logging
 import random
+import secrets
 import time
 import uuid
 
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -41,6 +44,7 @@ from src.api.live_chat_ws import live_chat_websocket_endpoint
 from src.api.live_chat_ws import manager as _live_chat_manager
 from src.api.schemas import (
     AgentChatRequest,
+    ApproveResolutionRequest,
     CreateTicketRequest,
     EscalateTicketRequest,
     GetCustomerHistoryRequest,
@@ -51,17 +55,23 @@ from src.api.schemas import (
     OtpVerifyRequest,
     PolicySearchRequest,
     ProposeResolutionRequest,
+    RefreshTokenRequest,
     RequestMoreInfoRequest,
 )
 from src.auth import (
     CurrentUser,
     create_access_token,
     get_current_user,
+    is_access_token_revoked,
+    mint_refresh_token,
     require_otp_verified,
     require_role,
+    revoke_refresh_token,
+    rotate_refresh_token,
+    set_revoked_before_now,
     try_decode,
 )
-from src.config import DATASET_SEED, OTP_MAX_FAILED_ATTEMPTS, ROOT_DIR
+from src.config import OTP_MAX_FAILED_ATTEMPTS, REDIS_URL, RESOLUTION_APPROVAL_OTP_FRESH_MINUTES, ROOT_DIR
 from src.db.models import (
     AuthSession,
     ChatSession,
@@ -81,6 +91,7 @@ from src.observability.tracing import configure_tracing, instrument_fastapi_app
 from src.rag.ingest import delete_document as _delete_policy_document
 from src.rag.ingest import ingest_document
 from src.rag.search import search_policy_text
+from src.rate_limit import RedisSlidingWindowLimiter
 from src.services import live_chat, reporting
 from src.services.complaint_intake import create_ticket_with_fraud_check
 from src.tools.base import ToolError, new_id
@@ -96,7 +107,12 @@ configure_logging()  # JSON stdout, gắn correlation_id/user_id tự động �
 configure_tracing()  # OTel -> Jaeger (OTEL_EXPORTER_OTLP_ENDPOINT, mặc định
 # localhost:4317) — graceful-degrade nếu Jaeger không sống, xem tracing.py.
 
-limiter = Limiter(key_func=get_remote_address)
+# AUTH5 (đợt nâng cấp Auth Flow, 2026-08-12) — đồng bộ rate-limit lên Redis
+# (cùng nơi lưu JWT revocation) thay vì in-memory rời rạc: sống sót qua
+# restart backend, nhất quán trạng thái bảo mật/rate-limit toàn hệ thống ở 1
+# nguồn duy nhất. `fake://` (CI/test) rơi về in-memory mặc định của slowapi —
+# không regression, không cần Redis thật để chạy test.
+limiter = Limiter(key_func=get_remote_address, storage_uri=None if REDIS_URL.startswith("fake://") else REDIS_URL)
 
 app = FastAPI(title="FIN-05 AI Agent CSKH — Backend", version="0.1.0")
 app.state.limiter = limiter
@@ -187,37 +203,134 @@ def _handle_tool_error(fn, *args, **kwargs):
 
 
 # ---------------------------------------------------------------------------
-# /auth/login — không có mật khẩu thật (xem LoginRequest); chỉ định danh
-# phone + role khai báo phải khớp role thật trong DB, phát JWT nếu đúng.
-# Rate-limit chặt hơn route khác — chống dò số điện thoại hàng loạt.
+# /auth/login — mật khẩu THẬT (quyết định 2026-08-12, thay luồng phone+role
+# chọn tay trước đó — xem LoginRequest). Vai trò lấy từ user tìm được qua
+# phone, không do client tự khai. Rate-limit chặt hơn route khác — chống dò
+# số điện thoại/mật khẩu hàng loạt.
+#
+# AUTH5-08 (đợt nâng cấp Auth Flow 2026-08-12) — TRƯỚC bản vá: `@limiter.limit`
+# (slowapi) khoá THUẦN theo `get_remote_address` (IP) — mọi khách hàng thật
+# đi qua CHUNG 1 container `frontend` (kiến trúc BFF) nên đây thực chất là
+# giới hạn DÙNG CHUNG cho mọi khách (1 khách spam sai mật khẩu khoá luôn
+# khách khác cùng IP, đã ghi nhận ở
+# tests/test_api/test_auth_login.py::test_login_rate_limit_shared_across_different_users_behind_same_ip).
+# slowapi's key_func chỉ nhận `Request`, gọi ĐỒNG BỘ (không await được) nên
+# không tự đọc được body JSON đã parse để khoá theo phone — bỏ hẳn decorator
+# slowapi ở route này, thay bằng 2 lớp thủ công dùng chung
+# RedisSlidingWindowLimiter (đồng bộ Redis, xem src/rate_limit.py):
+# (1) theo PHONE — chặn CHÍNH XÁC brute-force nhắm 1 user cụ thể, kể cả từ
+#     NHIỀU IP khác nhau (đúng tinh thần AUTH5-08).
+# (2) theo IP — ngưỡng RỘNG hơn hẳn (chỉ chặn flood thô/credential stuffing
+#     hàng loạt phone khác nhau từ 1 nguồn), không còn khoá nhầm người dùng
+#     hợp lệ khác chung IP như trước.
 # ---------------------------------------------------------------------------
+
+_login_phone_limiter = RedisSlidingWindowLimiter(max_calls=10, window_seconds=60)
+_login_ip_limiter = RedisSlidingWindowLimiter(max_calls=60, window_seconds=60)
+_password_hasher = PasswordHasher()
+# Hash "mồi" hợp lệ về ĐỊNH DẠNG (không khớp mật khẩu thật nào) — dùng để
+# verify GIẢ khi không tìm thấy user theo phone, giữ THỜI GIAN XỬ LÝ tương
+# đương nhánh "tìm thấy user nhưng sai mật khẩu". Thiếu bước này, kẻ tấn
+# công đo độ trễ response phân biệt được "số điện thoại không tồn tại"
+# (trả lời ngay, không hash) với "số điện thoại tồn tại" (verify tốn ~50-100ms
+# CPU cho argon2id) — dò được danh sách số điện thoại thật đã đăng ký mà
+# không cần đoán đúng mật khẩu nào.
+_DUMMY_PASSWORD_HASH = PasswordHasher().hash(secrets.token_urlsafe(32))
 
 
 @app.post("/auth/login")
-@limiter.limit("10/minute")
 def login(request: Request, req: LoginRequest, session: Session = Depends(get_session)):
+    if not _login_ip_limiter.allow(get_remote_address(request)):
+        raise HTTPException(status_code=429, detail="Quá nhiều yêu cầu đăng nhập, thử lại sau")
+    if not _login_phone_limiter.allow(req.phone):
+        raise HTTPException(status_code=429, detail="Quá nhiều lần thử đăng nhập cho số điện thoại này, thử lại sau")
+
     user = session.scalar(select(User).where(User.phone == req.phone))
-    if user is None or user.role != req.role:
-        raise HTTPException(status_code=401, detail="Số điện thoại hoặc vai trò không khớp")
-    token = create_access_token(user_id=user.user_id, role=user.role)
+    stored_hash = user.password_hash if user and user.password_hash else _DUMMY_PASSWORD_HASH
+    try:
+        _password_hasher.verify(stored_hash, req.password)
+        password_ok = user is not None and user.password_hash is not None
+    except VerifyMismatchError:
+        password_ok = False
+    if not password_ok:
+        raise HTTPException(status_code=401, detail="Số điện thoại hoặc mật khẩu không đúng")
+    assert user is not None  # narrow cho type checker — password_ok=True chỉ khi user tồn tại
+    now = dt.datetime.utcnow()
+    token = create_access_token(user_id=user.user_id, role=user.role, iat=now)
+    # AUTH5-02 (đợt nâng cấp Auth Flow 2026-08-12) — access_token giờ ngắn hạn
+    # (15 phút, JWT_ACCESS_EXPIRE_MINUTES) nên PHẢI đi kèm refresh_token để
+    # frontend tự làm mới mà không bắt khách đăng nhập lại liên tục.
+    #
+    # GOTCHA (phát hiện thật lúc viết test_refresh_preserves_original_iat_for_
+    # thread_continuity — lệch đúng 7 giờ = timezone máy chạy): `datetime.timestamp()`
+    # trên datetime NAIVE (utcnow() không gắn tzinfo) diễn giải giờ theo LOCAL
+    # timezone của máy, không phải UTC — KHÁC với cách PyJWT tự mã hoá claim
+    # iat/exp (calendar.timegm(), luôn coi naive datetime LÀ UTC, đúng ý định
+    # thật). Dùng .timestamp() ở đây rồi sau này rotate_refresh_token() dựng
+    # lại bằng utcfromtimestamp() + đưa lại qua create_access_token() (chạy
+    # qua PyJWT/timegm ĐÚNG) làm access_token MỚI có `iat` LỆCH khỏi bản gốc —
+    # phá thread_id hội thoại AI (user_id:iat, xem src/agents/graph.py) ngay
+    # sau lần refresh đầu tiên. Bắt buộc dùng calendar.timegm() ở đây để khớp
+    # CHÍNH XÁC cách PyJWT tự mã hoá, round-trip được nguyên vẹn qua
+    # utcfromtimestamp() sau này.
+    login_iat = calendar.timegm(now.utctimetuple())
+    refresh_token = mint_refresh_token(user_id=user.user_id, role=user.role, login_iat=login_iat, otp_verified_at=None)
     return {
         "user_id": user.user_id,
         "role": user.role,
         "full_name": user.full_name,
         "access_token": token,
+        "refresh_token": refresh_token,
     }
 
 
 # ---------------------------------------------------------------------------
-# /auth/otp/* — OTP phiên làm việc + câu hỏi bảo mật THẬT ở backend (Brief §7
-# #4). TRƯỚC bản vá này, OTP chỉ là gate UI mô phỏng ở frontend
-# (ChatClient.tsx) — backend không kiểm tra gì, nghĩa là gọi thẳng
-# /tools/lookup_transaction bằng JWT hợp lệ vẫn lấy được dữ liệu nhạy cảm mà
-# không cần xác thực OTP (phát hiện thật khi đối chiếu bộ QA test AUTH-*).
-# `AuthSession`/`User.security_answer_hash` đã có sẵn trong data model (dùng
-# để tính FS-06/FS-11 từ dữ liệu lịch sử) — giờ mới có endpoint thật ghi/đọc
-# lúc runtime.
+# AUTH5-02/03/03B (đợt nâng cấp Auth Flow, 2026-08-12) — access token ngắn
+# hạn (15 phút) cần cặp refresh token để làm mới; rotation + reuse detection
+# (src/auth.py::rotate_refresh_token) chống replay nếu refresh token bị đánh
+# cắp. `/auth/logout` thoả mãn trực tiếp finding ST2-P0-5/AUTH5 gốc: trước
+# đây KHÔNG có cơ chế thu hồi JWT nào ở backend (xem
+# tests/test_security/test_jwt_revocation.py).
 # ---------------------------------------------------------------------------
+
+
+@app.post("/auth/refresh")
+@limiter.limit("30/minute")
+def refresh_token_route(request: Request, req: RefreshTokenRequest):
+    result = rotate_refresh_token(req.refresh_token)
+    if result is None:
+        raise HTTPException(status_code=401, detail="Refresh token không hợp lệ, đã hết hạn, hoặc đã bị thu hồi")
+    return result
+
+
+@app.post("/auth/logout")
+def logout(req: RefreshTokenRequest, current_user: CurrentUser = Depends(get_current_user)):
+    revoke_refresh_token(req.refresh_token)
+    # AUTH5-06 — vô hiệu hoá NGAY access token hiện tại (và mọi access token
+    # cũ hơn) của user này, không chờ hết hạn tự nhiên. Chỉ có tác dụng thật
+    # ở route nào có check is_access_token_revoked (require_otp_verified,
+    # approve/reject) — xem lý do phạm vi có chủ đích ở src/auth.py.
+    set_revoked_before_now(current_user.user_id)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# /auth/otp/* — OTP phiên làm việc THẬT ở backend (Brief §7 #4; AUTH5-01,
+# 2026-08-12: không còn kèm câu hỏi bảo mật). TRƯỚC bản vá gốc, OTP chỉ là
+# gate UI mô phỏng ở frontend (ChatClient.tsx) — backend không kiểm tra gì,
+# nghĩa là gọi thẳng /tools/lookup_transaction bằng JWT hợp lệ vẫn lấy được
+# dữ liệu nhạy cảm mà không cần xác thực OTP (phát hiện thật khi đối chiếu bộ
+# QA test AUTH-*). `AuthSession` đã có sẵn trong data model — giờ mới có
+# endpoint thật ghi/đọc lúc runtime.
+# ---------------------------------------------------------------------------
+
+# AUTH5-05E (đợt nâng cấp Auth Flow 2026-08-12) — decorator slowapi phía dưới
+# (10/minute) vẫn khoá theo IP thuần (không đổi được sang phone/user theo
+# cùng cách route login, vì key_func slowapi không async-await được body/
+# current_user resolve qua Depends) — thêm lớp thứ 2 khoá theo user_id THẬT
+# (đã có current_user ở đây, khác /auth/login), chặn brute-force mã OTP nhắm
+# 1 user cụ thể kể cả nếu 1 kẻ tấn công đổi IP liên tục.
+_otp_request_user_limiter = RedisSlidingWindowLimiter(max_calls=10, window_seconds=60)
 
 
 @app.post("/auth/otp/request")
@@ -227,11 +340,14 @@ def request_otp(
     current_user: CurrentUser = Depends(require_role("customer")),
     session: Session = Depends(get_session),
 ):
+    if not _otp_request_user_limiter.allow(current_user.user_id):
+        raise HTTPException(status_code=429, detail="Quá nhiều lần xin mã OTP, thử lại sau")
     user = session.get(User, current_user.user_id)
     otp_code = f"{random.randint(0, 999999):06d}"
+    otp_session_id = new_id("SES")
     session.add(
         AuthSession(
-            session_id=new_id("SES"),
+            session_id=otp_session_id,
             user_id=current_user.user_id,
             otp_code=otp_code,
             otp_status="pending",
@@ -241,13 +357,12 @@ def request_otp(
         )
     )
     return {
-        "security_question": user.security_question,
+        "session_id": otp_session_id,
+        "security_question": user.security_question,  # chỉ hỗ trợ CSKH nhận diện qua hotline, KHÔNG gate OTP verify
         "otp_code": otp_code,
         "note": (
             "Môi trường demo — mã OTP trả trực tiếp ở đây để tiện test/tự động hoá "
-            "(sản phẩm thật sẽ gửi qua SMS, KHÔNG BAO GIỜ trả OTP qua API response). "
-            "Câu trả lời bảo mật KHÔNG được trả qua API — xem docs/TESTING.md để biết "
-            "công thức tính (chỉ áp dụng ở môi trường demo/seed cố định)."
+            "(sản phẩm thật sẽ gửi qua SMS, KHÔNG BAO GIỜ trả OTP qua API response)."
         ),
     }
 
@@ -260,12 +375,14 @@ def verify_otp(
     current_user: CurrentUser = Depends(require_role("customer")),
     session: Session = Depends(get_session),
 ):
-    user = session.get(User, current_user.user_id)
-    auth_session = session.scalar(
-        select(AuthSession)
-        .where(AuthSession.user_id == current_user.user_id)
-        .order_by(AuthSession.created_at.desc())
-    )
+    # Tra thẳng theo session_id (khoá chính) — KHÔNG còn "AuthSession mới
+    # nhất của user" (vá race condition 2026-08-13, xem docstring
+    # OtpVerifyRequest). auth_session.user_id != current_user.user_id nghĩa
+    # là ai đó đang thử verify session OTP KHÔNG PHẢI của chính mình — coi
+    # như không tồn tại, không tiết lộ session đó có thật hay không.
+    auth_session = session.get(AuthSession, req.session_id)
+    if auth_session is not None and auth_session.user_id != current_user.user_id:
+        auth_session = None
     if auth_session is None:
         raise HTTPException(status_code=400, detail="Chưa yêu cầu OTP — gọi /auth/otp/request trước")
     if auth_session.locked_at is not None:
@@ -273,16 +390,15 @@ def verify_otp(
             status_code=403, detail="Phiên xác thực đã bị khoá do sai quá nhiều lần — yêu cầu OTP mới"
         )
 
-    expected_answer = f"ans-{DATASET_SEED}-{current_user.user_id}"
+    # AUTH5-01 (đợt nâng cấp Auth Flow, 2026-08-12, NIST SP 800-63B-4) — câu
+    # hỏi bảo mật (KBA) KHÔNG còn được dùng làm authenticator, kể cả kết hợp
+    # cùng OTP — kẻ tấn công dễ dàng tra được đáp án qua rò rỉ dữ liệu/mạng xã
+    # hội. Mã OTP là yếu tố step-up DUY NHẤT ở đây. `User.security_question`/
+    # `security_answer_hash` VẪN giữ trong model, chỉ để hỗ trợ CSKH nhận
+    # diện khách khi gọi hotline (không gate route nào cả).
     otp_ok = req.otp_code == auth_session.otp_code
-    answer_ok = hashlib.sha256(req.security_answer.encode()).hexdigest() == user.security_answer_hash
-    # Demo: chấp nhận thêm đúng công thức plaintext (không phải hash) để tiện
-    # test tay/Playwright mà không cần tự tính SHA-256 — vẫn giữ đường hash
-    # thật ở trên cho trường hợp client tự hash trước khi gửi.
-    if not answer_ok:
-        answer_ok = req.security_answer == expected_answer
 
-    if not (otp_ok and answer_ok):
+    if not otp_ok:
         auth_session.failed_attempts += 1
         # commit() Ở ĐÂY, TRƯỚC KHI raise — get_session() (src/api/deps.py)
         # rollback() bất kỳ exception nào thoát khỏi route, kể cả
@@ -300,7 +416,7 @@ def verify_otp(
                 detail=f"Sai quá {OTP_MAX_FAILED_ATTEMPTS} lần — phiên xác thực đã bị khoá, yêu cầu OTP mới",
             )
         session.commit()
-        raise HTTPException(status_code=401, detail="Mã OTP hoặc câu trả lời bảo mật không đúng")
+        raise HTTPException(status_code=401, detail="Mã OTP không đúng")
 
     auth_session.otp_status = "verified"
     auth_session.security_q_passed = True
@@ -314,7 +430,28 @@ def verify_otp(
         otp_verified_at=now,
         iat=dt.datetime.utcfromtimestamp(current_user.iat),
     )
-    return {"access_token": new_token, "otp_verified": True}
+    # LƯU Ý (KHÔNG gọi set_revoked_before_now ở đây, khác logout) — token MỚI
+    # vẫn giữ NGUYÊN `iat` gốc (bắt buộc, giữ thread_id hội thoại AI, xem
+    # create_access_token) — is_access_token_revoked() so `iat < revoked_before`,
+    # nếu bump revoked_before=now ở đây thì CHÍNH token vừa cấp (iat cũ hơn
+    # "now") sẽ bị coi là đã thu hồi ngay lập tức, khoá nhầm chính phiên vừa
+    # xác thực xong. Phát hiện được lúc thiết kế (không phải chạy thử mới
+    # thấy) — revoked_before chỉ dùng đúng cho logout, nơi lần đăng nhập KẾ
+    # TIẾP chắc chắn có `iat` mới hơn (login() luôn set iat=now).
+    #
+    # Mint kèm 1 refresh token mới (family mới — hợp lý vì đây là lần "nâng
+    # cấp" mức xác thực, không phải rotation thường) để phiên đã otp_verified
+    # cũng làm mới được mà không phải xin OTP lại giữa chừng.
+    new_refresh = mint_refresh_token(
+        user_id=current_user.user_id,
+        role=current_user.role,
+        login_iat=current_user.iat,
+        # calendar.timegm (không phải .timestamp()) — cùng lý do đã ghi ở
+        # login(): round-trip qua utcfromtimestamp() sau này (rotate_refresh_token)
+        # phải khớp CHÍNH XÁC cách PyJWT/create_access_token tự diễn giải.
+        otp_verified_at=calendar.timegm(now.utctimetuple()),
+    )
+    return {"access_token": new_token, "refresh_token": new_refresh, "otp_verified": True}
 
 
 # ---------------------------------------------------------------------------
@@ -553,8 +690,20 @@ def get_ticket_detail(
 # ---------------------------------------------------------------------------
 
 
-@app.post("/resolutions/{resolution_id}/approve")
-def approve_resolution(
+# ---------------------------------------------------------------------------
+# AUTH5-04/05/05B (đợt nâng cấp Auth Flow, 2026-08-12, PSD2 dynamic linking):
+# duyệt resolution là hành động tài chính có tác động thật nhất hệ thống,
+# trước đây chỉ gate role — giờ cần OTP RIÊNG cho ĐÚNG resolution_id đang
+# duyệt, gắn chặt với amount tại thời điểm xin OTP (đổi amount sau đó buộc
+# xin lại). Tái dùng AuthSession (resolution_id/amount_snapshot mới thêm)
+# thay vì bảng riêng — xem docstring model.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/resolutions/{resolution_id}/request-approval-otp")
+@limiter.limit("10/minute")
+def request_resolution_approval_otp(
+    request: Request,
     resolution_id: str,
     current_user: CurrentUser = Depends(require_role("supervisor")),
     session: Session = Depends(get_session),
@@ -562,9 +711,84 @@ def approve_resolution(
     resolution = session.get(Resolution, resolution_id)
     if resolution is None:
         raise HTTPException(status_code=404, detail="resolution không tồn tại")
+
+    otp_code = f"{random.randint(0, 999999):06d}"
+    otp_session_id = new_id("SES")
+    session.add(
+        AuthSession(
+            session_id=otp_session_id,
+            user_id=current_user.user_id,
+            resolution_id=resolution_id,
+            amount_snapshot=resolution.amount,
+            otp_code=otp_code,
+            otp_status="pending",
+            security_q_passed=False,
+            failed_attempts=0,
+            created_at=dt.datetime.utcnow(),
+        )
+    )
+    return {
+        "session_id": otp_session_id,
+        "resolution_id": resolution_id,
+        "otp_code": otp_code,
+        "note": (
+            "Môi trường demo — mã OTP trả trực tiếp ở đây để tiện test/tự động hoá "
+            "(sản phẩm thật sẽ gửi qua SMS/app riêng cho sếp). Mã CHỈ dùng được cho "
+            f"ĐÚNG resolution_id={resolution_id} này, hết hạn sau "
+            f"{RESOLUTION_APPROVAL_OTP_FRESH_MINUTES} phút, và mất hiệu lực nếu số tiền "
+            "resolution thay đổi sau khi xin mã."
+        ),
+    }
+
+
+@app.post("/resolutions/{resolution_id}/approve")
+def approve_resolution(
+    resolution_id: str,
+    req: ApproveResolutionRequest,
+    current_user: CurrentUser = Depends(require_role("supervisor")),
+    session: Session = Depends(get_session),
+):
+    # AUTH5-06 — duyệt tài chính THẬT là 1 trong số Ít route cố ý trả giá 1
+    # lần GET Redis/request để check revocation (xem rationale ở
+    # src/auth.py::require_otp_verified) — không áp dụng qua require_role
+    # dùng chung (sẽ ảnh hưởng MỌI route khác), gọi thẳng ở đây.
+    if is_access_token_revoked(current_user.user_id, current_user.iat):
+        raise HTTPException(status_code=401, detail="Phiên đã bị thu hồi — đăng nhập lại")
+    resolution = session.get(Resolution, resolution_id)
+    if resolution is None:
+        raise HTTPException(status_code=404, detail="resolution không tồn tại")
     if resolution.status not in ("draft", "pending_approval"):
         raise HTTPException(
             status_code=400, detail=f"resolution đang ở trạng thái {resolution.status}, không duyệt được"
+        )
+
+    # AUTH5-05 — tra ĐÚNG challenge vừa xin (theo session_id, khoá chính — vá
+    # race condition 2026-08-13, cùng lý do /auth/otp/verify), KHÔNG dùng
+    # challenge "mới nhất" của user/resolution nữa (vừa mơ hồ dưới tải đồng
+    # thời thật, vừa từng cho phép OTP xin cho case A duyệt được case B).
+    auth_session = session.get(AuthSession, req.session_id)
+    if (
+        auth_session is None
+        or auth_session.user_id != current_user.user_id
+        or auth_session.resolution_id != resolution_id
+        or auth_session.otp_code != req.otp_code
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Cần xác thực OTP riêng cho resolution này trước khi duyệt "
+                "(POST /resolutions/{id}/request-approval-otp rồi truyền otp_code vào approve)"
+            ),
+        )
+    age_minutes = (dt.datetime.utcnow() - auth_session.created_at).total_seconds() / 60
+    if age_minutes > RESOLUTION_APPROVAL_OTP_FRESH_MINUTES:
+        raise HTTPException(status_code=403, detail="Mã OTP duyệt đã hết hạn — xin mã mới")
+    # AUTH5-05B — dynamic linking: số tiền phải KHỚP snapshot lúc xin OTP, đổi
+    # amount sau đó (CSKH sửa lại đề xuất) buộc sếp xin OTP mới cho số tiền mới.
+    if auth_session.amount_snapshot != resolution.amount:
+        raise HTTPException(
+            status_code=403,
+            detail="Số tiền resolution đã thay đổi kể từ lúc xin OTP — xin mã mới cho đúng số tiền hiện tại",
         )
 
     resolution.status = "approved"
@@ -580,6 +804,8 @@ def reject_resolution(
     current_user: CurrentUser = Depends(require_role("supervisor")),
     session: Session = Depends(get_session),
 ):
+    if is_access_token_revoked(current_user.user_id, current_user.iat):
+        raise HTTPException(status_code=401, detail="Phiên đã bị thu hồi — đăng nhập lại")
     resolution = session.get(Resolution, resolution_id)
     if resolution is None:
         raise HTTPException(status_code=404, detail="resolution không tồn tại")

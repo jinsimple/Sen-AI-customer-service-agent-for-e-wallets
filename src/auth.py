@@ -11,15 +11,27 @@ tham số user_id/approved_by/... từ Pydantic request body.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import json
+import secrets
 from dataclasses import dataclass
 
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from src.config import JWT_ALGORITHM, JWT_EXPIRE_MINUTES, JWT_SECRET_KEY, OTP_STEPUP_FRESH_MINUTES
+from src.config import (
+    JWT_ACCESS_EXPIRE_MINUTES,
+    JWT_ALGORITHM,
+    JWT_REFRESH_EXPIRE_DAYS_CUSTOMER,
+    JWT_REFRESH_EXPIRE_DAYS_STAFF,
+    JWT_SECRET_KEY,
+    OTP_STEPUP_FRESH_MINUTES,
+)
+from src.redis_client import get_default_client
 
 _bearer = HTTPBearer(auto_error=False)
+_STAFF_ROLES = {"cskh", "supervisor", "partner_admin"}
 
 
 @dataclass(frozen=True)
@@ -57,9 +69,132 @@ def create_access_token(
         "role": role,
         "otp_verified_at": otp_verified_at.timestamp() if otp_verified_at else None,
         "iat": iat or now,
-        "exp": now + dt.timedelta(minutes=JWT_EXPIRE_MINUTES),
+        "exp": now + dt.timedelta(minutes=JWT_ACCESS_EXPIRE_MINUTES),
     }
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+# ---------------------------------------------------------------------------
+# Refresh token (AUTH5-02/02B/02C/03/03B, đợt nâng cấp Auth Flow 2026-08-12)
+# — KHÔNG phải JWT: chuỗi ngẫu nhiên (secrets.token_urlsafe, cùng pattern
+# ws-ticket đã có ở src/api/live_chat_ws.py), server lưu trạng thái trong
+# Redis (khoá theo hash — không lưu token thô, cùng nguyên tắc "không lưu bí
+# mật dạng thô" đã áp dụng cho câu trả lời bảo mật). Cho phép REVOKE thật sự
+# (JWT thuần không thu hồi được nếu không tra cứu state phía server) và ROTATE
+# + REUSE DETECTION: mỗi lần dùng phát hành token mới, token cũ dùng lại lần 2
+# coi là dấu hiệu bị đánh cắp -> thu hồi toàn bộ "family" (mọi token sinh ra
+# từ cùng 1 lần đăng nhập gốc), buộc đăng nhập lại.
+# ---------------------------------------------------------------------------
+
+
+def _refresh_ttl_seconds(role: str) -> int:
+    days = JWT_REFRESH_EXPIRE_DAYS_STAFF if role in _STAFF_ROLES else JWT_REFRESH_EXPIRE_DAYS_CUSTOMER
+    return days * 24 * 60 * 60
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def mint_refresh_token(
+    *,
+    user_id: str,
+    role: str,
+    login_iat: int,
+    otp_verified_at: int | None,
+    family_id: str | None = None,
+) -> str:
+    """`family_id` truyền tay khi ROTATE (giữ nguyên gia đình gốc) — để trống
+    khi mint lần đầu (login/verify_otp), tự sinh family mới."""
+    token = secrets.token_urlsafe(32)
+    family_id = family_id or secrets.token_urlsafe(16)
+    data = {
+        "user_id": user_id,
+        "role": role,
+        "family_id": family_id,
+        "login_iat": login_iat,
+        "otp_verified_at": otp_verified_at,
+        "rotated": False,
+    }
+    get_default_client().setex(f"refresh:{_hash_token(token)}", _refresh_ttl_seconds(role), json.dumps(data))
+    return token
+
+
+def is_family_revoked(family_id: str) -> bool:
+    return get_default_client().exists(f"revoked_family:{family_id}") == 1
+
+
+def revoke_family(family_id: str, *, role: str) -> None:
+    """Thu hồi TOÀN BỘ family — gọi khi phát hiện refresh token bị dùng lại
+    sau khi đã rotate (AUTH5-03, dấu hiệu bị đánh cắp). Key tự hết hạn theo
+    đúng TTL refresh (không cần enumerate/xoá tay từng token con)."""
+    get_default_client().setex(f"revoked_family:{family_id}", _refresh_ttl_seconds(role), "1")
+
+
+def rotate_refresh_token(token: str) -> dict | None:
+    """Trả None nếu token không hợp lệ/hết hạn/family đã bị thu hồi (kể cả
+    do reuse detection ở CHÍNH lần gọi này). Trả dict access_token/
+    refresh_token/user_id/role nếu hợp lệ."""
+    client = get_default_client()
+    key = f"refresh:{_hash_token(token)}"
+    raw = client.get(key)
+    if raw is None:
+        return None
+    data = json.loads(raw)
+    if is_family_revoked(data["family_id"]):
+        return None
+    if data.get("rotated"):
+        # AUTH5-03 — token NÀY đã được dùng để rotate trước đó, mà giờ lại bị
+        # dùng lại lần nữa -> chỉ có thể do bị sao chép/đánh cắp (client hợp
+        # pháp đã nhận token MỚI và không còn lý do gì dùng lại token cũ).
+        revoke_family(data["family_id"], role=data["role"])
+        return None
+
+    # Đánh dấu ROTATED thay vì xoá ngay — giữ lại NGẮN (60s) đủ để bắt được
+    # request thứ 2 dùng lại (reuse), tự dọn qua TTL, không cần cron riêng.
+    data["rotated"] = True
+    client.setex(key, 60, json.dumps(data))
+
+    otp_verified_at = (
+        dt.datetime.utcfromtimestamp(data["otp_verified_at"]) if data["otp_verified_at"] is not None else None
+    )
+    login_iat_dt = dt.datetime.utcfromtimestamp(data["login_iat"])
+    new_access = create_access_token(
+        user_id=data["user_id"], role=data["role"], otp_verified_at=otp_verified_at, iat=login_iat_dt
+    )
+    new_refresh = mint_refresh_token(
+        user_id=data["user_id"],
+        role=data["role"],
+        login_iat=data["login_iat"],
+        otp_verified_at=data["otp_verified_at"],
+        family_id=data["family_id"],
+    )
+    return {
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "user_id": data["user_id"],
+        "role": data["role"],
+    }
+
+
+def revoke_refresh_token(token: str) -> None:
+    """Logout — xoá 1 refresh token cụ thể (KHÔNG xoá cả family, chỉ phiên
+    đăng xuất hiện tại; các thiết bị khác vẫn đăng nhập bình thường)."""
+    get_default_client().delete(f"refresh:{_hash_token(token)}")
+
+
+def set_revoked_before_now(user_id: str) -> None:
+    """AUTH5-06 — mọi access token có `iat` CŨ HƠN mốc này coi như bị thu hồi
+    ngay, không chờ hết hạn tự nhiên (xem is_access_token_revoked). Gọi lúc
+    logout/xác thực OTP xong (token mới thay thế token cũ)."""
+    get_default_client().set(f"revoked_before:{user_id}", str(dt.datetime.utcnow().timestamp()))
+
+
+def is_access_token_revoked(user_id: str, iat: int) -> bool:
+    raw = get_default_client().get(f"revoked_before:{user_id}")
+    if raw is None:
+        return False
+    return float(iat) < float(raw)
 
 
 def _decode(token: str) -> CurrentUser:
@@ -124,13 +259,14 @@ def require_role(*allowed_roles: str):
 
 def require_otp_verified(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
     """Gác các route CHẠM dữ liệu giao dịch/tài khoản nhạy cảm (Brief §7 #4:
-    OTP phiên + câu hỏi bảo mật trước thao tác nhạy cảm). TRƯỚC bản vá này, OTP
-    chỉ là gate UI ở frontend (`ChatClient.tsx`) — backend không kiểm tra gì cả,
-    nghĩa là gọi thẳng API (curl/Postman) với JWT hợp lệ vẫn lấy được dữ liệu
-    nhạy cảm mà không cần xác thực OTP — phát hiện thật khi đối chiếu bộ QA
-    test AUTH-*. KHÔNG gắn dependency này vào toàn bộ /agent/chat (sẽ chặn cả
-    câu hỏi chung, phá AUTH-004) — chỉ gắn vào route THỰC SỰ chạm dữ liệu:
-    lookup_transaction, get_customer_history, create_ticket.
+    OTP phiên trước thao tác nhạy cảm — AUTH5-01, 2026-08-12: KHÔNG còn kèm
+    câu hỏi bảo mật, KBA đã bỏ khỏi vai trò authenticator). TRƯỚC bản vá này,
+    OTP chỉ là gate UI ở frontend (`ChatClient.tsx`) — backend không kiểm tra
+    gì cả, nghĩa là gọi thẳng API (curl/Postman) với JWT hợp lệ vẫn lấy được
+    dữ liệu nhạy cảm mà không cần xác thực OTP — phát hiện thật khi đối chiếu
+    bộ QA test AUTH-*. KHÔNG gắn dependency này vào toàn bộ /agent/chat (sẽ
+    chặn cả câu hỏi chung, phá AUTH-004) — chỉ gắn vào route THỰC SỰ chạm dữ
+    liệu: lookup_transaction, get_customer_history, create_ticket.
 
     CHỈ áp cho role `customer` — CSKH/supervisor/partner_admin không đi qua
     luồng OTP khách hàng, danh tính của họ đã được xác lập qua đăng nhập nhân
@@ -140,10 +276,19 @@ def require_otp_verified(current_user: CurrentUser = Depends(get_current_user)) 
     Dependency này CHỈ gắn vào /tools/create_ticket (hành động có hậu quả tài
     chính thật) nên dùng ngưỡng step-up CHẶT hơn (OTP_STEPUP_FRESH_MINUTES,
     xem src/config.py) — quyết định AUTH-008 (2026-08-10): create_ticket cần
-    xác thực TƯƠI HƠN thao tác chỉ xem."""
+    xác thực TƯƠI HƠN thao tác chỉ xem.
+
+    AUTH5-06 (2026-08-12) — thêm check revocation Ở ĐÂY (route nhạy cảm nhất
+    của khách hàng), KHÔNG áp cho toàn bộ route thường qua get_current_user —
+    quyết định có chủ đích: access token đã rất ngắn hạn (15 phút), thêm 1 lần
+    GET Redis vào MỌI request sẽ biến Redis thành single point of failure cho
+    cả hệ thống trong khi lợi ích biên rất nhỏ; route CHẠM DỮ LIỆU/TÀI CHÍNH
+    thật xứng đáng trả giá đó, route đọc thường thì không."""
     if current_user.role == "customer" and not current_user.otp_fresh_within(OTP_STEPUP_FRESH_MINUTES):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cần xác thực OTP phiên làm việc + câu hỏi bảo mật trước khi thao tác này (POST /auth/otp/request rồi /auth/otp/verify)",
+            detail="Cần xác thực OTP phiên làm việc trước khi thao tác này (POST /auth/otp/request rồi /auth/otp/verify)",
         )
+    if is_access_token_revoked(current_user.user_id, current_user.iat):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đã bị thu hồi — đăng nhập lại")
     return current_user

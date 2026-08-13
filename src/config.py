@@ -68,6 +68,13 @@ OTP_VIEW_MAX_MINUTES = 12 * 60
 #   hành động có hậu quả tài chính, không phải chỉ xem).
 OTP_STEPUP_FRESH_MINUTES = 15
 
+# AUTH5-04 (đợt nâng cấp Auth Flow, 2026-08-12) — OTP step-up RIÊNG cho
+# POST /resolutions/{id}/approve (PSD2 dynamic linking, xem AuthSession.
+# resolution_id/amount_snapshot). Ngắn hơn OTP_STEPUP_FRESH_MINUTES vì đây
+# là hành động duyệt tài chính THẬT SỰ (không phải chỉ mở khoá để thao tác
+# tiếp như create_ticket) — sếp phải xin OTP ngay sát lúc bấm duyệt.
+RESOLUTION_APPROVAL_OTP_FRESH_MINUTES = 10
+
 # BR-06: định dạng masking PDPA cho thông tin bên thứ ba.
 PHONE_MASK_VISIBLE_PREFIX = 3
 PHONE_MASK_VISIBLE_SUFFIX = 4
@@ -89,13 +96,37 @@ if not JWT_SECRET_KEY:
         "python3 -c \"import secrets; print(secrets.token_urlsafe(48))\""
     )
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRE_MINUTES = 8 * 60  # 8 giờ — khớp thời lượng cookie phiên ở frontend
+# AUTH5-02 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4/PSD2) — rút
+# từ 8 giờ xuống 15 phút. Token cũ (8h, phát trước khi nâng cấp) VẪN qua được
+# _decode() bình thường tới khi hết hạn tự nhiên (không thêm field bắt buộc
+# mới vào payload) — không khoá đột ngột session đang sống (AUTH5-MIGRATE-001).
+JWT_ACCESS_EXPIRE_MINUTES = 15
+
+# Refresh token (KHÔNG phải JWT — chuỗi ngẫu nhiên, lưu trong Redis, xem
+# src/auth.py::mint_refresh_token) — role nội bộ (cskh/supervisor/
+# partner_admin) rủi ro cao hơn nếu bị đánh cắp (chạm dữ liệu nhiều khách)
+# nên TTL ngắn hơn hẳn khách hàng (AUTH5-02B).
+JWT_REFRESH_EXPIRE_DAYS_CUSTOMER = 7
+JWT_REFRESH_EXPIRE_DAYS_STAFF = 1
 
 FIELD_ENCRYPTION_KEY = os.environ.get("FIELD_ENCRYPTION_KEY")
 if not FIELD_ENCRYPTION_KEY:
     raise RuntimeError(
         "Thiếu FIELD_ENCRYPTION_KEY trong .env — sinh bằng: "
         "python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+    )
+
+# Redis (đợt nâng cấp Auth Flow, 2026-08-12) — revocation store JWT refresh
+# token + rate-limit dùng chung (login, OTP, live-chat ws-ticket/message).
+# KHÔNG có giá trị mặc định trỏ tới Redis thật (cùng nguyên tắc fail-fast như
+# JWT_SECRET_KEY ở trên) — nhưng CHO PHÉP scheme "fake://" tường minh (dùng
+# fakeredis, xem src/redis_client.py) cho CI/test không cần Redis thật, đúng
+# convention playbooks/production-packaging-checklist.md ("REDIS_URL: fake://").
+REDIS_URL = os.environ.get("REDIS_URL")
+if not REDIS_URL:
+    raise RuntimeError(
+        "Thiếu REDIS_URL trong .env — dùng redis://<host>:6379/0 cho môi trường "
+        "thật, hoặc fake://ci cho CI/test không cần Redis thật (fakeredis)."
     )
 
 # RAG chính sách/FAQ (src/rag/) — đối tác ví (role partner_admin) upload,
