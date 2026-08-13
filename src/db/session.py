@@ -1,6 +1,7 @@
 """Engine + session factory dùng chung cho seed script, tools, và API."""
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 
@@ -31,7 +32,28 @@ def get_engine(database_url: str | None = None) -> Engine:
     # tự SELECT 1 kiểm tra trước khi phát connection từ pool, âm thầm tái kết
     # nối nếu chết — không tăng round-trip đáng kể (chỉ 1 lần/connection lấy
     # từ pool, không phải 1 lần/query).
-    eng = create_engine(url, connect_args=connect_args, future=True, pool_pre_ping=True)
+    # Kích thước pool — TÍNH TOÁN, không để mặc định (5 + 10 overflow = 15).
+    #
+    # Từ 2026-08-13 backend chạy nhiều worker (ADR-014/015). Mỗi worker mở pool
+    # RIÊNG, nên tổng kết nối tới Postgres là:
+    #     workers x (DB_POOL_SIZE + DB_MAX_OVERFLOW + CHECKPOINT_POOL_MAX)
+    # Postgres mặc định max_connections=100 (đã kiểm bằng SHOW max_connections).
+    # Với mặc định dưới đây: 4 x (10 + 5 + 5) = 80 < 100, còn chỗ cho psql/
+    # migration/monitoring. Tăng worker mà quên tính lại chỗ này sẽ ra lỗi
+    # "FATAL: sorry, too many clients already" — lỗi chỉ lộ ra khi tải cao,
+    # đúng lúc không muốn gặp nhất.
+    pool_kwargs = {}
+    if not url.startswith("sqlite"):
+        pool_kwargs = {
+            "pool_size": int(os.environ.get("DB_POOL_SIZE", "10")),
+            "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "5")),
+            # Trả connection nhàn rỗi về sau 30 phút — tránh giữ chỗ vô hạn
+            # trong max_connections khi tải xuống thấp.
+            "pool_recycle": 1800,
+        }
+    eng = create_engine(
+        url, connect_args=connect_args, future=True, pool_pre_ping=True, **pool_kwargs
+    )
 
     if url.startswith("sqlite"):
         # SQLite không bật FK constraint mặc định — I1 (toàn vẹn khoá ngoại)

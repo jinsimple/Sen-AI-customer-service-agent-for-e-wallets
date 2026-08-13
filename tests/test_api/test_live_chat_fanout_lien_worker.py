@@ -18,7 +18,6 @@ với nhau qua Redis (fakeredis lúc test) — đúng cơ chế thật, chỉ kh
 
 from __future__ import annotations
 
-import asyncio
 import json
 
 import pytest

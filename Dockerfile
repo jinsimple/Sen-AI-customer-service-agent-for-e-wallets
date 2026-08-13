@@ -65,9 +65,14 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 
 # entrypoint chown /app/data + /app/logs (volume mount, quyền root mặc định
 # lúc Docker tạo mới) rồi mới hạ quyền xuống appuser để chạy migration +
-# uvicorn — xem docker-entrypoint.sh. ĐÚNG 1 worker (mặc định uvicorn không
-# truyền --workers) — xem docs/DEPLOY.md phần "Backend chạy đúng 1 worker":
-# MemorySaver (src/agents/graph.py) giữ bộ nhớ hội thoại trong RAM 1 process,
-# nhiều worker sẽ làm khách mất trí nhớ agent giữa hội thoại nếu bị định
-# tuyến sang worker khác.
+# uvicorn — xem docker-entrypoint.sh.
+#
+# TỪ 2026-08-13 chạy NHIỀU worker được (biến UVICORN_WORKERS). Ràng buộc "đúng
+# 1 worker" trước đây đến từ 2 thứ giữ state trong RAM per-process, cả hai đã
+# được đưa ra ngoài:
+#   - MemorySaver -> PostgresSaver (ADR-014): hội thoại nằm ở Postgres.
+#   - ConnectionManager: thêm fan-out Redis pub/sub (ADR-015) để socket ở
+#     worker khác vẫn nhận được tin.
+# Thiếu MỘT trong hai thì multi-worker làm hỏng âm thầm (mất trí nhớ agent
+# hoặc mất tin nhắn live-chat), nên đừng tăng worker mà bỏ qua 2 ADR trên.
 ENTRYPOINT ["/docker-entrypoint.sh"]

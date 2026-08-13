@@ -10,4 +10,8 @@ set -e
 
 chown -R appuser:appuser /app/data /app/logs
 
-exec su appuser -c "alembic upgrade head && uvicorn src.api.main:app --host 0.0.0.0 --port 8010"
+# UVICORN_WORKERS mặc định 4 — hợp lý cho máy 10 vCPU, chừa chỗ cho Postgres/
+# Redis/Caddy cùng chạy. Tổng kết nối DB = workers x (pool ORM + pool
+# checkpointer) phải nhỏ hơn max_connections của Postgres (mặc định 100).
+: "${UVICORN_WORKERS:=4}"
+exec su appuser -c "alembic upgrade head && uvicorn src.api.main:app --host 0.0.0.0 --port 8010 --workers ${UVICORN_WORKERS}"
