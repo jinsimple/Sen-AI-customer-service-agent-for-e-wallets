@@ -22,6 +22,14 @@ psycopg2-binary>=2.9
 # Bảo mật — JWT (src/auth.py), mã hoá field nhạy cảm (src/db/crypto_types.py),
 # rate limit (src/api/main.py)
 pyjwt>=2.9
+# argon2id — hash security_answer_hash (User model), thay SHA-256 trần không
+# salt (đợt nâng cấp Auth Flow 2026-08-12, xem docs/TESTING.md mục "Auth5").
+argon2-cffi>=23.1
+# Redis — revocation store JWT refresh token + rate-limit dùng chung (login,
+# OTP, live-chat ws-ticket/message) đợt nâng cấp Auth Flow. `redis_url` hỗ
+# trợ scheme "fake://" (src/redis_client.py) -> fakeredis, dùng cho CI/test
+# không cần Redis thật (đúng convention playbooks/production-packaging-checklist.md).
+redis>=5.0
 # >=50.0 KHÔNG chỉ là cận dưới tuỳ ý — pin CHẶT ở đây để pip không tự ý hạ
 # xuống <49.0 khi cài presidio-anonymizer (KHÔNG dùng ở đây, xem pii.py,
 # nhưng phòng trường hợp sau này ai đó thêm nó vào) — bản <49.0 có 3 CVE đã
@@ -80,3 +88,4 @@ ruff>=0.8.0
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
 httpx>=0.28.0
+fakeredis>=2.26
