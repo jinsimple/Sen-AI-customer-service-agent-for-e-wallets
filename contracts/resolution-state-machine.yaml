@@ -1,0 +1,159 @@
+# contracts/resolution-state-machine.yaml
+#
+# NGUỒN SỰ THẬT về vòng đời HITL (đề xuất → duyệt → thực thi).
+#
+# ĐỔI TÊN CÓ CHỦ ĐÍCH so với bản contract cũ (`ticket-state-machine.yaml`):
+# hệ thống thật KHÔNG có một máy trạng thái ticket 10 bước nối tiếp
+# (draft → cskh_received → ... → executed → closed) như bản cũ mô tả.
+# Thực tế mô hình hoá bằng BA trường TRỰC GIAO trên hai bảng khác nhau —
+# ép chúng vào một FSM tuyến tính là mô tả sai sản phẩm:
+#
+#   Resolution.status        ← nơi HITL thật sự diễn ra (file này)
+#   Ticket.hitl_status       ← trạng thái ticket dưới góc nhìn CSKH
+#   Ticket.partner_wait_status ← trạng thái chờ ngân hàng đối tác, ĐỘC LẬP
+#
+# Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
+
+version: "2.0.0"
+source: "Sinh ngược từ src/db/models.py @ 2026-08-13 · thay thế ticket-state-machine.yaml v1.0.0"
+
+# ===========================================================================
+# 1. Resolution — nơi ràng buộc HITL được ép ở TẦNG DATABASE
+# ===========================================================================
+#
+# Điểm mạnh nhất của thiết kế hiện tại, và là thứ bản contract cũ không nắm
+# được: HITL không chỉ nằm trong if/else của route, nó nằm trong CHECK
+# constraint của Postgres/SQLite. Kể cả có ai viết thẳng SQL UPDATE bỏ qua toàn
+# bộ tầng application, DB vẫn từ chối.
+
+resolution:
+  bang: "resolutions"
+
+  action_type:
+    rang_buoc_db: "ck_resolutions_action_type"
+    values:
+      refund_to_wallet:  {mo_ta: "Hoàn tiền về ví", cham_tien: true}
+      refund_to_bank:    {mo_ta: "Hoàn tiền về tài khoản ngân hàng", cham_tien: true}
+      ledger_adjustment: {mo_ta: "Điều chỉnh sổ cái", cham_tien: true}
+      no_action:         {mo_ta: "Không hành động (khiếu nại không có cơ sở)", cham_tien: false}
+      manual_review:     {mo_ta: "Cần người xem xét thủ công thêm", cham_tien: false}
+
+  status:
+    rang_buoc_db: "ck_resolutions_status"
+    values:
+      draft:
+        mo_ta: "CSKH đang soạn, chưa gửi duyệt"
+        ai_co_the_tao: false
+      pending_approval:
+        mo_ta: "Đã gửi, chờ sếp duyệt. CỔNG BẮT BUỘC trước mọi hành động tiền."
+        ai_co_the_tao: false
+      approved:
+        mo_ta: "Sếp đã duyệt"
+        yeu_cau_role: supervisor
+        cham_tien: true
+      rejected:
+        mo_ta: "Sếp từ chối"
+        yeu_cau_role: supervisor
+
+  # ---- Ràng buộc BR-10, ép ở tầng DB, không ở tầng code ----
+  invariant_db:
+    ten: "ck_resolutions_approved_requires_approver_br10"
+    bieu_thuc: "(status != 'approved') OR (approved_by IS NOT NULL AND approved_at IS NOT NULL)"
+    y_nghia: >
+      Không tồn tại resolution 'approved' mà không có người duyệt + thời điểm
+      duyệt. Đây là HITL ở dạng mạnh nhất: một INSERT/UPDATE lách qua mọi tầng
+      application vẫn bị chính database từ chối.
+
+  transitions:
+    - from: draft
+      to: pending_approval
+      boi: [cskh, supervisor]
+      qua_route: "POST /tools/propose_resolution"
+    - from: pending_approval
+      to: approved
+      boi: [supervisor]
+      qua_route: "POST /resolutions/{resolution_id}/approve"
+      cham_tien: true
+      yeu_cau_them:
+        - "OTP step-up khớp ĐÚNG resolution_id (không dùng OTP của case khác)"
+        - "amount_snapshot lúc xin OTP == amount hiện tại (PSD2 dynamic linking)"
+        - "OTP còn hạn ≤ RESOLUTION_APPROVAL_OTP_FRESH_MINUTES (10 phút)"
+      ghi_chu: "CỬA DUY NHẤT tới approved. Áp dụng cho MỌI scope, kể cả noi_bo_vi — ADR-002."
+    - from: pending_approval
+      to: rejected
+      boi: [supervisor]
+      qua_route: "POST /resolutions/{resolution_id}/reject"
+      ghi_chu: "KHÔNG cần OTP — từ chối không phải hành động tài chính."
+
+# ===========================================================================
+# 2. Ticket.hitl_status — góc nhìn CSKH, TRỰC GIAO với resolution.status
+# ===========================================================================
+ticket_hitl_status:
+  bang: "tickets"
+  cot: "hitl_status"
+  rang_buoc_db: "ck_tickets_hitl_status"
+  values: [pending, approved, rejected, need_more_info]
+  ghi_chu: >
+    `need_more_info` KHÔNG có tương ứng bên resolution.status — sếp trả case
+    ngược lại cho CSKH bổ sung mà không từ chối hẳn
+    (route POST /tickets/{ticket_id}/request-more-info).
+
+# ===========================================================================
+# 3. Ticket.partner_wait_status — chờ ngân hàng, ĐỘC LẬP HOÀN TOÀN
+# ===========================================================================
+ticket_partner_wait_status:
+  bang: "tickets"
+  cot: "partner_wait_status"
+  rang_buoc_db: "ck_tickets_partner_wait_status"
+  values: [n/a, waiting, overdue, responded]
+  ghi_chu: >
+    Trực giao với hitl_status: một ticket có thể vừa `waiting` ngân hàng vừa
+    `pending` sếp duyệt. Bản contract cũ gộp thành state `pending_bank` nối
+    tiếp trong cùng một FSM — mô tả SAI, vì thực tế hai trục chạy song song.
+
+# ===========================================================================
+# 4. Cờ gian lận ≠ khoá ví (RÀNG BUỘC CỨNG 5)
+# ===========================================================================
+fraud:
+  luu_o: "complaints.fraud_signals (JSON list)"
+  tinh_boi: "src/services/complaint_intake.py — tầng service, KHÔNG do agent tự điền"
+  chinh_sach_escalate:
+    file: "src/tools/fraud_policy.py"
+    tin_hieu_kich_hoat: ["FS-06"]
+    ghi_chu: >
+      PHẠM VI MVP: CHỈ FS-06 (rút sạch sau bất thường xác thực) kích hoạt
+      escalate. Đã BỎ HẲN khái niệm Tầng A/Tầng B của thiết kế gốc — bản
+      contract cũ vẫn còn `tier: [none, A, B]`, đó là mô tả của một thiết kế
+      không còn tồn tại.
+  invariant:
+    - "Gắn cờ gian lận là hành động ĐỊNH TUYẾN (có escalate không), KHÔNG phải phán quyết."
+    - "Không tồn tại route/hàm nào khoá ví. Tính năng khoá ví CHƯA được xây."
+    - "Module fraud không được import module khoá ví (nếu sau này có)."
+
+# ===========================================================================
+invariants:
+  - id: INV-05
+    mo_ta: >
+      Không tồn tại đường đi tới resolution.status='approved' mà không đi qua
+      'pending_approval' và không do supervisor thực hiện.
+    nguon: "CLAUDE.md §2.1 + §2.2"
+  - id: INV-06
+    mo_ta: "Mọi transition cham_tien=true chỉ do supervisor thực hiện"
+    nguon: "CLAUDE.md §2.1"
+  - id: INV-07
+    mo_ta: >
+      CHECK constraint ck_resolutions_approved_requires_approver_br10 phải tồn
+      tại trong models.py — đây là lớp phòng thủ cuối cùng của HITL.
+    nguon: "BR-10"
+  - id: INV-12
+    mo_ta: >
+      Mọi giá trị status/action_type dùng trong contract này phải khớp CHÍNH XÁC
+      với CheckConstraint trong src/db/models.py.
+    nguon: "Chống contract drift"
+
+open_questions:
+  - "Sau khi sếp duyệt (status='approved'), ai/cái gì THỰC THI lệnh chuyển tiền thật?
+     Hiện chưa có state 'executed' — hệ thống dừng ở 'approved'. Ví thật cần thêm
+     tầng đối soát sau thực thi không?"
+  - "Ngân hàng đối tác trả lời MÂU THUẪN với ledger nội bộ thì ghi nhận ở đâu?
+     partner_wait_status hiện chỉ có 'responded', không phân biệt khớp/lệch."

@@ -1,0 +1,169 @@
+# contracts/agent-tools.yaml
+#
+# NGUỒN SỰ THẬT về tool AI agent được phép gọi.
+# Đây là file chống "bịa số liệu" ở tầng hạ tầng.
+#
+# Sinh ngược từ src/agents/tools/customer_tools.py::build_customer_tools()
+# @ 2026-08-13. Bản contract cũ (v1.0.0) liệt kê 5 tool tên tiếng Việt
+# (tra_cuu_giao_dich, tra_cuu_so_du, tra_cuu_trang_thai_ngan_hang,
+# danh_gia_tin_hieu_gian_lan, soan_de_xuat) — KHÔNG tool nào trong số đó tồn
+# tại trong code. Trùng khớp 0/5. Đây chính là dạng drift mà cơ chế này sinh ra
+# để chặn, nên bản v2 dưới đây được sinh bằng máy và kiểm bằng máy.
+#
+# CƠ CHẾ CHỐNG LỆCH:
+#   tests/test_invariants.py::test_danh_sach_tool_khop_code_dang_chay
+#   gọi thẳng build_customer_tools() rồi so tên tool với danh sách dưới.
+#   Thêm/xoá/đổi tên tool mà quên sửa file này  →  test ĐỎ.
+
+version: "2.0.0"
+source: "Sinh ngược từ src/agents/tools/customer_tools.py @ 2026-08-13"
+
+# ---------------------------------------------------------------------------
+# Quy tắc chung áp cho MỌI tool
+# ---------------------------------------------------------------------------
+global_rules:
+  - "Agent KHÔNG được phát biểu bất kỳ con số nào (số tiền, thời gian, trạng thái)
+     không đến từ kết quả tool trong CHÍNH lượt hội thoại đó."
+  - "Tool không tìm thấy dữ liệu → status='not_found'. TUYỆT ĐỐI không trả giá trị
+     mặc định 0/rỗng — tool im lặng trả 0 là nguồn gốc của bịa số liệu."
+  - "Khớp nhiều hơn 1 kết quả → status='multiple_matches'. Agent PHẢI hỏi lại khách
+     thu hẹp, KHÔNG được tự chọn candidate gần nhất."
+  - "Thông tin bên thứ ba (người nhận trong case chuyển nhầm) phải được che NGAY
+     TẠI TẦNG TOOL (src/tools/masking.py), không che ở tầng hiển thị."
+  - "Mọi tool đọc dữ liệu nhạy cảm đều yêu cầu OTP phiên còn hạn — thiếu/hết hạn
+     trả về error có message rõ ràng, không trả dữ liệu."
+
+# ---------------------------------------------------------------------------
+# 5 tool THẬT — agent gọi dưới danh nghĩa customer đang chat
+# ---------------------------------------------------------------------------
+tools:
+
+  lookup_transaction:
+    mo_ta: "Tra MỘT giao dịch cụ thể trước khi phát biểu bất kỳ con số nào"
+    input:
+      trans_id:  {type: string,  required: false, ghi_chu: "ưu tiên cao nhất, mã bắt đầu TXN"}
+      rec_code:  {type: string,  required: false, ghi_chu: "mã biên lai"}
+      phone:     {type: string,  required: false}
+      amount:    {type: integer, required: false, ghi_chu: "VND, số nguyên"}
+      date_from: {type: string,  required: false, ghi_chu: "ISO 8601"}
+      date_to:   {type: string,  required: false, ghi_chu: "ISO 8601"}
+    yeu_cau_otp: OTP_VIEW_MAX_MINUTES
+    output:
+      status: {type: enum, values: [found, not_found, multiple_matches, error]}
+    ghi_chu: >
+      Cần ÍT NHẤT một trong: trans_id · rec_code · (phone kèm amount).
+      Thiếu cả ba → status='error', không đoán.
+
+  get_customer_history:
+    mo_ta: "Lịch sử ví/giao dịch/khiếu nại CỦA CHÍNH khách đang chat"
+    input:
+      days:               {type: integer, required: false, default: 90}
+      limit_transactions: {type: integer, required: false, default: 20}
+      amount:             {type: integer, required: false}
+    yeu_cau_otp: OTP_VIEW_MAX_MINUTES
+    output:
+      status: {type: enum, values: [found, not_found, multiple_matches, error]}
+    ghi_chu: >
+      LUÔN truyền `amount` nếu khách đã nói số tiền — mặc định chỉ trả 20 giao dịch
+      gần nhất, khách hoạt động nhiều dễ bị đẩy mất giao dịch đang nói tới.
+      Có `amount` → kết quả kèm `amount_match.status`, xử lý ĐÚNG như lookup_transaction.
+
+  create_ticket:
+    mo_ta: "Tạo ticket khiếu nại chính thức"
+    yeu_cau_otp: OTP_STEPUP_FRESH_MINUTES
+    output:
+      status: {type: enum, values: [found, not_found, error]}
+    ghi_chu: >
+      Hành động có hậu quả → OTP step-up NGẶT hơn (15 phút) so với tool chỉ đọc
+      (12 giờ). fraud_signals do tầng service tính (complaint_intake.py),
+      KHÔNG do agent tự điền.
+
+  request_human_handoff:
+    mo_ta: "Khách chủ động yêu cầu gặp người thật"
+    input:
+      reason:    {type: string, required: true}
+      ticket_id: {type: string, required: false}
+    output:
+      status: {type: enum, values: [found, not_found, error]}
+    ghi_chu: >
+      Bật cờ tickets.human_handoff_requested. Đây KHÔNG phải escalate lên
+      supervisor — chỉ là chuyển sang CSKH người thật (CTRL-001, ISO/IEC 25059
+      "user controllability").
+
+  search_policy:
+    mo_ta: "Tra cứu chính sách/FAQ trong kho tài liệu đối tác (RAG)"
+    input:
+      query: {type: string, required: true}
+    output:
+      status: {type: enum, values: [found, not_found, error]}
+    ghi_chu: >
+      Kết quả đi qua _sanitize_policy_results() chống prompt injection từ nội
+      dung tài liệu do partner_admin upload.
+
+# ---------------------------------------------------------------------------
+# Tool KHÔNG tồn tại và KHÔNG BAO GIỜ được tạo
+# ---------------------------------------------------------------------------
+forbidden_tools:
+  - ten: "approve_resolution"
+    ly_do: "RÀNG BUỘC CỨNG 1 — duyệt là route của supervisor, không bao giờ là tool của AI"
+  - ten: "execute_refund"
+    ly_do: "RÀNG BUỘC CỨNG 1 — không có đường đi nào cho AI thực thi tài chính"
+  - ten: "adjust_balance"
+    ly_do: "RÀNG BUỘC CỨNG 1"
+  - ten: "lock_wallet"
+    ly_do: "RÀNG BUỘC CỨNG 5 — gắn cờ gian lận ≠ khoá ví"
+  - ten: "escalate_to_supervisor"
+    ly_do: >
+      RÀNG BUỘC CỨNG 2 — AI không vượt cấp. Escalate chỉ xảy ra qua
+      src/tools/fraud_policy.py (tầng service, tín hiệu FS-06) hoặc route
+      /tools/escalate_ticket của cskh — không bao giờ do AI tự gọi.
+
+# ---------------------------------------------------------------------------
+# Cơ chế truy vết chống bịa số — THẬT, đã tồn tại trong code
+# ---------------------------------------------------------------------------
+truy_vet:
+  tool_results:
+    bang: "tool_results"
+    cot: [tool_result_id, tool_name, raw_json, content_hash]
+    y_nghia: "Lưu nguyên văn kết quả tool + hash nội dung để đối chiếu sau"
+  investigation_logs:
+    bang: "investigation_logs"
+    cot: [step_no, tool_called, tool_input_json, tool_result_id]
+    y_nghia: >
+      Nhật ký điều tra từng bước. `tool_result_id` là FK trỏ thẳng sang
+      tool_results — nối được từ một câu kết luận về ĐÚNG kết quả tool đã sinh
+      ra nó.
+  resolutions:
+    bang: "resolutions"
+    cot: [cited_tool_result_ids]
+    y_nghia: >
+      Đề xuất hướng xử lý phải trích dẫn tool_result_id cụ thể — đây là
+      cơ chế chống bịa số ở tầng nghiệp vụ quan trọng nhất.
+  messages:
+    bang: "messages"
+    cot: [tool_call_ids]
+    y_nghia: "Tin nhắn live-chat gắn với các tool_call_id đã dùng trong lượt đó"
+
+invariants:
+  - id: INV-08
+    mo_ta: "Không tool nào trong forbidden_tools xuất hiện trong src/"
+    nguon: "CLAUDE.md §2.1, §2.2, §2.5"
+  - id: INV-09
+    mo_ta: >
+      Danh sách tool trong contract này khớp CHÍNH XÁC với build_customer_tools()
+      — không thừa, không thiếu, không sai tên.
+    nguon: "Chống contract drift"
+  - id: INV-10
+    mo_ta: >
+      Mọi tool đọc dữ liệu nhạy cảm phải kiểm OTP trước khi trả dữ liệu
+      (lookup_transaction, get_customer_history, create_ticket).
+    nguon: "CLAUDE.md §2.4"
+  - id: INV-13
+    mo_ta: "Bảng tool_results và cột resolutions.cited_tool_result_ids phải tồn tại"
+    nguon: "CLAUDE.md §2.3 — cấm bịa số liệu"
+
+open_questions:
+  - "search_policy hiện KHÔNG yêu cầu OTP (chỉ tra chính sách công khai, không có
+     dữ liệu khách hàng). Xác nhận đây là đúng ý đồ, không phải thiếu sót?"
+  - "request_human_handoff không yêu cầu OTP — khách bực có thể spam. Có cần
+     rate-limit riêng ngoài rate-limit chung của /agent/chat không?"
