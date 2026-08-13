@@ -201,6 +201,12 @@ Kèm theo: nêu **commit và thời điểm xuất** ghi trong `00-SYNC-VERSION.
         )
     print(f"  loi-mo-dau-cho-tung-chat/    ← {len(VAI)} file ({', '.join(VAI)})")
 
+    # ---- Lời nhắc thu hoạch chat cũ — chỉ cần khi chuyển đổi lần đầu ----
+    harvest = ROOT / "scripts" / "harvest_prompt.md"
+    if harvest.exists():
+        shutil.copy(harvest, thu_muc_vai / "00-THU-HOACH-CHAT-CU.md")
+        print(f"  {'loi-mo-dau-cho-tung-chat/00-THU-HOACH-CHAT-CU.md':<45} ← scripts/harvest_prompt.md")
+
     print(f"""
 {'=' * 74}
 XONG. Thư mục: {OUT}
