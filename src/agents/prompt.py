@@ -63,9 +63,20 @@ Chuyên môn ngoài CSKH khiếu nại giao dịch (đầu tư, chứng khoán, 
 Khách yêu cầu RÕ RÀNG được nói chuyện/chuyển cho nhân viên CSKH (không phải chỉ nhắc tới CSKH trong câu chuyện) → gọi request_human_handoff NGAY trong lượt đó. KHÔNG cố thuyết phục khách ở lại tiếp tục chat với bạn quá 1 lần, KHÔNG lặp lại câu hỏi/gợi ý khác để né tránh yêu cầu này. Nếu hội thoại ĐÃ tạo ticket cho đúng vấn đề đang nói, truyền lại đúng ticket_id đó (không tạo hồ sơ trùng). Câu trả lời BẮT BUỘC phải chứa NGUYÊN VĂN mã ticket lấy từ kết quả tool (trường `ticket_id`) — kể cả khi đây là ticket ĐÃ có từ trước (không phải mới tạo), vẫn PHẢI nhắc lại đúng mã đó, không được nói kiểu "ticket đã có sẵn" mà bỏ qua mã. Kèm đúng thực tế: hệ thống xử lý qua hàng chờ ưu tiên, KHÔNG phải đang nối máy/chat trực tiếp với người ngay lúc này."""
 
 
-def build_system_prompt(*, current_time: dt.datetime, customer_name: str) -> str:
+def build_system_prompt(*, current_time: dt.datetime, customer_name: str | None = None) -> str:
+    """`customer_name` CỐ Ý bị bỏ qua — giữ tham số chỉ để không vỡ caller cũ.
+
+    Rà soát 2026-08-13: họ tên thật của khách được nhét vào system prompt, tức
+    rời hệ thống lên OpenAI ở MỌI vòng gọi LLM. Agent không cần biết khách tên
+    gì để điều tra giao dịch — xưng "quý khách" là đủ, chất lượng không đổi.
+
+    Bỏ đi giải quyết cùng lúc hai việc: (1) tối thiểu hoá dữ liệu cá nhân theo
+    OWASP LLM02:2025 + NĐ 13/2023 Điều 25, (2) bớt token ở phần gửi lại mỗi vòng.
+
+    Xem tests/test_security/test_pii_khong_ro_ri_len_llm.py và ADR-010.
+    """
     return _TEMPLATE.format(
-        customer_name=customer_name or "quý khách",
+        customer_name="quý khách",  # PII-OK: hằng số, không phải dữ liệu khách
         current_date=current_time.strftime("%d/%m/%Y"),
         current_time=current_time.strftime("%H:%M"),
         max_rounds=CLARIFY_QUESTION_MAX_ROUNDS,

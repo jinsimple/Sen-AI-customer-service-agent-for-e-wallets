@@ -74,7 +74,9 @@ def _build_agent(session: Session, *, user_id: str, customer_name: str, otp_veri
         max_retries=OPENAI_MAX_RETRIES,
     )
     tools = build_customer_tools(session, user_id=user_id, otp_verified_at=otp_verified_at)
-    system_prompt = build_system_prompt(current_time=dt.datetime.utcnow(), customer_name=customer_name)
+    # KHÔNG truyền customer_name — họ tên thật không được rời hệ thống lên LLM
+    # (ADR-010). Giữ tham số ở chữ ký hàm để không vỡ caller cũ.
+    system_prompt = build_system_prompt(current_time=dt.datetime.utcnow())
     return create_agent(model, tools, system_prompt=system_prompt, checkpointer=_CHECKPOINTER)
 
 
@@ -103,7 +105,7 @@ def run_agent_turn(
         raise ToolError(f"user_id không tồn tại: {user_id}")
 
     agent = _build_agent(
-        session, user_id=user_id, customer_name=user.full_name, otp_verified_at=otp_verified_at
+        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at  # PII-OK: cố ý truyền None, không đưa họ tên lên LLM
     )
     # thread_id mặc định = user_id (hành vi thật, không đổi). eval/_harness.py
     # truyền thread_id riêng biệt mỗi case để cô lập bộ nhớ hội thoại

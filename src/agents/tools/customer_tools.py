@@ -19,6 +19,7 @@ import functools
 import re
 import threading
 import unicodedata
+from typing import Any
 
 from langchain_core.tools import tool
 from sqlalchemy import select
@@ -31,6 +32,7 @@ from src.services.complaint_intake import create_ticket_with_fraud_check, flag_h
 from src.tools.base import ToolError
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
 from src.tools.lookup_transaction import lookup_transaction as _lookup_transaction
+from src.tools.masking import mask_account_no, mask_full_name, mask_phone  # PII-OK: import hàm CHE, không phải đọc PII
 
 
 def _strip_diacritics(text: str) -> str:
@@ -106,6 +108,42 @@ def _sanitize_lookup_result(payload: dict) -> dict:
     des = txn.get("des") or ""
     if des and _contains_injection_signal(des):
         payload = {**payload, "transaction": {**txn, "des": _RAG_REDACTED_NOTICE}}
+    return payload
+
+
+def _scrub_pii_cho_llm(payload: Any) -> Any:
+    """Che họ tên/SĐT của CHÍNH CHỦ trước khi kết quả tool đi vào hội thoại LLM.
+
+    VÌ SAO VÁ Ở ĐÂY, KHÔNG VÁ Ở src/tools/lookup_transaction.py
+    ----------------------------------------------------------
+    `_party_info` cố ý trả PII nguyên văn cho chính chủ (`user.phone if
+    is_owner`) — ĐÚNG cho đường CSKH gọi qua REST (nhân viên nội bộ cần thấy
+    đủ để đối chiếu, dữ liệu không rời hệ thống). Sai ở chỗ đường AGENT dùng
+    chung hàm đó, mà kết quả agent thì RỜI HỆ THỐNG lên OpenAI.
+
+    Nên vá ở lớp wrapper khách hàng này — đúng pattern `_enforce_requester_
+    is_party` đã áp dụng cho lỗ hổng ATLAS-001: chặn đúng đường cần chặn,
+    không hạ cấp đường còn lại.
+
+    GIỮ NGUYÊN dữ liệu NGHIỆP VỤ (số tiền, mã GD, thời gian, trạng thái) — đó
+    là thứ agent cần để suy luận và trích dẫn. Họ tên/SĐT thì agent không dùng
+    để suy luận gì, chỉ đọc rồi nhắc lại — đúng định nghĩa dữ liệu nên tối
+    thiểu hoá của OWASP LLM02:2025.
+
+    Xem tests/test_security/test_pii_khong_ro_ri_len_llm.py và ADR-010.
+    """
+    can_che = {"full_name": mask_full_name, "phone": mask_phone, "account_no": mask_account_no}  # PII-OK: bảng ánh xạ hàm che
+
+    if isinstance(payload, dict):
+        ra = {}
+        for k, v in payload.items():
+            if k in can_che and isinstance(v, str):
+                ra[k] = can_che[k](v)
+            else:
+                ra[k] = _scrub_pii_cho_llm(v)
+        return ra
+    if isinstance(payload, list):
+        return [_scrub_pii_cho_llm(x) for x in payload]
     return payload
 
 
@@ -258,7 +296,9 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
                 requesting_user_id=user_id,
             )
             result = _enforce_requester_is_party(session, result, requesting_user_id=user_id)
-            return _sanitize_lookup_result(result)
+            # _scrub_pii_cho_llm ĐẶT CUỐI CÙNG có chủ đích: mọi nhánh trả về
+            # đều phải đi qua nó, kể cả nhánh vừa được các lớp trên chỉnh sửa.
+            return _scrub_pii_cho_llm(_sanitize_lookup_result(result))
         except ToolError as e:
             return {"status": "error", "message": str(e)}
 
@@ -287,8 +327,10 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
         if not _otp_fresh(otp_verified_at, OTP_VIEW_MAX_MINUTES):
             return _OTP_EXPIRED_ERROR
         try:
-            return _get_customer_history(
-                session, user_id=user_id, days=days, limit_transactions=limit_transactions, amount=amount
+            return _scrub_pii_cho_llm(
+                _get_customer_history(
+                    session, user_id=user_id, days=days, limit_transactions=limit_transactions, amount=amount
+                )
             )
         except ToolError as e:
             return {"status": "error", "message": str(e)}
