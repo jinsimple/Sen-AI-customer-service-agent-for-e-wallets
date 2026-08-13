@@ -15,7 +15,9 @@ qua REST (xem notify_claimed) — không cần thêm round-trip "join_session".
 """
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
+import json
 import logging
 import secrets
 import time
@@ -34,6 +36,52 @@ from src.tools.base import ToolError
 
 _WS_TICKET_TTL_SECONDS = 30
 _logger = logging.getLogger("fin05.live_chat_ws")
+
+
+# Kênh pub/sub dùng chung cho fan-out live-chat liên worker (ADR-015).
+_PUBSUB_CHANNEL = "fin05:live_chat"
+# Định danh DUY NHẤT của process này — dùng để bỏ qua tiếng vọng của chính
+# mình khi nhận lại thông điệp vừa publish (nếu không sẽ giao 2 lần cho socket
+# local: 1 lần trực tiếp, 1 lần qua pub/sub).
+_INSTANCE_ID = secrets.token_hex(8)
+
+
+async def _vong_lap_subscriber(mgr: ConnectionManager) -> None:
+    """Nhận thông điệp từ worker KHÁC rồi giao cho socket local của worker này.
+
+    Chạy nền suốt vòng đời process, khởi động từ FastAPI startup. Lỗi mạng
+    KHÔNG được làm chết vòng lặp — Redis rớt tạm thời là chuyện thường trên
+    hạ tầng cloud (đúng ghi chú keepalive/health_check đã đúc kết trong
+    playbook đóng gói), tự thử lại thay vì im lặng dừng fan-out vĩnh viễn.
+    """
+    from src.redis_client import get_default_client
+
+    while True:
+        try:
+            pubsub = get_default_client().pubsub(ignore_subscribe_messages=True)
+            pubsub.subscribe(_PUBSUB_CHANNEL)
+            _logger.info("live_chat_pubsub_subscribed", extra={"instance": _INSTANCE_ID})
+            while True:
+                # get_message chặn luồng -> đẩy sang thread pool để không chẹn
+                # event loop (route live-chat khác vẫn phải phục vụ được).
+                msg = await asyncio.to_thread(pubsub.get_message, timeout=1.0)
+                if not msg:
+                    await asyncio.sleep(0)  # nhường event loop
+                    continue
+                try:
+                    data = json.loads(msg["data"])
+                except (TypeError, ValueError):
+                    continue
+                if data.get("src") == _INSTANCE_ID:
+                    continue  # tiếng vọng của chính mình, đã giao local rồi
+                await mgr._giao_tu_pubsub(
+                    data.get("kind", ""), data.get("target"), data.get("payload") or {}
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("live_chat_pubsub_loop_error", extra={"loi": repr(e)})
+            await asyncio.sleep(2)
 
 
 class ConnectionManager:
@@ -104,7 +152,56 @@ class ConnectionManager:
             if not self._session_sockets[chat_session_id]:
                 del self._session_sockets[chat_session_id]
 
+    # ---------------------------------------------------------------
+    # Fan-out liên worker qua Redis pub/sub (ADR-015)
+    #
+    # VÌ SAO CẦN: ConnectionManager giữ WebSocket trong RAM của TỪNG process.
+    # Bật multi-worker (cần thiết để phục vụ 150 người đồng thời — xem ADR-014)
+    # mà không có lớp này thì live-chat VỠ ÂM THẦM: khách nối vào worker 1,
+    # CSKH nối vào worker 2, mỗi bên gửi tin chỉ tới được socket của chính
+    # worker mình — hai người ngồi trong cùng một phiên chat mà không ai thấy
+    # tin nhắn của ai. Không có lỗi nào được ném ra, chỉ là tin nhắn biến mất.
+    #
+    # THIẾT KẾ: LUÔN giao local TRƯỚC (đường cũ, không đổi) rồi MỚI publish cho
+    # các worker khác, kèm `_INSTANCE_ID` để worker gốc bỏ qua tiếng vọng của
+    # chính mình. Chọn cách này thay vì "publish rồi để subscriber giao tất":
+    #   - 1 worker (test, dev, CI): chạy đúng y như trước kể cả khi Redis/
+    #     subscriber không sống — không có kịch bản "tin nhắn biến mất vì
+    #     subscriber chưa kịp chạy";
+    #   - Redis chết: live-chat suy giảm về phạm vi 1 worker thay vì chết hẳn.
+    # Đánh đổi: mỗi tin bị serialize thêm 1 lần. Không đáng kể so với rủi ro
+    # mất tin nhắn của khách đang chờ.
+    # ---------------------------------------------------------------
+
+    async def _publish(self, kind: str, target: str | None, payload: dict[str, Any]) -> None:
+        """Đẩy sang các worker khác. Redis hỏng KHÔNG được làm hỏng đường local."""
+        try:
+            from src.redis_client import get_default_client
+
+            get_default_client().publish(
+                _PUBSUB_CHANNEL,
+                json.dumps(
+                    {"src": _INSTANCE_ID, "kind": kind, "target": target, "payload": payload},
+                    ensure_ascii=False,
+                ),
+            )
+        except Exception as e:  # noqa: BLE001 — mất fan-out liên worker còn hơn mất cả tin nhắn
+            _logger.warning("live_chat_pubsub_publish_failed", extra={"loi": repr(e), "kind": kind})
+
+    async def _giao_tu_pubsub(self, kind: str, target: str | None, payload: dict[str, Any]) -> None:
+        """Gọi từ vòng lặp subscriber — CHỈ giao local, KHÔNG publish lại (chống lặp vô hạn)."""
+        if kind == "session" and target:
+            await self._deliver_session_local(target, payload)
+        elif kind == "user" and target:
+            await self._deliver_user_local(target, payload)
+        elif kind == "staff":
+            await self._deliver_staff_local(payload)
+
     async def send_to_session(self, chat_session_id: str, payload: dict[str, Any]) -> None:
+        await self._deliver_session_local(chat_session_id, payload)
+        await self._publish("session", chat_session_id, payload)
+
+    async def _deliver_session_local(self, chat_session_id: str, payload: dict[str, Any]) -> None:
         for ws in list(self._session_sockets.get(chat_session_id, ())):
             try:
                 await ws.send_json(payload)
@@ -114,6 +211,10 @@ class ConnectionManager:
                 )
 
     async def send_to_user(self, user_id: str, payload: dict[str, Any]) -> None:
+        await self._deliver_user_local(user_id, payload)
+        await self._publish("user", user_id, payload)
+
+    async def _deliver_user_local(self, user_id: str, payload: dict[str, Any]) -> None:
         for ws in list(self._user_sockets.get(user_id, ())):
             try:
                 await ws.send_json(payload)
@@ -121,6 +222,10 @@ class ConnectionManager:
                 _logger.warning("live_chat_ws_send_failed", extra={"user_id": user_id, "payload_type": payload.get("type")})
 
     async def broadcast_to_staff(self, payload: dict[str, Any]) -> None:
+        await self._deliver_staff_local(payload)
+        await self._publish("staff", None, payload)
+
+    async def _deliver_staff_local(self, payload: dict[str, Any]) -> None:
         for ws in list(self._staff_sockets):
             try:
                 await ws.send_json(payload)

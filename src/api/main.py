@@ -1228,6 +1228,23 @@ def live_chat_submit_csat(
 app.add_api_websocket_route("/ws/live-chat", live_chat_websocket_endpoint)
 
 
+@app.on_event("startup")
+async def _khoi_dong_fanout_live_chat():
+    """Chạy nền vòng lặp nhận fan-out live-chat từ worker khác (ADR-015).
+
+    KHÔNG có nó thì bật multi-worker sẽ làm live-chat vỡ ÂM THẦM: khách ở
+    worker 1, CSKH ở worker 2, tin nhắn mỗi bên chỉ tới socket cùng worker —
+    không lỗi nào được ném ra, chỉ là tin nhắn biến mất.
+    """
+    import asyncio
+
+    from src.api.live_chat_ws import _vong_lap_subscriber
+
+    app.state.live_chat_subscriber = asyncio.create_task(
+        _vong_lap_subscriber(_live_chat_manager)
+    )
+
+
 @app.on_event("shutdown")
 def _dong_tai_nguyen_khi_tat():
     """Graceful shutdown — đóng pool checkpointer (ADR-014).
@@ -1237,6 +1254,9 @@ def _dong_tai_nguyen_khi_tat():
     tới khi TCP timeout — ăn vào max_connections khi deploy liên tục.
     """
     close_checkpointer()
+    tac_vu = getattr(app.state, "live_chat_subscriber", None)
+    if tac_vu is not None:
+        tac_vu.cancel()
 
 
 @app.get("/health")
