@@ -247,3 +247,53 @@ def test_duong_gui_llm_that_su_di_qua_scrub():
         "Tin nhắn khách KHÔNG còn đi qua scrub_pii trước khi vào HumanMessage — "
         "PII khách tự gõ sẽ rời hệ thống nguyên văn."
     )
+
+
+# ===========================================================================
+# 6. ĐỊNH DANH TRỰC TIẾP (user_id/wallet_id) — bút danh hoá ≠ ẩn danh hoá
+# ===========================================================================
+#
+# user_id/wallet_id trông như chuỗi vô nghĩa nhưng nối ngược về một người cụ
+# thể được, nên VẪN là dữ liệu cá nhân theo GDPR và tinh thần NĐ 13/2023.
+# Agent không cần chúng: build_customer_tools đóng cứng user_id qua closure.
+
+def test_dinh_danh_truc_tiep_bi_che_truoc_khi_len_llm(sample_db):
+    ket_qua = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
+    noi_dung = json.dumps(ket_qua, ensure_ascii=False)
+    assert "USR-A" not in noi_dung, f"user_id lọt lên LLM: {noi_dung[:300]}"
+    assert "900000000001" not in noi_dung, f"wallet_id lọt nguyên văn: {noi_dung[:300]}"
+
+
+def test_che_dinh_danh_khong_pha_lop_chan_tra_cheo_atlas_001(sample_db):
+    """Thứ tự BẮT BUỘC: _enforce_requester_is_party TRƯỚC, scrub SAU.
+
+    `_enforce_requester_is_party` ĐỌC `wallet_id` từ kết quả tool để xác minh
+    người hỏi có thực sự là một bên của giao dịch. Nếu che wallet_id TRƯỚC khi
+    nó chạy, hàm đó nhìn thấy chuỗi đã bị che, không khớp được với ví của ai
+    cả — lớp chặn tra chéo ATLAS-001 hỏng ÂM THẦM mà mọi test PII vẫn xanh.
+
+    Dùng USR-CSKH — user KHÔNG phải bên nào của TXN-0001 (giao dịch đó là
+    USR-A → USR-B, cả hai đều là bên hợp lệ nên không dùng để test chặn được;
+    đây là lỗi giả định thật mình mắc lúc viết test lần đầu, ghi lại để phiên
+    sau không lặp).
+    """
+    from src.agents.tools.customer_tools import build_customer_tools
+
+    otp = dt.datetime.utcnow().timestamp()
+    tools = {t.name: t for t in build_customer_tools(sample_db, user_id="USR-CSKH", otp_verified_at=otp)}
+    ket_qua = tools["lookup_transaction"].invoke({"trans_id": "TXN-0001"})
+
+    assert ket_qua.get("status") != "found", (
+        "USR-CSKH (không phải bên nào của giao dịch) vẫn tra ra được — lớp chặn "
+        "ATLAS-001 đã hỏng.\n"
+        "Nguyên nhân thường gặp: che wallet_id TRƯỚC khi _enforce_requester_is_party chạy.\n"
+        f"Kết quả: {json.dumps(ket_qua, ensure_ascii=False)[:300]}"
+    )
+
+
+def test_chinh_chu_van_tra_duoc_giao_dich_cua_minh(sample_db):
+    """Đối trọng cho test trên — che định danh không được chặn nhầm chính chủ."""
+    ket_qua = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
+    assert ket_qua.get("status") == "found", (
+        f"Chính chủ USR-A KHÔNG tra được giao dịch của mình — che quá tay: {ket_qua}"
+    )

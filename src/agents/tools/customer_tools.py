@@ -132,7 +132,18 @@ def _scrub_pii_cho_llm(payload: Any) -> Any:
 
     Xem tests/test_security/test_pii_khong_ro_ri_len_llm.py và ADR-010.
     """
-    can_che = {"full_name": mask_full_name, "phone": mask_phone, "account_no": mask_account_no}  # PII-OK: bảng ánh xạ hàm che
+    can_che = {  # PII-OK: bảng ánh xạ hàm che
+        "full_name": mask_full_name,  # PII-OK: hàm che
+        "phone": mask_phone,
+        "account_no": mask_account_no,
+        # user_id/wallet_id là ĐỊNH DANH TRỰC TIẾP trong hệ thống — nối ngược
+        # về một người cụ thể được, nên vẫn là dữ liệu cá nhân theo GDPR/NĐ 13
+        # dù trông như chuỗi vô nghĩa (bút danh hoá ≠ ẩn danh hoá, ADR-010).
+        # Agent KHÔNG cần chúng: build_customer_tools đã đóng cứng user_id qua
+        # closure, model chưa bao giờ nhìn thấy để tool chạy đúng.
+        "user_id": lambda _: "[USER]",  # xoá hẳn — agent không có việc gì dùng tới
+        "wallet_id": mask_account_no,   # giữ 4 số cuối để khách nhận ra ví của mình
+    }
 
     if isinstance(payload, dict):
         ra = {}
