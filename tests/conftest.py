@@ -16,6 +16,14 @@ import os
 # PHẢI set TRƯỚC khi bất kỳ module nào import src.observability.tracing.
 os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 
+# DATABASE_URL giờ BẮT BUỘC, không còn fallback SQLite im lặng (ADR-013 —
+# fallback đó từng làm hệ thống âm thầm tách đôi database). Test KHÔNG thực sự
+# dùng biến này: mỗi test được một engine SQLite tạm riêng qua fixture
+# `sample_db` bên dưới. Nhưng src/config.py đọc nó lúc IMPORT nên phải có giá
+# trị hợp lệ trước khi bất kỳ module src nào được nạp — cùng lý do và cùng chỗ
+# với OTEL_SDK_DISABLED ở trên.
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
 import pytest
 from argon2 import PasswordHasher
 from sqlalchemy.orm import Session, sessionmaker

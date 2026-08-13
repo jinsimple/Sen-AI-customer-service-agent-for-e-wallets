@@ -34,13 +34,42 @@ def test_caddyfile_has_exactly_one_direct_backend_exception_for_live_chat_ws():
 def test_docker_compose_backend_and_postgres_do_not_publish_ports_to_host():
     compose = (ROOT_DIR / "docker-compose.yml").read_text(encoding="utf-8")
 
-    for service in ("backend", "postgres", "frontend"):
+    # backend/frontend: TUYỆT ĐỐI không publish — traffic người dùng chỉ đi qua Caddy.
+    for service in ("backend", "frontend"):
         match = re.search(rf"\n  {service}:\s*\n((?:.*\n)*?)(?=\n  \S|\Z)", compose)
         assert match is not None, f"Không tìm thấy service '{service}' trong docker-compose.yml"
         block = match.group(1)
         assert "ports:" not in block, (
             f"Service '{service}' đang publish port ra host (có khối 'ports:') — "
             "vi phạm nguyên tắc chỉ Caddy là cửa ra internet duy nhất."
+        )
+
+    # postgres: ĐƯỢC publish nhưng CHỈ trên loopback (ADR-013, 2026-08-13).
+    #
+    # Luật cũ cấm tuyệt đối. Nới có chủ đích sau sự cố thật: script chạy trên
+    # host (seed, verify_security.sh, migration tay) không nối được vào đúng
+    # database mà app dùng, nên âm thầm rơi về SQLite riêng -> hệ thống tách
+    # đôi database, mất nhiều giờ điều tra.
+    #
+    # Ý ĐỊNH của bất biến này là "chỉ Caddy là cửa ra internet" — bind
+    # 127.0.0.1 KHÔNG phải cửa ra internet (không tới được từ LAN/Internet).
+    # Cùng tiền lệ đã có sẵn cho Jaeger UI ở test_jaeger_ui_only_binds_loopback
+    # ngay dưới đây. Luật mới CHẶT HƠN ở chỗ nó ép rõ 127.0.0.1, thay vì chỉ
+    # cấm chung chung rồi ai cần thì tự bỏ test.
+    match = re.search(r"\n  postgres:\s*\n((?:.*\n)*?)(?=\n  \S|\Z)", compose)
+    assert match is not None, "Không tìm thấy service 'postgres' trong docker-compose.yml"
+    block = match.group(1)
+    port_lines = [
+        line.strip()
+        for line in block.splitlines()
+        if re.search(r"\d+:\d+", line) and not line.strip().startswith("#")
+    ]
+    for line in port_lines:
+        normalized = line.lstrip("- ").strip('"')
+        assert normalized.startswith("127.0.0.1:"), (
+            f"Postgres publish port KHÔNG bind loopback: {line}\n"
+            "Database chứa dữ liệu khách hàng — publish ra 0.0.0.0 là mở thẳng "
+            "ra LAN/Internet. Chỉ được '127.0.0.1:5432:5432'."
         )
 
 

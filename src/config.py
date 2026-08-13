@@ -18,10 +18,37 @@ DATA_SCHEMA_DIR = ROOT_DIR / "data" / "schema"
 DATA_GENERATED_DIR = ROOT_DIR / "data" / "generated"
 EVAL_DIR = ROOT_DIR / "eval"
 
-# Đường dẫn DB runtime — SQLite theo quyết định Data Brief §5.1.
-# Override bằng biến môi trường DATABASE_URL nếu cần trỏ sang Postgres.
-DB_PATH = ROOT_DIR / "data" / "app.db"
-DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
+# ---------------------------------------------------------------------------
+# DATABASE_URL — BẮT BUỘC, KHÔNG có giá trị mặc định (ADR-013).
+#
+# TRƯỚC 2026-08-13 dòng này là:
+#     DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
+#
+# Fallback im lặng đó đã gây một sự cố thật mất nhiều giờ điều tra: Docker
+# stack chạy Postgres, còn mọi thứ chạy trên host (uvicorn dev, seed script,
+# load test, verify_security.sh) ÂM THẦM rơi về SQLite. Hai cửa sổ trình duyệt
+# nhìn giống hệt nhau nhưng ghi/đọc HAI DATABASE KHÁC NHAU — khách tạo ticket
+# ở bên này, CSKH bên kia vĩnh viễn không thấy, F5 bao nhiêu lần cũng vô ích.
+#
+# Nhãn môi trường (ADR-009) giúp PHÁT HIỆN khi đã lệch. Bỏ fallback ở đây chặn
+# từ GỐC: thiếu biến thì chết ngay lúc khởi động với thông báo rõ ràng, thay
+# vì lặng lẽ sinh ra một database thứ hai mà không ai hay biết.
+#
+# Đặt tường minh cho TỪNG môi trường:
+#   .env (dev/docker) : postgresql+psycopg2://...@127.0.0.1:5432/fin05
+#   CI                : sqlite:///:memory: hoặc Postgres ephemeral
+#   pytest            : tests/conftest.py tự tạo engine SQLite tạm riêng,
+#                       KHÔNG dùng biến này (xem get_engine ở dưới)
+# ---------------------------------------------------------------------------
+DB_PATH = ROOT_DIR / "data" / "app.db"  # chỉ còn dùng cho script seed cũ trỏ tay
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "Thiếu DATABASE_URL trong .env — KHÔNG còn fallback SQLite tự động "
+        "(xem ADR-013: fallback im lặng từng làm hệ thống tách đôi database).\n"
+        "  Dev/Docker : DATABASE_URL=postgresql+psycopg2://<user>:<pass>@127.0.0.1:5432/<db>\n"
+        "  Test/CI    : DATABASE_URL=sqlite:///:memory:"
+    )
 
 # ---------------------------------------------------------------------------
 # ĐỊNH DANH MÔI TRƯỜNG (2026-08-13) — sinh ra sau một sự cố thật, không phải

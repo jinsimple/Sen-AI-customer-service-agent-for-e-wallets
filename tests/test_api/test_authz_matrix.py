@@ -129,7 +129,21 @@ PUBLIC_ROUTES = {
 
 
 @pytest.fixture()
-def client(sample_db):
+def client(sample_db, monkeypatch):
+    # `SessionLocal` module-level (src/db/session.py) KHÔNG đi qua
+    # dependency_overrides — route /live-chat/sessions/waiting gọi
+    # sweep_stale_waiting_sessions() vốn dùng SessionLocal trực tiếp (WebSocket
+    # handler không có request scope để inject). Trước 2026-08-13, DATABASE_URL
+    # fallback về data/app.db nên test này ÂM THẦM ĐỌC DATABASE DEV THẬT và
+    # pass vì lý do sai; bỏ fallback (ADR-013) làm nó lộ ra. Trỏ SessionLocal
+    # vào đúng DB tạm của test — cùng pattern tests/test_api/test_live_chat_ws.py.
+    from sqlalchemy.orm import sessionmaker
+
+    monkeypatch.setattr(
+        "src.api.live_chat_ws.SessionLocal",
+        sessionmaker(bind=sample_db.get_bind(), future=True),
+    )
+
     def _override_session():
         # Phải commit/rollback ĐÚNG như get_session() thật (src/api/deps.py)
         # — xem ghi chú tương tự ở tests/test_api/test_otp.py (bug thật tìm

@@ -13,6 +13,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    # Publish CHỈ trên loopback (127.0.0.1), KHÔNG phải 0.0.0.0 — script chạy
+    # trên host (seed, load test, verify_security.sh, migration tay) cần nối
+    # được vào ĐÚNG database mà app đang dùng, thay vì âm thầm rơi về SQLite
+    # riêng và làm dữ liệu tách đôi (ADR-013). Bind loopback nên không lộ ra
+    # mạng LAN/Internet — vẫn giữ nguyên tắc "chỉ caddy publish ra ngoài" cho
+    # traffic người dùng.
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

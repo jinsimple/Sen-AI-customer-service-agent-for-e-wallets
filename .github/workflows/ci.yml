@@ -28,6 +28,10 @@ env:
   # fake:// -> fakeredis (src/redis_client.py) — CI không cần Redis thật, đúng
   # convention playbooks/production-packaging-checklist.md.
   REDIS_URL: fake://ci
+  # DATABASE_URL giờ BẮT BUỘC (ADR-013 — bỏ fallback SQLite im lặng từng làm
+  # hệ thống tách đôi database). Job nào cần Postgres thật thì override lại ở
+  # cấp job (xem db-migration-test).
+  DATABASE_URL: "sqlite:///:memory:"
 
 jobs:
   # ---------------------------------------------------------------------
