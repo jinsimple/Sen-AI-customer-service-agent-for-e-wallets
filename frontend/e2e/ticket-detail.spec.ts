@@ -19,7 +19,7 @@ test.describe("TICKET-DETAIL-* — chi tiết ticket & hành động CSKH", () =
     const customerPage = await customerContext.newPage();
     let ticketId: string;
     try {
-      await loginAs(customerPage, "0387000001", "Khách hàng", "/chat");
+      await loginAs(customerPage, "0387000001", "/chat");
       ticketId = await createTicketAsCustomerViaAI(customerPage, "Tiền chưa về");
     } finally {
       await customerContext.close();
@@ -28,7 +28,7 @@ test.describe("TICKET-DETAIL-* — chi tiết ticket & hành động CSKH", () =
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, "0353000201", "Nhân viên CSKH", "/dashboard");
+      await loginAs(staffPage, "0353000201", "/dashboard");
       await staffPage.goto(`/tickets/${ticketId}`);
 
       await expect(staffPage.locator("h2.mono")).toHaveText(ticketId);
@@ -61,7 +61,7 @@ test.describe("TICKET-DETAIL-* — chi tiết ticket & hành động CSKH", () =
     const customerPage = await customerContext.newPage();
     let ticketId: string;
     try {
-      await loginAs(customerPage, "0387000001", "Khách hàng", "/chat");
+      await loginAs(customerPage, "0387000001", "/chat");
       // "Tiền chưa về" thay vì "Trừ tiền 2 lần" — phát hiện thật (lặp lại
       // đúng pattern đã thấy ở approve.spec.ts): chip "Trừ tiền 2 lần"
       // (double_charge) khiến agent cần nhiều vòng tool call hơn (khả năng
@@ -78,7 +78,7 @@ test.describe("TICKET-DETAIL-* — chi tiết ticket & hành động CSKH", () =
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, "0353000201", "Nhân viên CSKH", "/dashboard");
+      await loginAs(staffPage, "0353000201", "/dashboard");
       await staffPage.goto(`/tickets/${ticketId}`);
       await expect(staffPage.locator("h2.mono")).toHaveText(ticketId);
 

@@ -1,6 +1,5 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import { SESSION_COOKIE, parseSessionCookie } from "@/lib/session";
 
 /**
  * FIN05-StressTest-Plan-v4 P2 — helper dùng chung cho e2e mới (approve,
@@ -13,10 +12,18 @@ import { SESSION_COOKIE, parseSessionCookie } from "@/lib/session";
  * thật thay vì mock.
  */
 
-export async function loginAs(page: Page, phone: string, roleLabel: string, expectedPathPrefix: string, attempt = 1): Promise<void> {
+// Đăng nhập bằng mật khẩu (quyết định 2026-08-12, thay luồng phone+role chọn
+// chip trước đó) — 4 tài khoản demo dùng xuyên suốt e2e (customer/cskh/
+// supervisor/partner_admin) dùng CHUNG mật khẩu này, khớp
+// scripts/gen_dataset.py::SHARED_TEST_PASSWORD. Vai trò giờ suy ra từ chính
+// user tìm được qua phone (server trả về, xem app/login/page.tsx), không
+// còn cần chọn chip trước khi gửi — `loginAs` vì vậy KHÔNG còn tham số role.
+export const DEMO_PASSWORD = "Demo@123";
+
+export async function loginAs(page: Page, phone: string, expectedPathPrefix: string, attempt = 1): Promise<void> {
   await page.goto("/login");
-  await page.locator(".filter-chip", { hasText: roleLabel }).click();
   await page.getByPlaceholder("09xx xxx xxx").fill(phone);
+  await page.getByPlaceholder("••••••••").fill(DEMO_PASSWORD);
   const [response] = await Promise.all([
     page.waitForResponse((r) => r.url().includes("/api/session"), { timeout: 15_000 }).catch(() => null),
     page.getByRole("button", { name: "Đăng nhập" }).click(),
@@ -24,7 +31,7 @@ export async function loginAs(page: Page, phone: string, roleLabel: string, expe
   if (response && response.status() === 429) {
     if (attempt >= 3) throw new Error(`Vẫn 429 sau ${attempt} lần thử đăng nhập ${phone}.`);
     await page.waitForTimeout(15_000);
-    return loginAs(page, phone, roleLabel, expectedPathPrefix, attempt + 1);
+    return loginAs(page, phone, expectedPathPrefix, attempt + 1);
   }
   await page.waitForURL(`**${expectedPathPrefix}**`, { timeout: 15_000 });
 }
@@ -63,25 +70,16 @@ export async function completeOtpIfPrompted(page: Page): Promise<boolean> {
     .catch(() => false);
   if (!otpVisible) return false;
 
+  // AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12) — không còn ô "câu trả lời
+  // bảo mật" (KBA bỏ khỏi vai trò authenticator, xem OtpForm/ChatClient.tsx),
+  // chỉ còn điền 6 số OTP.
   const demoCode = (await page.locator(".otp-meta").first().locator("strong").textContent())?.trim() ?? "";
   const boxes = page.locator(".otp-box");
   for (let i = 0; i < 6; i++) await boxes.nth(i).fill(demoCode[i]);
-  // fin05_session là cookie httpOnly — document.cookie (JS trình duyệt)
-  // KHÔNG đọc được (đúng thiết kế bảo mật, xem lib/session.ts) — phát
-  // hiện thật lúc viết test này: page.evaluate đọc document.cookie luôn
-  // ra null, làm câu trả lời bảo mật sai (ans-...-null), OTP verify fail
-  // âm thầm (form đứng yên, không báo lỗi rõ). Phải đọc qua
-  // context.cookies() (API Playwright, đọc được cả httpOnly) — đúng cách
-  // otp-forge.ts::readSessionCookie đã làm.
-  const cookies = await page.context().cookies();
-  const raw = cookies.find((c) => c.name === SESSION_COOKIE)?.value;
-  const session = parseSessionCookie(raw ? decodeURIComponent(raw) : raw);
-  if (!session) throw new Error("Không đọc được session cookie thật để lấy user_id cho câu trả lời bảo mật demo.");
-  await page.locator(".otp-answer").fill(`ans-20260802-${session.user_id}`);
-  // Nút "Xác nhận" chỉ enable sau khi React xử lý xong TOÀN BỘ onChange
-  // của 7 ô nhập (6 OTP + 1 câu trả lời) — chờ enable thật trước khi
-  // click thay vì click ngay (phát hiện thật: click quá sớm vào nút vẫn
-  // đang disabled do React chưa kịp re-render).
+  // Nút "Xác nhận" chỉ enable sau khi React xử lý xong TOÀN BỘ onChange của
+  // 6 ô OTP — chờ enable thật trước khi click thay vì click ngay (phát hiện
+  // thật: click quá sớm vào nút vẫn đang disabled do React chưa kịp
+  // re-render).
   await expect(page.getByRole("button", { name: "Xác nhận" })).toBeEnabled({ timeout: 5_000 });
   await page.getByRole("button", { name: "Xác nhận" }).click();
   await expect(page.getByText("Xác thực thành công")).toBeVisible({ timeout: 10_000 });

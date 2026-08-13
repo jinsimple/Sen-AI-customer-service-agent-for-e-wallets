@@ -79,6 +79,45 @@ export function forgeOtpVerifiedAt(session: Session, secondsAgo: number | null):
  * đọc lại từ context.cookies() luôn ở dạng `%7B%22user_id...`) — encode ở
  * đây để route handler phía server (đọc qua `cookies().get()`, tự decode)
  * parse lại đúng, khớp hành vi cookie thật do server set. */
+/**
+ * AUTH5-HARD-01 (đợt nâng cấp Auth Flow 2026-08-12) — kiểm proxy.ts tự làm
+ * mới access_token giữa phiên (REFRESH_MARGIN_SECONDS=120) mà KHÔNG phải
+ * chờ 15 phút thật trôi qua (JWT_ACCESS_EXPIRE_MINUTES). Cùng kỹ thuật
+ * time-travel với forgeOtpVerifiedAt — decode token THẬT, CHỈ đổi `exp`, ký
+ * lại bằng cùng secret. `refresh_token` KHÔNG đổi (vẫn là refresh_token THẬT
+ * do backend cấp, còn hiệu lực trong Redis) — điểm mấu chốt: access_token
+ * "hết hạn" nhưng refresh_token vẫn sống, đúng kịch bản proxy.ts cần xử lý
+ * (khác forgeOtpVerifiedAt vốn không đổi exp).
+ */
+export function forgeAccessTokenExpiry(session: Session, expiresInSeconds: number): Session {
+  const secret = process.env.JWT_SECRET_KEY;
+  if (!secret) {
+    throw new Error(
+      "Thiếu JWT_SECRET_KEY trong env của tiến trình Playwright — " +
+        "export JWT_SECRET_KEY=<cùng giá trị backend đang dùng> trước khi chạy test này."
+    );
+  }
+  const decoded = jwt.decode(session.access_token) as {
+    sub: string;
+    role: string;
+    iat: number;
+    otp_verified_at: number | null;
+  };
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const forgedToken = jwt.sign(
+    {
+      sub: decoded.sub,
+      role: decoded.role,
+      iat: decoded.iat,
+      otp_verified_at: decoded.otp_verified_at,
+      exp: nowSeconds + expiresInSeconds,
+    },
+    secret,
+    { algorithm: "HS256" }
+  );
+  return { ...session, access_token: forgedToken };
+}
+
 export async function setForgedSessionCookie(context: BrowserContext, session: Session): Promise<void> {
   await context.addCookies([
     {

@@ -19,7 +19,7 @@ test.describe("POLICY-LOOKUP-* — tra cứu chính sách/FAQ (CSKH)", () => {
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     try {
-      await loginAs(adminPage, PARTNER_ADMIN_PHONE, "Đối tác ví (Chính sách)", "/knowledge");
+      await loginAs(adminPage, PARTNER_ADMIN_PHONE, "/knowledge");
       await adminPage.setInputFiles('input[type="file"]', {
         name: filename,
         mimeType: "text/plain",
@@ -39,7 +39,7 @@ test.describe("POLICY-LOOKUP-* — tra cứu chính sách/FAQ (CSKH)", () => {
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, CSKH_PHONE, "Nhân viên CSKH", "/dashboard");
+      await loginAs(staffPage, CSKH_PHONE, "/dashboard");
       await staffPage.goto("/policy-lookup");
 
       await staffPage.getByPlaceholder(/phí rút tiền, thời gian hoàn tiền/).fill(uniqueMarker);

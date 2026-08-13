@@ -12,7 +12,7 @@ const CSKH_PHONE = "0353000201";
 
 test.describe("DASHBOARD-* — hàng chờ ticket CSKH", () => {
   test("hiện bảng ticket, filter chip đổi đúng số lượng, click hàng điều hướng sang ticket detail", async ({ page }) => {
-    await loginAs(page, CSKH_PHONE, "Nhân viên CSKH", "/dashboard");
+    await loginAs(page, CSKH_PHONE, "/dashboard");
 
     const rows = page.locator("tbody tr");
     await expect(rows.first()).toBeVisible({ timeout: 15_000 });
@@ -47,7 +47,7 @@ test.describe("DASHBOARD-* — hàng chờ ticket CSKH", () => {
   });
 
   test("ô tìm kiếm lọc theo mã ticket", async ({ page }) => {
-    await loginAs(page, CSKH_PHONE, "Nhân viên CSKH", "/dashboard");
+    await loginAs(page, CSKH_PHONE, "/dashboard");
 
     const rows = page.locator("tbody tr");
     await expect(rows.first()).toBeVisible({ timeout: 15_000 });

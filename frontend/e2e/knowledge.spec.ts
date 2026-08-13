@@ -12,7 +12,7 @@ const PARTNER_ADMIN_PHONE = "0900000001";
 
 test.describe("KNOWLEDGE-* — tải/xoá tài liệu chính sách", () => {
   test("tải lên file .txt hợp lệ -> hiện 'Đã lập chỉ mục' với số đoạn > 0, xoá xong biến mất khỏi bảng", async ({ page }) => {
-    await loginAs(page, PARTNER_ADMIN_PHONE, "Đối tác ví (Chính sách)", "/knowledge");
+    await loginAs(page, PARTNER_ADMIN_PHONE, "/knowledge");
 
     const filename = `e2e-test-policy-${Date.now()}.txt`;
     await page.setInputFiles('input[type="file"]', {
@@ -37,7 +37,7 @@ test.describe("KNOWLEDGE-* — tải/xoá tài liệu chính sách", () => {
   });
 
   test("tải lên file rỗng -> báo lỗi rõ ràng, KHÔNG thêm dòng nào vào bảng", async ({ page }) => {
-    await loginAs(page, PARTNER_ADMIN_PHONE, "Đối tác ví (Chính sách)", "/knowledge");
+    await loginAs(page, PARTNER_ADMIN_PHONE, "/knowledge");
 
     // Phát hiện thật: đếm hàng NGAY sau khi điều hướng bị đếm hụt (0) — bảng
     // tải danh sách bất đồng bộ (KnowledgeClient.tsx::load(), gọi qua

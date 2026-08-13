@@ -16,7 +16,7 @@ const CUSTOMER_PHONE = "0387000001"; // USR-0001
 
 test.describe("CHAT-* — chatbot AI khách hàng, rail & luồng tạo ticket", () => {
   test("rail 'Giao dịch gần đây' hiện dữ liệu thật khi vào trang", async ({ page }) => {
-    await loginAs(page, CUSTOMER_PHONE, "Khách hàng", "/chat");
+    await loginAs(page, CUSTOMER_PHONE, "/chat");
 
     const txnItems = page.locator(".txn-item");
     await expect(txnItems.first()).toBeVisible({ timeout: 15_000 });
@@ -31,7 +31,7 @@ test.describe("CHAT-* — chatbot AI khách hàng, rail & luồng tạo ticket",
 
   test("rail 'Lịch sử khiếu nại' TỰ LÀM MỚI ngay sau khi tạo ticket qua chip — không cần F5", async ({ page }) => {
     test.setTimeout(150_000);
-    await loginAs(page, CUSTOMER_PHONE, "Khách hàng", "/chat");
+    await loginAs(page, CUSTOMER_PHONE, "/chat");
 
     const histCard = page.locator(".card", { hasText: "Lịch sử khiếu nại của bạn" });
     await expect(histCard).toBeVisible({ timeout: 15_000 });
@@ -62,7 +62,7 @@ test.describe("CHAT-* — chatbot AI khách hàng, rail & luồng tạo ticket",
 
   test("gõ tự do tham chiếu đúng mã giao dịch thật -> agent trả lời đúng thông tin giao dịch đó", async ({ page }) => {
     test.setTimeout(90_000);
-    await loginAs(page, CUSTOMER_PHONE, "Khách hàng", "/chat");
+    await loginAs(page, CUSTOMER_PHONE, "/chat");
 
     const txnItems = page.locator(".txn-item");
     await expect(txnItems.first()).toBeVisible({ timeout: 15_000 });

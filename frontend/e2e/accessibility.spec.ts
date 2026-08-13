@@ -1,5 +1,6 @@
 import { test, expect, devices } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { DEMO_PASSWORD } from "./helpers/actors";
 
 /**
  * FIN05-QA-Test-Report.md §3.6 (UX/Accessibility) — mảng KHÔNG có test tự
@@ -16,6 +17,7 @@ const PHONE = "0974000145";
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/login");
   await page.getByPlaceholder("09xx xxx xxx").fill(PHONE);
+  await page.getByPlaceholder("••••••••").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Đăng nhập" }).click();
   await page.waitForURL("**/chat");
 }
@@ -50,6 +52,7 @@ test.describe("UX-03 — điều hướng bàn phím (Tab/Enter)", () => {
     await expect(phoneInput).toBeFocused();
 
     await phoneInput.fill(PHONE);
+    await page.getByPlaceholder("••••••••").fill(DEMO_PASSWORD);
     // Enter trong input phải submit form (native HTML form behavior) — không
     // cần chuột chạm nút "Đăng nhập".
     await phoneInput.press("Enter");

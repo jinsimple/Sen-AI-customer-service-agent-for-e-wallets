@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { DEMO_PASSWORD } from "./helpers/actors";
 
 /**
  * FIN05-QA-Test-Report.md (2026-08-11, phiên Claude khác đóng vai khách hàng
@@ -31,6 +32,7 @@ test.describe("Login — BUG-01/BUG-02 (FIN05-QA-Test-Report.md)", () => {
 
     await page.goto("/login");
     await page.getByPlaceholder("09xx xxx xxx").fill("0851000021");
+    await page.getByPlaceholder("••••••••").fill(DEMO_PASSWORD);
     await page.getByRole("button", { name: /Đăng nhập/ }).click();
 
     await expect(page.getByRole("button", { name: "Đang đăng nhập…" })).toBeVisible();

@@ -1,24 +1,28 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
+import { DEMO_PASSWORD } from "./helpers/actors";
 import { forgeOtpVerifiedAt, setForgedSessionCookie } from "./helpers/otp-forge";
 import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session";
 
 /**
- * Nhóm identity/AUTH-* (FIN05_QA_TestCases.jsonl) — 8 case OTP + câu hỏi bảo
- * mật. Trước bản vá backend (src/auth.py::require_otp_verified), OTP chỉ là
+ * Nhóm identity/AUTH-* (FIN05_QA_TestCases.jsonl) — 8 case OTP phiên làm
+ * việc. Trước bản vá backend (src/auth.py::require_otp_verified), OTP chỉ là
  * gate UI mô phỏng — test này chạy qua UI THẬT + backend THẬT, không mock gì,
  * để xác nhận toàn bộ chuỗi browser → BFF → FastAPI hoạt động đúng.
  *
- * User demo: USR-0145 (data/generated/users.jsonl), SĐT 0974000145. Câu trả
- * lời bảo mật demo = `ans-{DATASET_SEED}-{user_id}` (xem docs/TESTING.md và
- * src/api/main.py::verify_otp) — CHỈ áp dụng ở seed cố định 20260802.
+ * AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4) — câu hỏi
+ * bảo mật (KBA) đã bỏ hẳn khỏi vai trò authenticator, mã OTP là yếu tố
+ * step-up DUY NHẤT — không còn bước điền câu trả lời bảo mật ở đây nữa.
+ *
+ * User demo: USR-0145 (data/generated/users.jsonl), SĐT 0974000145.
  */
 const PHONE = "0974000145";
-const DEMO_SECURITY_ANSWER = "ans-20260802-USR-0145";
 
 async function login(page: Page) {
   await page.goto("/login");
-  // "Khách hàng" đã active mặc định — chỉ cần điền SĐT.
+  // Đăng nhập bằng mật khẩu (quyết định 2026-08-12) — vai trò suy ra từ
+  // phone, không còn chọn chip trước khi gửi.
   await page.getByPlaceholder("09xx xxx xxx").fill(PHONE);
+  await page.getByPlaceholder("••••••••").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Đăng nhập" }).click();
   await page.waitForURL("**/chat");
 }
@@ -84,7 +88,6 @@ async function completeOtpVerification(page: Page) {
   for (let i = 0; i < 6; i++) {
     await boxes.nth(i).fill(otpCode[i]);
   }
-  await page.locator(".otp-answer").fill(DEMO_SECURITY_ANSWER);
   await page.getByRole("button", { name: "Xác nhận" }).click();
   await expect(page.getByText("Xác thực thành công")).toBeVisible({ timeout: 10_000 });
 }
@@ -114,13 +117,12 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
     await expect(page.locator(".otp-row")).toHaveCount(0, { timeout: 15_000 });
   });
 
-  test("AUTH-001: thao tác nhạy cảm bị chặn, phải nhập OTP + câu hỏi bảo mật", async ({ page }) => {
+  test("AUTH-001: thao tác nhạy cảm bị chặn, phải nhập OTP", async ({ page }) => {
     await triggerSensitiveAction(page);
     await expect(page.locator(".otp-row")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Câu hỏi bảo mật:")).toBeVisible();
   });
 
-  test("AUTH-001 tiếp: nhập đúng OTP + câu trả lời -> xác thực thành công, agent tra tiếp", async ({ page }) => {
+  test("AUTH-001 tiếp: nhập đúng OTP -> xác thực thành công, agent tra tiếp", async ({ page }) => {
     await triggerSensitiveAction(page);
     await expect(page.locator(".otp-row")).toBeVisible({ timeout: 20_000 });
 
@@ -132,7 +134,6 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
     for (let i = 0; i < 6; i++) {
       await boxes.nth(i).fill(otpCode[i]);
     }
-    await page.locator(".otp-answer").fill(DEMO_SECURITY_ANSWER);
     await page.getByRole("button", { name: "Xác nhận" }).click();
 
     await expect(page.getByText("Xác thực thành công")).toBeVisible({ timeout: 10_000 });
@@ -160,7 +161,6 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
     const otpCode = ((await page.locator(".otp-meta").first().locator("strong").textContent()) ?? "").trim();
     const boxes = page.locator(".otp-box");
     for (let i = 0; i < 6; i++) await boxes.nth(i).fill(otpCode[i]);
-    await page.locator(".otp-answer").fill(DEMO_SECURITY_ANSWER);
     await page.getByRole("button", { name: "Xác nhận" }).click();
     await expect(page.getByText("Xác thực thành công")).toBeVisible({ timeout: 10_000 });
 
@@ -180,13 +180,12 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
     await expect(page.getByText("Sen không bao giờ hỏi mật khẩu")).toBeVisible();
   });
 
-  test("AUTH-003: sai OTP/câu trả lời -> báo lỗi rõ ràng, KHÔNG cho qua", async ({ page }) => {
+  test("AUTH-003: sai OTP -> báo lỗi rõ ràng, KHÔNG cho qua", async ({ page }) => {
     await triggerSensitiveAction(page);
     await expect(page.locator(".otp-row")).toBeVisible({ timeout: 20_000 });
 
     const boxes = page.locator(".otp-box");
     for (let i = 0; i < 6; i++) await boxes.nth(i).fill("0");
-    await page.locator(".otp-answer").fill("sai câu trả lời");
     await page.getByRole("button", { name: "Xác nhận" }).click();
 
     // Không được xác thực thành công — form vẫn còn, có báo lỗi.

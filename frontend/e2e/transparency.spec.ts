@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { DEMO_PASSWORD } from "./helpers/actors";
 
 /**
  * DISC-002 (FIN05_QA_TestCases.jsonl, EU AI Act Article 50) — phải có tín
@@ -11,6 +12,7 @@ const PHONE = "0974000145";
 test("DISC-002: câu chào đầu phiên nêu rõ đây là trợ lý AI", async ({ page }) => {
   await page.goto("/login");
   await page.getByPlaceholder("09xx xxx xxx").fill(PHONE);
+  await page.getByPlaceholder("••••••••").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Đăng nhập" }).click();
   await page.waitForURL("**/chat");
 

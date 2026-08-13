@@ -23,7 +23,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const customerPage = await customerContext.newPage();
     let ticketId: string;
     try {
-      await loginAs(customerPage, CUSTOMER_PHONE, "Khách hàng", "/chat");
+      await loginAs(customerPage, CUSTOMER_PHONE, "/chat");
       ticketId = await createTicketAsCustomerViaAI(customerPage, "Tiền chưa về");
     } finally {
       await customerContext.close();
@@ -32,7 +32,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, "0353000201", "Nhân viên CSKH", "/dashboard");
+      await loginAs(staffPage, "0353000201", "/dashboard");
       await proposeResolutionAsStaff(staffPage, ticketId, "Đối chiếu log giao dịch xác nhận đã trừ tiền, đề xuất hoàn ví.");
     } finally {
       await staffContext.close();
@@ -41,7 +41,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const supervisorContext = await browser.newContext();
     const supervisorPage = await supervisorContext.newPage();
     try {
-      await loginAs(supervisorPage, SUPERVISOR_PHONE, "Sếp phê duyệt", "/approve");
+      await loginAs(supervisorPage, SUPERVISOR_PHONE, "/approve");
       // Chỉ tìm trong lưới "đang chờ duyệt" (.grid.grid-2) — KHÔNG chỉ dùng
       // ".card" trần: nhật ký hành động HITL bên dưới cũng là 1 div.card bọc
       // <table>, và sau khi duyệt xong, ticketId sẽ xuất hiện lại dưới dạng
@@ -53,7 +53,12 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
       const card = pendingGrid.locator(".card", { has: supervisorPage.getByRole("link", { name: ticketId, exact: true }) });
       await expect(card).toBeVisible({ timeout: 15_000 });
 
+      // AUTH5-04 (đợt nâng cấp Auth Flow 2026-08-12) — "Duyệt" giờ chỉ XIN
+      // OTP riêng cho resolution này (PSD2 dynamic linking), chưa duyệt
+      // ngay — phải bấm thêm "Xác nhận duyệt" mới thật sự gọi approve.
       await card.getByRole("button", { name: "Duyệt" }).click();
+      await expect(card.locator(".approval-otp-code")).toBeVisible({ timeout: 10_000 });
+      await card.getByRole("button", { name: "Xác nhận duyệt" }).click();
       await expect(card).not.toBeVisible({ timeout: 15_000 });
 
       const historyRow = supervisorPage.locator("tbody tr", { hasText: ticketId });
@@ -73,7 +78,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const customerPage = await customerContext.newPage();
     let ticketId: string;
     try {
-      await loginAs(customerPage, CUSTOMER_PHONE, "Khách hàng", "/chat");
+      await loginAs(customerPage, CUSTOMER_PHONE, "/chat");
       ticketId = await createTicketAsCustomerViaAI(customerPage, "Trừ tiền 2 lần");
     } finally {
       await customerContext.close();
@@ -82,7 +87,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, "0353000201", "Nhân viên CSKH", "/dashboard");
+      await loginAs(staffPage, "0353000201", "/dashboard");
       await proposeResolutionAsStaff(staffPage, ticketId, "Chưa đủ căn cứ xác nhận trừ tiền 2 lần, đề xuất từ chối.");
     } finally {
       await staffContext.close();
@@ -91,7 +96,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const supervisorContext = await browser.newContext();
     const supervisorPage = await supervisorContext.newPage();
     try {
-      await loginAs(supervisorPage, SUPERVISOR_PHONE, "Sếp phê duyệt", "/approve");
+      await loginAs(supervisorPage, SUPERVISOR_PHONE, "/approve");
       // Xem ghi chú ở test "duyệt" bên trên — scope vào .grid.grid-2 để
       // không nhầm sang div.card của bảng nhật ký HITL.
       const pendingGrid = supervisorPage.locator(".grid.grid-2");

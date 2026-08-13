@@ -11,7 +11,7 @@ const SUPERVISOR_PHONE = "0905000205";
 
 test.describe("REPORT-* — báo cáo vận hành (Sếp)", () => {
   test("hiện đủ 4 KPI + 2 biểu đồ phân bố với dữ liệu thật", async ({ page }) => {
-    await loginAs(page, SUPERVISOR_PHONE, "Sếp phê duyệt", "/approve");
+    await loginAs(page, SUPERVISOR_PHONE, "/approve");
     await page.goto("/report");
 
     const kpiCards = page.locator(".kpi");
@@ -31,7 +31,7 @@ test.describe("REPORT-* — báo cáo vận hành (Sếp)", () => {
   });
 
   test("lọc theo khoảng ngày trong tương lai (chưa có ticket nào) -> tổng ticket = 0, không lỗi", async ({ page }) => {
-    await loginAs(page, SUPERVISOR_PHONE, "Sếp phê duyệt", "/approve");
+    await loginAs(page, SUPERVISOR_PHONE, "/approve");
     await page.goto("/report");
     await expect(page.locator(".kpi")).toHaveCount(4, { timeout: 15_000 });
 
