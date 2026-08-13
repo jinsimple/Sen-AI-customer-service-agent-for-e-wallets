@@ -215,6 +215,71 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
 - **Lý do ADR này tồn tại:** "demo mà, không cần" là câu rất dễ nói lại ở phiên sau khi
   bối cảnh ĐÃ ĐỔI mà không ai để ý. Mốc kích hoạt ở trên là thứ chặn vòng lặp đó.
 
+## ADR-012 — Chặn ĐỒNG THỜI cho /agent/chat, không xếp hàng chờ
+
+- **Ngày:** 2026-08-13 · **Trạng thái:** Đang hiệu lực
+- **Bối cảnh:** `@limiter.limit("20/minute")` không chặn được 150 người cùng bấm gửi
+  trong 1 giây — mỗi người chỉ gọi đúng 1 lần, không ai vượt rate limit.
+- **Quyết định:** `RedisConcurrencyLimiter` đếm tác vụ ĐANG CHẠY (khác rate limit đếm
+  tần suất). Hết slot → `503` + `Retry-After` + thông báo tiếng Việt.
+  `AGENT_MAX_CONCURRENT=20`.
+- **Lý do dùng Redis, không dùng biến in-process:** hạn mức TPM của OpenAI là hạn mức
+  TOÀN CỤC cho cả tài khoản. Đếm trong RAM từng worker sẽ nhân hạn mức lên theo số
+  worker — 4 worker là vượt trần gấp 4 mà worker nào cũng tưởng mình đúng luật.
+- **Lý do BÁC BỎ "xếp hàng chờ":** giữ request nằm chờ trong worker chính là thứ gây
+  nghẽn dây chuyền. Trả lời "đang bận, thử lại" ngay tốt hơn cho cả người dùng lẫn
+  hệ thống — hỏng có kiểm soát thay vì hỏng hỗn loạn.
+- **Hệ quả:** TTL 90s (2× timeout 45s) làm lưới an toàn thu hồi slot của process chết
+  giữa chừng; không có TTL thì hệ thống tự khoá vĩnh viễn với 0 request đang chạy.
+
+## ADR-013 — DATABASE_URL bắt buộc, bỏ fallback SQLite im lặng
+
+- **Ngày:** 2026-08-13 · **Trạng thái:** Đang hiệu lực
+- **Bối cảnh:** `os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")` làm Docker
+  chạy Postgres còn mọi thứ trên host âm thầm rơi về SQLite → hệ thống tách đôi
+  database, mất nhiều giờ điều tra (xem ADR-009).
+- **Quyết định:** thiếu biến thì chết ngay lúc khởi động. Postgres publish
+  `127.0.0.1:5432` để script trên host nối được đúng DB app đang dùng.
+- **Tinh chỉnh bất biến bảo mật, KHÔNG nới lỏng:** test cũ cấm postgres publish port.
+  Ý định của nó là "chỉ Caddy là cửa ra internet" — bind loopback không phải cửa ra
+  internet, và cùng file đã có tiền lệ Jaeger. Luật mới CHẶT HƠN: backend/frontend
+  vẫn cấm tuyệt đối, postgres bắt buộc bind `127.0.0.1`, ra `0.0.0.0` là ĐỎ.
+- **Phát hiện kèm theo:** test `test_authz_matrix[GET /live-chat/sessions/waiting]`
+  trước đây PASS VÌ LÝ DO SAI — đang đọc `data/app.db` THẬT qua `SessionLocal`
+  module-level. Bỏ fallback làm nó lộ ra.
+
+## ADR-014 — MemorySaver → PostgresSaver: state ra khỏi RAM process
+
+- **Ngày:** 2026-08-13 · **Trạng thái:** Đang hiệu lực
+- **Bối cảnh:** `MemorySaver` giữ hội thoại trong RAM một process ⇒ backend bắt buộc
+  1 worker (máy 10 vCPU dùng được 1), và restart = mọi khách mất sạch ngữ cảnh.
+- **Quyết định:** `PostgresSaver` với pool RIÊNG (`CHECKPOINT_POOL_MAX=5`), tách khỏi
+  pool SQLAlchemy vì hai thứ có nhịp truy cập khác nhau, gộp chung sẽ nghẽn lẫn nhau.
+- **Đã verify thật:** ghi checkpoint ở process 1, mở process MỚI đọc lại → `get_tuple()`
+  trả đúng `checkpoint_id`. Không suy luận từ code tĩnh.
+- **Fallback CÓ CHỦ ĐÍCH nhưng KHÔNG im lặng:** DB không phải Postgres (test dùng
+  SQLite) → MemorySaver kèm **log cảnh báo** nêu rõ hệ quả. Không lặp lại ADR-013.
+- **Hệ quả:** `close_checkpointer()` + shutdown hook — pool psycopg chạy thread nền,
+  không đóng tường minh thì ném `PythonFinalizationError` lúc thoát (đã gặp thật) và
+  giữ kết nối tới khi TCP timeout, ăn vào `max_connections` khi deploy liên tục.
+
+## ADR-015 — Fan-out live-chat liên worker qua Redis pub/sub
+
+- **Ngày:** 2026-08-13 · **Trạng thái:** Đang hiệu lực
+- **Bối cảnh:** `ConnectionManager` giữ WebSocket trong RAM từng process. Bật
+  multi-worker mà thiếu lớp này thì live-chat **vỡ âm thầm**: khách ở worker 1, CSKH
+  ở worker 2, tin nhắn mỗi bên chỉ tới socket cùng worker. Không exception, không log
+  lỗi — tin nhắn chỉ biến mất. Test tay khó bắt vì một máy thường chỉ nối một worker.
+- **Quyết định:** luôn giao local TRƯỚC rồi mới publish, kèm `_INSTANCE_ID` để worker
+  gốc bỏ qua tiếng vọng của chính mình.
+- **Lý do BÁC BỎ "publish rồi để subscriber giao tất":** cách đó làm 1 worker (test/
+  dev/CI) phụ thuộc subscriber phải sống, sinh ra kịch bản "tin biến mất vì subscriber
+  chưa kịp chạy". Cách đã chọn: Redis chết → suy giảm về phạm vi 1 worker thay vì
+  chết hẳn. Đánh đổi: serialize thêm 1 lần mỗi tin, không đáng kể.
+- **Ràng buộc vận hành:** subscriber PHẢI khởi động ở startup, TRƯỚC khi có traffic —
+  Redis pub/sub fire-and-forget, không có hàng đợi giữ lại (lỗi thật mắc phải lúc
+  viết test: subscribe sau publish thì không nhận được gì).
+
 ---
 
 ## Mẫu ADR mới
