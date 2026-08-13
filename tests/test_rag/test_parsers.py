@@ -48,12 +48,12 @@ def _build_docx(paragraphs: list[str]) -> bytes:
 
 
 def test_extract_md():
-    content = "# Chính sách\nHoàn tiền trong 3 ngày.".encode("utf-8")
+    content = "# Chính sách\nHoàn tiền trong 3 ngày.".encode()
     assert "Hoàn tiền trong 3 ngày" in extract_text("policy.md", content)
 
 
 def test_extract_txt():
-    content = "Phí rút tiền 0.5%.".encode("utf-8")
+    content = "Phí rút tiền 0.5%.".encode()
     assert "Phí rút tiền" in extract_text("fee.txt", content)
 
 

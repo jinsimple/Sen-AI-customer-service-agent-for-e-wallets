@@ -12,7 +12,7 @@ dùng UPDATE có điều kiện (`claimed_by IS NULL`) làm optimistic concurren
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -21,7 +21,7 @@ from src.db.models import ChatSession, Complaint, InvestigationLog, Message, Tic
 from src.tools.base import ToolError, new_id
 
 
-def open_chat_session(session: Session, *, ticket_id: str, customer_id: str, now: Optional[dt.datetime] = None) -> dict[str, Any]:
+def open_chat_session(session: Session, *, ticket_id: str, customer_id: str, now: dt.datetime | None = None) -> dict[str, Any]:
     """Tạo phiên chat mới cho 1 ticket, hoặc tái dùng phiên `waiting`/`active`
     đã có cho ĐÚNG ticket đó (khách bấm lại nút mở chat không tạo trùng phiên
     — cùng nguyên tắc chống trùng đã áp dụng cho create_ticket/flag_human_handoff)."""
@@ -54,7 +54,7 @@ def open_chat_session(session: Session, *, ticket_id: str, customer_id: str, now
     return _session_to_dict(chat_session)
 
 
-def claim_session(session: Session, *, chat_session_id: str, staff_id: str, now: Optional[dt.datetime] = None) -> Optional[dict[str, Any]]:
+def claim_session(session: Session, *, chat_session_id: str, staff_id: str, now: dt.datetime | None = None) -> dict[str, Any] | None:
     """Optimistic-concurrency claim — chỉ thành công nếu CHƯA ai nhận
     (`claimed_by IS NULL`). Trả None nếu đã bị người khác nhận trước (caller
     tự xử lý thông báo "đã có người nhận"), không raise — đây là tình huống
@@ -74,7 +74,7 @@ def claim_session(session: Session, *, chat_session_id: str, staff_id: str, now:
     return _session_to_dict(chat_session)
 
 
-def close_session(session: Session, *, chat_session_id: str, now: Optional[dt.datetime] = None) -> dict[str, Any]:
+def close_session(session: Session, *, chat_session_id: str, now: dt.datetime | None = None) -> dict[str, Any]:
     now = now or dt.datetime.utcnow()
     chat_session = session.get(ChatSession, chat_session_id)
     if chat_session is None:
@@ -105,7 +105,7 @@ def record_message(
     chat_session_id: str,
     role: str,
     content: str,
-    now: Optional[dt.datetime] = None,
+    now: dt.datetime | None = None,
 ) -> dict[str, Any]:
     now = now or dt.datetime.utcnow()
     chat_session = session.get(ChatSession, chat_session_id)
@@ -132,7 +132,7 @@ def record_message(
     }
 
 
-def submit_csat(session: Session, *, chat_session_id: str, score: int, now: Optional[dt.datetime] = None) -> dict[str, Any]:
+def submit_csat(session: Session, *, chat_session_id: str, score: int, now: dt.datetime | None = None) -> dict[str, Any]:
     if not 1 <= score <= 5:
         raise ToolError(f"csat score không hợp lệ (phải 1-5): {score}")
     now = now or dt.datetime.utcnow()

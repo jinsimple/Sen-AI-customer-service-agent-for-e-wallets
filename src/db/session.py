@@ -1,8 +1,8 @@
 """Engine + session factory dùng chung cho seed script, tools, và API."""
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine

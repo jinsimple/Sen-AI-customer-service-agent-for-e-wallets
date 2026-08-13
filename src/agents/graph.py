@@ -9,7 +9,8 @@ from __future__ import annotations
 import datetime as dt
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any
 
 from langchain.agents import create_agent

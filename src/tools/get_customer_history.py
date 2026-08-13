@@ -9,7 +9,7 @@ Mọi query trong hàm này lọc CHẶT theo đúng `user_id` truyền vào —
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,7 +27,7 @@ def get_customer_history(
     user_id: str,
     days: int = 90,
     limit_transactions: int = 20,
-    amount: Optional[int] = None,
+    amount: int | None = None,
 ) -> dict[str, Any]:
     """`amount`: lọc gần đúng theo số tiền khách mô tả (sai số ±2%, đủ bù làm
     tròn "270k"/"270.000đ") — dùng khi khách chỉ mô tả mơ hồ (số tiền + thời

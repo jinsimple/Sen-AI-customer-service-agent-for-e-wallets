@@ -27,7 +27,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from eval._harness import build_eval_session, check_expected, check_forbidden, load_jsonl, now_stamp, run_case_turns_adaptive
+from eval._harness import (
+    build_eval_session,
+    check_expected,
+    check_forbidden,
+    load_jsonl,
+    now_stamp,
+    run_case_turns_adaptive,
+)
 
 EVAL_DIR = Path(__file__).resolve().parent
 

@@ -9,7 +9,7 @@ Test bắt buộc (T2):
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -22,9 +22,9 @@ from src.tools.masking import mask_account_no, mask_full_name, mask_phone
 def _party_info(
     session: Session,
     *,
-    wallet_id: Optional[str],
-    bank_account_id: Optional[str],
-    requesting_user_id: Optional[str],
+    wallet_id: str | None,
+    bank_account_id: str | None,
+    requesting_user_id: str | None,
 ) -> dict[str, Any]:
     """Trả thông tin một phía giao dịch (ví hoặc TK ngân hàng), che PDPA nếu
     không phải chính chủ đang hỏi (BR-06). `requesting_user_id=None` (không rõ
@@ -56,7 +56,7 @@ def _party_info(
     return {"kind": "none"}
 
 
-def _serialize_transaction(session: Session, txn: Transaction, requesting_user_id: Optional[str]) -> dict[str, Any]:
+def _serialize_transaction(session: Session, txn: Transaction, requesting_user_id: str | None) -> dict[str, Any]:
     return {
         "trans_id": txn.trans_id,
         "rec_code": txn.rec_code,
@@ -86,13 +86,13 @@ def _serialize_transaction(session: Session, txn: Transaction, requesting_user_i
 def lookup_transaction(
     session: Session,
     *,
-    trans_id: Optional[str] = None,
-    rec_code: Optional[str] = None,
-    phone: Optional[str] = None,
-    amount: Optional[int] = None,
-    date_from: Optional[dt.datetime] = None,
-    date_to: Optional[dt.datetime] = None,
-    requesting_user_id: Optional[str] = None,
+    trans_id: str | None = None,
+    rec_code: str | None = None,
+    phone: str | None = None,
+    amount: int | None = None,
+    date_from: dt.datetime | None = None,
+    date_to: dt.datetime | None = None,
+    requesting_user_id: str | None = None,
 ) -> dict[str, Any]:
     """Tra cứu giao dịch. Ưu tiên `trans_id` > `rec_code` > (`phone` + `amount` [+ khoảng ngày]).
 

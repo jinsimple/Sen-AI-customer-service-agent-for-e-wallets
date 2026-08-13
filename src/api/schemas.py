@@ -10,18 +10,17 @@ cũng mạo danh được bất kỳ user nào (VD tự xưng approved_by = mộ
 from __future__ import annotations
 
 import datetime as dt
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
 class LookupTransactionRequest(BaseModel):
-    trans_id: Optional[str] = None
-    rec_code: Optional[str] = None
-    phone: Optional[str] = None
-    amount: Optional[int] = None
-    date_from: Optional[dt.datetime] = None
-    date_to: Optional[dt.datetime] = None
+    trans_id: str | None = None
+    rec_code: str | None = None
+    phone: str | None = None
+    amount: int | None = None
+    date_from: dt.datetime | None = None
+    date_to: dt.datetime | None = None
 
 
 class GetCustomerHistoryRequest(BaseModel):
@@ -33,7 +32,7 @@ class CreateTicketRequest(BaseModel):
     complaint_type: str
     scope: str
     description_raw: str
-    trans_id: Optional[str] = None
+    trans_id: str | None = None
     otp_disclosed: bool = False
     # Không nhận fraud_signals từ caller — tầng service (complaint_intake.py)
     # tự tính từ dữ liệu DB qua fraud_engine.py (Data Brief §4.2: "do tầng
@@ -44,9 +43,9 @@ class ProposeResolutionRequest(BaseModel):
     ticket_id: str
     action_type: str
     rationale: str
-    amount: Optional[int] = None
-    destination_ref: Optional[str] = None
-    cited_tool_result_ids: Optional[list[str]] = None
+    amount: int | None = None
+    destination_ref: str | None = None
+    cited_tool_result_ids: list[str] | None = None
 
 
 class ApproveResolutionRequest(BaseModel):
@@ -89,7 +88,7 @@ class RefreshTokenRequest(BaseModel):
 
 
 class RequestMoreInfoRequest(BaseModel):
-    note: Optional[str] = None
+    note: str | None = None
 
 
 class OtpVerifyRequest(BaseModel):

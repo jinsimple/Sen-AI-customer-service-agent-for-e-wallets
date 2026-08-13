@@ -19,7 +19,6 @@ import functools
 import re
 import threading
 import unicodedata
-from typing import Optional
 
 from langchain_core.tools import tool
 from sqlalchemy import select
@@ -148,7 +147,7 @@ def _enforce_requester_is_party(session: Session, payload: dict, *, requesting_u
     return payload
 
 
-def _parse_dt(value: Optional[str]) -> Optional[dt.datetime]:
+def _parse_dt(value: str | None) -> dt.datetime | None:
     if not value:
         return None
     try:
@@ -219,12 +218,12 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
     @tool
     @_locked
     def lookup_transaction(
-        trans_id: Optional[str] = None,
-        rec_code: Optional[str] = None,
-        phone: Optional[str] = None,
-        amount: Optional[int] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
+        trans_id: str | None = None,
+        rec_code: str | None = None,
+        phone: str | None = None,
+        amount: int | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> dict:
         """Tra MỘT giao dịch cụ thể để xác nhận số tiền/trạng thái/thời gian
         TRƯỚC KHI phát biểu bất kỳ con số nào — không suy diễn.
@@ -266,7 +265,7 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
     @tool
     @_locked
     def get_customer_history(
-        days: int = 90, limit_transactions: int = 20, amount: Optional[int] = None
+        days: int = 90, limit_transactions: int = 20, amount: int | None = None
     ) -> dict:
         """Lấy lịch sử ví/giao dịch/khiếu nại CỦA CHÍNH khách đang chat trong
         `days` ngày gần nhất — dùng khi cần thêm ngữ cảnh (khách từng khiếu
@@ -300,7 +299,7 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
         complaint_type: str,
         scope: str,
         description_raw: str,
-        trans_id: Optional[str] = None,
+        trans_id: str | None = None,
         otp_disclosed: bool = False,
     ) -> dict:
         """Tạo ticket khiếu nại chuyển cho chuyên viên CSKH — bước CUỐI CÙNG
@@ -342,7 +341,7 @@ def build_customer_tools(session: Session, *, user_id: str, otp_verified_at: flo
 
     @tool
     @_locked
-    def request_human_handoff(reason: str, ticket_id: Optional[str] = None) -> dict:
+    def request_human_handoff(reason: str, ticket_id: str | None = None) -> dict:
         """Khách YÊU CẦU RÕ RÀNG được nói chuyện/chuyển cho nhân viên CSKH
         thật (vd "cho tôi gặp người thật", "chuyển tôi cho nhân viên") — gọi
         tool này NGAY, không cố giữ khách lại bằng cách hỏi thêm quá 1 lần,

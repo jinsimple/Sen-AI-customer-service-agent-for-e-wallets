@@ -12,13 +12,14 @@ Brief §6.5 / thiết kế đã sửa ở FIN-05 §4 quyết định 1-2).
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
+
+from sqlalchemy.orm import Session
 
 from src.db.models import Complaint, Ticket, Transaction, User
 from src.tools.base import ToolError, _new_id, record_tool_result
 from src.tools.fraud_policy import evaluate_escalation
 from src.tools.sla import compute_sla_due_at
-from sqlalchemy.orm import Session
 
 VALID_COMPLAINT_TYPES = {"wrong_recipient", "money_not_received", "double_charge", "refund", "other"}
 VALID_SCOPES = {"internal_wallet", "from_bank", "to_bank", "unknown"}
@@ -31,10 +32,10 @@ def create_ticket(
     complaint_type: str,
     scope: str,
     description_raw: str,
-    trans_id: Optional[str] = None,
+    trans_id: str | None = None,
     otp_disclosed: bool = False,
-    fraud_signals: Optional[list[str]] = None,
-    now: Optional[dt.datetime] = None,
+    fraud_signals: list[str] | None = None,
+    now: dt.datetime | None = None,
 ) -> dict[str, Any]:
     if complaint_type not in VALID_COMPLAINT_TYPES:
         raise ToolError(f"complaint_type không hợp lệ: {complaint_type}")

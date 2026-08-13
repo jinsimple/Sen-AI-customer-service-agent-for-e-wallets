@@ -11,7 +11,7 @@ có phải mã tín hiệu hay không (việc đó là test T5 ở tầng eval).
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 

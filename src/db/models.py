@@ -9,7 +9,7 @@ tầng DB, không chỉ ở tầng prompt (xem Data Brief §6.6 "guardrail đư�
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -21,7 +21,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from src.db.crypto_types import EncryptedString, EncryptedText
 
@@ -50,17 +50,17 @@ class User(Base):
     role: Mapped[str] = mapped_column(String, nullable=False)
     full_name: Mapped[str] = mapped_column(String, nullable=False)
     phone: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email: Mapped[str | None] = mapped_column(String, nullable=True)
     kyc_level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    security_question: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    security_answer_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    security_question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    security_answer_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Đăng nhập bằng mật khẩu (quyết định 2026-08-12, thay luồng phone+role
     # chọn tay trước đó) — argon2id có salt (cùng thư viện/pattern đã dùng
     # cho security_answer_hash, xem scripts/gen_dataset.py). Nullable vì lý
     # do kỹ thuật migration (thêm cột vào bảng đã có dữ liệu), nhưng THỰC TẾ
     # luôn được seed đầy đủ — verify_otp không có "user không mật khẩu" nào
     # được tạo mới sau đợt này.
-    password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
 
 
@@ -90,7 +90,7 @@ class BankAccount(Base):
     # cần lưu (BR-07, chủ TK có quyền xem đủ số của chính mình), nhưng file
     # SQLite trên đĩa giờ chỉ chứa ciphertext, không phải số TK dạng thô.
     account_no: Mapped[str] = mapped_column(EncryptedString, nullable=False)
-    card_last4: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    card_last4: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="active")
     linked_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
 
@@ -139,12 +139,12 @@ class Transaction(Base):
 
     trans_id: Mapped[str] = mapped_column(String, primary_key=True)
     rec_code: Mapped[str] = mapped_column(String, nullable=False)
-    send_wal_id: Mapped[Optional[str]] = mapped_column(ForeignKey("wallets.wallet_id"), nullable=True)
-    send_bank_account_id: Mapped[Optional[str]] = mapped_column(
+    send_wal_id: Mapped[str | None] = mapped_column(ForeignKey("wallets.wallet_id"), nullable=True)
+    send_bank_account_id: Mapped[str | None] = mapped_column(
         ForeignKey("bank_accounts.bank_account_id"), nullable=True
     )
-    rec_wal_id: Mapped[Optional[str]] = mapped_column(ForeignKey("wallets.wallet_id"), nullable=True)
-    rec_bank_account_id: Mapped[Optional[str]] = mapped_column(
+    rec_wal_id: Mapped[str | None] = mapped_column(ForeignKey("wallets.wallet_id"), nullable=True)
+    rec_bank_account_id: Mapped[str | None] = mapped_column(
         ForeignKey("bank_accounts.bank_account_id"), nullable=True
     )
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -154,8 +154,8 @@ class Transaction(Base):
     channel: Mapped[str] = mapped_column(String, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
-    completed_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
-    des: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    completed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    des: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class TransactionEvent(Base):
@@ -179,7 +179,7 @@ class TransactionEvent(Base):
     status_from: Mapped[str] = mapped_column(String, nullable=False)
     status_to: Mapped[str] = mapped_column(String, nullable=False)
     occurred_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
-    payload_json: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +215,7 @@ class Complaint(Base):
 
     complaint_id: Mapped[str] = mapped_column(String, primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
-    trans_id: Mapped[Optional[str]] = mapped_column(ForeignKey("transactions.trans_id"), nullable=True)
+    trans_id: Mapped[str | None] = mapped_column(ForeignKey("transactions.trans_id"), nullable=True)
     type: Mapped[str] = mapped_column(String, nullable=False)
     scope: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="investigating")
@@ -275,10 +275,10 @@ class InvestigationLog(Base):
     step_no: Mapped[int] = mapped_column(Integer, nullable=False)
     tool_called: Mapped[str] = mapped_column(String, nullable=False)
     tool_input_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
-    tool_result_id: Mapped[Optional[str]] = mapped_column(
+    tool_result_id: Mapped[str | None] = mapped_column(
         ForeignKey("tool_results.tool_result_id"), nullable=True
     )
-    agent_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    agent_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 
 
@@ -306,13 +306,13 @@ class Resolution(Base):
     resolution_id: Mapped[str] = mapped_column(String, primary_key=True)
     ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
     action_type: Mapped[str] = mapped_column(String, nullable=False)
-    amount: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    destination_ref: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    destination_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     cited_tool_result_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
-    approved_by: Mapped[Optional[str]] = mapped_column(ForeignKey("users.user_id"), nullable=True)
-    approved_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
+    approved_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 
 
@@ -330,8 +330,8 @@ class Escalation(Base):
     reason: Mapped[str] = mapped_column(Text, nullable=False)  # NOT NULL — mã tín hiệu, không phải kết luận
     created_by: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
-    partner_response_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    responded_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    partner_response_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    responded_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 # ---------------------------------------------------------------------------
@@ -352,13 +352,13 @@ class AuthSession(Base):
 
     session_id: Mapped[str] = mapped_column(String, primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
-    otp_code: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    otp_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    otp_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    otp_status: Mapped[str | None] = mapped_column(String, nullable=True)
     security_q_passed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    locked_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
-    resolution_id: Mapped[Optional[str]] = mapped_column(ForeignKey("resolutions.resolution_id"), nullable=True)
-    amount_snapshot: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    locked_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    resolution_id: Mapped[str | None] = mapped_column(ForeignKey("resolutions.resolution_id"), nullable=True)
+    amount_snapshot: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 
 
@@ -380,12 +380,12 @@ class ChatSession(Base):
     ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
     customer_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="waiting")
-    claimed_by: Mapped[Optional[str]] = mapped_column(ForeignKey("users.user_id"), nullable=True)
+    claimed_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     started_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
-    claimed_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
-    closed_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
-    csat_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    csat_submitted_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime, nullable=True)
+    claimed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    closed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    csat_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    csat_submitted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Message(Base):
@@ -405,7 +405,7 @@ class Message(Base):
 
     message_id: Mapped[str] = mapped_column(String, primary_key=True)
     chat_session_id: Mapped[str] = mapped_column(ForeignKey("chat_sessions.chat_session_id"), nullable=False)
-    ticket_id: Mapped[Optional[str]] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=True)
+    ticket_id: Mapped[str | None] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=True)
     role: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     tool_call_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
@@ -434,7 +434,7 @@ class PolicyDocument(Base):
     uploaded_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
     status: Mapped[str] = mapped_column(String, nullable=False, default="processing")
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class PolicyChunk(Base):

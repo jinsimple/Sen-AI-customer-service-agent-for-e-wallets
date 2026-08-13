@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from sqlalchemy import select
@@ -66,9 +66,9 @@ def create_ticket_with_fraud_check(
     complaint_type: str,
     scope: str,
     description_raw: str,
-    trans_id: Optional[str] = None,
+    trans_id: str | None = None,
     otp_disclosed: bool = False,
-    now: Optional[dt.datetime] = None,
+    now: dt.datetime | None = None,
 ) -> dict[str, Any]:
     """Tính tín hiệu gian lận từ dữ liệu DB rồi tạo ticket — thay vì để agent
     tự truyền `fraud_signals` tay (rủi ro agent quên/bịa tín hiệu). Đây là
@@ -112,8 +112,8 @@ def flag_human_handoff(
     *,
     user_id: str,
     reason: str,
-    ticket_id: Optional[str] = None,
-    now: Optional[dt.datetime] = None,
+    ticket_id: str | None = None,
+    now: dt.datetime | None = None,
 ) -> dict[str, Any]:
     """CTRL-001 (FIN05_QA_TestCases.jsonl, 2026-08-11) — khách chủ động yêu
     cầu gặp người thật (ISO/IEC 25059 'user controllability'). Kiến trúc

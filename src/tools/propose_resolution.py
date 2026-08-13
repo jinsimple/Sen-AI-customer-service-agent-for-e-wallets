@@ -12,7 +12,7 @@ phải trỏ tới tool_results CÓ THẬT trong DB, nếu không từ chối t�
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -34,9 +34,9 @@ def propose_resolution(
     ticket_id: str,
     action_type: str,
     rationale: str,
-    amount: Optional[int] = None,
-    destination_ref: Optional[str] = None,
-    cited_tool_result_ids: Optional[list[str]] = None,
+    amount: int | None = None,
+    destination_ref: str | None = None,
+    cited_tool_result_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     if action_type not in VALID_ACTION_TYPES:
         raise ToolError(f"action_type không hợp lệ: {action_type}")

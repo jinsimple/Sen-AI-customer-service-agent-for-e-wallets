@@ -4,7 +4,7 @@ không cache, không giá trị mẫu."""
 from __future__ import annotations
 
 import datetime as dt
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,8 +15,8 @@ from src.db.models import Complaint, Escalation, Resolution, Ticket
 def build_summary(
     session: Session,
     *,
-    date_from: Optional[dt.datetime] = None,
-    date_to: Optional[dt.datetime] = None,
+    date_from: dt.datetime | None = None,
+    date_to: dt.datetime | None = None,
 ) -> dict[str, Any]:
     stmt = select(Ticket)
     if date_from is not None:

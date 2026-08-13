@@ -62,8 +62,8 @@ def test_writes_one_log_row_per_investigation_tool_call_in_order(sample_db):
     sample_db.commit()
 
     logs = sample_db.query(InvestigationLog).filter_by(ticket_id=ticket_id).order_by(InvestigationLog.step_no).all()
-    assert [l.tool_called for l in logs] == ["lookup_transaction", "create_ticket"]
-    assert [l.step_no for l in logs] == [1, 2]
+    assert [lg.tool_called for lg in logs] == ["lookup_transaction", "create_ticket"]
+    assert [lg.step_no for lg in logs] == [1, 2]
     assert logs[0].tool_input_json == {"trans_id": "TXN-0001"}
     # created_at tăng dần đúng thứ tự step_no (US-004: CSKH xem lại đúng trình tự thật)
     assert logs[0].created_at < logs[1].created_at
@@ -111,7 +111,7 @@ def test_scopes_correctly_when_two_tickets_created_in_same_thread(sample_db):
     sample_db.commit()
 
     logs_t2 = sample_db.query(InvestigationLog).filter_by(ticket_id=ticket_2).all()
-    assert [l.tool_called for l in logs_t2] == ["get_customer_history", "create_ticket"]
+    assert [lg.tool_called for lg in logs_t2] == ["get_customer_history", "create_ticket"]
     # ticket_1 chưa từng được gọi write_investigation_logs_for_ticket -> đúng 0 dòng
     logs_t1 = sample_db.query(InvestigationLog).filter_by(ticket_id=ticket_1).all()
     assert logs_t1 == []
@@ -135,8 +135,8 @@ def test_non_investigation_tool_calls_are_excluded_from_trail(sample_db):
     sample_db.commit()
 
     logs = sample_db.query(InvestigationLog).filter_by(ticket_id=ticket_id).all()
-    assert "request_human_handoff" not in [l.tool_called for l in logs]
-    assert [l.tool_called for l in logs] == ["lookup_transaction", "create_ticket"]
+    assert "request_human_handoff" not in [lg.tool_called for lg in logs]
+    assert [lg.tool_called for lg in logs] == ["lookup_transaction", "create_ticket"]
 
 
 def test_no_matching_create_ticket_call_is_a_silent_no_op(sample_db):

@@ -1,7 +1,7 @@
 """Dependency injection cho FastAPI — 1 session SQLAlchemy / 1 request."""
 from __future__ import annotations
 
-from typing import Iterator
+from collections.abc import Iterator
 
 from sqlalchemy.orm import Session
 

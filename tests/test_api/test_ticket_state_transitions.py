@@ -13,8 +13,6 @@ src/api/main.py::request_more_info) vì đây là bug rõ ràng, không phải
 quyết định thiết kế cần chờ PO."""
 from __future__ import annotations
 
-import datetime as dt
-
 import pytest
 from fastapi.testclient import TestClient
 

@@ -69,7 +69,7 @@ def test_ingest_rejects_oversized_file(sample_db, _stub_vector_store):
 
 
 def test_delete_document_removes_db_rows_and_calls_store(sample_db, _stub_vector_store):
-    content = "Nội dung chính sách cần xoá.".encode("utf-8")
+    content = "Nội dung chính sách cần xoá.".encode()
     doc = ingest_document(sample_db, file_bytes=content, filename="temp.txt", uploaded_by="USR-SUP")
     doc_id = doc.doc_id
 
