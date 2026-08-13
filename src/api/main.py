@@ -39,7 +39,7 @@ from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.agents.graph import run_agent_turn
+from src.agents.graph import close_checkpointer, run_agent_turn
 from src.api.deps import get_session
 from src.api.live_chat_ws import live_chat_websocket_endpoint
 from src.api.live_chat_ws import manager as _live_chat_manager
@@ -1226,6 +1226,17 @@ def live_chat_submit_csat(
 
 
 app.add_api_websocket_route("/ws/live-chat", live_chat_websocket_endpoint)
+
+
+@app.on_event("shutdown")
+def _dong_tai_nguyen_khi_tat():
+    """Graceful shutdown — đóng pool checkpointer (ADR-014).
+
+    ConnectionPool của psycopg chạy thread nền; không đóng tường minh sẽ ném
+    PythonFinalizationError lúc interpreter thoát, và giữ kết nối Postgres cho
+    tới khi TCP timeout — ăn vào max_connections khi deploy liên tục.
+    """
+    close_checkpointer()
 
 
 @app.get("/health")

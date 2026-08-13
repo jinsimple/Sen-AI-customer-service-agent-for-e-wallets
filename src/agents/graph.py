@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any
@@ -25,6 +26,8 @@ from src.agents.prompt import build_system_prompt
 from src.agents.tools.customer_tools import build_customer_tools
 from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
+    DATABASE_URL,
+    DB_KIND,
     OPENAI_API_KEY,
     OPENAI_MAX_RETRIES,
     OPENAI_MODEL,
@@ -50,12 +53,93 @@ _logger = logging.getLogger("fin05.agents.graph")
 # hơn nhiều để chặn lặp vô hạn.
 _AGENT_RECURSION_LIMIT = 20
 
-# Singleton module-level: agent được build lại mỗi request (session/tools
-# gắn với request đó), nhưng checkpointer dùng chung 1 instance nên lịch sử
-# hội thoại nối tiếp được qua nhiều request cùng thread_id=user_id. Mất khi
-# restart process — chấp nhận được, khớp US-010 "không giữ ngữ cảnh xuyên
-# phiên đăng nhập khác nhau" (Brief).
-_CHECKPOINTER = MemorySaver()
+def _build_checkpointer():
+    """Nơi lưu bộ nhớ hội thoại của agent — quyết định KIẾN TRÚC, không chỉ kỹ thuật.
+
+    TRƯỚC 2026-08-13: `MemorySaver()` giữ toàn bộ hội thoại trong RAM của MỘT
+    process. Hệ quả kéo dài suốt dự án:
+      - Backend BẮT BUỘC chạy đúng 1 worker (ghi rõ trong Dockerfile). Máy 10
+        vCPU chỉ dùng được 1 — lãng phí 90% năng lực, và 150 người dùng đồng
+        thời chia chung một event loop duy nhất.
+      - Restart backend = MỌI khách mất sạch ngữ cảnh giữa chừng. Với buổi test
+        150 người, một lần deploy/crash là hỏng cả buổi.
+
+    PostgresSaver đưa state ra ngoài process (đúng nguyên tắc "stateless
+    processes" của 12-Factor), mở đường cho multi-worker VÀ giúp hội thoại sống
+    sót qua restart.
+
+    FALLBACK CÓ CHỦ ĐÍCH, KHÔNG IM LẶNG: test chạy trên SQLite (conftest tạo
+    engine tạm riêng mỗi test) — PostgresSaver không chạy được ở đó. Rơi về
+    MemorySaver khi DB không phải Postgres là ĐÚNG cho test, nhưng phải GHI LOG
+    rõ ràng, không lặp lại bài học DATABASE_URL (ADR-013): một fallback im lặng
+    từng làm hệ thống âm thầm tách đôi database.
+
+    Xem ADR-014.
+    """
+    if DB_KIND != "postgresql":
+        _logger.warning(
+            "checkpointer_in_memory",
+            extra={"db_kind": DB_KIND, "ly_do": "DB không phải Postgres — hội thoại "
+                   "chỉ nằm trong RAM, mất khi restart, KHÔNG chạy được multi-worker. "
+                   "Bình thường với test/SQLite; nếu thấy dòng này ở production là SAI."},
+        )
+        return MemorySaver()
+
+    from langgraph.checkpoint.postgres import PostgresSaver
+    from psycopg_pool import ConnectionPool
+
+    # DATABASE_URL ở dạng SQLAlchemy (postgresql+psycopg2://) — psycopg3 mà
+    # langgraph dùng cần dạng chuẩn (postgresql://). Đổi ở đây thay vì bắt
+    # người vận hành khai 2 biến dễ lệch nhau.
+    conninfo = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql://", 1)
+    pool = ConnectionPool(
+        conninfo=conninfo,
+        max_size=_CHECKPOINT_POOL_MAX,
+        # autocommit BẮT BUỘC: PostgresSaver tự quản giao dịch của nó, để
+        # psycopg mở transaction ngầm sẽ giữ khoá và treo khi nhiều worker ghi.
+        kwargs={"autocommit": True, "prepare_threshold": 0},
+        open=True,
+    )
+    saver = PostgresSaver(pool)
+    saver.setup()  # idempotent — tự tạo bảng checkpoint nếu chưa có
+    global _CHECKPOINT_POOL
+    _CHECKPOINT_POOL = pool  # giữ tham chiếu để đóng sạch lúc shutdown
+    _logger.info("checkpointer_postgres", extra={"pool_max": _CHECKPOINT_POOL_MAX})
+    return saver
+
+
+def close_checkpointer() -> None:
+    """Đóng pool của checkpointer — gọi từ FastAPI shutdown (src/api/main.py).
+
+    ConnectionPool của psycopg chạy thread nền; không đóng tường minh thì lúc
+    interpreter thoát sẽ ném `PythonFinalizationError: cannot join thread at
+    interpreter shutdown` (đã gặp thật lúc verify). Với server chạy dài thì
+    lỗi này chỉ bẩn log lúc tắt, nhưng graceful shutdown là yêu cầu bắt buộc
+    của checklist đóng gói production — và pool không đóng còn giữ kết nối
+    Postgres cho tới khi TCP timeout, ăn vào max_connections khi deploy liên tục.
+    """
+    global _CHECKPOINT_POOL
+    if _CHECKPOINT_POOL is not None:
+        try:
+            _CHECKPOINT_POOL.close()
+            _logger.info("checkpointer_pool_closed")
+        except Exception as e:  # noqa: BLE001 — shutdown không được ném lỗi ra ngoài
+            _logger.warning("checkpointer_pool_close_failed", extra={"loi": repr(e)})
+        finally:
+            _CHECKPOINT_POOL = None
+
+
+# Pool riêng cho checkpointer, TÁCH khỏi pool của SQLAlchemy: hai thứ này có
+# nhịp truy cập khác nhau (checkpoint ghi mỗi bước ReAct, ORM đọc/ghi nghiệp vụ)
+# và gộp chung sẽ làm nghẽn lẫn nhau. Tổng kết nối = workers x (pool ORM + pool
+# này) phải nhỏ hơn max_connections của Postgres (mặc định 100).
+_CHECKPOINT_POOL_MAX = int(os.environ.get("CHECKPOINT_POOL_MAX", "5"))
+_CHECKPOINT_POOL = None  # gán trong _build_checkpointer(), đóng ở close_checkpointer()
+
+# Singleton module-level: agent được build lại mỗi request (session/tools gắn
+# với request đó), nhưng checkpointer dùng chung 1 instance nên lịch sử hội
+# thoại nối tiếp được qua nhiều request cùng thread_id.
+_CHECKPOINTER = _build_checkpointer()
 
 # Sentinel — phân biệt "không truyền otp_verified_at" (backward-compat: coi như
 # vừa xác thực XONG, dùng bởi eval harness/test hiện có vốn giả định "khách đã

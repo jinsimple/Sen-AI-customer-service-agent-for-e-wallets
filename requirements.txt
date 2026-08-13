@@ -14,6 +14,11 @@ python-dotenv>=1.0.0
 langchain>=0.3.0
 langchain-openai>=0.3.0
 langgraph>=0.2.0
+# Checkpointer Postgres (ADR-014) — thay MemorySaver để bộ nhớ hội thoại nằm
+# NGOÀI process: mở đường chạy multi-worker và giúp hội thoại sống sót qua
+# restart backend. Kéo theo psycopg (v3) + psycopg_pool, KHÁC psycopg2-binary
+# mà SQLAlchemy dùng — hai driver cùng tồn tại, không xung đột.
+langgraph-checkpoint-postgres>=3.1.2
 
 # Database — backend thật (src/db, scripts/seed_db.py) đã dùng, xem FIN05-Backend-Handoff.md
 sqlalchemy>=2.0
