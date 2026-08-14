@@ -47,5 +47,11 @@ tách việc riêng ngay sau.
 
 ## Chốt của PO thật
 
-- [ ] DUYỆT toàn gói theo phiếu này (kèm sửa INV-14)
-- [ ] Ý kiến khác: …
+- [x] **DUYỆT toàn gói theo phiếu này (kèm sửa INV-14)** — PO duyệt 14/08/2026.
+- **Điều chỉnh ③ theo TM-03 của security (chặt hơn phiếu gốc, thay thế điều
+  kiện (a)):** ghi chú tự do được phép TRONG hệ thống (scrub lúc ghi · ≤500
+  ký tự · chỉ route staff), nhưng **KHÔNG BAO GIỜ xuất ra ngoài** — kể cả đã
+  scrub, kể cả vào `eval/candidates/`. File xuất chỉ mang enum. Người duyệt
+  đọc ghi chú trong hệ thống rồi TỰ VIẾT LẠI case bằng lời mình + dữ liệu
+  seed tổng hợp (luật "cấm nguyên văn" — `docs/security/threat-model-learning-loop.md`).
+  Bắt buộc ghi chú với `khac`, tuỳ chọn với giá trị còn lại.
