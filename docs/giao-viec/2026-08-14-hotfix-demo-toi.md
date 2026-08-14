@@ -44,17 +44,33 @@
   3. Dọn dữ liệu test: sửa RES-b8d2c7798d53 về 107000 hoặc xoá — để màn demo
      không còn "6đ" (1 UPDATE, ghi rõ trong báo cáo).
 
-### V4 — (PO phát hiện thêm khi soi trail) tool call đầu trả `null`
-- Investigation trail hiện bước 1 `get_customer_history` kết quả `null` (06:58)
-  rồi bước 2 mới có dữ liệu. Điều tra nhanh vì sao (OTP chưa verify? lỗi nuốt
-  exception?) — nếu là hành vi hợp lệ thì hiển thị phải nói rõ lý do thay vì
-  `null` trần. Không blocker, sửa nếu rẻ.
+### V4 — tool call đầu trả `null` trong trail — GỐC ĐÃ RÕ (xem V5)
+- Bước 1 `get_customer_history` = lần gọi BỊ CHẶN vì chưa OTP (khớp ảnh chụp
+  của PO: agent xin OTP ngay sau đó). Fix hiển thị: trail ghi rõ "bị chặn —
+  cần OTP phiên" thay vì `null` trần. Rẻ, làm cùng V5.
+
+### V5 — SAU KHI OTP XONG, AGENT BẮT KHÁCH GÕ LẠI — vi phạm US-010
+- Tái hiện của PO thật: khách gõ "mình chuyển nhầm 107.000" → bị chặn OTP →
+  xác thực xong → hệ thống nói "bạn tiếp tục hỏi mình nhé" → khách phải gõ
+  LẠI nguyên câu. US-010: "trong cùng phiên, không hỏi lại thông tin đã cung
+  cấp" — tin nhắn cũ vẫn nằm trong thread (PostgresSaver), agent có đủ để tự
+  tra tiếp.
+- **Fix đề xuất (frontend, ít rủi ro nhất):** sau khi verify OTP thành công,
+  tự động gửi lại tin nhắn CHƯA ĐƯỢC PHỤC VỤ gần nhất của khách vào
+  /agent/chat (ẩn, không vẽ bubble trùng) → agent chạy tiếp tự nhiên. Đổi
+  copy thành "Xác thực xong — mình tra tiếp yêu cầu vừa rồi nhé."
+- **ĐIỀU KIỆN AN TOÀN TRƯỚC DEMO:** chỉ làm nếu V1+V3 xong trong timebox và
+  diff nhỏ; phải test tay ≥2 lần cả nhánh (OTP giữa chừng) lẫn nhánh thường
+  (OTP trước, chat sau) để chắc không gửi trùng tin. KHÔNG kịp thì BỎ QUA —
+  demo D1–D4 xác thực OTP ngay sau đăng nhập nên không đi vào nhánh này,
+  chỉ dính nếu OTP step-up hết hạn giữa chừng (checklist đã dặn canh 15 phút).
+  Ghi nợ vào STATE nếu không làm.
 
 ## Thứ tự làm (timebox tổng 2h, ưu tiên trên xuống)
 1. V3.2 validation + V3.3 dọn dòng 6đ (chạm tiền — quan trọng nhất)
 2. V1 link "Mở trang Phê duyệt"
 3. V3.1 prefill
-4. V4 nếu còn giờ
+4. V5 + V4 (một cụm — chỉ khi 1–3 xong và còn ≥45 phút)
 5. Rebuild container + verify (grep code mới TRONG container) + 19/19 bất biến
    + báo PO thật test lại đúng luồng: CSKH trình (số tiền tự điền) → sếp vào
-   tab Phê duyệt → xin OTP → duyệt.
+   tab Phê duyệt → xin OTP → duyệt. Nếu làm V5: test thêm luồng OTP giữa chừng.
