@@ -624,9 +624,11 @@ A. **HẠ TẦNG ĐO (PO-agent duyệt, ưu tiên cao — dùng cho MỌI gate s
      graph.py phục vụ cả agent thật (giữ 0.2 cho tự nhiên) lẫn eval. Phải có
      đường riêng (env var / tham số harness) để CHỈ eval chạy temp=0, prod
      nguyên 0.2. Sửa graph.py hạ thẳng 0 là đổi hành vi sản phẩm — cấm.
-   - gate đổi từ "không ca nào xấu đi" sang SO TỔNG check hỏng qua k lượt
-     (chỉ tiêu chí gộp sống được trên hệ nhiễu). QA đã có --so-sanh; nâng
-     thành so-trung-bình-k-lượt.
+   - gate: **GIAO TẬP ca-xấu qua k lượt là phần KẾT LUẬN mở/đóng cổng**
+     (ca xấu ở mọi lượt = tín hiệu); so-TRUNG-BÌNH chỉ là CHỈ SỐ PHỤ báo xu
+     hướng, KHÔNG dùng mở/đóng cổng — QA đính chính đúng: trung bình vẫn gộp
+     mất "1 hồi quy thật lẫn 31 flip". (Sửa bản duyệt trước ghi "so tổng qua
+     k lượt" — chưa đủ, tổng cũng mù cùng chỗ.) QA trình kỹ khi vào hạng mục.
    - k=3 tối thiểu; cân nhắc n=40→120 (nhiễu giảm theo căn bậc hai, đã có
      sẵn 120 case). Chi phí: k=3×40 ≈ $0,66/cấu hình.
    - Đây là hạng mục RIÊNG của đợt kế tiếp, KHÔNG tính vào gói B2. Coder +
