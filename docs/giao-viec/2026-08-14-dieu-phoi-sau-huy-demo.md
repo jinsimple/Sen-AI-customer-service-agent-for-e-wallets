@@ -603,6 +603,47 @@ C4 + ADR-021: coder đang làm đúng lệnh, dự thảo theo đủ 3 điều k
   DUY NHẤT — đúng chỗ thủng, các route khác không cùng lỗi. Rà xong sớm =
   thu hẹp phạm vi C4 chính xác, không mò.
 
+## NHIỄU NỀN 20/40 — GÓI B2 KHÔNG KẾT LUẬN ĐƯỢC (PO phán quyết đêm 14→15/08)
+
+**Kết quả:** hai lượt HOÀN TOÀN GIỐNG NHAU (161529 vs 170312) → 20/40 ca flip
+check, 7 ca "xấu đi", tổng 30 vs 23 case lỗi — CHỈ DO NHIỄU. "Kết quả tốt
+nhất ngày" (30→23) TÁI LẬP BẰNG CÁCH KHÔNG LÀM GÌ. Coder tự phủ nhận báo cáo
+trước của chính mình — trung thực đúng chuẩn.
+
+**PO công nhận kết luận:** gate (c) không-hỏng theo quy tắc nhiễu-aware,
+NHƯNG gate (b) mất hiệu lực cùng lý do (4 ca B2 + 083 tự sạch ở nền lần 2
+prompt nguyên bản). 3 ca nghi 101/094/085 đều flip trong nhiễu → nhạy nhiễu.
+⇒ **~$1,5 đo hôm nay KHÔNG trả lời được câu hỏi gói B2** — LỖI THIẾT KẾ ĐO
+(một-lượt/cấu-hình trên 40 case không đủ phân giải), không phải lỗi ai.
+
+**PHÁN QUYẾT — TÁCH HAI CÂU HỎI:**
+
+A. **HẠ TẦNG ĐO (PO-agent duyệt, ưu tiên cao — dùng cho MỌI gate sau: B6 cắt
+   token, Phase 3 learning-loop):**
+   - temp=0 cho EVAL — NHƯNG ⚠️ ĐIỀU KIỆN CỨNG: KHÔNG hạ temp production.
+     graph.py phục vụ cả agent thật (giữ 0.2 cho tự nhiên) lẫn eval. Phải có
+     đường riêng (env var / tham số harness) để CHỈ eval chạy temp=0, prod
+     nguyên 0.2. Sửa graph.py hạ thẳng 0 là đổi hành vi sản phẩm — cấm.
+   - gate đổi từ "không ca nào xấu đi" sang SO TỔNG check hỏng qua k lượt
+     (chỉ tiêu chí gộp sống được trên hệ nhiễu). QA đã có --so-sanh; nâng
+     thành so-trung-bình-k-lượt.
+   - k=3 tối thiểu; cân nhắc n=40→120 (nhiễu giảm theo căn bậc hai, đã có
+     sẵn 120 case). Chi phí: k=3×40 ≈ $0,66/cấu hình.
+   - Đây là hạng mục RIÊNG của đợt kế tiếp, KHÔNG tính vào gói B2. Coder +
+     QA cùng thiết kế; KHÔNG làm đêm nay (cần đầu óc tỉnh).
+
+B. **LUẬT 4+1 (đánh đổi tiền/thời gian — CỜ CHO PO THẬT):** HOLD, patch giữ
+   ở scratchpad/b2_luat41.patch (không mất). Đo lại MỘT lần tử tế khi hạ
+   tầng A sẵn. PO-agent nghiêng phương án (c) của coder — không ship trên
+   giả thuyết chưa đo, nhưng cũng không chờ "bằng chứng" từ một phương pháp
+   đã biết là không cung cấp được. Lý do gắn cờ PO thật: (b) là input trực
+   tiếp cho quyết định LÙI MỐC 150 người — nếu bộ đo chất lượng cơ bản chưa
+   đủ phân giải thì KHÔNG có cơ sở tuyên bố "chất lượng đạt ngưỡng cho người
+   thật". Đây là bằng chứng mạnh nhất trong ngày cho khuyến nghị đóng-băng-
+   tính-năng.
+
+C4 độc lập, coder tiếp tục — không chờ A/B.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
