@@ -55,10 +55,9 @@ test.describe("TICKET-DETAIL-* — chi tiết ticket & hành động CSKH", () =
       // assert text này đổi. Nhãn đã quan sát trên bản build thật 14/08 16:47.
       //   refund_to_wallet -> "Hoàn tiền về ví"  (khớp `mo_ta` trong
       //     contracts/resolution-state-machine.yaml — nhãn có nguồn)
-      //   pending_approval -> "Chờ sếp duyệt"    (contract chỉ có câu mô tả
-      //     dài "Đã gửi, chờ sếp duyệt. CỔNG BẮT BUỘC...", không có nhãn ngắn
-      //     -> nhãn này NGOÀI contract, chờ PO duyệt; assert ở đây ghim đúng
-      //     chuỗi đang chạy để đổi nhãn lần sau là thấy đỏ ngay)
+      //   pending_approval -> "Chờ sếp duyệt"    (nguồn: MỆNH ĐỀ ĐẦU của
+      //     `mo_ta` — "Đã gửi, chờ sếp duyệt. CỔNG BẮT BUỘC trước mọi hành
+      //     động tiền." Nhãn có nguồn contract, đã duyệt 14/08)
       await expect(proposedSection).toContainText("Hoàn tiền về ví");
       await expect(proposedSection).toContainText("Chờ sếp duyệt");
     } finally {

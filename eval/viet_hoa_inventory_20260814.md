@@ -185,7 +185,7 @@ xanh khi vá.
 | **P1-3 "Chatbot AI"** | ❌ **CÒN — 3 chỗ, không chỉ nav** | (1) link nav `<a class="tab-btn active" href="/chat">Chatbot AI</a>` · (2) **`<h1>` của trang** · (3) vùng `alert` (live region đọc cho screen-reader) — sửa mỗi nav là còn sót 2. Eyebrow phía trên đã đúng tiếng Việt: "Chatbot khách hàng" |
 | P2-1 `refund_to_wallet` | ✅ | **"Hoàn tiền về ví"** (khớp `mo_ta`) |
 | P2-2 `refund_to_bank` | ✅ | **"Hoàn tiền về tài khoản ngân hàng"** (khớp `mo_ta`) |
-| P2-6 `pending_approval` | ✅ có nhãn | **"Chờ sếp duyệt"** — ⚠ xem mục dưới |
+| P2-6 `pending_approval` | ✅ | **"Chờ sếp duyệt"** — CÓ nguồn contract (xem đính chính dưới) |
 | P2-8 `Investigation trail` | ✅ | **"Nhật ký điều tra"** |
 | P2-9 mã US trên màn nhân viên | ✅ | còn `WEBAPP CSKH` / `WEBAPP SẾP` (đúng đề xuất: bỏ mã US, **giữ** nhãn vai), hết `US-005`/`US-017` |
 | P3-1 SLA | ✅ | **"còn 29 ngày"** (trước: `còn 712h44p`) |
@@ -193,13 +193,22 @@ xanh khi vá.
 | P2-3/4/5 `ledger_adjustment`·`no_action`·`manual_review` | ⏳ **CHƯA ĐO ĐƯỢC** | không có dữ liệu nào trên UI dùng 3 giá trị này |
 | P2-7 trạng thái giao dịch | ⏳ **CHƯA ĐO ĐƯỢC** | chỉ gặp trong JSON thô (xem "không phải lỗi") |
 
-## ⚠ `pending_approval` — nhãn NGOÀI contract, cần PO duyệt
+## ✅ `pending_approval` = "Chờ sếp duyệt" — ĐÃ DUYỆT, và tôi đã báo cáo SAI
 
-`contracts/resolution-state-machine.yaml` **không có nhãn ngắn** cho trạng thái
-này, chỉ có câu mô tả dài: *"Đã gửi, chờ sếp duyệt. CỔNG BẮT BUỘC trước mọi
-hành động tiền."* Nhãn **"Chờ sếp duyệt"** là coder tự đặt. Tôi thấy nó hợp lý
-(đúng nửa đầu câu mô tả) nhưng **không tự duyệt thay PO** — cùng nhóm ⚠ với
-`success`/`processing`. Đã ghim vào assert e2e để lần sau đổi nhãn là đỏ ngay.
+**Đính chính (PO chỉ ra, `14d80fc`):** tôi ghi nhãn này là "coder tự đặt,
+ngoài contract". **Sai.** `mo_ta` trong `contracts/resolution-state-machine.yaml`
+mở đầu bằng đúng cụm đó:
+
+> `pending_approval: "`**`Đã gửi, chờ sếp duyệt`**`. CỔNG BẮT BUỘC trước mọi hành động tiền."`
+
+Nhãn ngắn là **mệnh đề đầu của `mo_ta`** — có nguồn hẳn hoi. Lỗi của tôi là
+chỉ tìm nhãn ngắn dạng nguyên khối, thấy `mo_ta` là câu dài thì kết luận
+"không có nguồn", thay vì đọc chính câu đó. Cùng loại sai với việc đo trên
+container cũ: kết luận đúng quy trình nhưng dựa trên một phép tra thiếu.
+
+**Mapping phải ghi nguồn như sau** (để đợt sau không ai lại tưởng là tự đặt):
+`pending_approval` → "Chờ sếp duyệt" — *nguồn: `resolution-state-machine.yaml`,
+mệnh đề đầu của `mo_ta`*.
 
 ## KHÔNG phải lỗi — 3 chuỗi tiếng Anh tôi CỐ Ý không báo
 

@@ -52,7 +52,9 @@ def simulate_customer_reply(case: dict[str, Any], *, agent_question: str) -> str
     """Đóng vai khách hàng trả lời CÂU HỎI LÀM RÕ của agent — dùng cho
     run_case_turns_adaptive() (Hướng 1: harness đa lượt thật, xem quyết định
     2026-08-10). CHỈ được cấp dữ kiện khách THẬT SỰ tự biết về bản thân
-    (otp_disclosed, primary_trans_id nếu case có) — KHÔNG được cấp bất kỳ nhãn
+    (otp_disclosed, primary_trans_id nếu case có, và Ý ĐỊNH có muốn mở hồ sơ
+    khiếu nại hay không — thêm 14/08, xem lý do ở chỗ khai báo dữ kiện thứ 3)
+    — KHÔNG được cấp bất kỳ nhãn
     phân loại nội bộ nào (expected.complaint_type/scope/priority/fraud_signals)
     vì đó là thứ HARNESS phải tự đối chiếu sau khi agent kết luận, không phải
     thứ "mớm" trước cho agent qua lời khách — mớm vậy sẽ làm bài test vô nghĩa.
@@ -67,15 +69,32 @@ def simulate_customer_reply(case: dict[str, Any], *, agent_question: str) -> str
 
     known_otp = "CÓ, tôi từng đọc OTP cho người khác" if case.get("otp_disclosed") else "KHÔNG, tôi chưa từng đưa OTP cho ai"
     known_trans_id = case.get("primary_trans_id") or "(tôi không nhớ/không tra được mã)"
+    # Dữ kiện thứ 3 (thêm 14/08, sau phán quyết B2 "thông báo + đề nghị tạo hồ
+    # sơ, KHÁCH QUYẾT"): khách phải trả lời được lời ĐỀ NGHỊ MỞ HỒ SƠ.
+    #
+    # Vì sao đây KHÔNG vi phạm nguyên tắc "không mớm nhãn" ở docstring: ranh
+    # giới là ai sở hữu thông tin. `complaint_type`/`scope`/`priority`/
+    # `fraud_signals` là KẾT LUẬN NGHIỆP VỤ — agent phải tự rút ra, mớm vào là
+    # phá bài test. Còn "tôi có muốn mở hồ sơ không" là Ý ĐỊNH CỦA CHÍNH KHÁCH
+    # — họ tìm tới vì đang có vấn đề chưa được giải quyết, nên câu trả lời tự
+    # nhiên là đồng ý. Thiếu dữ kiện này, khách ảo rơi vào nhánh "hỏi thứ bạn
+    # không biết" và đáp "mình không có thông tin đó" — khiến MỌI case theo
+    # luồng 2 lượt của phán quyết B2 fail vì lỗi của công cụ đo, không phải
+    # lỗi của agent.
+    known_muon_mo_ho_so = (
+        "CÓ — tôi tìm tới vì vấn đề của tôi chưa được giải quyết, nên nếu được "
+        "đề nghị mở hồ sơ khiếu nại để chuyên viên kiểm tra thì tôi đồng ý"
+    )
     system = (
         "Bạn ĐÓNG VAI một khách hàng ví điện tử thật đang chat với CSKH, KHÔNG PHẢI trợ lý AI. "
         f"Bạn vừa nhắn: {' | '.join(case.get('utterances') or [])!r}\n"
         "Nhân viên/CSKH AI vừa hỏi lại bạn 1 câu. Trả lời NGẮN GỌN (1-2 câu), tự nhiên như người "
-        "thật gõ chat, CHỈ dựa đúng 2 dữ kiện sau về chính bạn — không bịa thêm gì khác, không tự "
+        "thật gõ chat, CHỈ dựa đúng 3 dữ kiện sau về chính bạn — không bịa thêm gì khác, không tự "
         "kết luận hộ loại khiếu nại/mức độ ưu tiên/có phải gian lận không (đó không phải việc của "
         "khách hàng):\n"
         f"- Bạn có từng đưa/đọc mã OTP cho người khác không: {known_otp}\n"
         f"- Mã giao dịch bạn có thể cung cấp nếu được hỏi: {known_trans_id}\n"
+        f"- Nếu CSKH ĐỀ NGHỊ mở hồ sơ khiếu nại cho bạn: {known_muon_mo_ho_so}\n"
         "Câu hỏi không khớp dữ kiện nào ở trên (hỏi thứ bạn không biết) → trả lời tự nhiên kiểu "
         "'mình không nhớ rõ/không có thông tin đó bạn ơi'."
     )
