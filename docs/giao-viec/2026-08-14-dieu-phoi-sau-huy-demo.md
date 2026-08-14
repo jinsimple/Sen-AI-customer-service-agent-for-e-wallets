@@ -855,3 +855,17 @@ coder commit cùng đợt INV-15 kẻo mất/commit nhầm.
 **⟹ ĐƯỜNG GĂNG DUY NHẤT: 3 việc PO THẬT** — PO-1 xoay key giảng viên · PO-2
 đặt OPENAI_API_KEY · PO-5 chốt mức che note (=ST2-P0-3). Đội máy hết việc tự
 làm được. Sau 3 việc: note code (13 test chờ) → CI xanh trọn → CI-4/5 → đóng.
+
+**ĐỀ XUẤT SỬA HIẾN PHÁP §3 (coder, chờ PO thật):** quy trình 7 bước thiếu
+bước commit `.claude/state/contract-hashes.json` — `check_contracts.py
+--update` SINH RA file này, quên commit thì local xanh / CI đỏ "CONTRACT ĐỔI
+CHƯA CHỐT BASELINE" (coder dính ở 08353fe, vá 45d4ed8). Sửa: thêm bước vào §3
+HOẶC cho script tự in lời nhắc sau --update. Việc sửa CLAUDE.md là của PO thật.
+
+**Điều kiện field note khi PO-5 có chính sách (coder giữ nguyên):** scrub LÚC
+GHI (không lúc đọc) · fail-closed · không mở phạm vi đọc · **+ GIỮ nội dung
+không-phải-PII** (che tới mức CSKH không gọi lại được khách = bản vá thành
+lỗi nghiệp vụ — đúng bài học C4 "vá bảo mật đừng cấm nhầm người hợp pháp").
+
+**Nợ QA còn treo:** CI-4/CI-5 — nhánh CÓ-CHẠY route-guards-docker chưa thực
+thi trên runner (cần push đụng frontend/contracts hoặc QA kích thủ công).
