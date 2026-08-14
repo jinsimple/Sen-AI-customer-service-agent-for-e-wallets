@@ -123,10 +123,20 @@ Nghiệm thu xong ghi kết quả từng dòng (đỏ được / xanh được) 
 `tests/test_data/test_thuoc_bat_dong.py` chạy **~40s** (ba lượt sinh dataset
 thật — không mock được, vì thứ cần canh chính là hành vi GHI FILE thật).
 
-Tôi **không** gắn `@pytest.mark.slow`: marker đó chưa khai trong `pytest.ini`,
-mà `pytest.ini` ngoài vùng ghi của tester. Nếu muốn tách nhóm chậm ra khỏi job
-nhanh, coder khai marker `slow` trong `pytest.ini` rồi tôi gắn — đừng để tôi
-gắn marker chưa khai, vì nó chỉ sinh cảnh báo mà không có tác dụng lọc nào.
+**Marker `slow` — xong** (coder khai `55e578d`, tester gắn `3` test). Đúng thứ
+tự vùng ghi: khai trước ở `pytest.ini` (coder), gắn sau ở `tests/` (tester) —
+gắn marker chưa khai chỉ sinh cảnh báo mà không lọc được gì.
+
+Đã kiểm marker lọc được THẬT, cả hai chiều:
+```
+pytest tests/test_data/ -m "not slow"  ->  4 passed, 3 deselected
+pytest tests/test_data/ -m "slow"      ->  3/7 tests collected
+```
+
+⚠️ **`slow` là để lọc lúc dev, KHÔNG phải để CI bỏ bớt phạm vi.** CI vẫn phải
+chạy đủ. Nếu một job nào đó dùng `-m "not slow"`, phải có job khác chạy nhóm
+`slow` — nếu không thì `CI-8` không được canh ở đâu cả, và ta quay lại đúng lỗ
+"test chỉ xanh trên máy một người".
 
 Test này **tự khôi phục file trong `finally`**, nên chạy bao nhiêu lần cũng
 không để lại hậu quả — kể cả khi guard bị gỡ và sản phẩm ghi đè thật.

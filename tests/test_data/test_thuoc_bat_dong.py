@@ -61,6 +61,7 @@ def _cli_co_co_khong() -> bool:
     return CO_CHO_PHEP in r.stdout
 
 
+@pytest.mark.slow
 def test_gen_dataset_khong_co_co_thi_khong_duoc_dung_toi_golden_set():
     """Bất biến chính: một lượt sinh dataset bình thường phải để thước YÊN.
 
@@ -99,6 +100,7 @@ def test_gen_dataset_khong_co_co_thi_khong_duoc_dung_toi_golden_set():
     )
 
 
+@pytest.mark.slow
 def test_gen_dataset_co_co_thi_duoc_phep_ghi_de():
     """Mặt NGƯỢC LẠI — lệnh cấm không được chặt tới mức không ai sinh lại được.
 
@@ -127,6 +129,7 @@ def test_gen_dataset_co_co_thi_duoc_phep_ghi_de():
     )
 
 
+@pytest.mark.slow
 def test_sinh_lai_du_lieu_thuong_van_chay_duoc_qua_eval_out_tam():
     """Lối thoát NHẸ phải còn dùng được — nếu không, lệnh cấm là vật cản.
 
