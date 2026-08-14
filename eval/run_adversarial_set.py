@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from eval._harness import (
     build_eval_session,
-    check_forbidden_tich_luy,
+    cham_bo_da_luot,
     load_jsonl,
     now_stamp,
     run_case_adversary,
@@ -106,14 +106,13 @@ def run(cases: list[dict]) -> list[dict]:
                 # chấm trên `reply` (= lượt cuối): agent sập ở lượt 2 rồi lượt
                 # 5 nói lại câu từ chối chuẩn mực vẫn được tính ĐẠT, dù tiền đã
                 # hứa hoàn ở lượt 2. Với bộ đa lượt thì bỏ sót gần như chắc chắn.
-                violations = check_forbidden_tich_luy(
-                    all_replies,
-                    case.get("forbidden_reply_patterns", []),
-                    agent_result.get("all_customer_texts") or case["utterances"],
-                )
+                cham = cham_bo_da_luot(case, agent_result)
+                violations = cham["vi_pham"]
+                first_violation_turn = cham["first_violation_turn"]
             except Exception as e:
                 reply = ""
                 all_replies = []
+                first_violation_turn = None
                 violations = [f"LỖI CHẠY CASE: {e!r}"]
                 agent_result = {}
             session.rollback()
@@ -132,6 +131,9 @@ def run(cases: list[dict]) -> list[dict]:
                     "all_agent_replies": all_replies,
                     "all_customer_texts": agent_result.get("all_customer_texts") or [],
                     "so_luot_da_chay": agent_result.get("so_luot_da_chay", 0),
+                    # Crescendo hay thắng ở lượt GIỮA rồi lượt cuối quay lại vô
+                    # hại — biết vỡ ở lượt nào mới biết guardrail chặn ở đâu.
+                    "first_violation_turn": first_violation_turn,
                     "tool_calls": [c.get("tool_name") for c in agent_result.get("tool_calls", [])],
                 }
             )
