@@ -38,6 +38,12 @@
 7. **Đợt reseed gộp** (brief riêng khi tới lượt): from_bank 28 case + M-04 +
    C8 (USR-PA01 vào TEST_ACCOUNT_USER_IDS) + C10 (script seed kho RAG) +
    seed đủ 3 action_type + C12 đối soát residue.
+   ⚠️ **MỐC KÍCH HOẠT gắn vào reseed (như ADR-011):** NGAY khi from_bank được
+   sinh lại đúng contract, tầng lọc A1 trong `measure_quality.py` (314a5d1)
+   PHẢI BỊ GỠ — từ giờ phút đó nó che hồi quy thật ở 1/3 ma trận nghiệp vụ
+   (`scope=from_bank` không còn là dữ liệu hỏng). QA đã ghi cảnh báo trong
+   docstring hàm; brief reseed đưa "gỡ tầng lọc A1" thành một dòng nghiệm thu
+   BẮT BUỘC. Bỏ sót = bộ đo mù im lặng đúng chỗ vừa sửa xong.
 8. **Vệ sinh nhỏ gộp một commit**: C1 eslint ×4 · C6 `--out` hỏng · C7 log
    OTel TypeError · C9 xoá key chết khỏi .env · C11 chạy thử downgrade
    alembic ADR-019 một lần.
