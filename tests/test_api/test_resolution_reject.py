@@ -100,7 +100,7 @@ def test_sec_a_reject_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, n
         f"Contract chỉ cho pending_approval → rejected. Body: {resp.text[:200]}"
     )
     assert sample_db.get(Resolution, resolution_id).status == nguon, (
-        f"Trạng thái bị đổi dù request bị từ chối — rollback không sạch."
+        "Trạng thái bị đổi dù request bị từ chối — rollback không sạch."
     )
 
 
@@ -160,21 +160,33 @@ def test_sec_b_approve_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, 
     """`draft → approved` là đường tắt bỏ qua bước trình duyệt; `rejected →
     approved` là lật ngược một lần từ chối. Cả hai đều không có trong contract.
 
-    KHÔNG kèm OTP hợp lệ ở đây là CÓ CHỦ Ý: dù request có thiếu OTP đi nữa,
-    nó vẫn không được phép trả 2xx. Test chỉ khẳng định "không thành công" —
-    mã lỗi cụ thể (400 sai trạng thái hay 403 thiếu OTP) là chi tiết triển
-    khai, không phải điều contract quy định.
+    ĐI QUA CỔNG OTP THẬT (xin OTP hợp lệ rồi mới approve) là điểm mấu chốt của
+    test này, và là bài học từ chính bản đầu của nó: bản đầu gửi OTP rác rồi
+    chỉ assert `status_code >= 400`. Nó XANH — nhưng xanh vì request chết ở
+    cổng OTP, KHÔNG BAO GIỜ chạm tới guard trạng thái phía sau. Tức là nó
+    không hề chứng minh điều nó tuyên bố, và che mất đúng lỗ SEC-B mà nó sinh
+    ra để canh.
+
+    Bài học chung: một assertion đủ lỏng (`>= 400`) trên một request chết sớm
+    là test luôn-xanh trá hình. Muốn canh tầng N thì request phải sống qua
+    được tầng N-1.
     """
     resolution_id = _make_resolution(sample_db)
+    headers = _auth("supervisor", "USR-SUP")
+    # Xin OTP TRƯỚC khi đổi trạng thái: route xin OTP nhiều khả năng cũng chỉ
+    # cấp cho resolution đang chờ duyệt. Ta cần OTP hợp lệ để loại trừ tầng
+    # OTP khỏi phép thử, cô lập đúng thứ đang đo là guard TRẠNG THÁI.
+    otp = client.post(f"/resolutions/{resolution_id}/request-approval-otp", headers=headers).json()
     _dat_trang_thai(sample_db, resolution_id, nguon)
 
     resp = client.post(
         f"/resolutions/{resolution_id}/approve",
-        json={"session_id": "SES-khong-ton-tai", "otp_code": "000000"},
-        headers=_auth("supervisor", "USR-SUP"),
+        json={"session_id": otp["session_id"], "otp_code": otp["otp_code"]},
+        headers=headers,
     )
-    assert resp.status_code >= 400, (
-        f"approve từ '{nguon}' trả {resp.status_code} — phải thất bại. "
+    assert resp.status_code == 400, (
+        f"approve từ '{nguon}' với OTP HỢP LỆ trả {resp.status_code}, phải là 400. "
+        f"Contract chỉ cho pending_approval → approved (CỬA DUY NHẤT, ADR-002). "
         f"Body: {resp.text[:200]}"
     )
     assert sample_db.get(Resolution, resolution_id).status == nguon, (

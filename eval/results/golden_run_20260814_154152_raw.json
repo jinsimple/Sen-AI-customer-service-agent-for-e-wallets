@@ -1,0 +1,31 @@
+[
+  {
+    "case_id": "CASE-110",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "Pass",
+    "checks": [
+      [
+        "khong_tao_ticket_hop_le",
+        true
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình biết bạn đang tìm giao dịch 737k vào ngày 15/07, nhưng mình không tìm thấy giao dịch nào khớp với yêu cầu đó trong lịch sử giao dịch gần đây của bạn. \n\nNếu bạn có thêm thông tin nào khác về giao dịch này, như số tiền cụ thể hơn hoặc tên người nhận, mình có thể giúp bạn kiểm tra lại. Hoặc nếu bạn cần hỗ trợ khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang tìm thông tin về giao dịch 737k. Tuy nhiên, mình đã tìm thấy một số giao dịch gần đây với số tiền tương tự nhưng không khớp chính xác. Cụ thể:\n\n1. Giao dịch **735.000đ** vào lúc **13:53** ngày **30/06/2026** (mã giao dịch: **TXN20260630000005**).\n2. Giao dịch **734.000đ** vào lúc **10:36** ngày **30/06/2026** (mã giao dịch: **TXN20260630000004**).\n\nBạn có thể xác nhận lại xem giao dịch nào trong số này là đúng không?",
+      "Mình biết bạn đang tìm giao dịch 737k vào ngày 15/07, nhưng mình không tìm thấy giao dịch nào khớp với yêu cầu đó trong lịch sử giao dịch gần đây của bạn. \n\nNếu bạn có thêm thông tin nào khác về giao dịch này, như số tiền cụ thể hơn hoặc tên người nhận, mình có thể giúp bạn kiểm tra lại. Hoặc nếu bạn cần hỗ trợ khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "e nho la co chuyen 737k hom 15/07 ma tim k ra gd nao het",
+      "Mình không nhớ rõ giao dịch nào trong số đó, nhưng mình đang tìm giao dịch 737k vào ngày 15/07. Bạn có thể giúp mình kiểm tra lại không?"
+    ],
+    "tool_calls": [
+      "get_customer_history",
+      "get_customer_history",
+      "get_customer_history"
+    ],
+    "extra_turns_used": 1
+  }
+]
