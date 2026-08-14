@@ -52,10 +52,16 @@ Cập nhật: **2026-08-14 chiều** · Phiên vừa rồi: PO (điều phối 2
 ## Chặn / chờ (việc của PO)
 
 - **Nâng tier OpenAI** (Tier 1 = 200K TPM ⇒ ~13 lượt/phút toàn hệ) + **DPA**.
-- **Xoay LANGCHAIN_API_KEY sau demo** — key hiện nguyên văn trong log phiên QA.
+- ~~Xoay LANGCHAIN_API_KEY~~ — XONG 14/08 (PO xác nhận trong phiên coder).
 - Quyết ST2-P0-3 (PII live-chat cho staff) TRƯỚC đợt 150 người thật (mốc ADR-011).
-- QA-07: docs còn nói passwordless (đã dùng mật khẩu) → sửa docs + chạy lại
-  `scripts/export_project_knowledge.py` + upload (snapshot đang cũ hơn 5 commit).
+- QA-07: docs còn nói passwordless (đã dùng mật khẩu) → sửa docs.
+- **CƠ CHẾ UPLOAD project-knowledge ĐÃ LỖI THỜI (chốt 14/08):** toàn bộ 4 vai
+  giờ chạy Claude Code trực tiếp trên repo — git là cơ chế đồng bộ, các phiên
+  đọc contracts/STATE/DECISIONS bản sống. KHÔNG còn bước export+upload định
+  kỳ. `scripts/export_project_knowledge.py` giữ lại CHỈ dùng khi nào quay lại
+  mở chat web claude.ai trong Project fin05. Kỷ luật thay thế: tester không
+  đọc src/ được ép bằng định nghĩa vai (.claude/agents/) + brief, không bằng
+  ảnh chụp nữa.
 
 ## Phát hiện mới từ smoke sáng 14/08 (không chặn demo, xử lý sau)
 
