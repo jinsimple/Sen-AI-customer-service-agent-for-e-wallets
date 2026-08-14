@@ -79,6 +79,41 @@ xanh, KHÔNG sửa ánh xạ. Bốn lý do:
 Ghi chú kèm: 2 test đỏ của bộ quét là ĐỎ ĐÚNG cho tới khi coder vá — cấm
 "làm xanh" bằng nới test (đồng ý nguyên văn cảnh báo của tester).
 
+## PHÁN QUYẾT đợt nghiệm thu Đợt 2 (PO, tối 14/08)
+
+1. **Nhãn `pending_approval` = "Chờ sếp duyệt" — DUYỆT.** Không phải nhãn tự
+   đặt hoàn toàn: contract mô tả trạng thái này mở đầu bằng đúng cụm "Đã gửi,
+   chờ sếp duyệt" — nhãn ngắn là mệnh đề đầu của mo_ta. Ghi nguồn vậy trong
+   mapping.
+2. **"Chatbot AI" (nav · h1 · alert screen-reader) → "Trợ lý AI"** — thống
+   nhất với câu minh bạch đã duyệt ("Trợ lý AI — mọi con số đều được tra cứu
+   từ hệ thống thật") và giọng thương hiệu "Sen — Trợ lý CSKH". Sửa cả 3 chỗ,
+   kể cả alert cho screen-reader (khiếm thị cũng là người dùng).
+3. **Ca B2 — phán quyết CŨ GIỮ NGUYÊN, giờ KÍCH HOẠT THI HÀNH** (đã ghi trong
+   lệnh duyệt Phase 0, PO thật không phản đối trong thời hạn): hành vi đúng =
+   thông báo trạng thái + mốc thời gian từ dữ liệu + ĐỀ NGHỊ tạo hồ sơ, khách
+   quyết. Thi hành:
+   - Coder: sửa prompt/hành vi agent cho ca giao dịch `processing`. Đây là
+     THAY ĐỔI PROMPT → bắt buộc qua cổng đo: chạy paired eval 40 case trên bộ
+     chấm đã làm sạch, gate 0% bịa thật, trước khi merge. Không ngoại lệ —
+     đây chính là lằn ranh 2 của kế hoạch learning-loop.
+   - Tester: sau khi hành vi mới lên, sửa nhãn 4 case B2 + e2e ticket-detail
+     assert luồng 2 lượt (đề nghị → khách xác nhận → ticket). KHÔNG nới trần
+     150s.
+4. **3 giá trị action_type chưa đo được trên UI** (ledger_adjustment ·
+   no_action · manual_review): CHẤP NHẬN bằng chứng exhaustive compile-time
+   (Record<ActionType, string> — thiếu là không build được) cho đợt này;
+   thêm dòng vào checklist nghiệm thu ĐỢT RESEED sắp tới: seed phải sinh ít
+   nhất 1 resolution mỗi loại để 3 nhãn này được thấy bằng mắt một lần.
+5. **Guard supervisor × /dashboard**: coder vá nốt (phán quyết đã ra trước
+   commit fd20b12 hai phút — chỉ là lệch nhịp, không phải bất đồng). Mục
+   tiêu: bộ quét 24/24 xanh.
+6. **Xoay key LangSmith — NHẮC LẦN 3, việc của PO thật, 5 phút, không phụ
+   thuộc gì cả:** vào smith.langchain.com → Settings → API Keys → Revoke key
+   cũ → tạo key mới → cập nhật `.env` (`LANGCHAIN_API_KEY=`) →
+   `docker compose up -d` lại backend. Tracing đang tắt nên key mới nằm im,
+   nhưng key CŨ đã lộ 3 nơi và vẫn còn hiệu lực cho tới khi revoke.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
