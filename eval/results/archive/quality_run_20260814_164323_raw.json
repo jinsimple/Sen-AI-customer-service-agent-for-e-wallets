@@ -1,0 +1,34 @@
+[
+  {
+    "case_id": "CASE-109",
+    "elapsed_seconds": 8.439,
+    "usage": {
+      "input_tokens": 17572,
+      "output_tokens": 89,
+      "total_tokens": 17661
+    },
+    "checks_failed": [
+      "tao_ho_so_tra_thu_cong"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": null,
+    "reply": "Mình hiểu rằng bạn đang lo lắng về giao dịch này. Tuy nhiên, mình vẫn không tìm thấy giao dịch nào với mã TXN20260623999901 trong hệ thống. Nếu bạn có thông tin bổ sung nào khác hoặc có thể kiểm tra lại mã giao dịch, mình sẽ rất vui lòng hỗ trợ bạn thêm!",
+    "all_agent_replies": [
+      "Mình hiểu rằng bạn đang lo lắng về giao dịch này. Tuy nhiên, mình vẫn không tìm thấy giao dịch nào với mã TXN20260623999901 trong hệ thống. Nếu bạn có thông tin bổ sung nào khác hoặc có thể kiểm tra lại mã giao dịch, mình sẽ rất vui lòng hỗ trợ bạn thêm!"
+    ],
+    "all_customer_texts": [
+      "kiem tra giup gd TXN20260623999901, toi chuyen ma khong thay trong lich su"
+    ],
+    "tool_calls": [
+      "lookup_transaction"
+    ],
+    "luot_tao_ticket": null,
+    "_thuoc": {
+      "cham_diem": "e44e76a6f06e",
+      "commit": "d134050"
+    },
+    "error": null
+  }
+]

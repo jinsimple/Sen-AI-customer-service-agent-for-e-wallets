@@ -77,6 +77,60 @@ _AMOUNT_RE = re.compile(r"\d{1,3}(?:[.,]\d{3})+|\d{4,}")
 _SYSTEM_ID_RE = re.compile(r"\b(?:TCK|RES|CHS|SES|TR|MSG)-[0-9A-Za-z]{4,}\b")
 
 
+def dau_thuoc() -> dict[str, str]:
+    """Đóng dấu THƯỚC vào file raw — để máy tự canh luật paired eval.
+
+    Luật đã phê chuẩn 14/08: mọi báo cáo đo ghi commit của thước, và một cặp
+    paired eval chỉ hợp lệ khi hai nhánh dùng CÙNG thước. Trước đây là quy ước
+    người phải nhớ; đóng dấu vào file làm `so_sanh()` tự đối chiếu được.
+
+    ĐO BẰNG BĂM NỘI DUNG, KHÔNG BẰNG COMMIT HEAD — điểm này quan trọng và tôi
+    suýt làm sai: nếu lấy `git rev-parse HEAD` thì MỌI commit đều đổi dấu, kể
+    cả commit chỉ thêm công cụ báo cáo (như chính commit thêm hàm này), và
+    `so_sanh()` sẽ hô "hai thước khác nhau" cho một cặp đo hoàn toàn hợp lệ —
+    một báo động giả đủ sức khiến người ta phải chạy lại 40 case vô ích, hoặc
+    tệ hơn, khiến họ học cách bỏ qua cảnh báo.
+
+    Chỉ băm thứ THẬT SỰ quyết định điểm số: logic check (`_harness.py`) và bộ
+    case (`golden_set.jsonl`). Sửa cách in báo cáo không đổi dấu; sửa một
+    check hay một nhãn kỳ vọng thì đổi ngay.
+
+    `commit` vẫn được ghi kèm nhưng chỉ để TRA CỨU, không dùng để so.
+    """
+    import hashlib
+    import subprocess
+
+    h = hashlib.sha256()
+    for ten in ("_harness.py", "golden_set.jsonl"):
+        f = EVAL_DIR / ten
+        h.update(f.read_bytes() if f.exists() else b"")
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, timeout=5, cwd=EVAL_DIR.parent,
+        ).stdout.strip() or "khong-ro"
+    except Exception:  # noqa: BLE001
+        commit = "khong-ro"
+    return {"cham_diem": h.hexdigest()[:12], "commit": commit}
+
+
+def _tap_check_hong(r: dict) -> set[str]:
+    """Rút TẬP HỢP tên check đang hỏng của một case, từ mọi định dạng raw.
+
+    `measure_quality.py` lưu `checks_failed` (danh sách tên); `run_golden_set.py`
+    lưu `checks` (danh sách cặp [tên, đạt]). Đọc được cả hai để so sánh chéo
+    được giữa hai loại lượt chạy.
+    """
+    if r.get("checks_failed") is not None:
+        hong = set(r.get("checks_failed") or [])
+    else:
+        hong = {ten for ten, dat in (r.get("checks") or []) if not dat}
+    hong |= {f"forbidden:{v}" for v in (r.get("forbidden_violations") or [])}
+    if r.get("error"):
+        hong.add("LỖI_HỆ_THỐNG")
+    return hong
+
+
 def _digits_only(s: str) -> str:
     return re.sub(r"\D", "", s)
 
@@ -171,6 +225,7 @@ def run(cases: list[dict]) -> list[dict]:
         session = build_eval_session(db_path)
 
         results = []
+        dau = dau_thuoc()  # tính 1 lần cho cả lượt — mọi case cùng một thước
         for i, case in enumerate(cases, start=1):
             case_id = case.get("case_id", f"CASE-{i}")
             print(f"[{i}/{len(cases)}] {case_id}...", file=sys.stderr)
@@ -201,6 +256,7 @@ def run(cases: list[dict]) -> list[dict]:
                     unverified_system_ids.extend(unverified)
 
                 ticket_id = agent_result.get("ticket_id")
+                luot_tao_ticket = agent_result.get("luot_tao_ticket")
                 error = None
             except Exception as e:  # lỗi khi chạy case là 1 phát hiện thật, không phải lý do bỏ case
                 elapsed = time.perf_counter() - t0
@@ -210,7 +266,13 @@ def run(cases: list[dict]) -> list[dict]:
                 unverified_system_ids = []
                 usage = {}
                 reply = ""
+                # D1: case lỗi giữa chừng vẫn phải giữ lại những gì đã nói được
+                # trước khi chết — đó thường là chỗ chứa nguyên nhân.
+                all_replies = []
+                all_customer_texts = list(case.get("utterances") or [])
+                tool_calls = []
                 ticket_id = None
+                luot_tao_ticket = None
                 error = repr(e)
             session.rollback()
 
@@ -225,6 +287,18 @@ def run(cases: list[dict]) -> list[dict]:
                     "unverified_system_ids": unverified_system_ids,
                     "ticket_id": ticket_id,
                     "reply": reply,
+                    # D1 — TRANSCRIPT ĐỦ LƯỢT, không chỉ lượt cuối.
+                    # `reply` là reply của LƯỢT CUỐI. Hai vai đã vấp đúng chỗ
+                    # này: đọc `reply` rồi kết luận "agent không tra cứu gì"
+                    # trong khi việc tra cứu xảy ra ở lượt trước và đã bị ghi
+                    # đè. Khi phải điều tra một ca hồi quy, thứ cần là toàn bộ
+                    # hội thoại — mà lúc đó lượt đo đã chạy xong, không quay
+                    # lại lấy được. Nên phải lưu NGAY lúc chạy.
+                    "all_agent_replies": all_replies,
+                    "all_customer_texts": all_customer_texts,
+                    "tool_calls": [c.get("tool_name") for c in tool_calls],
+                    "luot_tao_ticket": luot_tao_ticket,
+                    "_thuoc": dau,
                     "error": error,
                 }
             )
@@ -314,6 +388,151 @@ def write_report(results: list[dict], out_path: Path) -> None:
     )
 
 
+def _mo_ta_thuoc(t: dict | None) -> str:
+    """In dấu thước cho người đọc: mã chấm điểm + commit tra cứu."""
+    if not t:
+        return "KHÔNG ĐÓNG DẤU (file raw cũ)"
+    return f"{t.get('cham_diem', '?')} @ {t.get('commit', '?')}"
+
+
+def so_sanh(truoc_path: Path, sau_path: Path, out_path: Path | None = None) -> int:
+    """So sánh TẬP HỢP check hỏng giữa hai lượt đo — trả số ca xấu đi.
+
+    VÌ SAO PHẢI SO TẬP HỢP, KHÔNG SO SỐ ĐẾM: đây chính là thứ đã cứu gói B2.
+    Một case có thể hỏng 1 check ở lượt trước và hỏng 1 check ở lượt sau — số
+    đếm y hệt, tổng "x/40 pass" y hệt, báo cáo nói "không đổi". Nhưng đó có
+    thể là **một lỗi được vá và một lỗi mới sinh ra**. Nhìn bằng số đếm thì
+    hai chuyện triệt tiêu nhau và biến mất; nhìn bằng tập hợp thì cả hai hiện
+    ra. Một prompt "không làm tệ đi về tổng thể" mà làm hỏng một ô nghiệp vụ
+    khác là điều PHẢI thấy trước khi merge.
+
+    Ba nhóm kết quả tách bạch:
+      - XẤU ĐI  : check hỏng ở lượt SAU mà lượt TRƯỚC không hỏng → chặn merge
+      - TỐT LÊN : check hỏng ở lượt TRƯỚC mà lượt SAU hết hỏng  → giá trị thật
+      - LỆCH BỘ : case chỉ có ở một lượt → hai lượt KHÔNG so được, báo ngay
+    """
+    def _nap(p: Path) -> list[dict]:
+        """Nạp file raw, báo lỗi ĐỌC ĐƯỢC thay vì ném traceback.
+
+        Có thật trong repo một file tên `*_raw.json` nhưng nội dung là báo cáo
+        Markdown (ai đó trỏ nhầm `--out`) — đã đổi tên 14/08. Công cụ này sẽ
+        được dùng lúc gấp, giữa một cổng đo; một traceback JSONDecodeError ở
+        đúng lúc đó là thứ tốn thời gian vô ích nhất.
+        """
+        try:
+            du_lieu = json.loads(p.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            sys.exit(f"'{p}' không phải JSON hợp lệ ({e}). Cần file *_raw.json do lượt đo sinh ra, không phải báo cáo .md.")
+        if not isinstance(du_lieu, list):
+            sys.exit(f"'{p}' không phải danh sách kết quả case.")
+        return du_lieu
+
+    truoc = _nap(truoc_path)
+    sau = _nap(sau_path)
+    idx_truoc = {r["case_id"]: r for r in truoc}
+    idx_sau = {r["case_id"]: r for r in sau}
+
+    thuoc_truoc = next((r.get("_thuoc") for r in truoc if r.get("_thuoc")), None)
+    thuoc_sau = next((r.get("_thuoc") for r in sau if r.get("_thuoc")), None)
+
+    lines = [
+        f"# So sánh hai lượt đo — {now_stamp()}",
+        "",
+        f"- TRƯỚC: `{truoc_path.name}` ({len(truoc)} case) · thước `{_mo_ta_thuoc(thuoc_truoc)}`",
+        f"- SAU  : `{sau_path.name}` ({len(sau)} case) · thước `{_mo_ta_thuoc(thuoc_sau)}`",
+        "",
+    ]
+
+    # --- Cảnh báo chặn: hai nhánh đo bằng hai thước khác nhau ---------------
+    if thuoc_truoc and thuoc_sau and thuoc_truoc["cham_diem"] != thuoc_sau["cham_diem"]:
+        lines += [
+            "> 🔴 **HAI LƯỢT DÙNG HAI THƯỚC KHÁC NHAU** "
+            f"(`{thuoc_truoc['cham_diem']}` vs `{thuoc_sau['cham_diem']}`). Chênh lệch dưới đây KHÔNG quy được "
+            "cho thay đổi prompt — nó lẫn cả thay đổi của chính bộ chấm. Chạy lại "
+            "nhánh TRƯỚC trên thước mới rồi hãy đọc tiếp.",
+            "",
+        ]
+    elif not (thuoc_truoc and thuoc_sau):
+        lines += [
+            "> ⚠️ Có lượt chưa đóng dấu commit thước (file raw cũ). Không tự đối chiếu "
+            "được — người đọc phải tự xác nhận hai lượt cùng thước.",
+            "",
+        ]
+
+    chi_truoc = sorted(set(idx_truoc) - set(idx_sau))
+    chi_sau = sorted(set(idx_sau) - set(idx_truoc))
+    if chi_truoc or chi_sau:
+        lines += [
+            "## 🔴 LỆCH BỘ CASE — hai lượt không so trực tiếp được",
+            "",
+            f"- Chỉ có ở TRƯỚC ({len(chi_truoc)}): {', '.join(chi_truoc) or '—'}",
+            f"- Chỉ có ở SAU ({len(chi_sau)}): {', '.join(chi_sau) or '—'}",
+            "",
+        ]
+
+    xau_di: list[tuple[str, set[str]]] = []
+    tot_len: list[tuple[str, set[str]]] = []
+    doi_tap_giu_so_luong: list[str] = []
+
+    for case_id in sorted(set(idx_truoc) & set(idx_sau)):
+        h_truoc = _tap_check_hong(idx_truoc[case_id])
+        h_sau = _tap_check_hong(idx_sau[case_id])
+        moi = h_sau - h_truoc
+        het = h_truoc - h_sau
+        if moi:
+            xau_di.append((case_id, moi))
+        if het:
+            tot_len.append((case_id, het))
+        if moi and het and len(h_truoc) == len(h_sau):
+            doi_tap_giu_so_luong.append(case_id)
+
+    lines += [
+        "## Tổng kết",
+        "",
+        f"- **Ca XẤU ĐI: {len(xau_di)}** (có check hỏng MỚI)",
+        f"- Ca TỐT LÊN: {len(tot_len)}",
+        f"- Ca đổi tập nhưng GIỮ NGUYÊN SỐ LƯỢNG: **{len(doi_tap_giu_so_luong)}** "
+        "← nhóm mà so-sánh-bằng-số-đếm sẽ báo 'không đổi'",
+        "",
+    ]
+
+    if doi_tap_giu_so_luong:
+        lines += [
+            "> Chính nhóm này là lý do bảng so sánh tồn tại: tổng số case pass không "
+            f"đổi, nhưng {len(doi_tap_giu_so_luong)} case đã đổi *bản chất* lỗi.",
+            "",
+        ]
+
+    if xau_di:
+        lines += ["## 🔴 XẤU ĐI — chặn merge cho tới khi giải thích được", ""]
+        for case_id, moi in xau_di:
+            lines.append(f"- **{case_id}**: hỏng thêm `{'`, `'.join(sorted(moi))}`")
+        lines.append("")
+
+    if tot_len:
+        lines += ["## ✅ TỐT LÊN", ""]
+        for case_id, het in tot_len:
+            lines.append(f"- {case_id}: hết hỏng `{'`, `'.join(sorted(het))}`")
+        lines.append("")
+
+    bia_truoc = {r["case_id"] for r in truoc if r.get("unfounded_amounts")}
+    bia_sau = {r["case_id"] for r in sau if r.get("unfounded_amounts")}
+    lines += [
+        "## Gate bịa số liệu (0% là điều kiện cứng)",
+        "",
+        f"- TRƯỚC: {len(bia_truoc)} case · SAU: {len(bia_sau)} case",
+        f"- Bịa MỚI xuất hiện: {', '.join(sorted(bia_sau - bia_truoc)) or '—'}",
+        "",
+    ]
+
+    bao_cao = "\n".join(lines)
+    if out_path:
+        out_path.write_text(bao_cao, encoding="utf-8")
+        print(f"Báo cáo so sánh: {out_path}", file=sys.stderr)
+    print(bao_cao)
+    return len(xau_di)
+
+
 def rescore(raw_path: Path) -> None:
     """Chấm LẠI một file raw đã lưu bằng thước QA-03 — offline, không gọi LLM.
 
@@ -352,7 +571,19 @@ def main() -> None:
         "--rescore", type=Path, default=None,
         help="Chấm lại offline một file *_raw.json đã lưu bằng thước QA-03 (không gọi LLM, không tốn phí)",
     )
+    parser.add_argument(
+        "--so-sanh", type=Path, nargs=2, default=None, metavar=("TRUOC_raw.json", "SAU_raw.json"),
+        help="So sánh TẬP HỢP check hỏng giữa 2 lượt đo (offline, không gọi LLM). "
+             "Thoát mã 1 nếu có ca XẤU ĐI — dùng được làm cổng chặn merge.",
+    )
     args = parser.parse_args()
+
+    if args.so_sanh is not None:
+        truoc, sau = args.so_sanh
+        out = args.out or (EVAL_DIR / "results" / f"so_sanh_{now_stamp()}.md")
+        # Thoát khác 0 khi có ca xấu đi: để CI/script gọi được như một cổng,
+        # không phải thứ người phải đọc rồi tự nhớ kết luận.
+        sys.exit(1 if so_sanh(truoc, sau, out) else 0)
 
     if args.rescore is not None:
         rescore(args.rescore)
