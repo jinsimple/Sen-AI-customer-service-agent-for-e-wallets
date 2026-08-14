@@ -197,6 +197,9 @@ export interface CustomerHistory {
 //    là TypeScript báo lỗi lúc build, không phải lỗi âm thầm trên UI.
 export const RESOLUTION_STATUS_LABEL: Record<ResolutionStatus, string> = {
   draft: "Nháp — chưa trình",
+  // mệnh đề đầu của mo_ta trong contract ("Đã gửi, chờ sếp duyệt. CỔNG
+  // BẮT BUỘC trước mọi hành động tiền.") — rút ngắn cho vừa badge, không
+  // phải nhãn tự đặt.
   pending_approval: "Chờ sếp duyệt",
   approved: "Sếp đã duyệt",
   rejected: "Sếp từ chối",

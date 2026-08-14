@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { Role } from "@/lib/session";
 
 const TABS: Record<Role, { href: string; label: string }[]> = {
-  customer: [{ href: "/chat", label: "Chatbot AI" }],
+  customer: [{ href: "/chat", label: "Trợ lý AI" }],
   cskh: [
     { href: "/dashboard", label: "Hàng chờ" },
     // /tickets/[id] không có mục riêng — vào từ hàng chờ

@@ -16,7 +16,11 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   // tiền tố này thì proxy đá thẳng về roleHome() = /approve, nên bấm vào tab
   // trông như tab hỏng (QA đo được 14/08). Backend đã cho phép sẵn —
   // authority-matrix: POST /policy-search roles [cskh, supervisor].
-  supervisor: ["/approve", "/report", "/tickets", "/policy-lookup"],
+  // /dashboard: sếp xem được hàng chờ CSKH theo contract hiện hành
+  // (GET /tickets: cskh, supervisor). Đây là ca thứ BA cùng lớp lỗi
+  // "guard frontend hẹp hơn contract" — bộ quét ma trận role×route của
+  // tester là thứ chặn ca thứ tư.
+  supervisor: ["/approve", "/report", "/tickets", "/policy-lookup", "/dashboard"],
   partner_admin: ["/knowledge"],
 };
 

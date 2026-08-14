@@ -445,8 +445,8 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Chatbot khách hàng</span>
-        <h1>Chatbot AI</h1>
+        <span className="eyebrow">Trợ lý AI cho khách hàng</span>
+        <h1>Trợ lý AI</h1>
         <p className="sub">
           Trợ lý AI — mọi con số đều được tra cứu từ hệ thống thật, không tự suy đoán.
         </p>
