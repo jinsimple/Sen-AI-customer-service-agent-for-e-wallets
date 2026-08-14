@@ -344,6 +344,27 @@ def check_expected(session: Session, result: dict[str, Any], expected: dict[str,
         luot = result.get("luot_tao_ticket")
         checks.append(("de_nghi_truoc_khi_tao_ticket", luot is not None and luot > 0))
 
+    # --- `must_create_manual_ticket` — kỳ vọng ĐÃ KHAI nhưng chưa từng THI HÀNH
+    # Cờ này có trong dataset từ đầu (CASE-109, CASE-110 — nhánh "không tra ra
+    # giao dịch nào") nhưng KHÔNG dòng nào trong file này đọc tới nó, nên 2
+    # case đó được chấm như thể cờ không tồn tại: CASE-110 vẫn xanh nhờ
+    # `khong_tao_ticket_hop_le` trong khi agent không hề mở hồ sơ nào.
+    #
+    # Đây chính là nhánh "không tìm thấy giao dịch" đang được dùng làm điểm
+    # pitch — khách nhớ mang máng, tra không ra, thì đường xử lý đúng là mở hồ
+    # sơ tra thủ công chứ không phải chào tạm biệt.
+    #
+    # Đọc CẢ `ticket_id` LẪN `tool_calls`: `result` chỉ phản ánh LƯỢT CUỐI
+    # (xem docstring run_case_turns_adaptive), nên ticket tạo ở lượt giữa sẽ
+    # không hiện trong `ticket_id`; `tool_calls` thì tích luỹ qua mọi lượt.
+    # Chỉ nhìn một trong hai là bỏ sót hành vi đúng — cùng cái bẫy đã làm
+    # check `cite_` fail oan trước đây.
+    if expected.get("must_create_manual_ticket"):
+        da_mo_ho_so = bool(result.get("ticket_id")) or any(
+            c.get("tool_name") == "create_ticket" for c in (result.get("tool_calls") or [])
+        )
+        checks.append(("tao_ho_so_tra_thu_cong", da_mo_ho_so))
+
     tool_calls_blob = json.dumps(result.get("tool_calls", []), ensure_ascii=False)
     for trans_id in expected.get("must_cite_trans_ids") or []:
         checks.append((f"cite_{trans_id}", trans_id in tool_calls_blob))

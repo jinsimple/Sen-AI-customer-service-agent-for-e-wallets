@@ -1,0 +1,63 @@
+[
+  {
+    "case_id": "CASE-109",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "khong_tao_ticket_hop_le",
+        true
+      ],
+      [
+        "tao_ho_so_tra_thu_cong",
+        false
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình biết rằng bạn không nhớ rõ thông tin cụ thể về giao dịch. Dựa trên lịch sử giao dịch gần đây của bạn, mình đã tìm thấy một số giao dịch, nhưng không có giao dịch nào khớp với mã TXN20260623999901.\n\nDưới đây là một số giao dịch gần đây của bạn:\n\n1. **Giao dịch TXN20260801000443**: 283.000đ, trạng thái thành công, thực hiện vào lúc 20:54 ngày 01/08/2026.\n2. **Giao dịch TXN20260801000641**: 258.000đ, trạng thái đang xử lý, thực hiện vào lúc 20:00 ngày 01/08/2026.\n3. **Giao dịch TXN20260801000110**: 349.000đ, trạng thái thành công, thực hiện vào lúc 16:29 ngày 01/08/2026.\n\nNếu bạn có thêm thông tin nào khác hoặc muốn kiểm tra một giao dịch cụ thể nào khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu rằng bạn không tìm thấy giao dịch này trong lịch sử. Giao dịch với mã TXN20260623999901 không có trong hệ thống. Bạn có thể cung cấp thêm thông tin nào khác không? Ví dụ như số tiền, thời gian thực hiện giao dịch hoặc số điện thoại liên quan để mình hỗ trợ tốt hơn.",
+      "Mình biết rằng bạn không nhớ rõ thông tin cụ thể về giao dịch. Dựa trên lịch sử giao dịch gần đây của bạn, mình đã tìm thấy một số giao dịch, nhưng không có giao dịch nào khớp với mã TXN20260623999901.\n\nDưới đây là một số giao dịch gần đây của bạn:\n\n1. **Giao dịch TXN20260801000443**: 283.000đ, trạng thái thành công, thực hiện vào lúc 20:54 ngày 01/08/2026.\n2. **Giao dịch TXN20260801000641**: 258.000đ, trạng thái đang xử lý, thực hiện vào lúc 20:00 ngày 01/08/2026.\n3. **Giao dịch TXN20260801000110**: 349.000đ, trạng thái thành công, thực hiện vào lúc 16:29 ngày 01/08/2026.\n\nNếu bạn có thêm thông tin nào khác hoặc muốn kiểm tra một giao dịch cụ thể nào khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "kiem tra giup gd TXN20260623999901, toi chuyen ma khong thay trong lich su",
+      "Mình không nhớ rõ thông tin cụ thể về số tiền hay thời gian giao dịch, bạn ơi."
+    ],
+    "tool_calls": [
+      "lookup_transaction",
+      "get_customer_history"
+    ],
+    "extra_turns_used": 1
+  },
+  {
+    "case_id": "CASE-110",
+    "cell": null,
+    "difficulty": null,
+    "edge_type": "not_found",
+    "severity": "High",
+    "checks": [
+      [
+        "khong_tao_ticket_hop_le",
+        true
+      ],
+      [
+        "tao_ho_so_tra_thu_cong",
+        false
+      ]
+    ],
+    "violations": [],
+    "reply": "Mình hiểu bạn đang tìm thông tin về giao dịch 737k vào ngày 15/07, nhưng mình không tìm thấy giao dịch nào khớp với yêu cầu đó trong lịch sử giao dịch gần đây của bạn. \n\nNếu bạn có thêm thông tin nào khác về giao dịch này, như số tiền cụ thể hơn hoặc tên người nhận, mình có thể giúp bạn kiểm tra lại. Hoặc nếu bạn cần hỗ trợ khác, hãy cho mình biết nhé!",
+    "all_agent_replies": [
+      "Mình hiểu bạn đang tìm thông tin về giao dịch 737k vào ngày 15/07, nhưng mình không tìm thấy giao dịch nào khớp với yêu cầu đó trong lịch sử giao dịch gần đây của bạn. \n\nNếu bạn có thêm thông tin nào khác về giao dịch này, như số tiền cụ thể hơn hoặc tên người nhận, mình có thể giúp bạn kiểm tra lại. Hoặc nếu bạn cần hỗ trợ khác, hãy cho mình biết nhé!"
+    ],
+    "all_customer_texts": [
+      "e nho la co chuyen 737k hom 15/07 ma tim k ra gd nao het"
+    ],
+    "tool_calls": [
+      "get_customer_history"
+    ],
+    "extra_turns_used": 0
+  }
+]

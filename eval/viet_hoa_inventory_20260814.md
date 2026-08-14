@@ -182,7 +182,7 @@ xanh khi vá.
 |---|---|---|
 | P1-1 mã US trên màn khách | ✅ | không còn `US-0xx` |
 | P1-2 tên công nghệ | ✅ | không còn `LangGraph`/`OpenAI` |
-| **P1-3 "Chatbot AI"** | ❌ **CÒN — 3 chỗ, không chỉ nav** | (1) link nav `<a class="tab-btn active" href="/chat">Chatbot AI</a>` · (2) **`<h1>` của trang** · (3) vùng `alert` (live region đọc cho screen-reader) — sửa mỗi nav là còn sót 2. Eyebrow phía trên đã đúng tiếng Việt: "Chatbot khách hàng" |
+| **P1-3 "Chatbot AI"** | ✅ **ĐÓNG 14/08** | nav + `<h1>` đã sửa ở `2a72245`. Chỗ thứ 3 tôi báo là **route announcer của Next.js** — `#__next-route-announcer__[role="alert"][aria-live="assertive"]`, do framework chèn nên KHÔNG có trong `frontend/src` (grep của coder đúng), và nó **đọc lại chính `h1`** nên tự khỏi. Kiểm DOM thật trên bản build 22:18: nội dung nay là **"Trợ lý AI"** |
 | P2-1 `refund_to_wallet` | ✅ | **"Hoàn tiền về ví"** (khớp `mo_ta`) |
 | P2-2 `refund_to_bank` | ✅ | **"Hoàn tiền về tài khoản ngân hàng"** (khớp `mo_ta`) |
 | P2-6 `pending_approval` | ✅ | **"Chờ sếp duyệt"** — CÓ nguồn contract (xem đính chính dưới) |
