@@ -346,6 +346,24 @@ nhãn — ghi thành điều kiện thiết kế exporter, tester thêm test can
 NGUYÊN VĂN hoặc trần ứng viên/người dùng; (2) viết 13 test đối kháng field
 note theo đặc tả trong báo cáo security.
 
+## MỐC NỀN THƯỚC MỚI + GATE CHO MỐC SAU (PO, đêm 14/08)
+
+- Mốc nền (thước 394feef · HEAD 1909c5a · prompt nguyên bản): 30/40 case lỗi
+  · 55 check · 0/40 bịa · p50 13,91s · $0,2171. Giả thuyết "5/6 tự xanh" của
+  coder SAI và coder tự đính chính — thước mới CHẶT HƠN (thêm check
+  `de_nghi_truoc_khi_tao_ticket`), 25→30 là thước hết mù, không phải hồi quy.
+- DUYỆT kế hoạch 3 luật riêng cho 3 nguyên nhân (B2-processing · siết
+  multiple_matches CASE-004 · dấu hiệu refund CASE-083), tất cả trong
+  "Quy trình điều tra", kiểm cấu trúc bằng máy trước khi đo.
+- **GATE MỐC SAU (đặt trước khi đo, không đổi sau):** (1) bịa thật = 0/40 ·
+  (2) 6 ca trong gói: cải thiện ≥ B2 4 ca + CASE-004; (3) KHÔNG ca nào ngoài
+  gói xấu đi so với mốc nền trên cùng thước (109/110 giữ nguyên đỏ = đúng
+  kỳ vọng). KHÔNG có lần đo thứ ba — kết quả lẫn lộn thì PO quyết ship/hold
+  trên đúng cặp số liệu này.
+- CHỈNH LỆNH F-12 theo phát hiện kỹ thuật của coder (eval chạy in-process
+  trên host): điều bất biến giữa hai nhánh đo là **src/ trên host** (trừ
+  prompt.py), không phải image container. F-12 code SAU mốc sau.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
