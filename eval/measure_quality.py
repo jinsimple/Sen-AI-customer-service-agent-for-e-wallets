@@ -388,6 +388,34 @@ def write_report(results: list[dict], out_path: Path) -> None:
     )
 
 
+def _nhom_a1() -> set[str]:
+    """Case thuộc nhóm A1 — khuyết tật dữ liệu `from_bank`, không phải lỗi agent.
+
+    Nhận diện bằng `scope == "from_bank"` đọc thẳng từ `golden_set.jsonl` chứ
+    KHÔNG hardcode danh sách case_id: reseed sắp tới sẽ đổi bộ case, một danh
+    sách chép tay sẽ lỗi thời trong im lặng và tiếp tục loại nhầm/bỏ sót.
+
+    Khi dữ liệu `from_bank` được sinh lại đúng contract (ví nhận là ví khách),
+    nhóm này KHÔNG còn là "dữ liệu hỏng" nữa — lúc đó phải bỏ tầng lọc này,
+    nếu không nó sẽ âm thầm che mất hồi quy thật ở 1/3 ma trận nghiệp vụ.
+    Ghi rõ ở đây vì đó là ngày mà hàm này trở nên nguy hiểm.
+    """
+    f = EVAL_DIR / "golden_set.jsonl"
+    if not f.exists():
+        return set()
+    a1 = set()
+    for dong in f.read_text(encoding="utf-8").splitlines():
+        if not dong.strip():
+            continue
+        try:
+            d = json.loads(dong)
+        except json.JSONDecodeError:
+            continue
+        if d.get("scope") == "from_bank":
+            a1.add(d.get("case_id"))
+    return a1
+
+
 def _mo_ta_thuoc(t: dict | None) -> str:
     """In dấu thước cho người đọc: mã chấm điểm + commit tra cứu."""
     if not t:
@@ -504,10 +532,57 @@ def so_sanh(truoc_path: Path, sau_path: Path, out_path: Path | None = None) -> i
         ]
 
     if xau_di:
-        lines += ["## 🔴 XẤU ĐI — chặn merge cho tới khi giải thích được", ""]
-        for case_id, moi in xau_di:
+        # TẦNG 1 của quy tắc đọc nhiễu (PO duyệt 14/08): loại ca A1 khỏi nhóm
+        # ứng viên tín hiệu TRƯỚC khi giao tập. Ca `from_bank` mang khuyết tật
+        # dữ liệu đã biết — bộ sinh gán ví nhận KHÔNG phải của khách, nên
+        # KHÔNG cải tiến prompt nào cứu được (xem
+        # eval/results/trige_29_case_20260814.md nhóm A1). Trộn chúng vào ứng
+        # viên tín hiệu sẽ dẫn tới đọc transcript tìm hồi quy prompt cho một
+        # lỗi gốc là dữ liệu — tức sửa đúng thứ không hỏng.
+        #
+        # Tự động hoá ở đây thay vì bắt người nhớ: người đọc báo cáo lúc đang
+        # gấp sẽ không dừng lại tra từng case_id xem nó có scope from_bank không.
+        a1 = _nhom_a1()
+        tin_hieu = [(c, m) for c, m in xau_di if c not in a1]
+        du_lieu_hong = [(c, m) for c, m in xau_di if c in a1]
+
+        lines += [
+            "## 🔴 XẤU ĐI — chặn merge cho tới khi giải thích được",
+            "",
+            f"Tách theo quy tắc đọc nhiễu 3 tầng: **{len(tin_hieu)} ứng viên tín hiệu** · "
+            f"{len(du_lieu_hong)} ca thuộc nhóm A1 (khuyết tật dữ liệu `from_bank`).",
+            "",
+            "### Ứng viên TÍN HIỆU — chỉ nhóm này đáng đọc transcript",
+            "",
+        ]
+        for case_id, moi in tin_hieu:
             lines.append(f"- **{case_id}**: hỏng thêm `{'`, `'.join(sorted(moi))}`")
+        if not tin_hieu:
+            lines.append("- (không có)")
         lines.append("")
+
+        if du_lieu_hong:
+            lines += [
+                "### Nhóm A1 — dữ liệu hỏng, KHÔNG phải bằng chứng hồi quy prompt",
+                "",
+                "> Ca `from_bank` có ví nhận gán sai (không phải ví khách). Xấu đi ổn định "
+                "ở nhóm này chứng minh **dữ liệu vẫn hỏng** — thứ đã biết và đã có reseed — "
+                "chứ không chứng minh prompt hồi quy. Nếu giao tập chỉ còn ca ở nhóm này, "
+                "gate coi như ĐẠT.",
+                "",
+            ]
+            for case_id, moi in du_lieu_hong:
+                lines.append(f"- {case_id}: hỏng thêm `{'`, `'.join(sorted(moi))}`")
+            lines.append("")
+
+        lines += [
+            "> **Tầng 2 và 3** (máy chưa làm thay được): lặp N lượt cùng cấu hình rồi lấy "
+            "**GIAO** các tập ứng viên tín hiệu ở trên. Ca xấu ở MỌI lượt = tín hiệu; ca "
+            "xấu một lượt = nhiễu temperature. KHÔNG dùng ngưỡng theo số đếm — 14 xấu/18 "
+            "tốt có thể là 32 lần flip ngẫu nhiên, mà cũng có thể là 1 hồi quy thật lẫn "
+            "trong 31 lần flip; hai tình huống cho cùng một con số.",
+            "",
+        ]
 
     if tot_len:
         lines += ["## ✅ TỐT LÊN", ""]
