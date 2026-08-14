@@ -1,6 +1,11 @@
 # Trạng thái hiện tại
 
-Cập nhật: **2026-08-14 sáng** · Phiên vừa rồi: PO (tổng hợp đêm vá 13/08, chuẩn bị demo)
+Cập nhật: **2026-08-14 chiều** · Phiên vừa rồi: PO (điều phối 2 đợt hotfix + Việt hoá)
+
+> **DEMO TỐI 14/08 ĐÃ HUỶ** (PO báo ~17:00). Đóng băng main hết hiệu lực —
+> toàn bộ mũi làm việc chuyển sang `dev/learning-loop` theo
+> `docs/giao-viec/2026-08-14-dieu-phoi-sau-huy-demo.md`. Việt hoá Đợt 1 xong
+> (1de1aea, kèm đóng nợ V4); bảng nhãn ngoài contract ĐÃ DUYỆT nguyên trạng.
 
 > Ghi đè mỗi cuối phiên bằng `/wrapup`. Giữ **dưới 60 dòng**.
 > Lịch sử quyết định KHÔNG nằm ở đây — nằm ở `docs/DECISIONS.md`.
