@@ -28,6 +28,15 @@ sang dev.
    ticket "cần tra thủ công" với trans_id không tồn tại — chi tiết ở
    `eval/results/trige_29_case_20260814.md`) · CASE-004 (agent tự chọn 1/2
    candidate — vi phạm ràng buộc cứng 3) · regression CASE-019/082/083/101.
+   **[BỔ SUNG chiều 14/08 — 2 phát hiện của security, PO đã kiểm code]:**
+   SEC-A: thêm guard trạng thái cho `reject_resolution` (chỉ nhận
+   `pending_approval` — hiện approved vẫn lật được, main.py:844) · SEC-B:
+   siết guard approve chỉ nhận `pending_approval` (hiện nhận cả `draft`,
+   main.py:803, trái transition contract). Đây là code lệch contract HIỆN
+   HÀNH — sửa không cần ADR. Gộp thêm vào migration Phase 1: cột
+   `resolutions.created_by` (Resolution CHƯA có — đính chính PO-TONG-KET) +
+   consume OTP sau duyệt thành công; CHECK maker–checker
+   (`approved_by != created_by`) thì SOẠN DỰ THẢO ADR-020 trình PO, chưa áp.
 2. **Phase 0 thực thi:** sửa INV-14 trong diff → áp
    `contracts/resolution-state-machine.yaml` → ghi ADR-016/017/018/019 vào
    `docs/DECISIONS.md` → `check_contracts.py --update` → bump
@@ -45,6 +54,10 @@ sang dev.
    gồm luật "cấm nguyên văn" + "export chỉ mang enum".
 2. Khi coder báo contract mới đã chốt → nhiệm vụ 2 (test từ đặc tả: INV-14,
    CHECK br11, ranh giới thieu_can_cu, authz trường audit).
+   **[BỔ SUNG]:** thêm test bất biến từ contract HIỆN HÀNH (không cần chờ
+   ADR): reject chỉ hợp lệ từ `pending_approval` (đã approved → 400) và
+   approve chỉ hợp lệ từ `pending_approval` (draft → 400) — bắt SEC-A/SEC-B
+   không tái phát.
 3. **Nhóm B2 (4 case processing) — nhãn mới theo phán quyết PO:** hành vi đúng
    là *thông báo trạng thái + mốc thời gian dự kiến từ dữ liệu + ĐỀ NGHỊ tạo
    hồ sơ, khách quyết*. Forbidden: từ chối thẳng ("chưa cần hồ sơ") VÀ tạo
@@ -62,3 +75,12 @@ sang dev.
    không bị consume" nếu tiện trong cùng migration.
 3. Nhắc lịch: xoay `LANGCHAIN_API_KEY` ngay sau demo tối nay (đã lộ trong log
    phiên QA 13/08) — soạn 3 dòng hướng dẫn cho PO thật làm.
+
+## Phán quyết PO cho câu hỏi CSAT (mục 7.d của security)
+
+Exporter Phase 2 **v1 CHỈ dùng phễu reject** (`la_tin_hieu_hoc=true` — có sếp
+ở giữa, tín hiệu đáng tin). **CSAT ≤2 KHÔNG vào phễu học AI** — chỉ tạo cảnh
+báo vận hành cho PO/CSKH xem (điểm thấp có thể do người xử lý, và CSAT là
+kênh kẻ tấn công kiểm soát 100%, chi phí ~0). Xem lại ở v2 khi có dữ liệu
+phân tách được đoạn AI/đoạn người trong phiên. Coder phản ánh điều này vào
+ADR-019/thiết kế exporter; ai thấy phản đối thì nêu trước khi code Phase 2.

@@ -65,6 +65,26 @@ Cập nhật: **2026-08-14 sáng** · Phiên vừa rồi: PO (tổng hợp đêm
   thứ hai, bẫy ADR-009) — chỉ `playwright.livechat.config.ts` trỏ Docker.
   Cần config chạy toàn bộ e2e trên stack Docker.
 
+## Phát hiện security 14/08 (commit 66dc6cf — 2 tài liệu đầu tiên trong docs/security/)
+
+- **SEC-A (P1): `reject_resolution` KHÔNG có guard trạng thái** (main.py:844)
+  — resolution đã `approved` vẫn lật được sang `rejected`, không OTP, không
+  vết. Trái contract (chỉ `pending_approval → rejected`). Code lệch contract
+  hiện hành → coder SỬA NGAY trên dev, không cần ADR; tester thêm test bất
+  biến bắt cả hai chiều.
+- **SEC-B (P1): guard approve nhận cả `draft`** (main.py:803) — đường
+  `draft → approved` bỏ qua `pending_approval`, trái transition contract.
+  Sửa cùng SEC-A.
+- **Đính chính PO-TONG-KET §4/G2**: Resolution KHÔNG có cột `created_by`
+  (dòng 331 là của Escalation) — maker–checker cần thêm cột + migration,
+  không "rẻ" như đã viết. Cột gộp vào migration Phase 1; CHECK maker–checker
+  đi ADR riêng.
+- **Câu hỏi mở Phase 2 (security nêu, PO đề xuất, chờ chốt)**: CSAT gắn phiên
+  live-chat có CSKH người → điểm thấp có thể là lỗi người, không phải AI.
+  Đề xuất PO: exporter v1 CHỈ dùng phễu reject (có sếp ở giữa); CSAT ≤2 chỉ
+  tạo cảnh báo vận hành, KHÔNG vào phễu học AI — thu hẹp luôn bề mặt
+  poisoning (CSAT là kênh kẻ tấn công kiểm soát 100%).
+
 ## Cảnh báo còn tồn
 
 - **Load test 150 CHƯA CHẠY** — mọi con số đồng thời vẫn là suy luận.

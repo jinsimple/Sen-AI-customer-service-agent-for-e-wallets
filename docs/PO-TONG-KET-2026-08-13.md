@@ -63,9 +63,13 @@ scrub) vs `quality_run_20260813_150352_raw_rescored.md` (sau PII scrub):
   State machine không có trục thời gian; vòng đời dừng ở `approved` — thiếu
   `executed` + đối soát (2 câu hỏi mở trong contract chính là mảnh này).
 - **G2. Maker–checker chưa trọn.** `supervisor` gọi được cả
-  `propose_resolution` lẫn `approve` → tự soạn tự duyệt. Đã kiểm code:
-  `resolutions.created_by` có sẵn (models.py:331) → CHECK
-  `approved_by != created_by` làm được rẻ, cùng triết lý BR-10.
+  `propose_resolution` lẫn `approve` → tự soạn tự duyệt.
+  **[SỬA 14/08 — phát hiện của security, PO đã kiểm lại]**: bản đầu của tài
+  liệu này viết "created_by có sẵn ở models.py:331, sửa rẻ" — SAI, dòng đó là
+  cột của `Escalation`. `Resolution` KHÔNG có cột ghi ai đề xuất và
+  `propose_resolution()` không ghi. Maker–checker cần: thêm cột `created_by`
+  + migration + CHECK `approved_by != created_by` — gộp vào migration Phase 1
+  learning-loop (cột) và ADR riêng (CHECK).
 - **G3. Chưa có audit log bất biến** cho hành vi con người (ai đăng nhập, ai
   xem hồ sơ ai, ai duyệt) — GLBA / DORA / SOC 2 đều đòi, dạng append-only
   tamper-evident.
