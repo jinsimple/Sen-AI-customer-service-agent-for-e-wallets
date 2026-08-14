@@ -721,12 +721,45 @@ dở của người khác) — đúng. PO kiểm chứng độc lập, hỏi cod
 bản sao nếu là thí nghiệm), chờ xác nhận rồi QA git checkout khôi phục.
 Đang chờ coder trả lời "có phải bạn không".
 
-**BÀI HỌC THIẾT KẾ (ghi làm bằng chứng):** dấu thước = BĂM NỘI DUNG phần
-chấm (QA nâng cấp tối nay, thay bản "commit HEAD") vừa CHỨNG MINH ĐÚNG GIÁ
-TRỊ — nếu còn đóng dấu bằng HEAD, sửa working-tree chưa-commit sẽ VÔ HÌNH:
-hai lượt vẫn "40 case", vẫn so được, ra cặp số trông hợp lệ mà một nhánh bị
-gỡ check. Cơ chế toàn vẹn phải bắt được thay đổi CHƯA commit, không chỉ đã
-commit — vì tampering dễ nhất là thứ chưa vào git.
+**BÀI HỌC THIẾT KẾ (ghi ĐÚNG như QA yêu cầu, không tô thành tầm nhìn):**
+dấu thước = BĂM NỘI DUNG phần chấm bắt được sự cố này. NHƯNG QA tự đính
+chính: thiết kế đó đến từ việc LO BÁO ĐỘNG GIẢ làm phiền cặp đo đang chạy,
+KHÔNG phải từ tiên liệu kịch bản sửa-file-chưa-commit — may mắn có phần.
+Bài học thật, giữ nguyên văn: "một dấu vân tay phải bám vào thứ nó định
+canh (nội dung quyết định điểm số), không bám vào tương quan lỏng lẻo
+(commit hash) — bám lỏng thì vừa kêu oan khi yên, vừa im đúng lúc có
+chuyện." (Nếu còn đóng dấu bằng HEAD, sửa working-tree chưa-commit sẽ VÔ
+HÌNH: hai lượt vẫn "40 case", vẫn so được, ra cặp số trông hợp lệ mà một
+nhánh bị gỡ check.)
+
+**Xử lý cập nhật:** QA đã bảo toàn CẢ HAI bản ngoài repo (bản-bị-sửa +
+bản-gốc-HEAD) ⇒ rủi ro mất thí nghiệm = 0 ⇒ PO GẬT khôi phục ngay không
+chờ coder; điều tra nguồn chạy song song. QA dựng canh chừng 20s/30 phút.
+
+**✅ ĐÃ LÀNH (00:5x):** golden_set về HEAD, 4 nhãn B2 đủ, dấu thước
+e44e76a6f06e — cặp với lượt 170312 hợp lệ lại. Ai đó (nhiều khả năng coder
+sau khi PO hỏi) tự trả lại, KHÔNG phải QA (QA vẫn chờ gật — đúng kỷ luật).
+Hai bản bằng chứng giữ trong scratchpad QA phòng truy lại.
+**✅ NGUỒN ĐÃ RÕ — ĐÓNG SỰ CỐ (coder xác nhận):** vô ý, KHÔNG gian lận,
+KHÔNG thí nghiệm. Coder chạy `gen_dataset.py --out <scratchpad>` để đo thời
+gian sinh dữ liệu (điều tra 2 job eval đỏ). Bẫy: gen_dataset.py có `eval_dir`
+RIÊNG mặc định `ROOT/eval` (dòng 181), ghi golden_set + heldout BẤT KỂ `--out`
+trỏ đâu — ĐƯỜNG GHI THỨ HAI ngoài tham số truyền. heldout tái lập trùng byte
+(seed cố định) nên git không thấy; chỉ nhãn NGƯỜI thêm tay vào golden_set mất.
+
+**LỖ NGHIÊM TRỌNG HƠN, coder tự bắt + vá (2bf73ac→sửa):** `make data` trần
+mà coder thêm vào 2 job eval CI sẽ ghi đè golden_set của runner MỖI lượt CI,
+chấm eval bằng thước ngắn hơn, KHÔNG cảnh báo — biến lỗi một-lần thành lỗi
+thường-trực trong hạ tầng đo. Đã đổi `--eval-out ${RUNNER_TEMP}/eval-vut-di/`,
+kiểm chứng `git status eval/` sạch. Đây là save lớn: nếu lọt, CI sẽ đo bằng
+thước sai vĩnh viễn mà không ai biết.
+
+**LUẬT PHÒNG NGỪA (PO duyệt, coder đề xuất):** `gen_dataset.py` TỪ CHỐI ghi
+eval/ trừ khi có cờ minh thị `--cho-phep-ghi-de-thuoc`. Cấm bằng cấu trúc,
+không dựa trí nhớ — đúng triết lý contract-as-code. Coder làm guard (tooling
+gần vùng của mình), QA thêm test canh (chạy gen_dataset không cờ → golden_set
+bất động). Bài học chung: script sinh dữ liệu có đường ghi ngoài tham số mình
+truyền — kiểm "nó ghi ĐÂU", không chỉ "mình truyền --out đâu".
 
 **LUẬT MỚI (PO phê chuẩn): thí nghiệm KHÔNG BAO GIỜ sửa golden_set gốc.**
 Thước dùng chung — mọi thí nghiệm chạy trên BẢN SAO (scratchpad/), không
