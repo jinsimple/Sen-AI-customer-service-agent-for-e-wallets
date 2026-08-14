@@ -8,7 +8,11 @@ import { parseSessionCookie, roleHome, sessionCookieMaxAgeSeconds, SESSION_COOKI
 const ROLE_PREFIXES: Record<Role, string[]> = {
   customer: ["/chat"],
   cskh: ["/dashboard", "/tickets", "/policy-lookup"],
-  supervisor: ["/approve", "/report", "/tickets"],
+  // /policy-lookup: sếp cũng cần tra chính sách khi quyết định duyệt. Thiếu
+  // tiền tố này thì proxy đá thẳng về roleHome() = /approve, nên bấm vào tab
+  // trông như tab hỏng (QA đo được 14/08). Backend đã cho phép sẵn —
+  // authority-matrix: POST /policy-search roles [cskh, supervisor].
+  supervisor: ["/approve", "/report", "/tickets", "/policy-lookup"],
   partner_admin: ["/knowledge"],
 };
 
