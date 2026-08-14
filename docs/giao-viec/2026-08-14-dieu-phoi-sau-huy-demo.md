@@ -186,6 +186,42 @@ Sổ nợ PO thật: key LangSmith ĐÃ XOAY (gạch nợ — coder xác nhận 
 phiên coder) · CÒN LẠI: export + upload project-knowledge — LÀM NGAY BÂY GIỜ
 là đúng thời điểm (contract v2.1.0 vừa chốt).
 
+## REVIEW LỚP 2 PHASE 1 (02d2b2a) — LÕI ĐẠT · CHƯA ĐÓNG, THIẾU 3 MỤC LỆNH GỘP
+
+**Đã kiểm và ĐẠT (bằng chứng thật):** thứ tự migration cột→backfill→CHECK
+đúng + backfill ghi nguồn gốc vào rationale (dữ liệu kiểm toán không mập mờ —
+đúng) · br11 kiểm HIỆU LỰC bằng IntegrityError thật · QA-02 đóng (hitl_status
+chuyển cả 2 nhánh) · M-02 an toàn (khách 403) · lỗi draft→reject tester bắt
+đã sửa — PO chạy lại test_resolution_reject.py trên HEAD: 9/9 xanh · hai lớp
+schema-Literal + CHECK đúng lập luận ADR-019.
+
+**3 mục lệnh gộp (khối "BỔ SUNG chiều 14/08" của lệnh duyệt Phase 0) CHƯA
+làm — coder bổ sung 1 commit trước khi Phase 1 được coi là đóng:**
+1. **SEC-B**: guard approve VẪN nhận `draft` (PO grep HEAD:
+   `status not in ("draft", "pending_approval")`) — trái transition contract
+   (approved chỉ từ pending_approval) và tinh thần INV-05. Sửa như đã sửa reject.
+2. **Consume OTP sau duyệt thành công**: chưa có (grep không thấy
+   delete/consume trong approve_resolution).
+3. **`resolutions.created_by`**: CHƯA vào — Resolution class 0 match, dòng
+   352 vẫn là của Escalation. Cần migration nhỏ; điểm thiết kế coder tự đề
+   xuất: cột nullable cho dữ liệu cũ (backfill trung thực = không bịa người
+   đề xuất), route propose LUÔN ghi từ giờ; CHECK maker–checker để ADR-020.
+
+**Tester — 1 khoảng trống đối xứng:** bộ SEC 9 test có draft→reject nhưng
+KHÔNG có draft→approve (nếu có thì nó đã đỏ trên HEAD). Thêm case đó — chính
+nó sẽ nghiệm thu mục 1 ở trên. Đồng thời chạy lại để đóng chính thức
+draft→reject + CASE-110 trong biên bản triage.
+
+**Ghi nhận:** vòng tester-bắt-lỗi-coder lần này là bằng chứng sống cơ chế
+"tester không đọc src/" hoạt động đúng thiết kế. Phần test HIỆU LỰC constraint
+(ghi thẳng DB đòi IntegrityError, kiểm cả mặt ngược) lấp đúng khoảng trống
+INV chỉ đọc AST — chuẩn thuật ngữ audit: presence vs operating effectiveness.
+
+**Mở đường gói đo B2:** bộ case 2 lượt + check `de_nghi_truoc_khi_tao_ticket`
+đã sẵn (aa5d593 + d72017a) → coder làm lại patch B2 (luật đặt trong "Quy
+trình điều tra" theo nguyên tắc đã chốt) + sửa CASE-004/083, rồi chạy ĐÚNG
+MỘT lần paired eval cả gói theo trần đã duyệt.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
