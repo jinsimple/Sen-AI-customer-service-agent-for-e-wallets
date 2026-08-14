@@ -114,6 +114,33 @@ Ghi chú kèm: 2 test đỏ của bộ quét là ĐỎ ĐÚNG cho tới khi code
    `docker compose up -d` lại backend. Tracing đang tắt nên key mới nằm im,
    nhưng key CŨ đã lộ 3 nơi và vẫn còn hiệu lực cho tới khi revoke.
 
+## PHÁN QUYẾT B2 (PO, tối 14/08 — sau báo cáo coder về patch B2)
+
+**Chọn đường (2) rồi (3), đúng đề xuất coder. KHÔNG nhận đánh đổi ở trạng
+thái hiện tại.** Lý do: đổi 4 ca tạo-ticket lấy 7 ca phân-loại-sai là đổi lỗi
+nhẹ lấy lỗi nặng — phân loại sai vi phạm quy tắc bắt buộc PRD §3 ("chưa xác
+định đúng ô thì không đề xuất") và US-009 (phân loại theo dữ liệu tool).
+*Đính chính nhỏ cho coder: đây không phải ràng buộc cứng số 5 (số 5 là cờ
+gian lận ≠ khoá ví) — nhưng kết luận không đổi: không được nhận.*
+
+Trình tự thi hành:
+1. **Coder — đường (2), miễn phí:** đọc reply đầy đủ 7 ca hồi quy
+   (065/092/094/085/022/068/047), phân định từng ca: "agent sai thật" vs
+   "khách mô phỏng trả lời cụt quá nên agent thiếu dữ kiện". Đầu ra: bảng
+   ca × phán định × trích dẫn.
+2. **Tester — song song:** chuyển 4 case B2 sang đặc tả 2 lượt theo phán
+   quyết đã có (thông báo + đề nghị → khách xác nhận → ticket).
+3. **Sau khi CẢ HAI xong:** chạy đúng MỘT lần paired eval 40 case trên bộ đã
+   cập nhật (~$0,22) → lúc đó mới quyết áp lại patch hay thiết kế lại.
+   Trần chi phí đo cho B2 từ giờ: 1 lần chạy, hết.
+4. **Ghi sổ bài học harness** (backlog tester, không làm ngay): trường
+   `reply` trong raw chỉ là lượt cuối — mọi chỉ số đơn-lượt trên harness đa
+   lượt đều dễ đo sai. Cân nhắc xuất transcript đủ lượt trong raw để lần sau
+   không ai vấp lại (coder vấp hôm nay, người khác sẽ vấp ngày mai).
+
+Chi phí $1,10 cho 5 lần chạy: CHẤP NHẬN, không truy — cổng đo vừa chặn một
+đánh đổi tồi trước khi nó được ship, rẻ hơn mọi phương án khác.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
