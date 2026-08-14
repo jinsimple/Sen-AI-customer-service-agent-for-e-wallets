@@ -53,9 +53,29 @@ c. Một điểm thiếu/mâu thuẫn (bắt buộc ≥1).
    D2 + D4 chạy lại 1 lần mỗi case theo `eval/demo_cases_20260814.md`
    (D4 dùng đúng lời thoại, xác nhận vẫn 8,2s±).
 
+## BỔ SUNG sau báo cáo coder (đọc trước khi nghiệm thu)
+
+1. **V5 + V4 KHÔNG làm** (đúng điều kiện an toàn — hết timebox) → bỏ mục 4–5,
+   không tính vào GO/NO-GO.
+2. **V3.2 hành vi chốt khác đặc tả gốc — nghiệm thu theo hành vi MỚI:**
+   backend chỉ chặn giá trị vô nghĩa (≤0, vượt số tiền giao dịch); số tiền
+   LỆCH nhưng hợp lệ (vd 6đ) được phép kèm **cảnh báo UI** "⚠ Khác số tiền
+   giao dịch (…)". Test cả 3 ca: vượt trần → chặn có message tiếng Việt ·
+   lệch thấp → qua + có cảnh báo · `no_action` amount 0 → qua không kiểm.
+3. **NGOẠI LỆ "không sửa" — một việc trong vùng tests/ của bạn:** coder để
+   lại 1 test đỏ `test_reporting.py::test_pct_ai_proposal_approved_counts_only_decided_resolutions`
+   — fixture gọi `propose_resolution` 4 lần (dòng 44–47) không truyền
+   `amount`, giờ bị validation mới chặn. Sửa fixture (thêm `amount=` hợp lệ),
+   XÁC NHẬN test này kiểm tỉ lệ duyệt chứ không kiểm số tiền (nếu đọc ra nó
+   kiểm gì khác thì DỪNG, báo PO). Sau khi sửa, full suite kỳ vọng
+   **320 passed** (+3 skipped, 2 xfailed).
+4. **Hàng chờ duyệt phải còn đúng 3 item thật** (323.000 · 178.000 · 107.000)
+   — coder đã dọn 2 resolution thử nghiệm; nếu thấy item lạ khác → báo.
+
 ## Ràng buộc
 
-- CHỈ BÁO CÁO, KHÔNG SỬA — kể cả fix 1 dòng. Phát hiện chặn demo → báo PO NGAY.
+- CHỈ BÁO CÁO, KHÔNG SỬA — kể cả fix 1 dòng (NGOẠI LỆ duy nhất: mục 3 phần
+  bổ sung ở trên, thuộc vùng tests/ của bạn). Phát hiện chặn demo → báo PO NGAY.
 - Vùng ghi: `tests/`, `frontend/e2e/`, `eval/` (bảng nghiệm thu lưu
   `eval/nghiem_thu_hotfix_20260814.md`).
 
