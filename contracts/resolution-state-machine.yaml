@@ -14,7 +14,7 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.3.0"
+version: "2.4.0"
 source: >
   Sinh ngược từ src/db/models.py @ 2026-08-13 · thay thế ticket-state-machine.yaml
   v1.0.0. v2.1.0 (2026-08-14): thêm taxonomy reject_reason + INV-14 + quy tắc
@@ -213,6 +213,52 @@ fraud:
     - "Module fraud không được import module khoá ví (nếu sau này có)."
 
 # ===========================================================================
+# 4b. Tín hiệu CẢM XÚC (ES-xx) — ĐỊNH TUYẾN, không phải phán quyết (ADR-022)
+# ===========================================================================
+# CỐ Ý TÁCH KHỎI khối `fraud:` ở trên. Hai họ tín hiệu KHÔNG được trộn: chỉ cần
+# một lần ai đó thêm ES vào fraud_signals/tier_a là bức xúc TỰ ĐỘNG escalate lên
+# supervisor — đúng thứ ràng buộc cứng 2 cấm.
+tin_hieu_cam_xuc:
+  luu_o: "KHÔNG lưu vào DB. Bộ đếm ở Redis, TTL 2h, giá trị là SỐ, không phải nhãn."
+  tinh_boi: "src/services/emotion_signals.py — tầng service, KHÔNG do agent/LLM sinh"
+  don_vi_dem: "thread_id (user_id:iat) — KHÔNG phải user_id"
+  vi_sao_khong_luu_nhan: >
+    Suy luận cảm xúc gắn với một người xác định là DỮ LIỆU CÁ NHÂN (NĐ 13/2023).
+    Lưu nhãn theo từng lượt là dựng HỒ SƠ CẢM XÚC của khách — không có mục đích
+    xử lý chính đáng, không có cơ chế cho khách xem/xoá, và phải giải trình khi
+    audit. Bộ đếm hết hạn sau hội thoại thì không tồn tại hồ sơ nào để rò rỉ.
+  tin_hieu:
+    ES-01:
+      ten: buc_xuc_leo_thang
+      dieu_kien: ">= 3 lượt LIÊN TIẾP mang nhãn tiêu cực mạnh"
+      ghi_chu: >
+        N=3 do PO thật chốt 2026-08-15 làm GIÁ TRỊ LÀM VIỆC, canh lại sau khi bộ
+        đa-lượt của tester có đủ số. Trước khi có bộ đó thì không có gì đo được
+        N nào là đúng — nên đây là con số để bắt đầu, không phải kết luận.
+    ES-02:
+      ten: khung_hoang_nghiep_vu
+      dieu_kien: "1 lượt: doạ rời dịch vụ / doạ kiện / doạ đăng công khai"
+      khong_bao_gom: >
+        Dấu hiệu TỔN THƯƠNG TÂM LÝ. PO thật chốt 2026-08-15: KHÔNG phủ. Đó là
+        phạm trù an toàn con người, không phải rủi ro kinh doanh — xếp vào cùng
+        hàng đợi CSKH ví điện tử và xử lý như một ca churn là phản ứng SAI. Muốn
+        phủ thì phải là quyết định riêng kèm quy trình người thật (ai trực,
+        chuyển đi đâu), KHÔNG phải một nhãn thêm vào enum này.
+  hieu_luc:
+    - "Bật -> envelope /agent/chat trả goi_y_handoff=true; FRONTEND render nút."
+    - "Bật -> nâng complaints.priority lên tối đa 'high'. KHÔNG bao giờ 'critical'
+       (dành riêng cho FS-06) và KHÔNG bao giờ hạ."
+    - "KHÔNG đi vào prompt. KHÔNG thêm lượt gọi LLM nào."
+    - "KHÔNG tự gọi request_human_handoff — khách bấm (CTRL-001)."
+  khi_redis_loi: "FAIL-OPEN — coi như không có tín hiệu. ES chỉ gợi ý, không được chặn đường chính."
+  chua_lam:
+    dau_cho_cskh: >
+      "CSKH thấy dấu khách-đang-căng" — PO thật quyết CÓ nhưng KÈM ĐIỀU KIỆN phải
+      nghiên cứu thang đo cảm xúc trong ngành CSKH thực tế trước, tránh dán nhãn
+      sai lên khách. KHÔNG nằm trong phạm vi mục này; nếu cần thêm trường thì đó
+      là một vòng CLAUDE.md §3 RIÊNG.
+
+# ===========================================================================
 invariants:
   - id: INV-05
     mo_ta: >
@@ -248,6 +294,16 @@ invariants:
       — nhưng một phiên sau có thể đọc cái đỏ đó thành "test hỏng" và sửa test.
       Ràng buộc hiện-diện làm chính bộ bất biến đỏ, tức là đỏ ở chỗ không ai
       sửa bằng cách viết lại kỳ vọng.
+  - id: INV-16
+    mo_ta: >
+      Tín hiệu ES-xx KHÔNG được xuất hiện trong complaints.fraud_signals, KHÔNG
+      được là đầu vào của evaluate_escalation(), và KHÔNG được trích dẫn trong
+      resolutions.cited_tool_result_ids. Cảm xúc ĐỊNH TUYẾN, không bao giờ tham
+      gia vào KẾT LUẬN nghiệp vụ.
+    nguon: >
+      BR-13 (ADR-022) — giữ ràng buộc cứng 2 (AI không vượt cấp) và 3 (cấm bịa
+      số liệu). Cảm xúc suy đoán không truy được về một kết quả tool có thật,
+      nên nó không đủ tư cách làm căn cứ cho bất kỳ kết luận nào.
   - id: INV-12
     mo_ta: >
       Mọi giá trị status/action_type dùng trong contract này phải khớp CHÍNH XÁC

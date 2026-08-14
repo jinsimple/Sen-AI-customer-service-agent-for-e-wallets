@@ -48,7 +48,7 @@ MODELS_PY = ROOT / "src" / "db" / "models.py"
 # Lấy giá trị mới bằng: python scripts/check_contracts.py --stamp <file>
 CONTRACT_VERSION = {
     "authority-matrix.yaml": "37a18d0e9c2c",
-    "resolution-state-machine.yaml": "4ee58541f0d1",  # v2.3.0 — ADR-020 (BR-12 phủ cả approve lẫn reject + INV-15)
+    "resolution-state-machine.yaml": "b25d8a6537f8",  # v2.4.0 — ADR-022 (tín hiệu cảm xúc ES-xx + INV-16)
     "agent-tools.yaml": "7eb60b20988a",
 }
 
