@@ -38,6 +38,13 @@
 7. **Đợt reseed gộp** (brief riêng khi tới lượt): from_bank 28 case + M-04 +
    C8 (USR-PA01 vào TEST_ACCOUNT_USER_IDS) + C10 (script seed kho RAG) +
    seed đủ 3 action_type + C12 đối soát residue.
+   ⚠️ **PHÁT HIỆN từ coder (268bba2): `data/generated` KHÔNG tái lập từng
+   byte** dù comment Makefile khẳng định — `users.jsonl` khác mỗi lần sinh vì
+   password_hash argon2id salt ngẫu nhiên (không bám seed). Hệ quả: `make
+   data` LUÔN làm bẩn working tree (users.jsonl + manifest.json). Brief
+   reseed: nếu có bước so-khớp-manifest giữa hai lần sinh thì nó LỆCH ở đúng
+   file này — KHÔNG phải dữ liệu hỏng. Hoặc: tách password_hash ra khỏi
+   manifest-so-khớp, hoặc seed cả salt. Ghi để không ai điều tra nhầm.
    ⚠️ **MỐC KÍCH HOẠT gắn vào reseed (như ADR-011):** NGAY khi from_bank được
    sinh lại đúng contract, tầng lọc A1 trong `measure_quality.py` (314a5d1)
    PHẢI BỊ GỠ — từ giờ phút đó nó che hồi quy thật ở 1/3 ma trận nghiệp vụ
