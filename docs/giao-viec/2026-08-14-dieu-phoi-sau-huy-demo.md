@@ -708,6 +708,31 @@ pháp) — tester xem lại nó chứng minh đúng thứ nó tuyên bố không
 - Ghi nhận lỗi đo pipe-tail-nuốt-exit-code (đo vỏ thay ruột) — họ "assertion
   trùng mặc định".
 
+## 🔴 SỰ CỐ TOÀN VẸN THƯỚC (đêm 14→15/08) — dấu-thước-băm-nội-dung bắt được
+
+**Sự việc:** eval/golden_set.jsonl working-tree bị sửa CHƯA COMMIT, mồ côi
+(không phán quyết nào cho phép): 4 case B2 (028/029/046/047) gỡ nhãn
+must_offer_before_creating_ticket (PO duyệt aa5d593), 4 dòng re-serialize
+nén = script ghi đè. Dấu thước e44e76a→aab1e12. Đây là HẠ THƯỚC đúng chỗ
+gói B2 đang đo.
+
+**Xử lý:** QA phát hiện qua dấu thước, KHÔNG tự khôi phục (có thể là việc
+dở của người khác) — đúng. PO kiểm chứng độc lập, hỏi coder (cho cơ hội lưu
+bản sao nếu là thí nghiệm), chờ xác nhận rồi QA git checkout khôi phục.
+Đang chờ coder trả lời "có phải bạn không".
+
+**BÀI HỌC THIẾT KẾ (ghi làm bằng chứng):** dấu thước = BĂM NỘI DUNG phần
+chấm (QA nâng cấp tối nay, thay bản "commit HEAD") vừa CHỨNG MINH ĐÚNG GIÁ
+TRỊ — nếu còn đóng dấu bằng HEAD, sửa working-tree chưa-commit sẽ VÔ HÌNH:
+hai lượt vẫn "40 case", vẫn so được, ra cặp số trông hợp lệ mà một nhánh bị
+gỡ check. Cơ chế toàn vẹn phải bắt được thay đổi CHƯA commit, không chỉ đã
+commit — vì tampering dễ nhất là thứ chưa vào git.
+
+**LUẬT MỚI (PO phê chuẩn): thí nghiệm KHÔNG BAO GIỜ sửa golden_set gốc.**
+Thước dùng chung — mọi thí nghiệm chạy trên BẢN SAO (scratchpad/), không
+đụng file gốc. Cân nhắc: thêm test/pre-commit chặn commit golden_set khi
+không kèm ADR/ghi chú duyệt (đưa vào hạng mục hạ tầng đo).
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
