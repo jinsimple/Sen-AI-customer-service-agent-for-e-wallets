@@ -267,6 +267,41 @@ f23552a — áp ngay, đừng chờ thêm) → coder chạy gói đo B2+004+083 
 → security nộp rà Phase 0+1 + sign-off TM-03 → coder làm field note (gộp
 migration cùng nhịp nếu kịp) → ADR-020.
 
+## PHÁN QUYẾT trần đo sau vá harness (PO)
+
+**DUYỆT cách hiểu của coder.** Vá harness d72017a đổi chính cái thước ⇒
+baseline cũ hết ghép cặp được ⇒ mốc nền mới trên thước mới là BẮT BUỘC về
+phương pháp, không phải tiêu thêm lượt. Trần diễn đạt lại cho hết mơ hồ:
+**một CẶP đo trên thước mới** (mốc nền prompt nguyên bản + mốc sau khi sửa)
+— cấm vòng lặp sửa-đo-sửa-đo ở giữa. Nếu mốc nền cho thấy 5/6 ca tự xanh
+nhờ khách ảo biết trả lời ý định mở hồ sơ → chỉ sửa phần còn hỏng thật
+(nhiều khả năng mỗi CASE-004 — vẫn phải sửa, tự chọn candidate là chạm ràng
+buộc cứng 3), rồi chạy mốc sau. Tổng ≤ 2 lượt (~$0,44).
+
+Chuẩn ứng xử ghi lại cho các lần sau: trần/lệnh nào thấy mơ hồ thì NÊU RA
+TRƯỚC KHI TIÊU TIỀN — coder lần này nêu ngay trong lúc chạy kèm lập luận
+đầy đủ, chấp nhận được; nêu trước khi bấm nút thì hoàn hảo.
+
+Ghi nhận QA lần nữa: từ chối sửa nhãn theo hướng nới lỏng và sửa CÔNG CỤ ĐO
+thay vì sửa bài thi — đúng tinh thần "thước cố định, thước trung thực".
+
+## GHI NHẬN sau vá harness 394feef (PO)
+
+- **CASE-109/110 đỏ trên thước mới = quy tắc known-red KÍCH HOẠT ĐÚNG NHƯ
+  ĐÃ ĐẶT TRƯỚC** (phán quyết f23552a mục 3): không phải hồi quy — thước hết
+  mù, đo được gap US-008 thật (not-found phải mở hồ sơ tra thủ công, không
+  chào tạm biệt). KHÔNG ai đi tìm commit gây lỗi. KHÔNG nhét vào gói B2 —
+  gate vẫn hợp lệ vì đỏ ở cả hai nhánh. **Gap US-008 vào hàng đợi prompt
+  KẾ TIẾP sau gói B2**, có thể tái dùng đúng pattern "đề nghị → khách xác
+  nhận" + check `tao_ho_so_tra_thu_cong` làm bài nghiệm thu sẵn.
+- **Mục "alert screen-reader" ĐÓNG — cả hai bên đều đúng:** chuỗi thứ ba là
+  `__next-route-announcer__` của Next.js (ngoài frontend/src, dẫn xuất từ
+  h1) — grep coder đúng, quan sát QA thật, sửa h1 tự khỏi (DOM build 22:18
+  đọc "Trợ lý AI"). **Chuẩn mới cho báo cáo accessibility: phát hiện từ AX
+  tree luôn kèm selector** — QA tự đề xuất, PO chuẩn hoá thành luật.
+- Check mới đọc tool_calls TÍCH LUỸ thay vì chỉ lượt cuối — tránh đúng bẫy
+  từng làm cite_ fail oan. Thiết kế thước có trí nhớ. Ghi nhận.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
