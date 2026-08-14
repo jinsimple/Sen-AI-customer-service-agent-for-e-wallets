@@ -1,0 +1,29 @@
+# Cấu hình gitleaks cho FIN-05 (job `dependency-and-secret-scan`, C5).
+#
+# NGUYÊN TẮC: chỉ miễn trừ ĐÍCH DANH từng giá trị giả đã biết, ràng theo đúng
+# file chứa nó. KHÔNG tắt rule, KHÔNG allowlist theo thư mục, KHÔNG hạ ngưỡng
+# entropy — vì mọi cách đó đều tạo ra vùng mù cho secret THẬT lỡ commit sau này.
+#
+# Vì sao cần: key mã hoá trường của CI phải là base64 của đúng 32 byte (Fernet),
+# nên nó bắt buộc trông giống hệt một key thật với gitleaks (entropy 4.67).
+# Giá trị giả trước đây lọt lưới chỉ vì nó là dãy số lặp entropy thấp — tức là
+# ta đang "qua bài" nhờ dùng một key hỏng, chứ không phải nhờ an toàn hơn.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+  [rules.allowlist]
+  # PHẢI là "AND". Mặc định của gitleaks là OR: chỉ cần khớp `paths` là miễn
+  # trừ, tức là cả file ci.yml thành VÙNG MÙ cho rule này. Đã kiểm bằng tay —
+  # nhét một Fernet key sinh ngẫu nhiên vào ci.yml với bản OR thì gitleaks IM
+  # LẶNG; đổi sang AND thì bắt được. Một allowlist bảo mật có thể tự vô hiệu
+  # hoá đúng thứ nó bảo vệ mà không báo lỗi gì cả.
+  condition = "AND"
+  regexTarget = "match"
+  # Chuỗi gốc đọc được: "ci-ephemeral-key-not-for-prod-32". Cố ý để đọc ra được
+  # bằng mắt, để người review thấy ngay đây không phải key thật.
+  regexes = ['''Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=''']
+  paths = ['''^\.github/workflows/ci\.yml$''']
