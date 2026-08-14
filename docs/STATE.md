@@ -90,6 +90,11 @@ Cập nhật: **2026-08-14 sáng** · Phiên vừa rồi: PO (tổng hợp đêm
 - Xong trên main: V1 link Phê duyệt · V3 validation số tiền hoàn 3 lớp
   (prefill + chặn vô nghĩa + cảnh báo lệch, warn-not-block vì hoàn một phần
   hợp lệ) · V6 rail giao dịch gate OTP (frontend-only) · dọn dòng 6đ.
+- **Hotfix 2 (6c0684c + d0baf35):** đảo luồng duyệt về chi tiết ticket
+  (US-005, component chung `ResolutionApprovalActions`, /approve chỉ còn hàng
+  chờ tóm tắt) · fix guard proxy.ts cho sếp vào /policy-lookup · kho chính
+  sách nạp 2 tài liệu/338 chunk · **đặt lại mật khẩu USR-PA01 = Demo@123**
+  (đổi dữ liệu — reseed là mất; nợ: thêm USR-PA01 vào TEST_ACCOUNT_USER_IDS).
 - Nợ ghi lại: **V5** agent bắt gõ lại sau OTP (vi phạm US-010) + **V4** trail
   hiện `null` · **M-10** F5 sau OTP làm rail ẩn lại (gate theo state client —
   fix: đọc trạng thái OTP phiên từ backend khi load) · **M-09** lookup REST

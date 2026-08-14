@@ -55,6 +55,23 @@ trong container):** V1 link Phê duyệt · V3 validation 3 lớp + dọn 6đ + 
 item thật (323k · 178k · 107k). `/approve` hiện đủ danh sách — lần PO thấy
 trống là do phiên/cache trình duyệt, đăng nhập lại sếp là thấy.
 
+**✅ HOTFIX 2 (commit 6c0684c + d0baf35, coder tự test Playwright — chờ QA/QC
+nghiệm thu độc lập B2–B5):**
+- **Luồng duyệt MỚI — kịch bản bước 5 đổi thành:** sếp vào tab "Phê duyệt"
+  (hàng chờ tóm tắt, KHÔNG còn nút duyệt trên card) → "Mở chi tiết →" → đọc
+  Investigation trail + căn cứ → khối "Quyết định phê duyệt" → Duyệt → OTP
+  gắn đúng đề xuất → xác nhận. Lời kể: *"muốn duyệt phải mở hồ sơ đọc đủ
+  căn cứ — HITL không có đường tắt."* CSKH mở cùng ticket KHÔNG thấy khối duyệt.
+- **Sếp có tab "Tra cứu chính sách"** (fix guard proxy.ts).
+- **Kho chính sách ĐÃ CÓ DỮ LIỆU** (2 tài liệu · 338 chunk — sample policy +
+  MoMo FAQ). Nhịp demo MỚI khả dụng: khách hỏi chính sách → agent trả lời
+  kèm trích nguồn thật (US-002) + khoe vai partner_admin tự quản kho RAG.
+- **partner_admin `0900000001` / `Demo@123` giờ đăng nhập ĐƯỢC** (coder đặt
+  lại mật khẩu — trước đó nút quick-login "Đối tác ví" hỏng từ đầu, không ai
+  biết). LƯU Ý: đây là đổi DỮ LIỆU — reseed DB là mất, phải đặt lại (nợ: thêm
+  USR-PA01 vào TEST_ACCOUNT_USER_IDS của gen_dataset.py khi reseed sau demo).
+  Tổng tài khoản demo dùng được giờ là 5 (thêm 0974000145 gõ tay).
+
 **Điều kiện thứ 6 (M-10):** sau khi OTP xong, **ĐỪNG F5 màn chat** — rail
 giao dịch sẽ ẩn trở lại (cổng chặn theo state client, chưa đọc lại phiên
 backend). Lỡ F5 → bấm "Xác thực ngay", ~10 giây. Fix gốc sau demo.
