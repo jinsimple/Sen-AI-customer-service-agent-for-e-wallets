@@ -142,11 +142,21 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
         for k, v in (r.get("usage") or {}).items():
             all_usage[k] = all_usage.get(k, 0) + v
 
+    # Lượt (0-based) mà ticket LẦN ĐẦU xuất hiện — None nếu không lượt nào tạo.
+    # Cần cho check `de_nghi_truoc_khi_tao_ticket` (phán quyết B2 14/08): chỉ
+    # biết "cuối cùng CÓ ticket" là chưa đủ, phải phân biệt agent ĐỀ NGHỊ rồi
+    # khách đồng ý (hợp lệ) với agent tự tạo ngay (bị cấm).
+    luot_tao_ticket: int | None = None
+    so_luot = 0
+
     for text in utterances:
         result = run_agent_turn(session, user_id=case["user_id"], message=text, thread_id=thread_id)
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
         _add_usage(result)
+        if luot_tao_ticket is None and result.get("ticket_id"):
+            luot_tao_ticket = so_luot
+        so_luot += 1
 
     extra_turns_used = 0
     while result.get("ticket_id") is None and extra_turns_used < max_extra_turns:
@@ -161,8 +171,12 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
         _add_usage(result)
+        if luot_tao_ticket is None and result.get("ticket_id"):
+            luot_tao_ticket = so_luot
+        so_luot += 1
         extra_turns_used += 1
 
+    result["luot_tao_ticket"] = luot_tao_ticket
     result["tool_calls"] = all_tool_calls
     result["usage"] = all_usage
 
@@ -316,6 +330,19 @@ def check_expected(session: Session, result: dict[str, Any], expected: dict[str,
             or already_has_ticket_from_earlier_turn
         )
         checks.append(("khong_tao_ticket_hop_le", bool(expects_no_ticket)))
+
+    # --- Phán quyết B2 (14/08): giao dịch chưa hoàn tất ------------------
+    # Hành vi đúng KHÔNG phải nhị phân "tạo / không tạo" mà là một TRÌNH TỰ:
+    # thông báo trạng thái → đề nghị mở hồ sơ → KHÁCH QUYẾT → mới tạo.
+    # Hai đầu đều sai và phải phân biệt được với nhau:
+    #   - tự tạo ngay ở lượt đầu  = tước quyền quyết của khách, đẻ việc ảo
+    #   - từ chối thẳng, không đề nghị = bỏ rơi khách đang có vấn đề thật
+    # Vì vậy check này KHÔNG thay bằng `must_ask_clarifying_question` được:
+    # cờ đó chỉ nới điều kiện "không tạo ticket", nên case sẽ pass cả khi
+    # agent im lặng — tức là nới thước, không phải đo đúng thứ vừa chốt.
+    if expected.get("must_offer_before_creating_ticket"):
+        luot = result.get("luot_tao_ticket")
+        checks.append(("de_nghi_truoc_khi_tao_ticket", luot is not None and luot > 0))
 
     tool_calls_blob = json.dumps(result.get("tool_calls", []), ensure_ascii=False)
     for trans_id in expected.get("must_cite_trans_ids") or []:

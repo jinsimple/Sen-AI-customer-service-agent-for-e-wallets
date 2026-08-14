@@ -61,7 +61,15 @@ def test_pct_ai_proposal_approved_counts_only_decided_resolutions(sample_db):
         resolution.status = "approved"
         resolution.approved_at = now
         resolution.approved_by = "USR-SUP"  # BR-10: approved bắt buộc có approver
-    sample_db.get(Resolution, r3["resolution_id"]).status = "rejected"
+    # BR-11 (INV-14, ADR-019 — 14/08): 'rejected' giờ BẮT BUỘC có đủ
+    # reject_reason + rejected_by + rejected_at, ép ở tầng DB. Set thiếu là
+    # IntegrityError ngay tại commit này. Test đang kiểm TỈ LỆ DUYỆT, không
+    # kiểm lý do từ chối — thêm 3 trường không làm đổi thứ nó canh.
+    rejected = sample_db.get(Resolution, r3["resolution_id"])
+    rejected.status = "rejected"
+    rejected.reject_reason = "sai_so_lieu"
+    rejected.rejected_by = "USR-SUP"
+    rejected.rejected_at = now
     sample_db.commit()
 
     summary = build_summary(sample_db)

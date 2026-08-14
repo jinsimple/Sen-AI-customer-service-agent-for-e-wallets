@@ -324,6 +324,80 @@ def test_inv07_check_constraint_br10_ton_tai():
     assert "approved_atisnotnull" in bieu_thuc, f"{ten} không còn ép approved_at NOT NULL: {cons[ten]}"
 
 
+def test_inv14_check_constraint_br11_ton_tai():
+    """INV-14 · nhánh TỪ CHỐI cũng phải có lớp phòng thủ cuối ở DB.
+
+    Đối xứng với INV-07 của nhánh duyệt. Vì sao từ chối cũng cần ràng buộc
+    cứng dù nó KHÔNG chạm tiền: `reject_reason` là đầu vào của vòng học
+    (Phase 2 — chỉ case có `la_tin_hieu_hoc: true` mới được kết xuất thành ứng
+    viên eval). Một resolution 'rejected' trống lý do không chỉ mất vết audit,
+    nó còn lọt vào bộ đo như một mẫu không phân loại được — hỏng chính cái
+    thước dùng để chấm cải tiến agent.
+    """
+    cons = _check_constraints()
+    ten = "ck_resolutions_rejected_requires_reason_br11"
+    assert ten in cons, (
+        f"MẤT CHECK constraint {ten} trong src/db/models.py.\n"
+        "INV-14 (ADR-019, BR-11) — không có nó, một UPDATE trực tiếp có thể "
+        "tạo resolution 'rejected' không lý do, không người từ chối."
+    )
+    bieu_thuc = cons[ten].replace(" ", "").lower()
+    for cot in ("reject_reason", "rejected_by", "rejected_at"):
+        assert f"{cot}isnotnull" in bieu_thuc, (
+            f"{ten} không còn ép {cot} NOT NULL khi status='rejected': {cons[ten]}"
+        )
+
+
+def test_inv14_taxonomy_reject_reason_phan_hoach_du_cho_vong_hoc(fsm):
+    """INV-14 (phần contract) · mọi lý do từ chối phải khai `la_tin_hieu_hoc`.
+
+    Đây là cờ quyết định case có được bơm vào bộ eval Phase 2 hay không. Một
+    giá trị mới thêm vào mà QUÊN khai cờ sẽ mặc nhiên bị coi là falsy ở chỗ
+    dùng — tức im lặng biến mất khỏi vòng học, không ai thấy. Bắt tại đây thay
+    vì chờ phát hiện qua việc bộ đo thiếu mẫu.
+    """
+    values = fsm["resolution"]["reject_reason"]["values"]
+    thieu = [k for k, v in values.items() if "la_tin_hieu_hoc" not in (v or {})]
+    assert not thieu, f"Lý do từ chối chưa khai `la_tin_hieu_hoc`: {thieu}"
+
+    hoc_duoc = {k for k, v in values.items() if v["la_tin_hieu_hoc"]}
+    assert hoc_duoc, "Không lý do nào là tín hiệu học — vòng học Phase 2 sẽ không có đầu vào."
+    assert hoc_duoc != set(values), (
+        "MỌI lý do đều là tín hiệu học — kể cả 'trùng case'/'khách rút', là những "
+        "trường hợp đề xuất KHÔNG hề sai. Trộn chúng vào sẽ bơm nhiễu vào bộ đo "
+        "(xem `ghi_chu` của reject_reason)."
+    )
+
+
+def test_inv14_ranh_gioi_thieu_can_cu_khac_han_need_more_info(fsm):
+    """Ranh giới 'sai hẳn' vs 'sửa được' — hai đường phải TÁCH BẠCH.
+
+    `thieu_can_cu` (từ chối) và `need_more_info` (trả lại cho CSKH bổ sung) rất
+    dễ bị lẫn vì mô tả nghe giống nhau. Lẫn là mất khả năng phân biệt đề xuất
+    SAI với đề xuất CHƯA ĐỦ — nhóm sau không phải lỗi agent, tính vào vòng học
+    là dạy sai. Contract phải giữ chúng ở hai trục khác nhau.
+    """
+    trang_thai_resolution = set(fsm["resolution"]["status"]["values"])
+    assert "need_more_info" not in trang_thai_resolution, (
+        "'need_more_info' xuất hiện trong resolution.status — nó PHẢI chỉ nằm ở "
+        "trục ticket.hitl_status. Gộp vào là xoá mất ranh giới sửa-được/sai-hẳn."
+    )
+    assert "need_more_info" in set(fsm["ticket_hitl_status"]["values"]), (
+        "'need_more_info' biến mất khỏi ticket.hitl_status — mất đường trả case "
+        "ngược cho CSKH, sếp chỉ còn lựa chọn từ chối hẳn."
+    )
+    assert "thieu_can_cu" in fsm["resolution"]["reject_reason"]["values"], (
+        "Mất lý do 'thieu_can_cu' — không còn phân biệt được thiếu căn cứ với "
+        "sai số liệu/sai phân loại."
+    )
+    ranh_gioi = fsm["resolution"]["reject_reason"]["values"]["thieu_can_cu"].get("ranh_gioi") or ""
+    assert "need_more_info" in ranh_gioi, (
+        "Mục `ranh_gioi` của 'thieu_can_cu' không còn trỏ sang đường "
+        "need_more_info — đây là chỗ DUY NHẤT trong contract dặn người dùng "
+        "đừng lẫn hai đường. Mất nó là mất luôn lời cảnh báo."
+    )
+
+
 def test_inv12_gia_tri_status_trong_contract_khop_check_constraint_that(fsm):
     """INV-12 · contract không được mô tả trạng thái mà DB không chấp nhận."""
     cons = _check_constraints()
@@ -342,6 +416,13 @@ def test_inv12_gia_tri_status_trong_contract_khop_check_constraint_that(fsm):
         (fsm["ticket_partner_wait_status"]["rang_buoc_db"],
          {str(v) for v in fsm["ticket_partner_wait_status"]["values"]},
          "ticket.partner_wait_status"),
+        # Thêm 14/08 cùng v2.1.0: taxonomy reject_reason cũng khai
+        # `rang_buoc_db` nên phải chịu chung luật chống drift của INV-12 —
+        # thiếu dòng này thì thêm/xoá một lý do từ chối trong contract mà quên
+        # sửa CHECK (hoặc ngược lại) sẽ KHÔNG ai bắt được.
+        (fsm["resolution"]["reject_reason"]["rang_buoc_db"],
+         set(fsm["resolution"]["reject_reason"]["values"].keys()),
+         "resolution.reject_reason"),
     ]
 
     for ten_cons, khai_bao, nhan in kiem_tra:
