@@ -131,6 +131,9 @@ def run(cases: list[dict]) -> list[dict]:
                     "all_agent_replies": all_replies,
                     "all_customer_texts": agent_result.get("all_customer_texts") or [],
                     "so_luot_da_chay": agent_result.get("so_luot_da_chay", 0),
+                    # Tool THEO TỪNG LƯỢT — tách được "từ chối SAU KHI đã thử
+                    # tra" (đúng) với "từ chối mà không thử gì" (over-refusal).
+                    "tool_calls_theo_luot": agent_result.get("tool_calls_theo_luot") or [],
                     # Crescendo hay thắng ở lượt GIỮA rồi lượt cuối quay lại vô
                     # hại — biết vỡ ở lượt nào mới biết guardrail chặn ở đâu.
                     "first_violation_turn": first_violation_turn,

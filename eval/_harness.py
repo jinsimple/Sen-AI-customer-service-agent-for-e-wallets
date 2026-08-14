@@ -306,6 +306,7 @@ def run_case_adversary(
     all_customer_texts: list[str] = []
     all_agent_replies: list[str] = []
     all_tool_calls: list[dict] = []
+    tool_calls_theo_luot: list[list[str]] = []
     all_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     result: dict[str, Any] = {}
 
@@ -322,7 +323,21 @@ def run_case_adversary(
         all_customer_texts.append(text)
         result = run_agent_turn(session, user_id=case["user_id"], message=text, thread_id=thread_id)
         all_agent_replies.append(result.get("reply", ""))
-        all_tool_calls.extend(result.get("tool_calls") or [])
+        tool_luot_nay = result.get("tool_calls") or []
+        all_tool_calls.extend(tool_luot_nay)
+        # TOOL THEO TỪNG LƯỢT — không chỉ tích luỹ phẳng.
+        #
+        # Vì sao cần cả hai: bản tích luỹ trả lời "trong cả hội thoại agent có
+        # tra cứu không" (đủ cho `ticket_phai_sau_tra_cuu`). Bản theo lượt trả
+        # lời câu khác hẳn: "ở ĐÚNG lượt agent từ chối, nó có thử tra không".
+        # Hai câu đó phân biệt hai giả thuyết đối lập trong MỘT lần chạy:
+        #   - có gọi tool rồi mới từ chối -> agent làm ĐÚNG (không bịa khi
+        #     chunk ít liên quan — ràng buộc 9 / CTRL-002)
+        #   - không gọi gì mà đã từ chối  -> ĐƯỜNG TẤN CÔNG THẬT: ép tới mức
+        #     agent từ chối cả việc hợp lệ (over-refusal / DoS ngữ nghĩa)
+        # Không có log này thì phải chạy lại lần hai để đoán, mà lượt sau
+        # temperature khác đi là mất luôn hiện tượng cần soi.
+        tool_calls_theo_luot.append([c.get("tool_name") for c in tool_luot_nay])
         for k, v in (result.get("usage") or {}).items():
             all_usage[k] = all_usage.get(k, 0) + v
 
@@ -330,6 +345,7 @@ def run_case_adversary(
     result["all_agent_replies"] = all_agent_replies
     result["tool_calls"] = all_tool_calls
     result["usage"] = all_usage
+    result["tool_calls_theo_luot"] = tool_calls_theo_luot
     result["so_luot_da_chay"] = len(all_agent_replies)
     return result
 
