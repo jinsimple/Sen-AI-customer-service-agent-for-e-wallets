@@ -85,6 +85,19 @@ Cập nhật: **2026-08-14 sáng** · Phiên vừa rồi: PO (tổng hợp đêm
   tạo cảnh báo vận hành, KHÔNG vào phễu học AI — thu hẹp luôn bề mặt
   poisoning (CSAT là kênh kẻ tấn công kiểm soát 100%).
 
+## Hotfix chiều 14/08 (a7c06f2 + fc38ee6, đã nghiệm thu) + nợ mới
+
+- Xong trên main: V1 link Phê duyệt · V3 validation số tiền hoàn 3 lớp
+  (prefill + chặn vô nghĩa + cảnh báo lệch, warn-not-block vì hoàn một phần
+  hợp lệ) · V6 rail giao dịch gate OTP (frontend-only) · dọn dòng 6đ.
+- Nợ ghi lại: **V5** agent bắt gõ lại sau OTP (vi phạm US-010) + **V4** trail
+  hiện `null` · **M-10** F5 sau OTP làm rail ẩn lại (gate theo state client —
+  fix: đọc trạng thái OTP phiên từ backend khi load) · **M-09** lookup REST
+  trả 500 trần khi thiếu tham số (contract đòi status='error') · **M-08**
+  agent không cảnh báo giao dịch đã refunded khi tạo ticket chuyển nhầm ·
+  fixture `test_reporting` chờ tester thêm `amount=` (4 dòng) · V6 ép backend
+  = đổi matrix → đợt ADR-020 · merge main→dev sau demo.
+
 ## Cảnh báo còn tồn
 
 - **Load test 150 CHƯA CHẠY** — mọi con số đồng thời vẫn là suy luận.

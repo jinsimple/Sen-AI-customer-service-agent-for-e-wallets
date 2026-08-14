@@ -49,6 +49,20 @@ giữ hội thoại. Không xuất hiện `[PERSON]`, không lộ múi giờ UTC
 
 Ngân sách còn dư cho pitch: CSKH ~2/60 tin trong giờ, khách ~7 lượt chat.
 
+**✅ HOTFIX CHIỀU 14/08 ĐÃ NGHIỆM THU (commit a7c06f2/fc38ee6, QA/QC xác nhận
+trong container):** V1 link Phê duyệt · V3 validation 3 lớp + dọn 6đ + prefill
+· V6 rail gate OTP (frontend). V5+V4 bỏ có chủ đích. Hàng chờ duyệt đúng 3
+item thật (323k · 178k · 107k). `/approve` hiện đủ danh sách — lần PO thấy
+trống là do phiên/cache trình duyệt, đăng nhập lại sếp là thấy.
+
+**Điều kiện thứ 6 (M-10):** sau khi OTP xong, **ĐỪNG F5 màn chat** — rail
+giao dịch sẽ ẩn trở lại (cổng chặn theo state client, chưa đọc lại phiên
+backend). Lỡ F5 → bấm "Xác thực ngay", ~10 giây. Fix gốc sau demo.
+
+**Ghi chú người demo (từ nghiệm thu):** D4 có 2/5 lần mở đầu thẳng "Mình đã
+tạo hồ sơ…" thiếu câu đồng cảm — không sai dữ liệu, không cần phản ứng;
+USR-0145 hiện có 9 khiếu nại nên agent sẽ đọc số đó nếu hỏi tình trạng.
+
 **⚠️ BỔ SUNG TRƯA 14/08 (từ triage của QA/QC) — điều kiện thứ 5:**
 Trong case D2 (không tìm thấy giao dịch), **TUYỆT ĐỐI KHÔNG yêu cầu agent tạo
 hồ sơ "cần tra thủ công"** sau khi tra không ra — đường tạo ticket với
