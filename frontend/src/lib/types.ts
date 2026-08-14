@@ -8,6 +8,23 @@ export type Priority = "low" | "normal" | "high" | "critical";
 export type HitlStatus = "pending" | "approved" | "rejected" | "need_more_info";
 export type PartnerWaitStatus = "n/a" | "waiting" | "overdue" | "responded";
 export type ResolutionStatus = "draft" | "pending_approval" | "approved" | "rejected";
+// Khớp CHECK constraint ck_resolutions_action_type + contract
+// resolution-state-machine.yaml. Là union (không phải string) để bảng nhãn
+// bên dưới bắt buộc phủ đủ — thiếu một giá trị là lỗi lúc build.
+export type ActionType =
+  | "refund_to_wallet"
+  | "refund_to_bank"
+  | "ledger_adjustment"
+  | "no_action"
+  | "manual_review";
+// Sáu giá trị đang có THẬT trong bảng transactions (đếm từ DB 14/08).
+export type TransactionStatus =
+  | "success"
+  | "processing"
+  | "pending"
+  | "failed"
+  | "refunded"
+  | "on_hold";
 
 export interface MaskedParty {
   kind: "wallet" | "bank_account";
@@ -96,7 +113,7 @@ export interface TicketDetail {
   } | null;
   resolutions: {
     resolution_id: string;
-    action_type: string;
+    action_type: ActionType;
     amount: number | null;
     status: ResolutionStatus;
     rationale: string;
@@ -116,7 +133,7 @@ export interface TicketDetail {
 export interface ResolutionListItem {
   resolution_id: string;
   ticket_id: string;
-  action_type: string;
+  action_type: ActionType;
   amount: number | null;
   destination_ref: string | null;
   rationale: string;
@@ -170,6 +187,55 @@ export interface CustomerHistory {
   complaints: { complaint_id: string; type: ComplaintType; status: string; created_at: string }[];
   tool_result_id: string;
 }
+
+// Nhãn hiển thị (14/08). BA NGUYÊN TẮC, đừng phá:
+//  - CHỈ dịch ở tầng hiển thị. Giá trị gửi/nhận qua API và lưu DB vẫn là
+//    chuỗi tiếng Anh gốc — chúng bị CHECK constraint + INV-12 canh.
+//  - Nhãn của `action_type`/`status` chép theo `mo_ta` trong
+//    contracts/resolution-state-machine.yaml, KHÔNG tự sáng tác.
+//  - `Record<Union, string>` cố ý: thêm giá trị mới vào union mà quên nhãn
+//    là TypeScript báo lỗi lúc build, không phải lỗi âm thầm trên UI.
+export const RESOLUTION_STATUS_LABEL: Record<ResolutionStatus, string> = {
+  draft: "Nháp — chưa trình",
+  pending_approval: "Chờ sếp duyệt",
+  approved: "Sếp đã duyệt",
+  rejected: "Sếp từ chối",
+};
+
+export const ACTION_TYPE_LABEL: Record<ActionType, string> = {
+  refund_to_wallet: "Hoàn tiền về ví",
+  refund_to_bank: "Hoàn tiền về tài khoản ngân hàng",
+  ledger_adjustment: "Điều chỉnh sổ cái",
+  no_action: "Không hành động (khiếu nại không có cơ sở)",
+  manual_review: "Cần người xem xét thủ công thêm",
+};
+
+// Trạng thái giao dịch KHÔNG có trong contract — nhãn dưới đây do tech-lead
+// đề xuất, chờ PO duyệt trước khi merge đợt 2. Sáu giá trị lấy từ dữ liệu
+// THẬT trong DB, không phải từ trí nhớ: success · processing · failed ·
+// refunded · pending · on_hold.
+export const TX_STATUS_LABEL: Record<TransactionStatus, string> = {
+  success: "Thành công",
+  processing: "Đang xử lý",
+  pending: "Chờ xử lý",
+  failed: "Thất bại",
+  refunded: "Đã hoàn tiền",
+  on_hold: "Đang tạm giữ",
+};
+
+// Tên tool trong Investigation trail. Record<string, string> (KHÔNG phải
+// union) có chủ đích: danh sách tool do backend quyết (contracts/
+// agent-tools.yaml), tool mới xuất hiện thì trail vẫn hiện tên kỹ thuật gốc
+// thay vì vỡ build hay hiện rỗng — nơi gọi dùng `?? log.tool_called`.
+export const TOOL_NAME_LABEL: Record<string, string> = {
+  lookup_transaction: "Tra cứu giao dịch",
+  get_customer_history: "Tra cứu lịch sử khách",
+  create_ticket: "Tạo hồ sơ khiếu nại",
+  search_policy: "Tra cứu chính sách",
+  request_human_handoff: "Yêu cầu gặp nhân viên",
+  propose_resolution: "Đề xuất hướng xử lý",
+  escalate_ticket: "Chuyển cấp xử lý",
+};
 
 export const HITL_STATUS_LABEL: Record<HitlStatus, string> = {
   pending: "Chờ CSKH tiếp nhận",

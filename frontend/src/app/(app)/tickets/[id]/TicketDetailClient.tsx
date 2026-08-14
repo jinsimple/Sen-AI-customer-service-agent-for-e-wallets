@@ -11,24 +11,30 @@ import {
   requestMoreInfo,
 } from "@/lib/api";
 import {
+  ACTION_TYPE_LABEL,
   COMPLAINT_TYPE_LABEL,
   HITL_STATUS_LABEL,
+  RESOLUTION_STATUS_LABEL,
   SCOPE_LABEL,
+  TOOL_NAME_LABEL,
+  TX_STATUS_LABEL,
+  type ActionType,
   type LookupTransactionResult,
   type TicketDetail,
+  type TransactionStatus,
 } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import type { Role } from "@/lib/session";
 import LiveChatPanel from "@/components/LiveChatPanel";
 import ResolutionApprovalActions from "@/components/ResolutionApprovalActions";
 
-const ACTION_TYPES = [
-  { value: "refund_to_wallet", label: "Hoàn về ví" },
-  { value: "refund_to_bank", label: "Hoàn về ngân hàng" },
-  { value: "ledger_adjustment", label: "Điều chỉnh sổ cái nội bộ" },
-  { value: "no_action", label: "Không cần xử lý" },
-  { value: "manual_review", label: "Cần xem xét thủ công" },
-];
+// Danh sách hướng xử lý cho form — nhãn lấy từ ACTION_TYPE_LABEL (nguồn duy
+// nhất, chép theo mo_ta của contract). Trước đây đây là bảng nhãn THỨ HAI,
+// chữ khác hẳn chỗ hiển thị ("Hoàn về ví" vs "Hoàn tiền về ví").
+const ACTION_TYPES = (Object.keys(ACTION_TYPE_LABEL) as ActionType[]).map((value) => ({
+  value,
+  label: ACTION_TYPE_LABEL[value],
+}));
 
 export default function TicketDetailClient({
   ticketId,
@@ -195,7 +201,7 @@ export default function TicketDetailClient({
       <div className="grid grid-2" style={{ alignItems: "start" }}>
         <div className="flex-col gap-lg">
           <div className="card">
-            <div className="card-title">Investigation trail</div>
+            <div className="card-title">Dấu vết điều tra</div>
             <div className="card-sub" style={{ marginBottom: 14 }}>
               Mỗi bước: tool đã gọi, input, kết quả, ghi chú AI, thời gian.
             </div>
@@ -208,10 +214,25 @@ export default function TicketDetailClient({
               <div className="trail">
                 {detail.investigation_logs.map((log) => (
                   <div className="trail-step" key={log.step_no}>
-                    <span className="trail-tool">{log.tool_called}()</span>
+                    {/* Nhãn thân thiện + tên kỹ thuật giữ lại dạng chữ nhỏ: đây là
+                        màn nội bộ, người điều tra vẫn cần đối chiếu tên tool thật. */}
+                    <span className="trail-tool">
+                      {TOOL_NAME_LABEL[log.tool_called] ?? log.tool_called}
+                      <span className="dim" style={{ fontSize: 11, marginLeft: 6, fontWeight: 400 }}>
+                        {log.tool_called}()
+                      </span>
+                    </span>
                     <div className="trail-io">
+                      {/* JSON GIỮ NGUYÊN VĂN — đây là bằng chứng truy vết chống bịa
+                          số liệu (ràng buộc cứng 3), dịch nó là phá giá trị đối
+                          chiếu. Chỉ ca `null` mới đổi thành chữ người đọc được. */}
                       {"input: " + JSON.stringify(log.tool_input)}
-                      {"\nkết quả: " + JSON.stringify(log.tool_result)}
+                      {"\nkết quả: " +
+                        (log.tool_result === null
+                          ? log.tool_result_id === null
+                            ? "(bị chặn — cần xác thực OTP phiên trước khi tra cứu)"
+                            : "(không có dữ liệu trả về)"
+                          : JSON.stringify(log.tool_result))}
                     </div>
                     {log.agent_note && <div className="trail-note">{log.agent_note}</div>}
                     <div className="trail-time">{formatDateTime(log.created_at)}</div>
@@ -262,7 +283,7 @@ export default function TicketDetailClient({
               <>
                 <div className="kv-row"><span className="k">Mã giao dịch</span><span className="v mono">{foundTx.trans_id}</span></div>
                 <div className="kv-row"><span className="k">Số tiền</span><span className="v mono">{formatMoney(foundTx.amount)}</span></div>
-                <div className="kv-row"><span className="k">Trạng thái</span><span className="v"><span className="badge badge-info">{foundTx.status}</span></span></div>
+                <div className="kv-row"><span className="k">Trạng thái</span><span className="v"><span className="badge badge-info">{TX_STATUS_LABEL[foundTx.status as TransactionStatus] ?? foundTx.status}</span></span></div>
                 <div className="kv-row">
                   <span className="k">Người nhận</span>
                   <span className="v masked">
@@ -308,7 +329,7 @@ export default function TicketDetailClient({
               <form onSubmit={handlePropose}>
                 <div className="field" style={{ marginTop: 0 }}>
                   <label>Hướng xử lý đề xuất</label>
-                  <select value={actionType} onChange={(e) => setActionType(e.target.value)}>
+                  <select value={actionType} onChange={(e) => setActionType(e.target.value as ActionType)}>
                     {ACTION_TYPES.map((a) => (
                       <option key={a.value} value={a.value}>{a.label}</option>
                     ))}
@@ -369,7 +390,7 @@ export default function TicketDetailClient({
                     <div className="kv-row">
                       <span className="k">Đề xuất</span>
                       <span className="v">
-                        {r.action_type}
+                        {ACTION_TYPE_LABEL[r.action_type]}
                         {r.amount ? ` — ${formatMoney(r.amount)}` : ""}
                       </span>
                     </div>
@@ -389,8 +410,8 @@ export default function TicketDetailClient({
               <div className="card-title">Đề xuất đã trình</div>
               {detail.resolutions.map((r) => (
                 <div className="kv-row" key={r.resolution_id}>
-                  <span className="k">{r.action_type}{r.amount ? ` — ${formatMoney(r.amount)}` : ""}</span>
-                  <span className="v"><span className="badge badge-info">{r.status}</span></span>
+                  <span className="k">{ACTION_TYPE_LABEL[r.action_type]}{r.amount ? ` — ${formatMoney(r.amount)}` : ""}</span>
+                  <span className="v"><span className="badge badge-info">{RESOLUTION_STATUS_LABEL[r.status]}</span></span>
                 </div>
               ))}
             </div>

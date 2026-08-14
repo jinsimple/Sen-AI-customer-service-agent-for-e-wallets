@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ApiError, listResolutions } from "@/lib/api";
-import { COMPLAINT_TYPE_LABEL, SCOPE_LABEL, type ResolutionListItem } from "@/lib/types";
+import { ACTION_TYPE_LABEL, COMPLAINT_TYPE_LABEL, SCOPE_LABEL, type ResolutionListItem } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
 
 export default function ApproveClient() {
@@ -63,7 +63,7 @@ export default function ApproveClient() {
             </div>
             <div className="kv-row" style={{ marginTop: 12 }}>
               <span className="k">Đề xuất từ CSKH</span>
-              <span className="v">{r.action_type}{r.amount ? ` — ${formatMoney(r.amount)}` : ""}</span>
+              <span className="v">{ACTION_TYPE_LABEL[r.action_type]}{r.amount ? ` — ${formatMoney(r.amount)}` : ""}</span>
             </div>
             <div className="kv-row"><span className="k">Căn cứ</span><span className="v" style={{ fontWeight: 400 }}>{r.rationale}</span></div>
             <div className="kv-row"><span className="k">Trình lúc</span><span className="v" style={{ fontWeight: 400 }}>{formatDateTime(r.created_at)}</span></div>
