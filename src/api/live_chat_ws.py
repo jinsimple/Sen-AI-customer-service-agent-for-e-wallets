@@ -19,6 +19,7 @@ import datetime as dt
 import json
 import logging
 import secrets
+import time
 from collections import defaultdict
 from typing import Any
 
@@ -47,6 +48,13 @@ _STAFF_SESSIONS_TTL_SECONDS = 12 * 3600
 # Ánh xạ NGƯỢC: phiên -> CSKH đang giữ. Dùng lúc GIAO TIN để không phụ thuộc
 # thứ tự các sự kiện đăng ký giữa các worker (xem _deliver_session_local).
 _SESSION_STAFF_KEY = "fin05:live_chat:session_staff:"
+# F-14 — hạn dùng của bộ nhớ tạm 'phiên -> CSKH' trong RAM mỗi worker. 30s:
+# đủ ngắn để một tin `unclaim` bị lỡ tự lành trước khi khách kịp gõ vài câu,
+# đủ dài để vẫn là 1 lần đọc Redis mỗi phiên mỗi 30s thay vì mỗi tin nhắn.
+_SESSION_STAFF_TTL = 30.0
+# Chỉ quét dọn khi vượt ngưỡng này — dọn mỗi lần đọc là trả phí cho việc
+# chưa cần làm. 512 phiên đồng thời trên MỘT worker đã vượt xa quy mô pilot.
+_SESSION_STAFF_NGUONG_DON = 512
 _logger = logging.getLogger("fin05.live_chat_ws")
 
 
@@ -102,7 +110,21 @@ class ConnectionManager:
         self._user_sockets: dict[str, set[WebSocket]] = defaultdict(set)
         self._staff_sockets: set[WebSocket] = set()
         # Nhớ tạm "phiên -> CSKH" để khỏi đọc Redis mỗi tin nhắn (QA-13).
-        self._session_staff: dict[str, str] = {}
+        # F-14 — mỗi mục có HẠN DÙNG. Bản cũ là dict không hạn, không trần, chỉ
+        # xoá khi nhận được `unclaim` hoặc lúc đóng phiên. Hai hỏng hóc từ đó:
+        #
+        #  * Ánh xạ SAI sống mãi. `unclaim` đi qua pub/sub — bắn-rồi-quên. Worker
+        #    vừa restart, Redis chập một nhịp, hoặc worker mới sinh ra sau khi
+        #    tin đã bắn: nó không bao giờ biết phiên đã đổi người giữ, và tiếp
+        #    tục đẩy tin của KHÁCH sang CSKH cũ — người không còn quyền đọc phiên
+        #    đó nữa. Đây là rò rỉ dữ liệu, không chỉ là bug định tuyến.
+        #  * Phình vô hạn: mỗi phiên từng đi qua worker nằm lại vĩnh viễn.
+        #
+        # Redis mới là nguồn sự thật; dict này chỉ để khỏi đọc mỗi tin nhắn. Cho
+        # nó hạn dùng ngắn thì mọi sai lệch TỰ LÀNH sau tối đa _SESSION_STAFF_TTL
+        # giây, mà vẫn giữ nguyên mục đích ban đầu: 1 lần đọc Redis mỗi phiên
+        # mỗi 30 giây, không phải mỗi tin nhắn.
+        self._session_staff: dict[str, tuple[str, float]] = {}
         # Đồng bộ Redis (đợt nâng cấp Auth Flow 2026-08-12, xem
         # src/rate_limit.py) — trước đây in-memory dict riêng của process,
         # mất sạch state mỗi lần restart backend (rate-limit "reset" âm thầm
@@ -265,7 +287,7 @@ class ConnectionManager:
             # QA-13 lớp 1 — KHÔNG giao tin, chỉ ĐĂNG KÝ: worker này có thể
             # đang giữ socket của CSKH vừa nhận ca ở worker khác.
             staff_user_id = str(payload.get("staff_user_id") or "")
-            self._session_staff[target] = staff_user_id
+            self._session_staff[target] = (staff_user_id, time.monotonic() + _SESSION_STAFF_TTL)
             self._dang_ky_cskh_vao_phien_local(target, staff_user_id)
         elif kind == "unclaim" and target:
             # Phiên đã trả về hàng chờ/đổi người giữ — MỌI worker phải quên
@@ -300,10 +322,18 @@ class ConnectionManager:
                 )
 
     def _cskh_dang_giu_phien(self, chat_session_id: str) -> str | None:
-        """CSKH đang giữ phiên, đọc từ Redis + nhớ lại trong RAM (1 lần đọc cho
-        mỗi phiên trên mỗi worker, KHÔNG phải mỗi tin nhắn)."""
-        if chat_session_id in self._session_staff:
-            return self._session_staff[chat_session_id]
+        """CSKH đang giữ phiên, đọc từ Redis + nhớ lại trong RAM có HẠN DÙNG (1
+        lần đọc cho mỗi phiên mỗi _SESSION_STAFF_TTL giây trên mỗi worker, KHÔNG
+        phải mỗi tin nhắn)."""
+        nho = self._session_staff.get(chat_session_id)
+        if nho is not None:
+            staff_id_nho, het_han = nho
+            if time.monotonic() < het_han:
+                return staff_id_nho
+            # Hết hạn: bỏ đi rồi đọc lại Redis. KHÔNG trả về giá trị cũ như một
+            # "phương án dự phòng" — giá trị cũ chính là thứ gây định tuyến nhầm.
+            self._session_staff.pop(chat_session_id, None)
+        self._don_muc_het_han()
         try:
             raw = get_default_client().get(_SESSION_STAFF_KEY + chat_session_id)
         except Exception as e:  # noqa: BLE001
@@ -311,8 +341,19 @@ class ConnectionManager:
             return None
         staff_id = (raw.decode() if isinstance(raw, bytes) else raw) if raw else None
         if staff_id:
-            self._session_staff[chat_session_id] = staff_id
+            self._session_staff[chat_session_id] = (staff_id, time.monotonic() + _SESSION_STAFF_TTL)
         return staff_id
+
+    def _don_muc_het_han(self) -> None:
+        """Dọn mục quá hạn. Hạn dùng một mình KHÔNG chặn được phình bộ nhớ: mục
+        hết hạn chỉ biến mất khi có ai đọc lại đúng phiên đó, mà phiên đã đóng
+        thì không ai đọc nữa. Dọn theo lô khi vượt ngưỡng — rẻ hơn quét mỗi lần
+        đọc, và ngưỡng đủ cao để không chạy trong nhịp bình thường."""
+        if len(self._session_staff) <= _SESSION_STAFF_NGUONG_DON:
+            return
+        bay_gio = time.monotonic()
+        for cs_id in [k for k, (_, het_han) in self._session_staff.items() if het_han <= bay_gio]:
+            self._session_staff.pop(cs_id, None)
 
     async def send_to_user(self, user_id: str, payload: dict[str, Any]) -> None:
         await self._deliver_user_local(user_id, payload)
@@ -440,7 +481,7 @@ class ConnectionManager:
         # ("giao/áp local trước, rồi publish cho worker khác").
         self._dang_ky_cskh_vao_phien_local(chat_session_id, staff_user_id)
         await self._publish("claim", chat_session_id, {"staff_user_id": staff_user_id})
-        self._session_staff[chat_session_id] = staff_user_id
+        self._session_staff[chat_session_id] = (staff_user_id, time.monotonic() + _SESSION_STAFF_TTL)
         try:
             client = get_default_client()
             client.sadd(_STAFF_SESSIONS_KEY + staff_user_id, chat_session_id)
