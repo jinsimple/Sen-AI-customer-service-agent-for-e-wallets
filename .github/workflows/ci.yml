@@ -272,8 +272,15 @@ jobs:
       # về git). Runner sạch không có nó, nên eval chết ở FileNotFoundError
       # TRƯỚC KHI kịp gọi LLM: job đỏ vì thiếu dữ liệu chứ không phải vì agent
       # trả lời sai. Seed cố định 20260802 -> tái tạo y hệt, offline, ~20s.
-      - name: Sinh lại data/generated (seed cố định, không gọi mạng)
-        run: make data
+      # `--eval-out` BẮT BUỘC, không được dùng `make data` trần: eval_dir của
+      # gen_dataset.py mặc định là ROOT/eval, nên nó GHI ĐÈ eval/golden_set.jsonl
+      # bất kể `--out` trỏ đi đâu. golden_set trong repo có các nhãn kiểm được
+      # thêm tay và PO duyệt (must_offer_before_creating_ticket...); sinh lại sẽ
+      # XOÁ SẠCH chúng — CI sẽ chấm bằng một cái thước ngắn hơn thước thật mà
+      # không báo gì. Đẩy bản sinh ra sang thư mục vứt đi để thước trong repo
+      # bất động.
+      - name: Sinh lại data/generated (seed cố định, KHÔNG đụng eval/)
+        run: python3 scripts/gen_dataset.py --seed 20260802 --out data/generated/ --eval-out "${RUNNER_TEMP}/eval-vut-di/"
       - run: python eval/run_golden_set.py
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -308,8 +315,15 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       # Cùng lý do như job business-rules-golden-set ở trên.
-      - name: Sinh lại data/generated (seed cố định, không gọi mạng)
-        run: make data
+      # `--eval-out` BẮT BUỘC, không được dùng `make data` trần: eval_dir của
+      # gen_dataset.py mặc định là ROOT/eval, nên nó GHI ĐÈ eval/golden_set.jsonl
+      # bất kể `--out` trỏ đi đâu. golden_set trong repo có các nhãn kiểm được
+      # thêm tay và PO duyệt (must_offer_before_creating_ticket...); sinh lại sẽ
+      # XOÁ SẠCH chúng — CI sẽ chấm bằng một cái thước ngắn hơn thước thật mà
+      # không báo gì. Đẩy bản sinh ra sang thư mục vứt đi để thước trong repo
+      # bất động.
+      - name: Sinh lại data/generated (seed cố định, KHÔNG đụng eval/)
+        run: python3 scripts/gen_dataset.py --seed 20260802 --out data/generated/ --eval-out "${RUNNER_TEMP}/eval-vut-di/"
       - run: python eval/run_adversarial_set.py
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
