@@ -1757,7 +1757,40 @@ def main():
     ap.add_argument("--seed", type=int, default=20260802)
     ap.add_argument("--out", type=Path, default=ROOT / "data/generated")
     ap.add_argument("--eval-out", type=Path, default=None)
+    ap.add_argument(
+        "--cho-phep-ghi-de-thuoc",
+        action="store_true",
+        help="Cho phép ghi đè eval/golden_set.jsonl + heldout_set.jsonl. KHÔNG dùng "
+        "trừ khi đang cố ý sinh lại thước từ đầu.",
+    )
     args = ap.parse_args()
+
+    # GUARD (PO duyệt sau sự cố 14/08): script này có ĐƯỜNG GHI THỨ HAI không
+    # nằm trong `--out`. `eval_dir` mặc định là ROOT/eval, nên chạy `make data`
+    # hay truyền `--out /tmp/gì-đó` VẪN ghi đè eval/golden_set.jsonl. Thước đó
+    # mang các nhãn kiểm được thêm TAY và PO duyệt (must_offer_before_creating_
+    # ticket...) — sinh lại xoá sạch chúng, rồi mọi phép đo sau đó chấm bằng
+    # thước ngắn hơn thước thật mà không có dòng cảnh báo nào.
+    #
+    # Đã xảy ra thật hai lần trong một buổi: một lần trên máy dev (chạy để đo
+    # thời gian), một lần suýt thành thường trực khi `make data` được thêm vào
+    # CI. Cả hai lần đều KHÔNG có tín hiệu gì — chỉ lộ ra vì có người nhìn
+    # `git status`.
+    #
+    # Chặn bằng cấu trúc thay vì bằng trí nhớ: mặc định là DỪNG, muốn ghi đè
+    # thì phải nói ra. Fail-closed, cùng nguyên tắc với config fail-fast của dự
+    # án.
+    eval_dich = args.eval_out or (ROOT / "eval")
+    if args.eval_out is None and not args.cho_phep_ghi_de_thuoc:
+        ap.error(
+            f"Từ chối ghi đè thước đo tại {eval_dich}.\n"
+            "  - Chỉ cần dữ liệu (data/generated): thêm --eval-out <thư-mục-tạm>\n"
+            "  - Thật sự muốn sinh lại thước: thêm --cho-phep-ghi-de-thuoc\n"
+            "Lý do: eval/golden_set.jsonl mang nhãn kiểm thêm tay đã được PO duyệt; "
+            "sinh lại sẽ xoá chúng và mọi phép đo sau đó dùng thước ngắn hơn thước "
+            "thật mà không báo gì."
+        )
+
     Builder(args.seed, args.out, args.eval_out).run()
 
 
