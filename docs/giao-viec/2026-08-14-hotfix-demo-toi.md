@@ -66,11 +66,27 @@
   chỉ dính nếu OTP step-up hết hạn giữa chừng (checklist đã dặn canh 15 phút).
   Ghi nợ vào STATE nếu không làm.
 
+### V6 — Rail "Giao dịch gần đây" hiện TRƯỚC khi OTP — PO thật đổi chính sách
+- **KHÔNG phải bug**: comment tại route lookup_transaction/get_customer_history
+  (main.py) ghi rõ đây là chủ đích — rail nạp ngay khi vào trang, OTP chỉ ép
+  trên đường agent (customer_tools.py, INV-10). Contract hiện hành nhất quán.
+- **PO thật quyết đổi**: chưa OTP thì KHÔNG xem được giao dịch gần đây; OTP
+  xong mới hiện.
+- **Fix TỐI NAY (frontend-only, không đụng contract):** ChatClient gate rail
+  theo state otpVerified — chưa OTP thì thay danh sách bằng placeholder "Xác
+  thực OTP để xem giao dịch gần đây" (+ nút mở luồng OTP sẵn có). KHÔNG sửa
+  backend/route/matrix tối nay.
+- **SAU DEMO (nếu muốn ép thật ở backend):** thêm require_otp_verified cho
+  đường customer của 2 route đọc → đổi `extra` trong authority-matrix.yaml →
+  ADR + PO duyệt (quy trình 7 bước), giữ nguyên đường CSKH/sếp. Ghi nợ vào
+  STATE, quyết cùng đợt ADR-020.
+
 ## Thứ tự làm (timebox tổng 2h, ưu tiên trên xuống)
 1. V3.2 validation + V3.3 dọn dòng 6đ (chạm tiền — quan trọng nhất)
 2. V1 link "Mở trang Phê duyệt"
-3. V3.1 prefill
-4. V5 + V4 (một cụm — chỉ khi 1–3 xong và còn ≥45 phút)
+3. V6 gate rail theo otpVerified (frontend-only — PO thật yêu cầu trực tiếp)
+4. V3.1 prefill
+5. V5 + V4 (một cụm — chỉ khi 1–4 xong và còn ≥45 phút)
 5. Rebuild container + verify (grep code mới TRONG container) + 19/19 bất biến
    + báo PO thật test lại đúng luồng: CSKH trình (số tiền tự điền) → sếp vào
    tab Phê duyệt → xin OTP → duyệt. Nếu làm V5: test thêm luồng OTP giữa chừng.
