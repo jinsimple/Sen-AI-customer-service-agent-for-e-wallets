@@ -512,6 +512,64 @@ reseed sinh thêm mẫu PII "bẩn" (SĐT viết liền/cách, tên ngoài tập
 — tester thêm case scrub đối kháng trên dữ liệu đó. TM-R8 ghi nhận: làm sạch
 RAG tại TRUY VẤN là chủ đích, cấm "tối ưu" thành chỉ-lọc-lúc-nạp.
 
+## C2/C3 — CI CHƯA TỪNG CHẠY TRÊN NHÁNH LÀM VIỆC (1d87f38 — PO phán quyết)
+
+**Sự thật đo được:** workflow chỉ trigger push main/develop + PR đích main —
+nhánh dev/learning-loop không khớp cả hai ⇒ toàn bộ Phase 0+1 hôm nay có
+ZERO lượt CI độc lập. PO bổ sung nguyên nhân chồng: local đang ahead remote
+~42+ commit từ đầu ngày — kể cả trigger đúng cũng chưa ai push. Hai lỗi độc
+lập, cùng hậu quả.
+
+**Phán quyết:**
+1. DUYỆT đề nghị QA — sửa trigger LÊN ĐẦU hàng đợi coder, được làm NGAY
+   không chờ lượt đo (sửa .github/ không chạm src/, không phạm bất biến đo):
+   thêm `dev/**` vào push.branches, bỏ giới hạn đích pull_request.
+2. Sau khi sửa trigger: PUSH dev/learning-loop + main lên remote để CI chạy
+   thật lần đầu — coder thực hiện, báo kết quả lượt CI đầu tiên (kỳ vọng:
+   có thể đỏ những chỗ máy cá nhân chưa thấy — đó là MỤC ĐÍCH, không phải
+   sự cố).
+3. Chuẩn hoá 2 tiêu chí của QA thành luật: **SKIP ≠ ĐẠT** (job phải đỏ khi
+   không dựng được môi trường nó cần, không im lặng skip) · **test canh
+   trạng thái dữ liệu môi trường cụ thể tách khỏi test canh logic** (hoặc
+   tự nhận nhầm môi trường mà skip có thông báo — không bao giờ đỏ oan).
+4. Ghi nhận QA tự bắt lỗi C3 của chính mình TRƯỚC khi nó làm coder nhận một
+   CI đỏ không liên quan — "cách nhanh nhất để một job bị coi là hay-đỏ-vớ-
+   vẩn rồi bị bỏ qua" là chẩn đoán đúng về cách CI chết trong thực tế.
+
+## LƯỢT ĐO CUỐI GÓI B2 (164859) + PHÁN QUYẾT ĐO NHIỄU NỀN (PO)
+
+**Kết quả:** (a) bịa 0/40 ĐẠT · (b) ĐẠT MẠNH — cả 5 ca sạch hoàn toàn ·
+(c) HỎNG 5 ca (101, 020, 067, 094, 085) · tổng 30→23 case lỗi, 55→43 check
+— tốt nhất mọi lượt hôm nay. Coder tuân thủ HOLD, không commit. ĐÚNG LUẬT.
+
+**Dữ kiện nghi phương pháp (coder nêu, PO công nhận):** tập "xấu đi" đổi gần
+hết giữa hai lượt patch (7 ca vs 5 ca, chỉ 3 trùng: 101/094/085) dù cùng
+nền. Nếu luật là nguyên nhân tất định, hai tập phải giống nhau về cơ bản.
+**PO tự nhận lỗi thiết kế: gate (c) "không ca nào xấu đi" áp lên hệ
+temperature 0.2 không tất định sẽ gần như luôn hỏng bất kể bản vá tốt xấu**
+— và cổng --so-sanh thoát-mã-1 của QA cũng mang cùng giả định, cần tinh
+chỉnh sau khi có số nhiễu.
+
+**PHÁN QUYẾT: DUYỆT LƯỢT ĐO NHIỄU NỀN** (~$0,22) — chạy LẠI đúng cấu hình
+nền (prompt nguyên bản, thước 394feef), so với 161529: đếm ca tự đổi trạng
+thái giữa hai lượt CÙNG cấu hình. Phân loại: **HẠ TẦNG ĐO** — con số floor
+dùng mãi cho mọi gate sau, không tính vào gói B2.
+
+**Quy tắc đọc kết quả — đặt TRƯỚC khi đo, không đổi sau:**
+- Floor ≈ 4-6 ca flip → 5 ca "xấu đi" của lượt 2-luật nằm trong nhiễu →
+  gate (c) đánh giá LẠI theo tiêu chí nhiễu-aware (chỉ tính ca xấu đi nhất
+  quán qua các lượt hoặc số ca vượt floor) → khả năng SHIP luật 4+1 mở lại.
+- Floor thấp (≤2) → 5 ca là hiệu ứng thật → HOLD giữ + đọc transcript
+  (dữ liệu D1 đã sẵn).
+- Riêng 101/094/085 (xấu ở CẢ HAI lượt patch): nếu cũng flip trong nhiễu
+  nền → ca nhạy nhiễu; nếu ổn định → hiệu ứng thật của luật 4+1, xử riêng.
+
+**C13:** duyệt hướng coder — chuyển CẢ BỐN file (3 lượt bỏ + nền thước cũ
+131834) vào archive như MỘT CỤM kèm README "thước cũ, trước d72017a";
+quyết định cuối của QA. Giữ lại: 161529 · 163222 · 164859 · 041244.
+
+C4 + ADR-021: coder đang làm đúng lệnh, dự thảo theo đủ 3 điều kiện.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
