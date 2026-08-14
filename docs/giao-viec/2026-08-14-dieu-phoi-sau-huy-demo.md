@@ -555,14 +555,21 @@ nền (prompt nguyên bản, thước 394feef), so với 161529: đếm ca tự 
 thái giữa hai lượt CÙNG cấu hình. Phân loại: **HẠ TẦNG ĐO** — con số floor
 dùng mãi cho mọi gate sau, không tính vào gói B2.
 
-**Quy tắc đọc kết quả — đặt TRƯỚC khi đo, không đổi sau:**
-- Floor ≈ 4-6 ca flip → 5 ca "xấu đi" của lượt 2-luật nằm trong nhiễu →
-  gate (c) đánh giá LẠI theo tiêu chí nhiễu-aware (chỉ tính ca xấu đi nhất
-  quán qua các lượt hoặc số ca vượt floor) → khả năng SHIP luật 4+1 mở lại.
-- Floor thấp (≤2) → 5 ca là hiệu ứng thật → HOLD giữ + đọc transcript
-  (dữ liệu D1 đã sẵn).
-- Riêng 101/094/085 (xấu ở CẢ HAI lượt patch): nếu cũng flip trong nhiễu
-  nền → ca nhạy nhiễu; nếu ổn định → hiệu ứng thật của luật 4+1, xử riêng.
+**Quy tắc đọc kết quả — đặt TRƯỚC khi đo, CHỈNH theo phương pháp QA:**
+- Công cụ: `--so-sanh` trên hai lượt CÙNG cấu hình — "Ca XẤU ĐI" CHÍNH LÀ số
+  ca tự flip, không cần viết thêm (QA chỉ ra).
+- **KHÔNG dùng ngưỡng số đếm** ("đỏ khi vượt floor") — QA đúng: 14 xấu/18 tốt
+  có thể là 32 flip ngẫu nhiên HOẶC 1 hồi quy thật lẫn 31 flip, cùng một số.
+  Số đếm mù đúng chỗ bảng sinh ra để soi.
+- **Phương pháp đúng: GIAO của các tập ca-xấu-đi qua N lượt lặp.** Ca xấu đi
+  ở MỌI lượt = tín hiệu gần như chắc; ca chỉ xấu một lượt = nhiễu. Áp cho B2:
+  giao của {7 ca lượt 3-luật} ∩ {5 ca lượt 2-luật} ∩ {ca xấu ở lượt nhiễu} —
+  101/094/085 (đã xấu ở cả hai lượt patch) là ứng viên tín hiệu, kiểm tiếp
+  chúng có xấu trong lượt nhiễu-nền-thuần không: xấu → nhạy nhiễu; sạch →
+  hiệu ứng thật của luật, xử riêng từng ca.
+- Nếu giao ∩ rỗng (mọi ca xấu đều là nhiễu) → gate (c) coi như ĐẠT → SHIP
+  luật 4+1. Nếu giao có ca → đọc transcript ĐÚNG ca đó (D1 sẵn), không đọc
+  cả 5.
 
 **C13:** duyệt hướng coder — chuyển CẢ BỐN file (3 lượt bỏ + nền thước cũ
 131834) vào archive như MỘT CỤM kèm README "thước cũ, trước d72017a";
