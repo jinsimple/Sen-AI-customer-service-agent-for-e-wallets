@@ -78,3 +78,38 @@
 Bảng nhãn cuối (đặc biệt nhóm ngoài contract) — PO duyệt 1 lần trước khi
 merge đợt 2, để giọng ngôn ngữ thống nhất với tone sản phẩm (PRD §15.2:
 không thuật ngữ nghiệp vụ với khách; "tra soát"/"đối soát" chỉ dùng màn nội bộ).
+
+---
+
+## CẬP NHẬT SAU INVENTORY (PO chốt, chiều 14/08 — demo ĐÃ HUỶ, bỏ phân đợt)
+
+Inventory: `eval/viet_hoa_inventory_20260814.md` (15 mục + 1 phát hiện ngoài
+phạm vi). Toàn bộ làm MỘT MẠCH trên `dev/learning-loop` (sau khi coder merge
+main → dev). Các quyết định:
+
+1. **P1 màn khách — DUYỆT sửa cả hai:**
+   - Bỏ mã user story (US-002, 003…) khỏi mọi màn khách — mã nội bộ, khách
+     không cần biết.
+   - Câu "AI agent thật (LangGraph + OpenAI) đang chạy…" → thay bằng câu
+     không tên công nghệ, giữ đúng ý minh bạch: "Trợ lý AI — mọi con số đều
+     được tra cứu từ hệ thống thật, không tự suy đoán." (PRD §15.2 + AI Act
+     Điều 50 vẫn thoả: khách vẫn được báo đang nói chuyện với AI.)
+   - EnvBadge `DEVELOPMENT · postgresql/fin05` GIỮ NGUYÊN — đồng ý QA,
+     đó là ADR-009, tự ẩn ở production.
+2. **🔴 Câu SAI SỰ THẬT — DUYỆT sửa ngay trong đợt:** "AI agent chưa xử lý
+   case này (agent đang được xây, xem FIN05-Backend-Handoff.md §4.2)" →
+   empty-state trung thực: "Chưa có bước điều tra nào được ghi cho hồ sơ
+   này." Không trỏ tên file nội bộ ra UI.
+3. **Nhãn còn treo — DUYỆT:** "Investigation trail" → **"Nhật ký điều tra"**
+   (khớp đúng ngôn ngữ contract: bảng investigation_logs = "Nhật ký điều tra
+   từng bước"); nhãn vai dùng lại GROUP_LABEL sẵn có; 2 mục P3 định dạng SLA
+   → coder đề xuất format dễ đọc (dd/mm/yyyy hh:mm), không cần duyệt lại.
+4. **🔴 CSKH bị chặn /report (ngoài phạm vi nhưng cùng lớp d0baf35) — DUYỆT
+   vá cùng đợt:** thêm `/report` vào ROLE_PREFIXES.cskh + tab "Báo cáo vận
+   hành" cho CSKH — contract cho phép (GET /reports/summary: cskh,
+   supervisor), frontend đang chặt hơn contract là bug. Tester thêm 1 test
+   e2e canh lớp lỗi này cho CẢ các cặp role×route còn lại của matrix (rà
+   một lượt, đừng vá từng con một khi nó tái xuất hiện lần ba).
+5. **2 assert e2e** (ticket-detail.spec.ts:52-53): đồng ý phương án tester —
+   sửa SAU khi coder chốt nhãn, assert đúng nhãn tiếng Việt; 2 chỗ dùng enum
+   làm dữ liệu (dòng 43, actors.ts:159) giữ nguyên — phán đoán đúng Luật 1.
