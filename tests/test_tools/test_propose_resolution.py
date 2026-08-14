@@ -22,7 +22,7 @@ def _make_ticket(sample_db):
 
 def test_resolution_always_pending_approval(sample_db):
     ticket_id = _make_ticket(sample_db)
-    r = propose_resolution(sample_db, ticket_id=ticket_id, action_type="no_action", rationale="ly do")
+    r = propose_resolution(sample_db, ticket_id=ticket_id, action_type="no_action", rationale="ly do", created_by="USR-CSKH")
     assert r["status"] == "pending_approval"
 
 
@@ -41,6 +41,7 @@ def test_rejects_fabricated_cited_tool_result_id(sample_db):
             ticket_id=ticket_id,
             action_type="refund_to_wallet",
             rationale="ly do",
+            created_by="USR-CSKH",
             amount=270_000,
             cited_tool_result_ids=["TR-KHONG-TON-TAI"],
         )
@@ -54,6 +55,7 @@ def test_accepts_real_cited_tool_result_id(sample_db):
         ticket_id=ticket_id,
         action_type="refund_to_wallet",
         rationale="khop voi tra cuu",
+        created_by="USR-CSKH",
         amount=270_000,
         cited_tool_result_ids=[lookup["tool_result_id"]],
     )
@@ -63,4 +65,4 @@ def test_accepts_real_cited_tool_result_id(sample_db):
 def test_empty_rationale_rejected(sample_db):
     ticket_id = _make_ticket(sample_db)
     with pytest.raises(ToolError):
-        propose_resolution(sample_db, ticket_id=ticket_id, action_type="no_action", rationale="   ")
+        propose_resolution(sample_db, ticket_id=ticket_id, action_type="no_action", rationale="   ", created_by="USR-CSKH")

@@ -35,9 +35,20 @@ from src.services.complaint_intake import create_ticket_with_fraud_check
 from src.tools.propose_resolution import propose_resolution
 
 
-def _resolution_cho_ticket_moi(sample_db) -> Resolution:
+def _resolution_cho_ticket_moi(sample_db, *, created_by: str | None = "USR-CSKH") -> Resolution:
     """Dựng 1 resolution ở trạng thái `pending_approval` qua đúng đường dịch vụ
-    thật (không tự chế bản ghi) — mọi test dưới đây chỉ đổi trạng thái từ đó."""
+    thật (không tự chế bản ghi) — mọi test dưới đây chỉ đổi trạng thái từ đó.
+
+    `created_by` mặc định là **CSKH, không phải supervisor**: mọi test ở đây
+    duyệt/từ chối bằng `USR-SUP`, nên để supervisor làm người đề xuất sẽ khiến
+    BR-12 chặn và test đỏ vì lý do KHÁC với lý do nó đang kiểm. Ca nào cần thử
+    chính BR-12 thì truyền `created_by="USR-SUP"` một cách minh thị.
+
+    `created_by=None` mô phỏng **dòng cũ** (trước migration `b2c3d4e5f6a7`) —
+    hợp lệ và cần thiết cho ca 6 của bảng chân trị. Tham số của
+    `propose_resolution` là bắt buộc-nhưng-nhận-None, đúng thiết kế: người gọi
+    phải RA QUYẾT ĐỊNH minh thị, thay vì lỡ tay sinh thêm dòng NULL mới —
+    mỗi dòng NULL mới là một dòng BR-12 không ràng được (F-17)."""
     created = create_ticket_with_fraud_check(
         sample_db, user_id="USR-A", complaint_type="wrong_recipient", scope="internal_wallet",
         description_raw="test check constraint", trans_id="TXN-0001",
@@ -45,7 +56,7 @@ def _resolution_cho_ticket_moi(sample_db) -> Resolution:
     sample_db.commit()
     r = propose_resolution(
         sample_db, ticket_id=created["ticket_id"], action_type="refund_to_wallet",
-        rationale="test", amount=270_000,
+        rationale="test", amount=270_000, created_by=created_by,
     )
     sample_db.commit()
     return sample_db.get(Resolution, r["resolution_id"])
@@ -210,7 +221,7 @@ def test_br12_created_by_rong_thi_khong_bi_rang(sample_db):
     của constraint KHÔNG phải bằng chứng dữ liệu cũ đã sạch — nó chỉ bắt đầu
     bảo vệ từ các resolution tạo qua route mới.
     """
-    res = _resolution_cho_ticket_moi(sample_db)
+    res = _resolution_cho_ticket_moi(sample_db, created_by=None)
     assert res.created_by is None, "Fixture phải mô phỏng dòng chưa có created_by"
 
     res.status = "approved"
@@ -219,3 +230,78 @@ def test_br12_created_by_rong_thi_khong_bi_rang(sample_db):
     sample_db.commit()
 
     assert sample_db.get(Resolution, res.resolution_id).status == "approved"
+
+
+# --- BR-12 mở rộng sang nhánh TỪ CHỐI (F-18, contract v2.3.0) --------------
+#
+# Ánh xạ 1-1 với BẢNG CHÂN TRỊ 6 CA của security
+# (`docs/security/review-ADR-020-BR-12-maker-checker.md` §6) — cố ý dùng CHUNG
+# bộ ca để tester/coder/security đo bằng CÙNG MỘT THƯỚC, không mỗi người một
+# cách hiểu:
+#
+#   1. c=X, chưa duyệt/từ chối  -> cho phép : test_br12_moi_de_xuat_chua_quyet...
+#   2. c=X, a=X  TỰ DUYỆT       -> CHẶN     : test_br12_nguoi_de_xuat_khong_duoc_tu_duyet...
+#   3. c=X, a=Y  duyệt đúng     -> cho phép : test_br12_nguoi_khac_duyet_thi_ghi_duoc
+#   4. c=X, r=X  TỰ TỪ CHỐI     -> CHẶN     : test_br12_nguoi_de_xuat_khong_duoc_tu_tu_choi
+#   5. c=X, r=Y  từ chối đúng   -> cho phép : test_br12_nguoi_khac_tu_choi_thi_ghi_duoc
+#   6. c=NULL   (dòng cũ)       -> cho phép : test_br12_created_by_rong_thi_khong_bi_rang
+
+
+def test_br12_moi_de_xuat_chua_quyet_thi_ghi_duoc(sample_db):
+    """Ca 1 — trạng thái thường gặp nhất phải không bị vướng gì.
+
+    Một resolution vừa trình, chưa ai duyệt cũng chưa ai từ chối, thì BR-12
+    không có gì để nói. Ca này rẻ nhưng cần: biểu thức dạng C có hai nhánh
+    `IS NULL`, và chính hai nhánh đó là chỗ dễ viết hỏng nhất — hỏng thì mọi
+    đề xuất mới đều bị DB chặn ngay từ lúc trình.
+    """
+    res = _resolution_cho_ticket_moi(sample_db)
+    res.created_by = "USR-CSKH"
+    sample_db.commit()
+
+    assert sample_db.get(Resolution, res.resolution_id).status == "pending_approval"
+
+
+def test_br12_nguoi_de_xuat_khong_duoc_tu_tu_choi(sample_db):
+    """Ca 4 — nhánh TỪ CHỐI, phần F-18 vừa mở rộng.
+
+    Vì sao từ chối cũng cần maker-checker dù nó KHÔNG chạm tiền: `reject_reason`
+    là đầu vào của vòng học Phase 2. Một người vừa trình vừa tự bác đề xuất của
+    chính mình có thể bơm thẳng nhãn `la_tin_hieu_hoc` vào phễu mà không ai
+    xem lại — tức là tự tay dạy bộ đo. Ảnh hưởng không nằm ở một giao dịch, nó
+    nằm ở chính cái thước dùng để chấm mọi giao dịch sau đó.
+    """
+    res = _resolution_cho_ticket_moi(sample_db)
+    res.created_by = "USR-SUP"
+    sample_db.commit()
+
+    res.status = "rejected"
+    res.reject_reason = "thieu_can_cu"
+    res.rejected_by = "USR-SUP"  # ĐÚNG người đã đề xuất
+    res.rejected_at = dt.datetime.utcnow()
+
+    with pytest.raises(IntegrityError):
+        sample_db.commit()
+    sample_db.rollback()
+
+
+def test_br12_nguoi_khac_tu_choi_thi_ghi_duoc(sample_db):
+    """Ca 5 — mặt ngược của ca 4: chỉ chặn ĐÚNG lúc trùng người.
+
+    Cần vì cùng lý do đã cần ở nhánh duyệt: một biểu thức viết sai (quên nhánh
+    `IS NULL`, hoặc so nhầm cột) sẽ chặn luôn mọi lượt từ chối hợp lệ — và khi
+    đó sếp không từ chối được đề xuất nào nữa, một sự cố nặng hơn hẳn thứ
+    BR-12 định ngăn.
+    """
+    res = _resolution_cho_ticket_moi(sample_db)
+    res.created_by = "USR-CSKH"
+    sample_db.commit()
+
+    res.status = "rejected"
+    res.reject_reason = "sai_so_lieu"
+    res.rejected_by = "USR-SUP"  # người KHÁC
+    res.rejected_at = dt.datetime.utcnow()
+    sample_db.commit()
+
+    lai = sample_db.get(Resolution, res.resolution_id)
+    assert lai.status == "rejected" and lai.rejected_by == "USR-SUP"

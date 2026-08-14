@@ -73,7 +73,7 @@ def test_supervisor_can_approve_every_scope(client, sample_db, scope):
         trans_id="TXN-0001",
     )
     resolution = propose_resolution(
-        sample_db, ticket_id=ticket["ticket_id"], action_type="no_action", rationale="ly do test"
+        sample_db, ticket_id=ticket["ticket_id"], action_type="no_action", rationale="ly do test", created_by="USR-CSKH"
     )
 
     resp = _approve_with_fresh_otp(client, resolution["resolution_id"], _auth("supervisor", "USR-SUP"))

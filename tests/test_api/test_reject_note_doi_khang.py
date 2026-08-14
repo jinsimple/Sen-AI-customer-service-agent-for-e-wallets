@@ -65,7 +65,7 @@ def _make_resolution(sample_db, *, user_id: str = "USR-A") -> tuple[str, str]:
     )
     resolution = propose_resolution(
         sample_db, ticket_id=ticket["ticket_id"], action_type="refund_to_wallet",
-        rationale="ly do test", amount=92_000,
+        rationale="ly do test", amount=92_000, created_by="USR-CSKH",
     )
     return ticket["ticket_id"], resolution["resolution_id"]
 

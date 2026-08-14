@@ -67,7 +67,7 @@ def _make_resolution(sample_db) -> str:
     )
     resolution = propose_resolution(
         sample_db, ticket_id=ticket["ticket_id"], action_type="refund_to_wallet",
-        rationale="ly do test", amount=92_000,
+        rationale="ly do test", amount=92_000, created_by="USR-CSKH",
     )
     return resolution["resolution_id"]
 

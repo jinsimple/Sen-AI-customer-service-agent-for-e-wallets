@@ -60,7 +60,7 @@ def _ticket_va_resolution(sample_db) -> tuple[str, str]:
     )
     res = propose_resolution(
         sample_db, ticket_id=ticket["ticket_id"], action_type="refund_to_wallet",
-        rationale="ly do test", amount=92_000,
+        rationale="ly do test", amount=92_000, created_by="USR-CSKH",
     )
     return ticket["ticket_id"], res["resolution_id"]
 
