@@ -1,4 +1,4 @@
-"""BR-10 · BR-11 — CHECK constraint HITL phải CHẶN THẬT ở tầng DB.
+"""BR-10 · BR-11 · BR-12 — CHECK constraint HITL phải CHẶN THẬT ở tầng DB.
 
 Vì sao cần file này dù `tests/test_invariants.py` đã canh BR-10/BR-11:
 INV-07 và INV-14 chỉ đọc `src/db/models.py` bằng AST và khẳng định
@@ -11,8 +11,17 @@ INV-07/INV-14 xanh mướt — trong khi thực tế nó không chặn gì cả.
 cuối cùng của HITL (ràng buộc cứng 1): kể cả khi toàn bộ tầng application bị
 lách, database vẫn phải từ chối.
 
-Contract: `contracts/resolution-state-machine.yaml` v2.1.0 §resolution.status
-(`yeu_cau_them` của 2 transition tới `approved`/`rejected`) + INV-07/INV-14.
+Contract: `contracts/resolution-state-machine.yaml` **v2.2.0**
+§resolution.status (`yeu_cau_them` của 2 transition tới `approved`/`rejected`)
++ INV-07/INV-14 + §`invariant_db_maker_checker` (BR-12, ADR-020).
+
+⚠️ BR-12 CHƯA CÓ SỐ INV. BR-10 có INV-07, BR-11 có INV-14, còn BR-12 thì
+contract mới chỉ khai `invariant_db_maker_checker` mà chưa thêm mục vào danh
+sách `invariants:` — nên `test_invariants.py` KHÔNG canh sự tồn tại của nó.
+Nghĩa là hiện chỉ có HIỆU LỰC (file này) mà không có SỰ HIỆN DIỆN: ai xoá
+constraint khỏi models.py thì file này đỏ, nhưng bộ ràng-buộc-cứng vẫn xanh —
+lệch với cách hai BR anh em được canh. Đã báo PO; sửa contract là việc của họ,
+tester không tự thêm INV.
 """
 from __future__ import annotations
 
@@ -139,3 +148,74 @@ def test_br10_approved_thieu_nguoi_duyet_bi_db_chan(sample_db, thieu):
     with pytest.raises(IntegrityError):
         sample_db.commit()
     sample_db.rollback()
+
+
+# --------------------------------------------------------------------------
+# BR-12 (ADR-020) — maker-checker: người đề xuất KHÔNG được tự duyệt
+# --------------------------------------------------------------------------
+
+
+def test_br12_nguoi_de_xuat_khong_duoc_tu_duyet_chinh_minh(sample_db):
+    """Ràng buộc cứng 1 ở dạng tinh vi nhất: HITL vẫn có thể bị rỗng nghĩa dù
+    mọi cổng đều đúng.
+
+    Cửa mở là CÓ THẬT, không phải giả định: route đề xuất cho phép cả `cskh`
+    LẪN `supervisor`, còn route duyệt yêu cầu `supervisor` — nên một supervisor
+    đi trọn được cả hai đầu. Khi đó "có người thứ hai xem lại" chỉ còn là một
+    thao tác hai bước của cùng một người, mà mọi test quyền hạn vẫn xanh vì
+    không ai vượt quyền cả.
+    """
+    res = _resolution_cho_ticket_moi(sample_db)
+    res.created_by = "USR-SUP"
+    sample_db.commit()
+
+    res.status = "approved"
+    res.approved_by = "USR-SUP"  # ĐÚNG người đã đề xuất
+    res.approved_at = dt.datetime.utcnow()
+
+    with pytest.raises(IntegrityError):
+        sample_db.commit()
+    sample_db.rollback()
+
+
+def test_br12_nguoi_khac_duyet_thi_ghi_duoc(sample_db):
+    """Mặt ngược: BR-12 chỉ được chặn ĐÚNG ca trùng người.
+
+    Thiếu ca này thì một biểu thức viết sai (vd `approved_by = created_by` thay
+    vì `!=`, hoặc quên bọc ngoặc) vẫn làm test trên xanh — trong khi nó đang
+    chặn mọi lượt duyệt hợp lệ.
+    """
+    res = _resolution_cho_ticket_moi(sample_db)
+    res.created_by = "USR-CSKH"
+    sample_db.commit()
+
+    res.status = "approved"
+    res.approved_by = "USR-SUP"  # người KHÁC
+    res.approved_at = dt.datetime.utcnow()
+    sample_db.commit()
+
+    assert sample_db.get(Resolution, res.resolution_id).status == "approved"
+
+
+def test_br12_created_by_rong_thi_khong_bi_rang(sample_db):
+    """Điều kiện NULL không phải kẽ hở — nó là lựa chọn có chủ đích, và phải
+    còn hiệu lực để dữ liệu cũ ghi được.
+
+    `created_by` nullable VĨNH VIỄN: resolution tạo trước khi có cột này không
+    có cách nào biết ai đề xuất, mà đoán một cái tên vào sổ kiểm toán còn tệ
+    hơn để trống. CHECK vô điều kiện sẽ vỡ trên chính các dòng đó.
+
+    ⚠️ ĐỌC KÈM `canh_bao_hieu_luc` của contract: 10/10 resolution hiện có đều
+    `created_by IS NULL`, nên **không dòng nào đang bị BR-12 ràng**. Sự TỒN TẠI
+    của constraint KHÔNG phải bằng chứng dữ liệu cũ đã sạch — nó chỉ bắt đầu
+    bảo vệ từ các resolution tạo qua route mới.
+    """
+    res = _resolution_cho_ticket_moi(sample_db)
+    assert res.created_by is None, "Fixture phải mô phỏng dòng chưa có created_by"
+
+    res.status = "approved"
+    res.approved_by = "USR-SUP"
+    res.approved_at = dt.datetime.utcnow()
+    sample_db.commit()
+
+    assert sample_db.get(Resolution, res.resolution_id).status == "approved"
