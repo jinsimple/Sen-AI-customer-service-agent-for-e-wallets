@@ -348,6 +348,47 @@ def test_inv14_check_constraint_br11_ton_tai():
         )
 
 
+def test_inv15_check_constraint_br12_ton_tai_va_khop_bieu_thuc_contract(fsm):
+    """INV-15 · maker-checker phải CÒN ĐÓ, và đúng BIỂU THỨC contract khai.
+
+    Hoàn tất bộ ba cùng INV-07 (nhánh approve) và INV-14 (nhánh reject). Vì sao
+    cần vế "hiện diện" riêng dù đã có test hành vi
+    (`tests/test_migrations/test_check_constraints_hitl.py`): test hành vi
+    chứng minh ràng buộc ĐANG chạy hôm nay; INV này chứng minh nó vẫn CÒN ĐÓ
+    ngày mai.
+
+    SO BIỂU THỨC LẤY TỪ CONTRACT, KHÔNG HARDCODE — điểm thiết kế quan trọng
+    nhất ở đây. BR-12 đang sắp mở rộng sang nhánh từ chối (F-18, dạng C). Nếu
+    test này hardcode biểu thức:
+      - khai bản CŨ  -> sau khi coder mở rộng, test vẫn XANH trong khi nó chỉ
+        còn canh một nửa ràng buộc (chuỗi cũ là chuỗi con của dạng C!);
+      - khai bản MỚI -> đỏ suốt từ giờ tới lúc F-18 áp, một đỏ không nói lên
+        điều gì ngoài "chưa tới lượt".
+    Đọc từ contract thì test tự đúng ở cả hai thời điểm, và bắt được đúng thứ
+    đáng bắt: **models.py và contract lệch nhau**. Sửa một bên quên bên kia là
+    ĐỎ, dù bên nào đi trước.
+    """
+    cons = _check_constraints()
+    ten = fsm["resolution"]["invariant_db_maker_checker"]["ten"]
+    assert ten in cons, (
+        f"MẤT CHECK constraint {ten} trong src/db/models.py.\n"
+        "BR-12 (ADR-020): người ĐỀ XUẤT không được là người DUYỆT. Không có nó, "
+        "một supervisor đi trọn cả hai đầu và HITL chỉ còn là thao tác hai bước "
+        "của cùng một người — mọi test quyền hạn vẫn xanh vì không ai vượt quyền."
+    )
+
+    khai_bao = re.sub(r"\s+", "", fsm["resolution"]["invariant_db_maker_checker"]["bieu_thuc"])
+    thuc_te = re.sub(r"\s+", "", cons[ten])
+    assert thuc_te == khai_bao, (
+        f"{ten} LỆCH giữa contract và code:\n"
+        f"  contract khai: {fsm['resolution']['invariant_db_maker_checker']['bieu_thuc']}\n"
+        f"  models.py có : {cons[ten]}\n"
+        "→ Sửa một bên mà quên bên kia. Nếu đây là đợt mở rộng sang nhánh từ chối "
+        "(F-18), phải cập nhật ĐỦ CẢ BA nơi: models.py, migration, và `bieu_thuc` "
+        "trong contract."
+    )
+
+
 def test_inv14_taxonomy_reject_reason_phan_hoach_du_cho_vong_hoc(fsm):
     """INV-14 (phần contract) · mọi lý do từ chối phải khai `la_tin_hieu_hoc`.
 
