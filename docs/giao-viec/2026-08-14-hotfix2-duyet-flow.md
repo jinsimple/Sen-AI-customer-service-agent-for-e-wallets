@@ -18,10 +18,13 @@
 
 ## MỤC A — CODER (timebox 90 phút, thứ tự BẮT BUỘC để luôn demo-được)
 
-1. **Tab FAQ cho sếp (~5 phút, làm trước):** thêm
-   `{ href: "/policy-lookup", label: "Tra cứu chính sách" }` vào mảng
-   `supervisor` trong `RoleTabNav.tsx`; kiểm guard của trang policy-lookup
-   (server layout/page) cho supervisor vào được. KHÔNG đụng backend.
+1. **[SỬA THEO BÁO CÁO KHẨN QA/QC] Guard route /policy-lookup (~10 phút, làm
+   trước):** QA đo trên build đang chạy: tab của sếp ĐÃ hiển thị nhưng bấm
+   vào bị đá ngược về /approve; vào thẳng URL cũng bị redirect — trong khi
+   backend /policy-search trả 200 cho token sếp (đúng matrix). Việc cần làm:
+   sửa GUARD của route /policy-lookup (server layout/page) cho phép
+   supervisor. ĐỪNG thêm tab mới khi chưa đối chiếu — kiểm `RoleTabNav.tsx`
+   nguồn vs build thật trước, tránh tab trùng. KHÔNG đụng backend.
 2. **Khối duyệt trong ticket detail (vai sếp):** thay banner + nút "Mở trang
    Phê duyệt →" (vừa thêm sáng nay) bằng khối duyệt đầy đủ cho (các) đề xuất
    `pending_approval` của ticket — tái sử dụng logic `ApproveClient.tsx`
@@ -42,8 +45,21 @@
 
 ## MỤC B — QA/QC (nghiệm thu khi coder báo xong)
 
-1. Sếp `0905000205`: nav đủ 3 tab (Phê duyệt · Tra cứu chính sách · Báo cáo);
-   tra 1 câu FAQ ra kết quả.
+1. Sếp `0905000205`: bấm tab "Tra cứu chính sách" VÀO ĐƯỢC trang (không bị
+   đá về /approve). Tiêu chí "ra kết quả" phụ thuộc PO đã nạp tài liệu chưa
+   (xem mục PO dưới): ĐÃ nạp → tra "hoàn tiền" phải ra kết quả; CHƯA nạp →
+   chấp nhận `not_found` sạch, và ghi rõ trong báo cáo để kịch bản demo né
+   câu hỏi chính sách.
+
+## Việc của PO THẬT (5 phút — quyết định B1 trọn vẹn hay thu hẹp)
+
+Kho chính sách đang RỖNG (0 documents — QA xác nhận). Repo có sẵn nguyên liệu:
+`data/sample-policy-for-testing.md` và `data/raw/MoMo_FAQ_Giao_dich.pdf`.
+Đăng nhập **partner_admin `0900000001` / Demo@123** → tab "Chính sách & FAQ"
+→ upload 1–2 file trên. Được vậy thì: B1 nghiệm thu trọn vẹn + demo có thêm
+nhịp "khách hỏi chính sách → agent trích nguồn thật" (US-002) + tab FAQ của
+sếp có cái để cho khách xem. KHÔNG kịp nạp → demo tuyệt đối né câu hỏi chính
+sách, không hứa "đã có knowledge base".
 2. /approve: card KHÔNG còn nút duyệt trực tiếp; "Mở chi tiết →" tới đúng
    ticket.
 3. Ticket detail vai sếp: thấy trail + giao dịch + đề xuất; xin OTP → duyệt
