@@ -418,6 +418,27 @@ dữ liệu nằm trong "Quy trình điều tra", Giọng văn chỉ chứa gi�
 - QA làm tiếp: test F-12 (ưu tiên — thành bài nghiệm thu sẵn cho fix của
   coder) + test bất biến F-13 tầng logic. DUYỆT thứ tự này.
 
+## LUẬT VIẾT TEST MỚI (đề xuất QA sau 3 lần xanh giả cùng ngày — PO phê chuẩn)
+
+**"Assertion trùng với trạng thái MẶC ĐỊNH của hệ thống thì nó không kiểm gì
+cả."** Ba biến thể đã gặp thật trong ngày 14/08: (a) `>= 400` khi request
+chết sớm ở tầng trước (SEC-B bản đầu) · (b) `X not in Y` khi Y rỗng vì field
+chưa tồn tại (nhóm A test note) · (c) `== 403` khi 403 cũng là mã của đường
+thất bại thông thường (F-12 bản đầu). **Cách chữa chung: assert vào dữ kiện
+CHỈ đúng khi hành vi cần đo thật sự xảy ra** (vd `locked_at` chuyển NULL →
+có giá trị). Áp cho MỌI vai viết test, ngang hàng luật "sống qua tầng N-1".
+
+## GHI NHẬN F-12/F-13 (1bc4f4b)
+
+- F-12: 5 test (4 đỏ chờ fix — đúng), test then chốt:
+  `test_f12_da_khoa_thi_ma_dung_cung_khong_duyet_duoc` — cơ chế khoá mà mã
+  đúng vẫn qua thì failed_attempts/locked_at chỉ là trang trí.
+- F-13: 5/5 xanh — phân vai đúng: file này canh LUẬT từ nay về sau, test
+  trạng thái đích canh DỮ LIỆU LỊCH SỬ; thiếu một trong hai thì hoặc số sạch
+  đúng một lần rồi trôi, hoặc backfill không ai kiểm.
+- Toàn bộ việc security giao tester đợt rà này: XONG (13 note · F-12 · F-13
+  · CANDIDATE-REVIEW · trạng thái đích).
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
