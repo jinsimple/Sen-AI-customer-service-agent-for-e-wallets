@@ -55,6 +55,30 @@
    phản ánh đúng checklist chống poisoning không, phản hồi trong vùng
    docs/security/.
 
+## BỔ SUNG — phán quyết ca thứ ba của test quét ma trận (supervisor × /dashboard)
+
+**QUYẾT: MỞ guard /dashboard cho supervisor (phương án A)** — coder thêm vào
+ROLE_PREFIXES.supervisor + tab "Hàng chờ" trong nav sếp. Test của tester tự
+xanh, KHÔNG sửa ánh xạ. Bốn lý do:
+
+1. Contract là nguồn sự thật và đang ghi rõ "supervisor kế thừa toàn bộ quyền
+   cskh". Muốn hạn chế sếp là ĐỔI CHÍNH SÁCH → thuộc về đợt ADR-020
+   (maker–checker), quyết có đủ ngữ cảnh — không phải quyết ké trong một đợt
+   Việt hoá UI.
+2. Trạng thái hiện tại là TỆ NHẤT có thể: API mở (GET /tickets trả 200 cho
+   sếp — QA đã kiểm) mà trang chặn — không thêm kiểm soát nào, chỉ thêm
+   mâu thuẫn.
+3. Kiểm soát xung đột lợi ích THẬT nằm ở maker–checker tầng DB
+   (`approved_by != created_by`, ADR-020 sắp tới) — chặn một trang ĐỌC không
+   thay thế được nó.
+4. Câu hỏi mở cuối authority-matrix ("sếp có nên bị cấm tự điều tra?") VẪN
+   MỞ — quyết định hôm nay chỉ là "frontend khớp contract hiện hành", không
+   phải phán quyết cuối về tách bạch vai. ADR-020 được quyền lật lại, và khi
+   đó sửa từ contract xuống, đúng quy trình.
+
+Ghi chú kèm: 2 test đỏ của bộ quét là ĐỎ ĐÚNG cho tới khi coder vá — cấm
+"làm xanh" bằng nới test (đồng ý nguyên văn cảnh báo của tester).
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
