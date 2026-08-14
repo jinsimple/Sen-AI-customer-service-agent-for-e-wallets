@@ -29,7 +29,13 @@ env:
   # Stage 4/5 (gọi LLM thật) — thiếu secret đó 2 stage này sẽ fail rõ ràng,
   # không fail âm thầm.
   JWT_SECRET_KEY: ci-ephemeral-not-for-production-use-only-in-ci-runs
-  FIELD_ENCRYPTION_KEY: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9"
+  # PHẢI là base64-urlsafe của ĐÚNG 32 byte (yêu cầu của Fernet). Giá trị cũ
+  # giải mã ra 33 byte -> mọi job đọc config chết ngay ở conftest với
+  # "Fernet key must be 32 url-safe base64-encoded bytes". Đây là chuỗi
+  # "ci-ephemeral-key-not-for-prod-32" — cố ý đọc được để không ai nhầm là key
+  # thật; sinh key mới bằng: python -c "from cryptography.fernet import Fernet;
+  # print(Fernet.generate_key().decode())"
+  FIELD_ENCRYPTION_KEY: "Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI="
   # fake:// -> fakeredis (src/redis_client.py) — CI không cần Redis thật, đúng
   # convention playbooks/production-packaging-checklist.md.
   REDIS_URL: fake://ci
@@ -156,6 +162,13 @@ jobs:
       - run: npm ci --prefix frontend
       - name: Lint (eslint)
         run: npm run lint --prefix frontend
+      # `next typegen` sinh .next/types/routes.d.ts — nơi khai báo global
+      # PageProps<>/LayoutProps<> mà Next 16 dùng cho typed routes. Máy dev có
+      # sẵn thư mục này do đã từng `next dev`/`next build`; runner CI thì SẠCH,
+      # nên tsc báo "Cannot find name 'PageProps'" dù code không sai. Đây đúng
+      # loại lỗi "máy tôi chạy được" mà job CI sinh ra để bắt.
+      - name: Sinh type cho typed routes (next typegen)
+        run: npx --prefix frontend next typegen frontend
       - name: Typecheck (tsc --noEmit)
         run: npm run typecheck --prefix frontend
       - name: Unit test (Vitest)
@@ -421,7 +434,7 @@ jobs:
           POSTGRES_PASSWORD=fin05-ci-ephemeral-password
           POSTGRES_DB=fin05_ci
           JWT_SECRET_KEY=ci-ephemeral-not-for-production-use-only-in-ci-runs
-          FIELD_ENCRYPTION_KEY=MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9
+          FIELD_ENCRYPTION_KEY=Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           SITE_DOMAIN=localhost
           EOF
