@@ -222,6 +222,27 @@ INV chỉ đọc AST — chuẩn thuật ngữ audit: presence vs operating effe
 trình điều tra" theo nguyên tắc đã chốt) + sửa CASE-004/083, rồi chạy ĐÚNG
 MỘT lần paired eval cả gói theo trần đã duyệt.
 
+## PHÁN QUYẾT sau báo cáo QA 87b9a32 (PO — kèm nhận đính chính)
+
+1. **PO nhận đính chính:** review trước ghi "bộ SEC thiếu draft→approve" —
+   SAI. Test đã có từ aa5d593 nhưng xanh vì lý do sai (OTP rác → chết ở cổng
+   OTP, chưa từng chạm guard trạng thái). Bài học "muốn canh tầng N thì
+   request phải sống qua tầng N-1" ghi vào docstring là đúng chỗ — nó là quy
+   tắc chung cho MỌI test authz nhiều tầng của dự án từ giờ.
+2. **SEC-B đã có bằng chứng sống** (200 khi approve từ draft với OTP hợp lệ,
+   body approved_by=USR-SUP). Test đỏ này là ĐỎ ĐÚNG — nó chính là nghiệm
+   thu cho commit bổ sung Phase 1 của coder (SEC-B + consume OTP +
+   created_by). Coder ưu tiên commit này TRƯỚC mọi việc khác.
+3. **Vá harness `must_create_manual_ticket` — DUYỆT, áp TRƯỚC lượt đo:**
+   quyết định giữ-thước-cố-định-trước-cả-hai-nhánh là đúng nguyên tắc, áp
+   ngay bản vá vài dòng. Quy tắc xử lý hệ quả: nếu CASE-109/110 chuyển ĐỎ
+   trên baseline (agent không tạo hồ sơ tra thủ công — gap US-008 thật) thì
+   GHI NHẬN là known-red, KHÔNG nhét thêm vào gói prompt B2+004+083 —
+   gói đo đã chốt phạm vi, gate là "không tệ hơn baseline trên CÙNG thước
+   mới", đỏ có sẵn ở cả hai nhánh không chặn gate. Gap US-008 xếp hàng đợi
+   riêng sau gói này.
+4. **CASE-110 đóng CÓ ĐIỀU KIỆN** như QA nêu — điều kiện chính là mục 3.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
