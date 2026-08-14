@@ -8,9 +8,14 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    # `dev/**` — nhánh làm việc thật của dự án (dev/learning-loop...). Trước đây
+    # chỉ có main+develop nên MỌI commit của đợt learning-loop đều không được CI
+    # nhìn thấy: local đi trước remote ~40 commit mà không có lượt kiểm nào.
+    branches: [main, develop, "dev/**"]
   pull_request:
-    branches: [main]
+    # BỎ giới hạn đích: PR vào nhánh nào cũng phải qua CI. Giới hạn cũ [main]
+    # nghĩa là PR dev/learning-loop -> dev/khac không chạy test nào.
+    branches: ["**"]
   schedule:
     - cron: "0 20 * * *" # 03:00 giờ VN — Stage 6 (load test) chạy nightly
   workflow_dispatch: {}
