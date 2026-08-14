@@ -834,12 +834,21 @@ def approve_resolution(
     # race condition 2026-08-13, cùng lý do /auth/otp/verify), KHÔNG dùng
     # challenge "mới nhất" của user/resolution nữa (vừa mơ hồ dưới tải đồng
     # thời thật, vừa từng cho phép OTP xin cho case A duyệt được case B).
+    # F-12 — TÁCH "không tìm thấy challenge" khỏi "sai mã". Bản cũ gộp cả 4 điều
+    # kiện (gồm `otp_code != req.otp_code`) vào MỘT lần kiểm rồi trả 403 chung,
+    # nên không chỗ nào đếm được số lần gõ sai: dò mã 6 chữ số cho một hành động
+    # CHẠM TIỀN là không giới hạn. Ba lớp dưới đây phải giữ ĐÚNG thứ tự này.
     auth_session = session.get(AuthSession, req.session_id)
+
+    # Lớp 1 — RÀNG BUỘC DANH TÍNH. Không đếm gì ở đây: challenge của người khác
+    # thì ta không được phép chạm vào bộ đếm của họ (nếu không, kẻ tấn công gửi
+    # bừa session_id của sếp khác là khoá được tài khoản người ta — DoS qua bộ
+    # đếm). Vẫn giữ nguyên một thông điệp chung để không hé lộ session nào có
+    # thật, cái nào gắn đúng resolution.
     if (
         auth_session is None
         or auth_session.user_id != current_user.user_id
         or auth_session.resolution_id != resolution_id
-        or auth_session.otp_code != req.otp_code
     ):
         raise HTTPException(
             status_code=403,
@@ -848,6 +857,43 @@ def approve_resolution(
                 "(POST /resolutions/{id}/request-approval-otp rồi truyền otp_code vào approve)"
             ),
         )
+
+    # Lớp 2 — ĐÃ KHOÁ thì chặn TRƯỚC KHI so mã. Đặt sau lớp so mã là vô nghĩa:
+    # kẻ dò ra mã đúng vẫn duyệt được, tức khoá không bảo vệ gì cả. Khoá KHÔNG
+    # tự mở lại theo thời gian — muốn duyệt phải xin challenge mới (mỗi challenge
+    # gắn cứng 1 resolution + 1 snapshot số tiền, nên xin mới không phải đường
+    # vòng: nó dựng lại toàn bộ ràng buộc dynamic linking của AUTH5-05B).
+    if auth_session.locked_at is not None:
+        raise HTTPException(
+            status_code=403,
+            detail="Challenge duyệt đã bị khoá do sai quá nhiều lần — xin mã duyệt mới",
+        )
+
+    # Lớp 3 — so mã bằng hàm CONSTANT-TIME. `!=` thoát ra ngay tại ký tự lệch đầu
+    # tiên, rò rỉ độ dài tiền tố đúng qua thời gian phản hồi; ở đây mã chỉ 6 chữ
+    # số nên chênh lệch nhỏ, nhưng đây là đường chạm tiền và chi phí sửa bằng 0.
+    if not secrets.compare_digest(auth_session.otp_code or "", req.otp_code or ""):
+        auth_session.failed_attempts += 1
+        if auth_session.failed_attempts >= OTP_MAX_FAILED_ATTEMPTS:
+            auth_session.locked_at = dt.datetime.utcnow()
+        # commit() TRƯỚC KHI raise — get_session() (src/api/deps.py) rollback()
+        # mọi exception thoát khỏi route, kể cả HTTPException ta chủ động raise.
+        # Thiếu dòng này thì failed_attempts vừa tăng bị cuốn ngược mỗi lần và
+        # khoá KHÔNG BAO GIỜ xảy ra qua HTTP thật — đúng cái bẫy đã sập một lần
+        # ở /auth/otp/verify (xem chú thích ở route đó), lặp lại y hệt tại đây.
+        session.commit()
+        if auth_session.locked_at is not None:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Sai quá {OTP_MAX_FAILED_ATTEMPTS} lần — challenge duyệt đã bị khoá, xin mã mới",
+            )
+        # GIỮ NGUYÊN 403 (không đổi sang 401 như /auth/otp/verify). Đổi mã trạng
+        # thái là thay đổi HÀNH VI API, nằm ngoài phạm vi F-12 — bản vá này chỉ
+        # thêm ĐẾM và KHOÁ. Hai tình huống vẫn phân biệt được qua `detail`.
+        # Đề xuất riêng cho PO/tester (chưa làm): thống nhất 401="sai mã",
+        # 403="đã khoá" cho cả hai route xác thực, cần sửa cả test đang khoá
+        # cứng 403 (tests/ ngoài vùng ghi của tôi).
+        raise HTTPException(status_code=403, detail="Mã OTP duyệt không đúng")
     age_minutes = (dt.datetime.utcnow() - auth_session.created_at).total_seconds() / 60
     if age_minutes > RESOLUTION_APPROVAL_OTP_FRESH_MINUTES:
         raise HTTPException(status_code=403, detail="Mã OTP duyệt đã hết hạn — xin mã mới")

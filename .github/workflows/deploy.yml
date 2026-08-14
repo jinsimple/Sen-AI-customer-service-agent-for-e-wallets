@@ -8,14 +8,31 @@ name: Deploy
 #   DEPLOY_SSH_KEY   private key của deploy key riêng (xem docs/DEPLOY.md)
 # Xem docs/DEPLOY.md để biết cách tạo 3 secret này.
 
+# CỔNG CHẶN (PO duyệt PO-3): deploy KHÔNG còn chạy theo `push` nữa. Nó chờ
+# workflow "CI" kết thúc rồi mới xét. `push` cũ nghĩa là deploy chạy SONG SONG
+# với CI — code làm đỏ toàn bộ test vẫn lên production, chỉ cần push trúng main.
+# Hiện chưa gây hại vì thiếu secret DEPLOY_HOST, nhưng nó là quả mìn hẹn giờ:
+# nổ đúng vào lúc PO đặt secret để deploy lần đầu.
+#
+# `workflow_run` là cách duy nhất bắc cầu điều kiện giữa HAI workflow file khác
+# nhau (`needs:` chỉ dùng được cho job cùng file). Bù lại nó có 2 cái bẫy, đã
+# xử ở `if` bên dưới: nó bắn cho MỌI nhánh (kể cả nhánh dev), và bắn cho cả lượt
+# CI THẤT BẠI — thiếu một trong hai vế là cổng chặn thành hình thức.
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch: # cho phép bấm chạy tay từ tab Actions khi cần deploy lại không đổi code
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # workflow_dispatch: bấm tay thì luôn cho chạy (người bấm tự chịu trách
+    # nhiệm). workflow_run: bắt buộc CI XANH và đúng nhánh main.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     steps:
       - name: SSH và deploy lại trên VPS
         uses: appleboy/ssh-action@v1
