@@ -314,6 +314,17 @@ export default function TicketDetailClient({
                 <div className="field">
                   <label>Số tiền (nếu có)</label>
                   <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                  {/* V3.2 phần còn lại: backend chỉ chặn được số vô nghĩa (<=0 hoặc
+                      vượt số tiền giao dịch). Nó KHÔNG bắt được "6 đồng cho giao
+                      dịch 107.000đ" — đúng ca đã xảy ra thật — vì 6 vẫn nằm trong
+                      khoảng hợp lệ. Chênh lệch so với giao dịch là hợp lệ (hoàn một
+                      phần), nên đây là CẢNH BÁO cho người trình, không phải chặn. */}
+                  {foundTx && amount !== "" && Number(amount) !== foundTx.amount && (
+                    <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
+                      ⚠ Khác số tiền giao dịch ({formatMoney(foundTx.amount)}) — kiểm tra lại
+                      nếu đây không phải hoàn một phần có chủ đích.
+                    </div>
+                  )}
                 </div>
                 <div className="field">
                   <label>Căn cứ</label>
