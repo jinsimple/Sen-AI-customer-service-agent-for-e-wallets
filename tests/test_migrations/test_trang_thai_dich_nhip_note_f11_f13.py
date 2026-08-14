@@ -90,6 +90,30 @@ def db():
             conn.execute(text("SELECT 1"))
     except Exception as e:  # noqa: BLE001
         pytest.skip(f"Không tới được DB thật ({e!r}) — cần `docker compose up -d`", allow_module_level=True)
+
+    # CHẶN ĐỎ SAI CHỖ (phát hiện khi rà C3, lỗi của chính file này): CI có job
+    # `db-migration-test` chạy `pytest tests/test_migrations/` trên một Postgres
+    # RỖNG dựng mới mỗi lần. File này canh trạng thái dữ liệu của DB demo —
+    # trên DB rỗng nó sẽ đỏ toàn bộ vì lý do KHÔNG liên quan gì tới migration,
+    # và một job đỏ vì lý do sai sẽ dạy người ta bỏ qua job đó.
+    #
+    # Phân biệt bằng: DB đích LUÔN có resolution. DB rỗng của CI thì không.
+    # Chỉ skip ở đúng ca đó, không nới rộng hơn.
+    try:
+        with engine.connect() as conn:
+            so_resolution = conn.execute(text("SELECT COUNT(*) FROM resolutions")).scalar_one()
+    except Exception as e:  # noqa: BLE001 — bảng chưa tồn tại: DB rỗng chưa migrate
+        pytest.skip(
+            f"Chưa có bảng `resolutions` ({type(e).__name__}) — DB rỗng chưa migrate, "
+            "không phải DB demo mà file này canh.",
+            allow_module_level=True,
+        )
+    if so_resolution == 0:
+        pytest.skip(
+            "DB không có resolution nào — đây là DB rỗng (CI dựng mới), không phải DB demo "
+            "mà file này canh. Chạy trên DB demo: xem lệnh ở docstring đầu file.",
+            allow_module_level=True,
+        )
     with engine.connect() as conn:
         yield conn
 
