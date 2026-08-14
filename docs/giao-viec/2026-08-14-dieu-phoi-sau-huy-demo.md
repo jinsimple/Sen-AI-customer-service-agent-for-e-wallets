@@ -766,6 +766,37 @@ Thước dùng chung — mọi thí nghiệm chạy trên BẢN SAO (scratchpad/
 đụng file gốc. Cân nhắc: thêm test/pre-commit chặn commit golden_set khi
 không kèm ADR/ghi chú duyệt (đưa vào hạng mục hạ tầng đo).
 
+## ADR-020/BR-12 MAKER-CHECKER — review lớp 2 + 2 lệch QA bắt (PO, đêm 14→15/08)
+
+**Review lớp 2 nội dung: ĐẠT.** Biểu thức `(created_by IS NULL) OR
+(approved_by != created_by)` đúng · giải thích NULL-semantics (approved_by
+NULL → CHECK ra NULL → SQL coi thoả) chính xác · ép hai tầng (DB chốt cuối,
+route 403 đọc-được) đúng · giới hạn "10/10 created_by NULL ⟹ chưa ràng dòng
+nào" ghi trung thực. QA test hiệu lực 3 mặt 10/10 xanh.
+
+**LỆCH 1 (QA bắt) — BR-12 THIẾU SỐ INV = thiếu vế HIỆN DIỆN.** BR-10→INV-07,
+BR-11→INV-14, BR-12→(chưa có). test_invariants KHÔNG canh tồn tại của
+ck_resolutions_maker_checker_br12: xoá constraint khỏi models.py thì file QA
+đỏ nhưng bộ bất biến vẫn 22/22. Đúng cặp hiện-diện-vs-hiệu-lực, lần này
+thiếu vế ngược. → thêm **INV-15** vào danh sách invariants contract (sửa
+contract, coder làm) + QA thêm test hiện diện đối xứng test_inv14. Bump
+CONTRACT_VERSION lại.
+
+**LỆCH 2 (quy trình) — bump version TRƯỚC security rà + PO review lớp 2.**
+ADR-020 tự ghi trạng thái "Dự thảo — chờ security rà + PO thật ký" nhưng
+contract đã áp + CONTRACT_VERSION đã v2.2.0. Coder hiểu "DUYỆT làm ADR-020"
+của PO là duyệt áp — mơ hồ ở lệnh PO. KHÔNG rollback (nội dung đúng, chặt
+hơn, maker-checker đã duyệt nguyên tắc từ Phase 0). BÀI HỌC ranh giới:
+"duyệt nguyên tắc" ≠ "duyệt áp contract"; lần sau bump version SAU security
+rà + PO review lớp 2, kể cả khi nguyên tắc đã duyệt. Đóng nốt: security rà
+ADR-020 bổ sung NGAY (biểu thức + hai tầng).
+
+**CHO PO THẬT — GIỚI HẠN COMPLIANCE:** BR-12 hiện KHÔNG bảo vệ dữ liệu nào
+(10/10 created_by NULL) — chỉ ràng resolution TƯƠNG LAI tạo qua route mới.
+Sự tồn tại constraint KHÔNG phải bằng chứng "đã có maker-checker đầy đủ".
+Khi đánh giá sẵn-sàng cho auditor EU/US: maker-checker mới bắt đầu từ đây,
+chưa phủ lịch sử.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
