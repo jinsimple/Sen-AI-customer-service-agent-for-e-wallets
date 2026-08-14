@@ -538,6 +538,205 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
   Tester viết test HAI CHIỀU: chính chủ tài khoản ngân hàng tra ĐƯỢC, người lạ
   vẫn BỊ CHẶN. Security rà ngữ nghĩa mới trong lượt probe C4.
 
+## ADR-022 — Tín hiệu cảm xúc ES-xx: định tuyến sang người thật, KHÔNG chạm vào LLM
+
+- **Ngày:** 2026-08-15 · **Trạng thái:** DỰ THẢO — chờ **PO thật ký**, chưa áp
+  một dòng code nào, chưa sửa `contracts/` (diff đề xuất ở cuối ADR này)
+- **Bối cảnh:** hiện chỉ có quy tắc đồng cảm ép trong prompt + 1 case LLM-judge
+  (UXQA-001). Không có tín hiệu nào cho biết khách đang bức xúc, nên không có
+  đường nào đưa họ sang người thật sớm hơn.
+
+### Quyết định 1 — ES-xx là tín hiệu ĐỊNH TUYẾN ở TẦNG SERVICE, mô hình hoá giống FS-06
+
+`ES-01` (bức xúc leo thang qua ≥N lượt) và `ES-02` (ngôn ngữ khủng hoảng
+nghiệp vụ) tính ở tầng service, **trước** khi gọi graph, **không** do LLM sinh
+ra và **không** do agent tự điền — đúng cách `fraud_signals` đang làm
+(`complaint_intake.py` tính, `fraud_policy.py` quyết định tuyến).
+Giữ nguyên **ràng buộc cứng 2**: ES **không bao giờ** escalate lên supervisor.
+Nó chỉ làm hai việc: (a) bật gợi ý "gặp người thật" cho khách **bấm**,
+(b) nâng ưu tiên ticket. Escalate lên supervisor vẫn chỉ FS-06 và route CSKH.
+
+### Quyết định 2 — ES KHÔNG đi vào prompt, KHÔNG đi qua LLM (điểm quan trọng nhất)
+
+Tín hiệu đi vào **envelope phản hồi của API** (`goi_y_handoff: true`), frontend
+render một nút. Prompt **không đổi một chữ**.
+
+- **Lý do (a) — chống bịa:** nếu nhét "khách đang bức xúc" vào prompt, agent sẽ
+  **nói ra** cảm nhận đó ("em thấy anh đang rất bực..."). Đó là agent phát biểu
+  một kết luận về trạng thái tâm lý của con người, dựa trên đầu ra của một bộ
+  phân loại có thể sai — vi phạm tinh thần **ràng buộc cứng 3** (mọi điều agent
+  khẳng định phải truy được về dữ liệu thật). Cảm xúc suy đoán không phải dữ
+  liệu thật.
+- **Lý do (b) — không đụng cổng đo:** mọi thay đổi prompt phải qua cổng đo, mà
+  hạ tầng đo k≥3 chưa có và nền nhiễu đã đo được là 20/40 case tự lật giữa hai
+  lượt chạy giống hệt nhau. Thiết kế không-chạm-prompt **né hẳn** đường găng đó.
+- **Lý do (c) — sai thì rẻ:** nút gợi ý hiện nhầm thì khách bỏ qua. Câu nói
+  đoán sai cảm xúc thì làm khách bực thêm — đúng nhóm khách mà tính năng này
+  sinh ra để phục vụ.
+
+### Quyết định 3 — ES-02 CHỈ gồm khủng hoảng NGHIỆP VỤ. Tổn thương tâm lý là phạm trù KHÁC, mặc định KHÔNG làm
+
+Brief viết "doạ bỏ ví, tuyệt vọng". Hai thứ đó **không cùng loại** và gộp chúng
+là sai lầm nghiêm trọng nhất có thể mắc ở tính năng này:
+
+- "doạ bỏ ví / doạ kiện / doạ đăng mạng xã hội" = rủi ro **kinh doanh** → xếp
+  hàng cho CSKH là phản ứng đúng.
+- "tuyệt vọng" hiểu theo nghĩa dấu hiệu tổn thương tâm lý thật = phạm trù **an
+  toàn con người**. Xếp nó vào cùng hàng đợi CSKH ví điện tử, xử lý như một ca
+  churn, là phản ứng **sai** — và một ca sai ở đây có hậu quả thật.
+
+**Đề xuất: ES-02 chỉ phủ nhóm nghiệp vụ.** Nếu PO thật muốn phủ nhóm thứ hai,
+đó phải là quyết định riêng, minh thị, kèm quy trình con người tương ứng (số
+điện thoại chuyển tiếp? ai trực?) — không phải một nhãn thêm vào enum. Mặc định
+của tôi là **không phân loại, không lưu, không đoán** nhóm đó: dữ liệu sức khoẻ
+tâm thần là dữ liệu nhạy cảm bậc cao theo NĐ 13/2023, và suy đoán sai về nó gây
+hại nhiều hơn không suy đoán.
+
+### Quyết định 4 — KHÔNG lưu lịch sử cảm xúc. Chỉ lưu HỆ QUẢ
+
+Bộ đếm nằm ở **Redis, có TTL**, giá trị là **số nguyên**, không phải nhãn theo
+từng tin nhắn. DB chỉ lưu **kết quả**: ưu tiên ticket được nâng, và cờ handoff
+nếu khách **bấm**.
+
+- **Lý do:** suy luận cảm xúc gắn với một người xác định là **dữ liệu cá nhân**
+  (NĐ 13/2023). Lưu nhãn theo từng lượt là dựng **hồ sơ cảm xúc** của khách —
+  thứ chúng ta không có mục đích xử lý chính đáng, không có cơ chế cho khách
+  xem/xoá, và sẽ phải giải trình khi audit. Bộ đếm hết hạn sau hội thoại thì
+  không tồn tại hồ sơ nào để rò rỉ.
+- Đây cũng chính là điểm pitch: **dữ liệu cảm xúc không rời hệ thống** — chạy
+  on-premise, tiền lệ `underthesea` đã có (PRD §15.1).
+
+### Quyết định 5 — Ưu tiên nâng tối đa tới `high`, KHÔNG bao giờ `critical`
+
+`critical` thuộc về FS-06 (gian lận). Cho phép bức xúc đẩy ticket lên cùng mức
+với nghi gian lận sẽ **làm hỏng hàng đợi gian lận**: người trực không còn phân
+biệt được "khẩn cấp vì rủi ro tiền" với "khẩn cấp vì khách đang giận". Và chỉ
+nâng, **không bao giờ hạ** — ES tắt không có nghĩa vấn đề đã nhẹ đi.
+
+### Quyết định 6 — v1 dùng LUẬT TẤT ĐỊNH, không phải mô hình học máy
+
+Brief đề xuất PhoBERT/ViSoBERT. **Chưa nên ở v1**, ba lý do đo được:
+
+1. **Bộ nhớ ×4 worker.** App chạy 4 uvicorn worker (ADR-013 kế thừa); một model
+   ~500MB nạp trong process nghĩa là ~2GB thường trú. Phải đo trước, không đoán.
+2. **Nhiễu chồng nhiễu.** Bộ đo hiện tại đã có 20/40 case tự lật giữa hai lượt
+   chạy giống hệt. Thêm một thành phần không tất định nữa vào đường nóng thì
+   không còn phân biệt được "tính năng có tác dụng" với "hôm nay máy đoán khác".
+3. **Không có bộ dữ liệu gán nhãn tiếng Việt** cho đúng miền này. Không có nó
+   thì không chứng minh được model **hơn** luật — chỉ chứng minh được là nó
+   khác.
+
+v1: từ điển + luật, **tất định, test được, giải thích được cho người duyệt**.
+v2 nâng lên model **sau khi** có bộ gán nhãn và có hạ tầng đo k≥3 — lúc đó mới
+so được hai bên bằng cùng một thước.
+
+### Quyết định 7 — Hạ tầng ĐẾM TÍN HIỆU THEO THREAD, thiết kế MỘT LẦN
+
+5a (leo thang ≥N lượt) và 5c-guardrail (đếm tín hiệu tích luỹ toàn hội thoại)
+cần **cùng một primitive**. Thiết kế một lần, ở `src/services/thread_signals.py`:
+
+```
+khoá   : fin05:thread_signal:{ten_tin_hieu}:{thread_id}     (Redis, INCR)
+TTL    : 2 giờ, đặt lại mỗi lần ghi — cùng bài học F-14, bộ đếm không hạn
+         vừa phình vô hạn vừa giữ trạng thái sai vĩnh viễn
+API    : tang() -> int · dat_lai() · doc() -> int
+```
+
+- **Redis, KHÔNG phải dict trong process** — 4 worker, và một hội thoại KHÔNG
+  đảm bảo rơi vào cùng worker (đúng bài học QA-01 với vé WS).
+- `thread_id` là đơn vị đếm (`user_id:iat`, xem ADR-007), **không phải**
+  `user_id`: đăng nhập phiên mới là hội thoại mới, bực bội phiên trước không
+  được cộng dồn sang.
+- **FAIL-OPEN khi Redis lỗi:** không đếm được ⟹ coi như không có tín hiệu, hội
+  thoại chạy bình thường. Ngược hoàn toàn với vé WS (fail-closed) — vì ES chỉ
+  **gợi ý**, còn vé WS là **cửa vào**. Một tính năng tiện ích không bao giờ
+  được phép làm hỏng đường chính.
+
+### Lý do BÁC BỎ các phương án trông hợp lý hơn
+
+- **"Cho LLM tự nhận biết cảm xúc trong cùng lượt, khỏi cần classifier"** —
+  không thêm hạ tầng, nghe rẻ hơn. Bác: nó biến cảm xúc thành thứ **LLM tự
+  khẳng định** (vi phạm tinh thần ràng buộc cứng 3), phụ thuộc prompt nên kéo
+  theo cổng đo, và không đếm được qua nhiều lượt vì mỗi lượt LLM đánh giá lại
+  từ đầu.
+- **"Cho ES tự gọi `request_human_handoff`"** — mượt hơn cho khách. Bác: vi
+  phạm **ràng buộc cứng 2** và phá luôn CTRL-001 (ISO/IEC 25059 "user
+  controllability"): quyền quyết định gặp người thật là của **khách**, không
+  phải của hệ thống đoán hộ.
+- **"Nhét ES vào `complaints.fraud_signals` cho gọn, đã có sẵn cột"** — Bác:
+  trộn cảm xúc vào tín hiệu gian lận sẽ khiến `evaluate_escalation()` và mọi
+  truy vấn hạ nguồn coi chúng cùng loại; chỉ cần một lần thêm ES vào `tier_a`
+  là bức xúc **tự động escalate lên supervisor**. Ranh giới cứng 5 (cờ gian lận
+  ≠ khoá ví) sống được là nhờ không ai trộn thứ khác vào đường gian lận.
+
+### Câu hỏi cần PO thật quyết
+
+1. **N của ES-01** — đề xuất **N=3 lượt liên tiếp**. Chốt sau khi có bộ đa-lượt
+   của tester để canh, vì trước đó không có gì đo được N nào là đúng.
+2. **ES-02 có phủ nhóm tổn thương tâm lý không** (Quyết định 3). Mặc định của
+   tôi là KHÔNG.
+3. **Ai thấy gợi ý handoff** — chỉ khách, hay CSKH cũng thấy dấu "ca này khách
+   đang căng"? Cái sau hữu ích nhưng là **suy đoán về khách hiển thị cho nhân
+   viên**, cần PO cân nhắc.
+
+### Hệ quả (khi được ký)
+
+`contracts/resolution-state-machine.yaml` mục `tin_hieu_cam_xuc` mới (diff bên
+dưới) + `INV-16` · `src/services/thread_signals.py` (mới, dùng chung với 5c) ·
+`src/services/emotion_signals.py` (mới) · `src/api/main.py` (thêm trường vào
+envelope `/agent/chat`) · `frontend/src/` (nút gợi ý) · **KHÔNG** đụng
+`src/agents/prompt.py`. Tester viết test HAI CHIỀU **từ contract**: ES bật đúng
+ca thì có gợi ý, và ca đối chứng — khách bình thường **không** bị gợi ý (chống
+siết nhầm, cùng phép thử đã dùng cho C4 và sẽ dùng cho `note`).
+
+### Diff contract ĐỀ XUẤT — CHƯA ÁP
+
+Cố ý **không** sửa `contracts/` ở bước này: sửa mà chưa đóng dấu
+`CONTRACT_VERSION` sẽ làm job bất biến ĐỎ cho **mọi phiên** đang làm việc trên
+nhánh. Áp sau khi PO thật ký, trong một commit trọn theo CLAUDE.md §3.
+
+```diff
+--- a/contracts/resolution-state-machine.yaml
++++ b/contracts/resolution-state-machine.yaml
+@@ mục 4, NGAY SAU khối `fraud:` @@
++# ===========================================================================
++# 4b. Tín hiệu CẢM XÚC (ES-xx) — ĐỊNH TUYẾN, không phải phán quyết
++# ===========================================================================
++# CỐ Ý TÁCH KHỎI `fraud:` Ở TRÊN. Hai họ tín hiệu không được trộn: chỉ cần một
++# lần ai đó thêm ES vào fraud_signals/tier_a là bức xúc TỰ ĐỘNG escalate lên
++# supervisor — đúng thứ ràng buộc cứng 2 cấm.
++tin_hieu_cam_xuc:
++  luu_o: "KHÔNG lưu vào DB. Bộ đếm ở Redis, TTL 2h, giá trị là SỐ, không phải nhãn."
++  tinh_boi: "src/services/emotion_signals.py — tầng service, KHÔNG do agent/LLM sinh"
++  don_vi_dem: "thread_id (user_id:iat) — KHÔNG phải user_id"
++  tin_hieu:
++    ES-01:
++      ten: buc_xuc_leo_thang
++      dieu_kien: ">= N lượt LIÊN TIẾP mang nhãn tiêu cực mạnh (N chờ PO chốt, đề xuất 3)"
++    ES-02:
++      ten: khung_hoang_nghiep_vu
++      dieu_kien: "1 lượt: doạ rời dịch vụ / doạ kiện / doạ đăng công khai"
++      khong_bao_gom: >
++        Dấu hiệu tổn thương tâm lý. Đó là phạm trù an toàn con người, cần quyết
++        định riêng của PO kèm quy trình người thật — không phải một nhãn trong enum.
++  hieu_luc:
++    - "Bật -> envelope /agent/chat trả goi_y_handoff=true; FRONTEND render nút."
++    - "Bật -> nâng complaints.priority lên tối đa 'high'. KHÔNG bao giờ 'critical'
++       (dành riêng cho FS-06) và KHÔNG bao giờ hạ."
++    - "KHÔNG đi vào prompt. KHÔNG thêm lượt gọi LLM nào."
++    - "KHÔNG tự gọi request_human_handoff — khách bấm (CTRL-001)."
++  khi_redis_loi: "FAIL-OPEN — coi như không có tín hiệu. ES chỉ gợi ý, không được chặn đường chính."
+
+@@ mục invariants @@
++  - id: INV-16
++    mo_ta: >
++      Tín hiệu ES-xx KHÔNG được xuất hiện trong complaints.fraud_signals, KHÔNG
++      được là đầu vào của evaluate_escalation(), và KHÔNG được trích dẫn trong
++      resolutions.cited_tool_result_ids. Cảm xúc định tuyến, không bao giờ tham
++      gia vào KẾT LUẬN nghiệp vụ.
++    nguon: "BR-13 (ADR-022) — giữ ràng buộc cứng 2 và 3."
+```
+
 ---
 
 ## Mẫu ADR mới
