@@ -570,6 +570,22 @@ quyết định cuối của QA. Giữ lại: 161529 · 163222 · 164859 · 0412
 
 C4 + ADR-021: coder đang làm đúng lệnh, dự thảo theo đủ 3 điều kiện.
 
+## C4 — BOLA NẶNG HƠN: chuỗi tấn công CHỈ TỪ SĐT (security b81466e)
+
+- Xác nhận độc lập BOLA: người lạ REST lookup_transaction → 200 lộ
+  amount/fee/status/des/rec_code. Đường tool (agent) đúng ⇒ lỗ ở tầng REST.
+- **Nặng hơn mô tả C4 gốc:** KHÔNG cần biết mã giao dịch. phone+amount
+  (contract cho phép) → 200 multiple_matches → candidates kèm trans_id của
+  nạn nhân. Chuỗi trọn: SĐT → danh sách → tra từng cái → chi tiết đầy đủ.
+- **ĐIỀU KIỆN BẢN VÁ (đã chuyển coder KHẨN):** chặn áp cho CẢ đường TÌM KIẾM
+  phone+amount, không chỉ đường trả chi tiết. des (PII khách gõ) + rec_code
+  (khoá tra cứu) là 2 trường lộ đáng lo nhất.
+- Sửa rẻ cùng C4: phone thiếu amount → 500 (ValueError không được
+  _handle_tool_error bắt) trái contract status='error' — vá luôn.
+- Security đã quét cả họ REST tool: lookup_transaction là route any_authenticated
+  DUY NHẤT — đúng chỗ thủng, các route khác không cùng lỗi. Rà xong sớm =
+  thu hẹp phạm vi C4 chính xác, không mò.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
