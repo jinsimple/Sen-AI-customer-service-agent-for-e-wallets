@@ -399,6 +399,25 @@ bằng sự cố thật: lần này máy bắt được HAI bước cùng số "
 dữ liệu nằm trong "Quy trình điều tra", Giọng văn chỉ chứa giọng văn;
 (2) kiểm cấu trúc trước, kiểm hành vi sau.
 
+## GHI NHẬN gói QA 9278fc3 + 1dbc970 (PO)
+
+- SEC-B ĐÓNG chính thức (QA chạy lại 9/9 trên HEAD).
+- CANDIDATE-REVIEW.md đạt cả 2 điều kiện security (CẤM NGUYÊN VĂN + trần
+  fail-closed 1/người/ngày · 3/vòng đời · 20/ngày toàn cục) + đặc tả lọc
+  exporter đúng F-15. Khai trung thực: ngưỡng chưa thi hành bằng máy — khi
+  exporter có mã phải kiểm bằng test đối kháng.
+- 13 test note: 14 đỏ chủ ý chờ field. **QA tự bắt 6 test xanh-rỗng của
+  chính mình và siết helper ĐÒI cột tồn tại + có nội dung** — nghĩa là route
+  nhận note mà không lưu, hoặc scrub xoá sạch, test ĐỎ chứ không gật. Bài
+  "hiện diện vs hiệu lực" giờ đã thành phản xạ ở cả 3 vai trong cùng một ngày.
+- Test trạng thái đích migration: 7 test trên DB THẬT (5 đỏ · 2 xanh = đúng
+  trạng thái trước migration, nền đo được). Hoà giải số "7 lệch vs 6 đổi":
+  ticket TCK-518527ab869f rời khỏi mẫu số khi 2 resolution bị xoá — đặc tả
+  nhất quán. Có test riêng bắt ca chạy SAI THỨ TỰ. ⚠️ pytest mặc định skip
+  cả 7 (SQLite) — lệnh chạy đúng trong docstring, đừng đọc nhầm "7 skipped".
+- QA làm tiếp: test F-12 (ưu tiên — thành bài nghiệm thu sẵn cho fix của
+  coder) + test bất biến F-13 tầng logic. DUYỆT thứ tự này.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
