@@ -164,6 +164,28 @@ Chi phí $1,10 cho 5 lần chạy: CHẤP NHẬN, không truy — cổng đo v�
    CASE-004 + CASE-083 + CASE-101), chạy sau khi tester xong bộ case 2 lượt.
    Đây đúng tinh thần trần cũ, không phải nới.
 
+## REVIEW LỚP 2 CỦA PO CHO PHASE 0 (8fe3bed) — ĐẠT · LỆNH PHASE 1: GO
+
+Đã kiểm độc lập bằng diff + chạy lại gate, không duyệt chay:
+- Append-only đúng (148 thêm / 0 xoá) · 4 ADR đủ mục "Lý do BÁC BỎ"
+  (016: 1 · 017: 2 · 018: 1 · 019: 4) · ADR-019 khớp nguyên văn bản duyệt.
+- Contract v2.1.0 đủ: taxonomy 7 giá trị + `la_tin_hieu_hoc` · ranh giới
+  thieu_can_cu trong enum · `dan_xuat` (đặc tả vá QA-02) · INV-14 kèm ghi
+  chú lý do đánh số ("INV-13 đã thuộc agent-tools.yaml") ngay trong `nguon`.
+- Gate chạy lại bằng tay PO: 19/19 bất biến · check_contracts sạch.
+- Còn treo đúng 1 lớp: security rà bản áp thật (đặc biệt TM-03) — không chặn
+  Phase 1 code, chỉ chặn phần GHI CHÚ TỰ DO (đã carve-out sẵn trong lệnh).
+
+**PHASE 1: GO** theo đúng phạm vi coder liệt kê: migration 3 cột + CHECK br11
++ backfill 1 dòng → `khac` · route reject nhận reason bắt buộc · vá QA-02
+theo `dan_xuat` (cùng transaction) · API ticket trả trường audit cho staff
+(M-02) · dropdown lý do + gợi ý need_more_info. Ghi chú tự do LÀM SAU CÙNG,
+chờ security sign-off. Tester nhiệm vụ 2 chạy song song từ contract v2.1.0.
+
+Sổ nợ PO thật: key LangSmith ĐÃ XOAY (gạch nợ — coder xác nhận PO làm trong
+phiên coder) · CÒN LẠI: export + upload project-knowledge — LÀM NGAY BÂY GIỜ
+là đúng thời điểm (contract v2.1.0 vừa chốt).
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
