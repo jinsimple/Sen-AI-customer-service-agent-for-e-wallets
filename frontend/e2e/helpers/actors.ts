@@ -56,7 +56,7 @@ export async function loginAs(page: Page, phone: string, expectedPathPrefix: str
  * startComplaint() set) — câu hỏi gốc KHÔNG tự động gửi lại, caller phải tự
  * gửi lại nếu cần. Đây là bất đối xứng thật trong sản phẩm, không phải lỗi
  * helper — ghi rõ ở đây để chỗ gọi biết mà xử lý đúng. */
-export async function completeOtpIfPrompted(page: Page): Promise<boolean> {
+export async function completeOtpIfPrompted(page: Page, timeoutMs = 40_000): Promise<boolean> {
   // Có thể bị chặn OTP giữa chừng (chạm dữ liệu giao dịch/tạo ticket).
   // Phát hiện thật (lúc viết bản đầu của helper này): agent đôi khi gọi 2
   // tool (lookup_transaction + get_customer_history) trước khi trả lời cần
@@ -65,7 +65,7 @@ export async function completeOtpIfPrompted(page: Page): Promise<boolean> {
   // Dùng waitFor thay vì isVisible ngắn hạn, timeout dài hơn hẳn.
   const otpRow = page.locator(".otp-row");
   const otpVisible = await otpRow
-    .waitFor({ state: "visible", timeout: 40_000 })
+    .waitFor({ state: "visible", timeout: timeoutMs })
     .then(() => true)
     .catch(() => false);
   if (!otpVisible) return false;
@@ -86,7 +86,38 @@ export async function completeOtpIfPrompted(page: Page): Promise<boolean> {
   return true;
 }
 
+/**
+ * Rail "Giao dịch gần đây" CHỈ hiện danh sách khi phiên còn OTP tươi (ngưỡng
+ * XEM dữ liệu, 12h — AUTH-005/007/008). Phiên nguội thì rail hiện
+ * "Xác thực OTP để xem giao dịch gần đây" + nút "Xác thực ngay", và
+ * `.txn-item` KHÔNG BAO GIỜ render.
+ *
+ * KHUYẾT TẬT THẬT CỦA TEST (phát hiện 14/08): helper cũ chờ thẳng
+ * `.txn-item` ngay sau `loginAs`, nên nó chỉ xanh khi VÔ TÌNH còn OTP hợp lệ
+ * dưới 12h từ một lượt chạy trước — tức là test phụ thuộc trạng thái sót
+ * lại, chạy nguội (máy sạch, CI, hoặc quá 12h) là đỏ mà KHÔNG phải lỗi sản
+ * phẩm. Hàm này thiết lập điều kiện thay vì trông chờ vào nó.
+ *
+ * Cố ý KHÔNG bọc try/catch nuốt lỗi: nếu sau khi xác thực mà rail vẫn không
+ * hiện thì đó là lỗi sản phẩm thật và phải đỏ.
+ */
+export async function unlockTxnRail(page: Page): Promise<boolean> {
+  const nutXacThuc = page.getByRole("button", { name: "Xác thực ngay" });
+  const bikhoa = await nutXacThuc
+    .first()
+    .waitFor({ state: "visible", timeout: 5_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!bikhoa) return false; // OTP còn tươi — rail đã sẵn sàng.
+
+  await nutXacThuc.first().click();
+  await completeOtpIfPrompted(page);
+  await page.locator(".txn-item").first().waitFor({ state: "visible", timeout: 20_000 });
+  return true;
+}
+
 export async function createTicketAsCustomerViaAI(page: Page, complaintChipLabel = "Tiền chưa về"): Promise<string> {
+  const vuaXacThuc = await unlockTxnRail(page);
   await page.locator(".txn-item").first().waitFor({ state: "visible", timeout: 20_000 });
   await page.getByRole("button", { name: "Báo lỗi giao dịch này" }).first().click();
   await page.getByText(complaintChipLabel, { exact: true }).click();
@@ -94,7 +125,14 @@ export async function createTicketAsCustomerViaAI(page: Page, complaintChipLabel
   // KHÔNG cần gửi lại câu hỏi tay nếu có OTP — startComplaint() đã set
   // pendingStarterRef, submitOtp() (ChatClient.tsx) tự động sendToAgent(starter)
   // sau khi xác thực xong (xem completeOtpIfPrompted docstring).
-  await completeOtpIfPrompted(page);
+  //
+  // NGÂN SÁCH THỜI GIAN (đo thật 14/08): nếu `unlockTxnRail` vừa xác thực
+  // OTP xong vài giây trước thì step-up cho `create_ticket` (ngưỡng 15 phút)
+  // đã thoả — hộp OTP sẽ KHÔNG hiện lại, và chờ đủ 40s ở đây là đốt không
+  // 40s trong ngân sách 150s của test, đủ để cả 2 lượt nudge phía dưới không
+  // kịp chạy. Vẫn chờ (8s) chứ không bỏ hẳn: nếu sản phẩm bất ngờ hỏi OTP
+  // lần nữa thì vẫn xử lý đúng thay vì đỏ khó hiểu.
+  await completeOtpIfPrompted(page, vuaXacThuc ? 8_000 : 40_000);
 
   const ticketIdLocator = page.locator(".step-note.mono").first();
   const ticketCreated = await ticketIdLocator

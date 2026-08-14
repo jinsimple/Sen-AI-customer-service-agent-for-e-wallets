@@ -49,8 +49,18 @@ test.describe("TICKET-DETAIL-* — chi tiết ticket & hành động CSKH", () =
 
       const proposedSection = staffPage.locator(".card", { hasText: "Đề xuất đã trình" });
       await expect(proposedSection).toBeVisible();
-      await expect(proposedSection).toContainText("refund_to_wallet");
-      await expect(proposedSection).toContainText("pending_approval");
+      // Việt hoá 14/08 (brief docs/giao-viec/2026-08-14-viet-hoa-ui.md): tầng
+      // HIỂN THỊ dùng nhãn tiếng Việt, GIÁ TRỊ enum vẫn tiếng Anh (Luật 1) —
+      // vì vậy `selectOption("refund_to_wallet")` ở trên KHÔNG đổi, chỉ 2
+      // assert text này đổi. Nhãn đã quan sát trên bản build thật 14/08 16:47.
+      //   refund_to_wallet -> "Hoàn tiền về ví"  (khớp `mo_ta` trong
+      //     contracts/resolution-state-machine.yaml — nhãn có nguồn)
+      //   pending_approval -> "Chờ sếp duyệt"    (contract chỉ có câu mô tả
+      //     dài "Đã gửi, chờ sếp duyệt. CỔNG BẮT BUỘC...", không có nhãn ngắn
+      //     -> nhãn này NGOÀI contract, chờ PO duyệt; assert ở đây ghim đúng
+      //     chuỗi đang chạy để đổi nhãn lần sau là thấy đỏ ngay)
+      await expect(proposedSection).toContainText("Hoàn tiền về ví");
+      await expect(proposedSection).toContainText("Chờ sếp duyệt");
     } finally {
       await staffContext.close();
     }

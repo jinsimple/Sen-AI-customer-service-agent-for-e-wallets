@@ -155,3 +155,116 @@ CSKH không?
 Cho tới khi 2 ô đỏ được xử lý, `pytest tests/` trên máy có Docker sẽ hiện
 thêm 2 đỏ. Đây là **đỏ đúng** (đang tố cáo lỗi thật), cùng tinh thần các test
 `security_finding` — không nên "làm cho xanh" bằng cách nới test.
+
+---
+
+# NGHIỆM THU ĐỢT 2 — 14/08, đo trên bản build 16:47
+
+> Điều kiện đo (ghi trước, vì lần đầu tôi suýt báo sai): container frontend
+> khởi động **16:23**, commit vá `154b8f9` lúc **16:45** → bản đang chạy khi
+> đó CŨ HƠN bản vá. Tôi đã `docker compose up -d --build frontend`, container
+> mới khởi động **16:47**, rồi mới đo. Mọi kết quả dưới đây là của bản mới.
+
+## Guard route (bộ quét 24 ô)
+
+| | Trước | Sau |
+|---|---|---|
+| `cskh` × `/report` | 307 → `/dashboard` | ✅ **200 — đã vá thật** |
+| `supervisor` × `/dashboard` | 307 → `/approve` | ❌ **307 → `/approve`, chưa vá** |
+
+**23/24 xanh.** Ca 3 chưa nằm trong đợt này (phán quyết ra lúc 16:43, commit
+coder lúc 16:45 — quá sát). Test giữ nguyên ánh xạ theo phương án A, sẽ tự
+xanh khi vá.
+
+## Việt hoá — đo bằng trình duyệt thật, 4 vai
+
+| Mục | Kết quả | Chuỗi quan sát được |
+|---|---|---|
+| P1-1 mã US trên màn khách | ✅ | không còn `US-0xx` |
+| P1-2 tên công nghệ | ✅ | không còn `LangGraph`/`OpenAI` |
+| **P1-3 "Chatbot AI"** | ❌ **CÒN — 3 chỗ, không chỉ nav** | (1) link nav `<a class="tab-btn active" href="/chat">Chatbot AI</a>` · (2) **`<h1>` của trang** · (3) vùng `alert` (live region đọc cho screen-reader) — sửa mỗi nav là còn sót 2. Eyebrow phía trên đã đúng tiếng Việt: "Chatbot khách hàng" |
+| P2-1 `refund_to_wallet` | ✅ | **"Hoàn tiền về ví"** (khớp `mo_ta`) |
+| P2-2 `refund_to_bank` | ✅ | **"Hoàn tiền về tài khoản ngân hàng"** (khớp `mo_ta`) |
+| P2-6 `pending_approval` | ✅ có nhãn | **"Chờ sếp duyệt"** — ⚠ xem mục dưới |
+| P2-8 `Investigation trail` | ✅ | **"Nhật ký điều tra"** |
+| P2-9 mã US trên màn nhân viên | ✅ | còn `WEBAPP CSKH` / `WEBAPP SẾP` (đúng đề xuất: bỏ mã US, **giữ** nhãn vai), hết `US-005`/`US-017` |
+| P3-1 SLA | ✅ | **"còn 29 ngày"** (trước: `còn 712h44p`) |
+| **P2-10 câu SAI SỰ THẬT** | ✅ | nay là **"Chưa có bước điều tra nào được ghi cho hồ sơ này."** — hết câu bịa về agent, hết tên file nội bộ (đo trên `TCK-e5b1c615435d`, ticket có trail RỖNG — đúng điều kiện câu cũ xuất hiện) |
+| P2-3/4/5 `ledger_adjustment`·`no_action`·`manual_review` | ⏳ **CHƯA ĐO ĐƯỢC** | không có dữ liệu nào trên UI dùng 3 giá trị này |
+| P2-7 trạng thái giao dịch | ⏳ **CHƯA ĐO ĐƯỢC** | chỉ gặp trong JSON thô (xem "không phải lỗi") |
+
+## ⚠ `pending_approval` — nhãn NGOÀI contract, cần PO duyệt
+
+`contracts/resolution-state-machine.yaml` **không có nhãn ngắn** cho trạng thái
+này, chỉ có câu mô tả dài: *"Đã gửi, chờ sếp duyệt. CỔNG BẮT BUỘC trước mọi
+hành động tiền."* Nhãn **"Chờ sếp duyệt"** là coder tự đặt. Tôi thấy nó hợp lý
+(đúng nửa đầu câu mô tả) nhưng **không tự duyệt thay PO** — cùng nhóm ⚠ với
+`success`/`processing`. Đã ghim vào assert e2e để lần sau đổi nhãn là đỏ ngay.
+
+## KHÔNG phải lỗi — 3 chuỗi tiếng Anh tôi CỐ Ý không báo
+
+Bộ lọc của tôi bắt `rejected` · `refunded` · `success` còn trên màn. Soi ngữ
+cảnh thì cả ba đều **đúng khi để nguyên**:
+
+- `rejected`/`refunded` nằm **bên trong JSON kết quả tool thô** ở Nhật ký điều
+  tra — **Luật 4 của brief cấm dịch chỗ này**, vì đó là bằng chứng chống bịa
+  số liệu (ràng buộc cứng 3). Dịch nó đi là phá chính cơ chế truy vết.
+- `success` trên `/approve` nằm trong **căn cứ do CHÍNH TÔI gõ** khi nghiệm thu
+  đợt trước (`"QA e2e: ... status success ..."`) — vết dữ liệu test, không phải
+  copy sản phẩm. Cùng loại với P3-2.
+
+Ghi lại đây để đợt sau không có ai "sửa" nhầm ba chỗ này.
+
+## 🔴 Phát hiện mới — khuyết tật của chính bộ e2e (không phải lỗi sản phẩm)
+
+`e2e/helpers/actors.ts::createTicketAsCustomerViaAI` chờ thẳng `.txn-item`
+ngay sau `loginAs`. Nhưng rail "Giao dịch gần đây" **chỉ hiện danh sách khi
+phiên còn OTP tươi** (ngưỡng XEM 12h, AUTH-005/007/008); phiên nguội thì rail
+hiện *"Xác thực OTP để xem giao dịch gần đây"* + nút *"Xác thực ngay"*, và
+`.txn-item` **không bao giờ render**.
+
+Nghĩa là 2 test `ticket-detail.spec.ts` (và mọi test dùng helper này) **chỉ
+xanh khi vô tình còn OTP hợp lệ sót lại từ lượt chạy trước** — chạy nguội trên
+máy sạch hoặc trên CI là đỏ, mà **không phải lỗi sản phẩm**. Đây là loại test
+tệ nhất: nó phụ thuộc trạng thái sót lại, nên vừa bỏ lọt lỗi thật vừa đỏ giả.
+
+**Đã sửa trong vùng của tôi**: thêm `unlockTxnRail()` — thấy nút "Xác thực
+ngay" thì bấm + hoàn tất OTP rồi mới chờ rail, không thấy thì đi tiếp. Cố ý
+**không** nuốt lỗi: xác thực xong mà rail vẫn không hiện thì đỏ, vì lúc đó là
+lỗi sản phẩm thật.
+
+**Điều PO cần biết cho kịch bản demo:** khách đăng nhập lần đầu **không thấy
+ngay danh sách giao dịch** — phải qua OTP. Người demo cần biết trước bước này.
+
+## Kết quả chạy test — nói thẳng cái nào xanh, cái nào chưa
+
+**Backend, sau toàn bộ thay đổi hôm nay:**
+`pytest tests/ -m "not security_finding"` → **343 passed · 1 failed · 3 skipped
+· 2 xfailed** (125s). Đúng một đỏ: ô `supervisor × /dashboard` — đỏ đúng, đang
+chờ coder vá. **Không có hồi quy nào.**
+
+**e2e `ticket-detail.spec.ts`: VẪN ĐỎ — và tôi KHÔNG nới test để nó xanh.**
+
+Đã sửa được 2 lớp nguyên nhân thật (xem trên: phụ thuộc OTP sót lại; và lỗi
+ngân sách thời gian do chính bản sửa của tôi gây ra). Lớp thứ 3 thì **không
+sửa bằng cách vá test được**, vì nó là câu hỏi sản phẩm:
+
+- Trần thời gian 150s nằm ở chính spec (`ticket-detail.spec.ts:15`), không
+  phải config. **Tôi cố ý không nới nó**: nới trần để test xanh chính là việc
+  tôi vừa dặn người khác đừng làm ở 2 ô guard.
+- Thời gian bị đốt vào việc agent **không tạo ticket** cho giao dịch
+  `processing` (ca B2), buộc helper phải nudge 2 lượt LLM nữa.
+- Cách vá đúng — cho helper **chọn có chủ đích** một giao dịch phù hợp thay vì
+  lấy bừa cái đầu rail — hiện **không làm được từ phía client**: rail chỉ hiện
+  chiều tiền/số tiền/thời gian/mã giao dịch, **không hiện trạng thái**, và
+  không có route API nào cho khách đọc danh sách giao dịch (đã thử 5 đường,
+  đều 404).
+
+⇒ **Chặn ở phán quyết B2.** Chi tiết + hai nhánh xử lý: xem
+`eval/results/trige_29_case_20260814.md`, mục "BỔ SUNG 14/08 (chiều)".
+
+**Về 2 assert nhãn tôi đã cập nhật:** chúng **chưa được chính lượt e2e xác
+nhận** (test chết trước khi tới đó). Nhưng chuỗi nhãn thì **đã kiểm trực tiếp
+bằng trình duyệt** trên `TCK-ddd78e22867f`, khối "Đề xuất đã trình" hiện đúng:
+*"Hoàn tiền về ví — 107.000đ"* và *"Chờ sếp duyệt"*. Nói rõ mức độ bằng chứng
+để không ai hiểu nhầm là đã chạy xanh.
