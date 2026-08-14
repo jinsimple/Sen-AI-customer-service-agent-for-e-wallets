@@ -364,6 +364,41 @@ note theo đặc tả trong báo cáo security.
   trên host): điều bất biến giữa hai nhánh đo là **src/ trên host** (trừ
   prompt.py), không phải image container. F-12 code SAU mốc sau.
 
+## LỆNH RÀNG BUỘC cho nhịp migration (từ pre-review security 23f57ef — PO phê chuẩn)
+
+1. **Thứ tự BẮT BUỘC trong CÙNG một transaction:** xoá 2 residue QA →
+   sentinel cho dòng genuine → backfill hitl_status (F-13). KHÔNG giao hoán:
+   TCK-518527ab869f có đúng 2 resolution là 2 dòng sắp xoá — backfill trước
+   là ticket khẳng định phán quyết HITL không còn bản ghi chống đỡ, trái
+   `dan_xuat.quy_tac` contract v2.1.0.
+2. Backfill bám "resolution MỚI NHẤT" tất định:
+   `ORDER BY created_at DESC, resolution_id DESC LIMIT 1` — ticket nhiều
+   resolution ĐÃ tồn tại (TCK-173cee0218a0), UPDATE...FROM join không xác
+   định sẽ hỏng im lặng về sau.
+3. **Trạng thái đích assert được** (coder dán truy vấn thật vào commit,
+   tester viết test canh): 6 approved / 3 pending_approval / 1 rejected ·
+   đúng 6 ticket đổi trạng thái (5 approved + TCK-0e7f530fbd4f rejected) ·
+   TCK-518527ab869f còn 0 resolution và GIỮ pending · 3 ticket chỉ có
+   pending_approval giữ pending.
+4. **Sentinel — 5 điều kiện nghiệm thu** (security sẽ rà): không đăng nhập
+   được (chứng minh bằng POST /auth/login thật → 401) · full_name là nhãn
+   không phải tên người · KHÔNG khớp `WHERE role='supervisor' ORDER BY
+   user_id LIMIT 1` (chính câu sinh ra F-11 — sentinel mang role supervisor
+   là lần backfill sau lại vớ đúng nó) · không vào thống kê theo người ·
+   rationale khai CẢ người LẪN thời điểm là suy ra.
+5. FK đã kiểm hộ: auth_sessions là bảng duy nhất trỏ resolutions, 0 dòng
+   trỏ 2 residue → xoá sạch không cần dọn FK.
+
+## LUẬT CHUNG MỚI (đề xuất coder, PO phê chuẩn): SỬA PROMPT = KIỂM CẤU TRÚC TRƯỚC HÀNH VI
+
+Mọi lần sửa prompt: kiểm cấu trúc bằng máy (đánh số liên tục, không trùng
+bước, bullet đúng mục) TRƯỚC khi đo hành vi — ngang hàng với cổng đo. Lý do
+bằng sự cố thật: lần này máy bắt được HAI bước cùng số "4" (prompt build
+được, ruff sạch, không gì báo) — đúng lớp lỗi câm từng tốn 3 lượt đo +
+1 giả thuyết gốc rễ sai. Cặp luật prompt hiện hành: (1) luật hành vi gắn
+dữ liệu nằm trong "Quy trình điều tra", Giọng văn chỉ chứa giọng văn;
+(2) kiểm cấu trúc trước, kiểm hành vi sau.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
