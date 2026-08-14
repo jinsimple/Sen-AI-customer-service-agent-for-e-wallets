@@ -533,7 +533,9 @@ def propose_resolution(
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
     session: Session = Depends(get_session),
 ):
-    return _handle_tool_error(_propose_resolution, session, **req.model_dump())
+    return _handle_tool_error(
+        _propose_resolution, session, created_by=current_user.user_id, **req.model_dump()
+    )
 
 
 @app.post("/tools/escalate_ticket")
@@ -811,7 +813,11 @@ def approve_resolution(
     resolution = session.get(Resolution, resolution_id)
     if resolution is None:
         raise HTTPException(status_code=404, detail="resolution không tồn tại")
-    if resolution.status not in ("draft", "pending_approval"):
+    # SEC-B — CHỈ `pending_approval`. Contract: `pending_approval → approved` là
+    # CỬA DUY NHẤT tới approved (ADR-002). Cho phép `draft` là mở đường tắt bỏ
+    # qua bước trình duyệt; cho phép `rejected` là lật ngược một lần từ chối đã
+    # có người chịu trách nhiệm. Cả hai đều không có trong contract.
+    if resolution.status != "pending_approval":
         raise HTTPException(
             status_code=400, detail=f"resolution đang ở trạng thái {resolution.status}, không duyệt được"
         )
@@ -848,6 +854,13 @@ def approve_resolution(
     resolution.status = "approved"
     resolution.approved_by = current_user.user_id
     resolution.approved_at = dt.datetime.utcnow()
+    # TIÊU THỤ challenge ngay sau khi duyệt thành công — OTP duyệt là mã DÙNG
+    # MỘT LẦN. Không đánh dấu thì cùng một session_id/otp_code còn dùng lại
+    # được trong 10 phút còn hạn: đủ để lật một resolution khác về approved nếu
+    # có lỗ trạng thái khác lộ ra sau này, và phá luôn ý nghĩa "dynamic linking"
+    # (mã gắn với ĐÚNG một lần quyết định, không phải với một khoảng thời gian).
+    auth_session.otp_status = "consumed"
+    auth_session.otp_code = None
     _dong_bo_hitl_status(session, resolution)
     session.flush()
     return {"resolution_id": resolution_id, "status": resolution.status, "approved_by": current_user.user_id}

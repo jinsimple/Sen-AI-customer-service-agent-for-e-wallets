@@ -84,6 +84,7 @@ def propose_resolution(
     amount: int | None = None,
     destination_ref: str | None = None,
     cited_tool_result_ids: list[str] | None = None,
+    created_by: str | None = None,
 ) -> dict[str, Any]:
     if action_type not in VALID_ACTION_TYPES:
         raise ToolError(f"action_type không hợp lệ: {action_type}")
@@ -113,6 +114,9 @@ def propose_resolution(
         rationale=rationale,
         cited_tool_result_ids=cited_tool_result_ids,
         status="pending_approval",  # KHÔNG nhận tham số ngoài — BR-10
+        # Danh tính người đề xuất LUÔN từ JWT ở tầng route, không bao giờ từ
+        # body — chuẩn bị cho CHECK maker-checker của ADR-020.
+        created_by=created_by,
         approved_by=None,
         approved_at=None,
         created_at=dt.datetime.utcnow(),

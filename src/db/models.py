@@ -331,6 +331,11 @@ class Resolution(Base):
     # ADR-019 — nhãn phán đoán chuyên gia tại luồng từ chối. Nullable ở tầng
     # cột (resolution chưa bị từ chối thì không có gì để ghi); tính bắt buộc
     # được ép theo ĐIỀU KIỆN qua CHECK br11 ở trên, đúng cách BR-10 đã làm.
+    # ADR-020 (dự thảo) chuẩn bị sẵn cột maker-checker: ai ĐỀ XUẤT, để sau này
+    # ép được `approved_by != created_by`. Nullable VĨNH VIỄN cho dữ liệu cũ —
+    # resolution tạo trước cột này không có cách nào biết người đề xuất, và bịa
+    # một cái tên vào bản ghi kiểm toán còn tệ hơn để trống.
+    created_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     reject_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     rejected_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     rejected_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
