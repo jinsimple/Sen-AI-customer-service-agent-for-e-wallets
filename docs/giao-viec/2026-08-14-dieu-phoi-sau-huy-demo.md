@@ -480,6 +480,38 @@ Ghi nhận: coder thử giả thuyết cơ chế, dữ liệu bác bỏ, và D�
   mất mốc). Phát hiện kèm: 1 file .json thực chất là Markdown (bug C6 cũ)
   đã đổi tên; --so-sanh báo lỗi đọc được.
 
+## THREAT MODEL RESEED (4b8cb32) — PO ĐÍNH CHÍNH MỘT PHÁN QUYẾT + 3 LỆNH MỚI
+
+**PO tự đính chính:** câu "dữ liệu chat cũ xử lý theo đợt reseed" (trong trình
+ST2-P0-3) SAI với hiện trạng — TM-R1 đo thật: `seed_db.py` chỉ dọn 8 bảng
+nền, KHÔNG chạm messages(459) · chat_sessions(149) · tool_results(499) ·
+investigation_logs(33) · resolutions(12) · và **checkpoints+checkpoint_blobs
+(1.039+1.496 dòng transcript LangGraph NGUYÊN VĂN chưa scrub — kho PII lớn
+nhất hệ thống, vô hình vì nằm ngoài models.py)**. Nếu cứ tin "reseed là
+sạch" thì việc dọn im lặng không xảy ra mà STATE lại ghi đã đóng — đúng
+hình dạng F-11. Cảm ơn security bắt trước khi nó thành sự thật.
+
+**Ba lệnh mới từ phán quyết này:**
+1. **Brief reseed (khi tới lượt coder) BẮT BUỘC nhúng:** danh sách kho dọn
+   TƯỜNG MINH (gồm checkpoints/checkpoint_blobs) chốt TRƯỚC khi sửa ·
+   thứ tự xoá theo FK (TM-R2 đo thật: hiện reseed GÃY ở
+   chat_sessions_ticket_id_fkey — cấm hai đường sửa nhanh "tắt FK" và "xoá
+   vừa đủ hết lỗi") · sentinel F-11 sinh lại trong gen_dataset (TM-R6) ·
+   7 điều kiện nghiệm thu của security đưa nguyên văn vào brief.
+2. **SỬA C8 theo TM-R3:** thêm USR-PA01 vào TEST_ACCOUNT_USER_IDS để tiện
+   test là OK, NHƯNG trước đợt 150 người thật thì tập mật khẩu chung KHÔNG
+   được chứa supervisor/partner_admin (partner_admin = vai duy nhất nạp nội
+   dung kho RAG mà agent tin — cửa indirect injection). Ràng buộc này là
+   TEST CANH (tester viết), không phải lời dặn.
+3. **TM-R7**: chốt luật cho eval/results trong git TRƯỚC khi có người thật
+   (transcript người thật không được commit) — gộp vào cùng quyết định
+   ST2-P0-3 của PO thật.
+
+TM-R5 (seed quá "ngoan" làm test scrub xanh giả) → yêu cầu gen_dataset đợt
+reseed sinh thêm mẫu PII "bẩn" (SĐT viết liền/cách, tên ngoài tập cố định)
+— tester thêm case scrub đối kháng trên dữ liệu đó. TM-R8 ghi nhận: làm sạch
+RAG tại TRUY VẤN là chủ đích, cấm "tối ưu" thành chỉ-lọc-lúc-nạp.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
