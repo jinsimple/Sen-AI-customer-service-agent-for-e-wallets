@@ -1,58 +1,84 @@
 # Trạng thái hiện tại
 
-Cập nhật: **2026-08-13** · Phiên vừa rồi: Claude Code (chuẩn bị tải 150 người)
+Cập nhật: **2026-08-14 sáng** · Phiên vừa rồi: PO (tổng hợp đêm vá 13/08, chuẩn bị demo)
 
 > Ghi đè mỗi cuối phiên bằng `/wrapup`. Giữ **dưới 60 dòng**.
 > Lịch sử quyết định KHÔNG nằm ở đây — nằm ở `docs/DECISIONS.md`.
 
-## Vừa xong
+## Vừa xong (đêm 13/08 — 4 commit `2d9a709`→`f2d4785`, đã verify trong container)
 
-- **Bảo mật PII** (ADR-010/011): chặn PII rời hệ thống lên LLM ở **cả hai đầu** — kết
-  quả tool (`full_name`/`phone`/`account_no`/`user_id`/`wallet_id`) và tin nhắn khách
-  tự gõ (`scrub_pii`). Bỏ họ tên khỏi system prompt. 14 test.
-- **Chặn đồng thời** (ADR-012): `RedisConcurrencyLimiter`, hết slot → 503 + Retry-After.
-- **Gộp 1 database** (ADR-013): bỏ fallback SQLite im lặng, Postgres publish loopback.
-- **PostgresSaver** (ADR-014): hội thoại ra khỏi RAM process, sống sót restart.
-- **Redis pub/sub live-chat** (ADR-015): fan-out liên worker.
-- **Multi-worker 4** — verify thật trong container: 4 worker, 4 subscriber,
-  PostgresSaver, 21/100 kết nối Postgres.
+- **QA-13 (P0) live-chat mất tin liên worker — ĐÃ VÁ**: quyết định người nhận
+  LÚC GIAO TIN thay vì dựa lớp đăng ký trước. Đo lại: 60/60 tin, 0 mất, 0 lặp.
+  **CẦN ADR-018 ghi nguyên tắc này + lý do bác bỏ** — chưa ghi, phiên sau dễ
+  "tối ưu" ngược làm bug im lặng quay lại.
+- **R1 latency — tìm ra gốc**: scrub PII chạy trên span attribute TRƯỚC khi cắt
+  (`b598096`). Đường demo thật: 3,6–23,2s/lượt. **Số p50 37,7s là artifact
+  của eval harness (SQLite in-process, case nhiều lượt), không phải sản phẩm.**
+- **Thước "bịa số liệu" đã vá** (`2d9a709`): tách bịa-thật / ID-đã-xác-minh /
+  ID-chưa-xác-minh + chế độ `--rescore`. Chấm lại 2 run cũ: **0/40 bịa thật**.
+  ⇒ **Gate cắt token đổi từ ≤10% thành 0%** (con số 4/40=10% cũ là false positive).
+- 6 lỗi biên bản QA 13/08 (`6deb6cc`): vé WS RAM/worker (QA-01), ticket ma từ
+  nhánh timeout (QA-10), rate-limit vé WS CSKH (QA-11), "[object Object]" (QA-05)…
+- **Demo 14/08**: 4 case chốt `eval/demo_cases_20260814.md` · checklist + bẫy
+  `docs/DEMO-READINESS-2026-08-14.md` · LangSmith đã TẮT trong container.
 
-## Đang dở — chi tiết đủ để phiên sau tiếp ngay
+## Đang dở
 
-- **Cắt token (mục 4b) CHƯA LÀM.** Đã đo xong, chưa sửa:
-  - schema tool 1.945 token, **docstring chiếm 1.377** (create_ticket 351,
-    request_human_handoff 333, get_customer_history 264, search_policy 242,
-    lookup_transaction 187)
-  - system prompt 4.587 token (Quy trình điều tra 1.644 · Ràng buộc bắt buộc 1.037 ·
-    Giọng văn 671 · Ngoài phạm vi 533)
-  - **Rủi ro:** docstring mã hoá ràng buộc hành vi thật ("KHÔNG tự chọn candidate",
-    "không bịa mã giao dịch"). Cắt ẩu = hỏng chất lượng âm thầm.
-  - **Baseline đối chiếu** (`eval/results/baseline_TRUOC_khi_cat_token_raw.json`):
-    bịa số liệu **4/40 = 10,0%** · p50 24,3s · $0,1778/40 case. Sau khi cắt phải chạy
-    lại `eval/measure_quality.py --n 40` trên CÙNG bộ, so ghép cặp; **bịa số liệu
-    không được vượt 10%** mới được ship.
+- **Cắt token (mục 4b) CHƯA LÀM.** Số đo cũ vẫn đúng: schema tool 1.945 token
+  (docstring 1.377), system prompt 4.587 token. Baseline so ghép cặp giờ là
+  bản `*_rescored.json` với gate **0% bịa thật**.
+- **Triage 29/40 XONG** (`eval/results/trige_29_case_20260814.md`, 14/08):
+  KHÔNG phải 29 lỗi — A1=13 dữ liệu bộ case mâu thuẫn contract · A2=5 dấu vết
+  bug đã vá (2 xanh, 2 lỗi thật, 1 crash mới) · B1=7 hành vi sai thật (4
+  regression sau 13/08: CASE-019/082/083/101 + CASE-004 tự chọn candidate —
+  chạm ràng buộc cứng 3) · B2=4 tranh chấp đặc tả (giao dịch processing).
+  **Việc thật: 9 lỗi hành vi + 1 crash.** Gate 0% bịa dùng được ngay;
+  thước tổng thể chỉ sạch khi xử lý xong nhóm A1.
+- **Lỗi dữ liệu from_bank (A1)**: 28/28 case cả 4 ô `from_bank` có ví khách
+  không phải một bên giao dịch (gen_dataset gán sai ví nhận) — 1/3 ma trận
+  nghiệp vụ không thể pass. Hướng PO: SINH LẠI dữ liệu theo contract (bác bỏ
+  đổi định nghĩa "một bên" — chạm ATLAS-001). CHỈ làm sau demo tối 14/08 vì
+  reseed phá bộ case demo D1–D4; gộp với dọn dữ liệu M-04 trước đợt 150 người.
+- **CASE-110 crash (A2)**: tạo ticket "cần tra thủ công" khi trans_id không
+  tồn tại → IntegrityError FK, hỏng cả lượt. Trước bị nhánh timeout che, lộ
+  ra sau khi latency giảm. Fix cho coder trên dev; demo tối nay NÉ đường này
+  (đã ghi vào DEMO-READINESS).
 
 ## Chặn / chờ (việc của PO)
 
-- **Nâng tier OpenAI** — đường găng dài nhất. Tier 1 hiện tại: 200K TPM ⇒ ~13 lượt/phút
-  cho TOÀN hệ thống ⇒ 150 người mỗi người 1 tin/11 phút. Cần Tier 2 (2M TPM), có lead time.
-- **Tạo organization OpenAI + ký DPA** (Settings → Organization → Compliance APIs).
-  Tài khoản cá nhân không ký được.
-- **Hỏi mentor/luật sư về NĐ 13** — hoãn có điều kiện, mốc kích hoạt ở ADR-011.
-- **Upload `project-knowledge/`** lên Project fin05 để các phiên Claude khác hết làm
-  việc trên ảnh chụp cũ.
+- **Nâng tier OpenAI** (Tier 1 = 200K TPM ⇒ ~13 lượt/phút toàn hệ) + **DPA**.
+- **Xoay LANGCHAIN_API_KEY sau demo** — key hiện nguyên văn trong log phiên QA.
+- Quyết ST2-P0-3 (PII live-chat cho staff) TRƯỚC đợt 150 người thật (mốc ADR-011).
+- QA-07: docs còn nói passwordless (đã dùng mật khẩu) → sửa docs + chạy lại
+  `scripts/export_project_knowledge.py` + upload (snapshot đang cũ hơn 5 commit).
+
+## Phát hiện mới từ smoke sáng 14/08 (không chặn demo, xử lý sau)
+
+- **M-01 (P2)**: bộ lọc "ngoài phạm vi" nhạy từ khoá — thiếu chữ "khiếu nại"/
+  "ticket" là từ chối nhầm câu hợp lệ. Cần case eval riêng + nới điều kiện.
+- **M-02 (P3)**: API chi tiết ticket không trả `approved_by`/`approved_at`
+  (DB có đủ) — US-017 chưa hiển thị được, thêm trường + UI.
+- **M-05**: agent không đọc lại được mã ticket vừa tạo khi khách hỏi lại.
+- **M-04**: dữ liệu demo phình (~730 ticket, USR-0145 có 8 khiếu nại) — cần
+  script dọn/reseed TRƯỚC đợt 150 người.
+- **Gap hạ tầng test**: Playwright config mặc định spawn `npm run dev` (stack
+  thứ hai, bẫy ADR-009) — chỉ `playwright.livechat.config.ts` trỏ Docker.
+  Cần config chạy toàn bộ e2e trên stack Docker.
 
 ## Cảnh báo còn tồn
 
-- **Load test 150 đồng thời CHƯA CHẠY** (PO hoãn sang 14/08). Mọi con số về đồng thời
-  hiện vẫn là suy luận kiến trúc, chưa có số đo thật. Đây là việc đầu tiên nên làm.
-- p95=119,5s trong baseline **KHÔNG phải lỗi timeout** — đã điều tra: đó là tổng cả
-  case nhiều lượt của eval harness (max 136,5s ≈ 3 × trần 45s). Timeout per-turn hoạt
-  động đúng, có test canh.
-- Test bất biến 19/19 xanh · full suite **320 passed** · ruff sạch.
+- **Load test 150 CHƯA CHẠY** — mọi con số đồng thời vẫn là suy luận.
+- Chưa vá, hoãn có chủ đích: QA-02 (hitl_status kẹt `pending` sau duyệt),
+  QA-06 (giờ SLA hiển thị UTC lệch 7h), QA-14 (Enter nhanh giữ chữ — có cách né).
+- Cứng hoá vá QA-13 (coder + QA đồng thuận, chờ PO): TTL 30–60s cho
+  `_session_staff` (rò dữ liệu sang CSKH không phụ trách — chạm US-016);
+  DB làm lưới cuối khi Redis rỗng.
+- Test bất biến 19/19 · full suite 320 passed · 1 đỏ có chủ đích (ST2-P0-3) · ruff sạch.
 
 ## Sau demo
 
-- Ép thứ tự `_enforce_requester_is_party` → `_scrub_pii_cho_llm` ở tầng KIỂU DỮ LIỆU
-  (hiện chỉ có test canh) — đề xuất của phiên bảo mật, hoãn có chủ đích.
-- `contracts/tone-of-voice.yaml`; `eval/heldout_set.jsonl` CHỈ CHẠY MỘT LẦN gần cuối.
+- ADR-016/017/018 (ưu tiên ADR-018 — nguyên tắc giao tin live-chat).
+- Lộ trình chuẩn EU/US theo `docs/PO-TONG-KET-2026-08-13.md` (G1 SLA pháp định,
+  G2 maker–checker `approved_by != created_by`, G3 audit log bất biến…).
+- Ép thứ tự `_enforce_requester_is_party` → `_scrub_pii_cho_llm` tầng kiểu dữ liệu.
+- `contracts/tone-of-voice.yaml` · `eval/heldout_set.jsonl` CHỈ CHẠY MỘT LẦN gần cuối.
