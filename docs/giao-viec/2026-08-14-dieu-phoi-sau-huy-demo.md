@@ -141,6 +141,29 @@ Trình tự thi hành:
 Chi phí $1,10 cho 5 lần chạy: CHẤP NHẬN, không truy — cổng đo vừa chặn một
 đánh đổi tồi trước khi nó được ship, rẻ hơn mọi phương án khác.
 
+## PHÁN QUYẾT sau việc (2) của B2 + khởi động Phase 0 (PO, tối 14/08)
+
+1. **Uỷ quyền MỘT LẦN ghi `docs/DECISIONS.md`:** coder ĐƯỢC ghi ADR-016→019
+   trong đợt Phase 0 này (file thuộc vùng PO — hỏi trước khi ghi là đúng kỷ
+   luật, ghi nhận). Điều kiện kèm: (i) 018/019 đúng nguyên văn bản đã duyệt
+   + sửa INV-14; (ii) 016/017 theo đủ mẫu ADR, bắt buộc có "Lý do BÁC BỎ";
+   (iii) CHỈ GHI THÊM; (iv) hai lớp review sau commit: security rà (đã giao)
+   + PO đọc diff. Sai sót nếu có sửa bằng ADR mới, không sửa ADR đã ghi.
+2. **B2 — xác nhận phán định 7/7 agent-sai-thật + KHÔNG áp patch.** Bằng
+   chứng "không giao dịch nào processing ⇒ luật chưa từng chạy mà vẫn hỏng ⇒
+   tác hại từ SỰ HIỆN DIỆN của bullet trong mục Giọng văn" là loại bằng chứng
+   quyết định. Chốt luôn nguyên tắc thiết kế prompt cho lần làm lại (và cho
+   mọi luật hành vi sau này): **luật gắn với dữ liệu tra cứu đặt trong "Quy
+   trình điều tra", mục Giọng văn chỉ chứa giọng văn.** Đưa nguyên tắc này
+   vào ADR khi làm lại B2.
+3. **CASE-110 — đồng ý không vá:** lớp chặn đã tồn tại (create_ticket.py:50
+   ToolError), lỗi không tái hiện trên HEAD, viết thêm code là mã chết.
+   QA chạy lại trên HEAD xác nhận đóng + cập nhật trạng thái trong
+   `trige_29_case_20260814.md`.
+4. **Gộp cổng đo — DUYỆT:** trần "1 lần chạy" áp cho CẢ GÓI (B2 làm lại +
+   CASE-004 + CASE-083 + CASE-101), chạy sau khi tester xong bộ case 2 lượt.
+   Đây đúng tinh thần trần cũ, không phải nới.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
