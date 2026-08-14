@@ -280,6 +280,154 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
   Redis pub/sub fire-and-forget, không có hàng đợi giữ lại (lỗi thật mắc phải lúc
   viết test: subscribe sau publish thì không nhận được gì).
 
+## ADR-016 — Vé handshake WebSocket nằm ở Redis, không nằm trong RAM worker
+
+- **Ngày:** 2026-08-14 · **Trạng thái:** Đang hiệu lực · Bổ sung ADR-015
+- **Bối cảnh:** `ConnectionManager._tickets` là một dict Python trong RAM từng
+  process. Từ khi bật 4 worker (ADR-014/015), vé cấp qua REST ở worker A còn WS
+  handshake rơi vào worker B — worker B không biết vé đó nên từ chối 4401. Đo
+  thật (QA/QC 13/08): CSKH fail 3/8 lần, khách có lần phải nối lại 3 lần. Khoanh
+  vùng bằng loại trừ: vé KHÔNG có trong Redis lẫn Postgres, còn khi handshake
+  trúng đúng worker thì tin nhắn hai chiều đi bình thường — fan-out pub/sub của
+  ADR-015 vẫn đúng, hỏng nằm gọn ở kho vé.
+- **Quyết định:** kho vé chuyển sang Redis — `SET ex=30` lúc cấp, `GETDEL` lúc
+  dùng. Viết lại docstring cũ của module ("Không dùng Redis... 1 dict Python
+  in-memory là đủ và AN TOÀN") cho đúng hiện trạng: từ khi multi-worker, socket
+  là thứ DUY NHẤT còn được phép nằm trong RAM process.
+- **Lý do chọn GETDEL thay vì GET rồi DEL:** GETDEL đọc và xoá trong MỘT lệnh
+  atomic, giữ nguyên tính dùng-một-lần (chống replay) kể cả khi hai handshake
+  tranh cùng một vé Ở HAI WORKER KHÁC NHAU. Tách thành hai lệnh là mở lại cửa
+  sổ đua ngay tại lớp vừa vá.
+- **Lý do BÁC BỎ "Redis lỗi thì quay về dict RAM cho chắc":** fallback đó chính
+  là bug cũ quay lại dưới dạng khó bắt hơn — hệ thống chạy được nhưng chập chờn
+  theo tỷ lệ worker, không exception, không log. Cùng bài học ADR-013: fallback
+  im lặng đắt hơn hỏng rõ ràng. Redis rớt thì handshake fail dứt khoát, người
+  vận hành biết ngay phải sửa gì.
+- **Hệ quả:** `src/api/live_chat_ws.py` (commit 6deb6cc) ·
+  `tests/test_api/test_live_chat_ws.py` (trường `expires_at` cũ dùng
+  `time.monotonic()` — vô nghĩa liên process, TTL nay do Redis giữ). Nghiệm thu
+  QA/QC: 20/20 handshake cả hai vai · vé dùng lại 403 · để quá 35 giây 403.
+
+## ADR-017 — Luồng nền bị bỏ rơi sau timeout KHÔNG được chạm database
+
+- **Ngày:** 2026-08-14 · **Trạng thái:** Đang hiệu lực
+- **Bối cảnh:** `run_agent_turn` chạy agent trong thread riêng để
+  `.result(timeout=...)` trả quyền điều khiển lại cho khách đúng hạn 45 giây.
+  Nhưng Python KHÔNG kill được thread: hết giờ thì luồng nền vẫn chạy tiếp và
+  vẫn cầm `session` của lượt đó. Hai hậu quả ĐO ĐƯỢC, không phải lý thuyết:
+  (a) **ticket ma** — luồng bị bỏ rơi vẫn gọi tiếp tool ghi DB, sinh ticket THỨ
+  HAI cho cùng một lượt chat trong khi khách đã được báo mã ticket fallback
+  (tái hiện 4/4 case, ticket ma ĐƯỢC COMMIT thật); (b) **tranh chấp** — bản vá
+  QA-10 mở connection thứ hai vào cùng DB trong khi connection thứ nhất giữ
+  transaction ghi dở, gây `OperationalError: database is locked` (2/4 case).
+- **Quyết định:** `TurnGuard` — một khoá + một cờ `abandoned`, tạo mới cho MỖI
+  lượt. Luồng chính đặt cờ TRƯỚC rồi mới giành khoá, nên tool call dở dang chạy
+  nốt xong mới nhả khoá, và mọi tool call sau đó thấy cờ và từ chối chạm DB.
+  Nhánh fallback ghi bằng CHÍNH session được tiêm (bỏ session thứ hai), kèm
+  `commit()` tường minh.
+- **Lý do commit tường minh:** khách vừa được đọc mã ticket đó nên nó PHẢI tồn
+  tại thật, không phụ thuộc caller có commit hay không (eval harness rollback
+  giữa các case). Báo cho khách một mã không tra được chính là bịa số liệu —
+  ràng buộc cứng số 3.
+- **Lý do BÁC BỎ "cho luồng nền một session riêng của nó":** nghe hợp lý và
+  giải quyết được thread-safety, nhưng phá cơ chế cô lập của eval harness —
+  harness dựa vào `session.rollback()` giữa các case để dọn side-effect, và một
+  session do thread tự sở hữu + tự commit sẽ khiến case sau nhìn thấy dữ liệu
+  case trước, đổi luôn ý nghĩa của phép đo. Ngoài ra nó KHÔNG giải quyết được
+  ticket ma: thread vẫn ghi, chỉ ghi vào chỗ khác.
+- **Lý do BÁC BỎ "cứ để luồng nền chạy nốt, ghi gì thì ghi":** ở request thật,
+  `get_session` (deps.py) ĐÓNG session ngay khi response trả xong, trong khi
+  luồng nền vẫn dùng tiếp — session bị đóng sẽ tự lấy connection mới từ pool mà
+  không ai đóng lại. Dưới tải 150 người, đây là đường ăn mòn pool đúng lúc
+  không muốn gặp nhất.
+- **Hệ quả:** `src/agents/tools/customer_tools.py` (TurnGuard,
+  `TurnAbandonedError`, tham số `guard`), `src/agents/graph.py`, 5 fake
+  `_build_agent` trong `tests/`. Verify: 0/4 lỗi khoá · 0 ticket ma (4 lần bị
+  từ chối) · đúng 1 ticket/case. **Âm bản** (tắt guard): 4 ticket ma quay lại.
+
+## ADR-018 — Người nhận tin live-chat được quyết định LÚC GIAO TIN
+
+- **Ngày:** 2026-08-14 · **Trạng thái:** Đang hiệu lực · Bổ sung ADR-015
+- **Bối cảnh:** Sau ADR-015, live-chat vẫn mất tin (đo thật: 25/60). Gốc:
+  `notify_claimed` đăng ký socket CSKH vào phiên CHỈ trên worker xử lý lệnh REST
+  claim, trong khi socket thật của CSKH nằm ở worker khác — nên nó không bao giờ
+  vào danh sách nhận. Còn `claim_success` lại đi qua pub/sub nên CSKH vẫn thấy
+  "đã nhận ca". Vỡ IM LẶNG: không exception, không log lỗi.
+- **Quyết định:** "ai đang giữ phiên này" tra từ Redis **tại thời điểm giao
+  tin**, không dựa vào lớp trạng thái đã-đăng-ký-trước đó. Kèm sự kiện `unclaim`
+  để không worker nào giữ ánh xạ cũ khi phiên đổi người.
+- **Lý do:** mọi mô hình "đăng ký trước, giao sau" đều có cửa sổ đua giữa lúc
+  đăng ký và lúc giao, và khi lỡ cửa sổ đó thì hỏng im lặng. Tra nguồn sự thật
+  ngay lúc cần là bỏ hẳn lớp trung gian thay vì vá nó.
+- **Lý do BÁC BỎ "chỉ cần phát sự kiện claim qua pub/sub cho mọi worker":** ĐÃ
+  THỬ ĐÚNG PHƯƠNG ÁN NÀY (lớp 1 và lớp 2 của bản vá), đo lại VẪN CÒN MẤT TIN LẺ
+  TẺ. Đây là phần quan trọng nhất của ADR này: lớp 1+2 trông đã đủ, nên một
+  phiên sau rất dễ thấy lớp 3 là thừa và tối ưu nó đi — bug im lặng sẽ quay lại
+  và lần sau còn khó tìm hơn vì đã có ADR-015 "chứng minh" fan-out hoạt động.
+- **Nợ kỹ thuật đã biết, PHẢI cứng hoá (tech-lead review, QA/QC đồng ý):**
+  1. Bộ nhớ tạm `_session_staff` không hết hạn — worker lỡ sự kiện `unclaim`
+     (pub/sub fire-and-forget) sẽ giữ ánh xạ cũ VĨNH VIỄN, tin của khách chảy
+     sang CSKH không còn phụ trách phiên. Chạm PDPA/US-016. Cho TTL 30–60s.
+  2. Nguồn sự thật hạ từ DB xuống Redis — Redis mất dữ liệu thì CSKH nối lại
+     không gắn về phiên, IM LẶNG, trái luật đã đặt ở ADR-016. Làm lưới cuối đọc
+     DB + log cảnh báo. Khi làm PHẢI đi qua session được tiêm, KHÔNG dùng
+     `SessionLocal` trần (bản đầu làm vậy đã đỏ 5 test — đúng lớp lỗi QA-10).
+- **Hệ quả:** `src/api/live_chat_ws.py` (commit f2d4785) ·
+  `frontend/e2e/live-chat.spec.ts` L4-07 · `tests/load/ws_fanout_probe.py`.
+  Nghiệm thu: 60 tin qua 6 phiên độc lập, mất 0, lặp 0.
+
+## ADR-019 — Từ chối đề xuất phải kèm LÝ DO CÓ CẤU TRÚC, ép ở tầng DB
+
+- **Ngày:** 2026-08-14 · **Trạng thái:** Đang hiệu lực · **Người duyệt:** PO
+- **Bối cảnh:** `POST /resolutions/{id}/reject` chỉ set `status="rejected"` —
+  không lý do, không `rejected_by`, không `rejected_at`, trong khi nhánh approve
+  ghi đủ `approved_by/approved_at` (BR-10). Đây là phán đoán của người có thẩm
+  quyền cao nhất về việc đề xuất sai ở đâu, và nó đang bốc hơi 100%. Không có
+  nhãn này thì Phase 2 (kết xuất case ứng viên cho bộ eval) không có gì để lọc,
+  và Phase 3 (tối ưu prompt có đo) không biết phải cải thiện chiều nào.
+- **Quyết định:**
+  1. Thêm `reject_reason` (enum), `rejected_by` (FK users), `rejected_at` vào
+     bảng `resolutions`.
+  2. Ép bằng CHECK constraint `ck_resolutions_rejected_requires_reason_br11`:
+     `(status != 'rejected') OR (reject_reason IS NOT NULL AND rejected_by IS
+     NOT NULL AND rejected_at IS NOT NULL)` — ĐỐI XỨNG với BR-10 (INV-14).
+  3. Taxonomy 7 giá trị chia HAI NHÓM qua cờ `la_tin_hieu_hoc`, vì không phải
+     lần từ chối nào cũng là lỗi của đề xuất (`trung_case`, `khach_rut` không
+     phải). Trộn phẳng sẽ bơm vào bộ eval những case KHÔNG có gì để học.
+  4. Ranh giới `thieu_can_cu` vs `need_more_info` ghi thẳng vào contract; UI màn
+     từ chối gợi ý đường `request-more-info` khi sếp chọn giá trị đó.
+  5. Ghi chú tự do theo phương án TM-03 của security: được phép trong hệ thống
+     (scrub lúc ghi · ≤500 ký tự · chỉ route staff) · **không bao giờ xuất ra
+     file ứng viên, kể cả đã scrub** — export chỉ mang enum, người duyệt đọc
+     trong hệ thống rồi viết lại case bằng lời mình + dữ liệu seed. Bắt buộc
+     với `khac`.
+  6. Backfill 1 dòng `rejected` cũ trong DB thành `khac` + ghi chú "dữ liệu
+     trước ADR-019" — tường minh, không lặng lẽ.
+- **Lý do ép ở tầng DB chứ không ở route:** cùng lập luận đã dùng cho BR-10 và
+  đã được contract ghi là "điểm mạnh nhất của thiết kế hiện tại" — một UPDATE
+  viết thẳng SQL, một migration ẩu, hay một route mới quên kiểm tra đều bị chính
+  database từ chối. Nhãn dùng để học mà thiếu chỗ này thì tập dữ liệu sẽ có lỗ
+  hổng đúng vào những chỗ khó phát hiện nhất.
+- **Lý do BÁC BỎ "ghi log tự do, không cấu trúc":** log tự do đọc được bằng mắt
+  nhưng KHÔNG lọc được bằng máy. Phase 2 cần truy vấn "mọi case bị từ chối vì
+  sai số liệu trong 30 ngày" để kết xuất ứng viên — với text tự do thì phải chạy
+  phân loại lại bằng LLM, tức đưa một lớp đoán vào chính cái thước dùng để đo.
+  Sai lầm y hệt QA-03: thước đo bị nhiễu thì mọi so sánh sau đó vô nghĩa.
+- **Lý do BÁC BỎ "để AI tự gán lý do từ chối":** thứ ta cần chính là phán đoán
+  ĐỘC LẬP của con người — dùng để chấm điểm AI. Để AI tự gán nhãn cho chính đầu
+  ra của nó là vòng lặp tự khen: mô hình sẽ gán nhãn theo cách nó hiểu vấn đề,
+  tức mù đúng những chỗ nó đang sai. Ngoài ra vi phạm ràng buộc cứng 2 (AI không
+  vượt cấp): gán nhãn "CSKH thiếu căn cứ" là phán quyết về công việc của người
+  khác.
+- **Lý do BÁC BỎ "bắt buộc OTP khi từ chối":** từ chối KHÔNG chạm tiền, không
+  phải hành động tài chính — contract đã ghi rõ. Thêm OTP làm nặng thao tác
+  thường dùng nhất của sếp mà không giảm rủi ro nào.
+- **Hệ quả:** `contracts/resolution-state-machine.yaml` v2.1.0 (taxonomy +
+  INV-14 + quy tắc dẫn xuất `hitl_status` cho QA-02) · `src/db/models.py` (3 cột
+  + 1 CHECK) · `migrations/` (1 revision + backfill 1 dòng) ·
+  `src/api/main.py::reject_resolution` + `schemas.py` ·
+  `frontend/src/app/(app)/approve/` · test mới do tester viết TỪ CONTRACT.
+
 ---
 
 ## Mẫu ADR mới

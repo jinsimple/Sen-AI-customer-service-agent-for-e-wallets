@@ -14,8 +14,11 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.0.0"
-source: "Sinh ngược từ src/db/models.py @ 2026-08-13 · thay thế ticket-state-machine.yaml v1.0.0"
+version: "2.1.0"
+source: >
+  Sinh ngược từ src/db/models.py @ 2026-08-13 · thay thế ticket-state-machine.yaml
+  v1.0.0. v2.1.0 (2026-08-14): thêm taxonomy reject_reason + INV-14 + quy tắc
+  dẫn xuất hitl_status — ADR-019, PO duyệt.
 
 # ===========================================================================
 # 1. Resolution — nơi ràng buộc HITL được ép ở TẦNG DATABASE
@@ -84,6 +87,47 @@ resolution:
       boi: [supervisor]
       qua_route: "POST /resolutions/{resolution_id}/reject"
       ghi_chu: "KHÔNG cần OTP — từ chối không phải hành động tài chính."
+      yeu_cau_them:
+        - "reject_reason BẮT BUỘC, thuộc enum reject_reason bên dưới"
+        - "rejected_by = supervisor thực hiện · rejected_at = thời điểm từ chối"
+        - "Ép ở tầng DB: ck_resolutions_rejected_requires_reason_br11 (INV-14)"
+
+  # ---- Taxonomy lý do từ chối (ADR-019) ----
+  reject_reason:
+    rang_buoc_db: "ck_resolutions_reject_reason"
+    ghi_chu: >
+      `la_tin_hieu_hoc` quyết định case có được kết xuất thành ứng viên cho bộ
+      eval ở Phase 2 hay không. Trộn hai nhóm vào một enum phẳng sẽ bơm vào bộ
+      đo những case mà đề xuất KHÔNG hề sai — làm hỏng chính cái thước dùng để
+      chấm cải tiến.
+    values:
+      sai_so_lieu:
+        mo_ta: "Số tiền/mã giao dịch/thời điểm không khớp dữ liệu đã tra"
+        la_tin_hieu_hoc: true
+      sai_phan_loai:
+        mo_ta: "Sai loại khiếu nại hoặc sai phạm vi giao dịch"
+        la_tin_hieu_hoc: true
+      thieu_can_cu:
+        mo_ta: "Không trích dẫn được tool result chống đỡ kết luận"
+        la_tin_hieu_hoc: true
+        ranh_gioi: >
+          CHỈ dùng khi thiếu căn cứ tới mức KHÔNG THỂ bổ sung. Thiếu tạm thời
+          (CSKH tra thêm là đủ) thì đi đường `POST /tickets/{id}/request-more-info`
+          -> hitl_status='need_more_info', KHÔNG phải từ chối. Lẫn hai đường này
+          sẽ mất khả năng phân biệt "sửa được" với "sai hẳn". UI màn từ chối
+          PHẢI gợi ý đường need_more_info khi sếp chọn giá trị này.
+      sai_chinh_sach:
+        mo_ta: "Trái quy định/chính sách hiện hành"
+        la_tin_hieu_hoc: true
+      trung_case:
+        mo_ta: "Đã xử lý ở ticket khác"
+        la_tin_hieu_hoc: false
+      khach_rut:
+        mo_ta: "Khách rút khiếu nại"
+        la_tin_hieu_hoc: false
+      khac:
+        mo_ta: "Lý do khác — BẮT BUỘC kèm ghi chú tự do"
+        la_tin_hieu_hoc: false
 
 # ===========================================================================
 # 2. Ticket.hitl_status — góc nhìn CSKH, TRỰC GIAO với resolution.status
@@ -93,6 +137,18 @@ ticket_hitl_status:
   cot: "hitl_status"
   rang_buoc_db: "ck_tickets_hitl_status"
   values: [pending, approved, rejected, need_more_info]
+  dan_xuat:
+    quy_tac: >
+      hitl_status theo resolution MỚI NHẤT của ticket, cập nhật trong CÙNG
+      transaction với lần đổi trạng thái resolution (không job nền) — vá QA-02,
+      trước đó cột này kẹt 'pending' vĩnh viễn nên mọi thống kê duyệt/từ chối
+      đều chưa tin được.
+    ghi_chu: >
+      VẪN là trục RIÊNG chứ không phải bản sao của resolution.status:
+      `need_more_info` không có tương ứng bên resolution, và ticket chưa có
+      resolution nào vẫn là 'pending'. Hiện mỗi ticket tối đa 1 resolution
+      (đã kiểm DB 14/08) nên quy tắc "mới nhất" chưa có tranh chấp — ghi ra
+      TRƯỚC khi nó xuất hiện.
   ghi_chu: >
     `need_more_info` KHÔNG có tương ứng bên resolution.status — sếp trả case
     ngược lại cho CSKH bổ sung mà không từ chối hẳn
@@ -145,6 +201,12 @@ invariants:
       CHECK constraint ck_resolutions_approved_requires_approver_br10 phải tồn
       tại trong models.py — đây là lớp phòng thủ cuối cùng của HITL.
     nguon: "BR-10"
+  - id: INV-14
+    mo_ta: >
+      CHECK constraint ck_resolutions_rejected_requires_reason_br11 phải tồn tại
+      trong models.py — đối xứng với INV-07 của nhánh approve. Không tồn tại
+      resolution 'rejected' mà thiếu reject_reason/rejected_by/rejected_at.
+    nguon: "BR-11 (ADR-019). Đánh số 14 vì INV-13 đã thuộc agent-tools.yaml."
   - id: INV-12
     mo_ta: >
       Mọi giá trị status/action_type dùng trong contract này phải khớp CHÍNH XÁC
