@@ -55,8 +55,13 @@ trong container):** V1 link Phê duyệt · V3 validation 3 lớp + dọn 6đ + 
 item thật (323k · 178k · 107k). `/approve` hiện đủ danh sách — lần PO thấy
 trống là do phiên/cache trình duyệt, đăng nhập lại sếp là thấy.
 
-**✅ HOTFIX 2 (commit 6c0684c + d0baf35, coder tự test Playwright — chờ QA/QC
-nghiệm thu độc lập B2–B5):**
+**✅ HOTFIX 2 (commit 6c0684c + d0baf35) — QA/QC ĐÃ NGHIỆM THU ĐỘC LẬP, GO
+CUỐI CÙNG** (bảng: `eval/nghiem_thu_hotfix_20260814.md`; authz UI/API xác
+nhận: CSKH không thấy khối duyệt, token CSKH gọi approve/reject vẫn 403).
+Hai ghi chú diễn: (1) màn tra chính sách có dòng "Kết quả là đoạn trích
+nguyên văn, không qua tổng hợp AI" — ĐỌC TO khi chiếu, tự nó là điểm kể về
+chống bịa; (2) D4 không tất định câu đồng cảm (có lần vào thẳng "Mình đã tạo
+hồ sơ…") — dữ liệu vẫn đúng, đừng dừng lại chờ.
 - **Luồng duyệt MỚI — kịch bản bước 5 đổi thành:** sếp vào tab "Phê duyệt"
   (hàng chờ tóm tắt, KHÔNG còn nút duyệt trên card) → "Mở chi tiết →" → đọc
   Investigation trail + căn cứ → khối "Quyết định phê duyệt" → Duyệt → OTP
