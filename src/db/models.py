@@ -323,8 +323,20 @@ class Resolution(Base):
         # Khi `approved_by` còn NULL thì `approved_by != created_by` cho NULL,
         # và CHECK coi NULL là THOẢ — nên không cần thêm vế cho resolution chưa
         # duyệt.
+        # Biểu thức viết DÀI CÓ CHỦ ĐÍCH (dạng "C" security chốt sau khi dựng
+        # bảng chân trị 6 ca). Ba cách viết đều ĐÚNG như nhau; chọn cách này vì:
+        #  · dạng ngắn `approved_by != created_by` đúng nhờ logic BA TRỊ của SQL
+        #    (NULL != x cho NULL, mà CHECK coi NULL là thoả) — đúng, nhưng đúng
+        #    theo kiểu người đọc sau phải tự dựng lại lập luận trong đầu, và rất
+        #    dễ bị "rút gọn" nhầm. Ràng buộc cứng không nên dựa vào suy luận tinh
+        #    tế mà mỗi người phải làm lại.
+        #  · dạng `IS DISTINCT FROM` cần SQLite >= 3.39; test chạy SQLite ở CI và
+        #    trên máy người khác, không xác minh được bản ở mọi nơi.
+        # Cách này chỉ dùng `IS NULL` và `!=` — chạy giống hệt nhau ở mọi backend.
         CheckConstraint(
-            "(created_by IS NULL) OR (approved_by != created_by)",
+            "(created_by IS NULL) OR ("
+            "(approved_by IS NULL OR approved_by != created_by) AND "
+            "(rejected_by IS NULL OR rejected_by != created_by))",
             name="ck_resolutions_maker_checker_br12",
         ),
     )

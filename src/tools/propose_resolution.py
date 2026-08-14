@@ -84,7 +84,14 @@ def propose_resolution(
     amount: int | None = None,
     destination_ref: str | None = None,
     cited_tool_result_ids: list[str] | None = None,
-    created_by: str | None = None,
+    # F-17 — KHÔNG có giá trị mặc định, CÓ CHỦ ĐÍCH. Trước đây `= None` khiến
+    # mọi nơi gọi quên truyền vẫn chạy êm và sinh ra resolution `created_by
+    # IS NULL` — mà chính NULL là vế làm CHECK maker-checker (BR-12) bỏ qua
+    # dòng đó. Nói cách khác: quên một tham số là tự cấp cho bản ghi quyền
+    # miễn nhiễm ràng buộc HITL, im lặng, ở CẢ HAI tầng chặn.
+    # Bỏ default biến "quên" từ lỗ hổng thành `TypeError` ngay lúc import/test.
+    # Cùng nguyên tắc fail-fast với secret không có default trong config.
+    created_by: str | None,
 ) -> dict[str, Any]:
     if action_type not in VALID_ACTION_TYPES:
         raise ToolError(f"action_type không hợp lệ: {action_type}")

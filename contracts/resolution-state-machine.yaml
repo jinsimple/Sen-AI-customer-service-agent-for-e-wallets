@@ -14,7 +14,7 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.2.1"
+version: "2.3.0"
 source: >
   Sinh ngược từ src/db/models.py @ 2026-08-13 · thay thế ticket-state-machine.yaml
   v1.0.0. v2.1.0 (2026-08-14): thêm taxonomy reject_reason + INV-14 + quy tắc
@@ -95,9 +95,12 @@ resolution:
   # ---- Ràng buộc BR-12 maker-checker (ADR-020), ép ở tầng DB ----
   invariant_db_maker_checker:
     ten: "ck_resolutions_maker_checker_br12"
-    bieu_thuc: "(created_by IS NULL) OR (approved_by != created_by)"
+    bieu_thuc: >-
+      (created_by IS NULL) OR ((approved_by IS NULL OR approved_by != created_by)
+      AND (rejected_by IS NULL OR rejected_by != created_by))
     y_nghia: >
-      Người ĐỀ XUẤT một resolution không được là người DUYỆT chính nó. HITL mà
+      Người ĐỀ XUẤT một resolution không được là người DUYỆT — và cũng không
+      được là người TỪ CHỐI — chính nó. HITL mà
       một người vừa đề xuất vừa tự duyệt thì chỉ còn là một thao tác hai bước
       của cùng một người — mất trọn ý nghĩa "có người thứ hai xem lại". Cửa mở
       là có thật, không giả định: route đề xuất cho phép cả `cskh` LẪN
@@ -233,8 +236,11 @@ invariants:
   - id: INV-15
     mo_ta: >
       CHECK constraint ck_resolutions_maker_checker_br12 phải tồn tại trong
-      models.py — hoàn tất bộ ba cùng INV-07 (nhánh approve) và INV-14 (nhánh
-      reject). Người đề xuất không được là người duyệt.
+      models.py, VÀ biểu thức của nó phải khớp `bieu_thuc` khai ở trên — tức
+      phủ CẢ HAI nhánh approve lẫn reject. Hoàn tất bộ ba cùng INV-07 (approve)
+      và INV-14 (reject). Kiểm tên KHÔNG ĐỦ: constraint vẫn mang đúng tên cũ
+      sau khi biểu thức bị thu hẹp lại chỉ còn nhánh approve, và test chỉ nhìn
+      tên sẽ xanh trong khi ràng buộc đã mất một nửa (chính là F-18).
     nguon: >
       BR-12 (ADR-020). Vì sao cần vế "hiện diện" riêng dù đã có test hành vi:
       test hành vi của QA chứng minh ràng buộc ĐANG chạy hôm nay; INV này

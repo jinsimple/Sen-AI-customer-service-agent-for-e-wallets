@@ -439,9 +439,24 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
   trọn được cả hai đầu. Khi đó "duyệt" chỉ còn là thao tác thứ hai của cùng một
   người, và toàn bộ ý nghĩa kiểm soát biến mất trong khi mọi bản ghi kiểm toán
   trông vẫn hoàn hảo.
-- **Quyết định:** thêm `ck_resolutions_maker_checker_br12` với biểu thức
-  `(created_by IS NULL) OR (approved_by != created_by)`, **kèm** một chốt chặn
-  cùng nội dung ở `approve_resolution` trả 403.
+- **Quyết định:** thêm `ck_resolutions_maker_checker_br12`, **kèm** một chốt
+  chặn cùng nội dung ở `approve_resolution` trả 403. Biểu thức (dạng "C" do
+  security chốt sau khi dựng bảng chân trị 6 ca):
+  `(created_by IS NULL) OR ((approved_by IS NULL OR approved_by != created_by) AND (rejected_by IS NULL OR rejected_by != created_by))`
+- **Mở rộng sang nhánh TỪ CHỐI (F-18, gộp vào đây vì ADR chưa ký):** bản đầu chỉ
+  chặn `approved_by = created_by`, nên `rejected_by = created_by` vẫn ghi được.
+  Nghe như vô hại — "từ chối thì có mất tiền đâu" — nhưng ADR-019 cho
+  `reject_reason` một cờ `la_tin_hieu_hoc`, tức lý do từ chối chảy thẳng vào
+  phễu chọn case cho bộ eval Phase 2. Người tự đề xuất rồi tự dán nhãn "đề xuất
+  của tôi sai" là một vòng khép kín tự chấm, và nó bơm tín hiệu giả vào chính
+  cái thước dùng để đo cải tiến.
+- **Vì sao biểu thức viết DÀI, dù cả ba dạng đều đúng như nhau:** dạng ngắn
+  (`approved_by != created_by`) đúng nhờ logic **ba trị** của SQL (NULL != x cho
+  NULL, mà CHECK coi NULL là thoả) — đúng, nhưng đúng theo kiểu người đọc sau
+  phải tự dựng lại lập luận, và rất dễ bị "rút gọn" thành sai. Dạng
+  `IS DISTINCT FROM` cần SQLite ≥ 3.39, mà test chạy SQLite trên CI lẫn máy
+  người khác nên không xác minh được phiên bản ở mọi nơi. Dạng đã chọn chỉ dùng
+  `IS NULL` và `!=`, hành xử giống hệt nhau ở mọi backend.
 - **Vì sao PHẢI có điều kiện NULL:** `created_by` nullable **vĩnh viễn**
   (`b2c3d4e5f6a7`) — resolution có trước cột đó không có cách nào biết ai đề
   xuất, và đoán một cái tên vào sổ kiểm toán còn tệ hơn để trống. CHECK vô điều

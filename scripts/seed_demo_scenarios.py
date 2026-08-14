@@ -86,6 +86,19 @@ def main() -> None:
     if supervisor is None:
         raise SystemExit("Không tìm thấy user role=supervisor trong DB — chạy `make db` trước.")
 
+    # F-17 — người ĐỀ XUẤT của dữ liệu demo phải là CSKH, KHÔNG phải supervisor.
+    # Hai lý do, cả hai đều bắt buộc:
+    #  1. Đúng nghiệp vụ: CSKH điều tra và đề xuất, sếp duyệt. Đó là toàn bộ ý
+    #     nghĩa của HITL trong dự án này.
+    #  2. BR-12 (ADR-020) sẽ TỪ CHỐI kịch bản p3 nếu đề xuất bằng supervisor —
+    #     vì chính supervisor đó duyệt res3 ngay bên dưới. Dữ liệu demo mà vi
+    #     phạm maker-checker thì hoặc là seed vỡ, hoặc (tệ hơn, như trước đợt
+    #     này) nó lọt qua nhờ created_by=NULL và cả màn demo chạy trên những
+    #     bản ghi miễn nhiễm ràng buộc HITL.
+    cskh = session.scalar(select(User).where(User.role == "cskh"))
+    if cskh is None:
+        raise SystemExit("Không tìm thấy user role=cskh trong DB — chạy `make db` trước.")
+
     # partner_admin (đối tác ví điện tử — upload chính sách/FAQ, src/rag/):
     # không thuộc pipeline gen_dataset.py tái lập được (Data Brief §5.3, chỉ
     # sinh customer/cskh/supervisor), nên seed thủ công 1 user demo ở đây,
@@ -149,7 +162,7 @@ def main() -> None:
     p1 = propose_resolution(
         session, ticket_id=r1["ticket_id"], action_type="refund_to_wallet",
         rationale="Khách chuyển nhầm, đã xác minh người nhận đồng ý hoàn — đủ căn cứ hoàn trực tiếp.",
-        amount=tx.amount, cited_tool_result_ids=[r1["tool_result_id"]],
+        amount=tx.amount, cited_tool_result_ids=[r1["tool_result_id"]], created_by=cskh.user_id,
     )
     session.commit()
     print(f"Đề xuất chờ duyệt (nội bộ ví): ticket={r1['ticket_id']} resolution={p1['resolution_id']}")
@@ -164,7 +177,7 @@ def main() -> None:
     p2 = propose_resolution(
         session, ticket_id=r2["ticket_id"], action_type="refund_to_bank",
         rationale="Giao dịch delay đối soát với ngân hàng nhận — đề xuất gửi yêu cầu tra soát.",
-        amount=tx.amount, cited_tool_result_ids=[r2["tool_result_id"]],
+        amount=tx.amount, cited_tool_result_ids=[r2["tool_result_id"]], created_by=cskh.user_id,
     )
     session.commit()
     print(f"Đề xuất chờ duyệt (chạm ngân hàng): ticket={r2['ticket_id']} resolution={p2['resolution_id']}")
@@ -179,7 +192,7 @@ def main() -> None:
     p3 = propose_resolution(
         session, ticket_id=r3["ticket_id"], action_type="ledger_adjustment",
         rationale="Đối chiếu 2 giao dịch cùng idempotency_key — điều chỉnh sổ cái nội bộ.",
-        amount=tx.amount, cited_tool_result_ids=[r3["tool_result_id"]],
+        amount=tx.amount, cited_tool_result_ids=[r3["tool_result_id"]], created_by=cskh.user_id,
     )
     res3 = session.get(Resolution, p3["resolution_id"])
     res3.status = "approved"
@@ -197,7 +210,7 @@ def main() -> None:
     p4 = propose_resolution(
         session, ticket_id=r4["ticket_id"], action_type="refund_to_wallet",
         rationale="Không đủ bằng chứng đối tác đã hoàn — cần xác minh lại trước khi duyệt.",
-        amount=tx.amount, cited_tool_result_ids=[r4["tool_result_id"]],
+        amount=tx.amount, cited_tool_result_ids=[r4["tool_result_id"]], created_by=cskh.user_id,
     )
     res4 = session.get(Resolution, p4["resolution_id"])
     res4.status = "rejected"
