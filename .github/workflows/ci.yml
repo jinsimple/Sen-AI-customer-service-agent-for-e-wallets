@@ -440,6 +440,111 @@ jobs:
   # lộ ra qua đúng topology này (xem playwright.livechat.config.ts). Nightly
   # only — build + khởi động cả 5 service tốn thời gian thật.
   # ---------------------------------------------------------------------
+  # ---------------------------------------------------------------------
+  # Stage 3b: Bộ quét vai × trang TRÊN STACK DOCKER THẬT (C2 lỗ 2 của QA).
+  #
+  # Vì sao phải có job riêng có Docker: tests/test_api/test_frontend_route_guards.py
+  # tự `skip` khi không tới được https://localhost. Trước job này, KHÔNG job CI
+  # nào dựng stack ⟹ bộ quét 24 ô CHƯA BAO GIỜ chạy ở CI, chỉ xanh trên máy một
+  # người. Mà đây đúng là lớp lỗi nó sinh ra để canh: guard frontend hẹp hơn
+  # contract — đã xảy ra BA lần.
+  #
+  # ĐIỀU KIỆN CỦA QA, quan trọng hơn cả việc job tồn tại: SKIP PHẢI ĐỎ. Skip ở
+  # đây nghĩa là "không dựng được stack" — tức CHƯA ĐO GÌ CẢ, không phải "đo
+  # xong và ổn". Một job xanh nhờ skip còn tệ hơn không có job: nó phát ra tín
+  # hiệu an toàn mà không có gì chống đỡ.
+  # ---------------------------------------------------------------------
+  route-guards-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # cần lịch sử để so nhánh, xem bước dưới
+      - name: Xét có cần chạy không (đụng frontend/src hoặc contracts)
+        id: xet
+        # Tự tính bằng git thay vì dùng action lọc path của bên thứ ba: bớt một
+        # phụ thuộc chuỗi cung ứng cho đúng nguyên tắc đã ghim ở playbook.
+        # FAIL-SAFE THEO HƯỚNG CHẠY: không xác định được diff (push đầu tiên,
+        # force-push, lịch sử nông) thì CHẠY, không phải bỏ qua. Cổng an toàn
+        # mà nghi ngờ thì phải nghiêng về phía kiểm, không nghiêng về phía bỏ.
+        run: |
+          set -u
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "chay=co" >> "$GITHUB_OUTPUT"; echo "Lý do: chạy theo lịch/bấm tay"; exit 0
+          fi
+          GOC="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$GOC" ] || ! git cat-file -e "$GOC^{commit}" 2>/dev/null; then
+            echo "chay=co" >> "$GITHUB_OUTPUT"; echo "Lý do: không xác định được mốc so sánh -> chạy cho chắc"; exit 0
+          fi
+          DOI=$(git diff --name-only "$GOC" "${{ github.sha }}" || true)
+          echo "File đã đổi:"; echo "$DOI"
+          if echo "$DOI" | grep -qE '^(frontend/src/|contracts/|tests/test_api/test_frontend_route_guards\.py)'; then
+            echo "chay=co" >> "$GITHUB_OUTPUT"
+          else
+            echo "chay=khong" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@v5
+        if: steps.xet.outputs.chay == 'co'
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+        if: steps.xet.outputs.chay == 'co'
+      - name: Tạo .env cho docker compose (giá trị CI ephemeral)
+        if: steps.xet.outputs.chay == 'co'
+        run: |
+          cat > .env <<EOF
+          POSTGRES_USER=fin05_ci
+          POSTGRES_PASSWORD=fin05-ci-ephemeral-password
+          POSTGRES_DB=fin05_ci
+          JWT_SECRET_KEY=ci-ephemeral-not-for-production-use-only-in-ci-runs
+          FIELD_ENCRYPTION_KEY=Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          SITE_DOMAIN=localhost
+          EOF
+      - name: docker compose up + chờ healthy
+        if: steps.xet.outputs.chay == 'co'
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 30); do
+            unhealthy=$(docker compose ps --format json | python3 -c "
+          import json, sys
+          rows = [json.loads(l) for l in sys.stdin]
+          print(sum(1 for r in rows if r.get('Health') not in ('healthy', '')))
+          ")
+            [ "$unhealthy" = "0" ] && break
+            sleep 5
+          done
+      - name: Seed dữ liệu demo (bộ quét cần đăng nhập được 4 vai)
+        if: steps.xet.outputs.chay == 'co'
+        run: docker compose exec -T backend su appuser -c "python3 scripts/seed_db.py" || true
+      - name: Bộ quét vai × trang
+        if: steps.xet.outputs.chay == 'co'
+        run: pytest tests/test_api/test_frontend_route_guards.py -v --junitxml=route-guards.xml
+      - name: SKIP LÀ ĐỎ — xác nhận bộ quét thật sự đã chạy
+        if: steps.xet.outputs.chay == 'co'
+        # Bước này tồn tại vì pytest KHÔNG có cách nào biến skip thành fail:
+        # `pytest.skip(allow_module_level=True)` của bộ quét luôn cho exit 0, nên
+        # bước trên XANH kể cả khi 0 ô nào được kiểm. Đọc junit XML là cách duy
+        # nhất phân biệt "đo xong, đạt" với "chưa đo gì".
+        run: |
+          python3 - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          ts = ET.parse("route-guards.xml").getroot()
+          suite = ts if ts.tag == "testsuite" else ts.find("testsuite")
+          tong = int(suite.get("tests", 0)); bo_qua = int(suite.get("skipped", 0))
+          print(f"tổng={tong} bỏ_qua={bo_qua}")
+          if tong == 0 or bo_qua:
+              sys.exit(
+                  "BỘ QUÉT KHÔNG CHẠY THẬT: không dựng được stack Docker nên test tự skip.\n"
+                  "Skip ở đây = CHƯA ĐO GÌ, không phải 'đo xong và ổn'. Xem log docker bên dưới."
+              )
+          print("Bộ quét đã chạy thật, không ô nào bị bỏ qua.")
+          PY
+      - name: Docker logs (khi fail, để debug)
+        if: failure() && steps.xet.outputs.chay == 'co'
+        run: docker compose logs --tail=200
+
   livechat-e2e-nightly:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
