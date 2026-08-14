@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ApiError,
@@ -21,6 +20,7 @@ import {
 import { formatDateTime, formatMoney } from "@/lib/format";
 import type { Role } from "@/lib/session";
 import LiveChatPanel from "@/components/LiveChatPanel";
+import ResolutionApprovalActions from "@/components/ResolutionApprovalActions";
 
 const ACTION_TYPES = [
   { value: "refund_to_wallet", label: "Hoàn về ví" },
@@ -166,6 +166,9 @@ export default function TicketDetailClient({
 
   const c = detail.complaint;
   const foundTx = tx && "transaction" in tx ? tx.transaction : null;
+  // Hotfix 2: chỉ những đề xuất CÒN CHỜ mới có nút quyết định. Đề xuất đã
+  // duyệt/từ chối vẫn hiện ở khối "Đề xuất đã trình" bên dưới, không kèm nút.
+  const pendingResolutions = detail.resolutions.filter((r) => r.status === "pending_approval");
 
   return (
     <>
@@ -346,18 +349,38 @@ export default function TicketDetailClient({
               </form>
             </div>
           ) : (
-            <div className="note">
-              {/* V1 (hotfix 14/08): banner cũ chỉ nói "làm ở trang Phê duyệt" bằng CHỮ,
-                  không bấm được — sếp đứng ở đây tưởng hệ thống thiếu nút duyệt. Thêm
-                  đường dẫn tới đúng chỗ. CỐ Ý không đưa nút duyệt vào đây: OTP duyệt
-                  gắn theo từng resolution (dynamic linking), tách trang là chủ đích. */}
-              Bạn đang xem với vai trò Sếp — phê duyệt/từ chối đề xuất thực hiện ở trang <b>Phê duyệt</b>,
-              không thao tác trực tiếp ở đây.
-              <div style={{ marginTop: 10 }}>
-                <Link className="btn btn-primary" href="/approve">
-                  Mở trang Phê duyệt →
-                </Link>
-              </div>
+            /* Hotfix 2 (14/08, PO thật quyết): nút duyệt/từ chối chuyển VÀO ĐÂY,
+               ngay dưới dấu vết điều tra + thông tin giao dịch. Sáng nay nó nằm ở
+               card danh sách /approve — tức mời sếp quyết mà không cần đọc căn cứ,
+               ngược với US-005. Đảo lại quyết định V1 sáng nay: đó là lựa chọn phạm
+               vi của hotfix 1, không phải ADR, nên PO override được. OTP dynamic
+               linking KHÔNG đổi — vẫn xin theo từng resolution.
+               Khối này CHỈ render cho supervisor (nhánh else của viewerRole ===
+               "cskh"); quyền thật vẫn do backend ép, UI chỉ phản chiếu cho đúng. */
+            <div className="card">
+              <div className="card-title">Quyết định phê duyệt</div>
+              {pendingResolutions.length === 0 ? (
+                <div className="dim" style={{ fontSize: 13 }}>
+                  Ticket này không có đề xuất nào đang chờ duyệt.
+                </div>
+              ) : (
+                pendingResolutions.map((r) => (
+                  <div key={r.resolution_id} style={{ marginTop: 12 }}>
+                    <div className="kv-row">
+                      <span className="k">Đề xuất</span>
+                      <span className="v">
+                        {r.action_type}
+                        {r.amount ? ` — ${formatMoney(r.amount)}` : ""}
+                      </span>
+                    </div>
+                    <ResolutionApprovalActions
+                      resolutionId={r.resolution_id}
+                      onDone={load}
+                      onError={(m) => setMsg({ kind: "error", text: m })}
+                    />
+                  </div>
+                ))
+              )}
             </div>
           )}
 

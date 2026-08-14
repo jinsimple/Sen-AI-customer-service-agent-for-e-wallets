@@ -14,6 +14,9 @@ const TABS: Record<Role, { href: string; label: string }[]> = {
   supervisor: [
     { href: "/approve", label: "Phê duyệt" },
     { href: "/report", label: "Báo cáo vận hành" },
+    // Sếp cũng cần tra chính sách khi quyết định — backend /policy-search đã
+    // mở cho supervisor sẵn trong authority-matrix, chỉ thiếu lối vào ở nav.
+    { href: "/policy-lookup", label: "Tra cứu chính sách" },
   ],
   partner_admin: [{ href: "/knowledge", label: "Chính sách & FAQ" }],
 };
