@@ -301,6 +301,21 @@ class Resolution(Base):
             "(status != 'approved') OR (approved_by IS NOT NULL AND approved_at IS NOT NULL)",
             name="ck_resolutions_approved_requires_approver_br10",
         ),
+        # ADR-019 · INV-14 — ĐỐI XỨNG với BR-10 ở trên, cho nhánh từ chối.
+        # Nhãn phán đoán của sếp là dữ liệu dùng để CHẤM ĐIỂM agent về sau, nên
+        # nó phải được ép ở tầng DB chứ không ở route: một UPDATE viết thẳng SQL
+        # hay một route mới quên kiểm tra đều bị chính database từ chối. Thiếu
+        # chỗ này thì tập dữ liệu học sẽ thủng đúng ở những nơi khó phát hiện.
+        CheckConstraint(
+            "reject_reason IN ('sai_so_lieu','sai_phan_loai','thieu_can_cu',"
+            "'sai_chinh_sach','trung_case','khach_rut','khac')",
+            name="ck_resolutions_reject_reason",
+        ),
+        CheckConstraint(
+            "(status != 'rejected') OR (reject_reason IS NOT NULL "
+            "AND rejected_by IS NOT NULL AND rejected_at IS NOT NULL)",
+            name="ck_resolutions_rejected_requires_reason_br11",
+        ),
     )
 
     resolution_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -313,6 +328,12 @@ class Resolution(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
     approved_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     approved_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    # ADR-019 — nhãn phán đoán chuyên gia tại luồng từ chối. Nullable ở tầng
+    # cột (resolution chưa bị từ chối thì không có gì để ghi); tính bắt buộc
+    # được ép theo ĐIỀU KIỆN qua CHECK br11 ở trên, đúng cách BR-10 đã làm.
+    reject_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    rejected_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
+    rejected_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 
 

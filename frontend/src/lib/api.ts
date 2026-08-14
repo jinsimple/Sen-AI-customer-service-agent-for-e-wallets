@@ -6,6 +6,7 @@ import type {
   LookupTransactionResult,
   PolicyDocument,
   PolicySearchResult,
+  RejectReason,
   ReportSummary,
   ResolutionListItem,
   TicketDetail,
@@ -227,8 +228,12 @@ export function approveResolution(resolutionId: string, sessionId: string, otpCo
   );
 }
 
-export function rejectResolution(resolutionId: string) {
-  return post<{ resolution_id: string; status: string }>(`/api/resolutions/${resolutionId}/reject`);
+export function rejectResolution(resolutionId: string, reason: RejectReason) {
+  // ADR-019 — `reason` bắt buộc, backend chặn ở CẢ schema lẫn CHECK constraint.
+  return post<{ resolution_id: string; status: string; reject_reason: string; rejected_by: string }>(
+    `/api/resolutions/${resolutionId}/reject`,
+    { reason }
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { ApiError, approveResolution, rejectResolution, requestResolutionApprovalOtp } from "@/lib/api";
+import { REJECT_REASON_LABEL, type RejectReason } from "@/lib/types";
+
+const REJECT_REASONS = (Object.keys(REJECT_REASON_LABEL) as RejectReason[]).map((value) => ({
+  value,
+  label: REJECT_REASON_LABEL[value],
+}));
 
 /**
  * Cụm nút duyệt/từ chối MỘT đề xuất, kèm bước xin OTP.
@@ -31,6 +37,10 @@ export default function ResolutionApprovalActions({
 }) {
   const [busy, setBusy] = useState(false);
   const [otp, setOtp] = useState<{ sessionId: string; otpCode: string } | null>(null);
+  // ADR-019 — từ chối phải kèm lý do có cấu trúc, nên nút "Từ chối" mở form
+  // chọn lý do trước, không gửi thẳng như trước.
+  const [chonLyDo, setChonLyDo] = useState(false);
+  const [reason, setReason] = useState("");
 
   async function handleRequestApprovalOtp() {
     setBusy(true);
@@ -59,9 +69,12 @@ export default function ResolutionApprovalActions({
   }
 
   async function handleReject() {
+    if (!reason) return;
     setBusy(true);
     try {
-      await rejectResolution(resolutionId);
+      await rejectResolution(resolutionId, reason as RejectReason);
+      setChonLyDo(false);
+      setReason("");
       await onDone();
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Từ chối thất bại");
@@ -89,13 +102,46 @@ export default function ResolutionApprovalActions({
     );
   }
 
+  if (chonLyDo) {
+    return (
+      <div className="note" style={{ marginTop: 16 }}>
+        <div className="field" style={{ marginTop: 0 }}>
+          <label>Lý do từ chối</label>
+          <select value={reason} onChange={(e) => setReason(e.target.value)}>
+            <option value="">— chọn lý do —</option>
+            {REJECT_REASONS.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </div>
+        {/* Ranh giới ghi trong contract v2.1.0: thiếu-tạm-thời thì trả case về
+            cho CSKH bổ sung, đừng từ chối hẳn — nếu không ta mất khả năng phân
+            biệt "sửa được" với "sai hẳn" trong chính dữ liệu dùng để học. */}
+        {reason === "thieu_can_cu" && (
+          <div className="dim" style={{ fontSize: 12, marginTop: 8 }}>
+            Nếu CSKH có thể bổ sung được căn cứ, hãy dùng <b>Yêu cầu điều tra thêm</b> ở
+            màn chi tiết ticket thay vì từ chối — chỉ từ chối khi không thể bổ sung.
+          </div>
+        )}
+        <div className="flex gap-sm wrap" style={{ marginTop: 12 }}>
+          <button className="btn btn-danger-outline" disabled={busy || !reason} onClick={handleReject}>
+            Xác nhận từ chối
+          </button>
+          <button className="btn btn-outline" disabled={busy} onClick={() => { setChonLyDo(false); setReason(""); }}>
+            Huỷ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-sm wrap" style={{ marginTop: 16 }}>
       <button className="btn btn-success" disabled={busy} onClick={handleRequestApprovalOtp}>
         <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
         Duyệt
       </button>
-      <button className="btn btn-danger-outline" disabled={busy} onClick={handleReject}>
+      <button className="btn btn-danger-outline" disabled={busy} onClick={() => setChonLyDo(true)}>
         <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
         Từ chối
       </button>

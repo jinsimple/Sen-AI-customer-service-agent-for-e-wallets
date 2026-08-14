@@ -10,6 +10,7 @@ cũng mạo danh được bất kỳ user nào (VD tự xưng approved_by = mộ
 from __future__ import annotations
 
 import datetime as dt
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -59,6 +60,31 @@ class ApproveResolutionRequest(BaseModel):
 
     session_id: str
     otp_code: str
+
+
+class RejectResolutionRequest(BaseModel):
+    """ADR-019 — từ chối PHẢI kèm lý do có cấu trúc.
+
+    Dùng `Literal` chứ không phải `str`: giá trị sai bị chặn ngay ở tầng schema
+    với thông báo liệt kê đủ lựa chọn, thay vì để CHECK constraint ném
+    IntegrityError 500 xuống người dùng. Hai lớp cùng canh một luật là CÓ CHỦ
+    ĐÍCH — schema lo trải nghiệm, CHECK lo toàn vẹn kể cả khi có ai ghi thẳng
+    vào DB (lý do đầy đủ ở ADR-019).
+
+    KHÔNG có `note` ở đây: ghi chú tự do chờ security sign-off phương án TM-03
+    (scrub lúc ghi · ≤500 ký tự · chỉ route staff · không bao giờ ra file ứng
+    viên). Thêm sau, không làm trước.
+    """
+
+    reason: Literal[
+        "sai_so_lieu",
+        "sai_phan_loai",
+        "thieu_can_cu",
+        "sai_chinh_sach",
+        "trung_case",
+        "khach_rut",
+        "khac",
+    ]
 
 
 class EscalateTicketRequest(BaseModel):

@@ -240,6 +240,28 @@ export const TOOL_NAME_LABEL: Record<string, string> = {
   escalate_ticket: "Chuyển cấp xử lý",
 };
 
+// ADR-019 — nhãn lấy đúng theo `mo_ta` trong contract v2.1.0, KHÔNG sáng tác.
+// Thứ tự: 4 giá trị `la_tin_hieu_hoc=true` (lỗi của đề xuất) trước, rồi tới
+// nhóm không phải lỗi — để sếp thấy nhóm hay dùng nhất lên đầu.
+export type RejectReason =
+  | "sai_so_lieu"
+  | "sai_phan_loai"
+  | "thieu_can_cu"
+  | "sai_chinh_sach"
+  | "trung_case"
+  | "khach_rut"
+  | "khac";
+
+export const REJECT_REASON_LABEL: Record<RejectReason, string> = {
+  sai_so_lieu: "Sai số liệu (số tiền/mã giao dịch/thời điểm không khớp)",
+  sai_phan_loai: "Sai phân loại (loại khiếu nại hoặc phạm vi giao dịch)",
+  thieu_can_cu: "Thiếu căn cứ, không thể bổ sung",
+  sai_chinh_sach: "Trái quy định/chính sách hiện hành",
+  trung_case: "Trùng — đã xử lý ở ticket khác",
+  khach_rut: "Khách rút khiếu nại",
+  khac: "Lý do khác",
+};
+
 export const HITL_STATUS_LABEL: Record<HitlStatus, string> = {
   pending: "Chờ CSKH tiếp nhận",
   approved: "Đã duyệt",

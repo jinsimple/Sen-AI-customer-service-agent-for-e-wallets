@@ -57,6 +57,7 @@ from src.api.schemas import (
     PolicySearchRequest,
     ProposeResolutionRequest,
     RefreshTokenRequest,
+    RejectResolutionRequest,
     RequestMoreInfoRequest,
 )
 from src.auth import (
@@ -693,6 +694,11 @@ def get_ticket_detail(
         }
         if complaint
         else None,
+        # M-02 (ADR-019) — trả đủ dấu vết kiểm toán CẢ HAI nhánh. Route này đã
+        # gated `require_role("cskh","supervisor")` ở chữ ký hàm, nên đây là
+        # đường của NHÂN VIÊN; khách hàng không có route nào đọc resolution
+        # (kiểm bằng test authz matrix). Ai thêm route customer đọc ticket sau
+        # này PHẢI tự lọc — đừng tái dùng nguyên khối dict này.
         "resolutions": [
             {
                 "resolution_id": r.resolution_id,
@@ -700,6 +706,11 @@ def get_ticket_detail(
                 "amount": r.amount,
                 "status": r.status,
                 "rationale": r.rationale,
+                "approved_by": r.approved_by,
+                "approved_at": r.approved_at.isoformat() if r.approved_at else None,
+                "rejected_by": r.rejected_by,
+                "rejected_at": r.rejected_at.isoformat() if r.rejected_at else None,
+                "reject_reason": r.reject_reason,
             }
             for r in resolutions
         ],
@@ -837,25 +848,77 @@ def approve_resolution(
     resolution.status = "approved"
     resolution.approved_by = current_user.user_id
     resolution.approved_at = dt.datetime.utcnow()
+    _dong_bo_hitl_status(session, resolution)
     session.flush()
     return {"resolution_id": resolution_id, "status": resolution.status, "approved_by": current_user.user_id}
+
+
+def _dong_bo_hitl_status(session: Session, resolution: Resolution) -> None:
+    """Vá QA-02 — `Ticket.hitl_status` bám theo resolution MỚI NHẤT của ticket.
+
+    Trước bản vá, cột này kẹt `pending` vĩnh viễn: cả hai nhánh duyệt/từ chối
+    đều chỉ đổi `resolution.status` mà không chạm ticket. Hệ quả đo được: hàng
+    chờ CSKH lọc theo `hitl_status` hiển thị sai, hai giá trị `approved`/
+    `rejected` trong CHECK constraint không bao giờ đạt tới được, và guard
+    "ticket đã ở trạng thái cuối" ở /tickets/{id}/request-more-info không bao
+    giờ kích hoạt nổi.
+
+    Chạy TRONG CÙNG transaction với lần đổi trạng thái resolution (không job
+    nền) — đúng `dan_xuat.quy_tac` của contract v2.1.0. Hai trục vẫn TRỰC GIAO
+    chứ không phải bản sao: `need_more_info` không có tương ứng bên resolution
+    nên không bị hàm này ghi đè, và ticket chưa có resolution nào vẫn `pending`.
+    """
+    ticket = session.get(Ticket, resolution.ticket_id)
+    if ticket is None:  # FK đã canh, nhánh này chỉ để không nổ nếu dữ liệu lệch
+        return
+    moi_nhat = session.scalars(
+        select(Resolution)
+        .where(Resolution.ticket_id == resolution.ticket_id)
+        .order_by(Resolution.created_at.desc(), Resolution.resolution_id.desc())
+        .limit(1)
+    ).first()
+    if moi_nhat is not None and moi_nhat.status in ("approved", "rejected"):
+        ticket.hitl_status = moi_nhat.status
+        ticket.updated_at = dt.datetime.utcnow()
 
 
 @app.post("/resolutions/{resolution_id}/reject")
 def reject_resolution(
     resolution_id: str,
+    req: RejectResolutionRequest,
     current_user: CurrentUser = Depends(require_role("supervisor")),
     session: Session = Depends(get_session),
 ):
+    """ADR-019 — từ chối PHẢI kèm lý do có cấu trúc. KHÔNG cần OTP (từ chối
+    không chạm tiền, đúng contract), nhưng ghi đủ 3 trường kiểm toán đối xứng
+    với nhánh duyệt: ai từ chối, lúc nào, vì sao."""
     if is_access_token_revoked(current_user.user_id, current_user.iat):
         raise HTTPException(status_code=401, detail="Phiên đã bị thu hồi — đăng nhập lại")
     resolution = session.get(Resolution, resolution_id)
     if resolution is None:
         raise HTTPException(status_code=404, detail="resolution không tồn tại")
+    # CHỈ `pending_approval` — contract v2.1.0 liệt kê đúng một transition tới
+    # `rejected`, không có đường từ `draft`. (Bản đầu của tôi copy danh sách
+    # trạng thái từ nhánh duyệt nên lỡ cho phép cả draft; test tester viết TỪ
+    # CONTRACT bắt được — đúng lý do vai đó không được đọc src/.)
+    if resolution.status != "pending_approval":
+        raise HTTPException(
+            status_code=400,
+            detail=f"resolution đang ở trạng thái {resolution.status}, không từ chối được",
+        )
 
     resolution.status = "rejected"
+    resolution.reject_reason = req.reason
+    resolution.rejected_by = current_user.user_id
+    resolution.rejected_at = dt.datetime.utcnow()
+    _dong_bo_hitl_status(session, resolution)
     session.flush()
-    return {"resolution_id": resolution_id, "status": resolution.status}
+    return {
+        "resolution_id": resolution_id,
+        "status": resolution.status,
+        "reject_reason": resolution.reject_reason,
+        "rejected_by": resolution.rejected_by,
+    }
 
 
 # ---------------------------------------------------------------------------
