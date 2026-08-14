@@ -16,7 +16,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.db.models import Resolution, Ticket, ToolResult
+from src.db.models import Complaint, Resolution, Ticket, ToolResult, Transaction
 from src.tools.base import ToolError, new_id, record_tool_result
 
 VALID_ACTION_TYPES = {
@@ -26,6 +26,53 @@ VALID_ACTION_TYPES = {
     "no_action",
     "manual_review",
 }
+
+# Hai hướng xử lý CHẠM TIỀN THẬT — số tiền phải chịu kiểm, khác
+# ledger_adjustment (điều chỉnh sổ cái, mốc so sánh không nhất thiết là số
+# tiền giao dịch gốc) và no_action/manual_review (không có số tiền).
+_ACTION_TYPES_HOAN_TIEN = {"refund_to_wallet", "refund_to_bank"}
+
+
+def _kiem_so_tien_hoan(session: Session, *, ticket_id: str, amount: int | None) -> None:
+    """Chặn số tiền hoàn vô nghĩa NGAY TẠI TẦNG GHI (V3.2, hotfix 14/08).
+
+    Phát hiện thật: DB có `RES-b8d2c7798d53` đề xuất hoàn **6 đồng** cho một
+    giao dịch 107.000đ — ô nhập số tiền đang là ô TỰ DO, không gắn với giao
+    dịch nào. Đó là số tiền không truy vết được về bất kỳ kết quả tool nào,
+    tức trái tinh thần ràng buộc cứng 3, và nó đi thẳng tới màn duyệt của sếp.
+
+    Đặt ở tầng tool (không phải ở route hay ở form) vì đây là nơi DUY NHẤT mọi
+    đường ghi resolution đi qua — CSKH bấm nút trên webapp và bất kỳ nơi gọi
+    nào sau này đều bị kiểm cùng một luật, cùng tinh thần với `cited_tool_
+    result_ids` phải trỏ tới tool_result có thật ở ngay dưới.
+
+    Mốc so sánh là số tiền giao dịch gắn với ticket (ticket → complaint →
+    transaction). Khiếu nại KHÔNG xác định được giao dịch (`complaint.trans_id
+    IS NULL` — đường `not_found`) thì không có trần để so: vẫn ép `amount > 0`
+    nhưng KHÔNG chặn theo trần, vì chặn ở đây sẽ khoá luôn những case hợp lệ
+    mà agent chưa tra ra giao dịch. Nói rõ giới hạn này thay vì giả vờ đã phủ
+    kín.
+    """
+    if amount is None or amount <= 0:
+        raise ToolError(
+            "Số tiền hoàn phải lớn hơn 0 — không đề xuất hoàn tiền mà thiếu số tiền"
+        )
+
+    trans = (
+        session.query(Transaction)
+        .join(Complaint, Complaint.trans_id == Transaction.trans_id)
+        .join(Ticket, Ticket.complaint_id == Complaint.complaint_id)
+        .filter(Ticket.ticket_id == ticket_id)
+        .one_or_none()
+    )
+    if trans is None:
+        return  # khiếu nại chưa xác định được giao dịch — không có trần để so
+
+    if amount > trans.amount:
+        raise ToolError(
+            f"Số tiền hoàn ({amount:,}đ) vượt quá số tiền giao dịch "
+            f"{trans.trans_id} ({trans.amount:,}đ) — không hoàn nhiều hơn số đã trừ"
+        )
 
 
 def propose_resolution(
@@ -44,6 +91,9 @@ def propose_resolution(
         raise ToolError(f"ticket_id không tồn tại: {ticket_id}")
     if not rationale or not rationale.strip():
         raise ToolError("rationale bắt buộc — mọi đề xuất phải có căn cứ bằng lời")
+
+    if action_type in _ACTION_TYPES_HOAN_TIEN:
+        _kiem_so_tien_hoan(session, ticket_id=ticket_id, amount=amount)
 
     cited_tool_result_ids = cited_tool_result_ids or []
     for tr_id in cited_tool_result_ids:

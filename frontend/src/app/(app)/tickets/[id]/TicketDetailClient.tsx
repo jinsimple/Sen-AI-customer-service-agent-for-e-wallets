@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ApiError,
@@ -60,6 +61,12 @@ export default function TicketDetailClient({
       if (d.complaint?.trans_id) {
         const t = await lookupTransaction({ trans_id: d.complaint.trans_id });
         setTx(t);
+        // V3.1 (hotfix 14/08): điền sẵn số tiền theo ĐÚNG giao dịch bị khiếu
+        // nại, thay vì để ô trống cho người nhập tay. Ô tự do là thứ đã sinh
+        // ra đề xuất "hoàn 6 đồng" cho giao dịch 107.000đ — số tiền không truy
+        // vết được về giao dịch nào. Vẫn cho sửa (có case hoàn một phần),
+        // nhưng backend chặn > số tiền giao dịch (V3.2).
+        if ("transaction" in t) setAmount(String(t.transaction.amount));
       } else {
         setTx(null);
       }
@@ -329,8 +336,17 @@ export default function TicketDetailClient({
             </div>
           ) : (
             <div className="note">
+              {/* V1 (hotfix 14/08): banner cũ chỉ nói "làm ở trang Phê duyệt" bằng CHỮ,
+                  không bấm được — sếp đứng ở đây tưởng hệ thống thiếu nút duyệt. Thêm
+                  đường dẫn tới đúng chỗ. CỐ Ý không đưa nút duyệt vào đây: OTP duyệt
+                  gắn theo từng resolution (dynamic linking), tách trang là chủ đích. */}
               Bạn đang xem với vai trò Sếp — phê duyệt/từ chối đề xuất thực hiện ở trang <b>Phê duyệt</b>,
               không thao tác trực tiếp ở đây.
+              <div style={{ marginTop: 10 }}>
+                <Link className="btn btn-primary" href="/approve">
+                  Mở trang Phê duyệt →
+                </Link>
+              </div>
             </div>
           )}
 

@@ -159,6 +159,11 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
   // Xác thực 1 lần/phiên — sau khi true, không hỏi lại OTP dù chip/rail/agent
   // có chạm dữ liệu nhạy cảm thêm lần nữa trong cùng phiên chat.
   const otpVerifiedRef = useRef(false);
+  // Bản STATE của cờ trên (V6, hotfix 14/08): ref không kích hoạt re-render,
+  // mà rail "Giao dịch gần đây" cần hiện lên ĐÚNG LÚC xác thực xong. Giữ cả
+  // hai thay vì đổi ref thành state: ref được đọc bên trong các hàm async đã
+  // có sẵn (đọc state ở đó sẽ dính giá trị cũ của closure).
+  const [otpVerified, setOtpVerified] = useState(false);
   // Tin nhắn đang chờ gửi cho agent SAU KHI xác thực OTP xong — dùng cho 2
   // lối vào đã biết chắc chắn liên quan giao dịch/ticket NGAY TỪ ĐẦU (chip,
   // "Báo lỗi giao dịch này"): phải xác thực TRƯỚC khi gọi agent, không phải
@@ -322,6 +327,7 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
     }
     setMessages((prev) => prev.map((m) => (m.id === msgId && m.from === "otp" ? { ...m, resolved: true, checking: false } : m)));
     otpVerifiedRef.current = true;
+    setOtpVerified(true);
     const starter = pendingStarterRef.current;
     pendingStarterRef.current = null;
     if (starter) {
@@ -451,6 +457,23 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
         <div className="chat-rail">
           <div className="card">
             <div className="rail-title">Giao dịch gần đây</div>
+            {/* V6 (hotfix 14/08, PO thật quyết đổi chính sách): chưa xác thực OTP
+                thì KHÔNG hiện danh sách giao dịch. Đây là gate ở TẦNG HIỂN THỊ —
+                route đọc phía backend giữ nguyên theo contract hiện hành
+                (authority-matrix.yaml), OTP vẫn được ép thật trên đường agent
+                (INV-10). Muốn ép ở backend thì phải đổi contract → ADR + PO
+                duyệt (nợ đã ghi cho đợt sau demo). */}
+            {!otpVerified ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="dim" style={{ fontSize: 12 }}>
+                  Xác thực OTP để xem giao dịch gần đây
+                </div>
+                <button className="btn btn-outline btn-sm" type="button" onClick={() => void beginOtpFlow()}>
+                  Xác thực ngay
+                </button>
+              </div>
+            ) : (
+            <>
             {history?.recent_transactions.length === 0 && <div className="dim" style={{ fontSize: 12 }}>Chưa có giao dịch.</div>}
             {history?.recent_transactions.map((tx) => (
               <div className="txn-item" key={tx.trans_id}>
@@ -465,6 +488,8 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
                 </button>
               </div>
             ))}
+            </>
+            )}
           </div>
           <div className="card">
             <div className="rail-title">Lịch sử khiếu nại của bạn</div>
