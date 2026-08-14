@@ -689,6 +689,23 @@ mình (fixture đang làm đúng thứ C4 vừa cấm — đổi USR-A hoặc TX
 coder ghi chú: test create_ticket xfail nay vô nghĩa (USR-B là bên nhận hợp
 pháp) — tester xem lại nó chứng minh đúng thứ nó tuyên bố không.
 
+## F-12 + PO-3 + PO-4 (3ce91b1) — PO ghi nhận
+
+- F-12 XONG 5/5. Thứ tự 3 lớp là bài học: (1) KHÔNG đếm cho challenge người
+  khác — nếu không, gửi bừa session_id sếp khác = DoS khoá tài khoản họ;
+  (2) chặn "đã khoá" TRƯỚC khi so mã; (3) commit() TRƯỚC khi raise vì
+  get_session rollback cả HTTPException — bẫy lặp y nguyên từ /auth/otp/verify.
+- PO-3 XONG: deploy.yml gated workflow_run, xét đồng thời conclusion=success
+  VÀ head_branch=main (thiếu một vế = cổng hình thức).
+- PO-4 DUYỆT MỞ RỘNG: engines + frontend/.npmrc (engine-strict=true) — engines
+  một mình chỉ EBADENGINE exit 0; .npmrc là phần còn thiếu để đạt "báo lỗi
+  thay vì cảnh báo". Không phải phạm vi mới, là hoàn tất đúng lời uỷ quyền.
+- **Việc riêng đợt sau (PO duyệt tách):** thống nhất 401=sai-mã / 403=đã-khoá
+  cho cả /auth/otp/verify lẫn approve — coder lùi đúng (đổi mã trạng thái +
+  sửa test vùng tester = ngoài F-12). Có tester đi kèm.
+- Ghi nhận lỗi đo pipe-tail-nuốt-exit-code (đo vỏ thay ruột) — họ "assertion
+  trùng mặc định".
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
