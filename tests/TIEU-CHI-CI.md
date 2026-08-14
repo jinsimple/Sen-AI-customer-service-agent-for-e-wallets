@@ -104,6 +104,7 @@ rõ — không bao giờ đỏ vì nhầm môi trường.
 | CI-4 | Bộ quét vai×trang chạy ở job CÓ DOCKER | Sửa 1 ô ánh xạ trang→route cho sai → job đó phải đỏ | Trả lại đúng |
 | CI-5 | **Skip ≠ đạt** ở job Docker | Tắt stack trước khi chạy job → job phải ĐỎ (báo "không dựng được stack"), KHÔNG xanh | Bật stack → xanh |
 | CI-6 | Test dữ liệu-môi-trường không đỏ oan | Chạy `tests/test_migrations/` trên Postgres rỗng → skip sạch, không error | Chạy trên DB demo → đỏ đúng ca thật |
+| CI-8 | Thước bất động được canh ở CI | Gỡ guard trong `gen_dataset.py` → `tests/test_data/test_thuoc_bat_dong.py` phải đỏ | Trả guard lại → xanh |
 | CI-7 | Cổng so sánh eval nối vào CI | `measure_quality.py --so-sanh` trả **exit 1** khi có ca xấu đi → job phải đỏ | Hai lượt giống nhau → exit 0, xanh |
 
 ## Cách nghiệm thu (tester làm sau khi coder nối dây)
@@ -114,3 +115,18 @@ chứng minh *hiệu lực*. Cùng nguyên tắc "sự hiện diện ≠ hiệu 
 CHECK constraint.
 
 Nghiệm thu xong ghi kết quả từng dòng (đỏ được / xanh được) vào file này.
+
+---
+
+## Ghi chú vận hành cho coder khi nối dây
+
+`tests/test_data/test_thuoc_bat_dong.py` chạy **~40s** (ba lượt sinh dataset
+thật — không mock được, vì thứ cần canh chính là hành vi GHI FILE thật).
+
+Tôi **không** gắn `@pytest.mark.slow`: marker đó chưa khai trong `pytest.ini`,
+mà `pytest.ini` ngoài vùng ghi của tester. Nếu muốn tách nhóm chậm ra khỏi job
+nhanh, coder khai marker `slow` trong `pytest.ini` rồi tôi gắn — đừng để tôi
+gắn marker chưa khai, vì nó chỉ sinh cảnh báo mà không có tác dụng lọc nào.
+
+Test này **tự khôi phục file trong `finally`**, nên chạy bao nhiêu lần cũng
+không để lại hậu quả — kể cả khi guard bị gỡ và sản phẩm ghi đè thật.
