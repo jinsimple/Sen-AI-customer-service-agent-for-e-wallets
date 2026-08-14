@@ -41,10 +41,16 @@ def test_pct_ai_proposal_approved_counts_only_decided_resolutions(sample_db):
     t3 = _make_ticket(sample_db, user_id="USR-A", trans_id="TXN-0003")
     t4 = _make_ticket(sample_db, user_id="USR-A", trans_id=None)
 
-    r1 = propose_resolution(sample_db, ticket_id=t1, action_type="refund_to_wallet", rationale="test")
-    r2 = propose_resolution(sample_db, ticket_id=t2, action_type="refund_to_wallet", rationale="test")
-    r3 = propose_resolution(sample_db, ticket_id=t3, action_type="refund_to_wallet", rationale="test")
-    propose_resolution(sample_db, ticket_id=t4, action_type="refund_to_wallet", rationale="test")  # r4, vẫn pending
+    # `amount` là BẮT BUỘC cho refund_* từ hotfix V3.2 (14/08): số tiền hoàn
+    # phải > 0 và không vượt số tiền giao dịch được trích. Truyền đúng số tiền
+    # của từng giao dịch trong conftest (TXN-0001: 270.000 · TXN-0002/0003:
+    # 500.000); t4 không có trans_id nên chỉ cần > 0. Test này kiểm TỈ LỆ DUYỆT
+    # (pct_ai_proposal_approved), không kiểm số tiền — thêm `amount` không làm
+    # đổi thứ nó canh.
+    r1 = propose_resolution(sample_db, ticket_id=t1, action_type="refund_to_wallet", rationale="test", amount=270_000)
+    r2 = propose_resolution(sample_db, ticket_id=t2, action_type="refund_to_wallet", rationale="test", amount=500_000)
+    r3 = propose_resolution(sample_db, ticket_id=t3, action_type="refund_to_wallet", rationale="test", amount=500_000)
+    propose_resolution(sample_db, ticket_id=t4, action_type="refund_to_wallet", rationale="test", amount=100_000)  # r4, vẫn pending
     sample_db.commit()
 
     now = dt.datetime.utcnow()
