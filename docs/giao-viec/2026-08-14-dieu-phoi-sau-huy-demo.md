@@ -797,7 +797,41 @@ Sự tồn tại constraint KHÔNG phải bằng chứng "đã có maker-checker
 Khi đánh giá sẵn-sàng cho auditor EU/US: maker-checker mới bắt đầu từ đây,
 chưa phủ lịch sử.
 
-## Việc của PO thật
+## RÀ BẢO MẬT ADR-020/BR-12 (b984bec) — ĐẠT CÓ ĐIỀU KIỆN, 4 phát hiện (PO phán)
+
+Biểu thức đúng (probe rollback xác nhận), hai tầng khớp cả ở cửa hở, giới hạn
+10/10 NULL đúng. NHƯNG 3 điều kiện trước khi BR-12 coi là có hiệu lực:
+
+**F-17 (CAO) — cửa NULL đang được NUÔI TIẾP, DUYỆT bịt:** propose_resolution()
+khai created_by mặc định None ⟹ bỏ quên là IM LẶNG; seed_demo_scenarios.py
+gọi 4 lần (149/164/179/197) KHÔNG truyền created_by ⟹ mọi hàng demo miễn
+nhiễm maker-checker ở CẢ HAI tầng — và đó đúng là hàng đem diễn rồi duyệt.
+→ Coder: đổi created_by thành **keyword-only BẮT BUỘC, bỏ default** (bỏ quên
+thành TypeError bắt lúc test) + sửa 4 call site. KHÔNG backfill (đoán tên =
+lỗi F-11). Bịt xong thì 10/10 NULL tự hết theo thời gian.
+
+**F-18 — BR-12 không canh nhánh TỪ CHỐI, PO DUYỆT MỞ RỘNG:** created_by=
+rejected_by ghi được (probe). Chạm thẳng ADR-019: reject_reason là phán đoán
+ĐỘC LẬP của người để chấm AI; người tự-từ-chối + tự-dán-nhãn đề xuất của
+CHÍNH MÌNH là vòng-tự-khen phiên bản con người, và nhãn đó chảy vào phễu học
+Phase 2. Mở rộng nhất quán với chính lập luận ADR-019 nên PO duyệt: biểu thức
+gồm cả `(rejected_by IS NULL OR rejected_by != created_by)`. Vì ADR-020 CHƯA
+PO thật ký → gộp reject vào ADR-020 TRƯỚC khi ký (không cần ADR riêng); coder
+cập nhật biểu thức + text ADR + migration, security re-probe, QA thêm mặt
+test reject.
+
+**F-19 — LUẬT NGHIỆM THU: BR-12 phải chạy trên bản REBUILD.** Container đang
+chạy CHƯA có BR-12 (guard route grep=0, model thiếu constraint) trong khi DB
+đã có ⟹ tự duyệt hàng có created_by hôm nay ra HTTP 500, và mọi đo trong
+container là đo code cũ. "22 passed hash khớp" trong container KHÔNG chứng
+minh gì về BR-12. Nghiệm thu BR-12 (+ F-17/F-18) chạy sau docker compose
+build. Security ghi rõ thay vì lặng — chuẩn.
+
+**F-20 — INV-15 test phải khẳng định CẢ TÊN LẪN BIỂU THỨC** (khai thiếu biểu
+thức thì đổi = vẫn xanh), đích 23 passed. QA + coder phối.
+
+Nhắc: `.claude/state/contract-hashes.json` bump 60977cba503f CHƯA COMMIT —
+coder commit cùng đợt INV-15 kẻo mất/commit nhầm.
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
 - Chạy `python scripts/export_project_knowledge.py` + upload lại Project
