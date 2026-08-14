@@ -217,3 +217,35 @@ assert sai, mà **gọi nhầm đường** — đường được chọn vốn d
 kết quả xanh không mang thông tin nào. Helper `_chay_gen_dataset()` trong
 `tests/test_data/test_thuoc_bat_dong.py` cố ý **không** truyền `--eval-out`
 đúng vì lý do này; docstring của nó ghi rõ, đừng "dọn cho gọn".
+
+---
+
+## CI-4 / CI-5 — trạng thái: LOGIC đã kiểm, JOB chưa chạy trên runner
+
+Coder nối dây `route-guards-docker` (`b999dec`) và hiện thực "SKIP LÀ ĐỎ" bằng
+cách đọc junit XML — đúng cách, vì `pytest` **không có** cơ chế biến skip thành
+fail: `pytest.skip(allow_module_level=True)` luôn cho exit 0, nên bước chạy test
+sẽ XANH kể cả khi **0 ô nào được kiểm**.
+
+**Đã kiểm được ngay, không cần runner và không đụng Docker** — bóc đoạn python
+trong job ra chạy trên 4 file XML dựng sẵn:
+
+| Tình huống | Kỳ vọng | Kết quả |
+|---|---|---|
+| 24 pass, 0 skip (stack sống) | xanh | ✅ exit 0 |
+| 24 skip (không dựng được Docker) | ĐỎ | ✅ exit 1 |
+| 23 pass + **1 skip lẻ** | ĐỎ | ✅ exit 1 |
+| **0 test** thu được | ĐỎ | ✅ exit 1 |
+
+Hai ca biên cuối quan trọng hơn ca hiển nhiên: một skip lẻ nghĩa là **một ô của
+ma trận không được kiểm** — đủ để lọt đúng lớp lỗi guard-hẹp-hơn-contract; còn
+`tests=0` là ca "chạy nhưng không thu được gì", thứ hay bị đọc thành xanh nhất.
+
+⚠️ **CHƯA TICK.** Cái đã kiểm là **logic đọc XML**, không phải **job chạy trên
+runner**. Còn thiếu: nhánh `chay == 'co'` thực thi thật (cần một push đụng
+`frontend/src/`, `contracts/`, hoặc chính file bộ quét), rồi làm đỏ — xanh theo
+đúng CI-4/CI-5.
+
+Ghi tách bạch đúng như CI-8 lúc chưa nghiệm thu trực tiếp: **đọc YAML chứng
+minh ý định, chạy đoạn logic chứng minh nó tính đúng, chỉ có chạy thật trên
+runner mới chứng minh cả dây chuyền nối đúng.** Ba mức khác nhau, không gộp.
