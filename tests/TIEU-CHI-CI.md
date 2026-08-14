@@ -144,33 +144,42 @@ không để lại hậu quả — kể cả khi guard bị gỡ và sản phẩ
 
 ---
 
-## CI-8 — trạng thái nghiệm thu (đọc kỹ trước khi tick)
+## CI-8 — NGHIỆM THU TRỰC TIẾP, chiều ĐỎ: ĐẠT (15/08)
 
-**Đã có bằng chứng test NHẠY với lỗi thật, nhưng chưa chạy được phép thử
-"gỡ guard" theo đúng câu chữ.** Hai chuyện khác nhau, ghi tách bạch:
+Coder tạm gỡ guard **trên file thật trong repo** (phương án 1 PO chọn — không
+phá ranh giới vùng ghi: coder sửa `scripts/`, tester chỉ chạy và đo). Họ mô tả
+chính xác một dòng đã đổi trước khi tôi chạy:
 
-**Đã chứng minh:** lúc guard chưa tồn tại (trước `eb479ad`), tôi chạy chính
-`scripts/gen_dataset.py --out <tmp>` thật và đo được:
+```python
+if args.eval_out is None and not args.cho_phep_ghi_de_thuoc:   # gốc
+if False:  # TẠM GỠ GUARD — nghiệm thu CI-8                      # tạm
+```
+
+**Kết quả:**
 
 ```
-băm eval/golden_set.jsonl:  a5ea8c876df0  ->  7cf6157c624c
+1 failed, 2 passed in 60.06s
+
+AssertionError: gen_dataset ĐÃ GHI ĐÈ eval/golden_set.jsonl dù không có cờ
+`--cho-phep-ghi-de-thuoc`.
+  [exit=0] [GEN] users=206 tx=60000 events=215944 complaints=600
+           golden=180 (dev 120 / heldout 60) seed=20260802
 ```
 
-Tức `sau != truoc` — **đúng điều kiện làm assert của test đỏ**. Vậy test nhạy
-với đúng chế độ hỏng cần canh, không phải chỉ nhạy trên lý thuyết.
+Đỏ **đúng test cần đỏ**, hai test kia vẫn xanh — gỡ lệnh cấm chỉ làm hỏng đúng
+mặt nó canh, không kéo theo nhiễu.
 
-**Chưa làm được:** chạy lại test với bản script đã gỡ guard. Lý do kỹ thuật,
-không phải lười: `gen_dataset.py` suy đường dẫn từ vị trí của chính nó
-(`ROOT = Path(__file__).resolve().parent.parent`, `eval_dir = ROOT / "eval"`),
-nên một bản copy đặt ngoài repo sẽ ghi vào `eval/` của thư mục tạm chứ không
-bao giờ chạm tới thước thật — thử kiểu đó chỉ tạo cảm giác đã kiểm.
+**Ba dữ kiện xác nhận đo đúng thứ cần đo** (không nhận "đỏ" trống không):
+- `exit=0` — nhánh `ap.error` không còn chạy, khớp đúng cách gỡ
+- stdout in `golden=180 (dev 120 / heldout 60)` — script **thật sự sinh lại bộ case**
+- băm `eval/golden_set.jsonl` **`a5ea8c876df0` trước và sau như nhau** — cơ chế
+  khôi phục trong `finally` hoạt động, `git status` sạch, không ai phải dọn
 
-Muốn chạy đúng câu chữ thì phải sửa `scripts/gen_dataset.py` tại chỗ, mà đó là
-**vùng ghi của coder**. Tester không tự ý sửa file vùng khác kể cả để rồi hoàn
-tác — nên chọn một trong hai:
+**Vì sao biết chính xác dòng bị đổi lại quan trọng:** nếu chỉ nhận "đã gỡ, chạy
+đi" rồi thấy đỏ, ta vẫn phải xác minh thêm một vòng xem đỏ có phải do gỡ guard
+không — hay do script hỏng vì lý do khác. Người làm thí nghiệm nói rõ họ đổi gì
+thì người đo mới quy được nhân quả.
 
-- **coder** tạm gỡ nhánh `ap.error`, báo tester chạy xác nhận đỏ, rồi trả lại; hoặc
-- **PO** cho phép tester sửa tạm trong `scripts/` đúng một lần cho phép thử này.
-
-Không chọn cách nào thì CI-8 **chưa được tick**, và phải ghi là *"có bằng chứng
-gián tiếp, chưa nghiệm thu trực tiếp"* — không được ghi thành đã nghiệm thu.
+⏳ **Chiều XANH: chờ coder trả guard**, tôi chạy lại xác nhận. CI-8 chỉ được
+tick khi đủ **cả hai chiều** — đỏ được và xanh được. Một cổng chỉ chứng minh
+được nó biết kêu, chưa chứng minh được nó biết im, thì vẫn chưa dùng được.
