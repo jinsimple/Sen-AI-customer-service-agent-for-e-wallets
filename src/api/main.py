@@ -993,6 +993,26 @@ def reject_resolution(
             detail=f"resolution đang ở trạng thái {resolution.status}, không từ chối được",
         )
 
+    # F-21 — ĐỐI XỨNG với guard cùng nội dung ở approve_resolution. Sau khi F-18
+    # mở CHECK ck_resolutions_maker_checker_br12 phủ cả `rejected_by`, một
+    # supervisor tự từ chối đề xuất của chính mình sẽ vi phạm CHECK ở tầng DB ->
+    # IntegrityError -> HTTP 500. Lập luận tôi đã viết cho nhánh duyệt áp nguyên
+    # văn ở đây: người dùng không hiểu chuyện gì, và log trông như hệ thống hỏng
+    # chứ không như một quy tắc nghiệp vụ đang làm ĐÚNG việc.
+    #
+    # KHÔNG phải lỗ hổng (DB vẫn chặn, không ai tự từ chối được) — là lỗi vận
+    # hành: 500 làm nhiễu log và che mất chính quy tắc đang chạy đúng. Hôm nay
+    # chưa chạm tới được chỉ vì 10/10 resolution cũ đều created_by NULL; cửa mở
+    # ngay khi có resolution đầu tiên tạo sau F-17.
+    if resolution.created_by is not None and resolution.created_by == current_user.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Người đề xuất không được tự từ chối đề xuất của chính mình "
+                "(maker-checker) — cần một supervisor khác xem xét"
+            ),
+        )
+
     resolution.status = "rejected"
     resolution.reject_reason = req.reason
     resolution.rejected_by = current_user.user_id

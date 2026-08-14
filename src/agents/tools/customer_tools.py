@@ -24,6 +24,7 @@ from typing import Any
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
 
+from src.agents.spotlight import danh_dau_du_lieu, danh_dau_ngan
 from src.config import OTP_STEPUP_FRESH_MINUTES, OTP_VIEW_MAX_MINUTES
 from src.db.models import Transaction
 from src.rag.search import search_policy_text
@@ -118,29 +119,67 @@ def _sanitize_policy_results(payload: dict) -> dict:
     của CSKH (src/api/main.py) dùng thẳng search_policy_text() KHÔNG qua đây,
     để nhân viên CSKH vẫn thấy nguyên văn nội dung khi cần điều tra/gỡ tài
     liệu độc hại đã lỡ upload. Chặn theo TOÀN BỘ chunk khi khớp mẫu nghi vấn
-    (không cố cắt riêng câu — cắt lẻ dễ sót biến thể diễn đạt khác)."""
+    (không cố cắt riêng câu — cắt lẻ dễ sót biến thể diễn đạt khác).
+
+    THỨ TỰ HAI LỚP LÀ CÓ CHỦ ĐÍCH (5b): lọc danh-sách-đen TRƯỚC, đánh dấu
+    spotlighting SAU. Ngược lại thì nội dung độc hại bị thay bằng thông báo đã
+    ẩn rồi mới bọc — vẫn đúng, nhưng chunk sạch sẽ KHÔNG được đánh dấu, tức là
+    lớp phòng vệ chỉ áp cho thứ ta ĐÃ nhận ra. Mà giá trị của spotlighting nằm
+    ở đúng phần ta CHƯA nhận ra."""
     results = payload.get("results") or []
     clean = []
     for r in results:
         text = r.get("text", "")
         if _contains_injection_signal(text):
-            clean.append({**r, "text": _RAG_REDACTED_NOTICE})
-        else:
-            clean.append(r)
+            text = _RAG_REDACTED_NOTICE
+        # Đánh dấu MỌI chunk, kể cả chunk sạch: danh sách đen chỉ chặn được câu
+        # tấn công ta đã nghĩ ra trước (ADV-041 lọt vì gõ không dấu). Đánh dấu
+        # không cần đoán nội dung — nó hạ cấp toàn bộ tài liệu đối tác xuống
+        # hạng DỮ LIỆU, bất kể trong đó viết gì.
+        clean.append({**r, "text": danh_dau_du_lieu(text, nguon="tai_lieu_doi_tac")})
     return {**payload, "results": clean}
 
 
 def _sanitize_lookup_result(payload: dict) -> dict:
-    """`transaction.des` (ghi chú giao dịch, ADV-041/042) — trường tự do CSKH/
-    hệ thống đối tác điền, agent KHÔNG được coi là chỉ thị. status=multiple_matches
-    không có field `des` (chỉ tóm tắt mã/số tiền/ngày) nên không cần lọc."""
+    """Hai bề mặt không tin cậy trong kết quả tra giao dịch:
+
+    1. `transaction.des` (ghi chú giao dịch, ADV-041/042) — trường tự do
+       CSKH/hệ thống đối tác điền.
+    2. `full_name` của BÊN KIA (kiem-ke-injection-surface, cửa thứ tư security
+       bổ sung 15/08). Trong ví thật, tên tài khoản do CHÍNH NGƯỜI DÙNG tự đặt
+       ⟹ kẻ tấn công đặt tên mình thành một chuỗi chỉ thị rồi chuyển 1.000đ cho
+       nạn nhân; khi nạn nhân tra giao dịch đó, chuỗi kia đi vào ngữ cảnh LLM
+       dưới nhãn "tên người gửi" — indirect injection không cần chạm hệ thống.
+       `mask_full_name` phá được phần lớn payload (chỉ còn chữ cái đầu + từ
+       cuối) nhưng KHÔNG phải lớp phòng vệ: nó không áp khi người hỏi là chính
+       chủ, và từ cuối vẫn do kẻ tấn công chọn.
+
+    status=multiple_matches không có `des`/tên (chỉ tóm tắt mã/số tiền/ngày).
+    """
     if payload.get("status") != "found":
         return payload
     txn = payload.get("transaction") or {}
+    moi = dict(txn)
+
     des = txn.get("des") or ""
-    if des and _contains_injection_signal(des):
-        payload = {**payload, "transaction": {**txn, "des": _RAG_REDACTED_NOTICE}}
-    return payload
+    if des:
+        if _contains_injection_signal(des):
+            des = _RAG_REDACTED_NOTICE
+        # Đánh dấu MỌI ghi chú, không chỉ ghi chú đã khớp mẫu — cùng lý do như
+        # _sanitize_policy_results: danh sách đen chỉ chặn được thứ ta đã nghĩ ra.
+        moi["des"] = danh_dau_du_lieu(des, nguon="ghi_chu_giao_dich")
+
+    # Dùng biến thể NGẮN cho tên: nhãn đầy đủ dài gấp nhiều lần chính cái tên,
+    # vừa tốn token mỗi lượt vừa làm câu trả lời bình thường xấu đi.
+    for ben in ("sender", "receiver"):
+        thong_tin = moi.get(ben)
+        if isinstance(thong_tin, dict) and thong_tin.get("full_name"):
+            moi[ben] = {
+                **thong_tin,
+                "full_name": danh_dau_ngan(thong_tin["full_name"], nguon="ten_tai_khoan"),
+            }
+
+    return {**payload, "transaction": moi}
 
 
 def _scrub_pii_cho_llm(payload: Any) -> Any:
