@@ -180,6 +180,40 @@ mặt nó canh, không kéo theo nhiễu.
 không — hay do script hỏng vì lý do khác. Người làm thí nghiệm nói rõ họ đổi gì
 thì người đo mới quy được nhân quả.
 
-⏳ **Chiều XANH: chờ coder trả guard**, tôi chạy lại xác nhận. CI-8 chỉ được
-tick khi đủ **cả hai chiều** — đỏ được và xanh được. Một cổng chỉ chứng minh
-được nó biết kêu, chưa chứng minh được nó biết im, thì vẫn chưa dùng được.
+### Chiều XANH: ĐẠT — CI-8 ✅ TICK
+
+Coder trả guard, tôi **tự kiểm chứ không nhận lời**:
+
+```
+git diff --stat scripts/gen_dataset.py   -> RỖNG (khớp từng byte bản trong git)
+gen_dataset.py --out <tạm>               -> stderr có "Từ chối ghi đè thước đo"
+pytest tests/test_data/test_thuoc_bat_dong.py -> 3 passed in 40.89s
+băm eval/golden_set.jsonl                -> a5ea8c876df0 trước và sau
+git status eval/ scripts/ data/          -> sạch
+```
+
+⇒ Cổng biết **kêu** (chiều đỏ) và biết **im** (chiều xanh). Đủ hai chiều mới
+tick — một cổng chỉ chứng minh được nó biết kêu thì vẫn chưa dùng được.
+
+### 🔴 CẢNH BÁO CHO NGƯỜI VIẾT LẠI PHÉP THỬ NÀY VỀ SAU
+
+Sau đợt guard, có **HAI đường hợp lệ** và **MỘT đường bị cấm**:
+
+| Đường | Kỳ vọng |
+|---|---|
+| `make data` (tự truyền `--eval-out <tạm>`) | hợp lệ, **không chạm guard** |
+| `gen_dataset.py --cho-phep-ghi-de-thuoc` | hợp lệ, cố ý ghi đè |
+| **`gen_dataset.py` TRẦN, không cờ** | **bị cấm — đây là đường phải test** |
+
+**Nếu ai đó viết lại phép thử bằng `make data`, nó sẽ XANH MÃI MÃI và trông
+như guard đang hoạt động — trong khi thật ra chưa hề chạm tới guard.**
+
+Chính coder suýt kết luận sai ở đúng chỗ này khi trả guard: phép thử đầu của
+họ là `make data`, ra `exit=0` không kèm câu từ chối, nhìn qua như guard chưa
+sống lại. Họ tự phát hiện là đo nhầm đối tượng và chạy lại bằng script trần.
+
+Đây lại là **assertion trùng trạng thái mặc định** ở dạng khác: không phải
+assert sai, mà **gọi nhầm đường** — đường được chọn vốn dĩ luôn hợp lệ, nên
+kết quả xanh không mang thông tin nào. Helper `_chay_gen_dataset()` trong
+`tests/test_data/test_thuoc_bat_dong.py` cố ý **không** truyền `--eval-out`
+đúng vì lý do này; docstring của nó ghi rõ, đừng "dọn cho gọn".
