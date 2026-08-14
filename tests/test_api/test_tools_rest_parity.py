@@ -19,11 +19,17 @@ channel/mô tả giao dịch (`des`, trường tự do) đầy đủ, chỉ tên
 bị che. Đây là IDOR/BOLA thật qua "đường tắt" REST, đúng đúng lo ngại B-14
 đặt ra — không phải so sánh cấu trúc chung chung.
 
-Đánh dấu `xfail(strict=True)` — CHƯA có đồng thuận với người dùng để đưa
-vào nhóm chặn CI như 4 finding P0 (họ mới chỉ duyệt CHẶN cho đúng 4 finding
-đã liệt kê trước đó) — nhưng vẫn hiện RÕ trong báo cáo test (`xfailed`,
-không bị `-m "not security_finding"` ẩn mất), và `strict=True` để nếu ai
-vá xong mà quên gỡ `xfail`, CI sẽ tự báo `XPASS` (coi là lỗi) nhắc gỡ."""
+TRẠNG THÁI 15/08 — CẢ HAI LỖ HỔNG ĐÃ VÁ, KHÔNG CÒN `xfail` NÀO TRONG FILE.
+
+Lịch sử để lại vì nó chứng minh cơ chế hoạt động: hai test dưới đây từng mang
+`xfail(strict=True)` — cố ý KHÔNG gắn `security_finding` (chưa có đồng thuận
+chặn CI), nhưng vẫn hiện rõ trong báo cáo dưới dạng `xfailed` thay vì bị ẩn.
+`strict=True` là phần quan trọng: khi coder vá xong, CI tự báo **XPASS** —
+"test này lẽ ra phải hỏng mà lại chạy được" — nên không ai kịp quên gỡ nhãn.
+Đó chính là cách hai lỗ này được đóng: máy nhắc, không phải người nhớ.
+
+Nay cả hai là test hồi quy thường. Mở lại lỗ hổng là ĐỎ ngay, không núp được
+dưới nhãn xfail nữa."""
 from __future__ import annotations
 
 import datetime as dt
@@ -55,17 +61,24 @@ def _token(user_id: str, role: str = "customer") -> str:
     return create_access_token(user_id=user_id, role=role, otp_verified_at=dt.datetime.utcnow())
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "IDOR thật: POST /tools/lookup_transaction không áp _enforce_requester_is_party "
-        "(chỉ có ở build_customer_tools cho đường AI) — khách lạ vẫn tra được "
-        "amount/fee/status/des của giao dịch không liên quan. Xem docstring module."
-    ),
-)
 def test_customer_cannot_lookup_unrelated_transaction_via_rest_shortcut(client):
-    """TXN-0001 (sample_db) giữa USR-A/USR-B — USR-CSKH (đóng vai 'khách lạ'
-    có JWT customer hợp lệ khác) gọi thẳng route REST, không qua AI."""
+    """C4/BOLA — ĐÃ VÁ 15/08, gỡ `xfail(strict=True)` thành test thường.
+
+    Lịch sử: `POST /tools/lookup_transaction` từng KHÔNG áp
+    `_enforce_requester_is_party` (chốt chặn đó chỉ có ở `build_customer_tools`
+    cho đường AI), nên khách lạ tra thẳng REST vẫn thấy amount/fee/status/des
+    của giao dịch không liên quan. Đúng ca "hai đường vào cùng một dữ liệu,
+    chỉ một đường có gác".
+
+    `strict=True` đã làm đúng việc của nó: coder vá xong, CI báo **XPASS** —
+    tức "test này lẽ ra phải hỏng mà lại chạy được" — nên không ai kịp quên gỡ.
+
+    Từ đây nó là test hồi quy thường: mở lại lỗ hổng là ĐỎ ngay, không còn núp
+    dưới nhãn xfail.
+
+    TXN-0001 (sample_db) giữa USR-A/USR-B — USR-CSKH đóng vai 'khách lạ' có
+    JWT customer hợp lệ khác, gọi thẳng route REST, không qua AI.
+    """
     stranger_token = _token("USR-CSKH", role="customer")
     resp = client.post(
         "/tools/lookup_transaction",
@@ -160,28 +173,27 @@ def test_create_ticket_rest_and_ai_both_accept_fresh_otp(client, sample_db):
     assert "ticket_id" in ai_result
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Phát hiện thật KHÁC (không thuộc 4 finding P0 đã được người dùng "
-        "duyệt chặn CI 2026-08-11): create_ticket (CẢ 2 đường REST và AI, "
-        "vì cùng gọi chung create_ticket_with_fraud_check ->  "
-        "src/tools/create_ticket.py) chỉ kiểm tra trans_id CÓ TỒN TẠI, KHÔNG "
-        "kiểm tra trans_id có THUỘC VỀ user_id đang gọi hay không (xem "
-        "docstring src/tools/create_ticket.py dòng 3-5, chỉ nêu yêu cầu tồn "
-        "tại). Hệ quả: 1 khách hàng có thể tạo ticket khiếu nại tham chiếu "
-        "trans_id của MỘT KHÁCH HÀNG KHÁC — không lộ dữ liệu giao dịch (tool "
-        "không trả tx detail), nhưng gây nhiễu dữ liệu/CSKH có thể xử lý "
-        "nhầm ticket dựa trên giao dịch không thuộc về người khiếu nại. Ảnh "
-        "hưởng THẤP HƠN lookup_transaction (không lộ số liệu), nhưng vẫn là "
-        "lỗ hổng xác thực quyền sở hữu (BOLA) cần người dùng quyết định có "
-        "chặn CI hay chấp nhận rủi ro."
-    ),
-)
 def test_create_ticket_does_not_verify_trans_id_belongs_to_caller(client, sample_db):
-    """TXN-0001 (sample_db) thuộc về USR-A — USR-B (khách khác, JWT hợp lệ
-    của chính họ) tạo ticket khiếu nại tham chiếu THẲNG trans_id này."""
-    fresh_token = _stale_otp_token("USR-B", 1)
+    """C4/BOLA đường `create_ticket` — người lạ không được mở hồ sơ trên giao
+    dịch của người khác.
+
+    ⚠️ BẢN CŨ CỦA TEST NÀY KHÔNG CANH THỨ NÓ TUYÊN BỐ (sửa 15/08).
+    Docstring cũ viết *"TXN-0001 thuộc về USR-A — USR-B (khách khác)"*. Sai:
+    tra `tests/conftest.py` thì TXN-0001 là `900000000001` (USR-A) →
+    `900000000002` (**USR-B**), tức **USR-B là BÊN NHẬN hợp pháp**. Một bên
+    của giao dịch mở hồ sơ khiếu nại về chính giao dịch đó là hành vi ĐÚNG,
+    không phải BOLA. Test vì vậy không chứng minh được lỗ hổng nào — nó chỉ
+    khẳng định hệ thống chặn một việc lẽ ra phải cho phép.
+
+    Đúng lớp lỗi đã thành luật của dự án: **assertion trùng với thứ hệ thống
+    vốn làm, nên không kiểm được gì**. Ở đây còn tệ hơn một bậc — nếu bản vá
+    C4 làm đúng (cho phép bên nhận), test này sẽ đỏ và tố cáo oan bản vá đúng.
+
+    Nay dùng NGƯỜI LẠ THẬT: USR-CSKH mang JWT vai `customer`, không phải bên
+    gửi cũng không phải bên nhận của TXN-0001 — cùng chuẩn "khách lạ" mà
+    `test_customer_cannot_lookup_unrelated_transaction_via_rest_shortcut` dùng.
+    """
+    fresh_token = _stale_otp_token("USR-CSKH", 1)
     resp = client.post(
         "/tools/create_ticket",
         json={
@@ -193,7 +205,8 @@ def test_create_ticket_does_not_verify_trans_id_belongs_to_caller(client, sample
         headers={"Authorization": f"Bearer {fresh_token}"},
     )
     assert resp.status_code != 200 or resp.json().get("status") == "error", (
-        f"USR-B tạo được ticket tham chiếu TXN-0001 (không thuộc về họ) mà không bị chặn: {resp.status_code} {resp.text}"
+        f"Khách lạ (USR-CSKH, không phải bên nào của TXN-0001) tạo được ticket "
+        f"tham chiếu giao dịch này mà không bị chặn: {resp.status_code} {resp.text}"
     )
 
 
@@ -217,3 +230,34 @@ def test_propose_resolution_and_escalate_ticket_are_never_exposed_to_customer_ai
     tool_names = {t.name for t in build_customer_tools(sample_db, user_id="USR-A", otp_verified_at=None)}
     assert "propose_resolution" not in tool_names
     assert "escalate_ticket" not in tool_names
+
+
+def test_create_ticket_van_cho_phep_ben_nhan_hop_phap_mo_ho_so(client, sample_db):
+    """Ca ĐỐI CHỨNG của test trên — bản vá C4 không được chặn nhầm người có quyền.
+
+    TXN-0001 là `900000000001` (USR-A) → `900000000002` (USR-B). **USR-B là bên
+    NHẬN**, nên họ mở hồ sơ khiếu nại về chính giao dịch đó là hoàn toàn hợp lệ
+    (khách báo "tiền chưa về" thì đúng là bên nhận đi khiếu nại).
+
+    Vì sao ca này bắt buộc phải có: thiếu nó, một bản vá "chặn cho chắc" — ví
+    dụ chỉ cho BÊN GỬI mở hồ sơ — vẫn làm test chặn-người-lạ xanh mướt, trong
+    khi sản phẩm vừa cấm mất một nửa số khách hàng có quyền khiếu nại thật.
+    Đây cũng chính là bản chất lỗi của bản CŨ test kia: nó nhầm USR-B thành
+    người lạ, nên nếu bản vá làm ĐÚNG thì nó lại tố cáo oan.
+    """
+    token = _stale_otp_token("USR-B", 1)
+    resp = client.post(
+        "/tools/create_ticket",
+        json={
+            "complaint_type": "money_not_received",
+            "scope": "internal_wallet",
+            "description_raw": "Bên gửi báo đã chuyển nhưng ví tôi chưa nhận được.",
+            "trans_id": "TXN-0001",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, (
+        f"BÊN NHẬN hợp pháp của TXN-0001 bị chặn không mở được hồ sơ: "
+        f"{resp.status_code} {resp.text[:200]}"
+    )
+    assert resp.json().get("ticket_id"), resp.text

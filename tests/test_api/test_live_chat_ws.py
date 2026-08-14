@@ -480,9 +480,15 @@ def test_sweep_does_not_close_recent_or_still_connected_sessions(sample_db, monk
         sample_db, user_id="USR-A", complaint_type="wrong_recipient", scope="internal_wallet",
         description_raw="test sweep keeps live", trans_id="TXN-0001",
     )
+    # TXN-0001 (USR-A -> USR-B) chứ KHÔNG phải TXN-0002.
+    # TXN-0002 là USR-A -> tài khoản ngân hàng của CHÍNH USR-A, nên USR-B
+    # không phải một bên nào của nó. Fixture cũ dựng dữ liệu bằng đúng hành vi
+    # mà bản vá C4/BOLA vừa cấm — nó chỉ chạy được nhờ lỗ hổng, và sập ngay
+    # khi lỗ hổng được bịt. Test dựng dữ liệu bằng đường mà sản phẩm cấm thì
+    # sớm muộn cũng thành vật cản cho chính bản vá đúng.
     created_b = create_ticket_with_fraud_check(
         sample_db, user_id="USR-B", complaint_type="wrong_recipient", scope="internal_wallet",
-        description_raw="test sweep keeps recent", trans_id="TXN-0002",
+        description_raw="test sweep keeps recent", trans_id="TXN-0001",
     )
     sample_db.commit()
 
