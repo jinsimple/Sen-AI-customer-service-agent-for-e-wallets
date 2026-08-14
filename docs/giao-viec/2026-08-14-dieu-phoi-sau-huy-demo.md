@@ -644,6 +644,51 @@ B. **LUẬT 4+1 (đánh đổi tiền/thời gian — CỜ CHO PO THẬT):** HOL
 
 C4 độc lập, coder tiếp tục — không chờ A/B.
 
+## C4 XONG + CI CHẠY THẬT LẦN ĐẦU (39a08b0→2bf73ac, đêm 14→15/08)
+
+- **C4/BOLA vá xong** kèm ADR-021 (+45/0): lọc tầng matches, siết theo vai ở
+  REST, vô điều kiện ở create_ticket, 9/9 điều kiện tự chấm + ca đối chứng
+  CSKH. Chờ security rà (probe + ADR-021).
+- **CI lần đầu lộ 4 lỗi hạ tầng (coder đã vá hết, không lỗi code):** (a)
+  FIELD_ENCRYPTION_KEY CI 33 byte → mọi job chết ở import, "đỏ" nhìn như vi
+  phạm hiến pháp; (b) tsc thiếu next typegen; (c) vitest chết vì Node 20 <
+  jsdom cần 22 — **bộ test frontend CHƯA TỪNG chạy được trên CI**; (d) 2 job
+  eval thiếu data/generated → thêm make data. Đúng giá trị của "CI chạy thật".
+- **Coder tự báo lỗi của chính mình:** allowlist gitleaks ràng theo paths mà
+  gitleaks nối OR → toàn bộ ci.yml thành vùng mù cho generic-api-key; tự thử
+  bằng Fernet key thật → im lặng → thêm condition=AND → bắt được. Kiểm bằng
+  đúng bản gitleaks CI dùng.
+
+## PHÂN LOẠI 5 VIỆC PO + 3 VIỆC TESTER (PO phán quyết)
+
+**PO-agent DUYỆT ngay (không chạm sản phẩm, chỉ chặt hơn):**
+- **PO-3**: gate deploy.yml bằng `workflow_run` gated theo CI success — DUYỆT.
+  Đúng checklist đóng gói (job deploy phải có needs); hiện chưa deploy được
+  nên vá lúc này là vô hại, để sau khi có secret thì "mọi push main deploy
+  bất kể test đỏ" là bug production nghiêm trọng. Coder làm trên .github/.
+- **PO-4**: khai `engines` trong frontend/package.json (npm báo LỖI thay vì
+  cảnh báo khi sai Node) — DUYỆT. package.json ngoài vùng coder → PO-agent
+  ủy quyền một-lần cho coder sửa đúng 1 dòng engines, security/tester không
+  đụng file đó đợt này.
+
+**BẮT BUỘC PO THẬT (không ai làm thay được — nêu ở phần trả lời):**
+- **PO-1 KEY THẬT TRONG LỊCH SỬ GIT** (AI_LOG_API_KEY giảng viên, 2 commit cũ):
+  ưu tiên tuyệt đối = XOAY KEY với giảng viên (vô hiệu hoá = key trong lịch
+  sử thành vô hại). History rewrite là THỨ YẾU + RỦI RO (force-push nhánh
+  người/CI khác đã đọc — chạm luật cấm tự-động của global) → PO thật quyết
+  minh thị, KHÔNG vai nào tự làm, KHÔNG nhờ vai khác làm thay.
+- **PO-2**: đặt OPENAI_API_KEY secret (2 job eval 0/120 pass vì rỗng) —
+  dashboard PO thật.
+- **PO-5 = ST2-P0-3** (security-findings-gate đỏ vì live-chat SĐT thô) —
+  chính là 4 câu PO thật đang treo. CI giờ ĐỎ vì nó → thành chặn cứng, không
+  còn là nợ hoãn được.
+
+**TESTER (T-1/T-2/T-3):** T-1 gỡ xfail test BOLA (giờ XPASS = bằng chứng C4
+vá) · T-2 sửa fixture test_sweep dùng USR-B với giao dịch không phải của
+mình (fixture đang làm đúng thứ C4 vừa cấm — đổi USR-A hoặc TXN-0001) · T-3
+coder ghi chú: test create_ticket xfail nay vô nghĩa (USR-B là bên nhận hợp
+pháp) — tester xem lại nó chứng minh đúng thứ nó tuyên bố không.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
