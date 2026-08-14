@@ -461,6 +461,25 @@ Gate lượt này, đặt trước: (a) bịa 0/40 · (b) B2 4 ca + 083 giữ m�
 Ghi nhận: coder thử giả thuyết cơ chế, dữ liệu bác bỏ, và DỪNG không khẳng
 định — sau hai lần sai hôm nay, đây là phản xạ đúng.
 
+## GHI NHẬN D1+D2 (7be5dfb) + NÂNG CẤP LUẬT DẤU THƯỚC (PO)
+
+- **D2**: `--so-sanh TRUOC SAU` in bảng xấu-đi/tốt-lên/đổi-bản-chất, THOÁT MÃ 1
+  khi có ca xấu đi — cổng máy, không phụ thuộc ai đọc bảng. Đo thử thật:
+  14 xấu / 18 tốt / 4 đổi-bản-chất (nhóm mà đếm-số bỏ sót).
+- **D1**: raw lưu đủ all_agent_replies · all_customer_texts · tool_calls ·
+  luot_tao_ticket; case lỗi giữa chừng giữ phần đã nói. Làm TRƯỚC khi biết
+  kết quả gate — đúng: transcript không quay lại lấy được.
+- **NÂNG CẤP LUẬT DẤU THƯỚC (thay bản "ghi commit của thước"):** dấu thước =
+  BĂM NỘI DUNG phần chấm điểm (_harness.py + golden_set.jsonl), commit chỉ
+  ghi kèm để tra cứu. Lý do: đóng dấu bằng HEAD thì một commit chỉ-thêm-công-
+  cụ cũng hô "hai thước khác nhau" giữa cặp đo — báo động giả dạy cả đội bỏ
+  qua cảnh báo. QA tự bắt trước khi nó xảy ra. Cặp đo B2 đang chạy KHÔNG
+  bị ảnh hưởng.
+- C13: archive dựng xong kèm luật "file đang được trích dẫn thì không chuyển"
+  — chờ coder cấp TÊN 3 lượt bỏ đi (không đoán — chuyển nhầm lượt thật là
+  mất mốc). Phát hiện kèm: 1 file .json thực chất là Markdown (bug C6 cũ)
+  đã đổi tên; --so-sanh báo lỗi đọc được.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
