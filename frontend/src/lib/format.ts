@@ -18,6 +18,9 @@ export function formatSlaRemaining(iso: string): { label: string; overdue: boole
   const abs = Math.abs(diffMs);
   const hours = Math.floor(abs / 3_600_000);
   const minutes = Math.floor((abs % 3_600_000) / 60_000);
-  const label = hours > 0 ? `${hours}h${minutes}p` : `${minutes}p`;
+  // P3-1: quá 48 giờ thì đọc theo NGÀY. "còn 712h44p" bắt người trực tự chia
+  // nhẩm mới biết là gần một tháng — đúng lúc họ đang quét nhanh hàng chờ.
+  const label =
+    hours >= 48 ? `${Math.floor(hours / 24)} ngày` : hours > 0 ? `${hours}h${minutes}p` : `${minutes}p`;
   return { label: overdue ? `quá hạn ${label}` : `còn ${label}`, overdue };
 }

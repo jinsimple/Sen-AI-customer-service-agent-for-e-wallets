@@ -24,7 +24,7 @@ vi.mock("@/lib/useLiveChatSocket", () => ({
   useLiveChatSocket: vi.fn(() => ({ status: "idle", sendMessage: vi.fn() })),
 }));
 
-import { getCustomerHistory, requestOtp } from "@/lib/api";
+import { agentChat, getCustomerHistory, requestOtp, verifyOtp } from "@/lib/api";
 
 const mockHistory = {
   user_id: "USR-A",
@@ -59,17 +59,38 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+// V6 (hotfix 14/08, PO đổi chính sách): rail "Giao dịch gần đây" BỊ CHE cho
+// tới khi khách xác thực OTP trong phiên. Ba test dưới đây từng giả định rail
+// hiện ngay khi vào trang — giả định đó nay sai, nên chúng được viết lại quanh
+// hành vi mới thay vì nới lỏng assert.
+/** Đi trọn luồng OTP trong phiên: bấm "Xác thực ngay" -> điền 6 ô mã.
+ *  Sau bước này rail "Giao dịch gần đây" mới hiện (V6). */
+async function xacThucOtpTrongPhien(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Xác thực ngay" }));
+  await waitFor(() => expect(document.querySelectorAll("input.otp-box").length).toBe(6));
+  const o = Array.from(document.querySelectorAll("input.otp-box")) as HTMLInputElement[];
+  for (let i = 0; i < 6; i++) await user.type(o[i], "123456"[i]);
+  await user.click(screen.getByRole("button", { name: "Xác nhận" }));
+  await waitFor(() => expect(verifyOtp).toHaveBeenCalled());
+}
+
 describe("ChatClient — rail giao dịch gần đây", () => {
-  it("hiện đúng giao dịch trả về từ getCustomerHistory", async () => {
+  it("CHƯA xác thực OTP thì che danh sách, hiện lời mời xác thực", async () => {
     render(<ChatClient userId="USR-A" phone="0901000001" />);
-    await waitFor(() => expect(screen.getByText(/92\.000đ/)).toBeInTheDocument());
-    expect(screen.getByText(/TXN20260810000001/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Xác thực OTP để xem giao dịch gần đây")).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/92\.000đ/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xác thực ngay" })).toBeInTheDocument();
   });
 
-  it("rail rỗng hiện đúng thông báo 'Chưa có giao dịch'", async () => {
+  it("rail rỗng: vẫn che trước khi xác thực (không lộ 'Chưa có giao dịch')", async () => {
     vi.mocked(getCustomerHistory).mockResolvedValue({ ...mockHistory, recent_transactions: [] });
     render(<ChatClient userId="USR-A" phone="0901000001" />);
-    await waitFor(() => expect(screen.getByText("Chưa có giao dịch.")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Xác thực OTP để xem giao dịch gần đây")).toBeInTheDocument()
+    );
+    expect(screen.queryByText("Chưa có giao dịch.")).not.toBeInTheDocument();
   });
 });
 
@@ -77,6 +98,9 @@ describe("ChatClient — chip chọn loại khiếu nại", () => {
   it("bấm 'Báo lỗi giao dịch này' hiện đủ 4 chip loại khiếu nại", async () => {
     const user = userEvent.setup();
     render(<ChatClient userId="USR-A" phone="0901000001" />);
+    // V6: nút "Báo lỗi giao dịch này" nằm trong rail, mà rail bị che tới khi
+    // xác thực xong — nên phải qua OTP trước.
+    await xacThucOtpTrongPhien(user);
     await waitFor(() => expect(screen.getByText(/92\.000đ/)).toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: "Báo lỗi giao dịch này" }));
@@ -86,16 +110,16 @@ describe("ChatClient — chip chọn loại khiếu nại", () => {
     }
   });
 
-  it("chọn 1 chip -> bắt đầu luồng OTP (khách CHƯA xác thực trong phiên)", async () => {
+  it("đã xác thực trong phiên -> chọn chip gửi thẳng agent, không hỏi OTP lần hai", async () => {
     const user = userEvent.setup();
     render(<ChatClient userId="USR-A" phone="0901000001" />);
+    await xacThucOtpTrongPhien(user);
     await waitFor(() => expect(screen.getByText(/92\.000đ/)).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Báo lỗi giao dịch này" }));
     await user.click(screen.getByText("Tiền chưa về"));
 
-    await waitFor(() => expect(requestOtp).toHaveBeenCalled());
-    // AUTH5-01 (2026-08-12) — câu hỏi bảo mật đã bỏ khỏi vai trò xác thực,
-    // form OTP chỉ còn hiện mã OTP mô phỏng.
-    expect(await screen.findByText("123456")).toBeInTheDocument();
+    // Đã xác thực trong phiên -> KHÔNG hỏi OTP lần hai, gửi thẳng cho agent.
+    await waitFor(() => expect(agentChat).toHaveBeenCalled());
+    expect(requestOtp).toHaveBeenCalledTimes(1);
   });
 });

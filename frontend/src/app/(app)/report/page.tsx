@@ -55,7 +55,7 @@ export default function ReportPage() {
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Webapp Sếp · US-018</span>
+        <span className="eyebrow">Báo cáo vận hành</span>
         <h1>Báo cáo vận hành</h1>
         <p className="sub">Số liệu tính trực tiếp từ dữ liệu ticket thật tại thời điểm xem — không phải ước lượng.</p>
       </div>

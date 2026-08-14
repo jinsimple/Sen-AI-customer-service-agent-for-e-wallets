@@ -10,6 +10,7 @@ const TABS: Record<Role, { href: string; label: string }[]> = {
     { href: "/dashboard", label: "Hàng chờ" },
     // /tickets/[id] không có mục riêng — vào từ hàng chờ
     { href: "/policy-lookup", label: "Tra cứu chính sách" },
+    { href: "/report", label: "Báo cáo vận hành" },
   ],
   supervisor: [
     { href: "/approve", label: "Phê duyệt" },

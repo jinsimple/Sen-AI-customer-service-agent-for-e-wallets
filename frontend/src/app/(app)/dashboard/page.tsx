@@ -124,7 +124,7 @@ export default function DashboardPage() {
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Webapp CSKH · US-011, US-014</span>
+        <span className="eyebrow">Webapp CSKH</span>
         <h1>Hàng chờ ticket</h1>
         <p className="sub">
           Lọc/sắp xếp theo trạng thái và ưu tiên để xử lý đúng case cấp bách trước. Case nghi gian lận

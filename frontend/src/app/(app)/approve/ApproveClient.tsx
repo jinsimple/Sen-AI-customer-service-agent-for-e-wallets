@@ -35,7 +35,7 @@ export default function ApproveClient() {
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Webapp Sếp · US-005, US-017</span>
+        <span className="eyebrow">Webapp Sếp</span>
         <h1>Phê duyệt (HITL)</h1>
         <p className="sub">
           Đủ căn cứ hiển thị ngay để quyết trong vài giây. Case chạm ngân hàng chỉ có nút tạo yêu cầu tra
@@ -90,7 +90,7 @@ export default function ApproveClient() {
 
       <div className="section" style={{ marginTop: 30 }}>
         <div className="section-title">
-          Nhật ký hành động HITL <span className="tag">US-017</span>
+          Nhật ký hành động phê duyệt
         </div>
         <div className="card">
           <div className="scroll-x">

@@ -7,7 +7,11 @@ import { parseSessionCookie, roleHome, sessionCookieMaxAgeSeconds, SESSION_COOKI
 // đủ cho demo vì không có dữ liệu nhạy cảm nào trả trực tiếp từ proxy.
 const ROLE_PREFIXES: Record<Role, string[]> = {
   customer: ["/chat"],
-  cskh: ["/dashboard", "/tickets", "/policy-lookup"],
+  // /report: contract cho phép (GET /reports/summary roles [cskh, supervisor])
+  // nhưng frontend đang chặt hơn — CSKH bị đá về /dashboard. Đây là LẦN THỨ HAI
+  // cùng lớp lỗi "guard frontend hẹp hơn contract" (lần một: sếp + /policy-lookup,
+  // d0baf35). Tester đang viết test quét cả ma trận role×route để lần ba bị máy bắt.
+  cskh: ["/dashboard", "/tickets", "/policy-lookup", "/report"],
   // /policy-lookup: sếp cũng cần tra chính sách khi quyết định duyệt. Thiếu
   // tiền tố này thì proxy đá thẳng về roleHome() = /approve, nên bấm vào tab
   // trông như tab hỏng (QA đo được 14/08). Backend đã cho phép sẵn —

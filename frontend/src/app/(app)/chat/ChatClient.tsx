@@ -445,11 +445,10 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Chatbot khách hàng · US-002, 003, 006, 007, 008, 009, 010</span>
-        <h1>Chatbot AI — luồng khiếu nại lõi</h1>
+        <span className="eyebrow">Chatbot khách hàng</span>
+        <h1>Chatbot AI</h1>
         <p className="sub">
-          AI agent thật (LangGraph + OpenAI) đang chạy — tự tra cứu, phân loại, và tạo ticket dựa trên hội
-          thoại tự do. Mọi số liệu bot nói ra đều trích dẫn được từ tool đã gọi.
+          Trợ lý AI — mọi con số đều được tra cứu từ hệ thống thật, không tự suy đoán.
         </p>
       </div>
 

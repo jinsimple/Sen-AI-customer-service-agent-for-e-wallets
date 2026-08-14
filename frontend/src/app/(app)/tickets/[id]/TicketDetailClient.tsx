@@ -201,15 +201,12 @@ export default function TicketDetailClient({
       <div className="grid grid-2" style={{ alignItems: "start" }}>
         <div className="flex-col gap-lg">
           <div className="card">
-            <div className="card-title">Dấu vết điều tra</div>
+            <div className="card-title">Nhật ký điều tra</div>
             <div className="card-sub" style={{ marginBottom: 14 }}>
               Mỗi bước: tool đã gọi, input, kết quả, ghi chú AI, thời gian.
             </div>
             {detail.investigation_logs.length === 0 ? (
-              <div className="note">
-                Chưa có bước điều tra nào được ghi nhận cho ticket này — AI agent chưa xử lý case này
-                (agent đang được xây, xem FIN05-Backend-Handoff.md §4.2).
-              </div>
+              <div className="note">Chưa có bước điều tra nào được ghi cho hồ sơ này.</div>
             ) : (
               <div className="trail">
                 {detail.investigation_logs.map((log) => (
@@ -292,7 +289,7 @@ export default function TicketDetailClient({
                   </span>
                 </div>
                 <div className="note" style={{ marginTop: 10, fontSize: 11 }}>
-                  Đã che một phần theo PDPA (NĐ 13/2023/NĐ-CP) — US-016.
+                  Đã che một phần theo PDPA (Nghị định 13/2023/NĐ-CP).
                 </div>
               </>
             )}
@@ -324,7 +321,7 @@ export default function TicketDetailClient({
             <div className="card">
               <div className="card-title">Hành động của bạn (CSKH)</div>
               <div className="card-sub" style={{ marginBottom: 14 }}>
-                Không có đường nào để tự duyệt hoàn tiền (US-012, US-015).
+                Không có đường nào để tự duyệt hoàn tiền.
               </div>
               <form onSubmit={handlePropose}>
                 <div className="field" style={{ marginTop: 0 }}>
@@ -361,7 +358,7 @@ export default function TicketDetailClient({
                   <button className="btn btn-outline" type="button" onClick={handleRequestMoreInfo}>
                     Yêu cầu điều tra thêm
                   </button>
-                  <span className="tooltip-wrap" data-tooltip="Ngoài thẩm quyền của bạn — chỉ Sếp mới có quyền duyệt hoàn tiền (US-015).">
+                  <span className="tooltip-wrap" data-tooltip="Ngoài thẩm quyền của bạn — chỉ Sếp mới có quyền duyệt hoàn tiền.">
                     <button className="btn btn-outline" disabled type="button" style={{ borderColor: "var(--border-strong)", color: "var(--text-faint)" }}>
                       Duyệt hoàn tiền
                     </button>
