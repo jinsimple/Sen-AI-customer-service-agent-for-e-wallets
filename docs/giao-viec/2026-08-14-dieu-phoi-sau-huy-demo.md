@@ -302,6 +302,50 @@ thay vì sửa bài thi — đúng tinh thần "thước cố định, thước 
 - Check mới đọc tool_calls TÍCH LUỸ thay vì chỉ lượt cuối — tránh đúng bẫy
   từng làm cite_ fail oan. Thiết kế thước có trí nhớ. Ghi nhận.
 
+## PHÁN QUYẾT sau báo cáo security 5080165 + thiết lập kênh liên tab (PO, đêm 14/08)
+
+**Kênh liên tab hoạt động:** coder · QA · security đều đã xưng vai, báo cáo
+qua SendMessage. Vụ "SEC-B chưa vá" của QA = tin soạn trước 5493080 — PO
+chạy lại test trên HEAD: 3/3 xanh. ĐÓNG.
+
+**Luật đo mới (từ đề nghị của QA, PO chuẩn hoá):** MỌI báo cáo đo phải ghi
+COMMIT CỦA THƯỚC (harness/bộ case) tại thời điểm chạy. Mốc nền hợp lệ phải
+chạy trên HEAD ≥ {d72017a, aa5d593, 394feef}. Coder xác nhận đang chạy trên
+tree đúng, prompt nguyên bản, git status sạch — hợp lệ.
+
+**TM-03 SIGN-OFF ĐẠT → coder MỞ KHOÁ field `note`**, kèm 3 điều kiện security:
+scrub tại điểm GHI · fail-closed khi scrub lỗi · không mở rộng phạm vi đọc.
+13 test đối kháng đã đặc tả sẵn trong docs/security/review-phase01-ap-that.md
+— tester viết.
+
+**F-11 (backfill bịa danh tính — PO QUYẾT):**
+- XOÁ 2 dòng residue QA (RES-663769e6d9dc, RES-b9b1f9344dc6) — dữ liệu thử
+  nghiệm, xoá kèm FK là trung thực hơn giữ.
+- Dòng genuine còn lại: trỏ `rejected_by` về SENTINEL gắn nhãn rõ ("không
+  xác định — backfill ADR-019"), TUYỆT ĐỐI không gán ID người thật; cơ chế
+  cụ thể coder đề xuất (user hệ thống không đăng nhập được, không lọt danh
+  sách supervisor), security rà lại.
+- KHÔNG nới CHECK br11 để cho NULL — constraint giữ nguyên.
+- Đính chính tài liệu "1 dòng vs 3 dòng": chấp nhận — 2 dòng dôi là residue
+  QA sinh SAU khi dự thảo viết; phiếu duyệt PO kế thừa số cũ, không ai bịa.
+
+**F-12 (route /approve không rate-limit + không đếm OTP sai — High):** DUYỆT
+vá theo khuôn main.py:424-438. LỊCH: ngay SAU khi cặp đo B2 xong (sửa
+main.py giữa lúc đo không ảnh hưởng container đang chạy, nhưng KHÔNG rebuild
+container cho tới khi mốc sau đo xong — tránh đổi hệ giữa hai nhánh đo).
+Deadline cứng: trước mốc người dùng thật.
+
+**F-13** (backfill hitl_status 8 ticket cũ — số lịch sử đang bẩn) + **F-14**
+(TTL `_session_staff` — nợ ADR-018 tự khai, chạm PDPA): vào cùng nhịp
+migration với field note. **F-15**: CHECK br11 một chiều là chấp nhận được
+NHƯNG exporter Phase 2 BẮT BUỘC lọc theo `status='rejected'`, không lọc theo
+nhãn — ghi thành điều kiện thiết kế exporter, tester thêm test canh.
+
+**Tester — 2 việc từ báo cáo security:** (1) dựng `eval/CANDIDATE-REVIEW.md`
+— security tuyên bố sẽ chấm KHÔNG ĐẠT ở lần rà Phase 2 nếu thiếu luật CẤM
+NGUYÊN VĂN hoặc trần ứng viên/người dùng; (2) viết 13 test đối kháng field
+note theo đặc tả trong báo cáo security.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
