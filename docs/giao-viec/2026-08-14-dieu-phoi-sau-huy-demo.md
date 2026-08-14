@@ -839,3 +839,19 @@ coder commit cùng đợt INV-15 kẻo mất/commit nhầm.
   đó sẽ lại lỗi thời ngay.
 - Các quyết định đang mở còn lại: đặc tả nhóm B2 đã phán ("thông báo + đề
   nghị") — nếu muốn đổi thì báo trước khi tester sửa nhãn.
+
+## ĐỢT KỸ THUẬT ĐÓNG (bdc64e3 + b999dec) — chặn CHỈ còn 3 việc PO thật
+
+- F-17/F-18/INV-15 xong, contract v2.3.0, 23/23. QA test INV-15 ĐỌC biểu
+  thức TỪ CONTRACT (chuỗi cũ là chuỗi con dạng C → test "có chứa" xanh dù
+  canh nửa ràng buộc → F-18 dưới dạng test). F-19: grep container SAU rebuild
+  xác nhận BR-12 có mặt (trước rebuild=0). Bảng 6 ca đồng nhất Postgres+SQLite.
+- C2 lỗ 2: job route-guards-docker + "SKIP LÀ ĐỎ" (đọc junit, đỏ nếu tests==0/
+  skipped>0 vì pytest.skip luôn exit 0). Vế chưa đo: nhánh CÓ-CHẠY chưa thực
+  thi trên runner → CI-4/CI-5 của QA.
+- CI sau đợt: 384 passed · đỏ CHỈ còn note (28, chờ PO-5) + findings-gate/
+  appsec (PO-5) + 2 job eval (PO-2 secret).
+
+**⟹ ĐƯỜNG GĂNG DUY NHẤT: 3 việc PO THẬT** — PO-1 xoay key giảng viên · PO-2
+đặt OPENAI_API_KEY · PO-5 chốt mức che note (=ST2-P0-3). Đội máy hết việc tự
+làm được. Sau 3 việc: note code (13 test chờ) → CI xanh trọn → CI-4/5 → đóng.
