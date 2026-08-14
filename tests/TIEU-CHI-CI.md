@@ -104,8 +104,8 @@ rõ — không bao giờ đỏ vì nhầm môi trường.
 | CI-4 | Bộ quét vai×trang chạy ở job CÓ DOCKER | Sửa 1 ô ánh xạ trang→route cho sai → job đó phải đỏ | Trả lại đúng |
 | CI-5 | **Skip ≠ đạt** ở job Docker | Tắt stack trước khi chạy job → job phải ĐỎ (báo "không dựng được stack"), KHÔNG xanh | Bật stack → xanh |
 | CI-6 | Test dữ liệu-môi-trường không đỏ oan | Chạy `tests/test_migrations/` trên Postgres rỗng → skip sạch, không error | Chạy trên DB demo → đỏ đúng ca thật |
-| CI-8 | Thước bất động được canh ở CI | Gỡ guard trong `gen_dataset.py` → `tests/test_data/test_thuoc_bat_dong.py` phải đỏ | Trả guard lại → xanh |
 | CI-7 | Cổng so sánh eval nối vào CI | `measure_quality.py --so-sanh` trả **exit 1** khi có ca xấu đi → job phải đỏ | Hai lượt giống nhau → exit 0, xanh |
+| CI-8 | Thước bất động được canh ở CI | Gỡ guard trong `gen_dataset.py` → `tests/test_data/test_thuoc_bat_dong.py` phải đỏ | Trả guard lại → xanh |
 
 ## Cách nghiệm thu (tester làm sau khi coder nối dây)
 
