@@ -570,6 +570,16 @@ dùng mãi cho mọi gate sau, không tính vào gói B2.
 - Nếu giao ∩ rỗng (mọi ca xấu đều là nhiễu) → gate (c) coi như ĐẠT → SHIP
   luật 4+1. Nếu giao có ca → đọc transcript ĐÚNG ca đó (D1 sẵn), không đọc
   cả 5.
+- **TẦNG LỌC A1 (QA bổ sung, PO duyệt): trước khi đọc transcript bất kỳ ca
+  nào trong giao, loại ca thuộc nhóm A1 (from_bank dữ liệu hỏng — ví nhận
+  gán sai).** 7/14 ca xấu của cặp patch nằm trong A1 (011/038/040/064/065/
+  068/094). Ca A1 xấu ổn định KHÔNG chứng minh prompt hồi quy — nó chứng
+  minh dữ liệu vẫn hỏng (đã biết, có phương án reseed riêng). Quy tắc chốt:
+  giao khác rỗng nhưng CHỈ chứa ca A1 → gate (c) vẫn ĐẠT → ship. Chỉ
+  101/085 (scope to_bank/internal_wallet, KHÔNG A1) mới là tín hiệu thật
+  đáng đọc transcript. 094 là from_bank → xếp SAU 101/085, và khi đọc phải
+  kiểm trước lỗi có phải chữ ký A1 (cite_*) không — QA trung thực: 094 hỏng
+  thêm complaint_type/scope nên chưa chắc thuần A1, không khẳng định là nhiễu.
 
 **C13:** duyệt hướng coder — chuyển CẢ BỐN file (3 lượt bỏ + nền thước cũ
 131834) vào archive như MỘT CỤM kèm README "thước cũ, trước d72017a";
