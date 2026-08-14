@@ -439,6 +439,28 @@ có giá trị). Áp cho MỌI vai viết test, ngang hàng luật "sống qua t
 - Toàn bộ việc security giao tester đợt rà này: XONG (13 note · F-12 · F-13
   · CANDIDATE-REVIEW · trạng thái đích).
 
+## PHÁN QUYẾT GATE GÓI B2 (PO — cặp đo 161529/163222, thước 394feef)
+
+**Kết quả cặp:** (a) bịa 0/40 cả hai ĐẠT · (b) B2 4/4 cải thiện + CASE-083
+sạch, CASE-004 XẤU ĐI 1→3 · (c) HỎNG — 7 ca ngoài gói xấu đi, chữ ký đồng
+nhất complaint_type/scope, TRÙNG chữ ký patch hỏng hôm trước dù luật lần này
+nằm đúng mục ⇒ "đặt sai mục" có thể chưa từng là nguyên nhân thật. Tổng
+30→24 đẹp lên nhưng thành phần đổi — đúng cái bẫy gate (c) sinh ra để chặn.
+
+**QUYẾT: phương án 3 SỬA ĐỔI — cấp đúng MỘT lượt đo (không phải cặp):**
+nhánh "CHỈ luật bước 4 + bước 1" (gỡ luật bước 3 multiple_matches), so ghép
+cặp với NỀN HIỆN CÓ (161529 — tái dùng hợp lệ: cùng thước, cùng prompt gốc).
+Gate lượt này, đặt trước: (a) bịa 0/40 · (b) B2 4 ca + 083 giữ mức cải thiện
+· (c) KHÔNG ca nào ngoài xấu đi so nền. Đây là lượt CUỐI của gói:
+- ĐẠT → SHIP luật 4+1; luật bước 3 về xưởng kèm hồ sơ: CASE-004 + câu hỏi
+  cơ chế (vì sao siết multiple_matches làm 7 ca lệch phân loại?).
+- (c) VẪN HỎNG → HOLD toàn bộ; nghi phạm không còn là nội dung luật mà là
+  BẢN THÂN VIỆC THÊM luật (độ dài/pha loãng chú ý?) — điều tra tiếp bằng
+  ĐỌC transcript 7 ca, không đo thêm.
+**BÁC phương án 2** (ship 4+1 không đo) — đúng lý do coder tự nêu.
+Ghi nhận: coder thử giả thuyết cơ chế, dữ liệu bác bỏ, và DỪNG không khẳng
+định — sau hai lần sai hôm nay, đây là phản xạ đúng.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
