@@ -22,15 +22,15 @@ import unicodedata
 from typing import Any
 
 from langchain_core.tools import tool
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.config import OTP_STEPUP_FRESH_MINUTES, OTP_VIEW_MAX_MINUTES
-from src.db.models import Wallet
+from src.db.models import Transaction
 from src.rag.search import search_policy_text
 from src.services.complaint_intake import create_ticket_with_fraud_check, flag_human_handoff
 from src.tools.base import ToolError
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
+from src.tools.lookup_transaction import la_mot_ben_cua_giao_dich
 from src.tools.lookup_transaction import lookup_transaction as _lookup_transaction
 from src.tools.masking import mask_account_no, mask_full_name, mask_phone  # PII-OK: import hàm CHE, không phải đọc PII
 
@@ -214,12 +214,13 @@ def _enforce_requester_is_party(session: Session, payload: dict, *, requesting_u
     if payload.get("status") != "found":
         return payload
     txn = payload.get("transaction") or {}
-    own_wallet_ids = set(
-        session.scalars(select(Wallet.wallet_id).where(Wallet.user_id == requesting_user_id))
-    )
-    sender_wallet_id = (txn.get("sender") or {}).get("wallet_id")
-    receiver_wallet_id = (txn.get("receiver") or {}).get("wallet_id")
-    is_party = sender_wallet_id in own_wallet_ids or receiver_wallet_id in own_wallet_ids
+    # ADR-021 — hỏi ĐÚNG MỘT định nghĩa dùng chung, không tự so wallet_id nữa
+    # (bản cũ bỏ sót chủ tài khoản ngân hàng ở giao dịch nạp -> chặn nhầm chính
+    # chủ, im lặng). Lớp này giờ là PHÒNG VỆ THỨ HAI: lookup_transaction đã lọc
+    # ở tầng danh sách, đây chỉ canh thêm cho nơi gọi nào quên bật cờ lọc.
+    trans_id = txn.get("trans_id")
+    txn_row = session.get(Transaction, trans_id) if trans_id else None
+    is_party = txn_row is not None and la_mot_ben_cua_giao_dich(session, txn_row, requesting_user_id)
     if not is_party:
         # KHÔNG hé lộ dù chỉ "có tồn tại giao dịch khớp" — trả nguyên dạng
         # not_found, đúng nguyên tắc PDPA "che nhầm còn hơn để lộ" đã áp dụng
@@ -346,6 +347,8 @@ def build_customer_tools(
         try:
             result = _lookup_transaction(
                 session,
+                # Đường AI: LUÔN chỉ giao dịch của chính khách đang chat.
+                chi_giao_dich_cua_nguoi_goi=True,
                 trans_id=trans_id,
                 rec_code=rec_code,
                 phone=phone,

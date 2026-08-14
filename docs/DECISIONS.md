@@ -428,6 +428,51 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
   `src/api/main.py::reject_resolution` + `schemas.py` ·
   `frontend/src/app/(app)/approve/` · test mới do tester viết TỪ CONTRACT.
 
+## ADR-021 — "Một bên của giao dịch" gồm cả ví LẪN tài khoản ngân hàng
+
+- **Ngày:** 2026-08-14 · **Trạng thái:** Dự thảo, chờ PO duyệt (fast-track) · Bổ sung ATLAS-001
+- **Bối cảnh:** `_enforce_requester_is_party` — lớp chặn sinh ra từ ATLAS-001 —
+  định nghĩa "người hỏi có phải một bên của giao dịch không" **chỉ bằng
+  `wallet_id`**. Định nghĩa đó bỏ sót một nửa mô hình dữ liệu: contract
+  `ck_transactions_scope_direction_i2` quy định `from_bank` có bên gửi là TÀI
+  KHOẢN NGÂN HÀNG (`send_bank_account_id`) và `to_bank` có bên nhận là tài
+  khoản ngân hàng. Với một giao dịch nạp tiền, **chủ tài khoản ngân hàng đứng
+  ở bên gửi — họ là một bên của giao dịch theo đúng nghĩa nghiệp vụ**, dù ví
+  bên kia có thuộc về ai.
+- **Quyết định:** định nghĩa "một bên của giao dịch" = **chủ của ví HOẶC chủ
+  của tài khoản ngân hàng** xuất hiện ở bất kỳ đầu nào của giao dịch. Viết
+  thành MỘT helper dùng chung; `_enforce_requester_is_party` (đường AI) và
+  lớp chặn mới ở route REST (đường CSKH/khách) cùng gọi đúng helper đó.
+- **Lý do — NGỮ NGHĨA, không phải để cứu dữ liệu:** một người nạp tiền từ tài
+  khoản ngân hàng của chính mình mà hệ thống trả "không tìm thấy giao dịch"
+  là **sai về nghiệp vụ**, bất kể dữ liệu seed hiện tại có bao nhiêu ca như
+  vậy. Lập luận này đúng kể cả khi bộ dữ liệu sạch tuyệt đối.
+- **Ghi rõ để không bị hiểu nhầm động cơ:** bản vá này **KHÔNG phải** cách cứu
+  dữ liệu `from_bank` hỏng (nhóm A1 — ví gán sai người). Dữ liệu hỏng vẫn phải
+  **reseed**, và con số ca lệch chủ đếm được hôm nay nhiều khả năng TRỘN cả
+  hai nguyên nhân nên không được dùng làm luận cứ. Đây chính là loại thay đổi
+  PO đã BÁC ở đợt triage A1 khi nó được đề xuất để làm test xanh; lần này khác
+  ở động cơ (sửa ngữ nghĩa cho đúng), không khác ở mức độ cẩn trọng.
+- **Lý do BÁC BỎ giữ nguyên wallet-only:** nó fail-closed nên không rò rỉ dữ
+  liệu, và vì thế rất dễ để yên. Nhưng nó hỏng **im lặng**: khách được báo
+  "không tìm thấy" về giao dịch có thật của chính họ, agent không có tín hiệu
+  nào để biết mình vừa bị chặn nhầm, và CSKH nhận ticket cũng không thấy dấu
+  vết. Một lớp bảo mật che nhầm mà không ai biết là lớp bảo mật sẽ bị gỡ bởi
+  một phiên sau, vì nó trông như bug vô cớ.
+- **Lý do BÁC BỎ "siết vô điều kiện ở route REST":** contract ghi
+  `POST /tools/lookup_transaction` là `any_authenticated` với ghi chú "không ép
+  role vì cả customer lẫn cskh/supervisor đều tra cứu được; quyền xem dữ liệu
+  ai được ép ở tầng dưới". CSKH xử lý ticket phải tra được giao dịch của bất kỳ
+  khách nào. Nên lớp chặn áp **theo vai**: chỉ `customer` bị giới hạn ở giao
+  dịch của chính mình.
+- **Hệ quả:** `src/agents/tools/customer_tools.py` (dùng helper chung),
+  `src/api/main.py::lookup_transaction` (chặn theo vai),
+  `src/tools/create_ticket.py` (siết vô điều kiện — contract cho route
+  create_ticket chỉ `customer`, nên trans_id phải thuộc người gọi; một chỗ sửa
+  phủ cả đường REST lẫn đường AI vì cả hai cùng gọi hàm này).
+  Tester viết test HAI CHIỀU: chính chủ tài khoản ngân hàng tra ĐƯỢC, người lạ
+  vẫn BỊ CHẶN. Security rà ngữ nghĩa mới trong lượt probe C4.
+
 ---
 
 ## Mẫu ADR mới

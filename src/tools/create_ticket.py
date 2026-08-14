@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from src.db.models import Complaint, Ticket, Transaction, User
 from src.tools.base import ToolError, _new_id, record_tool_result
 from src.tools.fraud_policy import evaluate_escalation
+from src.tools.lookup_transaction import la_mot_ben_cua_giao_dich
 from src.tools.sla import compute_sla_due_at
 
 VALID_COMPLAINT_TYPES = {"wrong_recipient", "money_not_received", "double_charge", "refund", "other"}
@@ -47,10 +48,23 @@ def create_ticket(
     if trans_id is not None:
         # (từ chối nếu trans_id không tồn tại) — not_found hợp lệ chỉ khi
         # trans_id là None, tức agent đã tra và không ra kết quả nào.
-        if session.get(Transaction, trans_id) is None:
+        txn = session.get(Transaction, trans_id)
+        if txn is None:
             raise ToolError(
                 f"trans_id không tồn tại: {trans_id} — nếu đây là case không tra ra "
                 "giao dịch, gọi lại với trans_id=None thay vì đoán một mã"
+            )
+        # C4/BOLA (ADR-021) — tồn tại là CHƯA ĐỦ, phải THUỘC VỀ người khiếu nại.
+        # Siết vô điều kiện được vì contract cho route /tools/create_ticket đúng
+        # một vai `customer`; và vì cả đường REST lẫn đường AI cùng đi qua hàm
+        # này, một chỗ sửa phủ cả hai. Không kiểm thì một khách tạo được ticket
+        # tham chiếu giao dịch của khách KHÁC — không lộ số liệu (tool không trả
+        # chi tiết) nhưng CSKH có thể xử lý nhầm trên dữ liệu không thuộc người
+        # khiếu nại, và đó là nhiễu vào chính hồ sơ kiểm toán.
+        if not la_mot_ben_cua_giao_dich(session, txn, user_id):
+            raise ToolError(
+                f"trans_id không thuộc về người khiếu nại: {trans_id} — chỉ tạo hồ sơ "
+                "cho giao dịch mà chính khách là một bên"
             )
 
     now = now or dt.datetime.utcnow()

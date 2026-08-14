@@ -496,8 +496,16 @@ def lookup_transaction(
     # việc này. Thao tác THẬT SỰ nhạy cảm (agent chủ động điều tra/tạo ticket
     # giữa hội thoại) đã được chặn đúng chỗ — xem create_ticket bên dưới và
     # customer_tools.py.
+    # C4/BOLA — siết THEO VAI, không vô điều kiện: contract ghi route này là
+    # `any_authenticated` kèm ghi chú "quyền xem dữ liệu ai được ép ở tầng
+    # dưới". CSKH/sếp PHẢI tra được giao dịch của mọi khách khi xử lý ticket;
+    # chỉ `customer` bị giới hạn ở giao dịch của chính mình.
     return _handle_tool_error(
-        _lookup_transaction, session, requesting_user_id=current_user.user_id, **req.model_dump()
+        _lookup_transaction,
+        session,
+        requesting_user_id=current_user.user_id,
+        chi_giao_dich_cua_nguoi_goi=(current_user.role == "customer"),
+        **req.model_dump(),
     )
 
 

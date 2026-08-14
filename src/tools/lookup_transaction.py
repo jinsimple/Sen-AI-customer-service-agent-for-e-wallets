@@ -83,6 +83,29 @@ def _serialize_transaction(session: Session, txn: Transaction, requesting_user_i
     }
 
 
+def la_mot_ben_cua_giao_dich(session: Session, txn: Transaction, user_id: str) -> bool:
+    """ADR-021 — `user_id` có phải MỘT BÊN của giao dịch `txn` không.
+
+    Định nghĩa gồm CẢ ví LẪN tài khoản ngân hàng. Bản cũ (ATLAS-001) chỉ so
+    `wallet_id`, bỏ sót một nửa mô hình dữ liệu: theo CHECK
+    `ck_transactions_scope_direction_i2`, `from_bank` có bên GỬI là tài khoản
+    ngân hàng và `to_bank` có bên NHẬN là tài khoản ngân hàng. Với giao dịch
+    nạp tiền, chủ tài khoản ngân hàng là một bên theo đúng nghĩa nghiệp vụ —
+    trả "không tìm thấy" cho chính họ là sai, bất kể dữ liệu seed ra sao.
+
+    ĐÂY LÀ ĐỊNH NGHĨA DUY NHẤT. Mọi nơi cần hỏi "ai được xem giao dịch này"
+    phải gọi hàm này, không tự so lại — hai định nghĩa cho cùng một khái niệm
+    là mầm lệch pha (bài học guard-drift, xem ADR-021).
+    """
+    vi_cua_toi = set(session.scalars(select(Wallet.wallet_id).where(Wallet.user_id == user_id)))
+    if txn.send_wal_id in vi_cua_toi or txn.rec_wal_id in vi_cua_toi:
+        return True
+    tk_cua_toi = set(
+        session.scalars(select(BankAccount.bank_account_id).where(BankAccount.user_id == user_id))
+    )
+    return txn.send_bank_account_id in tk_cua_toi or txn.rec_bank_account_id in tk_cua_toi
+
+
 def lookup_transaction(
     session: Session,
     *,
@@ -93,6 +116,7 @@ def lookup_transaction(
     date_from: dt.datetime | None = None,
     date_to: dt.datetime | None = None,
     requesting_user_id: str | None = None,
+    chi_giao_dich_cua_nguoi_goi: bool = False,
 ) -> dict[str, Any]:
     """Tra cứu giao dịch. Ưu tiên `trans_id` > `rec_code` > (`phone` + `amount` [+ khoảng ngày]).
 
@@ -127,9 +151,25 @@ def lookup_transaction(
                     stmt = stmt.where(Transaction.created_at <= date_to)
                 matches = list(session.scalars(stmt))
     else:
-        raise ValueError(
-            "lookup_transaction cần trans_id, hoặc rec_code, hoặc (phone + amount)"
-        )
+        # Contract đòi `status='error'`, KHÔNG phải crash. Trước đây raise
+        # ValueError -> `_handle_tool_error` (main.py) không bắt ValueError ->
+        # HTTP 500 lộ ra người dùng. Đường AI không dính vì customer_tools tự
+        # chặn trước, nhưng route REST thì có.
+        return {
+            "status": "error",
+            "message": "lookup_transaction cần trans_id, hoặc rec_code, hoặc (phone + amount)",
+        }
+
+    # === Lọc quyền sở hữu (C4/BOLA) — Ở TẦNG DANH SÁCH, KHÔNG Ở TẦNG KẾT QUẢ ===
+    # Đặt ở đây thay vì bọc quanh từng dạng kết quả là có chủ đích: cả ba
+    # dạng (found/not_found/multiple_matches) đều SUY RA từ `matches`, nên lọc
+    # một chỗ là phủ kín, và không thể sót dạng nào. Bản vá cũ chỉ bọc nhánh
+    # `found` nên đường tra phone+amount vẫn trả `multiple_matches` kèm
+    # trans_id của người khác — đủ để dựng lại hồ sơ CHỈ TỪ MỘT SỐ ĐIỆN THOẠI.
+    # Danh sách lọc sạch tự thành `not_found`: không hé lộ cả việc "có tồn tại
+    # giao dịch khớp", đúng nguyên tắc PDPA đã dùng nhất quán trong dự án.
+    if chi_giao_dich_cua_nguoi_goi and requesting_user_id:
+        matches = [m for m in matches if la_mot_ben_cua_giao_dich(session, m, requesting_user_id)]
 
     if len(matches) == 0:
         result = {"status": "not_found"}
