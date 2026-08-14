@@ -243,6 +243,30 @@ MỘT lần paired eval cả gói theo trần đã duyệt.
    riêng sau gói này.
 4. **CASE-110 đóng CÓ ĐIỀU KIỆN** như QA nêu — điều kiện chính là mục 3.
 
+## PHASE 1 ĐÓNG (5493080 — PO review lớp 2 ĐẠT, kiểm code + chạy lại test)
+
+- Verify thật: guard approve `!= pending_approval` ✓ · consume OTP
+  (`otp_status='consumed'` + xoá `otp_code`, dòng 62-63) ✓ · `created_by`
+  trong Resolution (models.py:338, nullable + comment tại chỗ) ✓ ·
+  test SEC của QA 9/9 xanh — đỏ thành xanh BẰNG FIX, không bằng sửa test ✓.
+- **DUYỆT "nullable vĩnh viễn, không backfill"** — đúng lệnh gốc, lý do ghi
+  đúng: bịa tên vào sổ kiểm toán tệ hơn để trống.
+- **GHIM cho ADR-020 (quan trọng):** CHECK maker–checker phải viết
+  `created_by IS NULL OR approved_by != created_by` — thiếu vế NULL là vỡ
+  trên dữ liệu cũ. Coder đã tự phát hiện, ghi vào đây để không rơi.
+- **Mục "Chatbot AI" 3 chỗ:** coder grep toàn frontend không có alert/aria
+  nào mang chuỗi đó — 3 chỗ thật là nav · h1 · eyebrow, đã sửa cả 3
+  (2a72245). QA: hoặc đưa selector cụ thể của "vùng alert" đã thấy, hoặc
+  đóng mục này — mô tả gốc nhiều khả năng là aria-live render lại text đã sửa.
+- Ghi nhận: coder tự đính chính phép thử OTP đầu (chết ở guard N-1) — bài
+  học "sống qua tầng N-1" của QA đã lan sang vai khác trong cùng ngày.
+  Đúng nghĩa tổ chức học.
+
+**Nhịp còn lại:** QA áp vá harness `must_create_manual_ticket` (ĐÃ duyệt từ
+f23552a — áp ngay, đừng chờ thêm) → coder chạy gói đo B2+004+083 (một lần)
+→ security nộp rà Phase 0+1 + sign-off TM-03 → coder làm field note (gộp
+migration cùng nhịp nếu kịp) → ADR-020.
+
 ## Việc của PO thật
 
 - Xoay LANGCHAIN_API_KEY theo hướng dẫn security (5 phút).
