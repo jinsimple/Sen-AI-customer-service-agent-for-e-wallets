@@ -91,7 +91,48 @@ Lỗ nằm ở **vế bên kia**: `created_by IS NULL`.
   nằm chưa commit** trong cây làm việc (của coder). Không phải lỗi bảo mật —
   nhắc để bump không bị mất hoặc bị commit nhầm bởi vai khác.
 
-## 6. Chưa kiểm được
+## 6. Điều kiện cho bản MỞ RỘNG sang `rejected_by` (PO đã duyệt F-18)
+
+Viết **trước khi coder sửa biểu thức**, để khỏi phải sửa hai lần.
+
+**Ba dạng viết đều ĐÚNG — đã dựng bảng chân trị trên Postgres thật, 6/6 tình
+huống cả ba cho kết quả giống hệt nhau:**
+
+| Tình huống (`c`=created_by, `a`=approved_by, `r`=rejected_by) | Kỳ vọng | A | B | C |
+|---|---|---|---|---|
+| `c=X`, chưa duyệt/từ chối | cho phép | ✓ | ✓ | ✓ |
+| **`c=X, a=X` tự duyệt** | **chặn** | ✓ | ✓ | ✓ |
+| `c=X, a=Y` duyệt đúng | cho phép | ✓ | ✓ | ✓ |
+| **`c=X, r=X` tự từ chối** | **chặn** | ✓ | ✓ | ✓ |
+| `c=X, r=Y` từ chối đúng | cho phép | ✓ | ✓ | ✓ |
+| `c=NULL` (dòng cũ) | cho phép | ✓ | ✓ | ✓ |
+
+- **A** — `(created_by IS NULL) OR (approved_by != created_by AND rejected_by != created_by)`
+- **B** — `... OR (approved_by IS DISTINCT FROM created_by AND rejected_by IS DISTINCT FROM created_by)`
+- **C** — `... OR ((approved_by IS NULL OR approved_by != created_by) AND (rejected_by IS NULL OR rejected_by != created_by))`
+
+**Khuyến nghị: dạng C.** Không phải vì A/B sai — cả ba chạy đúng — mà vì:
+- **A đúng nhờ logic ba trị tinh tế** (`NULL AND FALSE = FALSE`). Nó hoạt động,
+  nhưng người đọc sau rất dễ "rút gọn" nhầm, và đây là ràng buộc cứng không
+  nên phụ thuộc vào một bước suy luận mà ai cũng phải làm lại trong đầu.
+- **B cần SQLite ≥ 3.39** cho `IS DISTINCT FROM`. Máy này có 3.50.4 (đã kiểm),
+  nhưng test chạy trên SQLite ở cả CI và máy khác — **tôi không xác minh được
+  bản SQLite của mọi runner**, nên đây là rủi ro tương thích không cần gánh.
+- **C chỉ dùng `IS NULL` và `!=`**, hai trị, chạy giống nhau trên mọi bản
+  Postgres/SQLite, và đọc ra đúng nghĩa nghiệp vụ mà không cần suy luận NULL.
+
+**Kèm theo, cho migration:**
+- CHECK không sửa tại chỗ được — phải **DROP rồi CREATE lại** cùng tên.
+- **An toàn với dữ liệu hiện có**: đã kiểm, **0 dòng** có `created_by =
+  rejected_by` (vì 10/10 đang NULL), nên `ADD CHECK` không vỡ.
+- Cập nhật **cả ba nơi** cho khớp: `models.py`, migration, và `bieu_thuc`
+  trong `contracts/resolution-state-machine.yaml` — INV-15 phải khẳng định
+  **biểu thức mới**, nếu không test sẽ xanh trên biểu thức cũ.
+
+**Bảng 6 dòng ở trên là bài nghiệm thu re-probe của tôi** (giao tester dùng
+luôn làm ca kiểm cho INV-15/BR-12): chặn đúng 2 dòng, cho phép đúng 4 dòng.
+
+## 7. Chưa kiểm được
 
 - **Không chạy phép thử tự-duyệt qua HTTP thật**: sẽ phải tạo một resolution
   thật rồi duyệt/để lại rác trong hàng chờ demo, và stack đang chạy chưa có
