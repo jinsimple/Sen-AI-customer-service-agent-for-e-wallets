@@ -105,7 +105,8 @@ rõ — không bao giờ đỏ vì nhầm môi trường.
 | CI-5 | **Skip ≠ đạt** ở job Docker | Tắt stack trước khi chạy job → job phải ĐỎ (báo "không dựng được stack"), KHÔNG xanh | Bật stack → xanh |
 | CI-6 | Test dữ liệu-môi-trường không đỏ oan | Chạy `tests/test_migrations/` trên Postgres rỗng → skip sạch, không error | Chạy trên DB demo → đỏ đúng ca thật |
 | CI-7 | Cổng so sánh eval nối vào CI | `measure_quality.py --so-sanh` trả **exit 1** khi có ca xấu đi → job phải đỏ | Hai lượt giống nhau → exit 0, xanh |
-| CI-8 | Thước bất động được canh ở CI | Gỡ guard trong `gen_dataset.py` → `tests/test_data/test_thuoc_bat_dong.py` phải đỏ | Trả guard lại → xanh |
+| CI-8 | Thước bất động được canh ở CI | Gỡ guard trong `scripts/gen_dataset.py` (bỏ nhánh `ap.error` khi thiếu `--cho-phep-ghi-de-thuoc`) → `tests/test_data/test_thuoc_bat_dong.py` **PHẢI đỏ**. Xanh khi guard đã gỡ nghĩa là test đang canh một thứ khác, không phải canh thước | Trả guard lại → xanh |
+| CI-9 | Nhóm `slow` không bị bỏ rơi | Để một test `slow` đỏ → CI phải đỏ. Job dùng `-m "not slow"` cho vòng nhanh thì BẮT BUỘC có job khác chạy `-m "slow"` (hoặc chạy đủ, không lọc) | Sửa lại → xanh |
 
 ## Cách nghiệm thu (tester làm sau khi coder nối dây)
 
@@ -140,3 +141,36 @@ chạy đủ. Nếu một job nào đó dùng `-m "not slow"`, phải có job kh
 
 Test này **tự khôi phục file trong `finally`**, nên chạy bao nhiêu lần cũng
 không để lại hậu quả — kể cả khi guard bị gỡ và sản phẩm ghi đè thật.
+
+---
+
+## CI-8 — trạng thái nghiệm thu (đọc kỹ trước khi tick)
+
+**Đã có bằng chứng test NHẠY với lỗi thật, nhưng chưa chạy được phép thử
+"gỡ guard" theo đúng câu chữ.** Hai chuyện khác nhau, ghi tách bạch:
+
+**Đã chứng minh:** lúc guard chưa tồn tại (trước `eb479ad`), tôi chạy chính
+`scripts/gen_dataset.py --out <tmp>` thật và đo được:
+
+```
+băm eval/golden_set.jsonl:  a5ea8c876df0  ->  7cf6157c624c
+```
+
+Tức `sau != truoc` — **đúng điều kiện làm assert của test đỏ**. Vậy test nhạy
+với đúng chế độ hỏng cần canh, không phải chỉ nhạy trên lý thuyết.
+
+**Chưa làm được:** chạy lại test với bản script đã gỡ guard. Lý do kỹ thuật,
+không phải lười: `gen_dataset.py` suy đường dẫn từ vị trí của chính nó
+(`ROOT = Path(__file__).resolve().parent.parent`, `eval_dir = ROOT / "eval"`),
+nên một bản copy đặt ngoài repo sẽ ghi vào `eval/` của thư mục tạm chứ không
+bao giờ chạm tới thước thật — thử kiểu đó chỉ tạo cảm giác đã kiểm.
+
+Muốn chạy đúng câu chữ thì phải sửa `scripts/gen_dataset.py` tại chỗ, mà đó là
+**vùng ghi của coder**. Tester không tự ý sửa file vùng khác kể cả để rồi hoàn
+tác — nên chọn một trong hai:
+
+- **coder** tạm gỡ nhánh `ap.error`, báo tester chạy xác nhận đỏ, rồi trả lại; hoặc
+- **PO** cho phép tester sửa tạm trong `scripts/` đúng một lần cho phép thử này.
+
+Không chọn cách nào thì CI-8 **chưa được tick**, và phải ghi là *"có bằng chứng
+gián tiếp, chưa nghiệm thu trực tiếp"* — không được ghi thành đã nghiệm thu.
