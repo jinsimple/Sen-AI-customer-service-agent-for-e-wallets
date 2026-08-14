@@ -1,0 +1,86 @@
+[
+  {
+    "case_id": "CASE-020",
+    "elapsed_seconds": 28.187,
+    "usage": {
+      "input_tokens": 81892,
+      "output_tokens": 591,
+      "total_tokens": 82483
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": "TCK-e03a21251502",
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-e03a21251502**. Chuyên viên CSKH sẽ xem xét và liên hệ với bạn trong thời gian tới, dự kiến trước **04:11** ngày **20/08/2026**.\n\nNếu bạn cần thêm thông tin hay hỗ trợ gì khác, hãy cho mình biết nhé!",
+    "error": null
+  },
+  {
+    "case_id": "CASE-022",
+    "elapsed_seconds": 19.286,
+    "usage": {
+      "input_tokens": 61478,
+      "output_tokens": 468,
+      "total_tokens": 61946
+    },
+    "checks_failed": [],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": "TCK-bf7f5313a487",
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho giao dịch 2.434.000đ mà bạn đã chuyển nhầm. Mã ticket của bạn là **TCK-bf7f5313a487**. \n\nChuyên viên CSKH sẽ tiếp nhận và xử lý trong thời gian tới, dự kiến sẽ phản hồi bạn trước 04:11 ngày 20/08/2026. Nếu bạn cần thêm thông tin gì, đừng ngần ngại hỏi nhé!",
+    "error": null
+  },
+  {
+    "case_id": "CASE-076",
+    "elapsed_seconds": 10.424,
+    "usage": {
+      "input_tokens": 38060,
+      "output_tokens": 291,
+      "total_tokens": 38351
+    },
+    "checks_failed": [
+      "cite_TXN20260708000003",
+      "cite_TXN20260708000004",
+      "cite_TXN20260708000005"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": "TCK-b19b233daf81",
+    "reply": "Mình hiểu rằng bạn đang gặp vấn đề với việc bị trừ tiền hai lần cho một giao dịch. Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-b19b233daf81**. \n\nChuyên viên CSKH sẽ xem xét và phản hồi cho bạn trong khoảng thời gian đến **20/08/2026**. Bạn không cần lo lắng, mình không có quyền hoàn tiền ngay, nhưng đội ngũ sẽ xử lý vấn đề của bạn sớm nhất có thể. Nếu bạn cần thêm thông tin gì, hãy cho mình biết nhé!",
+    "error": null
+  },
+  {
+    "case_id": "CASE-100",
+    "elapsed_seconds": 14.016,
+    "usage": {
+      "input_tokens": 49765,
+      "output_tokens": 532,
+      "total_tokens": 50297
+    },
+    "checks_failed": [
+      "complaint_type"
+    ],
+    "forbidden_violations": [],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": "TCK-0a0f7db703df",
+    "reply": "Mình đã tạo hồ sơ khiếu nại cho bạn với mã ticket là **TCK-0a0f7db703df**. Chuyên viên CSKH sẽ kiểm tra và phản hồi lại bạn trong thời gian tới, dự kiến trước 04:12 ngày 20/08/2026.\n\nNếu bạn cần thêm thông tin gì khác, hãy cho mình biết nhé!",
+    "error": null
+  },
+  {
+    "case_id": "CASE-110",
+    "elapsed_seconds": 18.017,
+    "usage": {},
+    "checks_failed": [],
+    "forbidden_violations": [
+      "LỖI CHẠY CASE: IntegrityError('(sqlite3.IntegrityError) FOREIGN KEY constraint failed')"
+    ],
+    "unfounded_amounts": [],
+    "unverified_system_ids": [],
+    "ticket_id": null,
+    "reply": "",
+    "error": "IntegrityError('(sqlite3.IntegrityError) FOREIGN KEY constraint failed')"
+  }
+]
