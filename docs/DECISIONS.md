@@ -428,6 +428,56 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
   `src/api/main.py::reject_resolution` + `schemas.py` ·
   `frontend/src/app/(app)/approve/` · test mới do tester viết TỪ CONTRACT.
 
+## ADR-020 — Maker-checker (BR-12): người đề xuất không được tự duyệt
+
+- **Ngày:** 2026-08-15 · **Trạng thái:** Dự thảo — PO điều phối đã duyệt làm,
+  chờ security rà + PO thật ký · Ghim từ trước ở migration `b2c3d4e5f6a7`
+- **Bối cảnh:** HITL của dự án đứng trên giả định "có người thứ hai xem lại".
+  Giả định đó chưa được ép ở đâu cả. Cửa là có thật, không phải lo xa:
+  `POST /tools/propose_resolution` cho phép **cả `cskh` lẫn `supervisor`**, còn
+  `POST /resolutions/{id}/approve` yêu cầu `supervisor` — nên một supervisor đi
+  trọn được cả hai đầu. Khi đó "duyệt" chỉ còn là thao tác thứ hai của cùng một
+  người, và toàn bộ ý nghĩa kiểm soát biến mất trong khi mọi bản ghi kiểm toán
+  trông vẫn hoàn hảo.
+- **Quyết định:** thêm `ck_resolutions_maker_checker_br12` với biểu thức
+  `(created_by IS NULL) OR (approved_by != created_by)`, **kèm** một chốt chặn
+  cùng nội dung ở `approve_resolution` trả 403.
+- **Vì sao PHẢI có điều kiện NULL:** `created_by` nullable **vĩnh viễn**
+  (`b2c3d4e5f6a7`) — resolution có trước cột đó không có cách nào biết ai đề
+  xuất, và đoán một cái tên vào sổ kiểm toán còn tệ hơn để trống. CHECK vô điều
+  kiện sẽ vỡ ngay trên chính các dòng ấy. Không cần thêm vế cho resolution chưa
+  duyệt: `approved_by` NULL làm biểu thức cho ra NULL, mà SQL coi CHECK cho ra
+  NULL là **thoả**.
+- **Vì sao ép ở CẢ HAI tầng, không chọn một:** chỉ có CHECK thì sếp bấm duyệt
+  đề xuất của chính mình sẽ nhận **HTTP 500 kèm IntegrityError** — người dùng
+  không hiểu chuyện gì, còn log trông như hệ thống hỏng thay vì như một quy tắc
+  nghiệp vụ đang làm đúng việc. Chỉ có tầng ứng dụng thì mọi đường ghi thẳng
+  (script, migration ẩu, sửa tay trên DB) đi qua tự do. DB là chốt chặn **cuối**;
+  route là chốt chặn **đọc được cho con người**.
+- **GIỚI HẠN, ghi rõ để không ai đọc nhầm:** đo tại thời điểm viết, **10/10
+  resolution đều `created_by IS NULL`** ⟹ ràng buộc này hiện **không ràng dòng
+  nào**. Nó chỉ bắt đầu bảo vệ từ resolution tạo qua route mới (route đã truyền
+  `created_by` lấy từ JWT, không lấy từ body). Sự **tồn tại** của constraint
+  không phải bằng chứng dữ liệu cũ đã sạch — cùng một lỗi suy luận mà dự án đã
+  gặp ở "assertion trùng với trạng thái mặc định".
+- **Lý do BÁC BỎ "sửa dữ liệu cho constraint chạy qua":** migration dừng hẳn với
+  thông báo đọc được nếu gặp dòng vi phạm, thay vì tự dọn. Một dòng
+  đề-xuất-bằng-người-duyệt là **sự kiện nghiệp vụ cần điều tra** (ai thật sự
+  duyệt?), không phải rác cần gạt sang bên để migration xanh.
+- **INV-15 (bổ sung sau review lớp 2 của PO):** BR-10 có INV-07, BR-11 có
+  INV-14, BR-12 ban đầu **không có số INV nào** — nghĩa là gỡ constraint đi thì
+  test hành vi của QA đỏ, nhưng bộ bất biến vẫn 22/22 xanh. Khác biệt không nhỏ:
+  test hành vi chứng minh ràng buộc ĐANG chạy hôm nay; ràng buộc hiện-diện
+  chứng minh nó CÒN ĐÓ ngày mai. Một phiên sau đọc cái đỏ hành vi thành "test
+  hỏng" và sửa test là xong; còn đỏ ở bộ bất biến thì không sửa được bằng cách
+  viết lại kỳ vọng.
+- **Hệ quả:** `contracts/resolution-state-machine.yaml` v2.2.1 (BR-12 +
+  INV-15) · `src/db/models.py` (1 CHECK) · `migrations/d4e5f6a7b8c9` ·
+  `src/api/main.py::approve_resolution` · `CONTRACT_VERSION` đóng dấu lại ·
+  tester viết test HAI CHIỀU **từ contract**: người khác duyệt vẫn ĐƯỢC, tự
+  duyệt BỊ CHẶN (và chặn bằng 403 đọc được, không phải 500), cộng test hiện
+  diện đối xứng với INV-07/INV-14.
+
 ## ADR-021 — "Một bên của giao dịch" gồm cả ví LẪN tài khoản ngân hàng
 
 - **Ngày:** 2026-08-14 · **Trạng thái:** Dự thảo, chờ PO duyệt (fast-track) · Bổ sung ATLAS-001

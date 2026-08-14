@@ -905,6 +905,25 @@ def approve_resolution(
             detail="Số tiền resolution đã thay đổi kể từ lúc xin OTP — xin mã mới cho đúng số tiền hiện tại",
         )
 
+    # BR-12 maker-checker (ADR-020) — CHẶN Ở ĐÂY, dù DB đã có CHECK
+    # ck_resolutions_maker_checker_br12. Không phải phòng vệ thừa: nếu chỉ dựa
+    # vào CHECK thì sếp tự duyệt đề xuất của chính mình sẽ nhận HTTP 500 kèm
+    # IntegrityError — người dùng không hiểu chuyện gì, log thì trông như hệ
+    # thống hỏng chứ không như một quy tắc nghiệp vụ đang làm đúng việc. Tầng
+    # DB là chốt chặn CUỐI (chặn cả đường ghi thẳng, script, migration ẩu);
+    # tầng này là chốt chặn ĐỌC ĐƯỢC cho con người.
+    #
+    # Cửa này có thật: route đề xuất cho phép cả cskh LẪN supervisor, route
+    # duyệt yêu cầu supervisor — một supervisor đi trọn được cả hai đầu.
+    if resolution.created_by is not None and resolution.created_by == current_user.user_id:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Người đề xuất không được tự duyệt đề xuất của chính mình "
+                "(maker-checker) — cần một supervisor khác duyệt"
+            ),
+        )
+
     resolution.status = "approved"
     resolution.approved_by = current_user.user_id
     resolution.approved_at = dt.datetime.utcnow()

@@ -316,6 +316,17 @@ class Resolution(Base):
             "AND rejected_by IS NOT NULL AND rejected_at IS NOT NULL)",
             name="ck_resolutions_rejected_requires_reason_br11",
         ),
+        # BR-12 maker-checker (ADR-020). Điều kiện `created_by IS NULL` là BẮT
+        # BUỘC, không phải nới lỏng: cột đó nullable vĩnh viễn cho resolution có
+        # trước nó (migration b2c3d4e5f6a7 — đoán tên người vào sổ kiểm toán còn
+        # tệ hơn để trống), nên CHECK vô điều kiện sẽ vỡ ngay trên dữ liệu cũ.
+        # Khi `approved_by` còn NULL thì `approved_by != created_by` cho NULL,
+        # và CHECK coi NULL là THOẢ — nên không cần thêm vế cho resolution chưa
+        # duyệt.
+        CheckConstraint(
+            "(created_by IS NULL) OR (approved_by != created_by)",
+            name="ck_resolutions_maker_checker_br12",
+        ),
     )
 
     resolution_id: Mapped[str] = mapped_column(String, primary_key=True)

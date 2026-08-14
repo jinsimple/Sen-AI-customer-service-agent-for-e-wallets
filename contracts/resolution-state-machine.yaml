@@ -14,7 +14,7 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.1.0"
+version: "2.2.1"
 source: >
   Sinh ngược từ src/db/models.py @ 2026-08-13 · thay thế ticket-state-machine.yaml
   v1.0.0. v2.1.0 (2026-08-14): thêm taxonomy reject_reason + INV-14 + quy tắc
@@ -91,6 +91,29 @@ resolution:
         - "reject_reason BẮT BUỘC, thuộc enum reject_reason bên dưới"
         - "rejected_by = supervisor thực hiện · rejected_at = thời điểm từ chối"
         - "Ép ở tầng DB: ck_resolutions_rejected_requires_reason_br11 (INV-14)"
+
+  # ---- Ràng buộc BR-12 maker-checker (ADR-020), ép ở tầng DB ----
+  invariant_db_maker_checker:
+    ten: "ck_resolutions_maker_checker_br12"
+    bieu_thuc: "(created_by IS NULL) OR (approved_by != created_by)"
+    y_nghia: >
+      Người ĐỀ XUẤT một resolution không được là người DUYỆT chính nó. HITL mà
+      một người vừa đề xuất vừa tự duyệt thì chỉ còn là một thao tác hai bước
+      của cùng một người — mất trọn ý nghĩa "có người thứ hai xem lại". Cửa mở
+      là có thật, không giả định: route đề xuất cho phép cả `cskh` LẪN
+      `supervisor`, còn route duyệt yêu cầu `supervisor`, nên một supervisor
+      hoàn toàn có thể đi trọn hai đầu.
+    vi_sao_co_dieu_kien_null: >
+      `created_by` nullable VĨNH VIỄN (migration b2c3d4e5f6a7): resolution tạo
+      trước khi có cột này không có cách nào biết ai đề xuất, và đoán một cái
+      tên vào sổ kiểm toán còn tệ hơn để trống. CHECK vô điều kiện sẽ vỡ trên
+      chính các dòng đó.
+    canh_bao_hieu_luc: >
+      Ràng buộc này CHƯA có hiệu lực hồi tố: 10/10 resolution hiện có đều
+      `created_by IS NULL` nên không dòng nào bị nó ràng. Nó chỉ bắt đầu bảo vệ
+      từ các resolution tạo qua route mới (route đã truyền created_by từ JWT).
+      Ghi ra đây để không ai đọc sự TỒN TẠI của constraint thành bằng chứng
+      rằng dữ liệu cũ đã sạch.
 
   # ---- Taxonomy lý do từ chối (ADR-019) ----
   reject_reason:
@@ -207,6 +230,18 @@ invariants:
       trong models.py — đối xứng với INV-07 của nhánh approve. Không tồn tại
       resolution 'rejected' mà thiếu reject_reason/rejected_by/rejected_at.
     nguon: "BR-11 (ADR-019). Đánh số 14 vì INV-13 đã thuộc agent-tools.yaml."
+  - id: INV-15
+    mo_ta: >
+      CHECK constraint ck_resolutions_maker_checker_br12 phải tồn tại trong
+      models.py — hoàn tất bộ ba cùng INV-07 (nhánh approve) và INV-14 (nhánh
+      reject). Người đề xuất không được là người duyệt.
+    nguon: >
+      BR-12 (ADR-020). Vì sao cần vế "hiện diện" riêng dù đã có test hành vi:
+      test hành vi của QA chứng minh ràng buộc ĐANG chạy hôm nay; INV này
+      chứng minh nó vẫn CÒN ĐÓ ngày mai. Gỡ constraint đi thì test hành vi đỏ
+      — nhưng một phiên sau có thể đọc cái đỏ đó thành "test hỏng" và sửa test.
+      Ràng buộc hiện-diện làm chính bộ bất biến đỏ, tức là đỏ ở chỗ không ai
+      sửa bằng cách viết lại kỳ vọng.
   - id: INV-12
     mo_ta: >
       Mọi giá trị status/action_type dùng trong contract này phải khớp CHÍNH XÁC
