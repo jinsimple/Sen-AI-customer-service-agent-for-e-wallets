@@ -417,18 +417,31 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       await staffPage.getByRole("button", { name: "Nhận phiên chat này" }).click();
       await expect(staffPage.getByText("Đã kết nối")).toBeVisible({ timeout: 10_000 });
 
+      // Gửi rồi ĐỢI ô nhập sạch mới gửi tiếp. Lý do (đo thật 14/08): ô nhập
+      // được remount sau mỗi lần gửi (bản vá triệu chứng của L4-04) — bắn
+      // fill() ngay lập tức có thể gõ vào node đã bị gỡ, tin không bao giờ
+      // được gửi đi và test đổ lỗi nhầm cho fan-out. Người thật gõ chậm hơn
+      // nhiều nên không gặp; test phải mô phỏng đúng nhịp đó thay vì tạo ra
+      // một điều kiện đua không có thật trong sử dụng thường.
+      async function sendAndSettle(page: Page, text: string) {
+        const input = page.getByPlaceholder("Nhập tin nhắn...");
+        await input.fill(text);
+        await input.press("Enter");
+        await expect(page.getByPlaceholder("Nhập tin nhắn...")).toHaveValue("", { timeout: 5_000 });
+      }
+
       const stamp = Date.now(); // chuỗi duy nhất mỗi lần chạy — chạy lại không đụng tin cũ
       const ROUNDS = 5;
       for (let i = 1; i <= ROUNDS; i++) {
         const fromStaff = `cskh-${stamp}-${i}`;
-        await sendMessage(staffPage, fromStaff);
+        await sendAndSettle(staffPage, fromStaff);
         await expect(
           customerPage.locator(".chat-thread .bubble", { hasText: fromStaff }),
           `tin CSKH->khách vòng ${i} phải tới đúng 1 lần`,
         ).toHaveCount(1, { timeout: 15_000 });
 
         const fromCustomer = `khach-${stamp}-${i}`;
-        await sendMessage(customerPage, fromCustomer);
+        await sendAndSettle(customerPage, fromCustomer);
         await expect(
           staffPage.locator(".chat-thread .bubble", { hasText: fromCustomer }),
           `tin khách->CSKH vòng ${i} phải tới đúng 1 lần`,

@@ -40,6 +40,13 @@ _WS_TICKET_TTL_SECONDS = 30
 # đó chính là bug chập chờn cũ quay lại dưới dạng khó bắt hơn (cùng triết lý
 # ADR-013: không fallback im lặng).
 _WS_TICKET_KEY = "fin05:ws_ticket:"
+# QA-13 — tập phiên mà mỗi CSKH đang giữ, để socket nối LẠI tự gắn lại đúng
+# phiên. TTL rộng hơn một ca trực; phiên đóng thì SREM ngay (xem close/release).
+_STAFF_SESSIONS_KEY = "fin05:live_chat:staff_sessions:"
+_STAFF_SESSIONS_TTL_SECONDS = 12 * 3600
+# Ánh xạ NGƯỢC: phiên -> CSKH đang giữ. Dùng lúc GIAO TIN để không phụ thuộc
+# thứ tự các sự kiện đăng ký giữa các worker (xem _deliver_session_local).
+_SESSION_STAFF_KEY = "fin05:live_chat:session_staff:"
 _logger = logging.getLogger("fin05.live_chat_ws")
 
 
@@ -94,6 +101,8 @@ class ConnectionManager:
         self._session_sockets: dict[str, set[WebSocket]] = defaultdict(set)
         self._user_sockets: dict[str, set[WebSocket]] = defaultdict(set)
         self._staff_sockets: set[WebSocket] = set()
+        # Nhớ tạm "phiên -> CSKH" để khỏi đọc Redis mỗi tin nhắn (QA-13).
+        self._session_staff: dict[str, str] = {}
         # Đồng bộ Redis (đợt nâng cấp Auth Flow 2026-08-12, xem
         # src/rate_limit.py) — trước đây in-memory dict riêng của process,
         # mất sạch state mỗi lần restart backend (rate-limit "reset" âm thầm
@@ -159,20 +168,37 @@ class ConnectionManager:
             # của nhân viên không mang chat_session_id (lúc xin vé họ chưa
             # nhận ca nào), nên nếu chỉ dựa vào notify_claimed thì một lần
             # rớt mạng/đổi tab là socket mới vĩnh viễn không thuộc phiên nào
-            # — tin của khách lại biến mất im lặng. Nguồn sự thật là DB
-            # (chat_sessions.claimed_by), không phải RAM của process nào.
-            for cs_id in self._active_session_ids_claimed_by(user_id):
+            # — tin của khách lại biến mất im lặng. Kịch bản rất thật khi
+            # demo/trực ca trên wifi.
+            for cs_id in self._phien_da_nhan_cua_cskh(user_id):
                 self._session_sockets[cs_id].add(ws)
 
     @staticmethod
-    def _active_session_ids_claimed_by(staff_id: str) -> list[str]:
-        with SessionLocal() as session:
-            rows = session.execute(
-                select(ChatSession.chat_session_id).where(
-                    ChatSession.claimed_by == staff_id, ChatSession.status == "active"
-                )
-            ).all()
-        return [r[0] for r in rows]
+    def _phien_da_nhan_cua_cskh(staff_id: str) -> list[str]:
+        """Các phiên CSKH này đang giữ, đọc từ REDIS (không phải DB, không phải
+        RAM process): cùng lý do đã chọn Redis cho kho vé WS ở QA-01 — trạng
+        thái phải nhìn thấy được từ MỌI worker. Lỗi Redis KHÔNG được làm hỏng
+        kết nối WS: đây là lưới an toàn cho lần nối lại, đường chính vẫn là
+        pub/sub 'claim'. Nuốt lỗi ở đây là có chủ đích nhưng KHÔNG im lặng —
+        có log cảnh báo (ADR-013)."""
+        try:
+            raw = get_default_client().smembers(_STAFF_SESSIONS_KEY + staff_id)
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("live_chat_staff_sessions_read_failed", extra={"staff_id": staff_id, "loi": repr(e)})
+            return []
+        return [s.decode() if isinstance(s, bytes) else str(s) for s in (raw or ())]
+
+    def _quen_phien_cua_cskh(self, staff_id: str, chat_session_ids: list[str]) -> None:
+        if not chat_session_ids:
+            return
+        for cs_id in chat_session_ids:
+            self._session_staff.pop(cs_id, None)
+        try:
+            client = get_default_client()
+            client.srem(_STAFF_SESSIONS_KEY + staff_id, *chat_session_ids)
+            client.delete(*[_SESSION_STAFF_KEY + cs for cs in chat_session_ids])
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("live_chat_staff_sessions_srem_failed", extra={"staff_id": staff_id, "loi": repr(e)})
 
     def _dang_ky_cskh_vao_phien_local(self, chat_session_id: str, staff_user_id: str) -> None:
         """Gắn mọi socket LOCAL của CSKH đó vào phiên. Gọi ở 2 nơi: worker xử
@@ -238,20 +264,55 @@ class ConnectionManager:
         elif kind == "claim" and target:
             # QA-13 lớp 1 — KHÔNG giao tin, chỉ ĐĂNG KÝ: worker này có thể
             # đang giữ socket của CSKH vừa nhận ca ở worker khác.
-            self._dang_ky_cskh_vao_phien_local(target, str(payload.get("staff_user_id") or ""))
+            staff_user_id = str(payload.get("staff_user_id") or "")
+            self._session_staff[target] = staff_user_id
+            self._dang_ky_cskh_vao_phien_local(target, staff_user_id)
+        elif kind == "unclaim" and target:
+            # Phiên đã trả về hàng chờ/đổi người giữ — MỌI worker phải quên
+            # ánh xạ cũ, nếu không tin của khách vẫn chảy tới CSKH cũ.
+            self._session_staff.pop(target, None)
 
     async def send_to_session(self, chat_session_id: str, payload: dict[str, Any]) -> None:
         await self._deliver_session_local(chat_session_id, payload)
         await self._publish("session", chat_session_id, payload)
 
     async def _deliver_session_local(self, chat_session_id: str, payload: dict[str, Any]) -> None:
-        for ws in list(self._session_sockets.get(chat_session_id, ())):
+        # QA-13 — người nhận được quyết định LÚC GIAO TIN, không phụ thuộc vào
+        # việc đăng ký trước đó có kịp/có tới worker này hay không.
+        #
+        # Vì sao không chỉ dựa vào _session_sockets: tập đó được điền bởi 2 sự
+        # kiện xảy ra ở worker KHÁC (REST claim, rồi pub/sub). Đo thật 13/08
+        # cho thấy chỉ dựa vào chúng vẫn mất tin lẻ tẻ — mọi cơ chế "đăng ký
+        # trước, giao sau" đều có cửa sổ đua và điểm hỏng im lặng. Nguồn sự
+        # thật "ai đang giữ phiên này" nằm ở Redis (thấy được từ MỌI worker),
+        # nên tra thẳng lúc giao là đường ngắn nhất, không cửa sổ đua.
+        targets = {id(ws): ws for ws in self._session_sockets.get(chat_session_id, ())}
+        staff_id = self._cskh_dang_giu_phien(chat_session_id)
+        if staff_id:
+            for ws in self._user_sockets.get(staff_id, ()):
+                targets.setdefault(id(ws), ws)
+        for ws in list(targets.values()):
             try:
                 await ws.send_json(payload)
             except Exception:
                 _logger.warning(
                     "live_chat_ws_send_failed", extra={"chat_session_id": chat_session_id, "payload_type": payload.get("type")}
                 )
+
+    def _cskh_dang_giu_phien(self, chat_session_id: str) -> str | None:
+        """CSKH đang giữ phiên, đọc từ Redis + nhớ lại trong RAM (1 lần đọc cho
+        mỗi phiên trên mỗi worker, KHÔNG phải mỗi tin nhắn)."""
+        if chat_session_id in self._session_staff:
+            return self._session_staff[chat_session_id]
+        try:
+            raw = get_default_client().get(_SESSION_STAFF_KEY + chat_session_id)
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("live_chat_session_staff_read_failed", extra={"chat_session_id": chat_session_id, "loi": repr(e)})
+            return None
+        staff_id = (raw.decode() if isinstance(raw, bytes) else raw) if raw else None
+        if staff_id:
+            self._session_staff[chat_session_id] = staff_id
+        return staff_id
 
     async def send_to_user(self, user_id: str, payload: dict[str, Any]) -> None:
         await self._deliver_user_local(user_id, payload)
@@ -301,6 +362,13 @@ class ConnectionManager:
             for cs in stale:
                 live_chat.transfer_session(db_session, chat_session_id=cs.chat_session_id)
             db_session.commit()
+
+        # QA-13: phiên đã trả về hàng chờ thì CSKH cũ không còn giữ nữa — dọn
+        # khỏi tập Redis để lần nối lại sau không tự gắn vào phiên người khác
+        # đang xử lý.
+        self._quen_phien_cua_cskh(staff_id, released_ids)
+        for cs_id in released_ids:
+            await self._publish("unclaim", cs_id, {})
 
         for chat_session_id in released_ids:
             await self.send_to_session(
@@ -372,6 +440,14 @@ class ConnectionManager:
         # ("giao/áp local trước, rồi publish cho worker khác").
         self._dang_ky_cskh_vao_phien_local(chat_session_id, staff_user_id)
         await self._publish("claim", chat_session_id, {"staff_user_id": staff_user_id})
+        self._session_staff[chat_session_id] = staff_user_id
+        try:
+            client = get_default_client()
+            client.sadd(_STAFF_SESSIONS_KEY + staff_user_id, chat_session_id)
+            client.expire(_STAFF_SESSIONS_KEY + staff_user_id, _STAFF_SESSIONS_TTL_SECONDS)
+            client.set(_SESSION_STAFF_KEY + chat_session_id, staff_user_id, ex=_STAFF_SESSIONS_TTL_SECONDS)
+        except Exception as e:  # noqa: BLE001
+            _logger.warning("live_chat_staff_sessions_write_failed", extra={"staff_id": staff_user_id, "loi": repr(e)})
         await self.send_to_user(staff_user_id, {"type": "claim_success", "chat_session_id": chat_session_id, "context": context})
         await self.broadcast_to_staff({"type": "session_claimed", "chat_session_id": chat_session_id})
         await self.send_to_session(chat_session_id, {"type": "system", "text": "Chuyên viên CSKH đã tham gia hội thoại."})

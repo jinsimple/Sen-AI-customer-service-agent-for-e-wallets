@@ -38,20 +38,32 @@ async def mint(cli, path, body, label):
 
 
 async def wait_for(ws, needle, timeout, log):
+    """Trả (số lần nhận được, có bị hệ thống CHẶN không).
+
+    BÀI HỌC ĐO ĐẠC (13/08): bản đầu chỉ đếm "tin có tới không" nên KHÔNG phân
+    biệt được 2 nguyên nhân hoàn toàn khác nhau — tin bị mất do fan-out hỏng
+    (BUG) và tin bị rate-limit chặn (ĐÚNG THIẾT KẾ, 60 tin/giờ/người). Đo dồn
+    nhiều đợt trong 1 giờ làm đụng trần rồi đọc nhầm thành "mất 51/80 tin".
+    Luôn tách 2 thứ đó ra, nếu không phép đo tự sinh ra báo động giả."""
     loop = asyncio.get_event_loop()
     end = loop.time() + timeout
     hits = 0
+    bi_chan = False
     try:
         while loop.time() < end:
             f = json.loads(await asyncio.wait_for(ws.recv(), timeout=max(0.1, end - loop.time())))
             log.append(f)
+            text = str(f.get("content", "")) + " " + str(f.get("text", "")) + " " + str(f.get("message", ""))
+            if f.get("type") in ("error", "rate_limited") or "quá nhanh" in text or "quá nhiều" in text:
+                bi_chan = True
+                break
             if needle in str(f.get("content", "")):
                 hits += 1
                 # đọc thêm 1.5s để bắt bản lặp (vọng Redis) nếu có
                 end = min(end, loop.time() + 1.5)
     except (TimeoutError, websockets.ConnectionClosed):
         pass
-    return hits
+    return hits, bi_chan
 
 
 async def session(n, cust, staff):
@@ -64,26 +76,29 @@ async def session(n, cust, staff):
         staff.post(f"{BASE}/api/live-chat/sessions/{chs}/claim")
         await wait_for(sws, "__none__", 2, slog)  # xả frame claim/backlog
 
-        missing, dup = [], []
+        missing, dup, bi_chan = [], [], False
         for i in range(1, ROUNDS + 1):
             m = f"s{n}-cskh-{i}"
             await sws.send(json.dumps({"type": "send_message", "chat_session_id": chs, "content": m}))
-            h = await wait_for(cws, m, TIMEOUT, clog)
-            if h == 0:
+            h, chan = await wait_for(cws, m, TIMEOUT, clog)
+            bi_chan = bi_chan or chan
+            if h == 0 and not chan:
                 missing.append(m)
             elif h > 1:
                 dup.append(f"{m}×{h}")
 
             m = f"s{n}-khach-{i}"
             await cws.send(json.dumps({"type": "send_message", "chat_session_id": chs, "content": m}))
-            h = await wait_for(sws, m, TIMEOUT, slog)
-            if h == 0:
+            h, chan = await wait_for(sws, m, TIMEOUT, slog)
+            bi_chan = bi_chan or chan
+            if h == 0 and not chan:
                 missing.append(m)
             elif h > 1:
                 dup.append(f"{m}×{h}")
 
         staff.post(f"{BASE}/api/live-chat/sessions/{chs}/close")
-    return {"phien": n, "chat_session_id": chs, "mat_tin": missing, "lap_tin": dup}
+    return {"phien": n, "chat_session_id": chs, "mat_tin": missing, "lap_tin": dup,
+            "bi_rate_limit": bi_chan}
 
 
 async def main(n_sessions):
@@ -102,7 +117,10 @@ async def main(n_sessions):
     tong = sum(len(r.get("mat_tin", [])) for r in results)
     lap = sum(len(r.get("lap_tin", [])) for r in results)
     loi = [r for r in results if r.get("loi")]
+    chan = [r["phien"] for r in results if r.get("bi_rate_limit")]
     print(f"\nTỔNG: {n_sessions} phiên × {ROUNDS} tin/chiều = {n_sessions*ROUNDS*2} tin · "
-          f"MẤT {tong} · LẶP {lap} · phiên lỗi {len(loi)}")
+          f"MẤT {tong} · LẶP {lap} · phiên lỗi {len(loi)} · phiên đụng rate-limit {chan}")
+    if chan:
+        print("  (phiên đụng rate-limit KHÔNG tính là mất tin — 60 tin/giờ/người là đúng thiết kế)")
 
 asyncio.run(main(int(sys.argv[1]) if len(sys.argv) > 1 else 6))
