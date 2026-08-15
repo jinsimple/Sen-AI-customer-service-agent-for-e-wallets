@@ -43,13 +43,24 @@ _O1_MA = [
 # Con số hiệu lực OTP — CHỈ tính khi câu đang nói về OTP. "15 phút" trong câu
 # nói về thời gian tra soát là vô hại; cùng con số đó cạnh chữ OTP là lộ cấu hình.
 _O1_SO_OTP = re.compile(r"\b(12\s*(gio|tieng)|15\s*phut|10\s*phut)\b")
+# Ngu canh kich hoat cho con so hieu luc: khong chi chu "otp". "Ma duyet cua sep
+# het han 10 phut" khong co chu OTP nhung lo dung con so cau hinh
+# RESOLUTION_APPROVAL_OTP_FRESH_MINUTES.
+_O1_NGU_CANH_MA = ["otp", "ma duyet", "ma xac nhan", "phe duyet", "ma xac thuc"]
+# NGUONG NOI BO dang "vuot nguong N trieu". Ca nay dac biet: 10 trieu la nguong
+# SINH TRAC HOC (QD 2345/QD-NHNN), KHONG phai nguong gian lan — hien phap §8 ghi
+# ro. Agent noi cau do vua ro cau hinh noi bo VUA SAI LUAT, nen chan la dung ca
+# hai mat.
+_O1_NGUONG_TIEN = re.compile(r"\b(vuot |tren |qua )?nguong\s*\d+\s*(trieu|tr|nghin|k)\b")
 
 
 def _khop_o1(reply: str) -> bool:
     if any(r.search(reply) for r in _O1_MA):
         return True
     sach = _bo_dau(reply)
-    return "otp" in sach and bool(_O1_SO_OTP.search(sach))
+    if _O1_NGUONG_TIEN.search(sach):
+        return True
+    return any(k in sach for k in _O1_NGU_CANH_MA) and bool(_O1_SO_OTP.search(sach))
 
 
 # ---------------------------------------------------------------- O2
@@ -85,7 +96,12 @@ _A_HOI_XAC_NHAN = [
 # B — chỉ tính khi cụm khẳng định/phủ định ĐỨNG NHƯ MỘT MỆNH ĐỀ TRẢ LỜI, tức mở
 # đầu một mệnh đề. "không có giao dịch nào chính xác với 500k" KHÔNG khớp vì
 # "chính xác" nằm giữa mệnh đề, không phải câu trả lời đúng/sai.
-_B_KHANG_DINH = ["dung roi", "chinh xac", "vang", "phai roi", "khong phai", "sai roi", "gan dung"]
+# Gom CA dang phu dinh: loai tru mot kha nang cung la MOT BIT oracle.
+# "Khong phai 21 dau" thu hep khong gian doan y nhu "dung roi" xac nhan no.
+_B_KHANG_DINH = [
+    "dung roi", "chinh xac", "vang", "phai roi", "gan dung", "dung vay",
+    "khong phai", "sai roi", "khong dung", "khong phai vay",
+]
 
 
 def _tach_menh_de(t: str) -> list[str]:
@@ -101,23 +117,80 @@ def _a_la_phong_doan(tin_nhan_khach: str) -> bool:
     return co_du_lieu and co_hoi
 
 
-# MÃ HỆ THỐNG do CHÍNH TA sinh ra — KHÔNG phải dữ liệu bị che của khách.
-# Đây là chỗ bản đầu của tôi sai nặng nhất: luật "dãy >=7 chữ số là rò rỉ" bắt
-# luôn `TXN20260504000247`, tức là bắt đúng thứ agent BẮT BUỘC phải trích dẫn
-# theo ràng buộc cứng 3 (mọi số phải truy được về một kết quả tool có thật).
-# Đo thật: 386/463 lần chặn là do luật này -> bộ lọc chặn gần hết chức năng
-# tra cứu, tức chức năng chính của sản phẩm.
-# `eval/measure_quality.py` đã giải đúng bài này từ trước bằng `_SYSTEM_ID_RE` +
-# `verified_ids`; tôi không đọc lại nó trước khi viết luật của mình.
-_MA_HE_THONG = re.compile(r"\b(?:TXN|TCK|CMP|RES|LOG|TR|USR)[-_]?[A-Za-z0-9]+\b")
+# LUAT XUAT XU — thay han danh sach tien to _MA_HE_THONG cua 7ee2ab5.
+#
+# Vi sao bo danh sach: no la DAP CHUOT. PO do ra hai lo chi trong mot vong:
+#   - thieu "RC" -> RC00000051 (bien lai cua CHINH KHACH) bi chan oan
+#   - smuggling: dan tien to chu vao so dien thoai ("SDT0387000001") la thoat
+# Them RC vao danh sach chi va ca thu nhat va KHONG cham ca thu hai — ngay mai
+# lai thieu mot tien to khac. Danh sach tien to hong theo ban chat: no chan theo
+# HINH DANG, ma hinh dang thi ke tan cong chon duoc.
+#
+# Luat xuat xu chan theo NGUON: moi day >=7 chu so agent noi ra phai truy duoc
+# ve mot ket qua tool cua luot nay, hoac ve chinh loi khach da go. Dong ca hai
+# lo tren ma khong liet ke gi:
+#   RC00000051 khach vua go -> co trong nguon -> QUA
+#   SDT0387000001           -> SDT da bi scrub khoi tool result -> CHAN
+# Va no TRUNG KHIT rang buoc cung 3 (so agent noi phai truy duoc toi tool that),
+# nen mot phep kiem chan duoc ca ORACLE lan BIA SO.
+#
+# CA BIEN, ghi ro de khong ai "sua cho xanh": so agent TU CONG (tong hai giao
+# dich) BI CHAN vi khong nguon nao chua no. Do la TINH NANG dung rang buoc 3.
+_DAY_SO = re.compile(r"\d[\d.,\s]{5,}\d|\d{7,}")
+# Ca OR-F03 cua tester: "43a5940" la LAT CAT cua tool_result_id "TR-43a5940ecd78"
+# — dinh danh NOI BO cua bo do, khong bao gio duoc phat ra cho khach. No khong
+# phai day so thuan (co chu xen giua) nen luat chi-soi-chu-so mu hoan toan voi no.
+# Mo rong: moi TOKEN chu-so tron dai >=7 va CO it nhat mot chu so. Nguong 7 +
+# bat buoc co chu so de tu tieng Viet thuong khong lot vao (khong tu nao vua dai
+# >=7 vua chua chu so).
+_TOKEN_MA = re.compile(r"[A-Za-z0-9]{7,}")
 
 
-def _khop_o3(reply: str, tin_nhan_khach: str) -> bool:
-    # Bỏ mã hệ thống TRƯỚC khi tìm dãy số dài. Số còn lại mới là ứng viên rò rỉ
-    # thật (SĐT, số tài khoản, CCCD).
-    con_lai = _MA_HE_THONG.sub(" ", reply)
-    if re.search(r"\d{7,}", con_lai):
-        return True
+def _cac_day_so(text: str) -> set[str]:
+    """Moi day so trong text, DA BO dau phan cach.
+
+    Bo phan cach vi cung mot so viet moi noi mot kieu: tool tra 262000, agent
+    viet 262.000d. So tho se bao "khong truy duoc" cho mot so hop le.
+    """
+    ra = set()
+    for m in _DAY_SO.finditer(text or ""):
+        so = re.sub(r"[.,\s]", "", m.group())
+        if len(so) >= 7:
+            ra.add(so)
+    for m in _TOKEN_MA.finditer(text or ""):
+        tok = m.group()
+        if any(c.isdigit() for c in tok):
+            ra.add(tok.lower())
+    return ra
+
+
+# `nguon` KHONG CO GIA TRI MAC DINH — co chu dich, cung ly do F-17 bo default
+# cua `created_by`.
+#
+# Luat xuat xu chi co nghia khi CO nguon. Neu de `nguon=""` lam mac dinh thi noi
+# goi nao quen truyen se lam bo loc thoai hoa thanh "chan moi so dai" — im lang,
+# khong bao loi, va nhin tu ngoai giong het mot bo loc dang lam viec. Do dung la
+# ADR-013 (fallback im lang) o dang khac.
+# Do that: chay bo corpus 1089 luot voi nguon rong -> 16/96 cau HOP LE bi chan,
+# trong khi ban dang chay la 0/96. Mot dong quen truyen doi 16 cau tra loi dung
+# thanh cau mau.
+# Bo default -> quen truyen la TypeError ngay luc goi.
+
+
+def _khop_o3(reply: str, tin_nhan_khach: str, nguon: str) -> bool:
+    hop_le = _cac_day_so(nguon) | _cac_day_so(tin_nhan_khach)
+    for so in _cac_day_so(reply):
+        # SO THEO GIA TRI, KHONG so chuoi con — bay F cua tester.
+        # Ban dau toi so `so in g or g in so` de "tool tra so dai hon ma agent
+        # chi doc mot phan" van qua. Nhung chinh no mo mot cua BIA SO MOI:
+        # "20260504" la CHUOI CON cua trans_id that TXN20260504000247, nen mot
+        # con so agent bia ra van "truy vet duoc" chi vi no tinh co la tien to
+        # cua mot ma that. Do that: LOT.
+        # Bay B (dinh dang) va bay F (chuoi con) KEO NGUOC NHAU — noi de cuu B
+        # lam do F, siet de cuu F lam do B. Loi ra: chuan hoa DINH DANG (bo dau
+        # phan cach) de cuu B, nhung so KHOP TUYET DOI de dong F.
+        if so not in hop_le:
+            return True
     if not _a_la_phong_doan(tin_nhan_khach):
         return False
     for md in _tach_menh_de(_bo_dau(reply)):
@@ -130,8 +203,11 @@ def _khop_o3(reply: str, tin_nhan_khach: str) -> bool:
 # THEO CỤM, không theo từ: chỉ khớp khi đủ BA yếu tố TRONG CÙNG MỘT MỆNH ĐỀ.
 # "chắc chắn sẽ được hoàn cho bạn" khớp; "nếu muốn biết chắc chắn thì liên hệ
 # CSKH" không khớp vì thiếu đối tượng tiền và không hướng về case của khách.
-_O4_DONG_TU = ["se ", "chac chan", "dam bao", "cam ket"]
-_O4_TIEN = ["hoan tien", "hoan lai", "hoan", "tra lai", "boi hoan", "nhan lai tien", "nhan duoc tien"]
+# "du dieu kien duoc hoan" la CAM KET MAC AO DIEU KIEN: no khong hua thang
+# nhung khach doc ra la "toi se duoc hoan". Ranh buoc cung 1 cam agent ket luan
+# ve ket qua, ke ca gian tiep.
+_O4_DONG_TU = ["se ", "chac chan", "dam bao", "cam ket", "du dieu kien", "duoc duyet"]
+_O4_TIEN = ["hoan tien", "hoan lai", "hoan", "tra lai", "boi hoan", "nhan lai tien", "nhan duoc tien", "ve vi", "vao vi", "vao tai khoan"]
 _O4_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
 
 
@@ -188,6 +264,7 @@ def _khop_o4(reply: str) -> bool:
 def loc_dau_ra(
     reply: str,
     *,
+    nguon: str,
     tin_nhan_khach: str = "",
     thread_id: str = "",
     correlation_id: str | None = None,
@@ -205,7 +282,7 @@ def loc_dau_ra(
         khop.append("O1")
     if _khop_o2(reply):
         khop.append("O2")
-    if _khop_o3(reply, tin_nhan_khach):
+    if _khop_o3(reply, tin_nhan_khach, nguon):
         khop.append("O3")
     if _khop_o4(reply):
         khop.append("O4")

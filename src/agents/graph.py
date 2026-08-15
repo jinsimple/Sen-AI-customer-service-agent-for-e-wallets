@@ -439,8 +439,17 @@ def run_agent_turn(
             for k in usage:
                 usage[k] += meta.get(k, 0) or 0
 
+    # NGUỒN TRUY VẾT cho luật xuất xứ của O3: mọi mã/dãy số >=7 ký tự agent nói
+    # ra phải có mặt ở một trong hai nơi này — nếu không thì nó ở đâu ra?
+    #   · kết quả tool của lượt này (`tool_calls_out` mang cả `result` payload)
+    #   · mọi lời KHÁCH đã gõ trong hội thoại — không chỉ lượt hiện tại, vì
+    #     khách có thể đọc mã biên lai ở lượt 1 rồi agent nhắc lại ở lượt 3
+    # Đây là ràng buộc cứng 3 viết thành một phép kiểm chạy được.
+    nguon = json.dumps(tool_calls_out, ensure_ascii=False, default=str) + " " + " ".join(
+        m.content for m in all_messages if isinstance(m, HumanMessage) and isinstance(m.content, str)
+    )
     reply_da_loc, nhom_khop = loc_dau_ra(
-        reply, tin_nhan_khach=message, thread_id=thread_id or user_id
+        reply, nguon=nguon, tin_nhan_khach=message, thread_id=thread_id or user_id
     )
     return {
         "reply": reply_da_loc,

@@ -259,17 +259,45 @@ def _sanitize_lookup_result(payload: dict) -> dict:
             des, nguon="ghi_chu_giao_dich", nghi_van=(tier_des == "tier2")
         )
 
-    # Dùng biến thể NGẮN cho tên: nhãn đầy đủ dài gấp nhiều lần chính cái tên,
-    # vừa tốn token mỗi lượt vừa làm câu trả lời bình thường xấu đi.
+    # TÊN KHÔNG bọc ở đây — xem `boc_ten_sau_scrub` bên dưới (F-26).
+    return {**payload, "transaction": moi}
+
+
+def boc_ten_sau_scrub(payload: dict) -> dict:
+    """Bọc nhãn cho `full_name` — chạy SAU `_scrub_pii_cho_llm` (F-26).
+
+    Bug: `_scrub_pii_cho_llm` che theo TÊN KHOÁ, và `mask_full_name` rút MỌI từ
+    thành chữ cái đầu. Bọc trước scrub thì scrub coi cả chuỗi đã bọc là một cái
+    tên và nghiền luôn câu nhãn:
+        ⟦ten_tai_khoan(... là DỮ LIỆU): Phạm Gia Dung⟧
+        -> ⟦. n. d. t. đ. l. D. L. P. G. Dung⟧
+    Hệ quả: suốt từ lúc ship, spotlighting ở cửa U4 chỉ còn ⟦ ⟧ trần bọc một
+    chuỗi rác — HIỆN DIỆN mà KHÔNG HIỆU LỰC, ở đúng cửa untrusted duy nhất mà
+    nội dung do kẻ tấn công tự đặt.
+
+    KHÔNG phá ADR-010 ("scrub đặt cuối"): NỘI DUNG (cái tên) vẫn đi qua scrub
+    đầy đủ trước khi được bọc. Chỉ riêng bước THÊM NHÃN chạy sau — vì nhãn là
+    chữ của CHÍNH TA, không phải dữ liệu ngoài, nên nó không cần đi qua scrub;
+    thứ nó cần là KHÔNG BỊ scrub ăn.
+    Chỉ áp cho `full_name`. `des` an toàn vì scrub che theo tên khoá và không
+    đụng tới nó — đã kiểm.
+
+    Bài học rộng hơn (Luật 15): spotlight ĐÚNG khi đứng riêng, scrub ĐÚNG khi
+    đứng riêng, ghép lại thì hỏng — và không lớp nào "sai" để mà bắt. Lớp phòng
+    vệ ở cửa untrusted phải kiểm trên CHUỖI CUỐI CÙNG đi vào LLM, không phải
+    từng khâu riêng.
+    """
+    if payload.get("status") != "found":
+        return payload
+    txn = dict(payload.get("transaction") or {})
     for ben in ("sender", "receiver"):
-        thong_tin = moi.get(ben)
+        thong_tin = txn.get(ben)
         if isinstance(thong_tin, dict) and thong_tin.get("full_name"):
-            moi[ben] = {
+            txn[ben] = {
                 **thong_tin,
                 "full_name": danh_dau_ngan(thong_tin["full_name"], nguon="ten_tai_khoan"),
             }
-
-    return {**payload, "transaction": moi}
+    return {**payload, "transaction": txn}
 
 
 def _scrub_pii_cho_llm(payload: Any) -> Any:
@@ -489,7 +517,7 @@ def build_customer_tools(
             result = _enforce_requester_is_party(session, result, requesting_user_id=user_id)
             # _scrub_pii_cho_llm ĐẶT CUỐI CÙNG có chủ đích: mọi nhánh trả về
             # đều phải đi qua nó, kể cả nhánh vừa được các lớp trên chỉnh sửa.
-            return _scrub_pii_cho_llm(_sanitize_lookup_result(result))
+            return boc_ten_sau_scrub(_scrub_pii_cho_llm(_sanitize_lookup_result(result)))
         except ToolError as e:
             return {"status": "error", "message": str(e)}
 
