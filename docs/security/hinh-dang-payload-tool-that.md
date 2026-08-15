@@ -83,6 +83,40 @@ mã biên lai, số tiền thì **có** ⟹ qua. Corpus của tester phải dự
 "tool_result_id":"TR-43a5940ecd78"}
 ```
 
+## 4. ĐỐI CHIẾU HAI DẪN XUẤT ĐỘC LẬP (security gọi-tool ↔ coder đọc-mã)
+
+PO yêu cầu đối chiếu. Kết quả: **khớp phần lõi, LỆCH hai chỗ — và cả hai chỗ
+lệch đều quan trọng với corpus.** Đo trên cả **ba** scope.
+
+**Khớp:** 12 khoá của `transaction` giống hệt danh sách coder đọc từ
+`_serialize_transaction` — `trans_id · rec_code · amount · fee · status · scope ·
+channel · created_at · completed_at · des · sender · receiver`. Đọc-mã và
+gọi-tool đồng ý ⟹ phần này tin cậy cao.
+
+**LỆCH 1 — danh sách của coder KHÔNG có lớp bọc ngoài.** Khoá mức gốc thật là
+`{status, transaction, tool_result_id}`. `_serialize_transaction` chỉ sinh phần
+*bên trong*; lớp bọc do hàm gọi thêm vào. Không ai sai — nhưng tester dựng
+`nguon` theo danh sách coder sẽ ra một object **phẳng, thiếu `tool_result_id`
+và thiếu tầng `transaction`**.
+
+**LỆCH 2 — `sender`/`receiver` có TẬP TRƯỜNG THAY ĐỔI THEO `kind`**, không cố
+định như mô tả `sender{kind,wallet_id,phone,full_name}`:
+
+| `kind` | Trường thật | Xuất hiện ở |
+|---|---|---|
+| `"wallet"` | `wallet_id` (che `********0068`) · `phone` (che `036***0068`) · `full_name` | cả hai bên của `internal_wallet`; bên nhận của `from_bank`; bên gửi của `to_bank` |
+| `"bank_account"` | `account_no` (che `**********0200`) · **`bank_code`** (vd `"ACB"`) · `full_name` — **KHÔNG có `phone`, KHÔNG có `wallet_id`** | bên gửi của `from_bank`; bên nhận của `to_bank` |
+
+**`bank_code` là trường CẢ HAI chúng tôi đều bỏ sót** — coder không liệt kê, và
+bản đầu tài liệu này cũng không có (dump của tôi bị cắt phần đầu). Chỉ lộ ra khi
+đối chiếu chéo. Đây đúng giá trị của hai dẫn xuất độc lập: không phải để một bên
+"kiểm tra" bên kia, mà vì **chúng sót khác chỗ nhau**.
+
+**Hệ quả bắt buộc cho corpus:** một ca `from_bank` mà dựng `sender` có
+`wallet_id`/`phone` là **payload không tồn tại trong thực tế** — ca đó đo một
+thứ hệ thống không bao giờ sinh ra. Mỗi ca phải chọn tập trường **đúng theo
+`kind`** của bên đó.
+
 ---
 
 ## F-26 (CAO) — masking chạy SAU spotlight và **băm nát chính cái nhãn**
