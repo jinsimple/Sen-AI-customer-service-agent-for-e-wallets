@@ -1,4 +1,4 @@
-# Worklog — Team [Tên Team]
+# Worklog — Team 226 (Đào Ngọc Bích)
 
 > Ghi lại tất cả công việc đã làm theo ngày. Ai làm gì, kết quả gì.
 

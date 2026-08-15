@@ -9,7 +9,7 @@
 
 ## 0. Bối cảnh — đọc trước khi làm gì khác
 
-FIN-05 là AI Agent CSKH xử lý khiếu nại giao dịch cho ví điện tử (đội T121,
+FIN-05 là AI Agent CSKH xử lý khiếu nại giao dịch cho ví điện tử (đội T226,
 AI 20K Build Phase Cohort 3, Vingroup × VinUni). Team gốc 4 người gặp vấn đề
 nội bộ; dự án hiện do **1 người (PO, không phải dev full-time) + Claude Code**
 xây lại từ đầu trong **2 tuần** để có demo. Tài sản duy nhất giữ lại nguyên

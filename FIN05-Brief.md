@@ -1,7 +1,7 @@
 # FIN-05 — Project Brief
 ## AI Agent CSKH Ví điện tử & Xử lý Khiếu nại Giao dịch
 
-**Phiên bản:** 2.1 · **Đội:** T121 (Nhóm 121, AI 20K Build Phase, Cohort 3) · **PO:** Đào Ngọc Bích · **Đội thực hiện:** Lê Quang Huy, Đậu Quốc Duy, Đặng Thái Nam Sơn · **Mentor:** Lê Anh Tiến · **Đối tác đồng hành:** ZaloPay (cung cấp góc nhìn nghiệp vụ thực tế, phản hồi demo — PO đã gặp 2 lần)   
+**Phiên bản:** 2.1 · **Đội:** T226 (Nhóm 226, AI 20K Build Phase, Cohort 3) · **PO & Thực hiện:** Đào Ngọc Bích · **Mentor:** Lê Anh Tiến · **Đối tác đồng hành:** ZaloPay (cung cấp góc nhìn nghiệp vụ thực tế, phản hồi demo — PO đã gặp 2 lần)   
 
 ---
 

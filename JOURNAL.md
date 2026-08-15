@@ -1,4 +1,4 @@
-# Weekly Journal — Team [Tên Team]
+# Weekly Journal — Team 226 (Đào Ngọc Bích)
 
 > Ghi lại mỗi tuần: học được gì, khó khăn gì, quyết định gì, kế hoạch tiếp.
 
