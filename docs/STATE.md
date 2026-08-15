@@ -133,10 +133,12 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
    JSON gốc giữ trong expander cho audit.
 
 ## ⚡ BA QUYẾT ĐỊNH PO THẬT — chiều tối 15/08 (mới nhất, đè các mục cũ bên dưới)
-1. **Billing/CI:** PO thật KHÔNG phải owner org — chỉ BTC sửa được. ⟹ gửi BTC/mentor tin nhắn kèm
-   annotation nguyên văn (PO-agent đã soạn, xem cuối STATE). Trong lúc chờ: tester đã chạy đủ lệnh
-   từng job trên host (446 passed/0 failed) — **công việc hằng ngày KHÔNG bị chặn**, chỉ thiếu
-   bằng chứng trên runner + badge (deliverable). F-CI-2 đã vá sẵn đón ngày billing thông.
+1. **Billing/CI: PO thật CHỐT ĐỂ LẠI SAU (tối 15/08)** — không giải quyết hôm nay; PO không phải
+   owner org, chỉ BTC sửa được, và việc liên hệ BTC dời sang ngày khác. **KHÔNG chặn gì**: tester
+   đã chạy đủ lệnh từng job trên host (540 passed sau lô mới), F-CI-2 đã vá sẵn đón ngày billing
+   thông. Tin nhắn gửi BTC đã soạn sẵn trong lịch sử trao đổi — khi PO sẵn sàng thì lấy dùng.
+   Việc DUY NHẤT sẽ đọng lại nếu quên: bằng chứng CI trên runner + badge cho Demo Day
+   (deliverable) — nhắc lại khi gần mốc nộp.
 2. **ADR-025: NGUYÊN TẮC ĐÃ DUYỆT** ("chốt theo hướng security"). PO thật uỷ quyền PO-agent research
    chuẩn EU/US cho 3 chỗ trống → **dự thảo ADR-025 ĐÃ VIẾT** vào `docs/DECISIONS.md` với đề xuất:
    retention **5 năm** (max của VN-PCRT-5n/EU-AMLD-5n/US-RegE-2n-sàn, cờ: cần tư vấn pháp lý thật
