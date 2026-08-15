@@ -10,6 +10,54 @@
 
 ---
 
+## ⚠️ ĐÍNH CHÍNH 2026-08-15 — ĐỌC TRƯỚC KHI QUYẾT §8
+
+**Đơn thuốc ở §5.2 của chính hồ sơ này (dùng `scrub_pii`, giữ 4 số cuối) nay
+KHÔNG còn an toàn như lúc viết.** Phép đo hôm nay
+(`2026-08-15-ra-soat-cuoi-sprint-note-scrub-va-pipeline.md`, dấu
+`he_thong=fd16681d8088`, 0 TPM) cho thấy `scrub_pii` **chặn nhầm 8/20 = 40%**
+trên văn bản nghiệp vụ tiếng Việt KHÔNG chứa PII, và kiểu hỏng là **đổi nghĩa
+câu trong im lặng**, không phải che dư một mã:
+
+- `Khách đã rút khiếu nại qua tổng đài, không cần xử lý tiếp.`
+  → `[LOCATION] đã rút khiếu nại qua tổng đài, không [PERSON].`
+
+Tin nhắn live-chat **chính là** văn bản tự do tiếng Việt — cùng loại đầu vào đã
+đo. Áp phương án B nguyên văn theo §5.2 sẽ mang lỗi đó vào **lời khách gõ cho
+CSKH**, nơi hậu quả nặng hơn `note`: CSKH đọc một khiếu nại đã bị sửa nghĩa mà
+không biết chữ nào đã mất, và đó là bản duy nhất còn lại (che tại điểm GHI ⟹
+không còn bản gốc để đối chiếu).
+
+Đây là **Luật 8 áp lên chính hồ sơ này**: §5.2 dựa trên tiền đề ngầm *"scrub
+chỉ tốn khả năng đọc"* — tiền đề đó vừa bị đo và bác. Lỗi là **sai NHẬN DẠNG**
+(NER gán `[PERSON]` cho `chính sách`, `[LOCATION]` cho `Khách`), không phải sai
+ngưỡng, nên **không có cách nới/siết nào chạm tới**.
+
+**Hệ quả thao tác cho PO:**
+1. **Câu hỏi §8.1 (A/B/C) KHÔNG đổi** — khuyến nghị vẫn là **B**, vẫn phản đối
+   C. Lỗ hổng §3 là thật và vẫn hở.
+2. **Câu hỏi §8.2 (giữ 4 số cuối hay che trọn) không còn là câu hỏi đủ.** Câu
+   đúng phải hỏi trước nó: **che bằng CƠ CHẾ nào** — vì cơ chế được đề nghị
+   đang hỏng. Xem §3 hồ sơ 15/08 cho 3 đường (khuyến nghị: xác nhận vòng tròn
+   lúc ghi, không cần cải thiện NER).
+3. **Câu hỏi §8.3 (gộp `description_raw`) nay phải mở rộng thành BỐN cửa**, xem
+   dưới.
+
+### Bốn cửa văn bản tự do — cùng MỘT chính sách, đừng quyết lẻ
+
+| Cửa | Ai gõ | Scrub hôm nay | Nguồn |
+|---|---|---|---|
+| `messages.content` (live-chat) | khách + CSKH | ❌ không | ST2-P0-3, hồ sơ này |
+| `complaints.description_raw` | khách | ❌ không | §7 hồ sơ này |
+| `resolutions.note` | nhân viên | ✅ có — **nhưng hỏng nghĩa 40%** | ADR-024 / S-01 |
+| `investigation_logs.agent_note` | nhân viên | ❌ không, cũng không trần độ dài, không cờ | **S-02 (mới 15/08)** |
+
+`agent_note` là cửa THỨ TƯ, chỉ lộ ra hôm nay, và nó **bác tiền đề "note là chỗ
+DUY NHẤT"** của ADR-024. Quyết lẻ từng cửa sẽ tạo đúng tình trạng bất nhất mà §7
+đã cảnh báo — nay gấp đôi quy mô.
+
+---
+
 ## 1. Quyết cái gì (một câu)
 
 Khách/CSKH gõ SĐT, số tài khoản, tên người vào ô chat; hệ thống lưu **nguyên
@@ -78,8 +126,12 @@ chứng minh CSKH đã có sẵn từ kênh tốt hơn.
 
 1. **Che tại điểm GHI**, không tại điểm đọc (cùng luật đã áp cho `note` ở
    TM-03) — bản trong DB phải là bản đã che, nghiệm thu bằng đọc thẳng DB.
-2. **Giữ 4 số cuối** cho SĐT/STK; tên người che trọn theo NER
-   (`scrub_pii` đã có sẵn, `src/observability/pii.py:277`).
+2. ⚠️ **ĐÃ ĐÍNH CHÍNH 15/08 — xem khối đầu hồ sơ trước khi dùng mục này.**
+   ~~**Giữ 4 số cuối** cho SĐT/STK; tên người che trọn theo NER
+   (`scrub_pii` đã có sẵn, `src/observability/pii.py:277`).~~
+   `scrub_pii` đo được 40% chặn nhầm trên văn bản nghiệp vụ tiếng Việt (đổi
+   nghĩa câu, im lặng) ⟹ **không dùng nguyên trạng làm đơn thuốc cho cửa này.**
+   Cơ chế che phải chốt lại cùng lô với S-01/S-02.
 3. **Fail-closed**: scrub lỗi/timeout ⟹ từ chối lưu tin nhắn kèm thông báo rõ,
    **không** lưu bản thô rồi hẹn che sau.
 4. **Áp cho cả hai chiều** — tin của khách **và** tin của CSKH. Nhân viên gõ số
