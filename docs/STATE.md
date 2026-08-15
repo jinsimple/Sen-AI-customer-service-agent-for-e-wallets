@@ -501,6 +501,20 @@ ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B
 ### Tiến độ phân công (cập nhật chiều muộn 15/08)
 - **CODER: CẢ LÔ XONG chờ land** (F-CI-2 · F-CI-3 · A1 · A2 · S-03 · F-28 · F-LOG · F-29 · F-30) —
   báo-trước-khi-land đúng giao ước; land xong → security probe 4 bản vá phòng vệ mới đóng.
+  **PO-agent đã GREENLIGHT LAND** (kèm pathspec vùng coder — cây đang có file chưa track của
+  tester + docs của PO-agent): security cần một `he_thong` CÓ TÊN để probe (phương án (a) của họ,
+  rẻ hơn cửa sổ đóng băng); 7 file `src/` chưa commit là thứ đang chặn toàn bộ lịch probe.
+- **QĐ 5 / bound 12.000: security ĐO LẠI XÁC NHẬN ĐỦ** (`44c3c9a`) — biên 12% trên worst-case
+  emoji 4-byte, và Fernet tất định theo byte nên không có ca xui. **Đủ CÓ ĐIỀU KIỆN** ⟹ ca mới:
+- **🟠 A2-06 (CA PHẢI KIỂM, chưa phải finding — security minh thị chưa đo vì cây trôi):**
+  `description_raw` có **HAI đường ghi** — REST (qua Pydantic, có trần) và **AI-gọi-tool dưới danh
+  nghĩa customer** (`customer_tools` → `create_ticket…`), đường sau **không đi qua
+  `ComplaintCreateRequest`**. Nếu đường agent không có trần riêng: mô tả quá dài rơi thẳng xuống
+  CHECK DB → `IntegrityError` → 500 (hình dạng F-21), trong khi mọi test REST xanh. **CHECK phải
+  là lưới CUỐI, không được là lưới DUY NHẤT của bất kỳ đường nào.** → chuyển coder dạng CÂU HỎI.
+- **A1-04 nhắc lại cho probe:** `complaints` ĐÃ CÓ dữ liệu (khác `messages` 0 dòng) — coder chọn
+  không-backfill (hàng cũ đọc được qua đường InvalidToken) ⟹ **hàng cũ nằm PLAINTEXT vĩnh viễn
+  trên đĩa** trừ khi có quyết định backfill-mã-hoá riêng. Test DB-sạch không lộ ca này.
 - **A2 bound CHỐT LẦN CUỐI = 12.000, ghi thành CỬA SỔ [10.764 … 26.764]** (ADR-025 QĐ 5 sửa lần 2):
   40.000 của PO-agent bị coder bác bằng đo — ≈28.943 ký tự ASCII lọt, flood 20K ASCII đi thẳng qua.
   Luật 8 lần NĂM, bắt cả coder (mẫu ASCII) lẫn security+PO-agent (mẫu 3-byte quên emoji 4-byte).
