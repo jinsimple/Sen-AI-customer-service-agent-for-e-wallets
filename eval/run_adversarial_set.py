@@ -22,6 +22,7 @@ from eval._harness import (
     cham_bo_da_luot,
     load_jsonl,
     now_stamp,
+    phan_loai_loi,
     run_case_adversary,
 )
 
@@ -109,11 +110,20 @@ def run(cases: list[dict]) -> list[dict]:
                 cham = cham_bo_da_luot(case, agent_result)
                 violations = cham["vi_pham"]
                 first_violation_turn = cham["first_violation_turn"]
+                ha_tang = None
             except Exception as e:
                 reply = ""
                 all_replies = []
                 first_violation_turn = None
-                violations = [f"LỖI CHẠY CASE: {e!r}"]
+                loai = phan_loai_loi(e)
+                if loai == "ha_tang":
+                    # KHÔNG ĐO ĐƯỢC — không phải TRƯỢT. Case này chưa được đo
+                    # lần nào, phải chạy lại chứ không kết luận gì về agent.
+                    ha_tang = f"LỖI HẠ TẦNG (không đo được): {e!r}"
+                    violations = []
+                else:
+                    ha_tang = None
+                    violations = [f"LỖI CHẠY CASE: {e!r}"]
                 agent_result = {}
             session.rollback()
 
@@ -122,7 +132,11 @@ def run(cases: list[dict]) -> list[dict]:
                     "case_id": case_id,
                     "category": case["category"],
                     "description": case.get("description", ""),
-                    "passed": not violations,
+                    # BA trạng thái, không phải hai: ĐẠT · TRƯỢT · KHÔNG ĐO
+                    # ĐƯỢC. `passed` chỉ còn ý nghĩa khi đã đo được.
+                    "trang_thai": "khong_do_duoc" if ha_tang else ("dat" if not violations else "truot"),
+                    "loi_ha_tang": ha_tang,
+                    "passed": (not violations) and not ha_tang,
                     "violations": violations,
                     "reply": reply,
                     # D1 — giữ TRANSCRIPT ĐỦ LƯỢT trong raw. Điều tra một ca
@@ -153,13 +167,35 @@ def run(cases: list[dict]) -> list[dict]:
 def write_report(results: list[dict], out_path: Path) -> None:
     total = len(results)
     passed = sum(1 for r in results if r["passed"])
+    # BA trạng thái. Mẫu số của tỉ lệ là số case ĐO ĐƯỢC, không phải tổng case
+    # — nếu chia cho tổng thì mỗi lần chạm trần TPM là tỉ lệ tụt, và người đọc
+    # tưởng chất lượng giảm trong khi thực ra chỉ là chưa đo được.
+    khong_do = sum(1 for r in results if r.get("trang_thai") == "khong_do_duoc")
+    do_duoc = total - khong_do
+    truot = do_duoc - passed
     lines = [
         f"# Báo cáo eval adversarial_set — {now_stamp()}",
         "",
-        f"**Tổng:** {passed}/{total} pass ({passed / total * 100:.1f}%)" if total else "Không có case.",
+        (f"**Tổng:** {passed}/{do_duoc} ĐẠT trên số ĐO ĐƯỢC ({passed / do_duoc * 100:.1f}%) "
+         f"· TRƯỢT {truot} · **KHÔNG ĐO ĐƯỢC {khong_do}**/{total}") if do_duoc else
+        (f"**KHÔNG ĐO ĐƯỢC case nào** ({khong_do}/{total}) — xem mục lỗi hạ tầng." if total else "Không có case."),
         "",
     ]
-    failing = [r for r in results if not r["passed"]]
+    if khong_do:
+        lines += [
+            "> ⚠️ **KHÔNG ĐO ĐƯỢC ≠ TRƯỢT.** Case dưới đây chết vì hạ tầng "
+            "(rate limit, timeout, code đang sửa dở) nên CHƯA có kết luận nào về "
+            "agent — phải chạy lại, không được đọc thành lỗi chất lượng.",
+            "",
+        ]
+        for r in results:
+            if r.get("trang_thai") == "khong_do_duoc":
+                lines.append(f"- **{r['case_id']}**: {r.get('loi_ha_tang', '')[:180]}")
+        lines.append("")
+    # LOẠI case KHÔNG ĐO ĐƯỢC khỏi mục này — nếu để lẫn thì một case chết vì
+    # rate limit sẽ nằm dưới tiêu đề "agent bị dụ thành công, cần fix ngay",
+    # tức là đúng cái hiểu nhầm mà cả vòng phân loại này sinh ra để diệt.
+    failing = [r for r in results if not r["passed"] and r.get("trang_thai") != "khong_do_duoc"]
     if failing:
         lines += ["## Case KHÔNG pass (agent bị dụ thành công — cần fix ngay)", ""]
         for r in failing:
@@ -170,10 +206,18 @@ def write_report(results: list[dict], out_path: Path) -> None:
             lines.append("")
     else:
         lines.append("Không có case nào bị dụ thành công.")
+        if khong_do:
+            lines.append(
+                f"\n*(Nhưng {khong_do} case CHƯA ĐO ĐƯỢC — chưa thể nói bộ này sạch.)*"
+            )
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"\nBáo cáo: {out_path}", file=sys.stderr)
-    print(f"Tổng: {passed}/{total} pass ({passed / total * 100:.1f}%)" if total else "0 case", file=sys.stderr)
+    print(
+        (f"Tổng: {passed}/{do_duoc} ĐẠT trên số ĐO ĐƯỢC · TRƯỢT {truot} · KHÔNG ĐO ĐƯỢC {khong_do}/{total}")
+        if total else "0 case",
+        file=sys.stderr,
+    )
 
 
 def main() -> None:

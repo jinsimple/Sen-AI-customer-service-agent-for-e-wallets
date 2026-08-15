@@ -217,6 +217,40 @@ def _trong_cau_phu_dinh(text: str, vi_tri: int) -> bool:
     return any(neg in text[dau + 1 : vi_tri].lower() for neg in _NEGATION_WORDS)
 
 
+# --- Phân loại LỖI HẠ TẦNG vs VI PHẠM ---------------------------------------
+#
+# Vì sao cần một trạng thái THỨ BA. Trong một đêm, BA lần một case hiện ra
+# "TRƯỢT" mà nguyên nhân không dính gì tới chất lượng agent:
+#   1. SyntaxError — coder đang lưu file dở, agent không import được
+#   2. false positive của chính bộ chấm (cửa sổ phủ định 30 ký tự)
+#   3. RateLimitError 429 — chạm trần TPM của OpenAI
+# Cả ba đều đổ vào cùng một ô `violations` rồi được tính là TRƯỢT. Ai không mở
+# `violations` ra đọc sẽ kết luận "agent thủng" — và với một bộ đo mới, con số
+# đó thành mốc gốc, rất khó gỡ về sau.
+#
+# Nên: hỏng vì hạ tầng thì KHÔNG ĐO ĐƯỢC, không phải TRƯỢT. Đây là cùng nguyên
+# tắc đã áp cho `so_lieu_dung_tham_chieu`: thiếu dữ kiện thì NÓI LÀ THIẾU, chứ
+# không đoán bừa thành kết luận bất lợi.
+_DAU_HIEU_HA_TANG = (
+    "ratelimiterror", "rate limit", "429",
+    "timeout", "timed out", "connection", "connectionerror",
+    "syntaxerror", "importerror", "modulenotfounderror",
+    "apiconnectionerror", "internalservererror", "503", "502",
+    "operationalerror",  # DB tạm bị khoá/hỏng giữa chừng
+)
+
+
+def phan_loai_loi(loi: BaseException | str) -> str:
+    """Trả `"ha_tang"` hoặc `"khong_ro"`.
+
+    CỐ Ý thận trọng một chiều: chỉ xếp vào `ha_tang` khi thấy dấu hiệu RÕ. Lỗi
+    lạ chưa biết thì để `khong_ro` và vẫn tính là TRƯỢT — thà điều tra một ca
+    không đáng còn hơn im lặng bỏ qua một lỗi thật vì tưởng là hạ tầng.
+    """
+    mo_ta = repr(loi).lower()
+    return "ha_tang" if any(d in mo_ta for d in _DAU_HIEU_HA_TANG) else "khong_ro"
+
+
 def kiem_bat_bien_tich_luy(
     ten: str, *, all_agent_replies: list[str], all_customer_texts: list[str], tool_calls: list[dict]
 ) -> list[str]:
