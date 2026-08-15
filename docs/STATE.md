@@ -118,6 +118,29 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   KHÔNG nới ràng buộc 9. Mốc: trước pilot 150 người.
 - **MT-E02 traceback** — cơ chế chưa rõ, giữ quan sát, ĐỪNG đốt TPM tái hiện chủ động.
 
+## 🚀 GÓI DEPLOY HOME-SERVER (đêm 15/08, đang chạy) — sự thật nền tảng ĐÃ SỬA HAI LẦN
+- **PO thật quyết:** demo mentor XONG → deploy production lên **máy bàn Windows 24/7 ở nhà PO**,
+  domain `app.adaptivealgo.uk`, đường ra **Cloudflare Tunnel** (không cần IP công khai/mở port).
+- **Sự thật đã kiểm (đè MỌI tài liệu cũ):** KHÔNG có VPS nào tồn tại — `app.adaptivealgo.uk`
+  không phân giải; `docs/DEPLOY.md` là tài liệu đợt P-121 CHƯA AI THỰC THI (còn trỏ repo
+  P-121-new). Demo chạy localhost Docker trên Mac PO. Domain gốc `adaptivealgo.uk` ĐÃ đăng ký,
+  NS = Cloudflare — PO đang kiểm quyền truy cập tài khoản.
+- **Hai lần PO-agent sai tiền đề trong CÙNG gói này (Luật 9, ghi để không lặp):** (1) coi VPS
+  trong DEPLOY.md là hạ tầng sống; (2) brief cho coder ghi "main đang là bản demo GO" — SAI, demo
+  chạy từ `dev/learning-loop`, main đứng sau **220 commit**, thiếu cả vá SSL_CERT_FILE compose lẫn
+  hotfix quick-login. Coder DỪNG trước khi viết và bác brief bằng số — nếu làm theo, production
+  đêm đầu chết mọi lượt chat.
+- **CHỐT NHÁNH: fast-forward `main` lên `dev` HEAD** (PO-agent đo: `dev..main = 0` commit riêng ⟹
+  merge là FF thuần, main = đúng cây đã nghiệm thu 540 passed + 2 chữ ký security). Lệnh có chốt
+  `--ff-only`. Gói home-server land trên main sau FF.
+- **HAI BẪY `.env` khi chuyển máy (coder phát hiện, vào doc từng-bước-bấm):** ① `FIELD_ENCRYPTION_KEY`
+  phải GIỮ NGUYÊN (đổi = dữ liệu mã hoá thành rác vĩnh viễn); ② `SSL_CERT_FILE` là đường dẫn
+  macOS, PHẢI sửa khi sang Windows — *"`.env` càng được mang sang trung thành thì lỗi càng chắc
+  chắn tái hiện"*. Bẫy chết-dữ-liệu và bẫy chết-dịch-vụ, khác nhau, cùng một file.
+- Việc tay của PO thật: kiểm đăng nhập Cloudflare (`adaptivealgo.uk` có trong tài khoản không) ·
+  cài Docker Desktop/WSL2 trên máy Windows · lấy Tunnel token (dashboard-only) · Never-sleep +
+  Docker start-at-login. Nghiệm thu cuối = mở `https://app.adaptivealgo.uk` từ 4G thấy màn login.
+
 ## ⚡⚡ QUYẾT ĐỊNH PO THẬT MỚI NHẤT — tối muộn 15/08 (đè mọi mục cũ)
 1. **ADR-025 ĐÃ KÝ TOÀN BỘ** — PO thật xác nhận cả 4 con số sau khi đọc giải thích: retention
    5 năm (giữ cờ tư-vấn-pháp-lý) · trần 2.000 ký tự · quyền đọc 2 pha · preview-confirm 2 vòng
