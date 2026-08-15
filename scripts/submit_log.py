@@ -48,6 +48,24 @@ def _archive(pending: Path) -> None:
         shutil.copyfileobj(src, dst)
 
 
+def _archive_entries(entries: list) -> None:
+    """Append ONLY the submitted entries to today's archive.
+
+    Must not archive the whole pending file: pending also holds leftover_lines
+    (entries beyond BATCH_LIMIT) which get written back to LOG_FILE and picked
+    up next push — archiving the whole file re-archives that leftover every run,
+    inflating the archive by the leftover size each push.
+    """
+    if not entries:
+        return
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    archive_file = ARCHIVE_DIR / f"{today}.jsonl"
+    with open(archive_file, "a", encoding="utf-8") as dst:
+        for e in entries:
+            dst.write(json.dumps(e, ensure_ascii=False) + "\n")
+
+
 def _restore_pending(pending: Path) -> None:
     """Failure path: put pending back at LOG_FILE so the next push retries.
     If hook wrote new entries to LOG_FILE in the meantime, prepend pending."""
@@ -127,8 +145,8 @@ def main():
         print(f"[ai-log] Submit failed: {e} — logs kept locally.", file=sys.stderr)
         sys.exit(0)  # Don't block push on server error
 
-    # Success: archive the submitted batch, then handle any leftover.
-    _archive(pending)
+    # Success: archive ONLY the submitted batch, then handle any leftover.
+    _archive_entries(entries)
     pending.unlink()
 
     if leftover_lines:
