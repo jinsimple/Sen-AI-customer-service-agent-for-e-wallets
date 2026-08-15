@@ -1031,14 +1031,24 @@ trần theo ký tự. CHECK ở DB giữ vai **chống-flood thuần, đặt R�
 40.000` trên ciphertext** — hai lớp HAI MỤC ĐÍCH, lớp dưới KHÔNG bắt chước lớp
 trên bằng đơn vị nó không diễn đạt được.
 
-**⚠️ Vì sao KHÔNG dùng bound 4.000 như bản đầu (security đo, chặn):** số 2.000→
-3.556 của lượt đo đầu là trên văn bản GẦN-ASCII. Fernet nở theo **byte UTF-8**,
-tiếng Việt ĐỦ DẤU là 3 byte/ký tự: 2.000 ký tự → 6.000 byte → **8.100 ciphertext
-= VƯỢT bound 4.000** ⟹ khách viết khiếu nại 2.000 ký tự đủ dấu — cách viết bình
-thường — dính `IntegrityError` → **500 giữa lúc khiếu nại** (hình dạng F-21),
-trong khi nhìn ngoài trông như chống-flood chạy đúng. Đây là S-01 lặp ở cơ chế
-khác: số biện minh đo trên mẫu hẹp áp cho mẫu rộng (Luật 8, lần bốn). Ca probe
-bắt buộc trước khi ký A2: **A2-05 — 2.000 ký tự tiếng Việt đủ dấu → NHẬN.**
+**⚠️ Con số CHỐT = 12.000, và ADR này ghi CỬA SỔ chứ không ghi một con số trần
+trụi — vì con số này đã sai HAI LẦN theo cùng một cách (Luật 8 lần bốn VÀ lần năm):**
+- Lần 1: bound 4.000 (coder đo mẫu GẦN-ASCII) → security bác: tiếng Việt đủ dấu
+  3 byte/ký tự ⟹ 2.000 ký tự → 8.100 ciphertext, VƯỢT 4.000 ⟹ khách viết đủ dấu
+  dính `IntegrityError` → 500 giữa lúc khiếu nại (hình dạng F-21).
+- Lần 2: bound 40.000 (PO-agent chốt theo phản biện) → coder bác bằng đo:
+  **40.000 ≈ 28.943 ký tự ASCII lọt qua** ⟹ flood 20.000 ASCII — đúng ca A2 sinh
+  ra để chặn — **đi thẳng qua tầng DB**.
+Mỗi lần mẫu rộng ra, tiền đề con số trước bị rút chân. Thoát vòng = nêu **CỬA SỔ
+hợp lệ kèm CẢ HAI MÉP** (đo Fernet thật, 2.000 ký tự mỗi loại):
+```
+mép DƯỚI ≥ 10.764  (2.000 ký tự EMOJI 4-byte — ca phải-nhận rộng nhất)
+mép TRÊN ≤ 26.764  (20.000 ký tự ASCII — ca phải-chặn hẹp nhất)
+```
+**Chọn 12.000** — sát mép dưới, vì đây là lưới chặn cuối: càng chặt càng tốt miễn
+không chặn nhầm. Verify chạy thật: 2.000 ASCII/VN-đủ-dấu/emoji đều QUA (3 ca đối
+chứng, gồm A2-05) · 5.000/8.000/20.000 đều CHẶN. Migration ghi cả cửa sổ + lý do
+hai mép, để lần đổi số sau phải đo lại CẢ HAI mép chứ không một trục.
 
 ### Lý do BÁC BỎ các phương án khác
 - **Scrub-lúc-ghi cho cả bốn cửa** — nhân bản lỗi 40% vào lời khai; lời khai bị

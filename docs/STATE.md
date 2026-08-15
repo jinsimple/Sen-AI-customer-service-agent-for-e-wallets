@@ -499,6 +499,22 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
 ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B3/A3/A4.
 
 ### Tiến độ phân công (cập nhật chiều muộn 15/08)
+- **CODER: CẢ LÔ XONG chờ land** (F-CI-2 · F-CI-3 · A1 · A2 · S-03 · F-28 · F-LOG · F-29 · F-30) —
+  báo-trước-khi-land đúng giao ước; land xong → security probe 4 bản vá phòng vệ mới đóng.
+- **A2 bound CHỐT LẦN CUỐI = 12.000, ghi thành CỬA SỔ [10.764 … 26.764]** (ADR-025 QĐ 5 sửa lần 2):
+  40.000 của PO-agent bị coder bác bằng đo — ≈28.943 ký tự ASCII lọt, flood 20K ASCII đi thẳng qua.
+  Luật 8 lần NĂM, bắt cả coder (mẫu ASCII) lẫn security+PO-agent (mẫu 3-byte quên emoji 4-byte).
+  Thoát vòng = ghi CỬA SỔ kèm cả hai mép, mọi lần đổi số phải đo lại CẢ HAI.
+- **Coder vá thêm ngoài phạm vi (chấp nhận, có lý do):** 3 lỗi ruff có sẵn từ trước (N812×2 +
+  UP037) — không vá thì job lint đỏ TRƯỚC khi tới pytest, F-CI-2 vô nghĩa.
+- **🔴 PHÁT HIỆN MỚI (có sẵn, cần quyết định riêng — CHƯA ai sửa): chuỗi migration GÃY trên SQLite**
+  tại `a1b2c3d4e5f6` (ADR-019): `NotImplementedError: No support for ALTER of constraints in SQLite
+  dialect` ⟹ `alembic upgrade head` trên DB trắng SQLite CHẾT. Coder verify CHECK A2 bằng
+  `create_all` + probe hành vi thay vì alembic. Hướng vá khi giao: `render_as_batch`/batch_alter
+  cho SQLite — xếp lịch riêng, không gộp lô này.
+- Suite lúc báo cáo: 492 passed · 18 skipped · **9 failed = toàn bộ ở cổng F-NOTE của tester
+  (`test_note_toan_ven_can_cu_tu_choi.py`, file chưa track) — ĐỎ CÓ CHỦ ĐÍCH chờ vá B1/B2**,
+  không phải hồi quy của lô coder.
 - **Coder ①②③(A1) XONG** (báo-trước-khi-land đúng luật): F-CI-2 verify hai chiều (appsec
   227 passed/1 deselected · security-findings-gate VẪN ĐỎ — chuyển finding về đúng job canh, không
   giấu) · A1 `models.py:223` EncryptedText, probe hành vi tiền tố Fernet + đối chứng hàng-cũ-vẫn-đọc
