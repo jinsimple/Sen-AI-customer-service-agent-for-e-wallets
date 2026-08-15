@@ -22,6 +22,7 @@ from langgraph.errors import GraphRecursionError
 from sqlalchemy.orm import Session
 
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
+from src.agents.output_filter import loc_dau_ra
 from src.agents.prompt import build_system_prompt
 from src.agents.tools.customer_tools import TurnGuard, build_customer_tools
 from src.config import (
@@ -51,6 +52,46 @@ _logger = logging.getLogger("fin05.agents.graph")
 # tục). 20 đủ cho vài vòng ReAct thật (LLM suy luận + gọi tool xen kẽ), thấp
 # hơn nhiều để chặn lặp vô hạn.
 _AGENT_RECURSION_LIMIT = 20
+
+def _ly_do_fallback(loi: Exception) -> str:
+    """Phân loại vì sao rơi vào fallback. Trả chuỗi, không bao giờ None.
+
+    Nhánh mặc định `"khac"` là CÓ CHỦ ĐÍCH dù hôm nay nó không bao giờ bắn (chỉ
+    có đúng một `except` dẫn tới fallback). Nó tồn tại cho NGÀY ai đó thêm đường
+    fallback thứ ba mà quên khai: tester nhận được một giá trị lạ nhìn thấy ngay,
+    thay vì một khoảng trống mà họ sẽ đọc nhầm thành "lượt bình thường".
+
+    LƯU Ý cho người đọc biên bản: 429 quá tải HIỆN ĐANG đội lốt `"timeout"` —
+    thời gian ngủ theo `retry_after` ăn vào ngân sách AGENT_TURN_TIMEOUT_SECONDS
+    nên một lỗi tự-phục-hồi-được hiện ra như hết giờ. Tách nó cần một giá trị
+    `"qua_tai"` và phải bắt RateLimitError ở tầng này — việc riêng, đã vào hồ sơ
+    pilot, KHÔNG làm ở commit này.
+    """
+    if isinstance(loi, FutureTimeoutError):
+        return "timeout"
+    if isinstance(loi, GraphRecursionError):
+        return "recursion_limit"
+    return "khac"
+
+
+def _reply_goc_cho_eval(reply_goc: str, nhom_khop: list[str]) -> dict:
+    """Câu TRƯỚC KHI LỌC — chỉ khi bật cờ, chỉ khi thật sự có chặn.
+
+    Vì sao tester cần: `loc_dau_ra=["O3"]` cho biết bộ lọc ĐÃ chặn, nhưng không
+    cho biết chặn ĐÚNG hay siết NHẦM. Không đọc được thứ bị nuốt thì mọi ca bị
+    chặn đều "đạt" theo bộ chấm (câu an toàn không vi phạm bất biến nào), và
+    lượt "sau" trông đẹp hơn lượt "trước" trong khi bộ lọc có thể đang siết nhầm
+    hàng loạt — confound hướng-có-lợi, loại nguy hiểm nhất.
+
+    Vì sao KHÔNG bật mặc định: câu này chính là thứ bộ lọc tồn tại để không cho
+    ra ngoài. Ship nó trong envelope production là tự mở lại đúng cái cửa vừa
+    đóng, và nó sẽ chảy tiếp vào log/trace/bên thứ ba. Fail-closed: thiếu biến
+    môi trường thì KHÔNG trả.
+    """
+    if os.environ.get("FIN05_EVAL_GIU_REPLY_GOC") != "1" or not nhom_khop:
+        return {}
+    return {"reply_truoc_loc": reply_goc}
+
 
 def _build_checkpointer():
     """Nơi lưu bộ nhớ hội thoại của agent — quyết định KIẾN TRÚC, không chỉ kỹ thuật.
@@ -292,10 +333,27 @@ def run_agent_turn(
                 "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là "
                 + handoff["ticket_id"]
                 + ".",
-                "tool_calls": [],
+                # `None`, KHÔNG phải `[]`. Đây là bản vá cho một lời nói dối của
+                # dữ liệu: `[]` nghĩa là "không tool nào được gọi", mà ở nhánh
+                # này ta KHÔNG BIẾT — `_invoke` đã ném lỗi nên không có
+                # `result["messages"]` để đọc. Khôi phục từ checkpointer thì
+                # phải đọc trong lúc luồng nền vẫn đang ghi, đúng race đã gây ra
+                # QA-12; không đáng đổi.
+                # Trước bản vá này, tester đọc `[]` như quan sát thật và suýt
+                # kết luận "agent không gọi tool nào" cho những ca đã chạy tool.
+                # `null` = "không khôi phục được", khác hẳn `[]` = "không có".
+                "tool_calls": None,
                 "ticket_id": handoff["ticket_id"],
                 "should_escalate": False,
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+                # Câu fallback do CHÍNH TA viết, không qua LLM -> không cần lọc.
+                "loc_dau_ra": [],
+                # DẤU HIỆU DƯƠNG DỨT KHOÁT của fallback. Tester dùng đúng trường
+                # này để loại ca khỏi phép so-cặp, nên nó gánh phần định nghĩa
+                # tập-loại-trừ của phép đo — KHÔNG được set nhầm ở đường thường.
+                # Trước đây họ phải nhận diện bằng chữ ký chuỗi trong `reply`,
+                # thứ trôi được sau một lần sửa câu chữ.
+                "ly_do_fallback": _ly_do_fallback(e),
             }
     all_messages = result["messages"]
     turn_messages = all_messages[prev_len:]
@@ -340,10 +398,22 @@ def run_agent_turn(
             for k in usage:
                 usage[k] += meta.get(k, 0) or 0
 
+    reply_da_loc, nhom_khop = loc_dau_ra(
+        reply, tin_nhan_khach=message, thread_id=thread_id or user_id
+    )
     return {
-        "reply": reply,
+        "reply": reply_da_loc,
         "tool_calls": tool_calls_out,
         "ticket_id": ticket_id,
         "should_escalate": should_escalate,
         "usage": usage,
+        # Ba trường CHẨN ĐOÁN. Không phải tiện tay: eval KHÔNG sinh một dòng log
+        # nào (runner gọi thẳng graph, logging_config chưa từng khởi tạo) và
+        # Redis là fakeredis per-process — nên log + bộ đếm của bộ lọc VÔ HÌNH
+        # với người đo. Thiếu chúng thì O1/O3/O4 cùng ra một câu an toàn giống
+        # hệt nhau, đúng họ "hai trạng thái đội chung một vỏ".
+        "loc_dau_ra": nhom_khop,
+        "ly_do_fallback": None,  # TƯỜNG MINH null, KHÔNG thiếu key — thiếu key
+        # không phân biệt được với "bản cũ chưa có trường này".
+        **_reply_goc_cho_eval(reply, nhom_khop),
     }
