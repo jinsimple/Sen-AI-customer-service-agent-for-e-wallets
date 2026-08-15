@@ -745,6 +745,119 @@ nhánh. Áp sau khi PO thật ký, trong một commit trọn theo CLAUDE.md §3.
 
 ---
 
+## ADR-023 — Luật 18: khớp cụm tiếng Việt cho phép chèn hư từ + mỏ neo QUY TRÌNH cho O2
+
+- **Ngày:** 2026-08-15 · **Trạng thái:** ĐÃ KÝ — PO thật duyệt sau khi có số đo
+  offline (A/B trên corpus 96 lượt, kho chính sách thật 236K ký tự, `eval/f25_tang_b`).
+- **Bối cảnh:** ba lần liên tiếp cùng một họ lỗi bị phát hiện trong đợt này —
+  F-24 (mẫu injection chỉ cho đúng MỘT từ bổ nghĩa, "ignore ALL PREVIOUS
+  instructions" lọt), F-27 (O1 đòi đúng chữ "OTP", câu nói tự nhiên "mã riêng"
+  lọt), và mỏ neo O2 (đòi cụm LIỀN KỀ, "không ĐƯỢC kết luận gian lận" đếm 0 vì
+  chèn "được"). Security gọi tên đúng lớp lỗi ở lần thứ ba: mọi mẫu khớp cụm
+  tiếng Việt bắt được cách nói TA NGHĨ RA, trượt cách nói NGƯỜI TA NÓI THẬT —
+  và chèn hư từ/lượng từ giữa các thành phần cụm là NGỮ PHÁP TIẾNG VIỆT bình
+  thường, không phải kỹ xảo né tránh.
+  Song song, tester phát hiện bộ đếm mật độ O2 **mù với liệt-kê-QUY-TRÌNH**:
+  cả 9 mỏ neo hiện có đều thuộc họ NGUYÊN TẮC, không mỏ neo nào thuộc họ CÁC
+  BƯỚC, trong khi ràng buộc 7 cấm đọc lại cả "Ràng buộc bắt buộc" lẫn "Quy
+  trình điều tra". Đo thật (bản `5f643f71ddb5`): câu liệt kê nguyên tắc đếm 3;
+  hai câu liệt kê nguyên văn quy trình đếm 0.
+
+### Quyết định 1 — `src/agents/khop_cum.py`: khớp cụm cho phép chèn hư từ, THUẦN CỘNG
+
+Module dùng chung cho O1/O2/O3 (`output_filter.py`), mỏ neo nguyên-tắc và
+tier-1/tier-2 injection (`customer_tools.py`). Với 0 hư từ chèn giữa, mẫu mới
+rút về **đúng** mẫu cũ (so chuỗi con với một dấu cách) — tính chất THUẦN CỘNG
+chứng minh được, không phải hy vọng: mẫu mới khớp được **mọi thứ** mẫu cũ khớp,
+cộng thêm biến thể chèn hư từ (`được·phải·sẽ·cũng·nên·cần·luôn·văn·bao·giờ·hệ·
+thể·tuyệt·đối·đã·đang`) và lượng từ (`mọi·tất·cả·toàn·bộ·các·những·trước·đó·ở·
+trên·phía·bên·hết·sạch`), trần 4 token giữa hai thành phần. Hệ quả để đọc đúng
+khi review: Luật 18 **không thể làm sót thêm**, nhưng **có thể chặn/xoá thêm**
+— nên mọi nơi áp nó vào đường CHẶN/XOÁ phải kèm số ca âm tính đo trước.
+
+**Retroactive cho F-24 + F-27 + mỏ neo nguyên-tắc**, không chỉ land ở O2 nơi
+security phát hiện ra nó — vì đây là lỗi LỚP, vá một chỗ mà để nguyên hai chỗ
+kia thì đợt sau lại phát hiện lại đúng lỗi này ở một mỏ neo khác.
+
+**Lỗ thật lộ ra khi retroactive:** danh sách lượng từ viết tay của F-24 —
+`(moi |tat ca |cac |nhung |truoc do |o tren )*` — **thiếu chữ "toàn bộ"**. Đo
+cô lập: `"bỏ qua toàn bộ ràng buộc"` khớp RỖNG ở bản trước Luật 18, tức lọt cả
+hai tier trong production. Đúng minh hoạ cho lý do đổi luật: danh sách viết
+tay nào cũng thiếu đúng chữ người ta sắp gõ.
+
+**Giá phải trả, đo bằng `eval/f25_tang_b_chinh_sach_hop_le.jsonl`:** ca
+F25B-03 (chính sách hợp lệ dùng đúng cụm "bỏ qua toàn bộ hướng dẫn") chuyển từ
+*sạch* sang *tier-2* — GIỮ nội dung, chỉ thêm nhãn trung tính, KHÔNG xoá
+trắng. 0/5 ca trong bộ F-25(b) thành tier-1. Trên kho chính sách THẬT (trích
+`data/raw/MoMo_ToS.docx` + `MoMo_FAQ_Giao_dich.docx`, 235.982 ký tự, 1.967
+đoạn — cùng cỡ kho security đo ở đợt F-24): tier-1 `0→0`, tier-2 `1→1`. A/B
+siết-nhầm trên corpus 96 lượt thật của tester: `27/96` cả hai bản, delta = 0.
+
+- **Lý do BÁC BỎ phương án khác:** vá riêng lẻ từng ca (thêm "toàn bộ" vào
+  danh sách F-24, thêm biến thể "được" vào mỏ neo O2, thêm "mã riêng" vào O1)
+  — đã BỊ BÁC BỎ ở F-27 với lý do còn nguyên giá trị: đó là đập chuột, danh
+  sách liệt kê tay luôn thiếu đúng chữ người ta sắp gõ tiếp theo. Sửa lớp một
+  lần rẻ hơn sửa lẻ mãi mãi.
+
+### Quyết định 2 — O4 CỐ Ý đứng ngoài Luật 18
+
+`_O4_DONG_TU/_O4_TIEN/_O4_HUONG_KHACH` KHÔNG qua `khop_cum` — vẫn khớp theo
+ranh giới từ đơn, có thứ tự (`_vi_tri_dau`). O4 là nhóm từng chặn nhầm nhiều
+nhất trong lịch sử bộ lọc (4/5 ca chặn nhầm còn lại của đợt trước đều do một
+chữ, "hoan" lọt vào giữa "khoang"). Nới độ rộng cụm ở đúng nhóm mỏng nhất là
+tăng rủi ro chặn nhầm ở nơi không đủ ngân sách chịu thêm sai số — đây là quyết
+định có chủ đích, không phải bỏ quên retroactive.
+
+- **Lý do BÁC BỎ:** áp Luật 18 máy móc cho mọi mẫu cụm không phân biệt ngữ
+  cảnh là đúng thứ đã gây ra F-23 (nới một chỗ, quên đo tác dụng phụ ở chỗ
+  khác). O4 xứng đáng một ngoại lệ có ghi lý do hơn là một lần nới không đo.
+
+### Quyết định 3 — Mỏ neo QUY TRÌNH: hai điều kiện đồng thời, ngưỡng riêng
+
+`dem_mat_do_quy_trinh()` bật khi **(B) có** dấu hiệu trình-bày-thành-quy-trình
+(`quy trình` · `các bước` · `gồm:` · `trình tự` · `bước 1`/`thứ nhất` · `mình
+được hướng dẫn` · `quy định của mình` · cặp `đầu tiên … sau đó`) **VÀ (A) ≥ 2**
+trong 7 mỏ neo BƯỚC (`buoc_phan_loai` … `buoc_chuyen_nguoi_that`). KHÔNG đếm
+như họ nguyên-tắc (ngưỡng 3, không cần điều kiện B): các BƯỚC là thứ agent nói
+ra HỢP LỆ HÀNG NGÀY khi báo cho khách nó đang làm gì ("mình sẽ tra cứu rồi tạo
+hồ sơ" = 2 bước, phải luôn im). Phân biệt không nằm ở việc NHẮC một bước, mà ở
+việc TRÌNH BÀY CHUỖI BƯỚC như một quy trình — nên cần (B) làm điều kiện lọc,
+và ngưỡng (A) hạ xuống 2 vì (B) đã gánh một phần việc lọc.
+
+Hai họ (nguyên-tắc, quy-trình) đếm **riêng** — ngưỡng khác nhau, trộn chung
+một con số sẽ mất khả năng biết bộ đếm mù họ nào, đúng lỗi vừa phải sửa. Ghi
+CHUNG một khoá `thread_signals` theo `thread_id`, vì mục đích là phát hiện
+*một hội thoại đang moi chỉ thị*, không phân biệt moi kiểu nào. **VẪN CHỈ
+ĐẾM, KHÔNG CHẶN** — quyết định O2 gốc (`quyet-dinh-O2-lo-chi-thi.md`) giữ
+nguyên.
+
+### Quyết định 4 — cắm bộ đếm vào đường chạy thật + trả qua envelope
+
+Phát hiện ngoài phạm vi việc được giao: `dem_mat_do_liet_ke` **chưa từng có
+call site nào ở đường chạy thật** trước bản này — chỉ `tests/` và `eval/`.
+Mệnh đề *"O2 đếm trước, nâng lên chặn khi có rò"* — nền của quyết định
+không-chặn — tới giờ **rỗng trong production**. Không phải vì mỏ neo thiếu, mà
+vì bộ đếm chưa cắm điện.
+
+`src/agents/graph.py` gọi `tin_hieu_lo_chi_thi(reply, thread_id=...)` trên
+`reply` GỐC (không phải `reply_da_loc`) — mật độ liệt kê là tín hiệu về HÀNH VI
+của agent, độc lập với việc O1-O4 có chặn câu đó hay không; trộn hai thứ sẽ
+làm phân phối mật độ mù chính câu bị thay bằng `CAU_AN_TOAN`. Kết quả trả qua
+**trường envelope mới `tin_hieu_lo_chi_thi: {"nguyen_tac": N, "quy_trinh": M}`**
+(BỐN trường chẩn đoán, cùng họ với `loc_dau_ra`/`ly_do_fallback`/`tool_calls:
+null`) — không chỉ ghi Redis, vì `eval/` gọi thẳng `graph.py`, `logging_config`
+chưa từng khởi tạo, và Redis là fakeredis per-process: bộ đếm vô hình với
+người đo nếu chỉ ghi Redis. Additive: không đổi `reply`, không đổi
+`loc_dau_ra`, không đổi quyết định chặn.
+
+- **Hệ quả:** `src/agents/khop_cum.py` (mới) · `src/agents/output_filter.py`
+  (Luật 18 cho O1/O2/O3/mỏ-neo-nguyên-tắc + mỏ neo quy-trình +
+  `tin_hieu_lo_chi_thi()`) · `src/agents/tools/customer_tools.py` (Luật 18 cho
+  tier-1/tier-2 F-24) · `src/agents/graph.py` (gọi bộ đếm, trường envelope
+  mới). KHÔNG chạm `contracts/` — additive, không đổi hình dạng quyết định.
+
+---
+
 ## Mẫu ADR mới
 
 ```markdown

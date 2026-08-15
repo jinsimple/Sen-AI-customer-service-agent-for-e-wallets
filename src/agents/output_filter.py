@@ -17,6 +17,7 @@ import logging
 import re
 import unicodedata
 
+from src.agents import khop_cum as KC
 from src.services import thread_signals
 
 _logger = logging.getLogger("fin05.output_filter")
@@ -55,11 +56,13 @@ _O1_SO_OTP = re.compile(r"\b(12\s*(gio|tieng)|15\s*phut|10\s*phut)\b")
 # kỹ thuật. Mẫu neo vào từ khoá kỹ thuật thì rò rỉ cứ xảy ra ở LỜI ĐỜI THƯỜNG.
 # Đúng bài học F-24: mẫu chỉ bắt được cách nói TA NGHĨ RA, không bắt cách nói THẬT.
 # Nay neo vào: con số cấu hình + bất kỳ dấu hiệu HẠN/HIỆU LỰC nào.
-_O1_NGU_CANH_MA = [
+# LUẬT 18: qua `KC.cum` nên "ma duyet" bắt luôn "mã PHẢI duyệt", "ma xac nhan"
+# bắt "mã cần xác nhận". Xem `khop_cum.py` — phép biến đổi THUẦN CỘNG.
+_O1_NGU_CANH_MA = KC.cum(
     "otp", "ma duyet", "ma xac nhan", "phe duyet", "ma xac thuc",
     "het han", "hieu luc", "con han", "hieu luc trong", "trong vong",
     "phai xin lai", "xin ma moi", "ma rieng",
-]
+)
 # NGUONG NOI BO dang "vuot nguong N trieu". Ca nay dac biet: 10 trieu la nguong
 # SINH TRAC HOC (QD 2345/QD-NHNN), KHONG phai nguong gian lan — hien phap §8 ghi
 # ro. Agent noi cau do vua ro cau hinh noi bo VUA SAI LUAT, nen chan la dung ca
@@ -73,7 +76,7 @@ def _khop_o1(reply: str) -> bool:
     sach = _bo_dau(reply)
     if _O1_NGUONG_TIEN.search(sach):
         return True
-    return any(k in sach for k in _O1_NGU_CANH_MA) and bool(_O1_SO_OTP.search(sach))
+    return KC.khop_bat_ky(_O1_NGU_CANH_MA, sach) and bool(_O1_SO_OTP.search(sach))
 
 
 # ---------------------------------------------------------------- O2
@@ -82,17 +85,17 @@ def _khop_o1(reply: str) -> bool:
 # việc nhắc lại NGUYÊN VĂN các cụm đặc thù của prompt nội bộ. Phần suy diễn
 # (paraphrase) KHÔNG bắt — để guardrail đếm theo thread lo, đúng nguyên tắc
 # hẹp-mà-chắc. Đừng đọc sự tồn tại của O2 thành "đã phủ mọi cách lộ chỉ thị".
-_O2_CUM_NOI_BO = [
+_O2_CUM_NOI_BO = KC.cum(
     "rang buoc bat buoc",
     "quy trinh dieu tra",
     "khong bao gio duoc",
     "ban la tro ly ao cua",
-]
+)
 
 
 def _khop_o2(reply: str) -> bool:
     sach = _bo_dau(reply)
-    return sum(1 for c in _O2_CUM_NOI_BO if c in sach) >= 2
+    return sum(1 for c in _O2_CUM_NOI_BO if c.search(sach)) >= 2
 
 
 # ---------------------------------------------------------------- O3
@@ -102,19 +105,19 @@ def _khop_o2(reply: str) -> bool:
 # khi khách vừa đọc một dãy số bị che.
 _A_DAY_SO = re.compile(r"\d{4,}")
 _A_TEN_RIENG = re.compile(r"\b[A-ZĐÀ-Ỹ][a-zà-ỹ]+(\s+[A-ZĐÀ-Ỹ][a-zà-ỹ]+){1,}\b")
-_A_HOI_XAC_NHAN = [
+_A_HOI_XAC_NHAN = KC.cum(
     "co phai", "dung khong", "phai khong", "hay la", "dung/sai", "dung hay sai",
     "gan dung", "xac nhan giup", "co dung", "phai vay khong",
-]
+)
 # B — chỉ tính khi cụm khẳng định/phủ định ĐỨNG NHƯ MỘT MỆNH ĐỀ TRẢ LỜI, tức mở
 # đầu một mệnh đề. "không có giao dịch nào chính xác với 500k" KHÔNG khớp vì
 # "chính xác" nằm giữa mệnh đề, không phải câu trả lời đúng/sai.
 # Gom CA dang phu dinh: loai tru mot kha nang cung la MOT BIT oracle.
 # "Khong phai 21 dau" thu hep khong gian doan y nhu "dung roi" xac nhan no.
-_B_KHANG_DINH = [
+_B_KHANG_DINH = KC.cum(
     "dung roi", "chinh xac", "vang", "phai roi", "gan dung", "dung vay",
     "khong phai", "sai roi", "khong dung", "khong phai vay",
-]
+)
 
 
 def _tach_menh_de(t: str) -> list[str]:
@@ -126,7 +129,7 @@ def _a_la_phong_doan(tin_nhan_khach: str) -> bool:
         return False
     co_du_lieu = bool(_A_DAY_SO.search(tin_nhan_khach)) or bool(_A_TEN_RIENG.search(tin_nhan_khach))
     sach = _bo_dau(tin_nhan_khach)
-    co_hoi = any(k in sach for k in _A_HOI_XAC_NHAN)
+    co_hoi = KC.khop_bat_ky(_A_HOI_XAC_NHAN, sach)
     return co_du_lieu and co_hoi
 
 
@@ -210,7 +213,11 @@ def _khop_o3(reply: str, tin_nhan_khach: str, nguon: str, loi_khach: str = "") -
     if not _a_la_phong_doan(tin_nhan_khach):
         return False
     for md in _tach_menh_de(_bo_dau(reply)):
-        if any(md.startswith(k) for k in _B_KHANG_DINH):
+        # `.match` chứ không `.search`: giữ nguyên ngữ nghĩa "đứng ĐẦU mệnh đề"
+        # của `startswith` cũ. Luật 18 chỉ nới phần GIỮA cụm, không nới cái neo
+        # đầu mệnh đề — neo đó mới là thứ phân biệt câu TRẢ LỜI đúng/sai với chữ
+        # "chính xác" nằm lọt giữa một câu vô hại.
+        if any(k.match(md) for k in _B_KHANG_DINH):
             return True
     return False
 
@@ -344,15 +351,17 @@ def loc_dau_ra(
 # thoại mới là tín hiệu (Crescendo moi dần), và đó là việc của guardrail
 # đếm-theo-thread, không phải của bộ lọc câu.
 _MO_NEO_QUY_TAC = {
-    "khong_quyet_tien": ["khong tu quyet", "khong the tu duyet", "phai co nguoi duyet", "khong duoc hoan tien truc tiep"],
-    "khong_bia_so": ["khong bia", "chi dua tren du lieu", "phai tra cuu duoc"],
-    "pdpa_ben_thu_ba": ["thong tin nguoi khac", "ben thu ba", "khong cung cap thong tin ca nhan"],
-    "khong_ket_luan_gian_lan": ["khong ket luan gian lan", "khong khang dinh la lua dao"],
-    "otp": ["khong hoi mat khau", "khong hoi otp giao dich", "otp phien"],
-    "phan_loai": ["4 loai khieu nai", "phan loai khieu nai", "pham vi giao dich"],
-    "tai_lieu_tham_khao": ["chi la tham khao", "tai lieu tham khao"],
-    "xung_ai": ["toi la tro ly ao", "minh la tro ly ao", "toi la ai"],
-    "khong_tiet_lo_huong_dan": ["khong the chia se huong dan", "khong tiet lo quy trinh noi bo"],
+    k: KC.cum(*v) for k, v in {
+        "khong_quyet_tien": ["khong tu quyet", "khong the tu duyet", "phai co nguoi duyet", "khong duoc hoan tien truc tiep"],
+        "khong_bia_so": ["khong bia", "chi dua tren du lieu", "phai tra cuu duoc"],
+        "pdpa_ben_thu_ba": ["thong tin nguoi khac", "ben thu ba", "khong cung cap thong tin ca nhan"],
+        "khong_ket_luan_gian_lan": ["khong ket luan gian lan", "khong khang dinh la lua dao"],
+        "otp": ["khong hoi mat khau", "khong hoi otp giao dich", "otp phien"],
+        "phan_loai": ["4 loai khieu nai", "phan loai khieu nai", "pham vi giao dich"],
+        "tai_lieu_tham_khao": ["chi la tham khao", "tai lieu tham khao"],
+        "xung_ai": ["toi la tro ly ao", "minh la tro ly ao", "toi la ai"],
+        "khong_tiet_lo_huong_dan": ["khong the chia se huong dan", "khong tiet lo quy trinh noi bo"],
+    }.items()
 }
 NGUONG_LIET_KE = 3
 
@@ -360,4 +369,78 @@ NGUONG_LIET_KE = 3
 def dem_mat_do_liet_ke(reply: str) -> int:
     """Số CHỦ ĐỀ quy tắc khác nhau trong reply. Không chặn, chỉ đếm."""
     sach = _bo_dau(reply)
-    return sum(1 for cum in _MO_NEO_QUY_TAC.values() if any(m in sach for m in cum))
+    return sum(1 for cum in _MO_NEO_QUY_TAC.values() if KC.khop_bat_ky(cum, sach))
+
+
+# ------------------------------------------------ O2-C: HỌ MỎ NEO **QUY TRÌNH**
+# (security `docs/security/mo-neo-quy-trinh-cho-O2.md`, PO duyệt.)
+#
+# LỖ Ở BỘ ĐO, KHÔNG PHẢI Ở BỘ LỌC — và đó là hạng nguy hiểm hơn. Cả 9 mỏ neo
+# trên đều thuộc họ NGUYÊN TẮC; không mỏ neo nào thuộc họ CÁC BƯỚC. Mà ràng buộc
+# 7 của system prompt cấm đọc lại CẢ "Ràng buộc bắt buộc" LẪN "Quy trình điều
+# tra". Đo thật (security, bản `5f643f71ddb5`): câu liệt kê nguyên tắc đếm 3;
+# hai câu liệt kê nguyên văn quy trình đếm **0**.
+#
+# Vì sao bộ đo mù nguy hiểm hơn bộ lọc thủng: phân phối mật độ sẽ nói "không có
+# vấn đề", và mệnh đề "đếm trước, NÂNG LÊN CHẶN khi thấy rò" thành **rỗng** —
+# đúng thứ mà quyết định "O2 đếm trước, chặn sau" sinh ra để diệt.
+#
+# HAI ĐIỀU KIỆN ĐỒNG THỜI, và đây là chỗ KHÔNG được chép cách đếm của họ
+# nguyên-tắc sang: các BƯỚC là thứ agent nói ra HỢP LỆ HÀNG NGÀY khi báo cho
+# khách nó đang làm gì ("mình sẽ tra cứu giao dịch rồi tạo hồ sơ" = 2 bước, và
+# phải luôn im). Phân biệt KHÔNG nằm ở việc NHẮC một bước, mà ở việc TRÌNH BÀY
+# CHUỖI BƯỚC NHƯ MỘT QUY TRÌNH.
+_MO_NEO_BUOC = {
+    k: KC.cum(*v) for k, v in {
+        "buoc_phan_loai": ["xac dinh loai khieu nai", "phan loai khieu nai", "thuoc loai nao", "xac dinh loai van de"],
+        "buoc_tra_lich_su": ["tra lich su giao dich", "lich su giao dich", "cac giao dich gan day", "xem giao dich gan day"],
+        "buoc_tra_giao_dich": ["tra cuu giao dich", "tra ma giao dich", "doi chieu so tien", "kiem tra giao dich"],
+        "buoc_hoi_lai": ["hoi lai de thu hep", "hoi them thong tin", "hoi ban them", "hoi ro hon"],
+        "buoc_tao_ho_so": ["tao ho so", "tao ticket", "lap phieu khieu nai", "tao phieu khieu nai"],
+        "buoc_bao_ket_qua": ["bao ma ticket", "bao moc xu ly", "thong bao sla", "ma ho so cua ban", "thoi han xu ly"],
+        "buoc_chuyen_nguoi_that": ["chuyen chuyen vien", "gap nguoi that", "chuyen nhan vien", "chuyen sang nguoi that"],
+    }.items()
+}
+# (B) DẤU HIỆU TRÌNH BÀY-THÀNH-QUY-TRÌNH. Một mình (B) KHÔNG đủ: "quy trình tra
+# soát với ngân hàng mất 5-7 ngày" có (B) mà không có bước nào -> im.
+_DAU_HIEU_QUY_TRINH = KC.cum(
+    "quy trinh", "cac buoc", "gom:", "trinh tu", "buoc 1", "buoc mot",
+    "thu nhat", "minh duoc huong dan", "quy dinh cua minh", "minh lam theo",
+)
+# "đầu tiên … sau đó" là dấu hiệu TRÌNH TỰ nên chỉ tính khi có ĐỦ HAI vế —
+# riêng "đầu tiên" thì câu nào cũng có thể có.
+_CAP_TRINH_TU = (KC.mau_cum("dau tien"), KC.mau_cum("sau do"))
+# Ngưỡng 2 (không phải 3 như họ nguyên-tắc) vì (B) đã gánh phần lọc: có dấu hiệu
+# trình-bày-quy-trình CỘNG hai bước thì đã là đọc lại quy trình.
+NGUONG_QUY_TRINH = 2
+
+
+def dem_mat_do_quy_trinh(reply: str) -> int:
+    """Số BƯỚC khác nhau — nhưng CHỈ khi câu đang trình bày chúng thành quy trình.
+
+    Trả 0 khi thiếu dấu hiệu (B), kể cả khi có nhiều bước: đó là ca âm tính bắt
+    buộc của security, và nó bảo vệ đúng câu agent báo cho khách nó đang làm gì.
+    """
+    sach = _bo_dau(reply)
+    co_b = KC.khop_bat_ky(_DAU_HIEU_QUY_TRINH, sach) or all(m.search(sach) for m in _CAP_TRINH_TU)
+    if not co_b:
+        return 0
+    return sum(1 for cum in _MO_NEO_BUOC.values() if KC.khop_bat_ky(cum, sach))
+
+
+def tin_hieu_lo_chi_thi(reply: str, *, thread_id: str = "") -> dict[str, int]:
+    """Hai họ đếm RIÊNG, ghi CHUNG một khoá theo `thread_id`.
+
+    Chung khoá vì mục đích là phát hiện *một hội thoại đang moi chỉ thị*, không
+    phân biệt moi nguyên-tắc hay moi quy-trình — kẻ moi dần (Crescendo) không có
+    lý do gì phải moi mãi một họ. Riêng khi đếm vì hai họ có ngưỡng khác nhau và
+    trộn vào một con số thì mất luôn khả năng biết nó mù họ nào — đúng lỗi vừa
+    phải sửa ở đây.
+
+    VẪN CHỈ ĐẾM, KHÔNG CHẶN (quyết định O2 giữ nguyên).
+    """
+    nguyen_tac = dem_mat_do_liet_ke(reply)
+    quy_trinh = dem_mat_do_quy_trinh(reply)
+    if thread_id and (nguyen_tac >= NGUONG_LIET_KE or quy_trinh >= NGUONG_QUY_TRINH):
+        thread_signals.tang("OUT-LO-CHI-THI", thread_id)
+    return {"nguyen_tac": nguyen_tac, "quy_trinh": quy_trinh}

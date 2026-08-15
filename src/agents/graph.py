@@ -22,7 +22,7 @@ from langgraph.errors import GraphRecursionError
 from sqlalchemy.orm import Session
 
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
-from src.agents.output_filter import loc_dau_ra
+from src.agents.output_filter import loc_dau_ra, tin_hieu_lo_chi_thi
 from src.agents.prompt import build_system_prompt
 from src.agents.tools.customer_tools import TurnGuard, build_customer_tools
 from src.config import (
@@ -384,6 +384,7 @@ def run_agent_turn(
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
                 # Câu fallback do CHÍNH TA viết, không qua LLM -> không cần lọc.
                 "loc_dau_ra": [],
+                "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 # Lượt rơi fallback vẫn phải mang tín hiệu: khách bực mà hệ
                 # thống lại lỗi chính là lúc CẦN người thật nhất.
                 "goi_y_handoff": bool(tin_hieu_cam_xuc),
@@ -461,18 +462,33 @@ def run_agent_turn(
         tin_nhan_khach=message,
         thread_id=thread_id or user_id,
     )
+    # O2 ĐẾM-TRƯỚC-CHẶN-SAU (security, docs/security/mo-neo-quy-trinh-cho-O2.md,
+    # PO duyệt) — CHẠY TRÊN `reply` GỐC, không phải `reply_da_loc`. Mật độ liệt
+    # kê là tín hiệu về HÀNH VI của agent (đang đọc lại nội quy hay không), độc
+    # lập với việc O1-O4 có chặn câu đó hay không — trộn hai thứ sẽ làm phân
+    # phối mật độ mù chính câu bị O3/O4 thay bằng CAU_AN_TOAN.
+    #
+    # Trước bản này hàm KHÔNG CÓ call site nào ở đường chạy thật (chỉ tests/ và
+    # eval/) — mệnh đề "đếm trước, nâng lên chặn khi thấy rò" tới giờ rỗng trong
+    # production. Trả qua ENVELOPE (không chỉ ghi Redis) vì cùng lý do ba trường
+    # chẩn đoán bên dưới: eval gọi thẳng graph, Redis là fakeredis per-process,
+    # nên bộ đếm vô hình với người đo nếu chỉ ghi Redis.
+    tin_hieu_lo_chi_thi_ket_qua = tin_hieu_lo_chi_thi(reply, thread_id=thread_id or user_id)
     return {
         "reply": reply_da_loc,
         "tool_calls": tool_calls_out,
         "ticket_id": ticket_id,
         "should_escalate": should_escalate,
         "usage": usage,
-        # Ba trường CHẨN ĐOÁN. Không phải tiện tay: eval KHÔNG sinh một dòng log
-        # nào (runner gọi thẳng graph, logging_config chưa từng khởi tạo) và
-        # Redis là fakeredis per-process — nên log + bộ đếm của bộ lọc VÔ HÌNH
-        # với người đo. Thiếu chúng thì O1/O3/O4 cùng ra một câu an toàn giống
-        # hệt nhau, đúng họ "hai trạng thái đội chung một vỏ".
+        # BỐN trường CHẨN ĐOÁN (`tin_hieu_lo_chi_thi` thêm ở Luật 18). Không
+        # phải tiện tay: eval KHÔNG sinh một dòng log nào (runner gọi thẳng
+        # graph, logging_config chưa từng khởi tạo) và Redis là fakeredis
+        # per-process — nên log + bộ đếm của bộ lọc VÔ HÌNH với người đo. Thiếu
+        # chúng thì O1/O3/O4 cùng ra một câu an toàn giống hệt nhau, đúng họ
+        # "hai trạng thái đội chung một vỏ"; và trước Luật 18, mật độ liệt kê
+        # còn tệ hơn — không chỉ vô hình mà CHƯA TỪNG được tính ở đường thật.
         "loc_dau_ra": nhom_khop,
+        "tin_hieu_lo_chi_thi": tin_hieu_lo_chi_thi_ket_qua,
         # ES-xx -> FRONTEND render nút "gặp người thật". KHÔNG tự gọi
         # request_human_handoff: quyền quyết định gặp người là của KHÁCH
         # (CTRL-001 / ISO-IEC 25059), hệ thống chỉ ĐỀ NGHỊ.

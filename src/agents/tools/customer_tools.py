@@ -24,6 +24,7 @@ from typing import Any
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
 
+from src.agents import khop_cum as KC
 from src.agents.spotlight import danh_dau_du_lieu, danh_dau_ngan
 from src.config import OTP_STEPUP_FRESH_MINUTES, OTP_VIEW_MAX_MINUTES
 from src.db.models import Transaction
@@ -147,24 +148,30 @@ _TIER1_META = [
     # dịch nơi công cộng" — một KHUYẾN CÁO AN TOÀN — bị xoá trắng, khách nhận
     # "nội dung bất thường". Cụm đó DÙNG ĐƯỢC trong chính sách thật nên nó
     # không thoả điều kiện vào tier-1; đã chuyển xuống tier-2.
-    r"huong dan (he thong )?moi",
+    r"huong dan" + KC.GAP + r"(he thong )?moi",
     # `*` thay `?`: mẫu cũ chỉ cho MỘT từ bổ nghĩa nên "ignore ALL PREVIOUS
     # instructions" — câu injection phổ biến nhất — lọt sạch (F-24).
     r"ignore (all |previous |above |the |prior )*(constraints|rules|instructions)",
     r"system prompt",
     r"you are now",
-    r"tiet lo (tieu chi|nguong|tin hieu)",
+    r"tiet lo" + KC.GAP + r"(tieu chi|nguong|tin hieu)",
 ]
 _TIER2_MO_TA_HANH_VI = [
     # MÔ TẢ HÀNH VI sản phẩm — dùng chung y hệt từ vựng với chính sách thật, nên
     # KHÔNG có sức phân biệt tấn công với chính sách. HẠ CẤP: giữ nội dung +
     # nhãn TRUNG TÍNH, để LLM đọc như thông tin tham khảo thay vì mất hẳn.
-    r"tu dong (duyet|hoan tien|xac nhan)",
+    r"tu dong" + KC.GAP + r"(duyet|hoan tien|xac nhan)",
     r"khong can .{0,15}(kiem tra|duyet|xac nhan|cho sep)",
     # Từ tier-1 chuyển xuống (F-25) + mở rộng `?`->`*` (F-24). Ở tier-2 thì mở
     # rộng độ phủ gần như MIỄN PHÍ: bắt nhầm cũng chỉ hạ cấp một câu chính sách
     # thật xuống hạng dữ liệu, nội dung vẫn tới được khách.
-    r"bo qua (moi |tat ca |cac |nhung |truoc do |o tren )*(rang buoc|quy tac|huong dan|chi thi)",
+    #
+    # LUẬT 18 — danh sách lượng từ viết tay `(moi |tat ca |cac |nhung |truoc do
+    # |o tren )*` ĐÃ ĐƯỢC THAY bằng `KC.GAP`. Không phải cho gọn: danh sách đó
+    # **thiếu "toàn bộ"**, nên "bỏ qua toàn bộ hướng dẫn" — một trong hai câu
+    # QA/QC nêu đích danh — KHÔNG khớp ở bản 5f643f71. Đúng minh hoạ của lỗi
+    # lớp: danh sách viết tay nào cũng thiếu đúng chữ người ta sắp gõ.
+    r"bo qua" + KC.GAP + r"(rang buoc|quy tac|huong dan|chi thi)",
 ]
 # Giữ tên cũ cho nơi khác đang dùng: "có dấu hiệu injection" = khớp BẤT KỲ tier
 # nào. Phân biệt tier nằm ở `_phan_loai_tier` bên dưới.
