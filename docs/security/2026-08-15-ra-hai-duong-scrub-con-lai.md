@@ -161,9 +161,31 @@ ngoài** (Điều 25). Không phải thứ bật bằng một env var rồi tín
 
 ## 4. Việc này KHÔNG đóng cái gì
 
-- **Chưa đọc hết 138 file** — tôi đo mẫu file mới nhất. Kết luận "phơi nhiễm
-  hôm nay thấp" đúng cho **file đó**; nếu PO cần chắc cho cả 138 file thì đó là
-  một phép quét riêng, nói một tiếng tôi chạy.
+- ~~**Chưa đọc hết 138 file**~~ → **ĐÃ QUÉT TOÀN BỘ (bổ sung 15/08).**
+  **69 file `_raw.json` · 2,0 MB văn bản**, không lấy mẫu:
+
+  | Loại | Tìm thấy | Thuộc seed tổng hợp | Còn lại |
+  |---|---|---|---|
+  | SĐT | 24 | **23** (`data/generated/users.jsonl`) | 1 — `0901234567` |
+  | STK 14 số | 3 | **3** (`bank_accounts.jsonl`) | 0 |
+
+  Số duy nhất không thuộc seed, `0901234567`, truy ra từ
+  `eval/adversarial_multiturn_set.jsonl` + `tests/test_observability/test_pii.py`
+  ⟹ **số fixture của bộ test**, không phải PII thật.
+
+  ⟹ **0 PII thật trên TOÀN BỘ corpus** (cả `_raw.json` lẫn `.md`). Kết luận
+  "phơi nhiễm hôm nay THẤP" của §2 nay đứng trên **quét đủ**, không phải mẫu.
+
+  ⚠️ **Điều này KHÔNG làm F-29 nhẹ đi.** Rủi ro của F-29 chưa bao giờ là dữ
+  liệu hôm nay — mà là **cơ chế**: BR-06 không che chính chủ, nên lượt chạy với
+  **người thật** sẽ ghi SĐT/STK/họ tên thật vào file git-tracked, ở nơi không có
+  đường xoá thực hành. Quét này chỉ chốt rằng **chưa có thiệt hại đã xảy ra** —
+  tức `.gitignore` là đủ, **không cần rewrite history** (đúng như tôi đã chủ
+  động không đòi).
+
+  *(Ghi số cho đúng: tôi đếm **69** file `_raw.json`; con số 74 lưu hành trước
+  đó nhiều hơn 5. Không truy tiếp vì không đổi kết luận — nhưng ghi ra để phiên
+  sau đừng lấy 74 làm chuẩn mà không kiểm.)*
 - ~~**Chưa kiểm các file `.md`**~~ → **ĐÃ KIỂM (bổ sung 15/08).** 61 file `.md`,
   14 file có dấu hiệu transcript. Dò SĐT ra **18** giá trị — truy tới cùng:
 
