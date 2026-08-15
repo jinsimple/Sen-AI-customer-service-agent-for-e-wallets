@@ -178,6 +178,15 @@ Vá ~3 dòng: gom dòng không parse được, ghi bytes GỐC vào archive (ho�
 `unlink`. **CHƯA SỬA** — `scripts/` ngoài vùng ghi của mọi vai (xem F-ZONE), chờ PO thật giao.
 ⟹ **Khuyến nghị: vá F-LOG TRƯỚC khi đẩy backlog P-121**, đừng chạy 19 lượt trên đường có lỗ.
 
+**Hồ sơ phép đo (Luật 10): `docs/giao-viec/2026-08-15-do-luong-F-LOG.md`** — hai script đo giữ
+NGUYÊN VĂN trong đó, chạy lại được, chỉ thư viện chuẩn. **PO-agent đã chạy lại độc lập, khớp từng
+số** (băm hai script tính lại bằng `shasum` cũng khớp con số tech-lead báo). ⚠️ Đó là **chỗ đặt
+TẠM** vì bản gốc nằm ở `/private/tmp` gắn phiên tech-lead (phiên đóng = bằng chứng bốc hơi, và
+đường dẫn chết trong hồ sơ tệ hơn không có); chỗ đúng là `scripts/` hoặc `tests/`, **chờ F-ZONE**.
+⚠️ CA2 + phần B **CỐ Ý ĐỎ** (ca tái lập finding, không phải test hồi quy) — đừng ai sửa cho xanh.
+**Bẫy đã ghi trong hồ sơ:** CA3 (tuần tự) báo thứ tự ĐẠT còn phần B (đua thật) báo TRƯỢT — cùng
+một câu hỏi, ngược nhau; F-LOG-2 **chỉ hiện ra dưới đồng thời thật**, test tuần tự sẽ xanh giả.
+
 **TIN TỐT cùng lượt đo:** nhánh **leftover CHẠY ĐÚNG** — 502 dòng, `BATCH_LIMIT=500` → lượt 1 gửi
 500 + "2 deferred", lượt 2 gửi 2; `archive 502 dòng · id duy nhất 502 · trùng lặp 0`. Bản vá làm
 đúng điều nó hứa, backlog sẽ không phình archive.
