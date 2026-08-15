@@ -31,22 +31,35 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 > Trượt submit KHÔNG chặn push (`exit 0` cuối hook) và log được giữ lại nguyên vẹn (đường
 > `_restore_pending` đã verify thật: 0 dòng mất sau lần trượt SSL).
 >
-> **TRẠNG THÁI ĐO ĐƯỢC 15/08 — mắt xích cuối còn ĐỎ là KEY.** Sau khi vá SSL, push `3f59e3e`
-> trả **`HTTP 401 Unauthorized`**: mạng/TLS/server đều thông, chỉ `AI_LOG_API_KEY` bị từ chối
-> (key cũ chưa thay, hoặc là placeholder chép từ `.env.example` chứ không phải key cá nhân từ
-> link mời BTC — hai khả năng cho cùng một 401). **Chưa từng submit thành công từ P-226.**
-> `LANGCHAIN_*` KHÔNG liên quan: `submit_log.py:28-30` chỉ đọc `AI_LOG_SERVER` ·
-> `AI_LOG_API_KEY` · `AI_LOG_DIR` — xoá/thêm key LangChain không đổi gì ở đường này.
+> **✅ ĐƯỜNG AI-LOG P-226 ĐÃ THÔNG — verify thật 15/08, push `eadcca7`:**
+> `[ai-log] Submitted 73 entries → 202` · `.ai-log/archive/2026-08-15.jsonl` sinh ra với đúng
+> 73 bản ghi, parse JSON 73/73 hỏng 0, metadata đúng (`repo=P-226` · `branch=dev/learning-loop`
+> · `student=jin.simple@gmail.com`).
+>
+> **Chuỗi chẩn đoán 4 lượt push (giữ lại vì mỗi nấc hỏng cho một triệu chứng KHÁC nhau):**
+> `954a6a9` CERTIFICATE_VERIFY_FAILED (thiếu SSL_CERT_FILE) → `3f59e3e` **401** (SSL thông) →
+> `e6e5f7b` 401 (không đổi vì key chưa thay) → `eadcca7` **202 ✅** (key mới `ai20…` 38 ký tự,
+> lấy từ link mời BTC; key cũ `f3p1…` 64 ký tự chép sang từ P-121 là key ĐÃ THU HỒI).
+> `LANGCHAIN_*` KHÔNG liên quan tới đường này: `submit_log.py:28-30` chỉ đọc `AI_LOG_SERVER` ·
+> `AI_LOG_API_KEY` · `AI_LOG_DIR`.
 >
 > ⚠️ **Hỏng IM LẶNG — đừng lấy "push xanh" làm bằng chứng.** Hook `exit 0` nên push luôn
 > thành công dù submit trượt; dòng `[ai-log] Submit failed` lẫn giữa output git. **Bằng chứng
-> khách quan DUY NHẤT là `.ai-log/archive/`** — `_archive()` chỉ chạy SAU khi POST thành công,
-> nên thư mục đó tồn tại ⟺ đã gửi được thật. Hiện chưa có.
+> khách quan DUY NHẤT là `.ai-log/archive/`** — chỉ sinh ra SAU khi POST thành công.
+> `session.jsonl` BIẾN MẤT sau lần gửi được là ĐÚNG THIẾT KẾ (atomic rename), hook tạo lại ở
+> lượt ghi kế tiếp — đừng tưởng mất log.
 >
-> AI_LOG_API_KEY + LANGCHAIN keys ĐANG được tạo lại (key cũ 401). **9133 dòng backlog nằm ở
-> P-121-new/.ai-log — submit từ P-121 khi có key mới, ĐỪNG xoá P-121-new tới khi submit xong**
-> (deliverable #4). Liệu lịch: `submit_log.py` có `BATCH_LIMIT=500`/lần push ⟹ backlog đó cần
-> **~19 lượt push**, không phải một phát xong.
+> **AI_LOG_API_KEY mới đã hoạt động ở P-226.** LANGCHAIN tạm TẮT có chủ đích
+> (`LANGCHAIN_TRACING_V2=false`, key rỗng) — PO quyết gác lại, không chặn gì.
+>
+> **CÒN TREO — backlog P-121: 9133 dòng ở `P-121-new/.ai-log`.** Phải **thay key mới vào
+> `P-121-new/.env` nữa** (nơi đó vẫn là key `f3p1…` đã thu hồi) rồi push từ P-121.
+> **ĐỪNG xoá P-121-new tới khi submit xong** (deliverable #4). Liệu lịch: `BATCH_LIMIT=500`
+> mỗi lần push ⟹ cần **~19 lượt push**, không phải một phát xong.
+> ⚠️ Nhánh leftover của `_archive_entries()` (vá ở `eadcca7`) **CHƯA từng chạy thật** — lượt
+> 15/08 chỉ có 73 bản ghi, dưới ngưỡng 500 nên không sinh leftover. Backlog P-121 sẽ là lần
+> ĐẦU TIÊN nhánh đó chạy; kiểm `wc -l .ai-log/archive/*.jsonl` sau 2 lượt push đầu để chắc
+> archive không phình trùng lặp.
 >
 > **Việc còn treo (không chặn, đã có tài liệu trong sổ Đợt 2):** đợt nâng CỔNG-A gộp 3 oracle
 > (số-ngắn+tên+phủ-định) theo xuất-xứ · câu-4 RAG retrieval quality (3/5 câu chính sách hợp lệ agent
