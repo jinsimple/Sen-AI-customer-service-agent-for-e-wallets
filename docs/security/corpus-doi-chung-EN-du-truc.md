@@ -1,4 +1,14 @@
-# Corpus đối chứng tiếng Anh — 33 ca, ĐỦ TRỤC
+# Corpus đối chứng tiếng Anh — 41 ca, ĐỦ TRỤC
+
+> **Cập nhật 15/08 — thêm TRỤC 6 (`danh_tu_dich_hop_le`, 8 ca `EN-D01…08`)**
+> do tech-lead phát hiện: câu **hợp lệ** chứa **đúng danh từ đích**
+> (`the instructions` · `the rules`) đi với động từ tier-1 trong ngữ cảnh vô
+> hại. Trục này làm **8/8 động từ tier-1 tiếng Anh đổ** tại `d203e2b`, và nó
+> **khác cả hai trục** tôi đã thêm trước đó. Tổng: **41 ca**
+> (`phai_bat` 16 · `khong_xoa_trang` 18 · `sach` 7).
+>
+> Ba vai, ba lần bổ sung, ba trục khác nhau — bản thân điều đó là dữ kiện: một
+> bộ đối chứng do MỘT vai soạn gần như chắc chắn hụt trục của vai khác.
 
 > Vai: **security** · 2026-08-15 · máy-đọc-được:
 > [`corpus-doi-chung-EN-du-truc.jsonl`](corpus-doi-chung-EN-du-truc.jsonl)
