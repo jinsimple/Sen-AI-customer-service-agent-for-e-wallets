@@ -1,7 +1,7 @@
 # Chuẩn viết test — FIN-05
 
 > Vai giữ file: **tester** · 15/08/2026.
-> Hai luật dưới đây được PO phê chuẩn thành **luật dự án**, rút ra từ lỗi THẬT
+> Ba luật dưới đây được PO phê chuẩn thành **luật dự án**, rút ra từ lỗi THẬT
 > gặp trong hai ngày 14–15/08, mỗi luật kèm đúng những ca đã làm nó lộ ra.
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
@@ -10,17 +10,19 @@
 > kể cả khi được mời: ranh giới co giãn "một lần cho tiện" thì lần sau không
 > còn là ranh giới.
 
-## Vì sao hai luật, không phải một
+## Vì sao ba luật, không phải một
 
-Một test chỉ có giá trị khi chứng minh được **cả hai** vế:
+Một test chỉ có giá trị khi chứng minh được **cả ba** vế:
 
 | | Câu hỏi | Thiếu nó thì |
 |---|---|---|
 | **Luật 1** | Ràng buộc có **HIỆU LỰC** không? | suite xanh trên một guardrail không tồn tại |
 | **Luật 2** | Ràng buộc có **QUÁ RỘNG** không? | suite xanh trên một guardrail cấm cả người hợp lệ |
+| **Luật 3** | Phép đo có **TÁI LẬP** được không? | kết luận rút từ một kịch bản không quay lại được |
 
-Thiếu vế nào cũng ra **suite xanh giả**, chỉ khác chiều. Đó là lý do hai luật
-này là một họ, không phải hai quy tắc rời.
+Thiếu vế nào cũng cho ra một kết luận **trông như đo được mà không đo được gì**.
+Đó là lý do ba luật này là một họ, không phải ba quy tắc rời: Luật 1 và 2 canh
+**cái thước**, Luật 3 canh **phép đo**.
 
 ---
 
@@ -95,15 +97,41 @@ constraint đi, bộ ràng-buộc-cứng vẫn xanh.
 
 ---
 
+## LUẬT 3 — Lượt LLM sinh để KHÁM PHÁ, lượt viết cứng để ĐIỀU TRA
+
+Lượt do LLM sinh **không tái lập được**. Dùng nó để điều tra một hiện tượng
+CỤ THỂ là quy sai nguyên nhân từ một kịch bản khác.
+
+**Ca đã làm luật này lộ ra:** ca smoke đa-lượt có 1 lượt viết sẵn + 2 lượt do
+kẻ-tấn-công-ảo sinh. Lượt 3 lần đầu là câu **chính sách**, sinh ra một quan sát
+đáng ngờ (agent từ chối cả việc hợp lệ). Chạy lại để điều tra thì lượt 3 thành
+câu **khác hẳn** — hiện tượng cần soi không xuất hiện lại, và mọi kết luận rút
+từ lượt đó sẽ là kết luận về một kịch bản khác.
+
+| Mục đích | Loại lượt | Vì sao |
+|---|---|---|
+| **Khám phá** đường tấn công chưa ai nghĩ ra | LLM sinh, phản ứng theo agent | biến thiên là TÍNH NĂNG |
+| **Điều tra** một hiện tượng cụ thể | viết cứng | biến thiên là thứ phá phép đo |
+| **Đo đi đo lại** (gate, so trước/sau) | viết cứng | hệ luận trực tiếp của nhiễu nền 20/40 |
+
+**Kèm theo:** một ca ĐO không phải một ca KẾT LUẬN. Hiện tượng thấy MỘT lần là
+**quan sát**, không phải finding. Chỉ khi nó **tái lập ổn định qua k lần** mới
+được gọi là lỗi — cùng lý do quy tắc đọc nhiễu dùng GIAO của k lượt thay vì
+ngưỡng số đếm.
+
+---
+
 ## Áp dụng khi review test của nhau
 
-Ba câu hỏi, hỏi theo thứ tự:
+Bốn câu hỏi, hỏi theo thứ tự:
 
 1. **Test này xanh vì lý do gì?** Nếu trả lời được bằng "vì hệ thống mặc định
    đã như vậy" → vi phạm Luật 1.
 2. **Ràng buộc này có ca nào chứng minh nó không chặn nhầm chưa?** Không có →
    vi phạm Luật 2.
-3. **Đỏ này là lỗi sản phẩm hay lỗi hạ tầng/bộ chấm?** Chưa mở lý do ra đọc
+3. **Kết quả này có tái lập được không?** Kịch bản có lượt LLM sinh → chỉ là
+   quan sát, chưa phải finding → vi phạm Luật 3 nếu đem đi kết luận.
+4. **Đỏ này là lỗi sản phẩm hay lỗi hạ tầng/bộ chấm?** Chưa mở lý do ra đọc
    thì chưa được kết luận. Trong hai ngày, **bốn** lần một con số đỏ hoá ra
    không phải lỗi agent: SyntaxError giữa lúc lưu file · false positive của
    bộ chấm · rate limit 429 · và một bản vá của chính tôi làm ngược mục đích
