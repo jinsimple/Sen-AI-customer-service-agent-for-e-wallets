@@ -103,10 +103,20 @@ def test_run_agent_turn_handles_recursion_limit_gracefully(sample_db, monkeypatc
         sample_db, user_id="USR-A", message="tôi bị chuyển nhầm tiền nhưng không nhớ gì cả"
     )
 
-    # Không crash (không raise ra ngoài), không tool_calls dở dang, có ticket
-    # thật để CSKH nhận diện — KHÔNG bịa số liệu/ngụ ý đã tra ra kết quả.
+    # Không crash (không raise ra ngoài), có ticket thật để CSKH nhận diện —
+    # KHÔNG bịa số liệu/ngụ ý đã tra ra kết quả.
     assert result["ticket_id"] is not None
-    assert result["tool_calls"] == []
+
+    # `is None`, KHÔNG phải `== []`. Đây từng là một test XANH ĐANG BẢO VỆ MỘT
+    # LỜI NÓI DỐI: nhánh fallback ném lỗi trước khi đọc được `result["messages"]`,
+    # nên hệ thống KHÔNG BIẾT agent đã gọi tool nào. `[]` khẳng định "không tool
+    # nào được gọi" — một điều không ai quan sát được. Phân biệt ba trạng thái:
+    #     []    -> quan sát thật: agent không gọi tool nào
+    #     [...] -> quan sát thật: đây là danh sách
+    #     None  -> KHÔNG KHÔI PHỤC ĐƯỢC (nhánh fallback)
+    # Tôi đã đo được hậu quả của việc lẫn hai cái đầu: 4/5 bản ghi có tool_calls
+    # rỗng KHÔNG hề đi qua fallback, nên `[]` không suy ngược ra fallback được.
+    assert result["tool_calls"] is None
     assert "chuyển" in result["reply"].lower() or "chuyên viên" in result["reply"].lower()
 
     ticket = sample_db.get(Ticket, result["ticket_id"])
