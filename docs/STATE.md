@@ -119,9 +119,17 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - **MT-E02 traceback** — cơ chế chưa rõ, giữ quan sát, ĐỪNG đốt TPM tái hiện chủ động.
 
 ## Chặn / chờ PO THẬT — RÚT GỌN 15/08 (chip câu 3 + ADR-020 ĐÃ CHỐT, xem "Vừa xong")
-- **Hướng đợt 150 người** — DUY NHẤT việc PO thật còn treo. Số end-to-end đã có để quyết: bộ lọc
-  17/17 không siết nhầm, RAG retrieval là điểm yếu; 4 góc chưa-sẵn-sàng: TPM · 429→500 · timeout ·
-  RAG (chi tiết ở sổ Đợt 2, mục "429 SẢN PHẨM" + "TIMEOUT trên câu phổ biến nhất").
+- **Hướng đợt 150 người.** Số end-to-end đã có: bộ lọc 17/17 không siết nhầm, RAG retrieval là
+  điểm yếu; 4 góc chưa-sẵn-sàng: TPM · 429→500 · timeout · RAG (sổ Đợt 2, mục "429 SẢN PHẨM" +
+  "TIMEOUT trên câu phổ biến nhất").
+  **➕ Ý KIẾN BẢO MẬT VỀ PILOT (security, kết sổ `80b217a`) — đọc trước khi quyết:**
+  > Bốn cửa **KHÔNG chặn pilot về mặt bảo mật** *nếu* dữ liệu pilot được coi là **dữ liệu thật** và
+  > có **đường xoá sau đợt**. Thứ **thật sự cần trước pilot** là **A1 + A2** — rẻ, không cần quyết
+  > cơ chế, đóng đúng phần *"lưu plaintext vĩnh viễn"*. Phần còn lại (B1/B2, A3, A4) là **nợ đúng
+  > hạn, không phải nợ gấp**.
+
+  ⚠️ Nói rõ để **bốn cửa không bị đọc thành một khối chặn-pilot** — chúng có **hạng khác nhau**, và
+  trộn lại sẽ khiến **A1/A2 (rẻ, đáng làm ngay) bị kẹt sau A3/A4** (đụng vận hành, cần PO).
 - **PO-1 xong** (key đã xoay). **PO-2**: keys đang tạo lại — AI_LOG_API_KEY + LANGCHAIN keys (key cũ
   401), OPENAI_API_KEY secret PO đang đặt (đã có hướng dẫn). 9118 dòng backlog AI-log ở
   P-121-new/.ai-log chờ submit khi có key mới — ĐỪNG xoá P-121-new tới khi submit xong.
@@ -469,6 +477,30 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
    · đợt cổng-A gộp 3 oracle · câu-4 RAG retrieval (chunk/embedding, trước pilot 150 người).
 5. **PO-2**: đặt `OPENAI_API_KEY` thành secret trên GitHub → mở 2 CI eval (chỉ có tác dụng SAU khi
    billing thông).
+
+## Phiên rà soát bảo mật ĐÃ ĐÓNG SỔ — mục lục cho phiên security sau
+**`docs/security/2026-08-15-ket-so-ra-soat-cuoi-sprint.md`** (`80b217a`) = mục lục + tư thế rủi ro
+tồn dư, **không lặp nội dung**, để phiên sau không phải dựng lại mạch từ 7 commit + một chuỗi tin
+nhắn. Năm việc treo security nhận đầu phiên, trạng thái đóng sổ:
+
+| Việc treo | Trạng thái |
+|---|---|
+| `note` / CI security-gate | **XONG** — kết luận **CHƯA BẬT** |
+| mốc nền 18/20 | **ĐÃ TRÔI** `6c5fff` → `fd16681d`, kèm hệ quả bắt buộc cho CỔNG-A |
+| oracle-phủ-định "không phải 21" | **KHÔNG ĐỔI** — vẫn thuộc CỔNG-A |
+| MT-E02 | **thu hẹp, CHƯA đóng** (cố ý — Luật 5) |
+| pipeline scrub | **XONG MỘT PHẦN** — rà OTel/callback; **chưa** rà Langfuse (tắt có chủ đích) + đường log eval (F-LOG) |
+
+### 📌 Về SÁU ca tự-bắt-mình trong phiên (§6 kết sổ) — ghi để đọc đúng, không đọc thành cẩu thả
+Sáu ca cùng họ **thước-hiệu-chuẩn-theo-vật**: PO-agent tuyên bố `archive/` là bằng chứng đủ · PO-agent
+gọi `note` là việc đã đóng · security viết "cả bốn ô đã đo hành vi" khi một ô chưa probe · security
+kê `scrub_pii` ở §5.2 mà chưa đo nó · test skip im lặng hai ngày · 15 kỳ vọng suýt viết theo impl.
+Đánh giá security ghi nguyên văn:
+> Đây là dấu hiệu **kiến trúc phân-vai ĐANG CHẠY**, không phải dấu hiệu đội cẩu thả. Một đội không
+> có cơ chế đối kháng thì các lỗi này **không được PHÁT HIỆN**, chứ không phải không xảy ra.
+
+**Và cả sáu ca đều do CHÍNH NGƯỜI MẮC tự bắt**, không phải do người khác soi ra — thứ khó có hơn cả
+việc bắt được lỗi của nhau.
 
 ## Hoãn có chủ đích
 - Hạ tầng đo temp=0/k≥3 (gói B2 HOLD, floor nhiễu 20/40) · reseed gộp (⚠️ gỡ lọc-A1 khi from_bank sửa) ·
