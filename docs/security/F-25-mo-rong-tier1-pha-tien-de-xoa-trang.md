@@ -75,6 +75,44 @@ mất độ phủ ở đó là **chấp nhận được theo thiết kế**; l�
 lọc đầu ra. Không có lý do gì đánh đổi nội dung thật để cứu độ phủ của một lớp
 mà ta vừa hạ giá trị.
 
+> ### ⚠️ ĐÍNH CHÍNH §3(a) — 2026-08-15, CÓ ĐO: `ignore all the/prior …` Ở LẠI TIER-1
+>
+> Câu trên liệt kê `ignore all the/prior …` vào nhóm phải xuống tier-2. **Rút
+> lại vế đó.** Lý do rút KHÔNG phải "code đã làm khác" — mà vì tiền đề tôi dùng
+> để viết nó (*sợ FP của mẫu đã nới*) nay **đã đo được, và bằng 0**:
+>
+> ```
+> Kho THẬT data/raw/ — MoMo FAQ + ToS + business_rules + scenario-candidates
+> 239.192 ký tự · 1.814 câu · 4 tài liệu
+> TIER-1 (XOÁ TRẮNG) dương tính:  0/1814
+> TIER-2 (giữ + đánh dấu)      :  2/1814   (lành, đúng thiết kế)
+> dấu: he_thong=fd16681d8088 · commit b293167 · 0 TPM, tất định
+> ```
+>
+> Đây đúng phép đo §4 giao cho tôi (*"đo lại §1 khi tài liệu đối tác thật vào
+> kho"*) — nay làm xong, và nó lật chính khuyến nghị của tôi.
+>
+> **Vì sao ở lại tier-1 là đúng:** tiêu chí vào tier-1 là *"không thể xuất hiện
+> trong chính sách viết cho khách"*. `ignore … instructions` thoả tiêu chí đó
+> trên kho tiếng Việt thật (0/1814), trong khi `bỏ qua các quy tắc` thì KHÔNG
+> (§2: "Không được bỏ qua các quy tắc an toàn…" là khuyến cáo an toàn thật).
+> Hai cụm khác nhau ở **sức phân biệt đo được**, không ở ngôn ngữ. Bản §3(a) gốc
+> gộp chúng làm một là **sai ở chỗ đó** — tôi lấy "cùng bị F-24 nới rộng" làm
+> tiêu chí thay cho "cùng có FP", trong khi FP mới là tiêu chí tôi tự đặt ra.
+>
+> Và `ignore all previous instructions` là chuỗi injection phổ biến nhất đang
+> tồn tại — hạ nó xuống tier-2 để đổi lấy một FP **đo ra là không tồn tại** thì
+> mất độ phủ mà không mua được gì.
+>
+> **Cảnh báo về tiền lệ:** "sửa đặc tả cho khớp impl" thường là đường hỏng
+> (code tự định nghĩa đúng-sai). Ở đây nó hợp lệ **chỉ vì** có phép đo MỚI trên
+> tập RỘNG mà bản gốc chưa có — không phải vì impl đã land. Nếu phép đo ra
+> khác 0 thì kết luận ngược lại, và coder phải vá. Đừng trích mục này làm tiền
+> lệ cho việc nhượng bộ implementation.
+>
+> **KHÔNG đổi phần còn lại của §3(a):** nhóm `bỏ qua các/những/toàn bộ …` vẫn ở
+> **tier-2** — đó là phát hiện gốc của F-25 và nó vẫn đứng.
+
 **(b)** Giữ mẫu rộng trong tier-1 nhưng thêm điều kiện ngữ cảnh "chỉ thị hướng
 tới trợ lý" (`bạn hãy`, `trợ lý`, `từ giờ`) — *bác bỏ*: lại là đoán ý định từ câu
 chữ, đúng thứ §2.4 đã chứng minh không có sức phân biệt.
