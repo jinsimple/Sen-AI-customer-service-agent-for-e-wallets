@@ -118,6 +118,23 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   KHÔNG nới ràng buộc 9. Mốc: trước pilot 150 người.
 - **MT-E02 traceback** — cơ chế chưa rõ, giữ quan sát, ĐỪNG đốt TPM tái hiện chủ động.
 
+## ⚡ BA QUYẾT ĐỊNH PO THẬT — chiều tối 15/08 (mới nhất, đè các mục cũ bên dưới)
+1. **Billing/CI:** PO thật KHÔNG phải owner org — chỉ BTC sửa được. ⟹ gửi BTC/mentor tin nhắn kèm
+   annotation nguyên văn (PO-agent đã soạn, xem cuối STATE). Trong lúc chờ: tester đã chạy đủ lệnh
+   từng job trên host (446 passed/0 failed) — **công việc hằng ngày KHÔNG bị chặn**, chỉ thiếu
+   bằng chứng trên runner + badge (deliverable). F-CI-2 đã vá sẵn đón ngày billing thông.
+2. **ADR-025: NGUYÊN TẮC ĐÃ DUYỆT** ("chốt theo hướng security"). PO thật uỷ quyền PO-agent research
+   chuẩn EU/US cho 3 chỗ trống → **dự thảo ADR-025 ĐÃ VIẾT** vào `docs/DECISIONS.md` với đề xuất:
+   retention **5 năm** (max của VN-PCRT-5n/EU-AMLD-5n/US-RegE-2n-sàn, cờ: cần tư vấn pháp lý thật
+   trước production) · đọc transcript theo **NGƯỜI PHỤ TRÁCH** + supervisor có audit-log (GDPR 25/32
+   · PCI DSS Req 7 · ISO 27001 · SOC 2) · fail-visible = **preview-confirm** (nhân viên thấy bản đã
+   che, xác nhận trước khi ghi; engine lỗi vẫn fail-closed 500 giữ ADR-024). Con số chờ PO xác nhận
+   nhanh rồi coder mới chạm contract/code phần B + A3/A4.
+3. **PILOT 150 NGƯỜI: HOÃN** — PO thật chốt: chỉ mở khi (a) tối ưu **caching** xong và (b) chatbot
+   **tự học/tự nâng cấp** được (learning loop Phase 2). ⟹ các mục "trước pilot" (F-29, A1/A2, RAG,
+   TPM) **giãn deadline nhưng KHÔNG huỷ** — F-29/A1/A2 rẻ nên vẫn làm ngay trong lô hiện tại. Hai
+   cam kết của security (dữ liệu thật + đường xoá) ghi lại cho thời điểm pilot thật.
+
 ## Chặn / chờ PO THẬT — RÚT GỌN 15/08 (chip câu 3 + ADR-020 ĐÃ CHỐT, xem "Vừa xong")
 - **Hướng đợt 150 người.** Số end-to-end đã có: bộ lọc 17/17 không siết nhầm, RAG retrieval là
   điểm yếu; 4 góc chưa-sẵn-sàng: TPM · 429→500 · timeout · RAG (sổ Đợt 2, mục "429 SẢN PHẨM" +
@@ -482,6 +499,23 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
 ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B3/A3/A4.
 
 ### Tiến độ phân công (cập nhật chiều muộn 15/08)
+- **Coder ①②③(A1) XONG** (báo-trước-khi-land đúng luật): F-CI-2 verify hai chiều (appsec
+  227 passed/1 deselected · security-findings-gate VẪN ĐỎ — chuyển finding về đúng job canh, không
+  giấu) · A1 `models.py:223` EncryptedText, probe hành vi tiền tố Fernet + đối chứng hàng-cũ-vẫn-đọc
+  (đường InvalidToken, không cần migration/backfill) — CHỜ security probe mới đóng. **A2: PO-agent
+  quyết phương án (b) + trần 2.000 ký tự** (schema chính-xác-ký-tự + CHECK thô ciphertext ≤4.000;
+  Fernet nở theo byte nên DB không diễn đạt được trần ký tự — số đo coder ×1.72-1.9).
+- **🔴 Finding mới của coder (Luật 8 lần BA): F-24 vs F-25 MÂU THUẪN trên nhánh EN**
+  (`customer_tools.py:152-154` chỉ có comment F-24; `:165` VN có cả hai) — nhánh EN không bị bỏ
+  quên, nó bị MỘT trong hai bản vá sờ tới. → security gộp phân xử vào probe F-28.
+- **Corpus 20 ca ĐÃ XUẤT FILE** (`c403384`): `docs/security/corpus-ghi-chu-sach-20-ca.jsonl` (+.md,
+  8 ca 🔴). Trích **bằng AST** từ script đo gốc — không chép tay, không import src/. **BA GIỚI HẠN
+  đi kèm corpus (cấm dùng rộng hơn):** (1) 20 câu soạn tay — chứng minh TỒN TẠI lớp chặn nhầm,
+  KHÔNG phải tỷ lệ sản phẩm — **đừng để "40%" đi vào báo cáo PO như tỷ lệ thật**; (2) chỉ phủ nhóm
+  B — nhóm A (khẩu ngữ/sai chính tả/không dấu) cần corpus riêng; (3) thuần đối chứng, **PHẢI chạy
+  cùng bộ ca có PII, cấm chạy lẻ** — không thì bản vá "không scrub gì" đạt 0/20 hoàn hảo. Mở rộng =
+  THÊM ca GC-21+, **không sửa 20 ca gốc** (mất mốc). `ket_qua_goc` là nhãn tại `fd16681d8088` —
+  cây ĐÃ trôi sang `f3193ecae0e2` (A1 land); ai đo lại = cặp MỚI đóng dấu riêng, không ghi đè.
 - **Tester ①③ XONG** — `tests/test_ai_log/test_f_log_leftover.py`: 3 passed · 2 **xfail(strict)** ·
   suite đầy đủ 478 passed/0 failed. Hai ca finding dùng `xfail(strict=True)` thay đỏ-trần (PO-agent
   RATIFY): hiện rõ trong report, không chặn CI khi billing thông (né hình dạng F-CI-2), và khi coder

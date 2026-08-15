@@ -935,6 +935,94 @@ hiện ở route khách gọi được (`test_11`), không lọt vào bất kỳ
 
 ---
 
+## ADR-025 — MỘT nguyên tắc, HAI cơ chế cho BỐN cửa văn bản tự do
+
+- **Ngày:** 2026-08-15 · **Trạng thái:** NGUYÊN TẮC ĐÃ ĐƯỢC PO THẬT DUYỆT 15/08
+  ("chốt theo hướng security"); các CON SỐ đề xuất bên dưới do PO-agent nghiên cứu
+  chuẩn EU/US theo uỷ quyền — chờ PO thật xác nhận nhanh trước khi coder chạm
+  contract/code. Nền tảng kỹ thuật: hồ sơ security
+  `docs/security/2026-08-15-co-che-cho-bon-cua-dau-vao-adr-025.md` (`6f18c9d`).
+- **Bối cảnh:** hệ thống có BỐN cửa văn bản tự do với ba lớp phòng vệ lệch nhau
+  (bảng đo đủ 4 chiều tại STATE 15/08): `messages.content` (mã hoá, không scrub) ·
+  `complaints.description_raw` (KHÔNG gì cả — 20.000 ký tự nhận trọn, plaintext) ·
+  `resolutions.note` (scrub nhưng **chặn nhầm 40%**, đổi nghĩa câu im lặng — S-01) ·
+  `investigation_logs.agent_note` (không gì cả — S-02). Vá từng cửa riêng lẻ = che
+  ô này hở ô kia; áp scrub-lúc-ghi cho cả bốn = nhân bản lỗi 40% vào lời khai khách.
+
+### Quyết định 1 — Trục phân loại là BẰNG CHỨNG, không phải ai-gõ
+
+**Nhóm A (lời khai — bằng chứng):** `description_raw` + `messages.content`. Khách
+không sửa lại được; là căn cứ giải quyết tranh chấp tiền. **BÁC che-lúc-ghi** —
+hệ thống tự sửa chữ trong lời khai thì bản ghi mất giá trị chứng cứ (NHNN/toà).
+Cơ chế: mã hoá at-rest + trần độ dài + siết đọc need-to-know + retention + che
+**lúc XUẤT** (log/trace/export — chỗ `scrub_pii` được viết ra, vì bản gốc còn).
+
+**Nhóm B (ghi chú thao tác):** `note` + `agent_note`. Nhân viên đang ngồi trước
+màn hình, sửa lại được. Che-lúc-ghi ĐƯỢC nhưng phải **FAIL-VISIBLE** (Quyết định 4).
+
+### Quyết định 2 — Nhóm A: quyền đọc theo NGƯỜI PHỤ TRÁCH, không theo vai
+
+`cskh` chỉ đọc transcript/description của **ticket mình phụ trách** (assigned).
+`supervisor` đọc theo vai (chức năng giám sát) nhưng **mọi lượt đọc ghi audit-log**
+(ai đọc gì, khi nào). Căn cứ chuẩn EU/US: GDPR Art 25 + 32 (data protection by
+design, least privilege) · PCI DSS Requirement 7 (*restrict access by business
+need-to-know* — chuẩn ngành thanh toán Mỹ) · ISO 27001 A.5.15/A.5.18 · SOC 2 CC6.
+Chuẩn cả hai bờ đều là need-to-know; đọc-theo-vai toàn cục không qua audit nào.
+*(Đây là đáp án cho A3 của hồ sơ security — đổi từ "câu hỏi mở" thành đề xuất.)*
+
+### Quyết định 3 — Retention: đề xuất 5 NĂM kể từ đóng ticket, kèm cờ pháp-lý
+
+Đề xuất: hồ sơ khiếu nại (transcript + description + note + agent_note gắn ticket)
+giữ **5 năm kể từ ticket đóng**, hết hạn thì xoá hoặc ẩn danh hoá không đảo ngược.
+Căn cứ lấy MAX của các chế độ áp dụng: VN — Luật PCTT rửa tiền 2022 giữ hồ sơ giao
+dịch/KYC **5 năm**; NĐ 13/2023 nguyên tắc giới hạn lưu trữ theo mục đích. EU —
+AMLD/CDD **5 năm** sau chấm dứt quan hệ; JC 2018/35 (EBA/ESMA complaints-handling)
+buộc đăng ký lưu hồ sơ khiếu nại; MiFID II 5 năm. US — Reg E 12 CFR 1005.13 giữ
+bằng chứng tuân thủ + hồ sơ điều tra lỗi **tối thiểu 2 năm** (sàn, không trần).
+⚠️ **Cờ giữ nguyên từ security:** con số này cần **tư vấn pháp lý thật xác nhận**
+trước production (đối chiếu thời hiệu khiếu nại TT 40/2024) — đề xuất để hệ thống
+có một con số ĐÚNG HƯỚNG thay vì không có gì, không phải để thay luật sư.
+
+### Quyết định 4 — Nhóm B: FAIL-VISIBLE bằng vòng xác-nhận, engine lỗi vẫn fail-closed
+
+Nhân viên lưu ghi chú → hệ thống hiện **bản ĐÃ che** cho chính họ xác nhận/sửa
+trước khi ghi DB (preview-confirm). Che sai → người thấy ngay tại chỗ, sửa chữ
+rồi lưu — chặn đúng lỗi "40% đổi nghĩa im lặng" của S-01 bằng con người, không
+bằng nới regex. Bản ghi mang cờ đã-qua-che + số vị trí thay thế (audit). Scrub
+engine ném exception → 500, KHÔNG ghi bản thô (giữ nguyên ADR-024 QĐ 3). Căn cứ:
+GDPR Art 5(1)(d) (accuracy — bản ghi phải đúng nghĩa) + toàn vẹn audit-trail SOC 2.
+
+### Quyết định 5 — A2: trần `description_raw` = 2.000 ký tự, ép HAI LỚP
+
+Trần **2.000 ký tự** (≈300-400 từ tiếng Việt — đủ tường thuật chi tiết một vụ
+việc, gấp nhiều lần khiếu nại điển hình, chặn flood 20.000). Ép hai lớp theo
+phương án (b) của tech-lead: **chính xác theo ký tự** ở schema Pydantic
+(`max_length=2000`) + **CHECK THÔ trên ciphertext** làm lưới cuối (bound tính từ
+worst-case đo được ×1.9 + đệm ⟹ `length <= 4000`, cố ý nới để không bao giờ chặn
+nhầm câu hợp lệ). Lý do không CHECK chính xác ở DB: Fernet nở theo byte UTF-8,
+trần nghiệp vụ tính theo ký tự — CHECK trên ciphertext không diễn đạt được trần
+ký tự (số đo tech-lead: 500→952, 2.000→3.556, 20.000→34.424).
+
+### Lý do BÁC BỎ các phương án khác
+- **Scrub-lúc-ghi cho cả bốn cửa** — nhân bản lỗi 40% vào lời khai; lời khai bị
+  sửa chữ mất giá trị chứng cứ; và ở `messages.content` lớp at-rest đã chạy thật
+  (kiểm bằng byte) — đổi giá trị chứng cứ lấy một mức giảm thiểu nữa là đánh đổi tồi.
+- **Đọc-theo-vai giữ nguyên** — trái need-to-know (GDPR 25/32, PCI DSS 7); mọi
+  nhân viên đọc mọi lời khai là chính cái ST2-P0-3 §3 gọi tên.
+- **Không trần, chỉ mã hoá** — flood 20K ký tự vẫn vào; trần là lớp rẻ nhất.
+
+### Hệ quả (khi số được xác nhận)
+Coder: `messages`/`complaints` route đọc theo phụ trách + audit-log đọc ·
+`description_raw` = `EncryptedText` (A1 ĐÃ LAND, chờ probe) + trần 2 lớp (A2) ·
+B1/B2 preview-confirm cho `note` → rồi B3 áp sang `agent_note` (thứ tự bắt buộc:
+B3 đi SAU, tránh nhân bản lỗi im lặng). Tester: trục đối chứng "căn cứ còn sống
+sót" (ngưỡng 0/20, corpus security xuất file) làm gate cho mọi thay đổi scrub.
+Security: probe từng bản vá trước khi đóng. Contract: nếu cần mục mới trong
+`resolution-state-machine.yaml` → qua đúng quy trình §3, CONTRACT_VERSION bump.
+Retention: chờ xác nhận pháp lý trước khi code job xoá tự động.
+
+---
+
 ## Mẫu ADR mới
 
 ```markdown
