@@ -14,7 +14,11 @@ import EnvBadge from "@/components/EnvBadge";
 // hiện thẳng mã, không giấu).
 const DEMO_PASSWORD = "Demo@123";
 const QUICK_LOGIN_ACCOUNTS: { label: string; phone: string }[] = [
-  { label: "Khách hàng", phone: "0387000001" },
+  // Demo 15/08: trỏ USR-0145 (0974000145) chứ không phải USR-0001 — đây là
+  // user có dữ liệu khớp kịch bản demo. Trước đây kịch bản phải dặn "gõ tay,
+  // CẤM bấm nút nhanh", tức cái nút tiện-lợi lại là bẫy: bấm nhầm là vào sai
+  // user rồi mọi số liệu trên màn hình lệch khỏi lời đang nói.
+  { label: "Khách hàng", phone: "0974000145" },
   { label: "Nhân viên CSKH", phone: "0353000201" },
   { label: "Sếp phê duyệt", phone: "0905000205" },
   { label: "Đối tác ví (Chính sách)", phone: "0900000001" },
