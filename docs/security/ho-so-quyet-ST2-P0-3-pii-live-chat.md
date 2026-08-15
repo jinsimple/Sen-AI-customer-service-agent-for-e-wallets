@@ -45,12 +45,32 @@ ngưỡng, nên **không có cách nới/siết nào chạm tới**.
 
 ### Bốn cửa văn bản tự do — cùng MỘT chính sách, đừng quyết lẻ
 
-| Cửa | Ai gõ | Scrub hôm nay | Nguồn |
-|---|---|---|---|
-| `messages.content` (live-chat) | khách + CSKH | ❌ không | ST2-P0-3, hồ sơ này |
-| `complaints.description_raw` | khách | ❌ không | §7 hồ sơ này |
-| `resolutions.note` | nhân viên | ✅ có — **nhưng hỏng nghĩa 40%** | ADR-024 / S-01 |
-| `investigation_logs.agent_note` | nhân viên | ❌ không, cũng không trần độ dài, không cờ | **S-02 (mới 15/08)** |
+| Cửa | Ai gõ | Scrub | Trần độ dài | Cờ injection | Mã hoá at-rest |
+|---|---|---|---|---|---|
+| `messages.content` (live-chat) | khách + CSKH | ❌ không | — | ❌ | ✅ `EncryptedText` |
+| `complaints.description_raw` | khách | ❌ không | ❌ **nhận 20.000 ký tự** | ❌ | ❌ `Text` thuần |
+| `resolutions.note` | nhân viên | ✅ có — **nhưng hỏng nghĩa 40%** | ✅ 500, ép ở DB | ✅ `note_flagged` | ❌ `Text` thuần |
+| `investigation_logs.agent_note` | nhân viên | ❌ không | ❌ **nhận 5.000 ký tự** | ❌ | ❌ `Text` thuần |
+
+**Cả bốn ô đều ĐO BẰNG HÀNH VI trong phiên 15/08** (gọi route/service thật rồi
+đọc thẳng DB), không suy ra từ đọc mã. Dấu `he_thong=fd16681d8088`.
+`description_raw` đo bổ sung sau cùng vì trước đó nó là ô DUY NHẤT còn dẫn lại
+từ hồ sơ cũ (§7) thay vì đo trong phiên — Luật 9. Kết quả probe:
+
+```
+description_raw ĐỌC THẲNG TỪ DB:
+ 'Em chuyển nhầm cho anh Trần Văn Bách, sđt 0912345678,
+  STK 88000000000194, CCCD 001234567890. Số em là 0987654321.'
+còn NGUYÊN VĂN? -> True   (cả 5 mẩu PII: 2 SĐT · STK · CCCD · tên)
+mô tả 20.000 ký tự -> lưu DB đủ 20.000
+payload injection lưu nguyên văn: True · cột cờ trên Complaint: KHÔNG CÓ
+```
+
+Đáng chú ý: `description_raw` chứa PII của **bên thứ ba** ngay trong ca dùng
+điển hình nhất ("em chuyển nhầm cho anh X, sđt …") — người **không phải khách
+hàng**, không có cơ sở pháp lý để lưu, đúng rủi ro §3 của hồ sơ này nhưng ở
+cửa khác. Và nó là cửa duy nhất trong bốn cửa mà **khách tự gõ** lại **không
+có mã hoá at-rest** (live-chat có `EncryptedText`, cửa này không).
 
 `agent_note` là cửa THỨ TƯ, chỉ lộ ra hôm nay, và nó **bác tiền đề "note là chỗ
 DUY NHẤT"** của ADR-024. Quyết lẻ từng cửa sẽ tạo đúng tình trạng bất nhất mà §7
