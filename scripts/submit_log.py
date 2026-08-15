@@ -66,6 +66,26 @@ def _archive_entries(entries: list) -> None:
             dst.write(json.dumps(e, ensure_ascii=False) + "\n")
 
 
+def _archive_hong(lines: list) -> None:
+    """F-LOG — dòng không parse được, giữ NGUYÊN VĂN sang file archive RIÊNG.
+
+    File riêng (`YYYY-MM-DD.hong.jsonl`) chứ không trộn vào archive chính:
+    archive chính phải giữ tính chất "mỗi dòng là một bản ghi JSON hợp lệ" —
+    ai đếm/parse nó cũng không phải xử lý ngoại lệ. Trộn dòng hỏng vào đó là
+    đổi một lỗ mất-dữ-liệu lấy một lỗ hỏng-định-dạng.
+
+    Ghi nguyên văn, KHÔNG cố sửa/cắt: dòng hỏng thường là ghi dở do tiến trình
+    chết giữa chừng, và phần đọc được của nó là manh mối để biết mất cái gì.
+    """
+    if not lines:
+        return
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    with open(ARCHIVE_DIR / f"{today}.hong.jsonl", "a", encoding="utf-8") as dst:
+        for line in lines:
+            dst.write(line if line.endswith("\n") else line + "\n")
+
+
 def _restore_pending(pending: Path) -> None:
     """Failure path: put pending back at LOG_FILE so the next push retries.
     If hook wrote new entries to LOG_FILE in the meantime, prepend pending."""
@@ -105,6 +125,7 @@ def main():
 
     entries = []
     leftover_lines = []
+    hong_lines = []  # F-LOG: dòng không parse được — giữ NGUYÊN VĂN, xem dưới
     with open(pending, encoding="utf-8") as f:
         for line in f:
             stripped = line.strip()
@@ -116,7 +137,17 @@ def main():
             try:
                 entries.append(json.loads(stripped))
             except json.JSONDecodeError:
-                pass  # drop unparseable line
+                # F-LOG — KHÔNG vứt im lặng. Dòng hỏng không gửi được (server
+                # từ chối cả lô), nhưng nó vẫn là bản ghi DUY NHẤT của một
+                # lượt làm việc đã xảy ra thật. Trước bản này nó biến mất khỏi
+                # cả ba đường cùng lúc — không POST, không archive, rồi
+                # pending.unlink() — không một dòng cảnh báo.
+                # Đo A/B thật: bản trước eadcca7 archive 10/10 dòng (dòng hỏng
+                # CÒN, vì _archive chép nguyên file); bản sau archive 9/10
+                # (MẤT HẲN). Backlog P-121 9133 dòng chạy 19 lượt trên đường
+                # này, và archive/ là bằng chứng khách quan DUY NHẤT của việc
+                # nộp bài.
+                hong_lines.append(line)
 
     if not entries:
         # Nothing to send; archive whatever was there (probably junk) and bail.
@@ -147,6 +178,16 @@ def main():
 
     # Success: archive ONLY the submitted batch, then handle any leftover.
     _archive_entries(entries)
+    # F-LOG — PHẢI đứng TRƯỚC unlink: sau unlink thì pending không còn, dòng
+    # hỏng mất vĩnh viễn. Và phải BÁO RA, không im lặng — hỏng-im-lặng là
+    # đúng thứ cả đợt này mất thời gian vì nó.
+    if hong_lines:
+        _archive_hong(hong_lines)
+        print(
+            f"[ai-log] {len(hong_lines)} dòng KHÔNG parse được — không gửi, "
+            f"đã giữ nguyên văn ở archive/*.hong.jsonl",
+            file=sys.stderr,
+        )
     pending.unlink()
 
     if leftover_lines:
