@@ -17,6 +17,7 @@ import datetime as dt
 import json
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -251,6 +252,84 @@ _DAU_HIEU_HA_TANG = (
 )
 
 
+_RX_RETRY_AFTER = re.compile(r"try again in\s+([\d.]+)\s*(ms|s)\b", re.I)
+_SO_LAN_THU_LAI = 4
+_CHO_TOI_DA_GIAY = 30.0
+
+
+def _cho_bao_lau(loi: BaseException) -> float | None:
+    """Đọc khoảng chờ OpenAI TỰ NÓI trong lỗi 429. `None` = không phải 429.
+
+    VÌ SAO ĐỌC CHỨ KHÔNG ĐOÁN: backoff mũ tự nghĩ (1s, 2s, 4s...) hoặc chờ thừa
+    (đốt thời gian) hoặc chờ thiếu (429 tiếp, tốn thêm một lượt gọi). Lỗi 429
+    mang sẵn con số đúng — 'Please try again in 2.793s' — vì server biết cửa sổ
+    TPM còn bao lâu thì trôi, còn ta thì không.
+    """
+    if "ratelimiterror" not in repr(loi).lower() and "429" not in repr(loi):
+        return None
+    m = _RX_RETRY_AFTER.search(str(loi))
+    if not m:
+        return 5.0  # là 429 nhưng không nói rõ -> chờ một khoảng an toàn
+    giay = float(m.group(1)) / (1000 if m.group(2).lower() == "ms" else 1)
+    return min(giay + 0.5, _CHO_TOI_DA_GIAY)  # +0.5s biên, cửa sổ TPM trôi theo thời gian thực
+
+
+def goi_agent_thu_lai(ham, *args, **kwargs):
+    """Gọi một lượt agent, THỬ LẠI khi đụng trần TPM.
+
+    Sự cố 15/08 làm nên hàm này: MT-A01 trượt 429 NĂM lần liên tiếp, mỗi lần
+    OpenAI nói rõ 'try again in 2.793s' / 'in 300ms'. Bộ đo cũ coi 429 là lỗi
+    kết thúc, vứt cả case, rồi tôi xếp lịch chạy bù case đó ở một lượt khác —
+    tức chờ 3 giây thì xong, mà thay vào đó ta trả lại TOÀN BỘ token của mọi
+    lượt đã chạy trong case rồi tiêu lại từ đầu.
+
+    Nghịch lý cần nói rõ: cách xử 429 cũ KHÔNG tiết kiệm TPM, nó LÀM TỆ HƠN
+    đúng cái ràng buộc số một của pilot. Và nó tệ nhất ở đúng những case DÀI —
+    case dài tốn nhiều token nhất nên dễ đụng trần nhất, mà cũng là case mất
+    nhiều nhất khi bị vứt. MT-A01 (7 lượt, dài nhất bộ) trượt 5/5 lần không
+    phải trùng hợp.
+
+    KHÔNG nuốt lỗi: hết lượt thử vẫn 429 thì ném lại nguyên lỗi để
+    `phan_loai_loi` xếp KHÔNG ĐO ĐƯỢC như cũ. Thử lại là để đo được, không
+    phải để giấu.
+    """
+    loi_cuoi: BaseException | None = None
+    for lan in range(_SO_LAN_THU_LAI):
+        try:
+            return ham(*args, **kwargs)
+        except Exception as e:  # noqa: BLE001
+            cho = _cho_bao_lau(e)
+            if cho is None:
+                raise  # không phải 429 -> KHÔNG thử lại, để lỗi thật nổi lên ngay
+            loi_cuoi = e
+            if lan < _SO_LAN_THU_LAI - 1:
+                print(f"    [429] chờ {cho:.1f}s rồi thử lại (lần {lan + 2}/{_SO_LAN_THU_LAI})",
+                      file=sys.stderr, flush=True)
+                time.sleep(cho)
+    raise loi_cuoi  # type: ignore[misc]
+
+
+def xep_trang_thai(*, ha_tang: str | None, so_luot_chay_xong: int, vi_pham: list[str]) -> str:
+    """Gộp mọi phép gán trạng thái vào MỘT chỗ thuần, test được.
+
+    Trước 15/08 phép gán này là một biểu thức ba ngôi nằm giữa vòng lặp `run()`
+    — nên cái lỗ "0 lượt mà TRƯỢT" không unit test nào chạm tới được, và nó chỉ
+    lộ ra khi tôi đọc tay một bản ghi. Một nhánh quyết định không gọi được từ
+    test là một nhánh không ai canh.
+
+    BỐN trạng thái, thứ tự xét có ý nghĩa:
+      khong_do_duoc   hạ tầng (429/timeout) — CHẠY LẠI là xong
+      chua_co_hanh_vi 0 lượt chạy xong, không phải hạ tầng — PHẢI ĐIỀU TRA
+      truot           có hành vi, có vi phạm
+      dat             có hành vi, không vi phạm
+    """
+    if ha_tang:
+        return "khong_do_duoc"
+    if so_luot_chay_xong == 0:
+        return "chua_co_hanh_vi"
+    return "truot" if vi_pham else "dat"
+
+
 def phan_loai_loi(loi: BaseException | str) -> str:
     """Trả `"ha_tang"` hoặc `"khong_ro"`.
 
@@ -449,6 +528,9 @@ def run_case_adversary(
     all_agent_replies: list[str] = []
     all_tool_calls: list[dict] = []
     tool_calls_theo_luot: list[list[str]] = []
+    loc_theo_luot: list[list[str] | None] = []
+    ly_do_fallback_theo_luot: list[str | None] = []
+    thoi_gian_theo_luot: list[float] = []
     all_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     result: dict[str, Any] = {}
 
@@ -463,7 +545,19 @@ def run_case_adversary(
                 break  # không sinh được lượt tiếp -> dừng, KHÔNG bịa
 
         all_customer_texts.append(text)
-        result = run_agent_turn(session, user_id=case["user_id"], message=text, thread_id=thread_id)
+        _t0 = time.perf_counter()
+        result = goi_agent_thu_lai(
+            run_agent_turn, session, user_id=case["user_id"], message=text, thread_id=thread_id
+        )
+        # THỜI GIAN TỪNG LƯỢT — thiếu 15/08, phát hiện khi cần tách TIMEOUT với
+        # TỪ CHỐI. Hai thứ đó cho ra CÙNG một câu fallback ("mình chưa tra được
+        # yêu cầu này"), nên nhìn nội dung reply là không phân biệt được:
+        #   ~ngưỡng timeout  -> hết giờ, KHÔNG phải agent từ chối
+        #   nhanh (<5s)      -> agent thật sự về fallback, mới đáng soi thái độ
+        # Không có số này thì mọi câu fallback đều bị đọc như "agent từ chối",
+        # tức một vấn đề HIỆU NĂNG bị chẩn đoán thành vấn đề HÀNH VI — và sửa
+        # nhầm tầng thì không bao giờ hết.
+        thoi_gian_theo_luot.append(round(time.perf_counter() - _t0, 2))
         all_agent_replies.append(result.get("reply", ""))
         tool_luot_nay = result.get("tool_calls") or []
         all_tool_calls.extend(tool_luot_nay)
@@ -480,6 +574,28 @@ def run_case_adversary(
         # Không có log này thì phải chạy lại lần hai để đoán, mà lượt sau
         # temperature khác đi là mất luôn hiện tượng cần soi.
         tool_calls_theo_luot.append([c.get("tool_name") for c in tool_luot_nay])
+
+        # HAI TRƯỜNG CHẨN ĐOÁN CỦA ENVELOPE — giữ NGUYÊN VĂN, kể cả `None`.
+        #
+        # `loc_dau_ra`: nhóm O nào đã chặn lượt này (`[]` = không chặn). Đây là
+        #   thứ DUY NHẤT đo được nửa "agent không nói được gì" — bộ chấm đối
+        #   kháng mù hoàn toàn với nó: đã đo, thay sạch mọi reply bằng câu an
+        #   toàn thì 18/18 ca VẪN ĐẠT, không ca nào bắt. Mọi bất biến đều có
+        #   dạng "agent KHÔNG được nói X", mà im lặng thoả tất cả một cách hoàn
+        #   hảo. Không có trường này thì một bộ lọc siết nhầm sẽ đi qua lượt
+        #   so-cặp dưới nhãn "không hồi quy".
+        # `ly_do_fallback`: "timeout" | "recursion_limit" | "khac" | None. Phân
+        #   biệt HAI nguyên nhân cho CÙNG một câu fallback — chúng đòi hai bản
+        #   vá khác nhau (nâng trần thời gian vs sửa cách agent quyết định
+        #   dừng), và đường log không dùng được vì runner eval gọi thẳng vào
+        #   graph nên logging_config chưa từng được khởi tạo.
+        #
+        # Ghi cả `None` chứ không bỏ khoá: thiếu-khoá và `None` là hai chuyện
+        # khác nhau ở phía chấm — cái đầu không phân biệt được với "bản ghi cũ
+        # chưa có trường này".
+        loc_theo_luot.append(result.get("loc_dau_ra"))
+        ly_do_fallback_theo_luot.append(result.get("ly_do_fallback"))
+
         for k, v in (result.get("usage") or {}).items():
             all_usage[k] = all_usage.get(k, 0) + v
 
@@ -488,6 +604,9 @@ def run_case_adversary(
     result["tool_calls"] = all_tool_calls
     result["usage"] = all_usage
     result["tool_calls_theo_luot"] = tool_calls_theo_luot
+    result["loc_dau_ra_theo_luot"] = loc_theo_luot
+    result["ly_do_fallback_theo_luot"] = ly_do_fallback_theo_luot
+    result["thoi_gian_theo_luot"] = thoi_gian_theo_luot
     result["so_luot_da_chay"] = len(all_agent_replies)
     return result
 
@@ -566,7 +685,9 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
     so_luot = 0
 
     for text in utterances:
-        result = run_agent_turn(session, user_id=case["user_id"], message=text, thread_id=thread_id)
+        result = goi_agent_thu_lai(
+            run_agent_turn, session, user_id=case["user_id"], message=text, thread_id=thread_id
+        )
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
         _add_usage(result)
@@ -583,7 +704,9 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
         if not customer_reply:
             break
         all_customer_texts.append(customer_reply)
-        result = run_agent_turn(session, user_id=case["user_id"], message=customer_reply, thread_id=thread_id)
+        result = goi_agent_thu_lai(
+            run_agent_turn, session, user_id=case["user_id"], message=customer_reply, thread_id=thread_id
+        )
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
         _add_usage(result)
@@ -618,7 +741,9 @@ def run_case_turns(session: Session, *, user_id: str, utterances: list[str], thr
 
     result: dict[str, Any] = {}
     for text in utterances:
-        result = run_agent_turn(session, user_id=user_id, message=text, thread_id=thread_id)
+        result = goi_agent_thu_lai(
+            run_agent_turn, session, user_id=user_id, message=text, thread_id=thread_id
+        )
     return result
 
 

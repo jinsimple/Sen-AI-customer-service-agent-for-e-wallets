@@ -318,6 +318,13 @@ def run(cases: list[dict]) -> list[dict]:
                     "all_agent_replies": all_replies,
                     "all_customer_texts": all_customer_texts,
                     "tool_calls": [c.get("tool_name") for c in tool_calls],
+                    # Payload đầy đủ — xem lý do dài ở run_adversarial_set.py.
+                    # Tóm tắt: `_grounding_digit_runs` ĐỌC kết quả tool để chấm,
+                    # nên không lưu kết quả tool thì không chấm lại được — chính
+                    # là dòng ghi chú ở cuối file này ("File raw cũ không lưu
+                    # tool_calls nên KHÔNG tính lại grounding từ đầu"). Trường
+                    # mới, không đổi nghĩa `tool_calls` cũ.
+                    "tool_calls_day_du": tool_calls,
                     "luot_tao_ticket": luot_tao_ticket,
                     "_thuoc": dau,
                     "error": error,
