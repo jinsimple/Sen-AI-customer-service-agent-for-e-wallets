@@ -60,6 +60,29 @@ services:
       # khởi động (src/observability/tracing.py — BatchSpanProcessor tự
       # retry/nuốt lỗi ở background thread, KHÔNG chặn healthcheck).
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
+      # Ghi đè SSL_CERT_FILE của .env — CÙNG LÝ DO với REDIS_URL ở trên, nhưng
+      # hậu quả nặng hơn nhiều nên ghi kỹ.
+      #
+      # `.env` đặt SSL_CERT_FILE = đường dẫn certifi của Python 3.14 TRÊN MÁY
+      # HOST (/Library/Frameworks/... — macOS). Nó ĐÚNG và CẦN cho hook pre-push
+      # AI-log chạy trên host (thiếu là trượt CERTIFICATE_VERIFY_FAILED, đã đo
+      # thật). Nhưng `env_file: .env` nạp nó vào CẢ container, nơi Python là
+      # 3.12 ở /install và không tồn tại /Library/Frameworks nào.
+      #
+      # Hậu quả đo được: `ChatOpenAI(...)` -> httpx `create_ssl_context` ->
+      # `ssl.create_default_context(cafile=os.environ["SSL_CERT_FILE"])` ->
+      # FileNotFoundError -> MỌI lượt chat agent trả HTTP 500 trong ~0,06s
+      # (chết trước khi kịp gọi OpenAI).
+      #
+      # VÌ SAO NÓ KHÔNG LỘ RA SỚM: `/health` không chạm OpenAI, nên container
+      # vẫn healthy và `docker ps` vẫn xanh 6/6. Mọi dấu hiệu nói stack khoẻ
+      # trong khi đường đắt nhất đã chết — hiện-diện ≠ hiệu-lực ở tầng hạ tầng.
+      #
+      # Sửa ở ĐÂY chứ không sửa `.env`: `.env` phải giữ đường dẫn host cho hook
+      # AI-log. Biến này là thứ HOST cần và CONTAINER phải ghi đè, không phải
+      # thứ một trong hai bên sai.
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
     volumes:
       - chroma_data:/app/data/rag_index
       - logs_data:/app/logs
