@@ -166,9 +166,42 @@ _EN_DT = (
     r"(?:ignor\w*|disregard\w*|forget\w*|overrid\w*|bypass\w*|skip\w*"
     r"|do not follow\w*|don't follow\w*|must not obey|do not obey)"
 )
-_EN_NEO = r"(?:all|previous|above|prior|preceding|earlier|foregoing|your|these)"
+# F-28e — MỎ NEO MA. `all` · `prior` · `these` · `your` ĐÃ RỜI danh sách mỏ
+# neo, nhưng Ở LẠI làm từ đệm tuỳ chọn (`_EN_DEM`) nên recall không mất.
+#
+# Hai loại va chạm, cả hai do lượt-2-bỏ-khoảng-trắng của `_khop_mau`:
+#   (i)  CHUỖI CON vắt ngang ranh giới từ — "the security" -> "thesecurity"
+#        chứa `these`; `all` ⊂ install/overall; `prior` ⊂ priority.
+#   (ii) NGỮ NGHĨA — `your` trỏ vào KHÁCH chứ không phải agent: "your account
+#        rules" và "your instructions" cùng token. `your` không thoả tiêu chí
+#        META ngay từ đầu.
+#
+# LUẬT (security 20bb323, đưa vào chuẩn dự án): token dùng làm MỎ NEO dưới
+# phép khớp ĐÃ BỎ KHOẢNG TRẮNG phải ĐỦ DÀI VÀ ĐẶC TRƯNG để không xuất hiện
+# như chuỗi con — KỂ CẢ VẮT NGANG ranh giới từ.
+# Mỏ neo NGẮN được cứu bằng `\b` thay vì bị loại hẳn: `\ball\b` không khớp
+# install/overall, `\bprior\b` không khớp priority/prioritisation, `\bthese\b`
+# không khớp "the security"->"thesecurity". Ở lượt-2 (bỏ khoảng trắng) cả chuỗi
+# thành MỘT token nên `\b` không khớp được ở giữa — tức mỏ neo ngắn chỉ có
+# hiệu lực ở lượt 1. Chấp nhận có ý thức: biến thể vừa-né-khoảng-trắng vừa-
+# dùng-mỏ-neo-ngắn sẽ rơi tier-2 chứ không tier-1; mỏ neo DÀI vẫn phủ lượt 2.
+# `your` KHÔNG được cứu bằng `\b` — lỗi của nó là NGỮ NGHĨA, không phải chuỗi
+# con: "your account rules" (khách) và "your instructions" (agent) cùng token.
+_EN_NEO = (
+    r"(?:previous|above|preceding|earlier|foregoing"
+    r"|\ball\b|\bprior\b|\bthese\b)"
+)
+_EN_DEM = r"(?:the |any |all |your |these |those |prior |system )*"
 _EN_OBJ = r"(?:constraints|rules|instructions|guidelines|directives|prompts?)"
-_EN_OBJ_META = r"(?:you were told|you were given|system prompt)"
+# F-28e — `\b` BẮT BUỘC trên cụm `system …`: không có nó thì `system rules`
+# ⊂ `ecosystem rules` và ta tự tạo lại đúng lớp mỏ-neo-ma vừa dọn (đo thật:
+# "Please do not skip the ecosystem rules." -> tier1). `\b` hoạt động ở CẢ HAI
+# lượt của `_khop_mau` vì nó là ranh-giới-từ chứ không phải khoảng trắng — lượt
+# 2 xoá dấu cách nhưng "ecosystemrules" vẫn không có ranh giới trước "system".
+_EN_OBJ_META = (
+    r"(?:you were told|you were given"
+    r"|\bsystem (?:prompt|rules|instructions|guidelines)|\bdirectives)"
+)
 
 _TIER1_META = [
     # Ngôn ngữ META về chính hệ thống — KHÔNG THỂ xuất hiện trong một câu chính
@@ -254,7 +287,7 @@ _TIER1_META = [
     # Chiều thứ hai thuộc đợt CỔNG-A và KHÔNG được coi là đã xử lý ở đây.
     #
     # FP không đổi so với F-28: 0/7 đối chứng lành · 0/2006 đoạn kho MoMo thật.
-    _EN_DT + r" (?:the |any |all )*" + _EN_NEO + r" (?:\w+ )?" + _EN_OBJ,
+    _EN_DT + r" " + _EN_DEM + _EN_NEO + r" (?:\w+ )?" + _EN_OBJ,
     # Vế hai: OBJ TỰ MANG TÍNH META ("you were told") nên không cần mỏ neo —
     # "forget everything you were told" không có neo nào trong danh sách mà
     # vẫn trỏ thẳng vào bộ chỉ thị của agent.
