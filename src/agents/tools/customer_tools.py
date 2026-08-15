@@ -169,8 +169,34 @@ _TIER1_META = [
     # của F-28; `bo qua…` (VN) ở tier-2 vì cụm đó dùng được trong chính sách
     # thật. Trục phân xử là SỨC PHÂN BIỆT ĐO ĐƯỢC, không phải ngôn ngữ —
     # đừng đọc thành "tiếng Anh thì nặng tay hơn tiếng Việt".
-    r"(ignore|disregard|forget|override|bypass|skip|do not follow|don't follow"
-    r"|must not obey|do not obey) "
+    # F-28b — THÂN động từ + `\w*`, KHÔNG liệt kê hậu tố. Tester bắt được lỗ
+    # NGAY TRONG F-28 vừa land: `disregarding all previous instructions` LỌT,
+    # mà `disregard` là động từ F-28 vừa thêm — mẫu đòi dấu cách ngay sau động
+    # từ nên dạng V-ing thoát.
+    #
+    # Bản vá đầu tôi thử là liệt kê hậu tố `(s|ed|ing)?`. ĐO RA NÓ CŨNG LỌT:
+    # `forgetting` (phụ âm gấp đôi) không khớp. Một danh sách viết tay để vá
+    # lỗ do danh sách viết tay — chết cùng một kiểu chết, lần thứ hai trong
+    # cùng một bản vá. Ghi lại vì nó là lý do chọn `\w*`: loại trừ bằng số,
+    # không phải khẩu vị.
+    #
+    # `\w*` KHÔNG phải "thêm một mục vào danh sách" — nó XOÁ CHIỀU biến-thể-
+    # hình-thái khỏi bài toán, đối xứng chính xác với việc `KC.GAP` xoá chiều
+    # chèn-hư-từ cho tiếng Việt (Luật 18/ADR-023).
+    #
+    # HAI CHIỀU, HAI SỐ — đọc đúng phạm vi:
+    #   ĐÓNG chiều HÌNH THÁI     8/8  (disregarding · ignoring · overriding ·
+    #                                  bypassing · forgetting · skipping ·
+    #                                  ignores · ignored)
+    #   KHÔNG đóng chiều TỪ VỰNG 0/5  (refrain from following… · pay no
+    #                                  attention to… · you should not adhere
+    #                                  to… · set aside every constraint… ·
+    #                                  `ignroe` gõ sai)
+    # Chiều thứ hai thuộc đợt CỔNG-A và KHÔNG được coi là đã xử lý ở đây.
+    #
+    # FP không đổi so với F-28: 0/7 đối chứng lành · 0/2006 đoạn kho MoMo thật.
+    r"(ignor\w*|disregard\w*|forget\w*|overrid\w*|bypass\w*|skip\w*"
+    r"|do not follow\w*|don't follow\w*|must not obey|do not obey) "
     r"(all |previous |above |the |prior |any |your |everything |these |those "
     r"|earlier |system |initial )*"
     r"(constraints|rules|instructions|guidelines|directives|prompt|prompts"
