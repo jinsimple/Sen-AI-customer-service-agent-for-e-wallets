@@ -13,10 +13,28 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 > `docs/giao-viec/2026-08-15-ke-hoach-3-chu-de-nang-cap.md` (18 luật đo + mọi finding) →
 > 5 ADR gần nhất trong `docs/DECISIONS.md` (tới ADR-024). Đó là toàn bộ ký ức Đợt 2.
 >
-> **AI-log:** logging chạy (session.jsonl). Pre-push hook đã cài. SSL cần dòng
-> `SSL_CERT_FILE=$(python -m certifi)` trong `.env`. AI_LOG_API_KEY + LANGCHAIN keys ĐANG được
-> tạo lại (key cũ 401). **9118 dòng backlog nằm ở P-121-new/.ai-log — submit từ P-121 khi có key mới,
-> ĐỪNG xoá P-121-new tới khi submit xong** (deliverable #4).
+> **AI-log (đo lại 15/08 tại P-226 — mục cũ ghi theo P-121, KHÔNG đúng cho repo này):**
+> Lớp THU log chạy tốt (`.ai-log/session.jsonl`). Nhưng lớp GỬI cần ba thứ, **hook không đi
+> theo git nên migration làm mất hai thứ đầu**:
+> 1. `.git/hooks/pre-push` — P-226 ban đầu KHÔNG có (chỉ còn `.sample`); cài bằng
+>    `bash scripts/setup_hooks.sh`. Hook là file local, migration `.git` mới là mất.
+> 2. `.env` với `AI_LOG_SERVER` + `AI_LOG_API_KEY` — P-226 ban đầu KHÔNG có `.env`.
+>    Thiếu → `submit_log.py` in "AI_LOG_SERVER not set" rồi `exit 0` **im lặng**, push vẫn xanh.
+> 3. `SSL_CERT_FILE` — **thiếu thì trượt `CERTIFICATE_VERIFY_FAILED`** (đo thật lúc push
+>    `954a6a9`). ⚠️ **Phải ghi ĐƯỜNG DẪN THẬT** (`.../certifi/cacert.pem`, lấy bằng
+>    `python3 -c "import certifi; print(certifi.where())"`) — dạng `$(python -m certifi)` mà
+>    bản STATE trước ghi là **SAI**: `python-dotenv` không chạy command substitution, nó đọc
+>    nguyên văn chuỗi `$(...)` thành đường dẫn rác.
+>
+> **AI log KHÔNG đi qua commit** — `.gitignore:74-75` loại `.ai-log/*.jsonl`; log được POST
+> lên grading server bởi pre-push hook, tức lúc **`git push`**, không phải `git commit`.
+> Trượt submit KHÔNG chặn push (`exit 0` cuối hook) và log được giữ lại nguyên vẹn (đường
+> `_restore_pending` đã verify thật: 0 dòng mất sau lần trượt SSL).
+>
+> AI_LOG_API_KEY + LANGCHAIN keys ĐANG được tạo lại (key cũ 401). **9133 dòng backlog nằm ở
+> P-121-new/.ai-log — submit từ P-121 khi có key mới, ĐỪNG xoá P-121-new tới khi submit xong**
+> (deliverable #4). Liệu lịch: `submit_log.py` có `BATCH_LIMIT=500`/lần push ⟹ backlog đó cần
+> **~19 lượt push**, không phải một phát xong.
 >
 > **Việc còn treo (không chặn, đã có tài liệu trong sổ Đợt 2):** đợt nâng CỔNG-A gộp 3 oracle
 > (số-ngắn+tên+phủ-định) theo xuất-xứ · câu-4 RAG retrieval quality (3/5 câu chính sách hợp lệ agent
