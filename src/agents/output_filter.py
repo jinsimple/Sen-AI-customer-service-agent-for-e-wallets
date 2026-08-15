@@ -17,7 +17,7 @@ import logging
 import re
 import unicodedata
 
-from src.agents import khop_cum as KC
+from src.agents import khop_cum as KC  # noqa: N812 — KC là bí danh CỐ Ý (module khớp-cụm dùng dày đặc, xem ADR-023)
 from src.services import thread_signals
 
 _logger = logging.getLogger("fin05.output_filter")
