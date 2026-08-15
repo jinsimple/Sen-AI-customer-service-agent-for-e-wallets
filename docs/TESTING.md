@@ -5,6 +5,27 @@ thực tế repo `P-121-new` hiện tại. **Nguyên tắc:** giữ nguyên tiê
 KHÔNG cắt giảm phạm vi/độ sâu để tiết kiệm thời gian/chi phí LLM. Toàn bộ golden_set
 (120 case) và adversarial_set (40 case) chạy full mỗi PR, không sample.
 
+## Chuẩn viết test (luật dự án)
+
+> **Nguồn duy nhất:** [`tests/CHUAN-VIET-TEST.md`](../tests/CHUAN-VIET-TEST.md) — vai
+> `tester` giữ và cập nhật (hiến pháp §4). File đó chứa các ca THẬT đã làm mỗi luật lộ
+> ra. Không nhân bản nội dung sang đây để tránh trôi; mục này chỉ nêu hai luật để khám
+> phá được từ doc chạy-test, và trỏ về nguồn.
+
+Một test chỉ có giá trị khi chứng minh **cả hai** vế — thiếu vế nào cũng ra suite xanh giả:
+
+- **Luật 1 — Assertion không được trùng trạng thái MẶC ĐỊNH của hệ thống.** Nếu điều bạn
+  khẳng định vốn đã đúng khi tính năng chưa tồn tại, test không kiểm gì. Assert vào dữ kiện
+  CHỈ đúng khi hành vi cần đo thật sự xảy ra; request phải sống qua tầng N-1 rồi mới xét
+  tầng N; thiếu dữ kiện thì NÓI LÀ THIẾU (trạng thái thứ ba `KHÔNG ĐO ĐƯỢC`).
+- **Luật 2 — Mọi ràng buộc mới phải có ≥1 ca chứng minh nó KHÔNG chặn nhầm.** Nếu chỉ đo
+  cái bị chặn, bản vá chặt tay nhất luôn thắng theo số đo — kể cả khi nó cấm mất người dùng
+  hợp lệ. Đường an toàn phải là đường DỄ ĐI NHẤT.
+
+Kèm hai hệ luận chọn-loại-test (ràng buộc là bất biến CẤU TRÚC thì đo cấu trúc, không đo
+phản ứng model; và HIỆN DIỆN ≠ HIỆU LỰC — CheckConstraint tồn tại không chứng minh nó chặn
+thật, phải ghi vào DB và đòi `IntegrityError`) và ba câu hỏi review-test-của-nhau — xem nguồn.
+
 ## 4 nhóm kiểm thử
 
 | Nhóm | Nội dung | Vị trí |

@@ -540,8 +540,9 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
 
 ## ADR-022 — Tín hiệu cảm xúc ES-xx: định tuyến sang người thật, KHÔNG chạm vào LLM
 
-- **Ngày:** 2026-08-15 · **Trạng thái:** DỰ THẢO — chờ **PO thật ký**, chưa áp
-  một dòng code nào, chưa sửa `contracts/` (diff đề xuất ở cuối ADR này)
+- **Ngày:** 2026-08-15 · **Trạng thái:** ĐÃ KÝ (Câu 1+2) — PO thật duyệt 15/08;
+  áp contract theo §3. Câu 3 (dấu cho CSKH) TÁCH RA, chờ nghiên cứu ngành (xem
+  "Ratification" cuối ADR).
 - **Bối cảnh:** hiện chỉ có quy tắc đồng cảm ép trong prompt + 1 case LLM-judge
   (UXQA-001). Không có tín hiệu nào cho biết khách đang bức xúc, nên không có
   đường nào đưa họ sang người thật sớm hơn.
