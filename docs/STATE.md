@@ -481,6 +481,58 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
 **Điểm khớp nối:** coder land ①→tester gỡ skip · coder land ③④⑤⑥→security probe→mới đóng ·
 ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B3/A3/A4.
 
+### Tiến độ phân công (cập nhật chiều muộn 15/08)
+- **Tester ①③ XONG** — `tests/test_ai_log/test_f_log_leftover.py`: 3 passed · 2 **xfail(strict)** ·
+  suite đầy đủ 478 passed/0 failed. Hai ca finding dùng `xfail(strict=True)` thay đỏ-trần (PO-agent
+  RATIFY): hiện rõ trong report, không chặn CI khi billing thông (né hình dạng F-CI-2), và khi coder
+  vá F-LOG thì **XPASS tự báo lỗi buộc gỡ marker** — yêu cầu "chỉ xanh sau khi vá" thành CƠ CHẾ.
+  Thêm assert server-nhận-đủ (502 archive ≠ 502 đã POST — hai câu hỏi, hai assert). Không port phần
+  A/B lịch sử (đã kết luận, `git show eadcca7^` chết trên CI fetch-depth:1) — kết luận giữ trong
+  `reason` của xfail. **Việc ③**: `_phan_loai_tier` (coder trả lời) → 2 bộ tier chạy lần đầu, lượt
+  đầu 6 failed → security phân xử bằng phép đo mới → tester viết lại kỳ vọng → **29 passed**,
+  `he_thong` trước=sau=`fd16681d8088`, `src/` không ai chạm. +5 ca khoá 4 họ tier-1 + Luật 6/6b vào
+  `CHUAN-VIET-TEST.md`.
+- **Tester ② TẠM DỪNG chờ corpus**: 20 ca của security mới tồn tại dạng MÔ TẢ (§7), chưa có file
+  máy-đọc-được. Tester đúng khi DỪNG HỎI thay vì tự soạn — tự soạn thì số 8/20=40% của security và
+  số mới đo **hai vật khác nhau**, không ghép cặp được. → security xuất corpus ra file (xem dưới).
+- **Security ①② XONG** (`7c71905`, không cần đóng băng — toàn đọc tĩnh): đường log eval
+  **KHÔNG TỒN TẠI** (`configure_logging()` chỉ ở `main.py:115`) ⟹ câu "log eval có scrub không"
+  không áp dụng — chưa có gì để scrub, và hỏng thì không có gì điều tra. **GHIM vào F-LOG: không
+  đóng nếu chỉ "có log" — log eval phải qua CÙNG lớp scrub với đường app, verify bằng ca có PII.**
+  Bộ probe A1/A2/S-03/F-28 đã soạn, land là chạy; điều kiện ký = đủ BA (hiệu quả + đối chứng +
+  dấu he_thong hai đầu), thiếu đối chứng thì không ký kể cả hiệu quả đẹp.
+- ⚠️ Nếu `test_mau_tier1_chi_thi.py`/`test_f24_recall_tier1.py` ĐỎ trong lô coder: **không phải
+  hồi quy sản phẩm** — hàm đổi tên; gọi tester, đừng sửa test.
+
+### 🔴 F-29 (CAO cho PILOT) — `eval/results/` 138 file TRACK trong git, harness ghi tin khách nguyên văn
+PO-agent xác minh độc lập: **138 file track · 74 file `_raw.json` · `.gitignore` 0 dòng về eval**.
+File `_raw.json` chứa `all_customer_texts` (tin khách nguyên văn mọi lượt) + `tool_calls_day_du` +
+traceback. **Hôm nay phơi nhiễm THẤP** — payload đã che (`********0001`), lớp masking BR-06 chạy
+đúng. **Nhưng cơ chế là rủi ro thật:** BR-06 **không che chính chủ** (`lookup_transaction.py:41,53`);
+eval chạy dưới danh nghĩa người-không-phải-chủ nên mọi thứ ra đã che — **pilot thật thì khách hỏi
+giao dịch CỦA HỌ ⟹ `is_owner=True` ⟹ SĐT/STK/họ tên THẬT không che, vào thẳng file git-track**.
+Cộng `all_customer_texts` chưa bao giờ qua scrub.
+**Chạm thẳng điều kiện pilot của security ("có đường xoá sau đợt")**: file đã commit thì không có
+đường xoá thực hành (xoá commit sau không xoá lịch sử; rewrite+force-push = loại việc luôn phải hỏi
+PO, bất khả nếu repo đã clone). ⟹ **chạy harness với người thật mà không sửa = điều kiện pilot TRƯỢT.**
+- Mức tối thiểu TRƯỚC pilot: `.gitignore` loại `_raw.json` (→ coder, kèm lô) + scrub-trước-khi-ghi
+  cho `all_customer_texts` (→ tester, vùng `eval/`, sau việc ②).
+- **138 file CŨ: quyết định của PO THẬT** — phơi nhiễm thấp, rewrite history đắt/rủi ro hơn lợi ích
+  (security chủ động KHÔNG đòi xoá), nhưng file kết quả là bằng chứng nộp bài (deliverable #10) nên
+  không ai khác quyết thay được.
+- Còn treo security tự khai: mới đo MẪU file mới nhất, chưa quét hết 138 file, chưa kiểm các `.md`
+  trong `eval/results/`.
+
+### 🟡 F-30 (TB, tiềm ẩn) — LangSmith: kênh xuất dữ liệu mở được bằng env var, không để vết trong git
+KHÔNG có tích hợp nào trong `src/` (grep sạch — tin tốt). Nhưng gói `langsmith` 0.11.0 ĐÃ CÀI (kèm
+langchain; PO-agent xác minh có trong env), và tracer native của LangChain bật **hoàn toàn bằng env
+var**, đi vòng qua `_scrub_and_truncate` (lớp đó nằm trong callback TỰ VIẾT, tracer native không gọi).
+Bật trên dashboard ⟹ không diff, không ai review thấy. `docs/guide/chapter-07.md` (giáo trình AI20K,
+KHÔNG phải runbook FIN-05) hướng dẫn bật ở production — đội đang học nó. Pháp lý nếu bật với dữ liệu
+thật: **chuyển dữ liệu cá nhân ra nước ngoài — NĐ 13/2023 Điều 25**, cần hồ sơ đánh giá tác động.
+Vá rẻ (→ coder, kèm lô): đặt `LANGCHAIN_TRACING_V2=false` **MINH THỊ** trong config/Dockerfile —
+biến cấu-hình-ngầm thành quyết-định-hiện.
+
 ## Việc kế tiếp
 1. **PO THẬT — billing org `AI20K-Build-Phase-Cohort-3`** (F-CI). Chặn mọi nghiệm thu CI.
 2. **PO THẬT — MỘT quyết định cho CẢ BỐN CỬA văn bản tự do** (S-01 `note` · S-02 `agent_note` ·
