@@ -137,9 +137,20 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   phải GIỮ NGUYÊN (đổi = dữ liệu mã hoá thành rác vĩnh viễn); ② `SSL_CERT_FILE` là đường dẫn
   macOS, PHẢI sửa khi sang Windows — *"`.env` càng được mang sang trung thành thì lỗi càng chắc
   chắn tái hiện"*. Bẫy chết-dữ-liệu và bẫy chết-dịch-vụ, khác nhau, cùng một file.
-- Việc tay của PO thật: kiểm đăng nhập Cloudflare (`adaptivealgo.uk` có trong tài khoản không) ·
-  cài Docker Desktop/WSL2 trên máy Windows · lấy Tunnel token (dashboard-only) · Never-sleep +
-  Docker start-at-login. Nghiệm thu cuối = mở `https://app.adaptivealgo.uk` từ 4G thấy màn login.
+- Việc tay của PO thật: ✅ Cloudflare CÓ domain (PO xác nhận) · đang tạo tunnel (ô Service điền
+  **`caddy:80`, Type HTTP** — KHÔNG điền localhost) · cài Docker Desktop/WSL2 máy Windows ·
+  Never-sleep + Docker start-at-login. Nghiệm thu cuối = mở `https://app.adaptivealgo.uk` từ
+  **4G tắt WiFi** thấy màn login — phép thử DUY NHẤT được tính.
+- **✅ GÓI LAND trên `main` `7ce57bd` — SẴN SÀNG CHỜ TOKEN.** FF main làm bằng `push origin
+  HEAD:main` (server từ chối non-FF = giữ chốt an toàn, KHÔNG checkout — cây làm việc dùng chung
+  4 phiên, checkout là giật file khỏi tay 3 vai kia; lệnh gốc của PO-agent quên điều này). Verify:
+  `03d02da..a694ff1` · diff rỗng · demo-GO→HEAD chỉ 1 commit docs.
+- **📌 Tri thức mới (coder đo):** `docker compose` NỘI SUY BIẾN cho MỌI service kể cả service bị
+  profile loại — `${VAR:?}` fail-fast trong compose RÒ sang mọi người dùng compose, không riêng
+  người bật profile. Fail-fast cho service optional phải đặt ở SCRIPT cửa vào của đường đó.
+- **⚠️ Khai minh thị:** `deploy_home.ps1` mới review bằng mắt, CHƯA chạy thật (máy không có pwsh);
+  bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
+  đường lui có sẵn.
 
 ## ⚡⚡ QUYẾT ĐỊNH PO THẬT MỚI NHẤT — tối muộn 15/08 (đè mọi mục cũ)
 1. **ADR-025 ĐÃ KÝ TOÀN BỘ** — PO thật xác nhận cả 4 con số sau khi đọc giải thích: retention
