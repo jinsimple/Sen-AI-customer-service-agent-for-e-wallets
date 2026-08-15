@@ -46,7 +46,20 @@ _O1_SO_OTP = re.compile(r"\b(12\s*(gio|tieng)|15\s*phut|10\s*phut)\b")
 # Ngu canh kich hoat cho con so hieu luc: khong chi chu "otp". "Ma duyet cua sep
 # het han 10 phut" khong co chu OTP nhung lo dung con so cau hinh
 # RESOLUTION_APPROVAL_OTP_FRESH_MINUTES.
-_O1_NGU_CANH_MA = ["otp", "ma duyet", "ma xac nhan", "phe duyet", "ma xac thuc"]
+# F-27 — NEO VÀO NGỮ CẢNH HẠN, KHÔNG neo vào từ khoá kỹ thuật.
+# Bản trước đòi reply phải có chữ "otp"/"ma duyet" mới soi con số:
+#   "Mã OTP duyệt hết hạn sau 10 phút"                  -> chặn
+#   "Sếp duyệt phải xin mã riêng, hết hạn sau 10 phút"  -> LỌT
+# Cùng một con số cấu hình (RESOLUTION_APPROVAL_OTP_FRESH_MINUTES), nhưng cách
+# thứ hai mới là cách agent nói TỰ NHIÊN NHẤT — prompt còn dặn tránh thuật ngữ
+# kỹ thuật. Mẫu neo vào từ khoá kỹ thuật thì rò rỉ cứ xảy ra ở LỜI ĐỜI THƯỜNG.
+# Đúng bài học F-24: mẫu chỉ bắt được cách nói TA NGHĨ RA, không bắt cách nói THẬT.
+# Nay neo vào: con số cấu hình + bất kỳ dấu hiệu HẠN/HIỆU LỰC nào.
+_O1_NGU_CANH_MA = [
+    "otp", "ma duyet", "ma xac nhan", "phe duyet", "ma xac thuc",
+    "het han", "hieu luc", "con han", "hieu luc trong", "trong vong",
+    "phai xin lai", "xin ma moi", "ma rieng",
+]
 # NGUONG NOI BO dang "vuot nguong N trieu". Ca nay dac biet: 10 trieu la nguong
 # SINH TRAC HOC (QD 2345/QD-NHNN), KHONG phai nguong gian lan — hien phap §8 ghi
 # ro. Agent noi cau do vua ro cau hinh noi bo VUA SAI LUAT, nen chan la dung ca
