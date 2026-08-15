@@ -31,6 +31,18 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 > Trượt submit KHÔNG chặn push (`exit 0` cuối hook) và log được giữ lại nguyên vẹn (đường
 > `_restore_pending` đã verify thật: 0 dòng mất sau lần trượt SSL).
 >
+> **TRẠNG THÁI ĐO ĐƯỢC 15/08 — mắt xích cuối còn ĐỎ là KEY.** Sau khi vá SSL, push `3f59e3e`
+> trả **`HTTP 401 Unauthorized`**: mạng/TLS/server đều thông, chỉ `AI_LOG_API_KEY` bị từ chối
+> (key cũ chưa thay, hoặc là placeholder chép từ `.env.example` chứ không phải key cá nhân từ
+> link mời BTC — hai khả năng cho cùng một 401). **Chưa từng submit thành công từ P-226.**
+> `LANGCHAIN_*` KHÔNG liên quan: `submit_log.py:28-30` chỉ đọc `AI_LOG_SERVER` ·
+> `AI_LOG_API_KEY` · `AI_LOG_DIR` — xoá/thêm key LangChain không đổi gì ở đường này.
+>
+> ⚠️ **Hỏng IM LẶNG — đừng lấy "push xanh" làm bằng chứng.** Hook `exit 0` nên push luôn
+> thành công dù submit trượt; dòng `[ai-log] Submit failed` lẫn giữa output git. **Bằng chứng
+> khách quan DUY NHẤT là `.ai-log/archive/`** — `_archive()` chỉ chạy SAU khi POST thành công,
+> nên thư mục đó tồn tại ⟺ đã gửi được thật. Hiện chưa có.
+>
 > AI_LOG_API_KEY + LANGCHAIN keys ĐANG được tạo lại (key cũ 401). **9133 dòng backlog nằm ở
 > P-121-new/.ai-log — submit từ P-121 khi có key mới, ĐỪNG xoá P-121-new tới khi submit xong**
 > (deliverable #4). Liệu lịch: `submit_log.py` có `BATCH_LIMIT=500`/lần push ⟹ backlog đó cần
