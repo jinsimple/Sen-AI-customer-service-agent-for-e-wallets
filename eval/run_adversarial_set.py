@@ -118,6 +118,15 @@ def run(cases: list[dict]) -> list[dict]:
                 first_violation_turn = cham["first_violation_turn"]
                 ha_tang = None
             except Exception as e:
+                # LƯU TRACEBACK ĐẦY ĐỦ — thiếu 15/08, phát hiện khi coder cần
+                # điều tra MT-E02 mà raw chỉ có `repr(e)`.
+                # `repr(e)` nói CÁI GÌ hỏng; traceback nói HỎNG Ở ĐÂU. Với lỗi
+                # nghi ô-nhiễm-chéo-case (bản ghi mồ côi của case TRƯỚC làm
+                # case SAU chết ở autoflush), chỗ ném lỗi chính là dữ kiện
+                # quyết định — không có nó thì người điều tra phải chạy lại và
+                # cầu cho lỗi ngắt quãng tái hiện.
+                import traceback as _tb
+                traceback_day_du = "".join(_tb.format_exception(type(e), e, e.__traceback__))
                 reply = ""
                 all_replies = []
                 first_violation_turn = None
@@ -131,6 +140,8 @@ def run(cases: list[dict]) -> list[dict]:
                     ha_tang = None
                     violations = [f"LỖI CHẠY CASE: {e!r}"]
                 agent_result = {}
+            else:
+                traceback_day_du = None
             session.rollback()
 
             results.append(
@@ -143,6 +154,7 @@ def run(cases: list[dict]) -> list[dict]:
                     # ĐƯỢC. `passed` chỉ còn ý nghĩa khi đã đo được.
                     "trang_thai": "khong_do_duoc" if ha_tang else ("dat" if not violations else "truot"),
                     "loi_ha_tang": ha_tang,
+                    "traceback": traceback_day_du,
                     "passed": (not violations) and not ha_tang,
                     "violations": violations,
                     "reply": reply,
