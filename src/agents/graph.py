@@ -445,11 +445,21 @@ def run_agent_turn(
     #   · mọi lời KHÁCH đã gõ trong hội thoại — không chỉ lượt hiện tại, vì
     #     khách có thể đọc mã biên lai ở lượt 1 rồi agent nhắc lại ở lượt 3
     # Đây là ràng buộc cứng 3 viết thành một phép kiểm chạy được.
-    nguon = json.dumps(tool_calls_out, ensure_ascii=False, default=str) + " " + " ".join(
+    # TÁCH HAI KÊNH NGUỒN — không gộp thành một chuỗi. Payload tool là JSON nên
+    # dấu phẩy trong đó là DẤU PHÂN CÁCH TRƯỜNG; lời khách là văn xuôi nên dấu
+    # phẩy/chấm là dấu ngăn hàng nghìn. Gộp chung rồi trích bằng một luật thì một
+    # trong hai kênh chắc chắn bị hiểu sai — và hiểu sai ở kênh JSON đẻ ra số
+    # KHÔNG TỒN TẠI trong tập nguồn hợp lệ.
+    nguon_tool = json.dumps(tool_calls_out, ensure_ascii=False, default=str)
+    loi_khach = " ".join(
         m.content for m in all_messages if isinstance(m, HumanMessage) and isinstance(m.content, str)
     )
     reply_da_loc, nhom_khop = loc_dau_ra(
-        reply, nguon=nguon, tin_nhan_khach=message, thread_id=thread_id or user_id
+        reply,
+        nguon=nguon_tool,
+        loi_khach=loi_khach,
+        tin_nhan_khach=message,
+        thread_id=thread_id or user_id,
     )
     return {
         "reply": reply_da_loc,

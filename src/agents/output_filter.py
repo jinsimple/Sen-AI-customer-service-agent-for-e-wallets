@@ -146,14 +146,24 @@ _DAY_SO = re.compile(r"\d[\d.,\s]{5,}\d|\d{7,}")
 _TOKEN_MA = re.compile(r"[A-Za-z0-9]{7,}")
 
 
-def _cac_day_so(text: str) -> set[str]:
-    """Moi day so trong text, DA BO dau phan cach.
+def _cac_day_so(text: str, *, cho_phep_phan_cach: bool = True) -> set[str]:
+    """Mọi dãy số / mã trong text.
 
-    Bo phan cach vi cung mot so viet moi noi mot kieu: tool tra 262000, agent
-    viet 262.000d. So tho se bao "khong truy duoc" cho mot so hop le.
+    `cho_phep_phan_cach` — KHÁC NHAU giữa VĂN XUÔI và JSON, và đây là chỗ dễ sai:
+
+    · VĂN XUÔI (câu trả lời của agent, lời khách gõ): PHẢI cho phép, vì cùng một
+      số viết mỗi nơi một kiểu — tool trả `262000`, người viết `262.000đ`.
+    · JSON (payload tool): PHẢI CẤM. Dấu phẩy trong JSON là DẤU PHÂN CÁCH TRƯỜNG,
+      không phải dấu ngăn hàng nghìn. Cho phép thì `{"amounts": [262000, 1100]}`
+      bị gộp thành `2620001100` — một con số KHÔNG TỒN TẠI ở đâu cả, nhưng lại
+      được nạp vào tập NGUỒN HỢP LỆ. Agent bịa đúng chuỗi đó là qua.
+      Đo thật: đúng ca này LỌT ở bản 3e7ac21.
+      Cùng họ bẫy F của tester (số bịa "truy vết được" nhờ trùng một mảnh của
+      nguồn), nhưng vắt qua RANH GIỚI HAI TRƯỜNG thay vì nằm trong một giá trị.
     """
     ra = set()
-    for m in _DAY_SO.finditer(text or ""):
+    mau = _DAY_SO if cho_phep_phan_cach else re.compile(r"\d{7,}")
+    for m in mau.finditer(text or ""):
         so = re.sub(r"[.,\s]", "", m.group())
         if len(so) >= 7:
             ra.add(so)
@@ -164,21 +174,14 @@ def _cac_day_so(text: str) -> set[str]:
     return ra
 
 
-# `nguon` KHONG CO GIA TRI MAC DINH — co chu dich, cung ly do F-17 bo default
-# cua `created_by`.
-#
-# Luat xuat xu chi co nghia khi CO nguon. Neu de `nguon=""` lam mac dinh thi noi
-# goi nao quen truyen se lam bo loc thoai hoa thanh "chan moi so dai" — im lang,
-# khong bao loi, va nhin tu ngoai giong het mot bo loc dang lam viec. Do dung la
-# ADR-013 (fallback im lang) o dang khac.
-# Do that: chay bo corpus 1089 luot voi nguon rong -> 16/96 cau HOP LE bi chan,
-# trong khi ban dang chay la 0/96. Mot dong quen truyen doi 16 cau tra loi dung
-# thanh cau mau.
-# Bo default -> quen truyen la TypeError ngay luc goi.
-
-
-def _khop_o3(reply: str, tin_nhan_khach: str, nguon: str) -> bool:
-    hop_le = _cac_day_so(nguon) | _cac_day_so(tin_nhan_khach)
+def _khop_o3(reply: str, tin_nhan_khach: str, nguon: str, loi_khach: str = "") -> bool:
+    # nguon = payload tool (JSON) -> trích NGHIÊM, không cho dấu phân cách gộp số.
+    # loi_khach + tin_nhan_khach = văn xuôi -> trích THOÁNG, chấp nhận "262.000đ".
+    hop_le = (
+        _cac_day_so(nguon, cho_phep_phan_cach=False)
+        | _cac_day_so(tin_nhan_khach)
+        | _cac_day_so(loi_khach)
+    )
     for so in _cac_day_so(reply):
         # SO THEO GIA TRI, KHONG so chuoi con — bay F cua tester.
         # Ban dau toi so `so in g or g in so` de "tool tra so dai hon ma agent
@@ -266,6 +269,7 @@ def loc_dau_ra(
     *,
     nguon: str,
     tin_nhan_khach: str = "",
+    loi_khach: str = "",
     thread_id: str = "",
     correlation_id: str | None = None,
 ) -> tuple[str, list[str]]:
@@ -282,7 +286,7 @@ def loc_dau_ra(
         khop.append("O1")
     if _khop_o2(reply):
         khop.append("O2")
-    if _khop_o3(reply, tin_nhan_khach, nguon):
+    if _khop_o3(reply, tin_nhan_khach, nguon, loi_khach):
         khop.append("O3")
     if _khop_o4(reply):
         khop.append("O4")
