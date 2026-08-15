@@ -206,9 +206,13 @@ làm dữ liệu học.
 ### 🔴🔴 PHẠM VI THẬT LÀ **BỐN CỬA**, KHÔNG PHẢI HAI — đây là quyết định lớn nhất đang chờ PO
 Security rà tiếp (`eff47ac`) và mở rộng §8.3 từ 2 lên **4** cửa văn bản tự do:
 
-**CẢ BỐN Ô NAY ĐỀU ĐO TRONG PHIÊN** (`b7e4230`) — `description_raw` trước đó là ô duy nhất còn dẫn
-lại từ hồ sơ cũ; security tự thấy không ổn khi nó sắp thành căn cứ quyết ADR-025 nên probe hành vi
-(Luật 9). Bảng nay có **4 chiều**:
+**CẢ BỐN Ô NAY ĐO BẰNG HÀNH VI TRONG PHIÊN** (`b7e4230` + `eb444eb`) — hai ô phải bổ sung sau:
+`description_raw` (security tự thấy không ổn khi nó sắp thành căn cứ quyết ADR-025) và
+`messages.content` (PO-agent xin đo, lý do: nhóm A là nơi security khuyến nghị **BÁC** một cơ chế,
+mà **bác = để nguyên hiện trạng hở** ⟹ cần số chắc hơn khuyến nghị áp; nếu hiện trạng đã trôi thì
+đang bác dựa trên trạng thái không còn đúng). **Kết quả: hiện trạng KHÔNG trôi ⟹ khuyến nghị §2
+đứng nguyên** (không scrub · 4/4 PII còn nguyên sau giải mã · 20.000 ký tự · không cờ · injection
+nguyên văn). Bảng nay có **4 chiều**:
 
 | Cửa | Ai gõ | Scrub | Trần độ dài | Cờ tier | Mã hoá at-rest |
 |---|---|---|---|---|---|
@@ -225,6 +229,30 @@ lại từ hồ sơ cũ; security tự thấy không ổn khi nó sắp thành c
    này không).
 ⟹ Nếu PO định làm ADR-025 theo kiểu *"cửa nào gấp làm trước"* thì **`description_raw` KHÔNG phải
 cửa nhẹ nhất như tên gọi gợi ý.**
+
+### ✅ ĐIỂM SÁNG — `EncryptedText` KHÔNG chỉ được khai, nó CHẠY THẬT (kiểm bằng BYTE)
+Security đọc **byte thô trong DB bằng SQL, vòng qua type decorator**:
+```
+'gAAAAABqgCRz6DpP1R2B9-N2Sg_Onanat4Bvpi7cdkfHq_vg6UnKiYmU0J9T40Z5quppnkJ8d…'
+PII lộ plaintext? -> False        ⟹ mã hoá at-rest CÓ HIỆU LỰC
+```
+Đây là control **DUY NHẤT trong bốn cửa** được xác nhận bằng **HÀNH VI** thay vì bằng một dòng khai
+báo kiểu — ba cửa kia mới chỉ đọc được dòng khai `Text`/`EncryptedText`, **chưa kiểm byte**.
+📌 **Nhắc quan trọng: "hiện diện ≠ hiệu lực" áp cho cả thứ ĐANG CHẠY ĐÚNG, không riêng thứ hỏng.**
+Ta quen dùng luật đó để bắt lỗi; đây là lần nó dùng để **xác nhận một thứ tốt là tốt thật**.
+
+**Hai hệ quả cho ADR-025:**
+1. **CỦNG CỐ lập luận BÁC che-lúc-ghi ở nhóm A.** Ở `messages.content` lớp bảo vệ at-rest **đã hoạt
+   động** ⟹ đổi thêm **giá trị chứng cứ** để lấy một mức giảm thiểu nữa là **đánh đổi tồi**. Câu
+   *"tại sao không che cho xong cho an toàn"* nay có thêm một vế trả lời: **vì lớp phòng vệ không
+   phá gì đã chạy rồi.**
+2. **NÂNG giá trị A1.** Mã hoá `description_raw` không phải "thêm một chuẩn mới trên giấy" — là kéo
+   cửa yếu lên một chuẩn **đã chứng minh chạy được ở cửa bên cạnh**.
+
+⚠️ **Mã hoá at-rest KHÔNG chạm tới lỗ đọc-theo-vai.** `messages.content` vẫn hở ST2-P0-3 §3: mọi
+`cskh`/`supervisor` đọc được **mọi** transcript, không giới hạn theo ca phụ trách. At-rest chống
+**mất đĩa/backup**, không chống **người đọc hợp lệ**. Đó là việc **A3** — cần PO quyết vì đụng vận
+hành CSKH. Đừng đọc "mã hoá đã chạy" thành "cửa này đã an toàn".
 
 ### 🧭 MỘT NGUYÊN TẮC, **HAI CƠ CHẾ** — đọc TRƯỚC khi soạn ADR-025 (security `6f18c9d`)
 Phương án + lý do bác cho từng cửa đã viết sẵn:
