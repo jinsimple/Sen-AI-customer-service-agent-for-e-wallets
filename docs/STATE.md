@@ -8,6 +8,8 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 > **Bối cảnh dự án:** FIN-05 — AI Agent CSKH ví điện tử xử lý khiếu nại, chuẩn fintech EU/US.
 > Đội = 4 phiên Claude Code (PO-agent điều phối · coder/tech-lead · tester · security), đồng bộ
 > qua **git + cross-session message** (SendMessage/ListAgents), mỗi vai chỉ ghi vùng của mình (§4).
+> ⚠️ **CÂY LÀM VIỆC DÙNG CHUNG giữa 4 phiên** → mọi `git stash/commit/checkout/clean` **phải kèm
+> pathspec vùng của mình**. Lệnh không pathspec sẽ cuốn theo việc đang dở của vai khác.
 >
 > **PHIÊN MỚI Ở P-226 làm gì trước:** đọc `CLAUDE.md` (hiến pháp) → file này → sổ Đợt 2
 > `docs/giao-viec/2026-08-15-ke-hoach-3-chu-de-nang-cap.md` (18 luật đo + mọi finding) →
@@ -124,21 +126,67 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   401), OPENAI_API_KEY secret PO đang đặt (đã có hướng dẫn). 9118 dòng backlog AI-log ở
   P-121-new/.ai-log chờ submit khi có key mới — ĐỪNG xoá P-121-new tới khi submit xong.
 
+## 🔴 HAI FINDING MỚI 15/08 (chiều) — cần PO thật, ghi đầu vì cả hai chặn kết luận đang có
+
+### F-CI — CI ở P-226 CHƯA TỪNG CHẠY MỘT JOB NÀO (tester `p-226-c8` đo bằng `gh run list`)
+13/13 lượt chạy trên `dev/learning-loop` đều `failure` sau **4-5 giây**, annotation nguyên văn:
+> *"The job was not started because recent account payments have failed or your spending limit
+> needs to be increased. Please check the 'Billing & plans' section"*
+
+**Không phải test đỏ, không phải config sai — ZERO job khởi động.** Hai lượt `success` duy nhất
+trong lịch sử repo là "Initial commit" 26/07 (22s/27s, trước khi có bộ test thật).
+⟹ **Toàn bộ Đợt 2 ở P-226 chạy với 0 lượt CI có hiệu lực.** Mọi câu "CI xanh chưa" vô nghĩa tới
+khi thông. **VIỆC PO THẬT (không phiên Claude nào làm được): Billing & plans của org
+`AI20K-Build-Phase-Cohort-3`.** Hệ quả: CI-1/CI-4/CI-5 (`tests/TIEU-CHI-CI.md`) không nghiệm thu
+được; CI-1 đã nối dây đúng cho `dev/**` nhưng **chưa bao giờ chứng minh được có hiệu lực**.
+Đây là "hiện diện ≠ hiệu lực" ở tầng HẠ TẦNG: `ci.yml` đủ 13 job, trigger đúng, mọi push đều
+sinh một lượt chạy — và **không byte code nào từng được kiểm**.
+
+### F-NOTE — `note` scrub CHẶN NHẦM 40%, xoá đúng CĂN CỨ TỪ CHỐI (security `p-226-0f` đo, 0 TPM)
+Che PII **ĐẠT** (12/12 ca có PII đều bị che; bộ đối kháng 15 passed/1 skipped). **NHƯNG 8/20 ghi
+chú CSKH KHÔNG có một mẩu PII nào vẫn bị đục**, NER gán nhầm cụm nghiệp vụ tiếng Việt:
+- *"…từ chối theo chính sách."* → *"…từ chối **[PERSON]**"*
+- *"Khách đã rút khiếu nại qua tổng đài, không cần xử lý tiếp."* → *"**[LOCATION]** … không **[PERSON]**"*
+
+**KHÔNG phải "đánh đổi đã chốt".** ADR-024 chấp nhận che-nhầm với tiền đề ĐO ĐƯỢC là *mã 12 số
+trùng pattern CCCD* (`test_03`). Lớp vừa đo là **cụm nghiệp vụ thuần bị NER gán [PERSON]** —
+tiền đề đó **CHƯA TỪNG ĐO** ⟹ đúng **Luật 8** (đo lại GIAO của các quyết định), họ hàng F-25
+(xoá trắng chính sách thật), lần này rơi vào **BẢN GHI KIỂM TOÁN**: supervisor đọc `note` để hiểu
+vì sao từ chối, mà bản ghi hỏng nghĩa **TRONG IM LẶNG**.
+Gốc: `scrub_pii` docstring tự khai dùng cho **log/span attribute** — mất một chữ trong log thì
+không sao; ADR-024 tái dùng nó cho **record có giá trị pháp lý** = đổi hạng mục sử dụng.
+⟹ **CHƯA BẬT CI security-gate cho `note`** (bật = đóng dấu xanh lên hành vi làm hỏng audit trail).
+Bản vá đụng tiền đề ADR-024 → phải qua PO thật, coder ĐỪNG vá vội. Hồ sơ: `docs/security/`.
+**Đính chính mục "Vừa xong" bên trên:** `note` đủ về **BẢO MẬT**, KHÔNG đủ về **TOÀN VẸN BẢN GHI**.
+
 ## Cảnh báo còn tồn
 - **gate-96 giờ BẬT THẬT** (`e4ef0e8`, không còn tắt — mục trên đã lỗi thời, sửa 15/08).
+- **Số end-to-end gắn với hệ thống KHÔNG CÒN TỒN TẠI** (tester đo): lượt "sau" chạy ở
+  `he_thong 6096dc8b5678` (commit `8d26548`); cây hiện tại `fd16681d8088` vì `7b68992` (note) land
+  sau đó. ⟹ hai số **HÀNH VI** (câu 2: 17/17 · câu 4: 2/5) gắn hệ thống đã mất; hai số **DỮ LIỆU**
+  (câu 1 cổng-96 · câu 3 fallback) mua vĩnh viễn. Trích cho quyết định 150 người thì trích được
+  cả bốn, **chỉ cần ghi rõ nhãn**.
+- **Cửa sổ đóng băng đang MỞ:** security (`p-226-0f`) giữ `src/` BẤT ĐỘNG tới khi họ nhắn
+  "MỞ TAY src/" (dấu `he_thong=fd16681d8088` · `cham_diem=c0b79835e16c` · commit `2e8c888`).
+  `docs/`/`tests/`/`contracts/`/`scripts/` KHÔNG nằm trong dấu → sửa được bình thường.
 - **Mốc nền đối kháng chốt VĨNH VIỄN 18/20** (he_thong 6c5fff420bb9); 18 ca MÙ với siết-nhầm → "18/18→18/18"
   là chốt-chặn-hồi-quy MỘT NỬA, nửa kia đo bằng 🔇 + F-25(b). MT-A01/F-01 không quay lại nhánh "trước" được.
-- CI: note-tests giờ có thể chạy (land rồi, cần xác nhận CI xanh ở lượt push kế tiếp) · 2 eval (chờ PO-2
-  secret) · CI-4/5 route-guards-docker chưa nghiệm thu.
+- CI: **TẤT CẢ đều treo sau F-CI (billing), không phải "chưa làm"** — note-tests đã land và xanh ở
+  MÁY (15 passed), thiếu đúng phần quan sát trên runner · 2 eval chờ PO-2 secret · CI-4/5 chưa
+  nghiệm thu. Không mục nào tiến được tới khi billing thông.
 - **[c] oracle-phủ-định "không phải 21"** còn lọt (1 bit/lượt, có tài liệu) → đợt cổng-A (vẫn treo).
 - Môi trường test cục bộ (máy PO-agent) thiếu sẵn `argon2` + model NER `xx_ent_wiki_sm` — không phải bug,
   chỉ là máy này chưa từng dựng venv cho repo (dùng venv scratchpad tạm, không commit).
 
 ## Việc kế tiếp
-1. PO chốt hướng đợt 150 người (số end-to-end đã có, xem "Chặn / chờ PO THẬT").
-2. Coder: chip câu 3 (khi tới lượt, sau 5a core + QA baseline) · đợt cổng-A gộp 3 oracle · câu-4 RAG
-   retrieval quality (chunk/embedding, trước pilot 150 người).
-3. Xác nhận CI xanh ở lượt push kế tiếp (note-tests giờ chạy được, chưa quan sát trên CI thật).
+1. **PO THẬT — billing org `AI20K-Build-Phase-Cohort-3`** (F-CI). Chặn mọi nghiệm thu CI.
+2. **PO THẬT — quyết hướng vá F-NOTE**: scrub cho bản ghi kiểm toán khác scrub cho log. Đụng tiền
+   đề ADR-024 nên cần quyết định minh thị, không để coder tự vá.
+3. PO chốt hướng đợt 150 người (số end-to-end đã có, nhớ ghi nhãn hành-vi/dữ-liệu ở "Cảnh báo").
+4. Coder: chờ security "MỞ TAY src/" rồi mới chạm. Xếp hàng: chip câu 3 (sau 5a core + QA baseline)
+   · đợt cổng-A gộp 3 oracle · câu-4 RAG retrieval (chunk/embedding, trước pilot 150 người).
+5. **PO-2**: đặt `OPENAI_API_KEY` thành secret trên GitHub → mở 2 CI eval (chỉ có tác dụng SAU khi
+   billing thông).
 
 ## Hoãn có chủ đích
 - Hạ tầng đo temp=0/k≥3 (gói B2 HOLD, floor nhiễu 20/40) · reseed gộp (⚠️ gỡ lọc-A1 khi from_bank sửa) ·
