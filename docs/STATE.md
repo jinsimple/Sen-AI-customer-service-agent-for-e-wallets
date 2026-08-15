@@ -203,6 +203,44 @@ làm dữ liệu học.
 ⚠️ **S-01 và S-02 PHẢI SỬA CÙNG MỘT QUYẾT ĐỊNH** — bê nguyên `scrub_pii` sang cửa thứ hai là
 **nhân bản lỗi chặn-nhầm 40% sang trường thứ hai**.
 
+### 🔴🔴 PHẠM VI THẬT LÀ **BỐN CỬA**, KHÔNG PHẢI HAI — đây là quyết định lớn nhất đang chờ PO
+Security rà tiếp (`eff47ac`) và mở rộng §8.3 từ 2 lên **4** cửa văn bản tự do:
+
+| Cửa | Ai gõ | Scrub hôm nay |
+|---|---|---|
+| `messages.content` (live-chat) | khách + CSKH | ❌ không |
+| `complaints.description_raw` | khách | ❌ không |
+| `resolutions.note` | nhân viên | ✅ có — **nhưng hỏng nghĩa 40%** (S-01) |
+| `investigation_logs.agent_note` | nhân viên | ❌ không, không trần, không cờ (S-02) |
+
+§7 hồ sơ cũ đã cảnh báo *"chốt riêng lẻ sẽ tạo tình trạng che ô chat để hở ô mô tả, người soi bảo
+mật tìm ra trong năm phút"* — nay quy mô **gấp đôi**, và một trong bốn cửa đã "được che" theo cách
+**làm hỏng bản ghi**. ⟹ **S-01 + S-02 + ST2-P0-3 + `description_raw` là MỘT quyết định, không phải
+bốn.** ADR-025 nên phủ **cả bốn cửa**, không riêng `note`.
+
+### ⚠️ SECURITY TỰ BÁC ĐƠN THUỐC CŨ CỦA CHÍNH HỌ — đọc trước khi trả lời §8.2
+Hồ sơ ST2-P0-3 §5.2 kê **"dùng `scrub_pii`, giữ 4 số cuối"** — đúng cái hàm hôm nay đo được chặn
+nhầm 40%. Tin nhắn live-chat **chính là** văn bản tự do tiếng Việt, cùng loại đầu vào đã đo. Áp
+nguyên văn sẽ mang lỗi vào **lời khách gõ cho CSKH**, và ở đó **hậu quả NẶNG HƠN `note`**: che tại
+điểm GHI ⟹ **không còn bản gốc**, CSKH đọc một khiếu nại đã bị sửa nghĩa mà không có cách nào biết
+chữ nào đã mất (`"không cần xử lý tiếp"` → `"không [PERSON]"` đủ để xử lý sai ca).
+- **KHÔNG đổi:** khuyến nghị vẫn là **B**, vẫn phản đối **C**, lỗ hổng §3 vẫn thật.
+- **ĐỔI:** câu hỏi §8.2 (*"giữ 4 số cuối hay che trọn"*) **không còn đủ** — phải hỏi TRƯỚC nó
+  **"che bằng CƠ CHẾ nào"**. Trả lời §8.2 trên bản cũ = chọn giữa hai biến thể của một cơ chế đã hỏng.
+Đính chính đã vào hồ sơ tại `eff47ac` (cảnh báo đầu file + gạch bỏ §5.2 tại chỗ, giữ nguyên văn cũ
+để thấy được cái gì đã đổi).
+
+### ST2-P0-3 — **GIỮ NGUYÊN mở/đỏ, KHÔNG đổi trạng thái** (security đo lại rồi mới trả lời)
+Không phải finding lỗi thời mà là **quyết định sản phẩm chờ PO thật**, cố ý giữ đỏ để câu hỏi khỏi
+bị đóng im lặng. Lỗ §3 còn hở nguyên: `messages.content` lưu nguyên văn, không retention, mọi
+`cskh`/`supervisor` đọc được bất kể có phụ trách ca hay không.
+⟹ **F-CI-2 sửa ở JOB CI, KHÔNG sửa bằng cách đóng finding** — đóng một finding đang mở để CI xanh
+thì CI xanh mà lỗ vẫn hở. Security xác nhận defect: `ci.yml:251` = `pytest tests/test_api/ -v`,
+thiếu `-m "not security_finding"`, còn `test_live_chat_pii_gap.py:25` có `@pytest.mark.security_finding`.
+Họ cũng **BÁC nghi ngờ thứ hai của chính mình**: job `appsec` KHÔNG thiếu env (`JWT_SECRET_KEY` /
+`FIELD_ENCRYPTION_KEY` ở khối `env:` mức workflow `ci.yml:23-31`, mọi job thừa hưởng) ⟹ **MỘT
+defect ở job này, không phải hai**.
+
 ### 🟡 S-03 (TB) — exception gửi lên trace KHÔNG qua scrub
 `span.set_status` / `record_exception` (`langchain_callback.py:96-98`). Chưa có ca dương tính vì
 **SQLite không echo tham số — nhưng Postgres CÓ** (`DETAIL: Key (phone)=(...)`) ⟹ **lớp lỗi chỉ lộ
@@ -217,6 +255,13 @@ lọt — **bộ test KHÔNG yếu**, nó đo đúng thứ đặc tả (TM-03) y
 tester hỏi *"X có vắng mặt không"* · security hỏi *"cái CÒN LẠI là gì"* — đúng **Luật 16**, giá trị
 nằm ở **sót khác chỗ nhau**. Khi vá S-01, trục đối chứng phải đo *"căn cứ từ chối còn đọc được
 không"* và **để FILE RIÊNG** với bộ che-PII (nhét chung = mời một lần sửa làm hỏng cả hai).
+
+**Vế bổ sung (security, để luật đủ dùng về sau):** luật này **không nói bộ test SAI — nó nói bộ
+test ĐO SAI THỨ**. Nên cách vá **không phải "viết assert chặt hơn"** mà là **thêm một câu hỏi KHÁC
+LOẠI**: cạnh mọi assert *"PII có vắng mặt không"* phải có ca đối chứng *"nội dung hợp lệ có SỐNG
+SÓT không"*. Thiếu vế hai thì **bản vá chặt tay nhất luôn thắng theo số đo** (đúng Luật 2 — và là
+lý do 27/96 của O1-O4 mới lộ ra được). Hạt giống có sẵn: **corpus 20 ca ghi chú sạch** security đã
+giao tester ở §7 hồ sơ 15/08, ngưỡng **0/20** — không phải "thấp hơn".
 
 ### F-LOG — bản vá `submit_log.py` (`eadcca7`) NUỐT DÒNG JSON HỎNG, im lặng (tech-lead đo A/B)
 Chạy `submit_log.py` THẬT với server giả + `AI_LOG_DIR` giả ở scratchpad (không đụng `.ai-log`
@@ -297,9 +342,12 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
 
 ## Việc kế tiếp
 1. **PO THẬT — billing org `AI20K-Build-Phase-Cohort-3`** (F-CI). Chặn mọi nghiệm thu CI.
-2. **PO THẬT — quyết hướng vá S-01 + S-02 trong MỘT quyết định** (scrub cho bản ghi kiểm toán
-   khác scrub cho log; bê `scrub_pii` sang `agent_note` = nhân bản lỗi 40%). Đụng tiền đề ADR-024
-   ⟹ nhiều khả năng cần **ADR-025**, không để coder tự vá.
+2. **PO THẬT — MỘT quyết định cho CẢ BỐN CỬA văn bản tự do** (S-01 `note` · S-02 `agent_note` ·
+   ST2-P0-3 `messages.content` · `complaints.description_raw`) ⟹ **ADR-025**. Ba lý do buộc phải
+   gộp: (a) chốt riêng lẻ = che ô này hở ô kia, hồ sơ §7 đã cảnh báo từ trước; (b) `scrub_pii` —
+   cơ chế được kê cho cả bốn — **đã đo được hỏng 40%**, nên phải trả lời **"che bằng CƠ CHẾ nào"**
+   TRƯỚC khi trả lời "giữ 4 số hay che trọn" (§8.2); (c) ST2-P0-3 giữ **mở/đỏ có chủ đích** cho
+   tới khi có quyết định này — **đừng đóng nó để CI xanh**. KHÔNG để coder tự vá.
 3. **PO THẬT — giao ai vá F-LOG** (`scripts/` vô chủ, xem F-ZONE) và chốt: **vá TRƯỚC rồi mới đẩy
    backlog P-121**. Đẩy trước = chạy 19 lượt trên đường có lỗ nuốt-dòng-hỏng, đúng deliverable #4.
 4. **Coder — hai việc RẺ, không chờ ai** (khi PO gật): (a) **F-CI-2** một dòng `ci.yml` thêm
