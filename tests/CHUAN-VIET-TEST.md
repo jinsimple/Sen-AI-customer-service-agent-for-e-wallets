@@ -1,7 +1,7 @@
 # Chuẩn viết test — FIN-05
 
 > Vai giữ file: **tester** · 15/08/2026.
-> Ba luật dưới đây được PO phê chuẩn thành **luật dự án**, rút ra từ lỗi THẬT
+> Bốn luật dưới đây được PO phê chuẩn thành **luật dự án**, rút ra từ lỗi THẬT
 > gặp trong hai ngày 14–15/08, mỗi luật kèm đúng những ca đã làm nó lộ ra.
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
@@ -10,19 +10,20 @@
 > kể cả khi được mời: ranh giới co giãn "một lần cho tiện" thì lần sau không
 > còn là ranh giới.
 
-## Vì sao ba luật, không phải một
+## Vì sao bốn luật, không phải một
 
-Một test chỉ có giá trị khi chứng minh được **cả ba** vế:
+Một test chỉ có giá trị khi chứng minh được **cả bốn** vế:
 
 | | Câu hỏi | Thiếu nó thì |
 |---|---|---|
 | **Luật 1** | Ràng buộc có **HIỆU LỰC** không? | suite xanh trên một guardrail không tồn tại |
 | **Luật 2** | Ràng buộc có **QUÁ RỘNG** không? | suite xanh trên một guardrail cấm cả người hợp lệ |
 | **Luật 3** | Phép đo có **TÁI LẬP** được không? | kết luận rút từ một kịch bản không quay lại được |
+| **Luật 4** | Thước và vật có **ĐỨNG YÊN** suốt lượt đo không? | cặp before/after lẫn nhiều biến, không quy được nhân quả |
 
 Thiếu vế nào cũng cho ra một kết luận **trông như đo được mà không đo được gì**.
-Đó là lý do ba luật này là một họ, không phải ba quy tắc rời: Luật 1 và 2 canh
-**cái thước**, Luật 3 canh **phép đo**.
+Đó là lý do bốn luật này là một họ, không phải bốn quy tắc rời: Luật 1 và 2
+canh **cái thước**, Luật 3 và 4 canh **phép đo**.
 
 ---
 
@@ -118,6 +119,42 @@ từ lượt đó sẽ là kết luận về một kịch bản khác.
 **quan sát**, không phải finding. Chỉ khi nó **tái lập ổn định qua k lần** mới
 được gọi là lỗi — cùng lý do quy tắc đọc nhiễu dùng GIAO của k lượt thay vì
 ngưỡng số đếm.
+
+---
+
+## LUẬT 4 — Ghim cả THƯỚC lẫn VẬT, và ghim ở CẢ HAI ĐẦU lượt đo
+
+Một phép đo có **hai** thứ có thể trôi:
+
+| | Là gì | Ghim bằng |
+|---|---|---|
+| **THƯỚC** | logic chấm + bộ case | `cham_diem` = băm `_harness.py` + `golden_set.jsonl` |
+| **VẬT** | hệ thống đang bị đo | `he_thong` = băm **cây làm việc** `src/**/*.py` |
+
+Ghim một nửa thì nửa kia trôi **trong im lặng** — nguy hiểm hơn sai số, vì nó
+không để lại dấu nào để nghi ngờ.
+
+**Băm CÂY LÀM VIỆC, không băm HEAD.** Bộ eval nạp code từ đĩa, nên một file
+`src/` **sửa chưa commit** đã sống rồi, y hệt như đã commit. Ghim theo HEAD sẽ
+mù trước đúng trạng thái nguy hiểm nhất: thứ chỉ tồn tại trên máy một người.
+Hệ quả cho giao ước giữa các vai: câu đúng là **"đừng ĐỤNG `src/`"**, không
+phải "đừng commit `src/`" — diễn đạt sau không bảo vệ gì cả.
+
+**Ghim ở CẢ HAI ĐẦU.** Đóng dấu một lần chỉ chứng minh trạng thái *lúc bắt
+đầu*. Đo dấu trước và sau, **phải bằng nhau**; khác ⇒ lượt chạy đã straddle
+một thay đổi ⇒ **kết quả vô hiệu, chạy lại**. "Giữa chừng" mới là chỗ mọi sự
+cố xảy ra: bộ W1 bị chẻ đôi bởi một commit rơi vào giữa hai nửa, cách nhau
+**đúng 38 giây**.
+
+**Khi dấu lệch mà `git status` sạch — NGHI CÔNG CỤ CỦA MÌNH TRƯỚC.** Thứ tự
+đúng: kiểm bộ đóng dấu có tất định không (chạy k lần, so) → nếu tất định thì
+mới kết luận là vật đã đổi. Kết luận ngay "hệ thống đổi" mà chưa tự kiểm thì
+có thể đang báo động nhầm một non-determinism của chính mình. **Kiểm nhạc cụ
+trước khi kiểm vật.**
+
+*(Ca thật: dấu đổi trong khi `git status src/` sạch. Kiểm 3 lần → tất định →
+kết luận là trạng thái nhất thời. Coder xác nhận sau đó: đúng 2 file sửa dở
+chưa commit. Dấu bắt được thứ `git status` không thấy.)*
 
 ---
 
