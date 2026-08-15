@@ -26,6 +26,14 @@ Kèm hai hệ luận chọn-loại-test (ràng buộc là bất biến CẤU TR�
 phản ứng model; và HIỆN DIỆN ≠ HIỆU LỰC — CheckConstraint tồn tại không chứng minh nó chặn
 thật, phải ghi vào DB và đòi `IntegrityError`) và ba câu hỏi review-test-của-nhau — xem nguồn.
 
+Chuẩn nay có **BẢY luật** (15/08). **Luật 7** canh thứ trước nay không ai canh: **chính CÔNG CỤ
+ĐO** — corpus đối chứng, hàm đếm, dòng in kết quả (lớp không phải sản phẩm nên không ai review,
+không phải test nên không ai viết test cho nó). Năm mục 7a-7e, mỗi mục một ca thật 15/08: corpus
+đủ-hôm-qua-rỗng-hôm-nay (7a) · corpus phải cùng PHẠM VI với thứ đang đo — `0/1814` tiếng Việt
+không nói gì về FP mẫu tiếng Anh (7b) · một vai soạn corpus thì hụt trục vai khác (7c) · biến
+dùng để TÍNH không tái dùng để IN — lỗi chỉ ở lớp báo cáo vẫn đủ bẻ lái cả đội (7d) · cổng canh
+dữ liệu bắt MẤT không cản THÊM, canh theo tập ID không theo số đếm (7e). Chi tiết + ca thật: nguồn.
+
 ## 4 nhóm kiểm thử
 
 | Nhóm | Nội dung | Vị trí |

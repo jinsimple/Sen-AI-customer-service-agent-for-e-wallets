@@ -45,6 +45,18 @@ Hai chỗ JSON: **input** và **kết quả**. Tên tool cũng đang là tên h�
 5. **Cả hai vai cùng một component** — cskh và supervisor xem giống nhau (supervisor duyệt
    dựa trên đúng thứ CSKH thấy, tránh hai người nhìn hai bản khác nhau rồi cãi nhau).
 
+## Bổ sung sau rà soát security (`7f66fb1`) — thuộc phạm vi UI-01
+
+6. **KHÔNG thêm nút sao-chép/xuất** cho khối "ghi chú AI" (`agent_note`) và cho expander JSON.
+   Lý do: `agent_note` chưa scrub/không trần/không cờ cho tới khi B3 land (S-02), và trường tự do
+   chưa scrub + nút copy = bề mặt **trích xuất hàng loạt**.
+7. Khi B3 land: UI hiển thị **bản đã scrub** của `agent_note`; **cấm frontend cache/nhân bản giá
+   trị thô** (bản thô sống thêm một vòng đời là tái diễn hình dạng tồn dư A1-04).
+8. Ghi chú ngữ nghĩa (không cần làm gì ở v1): `null` → "Không tra được dữ liệu" là ánh xạ GỘP ba
+   ca (*không có bản ghi* · *tool timeout* · *tra được nhưng rỗng*). Chấp nhận ở v1; đừng ai đọc
+   timeline rồi kết luận "hệ thống không có dữ liệu" khi thực tế lượt tra đã hỏng —
+   `ly_do_fallback` phân biệt được nếu về sau cần tách.
+
 ## Ràng buộc CỨNG (không thoả hiệp)
 
 - **Ràng buộc cứng 3 (cấm bịa số liệu):** đây là lớp ĐỊNH DẠNG, không phải lớp DIỄN GIẢI.
@@ -61,5 +73,8 @@ Hai chỗ JSON: **input** và **kết quả**. Tên tool cũng đang là tên h�
 - Ca `null`: hiển thị "Không tra được dữ liệu", không hiển thị chữ "null".
 - Số tiền có định dạng VN ở mọi chỗ xuất hiện.
 - JSON gốc vẫn truy được qua expander (audit).
-- Playwright e2e (tester, sau khi land): một ticket có ≥2 bước điều tra — assert không còn
-  chuỗi `{"` trong phần hiển thị mặc định của timeline; assert expander mở ra có JSON.
+- Playwright e2e (tester, sau khi land): một ticket có ≥2 bước điều tra — **HAI VẾ, cấm chỉ vế
+  âm** (tester chỉ ra: assert-vắng-mặt `{"` LUÔN XANH nếu timeline rỗng/không render — đúng bẫy
+  `X not in db` của S-01):
+  1. Vế DƯƠNG: đúng N bước hiển thị, mỗi bước có nhãn tiếng Việt thuộc map đã biết;
+  2. Vế ÂM: không còn chuỗi `{"` trong hiển thị mặc định; expander mở ra có JSON gốc.

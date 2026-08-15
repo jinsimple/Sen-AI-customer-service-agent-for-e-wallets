@@ -670,10 +670,19 @@ ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B
   nó **VÔ DANH** — không gán được nhãn hệ thống thì không tái lập/ghép cặp. Khác cơ chế Luật 4
   (pytest import một lần — 20 ca vẫn cùng hệ thống trong bộ nhớ); gộp hai lý do sẽ khiến lần sau
   quy sai nguyên nhân.
-  **PO-agent quyết:** cổng 8/20 gắn **marker `security_finding` sẵn có** → tự rơi vào job
-  `security-findings-gate` (đúng ngữ nghĩa: finding cố-ý-đỏ làm bằng chứng, tách khỏi
-  `lint-and-test`), không cần job mới, không chờ coder. Khi B1/B2 land và cổng xanh → gỡ marker,
-  nó thành regression-gate trong lint-and-test.
+  ~~PO-agent quyết: gắn marker `security_finding`~~ → **ĐÈ bằng số đo của tester: cơ chế là
+  `xfail(strict=True)` THEO TỪNG CA, KHÔNG marker.** Tester đo thử marker và tìm ra lỗ chết
+  người: job `security-findings-gate` lọc `-m security_finding` sẽ **DESELECT bộ ca có PII lẫn
+  chính test cấm-chạy-lẻ** ⟹ trục đối chứng chạy MỘT MÌNH trong đúng job đó — bản vá "gỡ sạch
+  scrub" đạt 20/20 xanh mà không gì bắt được, đúng kịch bản cổng sinh ra để chặn. Cơ chế
+  xfail-strict giữ đủ 3 mục tiêu (không đỏ lint-and-test · không job mới · không chờ coder) VÀ
+  giữ cặp đối chứng cùng phiên. **Đọc tín hiệu khi B1/B2 land:** 8 ca XPASS ⟹ suite ĐỎ =
+  **THÀNH CÔNG** (buộc gỡ marker → thành regression-gate), đừng đọc thành hồi quy; vá-gỡ-sạch-scrub
+  thì bộ ca PII cùng phiên đỏ — hai tín hiệu tách bạch. Cơ chế đã tự bắn ĐÚNG hai lần trong
+  phiên (F-LOG, F-LOG-2).
+  **Luật 7 (5 mục 7a-7e) vào `tests/CHUAN-VIET-TEST.md`** — canh chính CÔNG CỤ ĐO; đã dán tóm
+  tắt sang `docs/TESTING.md` theo yêu cầu tester. Treo nhỏ: 2 failed `EN-S03` chờ security phân
+  xử `security` có phải mỏ neo META không.
 - **Security ①② XONG** (`7c71905`, không cần đóng băng — toàn đọc tĩnh): đường log eval
   **KHÔNG TỒN TẠI** (`configure_logging()` chỉ ở `main.py:115`) ⟹ câu "log eval có scrub không"
   không áp dụng — chưa có gì để scrub, và hỏng thì không có gì điều tra. **GHIM vào F-LOG: không

@@ -980,6 +980,15 @@ không phải đổi guard — chi phí thật cao hơn, ghi rõ để không tr
   cho MỌI lượt đọc nhóm A — mọi chủ thể, kể cả `cskh` trên ca của mình** (PCI DSS
   Req 10 + SOC 2 CC6: rủi ro nội gián lớn nhất là người có quyền hợp lệ; log theo
   mọi chủ thể, không theo cấp).
+  **MỞ RỘNG PHẠM VI Pha 1 (bổ sung sau ký, finding security `7f66fb1`, PO-agent
+  quyết theo uỷ quyền — không đổi cơ chế, chỉ thêm bề mặt được log):** audit-log
+  phủ thêm **mọi lượt đọc endpoint trả `tool_result.raw_json`** (timeline điều
+  tra / ticket detail, `main.py:744-751`). Lý do: BR-06 không che chính chủ ⟹
+  payload timeline chứa SĐT/STK/họ tên THẬT của khách-chính-chủ; nếu chỉ log
+  nhóm A thì sinh **nghịch lý** — đọc transcript CÓ log, đọc dữ liệu có-cấu-trúc
+  nhạy hơn qua timeline thì KHÔNG ⟹ kẻ moi dữ liệu chọn đúng cửa không log.
+  Log ở MỨC ENDPOINT (payload nằm trong response bất kể expander có mở hay
+  không, log-mở-expander là không đủ).
 - **Pha 2 (tính năng phân công):** thêm `assigned_to` + quy trình phân công + siết
   đọc theo người. Kèm ba quyết định bắt buộc: **(a) break-glass có kiểm soát** —
   CSKH trực đêm mở được ticket người khác, kèm lý do bắt buộc + cờ cho supervisor
