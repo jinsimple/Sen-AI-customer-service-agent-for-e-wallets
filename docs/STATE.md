@@ -511,6 +511,26 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
 ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B3/A3/A4.
 
 ### Tiến độ phân công (cập nhật chiều muộn 15/08)
+- **✅✅ LÔ ĐÓNG SỔ HOÀN TOÀN — security nghiệm thu CẢ BỐN ĐẠT** (biên bản `9122677`, probe tại
+  `cf98ef8`, `src/` byte-identical với `cc07dd3`): **A1** ĐẠT probe-bằng-byte **KÈM ĐIỀU KIỆN**
+  (chỉ bảo vệ dữ liệu ghi TỪ `cc07dd3` trở đi — *"A1 đã nghiệm thu" ≠ "description_raw đã được mã
+  hoá"*, hàng cũ vẫn plaintext, backfill = quyết định PO TRƯỚC pilot) · **A2** ĐẠT chặn ở tầng
+  service không rơi xuống CHECK · **S-03** ĐẠT trên Postgres THẬT (lỗi thật từ container →
+  `[PHONE_NUMBER]`, 0 PII trong span, vẫn giữ tên constraint để gỡ lỗi — hai vai bù đúng thiết kế:
+  coder tự khai "chuỗi lỗi mô phỏng" → security lấy lỗi thật) · **F-28** ĐẠT 8/8 · 0/7 · FP 0/1814.
+- **📌 GIỚI HẠN CÔNG CỤ DẤU-BĂM (tech-lead chỉ ra, security xác nhận):** `he_thong` băm
+  `src/**/*.py` — **KHÔNG phủ `scripts/` + `migrations/`**. Lô chạm ngoài `src/` sẽ có dấu
+  **không lệch mà vẫn VÔ NGHĨA**. Nhãn phép đo cho lô đa-vùng: dùng **SHA commit**, không dùng
+  `he_thong`. (Biên bản `9122677` dùng SHA vì đúng lý do này.)
+- **🎁 DẪN XUẤT THỨ BA CHO S-01 (từ probe S-03):** scrub gán `DETAIL`/`ERROR` → `[ORGANIZATION]` —
+  cùng lớp lỗi với `"chính sách"` → `[PERSON]` nhưng ở **đường khác** (trace ≠ note), **vai khác**
+  phát hiện, **phương pháp khác**. Ba dẫn xuất độc lập cùng kết luận: **sai NHẬN DẠNG, không sai
+  NGƯỠNG — lỗi là thuộc tính của LỚP NER, mọi cửa dùng `scrub_pii` đều thừa hưởng.** Đây là lập
+  luận mạnh nhất cho việc ADR-025 quyết CƠ CHẾ, không vá từng cửa.
+- Security tự đính chính trong biên bản: khuyến nghị 40.000 của họ ở phản biện **sai ở mép trên**
+  (thiếu trục chặn-flood) — ADR đã ghi 12.000 + cửa sổ từ `cda800d`, khớp. Quét `.md` trong
+  `eval/results` đóng: **0 SĐT thật** (16/18 seed, 2/18 mảnh mã GD — số "18" ban đầu tự thổi bởi
+  đúng false-positive đó).
 - **✅ LÔ CODER ĐÃ LAND — HEAD `cc07dd3`** (5 commit: F-LOG `cc07dd3` · F-28 `e082a34` ·
   S-03+F-30+F-29-gitignore `83f45df` · A1+A2 `5b65b81` · F-CI-2+ruff `37ed7fc`). Pathspec sạch —
   không đụng `tests/`/`docs/`. Đo tại `cc07dd3`: ruff sạch · invariants 23 · contracts 3/3 ·
@@ -649,6 +669,10 @@ Vá rẻ (→ coder, kèm lô): đặt `LANGCHAIN_TRACING_V2=false` **MINH THỊ
 biến cấu-hình-ngầm thành quyết-định-hiện.
 
 ## Việc kế tiếp
+0. **PO THẬT — TRƯỚC PILOT (danh sách gom, mới):** quyết **backfill A1** (mã hoá hàng
+   `description_raw` cũ — hiện plaintext vĩnh viễn, docstring `models.py` ghi rõ) · cam kết 2 điều
+   kiện pilot của security (dữ liệu thật + đường xoá) · A3/A4 pha 2. Pilot đã hoãn nên KHÔNG gấp —
+   gom một chỗ để không rơi.
 1. **PO THẬT — billing org `AI20K-Build-Phase-Cohort-3`** (F-CI). Chặn mọi nghiệm thu CI.
 2. **PO THẬT — MỘT quyết định cho CẢ BỐN CỬA văn bản tự do** (S-01 `note` · S-02 `agent_note` ·
    ST2-P0-3 `messages.content` · `complaints.description_raw`) ⟹ **ADR-025**. Ba lý do buộc phải
