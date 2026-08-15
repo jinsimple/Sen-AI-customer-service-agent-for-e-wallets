@@ -937,10 +937,13 @@ hiện ở route khách gọi được (`test_11`), không lọt vào bất kỳ
 
 ## ADR-025 — MỘT nguyên tắc, HAI cơ chế cho BỐN cửa văn bản tự do
 
-- **Ngày:** 2026-08-15 · **Trạng thái:** NGUYÊN TẮC ĐÃ ĐƯỢC PO THẬT DUYỆT 15/08
-  ("chốt theo hướng security"); các CON SỐ đề xuất bên dưới do PO-agent nghiên cứu
-  chuẩn EU/US theo uỷ quyền — chờ PO thật xác nhận nhanh trước khi coder chạm
-  contract/code. Nền tảng kỹ thuật: hồ sơ security
+- **Ngày:** 2026-08-15 · **Trạng thái:** **ĐÃ KÝ TOÀN BỘ** — PO thật duyệt nguyên
+  tắc 15/08 ("chốt theo hướng security") và **xác nhận cả 4 con số/lựa chọn**
+  cuối ngày 15/08 sau khi đọc giải thích: retention 5 năm · trần 2.000 ký tự ·
+  quyền đọc 2 pha · preview-confirm 2 vòng khoá. Con số retention vẫn mang cờ
+  "cần tư vấn pháp lý thật xác nhận trước production". Bản dự thảo đã qua phản
+  biện security (`f6dedfa`) + 2 vòng sửa số (bound 4.000→40.000→12.000, cửa sổ
+  [10.764…26.764]). Nền tảng kỹ thuật: hồ sơ security
   `docs/security/2026-08-15-co-che-cho-bon-cua-dau-vao-adr-025.md` (`6f18c9d`).
 - **Bối cảnh:** hệ thống có BỐN cửa văn bản tự do với ba lớp phòng vệ lệch nhau
   (bảng đo đủ 4 chiều tại STATE 15/08): `messages.content` (mã hoá, không scrub) ·

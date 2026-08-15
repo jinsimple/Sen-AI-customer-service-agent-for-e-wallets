@@ -118,6 +118,20 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   KHÔNG nới ràng buộc 9. Mốc: trước pilot 150 người.
 - **MT-E02 traceback** — cơ chế chưa rõ, giữ quan sát, ĐỪNG đốt TPM tái hiện chủ động.
 
+## ⚡⚡ QUYẾT ĐỊNH PO THẬT MỚI NHẤT — tối muộn 15/08 (đè mọi mục cũ)
+1. **ADR-025 ĐÃ KÝ TOÀN BỘ** — PO thật xác nhận cả 4 con số sau khi đọc giải thích: retention
+   5 năm (giữ cờ tư-vấn-pháp-lý) · trần 2.000 ký tự · quyền đọc 2 pha · preview-confirm 2 vòng
+   khoá. ⟹ **MỞ KHOÁ cho coder**: Pha-1 audit-log đọc nhóm A · B1/B2 preview-confirm cho `note`
+   (2 vòng khoá) · B3 `agent_note` (SAU B1/B2) · nếu cần route/contract mới → quy trình §3.
+   Tester: cổng 8/20 sẽ xanh khi B1/B2 land → gỡ marker thành regression-gate.
+2. **F-MIG: DUYỆT làm luôn LÔ KẾ TIẾP** của coder (cùng lô với phần B ADR-025 hoặc trước, coder
+   xếp) — 4 phép kiểm nghiệm thu trong hồ sơ, quan trọng nhất: so schema hai đường phải TRÙNG.
+3. **VIỆC MỚI UI-01**: 2 chỗ JSON thô trong timeline điều tra của ticket (input + kết quả) →
+   hiển thị tiếng Việt trực quan cho CSKH + supervisor. Đặc tả đầy đủ:
+   `docs/giao-viec/2026-08-15-ui-timeline-dieu-tra-khong-json.md`. Ràng buộc cứng 3 giữ nguyên:
+   lớp ĐỊNH DẠNG không phải lớp DIỄN GIẢI, map nhãn tĩnh, giá trị đã che hiển thị nguyên trạng,
+   JSON gốc giữ trong expander cho audit.
+
 ## ⚡ BA QUYẾT ĐỊNH PO THẬT — chiều tối 15/08 (mới nhất, đè các mục cũ bên dưới)
 1. **Billing/CI:** PO thật KHÔNG phải owner org — chỉ BTC sửa được. ⟹ gửi BTC/mentor tin nhắn kèm
    annotation nguyên văn (PO-agent đã soạn, xem cuối STATE). Trong lúc chờ: tester đã chạy đủ lệnh
