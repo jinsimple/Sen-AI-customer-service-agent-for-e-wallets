@@ -24,7 +24,7 @@ from typing import Any
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
 
-from src.agents import khop_cum as KC
+from src.agents import khop_cum as KC  # noqa: N812 — KC là bí danh CỐ Ý (module khớp-cụm dùng dày đặc, xem ADR-023)
 from src.agents.spotlight import danh_dau_du_lieu, danh_dau_ngan
 from src.config import OTP_STEPUP_FRESH_MINUTES, OTP_VIEW_MAX_MINUTES
 from src.db.models import Transaction
@@ -151,7 +151,30 @@ _TIER1_META = [
     r"huong dan" + KC.GAP + r"(he thong )?moi",
     # `*` thay `?`: mẫu cũ chỉ cho MỘT từ bổ nghĩa nên "ignore ALL PREVIOUS
     # instructions" — câu injection phổ biến nhất — lọt sạch (F-24).
-    r"ignore (all |previous |above |the |prior )*(constraints|rules|instructions)",
+    # F-28 (2026-08-15) — MỞ RỘNG ĐỘNG TỪ. Trước bản này mẫu neo vào ĐÚNG MỘT
+    # động từ `ignore`, nên `disregard the above instructions` ·
+    # `forget everything you were told` · `override your system rules` đi
+    # thẳng qua CẢ HAI tier (tester đo: 3/3 ra `""` sạch; security: 1/8).
+    # Sau: 8/8. FP 0/1814 đoạn kho MoMo thật + 0/7 đối chứng lành.
+    #
+    # ⚠️ ĐỌC ĐÚNG PHẠM VI: đây là "bắt thêm 7 ca ĐÃ BIẾT", KHÔNG phải "đã chặn
+    # lớp tấn công đổi-động-từ". Thêm 9 động từ vẫn là một DANH SÁCH VIẾT TAY —
+    # đúng thứ Luật 18/ADR-023 đã bác bỏ cho tiếng Việt và thay bằng khớp-cụm,
+    # rồi lại đúng thứ luật xuất-xứ đã thay cho O3. Danh sách này sẽ thiếu đúng
+    # động từ người ta sắp gõ tiếp theo. Sửa LỚP cho tiếng Anh thuộc đợt CỔNG-A.
+    #
+    # TIER-1 LÀ ĐÚNG CHỖ CỦA MẪU NÀY — tranh chấp F-24 vs F-25 trên dòng này
+    # ĐÃ ĐÓNG (security phân xử `d312428`): `ignore…` (EN) Ở LẠI tier-1 vì đo
+    # được FP 0/1814 trên kho MoMo thật, đo trên chính mẫu ĐÃ mở rộng động từ
+    # của F-28; `bo qua…` (VN) ở tier-2 vì cụm đó dùng được trong chính sách
+    # thật. Trục phân xử là SỨC PHÂN BIỆT ĐO ĐƯỢC, không phải ngôn ngữ —
+    # đừng đọc thành "tiếng Anh thì nặng tay hơn tiếng Việt".
+    r"(ignore|disregard|forget|override|bypass|skip|do not follow|don't follow"
+    r"|must not obey|do not obey) "
+    r"(all |previous |above |the |prior |any |your |everything |these |those "
+    r"|earlier |system |initial )*"
+    r"(constraints|rules|instructions|guidelines|directives|prompt|prompts"
+    r"|you were told|you were given)",
     r"system prompt",
     r"you are now",
     r"tiet lo" + KC.GAP + r"(tieu chi|nguong|tin hieu)",
