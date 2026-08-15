@@ -64,10 +64,29 @@ Số đo hiện tại: `description_raw` nhận **20.000**, `agent_note` nhận 
 | A2-03 | **đối chứng**: mô tả hợp lệ dài vừa phải (~N/2), tiếng Việt thật | **NHẬN**, không bị cắt, không mất chữ |
 | **A2-05** | 🔴 **đối chứng BẮT BUỘC**: đúng **N ký tự tiếng Việt ĐỦ DẤU** (không phải ASCII) | **NHẬN** — xem cảnh báo dưới |
 | A2-04 | ép ở **tầng DB** hay chỉ ở route? ghi thẳng qua ORM vượt trần | theo `note`: CHECK constraint chặn |
+| **A2-06** | 🔴 **CẢ HAI đường ghi**: (i) REST (`ComplaintCreateRequest`) **và** (ii) đường **agent tool** (`customer_tools` → `create_ticket_with_fraud_check`) | cả hai đều **từ chối sạch** ở N+1, KHÔNG đường nào rơi xuống CHECK |
 
 **Kiểm cả hai mép là bắt buộc** (đúng khuôn `test_06` của `note`: 500 nhận /
 501 từ chối). Chỉ kiểm một mép thì không phân biệt được "trần đúng N" với
 "trần bất kỳ đâu quanh N".
+
+🔴 **A2-06 — vì sao phải kiểm CẢ HAI đường ghi.** Trần ký tự sống ở **Pydantic**
+(`max_length`), mà Pydantic chỉ nằm trên đường **REST**. `description_raw` còn
+một đường ghi thứ hai: **AI gọi tool dưới danh nghĩa customer** (ràng buộc cứng
+2) → `customer_tools` → `create_ticket_with_fraud_check` → `create_ticket`.
+Đường đó **không đi qua `ComplaintCreateRequest`**.
+
+Nếu đường agent không có trần riêng, một mô tả quá dài (LLM tự sinh, hoặc khách
+dán một khối văn bản) sẽ **đi thẳng xuống CHECK ở DB** → `IntegrityError` →
+**500 cho khách**, đúng hình dạng **F-21** — trong khi đường REST trông hoàn
+toàn ổn. CHECK phải là **lưới CUỐI**, không được là lưới **duy nhất** của bất kỳ
+đường nào.
+
+⚠️ Tôi **chưa xác nhận** đường agent có trần hay không (`src/` đang trôi lúc tôi
+viết — 7 file sửa dở, chưa commit). Đây là **ca phải kiểm**, không phải một
+finding đã đo.
+
+---
 
 🔴 **A2-05 — ca này bắt một lỗi ĐÃ ĐO ĐƯỢC trong dự thảo ADR-025 QĐ 5.** Bound
 CHECK trên ciphertext `<= 4000` được dẫn từ số đo `2.000 ký tự → 3.556`, nhưng

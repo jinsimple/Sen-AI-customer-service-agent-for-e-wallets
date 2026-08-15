@@ -57,6 +57,23 @@ rộng (tiếng Việt). Luật 8, lần thứ tư.
 Dù chọn gì: **phải có ca đối chứng "2.000 ký tự tiếng Việt đủ dấu → NHẬN"**
 trong bộ A2 (tôi đã bổ sung vào bộ probe).
 
+### ✅ Cập nhật — bound đã sửa thành `<= 12000`, tôi đo lại: ĐỦ
+
+Coder đặt `length(description_raw) <= 12000` (`models.py:238`). Đo thuần Fernet
+(không import `src/`, nên hợp lệ dù cây đang trôi):
+
+```
+2000 ký tự ASCII            2000 byte →  2764   OK
+2000 ký tự Việt CÓ DẤU (3B) 6000 byte →  8100   OK
+2000 ký tự emoji (4B) worst 8000 byte → 10764   OK
+=> CHECK<=12000 cho tối đa 2231 ký tự ở worst case 4-byte — biên 12% trên trần 2.000
+```
+
+**Kết luận: bound 12000 an toàn**, vượt cả worst case 4-byte. Vấn đề QĐ 5 **đóng**.
+Biên 12% là đủ vì độ dài ciphertext Fernet **tất định theo số byte** (không có
+phương sai) — với điều kiện trần 2.000 ký tự **thật sự được ép trước khi ghi ở
+MỌI đường** (xem A2-06: đường agent tool không đi qua Pydantic).
+
 ---
 
 ## 🔴 QĐ 2 — "ticket mình phụ trách" chưa tồn tại trong mô hình dữ liệu
