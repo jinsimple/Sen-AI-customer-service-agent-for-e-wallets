@@ -226,6 +226,47 @@ lại từ hồ sơ cũ; security tự thấy không ổn khi nó sắp thành c
 ⟹ Nếu PO định làm ADR-025 theo kiểu *"cửa nào gấp làm trước"* thì **`description_raw` KHÔNG phải
 cửa nhẹ nhất như tên gọi gợi ý.**
 
+### 🧭 MỘT NGUYÊN TẮC, **HAI CƠ CHẾ** — đọc TRƯỚC khi soạn ADR-025 (security `6f18c9d`)
+Phương án + lý do bác cho từng cửa đã viết sẵn:
+`docs/security/2026-08-15-co-che-cho-bon-cua-dau-vao-adr-025.md`.
+
+**Nguy cơ lớn nhất của việc gộp bốn cửa vào một ADR là nó kết thành "áp scrub-lúc-ghi cho cả
+bốn"** — và số đo nói điều đó **hỏng nặng nhất ở đúng hai cửa quan trọng nhất**. Đây là lý do
+security viết phần cơ chế TRƯỚC bản dự thảo, không phải sau.
+
+⚠️ **Đường phân chia KHÔNG phải "nhân viên gõ / khách gõ"** như bảng bốn cửa ở trên gợi ý —
+security tự cảnh báo chính bảng của họ dễ dẫn người đọc đi sai. **Trục thật: bản ghi đó có phải
+BẰNG CHỨNG không, và người gõ có SỬA LẠI ĐƯỢC không.**
+
+**NHÓM A — `description_raw` + `messages.content` = LỜI KHAI CỦA KHÁCH.** Là căn cứ giải quyết
+tranh chấp tiền bạc, và khách **không sửa lại được** (họ đã rời đi).
+⟹ **BÁC che-lúc-ghi.** Ba cửa kia hỏng thì mất khả năng ĐỌC; cửa này hỏng thì **mất GIÁ TRỊ CHỨNG
+CỨ** — một lời khai bị hệ thống sửa chữ **không đứng được** nếu khiếu nại đi xa hơn (NHNN, hoặc
+toà). Cơ chế đúng: **mã hoá at-rest + trần + siết đọc theo NGƯỜI PHỤ TRÁCH (không theo vai) +
+retention + che lúc XUẤT**. Chỗ xuất/log mới đúng hạng mục `scrub_pii` được viết ra — **vì bản gốc
+vẫn còn**.
+
+**NHÓM B — `note` + `agent_note` = ghi chú thao tác.** Nhân viên **đang ngồi trước màn hình**, sửa
+lại được. ⟹ che-lúc-ghi **được**, nhưng phải **FAIL-VISIBLE** (xác nhận vòng tròn), **không im lặng**.
+
+**Cắt lô:**
+- **LÀM NGAY, KHÔNG cần PO quyết cơ chế** → nhập vào nhóm việc rẻ: **A1** mã hoá at-rest
+  `description_raw` (chỉ là **bù cho ngang chuẩn dự án đã có** — live-chat có `EncryptedText`,
+  cửa này không) · **A2** trần độ dài.
+- **CẦN PO quyết**: **B1-vs-B2** (chế độ fail-visible) · **A3/A4** (siết đọc + retention — đụng
+  vận hành CSKH, không thuần kỹ thuật).
+- **SAU CÙNG**: **B3** (áp ba lớp cho `agent_note`) — **phải đi SAU B1/B2**; bê nguyên `scrub_pii`
+  sang khi chưa sửa chế độ im lặng = **nhân bản lỗi 40% sang cửa thứ hai**.
+
+**BA điều security ghi rõ là KHÔNG kết luận — giữ nguyên khi soạn ADR-025:**
+1. **Không đề xuất con số retention** — đó là câu hỏi **pháp lý** (NĐ 13/2023 + thời hiệu khiếu nại
+   TT 40/2024), có thể cần **tư vấn pháp lý thật**, không phải suy luận của security.
+2. **Không kết luận nhóm A có cần scrub ở dạng nào** — nếu PO vẫn muốn thì phải đo trên corpus
+   **LỜI KHAI THẬT**, ngưỡng **0 câu bị đổi nghĩa**.
+3. **`messages.content` là cửa DUY NHẤT chưa probe hành vi trong phiên** (số dẫn từ ST2-P0-3 14/08
+   + đọc `models.py`). Nếu ADR-025 quyết dựa trên nó → **nói một tiếng, security đo như đã đo ba
+   cửa kia**.
+
 §7 hồ sơ cũ đã cảnh báo *"chốt riêng lẻ sẽ tạo tình trạng che ô chat để hở ô mô tả, người soi bảo
 mật tìm ra trong năm phút"* — nay quy mô **gấp đôi**, và một trong bốn cửa đã "được che" theo cách
 **làm hỏng bản ghi**. ⟹ **S-01 + S-02 + ST2-P0-3 + `description_raw` là MỘT quyết định, không phải
@@ -391,7 +432,10 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
    (b) **F-CI-3** trả lời một dòng **tên hàm thật** của `phan_tier` để 2 bộ test tier-split hết skip;
    (c) **S-03** scrub exception trước khi lên trace — độc lập, không chặn gate nào;
    (d) **F-28** mở rộng động từ tier-1 tiếng Anh (1/8→8/8, FP 0/1814) — nhớ **vế (b)**: bản vá
-   KHÔNG đóng lớp lỗi, chỉ bắt thêm 7 ca đã biết; lớp thuộc CỔNG-A.
+   KHÔNG đóng lớp lỗi, chỉ bắt thêm 7 ca đã biết; lớp thuộc CỔNG-A;
+   (e) **A1** mã hoá at-rest `complaints.description_raw` + **(f) A2** trần độ dài — security xác
+   nhận **không chờ ADR-025**: A1 chỉ là **bù cho ngang chuẩn đã có** (live-chat đã `EncryptedText`),
+   không phải cơ chế mới cần quyết.
 3. PO chốt hướng đợt 150 người (số end-to-end đã có, nhớ ghi nhãn hành-vi/dữ-liệu ở "Cảnh báo").
 4. Coder: chờ security "MỞ TAY src/" rồi mới chạm. Xếp hàng: chip câu 3 (sau 5a core + QA baseline)
    · đợt cổng-A gộp 3 oracle · câu-4 RAG retrieval (chunk/embedding, trước pilot 150 người).
