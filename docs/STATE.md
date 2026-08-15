@@ -135,6 +135,35 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 
 **Không phải test đỏ, không phải config sai — ZERO job khởi động.** Hai lượt `success` duy nhất
 trong lịch sử repo là "Initial commit" 26/07 (22s/27s, trước khi có bộ test thật).
+
+**Tester đã chạy TRƯỚC đúng lệnh của từng job trên host** (Python 3.14 vs CI 3.12 — ghi rõ để
+không đọc thành chắc chắn), HEAD `2e8c888`, để khi runner sống lại thì tách sẵn "đỏ vì billing"
+khỏi "đỏ vì code":
+
+| Job | Lệnh CI | Host |
+|---|---|---|
+| `invariants` | `pytest tests/test_invariants.py` | 23 passed ✅ |
+| contract drift | `check_contracts.py` | 3/3 khớp ✅ |
+| `lint-and-test` | `pytest tests/ -m "not security_finding"` | **446 passed · 41 skipped · 0 failed** ✅ |
+| `security-findings-gate` | `pytest tests/ -m security_finding` | 1 failed — ĐỎ ĐÚNG CHỦ ĐÍCH |
+| `appsec` | `pytest tests/test_api/` | **1 failed** · 227 passed 🔴 |
+
+**🔴 F-CI-2 — job `appsec` sẽ đỏ vì LÝ DO SAI ngay khi billing thông.** `appsec` chạy
+`pytest tests/test_api/ -v` **thiếu `-m "not security_finding"`** mà `lint-and-test` có ⟹ nó bắt
+luôn `test_live_chat_pii_gap.py::…_is_not_masked_before_storage` = **ST2-P0-3**, finding P0 duy
+nhất còn lại (3 P0 kia đã vá đợt Auth5). `security-findings-gate` đỏ là ĐÚNG THIẾT KẾ; `appsec`
+đỏ là SAI. Vi phạm chiều hai của `tests/TIEU-CHI-CI.md`: *"cổng đỏ vì lý do sai còn tệ hơn không
+có cổng — nó dạy cả đội bỏ qua chính cảnh báo đó"*. **Nguy hơn thường lệ vì nó nổ ĐÚNG LÚC billing
+vừa thông**, lúc cả đội đang mong thấy xanh và dễ tặc lưỡi nhất. Vá = **một dòng `ci.yml`** (vùng
+coder). Tester đã ghi tiêu chí **CI-10** + 2 phép thử vào `tests/TIEU-CHI-CI.md`.
+
+**🟡 F-CI-3 — hai test tier-split TỰ SKIP BẰNG ĐOÁN TÊN HÀM.** Trong 41 skip, 38 có lý do chính
+đáng. Còn `test_mau_tier1_chi_thi.py` + `test_f24_recall_tier1.py` skip với *"F-22 CHƯA SHIP"* —
+chúng thử 4 cặp module/tên cho `phan_tier`, không thấy thì skip. Nhưng sổ Đợt 2 ghi F-22/F-24/F-25
+đã chốt và ship. Tester **không phân biệt được vì không đọc `src/`** (§4): hoặc chưa ship thật
+(skip trung thực), hoặc **đã ship DƯỚI TÊN KHÁC** ⟹ hai bộ skip vĩnh viễn trong khi cả đội tưởng
+đang được canh. **Khả năng thứ hai ĐÃ XẢY RA một lần cùng đợt này**: `8d26548` — *"O2 mỏ neo tìm
+đúng tên `dem_mat_do_liet_ke`, 7 ca hết SKIP"*. **Coder chỉ cần trả lời một dòng: tên hàm thật.**
 ⟹ **Toàn bộ Đợt 2 ở P-226 chạy với 0 lượt CI có hiệu lực.** Mọi câu "CI xanh chưa" vô nghĩa tới
 khi thông. **VIỆC PO THẬT (không phiên Claude nào làm được): Billing & plans của org
 `AI20K-Build-Phase-Cohort-3`.** Hệ quả: CI-1/CI-4/CI-5 (`tests/TIEU-CHI-CI.md`) không nghiệm thu
@@ -156,8 +185,38 @@ vì sao từ chối, mà bản ghi hỏng nghĩa **TRONG IM LẶNG**.
 Gốc: `scrub_pii` docstring tự khai dùng cho **log/span attribute** — mất một chữ trong log thì
 không sao; ADR-024 tái dùng nó cho **record có giá trị pháp lý** = đổi hạng mục sử dụng.
 ⟹ **CHƯA BẬT CI security-gate cho `note`** (bật = đóng dấu xanh lên hành vi làm hỏng audit trail).
-Bản vá đụng tiền đề ADR-024 → phải qua PO thật, coder ĐỪNG vá vội. Hồ sơ: `docs/security/`.
+Bản vá đụng tiền đề ADR-024 → phải qua PO thật, coder ĐỪNG vá vội.
+**Hồ sơ đầy đủ (23KB, §0-§8): `docs/security/2026-08-15-ra-soat-cuoi-sprint-note-scrub-va-pipeline.md`** (`c2c2d06`).
 **Đính chính mục "Vừa xong" bên trên:** `note` đủ về **BẢO MẬT**, KHÔNG đủ về **TOÀN VẸN BẢN GHI**.
+
+### 🔴 S-02 (CAO) — tiền đề "chỗ DUY NHẤT" của ADR-024 BỊ BÁC: `InvestigationLog.agent_note`
+Route `POST /tickets/{id}/request-more-info` ghi thẳng `req.note` → `agent_note`: **không scrub,
+không trần độ dài, không cờ tier**. Probe HÀNH VI (gọi route thật + đọc thẳng DB, không grep tên):
+PAN 16 số `9704123456789012` · CCCD · SĐT · tên đều nằm **plaintext trong DB**; note **5.000 ký
+tự** nhận trọn (bên `reject` chặn ở 500); payload injection lưu nguyên văn.
+Không rò ra khách (3 đường đọc đều gated `cskh,supervisor`; node agent ghi `agent_note=None` nên
+không vào LLM). Nhưng hở **NĐ 13/2023** — và `EncryptedText` ĐÃ được áp cho chat content
+(`models.py:475`) lẫn RAG (`:513`), nên `agent_note` **chỉ đơn giản bị BỎ SÓT, không phải một
+quyết định**. Cộng hở **phễu học Phase 2**: `test_14` cắm cọc cấm `note` ra file ứng viên, **không
+có cọc nào cho `agent_note`** — trong khi `investigation_logs` mới là thứ tự nhiên nhất để xuất
+làm dữ liệu học.
+⚠️ **S-01 và S-02 PHẢI SỬA CÙNG MỘT QUYẾT ĐỊNH** — bê nguyên `scrub_pii` sang cửa thứ hai là
+**nhân bản lỗi chặn-nhầm 40% sang trường thứ hai**.
+
+### 🟡 S-03 (TB) — exception gửi lên trace KHÔNG qua scrub
+`span.set_status` / `record_exception` (`langchain_callback.py:96-98`). Chưa có ca dương tính vì
+**SQLite không echo tham số — nhưng Postgres CÓ** (`DETAIL: Key (phone)=(...)`) ⟹ **lớp lỗi chỉ lộ
+sau deploy thật**. Sửa được ngay, độc lập, không chặn gate nào.
+
+### 📌 LUẬT MỚI (security rút, đáng đưa vào chuẩn dự án) — assert VẮNG MẶT mù với XOÁ QUÁ TAY
+Assert dạng `X not in db` **LUÔN XANH khi nội dung bị xoá nhiều hơn cần thiết** — xoá càng mạnh
+test càng xanh. ⟹ Một bộ test chỉ hỏi *"PII có vắng mặt không"* **KHÔNG THỂ** phát hiện over-scrub,
+chạy bao nhiêu ca cũng vậy. Đây là lý do cấu trúc khiến bộ 13 ca của tester xanh mà lỗ 40% vẫn
+lọt — **bộ test KHÔNG yếu**, nó đo đúng thứ đặc tả (TM-03) yêu cầu; vế toàn-vẹn thiếu vì **không
+được viết vào sign-off**, không phải vì ai làm ẩu. Hai câu hỏi phải đi CẶP:
+tester hỏi *"X có vắng mặt không"* · security hỏi *"cái CÒN LẠI là gì"* — đúng **Luật 16**, giá trị
+nằm ở **sót khác chỗ nhau**. Khi vá S-01, trục đối chứng phải đo *"căn cứ từ chối còn đọc được
+không"* và **để FILE RIÊNG** với bộ che-PII (nhét chung = mời một lần sửa làm hỏng cả hai).
 
 ### F-LOG — bản vá `submit_log.py` (`eadcca7`) NUỐT DÒNG JSON HỎNG, im lặng (tech-lead đo A/B)
 Chạy `submit_log.py` THẬT với server giả + `AI_LOG_DIR` giả ở scratchpad (không đụng `.ai-log`
@@ -212,9 +271,21 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
   sau đó. ⟹ hai số **HÀNH VI** (câu 2: 17/17 · câu 4: 2/5) gắn hệ thống đã mất; hai số **DỮ LIỆU**
   (câu 1 cổng-96 · câu 3 fallback) mua vĩnh viễn. Trích cho quyết định 150 người thì trích được
   cả bốn, **chỉ cần ghi rõ nhãn**.
-- **Cửa sổ đóng băng đang MỞ:** security (`p-226-0f`) giữ `src/` BẤT ĐỘNG tới khi họ nhắn
-  "MỞ TAY src/" (dấu `he_thong=fd16681d8088` · `cham_diem=c0b79835e16c` · commit `2e8c888`).
-  `docs/`/`tests/`/`contracts/`/`scripts/` KHÔNG nằm trong dấu → sửa được bình thường.
+- **Cửa sổ đóng băng ĐÃ ĐÓNG** — security nhắn "MỞ TAY `src/`" sau khi nộp hồ sơ `c2c2d06`.
+  Không vai nào đang giữ mốc nền. Coder chạm `src/` được khi PO giao việc.
+- 🔴 **MỐC NỀN 18/20 `6c5fff420bb9` ĐÃ TRÔI** — cây làm việc nay `fd16681d8088` (đúng dự kiến:
+  O1-O4 + F-27 + `note` đã land). **Hệ quả: lượt đo mới KHÔNG ghép cặp trước/sau với mốc cũ được
+  nữa.** Đợt CỔNG-A phải đóng băng một **mốc nền MỚI ở một `he_thong` xác định TRƯỚC khi tiêu
+  TPM** — không thì lặp đúng sự cố `8e46f28→6c5fff`.
+- **Rà pipeline scrub mới xong PHẦN OTel/callback.** CHƯA rà: đường **Langfuse** (đang TẮT có chủ
+  đích) và **đường log của eval** (`logging_config` chưa init ở runner). Ghi rõ để không ai đọc §5
+  của hồ sơ security thành "đã rà hết".
+- **MT-E02 thu hẹp** (security §6): chỗ nổ xác định = `investigation_log.py:89 session.flush()`,
+  FK `investigation_logs.ticket_id`. **MT-E02 và MT-F01 traceback TRÙNG HÌNH DẠNG** ⟹ nhiều khả
+  năng **một defect hai tên** (đúng chỗ sổ ghi "coder gọi MT-F01, tester gọi MT-E02"). Cơ chế sinh
+  id cũ **CHƯA kết luận** (Luật 5) — **giữ nguyên: ĐỪNG đốt TPM tái hiện**. Góc bảo mật mới: flush
+  chết ⟹ mất `investigation_logs` của lượt đó ⟹ **ĐỨT MẮT XÍCH chuỗi truy vết của RÀNG BUỘC CỨNG
+  3**, im lặng.
 - **Mốc nền đối kháng chốt VĨNH VIỄN 18/20** (he_thong 6c5fff420bb9); 18 ca MÙ với siết-nhầm → "18/18→18/18"
   là chốt-chặn-hồi-quy MỘT NỬA, nửa kia đo bằng 🔇 + F-25(b). MT-A01/F-01 không quay lại nhánh "trước" được.
 - CI: **TẤT CẢ đều treo sau F-CI (billing), không phải "chưa làm"** — note-tests đã land và xanh ở
@@ -226,10 +297,16 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
 
 ## Việc kế tiếp
 1. **PO THẬT — billing org `AI20K-Build-Phase-Cohort-3`** (F-CI). Chặn mọi nghiệm thu CI.
-2. **PO THẬT — quyết hướng vá F-NOTE**: scrub cho bản ghi kiểm toán khác scrub cho log. Đụng tiền
-   đề ADR-024 nên cần quyết định minh thị, không để coder tự vá.
+2. **PO THẬT — quyết hướng vá S-01 + S-02 trong MỘT quyết định** (scrub cho bản ghi kiểm toán
+   khác scrub cho log; bê `scrub_pii` sang `agent_note` = nhân bản lỗi 40%). Đụng tiền đề ADR-024
+   ⟹ nhiều khả năng cần **ADR-025**, không để coder tự vá.
 3. **PO THẬT — giao ai vá F-LOG** (`scripts/` vô chủ, xem F-ZONE) và chốt: **vá TRƯỚC rồi mới đẩy
    backlog P-121**. Đẩy trước = chạy 19 lượt trên đường có lỗ nuốt-dòng-hỏng, đúng deliverable #4.
+4. **Coder — hai việc RẺ, không chờ ai** (khi PO gật): (a) **F-CI-2** một dòng `ci.yml` thêm
+   `-m "not security_finding"` cho job `appsec` — phải xong TRƯỚC khi billing thông, nếu không cổng
+   đỏ vì lý do sai đúng lúc đội dễ tặc lưỡi nhất; (b) **F-CI-3** trả lời một dòng **tên hàm thật**
+   của `phan_tier` để 2 bộ test tier-split hết skip. (c) **S-03** scrub exception trước khi lên
+   trace — độc lập, không chặn gate nào.
 3. PO chốt hướng đợt 150 người (số end-to-end đã có, nhớ ghi nhãn hành-vi/dữ-liệu ở "Cảnh báo").
 4. Coder: chờ security "MỞ TAY src/" rồi mới chạm. Xếp hàng: chip câu 3 (sau 5a core + QA baseline)
    · đợt cổng-A gộp 3 oracle · câu-4 RAG retrieval (chunk/embedding, trước pilot 150 người).
