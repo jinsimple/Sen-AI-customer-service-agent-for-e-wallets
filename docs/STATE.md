@@ -539,11 +539,21 @@ ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B
   gấp đôi — danh sách viết tay vá lỗ danh-sách-viết-tay, thiếu đúng chữ kế, lần hai trong cùng bản
   vá); bản B (thân + `\w*`) đóng **8/8, FP 0/7 + 0/2006 kho MoMo thật**. Đo cả cái KHÔNG đóng:
   5 ca đổi-hẳn-động-từ (`refrain from…`, `pay no attention…`, gõ-sai `ignroe`) vẫn lọt = CỔNG-A.
-  **PO-agent QUYẾT: đường (1)** — land F-28b bản B ngay + security re-probe HẸP (chỉ bộ F-28).
-  Lý do chấp nhận lập luận coder: `\w*` không phải thêm-mục-vào-danh-sách — nó **xoá chiều
-  biến-thể-hình-thái khỏi bài toán** (đúng cách `KC.GAP` xoá chiều chèn-hư-từ tiếng Việt); chiều
-  từ-vựng còn nguyên và vẫn thuộc CỔNG-A — (1) và CỔNG-A không thay thế nhau. Comment code ghi rõ
-  hai chiều + số cho cả hai. Coder đúng khi KHÔNG tự land sau chữ ký security.
+  ~~PO-agent QUYẾT: đường (1) — land bản B vào tier-1~~ → **🔴 ĐẢO LỆNH sau probe khẩn của
+  security (Luật 8 lần SÁU — chân bị rút là của CẢ BA):** bản B gây **FP TIER-1 THẬT** — `ignor\w*`
+  bắt `ignorant` (từ khác hẳn), và *"Please do not disregard the safety guidelines"* bị **XOÁ
+  TRẮNG** = **F-25 tái diễn nguyên hình dạng bằng tiếng Anh** (khuyến cáo an toàn thật bị xoá).
+  Vì sao FP 0/7+0/2006 không bắt được — **corpus có lỗi, security tự nhận corpus của họ**: 7 câu
+  đối chứng mỏng đúng trục bản vá chạm (không mệnh-lệnh-phủ-định, không ca `\w*` vươn quá);
+  2.006 câu kho MoMo là TIẾNG VIỆT — cấu trúc không thể bắt FP mẫu tiếng Anh. Số đúng, không nói
+  gì về lớp lỗi này.
+  **LỆNH CUỐI (security đề nghị, PO-agent duyệt): `\w*` vào TIER-2** (giữ nội dung + nhãn trung
+  tính + đếm — V-ing attack bị đánh dấu, không bị xoá trắng, vẫn qua spotlighting + O1-O4) ·
+  **tier-1 GIỮ HẸP** dạng nguyên thể 0/1814 · phân biệt cực-của-động-từ (`do not follow` tấn công
+  vs `do not disregard the safety` khuyến cáo) = sửa LỚP thuộc **CỔNG-A**, cấm nhét vào hotfix.
+  Đây là áp đúng tiêu chí F-25 §3(a): vào tier-1 = FP đo được phải bằng 0 trên nội dung hợp lệ.
+  **Chữ ký F-28 ĐÃ RÚT** — security đang mở rộng bộ đối chứng tiếng Anh đủ trục (hình thái +
+  mệnh-lệnh-phủ-định) rồi giao tester; bộ 7 câu cũ KHÔNG đủ để ký bất kỳ bản vá nào chạm mẫu EN.
 - **✅ LÔ CODER ĐÃ LAND — HEAD `cc07dd3`** (5 commit: F-LOG `cc07dd3` · F-28 `e082a34` ·
   S-03+F-30+F-29-gitignore `83f45df` · A1+A2 `5b65b81` · F-CI-2+ruff `37ed7fc`). Pathspec sạch —
   không đụng `tests/`/`docs/`. Đo tại `cc07dd3`: ruff sạch · invariants 23 · contracts 3/3 ·
