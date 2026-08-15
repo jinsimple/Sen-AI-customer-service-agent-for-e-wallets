@@ -206,12 +206,25 @@ làm dữ liệu học.
 ### 🔴🔴 PHẠM VI THẬT LÀ **BỐN CỬA**, KHÔNG PHẢI HAI — đây là quyết định lớn nhất đang chờ PO
 Security rà tiếp (`eff47ac`) và mở rộng §8.3 từ 2 lên **4** cửa văn bản tự do:
 
-| Cửa | Ai gõ | Scrub hôm nay |
-|---|---|---|
-| `messages.content` (live-chat) | khách + CSKH | ❌ không |
-| `complaints.description_raw` | khách | ❌ không |
-| `resolutions.note` | nhân viên | ✅ có — **nhưng hỏng nghĩa 40%** (S-01) |
-| `investigation_logs.agent_note` | nhân viên | ❌ không, không trần, không cờ (S-02) |
+**CẢ BỐN Ô NAY ĐỀU ĐO TRONG PHIÊN** (`b7e4230`) — `description_raw` trước đó là ô duy nhất còn dẫn
+lại từ hồ sơ cũ; security tự thấy không ổn khi nó sắp thành căn cứ quyết ADR-025 nên probe hành vi
+(Luật 9). Bảng nay có **4 chiều**:
+
+| Cửa | Ai gõ | Scrub | Trần độ dài | Cờ tier | Mã hoá at-rest |
+|---|---|---|---|---|---|
+| `messages.content` (live-chat) | khách + CSKH | ❌ | ❌ | ❌ | ✅ `EncryptedText` |
+| `complaints.description_raw` | khách | ❌ | ❌ **20.000 ký tự nhận trọn** | ❌ | ❌ **`Text` thuần** |
+| `resolutions.note` | nhân viên | ✅ **nhưng hỏng nghĩa 40%** (S-01) | ✅ 500 | ✅ | ❌ |
+| `investigation_logs.agent_note` | nhân viên | ❌ | ❌ | ❌ | ❌ (S-02) |
+
+**Hai điểm mới, quyết định cách xếp thứ tự trong ADR-025:**
+1. `description_raw` chứa **PII BÊN THỨ BA ngay ở ca dùng điển hình nhất** — *"em chuyển nhầm cho
+   anh X, sđt…"*. Người đó **không phải khách hàng**, không có cơ sở pháp lý để lưu. Đo: 5/5 mẩu
+   PII còn nguyên văn (2 SĐT · STK · CCCD · **tên bên thứ ba**), injection lưu nguyên văn.
+2. Nó là **cửa khách-tự-gõ DUY NHẤT không có mã hoá at-rest** (live-chat có `EncryptedText`, cửa
+   này không).
+⟹ Nếu PO định làm ADR-025 theo kiểu *"cửa nào gấp làm trước"* thì **`description_raw` KHÔNG phải
+cửa nhẹ nhất như tên gọi gợi ý.**
 
 §7 hồ sơ cũ đã cảnh báo *"chốt riêng lẻ sẽ tạo tình trạng che ô chat để hở ô mô tả, người soi bảo
 mật tìm ra trong năm phút"* — nay quy mô **gấp đôi**, và một trong bốn cửa đã "được che" theo cách
@@ -245,6 +258,28 @@ defect ở job này, không phải hai**.
 `span.set_status` / `record_exception` (`langchain_callback.py:96-98`). Chưa có ca dương tính vì
 **SQLite không echo tham số — nhưng Postgres CÓ** (`DETAIL: Key (phone)=(...)`) ⟹ **lớp lỗi chỉ lộ
 sau deploy thật**. Sửa được ngay, độc lập, không chặn gate nào.
+
+### 🟡 F-28 (TB) — tier-1 tiếng Anh neo vào MỘT động từ `ignore`; việc coder, KHÔNG cần PO quyết
+Tester + tech-lead hội tụ bằng **hai phương pháp khác nhau** (Luật 16): mẫu tier-1 tiếng Anh chỉ
+neo `ignore`, nên 7 câu tấn công **cùng ý định, đổi động từ** đi thẳng qua (`disregard` · `forget`
+· `override` · `bypass` · `skip` · `do not follow` · `must not obey`). Security đo bổ sung: mẫu mở
+rộng đưa độ phủ **1/8 → 8/8**, **FP 0/1814** trên kho MoMo thật (239K ký tự) và **0/7** trên đối
+chứng tiếng Anh hợp lệ ⟹ thoả tiêu chí vào tier-1 do chính F-25 đặt. **Vá được ngay, không đổi
+contract, không cần PO** — chỉ cần xếp lịch.
+
+⚠️ **Hai vế phải giữ, đừng rút gọn khi báo cáo:**
+- **(a) TRUNG BÌNH, KHÔNG phải P0** — F-25 §3(a) đã tuyên bố tier-1 **không phải lằn ranh**: nội
+  dung vẫn bị spotlighting bọc và vẫn qua O1-O4.
+- **(b) Bản vá KHÔNG đóng LỚP lỗi** — thêm 9 động từ vẫn là **danh sách viết tay**. Luật 18
+  (ADR-023) đã sửa lớp này **cho tiếng Việt** và **chưa từng sửa cho tiếng Anh**; việc đó thuộc
+  **CỔNG-A**. Sau khi vá phải nói *"bắt thêm 7 ca ĐÃ BIẾT"*, **không** được nói *"đã chặn lớp tấn
+  công đổi-động-từ"*.
+
+### ✅ Đính chính F-25 §3(a) — hai "lệch impl-vs-đặc-tả" của tester, coder KHÔNG phải vá (`d312428`)
+Tester chặn ở hai lệch trên lớp tier injection; security phân xử: **một không phải lệch** (impl
+ĐÚNG, kỳ vọng sai — kéo `bo qua…` về tier-1 sẽ **mở lại đúng lỗ F-25 vừa bịt**); **lệch còn lại là
+chữ security viết sai**, họ tự rút sau khi đo FP `0/1814` — đúng phép đo mà F-25 §4 giao cho
+security, nay mới làm. ⟹ **Coder không phải vá cả hai; tester viết lại kỳ vọng.**
 
 ### 📌 LUẬT MỚI (security rút, đáng đưa vào chuẩn dự án) — assert VẮNG MẶT mù với XOÁ QUÁ TAY
 Assert dạng `X not in db` **LUÔN XANH khi nội dung bị xoá nhiều hơn cần thiết** — xoá càng mạnh
@@ -350,11 +385,13 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
    tới khi có quyết định này — **đừng đóng nó để CI xanh**. KHÔNG để coder tự vá.
 3. **PO THẬT — giao ai vá F-LOG** (`scripts/` vô chủ, xem F-ZONE) và chốt: **vá TRƯỚC rồi mới đẩy
    backlog P-121**. Đẩy trước = chạy 19 lượt trên đường có lỗ nuốt-dòng-hỏng, đúng deliverable #4.
-4. **Coder — hai việc RẺ, không chờ ai** (khi PO gật): (a) **F-CI-2** một dòng `ci.yml` thêm
-   `-m "not security_finding"` cho job `appsec` — phải xong TRƯỚC khi billing thông, nếu không cổng
-   đỏ vì lý do sai đúng lúc đội dễ tặc lưỡi nhất; (b) **F-CI-3** trả lời một dòng **tên hàm thật**
-   của `phan_tier` để 2 bộ test tier-split hết skip. (c) **S-03** scrub exception trước khi lên
-   trace — độc lập, không chặn gate nào.
+4. **Coder — BỐN việc rẻ, KHÔNG cần PO quyết cơ chế, chỉ cần xếp lịch:**
+   (a) **F-CI-2** một dòng `ci.yml` thêm `-m "not security_finding"` cho job `appsec` — nên xong
+   **TRƯỚC khi billing thông**, nếu không cổng đỏ vì lý do sai đúng lúc đội dễ tặc lưỡi nhất;
+   (b) **F-CI-3** trả lời một dòng **tên hàm thật** của `phan_tier` để 2 bộ test tier-split hết skip;
+   (c) **S-03** scrub exception trước khi lên trace — độc lập, không chặn gate nào;
+   (d) **F-28** mở rộng động từ tier-1 tiếng Anh (1/8→8/8, FP 0/1814) — nhớ **vế (b)**: bản vá
+   KHÔNG đóng lớp lỗi, chỉ bắt thêm 7 ca đã biết; lớp thuộc CỔNG-A.
 3. PO chốt hướng đợt 150 người (số end-to-end đã có, nhớ ghi nhãn hành-vi/dữ-liệu ở "Cảnh báo").
 4. Coder: chờ security "MỞ TAY src/" rồi mới chạm. Xếp hàng: chip câu 3 (sau 5a core + QA baseline)
    · đợt cổng-A gộp 3 oracle · câu-4 RAG retrieval (chunk/embedding, trước pilot 150 người).
