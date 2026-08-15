@@ -14,11 +14,12 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.4.0"
+version: "2.5.0"
 source: >
   Sinh ngược từ src/db/models.py @ 2026-08-13 · thay thế ticket-state-machine.yaml
   v1.0.0. v2.1.0 (2026-08-14): thêm taxonomy reject_reason + INV-14 + quy tắc
-  dẫn xuất hitl_status — ADR-019, PO duyệt.
+  dẫn xuất hitl_status — ADR-019, PO duyệt. v2.5.0 (2026-08-15): thêm
+  resolutions.note + note_flagged + INV-17 — ADR-024, PO thật duyệt.
 
 # ===========================================================================
 # 1. Resolution — nơi ràng buộc HITL được ép ở TẦNG DATABASE
@@ -91,6 +92,8 @@ resolution:
         - "reject_reason BẮT BUỘC, thuộc enum reject_reason bên dưới"
         - "rejected_by = supervisor thực hiện · rejected_at = thời điểm từ chối"
         - "Ép ở tầng DB: ck_resolutions_rejected_requires_reason_br11 (INV-14)"
+        - "note BẮT BUỘC có nội dung khi reject_reason='khac' — ADR-024, INV-17"
+        - "Ép ở tầng DB: ck_resolutions_note_bat_buoc_khi_khac (INV-17)"
 
   # ---- Ràng buộc BR-12 maker-checker (ADR-020), ép ở tầng DB ----
   invariant_db_maker_checker:
@@ -154,6 +157,38 @@ resolution:
       khac:
         mo_ta: "Lý do khác — BẮT BUỘC kèm ghi chú tự do"
         la_tin_hieu_hoc: false
+
+  # ---- Ghi chú tự do khi từ chối (ADR-024, TM-03 sign-off của security) ----
+  note:
+    cot: "resolutions.note"
+    kieu: "Text NULLABLE — bắt buộc CÓ NỘI DUNG (sau strip) khi reject_reason='khac'"
+    gioi_han_do_dai: 500
+    rang_buoc_db: "ck_resolutions_note_bat_buoc_khi_khac"
+    xu_ly_truoc_khi_ghi: >
+      Scrub PII TẠI ĐIỂM GHI (pipeline hybrid regex+NER dùng chung với
+      ADR-010/011 — không viết mẫu mới). FAIL-CLOSED: scrub lỗi -> route trả
+      500, KHÔNG BAO GIỜ ghi bản thô rồi định che sau. Đây là NGOẠI LỆ so với
+      cột `agent_note` của InvestigationLog (ghi chú AGENT, không qua scrub vì
+      không phải văn bản tự do của nhân viên) — hai cột trông giống tên nhưng
+      khác bảng, khác rủi ro, khác xử lý; đừng đọc nhầm cái này thành cái kia
+      (chính lỗi đã xảy ra một lần khi chuẩn bị ADR này).
+    ranh_gioi_doc: >
+      CHỈ route đã gated `cskh,supervisor` (vd GET /tickets/{id}) được thấy
+      note nguyên văn. KHÔNG route nào khách gọi được được thấy. KHÔNG lọt vào
+      bất kỳ tool nào AI/LLM đọc được (ràng buộc cứng 2 — AI gọi tool dưới danh
+      nghĩa customer, nên bất cứ gì tool thấy là thứ mô hình thấy).
+  note_flagged:
+    cot: "resolutions.note_flagged"
+    kieu: "Boolean NOT NULL DEFAULT false"
+    dat_boi: >
+      Route reject, tái dùng `_phan_loai_tier`/Luật 18 (ADR-023) đã có trong
+      src/agents/tools/customer_tools.py — KHÔNG viết mẫu injection mới.
+      true khi note khớp tier-1 HOẶC tier-2 của bộ phân loại đó.
+    muc_dich: >
+      Đánh dấu cho người duyệt ứng viên (eval/CANDIDATE-REVIEW.md mục 3) thấy
+      NGAY dấu hiệu injection trong ghi chú nội bộ, thay vì phải tự đọc ra ý đồ
+      trong 500 ký tự — note do NHÂN VIÊN gõ nên qua được mọi phòng tuyến dựng
+      cho input của khách (TM-01 ở dạng nguy hiểm nhất).
 
 # ===========================================================================
 # 2. Ticket.hitl_status — góc nhìn CSKH, TRỰC GIAO với resolution.status
@@ -309,6 +344,17 @@ invariants:
       Mọi giá trị status/action_type dùng trong contract này phải khớp CHÍNH XÁC
       với CheckConstraint trong src/db/models.py.
     nguon: "Chống contract drift"
+  - id: INV-17
+    mo_ta: >
+      CHECK constraint ck_resolutions_note_bat_buoc_khi_khac phải tồn tại trong
+      models.py — đối xứng với INV-14 (br11) và INV-07 (br10): một ràng buộc
+      nghiệp vụ trên nhánh reject phải ép ở TẦNG DB, không chỉ ở route. Không
+      tồn tại resolution có reject_reason='khac' mà note là NULL hoặc chuỗi
+      rỗng/toàn khoảng trắng.
+    nguon: >
+      ADR-024 (TM-03 sign-off của security). Đánh số 17 vì INV-13/14/15/16 đã
+      dùng. Bài học lặp lại từ INV-15 (F-18): kiểm biểu thức, không chỉ tên
+      constraint — một bản vá sau này có thể giữ tên nhưng thu hẹp biểu thức.
 
 open_questions:
   - "Sau khi sếp duyệt (status='approved'), ai/cái gì THỰC THI lệnh chuyển tiền thật?

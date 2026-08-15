@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class LookupTransactionRequest(BaseModel):
@@ -71,9 +71,18 @@ class RejectResolutionRequest(BaseModel):
     ĐÍCH — schema lo trải nghiệm, CHECK lo toàn vẹn kể cả khi có ai ghi thẳng
     vào DB (lý do đầy đủ ở ADR-019).
 
-    KHÔNG có `note` ở đây: ghi chú tự do chờ security sign-off phương án TM-03
-    (scrub lúc ghi · ≤500 ký tự · chỉ route staff · không bao giờ ra file ứng
-    viên). Thêm sau, không làm trước.
+    `note` (ADR-024, TM-03 sign-off security) — ghi chú tự do khi từ chối.
+    Scrub PII + cờ injection thật diễn ra ở route (`src/api/main.py`), KHÔNG ở
+    đây: schema chỉ lo hình dạng (độ dài, có/thiếu), không chạm dữ liệu nhạy
+    cảm trước khi tới tầng scrub.
+
+    `max_length=500` bắt lỗi 501 ký tự ở TẦNG SCHEMA (422, thông báo rõ ràng)
+    thay vì để CHECK constraint tầng DB ném IntegrityError 500 — cùng triết lý
+    "schema lo trải nghiệm, CHECK lo toàn vẹn" đã áp cho `reason` ở trên.
+
+    Chuẩn hoá rỗng/toàn-khoảng-trắng THÀNH thiếu (`None`) trước khi áp luật
+    "bắt buộc khi reason='khac'": đây là đường lách kinh điển — một validator
+    chỉ kiểm `note is not None` thì một dấu cách là qua được.
     """
 
     reason: Literal[
@@ -85,6 +94,18 @@ class RejectResolutionRequest(BaseModel):
         "khach_rut",
         "khac",
     ]
+    note: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def _note_bat_buoc_khi_khac(self) -> "RejectResolutionRequest":
+        if self.note is not None and not self.note.strip():
+            self.note = None
+        if self.reason == "khac" and not self.note:
+            raise ValueError(
+                "note bắt buộc khi reason='khac' — 'lý do khác' không có ghi chú "
+                "thì bản ghi kiểm toán rỗng nghĩa"
+            )
+        return self
 
 
 class EscalateTicketRequest(BaseModel):

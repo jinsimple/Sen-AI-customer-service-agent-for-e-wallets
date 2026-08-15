@@ -40,6 +40,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.agents.graph import close_checkpointer, run_agent_turn
+from src.agents.tools.customer_tools import _phan_loai_tier
 from src.api.deps import get_session
 from src.api.live_chat_ws import live_chat_websocket_endpoint
 from src.api.live_chat_ws import manager as _live_chat_manager
@@ -97,6 +98,7 @@ from src.db.models import (
 )
 from src.observability.context import bind_context, clear_context
 from src.observability.logging_config import configure_logging
+from src.observability.pii import scrub_pii
 from src.observability.tracing import configure_tracing, instrument_fastapi_app
 from src.rag.ingest import delete_document as _delete_policy_document
 from src.rag.ingest import ingest_document
@@ -156,6 +158,8 @@ if not _access_logger.handlers:
     _handler.setFormatter(logging.Formatter("%(message)s"))
     _access_logger.addHandler(_handler)
     _access_logger.propagate = False
+
+_logger = logging.getLogger("fin05.api")
 
 
 @app.middleware("http")
@@ -721,6 +725,12 @@ def get_ticket_detail(
                 "rejected_by": r.rejected_by,
                 "rejected_at": r.rejected_at.isoformat() if r.rejected_at else None,
                 "reject_reason": r.reject_reason,
+                # ADR-024 — route này CỐ Ý gated cskh/supervisor ở chữ ký hàm
+                # (xem docstring khối M-02 ở trên): đây đúng "route staff" mà
+                # test_11 đòi note phải hiện ra. Không route nào khách gọi
+                # được tái dùng khối dict này.
+                "note": r.note,
+                "note_flagged": r.note_flagged,
             }
             for r in resolutions
         ],
@@ -1013,10 +1023,33 @@ def reject_resolution(
             ),
         )
 
+    # ADR-024 (TM-03 sign-off security) — scrub PII TẠI ĐIỂM GHI, FAIL-CLOSED.
+    # `note` là chỗ DUY NHẤT trong hệ thống nơi văn bản tự do do NHÂN VIÊN gõ
+    # đi vào cùng bản ghi với dữ liệu kiểm toán. Scrub TRƯỚC transaction ghi
+    # DB nào, và nếu scrub tự nó lỗi thì KHÔNG BAO GIỜ ghi bản thô rồi định
+    # che sau — dừng hẳn, trả 500, không chạm resolution.
+    note_da_scrub: str | None = None
+    note_flagged = False
+    if req.note is not None:
+        try:
+            note_da_scrub = scrub_pii(req.note)
+        except Exception as exc:  # noqa: BLE001 — fail-closed, không phân biệt loại lỗi
+            _logger.error("reject_note_scrub_that_bai", extra={"resolution_id": resolution_id})
+            raise HTTPException(
+                status_code=500,
+                detail="Không xử lý được ghi chú — vui lòng thử lại",
+            ) from exc
+        # Tái dùng Luật 18 (ADR-023) — KHÔNG viết mẫu injection riêng cho note.
+        # Cờ trên nội dung ĐÃ SCRUB: đó là thứ thật sự được lưu và người duyệt
+        # ứng viên thật sự đọc, không phải bản thô đã biến mất khỏi hệ thống.
+        note_flagged = bool(_phan_loai_tier(note_da_scrub))
+
     resolution.status = "rejected"
     resolution.reject_reason = req.reason
     resolution.rejected_by = current_user.user_id
     resolution.rejected_at = dt.datetime.utcnow()
+    resolution.note = note_da_scrub
+    resolution.note_flagged = note_flagged
     _dong_bo_hitl_status(session, resolution)
     session.flush()
     return {

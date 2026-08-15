@@ -71,7 +71,7 @@ _logger = logging.getLogger("fin05.observability.pii")
 # cài/lỗi load, giữ tối thiểu 3 loại PII cấu trúc rõ nhất. -------------------
 _FALLBACK_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _FALLBACK_PHONE_RE = re.compile(r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)")
-_FALLBACK_ID_RE = re.compile(r"(?<![\w-])\d{9,14}(?!\d)")
+_FALLBACK_ID_RE = re.compile(r"(?<![\w-])\d{9,19}(?!\d)")
 
 
 def scrub_regex(text: str) -> str:
@@ -88,8 +88,14 @@ def scrub_regex(text: str) -> str:
 # định dạng VN, đăng ký thêm vào registry chung. Cùng pattern đã verify ở
 # bản trước (giữ nguyên ID nội bộ có tiền tố chữ như TXN.../TCK... không bị
 # che — đó là mã tra cứu, không phải PII).
+#
+# Trần trên 14 -> 19 (ADR-024, đo khi làm scrub-tại-điểm-ghi cho `resolutions.
+# note`): "thẻ 9704123456789012" (16 số) lọt nguyên vẹn qua bản trần-14 — không
+# recognizer nào của Presidio bắt số thẻ không đúng định dạng Luhn/BIN chuẩn
+# quốc tế thay nó. 19 là độ dài tối đa của số thẻ theo ISO/IEC 7812; số tài
+# khoản ngân hàng VN (tới 14 số) vẫn nằm trong khoảng cũ nên không đổi hành vi.
 _VN_PHONE_REGEX = r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)"
-_VN_ID_REGEX = r"(?<![\w-])\d{9,14}(?!\d)"
+_VN_ID_REGEX = r"(?<![\w-])\d{9,19}(?!\d)"
 
 
 # Đại từ nhân xưng + xưng hô tiếng Việt — KHÔNG phải tên người, dù NER hay

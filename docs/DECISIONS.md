@@ -858,6 +858,78 @@ người đo nếu chỉ ghi Redis. Additive: không đổi `reply`, không đ�
 
 ---
 
+## ADR-024 — `resolutions.note` + `note_flagged`: ghi chú từ chối, scrub tại điểm ghi, ép ở tầng DB
+
+- **Ngày:** 2026-08-15 · **Trạng thái:** ĐÃ KÝ — PO thật ("làm hết đi, hoãn làm
+  chi"). Contract v2.4.0 → v2.5.0, INV-17.
+- **Bối cảnh:** `reject_reason='khac'` đã được tài liệu hoá từ ADR-019 là "BẮT
+  BUỘC kèm ghi chú tự do" nhưng chưa từng có cột nào chứa ghi chú đó — 13 test
+  đối kháng (`tests/test_api/test_reject_note_doi_khang.py`, viết TRƯỚC từ đặc
+  tả `docs/security/review-phase01-ap-that.md` §Nhiệm vụ 2, TM-03) đứng đỏ chờ.
+  Khi bắt tay implement, phát hiện một báo cáo sai của chính phiên này: `note`
+  từng được cho là "cột đã có sẵn" (nhầm với `agent_note` của `InvestigationLog`
+  — khác bảng, khác mục đích, chỉ trùng tên biến). Xác nhận lại: cột không tồn
+  tại trên `Resolution`, và vì test đòi CHECK-constraint có điều kiện (giống hệt
+  hình dạng BR-11), đây là thay đổi contract thật, đi qua CLAUDE.md §3.
+  `note` là chỗ DUY NHẤT trong hệ thống nơi văn bản tự do do NHÂN VIÊN gõ đi
+  vào cùng bản ghi với dữ liệu kiểm toán, ngay cạnh phễu học Phase 2 — ba rủi
+  ro chồng lên nhau: (1) PII thật của khách bị chép tay vào, (2) payload
+  injection nằm chờ được nhặt vào bộ học, (3) rò ngược ra phía khách nếu route
+  nào lỡ trả field mới.
+
+### Quyết định 1 — `note`: Text NULLABLE, CHECK bắt buộc có nội dung khi `reject_reason='khac'`
+
+`ck_resolutions_note_bat_buoc_khi_khac` — đối xứng `ck_resolutions_
+rejected_requires_reason_br11` (INV-14/ADR-019): ép ở TẦNG DB, không chỉ ở
+route. Giới hạn 500 ký tự (`test_06`, kiểm cả hai mép 500/501).
+
+- **Lý do BÁC BỎ validate-chỉ-ở-route:** đúng bài học ADR-019 lặp lại — một
+  route mới hoặc một UPDATE viết thẳng SQL bỏ qua application layer thì
+  validate-ở-route không bảo vệ được gì. CHECK constraint là lớp phòng thủ
+  không ai lách qua được kể cả khi quên gọi hàm validate.
+
+### Quyết định 2 — `note_flagged`: Boolean, tái dùng Luật 18 (ADR-023), không viết mẫu injection mới
+
+Route reject gọi lại `_phan_loai_tier()` đã có trong `customer_tools.py` —
+`note_flagged=true` khi `note` khớp tier-1 hoặc tier-2. Không viết pattern
+injection riêng cho field này.
+
+- **Lý do BÁC BỎ mẫu injection riêng:** hai bộ mẫu song song cho cùng một lớp
+  tấn công (chỉ thị giả danh) sẽ trôi khỏi nhau ngay từ lần sửa đầu tiên — một
+  bên vá, một bên quên, đúng kiểu lỗi lớp mà ADR-023 vừa dọn. Dùng lại một
+  nguồn sự thật duy nhất.
+
+### Quyết định 3 — scrub PII TẠI ĐIỂM GHI, fail-closed
+
+Route reject scrub `note` (pipeline hybrid regex+NER dùng chung với
+ADR-010/011, không viết pipeline mới) TRƯỚC khi ghi DB. Scrub lỗi (exception)
+→ route trả 500, KHÔNG BAO GIỜ ghi bản thô rồi định che sau.
+
+- **Lý do BÁC BỎ "ghi thô, che khi trả về API":** đã bị `_note_trong_db()`
+  trong bộ test loại trừ triệt để — test đọc THẲNG DB, không qua response API,
+  chính vì "sạch ở response, thô ở DB" là kiểu hỏng nguy hiểm nhất: bản thô nằm
+  trong mọi bản sao lưu, mọi câu truy vấn vận hành, mọi lần ai đó mở pgAdmin.
+- **Lý do BÁC BỎ "che nhầm còn hơn để lọt" kiểu nới rộng bừa:** giữ đúng đánh
+  đổi đã chốt ở checklist observability — chấp nhận che nhầm mã 12 số trùng
+  pattern CCCD (`test_03`) hơn là nới regex hẹp lại để giảm false positive.
+
+### Quyết định 4 — ranh giới đọc: KHÔNG mở rộng, chỉ route đã gated `cskh,supervisor`
+
+Không thêm route mới, không đổi `authority-matrix.yaml`. `note` xuất hiện ở
+đúng những nơi CSKH/supervisor đã đọc được ticket detail hôm nay; không xuất
+hiện ở route khách gọi được (`test_11`), không lọt vào bất kỳ tool nào AI/LLM
+đọc — cả đường REST lẫn đường `build_customer_tools().invoke()` trực tiếp
+(`test_10`, đúng ràng buộc cứng 2: AI gọi tool dưới danh nghĩa customer).
+
+- **Hệ quả:** `contracts/resolution-state-machine.yaml` v2.5.0 (INV-17) ·
+  `tests/test_invariants.py` (CONTRACT_VERSION bump) ·
+  `.claude/state/contract-hashes.json` (baseline, `--update` sau khi ADR ký) ·
+  migration mới (`resolutions.note`, `resolutions.note_flagged`) ·
+  `src/db/models.py` · route `POST /resolutions/{id}/reject` (`src/api/main.py`).
+  KHÔNG chạm nhánh approve, KHÔNG chạm `authority-matrix.yaml`.
+
+---
+
 ## Mẫu ADR mới
 
 ```markdown

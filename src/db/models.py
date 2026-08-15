@@ -339,6 +339,15 @@ class Resolution(Base):
             "(rejected_by IS NULL OR rejected_by != created_by))",
             name="ck_resolutions_maker_checker_br12",
         ),
+        # ADR-024/INV-17 — đối xứng br11 ở trên. `khac` = "lý do khác", không
+        # có note thì bản ghi kiểm toán rỗng nghĩa: người đọc lại sau này không
+        # biết vì sao case bị từ chối. `length(trim(note)) > 0` chặn cả NULL
+        # lẫn chuỗi toàn khoảng trắng — validate-chỉ-ở-route không chặn được
+        # UPDATE viết thẳng SQL, đúng bài học ADR-019 lặp lại.
+        CheckConstraint(
+            "(reject_reason != 'khac') OR (note IS NOT NULL AND length(trim(note)) > 0)",
+            name="ck_resolutions_note_bat_buoc_khi_khac",
+        ),
     )
 
     resolution_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -362,6 +371,13 @@ class Resolution(Base):
     reject_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     rejected_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     rejected_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    # ADR-024 (TM-03 sign-off security) — ghi chú tự do của SUPERVISOR khi từ
+    # chối. KHÁC `InvestigationLog.agent_note` (ghi chú của AGENT lúc điều
+    # tra) dù trùng tên biến — đừng đọc nhầm cột này thành cột kia, hai cột
+    # khác bảng, khác rủi ro (note ở đây là văn bản NHÂN VIÊN gõ tay, qua
+    # scrub PII TẠI ĐIỂM GHI trước khi tới đây — xem route reject).
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note_flagged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 
 
