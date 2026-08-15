@@ -127,6 +127,44 @@ services:
       backend:
         condition: service_healthy
 
+  # ------------------------------------------------------------------
+  # Cloudflare Tunnel — CHỈ chạy khi bật `--profile home`.
+  #
+  # Vì sao tunnel chứ không mở port: máy ở nhà tại VN gần như chắc chắn nằm
+  # sau CGNAT (không có IP công khai riêng), nên forward port trên router
+  # KHÔNG đủ. cloudflared mở kết nối ĐI RA tới Cloudflare rồi giữ nó — không
+  # cần IP công khai, không mở một cổng vào nào. Bề mặt tấn công nhỏ hơn hẳn
+  # so với chĩa 443 thẳng vào máy nhà.
+  #
+  # `profiles: ["home"]` là thứ giữ lời hứa "máy dev không đổi hành vi một
+  # li": `docker compose up -d` như cũ KHÔNG kéo service này theo. Phải gõ
+  # `--profile home` mới có.
+  #
+  # FAIL-FAST NẰM Ở `scripts/deploy_home.*`, KHÔNG Ở ĐÂY — và đây là một chỗ
+  # phản trực giác, đo mới ra:
+  #
+  # Cách hiển nhiên là `${CLOUDFLARE_TUNNEL_TOKEN:?...}` (12-factor: secret
+  # không default, thiếu là chết ngay). NHƯNG `docker compose` NỘI SUY BIẾN
+  # CHO MỌI SERVICE TRONG FILE, KỂ CẢ SERVICE BỊ PROFILE LOẠI RA. Đo thật:
+  #     env -u CLOUDFLARE_TUNNEL_TOKEN docker compose config --services
+  #       -> error: required variable CLOUDFLARE_TUNNEL_TOKEN is missing
+  # Tức `docker compose up -d` THƯỜNG trên máy Mac của PO sẽ CHẾT, dù họ
+  # không hề bật profile `home`. Đúng thứ ràng buộc "máy dev không đổi hành
+  # vi một li" cấm.
+  #
+  # Nên: ở đây để trống được, còn fail-fast chuyển sang script deploy — cửa
+  # DUY NHẤT của đường home. Không mất tính chất "thiếu token là dừng, có
+  # thông báo rõ", chỉ đổi chỗ đặt cổng cho đúng phạm vi.
+  cloudflared:
+    image: cloudflare/cloudflared:2025.2.0
+    profiles: ["home"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - caddy
+    # KHÔNG publish cổng nào: tunnel chỉ nói chuyện RA NGOÀI tới Cloudflare và
+    # VÀO TRONG tới `caddy:80` qua mạng nội bộ compose.
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped

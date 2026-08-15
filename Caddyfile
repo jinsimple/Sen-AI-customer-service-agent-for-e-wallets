@@ -1,9 +1,14 @@
 # Reverse proxy + HTTPS tự động (Let's Encrypt) — xem docs/DEPLOY.md.
 # {$SITE_DOMAIN} lấy từ biến môi trường SITE_DOMAIN (docker-compose.yml).
 # Mặc định "localhost" khi chạy thử cục bộ (Caddy tự dùng cert nội bộ, không
-# cần internet); production set SITE_DOMAIN=app.adaptivealgo.uk trong .env
-# thật trên VPS để Caddy tự xin chứng chỉ Let's Encrypt cho domain đó.
-{$SITE_DOMAIN} {
+# cần internet).
+
+# Định tuyến dùng chung cho MỌI đường vào — định nghĩa MỘT LẦN.
+# Trước đây khối này nằm thẳng trong site block duy nhất; tách thành snippet
+# khi thêm đường tunnel để hai đường KHÔNG THỂ trôi khỏi nhau. Sao chép hai
+# bản là kiểu lỗi mà đợt này đã trả giá nhiều lần (F-24 áp hai nhánh, F-25
+# chỉ áp một).
+(dinh_tuyen_app) {
 	# Live chat (2026-08-11) — NGOẠI LỆ CÓ CHỦ ĐÍCH DUY NHẤT cho nguyên tắc
 	# "backend không lộ ra ngoài trừ qua BFF" (docker-compose.yml: backend
 	# không có `ports:`, chỉ gọi được qua Docker DNS nội bộ). Trình duyệt
@@ -18,4 +23,28 @@
 	handle {
 		reverse_proxy frontend:3000
 	}
+}
+
+# ĐƯỜNG 1 — truy cập trực tiếp (localhost trên máy dev, hoặc VPS có IP công
+# khai). Caddy tự lo TLS: cert nội bộ cho localhost, Let's Encrypt cho domain
+# thật. Không đổi so với trước.
+{$SITE_DOMAIN} {
+	import dinh_tuyen_app
+}
+
+# ĐƯỜNG 2 — Cloudflare Tunnel (deploy tại nhà, profile `home`).
+#
+# `http://` Ở ĐẦU LÀ BẮT BUỘC, KHÔNG PHẢI CẨU THẢ. Thiếu nó, Caddy coi đây là
+# site cần HTTPS và sẽ đi xin chứng chỉ ACME — mà máy ở nhà sau CGNAT KHÔNG có
+# port 80/443 công khai để Let's Encrypt thử thách ngược, nên nó thất bại lặp
+# vô hạn và có thể chạm rate limit của Let's Encrypt cho domain đó.
+#
+# TLS ở đường này do CLOUDFLARE lo (trình duyệt -> Cloudflare edge là HTTPS);
+# đoạn Cloudflare -> cloudflared -> caddy nằm trong tunnel đã mã hoá, nên HTTP
+# thuần ở chặng nội bộ là đúng thiết kế, không phải hạ bảo mật.
+#
+# Khối này VÔ HẠI khi không chạy profile `home`: Caddy chỉ lắng nghe thêm một
+# hostname trên :80 mà không ai gọi tới. Máy dev không đổi hành vi một li.
+http://{$TUNNEL_DOMAIN:app.adaptivealgo.uk} {
+	import dinh_tuyen_app
 }
