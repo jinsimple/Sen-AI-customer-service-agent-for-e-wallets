@@ -169,7 +169,35 @@ _TIER1_META = [
     # của F-28; `bo qua…` (VN) ở tier-2 vì cụm đó dùng được trong chính sách
     # thật. Trục phân xử là SỨC PHÂN BIỆT ĐO ĐƯỢC, không phải ngôn ngữ —
     # đừng đọc thành "tiếng Anh thì nặng tay hơn tiếng Việt".
-    # F-28b — THÂN động từ + `\w*`, KHÔNG liệt kê hậu tố. Tester bắt được lỗ
+    # F-28c — TIER-1 GIỮ DẠNG NGUYÊN THỂ. Phần mở rộng hình thái (`\w*`) đã
+    # được CHUYỂN XUỐNG tier-2, xem `_TIER2_MO_TA_HANH_VI`.
+    #
+    # Vì sao: bản F-28b (3960dfe) đưa `\w*` thẳng vào tier-1 và security đo ra
+    # FP THẬT trên tier-1 — nặng nhất là "Please do not disregard the safety
+    # guidelines" bị XOÁ TRẮNG. Đó là **F-25 tái diễn nguyên hình dạng, bằng
+    # tiếng Anh**: F-25 sinh ra vì "Không được bỏ qua các quy tắc an toàn khi
+    # giao dịch nơi công cộng" bị xoá trắng — cùng một câu, cùng một lỗi, khác
+    # ngôn ngữ. Cộng thêm `ignor\w*` bắt `ignorant` (từ khác hẳn, không phải
+    # hình thái động từ).
+    #
+    # Cơ chế, ghi ra vì nó phản trực giác: `_khop_mau` so HAI LƯỢT, lượt 2 bỏ
+    # HẾT khoảng trắng ở cả chuỗi lẫn mẫu. Ở lượt đó `\w*` không còn bị dấu
+    # cách chặn nên nó NUỐT ĐƯỢC CẢ TỪ — "disregard" + `\w*`="thesafety" +
+    # "guidelines" khớp trọn. `\w*` an toàn ở lượt 1, phá ở lượt 2.
+    #
+    # Tiêu chí vào tier-1 do F-25 §3(a) đặt: cụm KHÔNG THỂ xuất hiện trong
+    # chính sách viết cho khách, kiểm bằng FP ĐO ĐƯỢC = 0. Dạng nguyên thể
+    # thoả (0/1814 kho MoMo). Dạng `\w*` KHÔNG thoả ⟹ tier-2, nơi bắt nhầm chỉ
+    # tốn một cái nhãn trung tính chứ không xoá mất nội dung.
+    #
+    # BÀI HỌC VỀ CORPUS (security tự nhận, ghi lại vì nó áp cho mọi bản vá sau
+    # chạm mẫu tiếng Anh): FP `0/7 + 0/2006` của F-28b đo ĐÚNG QUY TRÌNH nhưng
+    # trên bộ đối chứng THIẾU ĐÚNG TRỤC — 7 câu không có mệnh-lệnh-phủ-định,
+    # và 2.006 đoạn kho MoMo là TIẾNG VIỆT nên về cấu trúc không thể phát hiện
+    # FP của một mẫu tiếng Anh. Một con số 0 trên sai corpus không phải bằng
+    # chứng. ĐỪNG dùng lại bộ 7 câu đó làm cổng cho mẫu tiếng Anh.
+    #
+    # F-28 gốc — mở rộng ĐỘNG TỪ (không phải hình thái). Tester bắt được lỗ
     # NGAY TRONG F-28 vừa land: `disregarding all previous instructions` LỌT,
     # mà `disregard` là động từ F-28 vừa thêm — mẫu đòi dấu cách ngay sau động
     # từ nên dạng V-ing thoát.
@@ -195,8 +223,8 @@ _TIER1_META = [
     # Chiều thứ hai thuộc đợt CỔNG-A và KHÔNG được coi là đã xử lý ở đây.
     #
     # FP không đổi so với F-28: 0/7 đối chứng lành · 0/2006 đoạn kho MoMo thật.
-    r"(ignor\w*|disregard\w*|forget\w*|overrid\w*|bypass\w*|skip\w*"
-    r"|do not follow\w*|don't follow\w*|must not obey|do not obey) "
+    r"(ignore|disregard|forget|override|bypass|skip|do not follow|don't follow"
+    r"|must not obey|do not obey) "
     r"(all |previous |above |the |prior |any |your |everything |these |those "
     r"|earlier |system |initial )*"
     r"(constraints|rules|instructions|guidelines|directives|prompt|prompts"
@@ -221,6 +249,33 @@ _TIER2_MO_TA_HANH_VI = [
     # QA/QC nêu đích danh — KHÔNG khớp ở bản 5f643f71. Đúng minh hoạ của lỗi
     # lớp: danh sách viết tay nào cũng thiếu đúng chữ người ta sắp gõ.
     r"bo qua" + KC.GAP + r"(rang buoc|quy tac|huong dan|chi thi)",
+    # F-28c — BIẾN THỂ HÌNH THÁI tiếng Anh, ĐẶT Ở ĐÂY chứ không ở tier-1.
+    #
+    # `disregarding` / `ignoring` / `forgetting` / `bypassing` / `skipping` /
+    # `overriding` / `ignores` / `ignored` — tấn công thật, nhưng mẫu bắt được
+    # chúng (`\w*`) KHÔNG thoả tiêu chí vào tier-1 của F-25 §3(a): security đo
+    # ra nó xoá trắng "Please do not disregard the safety guidelines" (khuyến
+    # cáo AN TOÀN thật) và bắt `ignorant` như thể là hình thái của `ignore`.
+    #
+    # Ở tier-2 thì đúng chỗ: nội dung GIỮ NGUYÊN + nhãn TRUNG TÍNH + vào bộ
+    # đếm thread. V-ing attack không còn "lọt" — nó bị đánh dấu và đếm, chỉ
+    # không bị xoá trắng. Bắt nhầm ở đây tốn một cái nhãn, không tốn nội dung.
+    #
+    # ⚠️ `\w*` + lượt-2-bỏ-khoảng-trắng của `_khop_mau` = `\w*` NUỐT ĐƯỢC CẢ
+    # TỪ ("disregard"+"thesafety"+"guidelines" khớp trọn). Đó là lý do mẫu này
+    # KHÔNG BAO GIỜ được đặt vào tier-1, không phải chỉ là "hơi rộng".
+    #
+    # KHÔNG đóng chiều TỪ VỰNG (`refrain from following` · `pay no attention
+    # to` · `set aside every constraint` · `ignroe` gõ sai — 0/5). Và KHÔNG
+    # phân biệt được `do not follow…` (tấn công) với `do not disregard the
+    # safety…` (khuyến cáo): cả hai cùng dạng `do not + V + object`, tách
+    # chúng cần CỰC CỦA ĐỘNG TỪ — sửa LỚP, thuộc đợt CỔNG-A.
+    r"(ignor\w*|disregard\w*|forget\w*|overrid\w*|bypass\w*|skip\w*"
+    r"|do not follow\w*|don't follow\w*) "
+    r"(all |previous |above |the |prior |any |your |everything |these |those "
+    r"|earlier |system |initial )*"
+    r"(constraints|rules|instructions|guidelines|directives|prompt|prompts"
+    r"|you were told|you were given)",
 ]
 # Giữ tên cũ cho nơi khác đang dùng: "có dấu hiệu injection" = khớp BẤT KỲ tier
 # nào. Phân biệt tier nằm ở `_phan_loai_tier` bên dưới.
