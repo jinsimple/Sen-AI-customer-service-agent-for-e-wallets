@@ -359,10 +359,22 @@ Họ cũng **BÁC nghi ngờ thứ hai của chính mình**: job `appsec` KHÔNG
 `FIELD_ENCRYPTION_KEY` ở khối `env:` mức workflow `ci.yml:23-31`, mọi job thừa hưởng) ⟹ **MỘT
 defect ở job này, không phải hai**.
 
-### 🟡 S-03 (TB) — exception gửi lên trace KHÔNG qua scrub
-`span.set_status` / `record_exception` (`langchain_callback.py:96-98`). Chưa có ca dương tính vì
-**SQLite không echo tham số — nhưng Postgres CÓ** (`DETAIL: Key (phone)=(...)`) ⟹ **lớp lỗi chỉ lộ
-sau deploy thật**. Sửa được ngay, độc lập, không chặn gate nào.
+### 🔴 S-03 (NÂNG HẠNG 15/08 tối — CA DƯƠNG TÍNH ĐO ĐƯỢC, `c99361d`) — exception lên trace không qua scrub
+`span.set_status` / `record_exception` (`langchain_callback.py:96-98`). **Không còn là rủi ro suy
+luận**: security đo THẬT trên Postgres có sẵn của dự án (`fin05-postgres-1`, docker-compose):
+```
+DETAIL:  Key (phone)=(0912345678) already exists.   ← SĐT NGUYÊN VĂN trong DETAIL
+```
+→ vào `str(error)` → `span.set_status(..., str(error))` + `record_exception` → **ra thẳng backend
+trace, không qua scrub** (`_scrub_and_truncate` chỉ áp attribute khác). Đường rò: BẤT KỲ vi phạm
+unique constraint trên cột có PII (đăng ký trùng SĐT, upsert…). SQLite im lặng — đúng lớp lỗi chỉ
+lộ sau deploy. Tái lập 3 dòng SQL. Security tự ghi nhận: trước đó họ khẳng định từ hiểu-biết-chưa-đo
+— đúng lỗi họ vẫn đòi vai khác không mắc; nay đã đo. Bỏ nhánh "không dựng được Postgres thì khai
+chưa-đo" trong bộ probe — Postgres có sẵn, S03-01..03 chạy ngay khi coder land.
+**Bộ probe A1/A2 viết sẵn ở scratchpad** (đúng quy ước nháp): A1-01 byte-level · A1-02/03 round-trip
+biên VN-đủ-dấu+emoji · A1-04 hàng-cũ (ca CHẨN ĐOÁN, không assert — chờ coder trả lời minh thị
+backfill) · A2-01/02 hai mép 2000/2001 · A2-05 · A2-06 đường agent. Script kẹp dấu `he_thong` HAI
+ĐẦU — lệch = phép đo VÔ HIỆU, không phải "gần đúng".
 
 ### 🟡 F-28 (TB) — tier-1 tiếng Anh neo vào MỘT động từ `ignore`; việc coder, KHÔNG cần PO quyết
 Tester + tech-lead hội tụ bằng **hai phương pháp khác nhau** (Luật 16): mẫu tier-1 tiếng Anh chỉ
