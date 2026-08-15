@@ -62,11 +62,28 @@ Số đo hiện tại: `description_raw` nhận **20.000**, `agent_note` nhận 
 | A2-01 | đúng **N** ký tự (mép dưới) | **NHẬN** |
 | A2-02 | **N+1** ký tự (mép trên) | **TỪ CHỐI**, mã lỗi rõ (4xx), KHÔNG phải 500 |
 | A2-03 | **đối chứng**: mô tả hợp lệ dài vừa phải (~N/2), tiếng Việt thật | **NHẬN**, không bị cắt, không mất chữ |
+| **A2-05** | 🔴 **đối chứng BẮT BUỘC**: đúng **N ký tự tiếng Việt ĐỦ DẤU** (không phải ASCII) | **NHẬN** — xem cảnh báo dưới |
 | A2-04 | ép ở **tầng DB** hay chỉ ở route? ghi thẳng qua ORM vượt trần | theo `note`: CHECK constraint chặn |
 
 **Kiểm cả hai mép là bắt buộc** (đúng khuôn `test_06` của `note`: 500 nhận /
 501 từ chối). Chỉ kiểm một mép thì không phân biệt được "trần đúng N" với
 "trần bất kỳ đâu quanh N".
+
+🔴 **A2-05 — ca này bắt một lỗi ĐÃ ĐO ĐƯỢC trong dự thảo ADR-025 QĐ 5.** Bound
+CHECK trên ciphertext `<= 4000` được dẫn từ số đo `2.000 ký tự → 3.556`, nhưng
+số đó đo trên văn bản gần-ASCII. Fernet nở theo **byte UTF-8**, tiếng Việt có
+dấu **3 byte/ký tự**:
+
+```
+ASCII thuần        2000 ký tự →  2000 byte →  2764 ciphertext   OK
+Tiếng Việt CÓ DẤU  2000 ký tự →  6000 byte →  8100 ciphertext   VƯỢT BOUND
+=> với ký tự 3-byte, CHECK<=4000 chỉ cho ~975 ký tự (trần nghiệp vụ là 2000)
+```
+
+⟹ khiếu nại 2.000 ký tự viết tiếng Việt đủ dấu **vượt CHECK ở tầng DB** →
+`IntegrityError` → **500 cho khách** (hình dạng F-21), mà nhìn ngoài như
+chống-flood chạy đúng. **A2-05 phải ĐẠT trước khi A2 được ký đóng.** Chi tiết +
+hai phương án sửa: `2026-08-15-phan-bien-du-thao-ADR-025.md` §QĐ 5.
 
 ⚠️ **A2-03 là vế chống-siết-quá.** Trần đặt quá thấp sẽ cắt lời khiếu nại thật
 — cùng họ tổn hại với S-01 (phá nội dung thật), chỉ khác cơ chế. Nếu coder
