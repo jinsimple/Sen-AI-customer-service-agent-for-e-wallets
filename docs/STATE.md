@@ -123,13 +123,24 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   điểm yếu; 4 góc chưa-sẵn-sàng: TPM · 429→500 · timeout · RAG (sổ Đợt 2, mục "429 SẢN PHẨM" +
   "TIMEOUT trên câu phổ biến nhất").
   **➕ Ý KIẾN BẢO MẬT VỀ PILOT (security, kết sổ `80b217a`) — đọc trước khi quyết:**
-  > Bốn cửa **KHÔNG chặn pilot về mặt bảo mật** *nếu* dữ liệu pilot được coi là **dữ liệu thật** và
-  > có **đường xoá sau đợt**. Thứ **thật sự cần trước pilot** là **A1 + A2** — rẻ, không cần quyết
-  > cơ chế, đóng đúng phần *"lưu plaintext vĩnh viễn"*. Phần còn lại (B1/B2, A3, A4) là **nợ đúng
-  > hạn, không phải nợ gấp**.
+  > Bốn cửa **KHÔNG chặn pilot về mặt bảo mật**. Thứ **thật sự cần trước pilot** là **A1 + A2** —
+  > rẻ, không cần quyết cơ chế, đóng đúng phần *"lưu plaintext vĩnh viễn"*. Phần còn lại
+  > (B1/B2, A3, A4) là **nợ đúng hạn, không phải nợ gấp**.
 
-  ⚠️ Nói rõ để **bốn cửa không bị đọc thành một khối chặn-pilot** — chúng có **hạng khác nhau**, và
-  trộn lại sẽ khiến **A1/A2 (rẻ, đáng làm ngay) bị kẹt sau A3/A4** (đụng vận hành, cần PO).
+  🔴 **SECURITY KHÔNG CẤP PHÉP CHO PILOT — họ nói bốn cửa KHÔNG PHẢI THỨ CHẶN nó.** Hai chuyện
+  khác nhau, và security nhắc lại lần hai để nó không mòn đi qua vài tay. Kèm **hai ràng buộc mà
+  PO PHẢI CAM KẾT**, không phải bảo mật cấp:
+  1. **Dữ liệu pilot được coi là DỮ LIỆU THẬT** — chịu NĐ 13/2023 như dữ liệu khách thật, **không
+     phải** *"dữ liệu demo nên thoải mái"*.
+  2. **Có ĐƯỜNG XOÁ sau đợt** — **có người chịu trách nhiệm, có mốc thời gian**, không phải *"tính sau"*.
+
+  **Thiếu một trong hai thì ý kiến của security ĐỔI.**
+
+  ⚠️ **Phạm vi:** bốn cửa không chặn pilot **VỀ MẶT BẢO MẬT**. Bốn góc chưa-sẵn-sàng còn lại
+  (**TPM · 429→500 · timeout · RAG retrieval**) **KHÔNG thuộc phạm vi security đánh giá** và
+  **không được cộng gộp** vào câu trên.
+  ⚠️ Và **bốn cửa không phải một khối** — chúng có **hạng khác nhau**; trộn lại sẽ khiến **A1/A2
+  (rẻ, đáng làm ngay) bị kẹt sau A3/A4** (đụng vận hành CSKH, cần PO).
 - **PO-1 xong** (key đã xoay). **PO-2**: keys đang tạo lại — AI_LOG_API_KEY + LANGCHAIN keys (key cũ
   401), OPENAI_API_KEY secret PO đang đặt (đã có hướng dẫn). 9118 dòng backlog AI-log ở
   P-121-new/.ai-log chờ submit khi có key mới — ĐỪNG xoá P-121-new tới khi submit xong.
@@ -434,6 +445,9 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
   O1-O4 + F-27 + `note` đã land). **Hệ quả: lượt đo mới KHÔNG ghép cặp trước/sau với mốc cũ được
   nữa.** Đợt CỔNG-A phải đóng băng một **mốc nền MỚI ở một `he_thong` xác định TRƯỚC khi tiêu
   TPM** — không thì lặp đúng sự cố `8e46f28→6c5fff`.
+  📌 **GHIM — security xin được gọi TRƯỚC lượt đo đầu tiên của CỔNG-A, không phải sau.** Bước đóng
+  băng mốc nền mới là bước **không được bỏ**; gọi sau thì **lượt đo đã hỏng rồi mới biết**, và TPM
+  đã tiêu. Đây là mốc tương lai duy nhất security chủ động xin ghim khi đóng sổ.
 - **Rà pipeline scrub mới xong PHẦN OTel/callback.** CHƯA rà: đường **Langfuse** (đang TẮT có chủ
   đích) và **đường log của eval** (`logging_config` chưa init ở runner). Ghi rõ để không ai đọc §5
   của hồ sơ security thành "đã rà hết".
@@ -472,6 +486,10 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
    (e) **A1** mã hoá at-rest `complaints.description_raw` + **(f) A2** trần độ dài — security xác
    nhận **không chờ ADR-025**: A1 chỉ là **bù cho ngang chuẩn đã có** (live-chat đã `EncryptedText`),
    không phải cơ chế mới cần quyết.
+   ⚠️ **Cả bốn bản vá S-03 · F-28 · A1 · A2 PHẢI có probe từ VAI KHÁC trước khi coi là đóng** —
+   security đã nhận sẵn việc re-probe. Lý do là luật đội đã ratify: **coder tự nghiệm thu là CẦN,
+   KHÔNG BAO GIỜ ĐỦ** cho lớp phòng vệ (mọi phép kiểm coder tự thiết kế thừa hưởng điểm mù của coder
+   — rút từ sự cố F-23 thật).
 3. PO chốt hướng đợt 150 người (số end-to-end đã có, nhớ ghi nhãn hành-vi/dữ-liệu ở "Cảnh báo").
 4. Coder: chờ security "MỞ TAY src/" rồi mới chạm. Xếp hàng: chip câu 3 (sau 5a core + QA baseline)
    · đợt cổng-A gộp 3 oracle · câu-4 RAG retrieval (chunk/embedding, trước pilot 150 người).
