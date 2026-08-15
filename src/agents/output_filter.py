@@ -101,9 +101,22 @@ def _a_la_phong_doan(tin_nhan_khach: str) -> bool:
     return co_du_lieu and co_hoi
 
 
+# MÃ HỆ THỐNG do CHÍNH TA sinh ra — KHÔNG phải dữ liệu bị che của khách.
+# Đây là chỗ bản đầu của tôi sai nặng nhất: luật "dãy >=7 chữ số là rò rỉ" bắt
+# luôn `TXN20260504000247`, tức là bắt đúng thứ agent BẮT BUỘC phải trích dẫn
+# theo ràng buộc cứng 3 (mọi số phải truy được về một kết quả tool có thật).
+# Đo thật: 386/463 lần chặn là do luật này -> bộ lọc chặn gần hết chức năng
+# tra cứu, tức chức năng chính của sản phẩm.
+# `eval/measure_quality.py` đã giải đúng bài này từ trước bằng `_SYSTEM_ID_RE` +
+# `verified_ids`; tôi không đọc lại nó trước khi viết luật của mình.
+_MA_HE_THONG = re.compile(r"\b(?:TXN|TCK|CMP|RES|LOG|TR|USR)[-_]?[A-Za-z0-9]+\b")
+
+
 def _khop_o3(reply: str, tin_nhan_khach: str) -> bool:
-    # Không điều kiện: dãy >=7 chữ số liền trong reply.
-    if re.search(r"\d{7,}", reply):
+    # Bỏ mã hệ thống TRƯỚC khi tìm dãy số dài. Số còn lại mới là ứng viên rò rỉ
+    # thật (SĐT, số tài khoản, CCCD).
+    con_lai = _MA_HE_THONG.sub(" ", reply)
+    if re.search(r"\d{7,}", con_lai):
         return True
     if not _a_la_phong_doan(tin_nhan_khach):
         return False
@@ -118,17 +131,55 @@ def _khop_o3(reply: str, tin_nhan_khach: str) -> bool:
 # "chắc chắn sẽ được hoàn cho bạn" khớp; "nếu muốn biết chắc chắn thì liên hệ
 # CSKH" không khớp vì thiếu đối tượng tiền và không hướng về case của khách.
 _O4_DONG_TU = ["se ", "chac chan", "dam bao", "cam ket"]
-_O4_TIEN = ["hoan tien", "hoan lai", "hoan", "tra lai", "boi hoan"]
+_O4_TIEN = ["hoan tien", "hoan lai", "hoan", "tra lai", "boi hoan", "nhan lai tien", "nhan duoc tien"]
 _O4_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
+
+
+# PHỦ ĐỊNH — vế tôi bỏ quên, và nó làm O4 phạt agent vì TUÂN LỆNH.
+# Ràng buộc cứng 1 bắt agent phải nói "mình không tự quyết được việc hoàn tiền".
+# Câu từ chối đó dùng ĐÚNG BỘ TỪ như câu cam kết, chỉ khác một chữ phủ định:
+#     "chắc chắn bạn SẼ được hoàn"                        -> cam kết, phải chặn
+#     "mình KHÔNG THỂ xác nhận chắc chắn bạn sẽ được hoàn" -> từ chối, phải cho qua
+# Cụm 3-yếu-tố khớp y hệt nhau ở cả hai. Đo thật: 96/463 lần chặn là O4, và
+# trong đó có những câu agent đang từ chối cam kết đúng như được lệnh.
+# Đây đúng bẫy "ca âm tính số 1" mà security viết cho O2 — phạt agent vì tuân
+# lệnh — chỉ là nó xuất hiện ở O4.
+_O4_PHU_DINH = ["khong", "chua", "khong the", "chua the", "khong bao gio"]
+
+
+def _vi_tri_dau(md: str, tokens: list[str]) -> int | None:
+    """Vị trí sớm nhất của một token, khớp theo RANH GIỚI TỪ.
+
+    Khớp chuỗi con là nguồn dương-tính-giả lớn nhất của O4, và nó âm thầm:
+    `"hoan"` nằm gọn trong `"khoang"` (kh-OAN-g), nên câu vô hại "phản hồi lại
+    bạn trong KHOẢNG thời gian đến 14/09" bị tính là có "đối tượng tiền". Bốn
+    trong năm ca chặn nhầm còn lại đều do đúng chữ này.
+    """
+    vt = [m.start() for t in tokens for m in [re.search(rf"\b{re.escape(t.strip())}\b", md)] if m]
+    return min(vt) if vt else None
 
 
 def _khop_o4(reply: str) -> bool:
     for md in _tach_menh_de(_bo_dau(reply)):
-        if (
-            any(v in md for v in _O4_DONG_TU)
-            and any(t in md for t in _O4_TIEN)
-            and any(h in md for h in _O4_HUONG_KHACH)
-        ):
+        # Mệnh đề có phủ định -> BỎ QUA. Đánh đổi có chủ đích theo nguyên tắc
+        # hẹp-mà-chắc của lọc đầu ra: bỏ sót một cam kết viết lắt léo còn hơn
+        # xoá một câu từ chối đúng chuẩn mực. Cắt mệnh đề theo dấu câu nên
+        # "không có gì phải lo, bạn chắc chắn sẽ được hoàn" vẫn bị bắt ở vế sau.
+        if any(p in md for p in _O4_PHU_DINH):
+            continue
+        vt_dong_tu = _vi_tri_dau(md, _O4_DONG_TU)
+        vt_tien = _vi_tri_dau(md, _O4_TIEN)
+        vt_huong = _vi_tri_dau(md, _O4_HUONG_KHACH)
+        if vt_dong_tu is None or vt_tien is None or vt_huong is None:
+            continue
+        # THỨ TỰ mới là thứ phân biệt LỜI HỨA với MÔ TẢ QUY TRÌNH — ba yếu tố có
+        # mặt là chưa đủ:
+        #   "bạn SẼ được HOÀN tiền"              -> động từ TRƯỚC tiền = lời hứa
+        #   "quyết định HOÀN tiền SẼ phụ thuộc"  -> tiền TRƯỚC động từ = mô tả
+        # Câu thứ hai là agent làm ĐÚNG ràng buộc cứng 1 (không hứa, chuyển
+        # người quyết). Bản trước xoá nó — tức phạt agent vì tuân lệnh, đúng bẫy
+        # "ca âm tính số 1" mà security viết cho O2, tái xuất ở O4.
+        if vt_dong_tu < vt_tien:
             return True
     return False
 
