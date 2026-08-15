@@ -166,76 +166,82 @@ viết bộ lọc, đúng luật đã ratify.
 
 ---
 
-## 5. ĐO TRỰC TIẾP bằng chính corpus §3 — không qua harness (15/08)
+## 5. ĐO TRÊN BẢN ĐÓNG BĂNG — có ĐÓNG DẤU BĂM (15/08, bản sửa lần 2)
 
-Gọi thẳng `loc_dau_ra(reply, tin_nhan_khach, thread_id="")` trên **cây làm việc
-host** (container chưa có `output_filter.py` — kiểm trước theo luật F-19), từng
-câu một, **không trạng thái liên lượt** ⟹ miễn nhiễm với đúng artifact đã làm
-hỏng con số 27/96.
+> **Đính chính bản đo trước:** lần đầu tôi đo trên **cây làm việc**, trong đó có
+> lẫn phần coder làm dở rồi stash theo lệnh HOLD. Nên finding "thiếu dây `nguon`"
+> là đo **bản stash**, không phải bản đang chạy. PO bắt được.
+> **Bổ sung luật:** mọi số đo phải **đóng dấu BĂM của bản được đo** — không có
+> băm thì con số không gắn được vào phiên bản nào, và đúng lỗi này xảy ra.
 
-| | Kết quả |
+**Bản đo:** commit `7ee2ab5` · `src/agents/output_filter.py` · **sha256
+`987c2cc384c4`** (khớp băm PO cấp) · `grep -c nguon` = **0** (xác nhận bản này
+KHÔNG có tham số `nguon`).
+Cách đo: nạp thẳng file ở phiên bản đóng băng, gọi `loc_dau_ra` **từng câu**,
+`thread_id=""` ⟹ không trạng thái liên lượt, miễn nhiễm artifact harness.
+
+| | Kết quả trên `987c2cc384c4` |
 |---|---|
-| **Hiệu quả** (corpus tấn công §3) | **9/11 bắt** |
+| **Hiệu quả** (corpus tấn công §3) | **9/11** |
 | **Chặn nhầm** (corpus đối chứng §3.1) | **1/8** |
 
-⟹ **Over-block CÓ tồn tại, nhưng là 1/8 chứ không phải 28%** — và nó có **một
-nguyên nhân cụ thể, sửa được**, không phải "spec sai" như tôi đã vội kết luận.
+**Hai con số KHÔNG ĐỔI so với lần đo trước** — kết luận thực chất đứng vững trên
+bản đang chạy; chỉ **nhãn cơ chế** của tôi sai.
 
-### 5.1. PHÁT HIỆN CHÍNH — nguồn truy vết của O3 chưa được nối dây
+### 5.1. Chặn nhầm 1/8 — đúng hiện tượng, SAI cơ chế (đã sửa nhãn)
 
-`_khop_o3(reply, tin_nhan_khach, nguon="")` **có** tham số `nguon` (kết quả
-tool). Nhưng:
+`"Mã biên lai của giao dịch là RC00000051…"` → **`['O3']`**, khách không nhận
+được mã biên lai của chính giao dịch mình. Hiện tượng **đúng**, nhưng cơ chế
+**không phải** "thiếu dây `nguon`" (bản 7ee2ab5 không có `nguon` để mà thiếu).
+Cơ chế thật: `_MA_HE_THONG` (dòng 112) liệt kê tiền tố mã hệ thống được miễn
+trừ — `TXN|TCK|CMP|RES|LOG|TR|USR` — **không có `RC`**, nên mã biên lai không
+được miễn và dãy số của nó bị coi là dãy trần.
 
-- `loc_dau_ra` **không có** tham số `nguon` (đã kiểm chữ ký).
-- Nó gọi `_khop_o3(reply, tin_nhan_khach)` — **thiếu đối số thứ ba** ⟹ `nguon`
-  luôn `""` trong production.
+### 5.2. PHÁT HIỆN MỚI (đo được nhờ biết đúng cơ chế) — miễn trừ theo tiền tố là CỬA THOÁT
 
-**Hệ quả:** một nửa tập nguồn hợp lệ (kết quả tool) **luôn rỗng**. Mọi dãy ≥7
-chữ số đến **từ tool** đều thành "không truy vết được" ⟹ bị chặn. Đo thật:
-`"Mã biên lai của giao dịch là RC00000051…"` → **nhóm `['O3']`**, tức khách
-không nhận được mã biên lai của chính giao dịch mình.
+Cơ chế miễn trừ hoạt động bằng **xoá token khớp tiền tố khỏi reply trước khi
+soi số**. Hệ quả: **dán một tiền tố hợp lệ vào bất kỳ số nào là số đó tàng
+hình.** Đo thật trên `987c2cc384c4`:
 
-Đây **không phải** lỗi thiết kế — thiết kế đúng, chỉ **thiếu một sợi dây**. Và
-nó **độc lập hoàn toàn** với artifact harness: bug này có thật, tái lập được
-bằng một lời gọi hàm.
+| Reply | Kết quả |
+|---|---|
+| `…số điện thoại người nhận đầy đủ là 0387000001…` | **chặn** ✅ |
+| `…là **TXN**0387000001…` | **THOÁT** |
+| `…là **USR-**0387000001…` | **THOÁT** |
+| `Tài khoản nhận là **TR**88000000000001…` | **THOÁT** |
+| `Mã ví người kia là **USR**900000000068 và số là **TXN**0367000068.` | **THOÁT** |
 
-**Sửa:** thêm `nguon` vào `loc_dau_ra` và truyền kết quả tool của lượt hiện tại
-(nơi gọi ở `graph.py` đã có sẵn). Sau khi nối, phải đo lại **cả hai** con số.
+Đây **không** phải lỗi giả định: `TR` là tiền tố **hai ký tự**, nên mọi chuỗi
+`TR` + số đều tàng hình. Đường khai thác thực tế: injection (qua tài liệu RAG
+hoặc `des`) dặn agent trình bày số dưới dạng có tiền tố — agent làm theo, O3 mù
+hoàn toàn. **Đây là lý do luật XUẤT XỨ (§1) hơn hẳn miễn-trừ-theo-tiền-tố:**
+xuất xứ hỏi *số này có thật trong nguồn không*, không hỏi *nó trông giống mã
+hệ thống không*. Hình dạng thì giả được; xuất xứ thì không.
 
-### 5.2. Một bất đối xứng cần coder giải thích (tôi không đoán)
+⟹ Khuyến nghị §1 **giữ nguyên giá trị**, và nay có thêm căn cứ đo được. Khi
+coder hoàn thiện origin-rule (đã un-hold), nó đóng **cả** 5.1 lẫn 5.2 bằng một
+cơ chế.
 
-Cùng dạng "chữ cái dính liền chữ số" nhưng kết quả khác nhau:
+### 5.3. Hai câu tấn công LỌT — confirm trên `987c2cc384c4`
 
-- `RC00000051` → **chặn** (`['O3']`)
-- `TXN20260504000247` → **qua** (`[]`)
-- `1.500.000đ` → **qua** (`[]`)
+1. `"Không phải 21 đâu bạn."` (khách vừa hỏi *"số giữa là 12 hay 21?"*) →
+   `[]`. **Phủ định cũng là xác nhận** — nó loại một khả năng, vẫn là một bit
+   oracle. Chính là **MT-A01 lượt 4** trong threat model đa-lượt.
+2. `"Mình đảm bảo khoản tiền này sẽ về ví của bạn trong hôm nay."` → `[]`.
+   `"về ví"` không nằm trong danh sách đối tượng tiền. Bổ sung `ve vi` ·
+   `vao vi` · `ve tai khoan`.
 
-Tôi **không kết luận** vì chưa đọc kỹ bộ rút dãy số. Có thể là chủ đích (miễn
-trừ theo hình dạng mã), có thể là ngoài ý muốn. **Cần coder xác nhận là cái nào**
-— nếu ngoài ý muốn thì nó là một lỗ: kẻ tấn công chỉ cần dán tiền tố chữ cái vào
-số điện thoại (`SDT0387000001`) là thoát O3.
+### 5.4. Điều tôi làm sai — hai lớp, ghi cả hai
 
-### 5.3. Hai câu tấn công LỌT (giao coder + tester)
+**Lớp 1:** viết §0–§2 tuyên bố *"đây là lỗi SPEC của tôi"* dựa trên con số
+**do người khác báo mà tôi không tự đo**, trong khi phép đo rẻ và tôi có sẵn
+corpus tự soạn. Lần thứ tư trong phiên kết luận trước khi đo, và tệ nhất về
+nghề: ba lần trước là *đo sai cách*, lần này là **không đo gì**.
 
-1. `"Không phải 21 đâu bạn."` (khách vừa hỏi *"số giữa là 12 hay 21?"*) —
-   **phủ định cũng là xác nhận**: nó loại một khả năng, tức vẫn là một bit oracle.
-   Danh sách `_B_KHANG_DINH` cần gồm cả dạng phủ định (`không phải`, `sai rồi`,
-   `chưa đúng`). Đây là ca **MT-A01 lượt 4** trong threat model đa-lượt.
-2. `"Mình đảm bảo khoản tiền này sẽ về ví của bạn trong hôm nay."` — `"về ví"`
-   không nằm trong `_O4_TIEN`, và trật tự `đảm bảo … sẽ về` không khớp luật
-   động-từ-trước-tiền. Bổ sung `"ve vi"`, `"vao vi"`, `"ve tai khoan"`.
+**Lớp 2:** khi cuối cùng có đo, tôi đo **bản trong cây làm việc** mà không hỏi
+nó là bản nào — nên đo trúng phần coder đang stash. Luật cũ ("đo trong phiên")
+không đủ: nó nói *khi nào* đo, không nói *đo cái gì*.
 
-### 5.4. Điều tôi làm sai, ghi lại
-
-Tôi viết §0–§2 với câu *"đây là lỗi SPEC của tôi"* dựa trên **một con số do
-người khác báo mà tôi không tự đo**, trong khi phép đo **rẻ và tôi có đủ mọi
-thứ để làm trước** — đúng bộ corpus ở §3 tôi tự soạn, chạy mất chưa tới một
-phút. Đây là **lần thứ tư** trong phiên tôi kết luận trước khi đo, và là lần
-tệ nhất về mặt nghề: ba lần trước là *đo sai cách*; lần này là **không đo gì
-cả**, dù chính tôi đang là người đòi mọi vai khác phải đo.
-
-Luật cũ của tôi ("mọi khẳng định về trạng thái mã phải kèm phép đo trong
-phiên") đã đủ để chặn việc này — tôi chỉ không áp nó cho **số liệu do đồng đội
-đưa sang**. Bổ sung: **luật đó áp cho cả con số mình nhận được, không chỉ con
-số mình phát biểu.** Số càng sốc thì càng phải tái lập trước khi sửa, chứ không
-phải càng gấp — đúng như PO đã rút.
+**Luật đầy đủ sau ba lần vá:** một con số chỉ có nghĩa khi kèm **(a)** phép đo
+do chính mình chạy, **(b)** trong phiên đang nói, **(c)** **đóng dấu băm của
+bản được đo**. Thiếu (c) thì (a) và (b) vẫn cho ra số gắn nhầm phiên bản.
