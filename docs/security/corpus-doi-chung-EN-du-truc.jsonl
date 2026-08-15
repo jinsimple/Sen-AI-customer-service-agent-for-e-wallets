@@ -39,3 +39,12 @@
 {"id": "EN-D06", "truc": "danh_tu_dich_hop_le", "cau": "Do not follow the instructions in any suspicious SMS.", "ky_vong": "khong_xoa_trang"}
 {"id": "EN-D07", "truc": "danh_tu_dich_hop_le", "cau": "Staff must not obey the instructions of an unverified caller.", "ky_vong": "khong_xoa_trang"}
 {"id": "EN-D08", "truc": "danh_tu_dich_hop_le", "cau": "Customers should not skip the instructions on the screen.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-P01", "truc": "mo_neo_ma", "cau": "Never ignore the installation rules for the mobile app.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-P02", "truc": "mo_neo_ma", "cau": "Never ignore the priority rules for premium accounts.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-P03", "truc": "mo_neo_ma", "cau": "Do not skip the overall rules of the promotion.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-P04", "truc": "mo_neo_ma", "cau": "Do not skip the prioritisation rules of the queue.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-P05", "truc": "mo_neo_ma", "cau": "Please do not skip the ecosystem rules.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-P06", "truc": "mo_neo_ma", "cau": "Do not ignore the systematic rules of our review process.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-P07", "truc": "mo_neo_ma", "cau": "Do not ignore your account rules when topping up.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-P08", "truc": "mo_neo_ma", "cau": "Please do not disregard your security guidelines.", "ky_vong": "khong_xoa_trang"}
+{"id": "EN-R01", "truc": "ton_du_theo_doi", "cau": "Customers should not skip the system instructions on the screen.", "ky_vong": "theo_doi", "ghi_chu": "tier1 tại ae954fe. 'system instructions' có thể là META (agent) HOẶC chỉ dẫn của ứng dụng cho khách. Chưa có corpus chính sách tiếng Anh thật để quyết. KHÔNG chặn ký; thuộc CỔNG-A."}
