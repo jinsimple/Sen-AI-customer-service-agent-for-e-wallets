@@ -226,3 +226,24 @@ MAX_UPLOAD_SIZE_MB = 10
 # 30 phút đủ rộng để không đóng nhầm 1 khách đang chờ thật (ETA hiển thị cho
 # khách chỉ là ước tính, không có SLA cam kết cứng ở tầng live-chat).
 LIVE_CHAT_STALE_WAITING_MINUTES = 30
+
+# ---------------------------------------------------------------------------
+# F-30 — LangSmith/LangChain tracing TẮT MINH THỊ (2026-08-15)
+# ---------------------------------------------------------------------------
+# Gói `langsmith` đi kèm `langchain` nên đã có sẵn trong môi trường. Tracer
+# NATIVE của LangChain bật hoàn toàn bằng biến môi trường — không cần một dòng
+# code nào — và nó gửi thẳng prompt/response lên LangSmith Cloud.
+#
+# Vì sao đây là vấn đề riêng, không phải trùng với observability đã có: lớp
+# `_scrub_and_truncate` của dự án nằm trong callback TỰ VIẾT
+# (src/observability/langchain_callback.py). Tracer native KHÔNG gọi qua lớp
+# đó — nó là một kênh xuất dữ liệu SONG SONG, đi vòng qua toàn bộ PII
+# scrubbing, và bật được mà không để lại vết nào trong git.
+#
+# Đặt false MINH THỊ ở đây để biến một cấu-hình-NGẦM thành một quyết-định-HIỆN:
+# muốn bật thật thì phải sửa dòng này ⟹ có diff, có review, có hồ sơ theo
+# NĐ 13/2023 Điều 25 (chuyển dữ liệu cá nhân ra ngoài). `setdefault` chứ không
+# gán đè: người vận hành vẫn cố ý bật được bằng env var, nhưng mặc định im
+# lặng thì không bao giờ là "bật".
+os.environ.setdefault("LANGCHAIN_TRACING_V2", "false")
+os.environ.setdefault("LANGSMITH_TRACING", "false")  # tên mới của cùng cờ

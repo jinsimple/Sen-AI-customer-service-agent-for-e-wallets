@@ -75,6 +75,17 @@ out/
 .ai-log/archive/
 logs/*.log
 
+# F-29 (2026-08-15) — raw eval output KHÔNG commit từ nay.
+# `*_raw.json` chứa `all_customer_texts` = nguyên văn lời khách. Hôm nay còn
+# an toàn vì eval chạy dưới danh nghĩa KHÔNG-chính-chủ nên tầng masking che
+# hết; ở pilot thật `is_owner=True` ⟹ PII THẬT của khách thật đi thẳng vào
+# file được track. Chặn ở cửa vào trước khi cửa đó mở.
+#
+# CỐ Ý KHÔNG untrack 138 file cũ đang có trong repo: chúng là bằng chứng nộp
+# bài (deliverable #10), xoá là quyết định của PO thật, không phải hệ quả phụ
+# của một dòng .gitignore. Dòng này chỉ chặn file MỚI.
+eval/results/*_raw.json
+
 # Gói xuất cho Project knowledge (Claude Desktop) — sinh lại được bằng
 # scripts/export_project_knowledge.py, không commit bản dẫn xuất.
 project-knowledge/

@@ -94,8 +94,33 @@ class OTelTracingCallbackHandler(BaseCallbackHandler):
             for k, v in extra_attrs.items():
                 span.set_attribute(k, v)
         if error is not None:
-            span.set_status(StatusCode.ERROR, str(error))
-            span.record_exception(error)
+            # S-03 — CHUỖI LỖI PHẢI QUA SCRUB, y hệt mọi text khác trong file
+            # này (prompt :125, completion :151, tool args :180, tool output
+            # :191). Trước bản này đây là NGOẠI LỆ DUY NHẤT giữa bốn tiền lệ
+            # nhất quán: `str(error)` và `record_exception` đi thẳng ra backend
+            # trace, không qua một lớp che nào.
+            #
+            # Vì sao chưa từng lộ ra trong test: test dùng SQLite, nó chỉ trả
+            # "FOREIGN KEY constraint failed" — không echo tham số. Postgres
+            # (bản chạy production) CÓ echo:
+            #     DETAIL: Key (phone)=(0912345678) already exists.
+            # ⟹ đúng lớp lỗi chỉ hiện ra SAU khi deploy thật, trên môi trường
+            # không ai chạy test. Không có ca dương tính hôm nay không có
+            # nghĩa là không có lỗ.
+            span.set_status(StatusCode.ERROR, _scrub_and_truncate(str(error)))
+            # `record_exception` tự dựng attribute `exception.message` +
+            # `exception.stacktrace` từ chính object exception — KHÔNG có cách
+            # nào chèn scrub vào giữa. Nên ghi TAY một sự kiện tương đương với
+            # nội dung đã che, và KHÔNG gọi record_exception nữa: giữ cả hai
+            # thì bản đã che chỉ là lớp trang trí cạnh bản thô.
+            span.add_event(
+                "exception",
+                {
+                    "exception.type": type(error).__name__,
+                    "exception.message": _scrub_and_truncate(str(error)),
+                    "exception.escaped": "false",
+                },
+            )
         span.end()
         otel_context.detach(token)
 
