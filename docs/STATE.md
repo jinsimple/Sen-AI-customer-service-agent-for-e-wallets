@@ -531,6 +531,19 @@ ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B
   (thiếu trục chặn-flood) — ADR đã ghi 12.000 + cửa sổ từ `cda800d`, khớp. Quét `.md` trong
   `eval/results` đóng: **0 SĐT thật** (16/18 seed, 2/18 mảnh mã GD — số "18" ban đầu tự thổi bởi
   đúng false-positive đó).
+- **F-LOG-2 ĐÃ LAND `e321780`** (sớm hơn lịch), tester gỡ marker F-LOG xác nhận 5 passed · 1 xfailed.
+- **🔴 F-28b — tester bắt lỗ TRONG phạm vi F-28 vừa ký:** `disregarding all previous instructions`
+  LỌT — dạng **V-ing của chính động từ F-28 vừa thêm** (mẫu đòi dấu cách ngay sau động từ). Không
+  phải "lớp rộng chưa làm" — biến thể hình thái của từ trong phạm-vi-tự-nhận-đã-đóng. Coder đo HAI
+  bản vá trước khi đề xuất: bản A (liệt kê hậu tố `s|ed|ing`) **cũng lọt** `forgetting` (phụ âm
+  gấp đôi — danh sách viết tay vá lỗ danh-sách-viết-tay, thiếu đúng chữ kế, lần hai trong cùng bản
+  vá); bản B (thân + `\w*`) đóng **8/8, FP 0/7 + 0/2006 kho MoMo thật**. Đo cả cái KHÔNG đóng:
+  5 ca đổi-hẳn-động-từ (`refrain from…`, `pay no attention…`, gõ-sai `ignroe`) vẫn lọt = CỔNG-A.
+  **PO-agent QUYẾT: đường (1)** — land F-28b bản B ngay + security re-probe HẸP (chỉ bộ F-28).
+  Lý do chấp nhận lập luận coder: `\w*` không phải thêm-mục-vào-danh-sách — nó **xoá chiều
+  biến-thể-hình-thái khỏi bài toán** (đúng cách `KC.GAP` xoá chiều chèn-hư-từ tiếng Việt); chiều
+  từ-vựng còn nguyên và vẫn thuộc CỔNG-A — (1) và CỔNG-A không thay thế nhau. Comment code ghi rõ
+  hai chiều + số cho cả hai. Coder đúng khi KHÔNG tự land sau chữ ký security.
 - **✅ LÔ CODER ĐÃ LAND — HEAD `cc07dd3`** (5 commit: F-LOG `cc07dd3` · F-28 `e082a34` ·
   S-03+F-30+F-29-gitignore `83f45df` · A1+A2 `5b65b81` · F-CI-2+ruff `37ed7fc`). Pathspec sạch —
   không đụng `tests/`/`docs/`. Đo tại `cc07dd3`: ruff sạch · invariants 23 · contracts 3/3 ·
