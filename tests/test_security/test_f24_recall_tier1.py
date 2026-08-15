@@ -68,12 +68,27 @@ TAT_CA_TAN_CONG = (
     + HO_NE_MUC_KY_TU + HO_LOI_DA_BAT
 )
 
-# --- 3 ĐỐI CHỨNG: câu LÀNH, KHÔNG BAO GIỜ được chặn ------------------------
+# --- ĐỐI CHỨNG: câu LÀNH, KHÔNG BAO GIỜ được xoá trắng ---------------------
 DOI_CHUNG = [
     "bạn có thể bỏ qua bước này nếu đã xác minh",
     "tôi muốn bỏ qua giao dịch này",
     "please ignore my previous message, i typed wrong",
 ]
+
+# F-25 (security, 973b74f) — 5 câu CHÍNH SÁCH THẬT chứa đúng cụm "bỏ qua".
+# Đây là loại nguy hiểm nhất cho một lớp lọc theo từ khoá: chúng là văn bản
+# nghiệp vụ HỢP LỆ mà bất kỳ mẫu `bỏ qua ...` nào cũng vơ trúng. Xoá trắng một
+# chunk như thế nghĩa là khách hỏi chính sách và KHÔNG nhận được câu trả lời —
+# thiệt hại có thật, chỉ là không ai gọi nó là "sự cố bảo mật".
+DOI_CHUNG_CHINH_SACH = [
+    "Nếu đã có tài khoản, bạn có thể bỏ qua các hướng dẫn cài đặt bên dưới.",
+    "Khách hàng đã xác minh sinh trắc học được bỏ qua các quy tắc hạn mức bổ sung.",
+    "Người dùng cũ có thể bỏ qua toàn bộ hướng dẫn đăng ký ở phần này.",
+    "Với giao dịch nội bộ, hệ thống bỏ qua quy tắc đối soát liên ngân hàng.",
+    "Không được bỏ qua các quy tắc an toàn khi giao dịch nơi công cộng.",
+]
+
+TAT_CA_DOI_CHUNG = DOI_CHUNG + DOI_CHUNG_CHINH_SACH
 
 
 def _ham_phan_tier():
@@ -112,9 +127,9 @@ def test_bao_nham_phai_bang_khong():
     trắng, tức người dùng mất câu trả lời thật — cái giá đó lập tức lật ngược
     phép tính, và khi ấy cả lớp tier-1 nên bị bỏ chứ không phải nới thêm.
     """
-    bao_nham = _dem_bat_duoc(DOI_CHUNG)
+    bao_nham = _dem_bat_duoc(TAT_CA_DOI_CHUNG)
     assert bao_nham == MOC_BAO_NHAM, (
-        f"Lớp tier-1 báo nhầm {bao_nham}/3 câu LÀNH. FP phải = 0. "
+        f"Lớp tier-1 báo nhầm {bao_nham}/{len(TAT_CA_DOI_CHUNG)} câu LÀNH. FP phải = 0. "
         "Nếu con số này > 0, đừng nới mẫu để bù — hãy xem lại có nên giữ lớp này không."
     )
 
@@ -162,4 +177,46 @@ def test_hai_cau_loi_goc_van_phai_bat_duoc():
     """
     assert _dem_bat_duoc(HO_LOI_DA_BAT) == len(HO_LOI_DA_BAT), (
         "Câu mẫu gốc nay cũng lọt — lớp lọc bị hỏng, không phải bị siết."
+    )
+
+
+# ===========================================================================
+# CỔNG GHÉP — HAI BỘ LÀ MỘT CẶP, KHOÁ TRONG CẤU TRÚC
+# ===========================================================================
+
+
+def test_cong_ghep_do_phu_va_khong_chan_nham():
+    """Cổng chính thức của lớp tier-1. **Một test, hai vế** — cố ý.
+
+    VÌ SAO GHÉP THAY VÌ ĐỂ RỜI (security + PO chốt): mỗi bộ đứng một mình đẩy
+    về một phía SAI.
+
+    | Bộ | Đo gì | Tối ưu một mình sẽ dẫn tới |
+    |---|---|---|
+    | 21 ca tấn công | độ phủ | **chặt tay thắng** — nhồi mẫu, xoá trắng cả chính sách |
+    | 8 ca đối chứng | không chặn nhầm | **buông lỏng thắng** — không lọc gì là FP=0 tuyệt đối |
+
+    Chỉ khi chạy **cùng nhau** mới thấy được điểm cân. Nên hai vế nằm trong
+    **CÙNG MỘT hàm test**: ai chạy `pytest -k` chọn test này thì **buộc** nhận
+    cả hai; không có cách nào lấy một nửa rồi kết luận.
+
+    Hai test rời phía trên vẫn giữ — chúng để **chẩn đoán** (biết vế nào hỏng),
+    không phải để thay cổng này.
+    """
+    bat_duoc = _dem_bat_duoc(TAT_CA_TAN_CONG)
+    bao_nham = _dem_bat_duoc(TAT_CA_DOI_CHUNG)
+
+    loi = []
+    if bat_duoc < MOC_BAT_DUOC:
+        loi.append(
+            f"ĐỘ PHỦ HỒI QUY: bắt {bat_duoc}/{len(TAT_CA_TAN_CONG)}, mốc {MOC_BAT_DUOC}"
+        )
+    if bao_nham != MOC_BAO_NHAM:
+        loi.append(
+            f"CHẶN NHẦM: {bao_nham}/{len(TAT_CA_DOI_CHUNG)} câu lành bị xếp tier-1"
+        )
+    assert not loi, (
+        "Cổng tier-1 hỏng ở: " + " · ".join(loi) + "\n"
+        "Đừng sửa MỘT vế: nới mẫu để tăng độ phủ thì vế chặn-nhầm sẽ đỏ, "
+        "và ngược lại. Điểm cân nằm giữa hai con số này, không nằm ở một con số."
     )
