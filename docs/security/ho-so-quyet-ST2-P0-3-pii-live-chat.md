@@ -47,15 +47,21 @@ ngưỡng, nên **không có cách nới/siết nào chạm tới**.
 
 | Cửa | Ai gõ | Scrub | Trần độ dài | Cờ injection | Mã hoá at-rest |
 |---|---|---|---|---|---|
-| `messages.content` (live-chat) | khách + CSKH | ❌ không | — | ❌ | ✅ `EncryptedText` |
+| `messages.content` (live-chat) | khách + CSKH | ❌ không | ❌ **nhận 20.000 ký tự** | ❌ | ✅ `EncryptedText` — **đo hành vi: CÓ hiệu lực** |
 | `complaints.description_raw` | khách | ❌ không | ❌ **nhận 20.000 ký tự** | ❌ | ❌ `Text` thuần |
 | `resolutions.note` | nhân viên | ✅ có — **nhưng hỏng nghĩa 40%** | ✅ 500, ép ở DB | ✅ `note_flagged` | ❌ `Text` thuần |
 | `investigation_logs.agent_note` | nhân viên | ❌ không | ❌ **nhận 5.000 ký tự** | ❌ | ❌ `Text` thuần |
 
-**Cả bốn ô đều ĐO BẰNG HÀNH VI trong phiên 15/08** (gọi route/service thật rồi
-đọc thẳng DB), không suy ra từ đọc mã. Dấu `he_thong=fd16681d8088`.
-`description_raw` đo bổ sung sau cùng vì trước đó nó là ô DUY NHẤT còn dẫn lại
-từ hồ sơ cũ (§7) thay vì đo trong phiên — Luật 9. Kết quả probe:
+**Cả bốn ô ĐO BẰNG HÀNH VI trong phiên 15/08** (gọi route/service thật rồi đọc
+thẳng DB), không suy ra từ đọc mã. Dấu `he_thong=fd16681d8088`.
+
+> *Đính chính:* bản đầu của dòng này khẳng định "cả bốn ô" khi `messages.content`
+> **chưa** được probe (số của nó còn dẫn từ hồ sơ 14/08) — tôi viết rộng hơn thứ
+> mình đã đo, đúng lỗi mà chính hồ sơ này đang bắt người khác. Nay đã đo thật
+> (probe dưới), nên câu đó mới đúng.
+
+`description_raw` và `messages.content` đo bổ sung sau cùng vì là hai ô còn dẫn
+lại từ hồ sơ cũ thay vì đo trong phiên — Luật 9. Kết quả probe:
 
 ```
 description_raw ĐỌC THẲNG TỪ DB:
@@ -65,6 +71,33 @@ còn NGUYÊN VĂN? -> True   (cả 5 mẩu PII: 2 SĐT · STK · CCCD · tên)
 mô tả 20.000 ký tự -> lưu DB đủ 20.000
 payload injection lưu nguyên văn: True · cột cờ trên Complaint: KHÔNG CÓ
 ```
+
+**`messages.content` (probe 15/08) — hiện trạng ST2-P0-3 KHÔNG trôi, và một
+điểm SÁNG cần ghi:**
+
+```
+content đọc qua ORM: 'Em chuyển nhầm cho anh Trần Văn Bách, sđt 0912345678,
+                      STK 88000000000194, CCCD 001234567890.'
+còn nguyên văn (không scrub) -> True     (4/4 mẩu PII còn nguyên sau giải mã)
+tin 20.000 ký tự -> lưu đủ 20.000        cột cờ trên Message -> KHÔNG CÓ
+payload injection lưu nguyên văn -> True
+
+BYTE THẬT trong DB (SQL thô, vòng qua type decorator):
+  'gAAAAABqgCRz6DpP1R2B9-N2Sg_Onanat4Bvpi7cdkfHq_vg6UnKiYmU0J9T40Z5quppnkJ8d…'
+PII lộ plaintext trong DB? -> False      ⟹ mã hoá at-rest CÓ HIỆU LỰC
+```
+
+Điểm sáng: `EncryptedText` **không chỉ được khai trên cột — nó chạy thật**.
+Kiểm bằng SQL thô đọc vòng qua type decorator, byte trong bảng là ciphertext
+Fernet, không có mẩu PII nào. Đây là control DUY NHẤT trong bốn cửa mà tôi
+xác nhận được bằng **hành vi** thay vì bằng một dòng khai báo kiểu (hiện-diện
+≠ hiệu-lực áp cho cả thứ ĐANG chạy đúng, không riêng thứ hỏng).
+
+**Hệ quả cho ADR-025:** điều này **củng cố** lập luận BÁC che-lúc-ghi ở nhóm A
+— ở `messages.content`, lớp bảo vệ at-rest đã hoạt động, nên đổi thêm giá trị
+chứng cứ để lấy một mức giảm thiểu nữa là đánh đổi tồi. Và nó nâng giá trị của
+**A1**: mã hoá `description_raw` là kéo cửa yếu lên một chuẩn **đã chứng minh
+chạy được**, không phải một chuẩn mới trên giấy.
 
 Đáng chú ý: `description_raw` chứa PII của **bên thứ ba** ngay trong ca dùng
 điển hình nhất ("em chuyển nhầm cho anh X, sđt …") — người **không phải khách

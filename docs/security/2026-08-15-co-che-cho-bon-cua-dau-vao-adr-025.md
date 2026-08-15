@@ -128,6 +128,15 @@ khách-tự-gõ duy nhất **không mã hoá at-rest**.
 - **Không** đề xuất con số retention cụ thể — đó là câu hỏi pháp lý/nghiệp vụ
   (NĐ 13/2023 + thời hiệu khiếu nại theo TT 40/2024), cần PO và có thể cần tư
   vấn pháp lý thật, không phải suy luận của tôi.
-- **Không** đo `messages.content` bằng probe hành vi trong phiên này (số của nó
-  dẫn từ ST2-P0-3 14/08 + đọc `models.py`). Nếu ADR-025 định quyết dựa trên nó,
-  nói một tiếng, tôi đo như đã đo ba cửa kia.
+- ~~**Không** đo `messages.content` bằng probe hành vi trong phiên này.~~
+  **ĐÃ ĐO (bổ sung 15/08, theo yêu cầu PO-agent)** — lý do họ nêu là đúng và
+  tôi nhận: nhóm A là nơi tôi khuyến nghị **BÁC** một cơ chế, mà bác = để
+  nguyên hiện trạng hở; khuyến nghị bác cần số trong phiên **chắc hơn**
+  khuyến nghị áp, vì nếu hiện trạng đã trôi thì ta bác dựa trên một trạng thái
+  không còn đúng. Kết quả: **hiện trạng KHÔNG trôi** (không scrub, nhận 20.000
+  ký tự, injection lưu nguyên văn, không cột cờ) — khuyến nghị §2 đứng nguyên.
+  Cộng một điểm sáng: **mã hoá at-rest có hiệu lực THẬT** (SQL thô đọc vòng qua
+  type decorator ra ciphertext Fernet, 0 mẩu PII plaintext) ⟹ **củng cố** lập
+  luận bác, và nâng giá trị A1 (kéo `description_raw` lên một chuẩn đã chứng
+  minh chạy được, không phải chuẩn mới trên giấy). Chi tiết: ST2-P0-3, bảng
+  bốn cửa.
