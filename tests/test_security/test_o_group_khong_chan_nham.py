@@ -48,13 +48,31 @@ _KET_QUA = _GOC / "eval" / "results"
 HE_THONG_MOC_NEN = "6c5fff420bb9"
 
 
-def _luot_phai_khong_duoc_chan() -> list[tuple[str, int, str, str]]:
-    """(case_id, lượt, reply, câu khách) của mọi lượt thuộc ca ĐẠT của mốc nền.
+def _nguon_tu_payload(tool_calls_day_du: list[dict]) -> str:
+    """Cùng quy ước với eval/do_loc_dau_ra_offline.py — CHƯA đối chiếu với
+    đường sản xuất thật, xem cảnh báo ở đó."""
+    return "\n".join(
+        json.dumps(tc["result"], ensure_ascii=False)
+        for tc in tool_calls_day_du if tc.get("result")
+    )
+
+
+def _luot_phai_khong_duoc_chan() -> list[tuple[str, int, str, str, str]]:
+    """(case_id, lượt, reply, câu khách, nguồn) của mọi lượt thuộc ca ĐẠT của
+    mốc nền.
 
     Ca ĐẠT ⇒ chính bộ chấm bất biến đã kết luận không câu nào trong đó vi phạm
     gì ⇒ mỗi lần chặn ở đây là một lần chặn nhầm, không cần tranh luận thêm.
+
+    `nguon` rỗng ("") với MỌI bản ghi mốc nền hiện có — các file này đông cứng
+    ở he_thong 6c5fff420bb9, sinh ra TRƯỚC khi harness lưu tool_calls_day_du
+    (15/08), và sẽ KHÔNG BAO GIỜ có payload retroactive: chạy lại 18 ca gốc sẽ
+    tạo he_thong MỚI, không sửa được file cũ. Đây là lý do cổng này còn SKIP
+    dài hạn — câu trả lời thật cho "siết nhầm có tăng không" đã có ở nơi khác:
+    `eval/bao_cao_4_cau.py` câu 2, đo trực tiếp trên lượt end-to-end mới, dùng
+    `loc_dau_ra_theo_luot` GHI LÚC CHẠY THẬT — không cần dựng lại nguồn.
     """
-    ra: list[tuple[str, int, str, str]] = []
+    ra: list[tuple[str, int, str, str, str]] = []
     for f in sorted(_KET_QUA.glob("adversarial_run_*_raw.json")):
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
@@ -66,9 +84,10 @@ def _luot_phai_khong_duoc_chan() -> list[tuple[str, int, str, str]]:
             if r.get("trang_thai") != "dat":
                 continue
             khach = r.get("all_customer_texts") or []
+            nguon = _nguon_tu_payload(r.get("tool_calls_day_du") or [])
             for i, rep in enumerate(r.get("all_agent_replies") or []):
                 if (rep or "").strip():
-                    ra.append((r["case_id"], i + 1, rep, khach[i] if i < len(khach) else ""))
+                    ra.append((r["case_id"], i + 1, rep, khach[i] if i < len(khach) else "", nguon))
     return ra
 
 
@@ -96,8 +115,6 @@ def test_cong_96_cau_hop_le():
     (`tool_calls_day_du`, đã thêm 15/08) và có lượt chạy mới sinh ra bản ghi
     mang payload.
     """
-    import inspect
-
     try:
         from src.agents.output_filter import loc_dau_ra
     except ImportError:
@@ -107,18 +124,27 @@ def test_cong_96_cau_hop_le():
     if not luot:
         pytest.skip(f"Chưa có ca ĐẠT nào của mốc nền {HE_THONG_MOC_NEN} — chưa đo được.")
 
-    can_nguon = "nguon" in inspect.signature(loc_dau_ra).parameters
-    co_payload = any(r for r in _ban_ghi_co_payload())
-    if can_nguon and not co_payload:
+    # KIỂM PAYLOAD CỦA ĐÚNG TẬP MỐC NỀN, KHÔNG PHẢI TOÀN CỤC.
+    #
+    # Bản trước kiểm "có bản ghi NÀO trong eval/results/ mang payload không"
+    # (toàn cục), không phải "18 ca mốc nền mang payload không". Sau lượt
+    # end-to-end 15/08 sinh ra raw mới CÓ payload, điều kiện toàn cục đó hoá
+    # đúng — nhưng payload đó thuộc raw MỚI (he_thong khác), không thuộc mốc
+    # nền cũ. Guard tưởng đã mở khoá, chạy tiếp, và crash vì `nguon` của TỪNG
+    # LƯỢT mốc nền vẫn rỗng. Sửa: kiểm ngay trên `luot`.
+    if not any(nguon for *_rest, nguon in luot):
         pytest.skip(
-            "CỔNG-96 ĐANG TẮT: origin-rule đòi `nguon`, mà chưa bản ghi nào mang "
-            "`tool_calls_day_du`. Đo với nguồn rỗng sẽ báo một hồi quy không có thật. "
-            "Cần một lượt chạy mới sau khi harness lưu payload."
+            "CỔNG-96 (mốc nền cũ) ĐANG TẮT: 18 ca mốc nền đông cứng ở "
+            f"he_thong={HE_THONG_MOC_NEN}, sinh ra TRƯỚC khi harness lưu "
+            "tool_calls_day_du — sẽ KHÔNG BAO GIỜ có payload retroactive. "
+            "Câu trả lời thật cho 'siết nhầm có tăng không' đã có ở "
+            "eval/bao_cao_4_cau.py câu 2, đo trên lượt end-to-end MỚI bằng "
+            "loc_dau_ra_theo_luot ghi lúc chạy thật."
         )
 
     bi_chan = []
-    for i, (cid, n, rep, khach) in enumerate(luot):
-        moi, nhom = loc_dau_ra(rep, tin_nhan_khach=khach, thread_id=f"GATE-{i}")
+    for i, (cid, n, rep, khach, nguon) in enumerate(luot):
+        moi, nhom = loc_dau_ra(rep, tin_nhan_khach=khach, thread_id=f"GATE-{i}", nguon=nguon)
         if moi != rep:
             bi_chan.append((cid, n, nhom, rep[:110]))
 
@@ -126,19 +152,6 @@ def test_cong_96_cau_hop_le():
         f"{len(bi_chan)}/{len(luot)} câu HỢP LỆ bị bộ lọc xoá sạch.\n"
         + "\n".join(f"  {c} lượt {n} · {nh} · {r!r}" for c, n, nh, r in bi_chan[:8])
     )
-
-
-def _ban_ghi_co_payload() -> list[str]:
-    """Bản ghi nào đã mang `tool_calls_day_du` — tức dựng lại nguồn được."""
-    ra = []
-    for f in sorted(_KET_QUA.glob("adversarial_run_*_raw.json")):
-        try:
-            d = json.loads(f.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            continue
-        if any(r.get("tool_calls_day_du") for r in d):
-            ra.append(f.name)
-    return ra
 
 
 def test_bo_18_ca_mu_voi_siet_nham():

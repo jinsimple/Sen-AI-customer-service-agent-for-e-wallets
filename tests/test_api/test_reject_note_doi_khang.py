@@ -57,11 +57,18 @@ def _auth(role: str, user_id: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _make_resolution(sample_db, *, user_id: str = "USR-A") -> tuple[str, str]:
-    """Trả (ticket_id, resolution_id) ở trạng thái pending_approval."""
+def _make_resolution(
+    sample_db, *, user_id: str = "USR-A", trans_id: str = "TXN-0001"
+) -> tuple[str, str]:
+    """Trả (ticket_id, resolution_id) ở trạng thái pending_approval.
+
+    `trans_id` mặc định "TXN-0001" (thuộc USR-A/USR-B, đúng mọi lời gọi cũ
+    dùng user_id mặc định) — CHỈ đổi khi gọi với user_id khác USR-A, vì
+    create_ticket đòi user_id phải là MỘT BÊN của trans_id (schema: mỗi giao
+    dịch đúng 2 bên cố định, không "mượn" được giao dịch của người khác)."""
     ticket = create_ticket(
         sample_db, user_id=user_id, complaint_type="wrong_recipient", scope="internal_wallet",
-        description_raw="test note doi khang", trans_id="TXN-0001",
+        description_raw="test note doi khang", trans_id=trans_id,
     )
     resolution = propose_resolution(
         sample_db, ticket_id=ticket["ticket_id"], action_type="refund_to_wallet",
@@ -213,8 +220,10 @@ def test_09_note_rong_hoac_toan_khoang_trang_khong_lach_duoc_luat_khac(client, s
 NOTE_MOC = "Ghi chu noi bo SENTINEL-NOTE-KHONG-DUOC-RO-RI-9f3a"
 
 
-def _tu_choi_co_note_moc(client, sample_db, *, user_id: str) -> str:
-    ticket_id, rid = _make_resolution(sample_db, user_id=user_id)
+def _tu_choi_co_note_moc(
+    client, sample_db, *, user_id: str, trans_id: str = "TXN-0001"
+) -> str:
+    ticket_id, rid = _make_resolution(sample_db, user_id=user_id, trans_id=trans_id)
     resp = _tu_choi(client, rid, reason="khac", note=NOTE_MOC)
     assert resp.status_code == 200, resp.text
     return ticket_id
@@ -229,16 +238,16 @@ def test_10_note_khong_lot_vao_tool_khach_ke_ca_duong_vao_prompt_llm(client, sam
     cứng 2: AI gọi tool dưới danh nghĩa customer, nên bất cứ gì tool thấy là
     thứ mô hình thấy.
     """
-    _tu_choi_co_note_moc(client, sample_db, user_id="USR-0119")
+    _tu_choi_co_note_moc(client, sample_db, user_id="USR-0119", trans_id="TXN-0119-A")
 
     for route, body in (
         ("/tools/get_customer_history", {"days": 90}),
-        ("/tools/lookup_transaction", {"trans_id": "TXN-0001"}),
+        ("/tools/lookup_transaction", {"trans_id": "TXN-0119-A"}),
     ):
         resp = client.post(route, json=body, headers=_auth("customer", "USR-0119"))
         assert NOTE_MOC not in resp.text, f"`note` rò qua REST {route}"
 
-    from src.tools.registry import build_customer_tools
+    from src.agents.tools.customer_tools import build_customer_tools
 
     for tool in build_customer_tools(sample_db, user_id="USR-0119"):
         try:
@@ -254,7 +263,7 @@ def test_11_note_chi_hien_o_route_staff_khong_hien_o_route_khach(client, sample_
     """Hai nửa của cùng một khẳng định — thiếu nửa sau thì một bản vá "giấu
     note khỏi mọi nơi" cũng làm test xanh, trong khi CSKH mất công cụ làm việc.
     """
-    ticket_id = _tu_choi_co_note_moc(client, sample_db, user_id="USR-0119")
+    ticket_id = _tu_choi_co_note_moc(client, sample_db, user_id="USR-0119", trans_id="TXN-0119-A")
 
     khach = _auth("customer", "USR-0119")
     for route in (

@@ -82,6 +82,13 @@ def sample_db(db_session: Session) -> Session:
         User(user_id="USR-B", role="customer", full_name="Trần Thị B", phone="0901000002", kyc_level=1, password_hash=pw_hash, created_at=now),
         User(user_id="USR-CSKH", role="cskh", full_name="CSKH Một", phone="0901000003", kyc_level=2, password_hash=pw_hash, created_at=now),
         User(user_id="USR-SUP", role="supervisor", full_name="Sếp Một", phone="0901000004", kyc_level=2, password_hash=pw_hash, created_at=now),
+        # USR-0119/USR-0201 — dùng riêng cho tests/test_api/test_reject_note_doi_khang.py
+        # (test 10/11), CỐ Ý khác USR-A/USR-CSKH: hai test đó kiểm `note` không
+        # rò qua route/tool của MỘT user cụ thể, dùng lại USR-A (đã xuất hiện ở
+        # khắp file test khác) sẽ không phân biệt được "sạch vì đúng cơ chế" với
+        # "sạch vì trùng ca đã kiểm ở nơi khác".
+        User(user_id="USR-0119", role="customer", full_name="Khách 0119", phone="0901000119", kyc_level=2, password_hash=pw_hash, created_at=now),
+        User(user_id="USR-0201", role="cskh", full_name="CSKH 0201", phone="0901000201", kyc_level=2, password_hash=pw_hash, created_at=now),
     ]
     db_session.add_all(users)
     db_session.flush()  # không có relationship() giữa models -> UOW không tự suy được
@@ -90,6 +97,10 @@ def sample_db(db_session: Session) -> Session:
     wallets = [
         Wallet(wallet_id="900000000001", user_id="USR-A", balance=1_000_000, status="active"),
         Wallet(wallet_id="900000000002", user_id="USR-B", balance=2_000_000, status="active"),
+        # Ví riêng của USR-0119 — TXN-0001 đã thuộc USR-A/USR-B (send/rec cố
+        # định trên schema, mỗi giao dịch chỉ có đúng 2 bên), nên không thể
+        # cho USR-0119 "mượn" TXN-0001. Cần giao dịch riêng, xem TXN-0119-A.
+        Wallet(wallet_id="900000000119", user_id="USR-0119", balance=500_000, status="active"),
     ]
     db_session.add_all(wallets)
 
@@ -153,6 +164,24 @@ def sample_db(db_session: Session) -> Session:
             created_at=now + dt.timedelta(seconds=30),
             completed_at=now + dt.timedelta(seconds=30),
             des="rut tien",
+        ),
+        # USR-0119 là MỘT BÊN thật (người gửi) — cần cho tests/test_api/
+        # test_reject_note_doi_khang.py test 10/11 tạo ticket + tự tra cứu
+        # đúng giao dịch của mình qua route/tool khách.
+        Transaction(
+            trans_id="TXN-0119-A",
+            rec_code="RC-0119",
+            send_wal_id="900000000119",
+            rec_wal_id="900000000002",
+            amount=92_000,
+            fee=0,
+            status="success",
+            scope="internal_wallet",
+            channel="p2p",
+            idempotency_key="IDK-0119",
+            created_at=now,
+            completed_at=now,
+            des="test note doi khang",
         ),
     ]
     db_session.add_all(transactions)
