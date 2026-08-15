@@ -30,6 +30,10 @@ from src.config import DATA_SCHEMA_DIR
 from src.db.models import AuthSession, BankAccount, Complaint, Ticket, Transaction, User, Wallet
 from src.tools.create_ticket import create_ticket as _create_ticket
 
+# A2 (ADR-025 QĐ 5) — ≈300-400 từ tiếng Việt: đủ tường thuật chi tiết một vụ,
+# gấp nhiều lần khiếu nại điển hình, chặn được flood 20.000 ký tự.
+MAX_DESCRIPTION_CHARS = 2000
+
 
 @lru_cache(maxsize=1)
 def _load_fraud_config() -> dict:
@@ -77,6 +81,23 @@ def create_ticket_with_fraud_check(
     FS-09/FS-10/FS-11 (không cần giao dịch) rồi mới tạo ticket.
     """
     now = now or dt.datetime.utcnow()
+
+    # A2 — trần 2.000 ký tự, ép ở ĐÂY vì đây là điểm HỘI TỤ của cả hai đường
+    # ghi: REST (`main.py:538`) và AGENT (`customer_tools.py:620`). Đặt trần
+    # chỉ ở `CreateTicketRequest` là hụt đường agent — tool `create_ticket`
+    # KHÔNG có `args_schema`, nó dùng type hint trần nên Pydantic không áp
+    # ràng buộc nào. Đúng bài học ADR-019/024: validate-chỉ-ở-route không bảo
+    # vệ được cửa thứ hai.
+    #
+    # TỪ CHỐI chứ không CẮT BỚT: cắt là sửa lời khai của khách — trái ràng
+    # buộc cứng 3 và làm hỏng giá trị chứng cứ, đúng lý do nhóm A không được
+    # che lúc ghi.
+    if len(description_raw) > MAX_DESCRIPTION_CHARS:
+        raise ValueError(
+            f"description_raw {len(description_raw)} ký tự, vượt trần "
+            f"{MAX_DESCRIPTION_CHARS}. Không tự cắt bớt lời khai của khách — "
+            f"tách thành nhiều khiếu nại hoặc yêu cầu khách tóm tắt."
+        )
 
     engine = _build_engine(session)
     # QUAN TRỌNG: lấy tx từ engine.idx.tx_by_id (không tự query Transaction

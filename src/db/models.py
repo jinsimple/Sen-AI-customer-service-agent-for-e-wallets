@@ -211,6 +211,33 @@ class Complaint(Base):
         CheckConstraint(
             "priority IN ('low','normal','high','critical')", name="ck_complaints_priority"
         ),
+        CheckConstraint(
+            # A2 — LƯỚI CHẶN CUỐI, KHÔNG PHẢI TRẦN NGHIỆP VỤ.
+            #
+            # Trần nghiệp vụ là 2.000 KÝ TỰ, ép ở `complaint_intake.
+            # MAX_DESCRIPTION_CHARS` (điểm hội tụ REST + agent) và
+            # `CreateTicketRequest`. Con số 12.000 dưới đây đếm CIPHERTEXT,
+            # KHÔNG quy đổi ra 2.000 ký tự được — đừng ai "sửa cho khớp".
+            #
+            # Vì sao không quy đổi được: Fernet nở theo BYTE utf-8 còn trần
+            # nghiệp vụ tính theo KÝ TỰ, mà số byte mỗi ký tự thì thay đổi.
+            # Đo thật trên đúng 2.000 ký tự:
+            #     ASCII thuần              2.764  (x1.38)
+            #     tiếng Việt điển hình     3.596  (x1.80)
+            #     tiếng Việt DÀY dấu       5.708  (x2.85)
+            #     emoji 4 byte            10.764  (x5.38)
+            # Bound 4.000 (suy từ tỉ lệ x1.9 đo ở 500 ký tự) CHẶN NHẦM hai ca
+            # cuối — đó là lý do con số ở đây là 12.000 chứ không phải 4.000.
+            #
+            # Cái giá, ghi rõ để không ai tưởng lớp này chặt hơn thực tế:
+            # 12.000 ciphertext ≈ 8.700 ký tự ASCII lọt qua tầng DB. Lớp này
+            # CHỈ chặn thảm hoạ (flood 20.000 ký tự ⟹ ~27.600, trượt). Độ
+            # chính xác nằm ở tầng service, không nằm ở đây — đây là chỗ
+            # nguyên tắc "ép ở tầng DB" của ADR-024 KHÔNG chuyển sang được,
+            # và ADR-025 QĐ 5 chấp nhận đánh đổi đó một cách có ý thức.
+            "length(description_raw) <= 12000",
+            name="ck_complaints_description_raw_tran_tho",
+        ),
     )
 
     complaint_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -220,7 +247,31 @@ class Complaint(Base):
     scope: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="investigating")
     priority: Mapped[str] = mapped_column(String, nullable=False, default="normal")
-    description_raw: Mapped[str] = mapped_column(Text, nullable=False)
+    # A1 — LỜI KHAI CỦA KHÁCH, mã hoá at-rest. Đây là cửa untrusted duy nhất
+    # còn plaintext sau khi chat content (:475) và RAG (:513) đã dùng
+    # EncryptedText: không phải cơ chế mới, là bù cho ngang chuẩn đã có.
+    #
+    # KHÔNG scrub tại điểm ghi (khác hẳn `resolutions.note`/ADR-024): note là
+    # văn bản NHÂN VIÊN gõ, còn đây là LỜI KHAI KHÁCH — che lúc ghi là mất bản
+    # gốc, mất giá trị chứng cứ nếu khiếu nại đi tới NHNN/toà. Cơ chế che cho
+    # nhóm A nằm ở tầng ĐỌC, chờ ADR-025.
+    #
+    # A1-04 — KHÔNG BACKFILL, VÀ ĐÂY LÀ QUYẾT ĐỊNH GHI RA, không phải hệ quả
+    # im lặng của impl. Hàng `complaints` ghi TRƯỚC 2026-08-15 nằm PLAINTEXT
+    # vĩnh viễn trên đĩa. Đường `InvalidToken` chỉ khiến chúng ĐỌC ĐƯỢC —
+    # "đọc được" và "được mã hoá at-rest" là hai chuyện khác nhau, đừng đọc
+    # cái trước thành cái sau.
+    # Chấp nhận được HÔM NAY vì dữ liệu hiện có là seed/test và pilot đã hoãn.
+    # Khi có dữ liệu khách THẬT, backfill là một quyết định RIÊNG phải ra
+    # trước khi mở pilot — không tự động xảy ra nhờ bản vá này.
+    #
+    # KHÔNG có CHECK độ dài ở tầng DB (khác ADR-024 Quyết định 1) — không phải
+    # bỏ quên: cột đã mã hoá thì `length()` đo CIPHERTEXT, mà tỉ lệ nở KHÔNG
+    # cố định (đo thật: x1.90 ở 500 ký tự tiếng Việt có dấu → x1.72 ở 20.000,
+    # vì Fernet nở theo BYTE utf-8 còn trần nghiệp vụ tính theo KÝ TỰ). Một
+    # CHECK trên ciphertext không diễn đạt được trần theo ký tự. Trần thật ép
+    # ở tầng schema (`CreateTicketRequest`), xem A2.
+    description_raw: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     # Tính từ tầng service (fraud_engine.py), KHÔNG do agent tự điền — Data Brief §4.2.
     fraud_signals: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     otp_disclosed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

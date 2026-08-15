@@ -32,7 +32,9 @@ class GetCustomerHistoryRequest(BaseModel):
 class CreateTicketRequest(BaseModel):
     complaint_type: str
     scope: str
-    description_raw: str
+    # A2 — trần 2.000 ký tự (ADR-025 QĐ 5). Ép ở ĐÂY là lớp CHÍNH XÁC duy nhất
+    # theo KÝ TỰ; tầng DB không làm được vì cột đã mã hoá (xem models.py).
+    description_raw: str = Field(max_length=2000)
     trans_id: str | None = None
     otp_disclosed: bool = False
     # Không nhận fraud_signals từ caller — tầng service (complaint_intake.py)
@@ -97,7 +99,7 @@ class RejectResolutionRequest(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
-    def _note_bat_buoc_khi_khac(self) -> "RejectResolutionRequest":
+    def _note_bat_buoc_khi_khac(self) -> RejectResolutionRequest:
         if self.note is not None and not self.note.strip():
             self.note = None
         if self.reason == "khac" and not self.note:
