@@ -97,7 +97,7 @@ uvicorn src.main:app --reload
 
 | Member | Role | Student ID |
 |--------|------|-----------|
-| Đào Ngọc Bích | PO & Thực hiện toàn bộ (điều phối đội 4 phiên Claude Code) | [ID] |
+| Đào Ngọc Bích | PO & Thực hiện toàn bộ (điều phối đội 4 phiên Claude Code) | 2A202601745 |
 
 ## License
 

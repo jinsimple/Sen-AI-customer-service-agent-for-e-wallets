@@ -1,7 +1,7 @@
 # FIN-05 — Data Brief & Data-driven Testing Report
 ## Chiến lược thu thập dữ liệu và kiểm thử dựa trên dữ liệu cho AI Agent CSKH Ví điện tử
 
-**Phiên bản:** 1.0 · **Đội:** T121 · **PO:** Đào Ngọc Bích · **Đội thực hiện:** Lê Quang Huy, Đậu Quốc Duy, Đặng Thái Nam Sơn
+**Phiên bản:** 1.0 · **Đội:** T226 · **PO:** Đào Ngọc Bích · **Đội thực hiện:** Đặng Thái Nam Sơn
 **Đi kèm với:** `FIN05-Project-Brief.md`, `FIN05-PRD.md`, `FIN05-Wireframe.html`
 
 ---
