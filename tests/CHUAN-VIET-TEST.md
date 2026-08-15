@@ -12,7 +12,7 @@
 
 ## Vì sao bốn luật, không phải một
 
-Một test chỉ có giá trị khi chứng minh được **cả bốn** vế:
+Một test chỉ có giá trị khi chứng minh được **cả năm** vế:
 
 | | Câu hỏi | Thiếu nó thì |
 |---|---|---|
@@ -20,10 +20,41 @@ Một test chỉ có giá trị khi chứng minh được **cả bốn** vế:
 | **Luật 2** | Ràng buộc có **QUÁ RỘNG** không? | suite xanh trên một guardrail cấm cả người hợp lệ |
 | **Luật 3** | Phép đo có **TÁI LẬP** được không? | kết luận rút từ một kịch bản không quay lại được |
 | **Luật 4** | Thước và vật có **ĐỨNG YÊN** suốt lượt đo không? | cặp before/after lẫn nhiều biến, không quy được nhân quả |
+| **Luật 5** | Bản ghi có đủ để **VAI KHÁC BÁC** kết luận không? | một bộ đo không ai kiểm chứng ngược được, kể cả khi nó sai |
 
 Thiếu vế nào cũng cho ra một kết luận **trông như đo được mà không đo được gì**.
-Đó là lý do bốn luật này là một họ, không phải bốn quy tắc rời: Luật 1 và 2
-canh **cái thước**, Luật 3 và 4 canh **phép đo**.
+Đó là lý do năm luật này là một họ, không phải năm quy tắc rời: Luật 1 và 2
+canh **cái thước**, Luật 3 và 4 canh **phép đo**, Luật 5 canh **cái sổ** —
+thứ duy nhất còn lại sau khi lượt đo kết thúc.
+
+### Luật 5 — bộ đo phải lưu đủ để người khác bác được nó
+
+*(PO phê chuẩn 15/08/2026, sau hai lần vấp cùng một hình dạng trong một đêm.)*
+
+Tiêu chuẩn **không phải** "lưu đủ để tôi tự tin vào kết luận của mình", mà
+"lưu đủ để một vai khác dựng lại và **chứng minh tôi sai**".
+
+Hai lần vấp làm nên luật này — cùng một hình dạng, khác nội dung:
+
+1. Một ca TRƯỢT được ghi lại **không kèm traceback**. Biết là hỏng, không
+   biết hỏng ở đâu ⇒ không ai phản biện được, kể cả tôi.
+2. Mọi lượt được ghi lại **không kèm thời gian chạy**. Timeout và "agent từ
+   chối" cho ra **cùng một câu fallback**, nên không có `elapsed` thì một
+   vấn đề **hiệu năng** bị chẩn đoán thành vấn đề **hành vi** — và bản vá sẽ
+   nhắm sai chỗ.
+
+Vì sao đây là luật chứ không phải mẹo: nó là **bản đo-lường của chính kiến
+trúc phân vai đối kháng của dự án**. Coder tự nghiệm thu là *cần nhưng
+không đủ*; y hệt vậy, một bộ đo **tự đủ cho mình** là cần nhưng không đủ —
+nó phải đủ cho **vai khác** phản biện. Một bộ đo chỉ thuyết phục được tác
+giả của nó thì không khác gì một suite xanh chứng minh bug chạy đúng như
+bug.
+
+Cụ thể, mỗi bản ghi kết quả phải mang: `traceback` khi lỗi · thời gian từng
+lượt · dấu thước (`cham_diem` + `he_thong`) · dữ liệu thô mà bất biến đã
+đọc để ra phán quyết. **Nguyên tắc gốc: cái gì bộ chấm ĐỌC để phán quyết
+thì bản ghi phải LƯU** — nếu không, phán quyết không chấm lại được, và một
+phán quyết không chấm lại được thì không bác được.
 
 ---
 
@@ -58,6 +89,42 @@ xét tầng N.
 kết luận. Đó là lý do có trạng thái thứ ba `KHÔNG ĐO ĐƯỢC` bên cạnh
 `ĐẠT`/`TRƯỢT`, và lý do `so_lieu_dung_tham_chieu` từ chối chấm khi tool_calls
 không còn kết quả.
+
+### 1b — Cũng không được trùng ĐẦU RA CỦA TRẠNG THÁI HỎNG
+
+*(PO phê chuẩn 15/08/2026.)*
+
+Bản gốc canh *"điều này vốn đã đúng khi tính năng chưa tồn tại"*. Có một dạng
+tinh vi hơn, cùng hậu quả: **assertion khớp với chính câu mà hệ thống phát ra
+KHI HỎNG.**
+
+Ca thật, bắt được khi soạn F-25 tầng (b) — trước khi tiêu một token nào:
+
+```
+ca F25B-05, bất biến `phai_dung_thong_tin_chunk`
+    tu_khoa_chunk = ["an toàn", "nơi công cộng", "wifi"]
+    câu an toàn của bộ lọc: "Để đảm bảo AN TOÀN thông tin cho bạn…"
+```
+
+Bất biến ĐẠT khi **bất kỳ** từ khoá nào khớp. Nên khi bộ lọc nuốt mất câu trả
+lời và thay bằng câu an toàn, từ khoá `"an toàn"` vẫn khớp ⟹ ca **XANH đúng
+lúc nó phải ĐỎ**. Cổng tự vô hiệu ở chính tình huống nó sinh ra để bắt.
+
+**Vì sao dạng này khó thấy hơn bản gốc:** ở bản gốc, assertion đúng vì *chưa có
+gì xảy ra*. Ở dạng này, assertion đúng vì *thứ sai đã xảy ra và tình cờ chứa
+đúng chữ ta đang tìm*. Test vẫn chạy qua đủ mọi tầng, vẫn thấy một câu trả lời
+thật, chỉ là câu trả lời sai.
+
+**Cách chữa — đối chiếu, đừng nhớ:** liệt kê mọi **đầu ra của trạng thái hỏng**
+mà hệ thống có thể phát ra (câu an toàn của bộ lọc · câu báo nội dung bất
+thường · câu fallback bàn giao), rồi kiểm bằng máy rằng không dấu hiệu nào ta
+đang tìm xuất hiện trong đó. Đã nướng thành test tại
+`tests/test_data/test_f25_tang_b_cong_that.py::test_khong_tu_khoa_nao_trung_dau_ra_hong`
+— ai thêm ca mới với dấu hiệu tự vô hiệu sẽ đỏ ngay, không cần ai nhớ luật này.
+
+Đây là thể hiện của một nguyên tắc chung hơn: **biến bài học thành cơ chế, đừng
+để nó thành lời nhắc.** Một lời nhắc chỉ hiệu lực khi người đọc đang tỉnh táo;
+một phép kiểm chạy được thì hiệu lực cả lúc bận nhất.
 
 ---
 
@@ -155,6 +222,65 @@ trước khi kiểm vật.**
 *(Ca thật: dấu đổi trong khi `git status src/` sạch. Kiểm 3 lần → tất định →
 kết luận là trạng thái nhất thời. Coder xác nhận sau đó: đúng 2 file sửa dở
 chưa commit. Dấu bắt được thứ `git status` không thấy.)*
+
+### 4b — ĐÓNG DẤU **MỌI** PHÉP ĐO, KỂ CẢ PHÉP ĐO RẺ
+
+*(PO phê chuẩn 15/08/2026, sau lần thứ ba vấp cùng một hình dạng trong một ngày.)*
+
+Ba lần, cùng một lỗi mặc áo khác nhau:
+
+| lần | ghim cái gì | quên cái gì |
+|---|---|---|
+| 1 | đóng băng `src/` | quên `eval/` — bộ chấm cũng là một nửa dấu thước |
+| 2 | đóng dấu lượt end-to-end | quên lượt đo **offline** |
+| 3 | dấu ở lượt **dài** | quên lượt **ngắn** |
+
+**Phép đo rẻ là phép hay chạy nhất, nên cũng là phép hay straddle một thay đổi
+nhất.** Trực giác ngược lại — "chỉ chạy 3 giây, ai kịp sửa gì" — chính là thứ
+làm ta bỏ dấu ở đúng chỗ dễ hỏng nhất.
+
+Giá của lần thứ ba: phép đo offline không dấu cho 27/96 → 5/96 → 0/96 trong 12
+phút (coder đang vá giữa các lượt). Tôi đọc ba số khác nhau thành "phép đo
+không tái lập", **rút lại một finding ĐÚNG**, và suýt chôn mất một bản vá đã
+đúng. Một dòng đóng dấu đã đủ để thấy `he_thong` đổi ba lần.
+
+**Vá phải là CƠ CHẾ, không phải lời hứa:** script đo giờ tự đóng dấu hai đầu và
+**tự tuyên lượt đo vô hiệu** (thoát mã 3) khi lệch — không chỉ in ra rồi trông
+chờ người đọc để ý. Một cảnh báo cần người đọc nhận ra là một cảnh báo sẽ bị bỏ
+lỡ đúng lúc bận nhất.
+
+### 4c — ĐỪNG SUY CƠ CHẾ TỪ MỘT CÁI **TÊN**
+
+Cùng sự cố, lỗi thứ hai và nó nguy hơn lỗi thứ nhất. Thấy `thread_signals`
+trong `dir(module)`, tôi dựng nguyên một câu chuyện "bộ lọc mang trạng thái
+tích luỹ liên lượt nên số chặn nở ra", tuyên bố đó là nguyên nhân, và tự nhận
+lỗi. **Chưa đo lấy một lần.** Sự thật: quyết định chặn là hàm thuần, lời gọi
+`tang()` chạy sau và chỉ ghi.
+
+Một cái tên gợi ý chức năng; nó **không** chứng minh đường dữ liệu. Muốn nói
+"X gây ra Y" thì phải bịt X rồi xem Y có mất không.
+
+**Hệ luận đắt nhất — khi TỰ NHẬN LỖI, đòi bằng chứng y hệt như khi buộc lỗi
+người khác.** Một lời tự thú sai làm hỏng sổ không kém một lời buộc tội sai,
+và nó **khó bị phản biện hơn**: không ai muốn cãi người đang nhận lỗi. Ở ca
+này, lời tự thú sai của tôi đã khiến PO giữ lại một bản vá đúng, và chỉ được
+gỡ ra vì coder chịu cãi lại người đang nhận lỗi.
+
+### 4d — "BA LẦN GIỐNG NHAU MỚI BÁO" CHỈ ĐÚNG VỚI LỖI **NGẮT QUÃNG**
+
+Sau sự cố trên, phản xạ tự nhiên là ra luật "số càng gây sốc thì càng phải chạy
+đủ ba lần rồi mới báo". **Luật đó sai, và đã bị PO rút khỏi sổ.**
+
+Phân biệt hai loại bất định:
+
+- **Ngắt quãng** (cùng vật, kết quả nhảy): chờ và lặp lại là đúng.
+- **Vật đổi dưới chân** (mỗi lượt đo một vật khác): lặp lại **không** hội tụ —
+  chạy ba lần vẫn ra ba số. Chữa bằng **đóng băng + đóng dấu**, không bằng chờ.
+
+Ở ca 27/96, báo NGAY kèm cơ chế và ba câu nguyên văn là ĐÚNG: nhờ đó coder tìm
+ra gốc trong vài phút. Im chờ đủ ba lần thì hoặc vẫn ra ba số, hoặc tệ hơn —
+đợi tới lúc coder vá xong, thấy 0/96, rồi kết luận "không có vấn đề gì" và chôn
+luôn một bug thật.
 
 ---
 
