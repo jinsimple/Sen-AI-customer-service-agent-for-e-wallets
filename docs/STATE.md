@@ -552,8 +552,25 @@ ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B
   **tier-1 GIỮ HẸP** dạng nguyên thể 0/1814 · phân biệt cực-của-động-từ (`do not follow` tấn công
   vs `do not disregard the safety` khuyến cáo) = sửa LỚP thuộc **CỔNG-A**, cấm nhét vào hotfix.
   Đây là áp đúng tiêu chí F-25 §3(a): vào tier-1 = FP đo được phải bằng 0 trên nội dung hợp lệ.
-  **Chữ ký F-28 ĐÃ RÚT** — security đang mở rộng bộ đối chứng tiếng Anh đủ trục (hình thái +
-  mệnh-lệnh-phủ-định) rồi giao tester; bộ 7 câu cũ KHÔNG đủ để ký bất kỳ bản vá nào chạm mẫu EN.
+  ~~Chữ ký F-28 ĐÃ RÚT~~ → **✅ F-28 ĐÓNG HẲN — security ký lại tại `ae954fe`** (biên bản
+  `a7c191a`), cổng đối chứng mới **50 ca / 8 trục** thay bộ 7 câu cũ. Bốn vòng trong một tối:
+  F-28 → F-28b (bác vì FP tier-1) → F-28c → F-28d → F-28e. Suite **540 passed · 0 failed**,
+  ruff sạch, 4 test tier của tester xanh.
+- **Hồ sơ F-MIG đặt tại `docs/giao-viec/2026-08-15-f-mig-alembic-sqlite.md`** (tech-lead soạn,
+  PO-agent chép nguyên văn vào docs/ — attribution trong file). Chờ PO thật xếp lô riêng; phép
+  kiểm quan trọng nhất sau vá = SO SCHEMA HAI ĐƯỜNG (upgrade-head vs create_all phải TRÙNG).
+- **HAI LUẬT MỚI từ lô F-28 (PO-agent ratify vào chuẩn dự án):**
+  · **Luật mỏ-neo-sau-bỏ-khoảng-trắng** (security `20bb323`): token dùng làm MỎ NEO dưới phép
+    khớp ĐÃ BỎ KHOẢNG TRẮNG phải ĐỦ DÀI VÀ ĐẶC TRƯNG để không xuất hiện như chuỗi con, kể cả
+    vắt ngang ranh giới từ (ca `these` ⊂ `thesecurity`).
+  · **Luật điểm-mù** (coder+security chốt): *điểm mù không được chữa bằng cố gắng — nó được chữa
+    bằng việc VỪA NHÌN THẤY cùng lớp lỗi ở người khác.* Hệ quả thao tác: **finding phải được kể
+    kèm CƠ CHẾ, không chỉ kèm kết luận** — cơ chế mới là thứ truyền được sang người khác. (Bằng
+    chứng: coder viết `system rules` mù với `ecosystem`; thứ cứu họ là ca `these`⊂`thesecurity`
+    của security còn nóng trong đầu.)
+  · Hệ luận corpus, đúng HAI CHIỀU trong lô: bộ ca do MỘT vai soạn gần như chắc chắn hụt trục
+    của vai khác — cả bộ ĐỐI CHỨNG (security hụt trục danh-từ-đích) lẫn bộ TẤN CÔNG (bản siết
+    của security tụt recall 3 ca vì bộ 10 ca của họ không chứa chúng).
 - **✅ LÔ CODER ĐÃ LAND — HEAD `cc07dd3`** (5 commit: F-LOG `cc07dd3` · F-28 `e082a34` ·
   S-03+F-30+F-29-gitignore `83f45df` · A1+A2 `5b65b81` · F-CI-2+ruff `37ed7fc`). Pathspec sạch —
   không đụng `tests/`/`docs/`. Đo tại `cc07dd3`: ruff sạch · invariants 23 · contracts 3/3 ·
