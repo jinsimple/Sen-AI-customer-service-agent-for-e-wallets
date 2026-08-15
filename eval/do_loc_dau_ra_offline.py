@@ -12,7 +12,7 @@ Một bộ lọc bắt đúng những chuỗi tác giả nó nghĩ ra sẽ xanh 
 minh được gì về chuỗi tác giả không nghĩ tới. Đó chính là lý do hiến pháp cấm
 tester đọc `src/`. Nên corpus ở đây KHÔNG lấy từ scratchpad của coder:
 
-  · CORPUS ÂM TÍNH = 957 câu trả lời THẬT của agent đã lưu trong eval/results/.
+  · CORPUS ÂM TÍNH = câu trả lời THẬT của agent đã lưu trong eval/results/.
     Đầu ra thật của mô hình, không ai curate, sinh ra TRƯỚC khi bộ lọc tồn tại.
     Trong đó nhóm từ 18 ca mốc nền đều ĐẠT ⇒ đều là câu HỢP LỆ ⇒ **không câu
     nào được phép bị chặn**. Đây là mẫu mạnh hơn hẳn vài câu đối chứng chọn
@@ -27,6 +27,13 @@ chạy thật, để không làm nhẹ tội bộ lọc.
 thường, câu khách đúng phổ O3, và câu khách RỖNG. Tức O3 quyết định chỉ dựa
 trên reply. Giữ việc ghép cặp lại vì nó đúng về nguyên tắc và vì cổng này có
 thể được vá.
+
+CHỈ ĐO TRÊN LƯỢT MANG PAYLOAD (từ khi origin-rule land, `nguon` bắt buộc):
+`nguon_tu_payload()` ráp `tool_calls_day_du` của case thành chuỗi `nguon`. Đây
+là QUY ƯỚC CỦA TÔI, chưa đối chiếu với đường sản xuất thật — nếu lệch, con số
+dưới đây không nói thay cho đường chạy thật, phải hỏi coder xác nhận. Lượt nào
+KHÔNG mang payload (bản ghi cũ trước 15/08) bị loại khỏi mẫu số, không trộn
+vào — nguồn rỗng của chúng sẽ báo chặn nhầm không có thật.
 """
 from __future__ import annotations
 
@@ -43,8 +50,29 @@ EVAL_DIR = Path(__file__).resolve().parent
 HE_THONG_MOC_NEN = "6c5fff420bb9"
 
 
+def nguon_tu_payload(tool_calls_day_du: list[dict]) -> str:
+    """Ráp payload tool thành chuỗi `nguon` cho `loc_dau_ra`.
+
+    QUY ƯỚC CỦA TÔI, CHƯA ĐỐI CHIẾU VỚI ĐƯỜNG SẢN XUẤT THẬT — mỗi kết quả tool
+    tự json.dumps() rồi nối bằng "\n". Coder từng vá một lỗ "dấu phẩy trong
+    payload đẻ ra số nguồn không tồn tại" (commit 20b8332, "hai-kênh"); nếu
+    đường sản xuất ráp KHÁC quy ước này, con số script trả về không nói thay
+    cho đường chạy thật — phải hỏi coder xác nhận trước khi dùng làm căn cứ.
+
+    XẤP XỈ: dùng TOÀN BỘ payload của case cho MỌI lượt trong case đó, vì raw
+    chỉ lưu tool_calls_day_du gộp cả hội thoại, không tách theo từng lượt.
+    Xấp xỉ này lệch về hướng AN TOÀN cho phép đo (nhiều nguồn hơn ⇒ ít bị
+    chặn-nhầm-vì-thiếu-dữ-liệu hơn), không phải hướng nguy hiểm.
+    """
+    return "\n".join(
+        json.dumps(tc["result"], ensure_ascii=False)
+        for tc in tool_calls_day_du if tc.get("result")
+    )
+
+
 def nap_luot_that() -> list[dict]:
-    """Mọi lượt (reply, câu khách, có thuộc mốc nền không) từ bản ghi đã lưu."""
+    """Mọi lượt (reply, câu khách, nguồn, có thuộc mốc nền không) từ bản ghi
+    đã lưu."""
     luot: list[dict] = []
     for f in sorted((EVAL_DIR / "results").glob("*_raw.json")):
         try:
@@ -54,6 +82,7 @@ def nap_luot_that() -> list[dict]:
         for r in ban_ghi:
             replies = r.get("all_agent_replies") or []
             khach = r.get("all_customer_texts") or []
+            nguon = nguon_tu_payload(r.get("tool_calls_day_du") or [])
             # "PHẢI KHÔNG ĐƯỢC CHẶN" = câu đến từ ca ĐẠT trong mốc nền. Ca ĐẠT
             # nghĩa là toàn hội thoại không vi phạm bất biến nào ⇒ mọi câu trong
             # đó đều hợp lệ. Đây là nhóm mà một lần chặn = một lần chặn nhầm,
@@ -71,6 +100,8 @@ def nap_luot_that() -> list[dict]:
                     "luot": i + 1,
                     "reply": rep,
                     "khach": khach[i] if i < len(khach) else "",
+                    "nguon": nguon,
+                    "co_payload": bool(nguon),
                     "phai_khong_chan": phai_khong_chan,
                 })
     return luot
@@ -95,31 +126,32 @@ def main() -> int:
     dau_truoc = dau_thuoc()
     print(f"dấu TRƯỚC: {json.dumps(dau_truoc, ensure_ascii=False)}", file=sys.stderr)
 
-    # CHƯA ĐO ĐƯỢC KHI BẢN GHI CHƯA LƯU PAYLOAD TOOL.
-    #
-    # Bản ghi eval hiện chỉ lưu TÊN tool, không lưu payload — nên không dựng
-    # được `nguon` cho từng lượt. Truyền nguồn rỗng thì mọi câu trả lời có số
-    # (tức gần như mọi câu tra cứu) đều bị chặn, và báo cáo sẽ nói "chặn nhầm
-    # ~100%" — một hồi quy KHÔNG CÓ THẬT, thuần tuý do bộ đo thiếu dữ liệu.
-    # Ngày 15/08 tôi đã một lần suýt để một con số kiểu này chôn mất bản vá
-    # đúng; lần này bộ đo tự từ chối thay vì để người đọc phải nhận ra.
-    import inspect
-
-    from src.agents.output_filter import loc_dau_ra as _ham
-
-    if "nguon" in inspect.signature(_ham).parameters:
-        print("CHƯA ĐO ĐƯỢC: origin-rule đã land nên `loc_dau_ra` đòi `nguon`, mà bản "
-              "ghi eval\nchỉ lưu TÊN tool chứ không lưu payload. Truyền nguồn rỗng sẽ "
-              "báo một hồi quy\nkhông có thật.\n\nMở khoá bằng cách cho harness lưu "
-              "payload tool vào raw (PO đã xếp HOÃN,\nkhông chặn land). Tới lúc đó, "
-              "cổng chặn-nhầm đo bằng eval/corpus_origin_rule.jsonl.",
-              file=sys.stderr)
-        return 2
-
-    luot = nap_luot_that()
-    if not luot:
+    luot_tho = nap_luot_that()
+    if not luot_tho:
         print("Chưa có lượt nào trong eval/results/ — CHƯA ĐO ĐƯỢC.", file=sys.stderr)
         return 2
+
+    # CHỈ ĐO TRÊN LƯỢT THẬT SỰ MANG PAYLOAD.
+    #
+    # Bản trước của guard này kiểm CHỮ KÝ HÀM (`"nguon" in inspect.signature`)
+    # thay vì kiểm DỮ LIỆU THẬT — nên nó báo "CHƯA ĐO ĐƯỢC" một cách VÔ ĐIỀU
+    # KIỆN ngay cả sau khi harness đã lưu payload thật (15/08, sau lượt
+    # end-to-end 25 ca: 20/25 bản ghi CÓ tool_calls_day_du, nhưng script vẫn
+    # từ chối đo vì guard chỉ nhìn signature). Sửa: lọc theo `co_payload` của
+    # TỪNG LƯỢT, không suy từ chữ ký hàm.
+    luot = [lt for lt in luot_tho if lt["co_payload"]]
+    khong_payload = len(luot_tho) - len(luot)
+    if not luot:
+        print(f"CHƯA ĐO ĐƯỢC: {len(luot_tho)} lượt trong eval/results/ nhưng KHÔNG lượt "
+              "nào mang payload\n(tool_calls_day_du). Cần một lượt chạy MỚI sau khi "
+              "harness lưu payload — các bản ghi\ncũ hơn 15/08 sẽ mãi mãi không có "
+              "trường này.", file=sys.stderr)
+        return 2
+    if khong_payload:
+        print(f"BỎ QUA {khong_payload}/{len(luot_tho)} lượt không mang payload "
+              "(bản ghi cũ, trước khi harness lưu tool_calls_day_du) — không trộn "
+              "chúng vào mẫu số, vì nguồn rỗng của chúng sẽ báo chặn nhầm không có "
+              "thật.", file=sys.stderr)
 
     chan_all: list[dict] = []
     chan_phai_khong: list[dict] = []
@@ -133,13 +165,11 @@ def main() -> int:
         # một thread sẽ để lượt trước ảnh hưởng lượt sau và ta không còn đo được
         # từng câu một cách độc lập.
         moi, nhom = loc_dau_ra(
-            lt["reply"], tin_nhan_khach=lt["khach"], thread_id=f"OFFLINE-{i}", nguon=""
+            lt["reply"], tin_nhan_khach=lt["khach"], thread_id=f"OFFLINE-{i}",
+            nguon=lt["nguon"],
         )
         if nhom:
             nhom_dem.update(nhom)
-        # ĐO ĐƯỢC 15/08: 463/463 lần chặn đều là THAY SẠCH câu, 0 lần che một
-        # phần. Nên "bị chặn" ở đây = mất trắng câu trả lời, không phải
-        # mất một chi tiết — mức nghiêm trọng cao nhất có thể.
         bi_chan = moi != lt["reply"]
         if bi_chan:
             chan_all.append({**lt, "nhom": nhom})
@@ -149,7 +179,8 @@ def main() -> int:
     print("=" * 72)
     print("ĐO BỘ LỌC ĐẦU RA O1-O4 — OFFLINE, 0 TPM, TẤT ĐỊNH")
     print("=" * 72)
-    print(f"\nCorpus: {len(luot)} lượt trả lời THẬT của agent đã lưu")
+    print(f"\nCorpus ĐO ĐƯỢC: {len(luot)}/{len(luot_tho)} lượt (loại {khong_payload} "
+          "lượt không mang payload)")
     print(f"  trong đó {so_phai_khong} lượt PHẢI KHÔNG ĐƯỢC CHẶN "
           f"(từ ca ĐẠT của mốc nền {HE_THONG_MOC_NEN})")
 
@@ -158,12 +189,12 @@ def main() -> int:
         ti_le = len(chan_phai_khong) / so_phai_khong * 100
         print(f"  {len(chan_phai_khong)}/{so_phai_khong} câu HỢP LỆ bị chặn = {ti_le:.1f}%")
     else:
-        print("  KHÔNG ĐO ĐƯỢC — chưa có lượt nào thuộc ca ĐẠT của mốc nền.")
+        print("  KHÔNG ĐO ĐƯỢC — chưa có lượt nào thuộc ca ĐẠT của mốc nền mang payload.")
     for c in chan_phai_khong[:12]:
         print(f"    ⚠️  {c['case_id']} lượt {c['luot']} · nhóm {c['nhom']}")
         print(f"        {c['reply'][:150]!r}")
 
-    print(f"\n── TỔNG QUAN toàn corpus {'─' * 44}")
+    print(f"\n── TỔNG QUAN corpus đo được {'─' * 38}")
     print(f"  {len(chan_all)}/{len(luot)} lượt bị chặn ({len(chan_all)/len(luot)*100:.1f}%)")
     print(f"  Nhóm khớp: {dict(nhom_dem) or 'không nhóm nào'}")
 
@@ -179,6 +210,8 @@ def main() -> int:
     print("\nLƯU Ý ĐỌC SỐ: đây là tỉ lệ chặn nhầm trên đầu ra THẬT của agent — nó KHÔNG")
     print("nói bộ lọc có bắt được tấn công thật hay không. Hai câu hỏi khác nhau, cần")
     print("hai corpus khác nhau; corpus tấn công phải cũng đến từ nguồn độc lập.")
+    print("\nQUY ƯỚC RÁP `nguon` (json.dumps từng kết quả, nối \\n) CHƯA ĐỐI CHIẾU VỚI")
+    print("ĐƯỜNG SẢN XUẤT THẬT — coder cần xác nhận trước khi dùng con số này làm căn cứ.")
     return 0
 
 
