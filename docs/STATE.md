@@ -550,7 +550,17 @@ Cộng `all_customer_texts` chưa bao giờ qua scrub.
 đường xoá thực hành (xoá commit sau không xoá lịch sử; rewrite+force-push = loại việc luôn phải hỏi
 PO, bất khả nếu repo đã clone). ⟹ **chạy harness với người thật mà không sửa = điều kiện pilot TRƯỢT.**
 - Mức tối thiểu TRƯỚC pilot: `.gitignore` loại `_raw.json` (→ coder, kèm lô) + scrub-trước-khi-ghi
-  cho `all_customer_texts` (→ tester, vùng `eval/`, sau việc ②).
+  (→ tester, vùng `eval/`, sau việc ②).
+  **⚠️ PHẠM VI SỬA theo đo lại của tester (không phải chỉ `all_customer_texts`):** trường văn bản
+  tự do trong `_raw.json` gồm `all_customer_texts · all_agent_replies · reply · description ·
+  tool_calls` — và `reply`/`all_agent_replies` là **lời agent NHẮC LẠI thông tin khách** (tên, số
+  tiền, mã GD — đó là mục đích của nó), nên scrub riêng tin khách thì PII thật vẫn rò qua lời agent
+  ở pilot. **Phạm vi đúng: scrub MỌI trường văn bản tự do.** Số đo lại: 69 file raw trên đĩa ·
+  138 track · 33 file có `all_customer_texts`.
+  **HỒI TỐ: KHÔNG scrub lại 69 file cũ — CHỈ chặn từ nay. Lý do ghi rõ (PO-agent quyết):** file cũ
+  đã đo là vô hại (eval chạy danh nghĩa không-chính-chủ, BR-06 che hết), và scrub file đang track
+  cũng KHÔNG xoá được bản gốc khỏi lịch sử git — muốn xoá thật phải rewrite history, đúng thứ
+  security đã cân và chủ động không đòi. Scrub hồi tố = tốn công mà không thêm an toàn thật.
 - **138 file CŨ: quyết định của PO THẬT** — phơi nhiễm thấp, rewrite history đắt/rủi ro hơn lợi ích
   (security chủ động KHÔNG đòi xoá), nhưng file kết quả là bằng chứng nộp bài (deliverable #10) nên
   không ai khác quyết thay được.
