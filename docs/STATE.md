@@ -159,6 +159,43 @@ không sao; ADR-024 tái dùng nó cho **record có giá trị pháp lý** = đ�
 Bản vá đụng tiền đề ADR-024 → phải qua PO thật, coder ĐỪNG vá vội. Hồ sơ: `docs/security/`.
 **Đính chính mục "Vừa xong" bên trên:** `note` đủ về **BẢO MẬT**, KHÔNG đủ về **TOÀN VẸN BẢN GHI**.
 
+### F-LOG — bản vá `submit_log.py` (`eadcca7`) NUỐT DÒNG JSON HỎNG, im lặng (tech-lead đo A/B)
+Chạy `submit_log.py` THẬT với server giả + `AI_LOG_DIR` giả ở scratchpad (không đụng `.ai-log`
+thật, không đụng `src/`). Kịch bản 10 dòng, 1 dòng bị cắt giữa chừng:
+```
+TRƯỚC vá (eadcca7^) băm f1e4950e1df6 : archive 10 dòng · dòng hỏng CÒN (truy được)
+SAU   vá (eadcca7)  băm ab75391a3e09 : archive  9 dòng · dòng hỏng MẤT HẲN
+```
+Cơ chế: `submit_log.py:118-119` nuốt dòng không parse được (`except JSONDecodeError: pass`).
+Trước vá, `_archive(pending)` chép NGUYÊN FILE nên dòng hỏng vẫn nằm lại archive. Sau vá,
+`_archive_entries(entries)` chỉ ghi bản ghi ĐÃ PARSE → dòng hỏng không gửi, không archive, rồi
+`pending.unlink()`. **Mất cả ba đường cùng lúc, không một dòng cảnh báo.**
+**NẶNG vì:** STATE này tuyên bố *"bằng chứng khách quan DUY NHẤT là `.ai-log/archive/`"* — bản vá
+làm suy yếu đúng kênh đó, và nó sắp chạy **19 lượt trên 9133 dòng backlog P-121** (deliverable #4).
+`73/73 parse sạch` ở lượt 15/08 **KHÔNG** loại trừ: 73 dòng sạch thì nhánh nuốt-lỗi không chạy —
+lại đúng "hiện diện ≠ hiệu lực" (nhánh CÓ tồn tại ≠ nhánh ĐƯỢC canh).
+Vá ~3 dòng: gom dòng không parse được, ghi bytes GỐC vào archive (hoặc `*.hong.jsonl`) TRƯỚC
+`unlink`. **CHƯA SỬA** — `scripts/` ngoài vùng ghi của mọi vai (xem F-ZONE), chờ PO thật giao.
+⟹ **Khuyến nghị: vá F-LOG TRƯỚC khi đẩy backlog P-121**, đừng chạy 19 lượt trên đường có lỗ.
+
+**TIN TỐT cùng lượt đo:** nhánh **leftover CHẠY ĐÚNG** — 502 dòng, `BATCH_LIMIT=500` → lượt 1 gửi
+500 + "2 deferred", lượt 2 gửi 2; `archive 502 dòng · id duy nhất 502 · trùng lặp 0`. Bản vá làm
+đúng điều nó hứa, backlog sẽ không phình archive.
+
+**F-LOG-2 (thấp, CÓ TRƯỚC bản vá — không phải hồi quy):** `submit_log.py:155` dùng
+`open(LOG_FILE, "a")` → leftover (CŨ) bị nối SAU phần hook vừa ghi (MỚI); đo thật ra thứ tự
+`[900, 901, 500, 501]`. Trớ trêu: nhánh THẤT BẠI `_restore_pending()` cố ý xử đúng ca này (có
+comment *"pending (older) + LOG_FILE (newer)"*) — **nhánh thành công mắc đúng lỗi mà nhánh thất
+bại được viết ra để tránh**. Chưa từng quan trọng vì leftover chưa từng chạy; backlog P-121 là lần
+đầu nó thành thật. Sai thứ tự, KHÔNG mất dữ liệu — server sắp xếp lại được nếu bản ghi có timestamp.
+
+### F-ZONE — `scripts/` là VÙNG VÔ CHỦ trong §4 (đề xuất, PO thật quyết)
+§4 giao `src/ frontend/src/ migrations/ contracts/` cho tech-lead, `docs/` + `*.md` gốc cho po —
+**không ai sở hữu `scripts/`**. Đó chính là chỗ bản vá `_archive_entries()` nằm lửng lơ trong cây
+làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nháp của phiên này** (phiên khởi
+động sạch, chưa ghi byte nào) ⟹ là của một PHIÊN TRƯỚC. Đề xuất thêm một dòng vào §4 giao
+`scripts/` cho tech-lead, để nháp mồ côi lần sau có chủ.
+
 ## Cảnh báo còn tồn
 - **gate-96 giờ BẬT THẬT** (`e4ef0e8`, không còn tắt — mục trên đã lỗi thời, sửa 15/08).
 - **Số end-to-end gắn với hệ thống KHÔNG CÒN TỒN TẠI** (tester đo): lượt "sau" chạy ở
@@ -182,6 +219,8 @@ Bản vá đụng tiền đề ADR-024 → phải qua PO thật, coder ĐỪNG v
 1. **PO THẬT — billing org `AI20K-Build-Phase-Cohort-3`** (F-CI). Chặn mọi nghiệm thu CI.
 2. **PO THẬT — quyết hướng vá F-NOTE**: scrub cho bản ghi kiểm toán khác scrub cho log. Đụng tiền
    đề ADR-024 nên cần quyết định minh thị, không để coder tự vá.
+3. **PO THẬT — giao ai vá F-LOG** (`scripts/` vô chủ, xem F-ZONE) và chốt: **vá TRƯỚC rồi mới đẩy
+   backlog P-121**. Đẩy trước = chạy 19 lượt trên đường có lỗ nuốt-dòng-hỏng, đúng deliverable #4.
 3. PO chốt hướng đợt 150 người (số end-to-end đã có, nhớ ghi nhãn hành-vi/dữ-liệu ở "Cảnh báo").
 4. Coder: chờ security "MỞ TAY src/" rồi mới chạm. Xếp hàng: chip câu 3 (sau 5a core + QA baseline)
    · đợt cổng-A gộp 3 oracle · câu-4 RAG retrieval (chunk/embedding, trước pilot 150 người).
