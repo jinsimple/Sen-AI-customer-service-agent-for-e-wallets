@@ -66,10 +66,16 @@ DUONG_TINH = (
 
 def _ham_dem_mo_neo():
     """Tìm bộ đếm O2. SKIP có thông báo rõ nếu chưa ship — 'chưa đo được',
-    KHÔNG phải 'đạt'."""
+    KHÔNG phải 'đạt'.
+
+    Tên thật ship là `dem_mat_do_liet_ke` (đặt trước đợt Luật 18, coder không
+    đổi) — khác tên `dem_mo_neo` bản đầu của test này đoán. Giữ CẢ HAI tên
+    trong danh sách tìm: xoá tên đoán đi thì một lần đổi tên khác trong tương
+    lai lại lặp lại đúng khoảng SKIP-oan này."""
     import importlib
 
     for mod, ham in (
+        ("src.agents.output_filter", "dem_mat_do_liet_ke"),
         ("src.agents.output_filter", "dem_mo_neo"),
         ("src.agents.spotlight", "dem_mo_neo"),
         ("src.observability.pii", "dem_mo_neo"),
