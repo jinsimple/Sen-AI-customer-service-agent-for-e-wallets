@@ -1,9 +1,13 @@
 # ĐẶC TẢ Câu 3 (ADR-022) — dấu hiệu cảm xúc HIỂN THỊ CHO CSKH
 
-> PO thật quyết 15/08: CÓ hiển thị cho CSKH + KÈM CẢNH BÁO, nhưng phải nghiên cứu
-> thang đo cảm xúc trong ngành CSKH thực tế trước để tránh dán nhãn sai. PO-agent
-> nghiên cứu → đặc tả này. CHƯA code tới khi PO thật gật hướng.
-> Phụ thuộc: KHÔNG chặn phần contract ADR-022 (đã ký Câu 1+2). Đây là lớp hiển thị.
+> **PO thật ĐÃ DUYỆT 15/08 (sau khi có đặc tả này):** khung "chip vận-hành mức
+> hội-thoại, KHÔNG nhãn trạng-thái-tâm-lý" (§2-§3 dưới) · ngưỡng **N=3** (cùng N
+> với nút-cho-khách, câu hỏi §5 mục 2 chốt theo đề xuất "cùng N") · **CSKH THẤY**
+> chip vận-hành này (không chỉ khách thấy nút). ES-02 xác nhận lại KHÔNG phủ nhóm
+> tổn thương tâm lý (ADR-022 Quyết định 3, không đổi).
+> **Còn treo — kỹ thuật, KHÔNG cần PO quyết lại:** §4 hỏi có cần thêm 1 trường
+> envelope riêng cho kênh CSKH hay tái dùng cờ ES sẵn có — coder đề xuất khi bắt
+> tay code, xếp SAU 5a core + sau QA baseline như §4 đã ghi.
 
 ## 1. Nghiên cứu ngành nói gì (nền để thiết kế đúng)
 
@@ -74,7 +78,8 @@ Gợi ý ưu tiên · hội thoại căng kéo dài (N lượt)   [i]
   CSKH; đó là một vòng §3 nhỏ (thêm mục hieu_luc, không đụng ES core). Xác nhận sau.
 - Coder KHÔNG dựng phần này tới khi PO gật hướng §3 trên. Xếp SAU 5a core + sau QA baseline.
 
-## 5. Câu còn hỏi PO
-- Đồng ý khung "chip vận hành mức hội-thoại, không nhãn trạng thái người" không?
-- Ngưỡng hiện chip cho CSKH = cùng N=3 với nút-cho-khách, hay thấp hơn (cho nhân viên
-  thấy sớm hơn khách một nhịp)? Đề xuất: **cùng N**, một nguồn sự thật, đỡ lệch.
+## 5. Câu đã hỏi PO — ĐÃ CHỐT 15/08
+- ~~Đồng ý khung "chip vận hành mức hội-thoại, không nhãn trạng thái người" không?~~
+  → **DUYỆT**, nguyên văn khung §2-§3.
+- ~~Ngưỡng hiện chip cho CSKH = cùng N=3 với nút-cho-khách, hay thấp hơn?~~ →
+  **DUYỆT cùng N=3**, một nguồn sự thật, đỡ lệch (đúng đề xuất đã ghi ở đây).

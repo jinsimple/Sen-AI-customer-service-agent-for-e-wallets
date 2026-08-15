@@ -545,9 +545,12 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
 
 ## ADR-022 — Tín hiệu cảm xúc ES-xx: định tuyến sang người thật, KHÔNG chạm vào LLM
 
-- **Ngày:** 2026-08-15 · **Trạng thái:** ĐÃ KÝ (Câu 1+2) — PO thật duyệt 15/08;
-  áp contract theo §3. Câu 3 (dấu cho CSKH) TÁCH RA, chờ nghiên cứu ngành (xem
-  "Ratification" cuối ADR).
+- **Ngày:** 2026-08-15 · **Trạng thái:** ĐÃ KÝ TOÀN BỘ (Câu 1+2+3) — PO thật
+  duyệt 15/08. Câu 3 (dấu cho CSKH) tách ra nghiên cứu ngành trước, PO thật
+  duyệt sau khi có đặc tả: khung "chip vận-hành mức hội-thoại, KHÔNG nhãn
+  trạng-thái-tâm-lý" · N=3 (cùng ngưỡng nút-cho-khách) · **CSKH thấy chip**.
+  Xem `docs/giao-viec/2026-08-15-spec-cau3-dau-hieu-cam-xuc-cskh.md` (đặc tả
+  đầy đủ, đã cập nhật trạng thái duyệt).
 - **Bối cảnh:** hiện chỉ có quy tắc đồng cảm ép trong prompt + 1 case LLM-judge
   (UXQA-001). Không có tín hiệu nào cho biết khách đang bức xúc, nên không có
   đường nào đưa họ sang người thật sớm hơn.
@@ -675,15 +678,17 @@ API    : tang() -> int · dat_lai() · doc() -> int
   là bức xúc **tự động escalate lên supervisor**. Ranh giới cứng 5 (cờ gian lận
   ≠ khoá ví) sống được là nhờ không ai trộn thứ khác vào đường gian lận.
 
-### Câu hỏi cần PO thật quyết
+### Câu hỏi cần PO thật quyết — ĐÃ CHỐT 15/08
 
-1. **N của ES-01** — đề xuất **N=3 lượt liên tiếp**. Chốt sau khi có bộ đa-lượt
-   của tester để canh, vì trước đó không có gì đo được N nào là đúng.
-2. **ES-02 có phủ nhóm tổn thương tâm lý không** (Quyết định 3). Mặc định của
-   tôi là KHÔNG.
-3. **Ai thấy gợi ý handoff** — chỉ khách, hay CSKH cũng thấy dấu "ca này khách
-   đang căng"? Cái sau hữu ích nhưng là **suy đoán về khách hiển thị cho nhân
-   viên**, cần PO cân nhắc.
+1. ~~**N của ES-01**~~ → **N=3 lượt liên tiếp, ĐÃ CHỐT** (dùng chung cho ES-01
+   và chip câu 3).
+2. ~~**ES-02 có phủ nhóm tổn thương tâm lý không**~~ → **KHÔNG**, giữ mặc định
+   đề xuất ở Quyết định 3.
+3. ~~**Ai thấy gợi ý handoff**~~ → **CẢ HAI**: khách thấy nút (đã có từ Quyết
+   định 2), **CSKH cũng thấy** — dưới dạng chip vận-hành trung tính ("hội thoại
+   căng kéo dài (N lượt)"), KHÔNG phải nhãn phán trạng thái tâm lý khách. Đặc
+   tả đầy đủ + lý do (nghiên cứu ngành valence-arousal, coaching-không-diagnosis):
+   `docs/giao-viec/2026-08-15-spec-cau3-dau-hieu-cam-xuc-cskh.md`.
 
 ### Hệ quả (khi được ký)
 
