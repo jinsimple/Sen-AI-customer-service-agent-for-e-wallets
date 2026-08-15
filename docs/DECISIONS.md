@@ -430,8 +430,13 @@ thật, commit history và các phiên làm việc trước. Ngày ghi trong m�
 
 ## ADR-020 — Maker-checker (BR-12): người đề xuất không được tự duyệt
 
-- **Ngày:** 2026-08-15 · **Trạng thái:** Dự thảo — PO điều phối đã duyệt làm,
-  chờ security rà + PO thật ký · Ghim từ trước ở migration `b2c3d4e5f6a7`
+- **Ngày:** 2026-08-15 · **Trạng thái:** ĐÃ KÝ (PO thật, 2026-08-15) — security đã
+  rà đạt-có-điều-kiện; hiệu lực. Ghim từ trước ở migration `b2c3d4e5f6a7`
+- **PO thật làm rõ nghiệp vụ khi ký:** ý định là CSKH + bot AI được TẠO ticket/đề
+  xuất, chỉ `supervisor` được DUYỆT (đã ép ở authority-matrix — lớp VAI). Maker-checker
+  BR-12 ép THÊM một lớp SÂU HƠN ở tầng DB: kể cả một supervisor cũng không tự duyệt
+  resolution do CHÍNH mình tạo (creator ≠ approver). Hai lớp cùng tồn tại, PO xác nhận
+  ép-sâu-hơn là đúng hướng.
 - **Bối cảnh:** HITL của dự án đứng trên giả định "có người thứ hai xem lại".
   Giả định đó chưa được ép ở đâu cả. Cửa là có thật, không phải lo xa:
   `POST /tools/propose_resolution` cho phép **cả `cskh` lẫn `supervisor`**, còn
