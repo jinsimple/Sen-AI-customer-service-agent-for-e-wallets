@@ -27,11 +27,13 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column("resolutions", sa.Column("created_by", sa.String(), nullable=True))
-    op.create_foreign_key(
-        "fk_resolutions_created_by", "resolutions", "users", ["created_by"], ["user_id"]
-    )
+    # F-MIG — batch_alter_table: SQLite không ALTER được constraint.
+    # Trên Postgres batch chạy ALTER thẳng, không chép bảng.
+    with op.batch_alter_table("resolutions") as batch:
+        batch.create_foreign_key("fk_resolutions_created_by", "users", ["created_by"], ["user_id"])
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_resolutions_created_by", "resolutions", type_="foreignkey")
+    with op.batch_alter_table("resolutions") as batch:
+        batch.drop_constraint("fk_resolutions_created_by", type_="foreignkey")
     op.drop_column("resolutions", "created_by")

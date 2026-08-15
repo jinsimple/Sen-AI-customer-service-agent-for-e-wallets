@@ -103,10 +103,14 @@ def upgrade() -> None:
     )
     _backfill_sentinel(conn)
     _kiem_truoc_khi_ep(conn)
-    op.create_check_constraint(_TEN_CHECK, "resolutions", _BIEU_THUC)
+    # F-MIG — batch_alter_table: SQLite không ALTER được constraint.
+    # Trên Postgres batch chạy ALTER thẳng, không chép bảng.
+    with op.batch_alter_table("resolutions") as batch:
+        batch.create_check_constraint(_TEN_CHECK, _BIEU_THUC)
 
 
 def downgrade() -> None:
-    op.drop_constraint(_TEN_CHECK, "resolutions", type_="check")
+    with op.batch_alter_table("resolutions") as batch:
+        batch.drop_constraint(_TEN_CHECK, type_="check")
     op.drop_column("resolutions", "note_flagged")
     op.drop_column("resolutions", "note")

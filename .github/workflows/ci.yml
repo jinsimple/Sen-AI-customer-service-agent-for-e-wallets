@@ -237,6 +237,48 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ---------------------------------------------------------------------
+  # F-MIG — chuỗi migration phải CHẠY ĐƯỢC, và phải khớp với models.py
+  #
+  # Vì sao cần một job riêng: test suite dựng schema bằng
+  # `Base.metadata.create_all()`, KHÔNG qua alembic. Hai đường dựng schema tách
+  # biệt và trước bản này chỉ MỘT được canh — chuỗi migration chết ở
+  # `a1b2c3d4e5f6` suốt nhiều tháng mà 540 test vẫn xanh (Luật 14: nhánh không
+  # gọi được từ test là nhánh không ai canh).
+  #
+  # Phép 3 (so schema hai đường) là phép quan trọng nhất: nó là thứ DUY NHẤT
+  # bắt được drift giữa `models.py` và lịch sử migration. Drift kiểu đó chỉ lộ
+  # ở lần deploy Postgres thật đầu tiên — đúng lúc đắt nhất.
+  # ---------------------------------------------------------------------
+  migration-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Phép 1+2 — upgrade head trên DB trắng, rồi hai chiều
+        env:
+          DATABASE_URL: sqlite:///ci-migration.db
+          JWT_SECRET_KEY: ci-dummy-secret-key-0123456789abcd
+          REDIS_URL: fake://ci
+          OPENAI_API_KEY: ci-dummy
+        run: |
+          export FIELD_ENCRYPTION_KEY=$(python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())")
+          python -m alembic upgrade head
+          python -m alembic downgrade base
+          python -m alembic upgrade head
+      - name: Phép 3 — schema từ alembic PHẢI khớp schema từ models.py
+        env:
+          JWT_SECRET_KEY: ci-dummy-secret-key-0123456789abcd
+          REDIS_URL: fake://ci
+          OPENAI_API_KEY: ci-dummy
+        run: |
+          export FIELD_ENCRYPTION_KEY=$(python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())")
+          python scripts/kiem_schema_hai_duong.py
+
+  # ---------------------------------------------------------------------
   # Stage 3: AppSec test (Nhóm C) — ma trận phân quyền + injection
   # ---------------------------------------------------------------------
   appsec:

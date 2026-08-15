@@ -49,8 +49,12 @@ def upgrade() -> None:
             "Phải xử lý từng ca (ai thật sự duyệt?) trước khi ép ràng buộc — "
             "KHÔNG được sửa dữ liệu hàng loạt cho constraint chạy qua."
         )
-    op.create_check_constraint(_TEN, "resolutions", _BIEU_THUC)
+    # F-MIG — batch_alter_table: SQLite không ALTER được constraint.
+    # Trên Postgres batch chạy ALTER thẳng, không chép bảng.
+    with op.batch_alter_table("resolutions") as batch:
+        batch.create_check_constraint(_TEN, _BIEU_THUC)
 
 
 def downgrade() -> None:
-    op.drop_constraint(_TEN, "resolutions", type_="check")
+    with op.batch_alter_table("resolutions") as batch:
+        batch.drop_constraint(_TEN, type_="check")

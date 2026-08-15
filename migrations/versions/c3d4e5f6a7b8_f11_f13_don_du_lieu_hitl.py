@@ -93,11 +93,21 @@ def upgrade() -> None:
     # lúc nó chạy trên máy khác, một challenge duyệt mới có thể đã sinh ra.
     # Migration phải đúng theo dữ liệu LÚC CHẠY, không theo ảnh chụp lúc viết.
     conn.execute(
-        sa.text("UPDATE auth_sessions SET resolution_id = NULL WHERE resolution_id IN :ids"),
-        {"ids": _RESIDUE},
+        # F-MIG — `expanding=True` BẮT BUỘC cho `IN :ids`. Không có nó,
+        # SQLAlchemy đẩy nguyên tuple thành MỘT tham số: psycopg2 tình cờ adapt
+        # tuple thành `(a,b)` nên Postgres chạy được, còn SQLite nổ
+        # `near "?": syntax error`. Đây là lý do migration này chưa từng chạy
+        # trên SQLite — nó phụ thuộc một hành vi riêng của driver Postgres.
+        sa.text(
+            "UPDATE auth_sessions SET resolution_id = NULL WHERE resolution_id IN :ids"
+        ).bindparams(sa.bindparam("ids", expanding=True)),
+        {"ids": list(_RESIDUE)},
     )
     da_xoa = conn.execute(
-        sa.text("DELETE FROM resolutions WHERE resolution_id IN :ids"), {"ids": _RESIDUE}
+        sa.text("DELETE FROM resolutions WHERE resolution_id IN :ids").bindparams(
+            sa.bindparam("ids", expanding=True)
+        ),
+        {"ids": list(_RESIDUE)},
     ).rowcount
     if da_xoa not in (0, len(_RESIDUE)):
         # 0 = đã chạy rồi / DB sạch (chấp nhận). Xoá NỬA VỜI thì dừng hẳn: nó
@@ -105,16 +115,30 @@ def upgrade() -> None:
         raise RuntimeError(f"F-11: chờ xoá 0 hoặc {len(_RESIDUE)} dòng, thực tế {da_xoa}")
 
     # --- BƯỚC 2: sentinel + gán cho dòng genuine ------------------------
-    conn.execute(
-        sa.text(
-            """
-            INSERT INTO users (user_id, role, full_name, phone, kyc_level, created_at)
-            VALUES (:id, 'supervisor', :ten, :phone, 0, :now)
-            ON CONFLICT (user_id) DO NOTHING
-            """
-        ),
-        {"id": _SENTINEL_ID, "ten": _SENTINEL_NAME, "phone": _SENTINEL_PHONE, "now": dt.datetime.utcnow()},
-    )
+    # F-MIG — KIỂM-RỒI-CHÈN thay cho `ON CONFLICT ... DO NOTHING`. Cú pháp
+    # upsert khác nhau giữa các backend (Postgres `ON CONFLICT`, SQLite cần
+    # phiên bản đủ mới / `INSERT OR IGNORE`, MySQL `ON DUPLICATE KEY`) — một
+    # migration phải chạy được trên MỌI backend dự án dùng, kể cả SQLite của
+    # môi trường test. Đây là chèn MỘT dòng sentinel, không có đua ghi, nên
+    # kiểm-rồi-chèn tương đương về ngữ nghĩa và trung lập về phương ngữ.
+    da_co = conn.execute(
+        sa.text("SELECT 1 FROM users WHERE user_id = :id"), {"id": _SENTINEL_ID}
+    ).scalar()
+    if not da_co:
+        conn.execute(
+            sa.text(
+                """
+                INSERT INTO users (user_id, role, full_name, phone, kyc_level, created_at)
+                VALUES (:id, 'supervisor', :ten, :phone, 0, :now)
+                """
+            ),
+            {
+                "id": _SENTINEL_ID,
+                "ten": _SENTINEL_NAME,
+                "phone": _SENTINEL_PHONE,
+                "now": dt.datetime.utcnow(),
+            },
+        )
     # CHỈ những dòng đang mang ghi chú backfill cũ — không quét bừa mọi dòng
     # rejected. Dòng do người thật từ chối sau này phải giữ nguyên `rejected_by`.
     conn.execute(
@@ -142,17 +166,35 @@ def upgrade() -> None:
     conn.execute(
         sa.text(
             """
+            -- F-MIG — VIẾT LẠI TRUNG LẬP PHƯƠNG NGỮ. Bản cũ dùng
+            -- `SELECT DISTINCT ON (...)` + `UPDATE tickets t ... FROM ...`:
+            -- cả hai là cú pháp RIÊNG của Postgres, SQLite nổ `near "ON"`.
+            -- Đây là lý do thứ hai (sau bind param mở rộng) khiến migration
+            -- từng chạy trên SQLite — nó được viết cho đúng một backend.
+            -- ROW_NUMBER() + subquery tương quan chạy trên CẢ HAI, ngữ nghĩa
+            -- giữ nguyên: lấy resolution MỚI NHẤT của mỗi ticket, chỉ cập
+            -- nhật khi trạng thái là approved/rejected VÀ đang lệch.
             WITH moi_nhat AS (
-                SELECT DISTINCT ON (ticket_id) ticket_id, status
-                  FROM resolutions
-                 ORDER BY ticket_id, created_at DESC, resolution_id DESC
+                SELECT ticket_id, status FROM (
+                    SELECT ticket_id, status,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY ticket_id
+                               ORDER BY created_at DESC, resolution_id DESC
+                           ) AS rn
+                      FROM resolutions
+                ) x WHERE rn = 1
             )
-            UPDATE tickets t
-               SET hitl_status = m.status
-              FROM moi_nhat m
-             WHERE m.ticket_id = t.ticket_id
-               AND m.status IN ('approved', 'rejected')
-               AND t.hitl_status <> m.status
+            UPDATE tickets
+               SET hitl_status = (
+                       SELECT m.status FROM moi_nhat m
+                        WHERE m.ticket_id = tickets.ticket_id
+                   )
+             WHERE EXISTS (
+                       SELECT 1 FROM moi_nhat m
+                        WHERE m.ticket_id = tickets.ticket_id
+                          AND m.status IN ('approved', 'rejected')
+                          AND tickets.hitl_status <> m.status
+                   )
             """
         )
     )
@@ -162,12 +204,20 @@ def upgrade() -> None:
     con_lech = conn.execute(
         sa.text(
             """
+            -- F-MIG — cùng lý do khối trên: DISTINCT ON là cú pháp riêng
+            -- Postgres. ROW_NUMBER() chạy cả hai, ngữ nghĩa giữ nguyên.
             WITH moi_nhat AS (
-                SELECT DISTINCT ON (ticket_id) ticket_id, status
-                  FROM resolutions
-                 ORDER BY ticket_id, created_at DESC, resolution_id DESC
+                SELECT ticket_id, status FROM (
+                    SELECT ticket_id, status,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY ticket_id
+                               ORDER BY created_at DESC, resolution_id DESC
+                           ) AS rn
+                      FROM resolutions
+                ) x WHERE rn = 1
             )
-            SELECT count(*) FROM tickets t JOIN moi_nhat m USING (ticket_id)
+            SELECT count(*) FROM tickets t JOIN moi_nhat m
+                   ON m.ticket_id = t.ticket_id
              WHERE m.status IN ('approved','rejected') AND t.hitl_status <> m.status
             """
         )

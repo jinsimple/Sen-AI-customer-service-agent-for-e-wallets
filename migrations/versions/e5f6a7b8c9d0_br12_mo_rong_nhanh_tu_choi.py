@@ -66,10 +66,14 @@ def upgrade() -> None:
     conn = op.get_bind()
     _kiem_truoc_khi_ep(conn, "approved_by")
     _kiem_truoc_khi_ep(conn, "rejected_by")
-    op.drop_constraint(_TEN, "resolutions", type_="check")
-    op.create_check_constraint(_TEN, "resolutions", _MOI)
+    # F-MIG — batch_alter_table: SQLite không ALTER được constraint.
+    # Trên Postgres batch chạy ALTER thẳng, không chép bảng.
+    with op.batch_alter_table("resolutions") as batch:
+        batch.drop_constraint(_TEN, type_="check")
+        batch.create_check_constraint(_TEN, _MOI)
 
 
 def downgrade() -> None:
-    op.drop_constraint(_TEN, "resolutions", type_="check")
-    op.create_check_constraint(_TEN, "resolutions", _CU)
+    with op.batch_alter_table("resolutions") as batch:
+        batch.drop_constraint(_TEN, type_="check")
+        batch.create_check_constraint(_TEN, _CU)

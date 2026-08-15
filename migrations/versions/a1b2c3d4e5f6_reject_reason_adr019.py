@@ -30,9 +30,10 @@ def upgrade() -> None:
     op.add_column("resolutions", sa.Column("reject_reason", sa.String(), nullable=True))
     op.add_column("resolutions", sa.Column("rejected_by", sa.String(), nullable=True))
     op.add_column("resolutions", sa.Column("rejected_at", sa.DateTime(), nullable=True))
-    op.create_foreign_key(
-        "fk_resolutions_rejected_by", "resolutions", "users", ["rejected_by"], ["user_id"]
-    )
+    with op.batch_alter_table("resolutions") as batch:
+        batch.create_foreign_key(
+            "fk_resolutions_rejected_by", "users", ["rejected_by"], ["user_id"]
+        )
 
     # Backfill TRƯỚC khi ép CHECK — xem docstring. `rejected_by` lấy chính
     # người đã duyệt/từ chối nếu biết, không thì rơi về user supervisor bất kỳ
@@ -58,24 +59,28 @@ def upgrade() -> None:
         {"ghi_chu": _GHI_CHU_BACKFILL},
     )
 
-    op.create_check_constraint(
-        "ck_resolutions_reject_reason",
-        "resolutions",
-        "reject_reason IN ('sai_so_lieu','sai_phan_loai','thieu_can_cu',"
-        "'sai_chinh_sach','trung_case','khach_rut','khac')",
-    )
-    op.create_check_constraint(
-        "ck_resolutions_rejected_requires_reason_br11",
-        "resolutions",
-        "(status != 'rejected') OR (reject_reason IS NOT NULL "
-        "AND rejected_by IS NOT NULL AND rejected_at IS NOT NULL)",
-    )
+    # F-MIG — batch_alter_table BẮT BUỘC: SQLite không ALTER được constraint.
+    # `render_as_batch` trong env.py KHÔNG cứu được chỗ này — cờ đó chỉ đổi cách
+    # alembic AUTOGENERATE script, không đổi cách script đã viết THỰC THI.
+    # Trên Postgres batch chạy ALTER thẳng, không chép bảng.
+    with op.batch_alter_table("resolutions") as batch:
+        batch.create_check_constraint(
+            "ck_resolutions_reject_reason",
+            "reject_reason IN ('sai_so_lieu','sai_phan_loai','thieu_can_cu',"
+            "'sai_chinh_sach','trung_case','khach_rut','khac')",
+        )
+        batch.create_check_constraint(
+            "ck_resolutions_rejected_requires_reason_br11",
+            "(status != 'rejected') OR (reject_reason IS NOT NULL "
+            "AND rejected_by IS NOT NULL AND rejected_at IS NOT NULL)",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_resolutions_rejected_requires_reason_br11", "resolutions", type_="check")
-    op.drop_constraint("ck_resolutions_reject_reason", "resolutions", type_="check")
-    op.drop_constraint("fk_resolutions_rejected_by", "resolutions", type_="foreignkey")
+    with op.batch_alter_table("resolutions") as batch:
+        batch.drop_constraint("ck_resolutions_rejected_requires_reason_br11", type_="check")
+        batch.drop_constraint("ck_resolutions_reject_reason", type_="check")
+        batch.drop_constraint("fk_resolutions_rejected_by", type_="foreignkey")
     op.drop_column("resolutions", "rejected_at")
     op.drop_column("resolutions", "rejected_by")
     op.drop_column("resolutions", "reject_reason")

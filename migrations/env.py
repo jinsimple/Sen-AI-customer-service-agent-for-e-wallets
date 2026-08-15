@@ -73,8 +73,25 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # F-MIG — `render_as_batch` cho SQLite. Không có nó thì
+        # `alembic upgrade head` trên DB TRẮNG chết ở `a1b2c3d4e5f6` (ADR-019)
+        # với `NotImplementedError: No support for ALTER of constraints in
+        # SQLite dialect`, và MỌI revision sau đó không bao giờ chạy.
+        #
+        # Vì sao lỗi này sống lâu mà không ai thấy: test suite dựng schema bằng
+        # `Base.metadata.create_all()` (đọc thẳng models.py), KHÔNG qua alembic.
+        # Hai đường dựng schema tách biệt, chỉ MỘT được canh — đúng Luật 14
+        # (nhánh không gọi được từ test là nhánh không ai canh). 540 test xanh
+        # không nói gì về việc chuỗi migration có chạy được hay không.
+        #
+        # Bật theo DIALECT chứ không bật vô điều kiện: Postgres ALTER được
+        # trực tiếp, ép batch ở đó là dựng-bảng-chép-dữ-liệu vô ích trên bảng
+        # có thể rất lớn.
+        la_sqlite = connection.dialect.name == "sqlite"
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=la_sqlite,
         )
 
         with context.begin_transaction():
