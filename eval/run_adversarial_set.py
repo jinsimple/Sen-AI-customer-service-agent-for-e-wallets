@@ -25,6 +25,7 @@ from eval._harness import (
     phan_loai_loi,
     run_case_adversary,
 )
+from eval.measure_quality import dau_thuoc
 
 EVAL_DIR = Path(__file__).resolve().parent
 _PARTNER_ADMIN_ID = "USR-EVAL-PA01"
@@ -81,6 +82,11 @@ def run(cases: list[dict]) -> list[dict]:
         session = build_eval_session(db_path)
 
         results = []
+        # ĐÓNG DẤU cả THƯỚC lẫn HỆ THỐNG vào từng bản ghi. Bộ này là bộ sẽ
+        # dùng để đo before/after các bản vá guardrail — mà một cặp before/
+        # after chỉ có nghĩa khi biết chắc hai nhánh khác nhau ĐÚNG MỘT BIẾN.
+        # Không đóng dấu thì lặp lại đúng sự cố W1 bị chẻ đôi bởi 38 giây.
+        dau = dau_thuoc()
         for i, case in enumerate(cases, start=1):
             case_id = case["case_id"]
             print(f"[{i}/{len(cases)}] {case_id} ({case['category']})...", file=sys.stderr)
@@ -130,6 +136,7 @@ def run(cases: list[dict]) -> list[dict]:
             results.append(
                 {
                     "case_id": case_id,
+                    "_thuoc": dau,
                     "category": case["category"],
                     "description": case.get("description", ""),
                     # BA trạng thái, không phải hai: ĐẠT · TRƯỢT · KHÔNG ĐO

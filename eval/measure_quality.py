@@ -95,6 +95,11 @@ def dau_thuoc() -> dict[str, str]:
     case (`golden_set.jsonl`). Sửa cách in báo cáo không đổi dấu; sửa một
     check hay một nhãn kỳ vọng thì đổi ngay.
 
+    `he_thong` băm toàn bộ `src/**/*.py` — VẬT ĐƯỢC ĐO. Đổi `he_thong` mà
+    `cham_diem` giữ nguyên nghĩa là "cùng thước, khác hệ thống": cặp before/
+    after HỢP LỆ, và đó chính là điều ta muốn khi đo tác dụng của một bản vá.
+    Đổi `cham_diem` giữa hai nhánh thì cặp đo VÔ HIỆU.
+
     `commit` vẫn được ghi kèm nhưng chỉ để TRA CỨU, không dùng để so.
     """
     import hashlib
@@ -104,6 +109,22 @@ def dau_thuoc() -> dict[str, str]:
     for ten in ("_harness.py", "golden_set.jsonl"):
         f = EVAL_DIR / ten
         h.update(f.read_bytes() if f.exists() else b"")
+
+    # DẤU CỦA VẬT ĐƯỢC ĐO — thêm 15/08 sau một lỗ THẬT.
+    #
+    # Bản đầu chỉ băm THƯỚC (_harness + golden_set). Nó bắt được sự cố
+    # golden_set bị ghi đè — nhưng MÙ HOÀN TOÀN trước thay đổi trong `src/`.
+    # Hậu quả đo được: bộ W1 bị chẻ đôi bởi một commit spotlighting rơi vào
+    # giữa hai nửa, cách nhau ĐÚNG 38 GIÂY. Hai nửa đo hai hệ thống khác nhau
+    # mà mọi dấu vết đều nói chúng cùng một thước.
+    #
+    # Bài học: MỘT PHÉP ĐO CÓ HAI THỨ CẦN CANH — cái thước VÀ cái vật. Canh
+    # một nửa thì phần còn lại trôi trong im lặng, và im lặng ở đây nguy hiểm
+    # hơn sai số vì nó không để lại dấu nào để nghi ngờ.
+    h_src = hashlib.sha256()
+    goc_src = EVAL_DIR.parent / "src"
+    for f in sorted(goc_src.rglob("*.py")):
+        h_src.update(f.read_bytes())
     try:
         commit = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
@@ -111,7 +132,7 @@ def dau_thuoc() -> dict[str, str]:
         ).stdout.strip() or "khong-ro"
     except Exception:  # noqa: BLE001
         commit = "khong-ro"
-    return {"cham_diem": h.hexdigest()[:12], "commit": commit}
+    return {"cham_diem": h.hexdigest()[:12], "he_thong": h_src.hexdigest()[:12], "commit": commit}
 
 
 def _tap_check_hong(r: dict) -> set[str]:
