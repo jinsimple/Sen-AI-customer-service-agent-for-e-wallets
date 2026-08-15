@@ -34,11 +34,12 @@ from src.config import (
     OPENAI_MODEL,
     OPENAI_TIMEOUT_SECONDS,
 )
-from src.db.models import User
+from src.db.models import Complaint, Ticket, User
 from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.pii import scrub_pii
 from src.observability.tracing import get_tracer
 from src.services.complaint_intake import flag_human_handoff
+from src.services.emotion_signals import danh_gia_luot
 from src.tools.base import ToolError
 
 _tracer = get_tracer("fin05.agent")
@@ -91,6 +92,27 @@ def _reply_goc_cho_eval(reply_goc: str, nhom_khop: list[str]) -> dict:
     if os.environ.get("FIN05_EVAL_GIU_REPLY_GOC") != "1" or not nhom_khop:
         return {}
     return {"reply_truoc_loc": reply_goc}
+
+
+def _nang_uu_tien_theo_cam_xuc(session: Session, *, ticket_id: str) -> None:
+    """ES bật -> nâng `complaints.priority`, TRẦN LÀ `high`. CHỈ NÂNG.
+
+    KHÔNG BAO GIỜ lên `critical`: mức đó thuộc về FS-06 (nghi gian lận). Cho bức
+    xúc leo lên cùng mức nghi gian lận là làm hỏng ĐÚNG hàng đợi quan trọng nhất
+    — người trực hết phân biệt được "khẩn vì rủi ro tiền" với "khẩn vì khách
+    đang giận", và họ sẽ mất niềm tin vào chính cái nhãn critical.
+
+    KHÔNG BAO GIỜ HẠ: ES tắt ở lượt sau không có nghĩa vấn đề nhẹ đi. Hạ xuống
+    là xoá dấu vết một lần khách đã căng, mà CSKH cần thấy điều đó khi mở hồ sơ.
+    """
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None:
+        return
+    complaint = session.get(Complaint, ticket.complaint_id)
+    if complaint is None or complaint.priority in ("high", "critical"):
+        return
+    complaint.priority = "high"
+    session.flush()
 
 
 def _build_checkpointer():
@@ -238,6 +260,20 @@ def run_agent_turn(
     if user is None:
         raise ToolError(f"user_id không tồn tại: {user_id}")
 
+    # ES-xx (ADR-022) — tính TRƯỚC khi gọi agent, trên tin nhắn khách, ở TẦNG
+    # SERVICE. Không gọi LLM, không đi vào prompt, không thêm bước nào.
+    #
+    # Đặt ở ĐÂY chứ không phải sau khi có reply là có chủ đích: tính sau thì vẫn
+    # đúng nghĩa "không vào prompt", nhưng mất khả năng bật gợi ý NGAY ở lượt
+    # đang xảy ra — mà toàn bộ giá trị của ES là đưa người bực sang người thật
+    # SỚM, không phải một lượt sau.
+    #
+    # Cố ý KHÔNG đưa nhãn cảm xúc vào prompt: agent sẽ NÓI RA cảm nhận đó, tức
+    # khẳng định một kết luận tâm lý về một con người dựa trên bộ phân loại có
+    # thể sai — trái tinh thần ràng buộc cứng 3 (mọi điều agent khẳng định phải
+    # truy được về dữ liệu thật; cảm xúc suy đoán không phải dữ liệu thật).
+    tin_hieu_cam_xuc = danh_gia_luot(message, thread_id or user_id)
+
     # 1 guard cho MỖI lượt (không phải global) — bàn giao `session` giữa luồng
     # chính và luồng nền khi lượt bị bỏ rơi vì timeout, xem TurnGuard (QA-12).
     guard = TurnGuard()
@@ -348,6 +384,9 @@ def run_agent_turn(
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
                 # Câu fallback do CHÍNH TA viết, không qua LLM -> không cần lọc.
                 "loc_dau_ra": [],
+                # Lượt rơi fallback vẫn phải mang tín hiệu: khách bực mà hệ
+                # thống lại lỗi chính là lúc CẦN người thật nhất.
+                "goi_y_handoff": bool(tin_hieu_cam_xuc),
                 # DẤU HIỆU DƯƠNG DỨT KHOÁT của fallback. Tester dùng đúng trường
                 # này để loại ca khỏi phép so-cặp, nên nó gánh phần định nghĩa
                 # tập-loại-trừ của phép đo — KHÔNG được set nhầm ở đường thường.
@@ -387,6 +426,8 @@ def run_agent_turn(
 
     if ticket_id is not None:
         write_investigation_logs_for_ticket(session, ticket_id=ticket_id, all_messages=all_messages)
+        if tin_hieu_cam_xuc:
+            _nang_uu_tien_theo_cam_xuc(session, ticket_id=ticket_id)
 
     # Token usage cộng dồn của LƯỢT NÀY (mọi vòng gọi model bên trong, kể cả
     # vòng gọi tool trung gian) — dùng để đo cost thật (eval/measure_quality.py),
@@ -413,6 +454,10 @@ def run_agent_turn(
         # với người đo. Thiếu chúng thì O1/O3/O4 cùng ra một câu an toàn giống
         # hệt nhau, đúng họ "hai trạng thái đội chung một vỏ".
         "loc_dau_ra": nhom_khop,
+        # ES-xx -> FRONTEND render nút "gặp người thật". KHÔNG tự gọi
+        # request_human_handoff: quyền quyết định gặp người là của KHÁCH
+        # (CTRL-001 / ISO-IEC 25059), hệ thống chỉ ĐỀ NGHỊ.
+        "goi_y_handoff": bool(tin_hieu_cam_xuc),
         "ly_do_fallback": None,  # TƯỜNG MINH null, KHÔNG thiếu key — thiếu key
         # không phân biệt được với "bản cũ chưa có trường này".
         **_reply_goc_cho_eval(reply, nhom_khop),
