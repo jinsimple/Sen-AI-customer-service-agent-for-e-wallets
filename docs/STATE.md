@@ -466,6 +466,21 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
 - Môi trường test cục bộ (máy PO-agent) thiếu sẵn `argon2` + model NER `xx_ent_wiki_sm` — không phải bug,
   chỉ là máy này chưa từng dựng venv cho repo (dùng venv scratchpad tạm, không commit).
 
+## 📋 PHÂN CÔNG SONG SONG 15/08 (chiều muộn) — PO thật uỷ quyền PO-agent giao 3 vai
+> PO thật chỉ quản PO-agent; PO-agent giao việc + nhận báo cáo từ 3 vai. Nguyên tắc chia:
+> **vùng ghi tách hẳn** (coder: `src/`+`ci.yml`+`scripts/` · tester: `tests/`+`eval/` · security:
+> `docs/security/` · PO-agent: `docs/`) và **không vai nào giữ mốc đo trên `src/` trong lúc coder
+> mutate nó**. Ba việc đầu mỗi vai đều KHÔNG cần chờ vai khác.
+
+| Vai | Việc (thứ tự ưu tiên) | Ràng buộc chính |
+|---|---|---|
+| **Coder** (`p-226-8f`) | ① F-CI-3 trả lời tên hàm `phan_tier` (MỘT DÒNG, đang chặn tester) → ② F-CI-2 một dòng `ci.yml` (trước khi billing thông; CẤM sửa bằng đóng ST2-P0-3) → ③ A1+A2 `description_raw` (CẤM scrub — nhóm A chờ ADR-025) → ④ F-LOG (gate đẩy backlog P-121) → ⑤ S-03 → ⑥ F-28 | BÁO-TRƯỚC-KHI-LAND mọi commit chạm `src/` · nháp ở scratchpad · S-03/F-28/A1/A2 KHÔNG tự đóng, chờ security probe |
+| **Tester** (`p-226-c8`) | ① Port 2 script F-LOG vào `tests/` canh nhánh leftover (CA2+phần-B CỐ Ý ĐỎ, không sửa cho xanh) → ② Dựng trục đối chứng "căn cứ từ chối còn SỐNG SÓT không" (corpus 20 ca, ngưỡng 0/20, FILE RIÊNG; XÂY chưa chạy gate — chờ ADR-025) → ③ Gỡ skip 2 test tier khi coder trả lời tên hàm | KHÔNG đọc `src/` · KHÔNG mốc nền/TPM đợt này (coder đang mutate `src/`) |
+| **Security** (`p-226-0f`) | ① Rà nốt 2 đường scrub tự khai "chưa rà": log-eval (ưu tiên, dính F-LOG) + Langfuse (mức "nếu bật thì rò gì") → ② Soạn trước bộ probe cho A1 (byte-level) · A2 (2 mép) · S-03 (cần Postgres, không kết luận từ SQLite) · F-28 (kèm đối chứng) → ③ GIỮ CHỜ: ADR-025, MT-E02 | Cần đóng băng `src/` thì báo PO-agent xin coder dừng tay, không tự lấy mốc |
+
+**Điểm khớp nối:** coder land ①→tester gỡ skip · coder land ③④⑤⑥→security probe→mới đóng ·
+ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B3/A3/A4.
+
 ## Việc kế tiếp
 1. **PO THẬT — billing org `AI20K-Build-Phase-Cohort-3`** (F-CI). Chặn mọi nghiệm thu CI.
 2. **PO THẬT — MỘT quyết định cho CẢ BỐN CỬA văn bản tự do** (S-01 `note` · S-02 `agent_note` ·
