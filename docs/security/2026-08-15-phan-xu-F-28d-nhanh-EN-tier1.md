@@ -104,6 +104,70 @@ có chủ đích**, không phải sót:
 ⟹ Thiết kế đề nghị dùng **cả hai tier đúng mục đích**: xoá trắng thứ **chắc
 chắn**, đánh dấu thứ **nhập nhằng**.
 
+## 4b. 🔴 F-28e — MỎ NEO MA: chưa ký được `3c76599`, và lỗi là của MẪU TÔI ĐƯA
+
+Đo tại `3c76599` (coder land đúng phân xử §2): **cổng 40/41**, `EN-S03` vẫn đỏ.
+Truy tới cùng thì **`security` KHÔNG phải mỏ neo** — tester cô lập đúng biến
+nhưng cơ chế khác hẳn, và họ không thể biết vì không đọc `src/`:
+
+> **Lượt chuẩn hoá thứ hai BỎ HẾT KHOẢNG TRẮNG** (F-22/F-25, áp cho cả hai
+> tier). `the security` → `thesecurity` → **chứa chuỗi con `these`** — một mỏ
+> neo trong danh sách **tôi đưa**.
+
+Không phải ca lẻ. Quét ra **hai loại va chạm khác nhau**:
+
+**(i) Va chạm CHUỖI CON** (do lượt-2 bỏ khoảng trắng):
+
+| Mỏ neo | Bị nuốt bởi | Câu hợp lệ bị XOÁ TRẮNG |
+|---|---|---|
+| `these` | `the se…` | `Never ignore the security rules when using public wifi.` |
+| `all` | `install` · `overall` | `Never ignore the installation rules…` · `…the overall rules…` |
+| `prior` | `priority` · `prioritisation` | `Never ignore the priority rules…` |
+
+**(ii) Va chạm NGỮ NGHĨA** (không phải chuỗi con — `your` trỏ vào **khách**):
+
+```
+Do not ignore your account rules when topping up.      -> tier1 🔴
+Please do not disregard your security guidelines.      -> tier1 🔴
+```
+
+`your instructions` (agent) và `your account rules` (khách) **cùng token**.
+`your` không thoả tiêu chí META.
+
+### Số đo
+
+```
+3c76599 hiện tại  : hiệu quả 10/10 · FP 7/8
+mỏ neo DÀI & ĐẶC TRƯNG (previous|above|preceding|earlier|foregoing)
+                  : hiệu quả 10/10 · FP 0/8     ⟸ ĐỀ NGHỊ
+```
+
+`all` · `prior` · `these` · `your` **rời danh sách mỏ neo**, nhưng **ở lại làm
+từ đệm tuỳ chọn** trước mỏ neo — nên `ignore your previous instructions` và
+`ignore all previous instructions` vẫn bắt (đã đo, nằm trong 10/10).
+
+### Luật rút ra — mỏ neo dưới chuẩn-hoá-bỏ-khoảng-trắng
+
+> **Một token dùng làm mỏ neo dưới phép khớp đã-bỏ-khoảng-trắng phải ĐỦ DÀI VÀ
+> ĐẶC TRƯNG để không xuất hiện như chuỗi con — kể cả VẮT NGANG ranh giới từ.**
+> `all` · `prior` · `these` ngắn và phổ thông ⟹ không đủ tư cách.
+
+Và điểm sâu hơn, **lần thứ BA cùng hình dạng**: lượt-2-bỏ-khoảng-trắng được
+duyệt dựa trên **`0/338` FP đo trên kho chính sách TIẾNG VIỆT** (§1 F-25). Áp
+nó cho một mẫu **tiếng Anh** làm sống lại đúng lớp lỗi đó — **một biện pháp an
+toàn được chứng minh trên ngôn ngữ A không mang theo bảo đảm nào sang ngôn ngữ
+B.** Ba lần trong một đợt: `0/1814` · `0/2006` · `0/338`.
+
+### Trạng thái chữ ký
+
+**CHƯA KÝ F-28d.** `EN-S03` đỏ là **đúng** — giữ nguyên `ky_vong`
+`khong_xoa_trang`, **không** đổi kỳ vọng corpus để làm xanh cổng.
+
+Vế `_EN_OBJ_META` coder tự thêm (`you were told|you were given`): tôi **đo và
+tán thành** — bắt `forget everything you were told` (mẫu §2 của tôi bỏ sót),
+và **không** FP trên `"Our staff will explain what you were told during the
+call."` Giữ.
+
 ## 5. Giao ra
 
 | Vai | Việc |
