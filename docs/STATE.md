@@ -526,9 +526,22 @@ ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B
   đầu 6 failed → security phân xử bằng phép đo mới → tester viết lại kỳ vọng → **29 passed**,
   `he_thong` trước=sau=`fd16681d8088`, `src/` không ai chạm. +5 ca khoá 4 họ tier-1 + Luật 6/6b vào
   `CHUAN-VIET-TEST.md`.
-- **Tester ② TẠM DỪNG chờ corpus**: 20 ca của security mới tồn tại dạng MÔ TẢ (§7), chưa có file
-  máy-đọc-được. Tester đúng khi DỪNG HỎI thay vì tự soạn — tự soạn thì số 8/20=40% của security và
-  số mới đo **hai vật khác nhau**, không ghép cặp được. → security xuất corpus ra file (xem dưới).
+- **Tester ② XONG — trục đối chứng LÀ CỔNG SỐNG** (`he_thong c110a1a8eff7`, dấu trước=sau, đo 3
+  lần tất định): **8/20 chặn nhầm, cổng ĐỎ đúng chủ đích**. Giá trị nhất: **DANH SÁCH trùng 8/8
+  với security** (GC-02·03·07·10·11·15·17·18) qua **hai phương pháp khác nhau** — security gọi
+  thẳng hàm scrub, tester đi đường ghi thật POST /reject → **đọc thẳng DB** (đọc qua API không phân
+  biệt được che-khi-ghi với ghi-thô-che-lúc-trả). Chốt được: finding KHÔNG phải hiện vật của cách
+  đo · còn nguyên tại cây đã gồm lô A1/F-28 · cổng sống không ai phải nhớ chạy lại. Ba giới hạn
+  corpus đều thành CƠ CHẾ (docstring + test cấm-chạy-lẻ đọc `request.session.items`, nghiệm thu
+  hai chiều). Bộ đo KHÔNG đọc `ket_qua_goc` để chấm — đo lại từ đầu, đóng dấu riêng.
+  **Một lượt đo bị VỨT đúng quy trình** (chạy khi coder sửa dở, dấu trước≠sau): con số không SAI,
+  nó **VÔ DANH** — không gán được nhãn hệ thống thì không tái lập/ghép cặp. Khác cơ chế Luật 4
+  (pytest import một lần — 20 ca vẫn cùng hệ thống trong bộ nhớ); gộp hai lý do sẽ khiến lần sau
+  quy sai nguyên nhân.
+  **PO-agent quyết:** cổng 8/20 gắn **marker `security_finding` sẵn có** → tự rơi vào job
+  `security-findings-gate` (đúng ngữ nghĩa: finding cố-ý-đỏ làm bằng chứng, tách khỏi
+  `lint-and-test`), không cần job mới, không chờ coder. Khi B1/B2 land và cổng xanh → gỡ marker,
+  nó thành regression-gate trong lint-and-test.
 - **Security ①② XONG** (`7c71905`, không cần đóng băng — toàn đọc tĩnh): đường log eval
   **KHÔNG TỒN TẠI** (`configure_logging()` chỉ ở `main.py:115`) ⟹ câu "log eval có scrub không"
   không áp dụng — chưa có gì để scrub, và hỏng thì không có gì điều tra. **GHIM vào F-LOG: không
