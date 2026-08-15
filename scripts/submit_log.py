@@ -86,6 +86,27 @@ def _archive_hong(lines: list) -> None:
             dst.write(line if line.endswith("\n") else line + "\n")
 
 
+def _ghi_lai_leftover(lines: list) -> None:
+    """F-LOG-2 — leftover (CŨ) phải đứng TRƯỚC thứ hook vừa ghi (MỚI).
+
+    Cùng bài toán và cùng lời giải với `_restore_pending`, chỉ khác nguồn: ở
+    đó là cả file pending, ở đây là phần vượt BATCH_LIMIT. Viết tách hàm thay
+    vì gọi lại `_restore_pending` vì nó nhận `Path` còn đây là list dòng đã
+    đọc sẵn trong bộ nhớ — ghép vào sẽ phải dựng file tạm chỉ để đọc lại.
+    """
+    if not lines:
+        return
+    cu = "".join(l if l.endswith("\n") else l + "\n" for l in lines)
+    moi = ""
+    if LOG_FILE.exists():
+        moi = LOG_FILE.read_text(encoding="utf-8")
+    # Ghi qua file tạm rồi os.replace: nguyên tử, nên hook ghi xen vào giữa
+    # cũng không thấy trạng thái nửa vời — cùng cách _restore_pending làm.
+    tmp = LOG_FILE.with_suffix(".leftover.jsonl")
+    tmp.write_text(cu + moi, encoding="utf-8")
+    os.replace(tmp, LOG_FILE)
+
+
 def _restore_pending(pending: Path) -> None:
     """Failure path: put pending back at LOG_FILE so the next push retries.
     If hook wrote new entries to LOG_FILE in the meantime, prepend pending."""
@@ -193,8 +214,22 @@ def main():
     if leftover_lines:
         # More than BATCH_LIMIT entries existed; put the rest back so the
         # next push picks them up.
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.writelines(leftover_lines)
+        #
+        # F-LOG-2 — PREPEND, không APPEND. `leftover_lines` là phần CŨ NHẤT
+        # (vượt BATCH_LIMIT của lô vừa gửi). Trong lúc POST treo, hook có thể
+        # đã ghi bản ghi MỚI vào LOG_FILE mới (rename ở :101 cắt sạch, mọi ghi
+        # sau đó rơi vào file mới). Mở "a" nối phần CŨ xuống DƯỚI phần MỚI —
+        # đo thật: `[900, 901, 500, 501]`.
+        #
+        # Nhánh THẤT BẠI `_restore_pending` đã xử lý đúng ca này từ đầu, có cả
+        # comment "pending (older) + LOG_FILE (newer)". Nhánh THÀNH CÔNG mang
+        # đúng cái lỗi mà nhánh thất bại được viết ra để tránh — nó chưa bao
+        # giờ quan trọng vì nhánh leftover chưa từng chạy, và backlog P-121
+        # (9.133 dòng, ~19 lượt) là lần đầu nó chạy thật.
+        #
+        # Không mất dữ liệu, chỉ sai thứ tự thời gian — nhưng bản ghi học tập
+        # xếp sai thứ tự thì mọi phân tích theo trình tự lượt đều đọc sai.
+        _ghi_lai_leftover(leftover_lines)
         print(
             f"[ai-log] {len(leftover_lines)} entries deferred to next push.",
             file=sys.stderr,
