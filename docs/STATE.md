@@ -511,11 +511,27 @@ làm việc mà không vai nào nhận. Tech-lead xác nhận **không phải nh
 ADR-025 ký→tester chạy trục đối chứng làm gate + coder làm B1/B2/B3/A3/A4.
 
 ### Tiến độ phân công (cập nhật chiều muộn 15/08)
-- **CODER: CẢ LÔ XONG chờ land** (F-CI-2 · F-CI-3 · A1 · A2 · S-03 · F-28 · F-LOG · F-29 · F-30) —
-  báo-trước-khi-land đúng giao ước; land xong → security probe 4 bản vá phòng vệ mới đóng.
-  **PO-agent đã GREENLIGHT LAND** (kèm pathspec vùng coder — cây đang có file chưa track của
-  tester + docs của PO-agent): security cần một `he_thong` CÓ TÊN để probe (phương án (a) của họ,
-  rẻ hơn cửa sổ đóng băng); 7 file `src/` chưa commit là thứ đang chặn toàn bộ lịch probe.
+- **✅ LÔ CODER ĐÃ LAND — HEAD `cc07dd3`** (5 commit: F-LOG `cc07dd3` · F-28 `e082a34` ·
+  S-03+F-30+F-29-gitignore `83f45df` · A1+A2 `5b65b81` · F-CI-2+ruff `37ed7fc`). Pathspec sạch —
+  không đụng `tests/`/`docs/`. Đo tại `cc07dd3`: ruff sạch · invariants 23 · contracts 3/3 ·
+  suite 492 passed/18 skipped/9 xfailed/**1 failed = XPASS(strict) ca F-LOG của tester — cơ chế
+  chạy ĐÚNG**: bản vá làm ca tái lập qua được, strict biến "qua" thành đỏ buộc tester gỡ marker
+  (họ gỡ, không phải coder). **Chưa đóng A1/A2/S-03/F-28 — chờ probe security** (đã được mời).
+- **A2-06 ĐÓNG bằng câu trả lời + số đo:** trần đặt ở `create_ticket_with_fraud_check`
+  (`complaint_intake.py:118` — call site DUY NHẤT của `_create_ticket`) ⟹ phủ CẢ BA đường
+  (REST `main.py:538` · agent `customer_tools.py:620` · `flag_human_handoff`), đo cả ba có đối
+  chứng (3.200→CHẶN · 2.000→NHẬN). Còn TỐT hơn gợi ý đặt-ở-`create_ticket`: trần đứng TRƯỚC fraud
+  engine (engine đọc `description_raw` làm `utterance_text`) — không phân tích gian lận trên chuỗi
+  20K rồi mới từ chối. CHECK 12.000 không là lưới duy nhất của đường nào — nguyên tắc ADR nguyên vẹn.
+- **A1-04 ghi minh thị vào docstring `models.py`** (nơi người sửa tiếp theo thật sự đọc): hàng
+  trước 2026-08-15 plaintext VĨNH VIỄN trên đĩa; "đọc được" ≠ "được mã hoá at-rest"; chấp nhận vì
+  seed/test + pilot hoãn; **backfill là quyết định RIÊNG phải ra TRƯỚC khi mở pilot**.
+- **⚠️ Nuance migration phải giữ khi đọc "A2 đã verify":** migration A2 (`a7b8c9d0e1f2`) **CHƯA
+  TỪNG chạy qua alembic** — chuỗi gãy ở `a1b2c3d4e5f6` (SQLite) TRƯỚC khi tới nó; coder verify
+  CHECK bằng `create_all` + probe hành vi. "A2 đã verify" ≠ "migration A2 đã verify".
+- **F-LOG-2 (thứ tự đảo): PO-agent xếp lịch = lô nhỏ KẾ TIẾP của coder, ưu tiên thấp** — vá rẻ
+  (tái dùng logic prepend của `_restore_pending` cho nhánh leftover), xfail của tester đứng làm
+  tài-liệu-sống tới lúc đó. Không gấp: sai thứ tự không mất dữ liệu, server sort được theo ts.
 - **QĐ 5 / bound 12.000: security ĐO LẠI XÁC NHẬN ĐỦ** (`44c3c9a`) — biên 12% trên worst-case
   emoji 4-byte, và Fernet tất định theo byte nên không có ca xui. **Đủ CÓ ĐIỀU KIỆN** ⟹ ca mới:
 - **🟠 A2-06 (CA PHẢI KIỂM, chưa phải finding — security minh thị chưa đo vì cây trôi):**
