@@ -1,0 +1,20 @@
+{"id": "GC-01", "cau": "Từ chối vì chứng từ đối tác chưa khớp, chờ ngân hàng phản hồi.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-02", "cau": "Khách không cung cấp đủ bằng chứng giao dịch, đã hướng dẫn bổ sung.", "ky_vong": "khong_doi", "ket_qua_goc": "chan_nham", "sau_scrub_goc": "[PERSON] không cung cấp đủ bằng chứng giao dịch, đã hướng dẫn bổ sung."}
+{"id": "GC-03", "cau": "Giao dịch nằm ngoài phạm vi hoàn tiền theo chính sách hiện hành.", "ky_vong": "khong_doi", "ket_qua_goc": "chan_nham", "sau_scrub_goc": "Giao dịch nằm ngoài phạm vi hoàn tiền [PERSON] hiện hành."}
+{"id": "GC-04", "cau": "Đã đối chiếu sao kê, số tiền khớp, không có dấu hiệu bất thường.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-05", "cau": "Chuyển đội kỹ thuật kiểm tra thêm, hẹn khách trong 48 giờ.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-06", "cau": "Khiếu nại trùng với hồ sơ đã xử lý trước đó, đóng hồ sơ này.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-07", "cau": "Gọi lại giúp khách vào đầu giờ chiều mai.", "ky_vong": "khong_doi", "ket_qua_goc": "chan_nham", "sau_scrub_goc": "Gọi lại giúp khách vào đầu [ORGANIZATION] mai."}
+{"id": "GC-08", "cau": "Chờ ngân hàng đối tác xác nhận, chưa đủ căn cứ quyết định.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-09", "cau": "Đề xuất hoàn tiền chưa có căn cứ tra cứu, cần điều tra lại.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-10", "cau": "Khách đã rút khiếu nại qua tổng đài, không cần xử lý tiếp.", "ky_vong": "khong_doi", "ket_qua_goc": "chan_nham", "sau_scrub_goc": "[LOCATION] đã rút khiếu nại qua tổng đài, không [PERSON]."}
+{"id": "GC-11", "cau": "Số tiền tranh chấp nhỏ hơn ngưỡng, xử lý theo luồng rút gọn.", "ky_vong": "khong_doi", "ket_qua_goc": "chan_nham", "sau_scrub_goc": "Số tiền tranh chấp nhỏ hơn ngưỡng, [PERSON] luồng [PERSON]."}
+{"id": "GC-12", "cau": "Hồ sơ thiếu ảnh chụp màn hình, đã yêu cầu khách gửi lại.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-13", "cau": "Đối tác báo lỗi hệ thống phía họ, đang chờ biên bản chính thức.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-14", "cau": "Không đủ điều kiện hoàn tiền, đã giải thích rõ cho khách.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-15", "cau": "Cần xác minh thêm trước khi trình duyệt, chuyển lại điều tra.", "ky_vong": "khong_doi", "ket_qua_goc": "chan_nham", "sau_scrub_goc": "Cần xác minh thêm [PERSON] duyệt, chuyển lại điều tra."}
+{"id": "GC-16", "cau": "Giao dịch đã được hoàn trước đó, tránh hoàn trùng lần hai.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-17", "cau": "Khách đồng ý phương án xử lý, chờ xác nhận bằng văn bản.", "ky_vong": "khong_doi", "ket_qua_goc": "chan_nham", "sau_scrub_goc": "[PERSON] đồng ý phương án xử lý, chờ xác nhận bằng văn bản."}
+{"id": "GC-18", "cau": "Thời hạn khiếu nại đã quá quy định, từ chối theo chính sách.", "ky_vong": "khong_doi", "ket_qua_goc": "chan_nham", "sau_scrub_goc": "Thời hạn khiếu nại đã quá quy định, từ chối [PERSON]."}
+{"id": "GC-19", "cau": "Đã kiểm tra lịch sử, không phát hiện giao dịch trùng lặp.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
+{"id": "GC-20", "cau": "Chuyển cấp trên xem xét vì vượt thẩm quyền của tôi.", "ky_vong": "khong_doi", "ket_qua_goc": "qua", "sau_scrub_goc": null}
