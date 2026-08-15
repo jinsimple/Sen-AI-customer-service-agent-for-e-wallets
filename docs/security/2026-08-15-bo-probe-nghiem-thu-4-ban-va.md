@@ -123,9 +123,29 @@ sau khi deploy thật.
 | S03-02 | `ValidationError` echo giá trị đầu vào | như trên |
 | S03-03 | **đối chứng**: exception KHÔNG có PII (vd `ZeroDivisionError`) | thông báo lỗi **còn nguyên**, vẫn debug được |
 
-⚠️ **Nếu không dựng được Postgres thật thì GHI RÕ "chưa đo được"** — không kết
-luận từ SQLite, và **không** đánh dấu S-03 là đóng. Đây là chỗ tôi tự ràng
-buộc mình: mặc định phải là **chưa đo được**, không phải "chắc là ổn".
+### ✅ Cập nhật — Postgres CÓ SẴN, và tiền đề của S-03 nay ĐO ĐƯỢC
+
+Trước nay tôi khẳng định *"Postgres echo tham số vào thông báo lỗi"* từ hiểu
+biết, chưa đo. Nay đo thật trên container `fin05-postgres-1` (postgres:16-alpine,
+`user=fin05 db=fin05`):
+
+```sql
+CREATE TEMP TABLE probe_s03 (phone text UNIQUE, name text);
+INSERT INTO probe_s03 VALUES ('0912345678','Tran Van Bach');
+INSERT INTO probe_s03 VALUES ('0912345678','Nguyen Thi Hoa');
+```
+```
+ERROR:  duplicate key value violates unique constraint "probe_s03_phone_key"
+DETAIL:  Key (phone)=(0912345678) already exists.
+```
+
+**SĐT hiện NGUYÊN VĂN trong `DETAIL`.** Chuỗi này đi vào `str(error)` của
+`IntegrityError` ⟹ `span.set_status(StatusCode.ERROR, str(error))` +
+`span.record_exception(error)` ⟹ **ra thẳng backend trace, không qua scrub**.
+
+⟹ S-03 nâng từ *"chưa có ca dương tính"* thành **ca dương tính ĐO ĐƯỢC**, và
+**không còn lý do ghi 'chưa đo được'** — Postgres đã có sẵn trong docker-compose
+của dự án. Ba ca S03-01..03 chạy được ngay.
 
 S03-03 quan trọng ngang hai ca kia: scrub exception mà làm mất luôn thông tin
 gỡ lỗi thì đổi một rủi ro rò lấy một rủi ro mù.
