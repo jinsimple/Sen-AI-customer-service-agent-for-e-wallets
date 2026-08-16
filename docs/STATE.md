@@ -345,6 +345,22 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 🔴 BĂM KHO RAG KHÔNG TẤT ĐỊNH (tester bắt bằng Luật 4) — nhãn tạm bỏ trường băm
+- Đọc `kho_rag.py kiem` 3 lần liên tiếp trên kho KHÔNG đổi → 3 giá trị băm khác nhau ⟹ mọi suy
+  luận "băm khác = kho đổi" trong ngày VÔ HIỆU hai chiều (re-index vẫn THẬT — bằng chứng là số
+  probe 0/8→5/8, không phải băm). Bắt được vì kiểm-nhạc-cụ-trước-khi-kết-luận-vật-đổi — sau một
+  ngày kết-luận-vật-đổi đúng 3/4 lần, phản xạ tin lần 4 rất mạnh; không kiểm là cả đội đi truy
+  "lần đổi kho thứ tư" không tồn tại.
+- **Quy ước nhãn tạm (ratify):** bỏ trường băm-kho, dùng `418 chunk · 2 doc · chuẩn-hoá v2`.
+  Băm quay lại khi tất định (nghiệm thu: 3 lần đọc cùng giá trị, trong container).
+- **3 fix giao coder (xen trước UI-02):** ① băm tập-đã-sắp-xếp `(chunk_id,text)` hoặc bỏ băm
+  nội dung; ② xoá rác `data/rag_index/` trên host (store rỗng do chính công cụ đẻ, bẫy người
+  chạy host); ③ `kho_da_cu()` FAIL-CLOSED — hiện trả False khi KHÔNG dấu, mà không-dấu chính là
+  kho-cũ cần bắt: **cổng cấp chứng nhận an toàn cho đúng ca nguy hiểm nhất** ("cổng sai hướng
+  tệ hơn không có cổng" — bản tầng-dữ-liệu của F-CI-2).
+- Tester song song: `benchmark.py` gọi cổng qua `docker exec` (kho thật sống trong volume, công
+  cụ chỉ đúng TRONG container) → xác minh 41 nhãn không chờ fix băm (fix chỉ ảnh hưởng nhãn).
+
 ## ▶️ PHIÊN NỐI LẠI 16/08 — ba mốc mới
 - **✅ CẶP AUTH ĐÓNG — BUG DEMO CHÍNH THỨC ĐƯỢC CHỨNG MINH ĐÃ VÁ** (tester, dấu khớp hai đầu,
   StartedAt vào nhãn chuẩn): sau 16 phút ngồi yên + token chết thật (−63s đo từ cookie), thao
