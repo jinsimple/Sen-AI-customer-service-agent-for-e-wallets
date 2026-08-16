@@ -715,6 +715,70 @@ lại làm **cổng hồi quy** chứ không phải finding, vì hành vi đúng
 
 ---
 
+## Luật 6b — một `skip` ĐÚNG LÝ DO vẫn có thể QUÉT QUÁ RỘNG
+
+Luật 6 canh *"lý do skip có thật không"*. Luật này canh **phạm vi** của nó.
+
+Ca thật (16/08). Bộ `test_f33*` cần **ép 429**, tức đốt gần hết trần TPM dùng
+chung — lý do skip hoàn toàn thật. Tôi gắn nó ở **cả file** bằng `pytestmark`.
+Nhưng trong file có `test_f33c`, ca chỉ **hỏi lược đồ DB** xem cột
+`ly_do_fallback` đã tồn tại chưa: **0 lượt gọi model, chạy được ngay**.
+
+Gắn cổng cho cả file thì ca kiểm-được-ngay **bị chôn theo mấy ca không chạy
+được**, và nó nằm im **đúng lúc nó hữu ích nhất** — lúc đang đóng băng, khi mọi
+thứ khác đều không đo được thì đúng ra nó phải là cái duy nhất còn nói được điều
+gì đó.
+
+> **Phần bị quét oan im lặng y hệt một `skip` sai.** Không ai đọc log thấy khác
+> biệt: cùng một chữ `SKIPPED`, cùng một lý do nghe hợp lý.
+
+Cách làm đúng: hạ cổng xuống **từng ca**, đặt tên cho nó, và chỉ dán lên ca thật
+sự cần:
+
+```python
+can_dot_han_muc = pytest.mark.skipif(not CHO_PHEP, reason="…")
+
+@can_dot_han_muc
+def test_ep_429(...): ...
+
+def test_hoi_luoc_do(...): ...      # KHÔNG dán — nó không tốn gì
+```
+
+**Câu hỏi để tự soi:** *mọi ca trong phạm vi cổng này đều thật sự cần thứ đang
+thiếu chứ?* Chỉ cần **một** ca không cần, cổng đang quét quá rộng.
+
+---
+
+## Luật 12 — KHÔNG SAI MỘT CHỮ NÀO MÀ VẪN GÂY HIỂU SAI
+
+Áp cho **tài liệu và báo cáo**, không chỉ test. Một câu có thể **đúng từng chữ**
+mà vẫn dẫn người đọc tới kết luận sai, và loại lỗi này không bị bất kỳ phép kiểm
+sự-thật nào bắt được — vì không có gì để bắt.
+
+**Ba dạng đã gặp trong một ngày:**
+
+**① Phân số đứng trơ cạnh một phân số khác vừa bị sửa.** Tài liệu sửa
+`ToS 2/8 → 2/10`, rồi ba dòng sau có `bất ổn định 6/8-2/8` — chỗ này `2/8` là
+**tỉ lệ lượt** của một ca, hoàn toàn đúng. Nhưng người đọc vừa học "ToS không
+phải 2/8" sẽ đọc nó thành sót hoặc mâu thuẫn. Chữa: viết hẳn ra
+*"8 lượt cùng một câu: 6 lượt từ chối an toàn · 2 lượt đuổi ngoài phạm vi"*.
+
+**② Khái quát hoá lặng lẽ.** *"2 ca âm bản để **chứng minh** agent nói 'không
+tìm thấy' chứ không bịa số"* — hai ca đó có thật và đúng. Cái sai là bước nhảy
+từ *"2 ca này không bịa"* sang một **tính chất của hệ thống**, mà ta có phản ví
+dụ đã đo (F-32). Chữa: giữ sự kiện, bỏ chữ `chứng minh`, ghi kèm giới hạn.
+
+**③ Khai thấp cũng là khai sai.** *"7 PR đã merge"* khi thật ra đã 10 — BTC đọc
+thành **chưa đạt** tiêu chí. Sai theo hướng khiêm tốn vẫn là sai, và loại này ít
+ai đi kiểm vì nó không có mùi khoe.
+
+**Cách soi (dùng khi rà bất kỳ tài liệu nào rời khỏi đội):** đọc từng câu và hỏi
+*"người chưa biết gì sẽ kết luận gì từ câu này?"* — rồi so kết luận đó với thứ
+**đo được**, không so với câu chữ. Chênh nhau ⟹ sửa câu, kể cả khi từng chữ đều
+đúng.
+
+---
+
 ## Áp dụng khi review test của nhau
 
 Bốn câu hỏi, hỏi theo thứ tự:
