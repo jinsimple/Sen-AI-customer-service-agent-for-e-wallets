@@ -427,6 +427,26 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   "63 triệu token/7 ngày" của PO thật quy ra **~$10 cả tuần**. ⟹ thứ chặn đội là **trần 200k
   TPM**, không phải hoá đơn. Khi mở được tài khoản Qwen, câu hỏi đúng là **"gói nào cho trần tốc
   độ cao nhất"**, không phải "model nào rẻ nhất".
+- **🔴 TRẦN TPM CỦA QWEN — ĐÂY MỚI LÀ LÝ DO ĐÁNG ĐỔI (tra 16/08):** Alibaba Model Studio cho
+  **600 RPM / 1.000.000 TPM** cho hầu hết model (Qwen-Turbo tới **5M TPM**) — so với **200k TPM**
+  hiện tại = **5× đến 25×**. Quy ra bằng chính số đo của đội (15,4k token/lượt hội thoại mới):
+  1M TPM ⟹ **~65 lượt/phút** (hiện 13); 5M TPM ⟹ ~325 lượt/phút. Đích "150 người × 1 câu/2 phút
+  = 75 lượt/phút" từ chỗ thiếu **7,5-13,6×** nay chỉ còn **thiếu chút ở gói 1M** và **thừa ở gói
+  5M**. ⚠️ **BẪY: bản snapshot bị siết mạnh (60 RPM / 100k TPM)** — phải dùng bản STABLE, không
+  dùng bản ghim ngày. Free quota: 1M token/model trong 90 ngày đầu; có đường xin nâng TPM tạm
+  thời (30 ngày) qua console. ⟹ **Lý do đổi sang Qwen KHÔNG phải tiền (≈$10/tuần), mà là TRẦN
+  TỐC ĐỘ** — thứ duy nhất đang chặn đích 100 CSKH.
+- **Bảng trần chi tiết (tra tài liệu chính thức, vùng Singapore):** `qwen-max` 600 RPM/1M TPM ·
+  `qwen-plus` 600/1M · **`qwen-flash` 600 RPM/5M TPM** · **`qwen3.7-plus` 15.000 RPM/5M TPM** ·
+  **snapshot (tên có ngày) 60 RPM/100k TPM ← BẪY, không dùng**. **Trần áp ở CẤP TÀI KHOẢN GỐC**
+  (mọi workspace + mọi API key cộng chung — giống org-level của OpenAI, không né được bằng cách
+  tạo nhiều key). Nâng tạm thời qua console, hiệu lực ngay, 30 ngày, chỉ Bắc Kinh + Singapore.
+- **⚠️ RÀNG BUỘC BỊ QUÊN: RPM, không phải TPM.** Một *lượt chat* của agent = **NHIỀU lời gọi API**
+  (ReAct tới 20 bước). Với 600 RPM và ~4 lời gọi/lượt ⟹ trần thực ~**150 lượt/phút** dù TPM cho
+  phép 250. Gói `qwen3.7-plus` (15.000 RPM) gỡ ràng buộc này ⟹ TPM thành cái chặn, ~250 lượt/phút.
+  **Ta ĐO ĐƯỢC con số này chứ không phải đoán:** envelope đã có `so_luot_goi_model` (coder thêm
+  cùng `input_chars`) — tính RPM thực tế/lượt trước khi chọn gói. Giao vào bộ ước-tính-chi-phí
+  của tester: thêm cột **"trần lượt/phút theo RPM"** cạnh cột theo TPM, lấy cái NHỎ HƠN.
 - **⚠️ Bẫy đã cảnh báo PO thật: đo trên model rẻ mà chạy production model khác = ĐO NHẦM VẬT** —
   đúng lỗi tester vừa bịt bằng ghim-ba-vai. Kèm rủi ro kỹ thuật: agent cần gọi tool đúng qua tới
   20 bước với prompt 5.400 token; hạng *flash* là hạng nhỏ nhất, dễ gãy đúng chỗ đó. Khuyến nghị
