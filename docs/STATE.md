@@ -26,6 +26,19 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **✅ CƠ CHẾ CHỐT (16/08 tối, bằng chứng server-side tầng-0):** middleware refresh CÓ chạy nhưng
+  **nuốt lỗi im lặng**; cặp log `refresh_rotated`×10 ↔ `refresh_family_revoked`×10 **ghép 1-1 tất
+  định**: cookie mới đặt lên RESPONSE, lượt gọi refresh THỨ HAI trong cùng vòng request vẫn cầm
+  token CŨ → AUTH5-03 thu hồi family — **hệ TỰ BẮN VÀO CHÂN, không cần user sai, không hai tab,
+  không đua.** Dòng-A (hồi quy UI-01) BÁC bằng đo (image c447abb hành xử y hệt, proxy.ts 0 byte
+  đổi); ứng viên-4 cũng sai ("không chạy" = "chạy-thất-bại-nuốt-lỗi"). **Dòng B (bug demo PO)
+  được giải thích trọn**: sau phút 15, lượt đầu tiên rotate+tự-thu-hồi → mọi thứ 401.
+  **Grace-window RÚT khỏi kế hoạch** (bug tất định của client, không phải đua hiếm — AUTH5-03 giữ
+  nguyên, nó vừa chứng minh làm đúng việc). Còn lại: tester đếm `refresh_rotated` trên ĐÚNG MỘT
+  request (phân xử vì-sao-gọi-hai-lần, quyết hình dạng vá) → coder vá (hướng: request-headers cho
+  lượt sau thấy token mới) → hồi quy TTL → security re-probe → đóng.
+  Coder tự khai: suýt kết luận sai BA lần từ artifact tĩnh — thứ cứu là hỏi-hệ-thống-một-câu-khác
+  thay vì đọc-kỹ-hơn-cùng-một-chỗ.
 - **🔴🔴 BƯỚC NGOẶT (16/08 chiều): KHÔNG AI ĐO SAI — VẬT ĐỔI. Image frontend stack demo được DỰNG
   LẠI 2026-08-16T02:11Z** (12,5h sau phép đo exp+842s; nghi là lần deploy UI-01). **Image cũ:
   refresh CHẠY** (exp+842s = một lần xoay thật, harness tester sạch — không /api/session xen giữa,
