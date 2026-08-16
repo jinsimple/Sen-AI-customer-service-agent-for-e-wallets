@@ -76,6 +76,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import pathlib
 import re
@@ -87,13 +88,23 @@ import unicodedata
 GOC = pathlib.Path(__file__).resolve().parent.parent
 BO_CASE = GOC / "eval" / "golden_set_truy_hoi.jsonl"
 BASE = os.environ.get("FIN05_BASE_URL", "https://localhost")
-K = 4  # PO duyệt đổi 3->4 ngày 16/08 — xem ghi chú dưới
-# VÌ SAO ĐỔI: `/api/policy-search` LUÔN trả 4 kết quả và bỏ qua tham số `top_k`.
-# Thước cắt ở 3 là đo một sản phẩm KHÔNG TỒN TẠI — 4 ca (RAG-10/14/17/22) nằm
-# đúng hạng 4: agent NHẬN được, thước cũ chấm trượt. Triết lý spec là đo thứ
-# khách nhận, nên thước phải theo sản phẩm chứ không theo con số trong spec.
-# Chuỗi so sánh CẮT tại đây. Dải chẩn đoán @1/@3/@4 in kèm mỗi lượt.
-HANG_CHAN_DOAN = (1, 3, 4)
+PHIEN_BAN = "v3"   # v2->v3 (17/08): thêm MRR + NDCG. Đổi định dạng output = đổi thước.
+
+K = 4  # mặc định của sản phẩm — agent nhận đúng 4 đoạn (đã xem tool_calls thật)
+K_SOI = 8  # trần `top_k` của API; chỉ dùng cho DẢI CHẨN ĐOÁN, không dùng chấm
+
+# VÌ SAO CHẤM Ở 4: đường agent thật nhận 4 đoạn (đọc từ `tool_calls` của
+# `/api/agent-chat`). Thước cắt ở 3 là đo một sản phẩm KHÔNG TỒN TẠI — 4 ca
+# (RAG-10/14/17/22) nằm đúng hạng 4: agent NHẬN được, thước cũ chấm trượt.
+#
+# ⚠️ ĐÍNH CHÍNH 17/08: lúc đề nghị đổi 3->4 tôi nói `/api/policy-search` "LUÔN
+# trả 4 và BỎ QUA top_k". SAI. `top_k` CÓ hiệu lực, trần 8 (`top_k=10` -> HTTP
+# 422 "less than or equal to 8"). Lần thử trước tôi đọc 422 thành "0 kết quả"
+# vì code chỉ `.get("results")` mà không xem mã trạng thái — lỗi nuốt-mã-lỗi,
+# đúng họ với vụ 403 bị đọc thành "agent không gọi tool".
+# Kết luận @4 KHÔNG đổi (nó dựa trên số đoạn agent thật nhận), nhưng LÝ DO tôi
+# đưa ra lúc đó sai một nửa, nên ghi lại ở đây.
+HANG_CHAN_DOAN = (1, 3, 4, 8)
 
 
 def bo_dau(s: str) -> str:
@@ -240,11 +251,15 @@ def _dang_nhap(httpx):
     return c
 
 
-def _tra(c, q: str) -> list[str]:
-    r = c.post(f"{BASE}/api/policy-search", json={"query": q})
+def _tra(c, q: str, k: int | None = None) -> list[str]:
+    than = {"query": q} if k is None else {"query": q, "top_k": k}
+    r = c.post(f"{BASE}/api/policy-search", json=than)
     if r.status_code != 200:
+        # KHÔNG nuốt mã lỗi thành danh sách rỗng. Một 422/429 im lặng biến thành
+        # "truy hồi trượt", và ta đi sửa retrieval trong khi lỗi nằm ở request.
+        print(f"  ⚠️  policy-search {r.status_code}: {r.text[:120]}")
         return []
-    return [x.get("text", "") for x in (r.json().get("results") or [])][:K]
+    return [x.get("text", "") for x in (r.json().get("results") or [])][: (k or K)]
 
 
 def _tra_agent(c, q: str) -> tuple[list[str], bool]:
@@ -283,14 +298,14 @@ def do_truy_hoi(ca: list[dict]) -> dict:
     ket = {"co_dau": [], "khong_dau": []}
     for x in duong:
         for che_do, khoa in (("co_dau", "query_co_dau"), ("khong_dau", "query_khong_dau")):
-            doan = _tra(c, x[khoa])
-            gop = bo_dau(" ".join(doan))
+            doan = _tra(c, x[khoa], K_SOI)
+            gop = bo_dau(" ".join(doan[:K]))
             # LUẬT ĐẶC TRƯNG (PO duyệt 16/08): chỉ `tu_khoa_dac_trung` mới cho ĐẠT.
             # `tu_khoa_phu` in ra để đọc, KHÔNG có quyền chấm — vì ca đạt nhờ từ
             # chung ("hạn mức", "ngân hàng") khớp được cả chunk BÊN CẠNH lẫn dòng
             # mục lục, tạo PASS GIẢ im lặng (xem RAG-04, và 9 ca rà ngày 16/08).
             hang = next(
-                (i + 1 for i, d in enumerate(doan)
+                (i + 1 for i, d in enumerate(doan)   # hạng soi tới K_SOI=8
                  if any(bo_dau(tk) in bo_dau(d) for tk in x["tu_khoa_dac_trung"])), 0
             )
             dat = any(bo_dau(tk) in gop for tk in x["tu_khoa_dac_trung"])
@@ -301,6 +316,32 @@ def do_truy_hoi(ca: list[dict]) -> dict:
             )
     c.close()
     return {"duong": ket, "so_am_ban": len(am), "so_duong": len(duong)}
+
+
+def mrr_ndcg(r: list[dict], k: int) -> tuple[float, float]:
+    """MRR và NDCG@k — công thức mượn từ RAGAS (Apache 2.0), tính TẠI CHỖ.
+
+    Bộ ca này có **đúng một đoạn đúng cho mỗi câu** (nhãn là một chuỗi đặc
+    trưng), nên hai công thức rút gọn:
+
+        MRR    = trung bình 1/hạng        (0 nếu không có trong top-k)
+        NDCG@k = trung bình 1/log2(hạng+1)   vì IDCG = 1 khi chỉ có 1 đoạn đúng
+
+    VÌ SAO CẦN, khi đã có Recall@k: Recall là **nhị phân** — hạng 1 và hạng 4
+    tính điểm y hệt nhau. Một đòn kéo ca từ hạng 4 lên hạng 1 sẽ cho **delta
+    Recall = 0** và trông như vô dụng. Đó chính là chỗ HyDE gây tranh cãi: nó
+    cứu ca chìm sâu nhưng đẩy ca sát nút ra ngoài — hai chiều triệt tiêu nhau
+    trên pass/fail, và ta không thấy gì.
+
+    ⚠️ GIỚI HẠN PHẢI ĐỌC KÈM: trần `top_k` của API là **8**. Ca ở hạng 9 và ca
+    chìm ở hạng 500 **cho cùng một con số 0**. Nên hai chỉ số này tách được
+    "hạng 1 với hạng 8", KHÔNG tách được "trượt sát nút với chìm sâu" như mục
+    tiêu N2 đặt ra. Muốn thế phải nới trần API hoặc có móc chẩn đoán riêng.
+    """
+    n = len(r) or 1
+    mrr = sum(1 / x["hang"] for x in r if 0 < x["hang"] <= k) / n
+    ndcg = sum(1 / math.log2(x["hang"] + 1) for x in r if 0 < x["hang"] <= k) / n
+    return mrr, ndcg
 
 
 def in_truy_hoi(kq: dict) -> float:
@@ -322,8 +363,13 @@ def in_truy_hoi(kq: dict) -> float:
         n = sum(1 for x in r if 0 < x["hang"] <= k)
         print(f"     Recall@{k} = {n}/{len(r)} = {n / len(r) * 100:5.1f}%"
               + ("   ← SỔ SÁCH (k của sản phẩm)" if k == K else ""))
+    for ten, k in (("@4  (chấm)", K), ("@8  (trần API)", K_SOI)):
+        m, n_ = mrr_ndcg(r, k)
+        print(f"     MRR {ten:<14} {m:6.3f}     NDCG {ten:<14} {n_:6.3f}")
+    print("     (hạng 9+ và hạng 500 cho CÙNG một số 0 — trần top_k của API là 8,"
+          "\n      nên hai chỉ số này KHÔNG tách được 'trượt sát nút' với 'chìm sâu')")
     ngoai = sum(1 for x in r if x["hang"] == 0)
-    print(f"     chunk đúng KHÔNG nằm trong top-{K}: {ngoai}/{len(r)}"
+    print(f"     chunk đúng KHÔNG nằm trong top-{K_SOI}: {ngoai}/{len(r)}"
           " ⟹ nới k không phải đòn chính")
     tos = [x for x in r if x["tai_lieu"] == "MoMo_ToS"]
     print(f"  theo tài liệu: ToS {sum(1 for x in tos if x['dat'])}/{len(tos)}"
