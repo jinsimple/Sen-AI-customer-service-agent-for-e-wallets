@@ -345,6 +345,25 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## ▶️ PHIÊN NỐI LẠI 16/08 — ba mốc mới
+- **✅ CẶP AUTH ĐÓNG — BUG DEMO CHÍNH THỨC ĐƯỢC CHỨNG MINH ĐÃ VÁ** (tester, dấu khớp hai đầu,
+  StartedAt vào nhãn chuẩn): sau 16 phút ngồi yên + token chết thật (−63s đo từ cookie), thao
+  tác đầu **200** (trước-vá: 401 + "Có lỗi"), tầng-0 `rotated=1·revoked=0`. Caveat tự khai:
+  backend khác giữa hai nửa (2 đòn RAG) — không phải cặp một-biến tuyệt đối, trích số phải kèm
+  câu này. Giả thuyết log-bay-do-force-recreate của coder xác nhận đúng. Workaround demo
+  (đăng-nhập-lại-trước-handoff) HẾT CẦN.
+- **🔴 `kho_rag.py kiem` bắn sai trong container** (đường Chroma không tồn tại cả container lẫn
+  host; báo "kho trống · băm-MD5-chuỗi-rỗng" trong khi policy-search trả 4 kết quả thật) — đúng
+  món coder tự khai chưa-verify; tester GIỮ CỔNG không đo, bắt nhờ hai-đường-đo-mâu-thuẫn.
+  Coder sửa XEN TRƯỚC UI-02 (đang chặn đường găng tester).
+- **✅ Security nộp soi-trục golden-set** (`37c5511`, 6 trục): nặng nhất §A âm-bản-GẦN (bộ âm bản
+  hiện toàn loại-xa-dễ-pass — về cấu trúc không phát hiện được chế-độ-hỏng nó tồn tại để phát
+  hiện: chunk-lân-cận-sai điểm cao → bịa chính sách) + §B ToS trống kể cả **Điều 19 tra-soát-
+  khiếu-nại — điều khoản điều chỉnh chính công việc của agent, zero ca**.
+  **PO-agent chốt câu §D:** trục Truy-hồi benchmark đo **ĐƯỜNG AGENT THẬT** (sau sanitize) —
+  benchmark đo sản-phẩm-khách-nhận; index-thô giữ làm chẩn đoán phụ, hai số hai tên. Ratify luật
+  bộ: ca âm-bản-gần phải kèm bằng-chứng-đã-tìm-mà-không-thấy (tester + security độc lập cùng đề).
+
 ## ⏸️ ĐIỂM DỪNG PHIÊN 16/08 (hết limit) — phiên sau đọc mục này TRƯỚC
 - **Đang chờ chuyển tiếp:** 5 bullet soi-trục golden-set của coder (ca-ranh-giới-k · độ-dài-query
   · đối-chứng-kho-lệch-vế dùng `kho_rag.py kiem` · ca-vắt-ranh-chunk cho đòn 3 · 2-3 ca
