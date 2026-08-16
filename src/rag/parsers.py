@@ -75,6 +75,31 @@ def _ghep_am_tiet_vo(text: str) -> str:
     return re.sub(r"\b([A-Za-zĐđ]{1,3}) ([a-zA-ZÀ-ỹĐđ]{1,12})\b", _thay, text)
 
 
+# DON 3 — LOAI DONG MUC LUC KHOI INDEX.
+#
+# Phat hien cua tester khi xac minh 41 nhan: muc luc chua NGUYEN VAN 160 cau
+# hoi cua tai lieu, va no THANG dap an trong embedding — khach hoi cang giong
+# cau that thi cang de trung dong muc luc. Ca RAG-21/22: ca top-3 deu la dong
+# "……… so trang". Kho TU CANH TRANH VOI CHINH NO.
+#
+# LUAT HAI DIEU KIEN, khong phai mot (canh trong kieu F-25 — luat loai phai
+# kem ca doi chung, dung loai nham than bai):
+#   (1) chuoi >=5 dau cham LIEN TIEP
+#   (2) VA ket thuc bang so trang
+#
+# Do tren kho that (3.896 dong, 2 PDF):
+#   khop ca hai dieu kien        263 dong  -> loai, deu la muc luc
+#   co "..." nhung KHONG ket so    4 dong  -> GIU, deu la than bai that
+#                                             (vd "10.000d,...")
+# Chi dieu kien (1) se loai nham 4 dong do. Dieu kien (2) la thu phan biet.
+_DONG_MUC_LUC = re.compile(r"\.{5,}\s*\d+\s*$")
+
+
+def _bo_dong_muc_luc(text: str) -> str:
+    """Bo dong muc luc; GIU nguyen moi dong khac va cau truc xuong dong."""
+    return "\n".join(d for d in text.split("\n") if not _DONG_MUC_LUC.search(d.strip()))
+
+
 def _extension(filename: str) -> str:
     idx = filename.rfind(".")
     return filename[idx:].lower() if idx != -1 else ""
@@ -93,7 +118,9 @@ def _extract_pdf(content: bytes) -> str:
         raise UnsupportedDocumentError("PDF không có text trích xuất được (có thể là bản scan ảnh)")
     # Vá âm tiết vỡ NGAY TẠI ĐIỂM TRÍCH — trước khi text đi vào chia chunk và
     # embedding. Vá muộn hơn (lúc truy vấn) không cứu được: vector đã sai rồi.
-    return _ghep_am_tiet_vo(text)
+    # Thu tu CO CHU DICH: ghep am tiet vo TRUOC, roi moi bo muc luc.
+    # Nguoc lai thi dong muc luc bi tu-vo se khong khop mau va lot vao index.
+    return _bo_dong_muc_luc(_ghep_am_tiet_vo(text))
 
 
 def _extract_docx(content: bytes) -> str:
