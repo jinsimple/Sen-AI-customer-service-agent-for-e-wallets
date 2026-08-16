@@ -26,6 +26,25 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **🏁 TÁI LẬP TRỌN VẸN CA PO (tester, stack demo, backend a216b98c1b79 có tầng-0):** mở /chat →
+  2 request → **16 phút ngồi yên KHÔNG một request nào** (trang im hoàn toàn — không heartbeat)
+  → token chết lặng → bấm gặp-người-thật → `agent-chat` **401**, màn hình in nguyên văn
+  **"Có lỗi: Phiên đăng nhập đã hết hạn"** → **chính response 401 đó mang cookie mới**
+  (tầng-0: rotated=1, revoked=0) → gõ lại một tin → **200 + handoff chạy trọn** (~86s sau).
+  Cơ chế chốt = đúng khiếm khuyết proxy.ts coder đọc: cookie đặt trên RESPONSE không áp cho
+  request đang chạy. Không đua · không revoke · không hồi quy · không hai tab.
+  **UI-no-retry BÁC CHO CA NÀY** (agent-chat chết TRƯỚC khi luồng chạm ws-ticket ⟹ ref-guard
+  chưa bao giờ bật; lần thử lại đi trọn) — UI-02 vẫn làm trên merit nhưng PR không được claim
+  fix-bug-demo. Ref-guard vẫn có thể là lỗ riêng nếu 401 rơi đúng ws-ticket — chưa quan sát,
+  không vá mù.
+- **🔴 ĐÍNH CHÍNH HỒ SƠ (PO-agent):** câu "PO nói bấm lại vẫn không được" **KHÔNG tồn tại trong
+  lời khai nào** — PO chỉ nói "nhận được tin trả lời là có lỗi"; 3 câu hỏi lời khai ĐANG CHỜ.
+  Câu đó sinh từ vòng diễn-giải nội bộ rồi được trích như lời khai = **lời-kể-ma ở dữ liệu định
+  tính** (họ hàng dấu-băm cho dữ liệu định lượng). Không có mâu thuẫn số-vs-lời — chỉ có câu hỏi
+  chưa trả lời (đã hỏi lại bản sắc: GÕ TIN MỚI hay BẤM NÚT trên khung lỗi).
+- **Cặp cổng mốc-nền "trước" hoàn chỉnh** (frontend chưa vá): [cổng proxy: sau-ngồi-yên thao tác
+  đầu 401] + [cổng tầng-0: rotated=1/revoked=0 ✅]. Điều kiện bắt buộc ghi trong cổng: trang MỞ
+  SẴN không điều hướng (goto() tự lành → xanh giả). Coder land hướng-2 → deploy → đo "sau".
 - **Drift BÁC bằng đo** (3 image cùng node 20.20.2 / next 16.3.0 / manifest rỗng; `oldc447abb`
   trúng cache toàn phần, timestamp 15/08T13:01Z ⟹ nhiều khả năng CHÍNH LÀ image 15/08 — và nó
   cho 0 Set-Cookie). **Code khớp docs Next 16 từng điểm** (src/proxy.ts đúng chỗ, export đúng
