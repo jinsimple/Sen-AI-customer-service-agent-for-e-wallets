@@ -410,6 +410,18 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   xuất `_bam_kho` text-only — coder nhét vào lượt chạm kho_rag kế). Nhắc-một-lần đã gửi coder:
   lượt nạp 08:55Z không hô trước — quy ước mới không được mềm tuần đầu. Nợ tester: mồi-neo §D +
   k-boundary (cần đường agent), sau khi kho đứng yên.
+- **🎉 LIVE: https://app.adaptivealgo.uk — PO thật TỰ deploy Windows home-server + Cloudflare
+  Tunnel (16/08).** PO-agent smoke-test từ ngoài: /login 200 qua CF edge HKG · title đúng ·
+  POST /api/session đăng nhập demo THẬT 200 + đúng user (0,4s) ⟹ tunnel+caddy+BFF+backend+
+  Postgres+seed sống. GET /api/session 405 — coder xác nhận chủ-đích hay thiếu. Việc coder (sau
+  F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
+  deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
+  cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **🔒 ÁN KHO ĐÓNG — PO thật xác nhận chính họ upload 2 file .md qua UI Đối-tác-ví ~15:23** (tai
+  nạn quy trình, không xâm nhập, không ai có lỗi). Khớp trọn chuỗi bằng chứng (IP frontend ·
+  nhịp UI POST→GET 20-40ms · 13s giữa 2 lượt). Câu hỏi đầu tiên của PO thật khi nghe tin — "đối
+  tác ví có luồng riêng là đã quản lý được rồi đúng không?" — vào phần động-cơ ADR-026: người
+  vận hành thiện chí TIN tách-vai = kiểm-soát-nội-dung, và sự cố chứng minh niềm tin đó sai.
 - **§15-ToS ĐÓNG — nghi vấn bị chính người nêu tự bác bằng đo:** phủ ToS = 198/206 đoạn (96,1%);
   mục 15 đủ 6/6; **mục 19 (tra soát & khiếu nại) đủ 11/11 TRONG KHI 6/8 ca ToS trượt hỏi đúng
   mục 19** ⟹ ToS 2/8 chắc chắn là lỗi TRUY-HỒI-thứ-đã-có, tín hiệu sạch nhất ngày. 8 đoạn vắng =
