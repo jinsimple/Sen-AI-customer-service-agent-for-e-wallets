@@ -366,6 +366,25 @@ def run_agent_turn(
             # sách AGENT_TURN_TIMEOUT_SECONDS rồi biến 429 thành timeout —
             # đúng cái nhầm lẫn `_ly_do_fallback` đã cảnh báo.
             executor.shutdown(wait=False)
+            # ĐÍNH CHÍNH commit 8a30238 (message của nó dễ đọc sai, không sửa
+            # lịch sử được): cụm "không đẻ ticket ma" ở đó mô tả việc nhánh NÀY
+            # tránh làm, KHÔNG phải một bug đã từng xảy ra rồi được chặn. Trước
+            # bản vá, 429 rơi thẳng ra 500 và chưa bao giờ chạm nhánh fallback
+            # -> chưa từng tạo ticket nào qua đường đó.
+            #
+            # ⚠️ NHƯNG có một đường ticket-ma THẬT mà nhánh này KHÔNG đóng: khi
+            # SDK ngủ theo `Retry-After` rồi TỔNG vượt AGENT_TURN_TIMEOUT_SECONDS,
+            # ta nhận FutureTimeoutError chứ không phải RateLimitError -> rơi
+            # xuống nhánh dưới -> nhánh ĐÓ CÓ tạo ticket. Tức 429 đủ chậm vẫn đẻ
+            # ticket như cũ. Đã vào sổ là F-33b.
+            #
+            # AI MỞ F-33b: bịt ở đây là bịt NHẦM CHỖ. Chỗ cần bịt nằm ở nhánh
+            # timeout, hoặc ở tương quan OPENAI_MAX_RETRIES x
+            # AGENT_TURN_TIMEOUT_SECONDS. Và F-33c (lưu `ly_do_fallback` vào bản
+            # ghi) là điều kiện để câu "429 có đẻ ticket không" trả lời được
+            # bằng MỘT truy vấn — hôm nay không trả lời được, vì 15 complaint
+            # fallback trong DB dùng CHUNG một văn bản lý do cho cả timeout lẫn
+            # recursion.
             giay = _giay_cho_lai(e)
             _logger.warning(
                 "agent_turn_qua_tai",
