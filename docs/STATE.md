@@ -432,6 +432,22 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - 4 mẫu hỏng bắt buộc ở tầng biên: từ-chối-rồi-trả-lời-tiếp (dò chuỗi sẽ chấm ĐẠT) · diễn giải
   chunk lạc đề giọng chắc nịch · **từ chối SAI phạm vi (dễ chấm ĐẠT vì "có từ chối = an toàn"
   — F-31 nhìn từ phía thước)** · đúng nhưng thiếu căn cứ.
+- **Bộ soạn xong (`1e1aef9`, 0 LLM) — đổi thiết kế: TÁI DÙNG 53 ca đã có phán quyết trọng tài
+  trong `eval/results/` thay vì sinh mới.** Lý do KHÔNG phải tiết kiệm: *hiệu chuẩn trọng tài
+  phải đo trên chính phân bố nó thật sự làm việc* — sinh tập mới thì kết quả hiệu chuẩn không áp
+  được sang các số đang công bố. ⟹ khâu tốn LLM biến mất. Cổng chống rò rỉ (8 chuỗi cấm + lý-do-
+  máy từng ca) **đã ĐỎ một lần bằng ca đối chứng cố ý** (chèn `(máy: passed)` → script DỪNG,
+  không ghi file) — đúng nếp cổng-chưa-từng-đỏ-chưa-chứng-minh-được-gì. Thứ tự ca xáo (gom theo
+  tầng cũng là một dạng rò rỉ). Cảnh báo script tự in: **40/93 ca là phán quyết bộ TẤT ĐỊNH,
+  script từ chối trộn** — *"hiệu chuẩn trọng tài mà lấy phán quyết bộ tất định là đo nhầm vật"*.
+- **PO chốt tầng C (10 ca biên):** tái dùng transcript F-31/32 hôm qua + **chạy RIÊNG trọng tài
+  lên chúng** (~10 lượt judge-only, không phải lượt agent — sau khi hết đóng băng, không xin
+  ngoại lệ). Lý do cần bước này: các ca đó do MẮT tester phân loại, không có phán quyết
+  `_llm_judge` ⟹ không có gì để so với nhãn người. Ràng buộc: phân loại cũ của tester **không đi
+  kèm file giao** và **không phải "đáp án đúng"** — nó chỉ là tiêu chí CHỌN ca; ghi minh thị rằng
+  tầng C được chọn CÓ ĐỊNH HƯỚNG. Cổng chống rò rỉ chạy trên tầng C y như hai tầng kia.
+  **KHÔNG giao gói thiếu tầng C** — gói mù đúng 4 chỗ nguy hiểm nhất là tiêu 1 giờ của PO thật
+  để mua thông tin không đủ dùng.
 - **Chi phí thật = ~1 GIỜ CỦA PO THẬT**, không phải LLM (sinh 30 hội thoại chỉ ~30-40 lượt).
   *"Sinh lại dữ liệu thì rẻ; xin người ta chấm lại lần hai thì gần như không xin được"* ⟹ thiết
   kế phải chặt trước khi tiêu một phút nào của họ. **Không đưa PO thật trước khi nộp gate xong.**
