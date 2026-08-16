@@ -345,6 +345,28 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## ⚖️ SỰ CỐ GIT TRÊN CÂY DÙNG CHUNG (16/08) + HAI LUẬT MỚI + QUY ƯỚC PR
+- **Sự cố (lỗi ĐÔI, đã khắc phục, KHÔNG mất gì):** tester `git add` 9 file (đúng pathspec) →
+  PO-agent `git commit` KHÔNG pathspec cuốn cả 9 file staged vào commit `7548bcb` → tester
+  `reset HEAD~1` không đọc lại HEAD, đè local (remote an toàn, đã khôi phục khớp remote).
+  **Hồ sơ:** commit `7548bcb` ("docs(state): PO chốt benchmark…") ngoài nội dung message còn mang
+  **2.584 dòng test của tester** (4 cổng test + luật mới của họ — bullet chi tiết tester sẽ gửi,
+  bổ sung vào đây). Nhánh rác `test/bo-do-va-bang-chung-16-08` đã xoá; KHÔNG tạo PR ngược
+  (PR rỗng cho đẹp số là thứ không làm khi BTC đếm PR).
+- **HAI LUẬT GIT MỚI (ratify, áp cả 4 phiên):** ① `git commit <pathspec> -m …` MỘT LỆNH — cấm
+  add-rồi-commit-rời, index dùng chung không được có trạng thái chờ; ② sau MỌI lệnh đổi HEAD,
+  ĐỌC LẠI HEAD trước lệnh kế (in ra chưa đủ — phải đọc).
+- **QUY ƯỚC PR (PO thật chốt trực tiếp với tester):** các vai tách nhánh + tạo PR, **KHÔNG tự
+  merge — PO thật là người merge**. PO-agent gom danh sách PR chờ-merge cho PO duyệt theo đợt;
+  chờ-merge không được chặn việc kế (nhánh sau đâm trên nhánh trước nếu phụ thuộc).
+- **RAG đòn 1 — KHE MỞ, đang chạy:** tester xác nhận không giữ phép đo trên demo. Trình tự chốt:
+  re-index trước (backup Chroma+policy_chunks, báo nhãn kho mới số-chunk+băm) → tester soạn
+  golden-set trên kho MỚI (nhãn đoạn gắn kho — soạn trước là công đôi + vật-trôi). Ràng buộc cặp
+  trước/sau: **GIỮ NGUYÊN VĂN 8 câu probe** (cùng bộ câu, khác kho — một biến). Golden-set ETA:
+  ~3h sau nhãn kho mới cho bản DỰ THẢO; thành THƯỚC sau vòng soi-trục-thiếu của security+coder.
+  Thiết kế hay của tester ghi lại: bộ có **ca đối chứng ÂM TÍNH** (câu không có đáp án trong kho
+  ⟹ Recall phải =0 — chống thước-tự-thưởng).
+
 ## 🎯 QUYẾT ĐỊNH PO THẬT 16/08 — BENCHMARK + LEARNING LOOP v1 (mới nhất)
 1. **Chiến lược đánh giá chất lượng: CHỐT** theo `2026-08-16-chien-luoc-danh-gia-chat-luong.md`
    (kim tự tháp 3 tầng · lấy taxonomy OpenAI graders không lấy hosted · heldout 60 niêm phong).
