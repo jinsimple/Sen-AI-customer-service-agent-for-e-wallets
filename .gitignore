@@ -89,3 +89,7 @@ eval/results/*_raw.json
 # Gói xuất cho Project knowledge (Claude Desktop) — sinh lại được bằng
 # scripts/export_project_knowledge.py, không commit bản dẫn xuất.
 project-knowledge/
+
+# gói 30 nhãn — sinh lại bằng eval/soan_goi_30_nhan.py, KHÔNG commit
+eval/goi_30_nhan_NGUOI.md
+eval/goi_30_nhan_MAY.json
