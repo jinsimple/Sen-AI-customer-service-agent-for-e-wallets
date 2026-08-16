@@ -345,6 +345,25 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## ✅ UI-02 ĐÓNG + ĐÒN 4 THÀNH 4a/4b — bảng-23-hàng là lời giải bài chôn (16/08 đêm)
+- **UI-02 nghiệm thu 5/5** (đối chứng 1/5 trên image-chưa-vá, A2 tái hiện nguyên văn lỗi PO demo).
+  Mẫu thiết kế nghiệm thu UI ghi lại: **đếm REQUEST không đếm pixel** — vá-giả (reset ref quên
+  deps) hiện nút y hệt mà không request nào đi; B2 bắt bằng 1→2 request. Nợ: e2e vào repo
+  (coder thêm dep playwright · tester dựng sau chuỗi benchmark).
+- **Đòn 4 hồ sơ tiền-đề-sai-kết-luận-đúng:** "215 chữ vỡ trong kho" SAI (tester đếm PDF thô; kho
+  đã qua đòn 1) — nhưng thước độc lập từ-điển-DOCX lộ **lớp vỡ THỨ HAI: 131 lần/52 dạng cả đòn-1
+  lẫn luật-đếm-tester đều mù** (`ho ặc`,`kho ản` — vế trái có nguyên âm). Soi đối xứng PDF↔DOCX:
+  DOCX sạch 0 vỡ + đủ hơn (17-vs-9 câu thiếu). **4a GO** (đổi nguồn nạp).
+- **4b DUYỆT mở phạm vi `parsers.py` (gồm upload partner_admin), 4 điều kiện** (một-parser-dùng-
+  chung đúng thiết kế · ca đối chứng upload-docx-thường · bảng→mỗi-hàng-một-chunk-mang-tên-thực-
+  thể · đo trên thước 35,7% tách 4a/4b nếu rẻ). **Phát hiện chốt: "20 đoạn gần-trùng" thật ra là
+  MỘT BẢNG 23 hàng (bank·viết-tắt·hạn-mức) bị PDF nghiền thành cháo** — `_extract_docx` hiện vứt
+  heading + KHÔNG đọc tables. 4b = chunk theo H3 (mỗi FAQ-bank một heading có sẵn tên) ⟹ chunk-
+  theo-thực-thể MIỄN PHÍ. **ĐÍNH CHÍNH nhận định cũ**: "đòn 4 không chữa được lớp chôn" — sai với
+  4b; 4b chữa được vì tách bảng thành 23 dòng riêng.
+- Coder GIỮ TAY nạp-lại chờ tester nhả khe (362 chunk_id sẽ đổi giữa lúc họ rà nhãn) — quy ước
+  báo-trước-đổi-vật chạy đều. Danh sách chunk_id đã đổ cho tester (băm 8a3185199493).
+
 ## 🔍 ĐIỀU TRA CHUNK-CHÌM XONG: KHÔNG PHẢI RÁC — CHÔN-DO-GẦN-TRÙNG (16/08 tối)
 - Tester tự sửa số 47%→**31,5%** (thước lại là thủ phạm: 160 câu quét đều là câu FAQ mà kho có 2
   tài liệu; quét lại 340 truy vấn → 82/260 chunk FAQ không bao giờ nổi với chính câu sinh ra
