@@ -735,6 +735,42 @@ xác nhận "trả lời được".
 
 ---
 
+### 7b — NGUỒN DỮ LIỆU ĐÚNG, DÂN SỐ SAI
+
+*(PO phê chuẩn 17/08.)*
+
+Luật 7 canh *"công cụ đo có còn đo đúng thứ cần đo không"*. Đây là dạng tinh vi
+nhất của nó: **công cụ đúng, nguồn đúng, truy vấn đúng — chỉ dân số là sai.**
+
+Ca thật. Cần biết người dùng gõ với nhịp nào để tính trần chịu tải. Nguồn đúng
+(`messages`), truy vấn đúng, chạy trơn:
+
+    81 phiên · 230 tin khách · khoảng giữa hai tin: trung vị 3 giây
+    ⟹ 19,8 lượt/phút/người — gấp 40 lần giả định 0,50
+
+Con số **vô nghĩa**: 230 tin đó do **script test** sinh, không phải người. Máy
+gõ tin tiếp theo ngay khi nhận xong phản hồi.
+
+> **Nguồn sai thì lộ ra sớm — nó lỗi, nó rỗng, nó không khớp. Dân số sai thì
+> CHẠY TRƠN**: đường ống thông, con số ra đẹp đẽ, và nó nói về một quần thể
+> không phải quần thể ta cần.
+
+**Cách chữa — ghi cảnh báo NGAY CẠNH TRUY VẤN**, không phải trong một mục ghi
+chú xa xôi: người kế tiếp sẽ gặp truy vấn **trước khi** gặp tài liệu.
+
+**Câu hỏi tự soi:** *"những bản ghi này do AI hay do NGƯỜI sinh ra? do đúng
+nhóm người tôi cần chưa?"* — hỏi trước khi đọc con số, không phải sau.
+
+**Hệ quả về việc mượn số ngoài:** một con số benchmark ngành, từ sản phẩm khác
+· tập người dùng khác · ngôn ngữ khác, **cũng là một giả định** — chỉ khác là
+nó **trông có căn cứ hơn nên khó bị chất vấn hơn**.
+
+> **Một giả định đội lốt dữ liệu tệ hơn một giả định tự nhận là giả định.**
+
+Thà giữ con số cũ với nhãn *"giả định của ta, chưa đo"*.
+
+---
+
 ### 10e — ĐUÔI phải tính CÓ ĐIỀU KIỆN, không ghép chéo phân vị
 
 *(PO phê chuẩn 17/08, từ một lỗi của chính người vừa dạy "đọc ở đuôi".)*
