@@ -417,6 +417,32 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🔐 HELDOUT-60: GÓI 30 NHÃN THÀNH ĐIỀU KIỆN TIÊN QUYẾT CỦA PHÁT BẮN (chốt 16/08 đêm)
+- **Tiền đề của PO-agent SAI (lần thứ 3 trong ngày, tester kiểm giả định trước khi làm theo):**
+  heldout **KHÔNG phải bộ truy hồi** — cùng lược đồ `golden_set.jsonl`, là bộ **kịch bản khiếu
+  nại** (`complaint_type`·`authority`·`escalation_target`·`fraud_signals`·`must_not_*`), chấm
+  bằng **bất biến tất định + trọng tài LLM**, không so chuỗi với text kho ⟹ 6 lớp lỗi thước tôi
+  lo KHÔNG áp dụng. (Bộ rà báo `60/60 không có nhãn` = **bộ rà hỏng**, không phải heldout hỏng.)
+- **🔴 RỦI RO THẬT, LỚN HƠN: heldout được chấm bởi `_llm_judge` — TRỌNG TÀI CHƯA HIỆU CHUẨN**
+  (kappa chưa đo · tỉ lệ rộng-tay chưa đo). ⟹ *bắn phát duy nhất để lấy một con số có sai số
+  KHÔNG XÁC ĐỊNH*; trọng tài rộng tay ⟹ **số công bố CAO HƠN SỰ THẬT**, ở đúng con số sẽ rời khỏi
+  đội đi tới BTC. **CHỐT: gói 30 nhãn là ĐIỀU KIỆN TIÊN QUYẾT, heldout khoá sau nó, không ai
+  được bắn trước.**
+- **Rà khoá `must_not_*` GIAO SECURITY** (phải đọc nội dung ⟹ không thể là tester — họ là người
+  bắn). Bất thường tester tìm ra mà **cố ý không kết luận**: `expected` 59/60 có 6 khoá · 1 ca có
+  7 (`blocked_staff_action`); `forbidden` 48/60 có 3 · 11/60 có 6 · 1/60 có 4. Cố ý hay thiếu
+  sót? **Nếu thiếu, ca đó không kiểm được điều nó sinh ra để kiểm — và chỉ biết SAU khi đã bắn.**
+  Ràng buộc security: cấm sửa ca · cấm chỉnh thước/sản phẩm theo nội dung đã đọc · mọi đề xuất
+  guardrail sau này phải khai "sau khi đã đọc heldout" · được quyền từ chối.
+- **PO quyết: tester VẪN là người bắn heldout** dù họ tự đề nghị đứng ngoài. Cân hai chiều: thứ
+  họ biết là **cấu trúc** (khoá·kiểu·số đếm — không nội dung), không cho đường tinh chỉnh về phía
+  đáp án; đổi lại giao phát-một-lần cho vai không quen harness là **rủi ro thao tác thật** đổi lấy
+  độc lập gần bằng không. Bù bằng minh bạch: mức tiếp xúc ghi thẳng vào hồ sơ phát bắn.
+- **LUẬT MỚI: "một bộ rà chưa biết SÀN NHIỄU của mình thì báo cáo của nó không đọc được."** Tester
+  đo sàn bằng cách chạy bộ rà trên golden-set (bộ **biết là sạch**): 9/47 nghi-không-trong-kho
+  **đều là dương tính giả** ⟹ sàn ~19% ⟹ đổi nhãn từ *"lỗi"* thành *"NGHI — phép dò yếu, phải
+  kiểm bằng đường độc lập trước khi sửa nhãn"*, chặn đúng vòng lặp suýt sửa 15 nhãn lành hôm qua.
+
 ## 🧾 SPEC BENCHMARK ĐƯỢC SOI + CHỮA GỐC BẰNG `--khoi-spec` (16/08 đêm)
 - **Tester soi `benchmark-spec-va-v0.md` theo yêu cầu PO — 7 chỗ, PO sửa 7/7 (`41753d4`).** Nặng
   nhất: ① một dòng lấy `48,9%` (chỉ chế độ **có-dấu**) nhân thành điểm trục `9,79` trong khi công
