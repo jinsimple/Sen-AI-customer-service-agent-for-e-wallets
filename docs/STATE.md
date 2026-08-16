@@ -417,6 +417,42 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🔁 QWEN TẠM DỪNG — quay về OpenAI, KHÔNG phải revert gì (16/08 tối)
+- Tài khoản Qwen chưa mở quyền model (403 `AccessDenied.Unpurchased` trên **6/6** model thử:
+  qwen3.8-max · 3.7-flash · 3.6-flash · 3.7-plus · 3.7-max · 3.6-27b; key `sk-ws-…` xác thực OK,
+  `/models` trả 159 model, endpoint `dashscope-intl` thông). PO thật chốt **TẠM DỪNG**.
+- **Không có gì phải revert — thiết kế fallback của coder làm đúng việc.** Xác minh bằng chạy
+  thật: `LLM_MODEL=gpt-4o-mini` · `LLM_BASE_URL=(mặc định OpenAI)` · embedding OpenAI ·
+  `JUDGE_MODEL`/`EVAL_SIM_MODEL`=gpt-4o-mini · **invariants 23/23**. Điều kiện land "mọi biến mới
+  fallback về OPENAI_*" được chứng minh bằng tình huống thật: PO đổi ý giữa chừng, **0 dòng code
+  phải sửa**. `.env` đã ghi chú trạng thái + cách bật lại khi tài khoản kích hoạt.
+- `54164fa` GIỮ (không revert) · kế hoạch đo lại `a1747c8` CẤT KHO (đúng nguyên khi bật lại) ·
+  ghim-ba-vai `c5c9fc2` giữ giá trị độc lập · **F-31/32 hết lý do chờ — làm trên gpt-4o-mini**.
+
+## 🔬 N1b — HƯỚNG RẺ CHẾT DỨT ĐIỂM, trần latency ĐỊNH LẠI CÓ NGUYÊN TẮC
+- Bảng cắt ứng viên (revision đã ghim `953dc6f6f85a`): kd=20 → 38/47 · 3967ms; kd=10 → 32/47 ·
+  1855ms; **kd=4 → 23/47 (= nền, 0 cải thiện) · 720ms = cấu hình DUY NHẤT đạt 800ms.**
+  ⟹ **chất lượng và latency đối nghịch trực tiếp, KHÔNG có điểm ngọt** — cắt ứng viên là cắt
+  chính cơ hội. **Giả thuyết PO-agent ("top-10 vẫn giữ đủ +15") SAI theo hướng ngược**: mất 6/15
+  ca và mất CẢ HAI ca ToS, vì 2 ca ToS thắng được đến từ ứng viên **hạng 13-20**. Bài học: phân
+  bố hạng-thô của FAQ **không suy ra được** cho ToS (ToS đúng là lớp bị chôn sâu).
+- **TRẦN ĐỊNH LẠI (PO), và ranh giới chống dời-cọc ghi minh thị:** 800ms rút từ **lập luận thuần
+  latency** khi CHƯA biết giá vế bên kia; nay biết (+15/47 = **+65% câu trả lời đúng**) ⟹ định lại
+  là **quyết định có thông tin mới**, không phải nới vì vừa trượt. **Tự ràng buộc: định lại NGAY,
+  TRƯỚC khi coder đo int8** — nếu đợi int8 xong mới nới thì đó mới là dời cọc.
+  **Trần mới đo ĐẦU-CUỐI:** ① 0 ca vượt 30s (bất di bất dịch) ② trung vị lượt chat ≤15s ③ thông
+  lượng đủ quy mô hiện tại, scale-up là điều kiện riêng.
+- **Tách CHỦ SỞ HỮU:** latency = quyết định UX (PO-agent) · **thông lượng 0,25 lượt/giây = quyết
+  định NĂNG LỰC HẠ TẦNG (PO thật, cùng nhóm "sẽ có API xịn")** — demo/pilot thì đủ, 100 CSKH thì
+  không; int8 chỉ nâng 2-3× (~0,7/s), còn xa. Coder khai giới hạn: đo tuần tự, chưa gộp lô.
+- **Rerank bất đồng bộ: BÁC** — giá trị nằm trong chính câu trả lời của lượt này; đẩy sang lượt
+  sau thì lượt đầu (quan trọng nhất) không được cải thiện. **Biến thể đáng đo (chưa phát lệnh):
+  rerank CÓ CHỌN LỌC theo khoảng cách điểm** — chỉ chạy khi 4 ứng viên đầu sát điểm; tín hiệu
+  TẤT ĐỊNH và rẻ (khác HyDE), đo sau int8 và chỉ khi số đầu-cuối không đạt.
+- `input_chars` land (`9d5988c`): 13.116 token / 31.937 ký tự = **2,43 ký tự/token** — chính tỉ
+  lệ này đổi khi sang nhà cung cấp khác, có nó thì tách được "prompt dài ra" khỏi "tokenizer đếm
+  khác". Khai rõ phần KHÔNG đếm (schema 5 tool = 6.773 ký tự) và trả hằng số đó ra envelope.
+
 ## 🔒 LUẬT MỚI: cổng PHẢI-NHỚ-BẬT chỉ chặn được người đang nhớ (tester tự phát hiện 16/08)
 - Tester **tự báo vi phạm chính cổng của mình**: chạy `do_token_latency --nhom ngan` (3 lượt LLM)
   trong lúc đóng băng, vì `FIN05_DONG_BANG_LLM` là **biến môi trường — chỉ sống trong shell đã
