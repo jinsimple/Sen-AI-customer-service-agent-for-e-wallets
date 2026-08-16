@@ -20,6 +20,14 @@ docker-compose.yml
 data/*
 !data/generated/
 !data/schema/
+# data/raw/*.pdf — kho chinh sach nguon. CAN trong image de
+# `scripts/kho_rag.py nap-lai` chay duoc TRONG CONTAINER: deploy_home tu nap
+# lai kho khi phat hien lech phien ban chuan hoa, ma bytes goc khong duoc luu
+# o dau khac (policy_documents chi giu metadata, khong giu file). Thieu no thi
+# lenh nap-lai dung voi thong bao "khong co PDF" — do that trong container.
+# Gia: +5,4 MB image. Doi lai: kho dung lai duoc tu chinh image, khong phu
+# thuoc thu muc tren may nguoi dung.
+!data/raw/
 logs/
 .ai-log/
 # Context riêng cho frontend/Dockerfile (context: ./frontend trong compose) —

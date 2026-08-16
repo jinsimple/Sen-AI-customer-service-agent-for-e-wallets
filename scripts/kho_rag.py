@@ -40,18 +40,26 @@ def nhan() -> None:
     with SessionLocal() as s:
         n = s.query(PolicyChunk).count()
         d = s.query(PolicyDocument).count()
+    tt, pb = store.trang_thai_kho()
     print(f"  kho RAG: {n} chunk · {d} doc · băm {_bam_kho()}")
-    print(f"  chuẩn hoá: kho={store.phien_ban_kho()} · code={store.CHUAN_HOA_VERSION}")
+    print(f"  đường dẫn Chroma: {RAG_INDEX_DIR}")
+    print(f"  chuẩn hoá: kho={pb if pb is not None else '(không có dấu)'} · code={store.CHUAN_HOA_VERSION} · trạng thái={tt}")
 
 
 def kiem() -> int:
     nhan()
-    if store.phien_ban_kho() is None:
-        print("  [TRỐNG] Kho chưa có nội dung — chạy `nap-lai`.")
+    tt, pb = store.trang_thai_kho()
+    if tt == store.TRANG_THAI_TRONG:
+        print("  [TRỐNG] Kho chưa có chunk nào — chạy `nap-lai`.")
         return 1
-    if store.kho_da_cu():
-        print("  [LỆCH]  Kho dựng bằng chuẩn-hoá CŨ, query dùng chuẩn-hoá MỚI.")
-        print("          Search vẫn trả kết quả nhưng KẾT QUẢ SAI, không có triệu chứng.")
+    if tt == store.TRANG_THAI_KHONG_DAU:
+        print("  [CŨ]    Kho CÓ nội dung nhưng KHÔNG có dấu phiên bản — dựng trước đòn 2.")
+        print("          Index còn dấu tiếng Việt, query đã bỏ dấu ⟹ LỆCH MỘT VẾ.")
+        print("          Search vẫn trả đủ k kết quả, chỉ là KẾT QUẢ SAI. Không triệu chứng.")
+        print("          Chạy: python scripts/kho_rag.py nap-lai")
+        return 1
+    if tt == store.TRANG_THAI_LECH:
+        print(f"  [LỆCH]  Kho ở phiên bản {pb}, code ở {store.CHUAN_HOA_VERSION}.")
         print("          Chạy: python scripts/kho_rag.py nap-lai")
         return 1
     print("  [OK]    Kho khớp phiên bản chuẩn hoá của code.")

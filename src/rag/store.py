@@ -59,23 +59,54 @@ CHUAN_HOA_VERSION = 2
 
 
 def _get_collection():
-    return _get_client().get_or_create_collection(
-        _COLLECTION_NAME, metadata={"chuan_hoa": CHUAN_HOA_VERSION}
-    )
+    return _get_client().get_or_create_collection(_COLLECTION_NAME)
 
 
-def phien_ban_kho() -> int | None:
-    """Phien ban chuan hoa cua kho DANG NAM TREN DIA (None neu kho trong/chua co dau)."""
+def _dong_dau(col) -> None:
+    """Ghi dau phien ban len collection.
+
+    `get_or_create_collection(name, metadata=...)` CHI ap metadata luc TAO. Kho
+    da ton tai thi metadata bi BO QUA im lang — do that tren kho demo:
+    418 chunk, `metadata = None`. Nen phai `modify()` TUONG MINH sau moi lan
+    nap, khong dua vao tham so luc lay collection.
+    """
+    col.modify(metadata={"chuan_hoa": CHUAN_HOA_VERSION})
+
+
+# Ba trang thai PHAN BIET DUOC — gop chung la nguon goc cua bug dau tien:
+#   TRONG        kho khong co chunk nao
+#   KHONG_DAU    co chunk nhung khong co dau  -> kho CU (dung truoc don 2)
+#   LECH         co dau nhung khac phien ban code
+#   KHOP         dau == phien ban code
+TRANG_THAI_TRONG = "trong"
+TRANG_THAI_KHONG_DAU = "khong_dau"
+TRANG_THAI_LECH = "lech"
+TRANG_THAI_KHOP = "khop"
+
+
+def trang_thai_kho() -> tuple[str, int | None]:
+    """(trang_thai, phien_ban_tren_dia)."""
     col = _get_client().get_or_create_collection(_COLLECTION_NAME)
     if col.count() == 0:
-        return None
-    return (col.metadata or {}).get("chuan_hoa")
+        return TRANG_THAI_TRONG, None
+    pb = (col.metadata or {}).get("chuan_hoa")
+    if pb is None:
+        return TRANG_THAI_KHONG_DAU, None
+    if pb != CHUAN_HOA_VERSION:
+        return TRANG_THAI_LECH, pb
+    return TRANG_THAI_KHOP, pb
 
 
-def kho_da_cu() -> bool:
-    """True khi kho tren dia duoc dung bang phien ban chuan hoa CU hon code."""
-    pb = phien_ban_kho()
-    return pb is not None and pb != CHUAN_HOA_VERSION
+def kho_can_nap_lai() -> bool:
+    """True khi kho KHONG dam bao khop phien ban chuan hoa cua code.
+
+    KHONG_DAU tinh la CAN NAP LAI — day la cho ban dau toi lam NGUOC: coi
+    "khong co dau" la "khong sao", tuc canh cong bao AN TOAN dung o ca nguy
+    hiem nhat (kho dung truoc don 2, chua bo dau, trong khi query da bo dau).
+    Mot canh cong sai huong con te hon khong co cong.
+    """
+    tt, _ = trang_thai_kho()
+    return tt != TRANG_THAI_KHOP
 
 
 def bo_dau(s: str) -> str:
@@ -110,12 +141,14 @@ def add_chunks(doc_id: str, chunk_ids: list[str], texts: list[str]) -> None:
     # Embed ban DA BO DAU — phai khop dung phep chuan hoa o `search()`.
     # Lech mot ve la toan bo index vo dung ma khong co trieu chung nao.
     vectors = _get_embeddings().embed_documents([bo_dau(t) for t in texts])
-    _get_collection().add(
+    col = _get_collection()
+    col.add(
         ids=chunk_ids,
         embeddings=vectors,
         documents=chunk_ids,  # cố ý: placeholder, KHÔNG phải nội dung thật
         metadatas=[{"doc_id": doc_id} for _ in chunk_ids],
     )
+    _dong_dau(col)
 
 
 def delete_document(doc_id: str) -> None:
