@@ -26,6 +26,20 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **🎯 CƠ CHẾ CỤ THỂ NHẤT TỪ ĐẦU (coder đo 1-request sau khi vá thử, CHƯA LAND):** middleware
+  chạy ĐÚNG MỘT lần (đo) · backend xoay token THÀNH CÔNG (tầng-0 `refresh_rotated`) · **Set-Cookie
+  KHÔNG BAO GIỜ RỜI SERVER** (header response không có set-cookie) ⟹ request kế cầm token cũ đã
+  rotate → AUTH5-03 revoke. Không đua, không hai-lần-gọi — **cookie mất trên đường ra**. Bản vá
+  hiện tại của coder chỉ sửa vế route-handler-thấy-token-mới (cần) — CHƯA sửa vế browser-nhận-
+  cookie (vế giết phiên). **Coder TỪ CHỐI LAND** vì cổng tester ("request đầu 200") sẽ xanh trong
+  khi phiên vẫn chết ở request thứ hai — xanh-cổng-mà-không-hết-bệnh. Thứ tự duyệt: kiểm khả-năng-
+  (3) (chính bản vá làm mất cookie — rẻ nhất, nghi-mình-trước) → rebuild demo backend sau khi
+  tester xong → chốt hình dạng vá. **Cổng nghiệm thu MỞ RỘNG: đo cả REQUEST THỨ HAI** (req1 200 ∧
+  req2 200 ∧ family không revoke). UI-02+retry song song.
+- **Quy ước báo-trước-rebuild TRẢ LÃI trong 1 giờ:** tester xin coder giữ tay rebuild vì phép đo
+  đang chạy — rebuild giữa chừng KHÔNG làm phép đo đỏ, nó vẫn in số, chỉ là số của HAI backend ở
+  hai nửa lượt (dạng vật-trôi nguy nhất: không triệu chứng). Lần thứ tư vật-trôi trong hai ngày,
+  lần ĐẦU tránh được nhờ báo trước.
 - **✅ KHÉP VÒNG SỐ (coder xác nhận bằng bằng chứng mạng):** cả 11 refresh + cặp 10/10 đều ở
   backend fin05ttl (172.20.x), client là middleware TTL, probe của chính coder — "10/10 mô tả
   instance TTL, chấm hết"; coder tự nhận *"nặng hơn vì chính tôi dựng instance đó rồi quên nó là
