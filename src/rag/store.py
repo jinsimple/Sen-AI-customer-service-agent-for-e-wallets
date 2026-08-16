@@ -14,6 +14,8 @@ thành văn bản gốc.
 """
 from __future__ import annotations
 
+import unicodedata
+
 import chromadb
 from langchain_openai import OpenAIEmbeddings
 
@@ -44,12 +46,38 @@ def _get_collection():
     return _get_client().get_or_create_collection(_COLLECTION_NAME)
 
 
+def bo_dau(s: str) -> str:
+    """Bo dau tieng Viet, thuong hoa — dung cho CA HAI ve cua phep so khop.
+
+    DON 2. Do duoc (probe-8, kho 419 chunk): cung 8 cau, **co dau 3/8 · KHONG
+    DAU 0/8**. Thi nghiem mot-bien, dau la bien duy nhat doi. Ma khach that —
+    va chinh bo demo case D1-D4 cua du an — go KHONG DAU. Tuc che do
+    nguoi-dung-that dang o vung 0/8.
+
+    Goc: embedding cua "phi chuyen tien" nam xa embedding cua "phi chuyen tien"
+    co dau trong khong gian vector. Khong phai mo hinh kem — hai chuoi ky tu do
+    THAT SU khac nhau; ta moi la ben biet chung cung nghia.
+
+    Cach va: bo dau CA text luc index LAN query luc tra. Hai ve cung mot phep
+    chuan hoa thi chung hoi tu ve cung mot chuoi, khoang cach vector ve dung
+    cho no nen o.
+
+    CO MAT MAT, ghi ro de khong ai tuong day la bua trua mien phi: bo dau lam
+    ma/ma/ma/ma thanh mot. Danh doi nay phai DO chu khong lap luan — neu che do
+    co-dau TUT thi ban va sai huong, du che do khong-dau co tang.
+    """
+    s = s.lower().replace("\u0111", "d")
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+
+
 def add_chunks(doc_id: str, chunk_ids: list[str], texts: list[str]) -> None:
     """Embed + index. `texts` chỉ dùng để TÍNH embedding — không được lưu lại
     trong Chroma, `documents=chunk_ids` mới là thứ thật sự ghi vào collection."""
     if not chunk_ids:
         return
-    vectors = _get_embeddings().embed_documents(texts)
+    # Embed ban DA BO DAU — phai khop dung phep chuan hoa o `search()`.
+    # Lech mot ve la toan bo index vo dung ma khong co trieu chung nao.
+    vectors = _get_embeddings().embed_documents([bo_dau(t) for t in texts])
     _get_collection().add(
         ids=chunk_ids,
         embeddings=vectors,
@@ -69,7 +97,7 @@ def search(query: str, k: int) -> list[tuple[str, float]]:
     collection = _get_collection()
     if collection.count() == 0:
         return []
-    vector = _get_embeddings().embed_query(query)
+    vector = _get_embeddings().embed_query(bo_dau(query))
     result = collection.query(query_embeddings=[vector], n_results=min(k, collection.count()))
     ids = result.get("ids", [[]])[0]
     distances = result.get("distances", [[]])[0]
