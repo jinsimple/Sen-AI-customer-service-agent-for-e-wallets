@@ -5,11 +5,17 @@
   "gia": {
     "gpt-4o-mini": {
       "vao": 0.15,
-      "ra": 0.60,
+      "ra": 0.6,
       "vao_cached": 0.075,
       "ngay_tra": "2026-08-17",
       "nguon": "PO-agent tra, chuyển 17/08",
-      "nha_cung_cap": "OpenAI"
+      "nha_cung_cap": "OpenAI",
+      "han_muc": {
+        "rpm": null,
+        "tpm": 200000,
+        "ngay_tra": "2026-08-16",
+        "nguon": "đo được từ thông báo 429: 'Limit 200000' — RPM chưa tra"
+      }
     },
     "qwen-flash": {
       "vao": 0.03,
@@ -17,30 +23,78 @@
       "vao_cached": null,
       "ngay_tra": "2026-08-17",
       "nguon": "PO-agent tra (Qwen quốc tế), chuyển 17/08",
-      "nha_cung_cap": "Alibaba DashScope intl"
+      "nha_cung_cap": "Alibaba DashScope intl",
+      "han_muc": {
+        "rpm": 600,
+        "tpm": 5000000,
+        "ngay_tra": "2026-08-17",
+        "nguon": "PO-agent tra, Qwen Singapore"
+      }
     },
     "qwen-plus": {
-      "vao": 0.40,
-      "ra": 1.20,
+      "vao": 0.4,
+      "ra": 1.2,
       "vao_cached": null,
       "ngay_tra": "2026-08-17",
       "nguon": "PO-agent tra (Qwen quốc tế), chuyển 17/08",
-      "nha_cung_cap": "Alibaba DashScope intl"
+      "nha_cung_cap": "Alibaba DashScope intl",
+      "han_muc": {
+        "rpm": 600,
+        "tpm": 1000000,
+        "ngay_tra": "2026-08-17",
+        "nguon": "PO-agent tra, Qwen Singapore"
+      }
     },
     "qwen-max": {
-      "vao": 2.00,
-      "ra": 6.00,
+      "vao": 2.0,
+      "ra": 6.0,
       "vao_cached": null,
       "ngay_tra": "2026-08-17",
       "nguon": "PO-agent tra (Qwen quốc tế), chuyển 17/08",
-      "nha_cung_cap": "Alibaba DashScope intl"
+      "nha_cung_cap": "Alibaba DashScope intl",
+      "han_muc": {
+        "rpm": 600,
+        "tpm": 1000000,
+        "ngay_tra": "2026-08-17",
+        "nguon": "PO-agent tra, Qwen Singapore"
+      }
+    },
+    "qwen-snapshot(bẫy)": {
+      "vao": 0.4,
+      "ra": 1.2,
+      "vao_cached": null,
+      "ngay_tra": "2026-08-17",
+      "nguon": "PO-agent tra (Qwen quốc tế), chuyển 17/08",
+      "nha_cung_cap": "Alibaba DashScope intl",
+      "han_muc": {
+        "rpm": 60,
+        "tpm": 100000,
+        "ngay_tra": "2026-08-17",
+        "nguon": "PO-agent tra — model có TÊN KÈM NGÀY bị hạ trần 50 lần"
+      }
     }
   },
   "bo_do": {
-    "adversarial_set": {"so_luot": 46, "ghi_chu": "46 ca, mỗi ca ≥1 lượt — ca đa lượt tốn hơn"},
-    "golden_set": {"so_luot": 120, "ghi_chu": "120 ca"},
-    "benchmark_cham_moc": {"so_luot": 82, "ghi_chu": "trọn đường agent, theo docstring benchmark.py"},
-    "ke_hoach_doi_model": {"so_luot": 260, "ghi_chu": "6 bước, xem eval/KE-HOACH-DO-DOI-MODEL.md §2"},
-    "goi_30_nhan_tang_C": {"so_luot": 16, "ghi_chu": "8 agent + 8 judge"}
-  }
+    "adversarial_set": {
+      "so_luot": 46,
+      "ghi_chu": "46 ca, mỗi ca ≥1 lượt — ca đa lượt tốn hơn"
+    },
+    "golden_set": {
+      "so_luot": 120,
+      "ghi_chu": "120 ca"
+    },
+    "benchmark_cham_moc": {
+      "so_luot": 82,
+      "ghi_chu": "trọn đường agent, theo docstring benchmark.py"
+    },
+    "ke_hoach_doi_model": {
+      "so_luot": 260,
+      "ghi_chu": "6 bước, xem eval/KE-HOACH-DO-DOI-MODEL.md §2"
+    },
+    "goi_30_nhan_tang_C": {
+      "so_luot": 16,
+      "ghi_chu": "8 agent + 8 judge"
+    }
+  },
+  "_han_muc_ghi_chu": "TRẦN áp ở CẤP TÀI KHOẢN GỐC — mọi workspace/key cộng chung, không né được bằng cách tạo nhiều key. null = CHƯA TRA ĐƯỢC, in KHÔNG ĐO ĐƯỢC chứ không đoán."
 }

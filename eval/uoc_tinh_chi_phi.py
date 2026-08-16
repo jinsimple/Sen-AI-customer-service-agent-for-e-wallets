@@ -22,10 +22,23 @@ cho một đại lượng **bất biến qua tokenizer**: số **KÝ TỰ** vào
     $/lượt           trả lời "chạy bộ đo này tốn bao nhiêu"      ← luôn tính được
     $/1000 ký tự vào trả lời "model nào rẻ hơn cho CÙNG việc"    ← cần `input_chars`
 
-⚠️ **`input_chars` CHƯA có trong `usage`** (đã kiểm 17/08: envelope chỉ có
-`input_tokens · output_tokens · total_tokens · cached_input_tokens`). Coder
-đang thêm. Tới lúc đó, trục thứ hai in `KHÔNG ĐO ĐƯỢC` — **không** lặng lẽ rơi
-về token, vì rơi về token là quay lại đúng cái bẫy công cụ này sinh ra để tránh.
+⚠️ `input_chars` **đã land trong code** (coder, `9d5988c`) nhưng **chưa có
+trong bản ghi kết quả nào** — mọi file trong `eval/results/` đều chạy trước đó.
+Nên cột thứ hai vẫn in `KHÔNG ĐO ĐƯỢC` cho tới khi có lượt chạy MỚI, và nó
+**không** lặng lẽ rơi về token: rơi về token là quay lại đúng cái bẫy công cụ
+này sinh ra để tránh.
+
+"Trường đã tồn tại" và "dữ liệu đã có trường đó" là **hai câu hỏi khác nhau** —
+cùng họ với `_song()` ≠ `_api_song()`. Script kiểm câu thứ hai, không phải câu
+thứ nhất.
+
+## Tỉ lệ KÝ TỰ/TOKEN — phép đo rẻ nhất trả lời một câu đang tin bằng lời
+
+Đo được trên gpt-4o-mini: **2,43 ký tự/token** (13.116 token / 31.937 ký tự).
+Nếu Qwen tokenize tiếng Việt gọn hơn thì tỉ lệ này **cao hơn**, và hệ quả kép:
+rẻ hơn cho cùng một câu, **và** nhét được nhiều ngữ cảnh hơn trong cùng trần
+TPM. Đây là cách **đo** mệnh đề "Qwen hỗ trợ tiếng Việt tốt hơn" thay vì tin
+truyền miệng — chỉ cần vài lượt trên **cùng một câu hỏi** ở hai nhà cung cấp.
 
 ## Bảng giá là DỮ LIỆU, và là một loại NHÃN VẬT
 
@@ -87,6 +100,40 @@ def gom_usage(mau: list[str]) -> list[dict]:
                                    "cached_input_tokens": l.get("cache") or 0,
                                    "input_chars": l.get("ky_tu_vao")})
     return ra
+
+
+def loi_goi_moi_luot(mau: list[str]) -> tuple[float, int, str]:
+    """Đo SỐ LỜI GỌI MODEL trên một lượt chat — từ dữ liệu, không lấy ước chừng.
+
+    Một *lượt chat* của khách KHÔNG phải một lời gọi API: vòng ReAct gọi model
+    một lần để quyết định mỗi bước, cộng một lần để viết câu trả lời. Trần
+    **RPM** áp trên lời gọi, không trên lượt — nên trần lượt/phút thật có thể
+    thấp hơn nhiều so với tính theo TPM.
+
+    ⚠️ Đây là **ƯỚC LƯỢNG CẬN DƯỚI** dùng `tool_calls + 1` làm đại diện. Trường
+    thật `so_luot_goi_model` đã có trong `src/agents/graph.py` nhưng **chưa xuất
+    hiện trong bản ghi kết quả nào** (đã kiểm: 0/1327). Khi nó có mặt, hàm này
+    tự chuyển sang dùng số thật — một lượt có lời gọi không sinh tool call, hoặc
+    có retry, sẽ cao hơn ước lượng này.
+    """
+    that, uoc = [], []
+    for m in mau:
+        for p_ in sorted(glob.glob(m)):
+            try:
+                d = json.loads(pathlib.Path(p_).read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                continue
+            for x in (d if isinstance(d, list) else []):
+                u = x.get("usage") or {}
+                if isinstance(u, dict) and u.get("so_luot_goi_model"):
+                    that.append(u["so_luot_goi_model"])
+                elif x.get("tool_calls") is not None:
+                    uoc.append(len(x["tool_calls"]) + 1)
+    if that:
+        return statistics.mean(that), len(that), "ĐO THẬT (so_luot_goi_model)"
+    if uoc:
+        return statistics.mean(uoc), len(uoc), "ước lượng cận dưới (tool_calls + 1)"
+    return 1.0, 0, "KHÔNG ĐO ĐƯỢC — giả định 1"
 
 
 def tien_mot_luot(u: dict, g: dict) -> float:
@@ -151,6 +198,24 @@ def main() -> None:
     for ten, b in bg["bo_do"].items():
         d = "".join(f"{tien_mot_luot(mau, g) * b['so_luot']:>13.3f}" for g in bg["gia"].values())
         print(f"{ten:<24}{b['so_luot']:>6}{d}")
+    lg, n_lg, nhan_lg = loi_goi_moi_luot(a.nguon)
+    print(f"\n{'model':<22}{'lượt/phút':>11}{'theo TPM':>11}{'theo RPM':>11}   cái nào CHẶN")
+    print("-" * 74)
+    print(f"  lời gọi model mỗi lượt: {lg:.2f}  ({nhan_lg}, n={n_lg})")
+    for ten, g in bg["gia"].items():
+        hm = g.get("han_muc") or {}
+        t_tpm = hm["tpm"] / mau["input_tokens"] if hm.get("tpm") else None
+        t_rpm = hm["rpm"] / lg if hm.get("rpm") else None
+        co = [v for v in (t_tpm, t_rpm) if v is not None]
+        tran = min(co) if co else None
+        chan = ("—" if tran is None else
+                ("TPM" if t_rpm is None or (t_tpm is not None and t_tpm <= t_rpm) else "RPM"))
+        f = lambda v: "  KHÔNG TRA ĐƯỢC" if v is None else f"{v:>11.1f}"  # noqa: E731
+        print(f"{ten:<22}{('  —' if tran is None else f'{tran:>11.1f}')}"
+              f"{f(t_tpm)}{f(t_rpm)}   {chan}")
+    print("\n  Trần công bố = CÁI NHỎ HƠN. Trần áp ở CẤP TÀI KHOẢN GỐC — mọi key"
+          "\n  cộng chung, không né được bằng cách tạo thêm key.")
+
     print("\n  (nhân trung vị × số lượt — KHÔNG phải hoá đơn. Lượt dài hơn trung vị"
           "\n   sẽ đắt hơn; hội thoại nhiều lượt phình theo lịch sử, xem"
           "\n   eval/do_token_latency.py chế độ `don`.)")
