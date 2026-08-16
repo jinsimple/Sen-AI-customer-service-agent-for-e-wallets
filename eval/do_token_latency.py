@@ -182,29 +182,31 @@ def main() -> None:
 
     c, co_otp = moi_phien()
 
+    # LẶP: ở chế độ `don`, lặp phải bọc NGOÀI cả dãy — lặp mỗi câu 3 lần trong
+    # cùng phiên sẽ biến bộ 7 câu thành hội thoại 21 lượt, tức đo một thứ khác
+    # hẳn. Ở `rieng` thì lặp trong hay ngoài đều như nhau vì mỗi lượt một phiên.
+    thu = {d["id"]: [] for d in lenh}
+    for _ in range(a.lap):
+        if a.che_do == "don":
+            c.close()
+            c, co_otp = moi_phien()
+        for d in lenh:
+            if a.che_do == "rieng":
+                c.close()
+                c, co_otp = moi_phien()
+            if d["can_otp"] and not co_otp:
+                thu[d["id"]].append({"loi": "chưa mở được OTP phiên"})
+                continue
+            thu[d["id"]].append(mot_luot(c, d["cau"]))
+
     print(f"\n{'id':<4}{'nhóm':<6}{'giây':>7}{'vào':>9}{'ra':>7}{'cache':>8}{'tool':>6}  vé")
     print("-" * 74)
     ket = []
     for d in lenh:
-        if d["can_otp"] and not co_otp:
-            print(f"{d['id']:<4}{d['nhom']:<6}   KHÔNG ĐO ĐƯỢC — cần OTP mà chưa mở được")
-            ket.append({**d, "khong_do_duoc": "chưa mở được OTP phiên"})
-            continue
-        luot = []
-        for _ in range(a.lap):
-            if a.che_do == "rieng":          # phiên MỚI cho mỗi lượt: cắt lịch sử
-                c.close()
-                c, co_otp = moi_phien()
-                if d["can_otp"] and not co_otp:
-                    break
-            luot.append(mot_luot(c, d["cau"]))
-        if not luot:
-            print(f"{d['id']:<4}{d['nhom']:<6}   KHÔNG ĐO ĐƯỢC — cần OTP mà chưa mở được")
-            ket.append({**d, "khong_do_duoc": "chưa mở được OTP phiên"})
-            continue
+        luot = thu[d["id"]]
         loi = [x["loi"] for x in luot if "loi" in x]
         if loi:
-            print(f"{d['id']:<4}{d['nhom']:<6}   LỖI: {loi[0]}")
+            print(f"{d['id']:<4}{d['nhom']:<6}   KHÔNG ĐO ĐƯỢC: {loi[0]}")
             ket.append({**d, "khong_do_duoc": loi[0]})
             continue
         g = lambda k: [x[k] for x in luot if x.get(k) is not None]  # noqa: E731
@@ -213,8 +215,9 @@ def main() -> None:
               f"{tv('ra'):>7,.0f}{tv('cache'):>8,.0f}{tv('tool'):>6.0f}"
               f"  {'✓' if any(x['ve'] for x in luot) else ''}")
         if a.lap > 1:
-            print(f"      dải vào: {min(g('vao')):,.0f}–{max(g('vao')):,.0f}"
-                  f" · dải giây: {min(g('giay')):.1f}–{max(g('giay')):.1f}")
+            print(f"      dải vào {min(g('vao')):,.0f}–{max(g('vao')):,.0f}"
+                  f"  ·  dải giây {min(g('giay')):.1f}–{max(g('giay')):.1f}"
+                  f"  ·  tool {min(g('tool'))}–{max(g('tool'))}")
         ket.append({**d, "luot": luot, "tv_vao": tv("vao"), "tv_giay": tv("giay")})
     c.close()
 
