@@ -345,6 +345,19 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## ⏸️ ĐIỂM DỪNG PHIÊN 16/08 (hết limit) — phiên sau đọc mục này TRƯỚC
+- **Đang chờ chuyển tiếp:** 5 bullet soi-trục golden-set của coder (ca-ranh-giới-k · độ-dài-query
+  · đối-chứng-kho-lệch-vế dùng `kho_rag.py kiem` · ca-vắt-ranh-chunk cho đòn 3 · 2-3 ca
+  đáp-án-không-tồn-tại) **CHƯA tới tay tester** — nằm trong transcript PO-agent; phiên sau chuyển.
+  Security đang soi song song, chưa nộp.
+- **Coder:** re-index tự động `0a4ff58` CHƯA VERIFY TRONG CONTAINER (tự khai) · UI-02 vừa bắt đầu
+  · kế: 2 việc nhỏ lô auth → ADR-025 phần B → exporter.
+- **Tester:** thứ tự 3→1→2 (script benchmark → xác minh nhãn 41 ca → gói 30 nhãn PO) · lượt đo
+  sạch cặp auth đang/vừa chạy — kết quả chưa báo.
+- **PO thật:** không việc nào chờ họ. PR 7/10 — 3 đợt release dev→main nữa là đủ.
+- Doc home-server đã có dòng re-index (f3eba77). Mọi trạng thái khác: các mục phía dưới của
+  chính file này — không có tri thức nào chỉ nằm trong đầu phiên nào.
+
 ## 🔀 PO THẬT ĐỔI QUY TRÌNH GIT (16/08 tối): MỘT NHÁNH, PR CHỈ THEO ĐỢT
 - **Bỏ tách-nhánh-mỗi-việc** — cả 4 phiên code THẲNG trên `dev/learning-loop` (PO chứng kiến chi
   phí: 2 merge nhầm + thứ-tự + retarget trong một chiều). #4 + #7 đã merge sạch, **7/10 PR**.
