@@ -18,6 +18,18 @@
 **Trục chưa đo được KHÔNG tính vào mẫu số** (nếp `khong_do_duoc` — không quy về 0, không lấp).
 Báo cáo luôn ghi: `X / Y-điểm-đo-được (Z%)` + danh sách trục chưa đo kèm lý do.
 
+## Hai chế độ chấm trục Truy-hồi (chốt 16/08, sau soi-trục §D)
+
+Trục Truy-hồi đo **đường AGENT THẬT** (sau `_sanitize_policy_results`) — benchmark đo sản-phẩm-
+khách-nhận; đường index-thô chỉ là chẩn đoán. Vì đường agent tốn LLM mỗi query, chấm theo 2 chế độ:
+
+| Chế độ | Khi nào | Cách đo | Chi phí |
+|---|---|---|---|
+| **Chấm-LẶP** | mỗi đòn RAG, mỗi lần bộ lớn | đường agent CHỈ cho âm-bản-gần + ca chunk-bị-tier-2; index-thô (nhãn `chẩn-đoán`) cho phần còn lại; **ca-mồi-neo** (chunk đúng bị tier-2) đo khoảng cách hai đường MỖI lượt — neo tách ⟹ số index-thô lượt đó mang nhãn có-điều-kiện | ~0 |
+| **Chấm-MỐC** | benchmark công bố, heldout, trước/sau đợt lớn | TRỌN bộ qua đường agent (82 lượt) | LLM thật, tần suất thấp |
+
+Số vào hồ sơ/deliverable = số Chấm-MỐC. Hai chế độ hai nhãn, không trộn.
+
 ## Quy tắc vận hành
 
 1. **Mọi lượt chấm kèm nhãn VẬT**: SHA + `he_thong` + IMAGE ID (nếu chạm frontend/stack) + bản
