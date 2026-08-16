@@ -26,6 +26,21 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **⚖️ PHÂN XỬ CUỐI (tester, log server-side, MỘT request sạch):** `rotated=1 · family_revoked=0
+  · HTTP 200` ⟹ refresh gọi ĐÚNG MỘT lần, chạy THÀNH CÔNG, không thu hồi gì. **Cặp "10/10 tất
+  định" là TỔNG TÍCH LUỸ của nhiều lượt thử trộn lẫn** (gồm cả probe song song của tester) — suy
+  nhân-quả từ hai tổng bằng nhau = ca sách giáo khoa **đếm-tổng không thay được đếm-theo-lượt**
+  (LUẬT MỚI). Số +842s cũng khép: chuỗi đầy đủ 200→(16 phút)→401-vì-token-MỚI-cũng-hết-hạn→200→200
+  — phiên sống khoẻ, không cần cơ chế thu-hồi nào để giải thích.
+- **VẬT ĐỔI LẦN BA** (image TTL bị dựng lại giữa hai phép đo → "TTL không rotate" RÚT). **RATIFY
+  quy ước đội:** ① mọi phép đo trên stack kèm IMAGE ID trong nhãn; ② **ai dựng lại image phải báo
+  vai đang đo** — luật BÁO-TRƯỚC-KHI-LAND mở rộng sang image.
+- **CHỖ ĐỨNG THẬT SAU MỌI SỐ:** thứ DUY NHẤT tái lập được = hiện vật `proxy.ts:112` — *token hết
+  hạn ⟹ request đó 401, cookie mới về client, request KẾ 200*. KHÔNG tái lập được: đua-giết-phiên
+  · thu-hồi-family · refresh-không-chạy · hồi-quy-image. Ứng viên ráp trọn ca PO: hiện vật 401-
+  một-lần + **UI ref-guard không-bao-giờ-thử-lại** (`ChatClient.tsx:199` — PO-agent góp, chờ e2e
+  + coder xác nhận). Mảnh quyết định còn thiếu: **lời khai PO — lúc lỗi có thao tác lần hai
+  không, kết quả gì** (đang hỏi).
 - **✅ CƠ CHẾ CHỐT (16/08 tối, bằng chứng server-side tầng-0):** middleware refresh CÓ chạy nhưng
   **nuốt lỗi im lặng**; cặp log `refresh_rotated`×10 ↔ `refresh_family_revoked`×10 **ghép 1-1 tất
   định**: cookie mới đặt lên RESPONSE, lượt gọi refresh THỨ HAI trong cùng vòng request vẫn cầm
