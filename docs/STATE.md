@@ -417,6 +417,25 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **ADR-026 BẢN THẢO XONG (`a65e9fc`, docs/security/…-ban-de-PO-land.md) — TRÌNH PO THẬT KÝ.**
+  8 quyết định = 4 điểm PO chốt + QĐ5 (eval đánh dấu ĐÃ-duyệt — mô hình đe doạ là đối-tác-bị-
+  chiếm, cờ bỏ-qua-lọc bị bác vì là lớp lỗi F-30) + 🔴QĐ6 (xuất-xứ ≠ thay tier, quyết định riêng
+  chống-gỡ-nhầm) + 🔴QĐ7 (nạp-lại GIỮ trạng thái duyệt theo (filename,băm-file) — không thì bảo
+  trì thường quy làm agent mù; chính lượt 08:42 đã-sửa-sự-cố sẽ là ca vấp đầu tiên) + QĐ8 (2
+  tầng: dây-bẫy contracts/rag-nguon.yaml LÀM NGAY khớp xfail 55118b5 · trạng-thái-duyệt DB khi
+  onboarding thật; bác cả hai phương án đơn lẻ). Điểm rà PO-agent: chuyển tiếp production đang
+  cầm kho PDF — manifest chỉ có 2 DOCX, dây bẫy phải land CÙNG nhịp release đòn-4 lên production.
+- **Ý kiến tuân thủ ToS (security): XÁC NHẬN CÓ ĐIỀU KIỆN KHÔNG-NHÂN-NHƯỢNG** — "an toàn tuân
+  thủ VÌ VÀ CHỈ VÌ đường thoát 'không tra được→người thật' đã được XÁC NHẬN hoạt động; chưa đo
+  thì mệnh đề chưa đứng". Ca lo nhất: top-3 trả chunk-lân-cận-SAI điểm cao ⟹ agent tưởng tìm
+  thấy ⟹ diễn giải thay vì từ chối (trục âm-bản-GẦN chưa có ca canh). ĐÃ GIAO tester: chạy các
+  ca ToS trượt qua đường agent, phân loại (a)không-tra-được=đạt (b)diễn-giải-từ-chunk-lạc=TRƯỢT
+  NẶNG báo ngay (c)đúng-nhờ-đường-khác=ghi chú; + chốt mẫu số ToS (2/8 vs 2/10 đang lệch).
+- **Version-drift HIỆU CHỈNH XUỐNG (security tự đo lại):** origin/main ĐÃ CÓ đủ A1+A2·S-03·F-30·
+  F-29·F-28/e·note/ADR-024·CI-appsec — production KHÔNG hở lỗ bảo mật; thiếu duy nhất F-LOG-3 +
+  7 commit RAG/observability hôm nay ⟹ lý-do-redeploy là quan-sát-được, không phải vá-khẩn.
+  (Bài học security tự ghi: main local là nhánh chết 1 commit — đọc origin/main, đo hai lần
+  trước khi kêu.)
 - **THƯỚC RÀ HAI PHÍA XONG — 39,4% LÀ SỐ SẠCH, mặt trận truy hồi MỞ LẠI (16/08):** phía trượt
   28/28 công bằng (0 nhãn hỏng; 15 ca nghi-oan ban đầu là bẫy truy-vấn-ngắn-embed-kém — kiểm
   đường độc lập 15/15 lành, suýt làm cả đội sửa 15 nhãn lành) · phía đạt 0/47 chuỗi lỏng. Bản đồ
