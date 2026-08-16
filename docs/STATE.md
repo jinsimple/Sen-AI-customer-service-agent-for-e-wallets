@@ -26,6 +26,21 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **Bước (1) coder: khả-năng-(3) BÁC có đối chứng** (`/api/session` route-handler-tự-set-cookie
+  grep THẤY ⟹ dụng cụ không hỏng; ws-ticket + trang /chat đều 0 set-cookie). Thu hẹp: middleware
+  CHẠY nhưng **mọi mutation lên response bị BỎ** — proxy.ts biên dịch + thực thi nhưng KHÔNG được
+  đăng ký như middleware thật (manifest rỗng khớp). Hai hướng vá treo: (1) sửa đăng ký Next 16 /
+  (2) chuyển refresh xuống backendFetch (một điểm chặn).
+- **🔍 PO-agent chỉ ra MÂU THUẪN DỮ KIỆN = lối tắt:** tối 15/08 tester đo image THẬT đang chạy —
+  **cookie CÓ XOAY tới client** (+842s đọc từ jar); hôm nay rebuild TỪ CÙNG COMMIT `c447abb` →
+  0 set-cookie. Cùng mã, hai hành vi ⟹ nghi phạm mới ngoài cả 3 khả năng: **DRIFT PHỤ THUỘC lúc
+  build** (base image node tag di chuyển / Next patch khác). Phép kiểm rẻ giao coder TRƯỚC khi
+  đọc docs: tìm image thật 15/08 còn trên đĩa (untagged/dangling) → so version Next + manifest
+  hai bên. Version khác = root là drift → vá bằng GHIM dependency (digest base image + lockfile).
+- **Điều kiện đóng RATIFY bất kể hướng:** thêm test CẤU TRÚC canh middleware-được-đăng-ký
+  (manifest không rỗng / probe cookie-tới-client trong e2e) — middleware chết im lặng không ai
+  biết bao lâu là bài học lớn nhất vụ này (Luật 14). Tiêu chí chọn hướng đã chốt sẵn: cấu-hình-
+  có-tài-liệu→(1); mơ hồ→(2) qua MỘT điểm chặn backendFetch.
 - **🎯 CƠ CHẾ CỤ THỂ NHẤT TỪ ĐẦU (coder đo 1-request sau khi vá thử, CHƯA LAND):** middleware
   chạy ĐÚNG MỘT lần (đo) · backend xoay token THÀNH CÔNG (tầng-0 `refresh_rotated`) · **Set-Cookie
   KHÔNG BAO GIỜ RỜI SERVER** (header response không có set-cookie) ⟹ request kế cầm token cũ đã
