@@ -683,6 +683,67 @@ làm mọi harness gọi model tự từ chối, và `FIN05_CHO_PHEP_EP_429` tá
 test **cố ý** đốt hạn mức — bỏ đóng băng nghĩa là *được dùng model bình thường*,
 không phải *được phép làm cạn hạn mức của cả đội*.
 
+### 1c — `xfail` NUỐT lỗi hạ tầng thành "finding tái hiện"
+
+*(PO phê chuẩn 17/08. Loại nguy hiểm nhất gặp tới nay.)*
+
+Chạy bộ F-31/F-32 với `BASE_URL` trỏ vào một cổng chết. Kết quả: **ba ca báo
+`XFAIL`** — tức *"finding tái hiện"* — trong khi **phép đo không hề chạy**. Lỗi
+nối mạng xảy ra ở fixture, và `xfail(strict=True)` nuốt luôn nó.
+
+Kịch bản thật mà nó dẫn tới: **stack sập giữa lượt chạy ⟹ báo cáo "hai finding
+vẫn tái hiện" một cách hoàn toàn thành thật và hoàn toàn sai.**
+
+> **Đỏ-oan thì có người soi. Xanh-đúng-ý thì không ai soi.**
+
+Đó là điều làm dạng này nguy hơn mọi dạng ở Luật 1: nó **khớp với điều ta đang
+kỳ vọng**. Một ca đỏ bất ngờ luôn có người đi tìm nguyên nhân; một ca xác nhận
+đúng thứ ta vừa báo cáo tuần trước thì không ai chạm vào.
+
+**Cách chữa — cổng ở tầng MODULE, không để `xfail` tự xử:**
+
+```python
+def _song() -> bool:      # tiến trình CÒN SỐNG không   (docker ps)
+def _api_song() -> bool:  # dịch vụ TRẢ LỜI ĐƯỢC không  (gọi thử một endpoint)
+
+pytestmark = [pytest.mark.skipif(not _api_song(), reason="…KHÔNG đo được")]
+```
+
+**Hai câu hỏi đó khác nhau, và ta đã trả giá một lần cho việc nhầm chúng:** kho
+báo `378 chunk`, Chroma báo `378 vector`, `kiem` xanh — mà `/api/policy-search`
+trả rỗng cho **mọi** truy vấn. Ba nguồn xác nhận "còn sống", không nguồn nào
+xác nhận "trả lời được".
+
+---
+
+### 10d — kiểm một cổng chặn thì phải vô hiệu hoá HẬU QUẢ trước
+
+*(PO phê chuẩn 17/08, nâng thành nguyên tắc chung.)*
+
+> **Cách kiểm một cổng chặn KHÔNG được là "chạy thử xem có bị chặn không" —
+> làm thế thì lúc cổng thủng, ta TRẢ TIỀN để biết. Phải làm cho lối đi phía sau
+> cổng vô hại TRƯỚC, rồi mới thử.**
+
+Tôi học điều này bằng cách đốt hai lần hạn mức LLM để kiểm chính cái cổng mình
+dựng ra để không đốt hạn mức.
+
+**Bảng vô hiệu hoá — mỗi đường một cách, và MỘT cách không phủ hết:**
+
+| Nơi gọi model | Vô hiệu bằng | Vì sao cách kia không được |
+|---|---|---|
+| đọc key ở **host** (`_harness` · `_llm_judge` · …) | `OPENAI_API_KEY=sk-invalid` | — |
+| đi qua **`/api/agent-chat`** | `FIN05_BASE_URL=https://127.0.0.1:9` | model gọi **trong container**, container có key RIÊNG — key giả ở host không chạm tới |
+
+Đã kiểm: container mang key riêng dài 164 ký tự. **4 file** thuộc nhóm trên,
+**6 file** thuộc nhóm dưới — và cả hai lần đốt tiền đều nằm ở nhóm dưới.
+
+**Khái quát ra ngoài chuyện tiền:** mọi cổng chặn một **hành động không đảo
+ngược** đều phải kiểm theo kiểu này — vô hiệu hoá hậu quả trước, rồi mới thử
+cổng. Xoá dữ liệu, gửi thư, đẩy commit, gọi API tính phí: đừng bao giờ kiểm
+bằng cách để nó thật sự xảy ra nếu cổng thủng.
+
+---
+
 ### 10c — một cổng phải-NHỚ-BẬT vẫn còn một nửa là lời hứa
 
 *(PO phê chuẩn 17/08, từ một vi phạm của chính người dựng cổng.)*
