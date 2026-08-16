@@ -735,6 +735,42 @@ xác nhận "trả lời được".
 
 ---
 
+### 10e — ĐUÔI phải tính CÓ ĐIỀU KIỆN, không ghép chéo phân vị
+
+*(PO phê chuẩn 17/08, từ một lỗi của chính người vừa dạy "đọc ở đuôi".)*
+
+Bài toán: hệ chịu được bao nhiêu lượt/phút? Ràng buộc là **token/phút** và
+**lời gọi/phút**, nên phải biết một lượt tốn bao nhiêu của mỗi thứ.
+
+Cách sai — và nó trông rất hợp lý: lấy **max số lời gọi** (8) ghép với **trung
+vị token** (27,9k) để dựng "kịch bản đuôi". Nhưng hai đại lượng đó **không độc
+lập**. Đo trên 40 bản ghi có cả hai trường:
+
+    r = +0,88
+    2 lời gọi → 13.709 token (trung vị)
+    7 lời gọi → 67.572 token
+
+> **Ghép phân vị cao của biến này với phân vị giữa của biến kia mô tả một kịch
+> bản có thể KHÔNG TỒN TẠI** — và ở đây nó khiến ta kết luận sai về việc ràng
+> buộc nào đang chặn.
+
+**Cách đúng — tính có điều kiện:** mỗi mức của biến này dùng **đúng giá trị đo
+được của biến kia ở chính mức đó**.
+
+    lời gọi   token      trần theo TPM   trần theo RPM   CHẶN bởi
+       2     13.709          364,7           300,0        RPM
+       5     36.998          135,1           120,0        RPM
+       7     67.572           74,0            85,7        TPM   ← đuôi thật
+
+Kết quả **đảo ngược kết luận**: ở đuôi thật, ràng buộc chuyển từ RPM sang TPM,
+và một model có RPM cao gấp 25 lần **không hơn được gì** vì TPM chặn trước.
+
+**Dấu hiệu để tự soi:** khi một kịch bản được dựng từ **nhiều thống kê của
+nhiều biến**, hỏi *"tôi có bản ghi nào THẬT SỰ trông như thế này không?"* Không
+có ⟹ đang suy luận trên một điểm dữ liệu tưởng tượng.
+
+---
+
 ### 10d — kiểm một cổng chặn thì phải vô hiệu hoá HẬU QUẢ trước
 
 *(PO phê chuẩn 17/08, nâng thành nguyên tắc chung.)*

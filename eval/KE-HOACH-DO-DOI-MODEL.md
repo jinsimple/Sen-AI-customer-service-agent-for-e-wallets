@@ -159,6 +159,61 @@ sau. Trượt ở bước 2 thì buổi hai không cần chạy — tiết kiệ
 
 ---
 
+## 2b. PHÉP THỬ QUYẾT ĐỊNH — độ tin cậy GỌI TOOL
+
+*(Thêm 17/08. Sau khi hai lý lẽ thông-lượng cho `qwen3.7-plus` bị số bác, đây
+là lý do duy nhất còn sống để cân nhắc model hạng lớn hơn — và nó **chưa ai
+đo**.)*
+
+Bài toán rút gọn còn một câu: **flash gọi tool có ổn định không?** Nếu có,
+flash thắng (cùng trần ở đuôi, rẻ hơn ~10 lần). Nếu không, trả thêm tiền cho
+hạng lớn hơn là mua độ tin cậy, không mua thông lượng.
+
+⚠️ Đây là chỗ dễ trượt nhất của cả kế hoạch: *"model lớn hơn thì gọi tool tốt
+hơn"* nghe hiển nhiên tới mức không ai đòi bằng chứng. Nó cũng **đúng dạng**
+mệnh đề đã bị bác hai lần trong ngày.
+
+### Đo gì — bốn thứ, tách riêng vì chúng hỏng theo cách khác nhau
+
+| Đo | Định nghĩa | Vì sao tách |
+|---|---|---|
+| **gọi hay không** | câu cần tool mà agent trả lời chay | đây là F-31 nhìn từ phía model — im lặng, không lỗi |
+| **gọi ĐÚNG tool** | chọn `search_policy` khi cần `lookup_transaction` | gọi nhầm vẫn "có gọi tool", thước thô đếm là đạt |
+| **chuỗi NHIỀU BƯỚC** | bước 2 dùng được kết quả bước 1 | chỗ model yếu gãy, và cũng là chỗ tốn token nhất |
+| **tool call HỎNG ĐỊNH DẠNG** | JSON sai, tham số thiếu | lỗi hạ tầng, không phải lỗi suy luận — đừng gộp |
+
+### Bộ câu và cách chạy
+
+Dùng **`eval/bo_lenh_do.jsonl` v2** (đã có 3 câu ngắn · 3 câu điều tra nhiều
+bước · 1 câu tạo vé) — **không soạn bộ mới**: bộ này đã có mốc nền trên
+gpt-4o-mini, nên cặp so sánh sạch sẵn.
+
+**k = 5 lượt mỗi câu mỗi model** (Luật 3: lượt LLM sinh thì một lượt là quan
+sát). 7 câu × 5 lượt × 2 model = **70 lượt**. Ở giá đo được, dưới 0,50 USD.
+
+### Ngưỡng — chốt TRƯỚC khi chạy
+
+| | flash được chọn nếu |
+|---|---|
+| gọi đúng tool | **≥ 90%** (≤ 1 sai trong 10 lượt cần tool) |
+| chuỗi nhiều bước hoàn tất | **không thấp hơn gpt-4o-mini quá 1 ca** |
+| tool call hỏng định dạng | **0** — lỗi định dạng là lỗi cứng, không đánh đổi |
+
+Không đạt ⟹ so tiếp `qwen3.7-plus` trên **cùng bộ**, và lúc đó chênh lệch giá
+mới là câu hỏi thật.
+
+### Kèm: tỉ lệ KÝ TỰ / TOKEN — rẻ nhất, trả lời một câu đang tin bằng lời
+
+Cùng lượt chạy, không tốn thêm: `input_chars / input_tokens` trên **cùng một
+câu hỏi** ở hai nhà cung cấp.
+
+    gpt-4o-mini (đo được 17/08): 2,43 ký tự/token
+
+Qwen cao hơn ⟹ mệnh đề *"Qwen hỗ trợ tiếng Việt tốt hơn"* có một biểu hiện **đo
+được**, với hệ quả kép: rẻ hơn cho cùng một câu, **và** nhét được nhiều ngữ
+cảnh hơn trong cùng trần TPM. Thấp hơn ⟹ mệnh đề đó **không đúng ở chỗ nó quan
+trọng nhất với ta**, dù có đúng ở nghĩa khác.
+
 ## 3. Tiêu chí GO / NO-GO
 
 ### 3.1 An toàn — ràng buộc CỨNG, không đánh đổi
