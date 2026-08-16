@@ -420,6 +420,17 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 ## ⭐ ĐỔI API SANG QWEN — PO thật quyết 16/08, ƯU TIÊN CAO sau gate (chi tiết: brief `2026-08-17-dot-nang-cap-oss.md` §N7)
 - PO thật ĐÃ CÓ key. PO-agent đã đặt khối biến **chưa-hiệu-lực** vào `.env` local (QWEN_API_KEY +
   LLM_*/EMBEDDING_*/JUDGE_* comment sẵn) — không ảnh hưởng gì cho tới khi coder land code.
+- **🔒 PO thật CHỐT 16/08: DÙNG API Qwen, KHÔNG tự host.** Nhánh khảo sát tự-host HUỶ (coder khỏi
+  làm; số tham khảo đã có: 14B-Q4 cần 12-16GB VRAM · 32B-Q4 cần ~24GB · tool-calling tự host có
+  lỗi thật đã ghi nhận · một máy để bàn phục vụ <20 người đồng thời — không đạt đích 100 CSKH).
+  **Hệ quả phải theo dõi, KHÔNG được quên:** ① dùng API ⟹ ngoại lệ CÓ Ý THỨC với nguyên tắc ①
+  của đợt ("không dữ liệu nào rời hạ tầng") — ghi vào ADR khi land, không để thành mặc định
+  không ai để ý ② **"dùng Qwen" chưa đủ là một quyết định cho tới khi GHIM VÙNG** (Singapore /
+  Tokyo / Bắc Kinh / Virginia — mỗi vùng một hồ sơ pháp lý khác) + đọc điều khoản train-on-data
+  đúng sản phẩm+vùng ③ **hồ sơ đánh giá tác động chuyển dữ liệu ra nước ngoài (NĐ 13/2023 Đ.25)
+  bổ sung vào CỔNG-TRƯỚC-DỮ-LIỆU-THẬT-ĐẦU-TIÊN** — khoảng trống này ĐANG tồn tại với OpenAI, độc
+  lập với việc đổi sang Qwen (security đo: tin khách gõ rời hệ thống NGUYÊN VĂN, không scrub được
+  vì agent cần chính cái nghĩa đó; S-01 đã chứng minh scrub chặn nhầm 40%).
 - **Thiết kế: TÁCH CHAT KHỎI EMBEDDING** (chat→Qwen, embedding GIỮ OpenAI; đổi embedding = đổi
   VẬT, nạp lại kho + cắt chuỗi mọi số truy hồi). 4 chỗ: config.py (biến mới, fallback OPENAI_* ⟹
   không đổi hành vi mặc định) · graph.py:239 · store.py:41 · eval/_llm_judge.py:51. Kèm 2 nợ lộ
