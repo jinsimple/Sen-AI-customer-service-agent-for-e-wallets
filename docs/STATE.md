@@ -417,6 +417,26 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🏆 N1 RERANKER — CHẠM ĐÚNG TRẦN LÝ THUYẾT, nhưng TRƯỢT ngưỡng latency (16/08)
+- `bge-reranker-v2-m3`: **23/47 → 38/47** (= trần Recall@20, tức lấy HẾT phần còn trong tầm) ·
+  **ToS 2→4 = đúng trần ToS** · **0 ca rơi** · p=0,0001 (ngưỡng khai trước: ≥6 ca ròng).
+  ViRanker 37/47, rơi RAG-01 ⟹ **loại, chỉ đi tiếp với bge**. Cả hai tải bằng safetensors (băm
+  `5cea425ef710` / `d86f3bd32eda`); **chưa ghim revision hash — phải ghim trước vòng sau**.
+- **TRƯỢT: latency 3776 ms/lượt vs ngưỡng 300 ms coder tự khai TRƯỚC khi chạy.** Coder tuyên bố
+  trượt thay vì dời cọc sau khi thấy số đẹp — **mẫu chuẩn của ngưỡng-khai-trước**, ghi làm nếp.
+  Trạng thái chính thức: KHÔNG ĐẠT, không đổi tên thành "đạt-chờ-tối-ưu".
+- **PO chốt TRẦN LATENCY THẬT: ≤800 ms/lượt tra trên máy chạy thật** (rút từ số của tester: trung
+  vị lượt 5,9-9,9s, 1-2 lần tra/lượt ⟹ +1,6s ≈ +20%, xa trần 30s). 300ms là ước chừng của PO khi
+  chưa có dữ liệu latency — giữ nó là để ước-chừng-cũ phủ quyết phép-đo-mới. **Ràng buộc kép:**
+  trung vị lượt không tăng >20% VÀ 0 ca vượt 30s.
+- **VÉ N1b MỞ — tối ưu latency**, thứ tự rẻ→đắt: top-10 thay top-20 (giảm ~½, kiểm luôn chất
+  lượng có giữ +15 không) → int8/ONNX → đo trên máy Windows thật. **+ trục CHƯA AI ĐO mà đích
+  100 CSKH bắt buộc: THÔNG LƯỢNG** (lượt tra/giây chịu được), khác bài toán độ trễ và không cải
+  thiện cùng tỉ lệ. Không land reranker cho tới khi N1b đạt.
+- **Hai dự đoán độc lập của tester+coder được xác nhận bằng số:** trần reranker có thật và chạm
+  được; **6/10 ca ToS ngoài tầm MỌI reranker** ⟹ bệnh ToS ở bước TÌM — nay là sự kiện đo được.
+  Nếu N1b đạt: Recall@4 48,9% → ~80,9%, trục Truy-hồi 9,57 → ~16/20 (cắt chuỗi, đo lại nhãn vật).
+
 ## ⭐ ĐỔI API SANG QWEN — PO thật quyết 16/08, ƯU TIÊN CAO sau gate (chi tiết: brief `2026-08-17-dot-nang-cap-oss.md` §N7)
 - PO thật ĐÃ CÓ key. PO-agent đã đặt khối biến **chưa-hiệu-lực** vào `.env` local (QWEN_API_KEY +
   LLM_*/EMBEDDING_*/JUDGE_* comment sẵn) — không ảnh hưởng gì cho tới khi coder land code.
