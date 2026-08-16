@@ -96,7 +96,24 @@ _DONG_MUC_LUC = re.compile(r"\.{5,}\s*\d+\s*$")
 
 
 def _bo_dong_muc_luc(text: str) -> str:
-    """Bo dong muc luc; GIU nguyen moi dong khac va cau truc xuong dong."""
+    """Bo dong muc luc; GIU nguyen moi dong khac va cau truc xuong dong.
+
+    ĐÍNH CHÍNH số đo (commit 0c965a7 ghi SAI, không sửa lịch sử được):
+        mốc TRƯỚC  20/35 — KHÔNG phải 19/35. 19/35 có trước khi tester sửa
+                   nhãn sai của ca RAG-08 ở 675282e; tôi đo "sau" bằng thước
+                   mới nhưng so với mốc "trước" đo bằng thước cũ.
+        sau đòn 3  21/35  ⟹ delta ròng +1, không phải +2.
+
+    Trong đó có ca RAG-04 chuyển ĐẠT -> trượt. Đo lại: chunk duy nhất trong
+    top-10 khớp từ khoá của ca là một DÒNG TIÊU ĐỀ MỤC LỤC, và nó khớp bằng
+    từ khoá yếu `nhận tiền` chứ không phải `50.000.000`. Đáp án thật của FAQ 7
+    không có mặt. Tức RAG-04 chưa bao giờ truy hồi đúng — đòn 3 làm lộ một
+    PASS GIẢ, không gây hồi quy. Ghi ra thay vì gộp vào delta.
+
+    Hệ quả rộng hơn (tester audit tiếp, PO chốt ở STATE 78ecc79): 9/21 ca đang
+    ĐẠT là đạt nhờ từ khoá chung. 60% là GIỚI HẠN TRÊN, cận dưới 34,3%.
+    Con số của hàm này chỉ đáng tin tới mức thước chấm đáng tin.
+    """
     return "\n".join(d for d in text.split("\n") if not _DONG_MUC_LUC.search(d.strip()))
 
 
