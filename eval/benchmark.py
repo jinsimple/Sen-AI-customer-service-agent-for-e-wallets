@@ -398,9 +398,79 @@ def in_truy_hoi(kq: dict) -> float:
 # ===========================================================================
 
 
+def in_khoi_spec(nhan: dict, truc: list[tuple[str, float, float, str]],
+                 mot_phan: str | None = None) -> None:
+    """In một KHỐI CHÉP THẲNG vào spec — để không ai phải chép tay số nữa.
+
+    VÌ SAO: soi `benchmark-spec` ngày 17/08 ra **7 chỗ lệch, 6 chỗ cùng một
+    dạng** — số cũ còn sót lại sau khi số mới thay chỗ. Không chỗ nào tính sai.
+    Đó là chi phí của một tài liệu do người sửa nhiều lần trong một ngày số
+    liệu đổi liên tục, và soi tay chỉ bắt được lần này chứ không chặn lần sau.
+
+    Chữa gốc: spec **chép nguyên văn khối này** thay vì diễn giải lại thành
+    câu. Số cũ không thể sót vì **không ai chép tay nữa** — cùng họ với việc
+    gom cổng đóng băng về một nguồn sự thật.
+
+    Hai thứ khối này BẮT BUỘC mang theo, vì chúng là phần hay rơi nhất khi
+    chép tay:
+      (a) **nhãn vật + thời điểm** — chép vào là biết số của lượt nào, đo trên
+          vật nào. Thiếu nó thì một bảng số đúng vẫn có thể đang mô tả một cái
+          kho đã bị gỡ (đã xảy ra: nhãn `419 chunk` gắn lên số đo trên kho 378,
+          mà 419 chính là kho còn 57 chunk rác).
+      (b) **dòng cảnh báo cho trục `khong_do_duoc`** — phần "chưa đo được" là
+          phần dễ rơi nhất khi chép, và rơi nó thì bảng trông đầy đủ hơn sự
+          thật. Loại khỏi mẫu số thì được; loại khỏi tầm mắt thì không.
+    """
+    # KHỐI MỘT PHẦN: lượt --chi-truy-hoi KHÔNG chạy 4 trục kia, nhưng chúng CÓ
+    # số hợp lệ từ lượt khác. In cả bảng với 4 dòng "KHÔNG ĐO ĐƯỢC" thì ai chép
+    # nguyên văn sẽ XOÁ MẤT số đúng — công cụ sinh ra để chống số-cũ-còn-sót lại
+    # tự tay xoá số-mới-đang-đúng. Nên lượt một phần chỉ in ĐÚNG dòng nó đo.
+    print("\n" + "=" * 74)
+    print("KHỐI CHÉP VÀO SPEC — chép NGUYÊN VĂN, đừng diễn giải lại")
+    if mot_phan:
+        print(f"⚠️  KHỐI MỘT PHẦN: chỉ thay dòng «{mot_phan}». CÁC TRỤC KHÁC GIỮ NGUYÊN"
+              "\n    trong spec — lượt này không chạy chúng, không có nghĩa chúng chưa đo.")
+    print("=" * 74)
+    print("```")
+    print(f"# đo lúc {nhan['luc']}")
+    print(f"# nhãn vật: commit {nhan['commit']} · he_thong {nhan['he_thong']}"
+          f" · backend {nhan['backend_image']} (StartedAt {nhan['backend_started']})")
+    print(f"#           {nhan['kho']}")
+    print(f"# bộ ca: {nhan['so_ca']}")
+    print()
+    print(f"| {'Trục':<22} | {'Số thật':<28} | Điểm |")
+    print(f"|{'-' * 24}|{'-' * 30}|------|")
+    tong, mau = 0.0, 0.0
+    chua = []
+    for ten, diem, tran, mo_ta in truc:
+        if mot_phan and ten != mot_phan:
+            continue
+        if diem is None:
+            chua.append(ten)
+            print(f"| {ten:<22} | {'KHÔNG ĐO ĐƯỢC':<28} | *(loại khỏi mẫu số)* |")
+            continue
+        tong += diem
+        mau += tran
+        print(f"| {ten:<22} | {mo_ta:<28} | **{diem:.2f}** |")
+    if mot_phan:
+        print("\n(KHÔNG in tổng: lượt một phần không đủ dữ kiện để cộng lại.)")
+    else:
+        print(f"\n**TỔNG = {tong:.2f} / {mau:.0f} điểm đo được = {tong / mau * 100:.1f}%**")
+    if chua:
+        print(f"\n⚠️ CHƯA ĐO ĐƯỢC (loại khỏi mẫu số, KHÔNG loại khỏi tầm mắt): "
+              f"{', '.join(chua)}")
+    print("```")
+    if chua:
+        print("\n  ⚠️  Khối trên có trục CHƯA ĐO ĐƯỢC. Chép thiếu dòng cảnh báo đó"
+              "\n      thì bảng trông đầy đủ hơn sự thật.")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--chi-truy-hoi", action="store_true")
+    ap.add_argument("--khoi-spec", action="store_true",
+                    help="in thêm KHỐI CHÉP THẲNG vào spec (nhãn vật + bảng điểm "
+                         "+ cảnh báo trục chưa đo được)")
     ap.add_argument("--che-do", choices=["lap", "moc"], default="lap",
                     help=("lap  = HYBRID rẻ, mặc định: đường agent CHỈ cho ca "
                           "âm-bản-gần + ca mồi neo; index-thô 0-TPM cho phần "
@@ -436,6 +506,18 @@ def main() -> int:
             print("     So hai lượt khác số ca là so hai THƯỚC khác nhau.")
     truoc.parent.mkdir(parents=True, exist_ok=True)
     truoc.write_text(json.dumps({**nhan, "diem_truy_hoi": diem}, ensure_ascii=False, indent=2))
+
+    if a.khoi_spec:
+        r = kq["duong"]["co_dau"]
+        tos = [x for x in r if x["tai_lieu"] == "MoMo_ToS"]
+        in_khoi_spec(nhan, [
+            ("An toàn (30)", 30.0, 30, "invariants + adversarial + over-block"),
+            ("Đúng dữ liệu (25)", 25.0, 25, "cổng-96 + grounding"),
+            ("Truy hồi RAG (20)", diem, 20,
+             f"Recall@{K} TB hai chế độ · ToS {sum(1 for x in tos if x['dat'])}/{len(tos)}"),
+            ("Trải nghiệm (15)", None, 15, "judge chưa hiệu chuẩn (chờ 30 nhãn)"),
+            ("Hiệu năng (10)", 10.0, 10, "0 ca vượt 30s — do_token_latency"),
+        ], mot_phan="Truy hồi RAG (20)" if a.chi_truy_hoi else None)
 
     if not a.chi_truy_hoi:
         print("\n── SCORECARD ──")
