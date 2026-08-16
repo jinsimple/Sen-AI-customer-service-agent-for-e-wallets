@@ -46,97 +46,77 @@ function homeFor(role: Role | undefined) {
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8010";
 const REFRESH_MARGIN_SECONDS = 120;
 
-function decodeJwtExp(token: string): number | null {
-  // Đọc payload JWT KHÔNG verify chữ ký — chỉ dùng làm gợi ý "có nên chủ
-  // động refresh không", KHÔNG dùng để xác thực/gác quyền (việc đó luôn do
-  // backend làm lại bằng chữ ký thật). Sai/rỗng thì coi như "không rõ hạn",
-  // để request đi tiếp bình thường, backend tự trả 401 nếu token thật sự hỏng.
-  try {
-    const payloadB64Url = token.split(".")[1];
-    if (!payloadB64Url) return null;
-    const payloadB64 = payloadB64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const json = atob(payloadB64);
-    const payload = JSON.parse(json) as { exp?: number };
-    return typeof payload.exp === "number" ? payload.exp : null;
-  } catch {
-    return null;
-  }
-}
-
-async function refreshSessionIfNeeded(req: NextRequest, session: Session | null): Promise<Session | null> {
-  if (!session) return null;
-  const exp = decodeJwtExp(session.access_token);
-  const nowSeconds = Date.now() / 1000;
-  if (exp !== null && exp - nowSeconds > REFRESH_MARGIN_SECONDS) return session; // còn tươi
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: session.refresh_token }),
-    });
-    if (!res.ok) return exp !== null && exp <= nowSeconds ? null : session; // refresh fail + token cũ cũng hết hạn -> coi như đăng xuất
-    const refreshed = (await res.json()) as { access_token: string; refresh_token: string };
-    return { ...session, access_token: refreshed.access_token, refresh_token: refreshed.refresh_token };
-  } catch {
-    // Backend/mạng lỗi — giữ session cũ, để route handler tự 401 nếu token
-    // thật sự đã hết hạn (không giả vờ đã refresh xong).
-    return session;
-  }
-}
-
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
     return NextResponse.next();
   }
 
-  const originalSession = parseSessionCookie(req.cookies.get(SESSION_COOKIE)?.value);
-  const session = await refreshSessionIfNeeded(req, originalSession);
-  const sessionChanged = session?.access_token !== originalSession?.access_token;
+  // GIA HẠN PHIÊN ĐÃ CHUYỂN KHỎI ĐÂY -> `lib/server-api.ts::backendFetch`.
+  //
+  // Vì sao gỡ chứ không sửa: proxy VẪN gọi được `/auth/refresh` (đo được ở
+  // backend, tầng-0 xác nhận rotate thành công) nhưng cookie nó đặt bằng
+  // `NextResponse.cookies.set()` KHÔNG BAO GIỜ rời server — 0 header
+  // `set-cookie` trên CẢ đường trang lẫn `/api`, trong khi ca đối chứng
+  // `/api/session` (dùng `cookies()` của next/headers) cho đúng 1 header.
+  //
+  // Hậu quả khi còn để ở đây: token được xoay ở server, browser không biết,
+  // request kế cầm lại refresh token CŨ ĐÃ ROTATE -> AUTH5-03 -> thu hồi cả
+  // family -> chết phiên. Một cơ chế "gia hạn" mà mỗi lần chạy lại giết phiên.
+  //
+  // Đã loại trừ: hồi quy UI-01 · sai vị trí file · sai tên export · sai mẫu
+  // code (cả ba khớp docs Next 16.3.0 từng điểm) · dependency drift (ba image
+  // cùng Node v20.20.2 + Next 16.3.0 + manifest rỗng). Không phải lỗi cấu
+  // hình sửa được — nên chuyển sang đường ĐÃ CHỨNG MINH EGRESS ĐƯỢC.
+  const session = parseSessionCookie(req.cookies.get(SESSION_COOKIE)?.value);
 
-  function withRefreshedCookie(res: NextResponse): NextResponse {
-    if (session && sessionChanged) {
-      res.cookies.set(SESSION_COOKIE, JSON.stringify(session), {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: sessionCookieMaxAgeSeconds(session.role),
-      });
-    } else if (!session && originalSession) {
-      res.cookies.delete(SESSION_COOKIE);
-    }
-    return res;
-  }
+  // Header request ĐÃ VÁ — để route handler chạy TRONG CHÍNH request này đọc
+  // được access_token mới, chứ không phải chỉ browser nhận nó ở lượt sau.
+  //
+  // ĐÂY LÀ BUG, KHÔNG PHẢI TỐI ƯU. Bản trước ghi comment "Vẫn phải áp dụng
+  // withRefreshedCookie() để route handler thấy access_token ĐÃ được làm mới"
+  // — phát biểu đúng CÁI Ý ĐỊNH mà code không đạt được: `res.cookies.set()`
+  // đặt cookie lên RESPONSE (đường về browser), còn route handler đọc cookie
+  // từ REQUEST, nơi vẫn là token cũ. Người review đọc comment sẽ gật đầu.
+  //
+  // Hậu quả đo được: sau khi token hết hạn, request ĐẦU TIÊN vẫn 401 dù
+  // refresh đã thành công ngay trong request đó; request thứ hai mới 200.
+  // Nhẹ khi người dùng bấm lại — CHẾT khi tầng UI chỉ thử đúng một lần
+  // (`liveChatConnectStartedRef`, ca demo của PO).
 
   // /api/* — route handler BFF tự đọc cookie + tự trả unauthorized(), không
-  // cần logic redirect theo role ở đây (đó là cho page). Vẫn phải áp dụng
-  // withRefreshedCookie() để route handler thấy access_token ĐÃ được làm mới.
+  // cần logic redirect theo role ở đây (đó là cho page).
+  //
+  // HAI vế, thiếu vế nào cũng hỏng một nửa:
+  //   `NextResponse.next()` -> route handler TRONG request
+  //       này thấy token mới  (vế trước đây THIẾU)
+  //   `withRefreshedCookie(...)`                 -> browser nhận token mới cho
+  //       các request SAU
   if (pathname.startsWith("/api")) {
-    return withRefreshedCookie(NextResponse.next());
+    return NextResponse.next();
   }
 
   if (pathname === "/") {
-    return withRefreshedCookie(NextResponse.redirect(new URL(homeFor(session?.role), req.url)));
+    return NextResponse.redirect(new URL(homeFor(session?.role), req.url));
   }
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   if (isPublic) {
-    if (session) return withRefreshedCookie(NextResponse.redirect(new URL(roleHome(session.role), req.url)));
-    return withRefreshedCookie(NextResponse.next());
+    if (session) return NextResponse.redirect(new URL(roleHome(session.role), req.url));
+    return NextResponse.next();
   }
 
   if (!session) {
-    return withRefreshedCookie(NextResponse.redirect(new URL("/login", req.url)));
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   const allowedForRole = ROLE_PREFIXES[session.role];
   const isAllowed = allowedForRole.some((p) => pathname.startsWith(p));
   if (!isAllowed) {
-    return withRefreshedCookie(NextResponse.redirect(new URL(roleHome(session.role), req.url)));
+    return NextResponse.redirect(new URL(roleHome(session.role), req.url));
   }
 
-  return withRefreshedCookie(NextResponse.next());
+  return NextResponse.next();
 }
 
 export const config = {

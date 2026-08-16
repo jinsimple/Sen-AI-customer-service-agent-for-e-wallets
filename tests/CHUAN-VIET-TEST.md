@@ -1,8 +1,10 @@
 # Chuẩn viết test — FIN-05
 
 > Vai giữ file: **tester** · 15/08/2026.
-> Bốn luật dưới đây được PO phê chuẩn thành **luật dự án**, rút ra từ lỗi THẬT
+> Tám luật dưới đây được PO phê chuẩn thành **luật dự án**, rút ra từ lỗi THẬT
 > gặp trong hai ngày 14–15/08, mỗi luật kèm đúng những ca đã làm nó lộ ra.
+> (Luật 6 và 7 thêm 15/08, sau khi hai bộ test lộ ra là **chưa từng chạy một
+> lần nào** và một cổng đối chứng lộ ra là **đã rỗng mà không ai biết**.)
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -10,9 +12,14 @@
 > kể cả khi được mời: ranh giới co giãn "một lần cho tiện" thì lần sau không
 > còn là ranh giới.
 
-## Vì sao bốn luật, không phải một
+## Vì sao tám luật, không phải một
 
-Một test chỉ có giá trị khi chứng minh được **cả năm** vế:
+Luật 1–5 canh **cái thước** và **phép đo**. Luật 6 canh **trạng thái `skip`**.
+Luật 7 canh thứ không ai nghĩ cần canh: **chính công cụ đo** — corpus đối chứng,
+hàm đếm, dòng in kết quả. Nó là lớp có ít người canh nhất vì nó không phải sản
+phẩm (không ai review) mà cũng không phải test (không ai viết test cho nó).
+
+Một test chỉ có giá trị khi chứng minh được **cả tám** vế:
 
 | | Câu hỏi | Thiếu nó thì |
 |---|---|---|
@@ -21,11 +28,19 @@ Một test chỉ có giá trị khi chứng minh được **cả năm** vế:
 | **Luật 3** | Phép đo có **TÁI LẬP** được không? | kết luận rút từ một kịch bản không quay lại được |
 | **Luật 4** | Thước và vật có **ĐỨNG YÊN** suốt lượt đo không? | cặp before/after lẫn nhiều biến, không quy được nhân quả |
 | **Luật 5** | Bản ghi có đủ để **VAI KHÁC BÁC** kết luận không? | một bộ đo không ai kiểm chứng ngược được, kể cả khi nó sai |
+| **Luật 6** | Một `skip` có **tự chứng minh** lý do là thật không? | test có mà chưa từng chạy một lần nào |
+| **Luật 7** | **Công cụ đo** có còn đo đúng thứ cần đo không? | cổng rỗng, và con số đúng cho một câu hỏi khác |
+| **Luật 8** | Kết luận này có **đường đo THỨ HAI** chống lưng không? | công cụ sai vẫn trả lời mạch lạc — mạch lạc SAI |
 
 Thiếu vế nào cũng cho ra một kết luận **trông như đo được mà không đo được gì**.
-Đó là lý do năm luật này là một họ, không phải năm quy tắc rời: Luật 1 và 2
-canh **cái thước**, Luật 3 và 4 canh **phép đo**, Luật 5 canh **cái sổ** —
-thứ duy nhất còn lại sau khi lượt đo kết thúc.
+Đó là lý do tám luật này là một họ, không phải tám quy tắc rời:
+
+- Luật **1–2** canh **cái thước** (nó có hiệu lực không, có quá rộng không)
+- Luật **3–4** canh **phép đo** (tái lập được không, thước và vật có đứng yên không)
+- Luật **5** canh **cái sổ** — thứ duy nhất còn lại sau khi lượt đo kết thúc
+- Luật **6** canh **trạng thái `skip`** — chỗ duy nhất trông như thành công mà không đo gì
+- Luật **7** canh **chính công cụ đo** — lớp không ai review vì nó không phải sản phẩm, và không ai viết test vì nó không phải test
+- Luật **8** trả lời *canh bằng CÁCH NÀO*: bằng một **đường đo khác loại**, không bằng sự cẩn thận
 
 ### Luật 5 — bộ đo phải lưu đủ để người khác bác được nó
 
@@ -281,6 +296,310 @@ Phân biệt hai loại bất định:
 ra gốc trong vài phút. Im chờ đủ ba lần thì hoặc vẫn ra ba số, hoặc tệ hơn —
 đợi tới lúc coder vá xong, thấy 0/96, rồi kết luận "không có vấn đề gì" và chôn
 luôn một bug thật.
+
+---
+
+## LUẬT 6 — Một `skip` phải TỰ CHỨNG MINH lý do skip là THẬT
+
+*(15/08/2026 — security đề nghị vế thao tác, tester nhận; rút từ sự cố dưới đây.
+Vùng `docs/TESTING.md` là của `po`, nên bản gốc giữ ở đây như bốn luật trên.)*
+
+`skip` là trạng thái nguy hiểm nhất trong một suite, vì nó là trạng thái **duy
+nhất trông giống thành công mà không đo gì**. Đỏ thì có người sửa; xanh thì có
+người tin; **skip thì không ai làm gì cả** — và dòng lý do bên cạnh nó thường
+đủ hợp lý để không ai đọc lại lần thứ hai.
+
+**Ca thật, và nó tệ hơn mọi biến thể của Luật 1:**
+
+```
+tests/test_security/test_mau_tier1_chi_thi.py  → "F-22 (tách tier) CHƯA SHIP"
+tests/test_security/test_f24_recall_tier1.py   → "Hàm phân tier chưa có trong cây làm việc"
+```
+
+Hai file dò hàm bằng cách thử **4 cặp module/tên** tìm `phan_tier`, không thấy
+thì `pytest.skip(allow_module_level=True)`. Sự thật: tên là **`_phan_loai_tier`**,
+và **2 trong 4 module còn không tồn tại**. Hai bộ test canh lớp phòng vệ
+injection **skip từ ngày viết** — chưa từng chạy một lần nào — trong khi sổ dự
+án ghi F-22/F-24/F-25 là đã chốt và đang được canh.
+
+Đây là *hiện-diện ≠ hiệu-lực* ở một dạng chưa từng ghi nhận: không phải
+**code có mà không chạy**, mà **TEST CÓ MÀ CHƯA TỪNG CHẠY**. Và nó là lần thứ
+HAI cùng hình dạng trong một đợt — trước đó `8d26548`, mỏ neo O2 đoán sai tên
+`dem_mat_do_liet_ke`, 7 ca skip.
+
+### Vì sao đây là lớp lỗi có hệ thống, không phải hai lần bất cẩn
+
+Hiến pháp §4 chặn tester đọc `src/` — **đúng**, và không nên nới. Nhưng nó có
+một phí tổn có thật: tester phải **ĐOÁN mã định danh**, và đoán trượt thì test
+**tự tắt trong im lặng**. Đúng họ Luật 14 (*một nhánh không gọi được từ test là
+nhánh không ai canh*), lần này là **test không ai canh**.
+
+### Quy tắc
+
+1. **Skip vì "không tìm thấy hàm/lớp/module" gần như luôn là BUG CỦA BỘ TEST**,
+   không phải điều kiện môi trường hợp lệ. `skip` chỉ dành cho một **NĂNG LỰC
+   chưa tồn tại** (chưa có Postgres, chưa dựng Docker, chưa sinh dataset) —
+   không dành cho **dây nối sai**.
+2. **Ưu tiên `import` thẳng hơn tầng dò.** Đổi tên/xoá hàm ⟹ `ImportError` ⟹
+   **collection error, đỏ ngay**, không ai phải nhớ gì. Cái giá — hàm nội bộ
+   `_ten` trở thành **giao diện có hợp đồng**, đổi tên phải báo tester — là giá
+   nên trả cho một hàm quyết định xoá-hay-giữ nội dung thật.
+3. **Không dùng cờ "bộ test khẳng định tính năng đã ship" để chọn fail-hay-skip.**
+   Cờ đó là một **lời nhắc** do người đặt tay, và lời nhắc hỏng đúng vào ngày
+   người ta quên sửa nó. Ưu tiên cơ chế tự đỏ.
+4. **Mã định danh phải HỎI, không ĐOÁN.** Tên hàm/miền giá trị trả về xin từ
+   tech-lead hoặc đọc từ `contracts/`. Đây không phải lách §4: §4 cấm để logic
+   sản phẩm nhào nặn *kỳ vọng*, không cấm biết một cái tên.
+
+### 6b — Ranh giới HỎI-hay-ĐOÁN, và một lỗ trong chính §4
+
+Khi xin tên hàm, tôi cũng xin **miền giá trị trả về** (`"tier1"`/`"tier2"`/`""`)
+thay vì tự gọi hàm rồi lấy đầu ra làm kỳ vọng — dù việc tự gọi **không vi phạm
+chữ nào của §4** (gọi hàm là quan sát hành vi, không phải đọc code).
+
+**Lý do, và nó là một lỗ trong §4 cần bịt bằng kỷ luật:** hiệu chuẩn thước theo
+vật cho ra **cùng hậu quả** với đọc code — suite xanh với **bất kỳ** hành vi nào
+hàm đang có, kể cả hành vi sai — mà không chạm tới điều cấm nào. Lằn ranh đúng:
+
+> **MÃ ĐỊNH DANH và BẢNG MÃ** hỏi tech-lead / đọc `contracts/`.
+> **KỲ VỌNG** (giá trị nào đúng cho đầu vào nào) luôn dẫn từ ĐẶC TẢ, không bao
+> giờ từ đầu ra của hàm.
+
+**⚠️ LUẬT NÀY KHÔNG RIÊNG CỦA VAI `tester` — xin giữ ghi chú này khi dán sang
+`docs/TESTING.md`.** Trong đúng một phiên (15/08) có **ba** ca cùng họ
+*thước-hiệu-chuẩn-theo-vật*, ở **ba vai khác nhau**:
+
+| Vai | Ca |
+|---|---|
+| tester | hai bộ test skip im lặng 2 ngày vì đoán sai tên hàm |
+| tester | 15 kỳ vọng suýt viết lại theo impl thay vì theo đặc tả |
+| security | đơn thuốc §5.2 cho ST2-P0-3 kê `scrub_pii` **mà chưa đo nó** |
+
+Ba dạng khác nhau, cùng một lỗi: **để thứ đang bị kiểm quyết định cái thước
+dùng để kiểm nó.** Vai nào cũng mắc được, nên luật phải áp cho vai nào cũng vậy.
+
+Một dạng thứ tư cần canh trước vì nó **chưa xảy ra**: cập nhật một MỐC bằng
+cách chạy suite rồi chép số ra. Mốc khớp hệ thống thì không canh được gì — một
+hồi quy giữa hai lần chép sẽ được chép luôn vào mốc. Mốc phải khớp một **quyết
+định có số đo dẫn nguồn**, và hệ thống phải theo kịp quyết định. Đã ghim thành
+luật tại chỗ ở `tests/test_security/test_f24_recall_tier1.py` (khối "LUẬT SỬA
+MỐC"), viết **trước** khi F-28 land — tức trước khi có ai đó có động cơ lách nó.
+
+Trả lãi ngay trong cùng phiên: chữ ký thật là `-> str` trong khi 15 assertion
+viết `== 1` (int). Nếu chỉ vá tên rồi chạy, kết quả là **15/15 đỏ vì lệch kiểu**
+— một bảng đỏ **không nói gì** về thứ cần đo. Tên-sai đang che một lệch-kiểu;
+tầng dò 4 nhánh không bao giờ phát hiện được, vì nó chỉ có hai nhánh
+"thấy hàm" / "không thấy hàm", không có nhánh **"thấy hàm nhưng hợp đồng khác"**.
+
+---
+
+## LUẬT 7 — CÔNG CỤ ĐO cũng cần được canh, và nó là thứ KHÔNG AI canh
+
+*(15/08/2026 — rút từ bốn ca thật trong một buổi chiều, ba vai đều dính.)*
+
+Cả sáu luật trên canh **test** và **phép đo**. Không luật nào canh **thứ dùng
+để đo**: corpus đối chứng, hàm đếm, dòng in kết quả. Đó là lớp có ít người canh
+nhất, vì nó không phải sản phẩm nên không ai review, mà cũng không phải test
+nên không ai viết test cho nó.
+
+### 7a — Bộ đối chứng ĐỦ hôm qua có thể RỖNG hôm nay, không đổi một ký tự
+
+*Luật 8 (đo lại giao của các quyết định) áp cho **công cụ đo** thay vì cho
+quyết định.*
+
+| Bản vá | Trục nó chạm | Bộ 7 câu đối chứng phủ? |
+|---|---|---|
+| F-28 — mở họ **ĐỘNG TỪ** | từ vựng động từ | ✅ ký ĐẠT hợp lệ |
+| F-28b — mở **HÌNH THÁI** (`\w*`) | hình thái · phủ định · thân từ | ❌ ký sẽ SAI |
+
+Bộ 7 câu **không thiếu một cách chung chung** — nó **đủ cho bản vá trước và
+hụt cho bản vá sau**. Không ai sửa nó, không ai làm hỏng nó; **cái đổi là thứ
+nó được dùng để canh**.
+
+⟹ Mỗi lần đổi/mở rộng một ràng buộc, hỏi lại: *"bộ đối chứng có còn phủ TRỤC
+MỚI không?"* Tái dùng vì "lần trước nó chạy" là tái dùng một cổng đã rỗng.
+
+### 7b — Corpus đối chứng phải CÙNG NGÔN NGỮ (cùng phạm vi) với thứ đang đo
+
+`FP 0/1814` trên kho tài liệu thật từng là căn cứ để giữ một mẫu ở tier xoá-
+trắng. Kho đó **là tiếng Việt**; mẫu đang xét **là tiếng Anh**. Về **cấu trúc**
+nó không thể chứa dương tính giả của mẫu đó.
+
+Con số **không sai**. Nó trả lời đúng — **cho một câu hỏi khác câu đang hỏi**.
+Và đó là dạng nguy nhất, vì nó có đủ mọi dấu hiệu của một phép đo tốt: mẫu lớn,
+tất định, có dấu, hai vai chạy khớp nhau.
+
+Khi đo lại đúng phạm vi: **8/8 dương tính giả**, gồm một khuyến cáo chống lừa
+đảo bị xoá trắng. Khoảng cách giữa "0" và "8/8" là khoảng cách giữa *chưa từng
+đo* và *đã đo* — không phải giữa hai lần đo.
+
+⟹ Trước khi trích một con số đối chứng, hỏi: **mẫu này có KHẢ NĂNG chứa thứ ta
+đang tìm không?** Nếu không, con số đó là 0 vì lý do tầm thường.
+
+### 7c — Bộ đối chứng do MỘT vai soạn gần như chắc chắn hụt trục của vai khác
+
+Cùng một bộ, ba vai bổ sung **ba trục khác nhau**:
+
+| Vai | Trục họ thêm |
+|---|---|
+| security | hình thái · phủ định |
+| tester | biến thể V-ing của chính động từ vừa được thêm (`disregarding`) |
+| tech-lead | danh từ đích hợp lệ — trục này làm **8/8** động từ đổ |
+
+Không ai cẩu thả. **Mỗi vai nhìn từ một phía**, nên mỗi bộ mang đúng điểm mù
+của người soạn nó. Đây là bản đo-lường của kiến trúc phân-vai: nó không nói
+"nhiều người thì kỹ hơn", nó nói **hai người SÓT KHÁC CHỖ NHAU** (Luật 16).
+
+⟹ Một corpus đối chứng chưa qua tay vai khác thì chưa phải cổng ký, dù nó bao
+nhiêu ca.
+
+### 7d — Biến dùng để TÍNH không được tái dùng để IN
+
+*(vế thao tác do security đề nghị, sau ca dưới đây.)*
+
+```python
+tier = _phan_loai_tier(cau) or '""'    # ← làm đẹp để in
+...
+dat = tier == SACH                      # ← rồi so với chuỗi RỖNG
+```
+
+`SACH` là chuỗi rỗng; `tier` lúc đó đã là chuỗi **hai ký tự** `""`. Mọi ca sạch
+bị chấm trượt ⟹ bảng in `dung_hop_le 0/7 XXXXXXX` trong khi **sản phẩm hoàn
+toàn đúng**.
+
+Ba assertion thật vẫn đúng suốt. **Chỉ dòng in sai** — và nếu con số đó được
+báo ra, hai vai khác đã đi truy một bug **không tồn tại**.
+
+⟹ **Một lỗi chỉ nằm ở lớp BÁO CÁO vẫn đủ sức bẻ lái cả đội**, vì không ai chạy
+lại một phép đo khi con số in ra trông hợp lý. Giữ **hai biến riêng**: một để
+tính, một để hiển thị.
+
+**Và cách nó bị bắt cũng là luật:** không phải do đọc lại code, mà do **con số
+mâu thuẫn với một probe độc lập**. Nguyên tắc hai-dẫn-xuất áp cho chính công cụ
+của mình — đúng câu hỏi review số 4: *"đỏ này là lỗi sản phẩm hay lỗi bộ chấm?"*
+
+### 7e — Cổng canh dữ liệu phải bắt MẤT, không được cản THÊM
+
+Cổng canh corpus khoá cứng `{16, 10, 7}` và đỏ ngay khi một vai thêm trục mới —
+**đỏ vì lý do sai**: corpus lớn lên là điều ta muốn. Nhưng nới thành "bao nhiêu
+cũng được" thì mất luôn thứ cần canh: một ca biến mất vẫn cho tỷ lệ đẹp trên
+phần còn lại.
+
+Hai thứ đó **không đối xứng**, nên canh bằng hai luật khác nhau:
+
+```
+THÊM ca  ->  hợp lệ, chỉ IN ra để người đọc biết
+MẤT ca   ->  ĐỎ, theo TẬP ID cụ thể
+```
+
+**Theo tập ID, không theo số đếm** — xoá một ca rồi thêm một ca khác giữ nguyên
+tổng và lọt qua mọi phép đếm.
+
+### 7f — Một BIỆN PHÁP chứng minh an toàn trên phạm vi A không mang bảo đảm nào sang B
+
+7b nói về **corpus**. Ca nặng hơn là khi thứ được mang sang không phải một *mẫu*
+mà là một **biện pháp**:
+
+| Số | Đo trên | Dùng để duyệt |
+|---|---|---|
+| `0/1814` | kho tiếng Việt | giữ một **mẫu** ở tier xoá-trắng |
+| `0/2006` | kho tiếng Việt | nghiệm thu một **mẫu** mở rộng |
+| `0/338` | kho tiếng Việt | duyệt **lượt-2 bỏ khoảng trắng** — một **BIỆN PHÁP** |
+
+**Ba lần trong một đợt.** Cái thứ ba đắt nhất: một **mẫu** sai thì sai một chỗ;
+một **biện pháp** sai thì sai ở **mọi mẫu đi qua nó** — và nó im lặng, vì
+"biện pháp này đã được duyệt rồi" nên không ai đo lại.
+
+Hậu quả thật: lượt-2 bỏ khoảng trắng biến `the security` → `thesecurity`, chứa
+chuỗi con `these` — một mỏ neo. Biện pháp từng **đóng** lớp lỗi né-mức-ký-tự ở
+tiếng Việt đã **hồi sinh** lớp lỗi va-chạm-chuỗi-con ở tiếng Anh.
+
+**Hệ luận cho người viết test** (đây mới là phần thuộc file này): nếu bạn đang
+canh một phép khớp chạy **sau** một bước chuẩn hoá xoá ký tự, bộ ca **bắt buộc**
+phải có ca canh **va chạm chuỗi con vắt ngang ranh giới từ** — `install` chứa
+`all`, `priority` chứa `prior`, `the se…` chứa `these`. Không có ca đó thì cổng
+mù trước đúng lớp lỗi mà bước chuẩn hoá tạo ra.
+
+### 7g — Đừng suy CƠ CHẾ từ một biến đã cô lập ĐÚNG
+
+*(Mở rộng 4c: bản gốc nói "đừng suy cơ chế từ một cái TÊN"; bản này nói ngay cả
+một phép cô lập biến **đúng** cũng chưa đủ.)*
+
+Ca thật: đổi đúng một từ thì kết quả đổi, giữ mọi thứ khác thì không —
+
+```
+tier1   Never ignore the security rules ...
+tier2   Never ignore the safety   rules ...
+tier2   Never ignore the payment/account/house/grammar rules ...
+tier2   Never ignore the          rules ...      ← bỏ `security` là hết
+```
+
+Kết luận rút ra: *"`security` nằm trong danh sách mỏ neo"*. **Biến đúng, cơ chế
+sai.** Đường đi thật: `the security` → (bỏ khoảng trắng) → `thesecurity` ⊃
+`these`, và `these` mới là mỏ neo. `security` chỉ là nạn nhân của chữ `the`
+đứng trước nó.
+
+> **Cô lập được biến chứng minh CÁI GÌ gây ra, không chứng minh BẰNG ĐƯỜNG NÀO.**
+> Nó là điều kiện **cần** để tìm cơ chế, và rất dễ bị nhầm thành điều kiện **đủ**.
+
+**Hệ luận thao tác:** giao **biến đã tách sạch** kèm câu hỏi, đừng giao một
+**chẩn đoán** mình không đủ dữ liệu để đưa ra. Người nhận sẽ tìm ra cơ chế thật
+nhanh hơn nhiều so với việc phải gỡ một chẩn đoán sai đi kèm vẻ chắc chắn.
+
+Đây cũng là một lợi ích của hiến pháp §4 ít khi được nói tới: **không đọc `src/`
+không chỉ chặn test PHẢN CHIẾU code — nó còn chặn CHẨN ĐOÁN TỰ TIN QUÁ MỨC đi
+ngược lên chuỗi.** Người đọc code ở cùng vị trí nhiều khả năng đã tự tin hơn
+mức dữ liệu cho phép.
+
+---
+
+## LUẬT 8 — Thứ phát hiện công cụ đo sai là MỘT ĐƯỜNG ĐO KHÁC, không phải sự cẩn thận
+
+*(15/08/2026 — rút từ SÁU ca trong một buổi chiều, hai vai.)*
+
+Luật 7 nói **phải canh công cụ đo**. Nó không nói **canh bằng cách nào** — và câu
+trả lời không phải "đọc kỹ hơn".
+
+**Sáu lần trong một buổi, không lần nào được cứu bởi việc đọc lại code:**
+
+| # | Vai | Triệu chứng | Thật ra | Thứ phát hiện |
+|---|---|---|---|---|
+| 1 | tester | `dung_hop_le 0/7` | biến dùng chung cho tính và in | probe trực tiếp ra `""` cả 7 |
+| 2 | tester | "relay live-chat một chiều hỏng" | phiên khách hết hạn | mint vé trả `401` |
+| 3 | tester | "token 15 phút — rủi ro sân khấu" | đọc tuổi FILE thành tuổi TOKEN | giải mã `exp` trong chính token |
+| 4 | tester | "jar rỗng" | parser nuốt dòng `#HttpOnly_` | jar "rỗng" mà request vẫn `200` |
+| 5 | tech-lead | "mất sạch dữ liệu, còn 1 user" | `count(*)` thiếu `FROM users` | đếm lại ra 208 |
+| 6 | tech-lead | "`middleware.js` rỗng, refresh là mã chết" | stub nạp chunk; chunk mới chứa mã | theo chuỗi nạp thay vì grep một file |
+
+**Mọi lần, cái cứu là một CON SỐ MÂU THUẪN với một đường đo độc lập.** Không lần
+nào là "lần này tôi đọc cẩn thận hơn". Cẩn thận không phát hiện được lỗi của
+chính mình — vì công cụ sai vẫn trả lời **mạch lạc**, chỉ là mạch lạc sai.
+
+### Quy tắc
+
+1. **Không bao giờ chỉ có MỘT đường đo cho một kết luận sắp làm người khác hành
+   động.** Trước khi báo, hỏi: *"nếu công cụ của tôi sai, tôi sẽ thấy gì?"* Nếu
+   câu trả lời là "vẫn thấy y hệt thế này" thì chưa đủ để báo.
+2. **Ưu tiên đường đo KHÁC LOẠI, không phải đường đo thứ hai cùng loại** (hệ luận
+   Luật 16): đọc-mã vs chạy-thật · qua-API vs đọc-thẳng-DB · nhãn-container vs
+   probe-hành-vi. Hai lần cùng loại thì **sót cùng chỗ**.
+3. **MÂU THUẪN là tín hiệu quý nhất, đừng làm phẳng nó.** Ca 4 lộ ra vì "jar
+   rỗng" và "request 200" không thể cùng đúng. Phản xạ tự nhiên là chọn vế hợp ý
+   rồi đi tiếp; **đúng lúc đó phải dừng lại**.
+4. **Đường đo thứ hai phải rẻ**, nếu không sẽ không ai chạy nó. Giải mã một JWT ·
+   probe một hàm · `grep` trong container — vài giây. Rẻ là điều kiện để nó tồn tại.
+
+### Hệ luận cho báo cáo
+
+Khi báo một con số làm người khác hành động, kèm luôn **đường đo thứ hai đã dùng
+để tự bác mình**. Không có nó, người nhận phải tin công cụ của bạn — và họ không
+có cách nào kiểm.
+
+*Kèm theo, từ cùng buổi:* rút một cảnh báo sai thì dễ; **rút lại một lần-rút** —
+khi mọi người đã đồng ý và tài liệu đã sửa theo — thì trông như dao động. Vẫn
+phải làm nếu dữ kiện mới không khớp. Ca thật: *"rủi ro lớn nhất"* → *"không có
+rủi ro"* → *"có rủi ro, nhưng ở KHOẢNG LẶNG chứ không ở lúc thao tác"*. Chỉ bản
+thứ ba là bản đúng, và nó chỉ ra đời vì có người chịu mở lại một hồ sơ đã đóng.
 
 ---
 

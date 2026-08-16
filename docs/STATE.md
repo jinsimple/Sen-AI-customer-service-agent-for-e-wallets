@@ -1,4 +1,197 @@
 # Trạng thái hiện tại
+
+## 🔴 ĐANG ĐIỀU TRA (16/08) — DEMO-BUG "gặp người thật ra lỗi": đua-refresh → AUTH5-03 thu hồi family
+PO gặp lỗi giữa demo mentor 15/08 (đúng quy trình 2 cửa sổ — giả thuyết đè-phiên BỊ BÁC bởi dữ
+kiện PO). **Dữ kiện bổ sung của PO siết thêm:** trước demo họ chạy TRỌN kịch bản KỂ CẢ handoff —
+ĐẠT (lướt nhanh <13 phút từ đăng nhập); rồi ĐĂNG XUẤT HẲN, 1 tiếng sau đăng nhập TƯƠI demo thật
+— chết ở handoff (>13 phút vì có mentor). ⟹ biến số duy nhất giữa đạt/trượt là THỜI-GIAN-TỪ-ĐĂNG-
+NHẬP; loại nghi vấn phiên-cũ-để-rác (family demo là mới sạch). Cặp đối chứng tự nhiên từ đời thật. Giả thuyết hiện tại (coder đọc code xác nhận KHẢ THI CẤU TRÚC, "gần như tất định"):
+access token vào cửa sổ refresh (`REFRESH_MARGIN_SECONDS=120`) → handoff là thời điểm đầu tiên có
+≥2 request đồng thời (`ChatClient.tsx:195` bắn ws-ticket ngay) → 2 đường cùng refresh bằng MỘT
+token dùng-một-lần → đứa thua trúng AUTH5-03 (`auth.py:146-155`) → **thu hồi CẢ FAMILY kể cả cặp
+vừa phát** → phiên chết chuỗi → "Có lỗi" trong khung chat. Cờ `rotated` giữ 60s ⟹ KHÔNG cần trùng
+mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 cụm).
+- **TTL access token ĐO ĐƯỢC (tester): 15,0 phút ĐỒNG NHẤT cả 4 role** — khớp chính xác "chat
+  ~15-20 phút rồi chết" của PO; con số đó là TTL, không phải cảm giác.
+- **Tester tinh chỉnh không gian giả thuyết (từ số đo tối qua, tất định):** một request ĐƠN sau
+  khi token chết đã đủ 401 (proxy đặt cookie lên response, handler đọc từ request — 401 rồi lượt
+  sau 200, TỰ HỒI). ⟹ đua là **điều kiện ĐỦ chứ chưa chắc CẦN** cho "có lỗi"; nhưng chỉ ĐUA mới
+  giải thích được **chết-hẳn-không-hồi** (AUTH5-03 revoke family). Trục phép đo = phân biệt
+  "401-rồi-hồi" vs "401-rồi-chết-luôn" (3 lần gọi lại sau đó là phép thử quyết định).
+- **HAI QUYẾT ĐỊNH ĐO (tester đề nghị, PO-agent duyệt):** ① **N của grace CHỈ lấy từ dấu thời
+  gian SERVER-SIDE** (log `auth.py:150`) — khoảng cách `curl & curl` là độ trễ spawn của MÁY ĐO
+  không phải của sản phẩm; lấy N từ đó = hạ một control bảo mật dựa trên hiện vật công cụ (họ 7b,
+  hậu quả nằm trong ADR). Số client-side chỉ ghi nhãn "giới hạn trên thô, không dùng định N".
+  ② **Instance TTL ngắn (`JWT_ACCESS_EXPIRE_MINUTES=1`, compose project riêng) = HẠ TẦNG ĐO BẮT
+  BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
+  test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
+  chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **🏁 TÁI LẬP TRỌN VẸN CA PO (tester, stack demo, backend a216b98c1b79 có tầng-0):** mở /chat →
+  2 request → **16 phút ngồi yên KHÔNG một request nào** (trang im hoàn toàn — không heartbeat)
+  → token chết lặng → bấm gặp-người-thật → `agent-chat` **401**, màn hình in nguyên văn
+  **"Có lỗi: Phiên đăng nhập đã hết hạn"** → **chính response 401 đó mang cookie mới**
+  (tầng-0: rotated=1, revoked=0) → gõ lại một tin → **200 + handoff chạy trọn** (~86s sau).
+  Cơ chế chốt = đúng khiếm khuyết proxy.ts coder đọc: cookie đặt trên RESPONSE không áp cho
+  request đang chạy. Không đua · không revoke · không hồi quy · không hai tab.
+  **UI-no-retry BÁC CHO CA NÀY** (agent-chat chết TRƯỚC khi luồng chạm ws-ticket ⟹ ref-guard
+  chưa bao giờ bật; lần thử lại đi trọn) — UI-02 vẫn làm trên merit nhưng PR không được claim
+  fix-bug-demo. Ref-guard vẫn có thể là lỗ riêng nếu 401 rơi đúng ws-ticket — chưa quan sát,
+  không vá mù.
+- **🔴 ĐÍNH CHÍNH HỒ SƠ (PO-agent):** câu "PO nói bấm lại vẫn không được" **KHÔNG tồn tại trong
+  lời khai nào** — PO chỉ nói "nhận được tin trả lời là có lỗi"; 3 câu hỏi lời khai ĐANG CHỜ.
+  Câu đó sinh từ vòng diễn-giải nội bộ rồi được trích như lời khai = **lời-kể-ma ở dữ liệu định
+  tính** (họ hàng dấu-băm cho dữ liệu định lượng). Không có mâu thuẫn số-vs-lời — chỉ có câu hỏi
+  chưa trả lời (đã hỏi lại bản sắc: GÕ TIN MỚI hay BẤM NÚT trên khung lỗi).
+- **Cặp cổng mốc-nền "trước" hoàn chỉnh** (frontend chưa vá): [cổng proxy: sau-ngồi-yên thao tác
+  đầu 401] + [cổng tầng-0: rotated=1/revoked=0 ✅]. Điều kiện bắt buộc ghi trong cổng: trang MỞ
+  SẴN không điều hướng (goto() tự lành → xanh giả). Coder land hướng-2 → deploy → đo "sau".
+- **Drift BÁC bằng đo** (3 image cùng node 20.20.2 / next 16.3.0 / manifest rỗng; `oldc447abb`
+  trúng cache toàn phần, timestamp 15/08T13:01Z ⟹ nhiều khả năng CHÍNH LÀ image 15/08 — và nó
+  cho 0 Set-Cookie). **Code khớp docs Next 16 từng điểm** (src/proxy.ts đúng chỗ, export đúng
+  tên, mẫu cookie đúng docs). Đã bác HẾT 8 giả thuyết. Còn: proxy CHẠY + manifest RỖNG +
+  Set-Cookie KHÔNG egress (có đối chứng /api/session=1 header).
+- **PO-agent chặn một vòng lãng phí:** câu coder định hỏi ("harness 15/08 có /api/session xen
+  giữa?") ĐÃ được tester trả lời từ trưa (chỉ dòng 14 lúc login). Phép hoà giải cuối giao coder:
+  grep route handler nào NGOÀI /api/session tự set-cookie (nếu đường ws-ticket có → +842s là
+  cookie từ ROUTE HANDLER, không phải proxy → mâu thuẫn tan). Không có → +842s = dị thường lịch
+  sử, GHI KHÔNG LẤP KHÔNG CHẶN (nếp MT-E02).
+- **QUYẾT: HƯỚNG (2) GO — không chờ giải dị thường.** Refresh chuyển xuống `backendFetch()` MỘT
+  điểm chặn: 401 → refresh → set-cookie trên response route handler (đường ĐÃ chứng minh egress).
+  Điều kiện đóng: single-flight per-request trong backendFetch (không tái tạo bug đua tầng mới) ·
+  test cấu trúc canh proxy-đăng-ký · cổng đo request-1-VÀ-2 + family-không-revoke · gỡ phần
+  refresh chết khỏi proxy.ts có ghi lý do · security re-probe. Sau land: PO-agent viết ADR-026
+  ghi quyết định + trọn lịch sử điều tra.
+- **Bước (1) coder: khả-năng-(3) BÁC có đối chứng** (`/api/session` route-handler-tự-set-cookie
+  grep THẤY ⟹ dụng cụ không hỏng; ws-ticket + trang /chat đều 0 set-cookie). Thu hẹp: middleware
+  CHẠY nhưng **mọi mutation lên response bị BỎ** — proxy.ts biên dịch + thực thi nhưng KHÔNG được
+  đăng ký như middleware thật (manifest rỗng khớp). Hai hướng vá treo: (1) sửa đăng ký Next 16 /
+  (2) chuyển refresh xuống backendFetch (một điểm chặn).
+- **🔍 PO-agent chỉ ra MÂU THUẪN DỮ KIỆN = lối tắt:** tối 15/08 tester đo image THẬT đang chạy —
+  **cookie CÓ XOAY tới client** (+842s đọc từ jar); hôm nay rebuild TỪ CÙNG COMMIT `c447abb` →
+  0 set-cookie. Cùng mã, hai hành vi ⟹ nghi phạm mới ngoài cả 3 khả năng: **DRIFT PHỤ THUỘC lúc
+  build** (base image node tag di chuyển / Next patch khác). Phép kiểm rẻ giao coder TRƯỚC khi
+  đọc docs: tìm image thật 15/08 còn trên đĩa (untagged/dangling) → so version Next + manifest
+  hai bên. Version khác = root là drift → vá bằng GHIM dependency (digest base image + lockfile).
+- **Điều kiện đóng RATIFY bất kể hướng:** thêm test CẤU TRÚC canh middleware-được-đăng-ký
+  (manifest không rỗng / probe cookie-tới-client trong e2e) — middleware chết im lặng không ai
+  biết bao lâu là bài học lớn nhất vụ này (Luật 14). Tiêu chí chọn hướng đã chốt sẵn: cấu-hình-
+  có-tài-liệu→(1); mơ hồ→(2) qua MỘT điểm chặn backendFetch.
+- **🎯 CƠ CHẾ CỤ THỂ NHẤT TỪ ĐẦU (coder đo 1-request sau khi vá thử, CHƯA LAND):** middleware
+  chạy ĐÚNG MỘT lần (đo) · backend xoay token THÀNH CÔNG (tầng-0 `refresh_rotated`) · **Set-Cookie
+  KHÔNG BAO GIỜ RỜI SERVER** (header response không có set-cookie) ⟹ request kế cầm token cũ đã
+  rotate → AUTH5-03 revoke. Không đua, không hai-lần-gọi — **cookie mất trên đường ra**. Bản vá
+  hiện tại của coder chỉ sửa vế route-handler-thấy-token-mới (cần) — CHƯA sửa vế browser-nhận-
+  cookie (vế giết phiên). **Coder TỪ CHỐI LAND** vì cổng tester ("request đầu 200") sẽ xanh trong
+  khi phiên vẫn chết ở request thứ hai — xanh-cổng-mà-không-hết-bệnh. Thứ tự duyệt: kiểm khả-năng-
+  (3) (chính bản vá làm mất cookie — rẻ nhất, nghi-mình-trước) → rebuild demo backend sau khi
+  tester xong → chốt hình dạng vá. **Cổng nghiệm thu MỞ RỘNG: đo cả REQUEST THỨ HAI** (req1 200 ∧
+  req2 200 ∧ family không revoke). UI-02+retry song song.
+- **Quy ước báo-trước-rebuild TRẢ LÃI trong 1 giờ:** tester xin coder giữ tay rebuild vì phép đo
+  đang chạy — rebuild giữa chừng KHÔNG làm phép đo đỏ, nó vẫn in số, chỉ là số của HAI backend ở
+  hai nửa lượt (dạng vật-trôi nguy nhất: không triệu chứng). Lần thứ tư vật-trôi trong hai ngày,
+  lần ĐẦU tránh được nhờ báo trước.
+- **✅ KHÉP VÒNG SỐ (coder xác nhận bằng bằng chứng mạng):** cả 11 refresh + cặp 10/10 đều ở
+  backend fin05ttl (172.20.x), client là middleware TTL, probe của chính coder — "10/10 mô tả
+  instance TTL, chấm hết"; coder tự nhận *"nặng hơn vì chính tôi dựng instance đó rồi quên nó là
+  vật khác"*. Cơ chế TTL-là-chế-độ-biên xác nhận: TTL 60s < margin 120s ⟹ token TRONG cửa sổ
+  refresh từ giây đầu ⟹ refresh MỌI request (production: 2 phút cuối/15). Cảnh báo ghi thẳng vào
+  `docker-compose.ttl-test.yml`. Demo backend CHƯA có tầng-0 (build trước a74de7d) → việc-0:
+  rebuild theo quy ước báo-trước-khi-rebuild-image.
+- **✅ REF-GUARD XÁC NHẬN ĐỌC-MÃ (mảnh ráp trọn ca PO):** `liveChatConnectStartedRef` đúng 3 dòng,
+  KHÔNG reset ở đâu — một lần thử vĩnh viễn. Chi tiết chốt: nhánh `.catch` bảo khách *"thử lại
+  giúp mình nhé"* trong khi KHÔNG TỒN TẠI đường thử lại (effect chỉ chạy lại khi liveChatTicketId
+  đổi — nó không đổi). ⚠️ Điều kiện nghiệm thu vá (ratify): reset-ref KHÔNG đủ (deps không đổi thì
+  effect không chạy lại) — cần đường thử-lại THẬT (nút/retryCount trong deps), GIỮ chống-StrictMode;
+  e2e assert "sau 401 đầu, UI CÓ bắn request thứ hai khi thử lại".
+- **GREENLIGHT đã phát:** ① vá `proxy.ts` cookie-trên-request (PR, gate: cổng hồi quy tester +
+  re-probe security) · ② UI-02+retry (PR) · ⓪ rebuild demo backend lấy tầng-0 (xin khe tester).
+  Lời khai PO (đã hỏi 3 câu) không chặn vá — nó quyết có CÒN cơ chế nào ngoài hai defect đã chốt.
+- **⚖️ PHÂN XỬ CUỐI (tester, log server-side, MỘT request sạch):** `rotated=1 · family_revoked=0
+  · HTTP 200` ⟹ refresh gọi ĐÚNG MỘT lần, chạy THÀNH CÔNG, không thu hồi gì. **Cặp "10/10 tất
+  định" là TỔNG TÍCH LUỸ của nhiều lượt thử trộn lẫn** (gồm cả probe song song của tester) — suy
+  nhân-quả từ hai tổng bằng nhau = ca sách giáo khoa **đếm-tổng không thay được đếm-theo-lượt**
+  (LUẬT MỚI). Số +842s cũng khép: chuỗi đầy đủ 200→(16 phút)→401-vì-token-MỚI-cũng-hết-hạn→200→200
+  — phiên sống khoẻ, không cần cơ chế thu-hồi nào để giải thích.
+- **VẬT ĐỔI LẦN BA** (image TTL bị dựng lại giữa hai phép đo → "TTL không rotate" RÚT). **RATIFY
+  quy ước đội:** ① mọi phép đo trên stack kèm IMAGE ID trong nhãn; ② **ai dựng lại image phải báo
+  vai đang đo** — luật BÁO-TRƯỚC-KHI-LAND mở rộng sang image.
+- **CHỖ ĐỨNG THẬT SAU MỌI SỐ:** thứ DUY NHẤT tái lập được = hiện vật `proxy.ts:112` — *token hết
+  hạn ⟹ request đó 401, cookie mới về client, request KẾ 200*. KHÔNG tái lập được: đua-giết-phiên
+  · thu-hồi-family · refresh-không-chạy · hồi-quy-image. Ứng viên ráp trọn ca PO: hiện vật 401-
+  một-lần + **UI ref-guard không-bao-giờ-thử-lại** (`ChatClient.tsx:199` — PO-agent góp, chờ e2e
+  + coder xác nhận). Mảnh quyết định còn thiếu: **lời khai PO — lúc lỗi có thao tác lần hai
+  không, kết quả gì** (đang hỏi).
+- **✅ CƠ CHẾ CHỐT (16/08 tối, bằng chứng server-side tầng-0):** middleware refresh CÓ chạy nhưng
+  **nuốt lỗi im lặng**; cặp log `refresh_rotated`×10 ↔ `refresh_family_revoked`×10 **ghép 1-1 tất
+  định**: cookie mới đặt lên RESPONSE, lượt gọi refresh THỨ HAI trong cùng vòng request vẫn cầm
+  token CŨ → AUTH5-03 thu hồi family — **hệ TỰ BẮN VÀO CHÂN, không cần user sai, không hai tab,
+  không đua.** Dòng-A (hồi quy UI-01) BÁC bằng đo (image c447abb hành xử y hệt, proxy.ts 0 byte
+  đổi); ứng viên-4 cũng sai ("không chạy" = "chạy-thất-bại-nuốt-lỗi"). **Dòng B (bug demo PO)
+  được giải thích trọn**: sau phút 15, lượt đầu tiên rotate+tự-thu-hồi → mọi thứ 401.
+  **Grace-window RÚT khỏi kế hoạch** (bug tất định của client, không phải đua hiếm — AUTH5-03 giữ
+  nguyên, nó vừa chứng minh làm đúng việc). Còn lại: tester đếm `refresh_rotated` trên ĐÚNG MỘT
+  request (phân xử vì-sao-gọi-hai-lần, quyết hình dạng vá) → coder vá (hướng: request-headers cho
+  lượt sau thấy token mới) → hồi quy TTL → security re-probe → đóng.
+  Coder tự khai: suýt kết luận sai BA lần từ artifact tĩnh — thứ cứu là hỏi-hệ-thống-một-câu-khác
+  thay vì đọc-kỹ-hơn-cùng-một-chỗ.
+- **🔴🔴 BƯỚC NGOẶT (16/08 chiều): KHÔNG AI ĐO SAI — VẬT ĐỔI. Image frontend stack demo được DỰNG
+  LẠI 2026-08-16T02:11Z** (12,5h sau phép đo exp+842s; nghi là lần deploy UI-01). **Image cũ:
+  refresh CHẠY** (exp+842s = một lần xoay thật, harness tester sạch — không /api/session xen giữa,
+  đã kiểm). **Image mới: refresh CHẾT** (cả hai endpoint, phủ-đều-bằng-không). Hai image ID:
+  `90d7b915bcbf` (mới) vs `210edbc5a06a` (TTL). ⟹ **TÁCH HAI DÒNG ĐIỀU TRA:**
+  · **Dòng A — HỒI QUY refresh (ưu tiên 1, ĐANG SỐNG trên stack demo):** mọi phiên chết cứng phút
+    15. Coder dựng image từ commit trước 15/08T13:43Z probe đối chiếu → chốt hồi quy → tìm diff
+    trong cửa sổ [demo-GO … 6a07b16+lô cùng deploy].
+  · **Dòng B — BUG DEMO 15/08 của PO: CHƯA GIẢI.** Nó xảy ra trên IMAGE CŨ nơi refresh CHẠY ⟹
+    ứng viên "refresh chưa bao giờ chạy" KHÔNG giải thích được nó; và MỌI số Pha A/C/D hôm nay đo
+    trên hệ đã-hồi-quy — nói về dòng A, không nói được gì về B. Đua-revoke/harness sống lại làm
+    ứng viên; đo lại B chỉ được SAU khi A vá (cần hệ có refresh chạy). CẤM vá single-flight/grace
+    tới khi B đo trên vật đúng.
+- **📌 Lỗ nhãn phép đo (tester tự nhận): `he_thong` băm `src/**/*.py` — KHÔNG phủ `frontend/`**,
+  mà refresh sống ở `frontend/src/proxy.ts` ⟹ vật trôi ngay dưới chân phép đo, cái ghim mù trước
+  nó. Từ giờ nhãn phép đo kèm **IMAGE ID** (+ SHA + he_thong) cho mọi phép đo chạm frontend.
+- **🔄 ĐẢO BÀN CỜ (16/08 chiều — coder đọc-mã + đo trên instance TTL):** `refreshSessionIfNeeded`
+  có đúng MỘT call-site (`proxy.ts` dòng đầu, matcher phủ mọi `/api/*`) — phủ ĐỀU, **nhưng đo ra
+  phủ-đều-BẰNG-KHÔNG: không endpoint nào xoay cookie** (TTL=1ph < margin=120s ⟹ mọi request trong
+  cửa sổ; đã loại backend-unreachable + image-cũ). ⟹ **Ứng viên cơ chế THỨ TƯ, đơn giản nhất:
+  refresh KHÔNG BAO GIỜ CHẠY** — token chết phút 15, "15-20 phút rồi lỗi" của PO = TTL, handoff
+  chỉ tình cờ là thao tác đầu tiên sau mốc. Nếu đúng: single-flight = vá thứ không tồn tại, grace
+  không áp dụng — bản vá đúng là LÀM CHO REFRESH CHẠY. **CẤM viết vá tới khi phân xử.**
+  Mâu thuẫn còn lại: số tester tối qua (`ws-ticket` exp+842s = một lần refresh thật) vs 0 hôm nay
+  → kiểm (a) rẻ nhất: tester đọc lại harness tối qua tìm `/api/session` xen giữa; (b) nếu âm:
+  probe stack demo phút 13. Tầng-0 log đã LAND `a74de7d` (trường `refresh_rotated` server-side).
+  Instance TTL SỐNG: `https://localhost:8443`, project `fin05ttl`, 208 user, stack demo nguyên vẹn.
+- **📌 Tri thức mới (coder tự bắt khi đo):** compose đặt tên IMAGE theo PROJECT — hai stack = hai
+  image khác nhau (`fin05-frontend` ≠ `fin05ttl-frontend`); đo trên stack TTL mà so với số stack
+  demo là ĐO NHẦM VẬT. Phát hiện bằng `docker inspect`, chữa bằng build-lại-từ-nguồn cho khớp.
+  Nhãn phép đo đa-stack phải kèm IMAGE ID.
+- **Tái lập đang chạy nền (~32 phút, 0 TPM):** Pha A đua (2 request song song cùng chuỗi cookie
+  cũ, đúng cảnh browser 2 request in-flight) + Pha B đối chứng tuần tự. Qua đúng đường BFF
+  `https://localhost/api/live-chat/ws-ticket` = đúng chỗ PO chết. Giới hạn tự khai: bắn 2 request
+  CÙNG endpoint — nếu single-flight có ở đường này thiếu ở đường khác thì đo không thấy ⟹ Pha A
+  xanh = "chưa tái lập bằng cách này", KHÔNG phải "giả thuyết sai".
+- **Coder chờ số mới vá**: single-flight promise module-scope `proxy.ts` — tự khai giới hạn *chỉ
+  chặn đua cùng tiến trình Node*; scale nhiều replica frontend cần khoá Redis (ghi vào bản vá).
+- **Ý KIẾN SECURITY VỀ AUTH5-03 (`2cff494`) — ba tầng, định hình cả lô vá:**
+  ① **Single-flight: CẦN nhưng KHÔNG ĐỦ** — promise dùng chung chỉ phủ MỘT ngữ cảnh JS; **đa-tab
+  là hai ngữ cảnh không thấy nhau**, mà CSKH mở nhiều ticket nhiều tab là cách làm việc bình
+  thường ⟹ vá single-flight làm bug biến mất trong demo một-tab rồi QUAY LẠI trên bàn làm việc
+  thật, lần sau khó truy hơn vì "đã vá rồi mà". Vẫn làm (rẻ, đúng), nhưng KHÔNG coi là xong.
+  ② **Grace-window: DUYỆT đúng MỘT dạng — PHÁT-LẠI-BẤT-BIẾN** (trong N giây, cùng token cũ trả
+  ĐÚNG cặp đã cấp lần đầu). **BÁC dạng cấp-cặp-mới** (tạo hai phiên phân kỳ = đúng thứ rotation
+  sinh ra để chặn). Bốn điều kiện: bất biến · N NGẮN vài giây lấy từ PHÂN BỐ ĐO ĐƯỢC không lấy số
+  tròn · bắn-trong-grace log nhánh riêng · ngoài N giữ nghiêm. **KHÔNG land trước khi có số tester.**
+  ③ **🔴 FINDING NẶNG HƠN CẢ CÂU HỎI: `auth.py` 294 dòng KHÔNG MỘT DÒNG LOG** — `revoke_family()`
+  (sự kiện "chúng tôi tin token bị đánh cắp" — lớn nhất của cả hệ xác thực) bắn HOÀN TOÀN IM LẶNG.
+  Không đếm được AUTH5-03, không phân biệt được đua-vs-trộm trên production, **chỉnh control không
+  quan sát được = chỉnh mù**. Vá TRƯỚC hoặc CÙNG lô, rẻ nhất trong ba việc: log cấu trúc tại
+  `auth.py:150` (family_id · user_id · role · nhánh `reuse_that`/`phat_lai_trong_grace`). Đây
+  cũng là lý do bug demo thành bí ẩn: control bắn đúng mà không để lại dấu vết nào.
+- Nối finding cũ: đường proxy-cookie (401-rồi-200) LUÔN tiêu một lượt refresh → chồng thêm request
+  là 401-vô-hại thành thu-hồi-family ⟹ bản vá proxy.ts backlog NÂNG mức quan trọng.
+- UI-01 (timeline không-JSON) đã land `6a07b16` + deploy stack demo. UI-02 (banner lệch-vai) vẫn
+  đáng làm, xếp sau.
+- Workaround demo tới khi vá: đăng nhập lại vai khách NGAY TRƯỚC màn gặp-người-thật.
 Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent điều phối 4 vai (Claude Code)
 
 ## 🔄 BÀN GIAO SANG P-226 — ĐỌC ĐẦU TIÊN
@@ -137,9 +330,98 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   phải GIỮ NGUYÊN (đổi = dữ liệu mã hoá thành rác vĩnh viễn); ② `SSL_CERT_FILE` là đường dẫn
   macOS, PHẢI sửa khi sang Windows — *"`.env` càng được mang sang trung thành thì lỗi càng chắc
   chắn tái hiện"*. Bẫy chết-dữ-liệu và bẫy chết-dịch-vụ, khác nhau, cùng một file.
-- Việc tay của PO thật: kiểm đăng nhập Cloudflare (`adaptivealgo.uk` có trong tài khoản không) ·
-  cài Docker Desktop/WSL2 trên máy Windows · lấy Tunnel token (dashboard-only) · Never-sleep +
-  Docker start-at-login. Nghiệm thu cuối = mở `https://app.adaptivealgo.uk` từ 4G thấy màn login.
+- Việc tay của PO thật: ✅ Cloudflare CÓ domain (PO xác nhận) · đang tạo tunnel (ô Service điền
+  **`caddy:80`, Type HTTP** — KHÔNG điền localhost) · cài Docker Desktop/WSL2 máy Windows ·
+  Never-sleep + Docker start-at-login. Nghiệm thu cuối = mở `https://app.adaptivealgo.uk` từ
+  **4G tắt WiFi** thấy màn login — phép thử DUY NHẤT được tính.
+- **✅ GÓI LAND trên `main` `7ce57bd` — SẴN SÀNG CHỜ TOKEN.** FF main làm bằng `push origin
+  HEAD:main` (server từ chối non-FF = giữ chốt an toàn, KHÔNG checkout — cây làm việc dùng chung
+  4 phiên, checkout là giật file khỏi tay 3 vai kia; lệnh gốc của PO-agent quên điều này). Verify:
+  `03d02da..a694ff1` · diff rỗng · demo-GO→HEAD chỉ 1 commit docs.
+- **📌 Tri thức mới (coder đo):** `docker compose` NỘI SUY BIẾN cho MỌI service kể cả service bị
+  profile loại — `${VAR:?}` fail-fast trong compose RÒ sang mọi người dùng compose, không riêng
+  người bật profile. Fail-fast cho service optional phải đặt ở SCRIPT cửa vào của đường đó.
+- **⚠️ Khai minh thị:** `deploy_home.ps1` mới review bằng mắt, CHƯA chạy thật (máy không có pwsh);
+  bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
+  đường lui có sẵn.
+
+## 📈 RAG ĐÒN 1 — SỐ VỀ, LAND DUYỆT (16/08)
+- **Có dấu 3/8 → 5/8 (+2) · không dấu 0/8 KHÔNG ĐỔI (đúng dự đoán — việc của đòn 2) · 0 hồi quy.**
+  Vật: kho TRƯỚC `419·b630414088f8` → SAU `418·5aab3e7c43a2` (backup kho cũ giữ nguyên) · thước
+  probe-8 nguyên văn, coder KIỂM DỤNG CỤ bằng tái lập 0/8·3/8 trên kho cũ trước khi đo kho mới.
+  Nhân quả sạch nhất đợt: ca 5 mới-đạt có top-1 cũ là chính chunk vỡ `"giao d ich… t oi da"`.
+  Nhãn: **số-probe, không vào chuỗi benchmark** — trục RAG chấm lại khi golden-set land.
+  PR đòn 1 sắp mở (`fix/rag-don1-extraction-pdf` @ 585ca06) — PO thật merge theo quy ước.
+  Đòn 2 (chuẩn hoá dấu) GO ngay sau. Tester gán nhãn golden-set trên KHO MỚI; khuyến nghị nhãn
+  theo định-danh-bền (mã câu FAQ/số Điều) thay vì chunk-id — sống qua re-index.
+- Coder nhận nửa sự cố cây-chung không giảm nhẹ + tự gọi tên meta-pattern: *"biết một cái bẫy
+  không miễn nhiễm với nó"* (lần 2 trong phiên: TTL-số-nói-về-hệ, rồi switch-cây-chung sau hai
+  lần chính mình cảnh báo). Ghi thành luật đọc-người: **người cảnh báo giỏi nhất về một bẫy
+  thường là người sắp dính nó — vì họ làm việc gần bẫy nhất.** Worktree áp ngay từ lô này.
+
+## ⚖️ SỰ CỐ GIT TRÊN CÂY DÙNG CHUNG (16/08) + HAI LUẬT MỚI + QUY ƯỚC PR
+- **Sự cố (lỗi ĐÔI, đã khắc phục, KHÔNG mất gì):** tester `git add` 9 file (đúng pathspec) →
+  PO-agent `git commit` KHÔNG pathspec cuốn cả 9 file staged vào commit `7548bcb` → tester
+  `reset HEAD~1` không đọc lại HEAD, đè local (remote an toàn, đã khôi phục khớp remote).
+  **Hồ sơ:** commit `7548bcb` ("docs(state): PO chốt benchmark…") ngoài nội dung message còn mang
+  **2.584 dòng thuộc `tests/`+`eval/` của tester** (cuốn vào do sự cố index, không chủ đích).
+  Nội dung (5 bullet của tester, ghi lại để người đọc lịch sử khỏi mò diff):
+  ① **`eval/EVAL-EVIDENCE.md`** — DELIVERABLE nộp BTC: 7 ca manual output NGUYÊN VĂN từ stack
+  thật (nhãn `c447abb`), gồm 2 ca ÂM BẢN; cặp CA1↔CA6 = cùng câu hỏi, khác trạng thái xác thực,
+  hai kết quả ngược (bằng chứng cổng OTP thật); có mục "những gì bộ này KHÔNG chứng minh".
+  ② **`tests/test_ai_log/`** — cổng nhánh leftover `submit_log.py` (sắp chạy 19 lượt backlog
+  P-121); F-LOG/F-LOG-2 vá cùng phiên nên 2 ca xfail-strict tự XPASS → lật thành regression gate.
+  ③ **`tests/test_security/test_corpus_en_du_truc.py`** — cổng ký mẫu tier-1 EN: 50 ca/8 trục/
+  BA mức kỳ vọng (mức giữa "tier-2 chấp nhận được" là thứ bộ hai-mức báo đỏ nhầm cho hành vi
+  đúng) + mức `theo_doi` in-số-không-chấm có rào 4 vế.
+  ④ **`test_note_toan_ven_can_cu_tu_choi.py`** — trục "căn cứ từ chối còn đọc được": 8/20 trùng
+  8/8 ID với security qua phương pháp khác + cổng cấm-chạy-lẻ. Kèm `test_dua_refresh_token.py`
+  — giả thuyết đua bác bằng đo, file ở lại canh tính-chất-đang-đúng, docstring giữ lịch sử.
+  ⑤ **`tests/CHUAN-VIET-TEST.md` lên 8 LUẬT** — Luật 6 (skip tự chứng minh) · Luật 7 (canh chính
+  công-cụ-đo) · Luật 8 (phát hiện công cụ sai = một ĐƯỜNG ĐO KHÁC, không phải sự cẩn thận — 6 ca
+  thật/một buổi/hai vai) + `TIEU-CHI-CI.md` (F-CI, F-CI-2, CI-10/11) + 2 bộ tier-1 cũ bỏ tầng
+  dò-đoán-tên (chúng SKIP TỪ NGÀY VIẾT vì đoán `phan_tier` ≠ tên thật `_phan_loai_tier`). Nhánh rác `test/bo-do-va-bang-chung-16-08` đã xoá; KHÔNG tạo PR ngược
+  (PR rỗng cho đẹp số là thứ không làm khi BTC đếm PR).
+- **HAI LUẬT GIT MỚI (ratify, áp cả 4 phiên):** ① `git commit <pathspec> -m …` MỘT LỆNH — cấm
+  add-rồi-commit-rời, index dùng chung không được có trạng thái chờ; ② sau MỌI lệnh đổi HEAD,
+  ĐỌC LẠI HEAD trước lệnh kế (in ra chưa đủ — phải đọc).
+  **Addendum ①b (coder bắt):** một-lệnh KHÔNG phủ FILE CHƯA TRACK — ca đó `git add <file> &&
+  git commit <cùng file>` DÍNH LIỀN; thấy staged-LẠ trong status thì DỪNG HỎI, không commit đè.
+  **Addendum ②b (PO-agent tự dính ngay sau khi ratify ②):** đọc HEAD phải đọc CẢ TÊN NHÁNH —
+  3 commit docs của PO-agent (923e42a·ed0d237·3493dbd) đi lạc lên nhánh coder vì cây chung bị
+  chuyển nhánh giữa chừng mà PO-agent chỉ đọc hash, không đọc nhánh. Đã cứu về dev bằng
+  push-ref + worktree, không mất gì.
+  **Addendum ③ (quy ước cây chung):** CHUYỂN NHÁNH cây dùng chung = ĐỔI VẬT của cả 4 phiên —
+  phải BÁO TRƯỚC như rebuild image; làm việc nhánh riêng ưu tiên `git worktree` thay vì checkout
+  tại chỗ.
+- **QUY ƯỚC PR (PO thật chốt trực tiếp với tester):** các vai tách nhánh + tạo PR, **KHÔNG tự
+  merge — PO thật là người merge**. PO-agent gom danh sách PR chờ-merge cho PO duyệt theo đợt;
+  chờ-merge không được chặn việc kế (nhánh sau đâm trên nhánh trước nếu phụ thuộc).
+- **RAG đòn 1 — KHE MỞ, đang chạy:** tester xác nhận không giữ phép đo trên demo. Trình tự chốt:
+  re-index trước (backup Chroma+policy_chunks, báo nhãn kho mới số-chunk+băm) → tester soạn
+  golden-set trên kho MỚI (nhãn đoạn gắn kho — soạn trước là công đôi + vật-trôi). Ràng buộc cặp
+  trước/sau: **GIỮ NGUYÊN VĂN 8 câu probe** (cùng bộ câu, khác kho — một biến). Golden-set ETA:
+  ~3h sau nhãn kho mới cho bản DỰ THẢO; thành THƯỚC sau vòng soi-trục-thiếu của security+coder.
+  Thiết kế hay của tester ghi lại: bộ có **ca đối chứng ÂM TÍNH** (câu không có đáp án trong kho
+  ⟹ Recall phải =0 — chống thước-tự-thưởng).
+
+## 🎯 QUYẾT ĐỊNH PO THẬT 16/08 — BENCHMARK + LEARNING LOOP v1 (mới nhất)
+1. **Chiến lược đánh giá chất lượng: CHỐT** theo `2026-08-16-chien-luoc-danh-gia-chat-luong.md`
+   (kim tự tháp 3 tầng · lấy taxonomy OpenAI graders không lấy hosted · heldout 60 niêm phong).
+2. **Benchmark spec v1 + v0: CHỐT** (`2026-08-16-benchmark-spec-va-v0.md`, PR #3) — trọng số
+   30/25/20/15/10; **v0 = 68,75/85 điểm đo được (80,9%)**, điểm nghẽn định lượng: Truy hồi RAG
+   3,75/20 (Recall@3 probe: 0/8 không dấu · 3/8 có dấu — đáp án CÓ trong kho ⟹ lỗi tầng truy hồi).
+   Đang chạy: tester golden-set truy hồi 30-50 câu + script benchmark + gói 30 ca nhãn PO (hiệu
+   chuẩn judge ≥85%) · coder RAG đòn 1 (extraction sạch — chunk dính "Giao D ịch") + đòn 2 (chuẩn
+   hoá dấu tầng query), mỗi đòn một PR có đo trước/sau; đòn 3-4 chờ số.
+3. **LEARNING LOOP v1: GO** ("sau benchmark chạy luôn phần LLM tự cải thiện") — bánh đà dữ liệu
+   CÓ NGƯỜI GÁC, không phải model tự train: ① tín hiệu học ĐÃ thu (reject_reason +
+   la_tin_hieu_hoc, ADR-019; maker-checker chống bơm nhãn giả, ADR-020) · ② thước = benchmark
+   vừa chốt · ③ mảnh thiếu = **exporter Phase 2** (`eval/candidates/`, test_14 cắm cọc chờ sẵn).
+   **TRÌNH TỰ AN TOÀN BẮT BUỘC: ADR-025 phần B land TRƯỚC exporter** — S-02 (`agent_note` chưa
+   cọc/chưa scrub) là nguồn tự nhiên nhất của phễu học; mở exporter trước khi đóng cọc = dữ liệu
+   bẩn chảy vào bộ học. Sau exporter: quy trình đề-cử→duyệt 10 phút/tuần (PO hoặc uỷ PO-agent sơ
+   duyệt) → golden-set tự lớn từ vận hành thật → benchmark v2 chứng minh "học được" bằng số.
 
 ## ⚡⚡ QUYẾT ĐỊNH PO THẬT MỚI NHẤT — tối muộn 15/08 (đè mọi mục cũ)
 1. **ADR-025 ĐÃ KÝ TOÀN BỘ** — PO thật xác nhận cả 4 con số sau khi đọc giải thích: retention

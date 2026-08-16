@@ -1,5 +1,7 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { parseSessionCookie, SESSION_COOKIE, sessionCookieMaxAgeSeconds, type Session } from "@/lib/session";
 
 /**
  * Lớp gọi FastAPI THẬT — chỉ được import từ Route Handler (`app/api/**\/route.ts`),
@@ -31,10 +33,85 @@ export class ServerApiError extends Error {
 // backend thật sự đơ) — UX-01 (FIN05-QA-Test-Report.md), cùng gốc BUG-01.
 const BACKEND_FETCH_TIMEOUT_MS = 65_000;
 
+// ---------------------------------------------------------------------------
+// GIA HẠN PHIÊN — ĐẶT Ở ĐÂY, KHÔNG Ở `proxy.ts`
+//
+// `proxy.ts` VẪN gọi được `/auth/refresh` (đo được ở backend) nhưng cookie nó
+// đặt bằng `NextResponse.cookies.set()` KHÔNG BAO GIỜ rời server — đo thật,
+// 0 header `set-cookie` trên CẢ đường trang lẫn `/api`, trong khi ca đối
+// chứng `/api/session` (dùng `cookies()` của `next/headers`) cho đúng 1
+// header. Cùng mã nguồn ở ba image, cùng Node v20.20.2 + Next 16.3.0, và code
+// khớp từng điểm với tài liệu chính thức của bản Next đang cài — nên đây
+// KHÔNG phải lỗi cấu hình sửa được, mà là vùng không có đáp án viết sẵn.
+//
+// Hậu quả của việc token mới không tới browser: request kế tiếp cầm lại
+// refresh token CŨ ĐÃ ROTATE -> AUTH5-03 coi là bị đánh cắp -> `revoke_family`
+// -> CHẾT CẢ PHIÊN, kể cả cặp token vừa cấp. Hệ tự bắn vào chân mình.
+//
+// Nên: dùng ĐƯỜNG ĐÃ CHỨNG MINH HOẠT ĐỘNG — `cookies()` của `next/headers`
+// trong route handler. Và đặt ở `backendFetch()` vì đây là ĐIỂM CHẶN DUY NHẤT
+// mọi call BFF đi qua: "dễ sót route" được hoá giải bằng CẤU TRÚC, không bằng
+// sự cẩn thận của người sửa sau.
+const _dangRefresh = new Map<string, Promise<Session | null>>();
+
+/**
+ * Single-flight theo refresh token.
+ *
+ * BẮT BUỘC, không phải tối ưu: refresh token là DÙNG-MỘT-LẦN và lượt thứ hai
+ * dùng lại chính nó sẽ kích `revoke_family` (auth.py:146-155) — tức hai lời
+ * gọi song song không chỉ lãng phí mà GIẾT PHIÊN. Một trang render gọi nhiều
+ * `backendFetch` song song là chuyện bình thường, nên không có khoá thì ta
+ * tái tạo đúng con bug vừa sửa, chỉ ở tầng mới.
+ *
+ * ⚠️ GIỚI HẠN ĐÃ BIẾT: Map ở phạm vi MODULE nên chỉ phủ trong MỘT tiến trình
+ * Node. Nhiều replica frontend, hoặc nhiều tab trình duyệt (hai ngữ cảnh JS
+ * không thấy nhau), vẫn có thể refresh song song. Muốn phủ trọn phải khoá
+ * dùng chung (Redis). Ghi ra để lần scale sau không tưởng vấn đề đã đóng.
+ */
+async function _lamMoiPhien(cu: Session): Promise<Session | null> {
+  const dangCo = _dangRefresh.get(cu.refresh_token);
+  if (dangCo) return dangCo;
+
+  const viec = (async (): Promise<Session | null> => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: cu.refresh_token }),
+        cache: "no-store",
+      });
+      if (!res.ok) return null;
+      const moi = (await res.json()) as { access_token: string; refresh_token: string };
+      const phien: Session = { ...cu, access_token: moi.access_token, refresh_token: moi.refresh_token };
+      // ĐÂY là đường egress đã đo được — `cookies()` của next/headers, cùng
+      // cách `/api/session` làm. KHÔNG dùng `NextResponse.cookies.set()`.
+      const store = await cookies();
+      store.set(SESSION_COOKIE, JSON.stringify(phien), {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: sessionCookieMaxAgeSeconds(phien.role),
+      });
+      return phien;
+    } catch {
+      // Mạng/backend hỏng — KHÔNG giả vờ đã gia hạn. Trả null để caller ném
+      // đúng lỗi 401 gốc thay vì thử lại bằng một token không tồn tại.
+      return null;
+    } finally {
+      _dangRefresh.delete(cu.refresh_token);
+    }
+  })();
+
+  _dangRefresh.set(cu.refresh_token, viec);
+  return viec;
+}
+
+type InitCoCo = RequestInit & { __daThuLai?: boolean };
+
 export async function backendFetch<T>(
   path: string,
   token: string,
-  init?: RequestInit
+  init?: InitCoCo
 ): Promise<T> {
   // FormData (upload file, xem app/api/policy-docs/route.ts) — KHÔNG tự set
   // Content-Type: application/json ở đây, để fetch/undici tự tính boundary
@@ -98,6 +175,18 @@ export async function backendFetch<T>(
       }
     } catch {
       // giữ statusText nếu body không phải JSON
+    }
+    // 401 -> thử gia hạn ĐÚNG MỘT LẦN rồi gọi lại. Chỉ 401 (token hết hạn),
+    // KHÔNG áp cho 403 (sai vai — gia hạn không đổi được vai, thử lại là vô
+    // nghĩa và làm loãng log).
+    if (res.status === 401 && !init?.__daThuLai) {
+      const cu = parseSessionCookie((await cookies()).get(SESSION_COOKIE)?.value);
+      if (cu) {
+        const moi = await _lamMoiPhien(cu);
+        if (moi) {
+          return backendFetch<T>(path, moi.access_token, { ...init, __daThuLai: true });
+        }
+      }
     }
     throw new ServerApiError(res.status, detail);
   }

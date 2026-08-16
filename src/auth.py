@@ -10,6 +10,7 @@ tham số user_id/approved_by/... từ Pydantic request body.
 """
 from __future__ import annotations
 
+import contextvars
 import datetime as dt
 import hashlib
 import json
@@ -28,6 +29,7 @@ from src.config import (
     JWT_SECRET_KEY,
     OTP_STEPUP_FRESH_MINUTES,
 )
+from src.observability.logging_config import get_logger
 from src.redis_client import get_default_client
 
 _bearer = HTTPBearer(auto_error=False)
@@ -124,11 +126,41 @@ def is_family_revoked(family_id: str) -> bool:
     return get_default_client().exists(f"revoked_family:{family_id}") == 1
 
 
+# TẦNG 0 (security 2cff494) — `auth.py` trước bản này KHÔNG CÓ MỘT DÒNG LOG
+# NÀO trong 294 dòng, kể cả `revoke_family()` — tức sự kiện "refresh token bị
+# dùng lại, nghi đánh cắp, thu hồi cả phiên" bắn HOÀN TOÀN IM LẶNG.
+#
+# Vì sao log TRƯỚC khi vá: chỉnh một control mà không quan sát được nó bắn khi
+# nào là CHỈNH MÙ. Và ngay lúc này nó còn là con MẮT để nhìn chính cái bug đang
+# truy (đua-refresh ở handoff) — không có nó thì "phiên chết" và "token bị đánh
+# cắp thật" nhìn từ ngoài giống hệt nhau.
+_logger = get_logger("fin05.auth")
+
+# Nhãn NHÁNH bắn thu hồi. Dùng contextvar thay vì thêm tham số vào
+# `revoke_family()` vì hàm đó là API công khai của module — thêm tham số bắt
+# buộc sẽ vỡ mọi call-site tương lai và cám dỗ người ta truyền bừa một chuỗi.
+# Hôm nay chỉ có MỘT nhánh (`reuse_that`); tầng 2 sẽ thêm `phat_lai_trong_grace`
+# nếu grace-window được land.
+_nhanh_thu_hoi: contextvars.ContextVar[str] = contextvars.ContextVar("nhanh_thu_hoi", default="khong_ro")
+
+
 def revoke_family(family_id: str, *, role: str) -> None:
     """Thu hồi TOÀN BỘ family — gọi khi phát hiện refresh token bị dùng lại
     sau khi đã rotate (AUTH5-03, dấu hiệu bị đánh cắp). Key tự hết hạn theo
     đúng TTL refresh (không cần enumerate/xoá tay từng token con)."""
     get_default_client().setex(f"revoked_family:{family_id}", _refresh_ttl_seconds(role), "1")
+    # WARNING chứ không INFO: đây là sự kiện bảo mật, phải nổi lên trong mọi
+    # bộ lọc mặc định. KHÔNG log token (kể cả bản băm) — family_id đủ để nối
+    # các sự kiện của cùng một phiên mà không tự tạo thêm một bí mật để rò.
+    _logger.warning(
+        "refresh_family_revoked",
+        extra={
+            "su_kien": "refresh_family_revoked",
+            "family_id": family_id,
+            "role": role,
+            "nhanh": _nhanh_thu_hoi.get(),
+        },
+    )
 
 
 def rotate_refresh_token(token: str) -> dict | None:
@@ -147,6 +179,7 @@ def rotate_refresh_token(token: str) -> dict | None:
         # AUTH5-03 — token NÀY đã được dùng để rotate trước đó, mà giờ lại bị
         # dùng lại lần nữa -> chỉ có thể do bị sao chép/đánh cắp (client hợp
         # pháp đã nhận token MỚI và không còn lý do gì dùng lại token cũ).
+        _nhanh_thu_hoi.set("reuse_that")
         revoke_family(data["family_id"], role=data["role"])
         return None
 
@@ -154,6 +187,26 @@ def rotate_refresh_token(token: str) -> dict | None:
     # request thứ 2 dùng lại (reuse), tự dọn qua TTL, không cần cron riêng.
     data["rotated"] = True
     client.setex(key, 60, json.dumps(data))
+    # Log NHÁNH THÀNH CÔNG, không chỉ nhánh thu hồi — thiếu vế này thì log của
+    # tầng 0 KHÔNG định được N cho grace-window.
+    #
+    # Lý do: N là khoảng cách giữa hai lượt refresh đua nhau, và security đã
+    # chốt N chỉ được lấy từ DẤU THỜI GIAN SERVER-SIDE (khoảng cách đo ở client
+    # là hiện vật của công cụ đo — spawn curl/tab — không phải của sản phẩm).
+    # Nhưng `revoke_family` chỉ bắn ở đứa THUA. Có một mốc thì không có khoảng
+    # cách nào để đo. Cặp `refresh_rotated` -> `refresh_family_revoked` CÙNG
+    # `family_id` mới cho ra N.
+    #
+    # INFO chứ không WARNING: rotate thành công là chuyện bình thường xảy ra
+    # liên tục, đẩy lên WARNING là làm loãng đúng cái cảnh báo ở nhánh kia.
+    _logger.info(
+        "refresh_rotated",
+        extra={
+            "su_kien": "refresh_rotated",
+            "family_id": data["family_id"],
+            "role": data["role"],
+        },
+    )
 
     otp_verified_at = (
         dt.datetime.utcfromtimestamp(data["otp_verified_at"]) if data["otp_verified_at"] is not None else None

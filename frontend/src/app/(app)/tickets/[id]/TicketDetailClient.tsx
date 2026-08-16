@@ -23,6 +23,7 @@ import {
   type TicketDetail,
   type TransactionStatus,
 } from "@/lib/types";
+import BuocDieuTra from "@/components/BuocDieuTra";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import type { Role } from "@/lib/session";
 import LiveChatPanel from "@/components/LiveChatPanel";
@@ -210,30 +211,7 @@ export default function TicketDetailClient({
             ) : (
               <div className="trail">
                 {detail.investigation_logs.map((log) => (
-                  <div className="trail-step" key={log.step_no}>
-                    {/* Nhãn thân thiện + tên kỹ thuật giữ lại dạng chữ nhỏ: đây là
-                        màn nội bộ, người điều tra vẫn cần đối chiếu tên tool thật. */}
-                    <span className="trail-tool">
-                      {TOOL_NAME_LABEL[log.tool_called] ?? log.tool_called}
-                      <span className="dim" style={{ fontSize: 11, marginLeft: 6, fontWeight: 400 }}>
-                        {log.tool_called}()
-                      </span>
-                    </span>
-                    <div className="trail-io">
-                      {/* JSON GIỮ NGUYÊN VĂN — đây là bằng chứng truy vết chống bịa
-                          số liệu (ràng buộc cứng 3), dịch nó là phá giá trị đối
-                          chiếu. Chỉ ca `null` mới đổi thành chữ người đọc được. */}
-                      {"input: " + JSON.stringify(log.tool_input)}
-                      {"\nkết quả: " +
-                        (log.tool_result === null
-                          ? log.tool_result_id === null
-                            ? "(bị chặn — cần xác thực OTP phiên trước khi tra cứu)"
-                            : "(không có dữ liệu trả về)"
-                          : JSON.stringify(log.tool_result))}
-                    </div>
-                    {log.agent_note && <div className="trail-note">{log.agent_note}</div>}
-                    <div className="trail-time">{formatDateTime(log.created_at)}</div>
-                  </div>
+                  <BuocDieuTra key={log.step_no} log={log} />
                 ))}
               </div>
             )}
