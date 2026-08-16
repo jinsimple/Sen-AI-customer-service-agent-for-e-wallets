@@ -162,3 +162,81 @@ nghĩa trong đầu, không lường trục thứ hai. Lỗi ở tôi, sửa lú
 - **Chưa chạy** thử mệnh đề lọc — đây là đo **thiết kế + chi phí**, chưa có
   bản vá để probe.
 - Chưa đọc chuỗi xfail của tester (`55118b5`) — sẽ đối chiếu khi soạn ADR.
+
+---
+
+## 8. ✅ NGHIỆM THU F-LOG-3 — `071937b` ĐẠT
+
+> Probe hành vi qua **HTTP thật** vào container đang chạy bản mới
+> (`127.0.0.1:8010/policy-search`, token `USR-0201`/`cskh`).
+
+### Ca chính: truy vấn CHỨA PII → log giữ 0 ký tự nội dung
+
+Gửi: `"Khách Trần Văn Bách sđt 0912345678 STK 88000000000194 hỏi chính sách
+hoàn tiền"` (78 ký tự) → HTTP 200, và dòng log sinh ra có `query_len: 78`
+(khớp đúng, xác nhận đúng lượt của tôi).
+
+**Quét TOÀN BỘ log container:**
+
+```
+"Trần Văn Bách"          xuất hiện: 0
+"0912345678"             xuất hiện: 0
+"88000000000194"         xuất hiện: 0
+"chính sách hoàn tiền"   xuất hiện: 0
+"hoàn tiền"              xuất hiện: 0     ← kể cả cụm VÔ HẠI
+```
+
+Không chỉ PII — **không một mẩu nội dung nào** của câu tra lọt ra. Đúng nguyên
+tắc *"không log thứ phải scrub"*.
+
+### Băm: tất định VÀ phân biệt được — đủ trả lời hai câu hồ sơ sự cố cần
+
+```
+cùng câu, lượt 1   hash=f389d32453251dd8  len=78
+cùng câu, lượt 2   hash=f389d32453251dd8  len=78   ← tất định
+câu + " x"         hash=5fd80e96a52695df  len=80   ← phân biệt
+```
+
+⟹ trả lời được *"cùng một câu lặp bao nhiêu lần"* và *"burst máy hay người
+gõ"* — đúng hai thứ tôi phải **suy bằng tay** trong hồ sơ `10af46d`.
+
+### Không có trường nào mang nội dung
+
+```
+khoá: bo_qua_thieu_chunk · chunk_ids · correlation_id · doc_ids · duong_tra ·
+      k · qua_loc_tier · query_hash · query_len · so_hit_chroma · so_ket_qua ·
+      status · user_id  (+ ts/level/logger/message)
+khoá mang nội dung: KHÔNG
+```
+
+`chunk_ids`/`doc_ids` là **id**, không phải text — đúng trường trả lời thẳng
+câu hỏi thiệt hại mà không cần nội dung.
+
+### Nhánh `policy_search_lech_kho` — có thật, đã bắn 12 lần
+
+```
+WARNING policy_search_lech_kho   so_hit_chroma=4  so_ket_qua=0  bo_qua=4
+```
+
+Đây là trường **coder tự thêm ngoài đặc tả của tôi**, và nó bắt đúng chế độ
+hỏng im lặng: Chroma trả đủ hit bằng `chunk_id` cũ → tất cả bị bỏ → `results`
+rỗng → `status="not_found"`, **trông y hệt "không tìm thấy gì"**. Nếu trường
+này có từ hôm qua, hồ sơ `10af46d` đã không phải suy từ nhịp request.
+
+### Phạm vi tôi CỐ Ý không probe
+
+**Không tự dựng lại sự cố lệch-kho** (nạp lại + không restart). Đó là thao tác
+làm hỏng kho trên **stack dùng chung đang có vai khác làm việc**; coder đã dựng
+lại và để lại 12 dòng bằng chứng trong log — tôi đọc bằng chứng đó thay vì tạo
+thêm một lần gián đoạn. Nếu cần dẫn xuất độc lập, xin một cửa sổ riêng.
+
+### Ghi nhận điều coder tự khai — và tôi KHÔNG lấp
+
+Họ **rút** lời giải thích cũ (`_get_client()` khởi tạo lười) vì lượt dựng lại
+bác nó: lượt tra **đầu tiên** sau `nap-lai` vẫn trả 4 kết quả hợp lệ rồi các
+lượt sau mới về 0. Phần chắc: điều kiện gây lỗi + cách chữa đều tái lập được.
+Phần **chưa giải thích được**: vì sao lượt đầu thoát.
+
+Tôi **không đoán thay** — chỉ ghi để khi đọc log về sau thấy
+`policy_search_lech_kho` **lẻ tẻ chứ không thành khối liên tục** thì biết đó là
+**hiện tượng thật, không phải nhiễu đo**.
