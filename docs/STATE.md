@@ -428,6 +428,11 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   cờ sang payload; migration đo trước-sau 47 ca. **Thứ tự đầu tư cho đích 100-người:** ① nâng
   hạn mức TPM/model (PO mua sắm — nút cổ chai THẬT đã đo) ② LiteLLM proxy hàng đợi+budget ③
   reranker ④ Qdrant. Vector DB chưa bao giờ là nghẽn — TPM mới là.
+  **CẬP NHẬT (PO thật cam kết 16/08 tối): tới giai đoạn demo/khách thật SẼ CÓ API LLM hạn mức
+  xịn** ⟹ ① chuyển từ "chặn đường sống" thành "việc đã có chủ, kích hoạt theo lịch pilot"; thứ
+  tự kỹ thuật còn lại: reranker → Qdrant → LiteLLM (vẫn đáng làm vì: hàng đợi chống burst-429 cần
+  ở MỌI hạn mức, và hoá đơn token vẫn tỉ lệ thuận usage — T-series/caching là tiền thật kể cả khi
+  quota rộng). Cổng-trước-người-thật (A1/A2-prod + đường-xoá + xoay-FIELD-key) KHÔNG đổi.
 - Thứ tự nghiên cứu đã trình PO thật: ① reranker tại chỗ (bge-reranker-v2-m3 A/B ViRanker, Apache
   2.0, CPU) ② Qdrant ③ LiteLLM proxy (hàng đợi TPM + budget + cache Redis — điều kiện trước 150
   người) ④ Langfuse self-host (màn gán nhãn 30-ca + cost, thay-thế-được LangSmith mà không rời
