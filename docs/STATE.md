@@ -345,6 +345,17 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 🔍 ĐIỀU TRA CHUNK-CHÌM XONG: KHÔNG PHẢI RÁC — CHÔN-DO-GẦN-TRÙNG (16/08 tối)
+- Tester tự sửa số 47%→**31,5%** (thước lại là thủ phạm: 160 câu quét đều là câu FAQ mà kho có 2
+  tài liệu; quét lại 340 truy vấn → 82/260 chunk FAQ không bao giờ nổi với chính câu sinh ra
+  chúng; 60 chunk ToS "chìm" chỉ là chưa-hỏi-tới). **Mẫu 20/20 = nội dung THẬT bị chôn, 0 rác.**
+- **Cơ chế: GẦN-TRÙNG** — ~20 đoạn hướng-dẫn-liên-kết-bank gần y hệt (khác mỗi tên bank): một
+  truy vấn lấy 3, 17 cái vĩnh viễn chìm. Nhóm chìm CHỨA đáp án các ca đang trượt (RAG-08/22/23/
+  29) — nguyên nhân thứ hai của RAG-22. **Đòn 4 DOCX không chữa lớp này.**
+- Hướng đề xuất (tester, CHƯA đo): **chunk-theo-THỰC-THỂ** (mỗi bank một chunk có nhãn tên) —
+  coder trả lời khả thi trước, tester dựng ca đo sau. Thứ tự: đòn 4 trước (rẻ, chắc) → chống-chôn
+  theo số. Còn mù: 29 chunk (8%) không lộ bằng cách nào — coder đổ danh sách chunk_id cho tester.
+
 ## 🎯 THƯỚC ĐÃ RÀ — MỐC THẬT ĐẦU TIÊN CỦA TRỤC TRUY-HỒI: 35,7% = 7,14/20 (16/08, cd03c88)
 - Luật chuỗi-đặc-trưng (3 cửa: có-trong-đáp-án-đúng-biên · sống-qua-trích-PDF · ≤2 câu FAQ) +
   xác minh nhãn bằng ĐƯỜNG ĐỘC LẬP (quét kho bằng 160 câu nguồn → 31/35 chuỗi có thật trong kho
