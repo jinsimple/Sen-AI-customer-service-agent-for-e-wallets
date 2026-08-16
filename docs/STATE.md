@@ -371,6 +371,15 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - **HAI LUẬT GIT MỚI (ratify, áp cả 4 phiên):** ① `git commit <pathspec> -m …` MỘT LỆNH — cấm
   add-rồi-commit-rời, index dùng chung không được có trạng thái chờ; ② sau MỌI lệnh đổi HEAD,
   ĐỌC LẠI HEAD trước lệnh kế (in ra chưa đủ — phải đọc).
+  **Addendum ①b (coder bắt):** một-lệnh KHÔNG phủ FILE CHƯA TRACK — ca đó `git add <file> &&
+  git commit <cùng file>` DÍNH LIỀN; thấy staged-LẠ trong status thì DỪNG HỎI, không commit đè.
+  **Addendum ②b (PO-agent tự dính ngay sau khi ratify ②):** đọc HEAD phải đọc CẢ TÊN NHÁNH —
+  3 commit docs của PO-agent (923e42a·ed0d237·3493dbd) đi lạc lên nhánh coder vì cây chung bị
+  chuyển nhánh giữa chừng mà PO-agent chỉ đọc hash, không đọc nhánh. Đã cứu về dev bằng
+  push-ref + worktree, không mất gì.
+  **Addendum ③ (quy ước cây chung):** CHUYỂN NHÁNH cây dùng chung = ĐỔI VẬT của cả 4 phiên —
+  phải BÁO TRƯỚC như rebuild image; làm việc nhánh riêng ưu tiên `git worktree` thay vì checkout
+  tại chỗ.
 - **QUY ƯỚC PR (PO thật chốt trực tiếp với tester):** các vai tách nhánh + tạo PR, **KHÔNG tự
   merge — PO thật là người merge**. PO-agent gom danh sách PR chờ-merge cho PO duyệt theo đợt;
   chờ-merge không được chặn việc kế (nhánh sau đâm trên nhánh trước nếu phụ thuộc).
