@@ -26,6 +26,22 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **Drift BÁC bằng đo** (3 image cùng node 20.20.2 / next 16.3.0 / manifest rỗng; `oldc447abb`
+  trúng cache toàn phần, timestamp 15/08T13:01Z ⟹ nhiều khả năng CHÍNH LÀ image 15/08 — và nó
+  cho 0 Set-Cookie). **Code khớp docs Next 16 từng điểm** (src/proxy.ts đúng chỗ, export đúng
+  tên, mẫu cookie đúng docs). Đã bác HẾT 8 giả thuyết. Còn: proxy CHẠY + manifest RỖNG +
+  Set-Cookie KHÔNG egress (có đối chứng /api/session=1 header).
+- **PO-agent chặn một vòng lãng phí:** câu coder định hỏi ("harness 15/08 có /api/session xen
+  giữa?") ĐÃ được tester trả lời từ trưa (chỉ dòng 14 lúc login). Phép hoà giải cuối giao coder:
+  grep route handler nào NGOÀI /api/session tự set-cookie (nếu đường ws-ticket có → +842s là
+  cookie từ ROUTE HANDLER, không phải proxy → mâu thuẫn tan). Không có → +842s = dị thường lịch
+  sử, GHI KHÔNG LẤP KHÔNG CHẶN (nếp MT-E02).
+- **QUYẾT: HƯỚNG (2) GO — không chờ giải dị thường.** Refresh chuyển xuống `backendFetch()` MỘT
+  điểm chặn: 401 → refresh → set-cookie trên response route handler (đường ĐÃ chứng minh egress).
+  Điều kiện đóng: single-flight per-request trong backendFetch (không tái tạo bug đua tầng mới) ·
+  test cấu trúc canh proxy-đăng-ký · cổng đo request-1-VÀ-2 + family-không-revoke · gỡ phần
+  refresh chết khỏi proxy.ts có ghi lý do · security re-probe. Sau land: PO-agent viết ADR-026
+  ghi quyết định + trọn lịch sử điều tra.
 - **Bước (1) coder: khả-năng-(3) BÁC có đối chứng** (`/api/session` route-handler-tự-set-cookie
   grep THẤY ⟹ dụng cụ không hỏng; ws-ticket + trang /chat đều 0 set-cookie). Thu hẹp: middleware
   CHẠY nhưng **mọi mutation lên response bị BỎ** — proxy.ts biên dịch + thực thi nhưng KHÔNG được
