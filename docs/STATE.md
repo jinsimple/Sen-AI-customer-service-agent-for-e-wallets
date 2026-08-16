@@ -417,6 +417,24 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🔒 LUẬT MỚI: cổng PHẢI-NHỚ-BẬT chỉ chặn được người đang nhớ (tester tự phát hiện 16/08)
+- Tester **tự báo vi phạm chính cổng của mình**: chạy `do_token_latency --nhom ngan` (3 lượt LLM)
+  trong lúc đóng băng, vì `FIN05_DONG_BANG_LLM` là **biến môi trường — chỉ sống trong shell đã
+  export**. Không hậu quả đo được. PO ghi thành **phát hiện thiết kế, không phải lỗi**: lý do họ
+  đưa khi tự báo ("nếu tôi chọn báo cái gì theo mức độ bị phát hiện thì mọi con số tôi đưa sau
+  này đều mất chỗ dựa") là thứ làm số của họ có giá trị.
+- **Vá (`6c6cc1a`):** cổng nổ khi có biến môi trường **HOẶC** có file **`.DANG-DONG-BANG-LLM`** ở
+  gốc repo — sống qua shell/phiên/nén-ngữ-cảnh, `ls` là thấy, thông báo in rõ nguồn chặn. File
+  ĐANG TỒN TẠI ⟹ đóng băng có hiệu lực với cả 4 phiên. **Quy ước xoá: chỉ khi PO thật xác nhận
+  quay xong; người xoá hô cả 4 phiên.** Đường index-thô (model embedding, pool khác) vẫn chạy.
+- **LUẬT (ratify):** cơ chế nào còn một nửa dựa vào trí nhớ thì vẫn còn một nửa là lời hứa — bản
+  nâng cấp của luật cơ-chế-thắng-lời-hứa. Áp cho mọi cổng dựng về sau.
+- Kèm 2 vá: `usage` thiếu trường → in `–` đi tiếp thay vì `TypeError` (cần cho Qwen — nhà cung
+  cấp khác trả bộ trường khác). Và `ky_tu_vao`: tester **cố ý KHÔNG** dựng chỉ số ký-tự-một-phần
+  (sẽ trông như đại lượng bất biến mà không phải — cùng họ "nhãn nói dối nguy hơn không nhãn")
+  ⟹ PO gộp **`input_chars` vào envelope `usage`** cho coder: ký tự là đại lượng BẤT BIẾN QUA
+  TOKENIZER, giữ chuỗi so sánh token sống sót khi đổi nhà cung cấp.
+
 ## 🏆 N1 RERANKER — CHẠM ĐÚNG TRẦN LÝ THUYẾT, nhưng TRƯỢT ngưỡng latency (16/08)
 - `bge-reranker-v2-m3`: **23/47 → 38/47** (= trần Recall@20, tức lấy HẾT phần còn trong tầm) ·
   **ToS 2→4 = đúng trần ToS** · **0 ca rơi** · p=0,0001 (ngưỡng khai trước: ≥6 ca ròng).
