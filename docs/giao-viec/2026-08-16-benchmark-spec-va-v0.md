@@ -55,7 +55,12 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 | Trải nghiệm (15) | **KHÔNG ĐO ĐƯỢC** — judge chưa hiệu chuẩn (chờ 30 nhãn PO) | — | *(loại khỏi mẫu số)* |
 | Hiệu năng (10) | 8/8 lượt demo ≤ 30s *(n=8, mẫu nhỏ — provisional)* | 100% | **10,0** |
 
-### ➡️ **FIN-05 Benchmark v0.4 (16/08 tối) = 74,79 / 85 điểm đo được = 88,0%** ⚠️ kèm 2 finding mở
+### ➡️ **FIN-05 Benchmark v0.4 (16/08 tối) = 74,57 / 85 điểm đo được = 87,7%** ⚠️ kèm 2 finding mở
+*(số trục Truy-hồi theo script tester `6eef7e1` — nguồn SỐ là script, spec chỉ là nguồn CÔNG
+THỨC: TB dấu/không-dấu Recall@4 = 47,9% → 9,57/20; mẫu số ghim ToS 2/10 · FAQ 21/37; script in
+dải @1/@3/@4 + tách theo tài liệu mỗi lượt. Nửa F-32 "từ-chối-rồi-trả-lời" đã RÚT — 0/11 tái
+hiện trên he_thong `f36435ac6f4a` sau T3; giữ làm cổng hồi quy vì hành-vi-đúng đang là hệ-quả-
+phụ chưa-cố-ý. F-31 rộng ra: câu thứ 3 dính, bất ổn định 6/8-2/8 ⟹ ranh giới do LLM phán.)*
 
 **Đổi metric Truy-hồi @3 → @4 (cắt chuỗi, lý do):** `/api/policy-search` LUÔN đưa agent 4 kết
 quả (bỏ qua top_k — coder đang xác nhận chủ-đích/bug) ⟹ Recall@3 đo một sản phẩm không tồn tại;
