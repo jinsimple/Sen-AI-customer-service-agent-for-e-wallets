@@ -410,6 +410,80 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   xuất `_bam_kho` text-only — coder nhét vào lượt chạm kho_rag kế). Nhắc-một-lần đã gửi coder:
   lượt nạp 08:55Z không hô trước — quy ước mới không được mềm tuần đầu. Nợ tester: mồi-neo §D +
   k-boundary (cần đường agent), sau khi kho đứng yên.
+- **🎉 LIVE: https://app.adaptivealgo.uk — PO thật TỰ deploy Windows home-server + Cloudflare
+  Tunnel (16/08).** PO-agent smoke-test từ ngoài: /login 200 qua CF edge HKG · title đúng ·
+  POST /api/session đăng nhập demo THẬT 200 + đúng user (0,4s) ⟹ tunnel+caddy+BFF+backend+
+  Postgres+seed sống. GET /api/session 405 — coder xác nhận chủ-đích hay thiếu. Việc coder (sau
+  F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
+  deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
+  cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **✅ T3 LAND (`99de792`) — input/lượt 19.397→14.698 (−24%) trên câu đo của coder.** Chẩn đoán:
+  `get_customer_history` complaints KHÔNG limit/không lọc days = 13.620 ký tự = 41% toàn prompt
+  (107 phần tử). Thiết kế: BẢN TRẢ LLM cắt còn 10 complaints (4.707 ký tự) · BẢN GHI DB nguyên
+  vẹn 107. **LUẬT MỚI (coder tự dựng): cổng nghiệm thu PHẢI CHẠM ĐƯỜNG THAY ĐỔI** — origin-rule
+  0/5 + o-group 0/8 xanh nhưng không chạm đường T3 ("nhận chúng làm bằng chứng là tự lừa");
+  bằng chứng thật = ca đúng-rủi-ro: agent thấy 10 bản ghi nói "105/107" (tra ngược được), KHÔNG
+  nói "10". **<30k CHƯA tuyên bố đạt** — chờ bộ-lệnh-cố-định đo token+latency (GIAO tester, gộp
+  việc backlog "bộ đo latency thay n=8"); coder đo lại lượt dài 47-84k khi thước về. T3 đóng
+  ngoài thứ tự = ngoại lệ chấp nhận (code-dở-cây-chung rủi ro hơn), không thành nếp.
+- **② điều kiện (c) GIẢI QUYẾT — kiến trúc TÁCH SẴN tìm/trích:** store.py::add_chunks embed
+  texts nhưng Chroma documents=chunk_ids (placeholder); văn bản trả LLM lấy từ PolicyChunk.text
+  Postgres ⟹ dòng chèn ② chỉ đi vào embedding, không có đường lọt ra khách. Coder thêm docstring
+  bất biến tại chỗ chèn. ②-thí-điểm ĐANG CHẠY (hô 4 phiên trước khi nạp).
+- **ADR-026 BẢN THẢO XONG (`a65e9fc`, docs/security/…-ban-de-PO-land.md) — TRÌNH PO THẬT KÝ.**
+  8 quyết định = 4 điểm PO chốt + QĐ5 (eval đánh dấu ĐÃ-duyệt — mô hình đe doạ là đối-tác-bị-
+  chiếm, cờ bỏ-qua-lọc bị bác vì là lớp lỗi F-30) + 🔴QĐ6 (xuất-xứ ≠ thay tier, quyết định riêng
+  chống-gỡ-nhầm) + 🔴QĐ7 (nạp-lại GIỮ trạng thái duyệt theo (filename,băm-file) — không thì bảo
+  trì thường quy làm agent mù; chính lượt 08:42 đã-sửa-sự-cố sẽ là ca vấp đầu tiên) + QĐ8 (2
+  tầng: dây-bẫy contracts/rag-nguon.yaml LÀM NGAY khớp xfail 55118b5 · trạng-thái-duyệt DB khi
+  onboarding thật; bác cả hai phương án đơn lẻ). Điểm rà PO-agent: chuyển tiếp production đang
+  cầm kho PDF — manifest chỉ có 2 DOCX, dây bẫy phải land CÙNG nhịp release đòn-4 lên production.
+- **Ý kiến tuân thủ ToS (security): XÁC NHẬN CÓ ĐIỀU KIỆN KHÔNG-NHÂN-NHƯỢNG** — "an toàn tuân
+  thủ VÌ VÀ CHỈ VÌ đường thoát 'không tra được→người thật' đã được XÁC NHẬN hoạt động; chưa đo
+  thì mệnh đề chưa đứng". Ca lo nhất: top-3 trả chunk-lân-cận-SAI điểm cao ⟹ agent tưởng tìm
+  thấy ⟹ diễn giải thay vì từ chối (trục âm-bản-GẦN chưa có ca canh). ĐÃ GIAO tester: chạy các
+  ca ToS trượt qua đường agent, phân loại (a)không-tra-được=đạt (b)diễn-giải-từ-chunk-lạc=TRƯỢT
+  NẶNG báo ngay (c)đúng-nhờ-đường-khác=ghi chú; + chốt mẫu số ToS (2/8 vs 2/10 đang lệch).
+- **Version-drift HIỆU CHỈNH XUỐNG (security tự đo lại):** origin/main ĐÃ CÓ đủ A1+A2·S-03·F-30·
+  F-29·F-28/e·note/ADR-024·CI-appsec — production KHÔNG hở lỗ bảo mật; thiếu duy nhất F-LOG-3 +
+  7 commit RAG/observability hôm nay ⟹ lý-do-redeploy là quan-sát-được, không phải vá-khẩn.
+  (Bài học security tự ghi: main local là nhánh chết 1 commit — đọc origin/main, đo hai lần
+  trước khi kêu.)
+- **THƯỚC RÀ HAI PHÍA XONG — 39,4% LÀ SỐ SẠCH, mặt trận truy hồi MỞ LẠI (16/08):** phía trượt
+  28/28 công bằng (0 nhãn hỏng; 15 ca nghi-oan ban đầu là bẫy truy-vấn-ngắn-embed-kém — kiểm
+  đường độc lập 15/15 lành, suýt làm cả đội sửa 15 nhãn lành) · phía đạt 0/47 chuỗi lỏng. Bản đồ
+  phủ vào chỗ cố định eval/do_phu_kho.py + phu_kho.json (`ed654b9`, băm `5b5dbc12719f`): ToS
+  97,1% · FAQ 87,4% (tester tự bắt 2 lỗi thước của mình: "mục 15 thiếu" = chỉ tra 340/378; "FAQ
+  81%" = mẫu số đếm cả 146 dòng mục-lục đã-cố-ý-vứt — "đếm cái ta chủ động vứt thành cái ta đánh
+  mất"). **②-THÍ-ĐIỂM PHÁT LỆNH cho coder** (3 điều kiện mở-lại đều thoả): 5 chunk từ bộ RAG-37/
+  47/39/41 (khách hỏi "bao lâu có kết quả" ↔ chunk "không quá 45 Ngày Làm Việc" — khoảng cách
+  VĂN PHONG không phải chủ đề; giải thích luôn vì sao FAQ tốt hơn ToS); nghiệm thu: ≥3/5 chuyển
+  đạt + TRỌN 47 ca không ca-đang-đạt nào rơi + dòng-chèn-không-được-trích-cho-khách (nếu không
+  tách được phần-tìm/phần-trích thì DỪNG); xếp sau F-LOG-3 trước T3. Caveat đã ghi: HyDE âm
+  (1/47) = sửa-phía-CÂU-HỎI đã có điểm âm; ② = sửa-phía-NỘI-DUNG offline là chiều chưa đo.
+- **Kho PRODUCTION SẠCH (PO-agent đo chỉ-đọc qua HTTPS):** GET /policy-docs trên live = đúng 2
+  PDF MoMo (uploaded 07:24, 362 chunk) — sự cố .md CHỈ ở stack local, không có sự cố production.
+  NHƯNG lộ **version drift**: production = snapshot TRƯỚC đòn 4 (kho PDF cũ) + `deploy_home.*`
+  pull `main` ⟹ máy Windows nhiều khả năng chạy code cũ hơn hôm nay. Đang hỏi PO thật: nhánh
+  deploy · secret khác dev? · `LANGCHAIN_TRACING_V2`? · live = demo đội hay người thật? (3 câu
+  sau là F-30/secret/pilot-cam-kết của security, nay tăng hạng vì có production thật). Kế tiếp:
+  một nhịp release dev→main + redeploy CÓ TRẬT TỰ — coder không tự đẩy main trước khi chốt.
+- **CHẨN ĐOÁN ToS XONG (coder) — 5 SỐ ÂM LIÊN TIẾP, quyết ①+③:** kho ổn (0/10 thiếu nội dung) ·
+  embedding ổn (8/8 ca trượt lên hạng-1 khi hỏi bằng chính văn chunk) ⟹ lỗi = khoảng cách
+  hỏi-đời-thường↔viết-pháp-lý. Top-3 của ca trượt = 79% FAQ = đúng tỉ lệ nền kho (truy hồi không
+  thiên vị, chỉ không phân biệt nguồn). 5 cơ chế đo đều âm: BM25 0/10 · RRF 3/10 (FAQ chưa đo) ·
+  trộn-nguồn 17/47↓ · HyDE 1/47↓↓ · RRF+HyDE 8/47↓↓. HyDE datum giữ: cứu ca chôn sâu (>100→8)
+  nhưng phá ca đang đúng — sống lại nếu có bộ phân-loại-ca-khó. **QUYẾT: ① ToS 2/10 = giới-hạn-
+  đã-biết** (câu pháp lý nên escalate người thật; ràng buộc 3 làm trượt-truy-hồi thành hành vi AN
+  TOÀN "không tra được"; chờ security 1 dòng góc tuân thủ) **+ ③ không chọn đòn trên thước FAQ
+  chưa rà; ② (chèn câu-hỏi-tương-ứng vào chunk ToS) ĐỖ BẾN** — mở lại khi: thước FAQ sạch + ToS
+  vẫn ưu tiên theo số + đo trước 5 ca. `GET /api/session` 405 = CHỦ ĐÍCH giữ nguyên (BFF: 34 chỗ
+  đọc getServerSession server-side, không mở thêm cửa phát thông tin phiên).
+- **🔒 ÁN KHO ĐÓNG — PO thật xác nhận chính họ upload 2 file .md qua UI Đối-tác-ví ~15:23** (tai
+  nạn quy trình, không xâm nhập, không ai có lỗi). Khớp trọn chuỗi bằng chứng (IP frontend ·
+  nhịp UI POST→GET 20-40ms · 13s giữa 2 lượt). Câu hỏi đầu tiên của PO thật khi nghe tin — "đối
+  tác ví có luồng riêng là đã quản lý được rồi đúng không?" — vào phần động-cơ ADR-026: người
+  vận hành thiện chí TIN tách-vai = kiểm-soát-nội-dung, và sự cố chứng minh niềm tin đó sai.
 - **§15-ToS ĐÓNG — nghi vấn bị chính người nêu tự bác bằng đo:** phủ ToS = 198/206 đoạn (96,1%);
   mục 15 đủ 6/6; **mục 19 (tra soát & khiếu nại) đủ 11/11 TRONG KHI 6/8 ca ToS trượt hỏi đúng
   mục 19** ⟹ ToS 2/8 chắc chắn là lỗi TRUY-HỒI-thứ-đã-có, tín hiệu sạch nhất ngày. 8 đoạn vắng =

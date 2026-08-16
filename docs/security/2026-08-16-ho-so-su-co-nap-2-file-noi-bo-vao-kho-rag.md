@@ -97,6 +97,23 @@ Tôi ghi rõ là **đo-không-được**, không suy đoán.
 luận từ **nhịp + trùng mốc**, **không phải** từ định danh. Nếu cần chắc chắn
 hơn thì phải có log `user_id` — xem §6.
 
+## 4b. ✅ TRUY NGUỒN — ĐÓNG. Nguyên nhân đã xác nhận.
+
+**PO thật xác nhận: chính họ upload 2 file `.md` qua màn hình Đối-tác-ví
+lúc ~15:23 giờ máy.** Khớp trọn chuỗi bằng chứng đã đo:
+
+- client HTTP thật (IP = container frontend, không phải script in-process)
+- nhịp UI: mở trang → `POST` → `GET` tải lại danh sách (+37ms / +21ms)
+- 13 giây giữa hai lượt = người bấm hai lần
+
+⟹ **Sự cố TAI NẠN QUY TRÌNH, không phải xâm nhập.** Không có ý xấu, không có
+truy cập trái phép. **Trạng thái: ĐÓNG.**
+
+*(Ghi cho đúng công: quan sát nhịp `POST→GET 20-40ms` mà tôi nêu đã kéo giả
+thuyết "thao tác UI" lên đúng lúc hướng điều tra đang nghiêng về script. Nhưng
+thứ **chốt** án là câu trả lời của PO thật, không phải suy luận của tôi — tôi
+chỉ thu hẹp được, không kết luận được.)*
+
 ## 5. Đường nạp — tôi rút giả thuyết cũ
 
 Giả thuyết trước của tôi (`scripts/kho_rag.py::_chon_nguon` liệt kê `data/raw/`)

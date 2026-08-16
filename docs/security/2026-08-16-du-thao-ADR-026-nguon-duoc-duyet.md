@@ -52,6 +52,25 @@ thiếu nó, cơ chế an toàn tự tạo ra một sự cố khả dụng.
 
 ## Bối cảnh
 
+### Câu hỏi mở đầu — và vì sao nó là động cơ mạnh nhất của ADR này
+
+Khi được báo sự cố, câu hỏi **đầu tiên** của người vận hành là:
+
+> *"Đối tác ví có luồng upload riêng là đã quản lý được phần này rồi đúng
+> không?"*
+
+**Niềm tin đó sai, và nó sai theo cách rất tự nhiên.** Tách vai `partner_admin`
+kiểm soát **AI ĐƯỢC PHÉP LÀM GÌ** — nó **không** kiểm soát **CÁI GÌ trở thành
+chính sách**. Một vai riêng cho việc nạp tài liệu trông y hệt một cơ chế quản
+trị nội dung, nhưng nó chỉ là cơ chế **phân quyền**.
+
+Người đầu tiên vấp vào khoảng trống đó là **một người vận hành thiện chí, dùng
+đúng cửa được thiết kế cho họ, không làm gì sai quy trình cả**. Đó chính là
+định nghĩa của một khoảng trống thiết kế — chứ không phải lỗi người dùng.
+
+⟹ ADR này tồn tại để **tách hai thứ vốn bị gộp**: *ai được nạp* (phân quyền, đã
+có) và *cái gì được phục vụ* (duyệt nội dung, **chưa có**).
+
 16/08, cửa sổ `08:23:14Z → 08:42:47Z` (19 phút 33 giây): hai file nội bộ
 (`business_rules.md` — bảng số `verified=false`; `scenario-candidates-momo-faq.md`
 — danh sách kịch bản test) nằm trong **kho đang phục vụ**. Đo được: **0 request

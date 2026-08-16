@@ -60,8 +60,11 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 
 **Trục Truy-hồi — ghi CẢ HAI số kèm mẫu số (quy tắc: số ca đổi = cắt chuỗi, spec quy tắc 3):**
 - `41,4% (35 ca, chỉ FAQ)` — mốc sạch đầu tiên, 3 lượt lặp y hệt (nhãn ở bảng trên)
-- `39,4% (47 ca, có ToS)` — **hiện hành**, bộ 60 ca 6-trục `8a7f853`; thấp hơn KHÔNG phải vì sản
-  phẩm kém đi mà vì thước vừa chạm phần chưa từng bị đo. **ToS 2/8 = trục yếu nhất — TÍN HIỆU ƯU
+- `39,4% (47 ca, có ToS)` — **hiện hành, THƯỚC-ĐÃ-RÀ-HAI-PHÍA 16/08**: 28/28 ca trượt công bằng
+  (0 nhãn hỏng, kiểm bằng đường độc lập) · 0/47 chuỗi lỏng (42/47 ≤2 chunk) · kho `2209afc2042c`
+  378c/2doc. Thấp hơn 41,4% KHÔNG phải vì sản phẩm kém đi mà vì thước vừa chạm phần chưa từng bị
+  đo. Bản đồ phủ kho (eval/phu_kho.json, băm `5b5dbc12719f`): ToS 200/206=97,1% · FAQ
+  932/1066=87,4% (mẫu số sạch, loại mục-lục/URL đã cố-ý vứt). **ToS 2/8 = trục yếu nhất — TÍN HIỆU ƯU
   TIÊN cho đòn RAG kế** (điều kiện trình tự: chờ coder trả lời §15-ToS có VÀO kho không — lỗi nạp
   chữa khác lỗi truy hồi). Datum phụ: typo/caps KHÔNG phá truy hồi (1 ca/loại, mỏng); đối chứng
   2 lượt nạp cùng nguồn 15/14 trùng khít ⟹ nạp lại không đổi phép đo.

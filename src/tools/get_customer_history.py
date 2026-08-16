@@ -27,6 +27,7 @@ def get_customer_history(
     user_id: str,
     days: int = 90,
     limit_transactions: int = 20,
+    limit_complaints: int = 10,
     amount: int | None = None,
 ) -> dict[str, Any]:
     """`amount`: lọc gần đúng theo số tiền khách mô tả (sai số ±2%, đủ bù làm
@@ -135,6 +136,7 @@ def get_customer_history(
         "complaint_count_90d": len(
             [c for c in complaints if c.created_at and c.created_at >= since]
         ),
+        "complaints_tong": len(complaints),
         "complaints": [
             {
                 "complaint_id": c.complaint_id,
@@ -146,5 +148,26 @@ def get_customer_history(
         ],
     }
 
+    # T3 — GHI ĐẦY ĐỦ, TRẢ RÚT GỌN. Hai việc khác nhau, cố ý tách:
+    #
+    # `record_tool_result` nhận `result` NGUYÊN VẸN -> truy vết không suy suyển.
+    # Ràng buộc cứng 3 bắt mọi số agent nói phải tra được về `tool_results`;
+    # nếu cắt trước khi ghi thì chính bản ghi làm chứng cũng cụt, và ta phá
+    # đúng thứ mình đang bảo vệ.
+    #
+    # Chỉ BẢN TRẢ VỀ cho LLM bị cắt. Đo được: `complaints` chiếm 13.349/16.722
+    # ký tự (79,8%) của tool này, mà tool này chiếm 41% toàn prompt — và mỗi
+    # bước ReAct gửi lại TOÀN BỘ, nên một lượt 8 bước trả giá 8 lần.
+    #
+    # ⚠️ `complaints_tong` là BẮT BUỘC, không phải trang trí. Cắt im lặng để
+    # LLM thấy 10 bản ghi sẽ khiến nó tưởng khách có 10 khiếu nại và NÓI RA
+    # con số đó — tự chế một số sai từ dữ liệu đúng. Đúng thứ ràng buộc cứng 3
+    # cấm. Con số thật phải đi cùng phần bị cắt, và nó có mặt ở CẢ hai bản nên
+    # LLM trích `complaints_tong` vẫn tra ngược được.
     tool_result_id = record_tool_result(session, "get_customer_history", result)
-    return {**result, "tool_result_id": tool_result_id}
+    return {
+        **result,
+        "complaints": result["complaints"][:limit_complaints],
+        "complaints_da_cat": len(complaints) > limit_complaints,
+        "tool_result_id": tool_result_id,
+    }
