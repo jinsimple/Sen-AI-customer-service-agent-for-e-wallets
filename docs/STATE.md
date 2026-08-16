@@ -441,6 +441,41 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   **snapshot (tên có ngày) 60 RPM/100k TPM ← BẪY, không dùng**. **Trần áp ở CẤP TÀI KHOẢN GỐC**
   (mọi workspace + mọi API key cộng chung — giống org-level của OpenAI, không né được bằng cách
   tạo nhiều key). Nâng tạm thời qua console, hiệu lực ngay, 30 ngày, chỉ Bắc Kinh + Singapore.
+- **🔻 ĐÍNH CHÍNH KÉP (tester bác PO-agent HAI LẦN trong cùng buổi):** ① "RPM là ràng buộc" —
+  **SAI**: đo 1327 bản ghi ra **2,39 lời gọi/lượt** (không phải ~4 tôi ước) ⟹ RPM cho 251 lượt/
+  phút > TPM 179 ⟹ **TPM chặn ở MỌI model**. ② "RPM chặn ở ĐUÔI" — **cũng SAI, và sai vì LỖI
+  PHƯƠNG PHÁP của PO-agent**: tôi ghép **max-lời-gọi** với **trung-vị-token**, trong khi r=+0,88
+  (2 lời gọi→13.709 tok · 7 lời gọi→**67.572 tok**) ⟹ kịch bản đó **gần như không xảy ra**.
+  **LUẬT 10e (ratify):** *đuôi phải tính CÓ ĐIỀU KIỆN — mỗi mức của biến này dùng đúng giá trị đo
+  được của biến kia ở chính mức đó*; dấu hiệu tự soi: *"tôi có bản ghi nào THẬT SỰ trông như thế
+  này không?"* — không có ⟹ đang suy luận trên **điểm dữ liệu tưởng tượng**.
+- **Trần CÓ ĐIỀU KIỆN (số đúng):** 2 lời gọi/13,7k tok → flash 300 · 3.7-plus 365 · 4o-mini 14,6.
+  5 lời gọi/37k → 120 · 135 · 5,4. **7 lời gọi/67,5k → flash 74 · 3.7-plus 74 (HOÀ) · 4o-mini 3,0.**
+  ⟹ **lợi thế 15.000 RPM chỉ đáng 12% ở VÙNG GIỮA, hoà ở đuôi** (TPM chặn trước) ⟹ **lý lẽ thông
+  lượng cho `qwen3.7-plus` CHẾT; 12% không đáng 2,1-10× tiền.** Lý do duy nhất còn sống để ưu tiên
+  bản lớn = **độ tin cậy gọi tool nhiều bước, CHƯA AI ĐO** ⟹ PO-agent **rút khuyến nghị dựa-trên-
+  lập-luận, chuyển sang phép-thử-quyết-định**.
+- **150 người: `71,6 vs 75` = 0,95× ở p95** — "đổi model là đủ" ĐÚNG ở tải trung bình, **SAI ở tải
+  đỉnh**. Đường thoát: nâng TPM tạm thời qua console (hiệu lực ngay, 30 ngày) — **đổi MẪU SỐ chứ
+  không đổi tỉ lệ**, và **phải bật TRƯỚC buổi test**, không tự có.
+- **🔴 LỖ HỔNG LỚN NHẤT CÒN LẠI (tester nêu): "1 câu/2 phút" là GIẢ ĐỊNH CỦA TA, chưa phải quan
+  sát.** Mọi trần vừa tính (179 · 71,6 · 74 · 0,95×) đều chia cho một mẫu số chưa ai đo; người
+  thật gõ nhanh gấp đôi ở 10 phút đầu (hành vi rất tự nhiên khi thử đồ mới) thì mọi trần chia đôi
+  và kết luận "Qwen là đủ" SẬP. ⟹ **ĐIỀU KIỆN TIÊN QUYẾT của buổi test 150 người: đo nhịp gõ
+  thật ở 10 phút đầu của một nhóm nhỏ TRƯỚC** — rẻ, và nó quyết định toàn bộ phần còn lại.
+- **PHÉP THỬ QUYẾT ĐỊNH (§2b kế hoạch, chưa chạy):** cả hai model, `bo_lenh_do.jsonl` v2 (đã có
+  mốc nền gpt-4o-mini ⟹ cặp sạch sẵn), k=5, 7 câu × 5 lượt × 2 model = **70 lượt <$0,50**.
+  **Đo BỐN thứ TÁCH RIÊNG** (có gọi tool · gọi ĐÚNG tool · chuỗi nhiều bước hoàn tất · hỏng ĐỊNH
+  DẠNG) — gộp thành một tỉ lệ là cách chắc chắn chọn sai model: model gọi-nhầm-20%-không-hỏng-
+  định-dạng và model ngược lại ra **cùng một số**. Ngưỡng chốt trước: đúng tool ≥90% · chuỗi
+  nhiều bước không thấp hơn 4o-mini quá 1 ca · **hỏng định dạng = 0 (lỗi cứng, không đánh đổi)**.
+  Kèm miễn phí: **tỉ lệ ký-tự/token** — kiểm mệnh đề "Qwen tiếng Việt tốt hơn" (4o-mini = 2,43).
+- **Giá cached qwen3.7-plus ĐÃ công bố** ($0,064 implicit, rẻ hơn input 5×) ⟹ tester bỏ giả định
+  thận trọng cho model đó, giữ cho model chưa công bố. `$/lượt`: 0% cache 4o-mini 0,00438 vs
+  3.7-plus 0,00934 (2,1×) · **85% cache: 0,00260 vs 0,00326 (1,25×)** — cache THU HẸP nhưng KHÔNG
+  LẬT; flash vẫn rẻ nhất tuyệt đối 0,00088. (85% là tỉ lệ đo trên hệ ta **với gpt-4o-mini**, chưa
+  phải với Qwen.) Bảng giữ CẢ biến thể tệ (`qwen-plus` 1M · snapshot-bẫy) — *"bảng phải cho thấy
+  cả biến thể tệ, không chỉ biến thể ta định chọn"*.
 - **⚠️ RÀNG BUỘC BỊ QUÊN: RPM, không phải TPM.** Một *lượt chat* của agent = **NHIỀU lời gọi API**
   (ReAct tới 20 bước). Với 600 RPM và ~4 lời gọi/lượt ⟹ trần thực ~**150 lượt/phút** dù TPM cho
   phép 250. Gói `qwen3.7-plus` (15.000 RPM) gỡ ràng buộc này ⟹ TPM thành cái chặn, ~250 lượt/phút.
