@@ -137,6 +137,7 @@ def nhan() -> None:
     print(f"  kho RAG: {n} chunk (Postgres) · {d} doc · băm-nội-dung {_bam_kho()}")
     print(f"  đường dẫn Chroma: {RAG_INDEX_DIR}")
     print(f"  chuẩn hoá: kho={pb if pb is not None else '(không có dấu)'} · code={store.CHUAN_HOA_VERSION} · trạng thái={tt}")
+    print(f"  model embedding: {store.RAG_EMBEDDING_MODEL}")
 
 
 def kiem() -> int:
@@ -161,6 +162,12 @@ def kiem() -> int:
         print("          Index còn dấu tiếng Việt, query đã bỏ dấu ⟹ LỆCH MỘT VẾ.")
         print("          Search vẫn trả đủ k kết quả, chỉ là KẾT QUẢ SAI. Không triệu chứng.")
         print("          Chạy: python scripts/kho_rag.py nap-lai")
+        return 1
+    if tt == store.TRANG_THAI_LECH_MODEL:
+        print("  [LỆCH MODEL] Kho dựng bằng MODEL EMBEDDING khác với code hiện tại.")
+        print("               Vector trong kho vô nghĩa với query mới — search vẫn trả")
+        print("               đủ k kết quả, chỉ là kết quả SAI. Không lỗi, không log.")
+        print("               Chạy: python scripts/kho_rag.py nap-lai")
         return 1
     if tt == store.TRANG_THAI_LECH:
         print(f"  [LỆCH]  Kho ở phiên bản {pb}, code ở {store.CHUAN_HOA_VERSION}.")

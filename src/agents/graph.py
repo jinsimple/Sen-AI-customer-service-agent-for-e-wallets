@@ -31,9 +31,10 @@ from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
     DATABASE_URL,
     DB_KIND,
-    OPENAI_API_KEY,
+    LLM_API_KEY,
+    LLM_BASE_URL,
+    LLM_MODEL,
     OPENAI_MAX_RETRIES,
-    OPENAI_MODEL,
     OPENAI_TIMEOUT_SECONDS,
 )
 from src.db.models import Complaint, Ticket, User
@@ -237,9 +238,13 @@ def _build_agent(
     guard: TurnGuard | None = None,
 ):
     model = ChatOpenAI(
-        model=OPENAI_MODEL,
+        # LLM_* fallback ve OPENAI_* (src/config.py) -> khong dat gi thi hanh vi
+        # y het truoc. `base_url=None` la mac dinh cua SDK, khong phai mot gia
+        # tri dac biet can xu ly rieng.
+        model=LLM_MODEL,
         temperature=0.2,
-        api_key=OPENAI_API_KEY,
+        api_key=LLM_API_KEY,
+        base_url=LLM_BASE_URL,
         timeout=OPENAI_TIMEOUT_SECONDS,
         max_retries=OPENAI_MAX_RETRIES,
     )

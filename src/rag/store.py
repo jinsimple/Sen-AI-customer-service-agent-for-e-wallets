@@ -19,7 +19,12 @@ import unicodedata
 import chromadb
 from langchain_openai import OpenAIEmbeddings
 
-from src.config import OPENAI_API_KEY, RAG_EMBEDDING_MODEL, RAG_INDEX_DIR
+from src.config import (
+    EMBEDDING_API_KEY,
+    EMBEDDING_BASE_URL,
+    RAG_EMBEDDING_MODEL,
+    RAG_INDEX_DIR,
+)
 
 _COLLECTION_NAME = "policy_faq"
 
@@ -38,7 +43,11 @@ def _get_client() -> chromadb.ClientAPI:
 def _get_embeddings() -> OpenAIEmbeddings:
     global _embeddings
     if _embeddings is None:
-        _embeddings = OpenAIEmbeddings(model=RAG_EMBEDDING_MODEL, api_key=OPENAI_API_KEY)
+        _embeddings = OpenAIEmbeddings(
+            model=RAG_EMBEDDING_MODEL,
+            api_key=EMBEDDING_API_KEY,
+            base_url=EMBEDDING_BASE_URL,
+        )
     return _embeddings
 
 
@@ -70,7 +79,12 @@ def _dong_dau(col) -> None:
     418 chunk, `metadata = None`. Nen phai `modify()` TUONG MINH sau moi lan
     nap, khong dua vao tham so luc lay collection.
     """
-    col.modify(metadata={"chuan_hoa": CHUAN_HOA_VERSION})
+    # Ghi CẢ model embedding, khong chi `chuan_hoa`. Truoc day dau phien ban
+    # chi theo doi cach BIEN TEXT (bo dau hay khong); model sinh ra vector thi
+    # hardcode nen khong the lech. Tu khi `EMBEDDING_MODEL` doc tu env, no LECH
+    # DUOC — va do la dung lop loi don 2: doi model -> moi vector trong kho vo
+    # nghia, ma search van tra du k ket qua, khong loi, khong log.
+    col.modify(metadata={"chuan_hoa": CHUAN_HOA_VERSION, "model_embed": RAG_EMBEDDING_MODEL})
 
 
 # Ba trang thai PHAN BIET DUOC — gop chung la nguon goc cua bug dau tien:
@@ -78,9 +92,11 @@ def _dong_dau(col) -> None:
 #   KHONG_DAU    co chunk nhung khong co dau  -> kho CU (dung truoc don 2)
 #   LECH         co dau nhung khac phien ban code
 #   KHOP         dau == phien ban code
+#   LECH_MODEL   dau khop nhung MODEL EMBEDDING khac -> vector vo nghia
 TRANG_THAI_TRONG = "trong"
 TRANG_THAI_KHONG_DAU = "khong_dau"
 TRANG_THAI_LECH = "lech"
+TRANG_THAI_LECH_MODEL = "lech_model"
 TRANG_THAI_KHOP = "khop"
 
 
@@ -94,6 +110,14 @@ def trang_thai_kho() -> tuple[str, int | None]:
         return TRANG_THAI_KHONG_DAU, None
     if pb != CHUAN_HOA_VERSION:
         return TRANG_THAI_LECH, pb
+    # Kho dung TRUOC ban nay khong co `model_embed` -> KHONG ket luan lech.
+    # Fail-open o day la CO CHU DICH va hep: thieu dau model nghia la kho dung
+    # boi code chua biet ghi dau, khi do model chac chan van la mac dinh
+    # hardcode cu. Coi no la LECH se bat ca doi nap lai mot kho hoan toan dung.
+    # Chi khi CO dau va dau KHAC moi la lech that.
+    me = (col.metadata or {}).get("model_embed")
+    if me is not None and me != RAG_EMBEDDING_MODEL:
+        return TRANG_THAI_LECH_MODEL, pb
     return TRANG_THAI_KHOP, pb
 
 

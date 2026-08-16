@@ -155,6 +155,43 @@ OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_TIMEOUT_SECONDS", "20"))
 OPENAI_MAX_RETRIES = int(os.environ.get("OPENAI_MAX_RETRIES", "1"))
 
+# --- NHÀ CUNG CẤP: tách CHAT khỏi EMBEDDING ------------------------------
+# Đổi nhà cung cấp bằng biến môi trường, không sửa code. Mọi biến dưới đây
+# FALLBACK về `OPENAI_*` -> không đặt gì thì hành vi y hệt trước.
+#
+# VÌ SAO TÁCH LÀM HAI, không dùng một cặp base_url/key chung:
+# đổi model CHAT là đổi hành vi — đo lại được, hỏng thì thấy ngay.
+# Đổi model EMBEDDING là đổi VẬT — mọi vector trong kho thành vô nghĩa, phải
+# nạp lại toàn bộ, và mọi con số truy hồi đo trước đó bị cắt chuỗi. Hai việc
+# khác hạng, gộp một biến là mời người vận hành làm việc thứ hai trong khi họ
+# tưởng mình chỉ làm việc thứ nhất.
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or None
+LLM_MODEL = os.environ.get("LLM_MODEL") or OPENAI_MODEL
+LLM_API_KEY = os.environ.get("LLM_API_KEY") or OPENAI_API_KEY
+
+EMBEDDING_BASE_URL = os.environ.get("EMBEDDING_BASE_URL") or None
+EMBEDDING_API_KEY = os.environ.get("EMBEDDING_API_KEY") or OPENAI_API_KEY
+
+# --- THƯỚC của eval: GHIM BẰNG HẰNG SỐ, KHÔNG theo model sản phẩm ---------
+# Một lượt adversarial có BA vai cùng gọi model:
+#     ĐỐI TƯỢNG   agent bị đo        (run_agent_turn -> LLM_MODEL)
+#     KÍCH THÍCH  kẻ tấn công giả lập (eval/_harness.py)
+#     TRỌNG TÀI   người chấm          (eval/_llm_judge.py)
+# Nếu cả ba đọc chung một biến thì đổi nhà cung cấp làm cả ba đổi cùng lúc, và
+# `96/96 -> 94/96` không quy được nhân quả: agent yếu đi, kẻ tấn công mạnh
+# lên, hay trọng tài chấm khác? Ba biến một số — đúng bẫy đã giết cặp
+# 41,4/35,7, lần này nằm trong bộ đo AN TOÀN.
+#
+# CỐ Ý ghim vào chuỗi literal, KHÔNG `or OPENAI_MODEL`: cách đổi nhà cung cấp
+# tự nhiên nhất của người vận hành là sửa `OPENAI_MODEL` trong `.env`, và nếu
+# thước neo vào đó thì nó lặng lẽ đi theo vật. Thước phải đứng yên kể cả khi
+# người ta đổi vật bằng con đường mình không lường trước.
+#
+# Đổi thước là quyết định RIÊNG, phải cố ý đặt biến, và phải chấm lại toàn bộ.
+_THUOC_MAC_DINH = "gpt-4o-mini"
+JUDGE_MODEL = os.environ.get("EVAL_JUDGE_MODEL") or os.environ.get("JUDGE_MODEL") or _THUOC_MAC_DINH
+EVAL_SIM_MODEL = os.environ.get("EVAL_SIM_MODEL") or _THUOC_MAC_DINH
+
 # 1 lượt /agent/chat = 1 vòng ReAct nhiều bước (LLM sinh + gọi tool xen kẽ,
 # tới _AGENT_RECURSION_LIMIT=20 bước) — OPENAI_TIMEOUT_SECONDS ở trên chỉ
 # chặn TỪNG lượt gọi OpenAI riêng lẻ, không chặn TỔNG thời gian cả lượt chat
@@ -220,7 +257,15 @@ if not REDIS_URL:
 # RAG chính sách/FAQ (src/rag/) — đối tác ví (role partner_admin) upload,
 # agent + CSKH tra cứu (search_policy tool, POST /policy-search).
 RAG_INDEX_DIR = ROOT_DIR / "data" / "rag_index"  # Chroma persistent store — không commit (.gitignore)
-RAG_EMBEDDING_MODEL = "text-embedding-3-small"
+# Đọc từ env `EMBEDDING_MODEL`. MỘT hằng số cho MỘT thứ — cố ý không thêm tên
+# thứ hai `EMBEDDING_MODEL` ở tầng Python, hai tên cho một giá trị là cách
+# chắc chắn để sau này chúng lệch nhau.
+#
+# ⚠️ ĐỔI BIẾN NÀY = ĐỔI VẬT, và store.py CÓ RÀO (xem `_dong_dau`): dấu phiên
+# bản kho trước đây chỉ ghi `chuan_hoa`, KHÔNG ghi model. Nếu để nguyên vậy thì
+# đổi model embedding sẽ làm mọi vector lệch một vế mà `kiem` vẫn xanh —
+# search trả đủ k, kết quả sai, không triệu chứng. Đúng lớp lỗi đòn 2.
+RAG_EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL") or "text-embedding-3-small"
 RAG_CHUNK_SIZE = 800
 RAG_CHUNK_OVERLAP = 150
 RAG_SEARCH_TOP_K = 4
