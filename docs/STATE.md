@@ -417,6 +417,26 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🧬 LUẬT MỚI: "vá một HỌ lỗi thì phải đi tìm HỌ, không vá cái đang cầm" (16/08, `8fd8481`)
+- **Ba lần trong một tuần, cùng hình dạng:** gộp khoảng trắng (3 chỗ, vá 1) · nuốt mã trạng thái
+  (2 chỗ, vá 1) · **cổng đóng băng LLM (6 lối gọi `/api/agent-chat`, vá 3)** — tester tự phát
+  hiện khi vi phạm đóng băng LẦN HAI (~14 lượt): vá lần một chỉ ở `eval/`, không mang sang
+  `tests/`. Lối hở nguy hiểm nhất: **`tests/load/locustfile.py`** — gọi agent theo TẦN SUẤT, cạn
+  hạn mức cả đội trong vài chục giây (nếu chạy trúng lúc PO quay demo thì không phải 14 lượt mà
+  là hết sạch).
+- **Chữa gốc: gom về MỘT nguồn sự thật `tests/_dong_bang.py`** — *"cách chắc nhất để không phải
+  đi tìm lần sau là để chỉ còn một chỗ"*; `locustfile` kiểm ở tầng **import** (chết trước khi
+  sinh user nào). Kiểm: 6/6 nơi có cổng · 3 bộ → 13 skipped, 0 lượt gọi model.
+- **NẾP MỚI (PO cấp cho tester): kiểm cổng bằng KEY GIẢ** — `OPENAI_API_KEY=sk-invalid-…` trong
+  đúng lệnh kiểm. Cổng thủng ⟹ chết ở 401: **ồn, tức thì, 0 đồng**; cổng kín ⟹ skip. Biến
+  "rò rỉ im lặng tốn tiền" thành "rò rỉ ồn ào miễn phí". Áp dụng cho MỌI lượt kiểm cổng.
+- **Vi phạm Luật 5 của chính tester:** script F-31/32 hôm qua chỉ `print`, **không ghi file** ⟹
+  findings vào hồ sơ nhưng **bằng chứng thô chết theo terminal** ⟹ chốt-① của PO (tái dùng
+  transcript + 10 lượt judge-only) **không chạy được**; tầng C nay tốn **~16 lượt (8 agent + 8
+  judge)**. Vá gốc: `_hoi()` ghi transcript thô **TRƯỚC mọi assertion** (assert đỏ vẫn giữ bằng
+  chứng) → `eval/results/f31_f32_transcript.jsonl`. Ghi nhận thêm: **nếp lưu-raw ĐÃ CÓ trong
+  `run_golden_set.py` mà không được mang sang chỗ mới — cũng là một dạng họ-lỗi chưa quét hết.**
+
 ## ⚖️ GÓI 30 NHÃN — NÂNG ƯU TIÊN: nó hiệu chuẩn TRỌNG TÀI, không phải agent (`e361d4a`)
 - **Lập luận tester được chấp nhận:** `_llm_judge` nằm THƯỢNG NGUỒN adversarial + golden-set +
   handoff ⟹ mọi con số An toàn 30/30 đang đọc qua một cái thước **chưa ai đo sai số**. Trọng tài
