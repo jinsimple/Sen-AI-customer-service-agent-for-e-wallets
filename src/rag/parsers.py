@@ -140,15 +140,79 @@ def _extract_pdf(content: bytes) -> str:
     return _bo_dong_muc_luc(_ghep_am_tiet_vo(text))
 
 
+def _hang_bang_thanh_dong(bang) -> list[str]:
+    """Mỗi HÀNG bảng -> MỘT dòng tự mô tả, mang theo tên cột.
+
+    Vì sao không nối phẳng: bản PDF của đúng bảng này bị pypdf nghiền thành
+    cháo (`NH TMCP Ngoại Thương VCB Tất cả NH TMCP Bản Việt VCCB 2,000,000...`)
+    — 23 ngân hàng dính liền một khối, không hàng nào tra riêng được. Đo được:
+    tester tìm thấy ~20 đoạn gần-trùng khiến 31,5% kho không bao giờ nổi lên
+    top-3, và nhóm đó CHÍNH LÀ bảng này.
+
+    Kèm tên cột vào từng ô để hàng đứng một mình vẫn đọc được: chunk có thể bị
+    cắt rời khỏi hàng tiêu đề, lúc đó "VCB · Tất cả" là vô nghĩa còn
+    "Tên viết tắt: VCB · Hạn mức: Tất cả" thì không.
+    """
+    hang = bang.rows
+    if not hang:
+        return []
+    cot = [c.text.strip() for c in hang[0].cells]
+    ra: list[str] = []
+    for h in hang[1:]:
+        o = [c.text.strip() for c in h.cells]
+        if not any(o):
+            continue
+        ra.append(" · ".join(f"{cot[i]}: {v}" if i < len(cot) and cot[i] else v
+                             for i, v in enumerate(o) if v))
+    return ra
+
+
 def _extract_docx(content: bytes) -> str:
+    """Giữ CẤU TRÚC của DOCX thay vì đổ phẳng.
+
+    Bản trước: `"\\n".join(p.text for p in doc.paragraphs)`. Hai thứ bị vứt:
+      1. style heading — mất biên đoạn tự nhiên (239 Heading 3 = ~1 mỗi FAQ,
+         và tiêu đề đã mang sẵn tên thực thể: "44. Cách liên kết MoMo với tài
+         khoản ngân hàng Việt Nam Phương Đông (OCB)")
+      2. `doc.tables` — python-docx KHÔNG đưa ô bảng vào `doc.paragraphs`, nên
+         bảng 23 hàng hạn mức ngân hàng trước nay không hề vào kho qua đường
+         DOCX. Im lặng, không lỗi.
+
+    Heading được tách bằng DÒNG TRỐNG hai đầu vì `RecursiveCharacterTextSplitter`
+    (src/rag/ingest.py) ưu tiên cắt ở `\\n\\n` — đó là cách duy nhất extractor
+    tác động được tới biên chunk mà không phải sửa bộ chia.
+
+    TƯƠNG THÍCH NGƯỢC (điều kiện PO cho 4b): file .docx thường — không heading,
+    không bảng — cho ra ĐÚNG chuỗi như bản cũ, vì cả hai nhánh mới đều không
+    kích hoạt. Đường upload của partner_admin không đổi hành vi.
+    """
     from docx import Document
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
 
     try:
         doc = Document(io.BytesIO(content))
     except Exception as e:
         raise UnsupportedDocumentError(f"Không đọc được nội dung DOCX: {e}") from e
-    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-    text = "\n".join(paragraphs)
+
+    # Duyệt THÂN tài liệu để giữ đúng thứ tự văn bản/bảng xen kẽ —
+    # `doc.paragraphs` và `doc.tables` là hai danh sách rời, ghép lại sẽ dồn
+    # hết bảng xuống cuối, cắt đứt bảng khỏi đoạn văn giới thiệu nó.
+    phan: list[str] = []
+    for con in doc.element.body.iterchildren():
+        if con.tag.endswith("}p"):
+            p = Paragraph(con, doc)
+            if not p.text.strip():
+                continue
+            ten_style = (p.style.name or "") if p.style is not None else ""
+            if ten_style.startswith("Heading"):
+                phan.append("\n" + p.text.strip())
+            else:
+                phan.append(p.text.strip())
+        elif con.tag.endswith("}tbl"):
+            phan.extend(_hang_bang_thanh_dong(Table(con, doc)))
+
+    text = "\n".join(phan).strip()
     if not text.strip():
         raise UnsupportedDocumentError("DOCX không có nội dung text nào")
     return text

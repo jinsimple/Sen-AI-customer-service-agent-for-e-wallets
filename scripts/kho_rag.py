@@ -3,7 +3,7 @@
 
     python scripts/kho_rag.py nhan      # in nhãn kho (số chunk + băm + phiên bản)
     python scripts/kho_rag.py kiem      # exit 1 nếu kho dựng bằng chuẩn-hoá CŨ
-    python scripts/kho_rag.py nap-lai   # xoá + nạp lại từ data/raw/*.pdf
+    python scripts/kho_rag.py nap-lai   # xoá + nạp lại từ data/raw/ (ưu tiên .docx)
 
 VÌ SAO TỒN TẠI: đòn 2 bỏ dấu ở CẢ HAI vế (index + query). Kho dựng bằng code
 cũ + query chạy code mới = LỆCH MỘT VẾ, và ca đó **không có triệu chứng nào** —
@@ -27,7 +27,40 @@ from src.db.session import SessionLocal  # noqa: E402
 from src.rag import store  # noqa: E402
 from src.rag.ingest import delete_document, ingest_document  # noqa: E402
 
-THU_MUC_PDF = Path(__file__).resolve().parent.parent / "data" / "raw"
+THU_MUC_NGUON = Path(__file__).resolve().parent.parent / "data" / "raw"
+
+
+def _chon_nguon() -> list[Path]:
+    """Cùng một tài liệu có cả .docx lẫn .pdf -> LẤY .docx. (Đòn 4a)
+
+    Đo được, thước đối xứng — lấy từ điển bên này soi bên kia để không bên nào
+    tự chứng minh mình sạch:
+
+        soi PDF  bằng từ điển DOCX : 115 chữ vỡ · thiếu 17 câu
+        soi DOCX bằng từ điển PDF  :   0 chữ vỡ · thiếu  9 câu
+
+    DOCX sạch tuyệt đối VÀ đủ hơn — không có mặt nào PDF hơn, nên đây không
+    phải đánh đổi. PDF nhiều ký tự hơn (169k so 162k) chỉ vì lặp header/footer
+    và mục lục, không phải vì nhiều nội dung hơn.
+
+    Đòn 1 (`_ghep_am_tiet_vo`) GIỮ NGUYÊN trong pipeline — nó vẫn là đường duy
+    nhất cho nguồn chỉ-có-PDF, và nó có thật hiệu lực: 215 chỗ vỡ kiểu
+    `xác th ực` bị nó ghép lại hết. Cái nó KHÔNG bắt là lớp thứ hai
+    (`ho ặc`, `kho ản` — vế trái có nguyên âm), 131 lần/52 dạng; đòn 4 tránh
+    lớp đó bằng cách không đi qua PDF chứ không phải bằng cách vá thêm.
+
+    ⚠️ CỐ Ý chỉ nhận .docx/.pdf — KHÔNG nhận .md/.txt, dù `parsers.py` đọc
+    được cả hai. `data/raw/` còn `scenario-candidates-momo-faq.md` và
+    `business_rules.md`: vật liệu kịch bản test và quy tắc nội bộ, CHƯA BAO
+    GIỜ nằm trong kho (bản trước glob đúng `*.pdf`). Nới đuôi file ở đây sẽ
+    âm thầm đẩy giàn giáo test vào kho chính sách, và agent sẽ trích dẫn nó
+    như chính sách thật — đúng thứ ràng buộc cứng 3 cấm. Đòn 4 là ĐỔI NGUỒN
+    của cùng một bộ tài liệu, không phải mở rộng bộ tài liệu.
+    """
+    tat_ca = sorted(p for p in THU_MUC_NGUON.iterdir()
+                    if p.suffix.lower() in (".docx", ".pdf"))
+    co_docx = {p.stem for p in tat_ca if p.suffix.lower() == ".docx"}
+    return [p for p in tat_ca if not (p.suffix.lower() == ".pdf" and p.stem in co_docx)]
 
 
 def _chan_tu_tao_kho() -> None:
@@ -137,16 +170,20 @@ def nap_lai() -> None:
     if not RAG_INDEX_DIR.parent.exists():
         print(f"  [SAI CHỖ] {RAG_INDEX_DIR.parent} không tồn tại — chạy trong container.")
         raise SystemExit(2)
-    pdfs = sorted(THU_MUC_PDF.glob("*.pdf"))
-    if not pdfs:
-        print(f"  KHÔNG có PDF nào trong {THU_MUC_PDF} — dừng, không xoá kho hiện có.")
+    nguon = _chon_nguon()
+    if not nguon:
+        print(f"  KHÔNG có tài liệu nào trong {THU_MUC_NGUON} — dừng, không xoá kho hiện có.")
         raise SystemExit(1)
+    bo_qua = sorted(p.name for p in THU_MUC_NGUON.iterdir()
+                    if p.suffix.lower() == ".pdf" and p not in nguon)
+    if bo_qua:
+        print(f"  bỏ qua (có bản .docx sạch hơn): {', '.join(bo_qua)}")
     with SessionLocal() as s:
         for d in s.query(PolicyDocument).all():
             print(f"  xoá: {d.filename}")
             delete_document(s, d.doc_id)
         s.commit()
-        for f in pdfs:
+        for f in nguon:
             doc = ingest_document(
                 s, file_bytes=f.read_bytes(), filename=f.name, uploaded_by="USR-PA01"
             )
