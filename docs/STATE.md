@@ -417,6 +417,18 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **THƯỚC RÀ HAI PHÍA XONG — 39,4% LÀ SỐ SẠCH, mặt trận truy hồi MỞ LẠI (16/08):** phía trượt
+  28/28 công bằng (0 nhãn hỏng; 15 ca nghi-oan ban đầu là bẫy truy-vấn-ngắn-embed-kém — kiểm
+  đường độc lập 15/15 lành, suýt làm cả đội sửa 15 nhãn lành) · phía đạt 0/47 chuỗi lỏng. Bản đồ
+  phủ vào chỗ cố định eval/do_phu_kho.py + phu_kho.json (`ed654b9`, băm `5b5dbc12719f`): ToS
+  97,1% · FAQ 87,4% (tester tự bắt 2 lỗi thước của mình: "mục 15 thiếu" = chỉ tra 340/378; "FAQ
+  81%" = mẫu số đếm cả 146 dòng mục-lục đã-cố-ý-vứt — "đếm cái ta chủ động vứt thành cái ta đánh
+  mất"). **②-THÍ-ĐIỂM PHÁT LỆNH cho coder** (3 điều kiện mở-lại đều thoả): 5 chunk từ bộ RAG-37/
+  47/39/41 (khách hỏi "bao lâu có kết quả" ↔ chunk "không quá 45 Ngày Làm Việc" — khoảng cách
+  VĂN PHONG không phải chủ đề; giải thích luôn vì sao FAQ tốt hơn ToS); nghiệm thu: ≥3/5 chuyển
+  đạt + TRỌN 47 ca không ca-đang-đạt nào rơi + dòng-chèn-không-được-trích-cho-khách (nếu không
+  tách được phần-tìm/phần-trích thì DỪNG); xếp sau F-LOG-3 trước T3. Caveat đã ghi: HyDE âm
+  (1/47) = sửa-phía-CÂU-HỎI đã có điểm âm; ② = sửa-phía-NỘI-DUNG offline là chiều chưa đo.
 - **Kho PRODUCTION SẠCH (PO-agent đo chỉ-đọc qua HTTPS):** GET /policy-docs trên live = đúng 2
   PDF MoMo (uploaded 07:24, 362 chunk) — sự cố .md CHỈ ở stack local, không có sự cố production.
   NHƯNG lộ **version drift**: production = snapshot TRƯỚC đòn 4 (kho PDF cũ) + `deploy_home.*`
