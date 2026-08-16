@@ -1255,7 +1255,7 @@ def policy_search(
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
     session: Session = Depends(get_session),
 ):
-    return _handle_tool_error(search_policy_text, session, query=req.query, duong_tra="cskh")
+    return _handle_tool_error(search_policy_text, session, query=req.query, k=req.top_k, duong_tra="cskh")
 
 
 # ---------------------------------------------------------------------------
