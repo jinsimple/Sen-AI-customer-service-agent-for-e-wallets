@@ -72,6 +72,20 @@
         "ngay_tra": "2026-08-17",
         "nguon": "PO-agent tra — model có TÊN KÈM NGÀY bị hạ trần 50 lần"
       }
+    },
+    "qwen3.7-plus": {
+      "vao": 0.4,
+      "ra": 1.2,
+      "vao_cached": null,
+      "ngay_tra": "2026-08-17",
+      "nguon": "PO-agent tra (Qwen quốc tế) — giá TẠM lấy bằng qwen-plus, CHƯA xác nhận",
+      "nha_cung_cap": "Alibaba DashScope intl",
+      "han_muc": {
+        "rpm": 15000,
+        "tpm": 5000000,
+        "ngay_tra": "2026-08-17",
+        "nguon": "PO-agent fetch tài liệu rate-limit chính thức Alibaba, vùng Singapore"
+      }
     }
   },
   "bo_do": {

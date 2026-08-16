@@ -117,6 +117,7 @@ def loi_goi_moi_luot(mau: list[str]) -> tuple[float, int, str]:
     có retry, sẽ cao hơn ước lượng này.
     """
     that, uoc = [], []
+    # (giữ nguyên phần thu thập; hàm trả THÊM p95 ở bản dưới)
     for m in mau:
         for p_ in sorted(glob.glob(m)):
             try:
@@ -129,11 +130,10 @@ def loi_goi_moi_luot(mau: list[str]) -> tuple[float, int, str]:
                     that.append(u["so_luot_goi_model"])
                 elif x.get("tool_calls") is not None:
                     uoc.append(len(x["tool_calls"]) + 1)
-    if that:
-        return statistics.mean(that), len(that), "ĐO THẬT (so_luot_goi_model)"
-    if uoc:
-        return statistics.mean(uoc), len(uoc), "ước lượng cận dưới (tool_calls + 1)"
-    return 1.0, 0, "KHÔNG ĐO ĐƯỢC — giả định 1"
+    ds, nhan = (that, "ĐO THẬT (so_luot_goi_model)") if that else (
+        (uoc, "ước lượng cận dưới (tool_calls + 1)") if uoc else ([1.0], "KHÔNG ĐO ĐƯỢC"))
+    ds = sorted(ds)
+    return statistics.mean(ds), ds[int(len(ds) * 0.95)], len(ds), nhan
 
 
 def tien_mot_luot(u: dict, g: dict) -> float:
@@ -198,23 +198,31 @@ def main() -> None:
     for ten, b in bg["bo_do"].items():
         d = "".join(f"{tien_mot_luot(mau, g) * b['so_luot']:>13.3f}" for g in bg["gia"].values())
         print(f"{ten:<24}{b['so_luot']:>6}{d}")
-    lg, n_lg, nhan_lg = loi_goi_moi_luot(a.nguon)
-    print(f"\n{'model':<22}{'lượt/phút':>11}{'theo TPM':>11}{'theo RPM':>11}   cái nào CHẶN")
-    print("-" * 74)
-    print(f"  lời gọi model mỗi lượt: {lg:.2f}  ({nhan_lg}, n={n_lg})")
-    for ten, g in bg["gia"].items():
-        hm = g.get("han_muc") or {}
-        t_tpm = hm["tpm"] / mau["input_tokens"] if hm.get("tpm") else None
-        t_rpm = hm["rpm"] / lg if hm.get("rpm") else None
-        co = [v for v in (t_tpm, t_rpm) if v is not None]
-        tran = min(co) if co else None
-        chan = ("—" if tran is None else
-                ("TPM" if t_rpm is None or (t_tpm is not None and t_tpm <= t_rpm) else "RPM"))
-        f = lambda v: "  KHÔNG TRA ĐƯỢC" if v is None else f"{v:>11.1f}"  # noqa: E731
-        print(f"{ten:<22}{('  —' if tran is None else f'{tran:>11.1f}')}"
-              f"{f(t_tpm)}{f(t_rpm)}   {chan}")
-    print("\n  Trần công bố = CÁI NHỎ HƠN. Trần áp ở CẤP TÀI KHOẢN GỐC — mọi key"
-          "\n  cộng chung, không né được bằng cách tạo thêm key.")
+    lg_tb, lg_p95, n_lg, nhan_lg = loi_goi_moi_luot(a.nguon)
+    vao_p95 = sorted(vao)[int(len(vao) * 0.95)]
+    print(f"\n  lời gọi model mỗi lượt: trung bình {lg_tb:.2f} · p95 {lg_p95}"
+          f"   ({nhan_lg}, n={n_lg})")
+    print(f"  input token mỗi lượt  : trung vị {mau['input_tokens']:,.0f} · p95 {vao_p95:,.0f}")
+    print("\n  DUNG LƯỢNG PHẢI ĐỌC Ở ĐUÔI, không ở trung vị: 100 người gõ cùng lúc thì"
+          "\n  lượt điều tra nhiều bước mới là thứ làm sập, không phải lượt trung bình.")
+
+    for ten_cot, ltoken, lgoi in (("TRUNG VỊ", mau["input_tokens"], lg_tb),
+                                  ("PHÂN VỊ 95", vao_p95, lg_p95)):
+        print(f"\n  ── {ten_cot} ──")
+        print(f"  {'model':<20}{'lượt/phút':>11}{'theo TPM':>11}{'theo RPM':>11}   CHẶN bởi")
+        for ten, g in bg["gia"].items():
+            hm = g.get("han_muc") or {}
+            t_tpm = hm["tpm"] / ltoken if hm.get("tpm") else None
+            t_rpm = hm["rpm"] / lgoi if hm.get("rpm") else None
+            co = [v for v in (t_tpm, t_rpm) if v is not None]
+            tran = min(co) if co else None
+            chan = ("—" if tran is None else
+                    ("TPM" if t_rpm is None or (t_tpm is not None and t_tpm <= t_rpm) else "RPM"))
+            f = lambda v: "  CHƯA TRA" if v is None else f"{v:>11.1f}"  # noqa: E731
+            print(f"  {ten:<20}{('  —' if tran is None else f'{tran:>11.1f}')}"
+                  f"{f(t_tpm)}{f(t_rpm)}   {chan}")
+    print("\n  Trần công bố = CÁI NHỎ HƠN trong hai cột. Trần áp ở CẤP TÀI KHOẢN GỐC —"
+          "\n  mọi key cộng chung, không né được bằng cách tạo thêm key.")
 
     print("\n  (nhân trung vị × số lượt — KHÔNG phải hoá đơn. Lượt dài hơn trung vị"
           "\n   sẽ đắt hơn; hội thoại nhiều lượt phình theo lịch sử, xem"
