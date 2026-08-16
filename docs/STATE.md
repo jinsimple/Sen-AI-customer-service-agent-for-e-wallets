@@ -350,8 +350,23 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   PO-agent `git commit` KHÔNG pathspec cuốn cả 9 file staged vào commit `7548bcb` → tester
   `reset HEAD~1` không đọc lại HEAD, đè local (remote an toàn, đã khôi phục khớp remote).
   **Hồ sơ:** commit `7548bcb` ("docs(state): PO chốt benchmark…") ngoài nội dung message còn mang
-  **2.584 dòng test của tester** (4 cổng test + luật mới của họ — bullet chi tiết tester sẽ gửi,
-  bổ sung vào đây). Nhánh rác `test/bo-do-va-bang-chung-16-08` đã xoá; KHÔNG tạo PR ngược
+  **2.584 dòng thuộc `tests/`+`eval/` của tester** (cuốn vào do sự cố index, không chủ đích).
+  Nội dung (5 bullet của tester, ghi lại để người đọc lịch sử khỏi mò diff):
+  ① **`eval/EVAL-EVIDENCE.md`** — DELIVERABLE nộp BTC: 7 ca manual output NGUYÊN VĂN từ stack
+  thật (nhãn `c447abb`), gồm 2 ca ÂM BẢN; cặp CA1↔CA6 = cùng câu hỏi, khác trạng thái xác thực,
+  hai kết quả ngược (bằng chứng cổng OTP thật); có mục "những gì bộ này KHÔNG chứng minh".
+  ② **`tests/test_ai_log/`** — cổng nhánh leftover `submit_log.py` (sắp chạy 19 lượt backlog
+  P-121); F-LOG/F-LOG-2 vá cùng phiên nên 2 ca xfail-strict tự XPASS → lật thành regression gate.
+  ③ **`tests/test_security/test_corpus_en_du_truc.py`** — cổng ký mẫu tier-1 EN: 50 ca/8 trục/
+  BA mức kỳ vọng (mức giữa "tier-2 chấp nhận được" là thứ bộ hai-mức báo đỏ nhầm cho hành vi
+  đúng) + mức `theo_doi` in-số-không-chấm có rào 4 vế.
+  ④ **`test_note_toan_ven_can_cu_tu_choi.py`** — trục "căn cứ từ chối còn đọc được": 8/20 trùng
+  8/8 ID với security qua phương pháp khác + cổng cấm-chạy-lẻ. Kèm `test_dua_refresh_token.py`
+  — giả thuyết đua bác bằng đo, file ở lại canh tính-chất-đang-đúng, docstring giữ lịch sử.
+  ⑤ **`tests/CHUAN-VIET-TEST.md` lên 8 LUẬT** — Luật 6 (skip tự chứng minh) · Luật 7 (canh chính
+  công-cụ-đo) · Luật 8 (phát hiện công cụ sai = một ĐƯỜNG ĐO KHÁC, không phải sự cẩn thận — 6 ca
+  thật/một buổi/hai vai) + `TIEU-CHI-CI.md` (F-CI, F-CI-2, CI-10/11) + 2 bộ tier-1 cũ bỏ tầng
+  dò-đoán-tên (chúng SKIP TỪ NGÀY VIẾT vì đoán `phan_tier` ≠ tên thật `_phan_loai_tier`). Nhánh rác `test/bo-do-va-bang-chung-16-08` đã xoá; KHÔNG tạo PR ngược
   (PR rỗng cho đẹp số là thứ không làm khi BTC đếm PR).
 - **HAI LUẬT GIT MỚI (ratify, áp cả 4 phiên):** ① `git commit <pathspec> -m …` MỘT LỆNH — cấm
   add-rồi-commit-rời, index dùng chung không được có trạng thái chờ; ② sau MỌI lệnh đổi HEAD,
