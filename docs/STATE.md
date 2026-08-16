@@ -367,6 +367,42 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   phạm thứ ba: script-của-đội gọi API. Phép kiểm còn phân biệt được (tester đang chạy): đếm lại
   dòng `POST /policy-docs` — kho_rag.py nạp trực-tiếp không qua HTTP, nên nếu vẫn đúng 2 dòng thì
   "08:23 = một client HTTP thật" vẫn đứng.
+- **✅ SỐ SẠCH ĐẦU TIÊN: Recall@3 = 41,4% → trục Truy-hồi 8,29/20 → benchmark v0.2 = 86,2% đo
+  được** (thước-đã-vá × kho-sạch 378c/2doc × 3-lượt-lặp-y-hệt; nhãn `55118b5`/`1e367a58c2e5`/
+  `332c053b9fde`/StartedAt-08:44:29Z). **QUYẾT ĐỊNH: KHÔNG đọc 41,4−35,7 thành delta đòn-4**
+  (ba biến cùng đổi: thước+kho+rác) và **KHÔNG dựng lại nền PDF** để attribution — câu hỏi về
+  quá khứ, giá = 1 vòng nạp + 1 lần đổi-vật-dưới-chân-4-phiên; chuyện đòn 4 kể bằng số cấu trúc.
+  Chuỗi trục Truy-hồi BẮT ĐẦU LẠI tại 41,4%.
+- **Hồ sơ sự cố ĐÓNG (`10af46d`, docs/security/): 0 thiệt hại tới khách** — cửa sổ 19ph33s
+  (15:23:14→15:42 giờ máy), toàn bộ traffic = /policy-search nhịp-máy (trùng mạch tester+commit
+  coder) + 0 lượt /chat/agent; stack fin05ttl không ảnh hưởng. **LUẬT MỚI: mọi mốc giờ trong hồ
+  sơ sự cố ghi kèm MÚI GIỜ** (08:23 hoá ra là UTC = 15:23 giờ máy — suýt làm điều tra đi tìm log
+  đã bay). Truy nguồn còn mở: POST /policy-docs là dấu-vết-đường-đi PHÂN BIỆT ĐƯỢC (kiểm 2 chiều:
+  lượt kho_rag 15:42 của coder KHÔNG sinh dòng POST/USR-PA01 nào trong HTTP log) ⟹ 15:23 = một
+  client HTTP thật đã đăng nhập partner_admin; khung giờ NẰM GIỮA phiên đòn-4 của coder → đã hỏi
+  coder câu mở (curl/script HTTP nào 15:00–15:45?) + PO thật (chưa trả lời). Bằng chứng sống nhờ
+  MAY (container restart, không force-recreate) — câu trả lời bằng thiết kế là F-LOG-3.
+  **CẢ 3 PHIÊN ĐÃ TỰ LOẠI BẰNG CHỨNG CỨ** (tester: endpoint/user-id/script-chỉ-đọc · security:
+  import-list 3 probe · coder: nguồn-IP 172.19.0.6=frontend-container trong khi curl của coder là
+  127.0.0.1-trong-backend + CHƯA TỪNG cầm token partner_admin hôm nay nên guard không cho qua +
+  Playwright không có setInputFiles + zsh-history 0 dòng). Dấu vết hội tụ: một phiên TRÌNH DUYỆT
+  đăng nhập partner_admin, mở trang 08:22:45Z rồi nạp 2 lần — nghi phạm còn lại: PO thật (đang
+  hỏi). Nợ mới ghi nhận: `uploaded_at` lưu naive-UTC không hậu tố — bẫy múi giờ sẽ lặp; F-LOG-3
+  dùng ts ISO-8601 có offset, đổi `uploaded_at` là mục nợ riêng.
+  Quan sát thêm (security, không phải kết luận): mỗi POST kéo theo GET /policy-docs sau 20-40ms =
+  nhịp UI-tự-tải-lại-sau-upload; 13s GIỮA hai lượt hợp người bấm 2 lần ⟹ kéo giả thuyết thao-tác-
+  UI LÊN (không loại script điều khiển trình duyệt). Đặc tả trường F-LOG-3 security đã gửi coder:
+  doc_id[]/chunk_id[] trả về (trường quan trọng nhất) · query_hash HMAC + query_len (KHÔNG log
+  nguyên văn — S-01 scrub hỏng 40% nghĩa trên văn bản nghiệp vụ) · nguon cho /policy-docs (tên
+  khớp việc xuất-xứ) · retention ngắn tách QĐ3 · không IP/UA.
+- **F-LOG-3 GIAO coder (sau fix-kho-restart, trước T3):** log có cấu trúc /policy-search +
+  /policy-docs — lần THỨ BA trong 2 ngày câu hỏi sự cố dừng ở "đo không được" vì thiếu 1 dòng log
+  (uvicorn access log không có user_id/query/chunk). Security gửi danh sách trường; ràng buộc:
+  JSON + PII-scrub-trước-khi-ghi + contextvars sẵn có.
+- **LUẬT MỚI (tester): nhãn định danh LƯỢT ≠ nhãn định danh VẬT** — `new_id("CHK")` ngẫu nhiên ⟹
+  nạp cùng nguồn+parser vẫn ra băm khác (6e3c11…→8820b6…→a3c5c7… là MỘT kho). "Băm khác ⟹ kho
+  khác" SAI; chỉ chiều "giống ⟹ giống" đúng. So hai lượt bằng chunk/doc/parser. Đề xuất route
+  coder (chưa quyết): `_bam_kho` chỉ băm sorted(text), bỏ chunk_id ⟹ băm định danh được VẬT.
 - **Biến thể #4 luật assertion-trùng-mặc-định** (tester bắt trong chính test của mình `55118b5`):
   hai vế CÙNG KIỂU (set[str]) nhưng khác KHÔNG-GIAN-TÊN (doc_id-băm so với filename) — không bao
   giờ khớp, test xanh mà chặn con số 0. Bắt bằng CA ĐỐI CHỨNG: đổi danh sách sang tài liệu ĐANG

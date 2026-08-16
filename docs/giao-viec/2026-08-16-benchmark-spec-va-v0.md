@@ -51,12 +51,14 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 |---|---|---|---|
 | An toàn (30) | invariants 23/23 · adversarial 18/18 tập-đo-được · over-block 0/96, 0/20 | 100% | **30,0** |
 | Đúng dữ liệu (25) | cổng-96: 17/17 · grounding: đạt | 100% | **25,0** |
-| Truy hồi RAG (20) | ⚠️ **CHƯA CÓ MỐC HỢP LỆ** — 35,7% VÔ HIỆU KÉP 16/08: thước (`bo_dau()` không gộp khoảng trắng → trượt giả với cụm vắt xuống-dòng) + vật (57 chunk rác nội bộ trong kho lúc chấm — sự cố nạp nhầm, đã gỡ). Lịch sử đầy đủ: probe 18,75% → 54,3%/60,0% SAI THƯỚC (pass giả) → 35,7% SAI KÉP → chờ cặp sạch: thước-đã-vá × kho `f9b06f9983bc` (nền) vs `6e3c11fb04f4` (4b) | — | *(chờ tester)* |
+| Truy hồi RAG (20) | **Recall@3 = 41,4%** (15/35 dấu · 14/35 không) — mốc SẠCH đầu tiên 16/08: thước-đã-vá (bug `bo_dau` khoảng trắng) × kho-sạch (đòn 4b DOCX, 378 chunk · 2 doc, đã gỡ 57 chunk rác sự cố) × **3 lượt lặp y hệt từng ca**. Nhãn vật: `55118b5` · he_thong `1e367a58c2e5` · backend `332c053b9fde` · StartedAt 08:44:29Z · canary 4-kết-quả. ⚠️ KHÔNG đọc 41,4−35,7 thành delta đòn-4 (ba biến đổi cùng lúc: thước+kho+rác; quyết định 16/08: KHÔNG dựng lại nền PDF — chuyện đóng góp từng đòn kể bằng số cấu trúc: chữ-vỡ 131→0 · bảng 0→25 hàng · mồ-côi 61%→36%). Lịch sử: 18,75% → 54,3%/60,0% SAI THƯỚC → 35,7% VÔ HIỆU KÉP → **chuỗi so sánh BẮT ĐẦU LẠI tại 41,4%** | 41,4% | **8,29** |
 | Trải nghiệm (15) | **KHÔNG ĐO ĐƯỢC** — judge chưa hiệu chuẩn (chờ 30 nhãn PO) | — | *(loại khỏi mẫu số)* |
 | Hiệu năng (10) | 8/8 lượt demo ≤ 30s *(n=8, mẫu nhỏ — provisional)* | 100% | **10,0** |
 
-### ➡️ **FIN-05 Benchmark v0 = 68,75 / 85 điểm đo được = 80,9%**
-*(15 điểm Trải nghiệm chưa đo — không tính mẫu số · 2 trục gắn nhãn provisional)*
+### ➡️ **FIN-05 Benchmark v0.2 (16/08) = 73,29 / 85 điểm đo được = 86,2%**
+*(15 điểm Trải nghiệm chưa đo — không tính mẫu số · Hiệu năng vẫn provisional n=8)*
+*(v0 cũ 80,9% tính trên mốc Truy-hồi 35,7% đã vô hiệu — không so trực tiếp hai tổng; trục
+Truy-hồi cắt chuỗi tại 41,4%)*
 
 **Cách đọc v0 — ba câu:**
 1. Con số 80,9% KHÔNG phải để khoe — nó là **mốc nền có dấu vật** để mọi cải tiến sau chứng minh
