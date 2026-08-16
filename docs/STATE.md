@@ -417,6 +417,19 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **✅ T3 LAND (`99de792`) — input/lượt 19.397→14.698 (−24%) trên câu đo của coder.** Chẩn đoán:
+  `get_customer_history` complaints KHÔNG limit/không lọc days = 13.620 ký tự = 41% toàn prompt
+  (107 phần tử). Thiết kế: BẢN TRẢ LLM cắt còn 10 complaints (4.707 ký tự) · BẢN GHI DB nguyên
+  vẹn 107. **LUẬT MỚI (coder tự dựng): cổng nghiệm thu PHẢI CHẠM ĐƯỜNG THAY ĐỔI** — origin-rule
+  0/5 + o-group 0/8 xanh nhưng không chạm đường T3 ("nhận chúng làm bằng chứng là tự lừa");
+  bằng chứng thật = ca đúng-rủi-ro: agent thấy 10 bản ghi nói "105/107" (tra ngược được), KHÔNG
+  nói "10". **<30k CHƯA tuyên bố đạt** — chờ bộ-lệnh-cố-định đo token+latency (GIAO tester, gộp
+  việc backlog "bộ đo latency thay n=8"); coder đo lại lượt dài 47-84k khi thước về. T3 đóng
+  ngoài thứ tự = ngoại lệ chấp nhận (code-dở-cây-chung rủi ro hơn), không thành nếp.
+- **② điều kiện (c) GIẢI QUYẾT — kiến trúc TÁCH SẴN tìm/trích:** store.py::add_chunks embed
+  texts nhưng Chroma documents=chunk_ids (placeholder); văn bản trả LLM lấy từ PolicyChunk.text
+  Postgres ⟹ dòng chèn ② chỉ đi vào embedding, không có đường lọt ra khách. Coder thêm docstring
+  bất biến tại chỗ chèn. ②-thí-điểm ĐANG CHẠY (hô 4 phiên trước khi nạp).
 - **ADR-026 BẢN THẢO XONG (`a65e9fc`, docs/security/…-ban-de-PO-land.md) — TRÌNH PO THẬT KÝ.**
   8 quyết định = 4 điểm PO chốt + QĐ5 (eval đánh dấu ĐÃ-duyệt — mô hình đe doạ là đối-tác-bị-
   chiếm, cờ bỏ-qua-lọc bị bác vì là lớp lỗi F-30) + 🔴QĐ6 (xuất-xứ ≠ thay tier, quyết định riêng
