@@ -59,6 +59,19 @@ docker compose --profile home up -d
 echo; echo "--- Kiem tra thuc te ---"
 loi=0
 
+# --- KHO RAG: kiem lech phien ban, tu nap lai neu can -------------------
+# KHONG de nguoi dung phai NHO buoc nay. Don 2 bo dau o CA HAI ve (index +
+# query); kho dung bang code CU + query code MOI = lech mot ve, va ca do
+# KHONG CO TRIEU CHUNG NAO — search van tra du k ket qua, chi la ket qua sai.
+# Mot buoc phai-nho ma quen thi im lang chinh la min.
+echo; echo "--- Kho RAG ---"
+if ! docker compose --profile home exec -T backend python scripts/kho_rag.py kiem; then
+  echo "  -> nap lai kho (mat vai phut, co goi API embedding)"
+  docker compose --profile home exec -T backend python scripts/kho_rag.py nap-lai \
+    || { bad "Nap lai kho RAG that bai"; loi=$((loi+1)); }
+fi
+
+
 echo "  cho backend san sang..."
 san=0
 for _ in $(seq 1 30); do

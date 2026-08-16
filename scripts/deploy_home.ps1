@@ -89,6 +89,17 @@ if ($LASTEXITCODE -ne 0) { Bad "Khoi dong that bai"; exit 1 }
 Say ""; Say "--- Kiem tra thuc te ---"
 $loi = 0
 
+# --- KHO RAG: kiem lech phien ban, tu nap lai neu can -------------------
+# KHONG de nguoi dung phai NHO buoc nay — xem ghi chu trong ban .sh.
+Say ""; Say "--- Kho RAG ---"
+docker compose --profile home exec -T backend python scripts/kho_rag.py kiem
+if ($LASTEXITCODE -ne 0) {
+    Say "  -> nap lai kho (mat vai phut, co goi API embedding)"
+    docker compose --profile home exec -T backend python scripts/kho_rag.py nap-lai
+    if ($LASTEXITCODE -ne 0) { Bad "Nap lai kho RAG that bai"; $loi++ }
+}
+
+
 Say "  cho backend san sang..."
 $san = $false
 foreach ($i in 1..30) {

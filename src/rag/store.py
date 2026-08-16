@@ -42,8 +42,40 @@ def _get_embeddings() -> OpenAIEmbeddings:
     return _embeddings
 
 
+# DAU PHIEN BAN CHUAN HOA — tang moi khi cach bien text thanh vector doi.
+#
+# Vi sao CAN: don 2 bo dau o CA HAI ve (index + query). Neu kho duoc dung bang
+# code CU (con dau) ma query chay code MOI (da bo dau) thi hai ve LECH — va ca
+# do KHONG CO TRIEU CHUNG NAO: search van tra du k ket qua, chi la ket qua sai.
+# Khong loi, khong log, khong canh bao. Doc text trong kho cung khong phat hien
+# duoc, vi thay doi nam o VECTOR chu khong o chu.
+#
+# Mot buoc "phai nho re-index" ma quen thi im lang = min. Dau nay bien no thanh
+# thu MAY kiem duoc.
+#
+#   1 = truoc don 2 (embed text nguyen ban)
+#   2 = don 2 (embed ban da bo dau)
+CHUAN_HOA_VERSION = 2
+
+
 def _get_collection():
-    return _get_client().get_or_create_collection(_COLLECTION_NAME)
+    return _get_client().get_or_create_collection(
+        _COLLECTION_NAME, metadata={"chuan_hoa": CHUAN_HOA_VERSION}
+    )
+
+
+def phien_ban_kho() -> int | None:
+    """Phien ban chuan hoa cua kho DANG NAM TREN DIA (None neu kho trong/chua co dau)."""
+    col = _get_client().get_or_create_collection(_COLLECTION_NAME)
+    if col.count() == 0:
+        return None
+    return (col.metadata or {}).get("chuan_hoa")
+
+
+def kho_da_cu() -> bool:
+    """True khi kho tren dia duoc dung bang phien ban chuan hoa CU hon code."""
+    pb = phien_ban_kho()
+    return pb is not None and pb != CHUAN_HOA_VERSION
 
 
 def bo_dau(s: str) -> str:
