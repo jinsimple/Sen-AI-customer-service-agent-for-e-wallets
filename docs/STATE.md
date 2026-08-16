@@ -458,6 +458,24 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - **150 người: `71,6 vs 75` = 0,95× ở p95** — "đổi model là đủ" ĐÚNG ở tải trung bình, **SAI ở tải
   đỉnh**. Đường thoát: nâng TPM tạm thời qua console (hiệu lực ngay, 30 ngày) — **đổi MẪU SỐ chứ
   không đổi tỉ lệ**, và **phải bật TRƯỚC buổi test**, không tự có.
+- **🧪 LUẬT MỚI: "NGUỒN DỮ LIỆU ĐÚNG, DÂN SỐ SAI"** (tester, khi thử giao thức đo nhịp gõ
+  `6158661`): bảng `messages` là nguồn ĐÚNG (có `chat_session_id`+`created_at`; log không dùng
+  được vì ghi *lời gọi model* chứ không phải *lượt khách*) — chạy ra **trung vị 3 giây giữa hai
+  tin = 19,8 lượt/phút/người, gấp 40× giả định 0,50**. **Con số vô nghĩa: 230 tin đó do SCRIPT
+  TEST sinh, không phải người.** Đường ống thông, truy vấn đúng, số ra đẹp — nói về **một quần
+  thể không phải quần thể ta cần**. Nguy hơn nguồn-sai vì nguồn sai lộ ra sớm, cái này *chạy
+  trơn*. Cùng họ Luật 7. **Cảnh báo ghi NGAY CẠNH truy vấn** (người sau gặp truy vấn trước khi
+  gặp tài liệu) — không có nó thì cả đội sẽ hoảng vì `19,8` rồi tối ưu một vấn đề không tồn tại.
+- **Giao thức đo nhịp gõ (sẵn sàng, chạy vài phút khi có phiên người thật):** ① nhóm nhỏ 5-10
+  người TRƯỚC (nếu nhịp cao hơn dự kiến thì buổi 150 người hỏng trong 10 phút đầu — mất cả buổi
+  của 150 người để học điều 10 người dạy được) ② đo theo cửa sổ `0-10 phút` và `sau đó`, **không
+  lấy trung bình cả buổi** (trung bình giấu đỉnh, đỉnh mới làm sập) ③ **đo cả SỐ NGƯỜI GÕ ĐỒNG
+  THỜI — `150 người có tài khoản` ≠ `150 người đang gõ`; trần phụ thuộc TÍCH hai số mà cả buổi
+  ta chỉ cãi về một** ④ báo cả phân bố, **p90 mới là số quyết định**.
+- **Từ chối mượn benchmark ngành thay cho `0,50` (tester, PO duyệt):** *"một con số mượn từ sản
+  phẩm khác, tập người dùng khác, ngôn ngữ khác cũng là một giả định — chỉ khác là nó TRÔNG có
+  căn cứ hơn nên KHÓ BỊ CHẤT VẤN hơn"* ⟹ **một giả định đội lốt dữ liệu tệ hơn một giả định tự
+  nhận là giả định.** Giữ `0,50` với nhãn "giả định của ta, chưa đo".
 - **🔴 LỖ HỔNG LỚN NHẤT CÒN LẠI (tester nêu): "1 câu/2 phút" là GIẢ ĐỊNH CỦA TA, chưa phải quan
   sát.** Mọi trần vừa tính (179 · 71,6 · 74 · 0,95×) đều chia cho một mẫu số chưa ai đo; người
   thật gõ nhanh gấp đôi ở 10 phút đầu (hành vi rất tự nhiên khi thử đồ mới) thì mọi trần chia đôi
