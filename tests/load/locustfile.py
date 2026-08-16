@@ -30,7 +30,22 @@ LƯU Ý CHI PHÍ: CustomerUser gọi /api/agent-chat = gọi OpenAI thật mỗi
 from __future__ import annotations
 
 import os
+import pathlib
 import random
+import sys
+
+# CỔNG ĐÓNG BĂNG — load test là thứ NGUY HIỂM NHẤT với trần TPM dùng chung:
+# nó gọi /api/agent-chat theo tần suất, tức có thể làm cạn hạn mức của cả đội
+# trong vài chục giây. Đo được 16/08: MỘT người, 21 lượt, 2 phút -> org chạm
+# 193k/200k. Kiểm ở tầng IMPORT để locust chết ngay lúc nạp file, trước khi
+# sinh ra user nào — bắt ở tầng task thì lượt đầu đã đi rồi.
+_MOC = pathlib.Path(__file__).resolve().parent.parent.parent / ".DANG-DONG-BANG-LLM"
+if _MOC.exists() or os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false"):
+    sys.exit(
+        f"🧊 ĐANG ĐÓNG BĂNG LLM — không chạy load test.\n"
+        f"   Trần TPM dùng chung với 3 phiên khác + PO thật.\n"
+        f"   Bỏ: unset FIN05_DONG_BANG_LLM · rm {_MOC.name}"
+    )
 
 from locust import HttpUser, LoadTestShape, between, task
 

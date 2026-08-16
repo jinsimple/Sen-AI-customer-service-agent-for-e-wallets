@@ -89,6 +89,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
+from tests._dong_bang import LY_DO, dang_dong_bang
+
 BASE = os.environ.get("FIN05_TEST_BASE_URL", "").rstrip("/")
 KHACH = ("0974000145", "Demo@123")
 TTL_TOI_DA_GIAY = 120  # instance đo phải có TTL NGẮN; 15 phút thật là không đo được
@@ -117,6 +119,7 @@ def _yeu_cau_ha_tang():
 # ===========================================================================
 
 
+@pytest.mark.skipif(dang_dong_bang(), reason=LY_DO)
 def test_ly_do_skip_phai_that():
     """Chạy LUÔN. Phân biệt "chưa có hạ tầng" với "gõ sai biến / trỏ nhầm stack".
 

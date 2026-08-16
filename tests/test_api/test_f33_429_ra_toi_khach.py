@@ -43,6 +43,8 @@ import subprocess
 
 import pytest
 
+from tests._dong_bang import LY_DO, dang_dong_bang
+
 BASE = os.environ.get("FIN05_BASE_URL", "https://localhost")
 SO_KHACH = os.environ.get("FIN05_TEST_CUSTOMER_PHONE", "0974000145")
 MAT_KHAU = os.environ.get("FIN05_TEST_PASSWORD", "Demo@123")
@@ -61,6 +63,7 @@ def _song() -> bool:
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(not _song(), reason="container fin05-backend-1 không chạy"),
+    pytest.mark.skipif(dang_dong_bang(), reason=LY_DO),
 ]
 
 # Cổng ĐỐT-HẠN-MỨC đặt ở TỪNG CA, không đặt ở cả file: `test_f33c` chỉ hỏi lược

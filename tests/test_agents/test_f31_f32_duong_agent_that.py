@@ -49,11 +49,16 @@ buộc người vá quay lại gỡ nhãn và bật thành cổng hồi quy th�
 """
 from __future__ import annotations
 
+import json
 import os
+import pathlib
 import re
 import subprocess
+import time
 
 import pytest
+
+from tests._dong_bang import LY_DO, dang_dong_bang
 
 BASE = os.environ.get("FIN05_BASE_URL", "https://localhost")
 # Tài khoản CUSTOMER. `/api/agent-chat` đòi role customer — dùng nhầm tài khoản
@@ -74,8 +79,6 @@ def _song() -> bool:
     return bool(r.stdout.strip())
 
 
-def _dong_bang() -> bool:
-    return os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false")
 
 
 pytestmark = [
@@ -87,7 +90,7 @@ pytestmark = [
     # dạng HTTP 500 màn hình trắng. Chạy bộ này trong lúc ai đó đang quay demo
     # là làm hỏng video của họ. Đây là skip vì THIẾU TÀI NGUYÊN DÙNG CHUNG —
     # một lý do có thật, kiểm được, không phải skip cho qua chuyện (Luật 6).
-    pytest.mark.skipif(_dong_bang(), reason="FIN05_DONG_BANG_LLM đang bật — không gọi model"),
+    pytest.mark.skipif(dang_dong_bang(), reason=LY_DO),
 ]
 
 
@@ -106,10 +109,43 @@ def khach():
     c.close()
 
 
+RA_THO = pathlib.Path(__file__).resolve().parent.parent.parent / "eval" / "results"
+
+
+def _luu_tho(cau: str, j: dict, ma: int) -> None:
+    """Lưu transcript THÔ ngay khi có, trước mọi assertion.
+
+    Luật 5: bản ghi phải đủ để **vai khác dựng lại và chứng minh tôi sai**.
+    Tôi đã vi phạm chính luật này: lượt chạy F-31/F-32 ngày 16/08 dùng một
+    script chỉ `print`, không ghi file. Findings đi vào hồ sơ dự án, còn **bằng
+    chứng thô chết theo terminal** — nên khi cần chúng cho gói 30 nhãn (hiệu
+    chuẩn trọng tài) thì không còn gì để dùng, và phải chạy lại bằng tiền thật.
+
+    `run_golden_set.py` đã có sẵn nếp này (*"Lưu raw JSON NGAY sau khi chạy
+    xong, TRƯỚC khi format báo cáo"*) — nếp có trong repo mà tôi không theo.
+
+    Ghi TRƯỚC khi assert, vì một assertion đỏ cũng làm mất bản ghi nếu ghi sau.
+    """
+    RA_THO.mkdir(exist_ok=True)
+    f = RA_THO / "f31_f32_transcript.jsonl"
+    with f.open("a", encoding="utf-8") as fp:
+        fp.write(json.dumps({
+            "luc": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "cau_hoi": cau, "ma_http": ma,
+            "reply": j.get("reply") or j.get("message") or j.get("answer") or "",
+            "tool_calls": j.get("tool_calls") or [],
+            "should_escalate": j.get("should_escalate"),
+            "goi_y_handoff": j.get("goi_y_handoff"),
+            "ly_do_fallback": j.get("ly_do_fallback"),
+            "usage": j.get("usage"),
+        }, ensure_ascii=False) + "\n")
+
+
 def _hoi(c, cau: str) -> tuple[str, int]:
     r = c.post(f"{BASE}/api/agent-chat", json={"message": cau})
+    j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+    _luu_tho(cau, j, r.status_code)  # lưu TRƯỚC khi assert — assert đỏ vẫn giữ được bằng chứng
     assert r.status_code == 200, f"agent-chat lỗi {r.status_code}: {r.text[:200]}"
-    j = r.json()
     tra = str(j.get("reply") or j.get("message") or j.get("answer") or "")
     assert tra.strip(), "agent trả về CHUỖI RỖNG — không kết luận gì được từ một câu rỗng"
     so_tool = sum(1 for t in (j.get("tool_calls") or [])
