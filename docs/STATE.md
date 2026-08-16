@@ -345,6 +345,24 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 🎯 QUYẾT ĐỊNH PO THẬT 16/08 — BENCHMARK + LEARNING LOOP v1 (mới nhất)
+1. **Chiến lược đánh giá chất lượng: CHỐT** theo `2026-08-16-chien-luoc-danh-gia-chat-luong.md`
+   (kim tự tháp 3 tầng · lấy taxonomy OpenAI graders không lấy hosted · heldout 60 niêm phong).
+2. **Benchmark spec v1 + v0: CHỐT** (`2026-08-16-benchmark-spec-va-v0.md`, PR #3) — trọng số
+   30/25/20/15/10; **v0 = 68,75/85 điểm đo được (80,9%)**, điểm nghẽn định lượng: Truy hồi RAG
+   3,75/20 (Recall@3 probe: 0/8 không dấu · 3/8 có dấu — đáp án CÓ trong kho ⟹ lỗi tầng truy hồi).
+   Đang chạy: tester golden-set truy hồi 30-50 câu + script benchmark + gói 30 ca nhãn PO (hiệu
+   chuẩn judge ≥85%) · coder RAG đòn 1 (extraction sạch — chunk dính "Giao D ịch") + đòn 2 (chuẩn
+   hoá dấu tầng query), mỗi đòn một PR có đo trước/sau; đòn 3-4 chờ số.
+3. **LEARNING LOOP v1: GO** ("sau benchmark chạy luôn phần LLM tự cải thiện") — bánh đà dữ liệu
+   CÓ NGƯỜI GÁC, không phải model tự train: ① tín hiệu học ĐÃ thu (reject_reason +
+   la_tin_hieu_hoc, ADR-019; maker-checker chống bơm nhãn giả, ADR-020) · ② thước = benchmark
+   vừa chốt · ③ mảnh thiếu = **exporter Phase 2** (`eval/candidates/`, test_14 cắm cọc chờ sẵn).
+   **TRÌNH TỰ AN TOÀN BẮT BUỘC: ADR-025 phần B land TRƯỚC exporter** — S-02 (`agent_note` chưa
+   cọc/chưa scrub) là nguồn tự nhiên nhất của phễu học; mở exporter trước khi đóng cọc = dữ liệu
+   bẩn chảy vào bộ học. Sau exporter: quy trình đề-cử→duyệt 10 phút/tuần (PO hoặc uỷ PO-agent sơ
+   duyệt) → golden-set tự lớn từ vận hành thật → benchmark v2 chứng minh "học được" bằng số.
+
 ## ⚡⚡ QUYẾT ĐỊNH PO THẬT MỚI NHẤT — tối muộn 15/08 (đè mọi mục cũ)
 1. **ADR-025 ĐÃ KÝ TOÀN BỘ** — PO thật xác nhận cả 4 con số sau khi đọc giải thích: retention
    5 năm (giữ cờ tư-vấn-pháp-lý) · trần 2.000 ký tự · quyền đọc 2 pha · preview-confirm 2 vòng

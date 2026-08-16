@@ -107,6 +107,8 @@ rõ — không bao giờ đỏ vì nhầm môi trường.
 | CI-7 | Cổng so sánh eval nối vào CI | `measure_quality.py --so-sanh` trả **exit 1** khi có ca xấu đi → job phải đỏ | Hai lượt giống nhau → exit 0, xanh |
 | CI-8 | Thước bất động được canh ở CI | Gỡ guard trong `scripts/gen_dataset.py` (bỏ nhánh `ap.error` khi thiếu `--cho-phep-ghi-de-thuoc`) → `tests/test_data/test_thuoc_bat_dong.py` **PHẢI đỏ**. Xanh khi guard đã gỡ nghĩa là test đang canh một thứ khác, không phải canh thước | Trả guard lại → xanh |
 | CI-9 | Nhóm `slow` không bị bỏ rơi | Để một test `slow` đỏ → CI phải đỏ. Job dùng `-m "not slow"` cho vòng nhanh thì BẮT BUỘC có job khác chạy `-m "slow"` (hoặc chạy đủ, không lọc) | Sửa lại → xanh |
+| CI-10 | **Chỉ `security-findings-gate` được đỏ vì finding P0** | Gỡ `-m "not security_finding"` khỏi `lint-and-test` → job đó phải đỏ vì ST2-P0-3 | Thêm `-m "not security_finding"` vào `appsec` → 227/227 xanh, `security-findings-gate` VẪN đỏ |
+| CI-11 | **Runner thật sự chạy job** (F-CI) | — không có phép thử: hoặc `gh run view` thấy job có thời lượng thật, hoặc CI chưa tồn tại | 13/13 job khởi động, không job nào `not started` |
 
 ## Cách nghiệm thu (tester làm sau khi coder nối dây)
 
@@ -141,6 +143,143 @@ chạy đủ. Nếu một job nào đó dùng `-m "not slow"`, phải có job kh
 
 Test này **tự khôi phục file trong `finally`**, nên chạy bao nhiêu lần cũng
 không để lại hậu quả — kể cả khi guard bị gỡ và sản phẩm ghi đè thật.
+
+---
+
+## 🔴 F-CI — CI ở P-226 CHƯA TỪNG CHẠY MỘT JOB NÀO (15/08, tester đo)
+
+Đo bằng `gh run list` / `gh run view`, **không** đọc YAML:
+
+```
+31872918766  dev/learning-loop  failure  4s   ← push 2e8c888
+31872859633  dev/learning-loop  failure  4s
+31871670071  dev/learning-loop  failure  5s
+31871490537  dev/learning-loop  failure  4s
+31871430162  dev/learning-loop  failure  5s
+31869373262  dev/learning-loop  failure  4s   ← push dacbefd
+...
+30184460814  develop            success  22s  ← "Initial commit", 26/07
+30183195638  main               success  27s  ← "Initial commit", 26/07
+```
+
+Annotation của **cả 13 job**, nguyên văn:
+
+> `The job was not started because recent account payments have failed or your
+> spending limit needs to be increased. Please check the 'Billing & plans'
+> section in your settings`
+
+**Không phải test đỏ. Không phải trigger sai. Zero job khởi động.** Hai lượt
+`success` duy nhất trong lịch sử repo là "Initial commit" ngày 26/07 — trước khi
+bộ test thật tồn tại.
+
+Đây là **"hiện diện ≠ hiệu lực" ở tầng HẠ TẦNG**, một tầng thấp hơn mọi ca đã
+gặp: `ci.yml` có đủ 13 job, `on.push.branches` đã sửa đúng cho `dev/**` (Lỗ 1 ở
+trên đã vá thật), mọi push đều **sinh ra một lượt chạy có ID** — và không byte
+code nào từng được kiểm. Lỗ 1 hỏi "cổng có mở không"; F-CI hỏi **"nhà máy có
+điện không"**, và câu trả lời là không.
+
+⚠️ **Hệ quả cho mọi tiêu chí trong file này:** CI-1/CI-4/CI-5 **không nghiệm thu
+được** cho tới khi billing của org `AI20K-Build-Phase-Cohort-3` thông. Riêng
+CI-1 đã nối dây đúng nhưng **chưa bao giờ chứng minh được là có hiệu lực** —
+đúng khoảng cách giữa "đọc YAML chứng minh ý định" và "chạy thật chứng minh
+hiệu lực" mà mục CI-4/CI-5 đã ghi.
+
+Việc PO THẬT, không phiên Claude nào làm được.
+
+---
+
+## LƯỢT CHẠY KHÔ CI TRÊN MÁY (15/08) — biết trước CI sẽ nói gì khi có điện
+
+Trong lúc chờ billing, tôi chạy **đúng lệnh của từng job** trên host để tách
+sẵn "đỏ vì billing" khỏi "đỏ vì code". Không thay được runner, nhưng trả lời
+được câu đắt nhất: *khi CI sống lại, ta sẽ thấy gì?*
+
+Môi trường: venv scratchpad ngoài repo, **Python 3.14** (CI dùng 3.12 — khác
+biệt đã biết, ghi ra để không ai đọc số này thành "CI chắc chắn thế"), HEAD
+`2e8c888` sạch, `he_thong=fd16681d8088`, `cham_diem=c0b79835e16c`.
+
+| Job | Lệnh đúng của CI | Kết quả trên host |
+|---|---|---|
+| `invariants` | `pytest tests/test_invariants.py` | **23 passed** ✅ |
+| contract drift | `python scripts/check_contracts.py` | **3/3 khớp baseline**, không artifact lỗi thời ✅ |
+| `lint-and-test` | `pytest tests/ -m "not security_finding"` | **446 passed · 41 skipped · 1 deselected · 0 failed** ✅ |
+| `security-findings-gate` | `pytest tests/ -m security_finding` | **1 failed** — ĐỎ ĐÚNG CHỦ ĐÍCH (xem dưới) |
+| `appsec` | `pytest tests/test_api/` | **1 failed · 227 passed** — 🔴 ĐỎ VÌ LÝ DO SAI |
+
+### 🔴 F-CI-2: job `appsec` đỏ vì một finding đã có quyết định — cổng đỏ vì lý do sai
+
+Cả hai job đỏ vì **cùng một test**:
+
+```
+tests/test_api/test_live_chat_pii_gap.py::
+    test_live_chat_message_containing_raw_phone_number_is_not_masked_before_storage
+```
+
+Đó là **ST2-P0-3**, một trong 4 finding P0 mà `docs/TESTING.md` ghi rõ là **đỏ
+có chủ đích, chặn CI** (quyết định 11/08). Ba P0 kia đã được vá trong đợt Auth5
+— nó là finding P0 **duy nhất còn lại** (`-m security_finding --collect-only`
+thu đúng 1 test).
+
+Vậy `security-findings-gate` đỏ là **đúng thiết kế**. Nhưng:
+
+```yaml
+appsec:
+  - run: pytest tests/test_api/ -v        # ← KHÔNG có -m "not security_finding"
+```
+
+`lint-and-test` có bộ lọc marker (nên `1 deselected`); `appsec` thì không. Hệ
+quả: một job tên **"AppSec test (Nhóm C) — ma trận phân quyền + injection"** sẽ
+đỏ vĩnh viễn vì một finding **live-chat PII đã có quyết định**, không liên quan
+gì tới ma trận phân quyền hay injection mà nó sinh ra để canh.
+
+Đây vi phạm **chiều thứ hai của Nguyên tắc gốc** ở đầu file này — *"Cổng đỏ vì
+lý do sai còn tệ hơn không có cổng — nó dạy cả đội bỏ qua chính cảnh báo đó"* —
+và nó nguy hơn bình thường vì đỏ này sẽ xuất hiện **đúng lúc billing vừa thông**,
+tức đúng lúc cả đội đang mong thấy xanh và dễ tặc lưỡi nhất.
+
+**Tiêu chí CI-10 (mới):** đúng MỘT job được phép đỏ vì finding P0 chưa vá, và
+job đó phải là `security-findings-gate`. Mọi job khác chạy `pytest` trên thư mục
+có chứa test `security_finding` **bắt buộc** kèm `-m "not security_finding"`.
+
+- **Phép thử LÀM ĐỎ:** gỡ `-m "not security_finding"` khỏi `lint-and-test` →
+  job đó phải đỏ vì ST2-P0-3.
+- **Phép thử XANH SẠCH:** thêm `-m "not security_finding"` vào `appsec` → job
+  đỏ 1/228 thành xanh 227/227, và `security-findings-gate` **vẫn đỏ**.
+
+Vá là **một dòng trong `.github/workflows/ci.yml`** — vùng ghi của coder, không
+phải của tester. Tôi định tiêu chí, coder nối dây, tôi nghiệm thu hai chiều.
+
+### 🟡 F-CI-3: hai test tier-split vẫn tự-skip bằng ĐOÁN TÊN HÀM — cùng hình dạng lỗi đã vá ở `8d26548`
+
+Trong 41 skip của `lint-and-test`, 38 skip có lý do chính đáng và đã ghi rõ
+(7 cần Postgres · 4 cần `make data` · 2 thiếu `pip-audit` · 2 migration chain ·
+1 COMP-002 ngoài phạm vi · 1 cổng-96 mốc nền cũ · 1 exporter Phase 2 chưa có).
+Còn **hai** skip đáng nghi:
+
+```
+tests/test_security/test_mau_tier1_chi_thi.py  → "F-22 (tách tier) CHƯA SHIP"
+tests/test_security/test_f24_recall_tier1.py   → "Hàm phân tier chưa có trong cây làm việc"
+```
+
+Hai file này tự tìm hàm phân tier bằng cách **thử 4 cặp module/tên**
+(`src.rag.sanitize:phan_tier`, `src.agents.spotlight:phan_tier`,
+`src.rag.store:phan_tier`, `src.agents.tools.customer_tools:phan_tier`), không
+thấy thì skip. Nhưng sổ Đợt 2 ghi F-22 → F-24 → F-25 **đã chốt và đã ship**
+(tier-1 giữ hẹp, biến thể mở rộng sang tier-2).
+
+Hai khả năng, và tester **không phân biệt được** vì không đọc `src/`:
+1. Tier-split thật sự chưa có trong cây → skip đúng, "chưa đo được" là trung thực.
+2. Tier-split đã ship dưới **tên khác / chỗ khác** → hai bộ test này skip vĩnh
+   viễn trong khi cả đội tưởng F-22/F-24/F-25 đang được canh.
+
+Khả năng (2) **đã xảy ra một lần rồi**, cùng hình dạng, cùng đợt: commit
+`8d26548` — *"O2 mỏ neo tìm đúng tên `dem_mat_do_liet_ke`, 7 ca hết SKIP"*. Bảy
+ca skip vì đoán sai một cái tên.
+
+**Cần coder trả lời một câu:** hàm phân tier tên gì, nằm ở module nào? Nhận được
+tên là hai bộ test tự chạy, không phải viết lại. Đây cũng là lý do kỹ thuật để
+`_ham_phan_tier()` liệt kê ứng viên tường minh thay vì `try/except` im lặng — nó
+biến một câu hỏi mơ hồ thành một câu hỏi **trả lời được bằng một dòng**.
 
 ---
 
