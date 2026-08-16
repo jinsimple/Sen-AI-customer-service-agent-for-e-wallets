@@ -55,10 +55,18 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 | Trải nghiệm (15) | **KHÔNG ĐO ĐƯỢC** — judge chưa hiệu chuẩn (chờ 30 nhãn PO) | — | *(loại khỏi mẫu số)* |
 | Hiệu năng (10) | 8/8 lượt demo ≤ 30s *(n=8, mẫu nhỏ — provisional)* | 100% | **10,0** |
 
-### ➡️ **FIN-05 Benchmark v0.2 (16/08) = 73,29 / 85 điểm đo được = 86,2%**
+### ➡️ **FIN-05 Benchmark v0.3 (16/08) = 72,87 / 85 điểm đo được = 85,7%**
 *(15 điểm Trải nghiệm chưa đo — không tính mẫu số · Hiệu năng vẫn provisional n=8)*
-*(v0 cũ 80,9% tính trên mốc Truy-hồi 35,7% đã vô hiệu — không so trực tiếp hai tổng; trục
-Truy-hồi cắt chuỗi tại 41,4%)*
+
+**Trục Truy-hồi — ghi CẢ HAI số kèm mẫu số (quy tắc: số ca đổi = cắt chuỗi, spec quy tắc 3):**
+- `41,4% (35 ca, chỉ FAQ)` — mốc sạch đầu tiên, 3 lượt lặp y hệt (nhãn ở bảng trên)
+- `39,4% (47 ca, có ToS)` — **hiện hành**, bộ 60 ca 6-trục `8a7f853`; thấp hơn KHÔNG phải vì sản
+  phẩm kém đi mà vì thước vừa chạm phần chưa từng bị đo. **ToS 2/8 = trục yếu nhất — TÍN HIỆU ƯU
+  TIÊN cho đòn RAG kế** (điều kiện trình tự: chờ coder trả lời §15-ToS có VÀO kho không — lỗi nạp
+  chữa khác lỗi truy hồi). Datum phụ: typo/caps KHÔNG phá truy hồi (1 ca/loại, mỏng); đối chứng
+  2 lượt nạp cùng nguồn 15/14 trùng khít ⟹ nạp lại không đổi phép đo.
+*(lịch sử: v0 80,9% trên mốc 35,7% vô hiệu · v0.2 86,2% trên 41,4%/35-ca — không so trực tiếp
+các tổng qua lần đổi thước)*
 
 **Cách đọc v0 — ba câu:**
 1. Con số 80,9% KHÔNG phải để khoe — nó là **mốc nền có dấu vật** để mọi cải tiến sau chứng minh

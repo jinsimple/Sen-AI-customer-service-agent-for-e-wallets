@@ -399,6 +399,17 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   /policy-docs — lần THỨ BA trong 2 ngày câu hỏi sự cố dừng ở "đo không được" vì thiếu 1 dòng log
   (uvicorn access log không có user_id/query/chunk). Security gửi danh sách trường; ràng buộc:
   JSON + PII-scrub-trước-khi-ghi + contextvars sẵn có.
+- **Bộ đo 6-trục XONG (`8a7f853`): 41→60 ca · benchmark v0.3 = 85,7%** (trục Truy-hồi hiện hành
+  **39,4% / 47 ca có ToS** → 7,87/20; ghi kèm `41,4% / 35 ca chỉ-FAQ` — số ca đổi = cắt chuỗi).
+  **ToS 2/8 = trục yếu nhất → tín hiệu ưu tiên đòn RAG kế**, TRÌNH TỰ: chờ coder trả lời §15-ToS
+  (15.1 + tiêu đề "Giới Hạn Trách Nhiệm" vắng trong 340/378 chunk khảo sát — lỗi nạp hay 38 chunk
+  chưa lộ?) rồi mới đo lại ToS. §G bắt 2/4 ca âm-bản security đề xuất hoá ra DƯƠNG (kho CÓ đáp án:
+  ToS 19.2 60-ngày · ToS 2.8) — mọi ca âm-bản nay mang `moi_gan`+`vi_sao_am` chống sửa-nhãn-khớp-
+  kết-quả. Datum: typo/caps không phá truy hồi (mỏng, 1 ca/loại); đối chứng 2 lượt nạp cùng nguồn
+  15/14 TRÙNG KHÍT ⟹ nạp-lại không đổi phép đo, băm-đổi = ghi sổ không phải nhiễu (chống lưng đề
+  xuất `_bam_kho` text-only — coder nhét vào lượt chạm kho_rag kế). Nhắc-một-lần đã gửi coder:
+  lượt nạp 08:55Z không hô trước — quy ước mới không được mềm tuần đầu. Nợ tester: mồi-neo §D +
+  k-boundary (cần đường agent), sau khi kho đứng yên.
 - **ADR-026 (xuất-xứ kho RAG) ĐANG SOẠN — security, sau khi ĐO (`d578d0d`):** chi phí rẻ bất ngờ
   (cờ ở PolicyDocument, backfill 2 DÒNG; serve = 1 mệnh đề SQL vào bước join sẵn có; không đụng
   Chroma; recall-cost 0 khi vận hành bình thường). **Phát hiện quyết định (security tự bác đề
