@@ -719,6 +719,13 @@ if r.status_code != 200:
     return []          # rỗng thì được — nhưng KHÔNG ÂM THẦM
 ```
 
+**Biến thể NGÔN NGỮ — tín hiệu VẮNG MẶT bị đọc thành tín hiệu TỐT.** Test dò
+chuỗi do **model sinh** (`"ngoài phạm vi"`, `"chưa tìm thấy"`) sẽ **không đỏ**
+khi đổi model — nó **âm thầm đổi nghĩa**: model mới từ chối bằng câu chữ khác,
+test không thấy chuỗi nào và **báo ĐẠT** trong khi agent vẫn đang đuổi khách đi.
+Chữa: assert trên **cờ có cấu trúc** do TA định nghĩa (`should_escalate`,
+`goi_y_handoff`), không assert trên chữ do model chọn.
+
 **Dấu hiệu để tự soi:** bất cứ khi nào một phép đo cho **đúng số 0 tròn trĩnh**
 — 0 kết quả, 0 lượt gọi, 0 ca đạt — hãy hỏi *"số 0 này là sản phẩm trả lời, hay
 là tôi không hỏi được?"* trước khi hỏi *"vì sao sản phẩm tệ thế?"*. Ba lần trong

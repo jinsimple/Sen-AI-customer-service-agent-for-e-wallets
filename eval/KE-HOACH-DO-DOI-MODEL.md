@@ -26,26 +26,44 @@ và embedding y hệt**. Đây là chỗ ranh giới "chỉ đổi chat" rò san
 PO đã liệt phần sản phẩm. Dưới đây là phần **thước**, rà 17/08 — bốn chỗ, ba
 chỗ chưa ai nêu.
 
-### 1.1 🔴 `eval/_harness.py` gọi thẳng `ChatOpenAI` — thước sẽ KHÔNG đổi theo sản phẩm
+### 1.1 🔴 BA VAI trong harness dùng CHUNG một biến model — đổi một cái là đổi cả ba
 
-```python
-from langchain_openai import ChatOpenAI
-model = ChatOpenAI(model=OPENAI_MODEL, …)
-```
+> ⚠️ **Đính chính bản đầu.** Tôi viết rằng harness gọi thẳng `ChatOpenAI` nên
+> *"eval sẽ vẫn đo gpt-4o-mini sau khi sản phẩm sang Qwen"*. **Sai.** Rà kỹ:
+> agent-đang-bị-đo được gọi qua `src.agents.graph.run_agent_turn`, tức **code
+> sản phẩm thật** — nó **có** đi theo lần đổi. Rủi ro nằm ở chỗ khác, và tệ hơn.
 
-Đây là **nguy hiểm nhất trong cả danh sách**, vì nó không hỏng — nó **vẫn chạy
-ngon** và vẫn ra số đẹp. Sau khi sản phẩm sang Qwen, mọi eval đi qua harness này
-**vẫn đang đo gpt-4o-mini**. Không lỗi, không cảnh báo; chỉ là từ hôm đó trở đi
-nó nói về một sản phẩm không còn tồn tại.
+Trong một lượt chạy adversarial có **ba vai**, và cả ba đọc **cùng một
+`OPENAI_MODEL` từ `src.config`**:
 
-Cùng họ với sự cố `kho_rag.py kiem` (công cụ đọc chỗ khác chỗ sản phẩm đọc) và
-với `_tra_agent` vs `_tra` — nhưng lần này **hậu quả kéo dài vô thời hạn** thay
-vì lộ ra trong một buổi.
+| Vai | Ở đâu | Là gì |
+|---|---|---|
+| **Đối tượng** — agent bị đo | `run_agent_turn` (src) | thứ ta muốn đo |
+| **Kích thích** — khách/kẻ tấn công giả lập | `_harness.py` `simulate_customer_reply` · `simulate_adversary_reply` | thứ phải **giữ nguyên** |
+| **Trọng tài** — chấm điểm | `_llm_judge.py` | thước, phải **giữ nguyên** |
 
-**Việc phải làm TRƯỚC khi đo bất cứ thứ gì:** xác định file nào trong `eval/`
-đi qua `_harness.py`, và với mỗi file, quyết định — đổi sang gọi qua sản phẩm
-(`/api/agent-chat`), hay khai minh thị *"file này cố ý đo model X, không đo sản
-phẩm"*. **Không được để mặc định im lặng.**
+⟹ Đổi `OPENAI_MODEL` sang Qwen thì **đối tượng, kích thích VÀ trọng tài đổi
+cùng lúc**. Kết quả `96/96 → 94/96` khi đó **không quy được nhân quả**: agent
+yếu đi, hay kẻ tấn công giả lập mạnh lên, hay trọng tài chấm khác? Ba biến, một
+con số — đúng cái bẫy đã làm hỏng cặp `41,4% vs 35,7%`, nhưng lần này nó nằm
+**trong chính bộ đo an toàn**, tức chỗ ta ít được phép sai nhất.
+
+Và nó **không hỏng** — vẫn chạy ngon, vẫn ra số đẹp. Đó là lý do nó đứng đầu
+danh sách này.
+
+**Việc phải làm TRƯỚC khi đo bất cứ thứ gì — ghim vai KÍCH THÍCH và TRỌNG TÀI
+vào một model CỐ ĐỊNH,** độc lập với `OPENAI_MODEL` của sản phẩm. Đề nghị biến
+riêng `EVAL_SIM_MODEL` / `EVAL_JUDGE_MODEL`, mặc định **gpt-4o-mini** để mọi số
+lịch sử vẫn so được. Chỉ **đối tượng** mới được đổi theo sản phẩm.
+
+Chín file đi qua `_harness.py`, tất cả đều dính:
+
+    _llm_judge · run_adversarial_set · run_golden_set · run_fairness_set
+    run_handoff_set · run_llm_judge_set · run_clarify_loop_check
+    run_number_grounding_check · measure_quality
+
+Ba file **không** dính vì đi qua API sản phẩm: `benchmark` · `do_token_latency`
+· `do_phu_kho`.
 
 ### 1.2 🔴 Bộ đo token VỠ nếu `usage` thiếu trường
 
