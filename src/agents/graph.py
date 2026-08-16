@@ -57,6 +57,10 @@ _logger = logging.getLogger("fin05.agents.graph")
 # hơn nhiều để chặn lặp vô hạn.
 _AGENT_RECURSION_LIMIT = 20
 
+# JSON schema của 5 tool gửi kèm MỌI lượt gọi model — hằng số, đo 2026-08-16.
+# Đổi khi thêm/bớt tool. Xem giải thích ở chỗ dựng `usage["input_chars"]`.
+_CHARS_TOOL_SCHEMA = 6773
+
 def _giay_cho_lai(loi: Exception) -> float | None:
     """Moi so giay nha cung cap BAO, khong tu doan.
 
@@ -522,10 +526,43 @@ def run_agent_turn(
     # liệu OpenAI không thay được số đo (và suy luận đó đã sai một lần: mốc
     # thời gian HH:MM nằm ở ký tự 233/16.082 khiến prefix ổn định chỉ ~68
     # token, dưới hẳn ngưỡng 1024 — cache chắc chắn hit 0%).
-    usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cached_input_tokens": 0}
+    # `input_chars` — đại lượng BẤT BIẾN QUA TOKENIZER.
+    #
+    # Vì sao cần: token của hai nhà cung cấp KHÔNG so được với nhau (tokenizer
+    # khác nhau, tiếng Việt là chỗ lệch nhiều nhất), nên chuỗi đo T1->T3 sẽ
+    # ĐỨT ngay khi đổi model. Ký tự thì không đổi.
+    #
+    # ⚠️ ĐẾM ĐÚNG NHỮNG GÌ, KHAI RÕ Ở ĐÂY để nó không thành một "chỉ số một
+    # phần trông như đại lượng bất biến":
+    #     CÓ    system prompt (15.094 ký tự) + toàn bộ message của mỗi lượt
+    #           gọi model, cộng dồn qua các bước ReAct — đúng phần biến thiên
+    #     KHÔNG JSON schema của 5 tool = 6.773 ký tự, HẰNG SỐ mỗi lượt gọi
+    #
+    # Phần thiếu là hằng số ĐO ĐƯỢC, không phải ẩn số: ai cần tổng tuyệt đối
+    # thì cộng `6773 × số_luot_goi_model`. Ghi con số ra đây thay vì im lặng
+    # bỏ qua — một khoảng trống có tên thì trừ được, không tên thì không.
+    usage = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "cached_input_tokens": 0,
+        "input_chars": 0,
+        "so_luot_goi_model": 0,
+        "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA,
+    }
+    _ky_tu_he_thong = len(build_system_prompt(current_time=dt.datetime.utcnow()))
     for m in turn_messages:
         meta = isinstance(m, AIMessage) and getattr(m, "usage_metadata", None)
         if meta:
+            # Mỗi AIMessage có usage_metadata = MỘT lượt gọi model. Input của
+            # lượt đó là system prompt + mọi message đứng TRƯỚC nó. Dựng lại từ
+            # `all_messages` thay vì chặn ở tầng model: chặn được thì chính xác
+            # hơn, nhưng phải vá vào thư viện — không đáng cho một chỉ số đo.
+            j = all_messages.index(m)
+            usage["so_luot_goi_model"] += 1
+            usage["input_chars"] += _ky_tu_he_thong + sum(
+                len(str(getattr(x, "content", "") or "")) for x in all_messages[:j]
+            )
             for k in ("input_tokens", "output_tokens", "total_tokens"):
                 usage[k] += meta.get(k, 0) or 0
             # LangChain gom chi tiết provider vào `input_token_details`; OpenAI
