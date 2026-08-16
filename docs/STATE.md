@@ -410,6 +410,15 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   xuất `_bam_kho` text-only — coder nhét vào lượt chạm kho_rag kế). Nhắc-một-lần đã gửi coder:
   lượt nạp 08:55Z không hô trước — quy ước mới không được mềm tuần đầu. Nợ tester: mồi-neo §D +
   k-boundary (cần đường agent), sau khi kho đứng yên.
+- **§15-ToS ĐÓNG — nghi vấn bị chính người nêu tự bác bằng đo:** phủ ToS = 198/206 đoạn (96,1%);
+  mục 15 đủ 6/6; **mục 19 (tra soát & khiếu nại) đủ 11/11 TRONG KHI 6/8 ca ToS trượt hỏi đúng
+  mục 19** ⟹ ToS 2/8 chắc chắn là lỗi TRUY-HỒI-thứ-đã-có, tín hiệu sạch nhất ngày. 8 đoạn vắng =
+  mảnh vụn gạch-đầu-dòng, QUYẾT ĐỊNH không vá (riêng [210] hotline ghi biên-biết-trước — còn ở
+  19.3). Lần thứ TƯ trong ngày họ lỗi "không-thấy-bằng-cách-A ⟹ không-tồn-tại" nhưng lần ĐẦU
+  người mắc TỰ bắt trước khi ai phải đo lại. **Đầu bài coder đặt lại (sau F-LOG-3, trước T3):
+  CHẨN ĐOÁN 6 ca ToS trượt** (top-3 trả gì · khoảng cách embedding · giả thuyết lệch văn phong
+  khách-hỏi↔chunk-pháp-lý) rồi mới chọn đòn — không lặp T1. Tester chạy thêm bản đồ phủ FAQ
+  (0 LLM) → đóng câu 29-chunk-không-lộ; hai bản đồ phủ vào eval/ (không để scratchpad).
 - **ADR-026 (xuất-xứ kho RAG) ĐANG SOẠN — security, sau khi ĐO (`d578d0d`):** chi phí rẻ bất ngờ
   (cờ ở PolicyDocument, backfill 2 DÒNG; serve = 1 mệnh đề SQL vào bước join sẵn có; không đụng
   Chroma; recall-cost 0 khi vận hành bình thường). **Phát hiện quyết định (security tự bác đề
