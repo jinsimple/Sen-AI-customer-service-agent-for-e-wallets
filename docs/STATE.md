@@ -399,6 +399,20 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   /policy-docs — lần THỨ BA trong 2 ngày câu hỏi sự cố dừng ở "đo không được" vì thiếu 1 dòng log
   (uvicorn access log không có user_id/query/chunk). Security gửi danh sách trường; ràng buộc:
   JSON + PII-scrub-trước-khi-ghi + contextvars sẵn có.
+- **ADR-026 (xuất-xứ kho RAG) ĐANG SOẠN — security, sau khi ĐO (`d578d0d`):** chi phí rẻ bất ngờ
+  (cờ ở PolicyDocument, backfill 2 DÒNG; serve = 1 mệnh đề SQL vào bước join sẵn có; không đụng
+  Chroma; recall-cost 0 khi vận hành bình thường). **Phát hiện quyết định (security tự bác đề
+  xuất gốc):** ghi ĐƯỜNG NẠP không chặn được sự cố — file đi qua đúng cửa hợp lệ; phải là TRẠNG
+  THÁI DUYỆT tách khỏi hành vi nạp. Khuyến nghị PO-agent đã chuyển security soạn (chốt = PO thật
+  ký, quy trình §3): ① mọi upload vào `cho_duyet`, **supervisor** duyệt (maker≠checker mở rộng
+  nhất quán sang kho tri thức; partner_admin tự duyệt = tái tạo sự cố 1 click) ② backfill 2 doc
+  MoMo = `da_duyet` có-chủ-đích ③ thấy chưa-duyệt: partner_admin CÓ · agent KHÔNG · CSKH CÓ kèm
+  badge «CHƯA DUYỆT» (giữ Y5 người-là-máy-dò, không để dựa nhầm làm căn cứ) ④ mục riêng: xuất-xứ
+  ≠ thay lọc tier (hai mối đe doạ, hai cơ chế). Kèm `contracts/rag-nguon.yaml` khớp chuỗi xfail
+  `55118b5`. **Va chạm tên bắt kịp lúc rẻ:** `nguon` (F-LOG-3, đường ĐỌC) đổi thành `duong_tra`;
+  `nguon_nap`+`trang_thai_duyet` dành cho đường GHI — coder đang đổi. Điểm mù công cụ (họ C4):
+  grep "ingest_document(" bỏ sót call-site truyền-hàm-như-tham-chiếu (`_handle_tool_error(
+  ingest_document, ...)`) — chỉ lộ khi truy ngược từ endpoint.
 - **LUẬT MỚI (tester): nhãn định danh LƯỢT ≠ nhãn định danh VẬT** — `new_id("CHK")` ngẫu nhiên ⟹
   nạp cùng nguồn+parser vẫn ra băm khác (6e3c11…→8820b6…→a3c5c7… là MỘT kho). "Băm khác ⟹ kho
   khác" SAI; chỉ chiều "giống ⟹ giống" đúng. So hai lượt bằng chunk/doc/parser. Đề xuất route
