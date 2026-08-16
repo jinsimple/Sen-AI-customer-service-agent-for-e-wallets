@@ -417,6 +417,30 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 💵 GIÁ QWEN + PHÂN TÍCH CHI PHÍ — kết luận NGƯỢC giả định ban đầu (16/08)
+- Giá endpoint quốc tế (USD/1M vào-ra): **qwen3.7-flash `0,03/0,13`** (rẻ hơn gpt-4o-mini ~5×) ·
+  qwen3.7-plus `0,40/1,20` (đắt 2,7×) · qwen3.8-max `2,00/6,00` (đắt 13×) · *(đang dùng)*
+  gpt-4o-mini `0,15/0,60`. Bắc Kinh rẻ hơn 60-70% nhưng **dữ liệu vào hạ tầng TQ — không khuyến
+  nghị**. Gói thuê bao tháng −40% so trả-theo-dùng.
+- **🔑 KẾT LUẬN: TIỀN CHƯA BAO GIỜ LÀ VẤN ĐỀ.** Một lượt chạy lại toàn bộ mốc nền (~260 lượt
+  agent, ~20k token vào/lượt) = **~$0,9** trên gpt-4o-mini · ~$0,18 flash · ~$11,7 max. Mối lo
+  "63 triệu token/7 ngày" của PO thật quy ra **~$10 cả tuần**. ⟹ thứ chặn đội là **trần 200k
+  TPM**, không phải hoá đơn. Khi mở được tài khoản Qwen, câu hỏi đúng là **"gói nào cho trần tốc
+  độ cao nhất"**, không phải "model nào rẻ nhất".
+- **⚠️ Bẫy đã cảnh báo PO thật: đo trên model rẻ mà chạy production model khác = ĐO NHẦM VẬT** —
+  đúng lỗi tester vừa bịt bằng ghim-ba-vai. Kèm rủi ro kỹ thuật: agent cần gọi tool đúng qua tới
+  20 bước với prompt 5.400 token; hạng *flash* là hạng nhỏ nhất, dễ gãy đúng chỗ đó. Khuyến nghị
+  PO-agent: nếu thử Qwen thì thử **flash cho lượt SỐNG/CHẾT** (~$0,18) chỉ để trả lời "tool-calling
+  qua nhiều bước có đúng không", đạt rồi mới cân model chính thức.
+- **NẾP MỚI (tester nêu, PO nhận — tôi suýt mắc):** phép kiểm sẵn-sàng-nhà-cung-cấp là **GỌI THẬT
+  một lượt chat rẻ nhất**, KHÔNG phải liệt kê `/models`. Key hợp lệ + `/models` trả 159 dòng là
+  đúng dạng tín hiệu dễ đọc thành "đã dùng được" ⟹ sẽ chạy cả kế hoạch 260 lượt rồi mới phát hiện
+  không gọi được model nào. Cùng họ `_song()` ≠ `_api_song()`.
+- **GIAO tester (0 LLM): bộ ƯỚC TÍNH CHI PHÍ theo TIỀN** — đầu vào là `usage`+`input_chars` đã đo,
+  bảng giá cấu hình được (không hardcode) + **cảnh báo khi bảng giá quá N ngày** (giá là một loại
+  nhãn-vật, cũ đi thì số sai mà không ai biết); đầu ra `$/lượt` và **`$/1000 ký tự vào`** — vì
+  token hai nhà cung cấp không cùng đơn vị, chỉ ký tự mới so được cùng một lượng văn bản.
+
 ## 🧬 LUẬT MỚI: "vá một HỌ lỗi thì phải đi tìm HỌ, không vá cái đang cầm" (16/08, `8fd8481`)
 - **Ba lần trong một tuần, cùng hình dạng:** gộp khoảng trắng (3 chỗ, vá 1) · nuốt mã trạng thái
   (2 chỗ, vá 1) · **cổng đóng băng LLM (6 lối gọi `/api/agent-chat`, vá 3)** — tester tự phát
