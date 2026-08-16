@@ -818,7 +818,9 @@ def build_customer_tools(
         chưa có tài liệu nào khớp — nói thẳng với khách là chưa có thông tin
         chính xác, KHÔNG tự suy đoán chính sách."""
         try:
-            return _sanitize_policy_results(search_policy_text(session, query=query))
+            return _sanitize_policy_results(
+                search_policy_text(session, query=query, duong_tra="agent")
+            )
         except ToolError as e:
             return {"status": "error", "message": str(e)}
 

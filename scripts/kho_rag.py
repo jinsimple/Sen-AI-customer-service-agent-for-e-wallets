@@ -242,7 +242,8 @@ def nap_lai() -> None:
         s.commit()
         for f in nguon:
             doc = ingest_document(
-                s, file_bytes=f.read_bytes(), filename=f.name, uploaded_by="USR-PA01"
+                s, file_bytes=f.read_bytes(), filename=f.name, uploaded_by="USR-PA01",
+                nguon_nap="script_noi_bo",
             )
             print(f"  nạp: {f.name} -> {doc.doc_id}")
         s.commit()
