@@ -19,6 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from sqlalchemy import select  # noqa: E402
+
 from src.config import RAG_INDEX_DIR  # noqa: E402
 from src.db.models import PolicyChunk, PolicyDocument  # noqa: E402
 from src.db.session import SessionLocal  # noqa: E402
@@ -54,10 +56,36 @@ def _chan_tu_tao_kho() -> None:
 
 
 def _bam_kho() -> str:
+    """Băm NỘI DUNG kho, tất định.
+
+    Bản trước băm FILE trong thư mục Chroma — và tester đo ra nó KHÔNG TẤT
+    ĐỊNH: ba lần đọc liên tiếp trên kho không đổi cho ba giá trị khác nhau.
+    Đúng thôi: `chroma.sqlite3` là SQLite, nó ghi WAL / đổi trang / cập nhật
+    trạng thái nội bộ ở MỖI LẦN MỞ, kể cả khi chỉ đọc. Băm một file đang sống
+    thì băm cả tiếng ồn của nó.
+
+    Hệ quả của bản trước nặng hơn "một con số xấu": mọi suy luận
+    "băm khác ⟹ kho đổi" thành vô hiệu THEO CẢ HAI CHIỀU. (Re-index vẫn là
+    thật — bằng chứng là probe 0/8→5/8, không phải băm.)
+
+    Bản này băm thứ TẤT ĐỊNH: tập `(chunk_id, text)` ĐÃ SẮP XẾP, đọc từ
+    Postgres qua ORM (text đã giải mã, không phải ciphertext — Fernet có IV
+    ngẫu nhiên nên băm ciphertext cũng sẽ không tất định).
+
+    ⚠️ Nó băm phía DỮ LIỆU, không băm phía VECTOR. Kho có thể cùng text mà
+    khác embedding (đúng ca đòn 2). Vì thế nhãn phải LUÔN đi kèm
+    `chuẩn hoá vN` — hai thứ cùng nhau mới định danh được kho.
+    """
+    with SessionLocal() as s:
+        rows = sorted(
+            (c.chunk_id, c.text) for c in s.scalars(select(PolicyChunk)).all()
+        )
     h = hashlib.md5()
-    for p in sorted(RAG_INDEX_DIR.rglob("*")):
-        if p.is_file():
-            h.update(hashlib.md5(p.read_bytes()).hexdigest().encode())
+    for cid, text in rows:
+        h.update(cid.encode())
+        h.update(b"\x00")
+        h.update(text.encode())
+        h.update(b"\x00")
     return h.hexdigest()[:12]
 
 
@@ -67,7 +95,7 @@ def nhan() -> None:
         n = s.query(PolicyChunk).count()
         d = s.query(PolicyDocument).count()
     tt, pb = store.trang_thai_kho()
-    print(f"  kho RAG: {n} chunk (Postgres) · {d} doc · băm {_bam_kho()}")
+    print(f"  kho RAG: {n} chunk (Postgres) · {d} doc · băm-nội-dung {_bam_kho()}")
     print(f"  đường dẫn Chroma: {RAG_INDEX_DIR}")
     print(f"  chuẩn hoá: kho={pb if pb is not None else '(không có dấu)'} · code={store.CHUAN_HOA_VERSION} · trạng thái={tt}")
 
