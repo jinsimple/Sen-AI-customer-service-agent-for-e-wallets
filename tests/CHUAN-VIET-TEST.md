@@ -603,6 +603,50 @@ thứ ba là bản đúng, và nó chỉ ra đời vì có người chịu mở 
 
 ---
 
+## Luật 9 — xác minh nhãn phải soi CẢ HAI phía: ca trượt VÀ ca đạt
+
+> PO phê chuẩn 16/08. Mặt đối xứng của Luật 2, do chính người viết Luật 2 phát
+> hiện mình mắc.
+
+Khi một bộ ca có nhãn do người đặt, sai nhãn xảy ra ở **hai chiều**:
+
+| Chiều | Triệu chứng | Ai đi tìm |
+|---|---|---|
+| **Ca trượt oan** — nhãn quá ngặt | đỏ, gây khó chịu | ai cũng đi tìm, vì nó **kêu** |
+| **Ca đạt giả** — nhãn quá lỏng | xanh, êm | 🔴 **không ai đi tìm** |
+
+> **Nếu chỉ soi ca trượt, thước lỏng tay nhất luôn thắng — chiều im lặng nguy
+> hơn vì không ai đi tìm.**
+
+**Ca thật (golden-set truy hồi, 16/08).** Tôi soi kỹ 16 ca trượt, **không soi ca
+đạt nào**. Coder chứng minh `RAG-04` không phải hồi quy mà là một **pass giả bị
+mất**: nó vốn khớp một **dòng mục lục** qua từ khoá yếu `nhận tiền`, chưa bao
+giờ tìm ra đáp án. Rà tiếp thì **9/21 ca đạt** chỉ đạt nhờ từ chung. Sau khi
+buộc mỗi ca phải khớp **≥1 chuỗi đặc trưng**, số thật: **60,0% → 35,7%**.
+Hai phần ba khoảng cách đó là thước, không phải sản phẩm.
+
+**Luật đặt từ khoá (áp cho mọi bộ có nhãn chuỗi):**
+
+1. Mỗi ca **bắt buộc** có ≥1 chuỗi **ĐẶC TRƯNG** khớp mới được tính ĐẠT: có
+   **số** · **VIẾT HOA** · hoặc **cụm ≥3 từ**. Từ chung (`hạn mức`, `ngân hàng`,
+   `dịch vụ`) chỉ được làm **tham khảo**, không có quyền chấm.
+2. Chuỗi đặc trưng phải **hiếm** — có mặt ở ≤2 đơn vị nguồn. Chuỗi trải khắp
+   tài liệu vẫn cho pass khi truy hồi lấy nhầm đoạn **bên cạnh**.
+3. Chuỗi phải được kiểm là **sống sót qua khâu nạp liệu thật** trước khi gán.
+   Nhãn chết vì chữ vỡ (`ngày làm vi`, `xác th ực`) trông y hệt sản phẩm kém.
+4. Khi một ca trượt, phải phân biệt **truy hồi trượt** với **nhãn hỏng** bằng
+   một đường **độc lập với chính phép chấm** — 16/08 tôi làm việc này bằng cách
+   quét kho bằng 160 câu hỏi nguồn rồi hợp nhất đoạn thu được, xác nhận
+   **31/35 chuỗi có thật trong kho** ⟹ các ca đó trượt thật.
+
+**Bẫy đã mắc khi làm chính việc này** (Luật 8, ba lần trong một buổi):
+tra chuỗi trong Chroma → 0 hit trên **mọi** chuỗi kể cả `miễn phí` 18 lần ⟹ vô
+lý ⟹ hoá ra Chroma **chỉ lưu chunk-id**; so chuỗi với PDF chưa chuẩn hoá khoảng
+trắng ⟹ 5 báo động giả vì `extract_text` xuống dòng giữa câu; bộ bắt chữ vỡ đầu
+tiên báo `nhận được`, `tối đa` là vỡ. **Ba lần đều là thước, không phải vật.**
+
+---
+
 ## Áp dụng khi review test của nhau
 
 Bốn câu hỏi, hỏi theo thứ tự:

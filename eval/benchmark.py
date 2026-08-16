@@ -38,7 +38,14 @@ trục chưa đo là bịa một kết luận xấu; bỏ qua im lặng là bị
 Báo cáo luôn in `X / Y-điểm-đo-được (Z%)` + danh sách trục chưa đo **kèm lý do**.
 
 **2. NHÃN VẬT TỰ ĐỘNG.** Mọi lượt chấm in: commit · `he_thong` (băm `src/**/*.py`)
-· image ID backend+frontend · **`StartedAt` của container** · băm kho RAG · số ca.
+· image ID backend+frontend · **`StartedAt` của container** · số ca.
+
+⚠️ **KHÔNG dùng "băm kho" làm nhãn** (PO-agent ratify 16/08): đo được nó KHÔNG
+TẤT ĐỊNH — ba lần đọc liên tiếp trên một kho không đổi cho ba giá trị khác nhau
+(`8263163a5d52` · `ecd0716e6649` · `8582ad775d29`). Một cái băm tự đổi thì không
+chứng minh được kho đã đổi, cũng không chứng minh được kho giữ nguyên — vô dụng
+theo cả hai chiều. Dùng `số chunk · số doc · phiên-bản-chuẩn-hoá` (đều tất định)
+tới khi coder giao bản băm tất định.
 `StartedAt` có mặt vì bài học 16/08: `--force-recreate` tạo container MỚI cùng
 image ⟹ **log của container cũ bay theo**, và ta từng đọc `rotated=0` thành "không
 có lần xoay nào" trong khi thật ra là "bằng chứng đã bị xoá". Ta ghim IMAGE, nhưng
@@ -128,7 +135,19 @@ def kiem_kho() -> None:
         print("  ⚠️  scripts/kho_rag.py CHƯA CÓ — không kiểm được kho có lệch vế chuẩn-hoá không.")
         print("      Số truy hồi dưới đây mang giả định CHƯA ĐƯỢC KIỂM. Xem docstring, mục 4.")
         return
-    r = subprocess.run([sys.executable, str(cong), "kiem"], capture_output=True, text=True)
+    # CHẠY TRONG CONTAINER, không chạy trên host. Kho thật nằm trong Docker
+    # volume `chroma_data` mount vào /app/data/rag_index — chỉ container thấy.
+    # Chạy trên host thì `ROOT_DIR/data/rag_index` trỏ vào một đường KHÔNG tồn
+    # tại, và Chroma **TẠO MỚI một store rỗng ở đó**, rồi công cụ báo "kho
+    # trống". Nó không chỉ đọc nhầm chỗ — nó chế ra bằng chứng cho kết luận sai
+    # của chính nó, và lần chạy thứ hai sẽ thấy một store "thật" do lần một đẻ ra.
+    #
+    # Đo được 16/08: cùng một lệnh, trong container `[OK] exit 0`; trên host
+    # `[TRỐNG] exit 1`. Verify-ở-một-nơi-dùng-ở-nơi-khác.
+    r = subprocess.run(
+        ["docker", "exec", "fin05-backend-1", "sh", "-c", "cd /app && python scripts/kho_rag.py kiem"],
+        capture_output=True, text=True,
+    )
     if r.returncode != 0:
         print("  🔴 KHO LỆCH VẾ CHUẨN-HOÁ — DỪNG, không đo.")
         print("     " + (r.stdout or r.stderr).strip()[:300])
@@ -191,8 +210,15 @@ def do_truy_hoi(ca: list[dict]) -> dict:
         for che_do, khoa in (("co_dau", "query_co_dau"), ("khong_dau", "query_khong_dau")):
             doan = _tra(c, x[khoa])
             gop = bo_dau(" ".join(doan))
-            dat = any(bo_dau(tk) in gop for tk in x["tu_khoa_dap_an"])
-            ket[che_do].append({"id": x["id"], "dat": dat, "so_doan": len(doan)})
+            # LUẬT ĐẶC TRƯNG (PO duyệt 16/08): chỉ `tu_khoa_dac_trung` mới cho ĐẠT.
+            # `tu_khoa_phu` in ra để đọc, KHÔNG có quyền chấm — vì ca đạt nhờ từ
+            # chung ("hạn mức", "ngân hàng") khớp được cả chunk BÊN CẠNH lẫn dòng
+            # mục lục, tạo PASS GIẢ im lặng (xem RAG-04, và 9 ca rà ngày 16/08).
+            dat = any(bo_dau(tk) in gop for tk in x["tu_khoa_dac_trung"])
+            phu = [tk for tk in x["tu_khoa_phu"] if bo_dau(tk) in gop]
+            ket[che_do].append(
+                {"id": x["id"], "dat": dat, "so_doan": len(doan), "phu_khop": phu}
+            )
     c.close()
     return {"duong": ket, "so_am_ban": len(am), "so_duong": len(duong)}
 
@@ -206,6 +232,10 @@ def in_truy_hoi(kq: dict) -> float:
         ti[che_do] = dat / len(r) if r else 0.0
         hong = [x["id"] for x in r if not x["dat"]]
         print(f"  {che_do:11} {dat}/{len(r)} = {ti[che_do]*100:5.1f}%   trượt: {', '.join(hong[:8])}{' …' if len(hong)>8 else ''}")
+        gia = [x["id"] for x in r if not x["dat"] and x.get("phu_khop")]
+        if gia:
+            print(f"  {'':11} ↳ {len(gia)} ca TRƯỢT nhưng vẫn khớp từ-khoá-phụ "
+                  f"(= PASS GIẢ dưới thước cũ): {', '.join(gia)}")
     tb = (ti["co_dau"] + ti["khong_dau"]) / 2
     print(f"  {'TRUNG BÌNH':11} {tb*100:5.1f}%   → điểm trục = 20 × {tb:.4f} = {20*tb:.2f}")
     print(f"\n  ({kq['so_am_ban']} ca ÂM BẢN KHÔNG chấm ở trục này — retrieval luôn trả k chunk,")
