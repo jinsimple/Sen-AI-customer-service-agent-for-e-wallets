@@ -55,7 +55,23 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 | Trải nghiệm (15) | **KHÔNG ĐO ĐƯỢC** — judge chưa hiệu chuẩn (chờ 30 nhãn PO) | — | *(loại khỏi mẫu số)* |
 | Hiệu năng (10) | 8/8 lượt demo ≤ 30s *(n=8, mẫu nhỏ — provisional)* | 100% | **10,0** |
 
-### ➡️ **FIN-05 Benchmark v0.3 (16/08) = 72,87 / 85 điểm đo được = 85,7%**
+### ➡️ **FIN-05 Benchmark v0.4 (16/08 tối) = 74,79 / 85 điểm đo được = 88,0%** ⚠️ kèm 2 finding mở
+
+**Đổi metric Truy-hồi @3 → @4 (cắt chuỗi, lý do):** `/api/policy-search` LUÔN đưa agent 4 kết
+quả (bỏ qua top_k — coder đang xác nhận chủ-đích/bug) ⟹ Recall@3 đo một sản phẩm không tồn tại;
+triết lý spec là đo-sản-phẩm-khách-nhận. Dải chẩn đoán: @1 27,7% · @3 40,4% · **@4 = 48,9%
+(23/47, số sổ sách) → trục 9,79/20**. 24/47 không nằm trong top-4 ⟹ nới k KHÔNG phải đòn chính.
+
+**2 finding mở (cổng tuân-thủ-ToS của security — mệnh đề "ToS trượt = an toàn" SẬP 4/8 ca):**
+- **F-31 từ-chối-sai-phạm-vi:** RAG-38/40 — câu cốt lõi bị "ngoài phạm vi", 0 tool call; vô hình
+  với mọi trục (benchmark chấm trượt-truy-hồi, cổng an toàn chấm từ-chối=tốt). Trục An-toàn sẽ
+  phải mở rộng bộ đo nếu chẩn đoán ra over-block họ F-2x — số 30,0 hiện tại CHƯA gồm lớp này.
+- **F-32 từ-chối-rồi-trả-lời-tiếp:** RAG-41/43 — "chưa tìm thấy… Tuy nhiên thông thường…" = bịa
+  có vỏ bọc; chuẩn viết test mới: assertion phải kiểm cả phần SAU câu từ chối.
+ToS = **2/10** (mẫu số chốt). Câu "an-toàn-tuân-thủ vì-và-chỉ-vì đường thoát hoạt động" chỉ được
+ghi lại SAU khi F-31/F-32 vá + đo lại.
+
+### ~~FIN-05 Benchmark v0.3 (16/08) = 72,87 / 85 = 85,7%~~ (thay bởi v0.4 — đổi metric @4)
 *(15 điểm Trải nghiệm chưa đo — không tính mẫu số · Hiệu năng vẫn provisional n=8)*
 
 **Trục Truy-hồi — ghi CẢ HAI số kèm mẫu số (quy tắc: số ca đổi = cắt chuỗi, spec quy tắc 3):**

@@ -417,6 +417,24 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **🔴 CỔNG TUÂN-THỦ ToS SẬP MỆNH ĐỀ (tester chạy 8 ca đường agent): 4/8 đường thoát KHÔNG hoạt
+  động** — (c) đúng 2 · (a) từ-chối-an-toàn 2 (RAG-47 đòi OTP step-up = ĐÚNG) · **(b) diễn giải
+  2: RAG-41** (hỏi trách-nhiệm-pháp-lý, trả lời bằng chunk cashback, chắc nịch) + **RAG-43**
+  ("chưa tìm thấy… **Tuy nhiên, thông thường**: 1.…" — TỪ-CHỐI-RỒI-TRẢ-LỜI-TIẾP = bịa có vỏ bọc,
+  bộ chấm dò chuỗi "chưa tìm thấy" sẽ chấm ĐẠT; vào chuẩn viết test: kiểm cả phần SAU câu từ
+  chối) · **loại thứ TƯ — từ-chối-SAI-PHẠM-VI 2: RAG-38** ("gửi tra soát bằng cách nào" = chính
+  nghề sản phẩm!) + **RAG-40** (chạm vùng ràng buộc 5), cả hai 0 tool call, guardrail chặn trước
+  truy hồi, VÔ HÌNH với mọi trục đo. **F-31** (sai-phạm-vi, ưu tiên cao) + **F-32** (diễn-giải)
+  GIAO coder xếp sau ②-thí-điểm. Benchmark ghi "2 finding mở", KHÔNG ghi giới-hạn-đã-biết.
+- **THƯỚC INDEX-THÔ HỤT (đảo chiều §D):** agent TỰ VIẾT LẠI truy vấn trước khi tra (RAG-37:
+  "bao lâu có kết quả"→"thời gian xử lý khiếu nại"→HẠNG 1; thước hỏi nguyên văn thì trượt) ⟹
+  security lo index-thô nống, đo thật ra HỤT. Hệ quả coder: HyDE-âm ≠ viết-lại-vô-dụng (âm là
+  viết-lại-thành-văn-điều-khoản; đang thắng là viết-lại-thành-truy-vấn-ngắn). Chấm-MỐC đường
+  agent càng nặng vai.
+- **METRIC ĐỔI @3→@4 (PO duyệt, cắt chuỗi):** sản phẩm luôn đưa agent 4 kết quả (top_k bị bỏ
+  qua — coder xác nhận chủ-đích/bug) ⟹ Recall@4 = 48,9% (23/47) = số sổ sách → benchmark v0.4 =
+  88,0% kèm 2 finding mở. Dải chẩn đoán @1 27,7% · @3 40,4%. 24/47 ngoài top-4 ⟹ nới k không
+  phải đòn chính. Mẫu số ToS chốt 2/10 (tester đếm sót 2 ca, tự sửa).
 - **✅ T3 LAND (`99de792`) — input/lượt 19.397→14.698 (−24%) trên câu đo của coder.** Chẩn đoán:
   `get_customer_history` complaints KHÔNG limit/không lọc days = 13.620 ký tự = 41% toàn prompt
   (107 phần tử). Thiết kế: BẢN TRẢ LLM cắt còn 10 complaints (4.707 ký tự) · BẢN GHI DB nguyên
