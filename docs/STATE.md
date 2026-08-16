@@ -1,4 +1,34 @@
 # Trạng thái hiện tại
+
+## 🔴 ĐANG ĐIỀU TRA (16/08) — DEMO-BUG "gặp người thật ra lỗi": đua-refresh → AUTH5-03 thu hồi family
+PO gặp lỗi giữa demo mentor 15/08 (đúng quy trình 2 cửa sổ — giả thuyết đè-phiên BỊ BÁC bởi dữ
+kiện PO). Giả thuyết hiện tại (coder đọc code xác nhận KHẢ THI CẤU TRÚC, "gần như tất định"):
+access token vào cửa sổ refresh (`REFRESH_MARGIN_SECONDS=120`) → handoff là thời điểm đầu tiên có
+≥2 request đồng thời (`ChatClient.tsx:195` bắn ws-ticket ngay) → 2 đường cùng refresh bằng MỘT
+token dùng-một-lần → đứa thua trúng AUTH5-03 (`auth.py:146-155`) → **thu hồi CẢ FAMILY kể cả cặp
+vừa phát** → phiên chết chuỗi → "Có lỗi" trong khung chat. Cờ `rotated` giữ 60s ⟹ KHÔNG cần trùng
+mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 cụm).
+- **TTL access token ĐO ĐƯỢC (tester): 15,0 phút ĐỒNG NHẤT cả 4 role** — khớp chính xác "chat
+  ~15-20 phút rồi chết" của PO; con số đó là TTL, không phải cảm giác.
+- **Tester tinh chỉnh không gian giả thuyết (từ số đo tối qua, tất định):** một request ĐƠN sau
+  khi token chết đã đủ 401 (proxy đặt cookie lên response, handler đọc từ request — 401 rồi lượt
+  sau 200, TỰ HỒI). ⟹ đua là **điều kiện ĐỦ chứ chưa chắc CẦN** cho "có lỗi"; nhưng chỉ ĐUA mới
+  giải thích được **chết-hẳn-không-hồi** (AUTH5-03 revoke family). Trục phép đo = phân biệt
+  "401-rồi-hồi" vs "401-rồi-chết-luôn" (3 lần gọi lại sau đó là phép thử quyết định).
+- **Tái lập đang chạy nền (~32 phút, 0 TPM):** Pha A đua (2 request song song cùng chuỗi cookie
+  cũ, đúng cảnh browser 2 request in-flight) + Pha B đối chứng tuần tự. Qua đúng đường BFF
+  `https://localhost/api/live-chat/ws-ticket` = đúng chỗ PO chết. Giới hạn tự khai: bắn 2 request
+  CÙNG endpoint — nếu single-flight có ở đường này thiếu ở đường khác thì đo không thấy ⟹ Pha A
+  xanh = "chưa tái lập bằng cách này", KHÔNG phải "giả thuyết sai".
+- **Coder chờ số mới vá**: single-flight promise module-scope `proxy.ts` — tự khai giới hạn *chỉ
+  chặn đua cùng tiến trình Node*; scale nhiều replica frontend cần khoá Redis (ghi vào bản vá).
+- **KHÔNG nới AUTH5-03** (coder + PO-agent đồng thuận; chờ ý kiến security) — control đang chạy
+  ĐÚNG thiết kế, gốc là client bắn hai lần.
+- Nối finding cũ: đường proxy-cookie (401-rồi-200) LUÔN tiêu một lượt refresh → chồng thêm request
+  là 401-vô-hại thành thu-hồi-family ⟹ bản vá proxy.ts backlog NÂNG mức quan trọng.
+- UI-01 (timeline không-JSON) đã land `6a07b16` + deploy stack demo. UI-02 (banner lệch-vai) vẫn
+  đáng làm, xếp sau.
+- Workaround demo tới khi vá: đăng nhập lại vai khách NGAY TRƯỚC màn gặp-người-thật.
 Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent điều phối 4 vai (Claude Code)
 
 ## 🔄 BÀN GIAO SANG P-226 — ĐỌC ĐẦU TIÊN
