@@ -345,6 +345,24 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 🏆 RAG ĐÒN 2 — SỐ VỀ: HAI CHẾ ĐỘ GÕ BẰNG NHAU (16/08)
+- **Không dấu 0/8 → 5/8 · có dấu giữ 5/8 — Recall@3 trung bình 18,75% → 62,5%.** Ba mốc kho:
+  `419·b630414088f8` (gốc) → `418·5aab3e7c43a2` (đòn 1) → `418·265aa93031bd` (đòn 2, hiện tại).
+  Một-biến-mỗi-lần giữ nghiêm (đòn 1 đo xong hẳn mới áp đòn 2); cùng một thước (tái lập
+  0/8·3/8 trên kho gốc). Chế-độ-người-dùng-thật (không dấu) từ 0% lên ngang có dấu — đòn ăn
+  đúng như dự đoán.
+- **PR: #4 (đòn 1) + #7 (đòn 2, đã retarget → dev). THỨ TỰ MERGE BẮT BUỘC #4 TRƯỚC #7** — đòn-2
+  đâm trên đòn-1; merge ngược thì dev nhận cả hai một lượt, #4 rỗng, lịch sử mất khả năng tách
+  hai đòn (thứ làm cặp số một-biến đọc được về sau).
+- Sự cố merge-nhầm của PO thật (#5 dev→main vô hại · #6 đòn-2→main): KHÔNG cần revert — cả hai
+  đòn ĐÃ ĐO trước khi mở PR, main không mang code chưa nghiệm thu. Quy tắc mới cho PO: CHỈ merge
+  PR có link PO-agent gửi kèm số; bỏ qua banner gợi ý của GitHub (default-branch=main nên banner
+  luôn trỏ main).
+- **⚠️ Hệ quả cho gói home-server:** main giờ chứa cả hai đòn RAG ⟹ máy nhà dựng lần đầu PHẢI
+  RE-INDEX kho sau deploy — không thì text cũ (còn dấu, còn từ vỡ) nằm cạnh query đã bỏ dấu,
+  lệch một vế và KHÔNG CÓ TRIỆU CHỨNG. Coder soạn dòng lệnh chính xác → PO-agent đặt vào Phần C
+  doc home-server + trang HTML.
+
 ## 📈 RAG ĐÒN 1 — SỐ VỀ, LAND DUYỆT (16/08)
 - **Có dấu 3/8 → 5/8 (+2) · không dấu 0/8 KHÔNG ĐỔI (đúng dự đoán — việc của đòn 2) · 0 hồi quy.**
   Vật: kho TRƯỚC `419·b630414088f8` → SAU `418·5aab3e7c43a2` (backup kho cũ giữ nguyên) · thước
