@@ -22,8 +22,21 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   xanh = "chưa tái lập bằng cách này", KHÔNG phải "giả thuyết sai".
 - **Coder chờ số mới vá**: single-flight promise module-scope `proxy.ts` — tự khai giới hạn *chỉ
   chặn đua cùng tiến trình Node*; scale nhiều replica frontend cần khoá Redis (ghi vào bản vá).
-- **KHÔNG nới AUTH5-03** (coder + PO-agent đồng thuận; chờ ý kiến security) — control đang chạy
-  ĐÚNG thiết kế, gốc là client bắn hai lần.
+- **Ý KIẾN SECURITY VỀ AUTH5-03 (`2cff494`) — ba tầng, định hình cả lô vá:**
+  ① **Single-flight: CẦN nhưng KHÔNG ĐỦ** — promise dùng chung chỉ phủ MỘT ngữ cảnh JS; **đa-tab
+  là hai ngữ cảnh không thấy nhau**, mà CSKH mở nhiều ticket nhiều tab là cách làm việc bình
+  thường ⟹ vá single-flight làm bug biến mất trong demo một-tab rồi QUAY LẠI trên bàn làm việc
+  thật, lần sau khó truy hơn vì "đã vá rồi mà". Vẫn làm (rẻ, đúng), nhưng KHÔNG coi là xong.
+  ② **Grace-window: DUYỆT đúng MỘT dạng — PHÁT-LẠI-BẤT-BIẾN** (trong N giây, cùng token cũ trả
+  ĐÚNG cặp đã cấp lần đầu). **BÁC dạng cấp-cặp-mới** (tạo hai phiên phân kỳ = đúng thứ rotation
+  sinh ra để chặn). Bốn điều kiện: bất biến · N NGẮN vài giây lấy từ PHÂN BỐ ĐO ĐƯỢC không lấy số
+  tròn · bắn-trong-grace log nhánh riêng · ngoài N giữ nghiêm. **KHÔNG land trước khi có số tester.**
+  ③ **🔴 FINDING NẶNG HƠN CẢ CÂU HỎI: `auth.py` 294 dòng KHÔNG MỘT DÒNG LOG** — `revoke_family()`
+  (sự kiện "chúng tôi tin token bị đánh cắp" — lớn nhất của cả hệ xác thực) bắn HOÀN TOÀN IM LẶNG.
+  Không đếm được AUTH5-03, không phân biệt được đua-vs-trộm trên production, **chỉnh control không
+  quan sát được = chỉnh mù**. Vá TRƯỚC hoặc CÙNG lô, rẻ nhất trong ba việc: log cấu trúc tại
+  `auth.py:150` (family_id · user_id · role · nhánh `reuse_that`/`phat_lai_trong_grace`). Đây
+  cũng là lý do bug demo thành bí ẩn: control bắn đúng mà không để lại dấu vết nào.
 - Nối finding cũ: đường proxy-cookie (401-rồi-200) LUÔN tiêu một lượt refresh → chồng thêm request
   là 401-vô-hại thành thu-hồi-family ⟹ bản vá proxy.ts backlog NÂNG mức quan trọng.
 - UI-01 (timeline không-JSON) đã land `6a07b16` + deploy stack demo. UI-02 (banner lệch-vai) vẫn
