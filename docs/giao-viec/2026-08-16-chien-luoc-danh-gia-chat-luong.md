@@ -18,6 +18,26 @@ Mini golden-set 8 câu hỏi chính sách tự nhiên, chấm Recall@3 bằng t�
 `hoàn tiền` xuất hiện trong 44 chunk, `hạn mức` 40, `khiếu nại` 23, `mật khẩu` 14
 ⟹ lỗi nằm ở TẦNG TRUY HỒI, không phải kho thiếu nội dung.
 
+**NGUYÊN VĂN 8 CA PROBE (thước của cặp trước/sau — GIỮ NGUYÊN VĂN, cấm sửa; mở rộng = thêm ca
+mới):** chấm bằng `search_policy_text(session, query=..., k=3)`; chuẩn hoá NFD-bỏ-dấu-thường-hoá
+cả hai vế; ĐẠT khi tồn tại MỘT chunk trong top-3 chứa ĐỦ mọi từ-khoá của ca.
+
+| # | Không dấu | Có dấu | Từ-khoá-đáp-án |
+|---|---|---|---|
+| 1 | phi chuyen tien lien ngan hang la bao nhieu | phí chuyển tiền liên ngân hàng là bao nhiêu | `phi` |
+| 2 | quy trinh hoan tien khi chuyen nham the nao | quy trình hoàn tiền khi chuyển nhầm thế nào | `hoan tien` |
+| 3 | han muc chuyen tien toi da mot ngay | hạn mức chuyển tiền tối đa một ngày | `han muc` |
+| 4 | lam sao de kich hoat vi lan dau | làm sao để kích hoạt ví lần đầu | `kich hoat` |
+| 5 | thoi han khieu nai giao dich la bao lau | thời hạn khiếu nại giao dịch là bao lâu | `khieu nai` |
+| 6 | chuyen tien bi tru tien nhung nguoi nhan chua nhan duoc thi lam gi | chuyển tiền bị trừ tiền nhưng người nhận chưa nhận được thì làm gì | `chua nhan` |
+| 7 | toi quen mat khau thi lay lai kieu gi | tôi quên mật khẩu thì lấy lại kiểu gì | `mat khau` |
+| 8 | giao dich cho xu ly trong bao lau thi xong | giao dịch chờ xử lý trong bao lâu thì xong | `cho xu ly` |
+
+Lưu ý đọc thước: ca 1 từ-khoá `phi` rộng (có thể khớp "phí" bất kỳ); kiểm-kho cho thấy cụm
+`phi chuyen` = 0 chunk ⟹ ca 1 có thể KHÔNG trả lời được từ kho hiện tại — nếu sau mọi đòn nó vẫn
+0, cân nhắc loại khỏi mẫu số với lý do "kho không chứa đáp án" (khai, không lấp). Nhãn kho lúc đo
+mốc: 419 chunk · băm Chroma `b630414088f8`.
+
 **Ba phát hiện từ một phép đo 0đ LLM (chỉ tốn embedding ~vài trăm token):**
 1. **Tiếng Việt không dấu giết embedding**: 0/8 vs 3/8 — mà khách thật (và chính bộ demo case
    của dự án) gõ không dấu. Chế độ người-dùng-thật đang ở vùng 0/8.
