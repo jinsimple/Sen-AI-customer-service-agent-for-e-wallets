@@ -345,6 +345,20 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 📈 RAG ĐÒN 1 — SỐ VỀ, LAND DUYỆT (16/08)
+- **Có dấu 3/8 → 5/8 (+2) · không dấu 0/8 KHÔNG ĐỔI (đúng dự đoán — việc của đòn 2) · 0 hồi quy.**
+  Vật: kho TRƯỚC `419·b630414088f8` → SAU `418·5aab3e7c43a2` (backup kho cũ giữ nguyên) · thước
+  probe-8 nguyên văn, coder KIỂM DỤNG CỤ bằng tái lập 0/8·3/8 trên kho cũ trước khi đo kho mới.
+  Nhân quả sạch nhất đợt: ca 5 mới-đạt có top-1 cũ là chính chunk vỡ `"giao d ich… t oi da"`.
+  Nhãn: **số-probe, không vào chuỗi benchmark** — trục RAG chấm lại khi golden-set land.
+  PR đòn 1 sắp mở (`fix/rag-don1-extraction-pdf` @ 585ca06) — PO thật merge theo quy ước.
+  Đòn 2 (chuẩn hoá dấu) GO ngay sau. Tester gán nhãn golden-set trên KHO MỚI; khuyến nghị nhãn
+  theo định-danh-bền (mã câu FAQ/số Điều) thay vì chunk-id — sống qua re-index.
+- Coder nhận nửa sự cố cây-chung không giảm nhẹ + tự gọi tên meta-pattern: *"biết một cái bẫy
+  không miễn nhiễm với nó"* (lần 2 trong phiên: TTL-số-nói-về-hệ, rồi switch-cây-chung sau hai
+  lần chính mình cảnh báo). Ghi thành luật đọc-người: **người cảnh báo giỏi nhất về một bẫy
+  thường là người sắp dính nó — vì họ làm việc gần bẫy nhất.** Worktree áp ngay từ lô này.
+
 ## ⚖️ SỰ CỐ GIT TRÊN CÂY DÙNG CHUNG (16/08) + HAI LUẬT MỚI + QUY ƯỚC PR
 - **Sự cố (lỗi ĐÔI, đã khắc phục, KHÔNG mất gì):** tester `git add` 9 file (đúng pathspec) →
   PO-agent `git commit` KHÔNG pathspec cuốn cả 9 file staged vào commit `7548bcb` → tester
