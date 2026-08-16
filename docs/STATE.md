@@ -26,6 +26,22 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **🔴🔴 BƯỚC NGOẶT (16/08 chiều): KHÔNG AI ĐO SAI — VẬT ĐỔI. Image frontend stack demo được DỰNG
+  LẠI 2026-08-16T02:11Z** (12,5h sau phép đo exp+842s; nghi là lần deploy UI-01). **Image cũ:
+  refresh CHẠY** (exp+842s = một lần xoay thật, harness tester sạch — không /api/session xen giữa,
+  đã kiểm). **Image mới: refresh CHẾT** (cả hai endpoint, phủ-đều-bằng-không). Hai image ID:
+  `90d7b915bcbf` (mới) vs `210edbc5a06a` (TTL). ⟹ **TÁCH HAI DÒNG ĐIỀU TRA:**
+  · **Dòng A — HỒI QUY refresh (ưu tiên 1, ĐANG SỐNG trên stack demo):** mọi phiên chết cứng phút
+    15. Coder dựng image từ commit trước 15/08T13:43Z probe đối chiếu → chốt hồi quy → tìm diff
+    trong cửa sổ [demo-GO … 6a07b16+lô cùng deploy].
+  · **Dòng B — BUG DEMO 15/08 của PO: CHƯA GIẢI.** Nó xảy ra trên IMAGE CŨ nơi refresh CHẠY ⟹
+    ứng viên "refresh chưa bao giờ chạy" KHÔNG giải thích được nó; và MỌI số Pha A/C/D hôm nay đo
+    trên hệ đã-hồi-quy — nói về dòng A, không nói được gì về B. Đua-revoke/harness sống lại làm
+    ứng viên; đo lại B chỉ được SAU khi A vá (cần hệ có refresh chạy). CẤM vá single-flight/grace
+    tới khi B đo trên vật đúng.
+- **📌 Lỗ nhãn phép đo (tester tự nhận): `he_thong` băm `src/**/*.py` — KHÔNG phủ `frontend/`**,
+  mà refresh sống ở `frontend/src/proxy.ts` ⟹ vật trôi ngay dưới chân phép đo, cái ghim mù trước
+  nó. Từ giờ nhãn phép đo kèm **IMAGE ID** (+ SHA + he_thong) cho mọi phép đo chạm frontend.
 - **🔄 ĐẢO BÀN CỜ (16/08 chiều — coder đọc-mã + đo trên instance TTL):** `refreshSessionIfNeeded`
   có đúng MỘT call-site (`proxy.ts` dòng đầu, matcher phủ mọi `/api/*`) — phủ ĐỀU, **nhưng đo ra
   phủ-đều-BẰNG-KHÔNG: không endpoint nào xoay cookie** (TTL=1ph < margin=120s ⟹ mọi request trong
