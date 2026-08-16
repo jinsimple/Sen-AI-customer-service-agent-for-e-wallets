@@ -78,6 +78,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import time
@@ -94,10 +95,16 @@ def bo_dau(s: str) -> str:
 
     Sản phẩm bỏ dấu ở cả lúc index lẫn lúc tra. Bộ chấm chỉ bỏ một vế là đang đo
     một quy ước KHÁC sản phẩm — số ra vẫn đẹp đẽ mạch lạc, chỉ là nói về thứ khác.
+
+    GỘP KHOẢNG TRẮNG (thêm 16/08, sau khi nó cắn lần thứ ba): text trong kho có
+    xuống dòng GIỮA CÂU. Không gộp thì mọi cụm ≥2 từ vắt qua chỗ xuống dòng đều
+    báo "không khớp" — mà luật chuỗi đặc trưng làm gần hết chuỗi đều là cụm dài.
+    Đây là TRƯỢT GIẢ do thước, hướng ngược với pass giả nhưng cùng một hạng.
     """
     s = unicodedata.normalize("NFD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
-    return s.replace("đ", "d").replace("Đ", "D").lower()
+    s = s.replace("đ", "d").replace("Đ", "D").lower()
+    return re.sub(r"\s+", " ", s)
 
 
 # ===========================================================================
@@ -125,6 +132,15 @@ def dan_nhan(so_ca: int) -> dict:
     for ten, c in (("backend", "fin05-backend-1"), ("frontend", "fin05-frontend-1")):
         nhan[f"{ten}_image"] = (_chay(["docker", "inspect", c, "--format", "{{.Image}}"]) or "?")[7:19]
         nhan[f"{ten}_started"] = _chay(["docker", "inspect", c, "--format", "{{.State.StartedAt}}"])[:19]
+    # NHÃN KHO — thêm 16/08 sau khi thiếu nó suýt làm tôi báo cáo sai.
+    # Hai lượt chấm cùng ra 35,7% được coi là "cùng một phép đo lặp lại", trong
+    # khi kho đã đổi 362 chunk/2 doc → 419 chunk/4 doc giữa hai lượt (đòn 4).
+    # Số trùng nhau HOÀN TOÀN tình cờ; chỉ có thành phần ca trượt đổi mới lộ ra.
+    # `he_thong` băm src/**/*.py — nó KHÔNG phủ kho, mà kho là nửa còn lại của vật.
+    nhan["kho"] = _chay(
+        ["docker", "exec", "fin05-backend-1", "sh", "-c",
+         "cd /app && python scripts/kho_rag.py nhan"]
+    ).splitlines()[0].strip() if _chay(["docker", "ps", "-q", "-f", "name=fin05-backend-1"]) else "?"
     return nhan
 
 
