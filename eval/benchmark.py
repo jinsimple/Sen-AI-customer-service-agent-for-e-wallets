@@ -87,7 +87,13 @@ import unicodedata
 GOC = pathlib.Path(__file__).resolve().parent.parent
 BO_CASE = GOC / "eval" / "golden_set_truy_hoi.jsonl"
 BASE = os.environ.get("FIN05_BASE_URL", "https://localhost")
-K = 3  # đúng cấu hình sản phẩm (spec: Recall@3)
+K = 4  # PO duyệt đổi 3->4 ngày 16/08 — xem ghi chú dưới
+# VÌ SAO ĐỔI: `/api/policy-search` LUÔN trả 4 kết quả và bỏ qua tham số `top_k`.
+# Thước cắt ở 3 là đo một sản phẩm KHÔNG TỒN TẠI — 4 ca (RAG-10/14/17/22) nằm
+# đúng hạng 4: agent NHẬN được, thước cũ chấm trượt. Triết lý spec là đo thứ
+# khách nhận, nên thước phải theo sản phẩm chứ không theo con số trong spec.
+# Chuỗi so sánh CẮT tại đây. Dải chẩn đoán @1/@3/@4 in kèm mỗi lượt.
+HANG_CHAN_DOAN = (1, 3, 4)
 
 
 def bo_dau(s: str) -> str:
@@ -254,10 +260,15 @@ def do_truy_hoi(ca: list[dict]) -> dict:
             # `tu_khoa_phu` in ra để đọc, KHÔNG có quyền chấm — vì ca đạt nhờ từ
             # chung ("hạn mức", "ngân hàng") khớp được cả chunk BÊN CẠNH lẫn dòng
             # mục lục, tạo PASS GIẢ im lặng (xem RAG-04, và 9 ca rà ngày 16/08).
+            hang = next(
+                (i + 1 for i, d in enumerate(doan)
+                 if any(bo_dau(tk) in bo_dau(d) for tk in x["tu_khoa_dac_trung"])), 0
+            )
             dat = any(bo_dau(tk) in gop for tk in x["tu_khoa_dac_trung"])
             phu = [tk for tk in x["tu_khoa_phu"] if bo_dau(tk) in gop]
             ket[che_do].append(
-                {"id": x["id"], "dat": dat, "so_doan": len(doan), "phu_khop": phu}
+                {"id": x["id"], "dat": dat, "so_doan": len(doan), "phu_khop": phu,
+                 "hang": hang, "tai_lieu": (x.get("nguon") or {}).get("tai_lieu", "?")}
             )
     c.close()
     return {"duong": ket, "so_am_ban": len(am), "so_duong": len(duong)}
@@ -276,6 +287,19 @@ def in_truy_hoi(kq: dict) -> float:
         if gia:
             print(f"  {'':11} ↳ {len(gia)} ca TRƯỢT nhưng vẫn khớp từ-khoá-phụ "
                   f"(= PASS GIẢ dưới thước cũ): {', '.join(gia)}")
+    r = kq["duong"]["co_dau"]
+    print("  dải chẩn đoán (co_dau) — hạng của chunk đúng:")
+    for k in HANG_CHAN_DOAN:
+        n = sum(1 for x in r if 0 < x["hang"] <= k)
+        print(f"     Recall@{k} = {n}/{len(r)} = {n / len(r) * 100:5.1f}%"
+              + ("   ← SỔ SÁCH (k của sản phẩm)" if k == K else ""))
+    ngoai = sum(1 for x in r if x["hang"] == 0)
+    print(f"     chunk đúng KHÔNG nằm trong top-{K}: {ngoai}/{len(r)}"
+          " ⟹ nới k không phải đòn chính")
+    tos = [x for x in r if x["tai_lieu"] == "MoMo_ToS"]
+    print(f"  theo tài liệu: ToS {sum(1 for x in tos if x['dat'])}/{len(tos)}"
+          f" · FAQ {sum(1 for x in r if x['dat'] and x['tai_lieu'] != 'MoMo_ToS')}"
+          f"/{len(r) - len(tos)}")
     tb = (ti["co_dau"] + ti["khong_dau"]) / 2
     print(f"  {'TRUNG BÌNH':11} {tb*100:5.1f}%   → điểm trục = 20 × {tb:.4f} = {20*tb:.2f}")
     print(f"\n  ({kq['so_am_ban']} ca ÂM BẢN KHÔNG chấm ở trục này — retrieval luôn trả k chunk,")
