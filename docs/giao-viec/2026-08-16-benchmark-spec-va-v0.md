@@ -60,7 +60,8 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 THỨC: TB dấu/không-dấu Recall@4 = 47,9% → 9,57/20; mẫu số ghim ToS 2/10 · FAQ 21/37; script in
 dải @1/@3/@4 + tách theo tài liệu mỗi lượt. Nửa F-32 "từ-chối-rồi-trả-lời" đã RÚT — 0/11 tái
 hiện trên he_thong `f36435ac6f4a` sau T3; giữ làm cổng hồi quy vì hành-vi-đúng đang là hệ-quả-
-phụ chưa-cố-ý. F-31 rộng ra: câu thứ 3 dính, bất ổn định 6/8-2/8 ⟹ ranh giới do LLM phán.)*
+phụ chưa-cố-ý. F-31 rộng ra: câu thứ 3 dính, và dính BẤT ỔN ĐỊNH — 8 lượt cùng một câu: 6 lượt
+từ chối an toàn · 2 lượt đuổi "ngoài phạm vi" ⟹ ranh giới do LLM phán, không do luật.)*
 
 **Đổi metric Truy-hồi @3 → @4 (cắt chuỗi, lý do):** `/api/policy-search` LUÔN đưa agent 4 kết
 quả (bỏ qua top_k — coder đang xác nhận chủ-đích/bug) ⟹ Recall@3 đo một sản phẩm không tồn tại;

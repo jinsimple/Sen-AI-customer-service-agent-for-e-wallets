@@ -417,6 +417,18 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🧭 HƯỚNG NGHIÊN CỨU SAU GATE — PO thật chốt 16/08 (từ đối chiếu workshop RAG + khảo sát OSS)
+- **Vector DB: ĐANG PHÂN XỬ Qdrant vs pgvector** — PO thật nghiêng Qdrant (hệ sinh thái cohort),
+  yêu cầu PO-agent chứng minh pgvector hợp sản phẩm hơn thì mới đổi. Bằng chứng đã trình (xem
+  tin nhắn 16/08 tối); điểm KHÔNG tranh cãi ở cả hai phương án: **RỜI chế độ Chroma-nhúng** —
+  client-server hoặc cùng-DB đều diệt bug server-cầm-segment-chết. Chờ PO thật chốt lại.
+- Thứ tự nghiên cứu đã trình PO thật: ① reranker tại chỗ (bge-reranker-v2-m3 A/B ViRanker, Apache
+  2.0, CPU) ② Qdrant ③ LiteLLM proxy (hàng đợi TPM + budget + cache Redis — điều kiện trước 150
+  người) ④ Langfuse self-host (màn gán nhãn 30-ca + cost, thay-thế-được LangSmith mà không rời
+  hạ tầng) ⑤ semantic cache CHỈ cho câu chính-sách-chung, đúng hẹn pilot. Đã bác bằng số của
+  chính mình: HyDE, BM25/RRF thuần, LLM-chunking (② xổ số). MRR/NDCG mượn công thức RAGAS lắp
+  vào script tester — thước-đã-rà vẫn là nguồn sự thật.
+
 ## 🔴 TRẦN TPM = RÀNG BUỘC CỨNG HƠN MỌI THỨ ĐANG TỐI ƯU (tester đo 16/08, `aa020d3`)
 - Trần org **200k TPM**. Đo được: 15,4k/lượt (hội thoại mới) → **13,0 lượt/phút TOÀN HỆ THỐNG** ·
   25,7k (lượt 4) → 7,8 · 36,2k (trần đo) → 5,5. **150 người × 1 câu/2 phút = 75 lượt/phút** ⟹
@@ -442,8 +454,19 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - **Conflict 3 PR ĐÃ GIẢI (PO-agent, worktree riêng):** `main` có 2 merge-commit (#5,#6) không
   có trong dev; xung đột DUY NHẤT `docs/STATE.md` (main là bản CŨ hơn). Giải một lần ở nhánh đầu
   (-X ours) rồi nối chuỗi B1⊂B2⊂B3 — hai nhánh sau 0 xung đột. Cả 3 nay **MERGEABLE**.
-- **CI đỏ = runner org bị chặn billing** (mọi job chết trong 2-5s, KHÔNG có log) — không phải lỗi
-  code; invariants 23/23 chạy tay xanh trên HEAD. Đã ghi trong README từ trước.
+- **CI đỏ = runner org bị chặn billing** — coder chứng minh dứt điểm: `steps: []`, job chưa từng
+  khởi động (test đỏ phải có bước và mất phút, không phải 2-3s). **Hệ quả khai minh thị: 3 PR
+  #8-10 merge KHÔNG mang đảm bảo CI nào** (hiện-diện ≠ hiệu-lực áp vào chính cổng của ta). Thay
+  thế tại chỗ trên HEAD #11 (`14a8c96`): contract-drift 3 file khớp baseline + invariants 23/23 —
+  hai cổng quan trọng nhất xanh THẬT; 8 cổng còn lại (appsec/adversarial/migration/route-guards/
+  frontend-lint/dep-scan…) KHÔNG AI CHẠY đợt này — khai rõ, không ngụ ý xanh.
+- **Tester xác minh: production = stack RIÊNG** (đường dẫn đánh dấu qua app.adaptivealgo.uk →
+  0 dòng trong log local) — phép đo local không chạm bản PO quay; đóng băng GIỮ vì TPM chung tài
+  khoản. Hai việc rẻ cho coder sau gate: ① **dấu-build vào `/api/env-info`** (hiện không commit/
+  phiên bản — "sản phẩm đang chạy không có nhãn vật"; hệ quả thật: KHÔNG kiểm được từ ngoài là
+  production đã nhận vá 429 chưa) ② env-info production trả `env: "development"` — đặt biến đúng.
+- Đã sửa dòng 6/8-2/8 trong benchmark-spec thành câu chữ đầy đủ (bẫy-đọc: phân số đứng trơ cạnh
+  chỗ vừa sửa 2/8→2/10 — "không sai một chữ nào mà vẫn gây hiểu sai").
 - 5 deliverable: ① video PO tự quay (kịch bản 8 màn sẵn) ② architecture ✅ ③ **≥10 PR — mở 3 PR
   dev→main: #8 RAG-đòn-4+kho · #9 F-LOG-3+T3 · #10 ADR-026+benchmark+gate/** (lát cắt tuần tự,
   tổ tiên lồng nhau, merge THEO THỨ TỰ; 7 đã merge + 3 = 10) ④ README ✅ ⑤ EVAL-EVIDENCE 7 ca ✅.
