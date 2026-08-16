@@ -417,6 +417,35 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🧾 SPEC BENCHMARK ĐƯỢC SOI + CHỮA GỐC BẰNG `--khoi-spec` (16/08 đêm)
+- **Tester soi `benchmark-spec-va-v0.md` theo yêu cầu PO — 7 chỗ, PO sửa 7/7 (`41753d4`).** Nặng
+  nhất: ① một dòng lấy `48,9%` (chỉ chế độ **có-dấu**) nhân thành điểm trục `9,79` trong khi công
+  thức spec là **TB hai chế độ 47,9% → 9,57** (cộng theo dòng đó ra tổng khác) ⑥ **nhãn vật lỗi
+  thời: ghi `kho 419 chunk` gắn lên số đo trên kho 378 — mà 419 CHÍNH LÀ kho còn 57 chunk rác
+  `.md`** ⟹ số đúng đang mô tả một cái vật đã bị gỡ. Còn lại: đính chính `top_k` có hiệu lực
+  (trần 8; phát biểu cũ sai do đọc 422 thành 0-kết-quả), gắn nhãn lịch sử cho `39,4%`/`80,9%`/
+  `3,75`, cập nhật bảng "Đường tới v1" (5 mục XONG).
+- **Mẫu hình: 6/7 là "số cũ còn sót sau khi số mới thay chỗ", KHÔNG chỗ nào tính sai** — chi phí
+  của một tài liệu do MỘT người sửa nhiều lần trong ngày số liệu đổi liên tục. ⟹ **NẾP MỚI: mỗi
+  tài liệu PO sửa nhiều lần phải qua mắt một vai khác trước khi thành hồ sơ.**
+- **CHỮA GỐC `--khoi-spec` (`e886307`):** script in **khối markdown chép thẳng vào spec** thay vì
+  PO diễn giải lại thành câu ⟹ **số cũ không thể sót vì không ai chép tay nữa** (cùng họ luật
+  gom-về-một-nguồn). Khối tự mang **nhãn vật + thời điểm** (chống đúng lỗi ⑥) và in dòng
+  `⚠️ CHƯA ĐO ĐƯỢC (loại khỏi mẫu số, KHÔNG loại khỏi tầm mắt)` cả trong lẫn ngoài khối.
+  **Bẫy tester tự tạo rồi tự sửa trước khi giao:** bản đầu lượt `--chi-truy-hoi` in cả 5 dòng với
+  4 trục `KHÔNG ĐO ĐƯỢC` ⟹ ai chép nguyên văn sẽ **xoá mất số hợp lệ** của 4 trục kia —
+  *"công cụ chống số-cũ-còn-sót suýt tự tay xoá số-mới-đang-đúng"*. Sửa: lượt một phần chỉ in
+  dòng nó đo, có cảnh báo, **không in tổng**. Họ Luật 6b: **"không đo ở lượt này" ≠ "chưa đo
+  được"** — gộp lại làm bảng nói sai theo hướng BI QUAN (hướng ít ai đi kiểm vì trông khiêm tốn).
+- **GIAO tester (0 LLM): rà CƠ HỌC nhãn `eval/heldout_set.jsonl` (60 ca)** — heldout **chỉ được
+  bắn MỘT LẦN** cho số công bố gần Demo Day, nhưng nhãn viết TRƯỚC khi phát hiện loạt lỗi thước
+  tuần này (bo_dau khoảng trắng · từ-khoá-chung · chuỗi không sống qua trích PDF · mẫu số đếm
+  mục lục). Dính cùng lớp lỗi ⟹ phát hiện đúng lúc bắn phát duy nhất, không có phát thứ hai.
+  **Ràng buộc chống nhiễm bẩn:** rà CƠ HỌC (chuỗi có sống qua pipeline · có trong kho · có đặc
+  trưng theo luật 3 cửa · định dạng nhất quán), **CẤM** sửa ca theo nội dung / chọn-loại ca /
+  chỉnh thước dựa trên thứ thấy trong heldout; báo PO dạng [ca → lỗi cơ học → cách sửa]. Tester
+  được quyền TỪ CHỐI nếu thấy chính việc rà đã là nhiễm bẩn quá mức.
+
 ## 💵 GIÁ QWEN + PHÂN TÍCH CHI PHÍ — kết luận NGƯỢC giả định ban đầu (16/08)
 - Giá endpoint quốc tế (USD/1M vào-ra): **qwen3.7-flash `0,03/0,13`** (rẻ hơn gpt-4o-mini ~5×) ·
   qwen3.7-plus `0,40/1,20` (đắt 2,7×) · qwen3.8-max `2,00/6,00` (đắt 13×) · *(đang dùng)*
