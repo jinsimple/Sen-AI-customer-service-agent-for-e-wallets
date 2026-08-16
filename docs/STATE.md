@@ -26,6 +26,21 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **🔄 ĐẢO BÀN CỜ (16/08 chiều — coder đọc-mã + đo trên instance TTL):** `refreshSessionIfNeeded`
+  có đúng MỘT call-site (`proxy.ts` dòng đầu, matcher phủ mọi `/api/*`) — phủ ĐỀU, **nhưng đo ra
+  phủ-đều-BẰNG-KHÔNG: không endpoint nào xoay cookie** (TTL=1ph < margin=120s ⟹ mọi request trong
+  cửa sổ; đã loại backend-unreachable + image-cũ). ⟹ **Ứng viên cơ chế THỨ TƯ, đơn giản nhất:
+  refresh KHÔNG BAO GIỜ CHẠY** — token chết phút 15, "15-20 phút rồi lỗi" của PO = TTL, handoff
+  chỉ tình cờ là thao tác đầu tiên sau mốc. Nếu đúng: single-flight = vá thứ không tồn tại, grace
+  không áp dụng — bản vá đúng là LÀM CHO REFRESH CHẠY. **CẤM viết vá tới khi phân xử.**
+  Mâu thuẫn còn lại: số tester tối qua (`ws-ticket` exp+842s = một lần refresh thật) vs 0 hôm nay
+  → kiểm (a) rẻ nhất: tester đọc lại harness tối qua tìm `/api/session` xen giữa; (b) nếu âm:
+  probe stack demo phút 13. Tầng-0 log đã LAND `a74de7d` (trường `refresh_rotated` server-side).
+  Instance TTL SỐNG: `https://localhost:8443`, project `fin05ttl`, 208 user, stack demo nguyên vẹn.
+- **📌 Tri thức mới (coder tự bắt khi đo):** compose đặt tên IMAGE theo PROJECT — hai stack = hai
+  image khác nhau (`fin05-frontend` ≠ `fin05ttl-frontend`); đo trên stack TTL mà so với số stack
+  demo là ĐO NHẦM VẬT. Phát hiện bằng `docker inspect`, chữa bằng build-lại-từ-nguồn cho khớp.
+  Nhãn phép đo đa-stack phải kèm IMAGE ID.
 - **Tái lập đang chạy nền (~32 phút, 0 TPM):** Pha A đua (2 request song song cùng chuỗi cookie
   cũ, đúng cảnh browser 2 request in-flight) + Pha B đối chứng tuần tự. Qua đúng đường BFF
   `https://localhost/api/live-chat/ws-ticket` = đúng chỗ PO chết. Giới hạn tự khai: bắn 2 request
