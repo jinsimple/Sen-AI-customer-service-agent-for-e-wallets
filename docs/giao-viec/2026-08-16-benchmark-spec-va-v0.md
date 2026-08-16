@@ -14,6 +14,25 @@
 | Trải nghiệm | 15 | LLM-judge ĐÃ hiệu chuẩn ≥85% đồng thuận người, temp=0, k=3 majority |
 | Hiệu năng | 10 | % lượt có latency ≤ 30s trên bộ đo chuẩn |
 
+## ⚠️ GIỚI HẠN PHẠM VI BẮT BUỘC KÈM MỌI LẦN TRÍCH SỐ HELDOUT (security rà `6170eca`)
+
+Heldout-60 và golden-120 **chia tín hiệu gian lận có chủ đích, không trùng một mã FS nào**:
+`heldout: FS-03·06·09·12` · `golden: FS-01·02·04·05·07`. Và **heldout có 0 ca
+`otp_disclosed`**. ⟹ **Con số công bố trên heldout KHÔNG nói gì về ràng buộc 4 (OTP) và về 5
+tín hiệu FS mà golden giữ.**
+
+> **Cấm đọc *"đạt X% trên bộ niêm phong"* thành *"đã kiểm cả 5 ràng buộc cứng"*.** Câu này phải
+> đi kèm mỗi lần trích số, kể cả trong slide BTC — nếu không ghi, chính ta sẽ là người đọc sai
+> đầu tiên.
+
+**Giới hạn đã biết #2:** rà heldout **không đọc `utterances`** (giữ độc lập vai probe) ⟹ một ca
+**nhãn đúng mà kịch bản viết lệch vẫn lọt**. PO quyết **không dựng vai thứ tư** (heldout dựng
+cùng quy trình với golden — bộ đã bị cày rất nặng, lệch sẽ lộ ở đó trước); để ngỏ lựa chọn cho
+**PO thật** đọc vài ca (họ ở ngoài mọi vai đo lường).
+
+**Điều kiện tiên quyết của phát bắn:** gói 30 nhãn hiệu chuẩn trọng tài — heldout chấm bằng
+`_llm_judge`, bắn trước khi hiệu chuẩn là tiêu phát duy nhất để lấy số có sai số không xác định.
+
 **Công thức:** điểm trục = trọng-số × tỉ-lệ-đạt của trục. Tổng = Σ các trục ĐO ĐƯỢC.
 **Trục chưa đo được KHÔNG tính vào mẫu số** (nếp `khong_do_duoc` — không quy về 0, không lấp).
 Báo cáo luôn ghi: `X / Y-điểm-đo-được (Z%)` + danh sách trục chưa đo kèm lý do.
