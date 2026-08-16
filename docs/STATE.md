@@ -345,6 +345,22 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 💰 T1 KHÉP BẰNG KẾT QUẢ ÂM — cache ĐÃ hit ~85% từ trước, bản vá revert (16/08 tối)
+- Coder đo hai vế chỉ-khác-một-file: bản cũ 85,0% cache-hit, bản "vá" 86,3% — chênh = nhiễu;
+  `cache_read` lượt 1 giống nhau TỚI TỪNG TOKEN (29.568). **Cache chưa bao giờ hit 0% — phần tái
+  dùng chính nằm GIỮA các bước ReAct trong CÙNG lượt** (mốc thời gian render một lần/lượt = hằng
+  số trong lượt; vị trí của nó chưa bao giờ quan trọng). Giả thuyết T1 sai → **REVERT dù vô hại**.
+- **LUẬT MỚI (ratify):** bản vá không-có-số-lợi-ích = revert, kể cả vô hại — land nó là gieo tiền
+  lệ "chỗ này tối ưu rồi" chặn người sau tìm đòn thật. GIỮ LẠI phần đo (`cached_input_tokens`
+  vào envelope, `e2cf59b`) — công cụ đã bác chính người tạo nó.
+- **Bức tranh chi phí ĐÍNH CHÍNH:** 63M là token danh nghĩa; ~85% phần lặp hưởng giá cache rẻ ⟹
+  hoá đơn thật THẤP hơn ước tính đầu. Nhưng mục tiêu <30k/lượt là về LƯỢNG (input 46,8-84,7k/lượt
+  đo được) — cache giảm GIÁ không giảm LƯỢNG ⟹ **T3 là đòn duy nhất chạm mục tiêu**.
+- **Thứ tự chốt:** UI-02 đóng trước (compiled, hoãn 5 lần, chỉ còn verify) → T3 (cổng kèm:
+  origin-rule xanh — cắt phần đưa-LLM không được làm số mất nguồn) → T4 → T2 độc lập.
+- Đòn 3 đính chính: **mốc 20/35 (+1)**, RAG-04 = pass-giả-bị-lộ không phải hồi quy — nhất quán
+  chuỗi 9/21; số nằm vùng thước-đang-rà, chưa vào benchmark.
+
 ## ⚖️ TRỤC TRUY-HỒI: TẠM TREO SỐ — thước đang được rà HAI PHÍA (16/08 tối)
 - Tester (theo dữ kiện tech-lead nêu) soi 21 ca ĐẠT sau đòn-3: **9/21 đạt CHỈ nhờ từ khoá chung
   chung** (RAG-17 có chuỗi đặc trưng `20.000.000` KHÔNG khớp mà vẫn đạt nhờ `hạn mức` — đáp án
