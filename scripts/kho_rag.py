@@ -110,15 +110,19 @@ def _bam_kho() -> str:
     ⚠️ Nó băm phía DỮ LIỆU, không băm phía VECTOR. Kho có thể cùng text mà
     khác embedding (đúng ca đòn 2). Vì thế nhãn phải LUÔN đi kèm
     `chuẩn hoá vN` — hai thứ cùng nhau mới định danh được kho.
+
+    ⚠️ KHÔNG băm `chunk_id`. Bản trước có, và tester đo ra nó tạo BÁO ĐỘNG
+    RỖNG: `new_id("CHK")` sinh ngẫu nhiên, nên nạp lại CÙNG nguồn CÙNG parser
+    vẫn ra băm khác (a3c5c7359337 -> 2209afc2042c) trong khi hai lượt đó cho
+    danh sách ca trượt TRÙNG KHÍT 15/14 — tương đương hoàn toàn về đo lường.
+
+    Băm phải trả lời "kho có cùng NỘI DUNG không", không phải "có cùng lượt
+    nạp không". Ai cần định danh một lượt nạp thì dùng `nap_lai_luc`.
     """
     with SessionLocal() as s:
-        rows = sorted(
-            (c.chunk_id, c.text) for c in s.scalars(select(PolicyChunk)).all()
-        )
+        texts = sorted(c.text for c in s.scalars(select(PolicyChunk)).all())
     h = hashlib.md5()
-    for cid, text in rows:
-        h.update(cid.encode())
-        h.update(b"\x00")
+    for text in texts:
         h.update(text.encode())
         h.update(b"\x00")
     return h.hexdigest()[:12]
