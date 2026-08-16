@@ -82,6 +82,17 @@ MAT_KHAU = os.environ.get("FIN05_TEST_PASSWORD", "Demo@123")
 # ===========================================================================
 
 
+# ĐÓNG BĂNG CÒN ĐƯỢC BẬT BẰNG FILE, không chỉ bằng biến môi trường.
+# Lý do (17/08): tôi tự đặt cổng đóng băng, tự đề nghị đội dùng nó, rồi **tự
+# đốt 3 lượt LLM trong lúc đang đóng băng** — vì cổng chỉ nổ khi có người nhớ
+# `export FIN05_DONG_BANG_LLM=1` trong ĐÚNG cái shell đang gõ. Biến môi trường
+# chết theo shell; đóng băng thì không.
+# Đây đúng lập luận tôi dùng để đòi cơ chế thay lời hứa — và cơ chế của tôi vẫn
+# còn một nửa là lời hứa. File marker sống qua shell, qua phiên, qua nén ngữ
+# cảnh, và ai cũng thấy nó bằng `ls`.
+MOC_DONG_BANG = GOC / ".DANG-DONG-BANG-LLM"
+
+
 def cong_dong_bang(ly_do_can_llm: str) -> None:
     """Từ chối chạy khi đang đóng băng LLM. Đặt `FIN05_DONG_BANG_LLM=1` để bật.
 
@@ -94,14 +105,16 @@ def cong_dong_bang(ly_do_can_llm: str) -> None:
     Một lời hứa "tôi sẽ không chạy" không sống sót qua một phiên bị nén ngữ
     cảnh hay một người khác chạy lại lệnh trong lịch sử shell. Cổng thì có.
     """
-    if os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false"):
+    bien = os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false")
+    if bien or MOC_DONG_BANG.exists():
         sys.exit(
             "🧊 ĐANG ĐÓNG BĂNG LLM — không chạy.\n"
             f"   Lệnh này cần model để: {ly_do_can_llm}\n"
             "   Trần TPM dùng chung với 3 phiên khác + PO thật; đo được một người\n"
             "   21 lượt/2 phút đã đẩy org tới 193k/200k, và 429 ra tới khách\n"
             "   thành HTTP 500.\n"
-            "   Bỏ đóng băng: unset FIN05_DONG_BANG_LLM"
+            f"   Nguồn: {'biến môi trường' if bien else MOC_DONG_BANG.name}\n"
+            f"   Bỏ đóng băng: unset FIN05_DONG_BANG_LLM · rm {MOC_DONG_BANG.name}"
         )
 
 
@@ -240,9 +253,19 @@ def main() -> None:
             continue
         g = lambda k: [x[k] for x in luot if x.get(k) is not None]  # noqa: E731
         tv = lambda k: statistics.median(g(k)) if g(k) else None    # noqa: E731
-        print(f"{d['id']:<4}{d['nhom']:<6}{tv('giay'):>7.1f}{tv('vao'):>9,.0f}"
-              f"{tv('ra'):>7,.0f}{tv('cache'):>8,.0f}{tv('tool'):>6.0f}"
+        # `so` chịu được None: nhà cung cấp KHÁC trả bộ trường KHÁC. Đo được
+        # 17/08: OpenAI có `cached_input_tokens`, và mã cũ ném TypeError nếu
+        # trường đó vắng — một lượt đo cả bộ chết vì một trường tuỳ chọn.
+        # Vắng trường thì in `–` và ĐI TIẾP; thiếu một số không phải lý do để
+        # mất cả lượt đo, nhưng cũng KHÔNG được lặng lẽ hoá thành 0.
+        so = lambda k, r=0: ("–" if tv(k) is None else f"{tv(k):,.{r}f}")  # noqa: E731
+        print(f"{d['id']:<4}{d['nhom']:<6}{so('giay',1):>7}{so('vao'):>9}"
+              f"{so('ra'):>7}{so('cache'):>8}{so('tool'):>6}"
               f"  {'✓' if any(x['ve'] for x in luot) else ''}")
+        thieu = [k for k in ("vao", "ra", "cache") if tv(k) is None]
+        if thieu:
+            print(f"      ⚠️  usage KHÔNG có trường {thieu} — nhà cung cấp này không trả."
+                  " Số vắng in '–', KHÔNG quy 0.")
         if a.lap > 1:
             print(f"      dải vào {min(g('vao')):,.0f}–{max(g('vao')):,.0f}"
                   f"  ·  dải giây {min(g('giay')):.1f}–{max(g('giay')):.1f}"

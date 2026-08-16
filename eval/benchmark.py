@@ -134,6 +134,17 @@ def bo_dau(s: str) -> str:
 # ===========================================================================
 
 
+# ĐÓNG BĂNG CÒN ĐƯỢC BẬT BẰNG FILE, không chỉ bằng biến môi trường.
+# Lý do (17/08): tôi tự đặt cổng đóng băng, tự đề nghị đội dùng nó, rồi **tự
+# đốt 3 lượt LLM trong lúc đang đóng băng** — vì cổng chỉ nổ khi có người nhớ
+# `export FIN05_DONG_BANG_LLM=1` trong ĐÚNG cái shell đang gõ. Biến môi trường
+# chết theo shell; đóng băng thì không.
+# Đây đúng lập luận tôi dùng để đòi cơ chế thay lời hứa — và cơ chế của tôi vẫn
+# còn một nửa là lời hứa. File marker sống qua shell, qua phiên, qua nén ngữ
+# cảnh, và ai cũng thấy nó bằng `ls`.
+MOC_DONG_BANG = GOC / ".DANG-DONG-BANG-LLM"
+
+
 def cong_dong_bang(ly_do_can_llm: str) -> None:
     """Từ chối chạy khi đang đóng băng LLM. Đặt `FIN05_DONG_BANG_LLM=1` để bật.
 
@@ -146,14 +157,16 @@ def cong_dong_bang(ly_do_can_llm: str) -> None:
     Một lời hứa "tôi sẽ không chạy" không sống sót qua một phiên bị nén ngữ
     cảnh hay một người khác chạy lại lệnh trong lịch sử shell. Cổng thì có.
     """
-    if os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false"):
+    bien = os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false")
+    if bien or MOC_DONG_BANG.exists():
         sys.exit(
             "🧊 ĐANG ĐÓNG BĂNG LLM — không chạy.\n"
             f"   Lệnh này cần model để: {ly_do_can_llm}\n"
             "   Trần TPM dùng chung với 3 phiên khác + PO thật; đo được một người\n"
             "   21 lượt/2 phút đã đẩy org tới 193k/200k, và 429 ra tới khách\n"
             "   thành HTTP 500.\n"
-            "   Bỏ đóng băng: unset FIN05_DONG_BANG_LLM"
+            f"   Nguồn: {'biến môi trường' if bien else MOC_DONG_BANG.name}\n"
+            f"   Bỏ đóng băng: unset FIN05_DONG_BANG_LLM · rm {MOC_DONG_BANG.name}"
         )
 
 
