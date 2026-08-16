@@ -351,9 +351,30 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   `scenario-candidates-momo-faq.md` 37 chunk (kịch bản test). Agent trích cả hai **như chính sách
   thật**. Coder đã GỠ + chặn `_chon_nguon` chỉ nhận `.docx/.pdf` (kèm docstring lý do — bản nháp
   commit của chính coder cũng suýt nạp .md, bắt được nhờ in danh sách nguồn trước khi nạp).
-  **Truy nguồn đang chạy:** PO đã loại 2 nghi phạm bằng đọc repo (số 0/1814 của security = regex
-  offline; `_ingest_malicious_policy` nạp `{case_id}.txt` không phải 2 tên này) → đã hỏi thẳng
-  tester + security, CHỜ trả lời.
+  **Truy nguồn (cập nhật 16/08):** tester + security ĐỀU tự loại trừ BẰNG CHỨNG (tester: log
+  container — endpoint/user_id/script chỉ-đọc; security: import-list 3 probe, 0 lời gọi ingest).
+  Tester truy ra đường nạp: **`POST /policy-docs` × 2 (08:23:14/08:23:27) dưới `USR-PA01`** —
+  cửa upload HỢP LỆ của partner_admin, không phải lách. PO đối chiếu: `kho_rag.py` nạp bằng
+  `ingest_document()` trực tiếp (không HTTP) nên không thể tạo 2 dòng POST ⟹ nghi phạm còn lại
+  duy nhất: **PO thật thao tác màn hình upload Đối-tác-ví** — đang hỏi. Security được giao đo
+  thiệt hại thật (log `/policy-search` trong cửa sổ 08:23→lúc-gỡ, loại 3 đợt quét USR-0201 của
+  tester) → hồ sơ vào docs/security/. Dữ kiện giảm nhẹ: bảng trong business_rules.md mang cột
+  `verified=false` ngay trong thân — trích là trích kèm.
+- **Bug kho tra-rỗng-không-tất-định: coder ĐÃ root-cause** (docstring `_server_dang_cam_kho_cu`):
+  `chromadb.PersistentClient` không dùng chung persist-dir giữa 2 tiến trình — `nap-lai` chạy
+  docker-exec riêng, server giữ segment CŨ đã bị xoá → tra rỗng, HTTP 200, không log lỗi; mọi
+  công cụ kiểm (tiến trình riêng) mở client MỚI thấy kho mới → cả ba đèn xanh trong khi sản phẩm
+  trả rỗng. **Khắc phục: sau `nap-lai` PHẢI restart backend**; `kiem` nay có cổng-cuối phát hiện
+  (dấu `nap_lai_luc` do riêng nap-lai đặt — mtime chroma.sqlite3 ĐÃ THỬ VÀ SAI vì server cũng ghi
+  WAL). Mở rộng: bước restart cần vào cả `deploy_home.*` (kho_rag nap-lai trong script deploy).
+  Tester thêm cổng canary vào benchmark (3 truy vấn tối giản, rỗng cả 3 = DỪNG không đo) sau khi
+  SUÝT báo 0,0% làm số sản phẩm.
+- **Hướng thiết kế sự cố (security chủ trì, probe kế tiếp):** chặn đuôi file = đóng cửa TAI NẠN,
+  không đóng cửa QUY TRÌNH (.docx nháp vẫn vào cửa hợp lệ). Whitelist tên file ở serve = SAI
+  (chặn onboarding đối tác thật). Hướng nghiêng: **XUẤT XỨ trên chunk** (nguon_da_duyet) — đúng
+  hình dạng origin-rule cho RAG, xử cả ca-tai-nạn lẫn ca-eval-cố-ý. Chưa đo chưa đề xuất; không
+  ai code trước khi có số + ADR. Tester (trong lúc chờ kho): ca hồi quy chặn-thành-phần-tài-liệu,
+  danh mục lấy từ ĐẶC TẢ không hardcode 2 tên PDF.
 - **QUY ƯỚC MỚI (PO phát 16/08):** kho RAG đang-phục-vụ là VẬT DÙNG CHUNG của 4 phiên — không ai
   nạp thẳng vào nó để test. Cần kho thử → collection/CHROMA-path riêng trong scratchpad (như
   run_adversarial_set dùng DB tạm). Đổi kho phục vụ CHỈ qua `kho_rag.py nap-lai` + hô cả 4 phiên.
