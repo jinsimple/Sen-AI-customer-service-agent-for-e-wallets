@@ -67,8 +67,26 @@ loi=0
 echo; echo "--- Kho RAG ---"
 if ! docker compose --profile home exec -T backend python scripts/kho_rag.py kiem; then
   echo "  -> nap lai kho (mat vai phut, co goi API embedding)"
-  docker compose --profile home exec -T backend python scripts/kho_rag.py nap-lai \
-    || { bad "Nap lai kho RAG that bai"; loi=$((loi+1)); }
+  if docker compose --profile home exec -T backend python scripts/kho_rag.py nap-lai; then
+    # BAT BUOC restart sau khi nap lai. `chromadb.PersistentClient` khong ho tro
+    # nhieu tien trinh dung chung mot persist dir: nap-lai chay trong tien trinh
+    # RIENG, con uvicorn giu `_client` cache o cap module tro toi segment vua bi
+    # xoa -> /policy-search tra 0 ket qua, HTTP 200, khong loi, khong log.
+    # Va no KHONG TAT DINH: `_get_client()` khoi tao LUOI, nen server nao chua
+    # truy van lan nao truoc khi nap lai thi lai chay tot. Do that: 1 luot co
+    # ket qua roi 12 luot lien tiep rong, trong khi Chroma dung yen 378 vector.
+    # nap-lai khong the tu restart: no chay BEN TRONG chinh container do.
+    docker compose --profile home restart backend >/dev/null 2>&1 \
+      || { bad "Restart backend sau nap lai that bai"; loi=$((loi+1)); }
+    ok "Da restart backend de no doc kho moi"
+  else
+    bad "Nap lai kho RAG that bai"; loi=$((loi+1))
+  fi
+fi
+
+# Cong nay chay CA KHI khong nap lai — bat ca "ai do vua nap tay roi quen restart".
+if ! docker compose --profile home exec -T backend python scripts/kho_rag.py kiem; then
+  bad "Kho RAG van chua san sang sau buoc tren"; loi=$((loi+1))
 fi
 
 

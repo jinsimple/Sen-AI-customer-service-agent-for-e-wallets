@@ -14,7 +14,9 @@ Một bước "phải nhớ re-index" mà quên thì im lặng chính là mìn. 
 thành thứ MÁY kiểm được, và `deploy_home.*` gọi nó tự động.
 """
 import hashlib
+import os
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -160,8 +162,63 @@ def kiem() -> int:
         print(f"  [LỆCH]  Kho ở phiên bản {pb}, code ở {store.CHUAN_HOA_VERSION}.")
         print("          Chạy: python scripts/kho_rag.py nap-lai")
         return 1
-    print("  [OK]    Kho khớp phiên bản chuẩn hoá của code.")
+    # Cổng CUỐI, sau mọi cổng khác — vì đây là ca mà mọi cổng khác đều xanh.
+    cu, t_nap, t_server = _server_dang_cam_kho_cu()
+    if cu:
+        _in_canh_bao_kho_cu(t_nap, t_server)
+        return 3
+    print("  [OK]    Kho khớp phiên bản chuẩn hoá của code, và server đã đọc bản này.")
     return 0
+
+
+DAU_NAP_LAI = "nap_lai_luc"
+
+
+def _server_dang_cam_kho_cu() -> tuple[bool, float, float]:
+    """Kho có bị nạp lại SAU khi tiến trình phục vụ khởi động không?
+
+    ĐÂY LÀ LỖI ĐÃ CẮN THẬT, và là loại nguy hiểm nhất: mọi đèn đều xanh.
+    tester đo `/policy-search` ra 0 kết quả 12 lượt liên tiếp trong khi
+    Chroma 378 vector · Postgres 378 chunk · `kiem` xanh. Ba nguồn xác nhận
+    "kho ổn" — và cả ba đọc chỗ khác với chỗ sản phẩm đọc.
+
+    CƠ CHẾ: `nap-lai` chạy trong TIẾN TRÌNH RIÊNG (`docker exec python
+    scripts/kho_rag.py`) và ghi vào cùng thư mục Chroma mà uvicorn đang mở.
+    `chromadb.PersistentClient` không hỗ trợ nhiều tiến trình dùng chung một
+    persist dir: `_client` cache ở cấp module trong server giữ segment CŨ —
+    segment vừa bị xoá — nên truy vấn trả rỗng. Không lỗi, không log, HTTP 200,
+    `status="not_found"`. Khởi động lại server là hết.
+
+    VÌ SAO KHÔNG DÙNG mtime CỦA `chroma.sqlite3`: đã thử, và nó SAI. Chính
+    server cũng ghi vào file đó sau khi khởi động (WAL/trang/trạng thái nội
+    bộ — cùng lý do khiến băm-theo-file mất tất định, xem `_bam_kho`). Đo thử:
+    server lên 08:38:58, mtime kho 08:39:12 -> báo "cũ" trong khi tra hoàn toàn
+    tốt. Dấu phải do RIÊNG `nap-lai` đặt, không ai khác chạm.
+
+    VÌ SAO KHÔNG DÙNG canary "hỏi kho một câu" NGAY TRONG SCRIPT NÀY: script
+    này cũng là tiến trình riêng. Canary của nó sẽ mở client MỚI, thấy kho mới,
+    và báo xanh — đúng lúc server đang trả rỗng. Nó sẽ thành nguồn xác nhận
+    sai thứ tư. Muốn hỏi thật thì phải hỏi QUA server, không hỏi cạnh server.
+    """
+    dau = RAG_INDEX_DIR / DAU_NAP_LAI
+    if not dau.exists():
+        return False, 0.0, 0.0
+    t_nap = dau.stat().st_mtime
+    try:
+        # mtime của /proc/<pid> trên Linux = lúc tiến trình khởi động. PID 1
+        # trong container này là chính uvicorn.
+        t_server = os.path.getmtime("/proc/1")
+    except OSError:
+        return False, t_nap, 0.0
+    return t_nap > t_server, t_nap, t_server
+
+
+def _in_canh_bao_kho_cu(t_nap: float, t_server: float) -> None:
+    print(f"  [SERVER CŨ] Kho nạp lại lúc {time.strftime('%H:%M:%S', time.localtime(t_nap))},")
+    print(f"              tiến trình phục vụ khởi động lúc {time.strftime('%H:%M:%S', time.localtime(t_server))}.")
+    print("              Server đang cầm segment Chroma ĐÃ BỊ XOÁ -> /policy-search")
+    print("              trả 0 kết quả, HTTP 200, không lỗi, không log. Im lặng.")
+    print("              BẮT BUỘC: docker compose restart backend")
 
 
 def nap_lai() -> None:
@@ -189,8 +246,18 @@ def nap_lai() -> None:
             )
             print(f"  nạp: {f.name} -> {doc.doc_id}")
         s.commit()
+    # Dấu này CHỈ nap-lai đặt. Nó là thứ duy nhất phân biệt được "kho đổi vì
+    # ta nạp lại" với "file kho bị chính server chạm vào khi đọc".
+    (RAG_INDEX_DIR / DAU_NAP_LAI).write_text(str(time.time()))
     print()
     nhan()
+    print()
+    cu, t_nap, t_server = _server_dang_cam_kho_cu()
+    if cu:
+        _in_canh_bao_kho_cu(t_nap, t_server)
+        print("              (nap-lai KHÔNG tự restart: nó chạy BÊN TRONG chính")
+        print("               container cần restart, tự giết mình thì không báo")
+        print("               cáo lại được. deploy_home.* làm bước này giúp bạn.)")
 
 
 if __name__ == "__main__":
