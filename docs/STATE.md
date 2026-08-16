@@ -417,6 +417,31 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 📦 GATE G2 — hạn 23:59 16/08, hồ sơ ĐÃ DỰNG (`gate/README.md`, `da4e51e`)
+- 5 deliverable: ① video PO tự quay (kịch bản 8 màn sẵn) ② architecture ✅ ③ **≥10 PR — mở 3 PR
+  dev→main: #8 RAG-đòn-4+kho · #9 F-LOG-3+T3 · #10 ADR-026+benchmark+gate/** (lát cắt tuần tự,
+  tổ tiên lồng nhau, merge THEO THỨ TỰ; 7 đã merge + 3 = 10) ④ README ✅ ⑤ EVAL-EVIDENCE 7 ca ✅.
+  Invariants 23/23 xanh trên HEAD trước khi mở PR. Sau #10 merged: `main` = dev ⟹ PO thật chạy
+  `deploy_home` trên Windows là production nhận đủ.
+- **ADR-026 ĐÃ LAND (`851cd7c`) — PO thật ký 16/08.** Trạng thái trong sổ: Đang hiệu lực.
+- **🔴 T3 CHƯA ĐẠT <30k — thước mới lộ đúng trục (tester `ecf538a`):** token đi theo **VỊ TRÍ
+  LƯỢT**, không theo câu (chạy đảo thứ tự thì số đảo theo; bản đầu của chính bộ đo nói dối, tester
+  tự bắt). Chế độ `rieng` trần 14,3k (số 14,7k của coder nằm đây) · chế độ `don` trần **35,6k ở
+  lượt 7**. **PO CHỐT: <30k áp chế độ `don`** (trần TPM bị chạm bởi hội thoại thật). ⟹ T3 giữ
+  (−24%/lượt) nhưng **đòn token kế ĐỔI HÌNH: cắt LỊCH SỬ HỘI THOẠI** (early-stop/tóm tắt/cửa sổ
+  trượt), không cắt thêm tool-result; lượt 47-84k hồi T1 giải thích xong. Latency: trung vị
+  5,2-5,9s, không ca nào >10,4s, KHÔNG tương quan độ dài input ⟹ câu kết trục Hiệu năng: *muốn
+  tối ưu thì tối ưu SỐ VÒNG ReAct, không phải kích thước prompt*. `--lap 3` duyệt chạy lấy dải.
+- **Xoay secret production (security xác nhận + siết 2 chỗ):** JWT xoay NGAY — **không phải rủi
+  ro lý thuyết**: security đã tự đúc token hợp lệ `create_access_token(USR-0201, cskh)` trên dev
+  lúc probe F-LOG-3, và DB prod mang từ dump Mac nên user đó tồn tại (họ KHÔNG thử lên live —
+  ngoài quy tắc chỉ-đọc). Nguyên tắc phân biệt: *key cho hành động từ xa → xoay ngay; key chỉ mở
+  dữ liệu đã bị lấy → xoay theo lịch*. **Chỗ hở phải bịt cùng lúc: production giữ `.env` RIÊNG,
+  deploy KHÔNG ghi đè** — không thì lần deploy tới chép đè là key lại trùng, không ai biết (đây
+  mới là bản vá; xoay key chỉ dọn hậu quả). `.env` KHÔNG nằm trong git (đã kiểm) ⟹ trùng là do
+  chép tay khi deploy. Xác nhận bằng HÀNH VI sau xoay: đăng nhập mới OK **và** token ký bằng key
+  cũ bị từ chối (security làm được nếu PO mở cửa sổ). Sửa mốc cổng: **"trước DỮ LIỆU THẬT ĐẦU
+  TIÊN"**, không phải "trước khi mở người ngoài" (demo mentor gõ SĐT thật là đã có dữ liệu thật).
 - **4 CÂU PRODUCTION — PO THẬT TRẢ LỜI ĐỦ (16/08 tối):** ① deploy từ `main`; nhịp release chốt:
   "code hôm nay done test ok thì cho lên main" (PO-agent điều phối link PR) ② secret TRÙNG dev
   → xử lý: xoay `JWT_SECRET_KEY` NGAY trên Windows (rẻ, chỉ rớt phiên mở); `FIELD_ENCRYPTION_KEY`
