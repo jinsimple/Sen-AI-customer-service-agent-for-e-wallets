@@ -435,7 +435,15 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   thiện cùng tỉ lệ. Không land reranker cho tới khi N1b đạt.
 - **Hai dự đoán độc lập của tester+coder được xác nhận bằng số:** trần reranker có thật và chạm
   được; **6/10 ca ToS ngoài tầm MỌI reranker** ⟹ bệnh ToS ở bước TÌM — nay là sự kiện đo được.
-  Nếu N1b đạt: Recall@4 48,9% → ~80,9%, trục Truy-hồi 9,57 → ~16/20 (cắt chuỗi, đo lại nhãn vật).
+- ⚠️ **DỰ KIẾN, KHÔNG PHẢI MỐC** (tester đính chính PO-agent): con số "48,9%→~80,9% · 9,57→~16/20"
+  suy ra từ 38/47 ở MỘT chế độ gõ, trong khi thước sổ sách là TRUNG BÌNH hai chế độ (lệch ~2 điểm
+  ở mọi lượt đo từ trước) — chưa qua canary, chưa có nhãn vật, chưa lặp 3. **Không ghi vào sổ như
+  mốc cho tới khi tester đo đúng quy trình.** (Tiền lệ: 60,0% từng được ghi rồi phải rút, giá là
+  cả một ngày rà lại.)
+- ⚠️ **Cách đọc phải giữ khi đo chính thức:** 38/47 = ĐÚNG trần ⟹ nếu lượt đo sau ra **cao hơn**
+  38/47 thì phần vượt **KHÔNG phải công của reranker** — đi tìm biến thứ hai. Và khi land: thêm
+  rerank + có thể đổi `k` = **HAI biến**; land tách hai lượt thì đo được cặp sạch, land một lượt
+  thì chấp nhận nhưng **ghi rõ hai biến**, không để trôi vào báo cáo như một (bài học đòn 4).
 
 ## ⭐ ĐỔI API SANG QWEN — PO thật quyết 16/08, ƯU TIÊN CAO sau gate (chi tiết: brief `2026-08-17-dot-nang-cap-oss.md` §N7)
 - PO thật ĐÃ CÓ key. PO-agent đã đặt khối biến **chưa-hiệu-lực** vào `.env` local (QWEN_API_KEY +
