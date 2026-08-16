@@ -74,11 +74,11 @@
       }
     },
     "qwen3.7-plus": {
-      "vao": 0.4,
-      "ra": 1.2,
-      "vao_cached": null,
+      "vao": 0.32,
+      "ra": 1.28,
+      "vao_cached": 0.064,
       "ngay_tra": "2026-08-17",
-      "nguon": "PO-agent tra (Qwen quốc tế) — giá TẠM lấy bằng qwen-plus, CHƯA xác nhận",
+      "nguon": "PO-agent fetch trang model chính thức Alibaba (đã giảm 20%) — implicit cache $0,064",
       "nha_cung_cap": "Alibaba DashScope intl",
       "han_muc": {
         "rpm": 15000,
@@ -110,5 +110,7 @@
       "ghi_chu": "8 agent + 8 judge"
     }
   },
-  "_han_muc_ghi_chu": "TRẦN áp ở CẤP TÀI KHOẢN GỐC — mọi workspace/key cộng chung, không né được bằng cách tạo nhiều key. null = CHƯA TRA ĐƯỢC, in KHÔNG ĐO ĐƯỢC chứ không đoán."
+  "_han_muc_ghi_chu": "TRẦN áp ở CẤP TÀI KHOẢN GỐC — mọi workspace/key cộng chung, không né được bằng cách tạo nhiều key. null = CHƯA TRA ĐƯỢC, in KHÔNG ĐO ĐƯỢC chứ không đoán.",
+  "_ty_le_cache_do_duoc": 0.85,
+  "_ty_le_cache_ghi_chu": "Đo được ~85% cache hit trên hệ thống ta (T1, gpt-4o-mini). CHƯA biết Qwen có hit tương tự trên tải của ta hay không — nên in HAI dòng (0% = cận trên, 85% = kịch bản đo được của ta), không chọn một."
 }

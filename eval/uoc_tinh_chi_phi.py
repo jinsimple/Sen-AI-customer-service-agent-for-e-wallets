@@ -174,17 +174,26 @@ def main() -> None:
            "output_tokens": statistics.median(ra),
            "cached_input_tokens": statistics.median([u.get("cached_input_tokens") or 0 for u in us])}
 
-    print(f"\n{'model':<16}{'$/lượt':>10}{'$/1000 ký tự vào':>20}   ghi chú")
+    ty_le = bg.get("_ty_le_cache_do_duoc", 0.85)
+    print(f"\n{'model':<16}{'$/lượt 0% cache':>17}{f'$/lượt {ty_le:.0%} cache':>19}"
+          f"{'$/1000 ký tự':>15}")
     print("-" * 74)
+    print("  HAI DÒNG vì ta CHƯA biết Qwen có hit cache trên tải của mình hay không:")
+    print(f"  0% = cận trên (không cache) · {ty_le:.0%} = tỉ lệ ĐO ĐƯỢC trên hệ ta (T1).")
+    print()
     for ten, g in bg["gia"].items():
-        t = tien_mot_luot(mau, g)
+        mau_0 = dict(mau, cached_input_tokens=0)
+        mau_c = dict(mau, cached_input_tokens=mau["input_tokens"] * ty_le)
+        t0 = tien_mot_luot(mau_0, g)
+        tc = tien_mot_luot(mau_c, g) if g.get("vao_cached") is not None else None
+        t = t0
         if co_chars:
             kt = statistics.median(co_chars)
             cot2 = f"{t / kt * 1000:>19.5f}"
         else:
             cot2 = f"{'KHÔNG ĐO ĐƯỢC':>19}"
-        note = "" if g.get("vao_cached") is not None else "chưa công bố giá cached"
-        print(f"{ten:<16}{t:>10.5f}{cot2}   {note}")
+        c2 = f"{tc:>19.5f}" if tc is not None else f"{'chưa công bố':>19}"
+        print(f"{ten:<16}{t0:>17.5f}{c2}{cot2[-15:]:>15}")
 
     if not co_chars:
         print("\n  ⚠️  `input_chars` CHƯA có trong `usage` — cột thứ hai KHÔNG tính được.")
