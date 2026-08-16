@@ -79,6 +79,29 @@ def _song() -> bool:
     return bool(r.stdout.strip())
 
 
+def _api_song() -> bool:
+    """API có nhận request không — KHÁC với container có chạy không.
+
+    VÌ SAO CẦN, và nó không phải thừa: khi `BASE` không kết nối được, lỗi nối
+    mạng xảy ra ở fixture, và `xfail(strict=True)` **NUỐT LUÔN** nó — ba ca báo
+    `XFAIL`, tức "finding tái hiện", trong khi phép đo **không hề chạy**.
+
+    Người đọc báo cáo thấy hai finding vẫn mở, đã xác nhận. Sự thật: không đo gì.
+    Đây là Luật 1 ở dạng mới — một trạng thái **trông như phép đo hợp lệ** mà
+    không phải, và nó nguy hơn đỏ-oan vì nó khớp với điều ta đang kỳ vọng.
+
+    `skip` ở tầng module thì lỗi hạ tầng hiện ra ĐÚNG BẢN CHẤT của nó, không
+    đội lốt kết quả.
+    """
+    try:
+        import httpx
+
+        httpx.Client(verify=False, timeout=5).get(f"{BASE}/api/env-info")
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 
 
 pytestmark = [
@@ -91,6 +114,8 @@ pytestmark = [
     # là làm hỏng video của họ. Đây là skip vì THIẾU TÀI NGUYÊN DÙNG CHUNG —
     # một lý do có thật, kiểm được, không phải skip cho qua chuyện (Luật 6).
     pytest.mark.skipif(dang_dong_bang(), reason=LY_DO),
+    pytest.mark.skipif(not _api_song(), reason=f"{BASE} không nhận request — KHÔNG đo được, "
+                       "và một lỗi nối mạng KHÔNG được đội lốt 'finding tái hiện'"),
 ]
 
 
