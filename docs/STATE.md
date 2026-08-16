@@ -345,6 +345,20 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 🎯 THƯỚC ĐÃ RÀ — MỐC THẬT ĐẦU TIÊN CỦA TRỤC TRUY-HỒI: 35,7% = 7,14/20 (16/08, cd03c88)
+- Luật chuỗi-đặc-trưng (3 cửa: có-trong-đáp-án-đúng-biên · sống-qua-trích-PDF · ≤2 câu FAQ) +
+  xác minh nhãn bằng ĐƯỜNG ĐỘC LẬP (quét kho bằng 160 câu nguồn → 31/35 chuỗi có thật trong kho
+  ⟹ trượt THẬT). Khoảng bất định siết từ 25,7 điểm còn 4,6 (cận trên 40,3% nếu 4 ca chưa-kết-luận
+  đều nhãn hỏng). **12/12 pass-giả lộ diện** (9 nghi + 3 chưa nghi: RAG-06/28/32).
+- **Hai mốc cũ 54,3% & 60,0% ghi SAI THƯỚC** (không phải cận trên — số đo bằng thước đã chứng
+  minh cho pass giả không có tư cách cận trên). Chuỗi so sánh trục Truy-hồi BẮT ĐẦU tại 35,7%.
+- **① 215 chữ vỡ chắc chắn trong kho** (vế trái không nguyên âm) từ trích PDF — trong khi DOCX
+  SẠCH cùng nội dung nằm ngay cạnh trong data/raw/ ⟹ **RAG ĐÒN 4: ingest DOCX thay PDF** (coder,
+  sau UI-02, trước T3 — chất lượng 7,14/20 ưu tiên hơn tối ưu giá). Đòn 1 giữ cho nguồn chỉ-có-PDF.
+- **② 171/362 chunk (47%) không bao giờ lọt top-3** với chính 160 câu kho sinh ra để trả lời —
+  tester lấy mẫu 20 chunk phân loại (rác vs nội-dung-bị-chôn) trước khi viết ca 6-trục; kết quả
+  quyết đòn-chunk-theo-cấu-trúc có quay lại không.
+
 ## 💰 T1 KHÉP BẰNG KẾT QUẢ ÂM — cache ĐÃ hit ~85% từ trước, bản vá revert (16/08 tối)
 - Coder đo hai vế chỉ-khác-một-file: bản cũ 85,0% cache-hit, bản "vá" 86,3% — chênh = nhiễu;
   `cache_read` lượt 1 giống nhau TỚI TỪNG TOKEN (29.568). **Cache chưa bao giờ hit 0% — phần tái
