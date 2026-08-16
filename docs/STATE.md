@@ -2,7 +2,10 @@
 
 ## 🔴 ĐANG ĐIỀU TRA (16/08) — DEMO-BUG "gặp người thật ra lỗi": đua-refresh → AUTH5-03 thu hồi family
 PO gặp lỗi giữa demo mentor 15/08 (đúng quy trình 2 cửa sổ — giả thuyết đè-phiên BỊ BÁC bởi dữ
-kiện PO). Giả thuyết hiện tại (coder đọc code xác nhận KHẢ THI CẤU TRÚC, "gần như tất định"):
+kiện PO). **Dữ kiện bổ sung của PO siết thêm:** trước demo họ chạy TRỌN kịch bản KỂ CẢ handoff —
+ĐẠT (lướt nhanh <13 phút từ đăng nhập); rồi ĐĂNG XUẤT HẲN, 1 tiếng sau đăng nhập TƯƠI demo thật
+— chết ở handoff (>13 phút vì có mentor). ⟹ biến số duy nhất giữa đạt/trượt là THỜI-GIAN-TỪ-ĐĂNG-
+NHẬP; loại nghi vấn phiên-cũ-để-rác (family demo là mới sạch). Cặp đối chứng tự nhiên từ đời thật. Giả thuyết hiện tại (coder đọc code xác nhận KHẢ THI CẤU TRÚC, "gần như tất định"):
 access token vào cửa sổ refresh (`REFRESH_MARGIN_SECONDS=120`) → handoff là thời điểm đầu tiên có
 ≥2 request đồng thời (`ChatClient.tsx:195` bắn ws-ticket ngay) → 2 đường cùng refresh bằng MỘT
 token dùng-một-lần → đứa thua trúng AUTH5-03 (`auth.py:146-155`) → **thu hồi CẢ FAMILY kể cả cặp
