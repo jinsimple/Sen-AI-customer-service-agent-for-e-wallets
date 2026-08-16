@@ -53,7 +53,7 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 | Đúng dữ liệu (25) | cổng-96: 17/17 · grounding: đạt | 100% | **25,0** |
 | Truy hồi RAG (20) | **Recall@3 = 41,4%** (15/35 dấu · 14/35 không) — mốc SẠCH đầu tiên 16/08: thước-đã-vá (bug `bo_dau` khoảng trắng) × kho-sạch (đòn 4b DOCX, 378 chunk · 2 doc, đã gỡ 57 chunk rác sự cố) × **3 lượt lặp y hệt từng ca**. Nhãn vật: `55118b5` · he_thong `1e367a58c2e5` · backend `332c053b9fde` · StartedAt 08:44:29Z · canary 4-kết-quả. ⚠️ KHÔNG đọc 41,4−35,7 thành delta đòn-4 (ba biến đổi cùng lúc: thước+kho+rác; quyết định 16/08: KHÔNG dựng lại nền PDF — chuyện đóng góp từng đòn kể bằng số cấu trúc: chữ-vỡ 131→0 · bảng 0→25 hàng · mồ-côi 61%→36%). Lịch sử: 18,75% → 54,3%/60,0% SAI THƯỚC → 35,7% VÔ HIỆU KÉP → **chuỗi so sánh BẮT ĐẦU LẠI tại 41,4%** | 41,4% | **8,29** |
 | Trải nghiệm (15) | **KHÔNG ĐO ĐƯỢC** — judge chưa hiệu chuẩn (chờ 30 nhãn PO) | — | *(loại khỏi mẫu số)* |
-| Hiệu năng (10) | 8/8 lượt demo ≤ 30s *(n=8, mẫu nhỏ — provisional)* | 100% | **10,0** |
+| Hiệu năng (10) | **bộ lệnh cố định v2 · chế độ `don` · lặp 3** (`aa020d3`): trung vị 5,9–9,9s, dải rộng nhất 7,3–18,3s, **0 ca vượt 30s**. Câu kết: *không có vấn đề latency; muốn tối ưu thì tối ưu SỐ VÒNG ReAct, không phải kích thước prompt* (N3 nặng token thứ nhì nhưng chậm nhất vì gọi 2 tool; D3 nặng token nhất lại nhanh hơn) | 100% | **10,0** |
 
 ### ➡️ **FIN-05 Benchmark v0.4 (16/08 tối) = 74,57 / 85 điểm đo được = 87,7%** ⚠️ kèm 2 finding mở
 *(số trục Truy-hồi theo script tester `6eef7e1` — nguồn SỐ là script, spec chỉ là nguồn CÔNG

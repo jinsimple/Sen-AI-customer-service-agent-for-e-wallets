@@ -417,7 +417,33 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🔴 TRẦN TPM = RÀNG BUỘC CỨNG HƠN MỌI THỨ ĐANG TỐI ƯU (tester đo 16/08, `aa020d3`)
+- Trần org **200k TPM**. Đo được: 15,4k/lượt (hội thoại mới) → **13,0 lượt/phút TOÀN HỆ THỐNG** ·
+  25,7k (lượt 4) → 7,8 · 36,2k (trần đo) → 5,5. **150 người × 1 câu/2 phút = 75 lượt/phút** ⟹
+  hội thoại ngắn cần 1,5tr TPM (**7,5× trần**), dài cần 2,7tr (**13,6× trần**). Chính phép đo
+  (MỘT người, 21 lượt, 2 phút) đẩy org tới 193k/200k. ⟹ **T4 cắt lịch sử KHÔNG đủ** — cắt 36k→15k
+  vẫn chỉ ~26 người. Khoảng cách là BẬC ĐỘ LỚN: cần nâng hạn mức tài khoản hoặc đổi mô hình —
+  **quyết định của PO thật**, không phải đòn kỹ thuật. (Giới hạn của số: đo trên trần org hiện
+  tại, và trần đó mua được.) Số này biện minh hồi tố cho quyết định hoãn 150-user test.
+- **🔴 429 của OpenAI ra tới KHÁCH thành HTTP 500** — nhà cung cấp nói rõ "try again in 1.381s",
+  khách nhận `{"detail":"Internal Server Error"}`. Không retry/degrade/thông báo. GIAO coder vá
+  tối thiểu (retry+backoff theo đúng số giây trả về, hết khe thì câu xin lỗi tử tế thay 500).
+  Rủi ro trực tiếp cho video demo Gate ⟹ **PO-agent lệnh tester DỪNG mọi phép đo tốn LLM** cho
+  tới khi PO thật quay xong (chia sẻ tài nguyên, không phải đánh giá việc).
+- **Bản vá F-31 REVERT** (luật không-có-số-lợi-ích): 9/16 mục không đạt, 2 ca đối chứng security
+  giữ 8/8 nên không hại — nhưng land là gieo tiền lệ "chỗ này sửa rồi". **Manh mối cửa THỨ BA,
+  lexical không phải ngữ nghĩa:** bỏ đúng chữ "tra soát" là hết từ chối (4/4 → 0/4) ⟹ nghi dòng
+  `## Giọng văn` ("tránh thuật ngữ nội bộ: 'tra soát', 'đối soát'…") bị model khái quát từ *đừng
+  DÙNG từ* thành *đừng ĐỘNG tới chủ đề*. Vẽ lại trục phạm vi bao nhiêu lần cũng không chạm tới.
+  Chưa xác nhận (nghi cửa thứ tư cùng loại với "gian lận"/ràng buộc 4) — chẩn đoán ~10 lượt khi
+  TPM rảnh, CẤM sửa prompt lần hai trước đó.
+
 ## 📦 GATE G2 — hạn 23:59 16/08, hồ sơ ĐÃ DỰNG (`gate/README.md`, `da4e51e`)
+- **Conflict 3 PR ĐÃ GIẢI (PO-agent, worktree riêng):** `main` có 2 merge-commit (#5,#6) không
+  có trong dev; xung đột DUY NHẤT `docs/STATE.md` (main là bản CŨ hơn). Giải một lần ở nhánh đầu
+  (-X ours) rồi nối chuỗi B1⊂B2⊂B3 — hai nhánh sau 0 xung đột. Cả 3 nay **MERGEABLE**.
+- **CI đỏ = runner org bị chặn billing** (mọi job chết trong 2-5s, KHÔNG có log) — không phải lỗi
+  code; invariants 23/23 chạy tay xanh trên HEAD. Đã ghi trong README từ trước.
 - 5 deliverable: ① video PO tự quay (kịch bản 8 màn sẵn) ② architecture ✅ ③ **≥10 PR — mở 3 PR
   dev→main: #8 RAG-đòn-4+kho · #9 F-LOG-3+T3 · #10 ADR-026+benchmark+gate/** (lát cắt tuần tự,
   tổ tiên lồng nhau, merge THEO THỨ TỰ; 7 đã merge + 3 = 10) ④ README ✅ ⑤ EVAL-EVIDENCE 7 ca ✅.
