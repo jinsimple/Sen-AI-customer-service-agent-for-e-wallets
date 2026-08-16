@@ -179,7 +179,16 @@ JWT_ALGORITHM = "HS256"
 # từ 8 giờ xuống 15 phút. Token cũ (8h, phát trước khi nâng cấp) VẪN qua được
 # _decode() bình thường tới khi hết hạn tự nhiên (không thêm field bắt buộc
 # mới vào payload) — không khoá đột ngột session đang sống (AUTH5-MIGRATE-001).
-JWT_ACCESS_EXPIRE_MINUTES = 15
+# Đọc từ env (mặc định GIỮ NGUYÊN 15) — thêm 2026-08-16 để dựng được instance
+# test TTL ngắn. Vì sao đáng: tái lập lớp lỗi đua-refresh phải chờ tới cửa sổ
+# 120s cuối của phiên, tức ~phút 13 mỗi lần; k=10 mất hơn 2 giờ. Với TTL=1
+# phút thì k=30 gọn trong 20 phút, và test hồi quy vùng auth mới TỒN TẠI được
+# — không ai cho CI chờ 13 phút một ca.
+#
+# ⚠️ HẠ giá trị này là HẠ MỘT CONTROL BẢO MẬT (AUTH5-02, rút từ 8h xuống 15
+# phút theo NIST SP 800-63B-4/PSD2). Chỉ dùng cho instance TEST chạy dưới
+# project name RIÊNG. KHÔNG bao giờ set trên `.env` của stack thật.
+JWT_ACCESS_EXPIRE_MINUTES = int(os.environ.get("JWT_ACCESS_EXPIRE_MINUTES", "15"))
 
 # Refresh token (KHÔNG phải JWT — chuỗi ngẫu nhiên, lưu trong Redis, xem
 # src/auth.py::mint_refresh_token) — role nội bộ (cskh/supervisor/

@@ -1,0 +1,54 @@
+# Instance TEST TTL NGẮN — dựng stack thứ hai, TÁCH HẲN stack demo.
+#
+#   docker compose -p fin05ttl -f docker-compose.yml -f docker-compose.ttl-test.yml up -d
+#   docker compose -p fin05ttl -f docker-compose.yml -f docker-compose.ttl-test.yml down -v
+#
+# ⚠️ `-p fin05ttl` LÀ BẮT BUỘC, KHÔNG PHẢI TUỲ CHỌN. `docker-compose.yml` ghi
+# cứng `name: fin05`; thiếu `-p` là file này đè thẳng lên stack demo đang chạy
+# (cùng project ⟹ cùng container, cùng volume). Đó chính là bẫy ADR-009 "hai
+# stack cùng sống" mà đội đã mất nhiều giờ vì nó — chỉ khác là lần này nó
+# không tạo stack thứ hai mà PHÁ stack thứ nhất.
+#
+# Vì sao instance này tồn tại: tái lập lớp lỗi đua-refresh phải chờ tới cửa sổ
+# 120s cuối của phiên (~phút 13 với TTL 15 phút). k=10 mất hơn 2 giờ. Với TTL
+# 1 phút, cửa sổ mở ngay từ giây thứ 0 nên k=30 gọn trong ~20 phút — và test
+# hồi quy cho vùng auth chỉ TỒN TẠI được nếu có đường này.
+#
+# ⚠️ TTL 1 phút là HẠ MỘT CONTROL BẢO MẬT (AUTH5-02). Chỉ ở đây. KHÔNG bao giờ
+# đưa `JWT_ACCESS_EXPIRE_MINUTES` vào `.env` của stack thật.
+#
+# ⚠️ `!override` TRÊN MỖI KHỐI `ports` LÀ BẮT BUỘC — đo mới ra. Compose GỘP
+# danh sách chứ không thay thế: thiếu tag, `caddy` nhận `80,443,8443` và
+# `postgres` nhận `5432,55432`, tức instance test vẫn giành đúng những cổng
+# stack demo đang giữ. Bản nháp đầu của file này dính y hệt vậy và chỉ lộ ra
+# khi in `docker compose config` — đọc file thì trông hoàn toàn đúng.
+
+services:
+  postgres:
+    # Volume tự tách theo project name (`fin05ttl_postgres_data`) nên dữ liệu
+    # demo an toàn tuyệt đối. Đổi lại: DB này TRỐNG, phải seed trước khi đăng
+    # nhập được. Ghi rõ vì "đăng nhập trả 401" ở đây rất dễ bị đọc nhầm thành
+    # bug auth trong khi thật ra chưa có user nào.
+    #   docker compose -p fin05ttl ... exec backend python scripts/seed_db.py
+    ports: !override
+      - "127.0.0.1:55432:5432"
+
+  backend:
+    environment:
+      JWT_ACCESS_EXPIRE_MINUTES: "1"
+
+  jaeger:
+    ports: !override
+      - "127.0.0.1:56686:16686"
+
+  caddy:
+    # 8443 thay 443, và BỎ HẲN 80 — cổng 80 của stack demo đang giữ, mà Caddy
+    # mặc định còn dùng :80 để chuyển hướng sang HTTPS. Truy cập test qua
+    # https://localhost:8443 (chấp nhận cảnh báo chứng chỉ nội bộ).
+    ports: !override
+      - "8443:443"
+
+  # KHÔNG kéo cloudflared vào instance test dù có bật profile nào: một tunnel
+  # thứ hai cùng token sẽ giành traffic của tunnel thật.
+  cloudflared:
+    profiles: ["khong-bao-gio-bat"]
