@@ -15,6 +15,14 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   sau 200, TỰ HỒI). ⟹ đua là **điều kiện ĐỦ chứ chưa chắc CẦN** cho "có lỗi"; nhưng chỉ ĐUA mới
   giải thích được **chết-hẳn-không-hồi** (AUTH5-03 revoke family). Trục phép đo = phân biệt
   "401-rồi-hồi" vs "401-rồi-chết-luôn" (3 lần gọi lại sau đó là phép thử quyết định).
+- **HAI QUYẾT ĐỊNH ĐO (tester đề nghị, PO-agent duyệt):** ① **N của grace CHỈ lấy từ dấu thời
+  gian SERVER-SIDE** (log `auth.py:150`) — khoảng cách `curl & curl` là độ trễ spawn của MÁY ĐO
+  không phải của sản phẩm; lấy N từ đó = hạ một control bảo mật dựa trên hiện vật công cụ (họ 7b,
+  hậu quả nằm trong ADR). Số client-side chỉ ghi nhãn "giới hạn trên thô, không dùng định N".
+  ② **Instance TTL ngắn (`JWT_ACCESS_EXPIRE_MINUTES=1`, compose project riêng) = HẠ TẦNG ĐO BẮT
+  BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
+  test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
+  chạy NHANH được cũng là nhánh không ai canh). → coder.
 - **Tái lập đang chạy nền (~32 phút, 0 TPM):** Pha A đua (2 request song song cùng chuỗi cookie
   cũ, đúng cảnh browser 2 request in-flight) + Pha B đối chứng tuần tự. Qua đúng đường BFF
   `https://localhost/api/live-chat/ws-ticket` = đúng chỗ PO chết. Giới hạn tự khai: bắn 2 request
