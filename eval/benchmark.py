@@ -118,6 +118,34 @@ def bo_dau(s: str) -> str:
 # ===========================================================================
 
 
+# ===========================================================================
+# CỔNG ĐÓNG BĂNG LLM — dùng chung hạn mức TPM với 3 phiên khác + PO thật
+# ===========================================================================
+
+
+def cong_dong_bang(ly_do_can_llm: str) -> None:
+    """Từ chối chạy khi đang đóng băng LLM. Đặt `FIN05_DONG_BANG_LLM=1` để bật.
+
+    VÌ SAO LÀ CƠ CHẾ CHỨ KHÔNG PHẢI LỜI HỨA: đo được 16/08 — **một người, 21
+    lượt, 2 phút** đẩy org tới `193.274/200.000 TPM`. Trần đó dùng chung giữa
+    4 phiên Claude và PO thật. Nếu tôi chạy bộ đo trong lúc PO thật quay video
+    demo, họ ăn 429 **giữa video** — và 429 hiện ra tới khách dưới dạng HTTP
+    500 màn hình trắng (finding chưa vá lúc viết dòng này).
+
+    Một lời hứa "tôi sẽ không chạy" không sống sót qua một phiên bị nén ngữ
+    cảnh hay một người khác chạy lại lệnh trong lịch sử shell. Cổng thì có.
+    """
+    if os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false"):
+        sys.exit(
+            "🧊 ĐANG ĐÓNG BĂNG LLM — không chạy.\n"
+            f"   Lệnh này cần model để: {ly_do_can_llm}\n"
+            "   Trần TPM dùng chung với 3 phiên khác + PO thật; đo được một người\n"
+            "   21 lượt/2 phút đã đẩy org tới 193k/200k, và 429 ra tới khách\n"
+            "   thành HTTP 500.\n"
+            "   Bỏ đóng băng: unset FIN05_DONG_BANG_LLM"
+        )
+
+
 def _chay(cmd: list[str]) -> str:
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=25).stdout.strip()
@@ -220,6 +248,7 @@ def _tra(c, q: str) -> list[str]:
 
 
 def _tra_agent(c, q: str) -> tuple[list[str], bool]:
+    cong_dong_bang("chấm qua đường agent thật (/api/agent-chat)")
     """Đường AGENT THẬT — chunk SAU `_sanitize_policy_results`.
 
     Đây là thứ khách nhận: một chunk đúng nhưng tới agent dưới dạng "[đã ẩn]"
