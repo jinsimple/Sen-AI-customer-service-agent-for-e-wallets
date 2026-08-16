@@ -735,6 +735,43 @@ xác nhận "trả lời được".
 
 ---
 
+### 7c — bộ rà chưa biết SÀN NHIỄU của mình thì báo cáo của nó không đọc được
+
+*(PO phê chuẩn 17/08.)*
+
+Một bộ rà báo `9 ca có vấn đề`. Con số đó **không đọc được** nếu chưa biết bộ
+rà đó báo mấy ca trên một tập **đã biết là sạch**.
+
+**Cách hiệu chuẩn — rẻ, và luôn làm được:** chạy bộ rà trên tập ta **đã tự tay
+rà xong**, rồi đếm nó báo nhầm bao nhiêu.
+
+Ca thật: bộ rà nhãn chạy trên golden-set (bộ vừa rà hai phía, biết là sạch) báo
+**9/47 "không thấy trong kho"**. Cả 9 là **dương tính giả** — đã kiểm hôm trước
+bằng đường độc lập, 15/15 chuỗi nghi ngờ đều có thật. ⟹ phép dò đó có **sàn
+nhiễu ~19%**.
+
+**Hệ quả về CÁCH GỌI TÊN, không chỉ về con số:** sau khi biết sàn nhiễu, nhãn
+kết quả đổi từ
+
+    "lỗi: không có trong kho"
+    → "NGHI không có trong kho — phép dò YẾU, phải kiểm lại bằng đường độc lập
+       TRƯỚC KHI sửa nhãn"
+
+Chữ *"lỗi"* mời người ta đi sửa. Trên một bộ chỉ-bắn-một-lần, **nhiễu còn tệ
+hơn im lặng**: người đọc báo cáo sẽ đi sửa thứ không hỏng, và mỗi lần sửa nhãn
+theo một phép dò yếu là một lần **hiệu chuẩn thước theo vật**.
+
+Đây chính là vòng lặp đã suýt cắn hôm trước: 15 nhãn **lành** suýt bị sửa vì
+một phép dò báo chúng vắng.
+
+**Ba câu hỏi trước khi tin bất kỳ bộ rà nào — kể cả của mình:**
+1. Nó báo mấy ca trên một tập **đã biết là sạch**?
+2. Những ca nó báo có **kiểm lại được bằng đường khác** không?
+3. Tên gọi kết quả có mời người ta **sửa ngay** không, trong khi lẽ ra phải
+   **kiểm lại trước**?
+
+---
+
 ### 7b — NGUỒN DỮ LIỆU ĐÚNG, DÂN SỐ SAI
 
 *(PO phê chuẩn 17/08.)*
