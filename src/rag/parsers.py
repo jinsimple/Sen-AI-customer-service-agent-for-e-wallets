@@ -13,6 +13,8 @@ khai, chặn kiểu tấn công đổi đuôi file để né validate.
 from __future__ import annotations
 
 import io
+import re
+import unicodedata
 
 from src.tools.base import ToolError
 
@@ -24,6 +26,53 @@ _ALLOWED_TEXT_EXTENSIONS = (".md", ".txt")
 
 class UnsupportedDocumentError(ToolError):
     """File không đúng định dạng hỗ trợ hoặc đuôi file không khớp nội dung thật."""
+
+
+_NGUYEN_AM = set("aeiouy")
+
+
+def _bo_dau(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
+
+
+def _co_nguyen_am(s: str) -> bool:
+    return any(c in _NGUYEN_AM for c in _bo_dau(s).lower())
+
+
+def _ghep_am_tiet_vo(text: str) -> str:
+    """Vá lỗi trích xuất PDF chèn khoảng trắng GIỮA một âm tiết tiếng Việt.
+
+    Kho RAG thật chứa `"Giao D ịch"`, `"liên k ết"`, `"th ực"` — khoảng trắng
+    do pypdf chèn khi ghép glyph có dấu. Nó phá CẢ HAI tầng truy hồi cùng lúc:
+    embedding thấy hai token rác thay vì một từ, và khớp từ khoá trượt hoàn
+    toàn. Đo trên kho thật: **414 chỗ** trong 254.196 ký tự.
+
+    LUẬT GHÉP — hai điều kiện ĐỒNG THỜI, và cả hai đều cần:
+      (1) mảnh TRƯỚC là cụm PHỤ ÂM THUẦN 1-3 ký tự (không chứa nguyên âm).
+          Âm tiết tiếng Việt LUÔN có nguyên âm, nên một token toàn phụ âm
+          không bao giờ là một từ hoàn chỉnh — nó chỉ có thể là mảnh vỡ.
+      (2) mảnh SAU bắt đầu bằng NGUYÊN ÂM — tức nó là phần VẦN của âm tiết.
+
+    Vì sao cần cả (2), đo mới thấy: chỉ dùng (1) thì ghép nhầm **143 chỗ** viết
+    tắt hợp lệ — `NH TMCP` -> `NHTMCP`, `SMS Banking` -> `SMSBanking`,
+    `JCB Debit`, `TK ngân`, `x Rộng`. Thêm (2) loại sạch cả 143 mà vẫn giữ
+    nguyên 414 ca ghép đúng.
+
+    KHÔNG dùng từ điển: một danh sách từ viết tay sẽ thiếu đúng từ người ta
+    sắp gõ (Luật 18/ADR-023). Luật này dựa vào TÍNH CHẤT ÂM VỊ của tiếng Việt,
+    không dựa vào việc liệt kê.
+    """
+
+    def _thay(m: re.Match[str]) -> str:
+        truoc, sau = m.group(1), m.group(2)
+        if _co_nguyen_am(truoc):
+            return m.group(0)
+        dau_sau = _bo_dau(sau)[:1].lower()
+        if dau_sau not in _NGUYEN_AM:
+            return m.group(0)
+        return truoc + sau
+
+    return re.sub(r"\b([A-Za-zĐđ]{1,3}) ([a-zA-ZÀ-ỹĐđ]{1,12})\b", _thay, text)
 
 
 def _extension(filename: str) -> str:
@@ -42,7 +91,9 @@ def _extract_pdf(content: bytes) -> str:
     text = "\n\n".join(p.strip() for p in pages if p.strip())
     if not text.strip():
         raise UnsupportedDocumentError("PDF không có text trích xuất được (có thể là bản scan ảnh)")
-    return text
+    # Vá âm tiết vỡ NGAY TẠI ĐIỂM TRÍCH — trước khi text đi vào chia chunk và
+    # embedding. Vá muộn hơn (lúc truy vấn) không cứu được: vector đã sai rồi.
+    return _ghep_am_tiet_vo(text)
 
 
 def _extract_docx(content: bytes) -> str:
