@@ -345,6 +345,21 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 📊 THƯỚC 35-CA CHẠY LẦN ĐẦU — mốc Truy-hồi MỚI 54,3% + phát hiện TOC (16/08)
+- **19/35 = 54,3% CẢ HAI chế độ gõ** (nhãn: 7fdca4e · he_thong 5d63edfc7cc7 · backend 95e17b99 ·
+  kho 418·2doc·v2 · cổng-kiem-trong-container). Trục benchmark: **10,86/20 — MỐC MỚI trên thước
+  mới, KHÔNG so cặp với 3,75/20 probe-8** (hai bộ khác nhau; chuỗi so sánh bắt đầu từ đây).
+- **Xác minh 16 ca trượt: 1 nhãn sai (RAG-08 — từ khoá là TIÊU ĐỀ MỤC, sửa; thước sai vật đúng)
+  · 15 truy hồi kém THẬT (không sửa nhãn)** — luật chỉ-sửa-nhãn-chứng-minh-được-sai giữ nghiêm.
+- **🔴 PHÁT HIỆN → RAG ĐÒN 3 CHỐT: MỤC LỤC BỊ INDEX** — TOC chứa nguyên văn 160 câu hỏi, embedding
+  khớp câu-hỏi-trong-mục-lục thay vì đáp-án-trong-thân; càng giống câu thật càng dễ trúng TOC
+  (RAG-21/22 top-3 toàn dòng mục lục). Kho tự cạnh tranh với mình. Đòn 3 = LOẠI DÒNG TOC khỏi
+  index (luật 2-điều-kiện: ≥N chấm liền VÀ kết thúc số trang — chống loại nhầm kiểu F-25), giao
+  coder; **thước trước/sau = chính bộ 35 ca, mốc 19/35**. Đòn chunk-theo-cấu-trúc HOÃN chờ số.
+- **Spec sửa (tester đề, duyệt):** sau đòn 2 hai chế độ gõ HỘI TỤ (19/35 cùng danh sách trượt) —
+  "trung bình 2 chế độ" = cộng-số-với-chính-nó, hết thông tin. Đổi: 2 chế độ thành **CỔNG chống
+  hồi quy** (phải bằng nhau), trục biến-thiên-đầu-vào chấm bằng **sai-chính-tả·viết-hoa·dấu-câu**.
+
 ## 🔴 BĂM KHO RAG KHÔNG TẤT ĐỊNH (tester bắt bằng Luật 4) — nhãn tạm bỏ trường băm
 - Đọc `kho_rag.py kiem` 3 lần liên tiếp trên kho KHÔNG đổi → 3 giá trị băm khác nhau ⟹ mọi suy
   luận "băm khác = kho đổi" trong ngày VÔ HIỆU hai chiều (re-index vẫn THẬT — bằng chứng là số
