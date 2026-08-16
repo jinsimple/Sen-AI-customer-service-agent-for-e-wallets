@@ -417,6 +417,14 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **4 CÂU PRODUCTION — PO THẬT TRẢ LỜI ĐỦ (16/08 tối):** ① deploy từ `main`; nhịp release chốt:
+  "code hôm nay done test ok thì cho lên main" (PO-agent điều phối link PR) ② secret TRÙNG dev
+  → xử lý: xoay `JWT_SECRET_KEY` NGAY trên Windows (rẻ, chỉ rớt phiên mở); `FIELD_ENCRYPTION_KEY`
+  GIỮ (xoay không re-encrypt = mất dữ liệu vĩnh viễn — DB prod mã bằng key Mac); nợ coder: script
+  xoay-có-re-encrypt, kích hoạt trước người-dùng-thật ③ `LANGCHAIN_TRACING_V2` KHÔNG có — F-30
+  production ĐÓNG ④ live = demo đội+mentor, chưa người ngoài. **CỔNG-TRƯỚC-NGƯỜI-THẬT (ghi
+  chính thức):** mở người ngoài CHỈ KHI: A1/A2 đã lên production + đường-xoá dữ liệu + xoay
+  FIELD-key có re-encrypt.
 - **② KHÉP — KẾT QUẢ ÂM (như T1), 3 nếp mới thành chuẩn:** thí điểm chèn-câu-hỏi trượt điều
   kiện (a): 1/6 × 2 lần, HAI prompt độc lập cứu HAI ca KHÁC nhau (lần 1 cứu RAG-37 lần 2 làm nó
   tụt; tổng luôn 20/47) = XỔ SỐ không phải cơ chế; 4 ca chôn sâu >100 bất động. Điều kiện (b) 0
