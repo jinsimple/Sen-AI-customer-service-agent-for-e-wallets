@@ -418,10 +418,16 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
 ## 🧭 HƯỚNG NGHIÊN CỨU SAU GATE — PO thật chốt 16/08 (từ đối chiếu workshop RAG + khảo sát OSS)
-- **Vector DB: ĐANG PHÂN XỬ Qdrant vs pgvector** — PO thật nghiêng Qdrant (hệ sinh thái cohort),
-  yêu cầu PO-agent chứng minh pgvector hợp sản phẩm hơn thì mới đổi. Bằng chứng đã trình (xem
-  tin nhắn 16/08 tối); điểm KHÔNG tranh cãi ở cả hai phương án: **RỜI chế độ Chroma-nhúng** —
-  client-server hoặc cùng-DB đều diệt bug server-cầm-segment-chết. Chờ PO thật chốt lại.
+- **Vector DB: CHỐT QDRANT (PO thật, 16/08 tối)** — sau phân xử đủ hai chiều. Dữ kiện quyết định:
+  PO thật xác nhận **đích thiết kế = 100 CSKH + khách không giới hạn** ⟹ multi-tenant/scale là
+  YÊU CẦU không phải giả định ⟹ 3 lý do lật: (a) Postgres ví thật sẽ bận OLTP — nhét vector search
+  vào cùng máy = hai tải giành nhau, "một kho" thành "một điểm nghẽn"; (b) collection-per-partner
+  sạch hơn cột lọc; (c) tránh migrate 2 lần. Mối lo tất-định-thước GIẢI được: Qdrant có
+  `exact=true` per-query — benchmark chạy exact, production chạy HNSW. **Điều kiện kèm:** kỷ luật
+  hai-kho giữ vĩnh viễn (tem + canary + một-đường-nạp); bộ lọc ADR-026 GIỮ ở bước SQL không chép
+  cờ sang payload; migration đo trước-sau 47 ca. **Thứ tự đầu tư cho đích 100-người:** ① nâng
+  hạn mức TPM/model (PO mua sắm — nút cổ chai THẬT đã đo) ② LiteLLM proxy hàng đợi+budget ③
+  reranker ④ Qdrant. Vector DB chưa bao giờ là nghẽn — TPM mới là.
 - Thứ tự nghiên cứu đã trình PO thật: ① reranker tại chỗ (bge-reranker-v2-m3 A/B ViRanker, Apache
   2.0, CPU) ② Qdrant ③ LiteLLM proxy (hàng đợi TPM + budget + cache Redis — điều kiện trước 150
   người) ④ Langfuse self-host (màn gán nhãn 30-ca + cost, thay-thế-được LangSmith mà không rời
@@ -467,6 +473,15 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   production đã nhận vá 429 chưa) ② env-info production trả `env: "development"` — đặt biến đúng.
 - Đã sửa dòng 6/8-2/8 trong benchmark-spec thành câu chữ đầy đủ (bẫy-đọc: phân số đứng trơ cạnh
   chỗ vừa sửa 2/8→2/10 — "không sai một chữ nào mà vẫn gây hiểu sai").
+- **`env=development` trên production — truy xong (coder): `.env` chép từ Mac mang theo dòng
+  chỉ-đúng-ở-dev** (APP_ENV vào qua env_file, cùng họ bẫy SSL_CERT_FILE — "`.env` càng được mang
+  sang trung thành thì lỗi càng chắc chắn tái hiện"). Fix 2 dòng đã chuyển PO thật (sửa
+  APP_ENV=production + restart backend, kiểm qua /api/env-info); rào dài hạn: thêm APP_ENV vào
+  CỔNG 2 deploy_home (sau merge). **Thiết kế dấu-build DUYỆT**: BUILD_COMMIT qua build-arg (không
+  đọc git lúc chạy — nhãn tự-thất-bại-im-lặng tệ hơn không nhãn) · build_at ISO có offset ·
+  fallback "khong-ro" tự-tố-cáo. Coder GIỮ TAY mọi commit code tới khi #11 merged (headRef=dev —
+  commit lúc này rơi vào PR PO thật đang cầm); thứ tự sau merged: đính-chính graph.py → dấu-build
+  → cổng APP_ENV.
 - 5 deliverable: ① video PO tự quay (kịch bản 8 màn sẵn) ② architecture ✅ ③ **≥10 PR — mở 3 PR
   dev→main: #8 RAG-đòn-4+kho · #9 F-LOG-3+T3 · #10 ADR-026+benchmark+gate/** (lát cắt tuần tự,
   tổ tiên lồng nhau, merge THEO THỨ TỰ; 7 đã merge + 3 = 10) ④ README ✅ ⑤ EVAL-EVIDENCE 7 ca ✅.
