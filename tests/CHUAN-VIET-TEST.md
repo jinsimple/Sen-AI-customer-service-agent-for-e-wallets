@@ -685,6 +685,47 @@ không phải *được phép làm cạn hạn mức của cả đội*.
 
 ---
 
+## Luật 10b — NUỐT MÃ TRẠNG THÁI là một NHÁNH IM LẶNG
+
+Hai lần trong hai ngày, cùng một dòng code:
+
+```python
+doan = r.json().get("results") or []      # r.status_code chưa ai xem
+```
+
+**Lần 1 (403).** Tôi hỏi agent bằng tài khoản `cskh`; API trả `403 Cần role
+thuộc ['customer']`. Không có khoá `tool_calls` ⟹ đếm ra `0` ⟹ tôi kết luận
+*"agent không gọi tool chính sách cho một câu hỏi chính sách"* và **báo nó thành
+finding**. Nó là lỗi đăng nhập của tôi.
+
+**Lần 2 (422).** Tôi gọi `top_k=10`; API trả `422 "less than or equal to 8"`.
+Không có `results` ⟹ đọc ra `0 đoạn` ⟹ tôi kết luận *"API bỏ qua `top_k`"* và
+**đem lý do sai đó đi xin đổi metric**. `top_k` hoàn toàn có hiệu lực.
+
+> **Một mã lỗi bị nuốt không biến mất — nó tái sinh thành một PHÁT HIỆN SAI về
+> sản phẩm.** Và phát hiện sai thì trông y hệt phát hiện thật: có số, có ngữ
+> cảnh, có vẻ hợp lý.
+
+Nguy hơn `try/except` nuốt lỗi, vì ở đây **không có ngoại lệ nào để bắt**:
+HTTP 4xx là một phản hồi hợp lệ, `r.json()` chạy trơn tru, `.get()` trả `None`
+đúng như hợp đồng. Mọi lớp đều hành xử đúng; chỉ kết luận là sai.
+
+**Luật:** mọi lời gọi mạng trong bộ đo phải **xem mã trạng thái trước khi đọc
+thân**, và mã lạ phải **kêu**:
+
+```python
+if r.status_code != 200:
+    print(f"⚠️  {duong_dan} {r.status_code}: {r.text[:120]}")
+    return []          # rỗng thì được — nhưng KHÔNG ÂM THẦM
+```
+
+**Dấu hiệu để tự soi:** bất cứ khi nào một phép đo cho **đúng số 0 tròn trĩnh**
+— 0 kết quả, 0 lượt gọi, 0 ca đạt — hãy hỏi *"số 0 này là sản phẩm trả lời, hay
+là tôi không hỏi được?"* trước khi hỏi *"vì sao sản phẩm tệ thế?"*. Ba lần trong
+hai ngày, câu trả lời là vế đầu.
+
+---
+
 ## Luật 11 — TỪ CHỐI RỒI TRẢ LỜI TIẾP là bịa có VỎ BỌC
 
 Nguyên văn bắt được ở đường agent thật:
