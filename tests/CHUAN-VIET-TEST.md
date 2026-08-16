@@ -1,10 +1,28 @@
 # Chuẩn viết test — FIN-05
 
-> Vai giữ file: **tester** · 15/08/2026.
-> Tám luật dưới đây được PO phê chuẩn thành **luật dự án**, rút ra từ lỗi THẬT
-> gặp trong hai ngày 14–15/08, mỗi luật kèm đúng những ca đã làm nó lộ ra.
-> (Luật 6 và 7 thêm 15/08, sau khi hai bộ test lộ ra là **chưa từng chạy một
-> lần nào** và một cổng đối chứng lộ ra là **đã rỗng mà không ai biết**.)
+> Vai giữ file: **tester** · 15/08 → 17/08/2026.
+> Mỗi luật dưới đây được PO phê chuẩn thành **luật dự án**, và **không luật nào
+> được nghĩ ra từ nguyên tắc** — tất cả rút từ một lỗi THẬT đã xảy ra, kèm đúng
+> ca đã làm nó lộ ra. Đó cũng là lý do thứ tự trong file là **thứ tự thời gian
+> phát hiện**, không phải thứ tự logic: luật con `1c` nằm sau `Luật 10` vì nó
+> được phát hiện sau. Dùng mục lục dưới đây để tra, đừng đọc tuần tự.
+
+## Mục lục
+
+| | Luật | Canh cái gì |
+|---|---|---|
+| **1** · 1b · **1c** | assertion không trùng trạng thái mặc định · không trùng đầu-ra-hỏng · `xfail` nuốt lỗi hạ tầng | **cái thước** |
+| **2** | ràng buộc phải có ca chứng minh không chặn nhầm | cái thước |
+| **3** | lượt LLM để KHÁM PHÁ, lượt viết cứng để ĐIỀU TRA | phép đo |
+| **4** | ghim cả thước lẫn vật, ghim ở CẢ HAI đầu | phép đo |
+| **5** | bộ đo lưu đủ để VAI KHÁC bác được nó | cái sổ |
+| **6** · 6b | `skip` phải tự chứng minh lý do · và không được quét quá rộng | trạng thái `skip` |
+| **7** | công cụ đo cũng cần được canh | công cụ đo |
+| **8** | thứ phát hiện công cụ sai là MỘT ĐƯỜNG ĐO KHÁC | công cụ đo |
+| **9** | xác minh nhãn phải soi CẢ HAI phía | nhãn |
+| **10** · 10b · 10c · **10d** | bộ đo tự tạo ra hiện tượng nó đo · nuốt mã trạng thái · cổng phải-nhớ-bật · vô hiệu hậu quả trước khi kiểm cổng | bộ đo & cổng |
+| **11** | từ chối rồi trả lời tiếp là bịa có VỎ BỌC | đầu ra agent |
+| **12** | không sai một chữ nào mà vẫn gây hiểu sai | tài liệu & báo cáo |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -12,14 +30,15 @@
 > kể cả khi được mời: ranh giới co giãn "một lần cho tiện" thì lần sau không
 > còn là ranh giới.
 
-## Vì sao tám luật, không phải một
+## Vì sao nhiều luật, không phải một
 
 Luật 1–5 canh **cái thước** và **phép đo**. Luật 6 canh **trạng thái `skip`**.
 Luật 7 canh thứ không ai nghĩ cần canh: **chính công cụ đo** — corpus đối chứng,
 hàm đếm, dòng in kết quả. Nó là lớp có ít người canh nhất vì nó không phải sản
 phẩm (không ai review) mà cũng không phải test (không ai viết test cho nó).
 
-Một test chỉ có giá trị khi chứng minh được **cả tám** vế:
+Tám vế đầu (Luật 1–8) là bộ khung; một test chỉ có giá trị khi chứng minh
+được **cả tám**:
 
 | | Câu hỏi | Thiếu nó thì |
 |---|---|---|
