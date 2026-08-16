@@ -61,16 +61,20 @@ def _song() -> bool:
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(not _song(), reason="container fin05-backend-1 không chạy"),
-    pytest.mark.skipif(
-        not CHO_PHEP,
-        reason=(
-            "F-33 cần ÉP 429, tức đốt gần hết trần TPM 200k dùng chung với 3 phiên "
-            "khác + PO thật. Đây là thiếu TÀI NGUYÊN DÙNG CHUNG, không phải test "
-            "chưa viết xong. Bật: FIN05_CHO_PHEP_EP_429=1 — và chỉ khi chắc chắn "
-            "không ai đang quay demo."
-        ),
-    ),
 ]
+
+# Cổng ĐỐT-HẠN-MỨC đặt ở TỪNG CA, không đặt ở cả file: `test_f33c` chỉ hỏi lược
+# đồ DB, 0 lượt gọi model. Gắn cổng cho cả file thì một ca kiểm-được-ngay bị
+# chôn theo mấy ca không chạy được — và nó sẽ nằm im đúng lúc nó hữu ích nhất.
+can_dot_han_muc = pytest.mark.skipif(
+    not CHO_PHEP,
+    reason=(
+        "cần ÉP 429, tức đốt gần hết trần TPM 200k dùng chung với 3 phiên khác + "
+        "PO thật. Đây là thiếu TÀI NGUYÊN DÙNG CHUNG, không phải test chưa viết "
+        "xong. Bật: FIN05_CHO_PHEP_EP_429=1 — và chỉ khi chắc chắn không ai đang "
+        "quay demo."
+    ),
+)
 
 
 @pytest.fixture(scope="module")
@@ -101,6 +105,7 @@ def _ep_429(c) -> list:
     return la
 
 
+@can_dot_han_muc
 def test_f33_429_khong_ra_toi_khach_thanh_500(khach):
     """Lớp 1: lỗi tạm thời của nhà cung cấp KHÔNG được thành 500."""
     la = _ep_429(khach)
@@ -116,6 +121,81 @@ def test_f33_429_khong_ra_toi_khach_thanh_500(khach):
     )
 
 
+def _dem_ticket() -> int:
+    r = subprocess.run(
+        ["docker", "exec", "fin05-postgres-1", "sh", "-c",
+         'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT count(*) FROM tickets;"'],
+        capture_output=True, text=True, timeout=60,
+    )
+    if r.returncode != 0:
+        pytest.fail(f"không đếm được ticket: {(r.stderr or r.stdout)[:200]}")
+    return int(r.stdout.strip().splitlines()[-1])
+
+
+def _co_cot_ly_do_fallback() -> bool:
+    r = subprocess.run(
+        ["docker", "exec", "fin05-postgres-1", "sh", "-c",
+         'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c '
+         '"SELECT 1 FROM information_schema.columns WHERE table_name=\'tickets\' '
+         "AND column_name='ly_do_fallback';\""],
+        capture_output=True, text=True, timeout=60,
+    )
+    return r.returncode == 0 and r.stdout.strip().endswith("1")
+
+
+@pytest.mark.xfail(strict=True, reason="F-33b: 429-CHẬM đội lốt timeout, và nhánh timeout CÓ tạo ticket")
+@can_dot_han_muc
+def test_f33b_429_cham_khong_duoc_de_ra_ticket(khach):
+    """Lớp 4 — 429 NGỦ QUÁ NGÂN SÁCH TIMEOUT không được sinh ticket.
+
+    Đường đi KHÁC HẲN ba lớp trên, nên cố ý tách riêng:
+
+        429 -> SDK tự ngủ theo Retry-After -> ngủ vượt AGENT_TURN_TIMEOUT_SECONDS
+        (45s) -> nổi lên thành FutureTimeoutError -> nhánh TIMEOUT -> TẠO TICKET
+
+    Ba lớp trên bắt `RateLimitError` nổi thẳng lên. Lớp này bắt cái **đội lốt**:
+    tới chỗ xử lý thì nó đã không còn là 429 nữa, nó là timeout. Một bản vá chỉ
+    bắt `RateLimitError` sẽ **đạt cả 3 lớp trên và vẫn đẻ ticket ma**.
+
+    Vì sao là bug DỮ LIỆU chứ không phải bug UX: ticket rác nằm trong **hàng chờ
+    CSKH thật**. Người thật mở nó ra, không tìm thấy khiếu nại nào, mất thời gian
+    thật. Nặng hơn một màn hình lỗi.
+    """
+    truoc = _dem_ticket()
+    la = _ep_429(khach)
+    sau = _dem_ticket()
+    if not la:
+        pytest.skip("không ép được 429 lúc này — không kết luận gì")
+    assert sau == truoc, (
+        f"F-33b: một lượt 429 đẻ ra {sau - truoc} ticket.\n"
+        f"  ticket trước {truoc} · sau {sau}\n"
+        f"  phản hồi khách nhận: {la[0].status_code} {la[0].text[:160]}\n"
+        "Ticket này vào hàng chờ CSKH thật và không tương ứng khiếu nại nào."
+    )
+
+
+@pytest.mark.xfail(
+    not _co_cot_ly_do_fallback(), strict=True,
+    reason=("F-33c: bảng `tickets` KHÔNG có cột `ly_do_fallback` (đã kiểm bằng "
+            "information_schema) ⟹ DB không phân biệt được timeout THẬT với 429 "
+            "đội lốt. Hệ quả đã xảy ra: 15 bản ghi fallback ngày 13/08 không quy "
+            "được nguyên nhân — dữ liệu còn đó mà câu hỏi thì không trả lời được."),
+)
+def test_f33c_ban_ghi_phan_biet_duoc_nguyen_nhan_fallback():
+    """Nguyên nhân fallback phải nằm trong BẢN GHI, không chỉ trong log.
+
+    Log bay theo container (đã mất một lần ngày 16/08 khi restart). Một bản ghi
+    fallback không nói vì sao nó fallback thì sáu tháng sau không ai truy được —
+    và đó chính là chuyện đã xảy ra với 15 bản ghi ngày 13/08.
+
+    Test này 0-LLM: nó chỉ hỏi lược đồ. Khi F-33c land, nó tự XPASS ⟹ strict ⟹
+    đỏ ⟹ buộc người kế tiếp gỡ nhãn và siết assertion sang kiểm GIÁ TRỊ (429 đội
+    lốt phải ghi khác timeout thật), thay vì chỉ kiểm cột có tồn tại.
+    """
+    assert _co_cot_ly_do_fallback(), "bảng tickets chưa có cột ly_do_fallback"
+
+
+@can_dot_han_muc
 def test_f33_co_cau_xin_loi_thay_vi_ma_loi_tran_trui(khach):
     """Lớp 3: hết khe thì phải là câu tiếng Việt tử tế, không phải mã lỗi."""
     la = _ep_429(khach)
