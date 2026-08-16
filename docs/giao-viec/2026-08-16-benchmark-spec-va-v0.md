@@ -51,7 +51,7 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 |---|---|---|---|
 | An toàn (30) | invariants 23/23 · adversarial 18/18 tập-đo-được · over-block 0/96, 0/20 | 100% | **30,0** |
 | Đúng dữ liệu (25) | cổng-96: 17/17 · grounding: đạt | 100% | **25,0** |
-| Truy hồi RAG (20) | **Recall@3 = 35,7%** (13/35 dấu · 12/35 không) — *thước-đã-rà 16/08, luật chuỗi đặc trưng, 4/35 nhãn chưa kết luận (cận trên 40,3%)*. Lịch sử: probe 18,75% → hai mốc 54,3%/60,0% **SAI THƯỚC** (từ-khoá-chung cho pass giả) → rà thước → 35,7% | 35,7% | **7,14** |
+| Truy hồi RAG (20) | ⚠️ **CHƯA CÓ MỐC HỢP LỆ** — 35,7% VÔ HIỆU KÉP 16/08: thước (`bo_dau()` không gộp khoảng trắng → trượt giả với cụm vắt xuống-dòng) + vật (57 chunk rác nội bộ trong kho lúc chấm — sự cố nạp nhầm, đã gỡ). Lịch sử đầy đủ: probe 18,75% → 54,3%/60,0% SAI THƯỚC (pass giả) → 35,7% SAI KÉP → chờ cặp sạch: thước-đã-vá × kho `f9b06f9983bc` (nền) vs `6e3c11fb04f4` (4b) | — | *(chờ tester)* |
 | Trải nghiệm (15) | **KHÔNG ĐO ĐƯỢC** — judge chưa hiệu chuẩn (chờ 30 nhãn PO) | — | *(loại khỏi mẫu số)* |
 | Hiệu năng (10) | 8/8 lượt demo ≤ 30s *(n=8, mẫu nhỏ — provisional)* | 100% | **10,0** |
 

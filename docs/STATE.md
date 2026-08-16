@@ -345,6 +345,37 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 🚨 SỰ CỐ KHO + ĐÒN 4 LAND — MỐC 35,7% VÔ HIỆU KÉP, chờ cặp sạch (16/08)
+- **SỰ CỐ (chạm ràng buộc cứng 3):** kho đang-phục-vụ bị nạp 2 file NỘI BỘ lúc 08:23 (hai lần nạp
+  thẳng cách 15s, KHÔNG qua nap-lai): `business_rules.md` 20 chunk (bảng số verified=false) +
+  `scenario-candidates-momo-faq.md` 37 chunk (kịch bản test). Agent trích cả hai **như chính sách
+  thật**. Coder đã GỠ + chặn `_chon_nguon` chỉ nhận `.docx/.pdf` (kèm docstring lý do — bản nháp
+  commit của chính coder cũng suýt nạp .md, bắt được nhờ in danh sách nguồn trước khi nạp).
+  **Truy nguồn đang chạy:** PO đã loại 2 nghi phạm bằng đọc repo (số 0/1814 của security = regex
+  offline; `_ingest_malicious_policy` nạp `{case_id}.txt` không phải 2 tên này) → đã hỏi thẳng
+  tester + security, CHỜ trả lời.
+- **QUY ƯỚC MỚI (PO phát 16/08):** kho RAG đang-phục-vụ là VẬT DÙNG CHUNG của 4 phiên — không ai
+  nạp thẳng vào nó để test. Cần kho thử → collection/CHROMA-path riêng trong scratchpad (như
+  run_adversarial_set dùng DB tạm). Đổi kho phục vụ CHỈ qua `kho_rag.py nap-lai` + hô cả 4 phiên.
+- **MỐC 35,7% VÔ HIỆU KÉP** — hỏng cả THƯỚC (tester tìm ra `bo_dau()` không gộp khoảng trắng ⟹
+  cụm ≥2 từ vắt qua xuống-dòng = TRƯỢT GIẢ, ngược hướng với pass-giả cũ) lẫn VẬT (57 chunk rác
+  nội bộ nằm trong kho lúc chấm, có thể chiếm top-3). Chuỗi so sánh trục Truy-hồi CẮT tại đây
+  (Luật 6). **KHÔNG ghi delta đòn 4 nào** cho tới khi tester trả cặp sạch: thước-đã-vá × kho-sạch
+  (nền phải là `f9b06f9983bc`, không phải kho lúc 08:23).
+- **Đòn 4a+4b LAND (`1481074`), tách 3 mốc băm:** nền PDF-đã-gỡ-md 362 `f9b06f9983bc` · 4a DOCX-
+  parser-cũ 333 `71bb841435ea` · 4b DOCX-giữ-cấu-trúc 378 `6e3c11fb04f4` (đang phục vụ). Số CẤU
+  TRÚC (đếm được, không phụ thuộc thước truy hồi): chữ-vỡ-từ-điển 131→0 · hàng bảng bank vào kho
+  0→25 · chunk mồ côi nhãn 61%→36%. Ca đối chứng 4b: docx thường ra chuỗi GIỐNG BYTE bản cũ;
+  upload partner_admin không đổi hành vi. 36% mồ côi còn lại = đuôi khối dài cắt theo kích thước
+  — coder CHƯA làm chưa hứa, quyết sau khi có số cặp sạch.
+- **Hai đính chính coder tự khai:** ① "đòn 1 quét sạch lớp một" SAI — lớp `[aeiouyăâêôơư]` thiếu
+  ký tự dựng sẵn có dấu (`ị`,`ồ`,`ế`) ⟹ `đ ịnh`,`g ồm` lọt, tester đếm đúng ~53 còn lại; đáng ghi:
+  coder CẦM bằng chứng bác mình (list 131 chứa `b ất`,`đ ịnh`) mà phát biểu ngược — lỗi đọc-lướt-
+  số-của-chính-mình, cùng họ với bài coder-tự-nghiệm-thu. ② Hai thước cùng tên: băm trong
+  `kho_chunks.tsv` ≠ `kho_rag.py::_bam_kho` — chỉ tin băm in từ `kho_rag.py nhan`.
+- Coder chuyển sang **T3** (truncation tool-result; cổng-96 + origin-rule phải xanh nguyên, đo
+  input-tokens/lượt trước-sau cùng bộ lệnh, tham chiếu <30k/lượt).
+
 ## ✅ UI-02 ĐÓNG + ĐÒN 4 THÀNH 4a/4b — bảng-23-hàng là lời giải bài chôn (16/08 đêm)
 - **UI-02 nghiệm thu 5/5** (đối chứng 1/5 trên image-chưa-vá, A2 tái hiện nguyên văn lỗi PO demo).
   Mẫu thiết kế nghiệm thu UI ghi lại: **đếm REQUEST không đếm pixel** — vá-giả (reset ref quên
@@ -375,7 +406,7 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   coder trả lời khả thi trước, tester dựng ca đo sau. Thứ tự: đòn 4 trước (rẻ, chắc) → chống-chôn
   theo số. Còn mù: 29 chunk (8%) không lộ bằng cách nào — coder đổ danh sách chunk_id cho tester.
 
-## 🎯 THƯỚC ĐÃ RÀ — MỐC THẬT ĐẦU TIÊN CỦA TRỤC TRUY-HỒI: 35,7% = 7,14/20 (16/08, cd03c88)
+## 🎯 ~~THƯỚC ĐÃ RÀ — 35,7%~~ ⚠️ VÔ HIỆU KÉP 16/08 (bo_dau + 57 chunk rác — xem mục SỰ CỐ ở trên)
 - Luật chuỗi-đặc-trưng (3 cửa: có-trong-đáp-án-đúng-biên · sống-qua-trích-PDF · ≤2 câu FAQ) +
   xác minh nhãn bằng ĐƯỜNG ĐỘC LẬP (quét kho bằng 160 câu nguồn → 31/35 chuỗi có thật trong kho
   ⟹ trượt THẬT). Khoảng bất định siết từ 25,7 điểm còn 4,6 (cận trên 40,3% nếu 4 ca chưa-kết-luận
