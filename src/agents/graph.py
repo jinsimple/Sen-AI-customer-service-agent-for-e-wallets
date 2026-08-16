@@ -381,7 +381,19 @@ def run_agent_turn(
                 "tool_calls": None,
                 "ticket_id": handoff["ticket_id"],
                 "should_escalate": False,
-                "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+                # Bốn số 0 này là "KHÔNG ĐO ĐƯỢC", không phải "đo được 0" —
+                # `_invoke` đã ném lỗi SAU khi model có thể đã chạy và đã tốn
+                # token thật. Cùng loại phân biệt mà `tool_calls: None` ở trên
+                # cố ý giữ. Chưa đổi sang None vì có consumer đang cộng dồn
+                # trực tiếp; nhưng ai dựng test/dashboard chi phí trên trường
+                # này phải biết: lượt fallback ÂM THẦM báo thiếu tiền đã tiêu,
+                # và một assertion `usage == 0` sẽ xanh ở CẢ HAI nghĩa.
+                "usage": {
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "total_tokens": 0,
+                    "cached_input_tokens": 0,
+                },
                 # Câu fallback do CHÍNH TA viết, không qua LLM -> không cần lọc.
                 "loc_dau_ra": [],
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
@@ -433,12 +445,22 @@ def run_agent_turn(
     # Token usage cộng dồn của LƯỢT NÀY (mọi vòng gọi model bên trong, kể cả
     # vòng gọi tool trung gian) — dùng để đo cost thật (eval/measure_quality.py),
     # KHÔNG ảnh hưởng contract cũ (chỉ thêm key mới, không đổi key sẵn có).
-    usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    # T1 — `cached_tokens` là thứ DUY NHẤT nói prompt-cache có ăn hay không.
+    # Trước bản này không ai biết cache đang hit 0% hay 50%; suy luận từ tài
+    # liệu OpenAI không thay được số đo (và suy luận đó đã sai một lần: mốc
+    # thời gian HH:MM nằm ở ký tự 233/16.082 khiến prefix ổn định chỉ ~68
+    # token, dưới hẳn ngưỡng 1024 — cache chắc chắn hit 0%).
+    usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cached_input_tokens": 0}
     for m in turn_messages:
         meta = isinstance(m, AIMessage) and getattr(m, "usage_metadata", None)
         if meta:
-            for k in usage:
+            for k in ("input_tokens", "output_tokens", "total_tokens"):
                 usage[k] += meta.get(k, 0) or 0
+            # LangChain gom chi tiết provider vào `input_token_details`; OpenAI
+            # đặt phần đã cache ở khoá `cache_read`. Đọc phòng thủ vì tên khoá
+            # là hợp đồng của provider, không phải của ta.
+            chi_tiet = meta.get("input_token_details") or {}
+            usage["cached_input_tokens"] += chi_tiet.get("cache_read", 0) or 0
 
     # NGUỒN TRUY VẾT cho luật xuất xứ của O3: mọi mã/dãy số >=7 ký tự agent nói
     # ra phải có mặt ở một trong hai nơi này — nếu không thì nó ở đâu ra?
