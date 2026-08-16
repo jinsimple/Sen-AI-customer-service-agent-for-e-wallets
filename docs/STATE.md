@@ -417,6 +417,24 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **Kho PRODUCTION SẠCH (PO-agent đo chỉ-đọc qua HTTPS):** GET /policy-docs trên live = đúng 2
+  PDF MoMo (uploaded 07:24, 362 chunk) — sự cố .md CHỈ ở stack local, không có sự cố production.
+  NHƯNG lộ **version drift**: production = snapshot TRƯỚC đòn 4 (kho PDF cũ) + `deploy_home.*`
+  pull `main` ⟹ máy Windows nhiều khả năng chạy code cũ hơn hôm nay. Đang hỏi PO thật: nhánh
+  deploy · secret khác dev? · `LANGCHAIN_TRACING_V2`? · live = demo đội hay người thật? (3 câu
+  sau là F-30/secret/pilot-cam-kết của security, nay tăng hạng vì có production thật). Kế tiếp:
+  một nhịp release dev→main + redeploy CÓ TRẬT TỰ — coder không tự đẩy main trước khi chốt.
+- **CHẨN ĐOÁN ToS XONG (coder) — 5 SỐ ÂM LIÊN TIẾP, quyết ①+③:** kho ổn (0/10 thiếu nội dung) ·
+  embedding ổn (8/8 ca trượt lên hạng-1 khi hỏi bằng chính văn chunk) ⟹ lỗi = khoảng cách
+  hỏi-đời-thường↔viết-pháp-lý. Top-3 của ca trượt = 79% FAQ = đúng tỉ lệ nền kho (truy hồi không
+  thiên vị, chỉ không phân biệt nguồn). 5 cơ chế đo đều âm: BM25 0/10 · RRF 3/10 (FAQ chưa đo) ·
+  trộn-nguồn 17/47↓ · HyDE 1/47↓↓ · RRF+HyDE 8/47↓↓. HyDE datum giữ: cứu ca chôn sâu (>100→8)
+  nhưng phá ca đang đúng — sống lại nếu có bộ phân-loại-ca-khó. **QUYẾT: ① ToS 2/10 = giới-hạn-
+  đã-biết** (câu pháp lý nên escalate người thật; ràng buộc 3 làm trượt-truy-hồi thành hành vi AN
+  TOÀN "không tra được"; chờ security 1 dòng góc tuân thủ) **+ ③ không chọn đòn trên thước FAQ
+  chưa rà; ② (chèn câu-hỏi-tương-ứng vào chunk ToS) ĐỖ BẾN** — mở lại khi: thước FAQ sạch + ToS
+  vẫn ưu tiên theo số + đo trước 5 ca. `GET /api/session` 405 = CHỦ ĐÍCH giữ nguyên (BFF: 34 chỗ
+  đọc getServerSession server-side, không mở thêm cửa phát thông tin phiên).
 - **🔒 ÁN KHO ĐÓNG — PO thật xác nhận chính họ upload 2 file .md qua UI Đối-tác-ví ~15:23** (tai
   nạn quy trình, không xâm nhập, không ai có lỗi). Khớp trọn chuỗi bằng chứng (IP frontend ·
   nhịp UI POST→GET 20-40ms · 13s giữa 2 lượt). Câu hỏi đầu tiên của PO thật khi nghe tin — "đối
