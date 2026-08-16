@@ -28,6 +28,31 @@ from src.rag.ingest import delete_document, ingest_document  # noqa: E402
 THU_MUC_PDF = Path(__file__).resolve().parent.parent / "data" / "raw"
 
 
+def _chan_tu_tao_kho() -> None:
+    """DỪNG nếu kho không tồn tại ở đường đang trỏ — KHÔNG để Chroma tự tạo.
+
+    Lỗi tester bắt (nặng hơn "đọc nhầm đường"): công cụ chạy trên HOST mở
+    `PersistentClient` vào `<repo>/data/rag_index` — đường KHÔNG tồn tại vì kho
+    thật nằm trong Docker volume `fin05_chroma_data`, chỉ container thấy.
+    Chroma **tự tạo một store RỖNG** ở đó, rồi công cụ báo "kho trống".
+
+    ⟹ Nó không chỉ đọc nhầm chỗ — **nó chế ra bằng chứng cho kết luận sai của
+    chính nó**. Chạy lần hai sẽ thấy một store "thật" (do lần một đẻ ra) và mọi
+    dấu hiệu đều nhất quán. Dạng công-cụ-sai khó bắt nhất: nó tự làm cho mình
+    đúng.
+
+    LUẬT: một công cụ ĐI KIỂM không bao giờ được phép TẠO RA thứ nó đang kiểm.
+    """
+    if not (RAG_INDEX_DIR / "chroma.sqlite3").exists():
+        print(f"  [SAI CHỖ] Không có kho Chroma ở {RAG_INDEX_DIR}")
+        print("            Kho thật nằm trong Docker volume `fin05_chroma_data`,")
+        print("            CHỈ container thấy. Chạy trong container:")
+        print("              docker exec fin05-backend-1 python scripts/kho_rag.py kiem")
+        print("            (DỪNG ở đây thay vì mở — mở là Chroma tự đẻ một kho rỗng")
+        print("             rồi công cụ báo 'kho trống', tự chế bằng chứng cho mình.)")
+        raise SystemExit(2)
+
+
 def _bam_kho() -> str:
     h = hashlib.md5()
     for p in sorted(RAG_INDEX_DIR.rglob("*")):
@@ -37,11 +62,12 @@ def _bam_kho() -> str:
 
 
 def nhan() -> None:
+    _chan_tu_tao_kho()
     with SessionLocal() as s:
         n = s.query(PolicyChunk).count()
         d = s.query(PolicyDocument).count()
     tt, pb = store.trang_thai_kho()
-    print(f"  kho RAG: {n} chunk · {d} doc · băm {_bam_kho()}")
+    print(f"  kho RAG: {n} chunk (Postgres) · {d} doc · băm {_bam_kho()}")
     print(f"  đường dẫn Chroma: {RAG_INDEX_DIR}")
     print(f"  chuẩn hoá: kho={pb if pb is not None else '(không có dấu)'} · code={store.CHUAN_HOA_VERSION} · trạng thái={tt}")
 
@@ -49,6 +75,17 @@ def nhan() -> None:
 def kiem() -> int:
     nhan()
     tt, pb = store.trang_thai_kho()
+    with SessionLocal() as s:
+        n_pg = s.query(PolicyChunk).count()
+    # ĐỐI CHIẾU HAI NGUỒN. Postgres nói có chunk mà Chroma nói trống = KHÔNG
+    # PHẢI "kho trống", mà là ĐANG ĐỌC HAI KHO KHÁC NHAU. Bản trước in cả hai
+    # số cạnh nhau ("418 chunk" rồi "kho chưa có chunk nào") mà không đối
+    # chiếu — người đọc phải tự nhận ra mâu thuẫn. Giờ máy nhận ra.
+    if tt == store.TRANG_THAI_TRONG and n_pg > 0:
+        print(f"  [MÂU THUẪN] Postgres có {n_pg} chunk nhưng Chroma ở {RAG_INDEX_DIR} trống.")
+        print("              Hai nguồn không cùng nói về một kho — KHÔNG kết luận gì.")
+        print("              Gần như chắc chắn đang chạy sai nơi (host vs container).")
+        return 2
     if tt == store.TRANG_THAI_TRONG:
         print("  [TRỐNG] Kho chưa có chunk nào — chạy `nap-lai`.")
         return 1
@@ -67,6 +104,11 @@ def kiem() -> int:
 
 
 def nap_lai() -> None:
+    # nap-lai CÓ QUYỀN tạo kho (đó là việc của nó), nhưng chỉ khi thư mục
+    # đích thuộc container — kiểm bằng sự tồn tại của thư mục cha.
+    if not RAG_INDEX_DIR.parent.exists():
+        print(f"  [SAI CHỖ] {RAG_INDEX_DIR.parent} không tồn tại — chạy trong container.")
+        raise SystemExit(2)
     pdfs = sorted(THU_MUC_PDF.glob("*.pdf"))
     if not pdfs:
         print(f"  KHÔNG có PDF nào trong {THU_MUC_PDF} — dừng, không xoá kho hiện có.")
