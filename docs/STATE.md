@@ -417,6 +417,34 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+- **② KHÉP — KẾT QUẢ ÂM (như T1), 3 nếp mới thành chuẩn:** thí điểm chèn-câu-hỏi trượt điều
+  kiện (a): 1/6 × 2 lần, HAI prompt độc lập cứu HAI ca KHÁC nhau (lần 1 cứu RAG-37 lần 2 làm nó
+  tụt; tổng luôn 20/47) = XỔ SỐ không phải cơ chế; 4 ca chôn sâu >100 bất động. Điều kiện (b) 0
+  ca rơi — cả hai lần. Nếp: (i) đo KHÔ không đụng kho-chung + hiệu chuẩn phép đo trước (Chroma =
+  L2 bình phương, khớp 0.900776/0.900798); (ii) khai luật-dừng TRƯỚC lần 2; (iii) từ chối quay-
+  số-tới-khi-khớp-bộ-test ("land kiểu đó, số sụp khi tester đổi cách hỏi"). **Hội tụ 3 đường độc
+  lập: truy vấn NGẮN-GIỌNG-THƯỜNG-BÁM-TỪ-KHOÁ thắng** (agent tự viết lại ăn RAG-37 · HyDE thua
+  vì dài-trang-trọng · prompt A sinh câu FAQ-ngắn trúng hạng 1) ⟹ **đòn-kế-có-căn-cứ: bắt buộc
+  viết-lại-truy-vấn có mẫu — CHƯA phát lệnh**, xếp sau F-31/32 (hai lẽ: không trộn 2 bản vá
+  prompt; RAG-38/40 chưa từng đi tới truy hồi — nền số ToS đổi sau F-31/32, đo trên nền mới).
+- **top_k /policy-search: 4 là chủ đích (RAG_SEARCH_TOP_K) nhưng NUỐT-IM-LẶNG field k của client
+  là bug** (Pydantic vứt field lạ — cùng họ bo_qua_thieu_chunk; chính coder cũng dính: gửi k:3
+  nhận 4 in "4 kết quả" không hỏi). QUYẾT: làm CẢ HAI một commit — top_k Field(4, ge=1, le=8) +
+  extra="forbid", grep caller BFF gửi field thừa sửa cùng commit. Chen trước F-31/32.
+- **F-31+F-32 GỘP MỘT VÉ (khung security, chốt thành ràng buộc thiết kế):** hai finding kéo
+  ngược nhau trên CÙNG luật MISINFO-002 (prompt.py:52-60 — security loại trừ tier/lọc-trước-graph
+  bằng đo: không mã nào chặn truy vấn trước truy hồi, refusal = LLM tự theo prompt; "pháp lý
+  phức tạp" là tiêu chí từ chối chỉ rào bằng "không liên quan giao dịch ví"). Vá độc lập = đá
+  nhau vô hạn (Luật 8, lần này THẤY TRƯỚC). Ràng buộc: ① trục đổi "pháp-lý?"→"về-ví-NÀY?" ②
+  đường thứ ba cho câu trong-phạm-vi-màu-pháp-lý: TRÍCH-được HOẶC không-tra-được+escalate (cấm
+  từ-chối-ngoài-phạm-vi, cấm "tuy nhiên thông thường") ③ CẤM nới MISINFO-002 trước khi có đường
+  thứ ba (lằn ranh MT-F02/F-22/CTRL-002 giữ) ④ đặc tả viết trước trong hồ sơ vé — security rà
+  văn bản trước land, tester viết test từ đặc tả, nghiệm thu đo CẢ HAI ĐẦU cùng lượt + MT-F02/
+  cổng-96/adversarial xanh nguyên. Bối cảnh vé: mọi số ToS hiện đo trên đường agent chưa từng
+  đi tới (0 tool call) — chấm lại toàn bộ sau vé. §D security tự nhận sai chiều (index-thô HỤT
+  không nống) — ca mồi-neo phải neo cả chiều agent-viết-lại.
+- **Thứ tự coder chốt:** top_k → F-31/32 → đo lại T3 (chờ bộ-lệnh tester) → đòn viết-lại (thí
+  điểm có đo, nền mới) → T4/T2.
 - **🔴 CỔNG TUÂN-THỦ ToS SẬP MỆNH ĐỀ (tester chạy 8 ca đường agent): 4/8 đường thoát KHÔNG hoạt
   động** — (c) đúng 2 · (a) từ-chối-an-toàn 2 (RAG-47 đòi OTP step-up = ĐÚNG) · **(b) diễn giải
   2: RAG-41** (hỏi trách-nhiệm-pháp-lý, trả lời bằng chunk cashback, chắc nịch) + **RAG-43**
