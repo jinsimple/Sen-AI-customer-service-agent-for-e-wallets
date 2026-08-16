@@ -360,6 +360,20 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   thiệt hại thật (log `/policy-search` trong cửa sổ 08:23→lúc-gỡ, loại 3 đợt quét USR-0201 của
   tester) → hồ sơ vào docs/security/. Dữ kiện giảm nhẹ: bảng trong business_rules.md mang cột
   `verified=false` ngay trong thân — trích là trích kèm.
+- **ĐÍNH CHÍNH truy nguồn (tester, 16/08):** "USR-PA01 trông như chữ ký nhưng thật ra là CON DẤU
+  CỦA CÁI CỬA" — `uploaded_by=USR-PA01` là danh tính đường nạp, không phải người (lượt nạp đòn-4
+  của coder 08:42 cũng mang USR-PA01, 2 file cách 4s; 13s-vs-4s không phân biệt người/máy). PO đã
+  lỡ hỏi PO-thật theo hướng dẫn-dắt trước khi đính chính tới — lần chạm sau hỏi MỞ + thêm nghi
+  phạm thứ ba: script-của-đội gọi API. Phép kiểm còn phân biệt được (tester đang chạy): đếm lại
+  dòng `POST /policy-docs` — kho_rag.py nạp trực-tiếp không qua HTTP, nên nếu vẫn đúng 2 dòng thì
+  "08:23 = một client HTTP thật" vẫn đứng.
+- **Biến thể #4 luật assertion-trùng-mặc-định** (tester bắt trong chính test của mình `55118b5`):
+  hai vế CÙNG KIỂU (set[str]) nhưng khác KHÔNG-GIAN-TÊN (doc_id-băm so với filename) — không bao
+  giờ khớp, test xanh mà chặn con số 0. Bắt bằng CA ĐỐI CHỨNG: đổi danh sách sang tài liệu ĐANG
+  có thật trong kho → test phải đỏ (đã đỏ đúng: 'MoMo_ToS.docx'). Fix: lấy tên thật từ
+  `policy_documents.filename` ∩ doc_id-có-vector, fail-nếu-index-rỗng. `55118b5` = chuỗi
+  xfail(strict)-đẻ-nghĩa-vụ: đặc tả `contracts/rag-nguon.yaml` xuất hiện → XPASS → strict đỏ →
+  buộc người kế bật cổng thật; file contract đó sẽ ra đời cùng gói ADR xuất-xứ (quy trình §3).
 - **Bug kho tra-rỗng-không-tất-định: coder ĐÃ root-cause** (docstring `_server_dang_cam_kho_cu`):
   `chromadb.PersistentClient` không dùng chung persist-dir giữa 2 tiến trình — `nap-lai` chạy
   docker-exec riêng, server giữ segment CŨ đã bị xoá → tra rỗng, HTTP 200, không log lỗi; mọi
