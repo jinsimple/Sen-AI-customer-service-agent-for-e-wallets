@@ -345,6 +345,16 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 🔀 PO THẬT ĐỔI QUY TRÌNH GIT (16/08 tối): MỘT NHÁNH, PR CHỈ THEO ĐỢT
+- **Bỏ tách-nhánh-mỗi-việc** — cả 4 phiên code THẲNG trên `dev/learning-loop` (PO chứng kiến chi
+  phí: 2 merge nhầm + thứ-tự + retarget trong một chiều). #4 + #7 đã merge sạch, **7/10 PR**.
+- **PR còn MỘT loại: `dev` → `main` theo ĐỢT** (release gate) — PO-agent soạn, PO thật merge theo
+  link đích danh. Vừa đủ đường tới 10 PR (3 đợt release nữa), vừa làm mỗi lần deploy home-server
+  = một bản nghiệm thu trọn. **PO chỉ merge PR có link PO-agent gửi; bỏ qua banner GitHub.**
+- Luật git cây-chung (một-lệnh-pathspec · HEAD+nhánh · file-mới-dính-liền · staged-lạ-dừng-hỏi ·
+  báo-trước-land-src) NÂNG mức quan trọng — 4 phiên giờ chung một nhánh. Điều kiện chất lượng
+  (đo-trước-land, probe-vai-khác cho lớp phòng vệ) KHÔNG đổi. Coder đưa cây chung về dev (có báo).
+
 ## 🏆 RAG ĐÒN 2 — SỐ VỀ: HAI CHẾ ĐỘ GÕ BẰNG NHAU (16/08)
 - **Không dấu 0/8 → 5/8 · có dấu giữ 5/8 — Recall@3 trung bình 18,75% → 62,5%.** Ba mốc kho:
   `419·b630414088f8` (gốc) → `418·5aab3e7c43a2` (đòn 1) → `418·265aa93031bd` (đòn 2, hiện tại).
