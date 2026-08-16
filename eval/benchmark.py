@@ -171,6 +171,29 @@ def kiem_kho() -> None:
     print("  ✅ kho khớp phiên bản chuẩn-hoá của code đang chạy")
 
 
+def canary_kho(c) -> None:
+    """Cổng thứ HAI: kho có TRẢ LỜI được không — khác hẳn kho có TỒN TẠI không.
+
+    16/08 tôi đo được **0/35 cả hai chế độ** và suýt báo cáo nó. Lúc đó:
+      · `kho_rag.py kiem`  → xanh   (nó kiểm phiên bản chuẩn-hoá, không kiểm tra được)
+      · `kho_rag.py nhan`  → 378 chunk · băm ổn  (nó đếm POSTGRES)
+      · Chroma             → 378 vector          (index có thật)
+      · `/api/policy-search` → `status=not_found`, 0 kết quả cho MỌI truy vấn
+    Kho đang được NẠP LẠI ngay lúc đó. Mọi nhãn đều xanh, mọi con số đều rỗng.
+
+    Ba nguồn xác nhận "kho ổn" đều đọc chỗ KHÁC với chỗ sản phẩm đọc. Thứ duy
+    nhất bắt được là hỏi kho một câu và xem nó có trả lời không.
+    """
+    for q in ("hạn mức", "MoMo", "ngân hàng"):
+        r = c.post(f"{BASE}/api/policy-search", json={"query": q})
+        if r.status_code == 200 and (r.json().get("results") or []):
+            print(f"  ✅ kho TRẢ LỜI được (canary {q!r} → {len(r.json()['results'])} kết quả)")
+            return
+    print("  🔴 KHO KHÔNG TRẢ LỜI ĐƯỢC — 3 canary đều rỗng. DỪNG, không đo.")
+    print("     Nhiều khả năng kho đang nạp lại. Số đo lúc này là 0 GIẢ, không phải sản phẩm hỏng.")
+    sys.exit(4)
+
+
 # ===========================================================================
 # TRỤC TRUY HỒI
 # ===========================================================================
@@ -221,6 +244,7 @@ def do_truy_hoi(ca: list[dict]) -> dict:
     duong = [x for x in ca if x["ky_vong"] == "co_trong_kho"]
     am = [x for x in ca if x["ky_vong"] != "co_trong_kho"]
     c = _dang_nhap(httpx)
+    canary_kho(c)
     ket = {"co_dau": [], "khong_dau": []}
     for x in duong:
         for che_do, khoa in (("co_dau", "query_co_dau"), ("khong_dau", "query_khong_dau")):
