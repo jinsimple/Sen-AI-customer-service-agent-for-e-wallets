@@ -417,6 +417,27 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## ⭐ ĐỔI API SANG QWEN — PO thật quyết 16/08, ƯU TIÊN CAO sau gate (chi tiết: brief `2026-08-17-dot-nang-cap-oss.md` §N7)
+- PO thật ĐÃ CÓ key. PO-agent đã đặt khối biến **chưa-hiệu-lực** vào `.env` local (QWEN_API_KEY +
+  LLM_*/EMBEDDING_*/JUDGE_* comment sẵn) — không ảnh hưởng gì cho tới khi coder land code.
+- **Thiết kế: TÁCH CHAT KHỎI EMBEDDING** (chat→Qwen, embedding GIỮ OpenAI; đổi embedding = đổi
+  VẬT, nạp lại kho + cắt chuỗi mọi số truy hồi). 4 chỗ: config.py (biến mới, fallback OPENAI_* ⟹
+  không đổi hành vi mặc định) · graph.py:239 · store.py:41 · eval/_llm_judge.py:51. Kèm 2 nợ lộ
+  ra: `RAG_EMBEDDING_MODEL` hardcode config.py:223; **judge dùng chung OPENAI_MODEL** dù docstring
+  nói "tách biệt" ⟹ nếu đổi cả hai thì Qwen tự chấm Qwen (chờ coder xác nhận là finding hay tôi
+  đọc nhầm).
+- **THỨ TỰ — PO-agent TỰ ĐÍNH CHÍNH quyết định cũ:** trước nói "đổi model SAU F-31/32", SAI —
+  F-31/32 là vá PROMPT phụ thuộc chặt cách model diễn giải MISINFO-002; vá trên gpt-4o-mini rồi
+  đổi model = có thể làm lại từ chẩn đoán. ⟹ **đổi model → đo lại mốc nền trên Qwen → rồi vá
+  F-31/32 trên chính model chạy thật.** Sửa một lần thay vì hai.
+- **Hoá đơn đo lại (khai minh thị):** An toàn 30/30 hiệu chuẩn trên gpt-4o-mini → chạy lại TOÀN
+  BỘ; + F-33 parse chuỗi 429 kiểu OpenAI · cached_input_tokens đọc input_token_details kiểu
+  OpenAI (có thể báo 0 im lặng) · bảng giá measure_quality.py:67 · test_genai_spans assert
+  "gpt-4o-mini". Tester đang soạn **kế hoạch đo lại** (danh mục mất-hiệu-lực từ phía thước · thứ
+  tự + chi phí LLM · tiêu chí GO/NO-GO với ràng buộc *An toàn không được tụt một điểm nào* · cặp
+  so sánh chỉ-khác-một-biến). Security được hỏi: data residency Alibaba Cloud (NĐ 13/2023 Đ.25)
+  + điều khoản train-on-data.
+
 ## 🧭 HƯỚNG NGHIÊN CỨU SAU GATE — PO thật chốt 16/08 (từ đối chiếu workshop RAG + khảo sát OSS)
 - **Vector DB: CHỐT QDRANT (PO thật, 16/08 tối)** — sau phân xử đủ hai chiều. Dữ kiện quyết định:
   PO thật xác nhận **đích thiết kế = 100 CSKH + khách không giới hạn** ⟹ multi-tenant/scale là

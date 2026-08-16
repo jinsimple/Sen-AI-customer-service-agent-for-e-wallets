@@ -37,8 +37,34 @@
   — cache lẫn của người khác = thảm hoạ; đề xuất tiêu chí máy-kiểm-được.
 - Sản phẩm: 1 trang ý kiến / công cụ, mẫu như F-LOG-3 (trường nào được ghi, retention, cờ đỏ).
 
-## SÓNG 2 — sau #11 merged + vé F-31/32 xong (thứ tự coder giữ nguyên: đính-chính graph.py →
-## dấu-build → cổng APP_ENV → F-31/32 → rồi mới sóng 2)
+## ⭐ N7 · ĐỔI API SANG QWEN — PO thật quyết 16/08, ƯU TIÊN CAO, làm ngay sau gate
+
+**Thiết kế: TÁCH CHAT KHỎI EMBEDDING.** `LLM_*` (chat → Qwen) và `EMBEDDING_*` (GIỮ OpenAI) là
+hai bộ biến riêng, đều fallback về `OPENAI_*` ⟹ không đổi hành vi mặc định khi land. Lý do tách:
+đổi embedding = **đổi VẬT** → nạp lại kho + mọi số truy hồi cắt chuỗi; chat mới là chỗ đốt tiền
+(prompt ~5.400 token × tới 20 bước). Kèm: `RAG_EMBEDDING_MODEL` đang hardcode (`config.py:223`)
+đưa ra env; thêm `JUDGE_MODEL` riêng — giám khảo phải khác model bị chấm (nếu không: Qwen tự
+chấm Qwen). 4 chỗ sửa: `config.py` · `graph.py:239` · `store.py:41` · `eval/_llm_judge.py:51`.
+
+**Thứ tự — ĐỔI MODEL TRƯỚC F-31/32 (PO-agent tự đính chính quyết định cũ):** F-31/32 là bản vá
+PROMPT, phụ thuộc chặt vào cách model diễn giải MISINFO-002. Vá trên gpt-4o-mini rồi đổi model =
+bản vá có thể không chuyển giao, làm lại từ chẩn đoán. ⟹ đổi model → đo lại mốc nền trên Qwen →
+rồi vá F-31/32 trên chính model sẽ chạy thật. Sửa một lần thay vì hai.
+
+**HOÁ ĐƠN ĐO LẠI (khai minh thị, không được giả định chuyển giao):** An toàn 30/30 (cổng-96 ·
+adversarial 45 ca · over-block 0/96) hiệu chuẩn trên gpt-4o-mini → chạy lại TOÀN BỘ trên Qwen —
+đây là tài sản lớn nhất dự án. Kèm 4 chỗ nhỏ: F-33 parse chuỗi lỗi 429 kiểu OpenAI (Qwen khác →
+vá thoái hoá im lặng; test hardcode chuỗi) · `cached_input_tokens` đọc `input_token_details` kiểu
+OpenAI (có thể báo 0 im lặng) · bảng giá `eval/measure_quality.py:67` · `test_genai_spans.py`
+assert `"gpt-4o-mini"`. Ràng buộc security (chờ ý kiến): dữ liệu hội thoại đi tới hạ tầng Alibaba
+Cloud — data residency NĐ 13/2023 Điều 25 + điều khoản train-on-data.
+
+## NGUYÊN TẮC CẢ ĐỢT (security, N3 — nâng thành bắt buộc)
+> **Mỗi công cụ mới phải khai nó thuộc CỬA NÀO trong khung ADR-025 trước khi vào compose.**
+> Thêm một nơi dữ liệu tồn tại ngoài khung là cách một ADR thành giấy lộn.
+
+## SÓNG 2 — sau #11 merged + N7 (thứ tự coder: đính-chính graph.py → dấu-build → cổng APP_ENV →
+## N7 Qwen → đo lại An toàn/benchmark trên Qwen → F-31/32 → rồi mới sóng 2)
 
 ### N4 · Migrate Chroma → QDRANT — coder
 4 điều kiện đã chốt (STATE `1f12244`): kỷ luật hai-kho vĩnh viễn (tem + canary + một-đường-nạp) ·
