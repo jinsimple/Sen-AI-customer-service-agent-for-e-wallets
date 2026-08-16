@@ -34,13 +34,12 @@ khách; **tiền chỉ đi khi Sếp duyệt** — ràng buộc người-tạo-�
 
 ## 3. Repo có ≥ 10 PR merged
 
-- ✅ **7 PR đã merge** (#1–#7)
-- 🔗 **3 PR đang mở, merge theo đúng thứ tự này:**
-  1. [PR #8 — RAG đòn 4 + kho sạch + bản đồ phủ](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/8)
-  2. [PR #9 — F-LOG-3 log có cấu trúc + T3 cắt 24% token](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/9)
-  3. [PR #10 — ADR-026 + benchmark v0.4 + bộ lệnh đo](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/10)
-
-→ Sau khi merge đủ: **10 PR merged**, và `main` (nhánh production đang deploy) ngang với nhánh phát triển.
+- ✅ **10 PR đã merge (#1–#10) — đạt yêu cầu ≥10.** Ba PR mới nhất là đợt release có chủ đề:
+  [#8 RAG đòn 4](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/8) ·
+  [#9 observability + token](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/9) ·
+  [#10 ADR-026 + benchmark](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/10)
+- `main` là nhánh production đang deploy; nhánh phát triển đi trước vài commit (công việc trong
+  ngày, sẽ vào PR sau).
 
 ## 4. README.md — setup, env vars, sample queries
 
@@ -52,8 +51,9 @@ khách; **tiền chỉ đi khi Sếp duyệt** — ràng buộc người-tạo-�
 
 - ✅ [`eval/EVAL-EVIDENCE.md`](../eval/EVAL-EVIDENCE.md) — **7 ca** (vượt yêu cầu 5), output **nguyên văn từ
   hệ thống chạy thật**, có dán nhãn môi trường đo (commit, hạ tầng, dữ liệu, tài khoản).
-  Trong đó **2 ca âm bản** — cố tình hỏi thứ hệ thống *không* có, để chứng minh agent nói "không tìm thấy"
-  chứ không bịa số.
+  Trong đó **2 ca âm bản** — cố tình hỏi thứ hệ thống *không* có: agent nói "không tìm thấy" thay vì
+  bịa số. *(Giới hạn: đây là 2 ca cụ thể, không phải bảo đảm toàn cục — 2 finding đang mở về
+  từ-chối/diễn-giải được liệt kê ở mục benchmark.)*
 - Bổ sung, không bắt buộc nhưng nên xem:
   [`docs/giao-viec/2026-08-16-benchmark-spec-va-v0.md`](../docs/giao-viec/2026-08-16-benchmark-spec-va-v0.md)
   — bộ benchmark tự dựng (5 trục, trọng số), **v0.4 = 87,7% điểm đo được**, ghi kèm 2 finding còn mở
@@ -68,4 +68,4 @@ khách; **tiền chỉ đi khi Sếp duyệt** — ràng buộc người-tạo-�
 | **Ràng buộc cứng ép bằng test** | 5 ràng buộc (HITL tuyệt đối · AI không vượt cấp · cấm bịa số · OTP phiên · gắn cờ ≠ khoá ví) mã hoá thành `tests/test_invariants.py` — **23 test introspect app đang chạy thật** (đọc route, moi guard từ closure, đọc CHECK constraint qua AST). Đỏ = build hỏng. |
 | **Contracts là nguồn sự thật** | Cấu trúc hệ thống sống trong `contracts/`, không sống trong code. Thêm route/đổi guard/đổi tên tool mà quên cập nhật contract → đỏ ngay. |
 | **26 ADR có lý do bác phương án khác** | [`docs/DECISIONS.md`](../docs/DECISIONS.md) — mới nhất **ADR-026**: kho chính sách chỉ phục vụ tài liệu **đã duyệt**, sinh ra từ một sự cố thật trong ngày. |
-| **Kỷ luật đo lường** | Mỗi con số kèm nhãn hệ thống; thước đo bị bắt lỗi 3 lần trong ngày và **cả 3 lần đều do chính người dùng thước phát hiện**; bản vá không có số lợi ích thì **revert dù vô hại**. |
+| **Kỷ luật đo lường** | Mỗi con số kèm nhãn hệ thống; thước đo bị bắt lỗi **7 lần trong một ngày** — phần lớn do chính người dùng thước tự bắt, **hai lần do vai khác bắt chéo** (kiến trúc đối kháng hoạt động, cả hai chiều đều được ghi lại); bản vá không có số lợi ích thì **revert dù vô hại**. |

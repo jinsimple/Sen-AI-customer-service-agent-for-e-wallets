@@ -74,9 +74,20 @@ def _song() -> bool:
     return bool(r.stdout.strip())
 
 
+def _dong_bang() -> bool:
+    return os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false")
+
+
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(not _song(), reason="container fin05-backend-1 không chạy — chưa có agent để hỏi"),
+    # CỔNG ĐÓNG BĂNG: file này gọi /api/agent-chat ~14 lượt (test F-32 chạy k=3).
+    # Trần TPM 200k dùng CHUNG với 3 phiên Claude khác + PO thật. Đo được 16/08:
+    # một người, 21 lượt, 2 phút -> org chạm 193k/200k, và 429 ra tới khách dưới
+    # dạng HTTP 500 màn hình trắng. Chạy bộ này trong lúc ai đó đang quay demo
+    # là làm hỏng video của họ. Đây là skip vì THIẾU TÀI NGUYÊN DÙNG CHUNG —
+    # một lý do có thật, kiểm được, không phải skip cho qua chuyện (Luật 6).
+    pytest.mark.skipif(_dong_bang(), reason="FIN05_DONG_BANG_LLM đang bật — không gọi model"),
 ]
 
 

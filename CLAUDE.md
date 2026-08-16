@@ -35,7 +35,7 @@ Kể cả khi PO yêu cầu — hỏi lại rằng có đang muốn sửa hiến
 5. **Gắn cờ nghi gian lận ≠ khoá ví.** Hai hành động độc lập hoàn toàn. Không code nào
    được nối trực tiếp cờ gian lận sang hành động khoá.
 
-Cả 5 ràng buộc đã được mã hoá thành test tại `tests/test_invariants.py` (19 test).
+Cả 5 ràng buộc đã được mã hoá thành test tại `tests/test_invariants.py` (23 test).
 **Test đỏ = build hỏng.** Chạy trong CI job `invariants` ở mọi push/PR.
 
 ## 3. Nguồn sự thật: `contracts/`
@@ -107,7 +107,7 @@ docs/DECISIONS.md            ← ADR, CHỈ GHI THÊM, không sửa
 docs/STATE.md                ← đang làm gì, ghi đè cuối mỗi phiên
 docs/TESTING.md              ← cách chạy từng nhóm test
 scripts/check_contracts.py   ← phát hiện artifact lỗi thời
-tests/test_invariants.py     ← 5 ràng buộc cứng, 19 test, introspect app thật
+tests/test_invariants.py     ← 5 ràng buộc cứng, 23 test, introspect app thật
 tests/                       ← 42 file test backend
 frontend/e2e/                ← 13 file Playwright
 eval/golden_set.jsonl        ← case dev · eval/heldout_set.jsonl CHỈ CHẠY MỘT LẦN, gần cuối

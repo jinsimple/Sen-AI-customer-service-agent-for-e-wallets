@@ -77,6 +77,34 @@ SO_KHACH = os.environ.get("FIN05_TEST_CUSTOMER_PHONE", "0974000145")
 MAT_KHAU = os.environ.get("FIN05_TEST_PASSWORD", "Demo@123")
 
 
+# ===========================================================================
+# CỔNG ĐÓNG BĂNG LLM — dùng chung hạn mức TPM với 3 phiên khác + PO thật
+# ===========================================================================
+
+
+def cong_dong_bang(ly_do_can_llm: str) -> None:
+    """Từ chối chạy khi đang đóng băng LLM. Đặt `FIN05_DONG_BANG_LLM=1` để bật.
+
+    VÌ SAO LÀ CƠ CHẾ CHỨ KHÔNG PHẢI LỜI HỨA: đo được 16/08 — **một người, 21
+    lượt, 2 phút** đẩy org tới `193.274/200.000 TPM`. Trần đó dùng chung giữa
+    4 phiên Claude và PO thật. Nếu tôi chạy bộ đo trong lúc PO thật quay video
+    demo, họ ăn 429 **giữa video** — và 429 hiện ra tới khách dưới dạng HTTP
+    500 màn hình trắng (finding chưa vá lúc viết dòng này).
+
+    Một lời hứa "tôi sẽ không chạy" không sống sót qua một phiên bị nén ngữ
+    cảnh hay một người khác chạy lại lệnh trong lịch sử shell. Cổng thì có.
+    """
+    if os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in ("", "0", "false"):
+        sys.exit(
+            "🧊 ĐANG ĐÓNG BĂNG LLM — không chạy.\n"
+            f"   Lệnh này cần model để: {ly_do_can_llm}\n"
+            "   Trần TPM dùng chung với 3 phiên khác + PO thật; đo được một người\n"
+            "   21 lượt/2 phút đã đẩy org tới 193k/200k, và 429 ra tới khách\n"
+            "   thành HTTP 500.\n"
+            "   Bỏ đóng băng: unset FIN05_DONG_BANG_LLM"
+        )
+
+
 def _chay(cmd: list[str]) -> str:
     try:
         return subprocess.run(cmd, capture_output=True, text=True, timeout=25).stdout.strip()
@@ -164,6 +192,7 @@ def main() -> None:
                     help="rieng = mỗi câu một phiên mới (chi phí của CÂU); "
                          "don = cả bộ trong một phiên (chi phí của LƯỢT THỨ N)")
     a = ap.parse_args()
+    cong_dong_bang("gọi /api/agent-chat cho từng câu trong bộ lệnh")
 
     dong = [json.loads(l) for l in BO_LENH.read_text(encoding="utf-8").splitlines() if l.strip()]
     phien_ban = dong[0]["phien_ban"]
@@ -182,29 +211,31 @@ def main() -> None:
 
     c, co_otp = moi_phien()
 
+    # LẶP: ở chế độ `don`, lặp phải bọc NGOÀI cả dãy — lặp mỗi câu 3 lần trong
+    # cùng phiên sẽ biến bộ 7 câu thành hội thoại 21 lượt, tức đo một thứ khác
+    # hẳn. Ở `rieng` thì lặp trong hay ngoài đều như nhau vì mỗi lượt một phiên.
+    thu = {d["id"]: [] for d in lenh}
+    for _ in range(a.lap):
+        if a.che_do == "don":
+            c.close()
+            c, co_otp = moi_phien()
+        for d in lenh:
+            if a.che_do == "rieng":
+                c.close()
+                c, co_otp = moi_phien()
+            if d["can_otp"] and not co_otp:
+                thu[d["id"]].append({"loi": "chưa mở được OTP phiên"})
+                continue
+            thu[d["id"]].append(mot_luot(c, d["cau"]))
+
     print(f"\n{'id':<4}{'nhóm':<6}{'giây':>7}{'vào':>9}{'ra':>7}{'cache':>8}{'tool':>6}  vé")
     print("-" * 74)
     ket = []
     for d in lenh:
-        if d["can_otp"] and not co_otp:
-            print(f"{d['id']:<4}{d['nhom']:<6}   KHÔNG ĐO ĐƯỢC — cần OTP mà chưa mở được")
-            ket.append({**d, "khong_do_duoc": "chưa mở được OTP phiên"})
-            continue
-        luot = []
-        for _ in range(a.lap):
-            if a.che_do == "rieng":          # phiên MỚI cho mỗi lượt: cắt lịch sử
-                c.close()
-                c, co_otp = moi_phien()
-                if d["can_otp"] and not co_otp:
-                    break
-            luot.append(mot_luot(c, d["cau"]))
-        if not luot:
-            print(f"{d['id']:<4}{d['nhom']:<6}   KHÔNG ĐO ĐƯỢC — cần OTP mà chưa mở được")
-            ket.append({**d, "khong_do_duoc": "chưa mở được OTP phiên"})
-            continue
+        luot = thu[d["id"]]
         loi = [x["loi"] for x in luot if "loi" in x]
         if loi:
-            print(f"{d['id']:<4}{d['nhom']:<6}   LỖI: {loi[0]}")
+            print(f"{d['id']:<4}{d['nhom']:<6}   KHÔNG ĐO ĐƯỢC: {loi[0]}")
             ket.append({**d, "khong_do_duoc": loi[0]})
             continue
         g = lambda k: [x[k] for x in luot if x.get(k) is not None]  # noqa: E731
@@ -213,8 +244,9 @@ def main() -> None:
               f"{tv('ra'):>7,.0f}{tv('cache'):>8,.0f}{tv('tool'):>6.0f}"
               f"  {'✓' if any(x['ve'] for x in luot) else ''}")
         if a.lap > 1:
-            print(f"      dải vào: {min(g('vao')):,.0f}–{max(g('vao')):,.0f}"
-                  f" · dải giây: {min(g('giay')):.1f}–{max(g('giay')):.1f}")
+            print(f"      dải vào {min(g('vao')):,.0f}–{max(g('vao')):,.0f}"
+                  f"  ·  dải giây {min(g('giay')):.1f}–{max(g('giay')):.1f}"
+                  f"  ·  tool {min(g('tool'))}–{max(g('tool'))}")
         ket.append({**d, "luot": luot, "tv_vao": tv("vao"), "tv_giay": tv("giay")})
     c.close()
 

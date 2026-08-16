@@ -417,7 +417,76 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 🧭 HƯỚNG NGHIÊN CỨU SAU GATE — PO thật chốt 16/08 (từ đối chiếu workshop RAG + khảo sát OSS)
+- **Vector DB: CHỐT QDRANT (PO thật, 16/08 tối)** — sau phân xử đủ hai chiều. Dữ kiện quyết định:
+  PO thật xác nhận **đích thiết kế = 100 CSKH + khách không giới hạn** ⟹ multi-tenant/scale là
+  YÊU CẦU không phải giả định ⟹ 3 lý do lật: (a) Postgres ví thật sẽ bận OLTP — nhét vector search
+  vào cùng máy = hai tải giành nhau, "một kho" thành "một điểm nghẽn"; (b) collection-per-partner
+  sạch hơn cột lọc; (c) tránh migrate 2 lần. Mối lo tất-định-thước GIẢI được: Qdrant có
+  `exact=true` per-query — benchmark chạy exact, production chạy HNSW. **Điều kiện kèm:** kỷ luật
+  hai-kho giữ vĩnh viễn (tem + canary + một-đường-nạp); bộ lọc ADR-026 GIỮ ở bước SQL không chép
+  cờ sang payload; migration đo trước-sau 47 ca. **Thứ tự đầu tư cho đích 100-người:** ① nâng
+  hạn mức TPM/model (PO mua sắm — nút cổ chai THẬT đã đo) ② LiteLLM proxy hàng đợi+budget ③
+  reranker ④ Qdrant. Vector DB chưa bao giờ là nghẽn — TPM mới là.
+  **CẬP NHẬT (PO thật cam kết 16/08 tối): tới giai đoạn demo/khách thật SẼ CÓ API LLM hạn mức
+  xịn** ⟹ ① chuyển từ "chặn đường sống" thành "việc đã có chủ, kích hoạt theo lịch pilot"; thứ
+  tự kỹ thuật còn lại: reranker → Qdrant → LiteLLM (vẫn đáng làm vì: hàng đợi chống burst-429 cần
+  ở MỌI hạn mức, và hoá đơn token vẫn tỉ lệ thuận usage — T-series/caching là tiền thật kể cả khi
+  quota rộng). Cổng-trước-người-thật (A1/A2-prod + đường-xoá + xoay-FIELD-key) KHÔNG đổi.
+- Thứ tự nghiên cứu đã trình PO thật: ① reranker tại chỗ (bge-reranker-v2-m3 A/B ViRanker, Apache
+  2.0, CPU) ② Qdrant ③ LiteLLM proxy (hàng đợi TPM + budget + cache Redis — điều kiện trước 150
+  người) ④ Langfuse self-host (màn gán nhãn 30-ca + cost, thay-thế-được LangSmith mà không rời
+  hạ tầng) ⑤ semantic cache CHỈ cho câu chính-sách-chung, đúng hẹn pilot. Đã bác bằng số của
+  chính mình: HyDE, BM25/RRF thuần, LLM-chunking (② xổ số). MRR/NDCG mượn công thức RAGAS lắp
+  vào script tester — thước-đã-rà vẫn là nguồn sự thật.
+
+## 🔴 TRẦN TPM = RÀNG BUỘC CỨNG HƠN MỌI THỨ ĐANG TỐI ƯU (tester đo 16/08, `aa020d3`)
+- Trần org **200k TPM**. Đo được: 15,4k/lượt (hội thoại mới) → **13,0 lượt/phút TOÀN HỆ THỐNG** ·
+  25,7k (lượt 4) → 7,8 · 36,2k (trần đo) → 5,5. **150 người × 1 câu/2 phút = 75 lượt/phút** ⟹
+  hội thoại ngắn cần 1,5tr TPM (**7,5× trần**), dài cần 2,7tr (**13,6× trần**). Chính phép đo
+  (MỘT người, 21 lượt, 2 phút) đẩy org tới 193k/200k. ⟹ **T4 cắt lịch sử KHÔNG đủ** — cắt 36k→15k
+  vẫn chỉ ~26 người. Khoảng cách là BẬC ĐỘ LỚN: cần nâng hạn mức tài khoản hoặc đổi mô hình —
+  **quyết định của PO thật**, không phải đòn kỹ thuật. (Giới hạn của số: đo trên trần org hiện
+  tại, và trần đó mua được.) Số này biện minh hồi tố cho quyết định hoãn 150-user test.
+- **🔴 429 của OpenAI ra tới KHÁCH thành HTTP 500** — nhà cung cấp nói rõ "try again in 1.381s",
+  khách nhận `{"detail":"Internal Server Error"}`. Không retry/degrade/thông báo. GIAO coder vá
+  tối thiểu (retry+backoff theo đúng số giây trả về, hết khe thì câu xin lỗi tử tế thay 500).
+  Rủi ro trực tiếp cho video demo Gate ⟹ **PO-agent lệnh tester DỪNG mọi phép đo tốn LLM** cho
+  tới khi PO thật quay xong (chia sẻ tài nguyên, không phải đánh giá việc).
+- **Bản vá F-31 REVERT** (luật không-có-số-lợi-ích): 9/16 mục không đạt, 2 ca đối chứng security
+  giữ 8/8 nên không hại — nhưng land là gieo tiền lệ "chỗ này sửa rồi". **Manh mối cửa THỨ BA,
+  lexical không phải ngữ nghĩa:** bỏ đúng chữ "tra soát" là hết từ chối (4/4 → 0/4) ⟹ nghi dòng
+  `## Giọng văn` ("tránh thuật ngữ nội bộ: 'tra soát', 'đối soát'…") bị model khái quát từ *đừng
+  DÙNG từ* thành *đừng ĐỘNG tới chủ đề*. Vẽ lại trục phạm vi bao nhiêu lần cũng không chạm tới.
+  Chưa xác nhận (nghi cửa thứ tư cùng loại với "gian lận"/ràng buộc 4) — chẩn đoán ~10 lượt khi
+  TPM rảnh, CẤM sửa prompt lần hai trước đó.
+
 ## 📦 GATE G2 — hạn 23:59 16/08, hồ sơ ĐÃ DỰNG (`gate/README.md`, `da4e51e`)
+- **Conflict 3 PR ĐÃ GIẢI (PO-agent, worktree riêng):** `main` có 2 merge-commit (#5,#6) không
+  có trong dev; xung đột DUY NHẤT `docs/STATE.md` (main là bản CŨ hơn). Giải một lần ở nhánh đầu
+  (-X ours) rồi nối chuỗi B1⊂B2⊂B3 — hai nhánh sau 0 xung đột. Cả 3 nay **MERGEABLE**.
+- **CI đỏ = runner org bị chặn billing** — coder chứng minh dứt điểm: `steps: []`, job chưa từng
+  khởi động (test đỏ phải có bước và mất phút, không phải 2-3s). **Hệ quả khai minh thị: 3 PR
+  #8-10 merge KHÔNG mang đảm bảo CI nào** (hiện-diện ≠ hiệu-lực áp vào chính cổng của ta). Thay
+  thế tại chỗ trên HEAD #11 (`14a8c96`): contract-drift 3 file khớp baseline + invariants 23/23 —
+  hai cổng quan trọng nhất xanh THẬT; 8 cổng còn lại (appsec/adversarial/migration/route-guards/
+  frontend-lint/dep-scan…) KHÔNG AI CHẠY đợt này — khai rõ, không ngụ ý xanh.
+- **Tester xác minh: production = stack RIÊNG** (đường dẫn đánh dấu qua app.adaptivealgo.uk →
+  0 dòng trong log local) — phép đo local không chạm bản PO quay; đóng băng GIỮ vì TPM chung tài
+  khoản. Hai việc rẻ cho coder sau gate: ① **dấu-build vào `/api/env-info`** (hiện không commit/
+  phiên bản — "sản phẩm đang chạy không có nhãn vật"; hệ quả thật: KHÔNG kiểm được từ ngoài là
+  production đã nhận vá 429 chưa) ② env-info production trả `env: "development"` — đặt biến đúng.
+- Đã sửa dòng 6/8-2/8 trong benchmark-spec thành câu chữ đầy đủ (bẫy-đọc: phân số đứng trơ cạnh
+  chỗ vừa sửa 2/8→2/10 — "không sai một chữ nào mà vẫn gây hiểu sai").
+- **`env=development` trên production — truy xong (coder): `.env` chép từ Mac mang theo dòng
+  chỉ-đúng-ở-dev** (APP_ENV vào qua env_file, cùng họ bẫy SSL_CERT_FILE — "`.env` càng được mang
+  sang trung thành thì lỗi càng chắc chắn tái hiện"). Fix 2 dòng đã chuyển PO thật (sửa
+  APP_ENV=production + restart backend, kiểm qua /api/env-info); rào dài hạn: thêm APP_ENV vào
+  CỔNG 2 deploy_home (sau merge). **Thiết kế dấu-build DUYỆT**: BUILD_COMMIT qua build-arg (không
+  đọc git lúc chạy — nhãn tự-thất-bại-im-lặng tệ hơn không nhãn) · build_at ISO có offset ·
+  fallback "khong-ro" tự-tố-cáo. Coder GIỮ TAY mọi commit code tới khi #11 merged (headRef=dev —
+  commit lúc này rơi vào PR PO thật đang cầm); thứ tự sau merged: đính-chính graph.py → dấu-build
+  → cổng APP_ENV.
 - 5 deliverable: ① video PO tự quay (kịch bản 8 màn sẵn) ② architecture ✅ ③ **≥10 PR — mở 3 PR
   dev→main: #8 RAG-đòn-4+kho · #9 F-LOG-3+T3 · #10 ADR-026+benchmark+gate/** (lát cắt tuần tự,
   tổ tiên lồng nhau, merge THEO THỨ TỰ; 7 đã merge + 3 = 10) ④ README ✅ ⑤ EVAL-EVIDENCE 7 ca ✅.

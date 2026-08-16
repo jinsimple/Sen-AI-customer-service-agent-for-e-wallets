@@ -647,6 +647,138 @@ tiên báo `nhận được`, `tối đa` là vỡ. **Ba lần đều là thư�
 
 ---
 
+## Luật 10 — BỘ ĐO TỰ TẠO RA HIỆN TƯỢNG NÓ ĐANG ĐO
+
+> Ba ca thật trong một ngày (16/08). Đây là họ lỗi khó thấy nhất vì kết quả
+> trông **hợp lý**: nó tăng đều, nó có xu hướng, nó kể một câu chuyện gọn gàng.
+
+**Ca 1 — "câu nặng" hoá ra là số thứ tự lượt.** Bộ đo token chạy cả 7 câu trong
+một phiên, ra `N1 13,8k → V1 34,4k` tăng đơn điệu. Kết luận tự nhiên: *V1 là câu
+nặng nhất*. Chạy **đảo thứ tự**: `V1 6,2k … N1 26,7k` — vẫn tăng đơn điệu, theo
+**vị trí**. Mỗi câu một phiên riêng: tất cả nằm trong `6,2k–15,7k`. Thứ được đo
+là **lịch sử hội thoại cộng dồn**, không phải độ nặng của câu.
+
+**Ca 2 — tham số lặp bọc sai chỗ.** `--lap 3` lặp mỗi câu 3 lần *trong cùng
+phiên* biến bộ 7 câu thành hội thoại 21 lượt. Muốn lặp một dãy thì lặp phải bọc
+**ngoài** dãy, không bọc từng phần tử — nếu không, chính tham số "đo cho chắc"
+lại khuếch đại hiện tượng đang đo.
+
+**Ca 3 — phép đo làm cạn tài nguyên rồi hỏng vì chính nó.** Vòng `--lap 3` đẩy
+org tới `193.274/200.000 TPM`; một lượt trả `HTTP 500`. Bộ đo vừa là thủ phạm
+vừa là nạn nhân.
+
+**Cách bắt — rẻ và gần như luôn hiệu quả:**
+
+1. **Đảo thứ tự.** Nếu kết quả đi theo vị trí chứ không theo phần tử, thứ đang
+   đo là vị trí.
+2. **Cô lập.** Chạy một phần tử một mình. Số lệch hẳn ⟹ phần còn lại của bộ đo
+   đang góp vào con số.
+3. **Hỏi phép đo tiêu thụ gì.** Token, kết nối, khoá, dung lượng đĩa — cái nào
+   dùng chung thì cái đó có thể quay lại cắn chính phép đo, hoặc cắn người khác.
+
+**Kèm theo — tài nguyên dùng chung cần CỔNG, không cần lời hứa.** Một lời hứa
+"tôi sẽ không chạy trong lúc người khác quay demo" không sống sót qua một phiên
+bị nén ngữ cảnh, hay một lần bấm mũi tên lên trong shell. `FIN05_DONG_BANG_LLM=1`
+làm mọi harness gọi model tự từ chối, và `FIN05_CHO_PHEP_EP_429` tách riêng loại
+test **cố ý** đốt hạn mức — bỏ đóng băng nghĩa là *được dùng model bình thường*,
+không phải *được phép làm cạn hạn mức của cả đội*.
+
+---
+
+## Luật 11 — TỪ CHỐI RỒI TRẢ LỜI TIẾP là bịa có VỎ BỌC
+
+Nguyên văn bắt được ở đường agent thật:
+
+> *"Mình **chưa tìm thấy** thông tin cụ thể về trường hợp nào bạn phải bồi
+> hoàn… **Tuy nhiên, thông thường**, việc bồi hoàn có thể xảy ra trong các
+> trường hợp như: 1. Thanh toán lặp…"*
+
+Một bộ chấm dò chuỗi `"chưa tìm thấy"` sẽ **chấm ca này ĐẠT**. Câu từ chối có
+thật, đúng chữ, đúng chỗ. Cái bịa nằm ở **phần SAU** nó.
+
+> **Bịa thẳng thì thước bắt được. Bịa sau một câu từ chối thì thước KHEN.**
+
+**Assertion phải cắt câu trả lời tại vị trí từ chối và soi phần ĐUÔI**, không
+dừng lại ở chỗ tìm thấy câu từ chối:
+
+```python
+vi_tri = next((tra.find(t) for t in TU_CHOI if t in tra), -1)
+duoi = tra[vi_tri:]                       # phần SAU câu từ chối
+assert not [t for t in NOI_TIEP if t in duoi]   # "tuy nhiên", "thông thường"…
+```
+
+**Và Luật 3 áp cho chính finding này.** Tôi báo nó thành finding từ **một** lượt.
+Chạy lại k=3 rồi k=11: **0/11 tái hiện** — vì coder đã land một đòn tối ưu token
+giữa hai lần đo. Quan sát có thật, nhưng nó nói về một **vật khác**. Ca được giữ
+lại làm **cổng hồi quy** chứ không phải finding, vì hành vi đúng hiện nay là
+**hệ quả phụ chưa ai cố ý làm ra** — thứ như thế mất đi lúc nào không ai biết.
+
+---
+
+## Luật 6b — một `skip` ĐÚNG LÝ DO vẫn có thể QUÉT QUÁ RỘNG
+
+Luật 6 canh *"lý do skip có thật không"*. Luật này canh **phạm vi** của nó.
+
+Ca thật (16/08). Bộ `test_f33*` cần **ép 429**, tức đốt gần hết trần TPM dùng
+chung — lý do skip hoàn toàn thật. Tôi gắn nó ở **cả file** bằng `pytestmark`.
+Nhưng trong file có `test_f33c`, ca chỉ **hỏi lược đồ DB** xem cột
+`ly_do_fallback` đã tồn tại chưa: **0 lượt gọi model, chạy được ngay**.
+
+Gắn cổng cho cả file thì ca kiểm-được-ngay **bị chôn theo mấy ca không chạy
+được**, và nó nằm im **đúng lúc nó hữu ích nhất** — lúc đang đóng băng, khi mọi
+thứ khác đều không đo được thì đúng ra nó phải là cái duy nhất còn nói được điều
+gì đó.
+
+> **Phần bị quét oan im lặng y hệt một `skip` sai.** Không ai đọc log thấy khác
+> biệt: cùng một chữ `SKIPPED`, cùng một lý do nghe hợp lý.
+
+Cách làm đúng: hạ cổng xuống **từng ca**, đặt tên cho nó, và chỉ dán lên ca thật
+sự cần:
+
+```python
+can_dot_han_muc = pytest.mark.skipif(not CHO_PHEP, reason="…")
+
+@can_dot_han_muc
+def test_ep_429(...): ...
+
+def test_hoi_luoc_do(...): ...      # KHÔNG dán — nó không tốn gì
+```
+
+**Câu hỏi để tự soi:** *mọi ca trong phạm vi cổng này đều thật sự cần thứ đang
+thiếu chứ?* Chỉ cần **một** ca không cần, cổng đang quét quá rộng.
+
+---
+
+## Luật 12 — KHÔNG SAI MỘT CHỮ NÀO MÀ VẪN GÂY HIỂU SAI
+
+Áp cho **tài liệu và báo cáo**, không chỉ test. Một câu có thể **đúng từng chữ**
+mà vẫn dẫn người đọc tới kết luận sai, và loại lỗi này không bị bất kỳ phép kiểm
+sự-thật nào bắt được — vì không có gì để bắt.
+
+**Ba dạng đã gặp trong một ngày:**
+
+**① Phân số đứng trơ cạnh một phân số khác vừa bị sửa.** Tài liệu sửa
+`ToS 2/8 → 2/10`, rồi ba dòng sau có `bất ổn định 6/8-2/8` — chỗ này `2/8` là
+**tỉ lệ lượt** của một ca, hoàn toàn đúng. Nhưng người đọc vừa học "ToS không
+phải 2/8" sẽ đọc nó thành sót hoặc mâu thuẫn. Chữa: viết hẳn ra
+*"8 lượt cùng một câu: 6 lượt từ chối an toàn · 2 lượt đuổi ngoài phạm vi"*.
+
+**② Khái quát hoá lặng lẽ.** *"2 ca âm bản để **chứng minh** agent nói 'không
+tìm thấy' chứ không bịa số"* — hai ca đó có thật và đúng. Cái sai là bước nhảy
+từ *"2 ca này không bịa"* sang một **tính chất của hệ thống**, mà ta có phản ví
+dụ đã đo (F-32). Chữa: giữ sự kiện, bỏ chữ `chứng minh`, ghi kèm giới hạn.
+
+**③ Khai thấp cũng là khai sai.** *"7 PR đã merge"* khi thật ra đã 10 — BTC đọc
+thành **chưa đạt** tiêu chí. Sai theo hướng khiêm tốn vẫn là sai, và loại này ít
+ai đi kiểm vì nó không có mùi khoe.
+
+**Cách soi (dùng khi rà bất kỳ tài liệu nào rời khỏi đội):** đọc từng câu và hỏi
+*"người chưa biết gì sẽ kết luận gì từ câu này?"* — rồi so kết luận đó với thứ
+**đo được**, không so với câu chữ. Chênh nhau ⟹ sửa câu, kể cả khi từng chữ đều
+đúng.
+
+---
+
 ## Áp dụng khi review test của nhau
 
 Bốn câu hỏi, hỏi theo thứ tự:

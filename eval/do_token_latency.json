@@ -9,17 +9,35 @@
    "vi_sao": "1 bước: 1 lượt search_policy rồi trả lời. Sàn của dải.",
    "luot": [
     {
-     "giay": 5.690098208957352,
-     "vao": 13869,
+     "giay": 8.70020049996674,
+     "vao": 15401,
      "ra": 154,
-     "cache": 6144,
+     "cache": 13824,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 131
+    },
+    {
+     "giay": 5.176588875008747,
+     "vao": 15400,
+     "ra": 158,
+     "cache": 6912,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 131
+    },
+    {
+     "giay": 5.920476834056899,
+     "vao": 15390,
+     "ra": 143,
+     "cache": 6912,
      "tool": 1,
      "ve": false,
      "dai_dap": 131
     }
    ],
-   "tv_vao": 13869,
-   "tv_giay": 5.690098208957352
+   "tv_vao": 15400,
+   "tv_giay": 5.920476834056899
   },
   {
    "id": "N2",
@@ -29,17 +47,35 @@
    "vi_sao": "1 bước, chủ đề khác N1 để không đo trúng một chunk duy nhất.",
    "luot": [
     {
-     "giay": 4.6020237089833245,
-     "vao": 16902,
-     "ra": 131,
-     "cache": 15360,
+     "giay": 5.0284649999812245,
+     "vao": 18421,
+     "ra": 139,
+     "cache": 16896,
      "tool": 1,
      "ve": false,
-     "dai_dap": 345
+     "dai_dap": 383
+    },
+    {
+     "giay": 4.90382295800373,
+     "vao": 18436,
+     "ra": 132,
+     "cache": 16896,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 351
+    },
+    {
+     "giay": 4.959674415993504,
+     "vao": 18384,
+     "ra": 130,
+     "cache": 16896,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 341
     }
    ],
-   "tv_vao": 16902,
-   "tv_giay": 4.6020237089833245
+   "tv_vao": 18421,
+   "tv_giay": 4.959674415993504
   },
   {
    "id": "N3",
@@ -49,17 +85,35 @@
    "vi_sao": "câu ngắn nhưng mơ hồ — agent hay hỏi lại thay vì gọi tool. Đo nhánh KHÔNG gọi tool.",
    "luot": [
     {
-     "giay": 10.371482249931432,
-     "vao": 31582,
-     "ra": 287,
-     "cache": 29440,
+     "giay": 18.30977237492334,
+     "vao": 31592,
+     "ra": 273,
+     "cache": 30592,
      "tool": 2,
      "ve": true,
-     "dai_dap": 244
+     "dai_dap": 268
+    },
+    {
+     "giay": 9.85172983398661,
+     "vao": 33863,
+     "ra": 281,
+     "cache": 31744,
+     "tool": 2,
+     "ve": true,
+     "dai_dap": 254
+    },
+    {
+     "giay": 7.259871375048533,
+     "vao": 21735,
+     "ra": 171,
+     "cache": 19712,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 556
     }
    ],
-   "tv_vao": 31582,
-   "tv_giay": 10.371482249931432
+   "tv_vao": 31592,
+   "tv_giay": 9.85172983398661
   },
   {
    "id": "D1",
@@ -69,17 +123,35 @@
    "vi_sao": "nhiều bước: customer_history rồi lọc. Đây là dạng lượt phình input hồi T1.",
    "luot": [
     {
-     "giay": 8.412958958069794,
-     "vao": 24644,
-     "ra": 524,
-     "cache": 22656,
+     "giay": 13.196676917024888,
+     "vao": 23871,
+     "ra": 725,
+     "cache": 21632,
      "tool": 1,
      "ve": false,
-     "dai_dap": 1194
+     "dai_dap": 1685
+    },
+    {
+     "giay": 7.915725249913521,
+     "vao": 26151,
+     "ra": 402,
+     "cache": 24192,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 945
+    },
+    {
+     "giay": 8.858988708932884,
+     "vao": 25667,
+     "ra": 313,
+     "cache": 23680,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 782
     }
    ],
-   "tv_vao": 24644,
-   "tv_giay": 8.412958958069794
+   "tv_vao": 25667,
+   "tv_giay": 8.858988708932884
   },
   {
    "id": "D2",
@@ -87,19 +159,7 @@
    "can_otp": true,
    "cau": "Tôi chuyển tiền cho bạn tôi, bị trừ tiền rồi mà người ta báo chưa nhận được gì cả, giao dịch thì báo thành công. Tôi muốn tra soát thì phải làm sao và bao lâu mới có kết quả?",
    "vi_sao": "điều tra + chính sách trong một câu: lookup_transaction + search_policy. Câu dài 47 từ.",
-   "luot": [
-    {
-     "giay": 5.156315208063461,
-     "vao": 29333,
-     "ra": 234,
-     "cache": 27392,
-     "tool": 1,
-     "ve": false,
-     "dai_dap": 708
-    }
-   ],
-   "tv_vao": 29333,
-   "tv_giay": 5.156315208063461
+   "khong_do_duoc": "HTTP 500: {\"detail\":\"Internal Server Error\"}"
   },
   {
    "id": "D3",
@@ -109,17 +169,35 @@
    "vi_sao": "ba câu hỏi trong một lượt — ép agent gọi tool rồi tổng hợp, nhánh tốn output nhất.",
    "luot": [
     {
-     "giay": 4.392902166000567,
-     "vao": 33397,
-     "ra": 126,
-     "cache": 31488,
+     "giay": 5.615549208945595,
+     "vao": 32815,
+     "ra": 131,
+     "cache": 30848,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 131
+    },
+    {
+     "giay": 15.656891666934825,
+     "vao": 32433,
+     "ra": 219,
+     "cache": 28672,
+     "tool": 2,
+     "ve": false,
+     "dai_dap": 131
+    },
+    {
+     "giay": 9.636794292018749,
+     "vao": 33893,
+     "ra": 151,
+     "cache": 32000,
      "tool": 1,
      "ve": false,
      "dai_dap": 131
     }
    ],
-   "tv_vao": 33397,
-   "tv_giay": 4.392902166000567
+   "tv_vao": 32815,
+   "tv_giay": 9.636794292018749
   },
   {
    "id": "V1",
@@ -130,17 +208,35 @@
    "chi_do_duoc_o": "don",
    "luot": [
     {
-     "giay": 5.933651207946241,
-     "vao": 35609,
-     "ra": 135,
-     "cache": 35328,
+     "giay": 7.292512041982263,
+     "vao": 35031,
+     "ra": 139,
+     "cache": 34688,
      "tool": 1,
      "ve": true,
-     "dai_dap": 243
+     "dai_dap": 268
+    },
+    {
+     "giay": 9.895747208036482,
+     "vao": 36545,
+     "ra": 131,
+     "cache": 36224,
+     "tool": 1,
+     "ve": true,
+     "dai_dap": 254
+    },
+    {
+     "giay": 10.581882667029276,
+     "vao": 36160,
+     "ra": 162,
+     "cache": 35968,
+     "tool": 1,
+     "ve": true,
+     "dai_dap": 304
     }
    ],
-   "tv_vao": 35609,
-   "tv_giay": 5.933651207946241
+   "tv_vao": 36160,
+   "tv_giay": 9.895747208036482
   }
  ]
 }
