@@ -26,6 +26,22 @@ mili-giây. Khớp 3 dữ kiện PO + log (`refresh 401`×2, `ws-ticket 401`×4 
   BUỘC vùng auth** — cửa sổ refresh mở ở phút 13 ⟹ k=10 mất 2 giờ; TTL 1 phút → k=30/20phút, và
   test hồi quy vùng auth CHỈ tồn tại được nếu có đường này (Luật 14 chiều thời gian: nhánh không
   chạy NHANH được cũng là nhánh không ai canh). → coder.
+- **✅ KHÉP VÒNG SỐ (coder xác nhận bằng bằng chứng mạng):** cả 11 refresh + cặp 10/10 đều ở
+  backend fin05ttl (172.20.x), client là middleware TTL, probe của chính coder — "10/10 mô tả
+  instance TTL, chấm hết"; coder tự nhận *"nặng hơn vì chính tôi dựng instance đó rồi quên nó là
+  vật khác"*. Cơ chế TTL-là-chế-độ-biên xác nhận: TTL 60s < margin 120s ⟹ token TRONG cửa sổ
+  refresh từ giây đầu ⟹ refresh MỌI request (production: 2 phút cuối/15). Cảnh báo ghi thẳng vào
+  `docker-compose.ttl-test.yml`. Demo backend CHƯA có tầng-0 (build trước a74de7d) → việc-0:
+  rebuild theo quy ước báo-trước-khi-rebuild-image.
+- **✅ REF-GUARD XÁC NHẬN ĐỌC-MÃ (mảnh ráp trọn ca PO):** `liveChatConnectStartedRef` đúng 3 dòng,
+  KHÔNG reset ở đâu — một lần thử vĩnh viễn. Chi tiết chốt: nhánh `.catch` bảo khách *"thử lại
+  giúp mình nhé"* trong khi KHÔNG TỒN TẠI đường thử lại (effect chỉ chạy lại khi liveChatTicketId
+  đổi — nó không đổi). ⚠️ Điều kiện nghiệm thu vá (ratify): reset-ref KHÔNG đủ (deps không đổi thì
+  effect không chạy lại) — cần đường thử-lại THẬT (nút/retryCount trong deps), GIỮ chống-StrictMode;
+  e2e assert "sau 401 đầu, UI CÓ bắn request thứ hai khi thử lại".
+- **GREENLIGHT đã phát:** ① vá `proxy.ts` cookie-trên-request (PR, gate: cổng hồi quy tester +
+  re-probe security) · ② UI-02+retry (PR) · ⓪ rebuild demo backend lấy tầng-0 (xin khe tester).
+  Lời khai PO (đã hỏi 3 câu) không chặn vá — nó quyết có CÒN cơ chế nào ngoài hai defect đã chốt.
 - **⚖️ PHÂN XỬ CUỐI (tester, log server-side, MỘT request sạch):** `rotated=1 · family_revoked=0
   · HTTP 200` ⟹ refresh gọi ĐÚNG MỘT lần, chạy THÀNH CÔNG, không thu hồi gì. **Cặp "10/10 tất
   định" là TỔNG TÍCH LUỸ của nhiều lượt thử trộn lẫn** (gồm cả probe song song của tester) — suy
