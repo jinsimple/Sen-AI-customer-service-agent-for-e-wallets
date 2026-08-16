@@ -1,0 +1,146 @@
+{
+ "phien_ban": "v2",
+ "ket": [
+  {
+   "id": "N1",
+   "nhom": "ngan",
+   "can_otp": false,
+   "cau": "Hạn mức chuyển tiền một ngày là bao nhiêu?",
+   "vi_sao": "1 bước: 1 lượt search_policy rồi trả lời. Sàn của dải.",
+   "luot": [
+    {
+     "giay": 5.690098208957352,
+     "vao": 13869,
+     "ra": 154,
+     "cache": 6144,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 131
+    }
+   ],
+   "tv_vao": 13869,
+   "tv_giay": 5.690098208957352
+  },
+  {
+   "id": "N2",
+   "nhom": "ngan",
+   "can_otp": false,
+   "cau": "Rút tiền từ ví về ngân hàng có mất phí không?",
+   "vi_sao": "1 bước, chủ đề khác N1 để không đo trúng một chunk duy nhất.",
+   "luot": [
+    {
+     "giay": 4.6020237089833245,
+     "vao": 16902,
+     "ra": 131,
+     "cache": 15360,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 345
+    }
+   ],
+   "tv_vao": 16902,
+   "tv_giay": 4.6020237089833245
+  },
+  {
+   "id": "N3",
+   "nhom": "ngan",
+   "can_otp": false,
+   "cau": "Ví của tôi bị trừ tiền hai lần cho cùng một đơn, có phải lỗi hệ thống không?",
+   "vi_sao": "câu ngắn nhưng mơ hồ — agent hay hỏi lại thay vì gọi tool. Đo nhánh KHÔNG gọi tool.",
+   "luot": [
+    {
+     "giay": 10.371482249931432,
+     "vao": 31582,
+     "ra": 287,
+     "cache": 29440,
+     "tool": 2,
+     "ve": true,
+     "dai_dap": 244
+    }
+   ],
+   "tv_vao": 31582,
+   "tv_giay": 10.371482249931432
+  },
+  {
+   "id": "D1",
+   "nhom": "dai",
+   "can_otp": true,
+   "cau": "Kiểm tra giúp tôi các giao dịch gần đây, tôi thấy có một khoản bị trừ mà không nhớ đã mua gì.",
+   "vi_sao": "nhiều bước: customer_history rồi lọc. Đây là dạng lượt phình input hồi T1.",
+   "luot": [
+    {
+     "giay": 8.412958958069794,
+     "vao": 24644,
+     "ra": 524,
+     "cache": 22656,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 1194
+    }
+   ],
+   "tv_vao": 24644,
+   "tv_giay": 8.412958958069794
+  },
+  {
+   "id": "D2",
+   "nhom": "dai",
+   "can_otp": true,
+   "cau": "Tôi chuyển tiền cho bạn tôi, bị trừ tiền rồi mà người ta báo chưa nhận được gì cả, giao dịch thì báo thành công. Tôi muốn tra soát thì phải làm sao và bao lâu mới có kết quả?",
+   "vi_sao": "điều tra + chính sách trong một câu: lookup_transaction + search_policy. Câu dài 47 từ.",
+   "luot": [
+    {
+     "giay": 5.156315208063461,
+     "vao": 29333,
+     "ra": 234,
+     "cache": 27392,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 708
+    }
+   ],
+   "tv_vao": 29333,
+   "tv_giay": 5.156315208063461
+  },
+  {
+   "id": "D3",
+   "nhom": "dai",
+   "can_otp": true,
+   "cau": "Tháng này tôi tiêu bao nhiêu qua ví, khoản nào lớn nhất, và có khoản nào trùng lặp không?",
+   "vi_sao": "ba câu hỏi trong một lượt — ép agent gọi tool rồi tổng hợp, nhánh tốn output nhất.",
+   "luot": [
+    {
+     "giay": 4.392902166000567,
+     "vao": 33397,
+     "ra": 126,
+     "cache": 31488,
+     "tool": 1,
+     "ve": false,
+     "dai_dap": 131
+    }
+   ],
+   "tv_vao": 33397,
+   "tv_giay": 4.392902166000567
+  },
+  {
+   "id": "V1",
+   "nhom": "ve",
+   "can_otp": true,
+   "cau": "Tôi muốn mở khiếu nại cho giao dịch bị trừ tiền hai lần đó.",
+   "vi_sao": "tạo ticket: nhánh có hậu quả, qua OTP step-up ngặt hơn (ADR-005). ĐO ĐƯỢC: ở chế độ 'don' (có ngữ cảnh từ các lượt trước). Ở 'rieng' agent hỏi lại, 0 tool — số 6,2k là chi phí một lượt HỎI LẠI, không phải chi phí tạo vé.",
+   "chi_do_duoc_o": "don",
+   "luot": [
+    {
+     "giay": 5.933651207946241,
+     "vao": 35609,
+     "ra": 135,
+     "cache": 35328,
+     "tool": 1,
+     "ve": true,
+     "dai_dap": 243
+    }
+   ],
+   "tv_vao": 35609,
+   "tv_giay": 5.933651207946241
+  }
+ ]
+}

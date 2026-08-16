@@ -12,7 +12,9 @@ from __future__ import annotations
 import datetime as dt
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from src.config import RAG_SEARCH_TOP_K
 
 
 class LookupTransactionRequest(BaseModel):
@@ -169,7 +171,27 @@ class AgentChatRequest(BaseModel):
 
 
 class PolicySearchRequest(BaseModel):
+    """Trước bản này chỉ có `query`, và endpoint KHÔNG truyền `k` — mọi lượt
+    trả đúng `RAG_SEARCH_TOP_K`=4 bất kể client gửi gì.
+
+    Con số 4 là chủ đích. Việc BỎ QUA `k` của client thì không: Pydantic mặc
+    định **im lặng vứt field lạ**, nên client gửi `{"query":..., "k":3}` nhận
+    về 4 kết quả kèm HTTP 200, không một cảnh báo nào. Cả bộ đo của tester lẫn
+    các lượt probe của chính tech-lead đều gửi `k` và đọc "4 kết quả" mà không
+    ai hỏi tại sao — cùng họ với `bo_qua_thieu_chunk`: một nhánh im lặng trông
+    y hệt một kết quả hợp lệ.
+
+    `extra="forbid"` diệt cả HỌ lỗi đó cho model này, không riêng ca `k`: sai
+    tên trường từ nay là 422, không phải một con số sai âm thầm.
+
+    Trần `le=8`: `k` do client đặt đi thẳng vào truy vấn vector, không giới hạn
+    thì một request lẻ kéo được cả kho ra.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
     query: str
+    top_k: int = Field(default=RAG_SEARCH_TOP_K, ge=1, le=8)
 
 
 class LiveChatWsTicketRequest(BaseModel):

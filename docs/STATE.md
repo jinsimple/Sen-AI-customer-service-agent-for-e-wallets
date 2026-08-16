@@ -417,6 +417,85 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## 📦 GATE G2 — hạn 23:59 16/08, hồ sơ ĐÃ DỰNG (`gate/README.md`, `da4e51e`)
+- 5 deliverable: ① video PO tự quay (kịch bản 8 màn sẵn) ② architecture ✅ ③ **≥10 PR — mở 3 PR
+  dev→main: #8 RAG-đòn-4+kho · #9 F-LOG-3+T3 · #10 ADR-026+benchmark+gate/** (lát cắt tuần tự,
+  tổ tiên lồng nhau, merge THEO THỨ TỰ; 7 đã merge + 3 = 10) ④ README ✅ ⑤ EVAL-EVIDENCE 7 ca ✅.
+  Invariants 23/23 xanh trên HEAD trước khi mở PR. Sau #10 merged: `main` = dev ⟹ PO thật chạy
+  `deploy_home` trên Windows là production nhận đủ.
+- **ADR-026 ĐÃ LAND (`851cd7c`) — PO thật ký 16/08.** Trạng thái trong sổ: Đang hiệu lực.
+- **🔴 T3 CHƯA ĐẠT <30k — thước mới lộ đúng trục (tester `ecf538a`):** token đi theo **VỊ TRÍ
+  LƯỢT**, không theo câu (chạy đảo thứ tự thì số đảo theo; bản đầu của chính bộ đo nói dối, tester
+  tự bắt). Chế độ `rieng` trần 14,3k (số 14,7k của coder nằm đây) · chế độ `don` trần **35,6k ở
+  lượt 7**. **PO CHỐT: <30k áp chế độ `don`** (trần TPM bị chạm bởi hội thoại thật). ⟹ T3 giữ
+  (−24%/lượt) nhưng **đòn token kế ĐỔI HÌNH: cắt LỊCH SỬ HỘI THOẠI** (early-stop/tóm tắt/cửa sổ
+  trượt), không cắt thêm tool-result; lượt 47-84k hồi T1 giải thích xong. Latency: trung vị
+  5,2-5,9s, không ca nào >10,4s, KHÔNG tương quan độ dài input ⟹ câu kết trục Hiệu năng: *muốn
+  tối ưu thì tối ưu SỐ VÒNG ReAct, không phải kích thước prompt*. `--lap 3` duyệt chạy lấy dải.
+- **Xoay secret production (security xác nhận + siết 2 chỗ):** JWT xoay NGAY — **không phải rủi
+  ro lý thuyết**: security đã tự đúc token hợp lệ `create_access_token(USR-0201, cskh)` trên dev
+  lúc probe F-LOG-3, và DB prod mang từ dump Mac nên user đó tồn tại (họ KHÔNG thử lên live —
+  ngoài quy tắc chỉ-đọc). Nguyên tắc phân biệt: *key cho hành động từ xa → xoay ngay; key chỉ mở
+  dữ liệu đã bị lấy → xoay theo lịch*. **Chỗ hở phải bịt cùng lúc: production giữ `.env` RIÊNG,
+  deploy KHÔNG ghi đè** — không thì lần deploy tới chép đè là key lại trùng, không ai biết (đây
+  mới là bản vá; xoay key chỉ dọn hậu quả). `.env` KHÔNG nằm trong git (đã kiểm) ⟹ trùng là do
+  chép tay khi deploy. Xác nhận bằng HÀNH VI sau xoay: đăng nhập mới OK **và** token ký bằng key
+  cũ bị từ chối (security làm được nếu PO mở cửa sổ). Sửa mốc cổng: **"trước DỮ LIỆU THẬT ĐẦU
+  TIÊN"**, không phải "trước khi mở người ngoài" (demo mentor gõ SĐT thật là đã có dữ liệu thật).
+- **4 CÂU PRODUCTION — PO THẬT TRẢ LỜI ĐỦ (16/08 tối):** ① deploy từ `main`; nhịp release chốt:
+  "code hôm nay done test ok thì cho lên main" (PO-agent điều phối link PR) ② secret TRÙNG dev
+  → xử lý: xoay `JWT_SECRET_KEY` NGAY trên Windows (rẻ, chỉ rớt phiên mở); `FIELD_ENCRYPTION_KEY`
+  GIỮ (xoay không re-encrypt = mất dữ liệu vĩnh viễn — DB prod mã bằng key Mac); nợ coder: script
+  xoay-có-re-encrypt, kích hoạt trước người-dùng-thật ③ `LANGCHAIN_TRACING_V2` KHÔNG có — F-30
+  production ĐÓNG ④ live = demo đội+mentor, chưa người ngoài. **CỔNG-TRƯỚC-NGƯỜI-THẬT (ghi
+  chính thức):** mở người ngoài CHỈ KHI: A1/A2 đã lên production + đường-xoá dữ liệu + xoay
+  FIELD-key có re-encrypt.
+- **② KHÉP — KẾT QUẢ ÂM (như T1), 3 nếp mới thành chuẩn:** thí điểm chèn-câu-hỏi trượt điều
+  kiện (a): 1/6 × 2 lần, HAI prompt độc lập cứu HAI ca KHÁC nhau (lần 1 cứu RAG-37 lần 2 làm nó
+  tụt; tổng luôn 20/47) = XỔ SỐ không phải cơ chế; 4 ca chôn sâu >100 bất động. Điều kiện (b) 0
+  ca rơi — cả hai lần. Nếp: (i) đo KHÔ không đụng kho-chung + hiệu chuẩn phép đo trước (Chroma =
+  L2 bình phương, khớp 0.900776/0.900798); (ii) khai luật-dừng TRƯỚC lần 2; (iii) từ chối quay-
+  số-tới-khi-khớp-bộ-test ("land kiểu đó, số sụp khi tester đổi cách hỏi"). **Hội tụ 3 đường độc
+  lập: truy vấn NGẮN-GIỌNG-THƯỜNG-BÁM-TỪ-KHOÁ thắng** (agent tự viết lại ăn RAG-37 · HyDE thua
+  vì dài-trang-trọng · prompt A sinh câu FAQ-ngắn trúng hạng 1) ⟹ **đòn-kế-có-căn-cứ: bắt buộc
+  viết-lại-truy-vấn có mẫu — CHƯA phát lệnh**, xếp sau F-31/32 (hai lẽ: không trộn 2 bản vá
+  prompt; RAG-38/40 chưa từng đi tới truy hồi — nền số ToS đổi sau F-31/32, đo trên nền mới).
+- **top_k /policy-search: 4 là chủ đích (RAG_SEARCH_TOP_K) nhưng NUỐT-IM-LẶNG field k của client
+  là bug** (Pydantic vứt field lạ — cùng họ bo_qua_thieu_chunk; chính coder cũng dính: gửi k:3
+  nhận 4 in "4 kết quả" không hỏi). QUYẾT: làm CẢ HAI một commit — top_k Field(4, ge=1, le=8) +
+  extra="forbid", grep caller BFF gửi field thừa sửa cùng commit. Chen trước F-31/32.
+- **F-31+F-32 GỘP MỘT VÉ (khung security, chốt thành ràng buộc thiết kế):** hai finding kéo
+  ngược nhau trên CÙNG luật MISINFO-002 (prompt.py:52-60 — security loại trừ tier/lọc-trước-graph
+  bằng đo: không mã nào chặn truy vấn trước truy hồi, refusal = LLM tự theo prompt; "pháp lý
+  phức tạp" là tiêu chí từ chối chỉ rào bằng "không liên quan giao dịch ví"). Vá độc lập = đá
+  nhau vô hạn (Luật 8, lần này THẤY TRƯỚC). Ràng buộc: ① trục đổi "pháp-lý?"→"về-ví-NÀY?" ②
+  đường thứ ba cho câu trong-phạm-vi-màu-pháp-lý: TRÍCH-được HOẶC không-tra-được+escalate (cấm
+  từ-chối-ngoài-phạm-vi, cấm "tuy nhiên thông thường") ③ CẤM nới MISINFO-002 trước khi có đường
+  thứ ba (lằn ranh MT-F02/F-22/CTRL-002 giữ) ④ đặc tả viết trước trong hồ sơ vé — security rà
+  văn bản trước land, tester viết test từ đặc tả, nghiệm thu đo CẢ HAI ĐẦU cùng lượt + MT-F02/
+  cổng-96/adversarial xanh nguyên. Bối cảnh vé: mọi số ToS hiện đo trên đường agent chưa từng
+  đi tới (0 tool call) — chấm lại toàn bộ sau vé. §D security tự nhận sai chiều (index-thô HỤT
+  không nống) — ca mồi-neo phải neo cả chiều agent-viết-lại.
+- **Thứ tự coder chốt:** top_k → F-31/32 → đo lại T3 (chờ bộ-lệnh tester) → đòn viết-lại (thí
+  điểm có đo, nền mới) → T4/T2.
+- **🔴 CỔNG TUÂN-THỦ ToS SẬP MỆNH ĐỀ (tester chạy 8 ca đường agent): 4/8 đường thoát KHÔNG hoạt
+  động** — (c) đúng 2 · (a) từ-chối-an-toàn 2 (RAG-47 đòi OTP step-up = ĐÚNG) · **(b) diễn giải
+  2: RAG-41** (hỏi trách-nhiệm-pháp-lý, trả lời bằng chunk cashback, chắc nịch) + **RAG-43**
+  ("chưa tìm thấy… **Tuy nhiên, thông thường**: 1.…" — TỪ-CHỐI-RỒI-TRẢ-LỜI-TIẾP = bịa có vỏ bọc,
+  bộ chấm dò chuỗi "chưa tìm thấy" sẽ chấm ĐẠT; vào chuẩn viết test: kiểm cả phần SAU câu từ
+  chối) · **loại thứ TƯ — từ-chối-SAI-PHẠM-VI 2: RAG-38** ("gửi tra soát bằng cách nào" = chính
+  nghề sản phẩm!) + **RAG-40** (chạm vùng ràng buộc 5), cả hai 0 tool call, guardrail chặn trước
+  truy hồi, VÔ HÌNH với mọi trục đo. **F-31** (sai-phạm-vi, ưu tiên cao) + **F-32** (diễn-giải)
+  GIAO coder xếp sau ②-thí-điểm. Benchmark ghi "2 finding mở", KHÔNG ghi giới-hạn-đã-biết.
+- **THƯỚC INDEX-THÔ HỤT (đảo chiều §D):** agent TỰ VIẾT LẠI truy vấn trước khi tra (RAG-37:
+  "bao lâu có kết quả"→"thời gian xử lý khiếu nại"→HẠNG 1; thước hỏi nguyên văn thì trượt) ⟹
+  security lo index-thô nống, đo thật ra HỤT. Hệ quả coder: HyDE-âm ≠ viết-lại-vô-dụng (âm là
+  viết-lại-thành-văn-điều-khoản; đang thắng là viết-lại-thành-truy-vấn-ngắn). Chấm-MỐC đường
+  agent càng nặng vai.
+- **METRIC ĐỔI @3→@4 (PO duyệt, cắt chuỗi):** sản phẩm luôn đưa agent 4 kết quả (top_k bị bỏ
+  qua — coder xác nhận chủ-đích/bug) ⟹ Recall@4 = 48,9% (23/47) = số sổ sách → benchmark v0.4 =
+  88,0% kèm 2 finding mở. Dải chẩn đoán @1 27,7% · @3 40,4%. 24/47 ngoài top-4 ⟹ nới k không
+  phải đòn chính. Mẫu số ToS chốt 2/10 (tester đếm sót 2 ca, tự sửa).
 - **✅ T3 LAND (`99de792`) — input/lượt 19.397→14.698 (−24%) trên câu đo của coder.** Chẩn đoán:
   `get_customer_history` complaints KHÔNG limit/không lọc days = 13.620 ký tự = 41% toàn prompt
   (107 phần tử). Thiết kế: BẢN TRẢ LLM cắt còn 10 complaints (4.707 ký tự) · BẢN GHI DB nguyên
