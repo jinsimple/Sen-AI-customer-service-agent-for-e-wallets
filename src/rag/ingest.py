@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from src.config import MAX_UPLOAD_SIZE_MB, RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
 from src.db.models import PolicyChunk, PolicyDocument
+from src.observability.logging_config import get_logger
 from src.rag import store
 from src.rag.parsers import UnsupportedDocumentError, extract_text
 from src.tools.base import ToolError, new_id
@@ -21,7 +22,20 @@ from src.tools.base import ToolError, new_id
 _MAX_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
 
-def ingest_document(session: Session, *, file_bytes: bytes, filename: str, uploaded_by: str) -> PolicyDocument:
+_logger = get_logger("fin05.rag")
+
+
+def ingest_document(
+    session: Session,
+    *,
+    file_bytes: bytes,
+    filename: str,
+    uploaded_by: str,
+    nguon_nap: str = "khong_ro",
+) -> PolicyDocument:
+    """`nguon_nap`: "upload_api" | "script_noi_bo" | "eval". Mặc định "khong_ro"
+    CỐ Ý để lộ ra: đường nạp nào chưa khai thì log tự tố cáo, thay vì im lặng
+    gán bừa một nhãn trông đúng."""
     if not file_bytes:
         raise ToolError("File rỗng")
     if len(file_bytes) > _MAX_BYTES:
@@ -70,6 +84,21 @@ def ingest_document(session: Session, *, file_bytes: bytes, filename: str, uploa
     doc.status = "indexed"
     doc.chunk_count = len(pieces)
     session.flush()
+    # F-LOG-3. Lần sự cố 16/08: access log CÓ hai dòng `POST /policy-docs`
+    # nhưng KHÔNG nói file nào — security phải suy ra từ trạng thái kho. Dòng
+    # này trả lời thẳng. `nguon` cố ý cùng tên với trường xuất-xứ-trên-chunk
+    # security đang dựng, để sau không phải đổi.
+    _logger.info(
+        "policy_doc_nap",
+        extra={
+            "doc_id": doc_id,
+            "filename": filename,
+            "uploaded_by": uploaded_by,
+            "chunk_count": len(pieces),
+            "status": doc.status,
+            "nguon_nap": nguon_nap,
+        },
+    )
     return doc
 
 

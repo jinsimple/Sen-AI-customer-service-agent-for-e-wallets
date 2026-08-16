@@ -345,6 +345,307 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## 🚨 SỰ CỐ KHO + ĐÒN 4 LAND — MỐC 35,7% VÔ HIỆU KÉP, chờ cặp sạch (16/08)
+- **SỰ CỐ (chạm ràng buộc cứng 3):** kho đang-phục-vụ bị nạp 2 file NỘI BỘ lúc 08:23 (hai lần nạp
+  thẳng cách 15s, KHÔNG qua nap-lai): `business_rules.md` 20 chunk (bảng số verified=false) +
+  `scenario-candidates-momo-faq.md` 37 chunk (kịch bản test). Agent trích cả hai **như chính sách
+  thật**. Coder đã GỠ + chặn `_chon_nguon` chỉ nhận `.docx/.pdf` (kèm docstring lý do — bản nháp
+  commit của chính coder cũng suýt nạp .md, bắt được nhờ in danh sách nguồn trước khi nạp).
+  **Truy nguồn (cập nhật 16/08):** tester + security ĐỀU tự loại trừ BẰNG CHỨNG (tester: log
+  container — endpoint/user_id/script chỉ-đọc; security: import-list 3 probe, 0 lời gọi ingest).
+  Tester truy ra đường nạp: **`POST /policy-docs` × 2 (08:23:14/08:23:27) dưới `USR-PA01`** —
+  cửa upload HỢP LỆ của partner_admin, không phải lách. PO đối chiếu: `kho_rag.py` nạp bằng
+  `ingest_document()` trực tiếp (không HTTP) nên không thể tạo 2 dòng POST ⟹ nghi phạm còn lại
+  duy nhất: **PO thật thao tác màn hình upload Đối-tác-ví** — đang hỏi. Security được giao đo
+  thiệt hại thật (log `/policy-search` trong cửa sổ 08:23→lúc-gỡ, loại 3 đợt quét USR-0201 của
+  tester) → hồ sơ vào docs/security/. Dữ kiện giảm nhẹ: bảng trong business_rules.md mang cột
+  `verified=false` ngay trong thân — trích là trích kèm.
+- **ĐÍNH CHÍNH truy nguồn (tester, 16/08):** "USR-PA01 trông như chữ ký nhưng thật ra là CON DẤU
+  CỦA CÁI CỬA" — `uploaded_by=USR-PA01` là danh tính đường nạp, không phải người (lượt nạp đòn-4
+  của coder 08:42 cũng mang USR-PA01, 2 file cách 4s; 13s-vs-4s không phân biệt người/máy). PO đã
+  lỡ hỏi PO-thật theo hướng dẫn-dắt trước khi đính chính tới — lần chạm sau hỏi MỞ + thêm nghi
+  phạm thứ ba: script-của-đội gọi API. Phép kiểm còn phân biệt được (tester đang chạy): đếm lại
+  dòng `POST /policy-docs` — kho_rag.py nạp trực-tiếp không qua HTTP, nên nếu vẫn đúng 2 dòng thì
+  "08:23 = một client HTTP thật" vẫn đứng.
+- **✅ SỐ SẠCH ĐẦU TIÊN: Recall@3 = 41,4% → trục Truy-hồi 8,29/20 → benchmark v0.2 = 86,2% đo
+  được** (thước-đã-vá × kho-sạch 378c/2doc × 3-lượt-lặp-y-hệt; nhãn `55118b5`/`1e367a58c2e5`/
+  `332c053b9fde`/StartedAt-08:44:29Z). **QUYẾT ĐỊNH: KHÔNG đọc 41,4−35,7 thành delta đòn-4**
+  (ba biến cùng đổi: thước+kho+rác) và **KHÔNG dựng lại nền PDF** để attribution — câu hỏi về
+  quá khứ, giá = 1 vòng nạp + 1 lần đổi-vật-dưới-chân-4-phiên; chuyện đòn 4 kể bằng số cấu trúc.
+  Chuỗi trục Truy-hồi BẮT ĐẦU LẠI tại 41,4%.
+- **Hồ sơ sự cố ĐÓNG (`10af46d`, docs/security/): 0 thiệt hại tới khách** — cửa sổ 19ph33s
+  (15:23:14→15:42 giờ máy), toàn bộ traffic = /policy-search nhịp-máy (trùng mạch tester+commit
+  coder) + 0 lượt /chat/agent; stack fin05ttl không ảnh hưởng. **LUẬT MỚI: mọi mốc giờ trong hồ
+  sơ sự cố ghi kèm MÚI GIỜ** (08:23 hoá ra là UTC = 15:23 giờ máy — suýt làm điều tra đi tìm log
+  đã bay). Truy nguồn còn mở: POST /policy-docs là dấu-vết-đường-đi PHÂN BIỆT ĐƯỢC (kiểm 2 chiều:
+  lượt kho_rag 15:42 của coder KHÔNG sinh dòng POST/USR-PA01 nào trong HTTP log) ⟹ 15:23 = một
+  client HTTP thật đã đăng nhập partner_admin; khung giờ NẰM GIỮA phiên đòn-4 của coder → đã hỏi
+  coder câu mở (curl/script HTTP nào 15:00–15:45?) + PO thật (chưa trả lời). Bằng chứng sống nhờ
+  MAY (container restart, không force-recreate) — câu trả lời bằng thiết kế là F-LOG-3.
+  **CẢ 3 PHIÊN ĐÃ TỰ LOẠI BẰNG CHỨNG CỨ** (tester: endpoint/user-id/script-chỉ-đọc · security:
+  import-list 3 probe · coder: nguồn-IP 172.19.0.6=frontend-container trong khi curl của coder là
+  127.0.0.1-trong-backend + CHƯA TỪNG cầm token partner_admin hôm nay nên guard không cho qua +
+  Playwright không có setInputFiles + zsh-history 0 dòng). Dấu vết hội tụ: một phiên TRÌNH DUYỆT
+  đăng nhập partner_admin, mở trang 08:22:45Z rồi nạp 2 lần — nghi phạm còn lại: PO thật (đang
+  hỏi). Nợ mới ghi nhận: `uploaded_at` lưu naive-UTC không hậu tố — bẫy múi giờ sẽ lặp; F-LOG-3
+  dùng ts ISO-8601 có offset, đổi `uploaded_at` là mục nợ riêng.
+  Quan sát thêm (security, không phải kết luận): mỗi POST kéo theo GET /policy-docs sau 20-40ms =
+  nhịp UI-tự-tải-lại-sau-upload; 13s GIỮA hai lượt hợp người bấm 2 lần ⟹ kéo giả thuyết thao-tác-
+  UI LÊN (không loại script điều khiển trình duyệt). Đặc tả trường F-LOG-3 security đã gửi coder:
+  doc_id[]/chunk_id[] trả về (trường quan trọng nhất) · query_hash HMAC + query_len (KHÔNG log
+  nguyên văn — S-01 scrub hỏng 40% nghĩa trên văn bản nghiệp vụ) · nguon cho /policy-docs (tên
+  khớp việc xuất-xứ) · retention ngắn tách QĐ3 · không IP/UA.
+- **F-LOG-3 GIAO coder (sau fix-kho-restart, trước T3):** log có cấu trúc /policy-search +
+  /policy-docs — lần THỨ BA trong 2 ngày câu hỏi sự cố dừng ở "đo không được" vì thiếu 1 dòng log
+  (uvicorn access log không có user_id/query/chunk). Security gửi danh sách trường; ràng buộc:
+  JSON + PII-scrub-trước-khi-ghi + contextvars sẵn có.
+- **Bộ đo 6-trục XONG (`8a7f853`): 41→60 ca · benchmark v0.3 = 85,7%** (trục Truy-hồi hiện hành
+  **39,4% / 47 ca có ToS** → 7,87/20; ghi kèm `41,4% / 35 ca chỉ-FAQ` — số ca đổi = cắt chuỗi).
+  **ToS 2/8 = trục yếu nhất → tín hiệu ưu tiên đòn RAG kế**, TRÌNH TỰ: chờ coder trả lời §15-ToS
+  (15.1 + tiêu đề "Giới Hạn Trách Nhiệm" vắng trong 340/378 chunk khảo sát — lỗi nạp hay 38 chunk
+  chưa lộ?) rồi mới đo lại ToS. §G bắt 2/4 ca âm-bản security đề xuất hoá ra DƯƠNG (kho CÓ đáp án:
+  ToS 19.2 60-ngày · ToS 2.8) — mọi ca âm-bản nay mang `moi_gan`+`vi_sao_am` chống sửa-nhãn-khớp-
+  kết-quả. Datum: typo/caps không phá truy hồi (mỏng, 1 ca/loại); đối chứng 2 lượt nạp cùng nguồn
+  15/14 TRÙNG KHÍT ⟹ nạp-lại không đổi phép đo, băm-đổi = ghi sổ không phải nhiễu (chống lưng đề
+  xuất `_bam_kho` text-only — coder nhét vào lượt chạm kho_rag kế). Nhắc-một-lần đã gửi coder:
+  lượt nạp 08:55Z không hô trước — quy ước mới không được mềm tuần đầu. Nợ tester: mồi-neo §D +
+  k-boundary (cần đường agent), sau khi kho đứng yên.
+- **§15-ToS ĐÓNG — nghi vấn bị chính người nêu tự bác bằng đo:** phủ ToS = 198/206 đoạn (96,1%);
+  mục 15 đủ 6/6; **mục 19 (tra soát & khiếu nại) đủ 11/11 TRONG KHI 6/8 ca ToS trượt hỏi đúng
+  mục 19** ⟹ ToS 2/8 chắc chắn là lỗi TRUY-HỒI-thứ-đã-có, tín hiệu sạch nhất ngày. 8 đoạn vắng =
+  mảnh vụn gạch-đầu-dòng, QUYẾT ĐỊNH không vá (riêng [210] hotline ghi biên-biết-trước — còn ở
+  19.3). Lần thứ TƯ trong ngày họ lỗi "không-thấy-bằng-cách-A ⟹ không-tồn-tại" nhưng lần ĐẦU
+  người mắc TỰ bắt trước khi ai phải đo lại. **Đầu bài coder đặt lại (sau F-LOG-3, trước T3):
+  CHẨN ĐOÁN 6 ca ToS trượt** (top-3 trả gì · khoảng cách embedding · giả thuyết lệch văn phong
+  khách-hỏi↔chunk-pháp-lý) rồi mới chọn đòn — không lặp T1. Tester chạy thêm bản đồ phủ FAQ
+  (0 LLM) → đóng câu 29-chunk-không-lộ; hai bản đồ phủ vào eval/ (không để scratchpad).
+- **ADR-026 (xuất-xứ kho RAG) ĐANG SOẠN — security, sau khi ĐO (`d578d0d`):** chi phí rẻ bất ngờ
+  (cờ ở PolicyDocument, backfill 2 DÒNG; serve = 1 mệnh đề SQL vào bước join sẵn có; không đụng
+  Chroma; recall-cost 0 khi vận hành bình thường). **Phát hiện quyết định (security tự bác đề
+  xuất gốc):** ghi ĐƯỜNG NẠP không chặn được sự cố — file đi qua đúng cửa hợp lệ; phải là TRẠNG
+  THÁI DUYỆT tách khỏi hành vi nạp. Khuyến nghị PO-agent đã chuyển security soạn (chốt = PO thật
+  ký, quy trình §3): ① mọi upload vào `cho_duyet`, **supervisor** duyệt (maker≠checker mở rộng
+  nhất quán sang kho tri thức; partner_admin tự duyệt = tái tạo sự cố 1 click) ② backfill 2 doc
+  MoMo = `da_duyet` có-chủ-đích ③ thấy chưa-duyệt: partner_admin CÓ · agent KHÔNG · CSKH CÓ kèm
+  badge «CHƯA DUYỆT» (giữ Y5 người-là-máy-dò, không để dựa nhầm làm căn cứ) ④ mục riêng: xuất-xứ
+  ≠ thay lọc tier (hai mối đe doạ, hai cơ chế). Kèm `contracts/rag-nguon.yaml` khớp chuỗi xfail
+  `55118b5`. **Va chạm tên bắt kịp lúc rẻ:** `nguon` (F-LOG-3, đường ĐỌC) đổi thành `duong_tra`;
+  `nguon_nap`+`trang_thai_duyet` dành cho đường GHI — coder đang đổi. Điểm mù công cụ (họ C4):
+  grep "ingest_document(" bỏ sót call-site truyền-hàm-như-tham-chiếu (`_handle_tool_error(
+  ingest_document, ...)`) — chỉ lộ khi truy ngược từ endpoint.
+- **LUẬT MỚI (tester): nhãn định danh LƯỢT ≠ nhãn định danh VẬT** — `new_id("CHK")` ngẫu nhiên ⟹
+  nạp cùng nguồn+parser vẫn ra băm khác (6e3c11…→8820b6…→a3c5c7… là MỘT kho). "Băm khác ⟹ kho
+  khác" SAI; chỉ chiều "giống ⟹ giống" đúng. So hai lượt bằng chunk/doc/parser. Đề xuất route
+  coder (chưa quyết): `_bam_kho` chỉ băm sorted(text), bỏ chunk_id ⟹ băm định danh được VẬT.
+- **Biến thể #4 luật assertion-trùng-mặc-định** (tester bắt trong chính test của mình `55118b5`):
+  hai vế CÙNG KIỂU (set[str]) nhưng khác KHÔNG-GIAN-TÊN (doc_id-băm so với filename) — không bao
+  giờ khớp, test xanh mà chặn con số 0. Bắt bằng CA ĐỐI CHỨNG: đổi danh sách sang tài liệu ĐANG
+  có thật trong kho → test phải đỏ (đã đỏ đúng: 'MoMo_ToS.docx'). Fix: lấy tên thật từ
+  `policy_documents.filename` ∩ doc_id-có-vector, fail-nếu-index-rỗng. `55118b5` = chuỗi
+  xfail(strict)-đẻ-nghĩa-vụ: đặc tả `contracts/rag-nguon.yaml` xuất hiện → XPASS → strict đỏ →
+  buộc người kế bật cổng thật; file contract đó sẽ ra đời cùng gói ADR xuất-xứ (quy trình §3).
+- **Bug kho tra-rỗng-không-tất-định: coder ĐÃ root-cause** (docstring `_server_dang_cam_kho_cu`):
+  `chromadb.PersistentClient` không dùng chung persist-dir giữa 2 tiến trình — `nap-lai` chạy
+  docker-exec riêng, server giữ segment CŨ đã bị xoá → tra rỗng, HTTP 200, không log lỗi; mọi
+  công cụ kiểm (tiến trình riêng) mở client MỚI thấy kho mới → cả ba đèn xanh trong khi sản phẩm
+  trả rỗng. **Khắc phục: sau `nap-lai` PHẢI restart backend**; `kiem` nay có cổng-cuối phát hiện
+  (dấu `nap_lai_luc` do riêng nap-lai đặt — mtime chroma.sqlite3 ĐÃ THỬ VÀ SAI vì server cũng ghi
+  WAL). Mở rộng: bước restart cần vào cả `deploy_home.*` (kho_rag nap-lai trong script deploy).
+  Tester thêm cổng canary vào benchmark (3 truy vấn tối giản, rỗng cả 3 = DỪNG không đo) sau khi
+  SUÝT báo 0,0% làm số sản phẩm.
+- **Hướng thiết kế sự cố (security chủ trì, probe kế tiếp):** chặn đuôi file = đóng cửa TAI NẠN,
+  không đóng cửa QUY TRÌNH (.docx nháp vẫn vào cửa hợp lệ). Whitelist tên file ở serve = SAI
+  (chặn onboarding đối tác thật). Hướng nghiêng: **XUẤT XỨ trên chunk** (nguon_da_duyet) — đúng
+  hình dạng origin-rule cho RAG, xử cả ca-tai-nạn lẫn ca-eval-cố-ý. Chưa đo chưa đề xuất; không
+  ai code trước khi có số + ADR. Tester (trong lúc chờ kho): ca hồi quy chặn-thành-phần-tài-liệu,
+  danh mục lấy từ ĐẶC TẢ không hardcode 2 tên PDF.
+- **QUY ƯỚC MỚI (PO phát 16/08):** kho RAG đang-phục-vụ là VẬT DÙNG CHUNG của 4 phiên — không ai
+  nạp thẳng vào nó để test. Cần kho thử → collection/CHROMA-path riêng trong scratchpad (như
+  run_adversarial_set dùng DB tạm). Đổi kho phục vụ CHỈ qua `kho_rag.py nap-lai` + hô cả 4 phiên.
+- **MỐC 35,7% VÔ HIỆU KÉP** — hỏng cả THƯỚC (tester tìm ra `bo_dau()` không gộp khoảng trắng ⟹
+  cụm ≥2 từ vắt qua xuống-dòng = TRƯỢT GIẢ, ngược hướng với pass-giả cũ) lẫn VẬT (57 chunk rác
+  nội bộ nằm trong kho lúc chấm, có thể chiếm top-3). Chuỗi so sánh trục Truy-hồi CẮT tại đây
+  (Luật 6). **KHÔNG ghi delta đòn 4 nào** cho tới khi tester trả cặp sạch: thước-đã-vá × kho-sạch
+  (nền phải là `f9b06f9983bc`, không phải kho lúc 08:23).
+- **Đòn 4a+4b LAND (`1481074`), tách 3 mốc băm:** nền PDF-đã-gỡ-md 362 `f9b06f9983bc` · 4a DOCX-
+  parser-cũ 333 `71bb841435ea` · 4b DOCX-giữ-cấu-trúc 378 `6e3c11fb04f4` (đang phục vụ). Số CẤU
+  TRÚC (đếm được, không phụ thuộc thước truy hồi): chữ-vỡ-từ-điển 131→0 · hàng bảng bank vào kho
+  0→25 · chunk mồ côi nhãn 61%→36%. Ca đối chứng 4b: docx thường ra chuỗi GIỐNG BYTE bản cũ;
+  upload partner_admin không đổi hành vi. 36% mồ côi còn lại = đuôi khối dài cắt theo kích thước
+  — coder CHƯA làm chưa hứa, quyết sau khi có số cặp sạch.
+- **Hai đính chính coder tự khai:** ① "đòn 1 quét sạch lớp một" SAI — lớp `[aeiouyăâêôơư]` thiếu
+  ký tự dựng sẵn có dấu (`ị`,`ồ`,`ế`) ⟹ `đ ịnh`,`g ồm` lọt, tester đếm đúng ~53 còn lại; đáng ghi:
+  coder CẦM bằng chứng bác mình (list 131 chứa `b ất`,`đ ịnh`) mà phát biểu ngược — lỗi đọc-lướt-
+  số-của-chính-mình, cùng họ với bài coder-tự-nghiệm-thu. ② Hai thước cùng tên: băm trong
+  `kho_chunks.tsv` ≠ `kho_rag.py::_bam_kho` — chỉ tin băm in từ `kho_rag.py nhan`.
+- Coder chuyển sang **T3** (truncation tool-result; cổng-96 + origin-rule phải xanh nguyên, đo
+  input-tokens/lượt trước-sau cùng bộ lệnh, tham chiếu <30k/lượt).
+
+## ✅ UI-02 ĐÓNG + ĐÒN 4 THÀNH 4a/4b — bảng-23-hàng là lời giải bài chôn (16/08 đêm)
+- **UI-02 nghiệm thu 5/5** (đối chứng 1/5 trên image-chưa-vá, A2 tái hiện nguyên văn lỗi PO demo).
+  Mẫu thiết kế nghiệm thu UI ghi lại: **đếm REQUEST không đếm pixel** — vá-giả (reset ref quên
+  deps) hiện nút y hệt mà không request nào đi; B2 bắt bằng 1→2 request. Nợ: e2e vào repo
+  (coder thêm dep playwright · tester dựng sau chuỗi benchmark).
+- **Đòn 4 hồ sơ tiền-đề-sai-kết-luận-đúng:** "215 chữ vỡ trong kho" SAI (tester đếm PDF thô; kho
+  đã qua đòn 1) — nhưng thước độc lập từ-điển-DOCX lộ **lớp vỡ THỨ HAI: 131 lần/52 dạng cả đòn-1
+  lẫn luật-đếm-tester đều mù** (`ho ặc`,`kho ản` — vế trái có nguyên âm). Soi đối xứng PDF↔DOCX:
+  DOCX sạch 0 vỡ + đủ hơn (17-vs-9 câu thiếu). **4a GO** (đổi nguồn nạp).
+- **4b DUYỆT mở phạm vi `parsers.py` (gồm upload partner_admin), 4 điều kiện** (một-parser-dùng-
+  chung đúng thiết kế · ca đối chứng upload-docx-thường · bảng→mỗi-hàng-một-chunk-mang-tên-thực-
+  thể · đo trên thước 35,7% tách 4a/4b nếu rẻ). **Phát hiện chốt: "20 đoạn gần-trùng" thật ra là
+  MỘT BẢNG 23 hàng (bank·viết-tắt·hạn-mức) bị PDF nghiền thành cháo** — `_extract_docx` hiện vứt
+  heading + KHÔNG đọc tables. 4b = chunk theo H3 (mỗi FAQ-bank một heading có sẵn tên) ⟹ chunk-
+  theo-thực-thể MIỄN PHÍ. **ĐÍNH CHÍNH nhận định cũ**: "đòn 4 không chữa được lớp chôn" — sai với
+  4b; 4b chữa được vì tách bảng thành 23 dòng riêng.
+- Coder GIỮ TAY nạp-lại chờ tester nhả khe (362 chunk_id sẽ đổi giữa lúc họ rà nhãn) — quy ước
+  báo-trước-đổi-vật chạy đều. Danh sách chunk_id đã đổ cho tester (băm 8a3185199493).
+
+## 🔍 ĐIỀU TRA CHUNK-CHÌM XONG: KHÔNG PHẢI RÁC — CHÔN-DO-GẦN-TRÙNG (16/08 tối)
+- Tester tự sửa số 47%→**31,5%** (thước lại là thủ phạm: 160 câu quét đều là câu FAQ mà kho có 2
+  tài liệu; quét lại 340 truy vấn → 82/260 chunk FAQ không bao giờ nổi với chính câu sinh ra
+  chúng; 60 chunk ToS "chìm" chỉ là chưa-hỏi-tới). **Mẫu 20/20 = nội dung THẬT bị chôn, 0 rác.**
+- **Cơ chế: GẦN-TRÙNG** — ~20 đoạn hướng-dẫn-liên-kết-bank gần y hệt (khác mỗi tên bank): một
+  truy vấn lấy 3, 17 cái vĩnh viễn chìm. Nhóm chìm CHỨA đáp án các ca đang trượt (RAG-08/22/23/
+  29) — nguyên nhân thứ hai của RAG-22. **Đòn 4 DOCX không chữa lớp này.**
+- Hướng đề xuất (tester, CHƯA đo): **chunk-theo-THỰC-THỂ** (mỗi bank một chunk có nhãn tên) —
+  coder trả lời khả thi trước, tester dựng ca đo sau. Thứ tự: đòn 4 trước (rẻ, chắc) → chống-chôn
+  theo số. Còn mù: 29 chunk (8%) không lộ bằng cách nào — coder đổ danh sách chunk_id cho tester.
+
+## 🎯 ~~THƯỚC ĐÃ RÀ — 35,7%~~ ⚠️ VÔ HIỆU KÉP 16/08 (bo_dau + 57 chunk rác — xem mục SỰ CỐ ở trên)
+- Luật chuỗi-đặc-trưng (3 cửa: có-trong-đáp-án-đúng-biên · sống-qua-trích-PDF · ≤2 câu FAQ) +
+  xác minh nhãn bằng ĐƯỜNG ĐỘC LẬP (quét kho bằng 160 câu nguồn → 31/35 chuỗi có thật trong kho
+  ⟹ trượt THẬT). Khoảng bất định siết từ 25,7 điểm còn 4,6 (cận trên 40,3% nếu 4 ca chưa-kết-luận
+  đều nhãn hỏng). **12/12 pass-giả lộ diện** (9 nghi + 3 chưa nghi: RAG-06/28/32).
+- **Hai mốc cũ 54,3% & 60,0% ghi SAI THƯỚC** (không phải cận trên — số đo bằng thước đã chứng
+  minh cho pass giả không có tư cách cận trên). Chuỗi so sánh trục Truy-hồi BẮT ĐẦU tại 35,7%.
+- **① 215 chữ vỡ chắc chắn trong kho** (vế trái không nguyên âm) từ trích PDF — trong khi DOCX
+  SẠCH cùng nội dung nằm ngay cạnh trong data/raw/ ⟹ **RAG ĐÒN 4: ingest DOCX thay PDF** (coder,
+  sau UI-02, trước T3 — chất lượng 7,14/20 ưu tiên hơn tối ưu giá). Đòn 1 giữ cho nguồn chỉ-có-PDF.
+- **② 171/362 chunk (47%) không bao giờ lọt top-3** với chính 160 câu kho sinh ra để trả lời —
+  tester lấy mẫu 20 chunk phân loại (rác vs nội-dung-bị-chôn) trước khi viết ca 6-trục; kết quả
+  quyết đòn-chunk-theo-cấu-trúc có quay lại không.
+
+## 💰 T1 KHÉP BẰNG KẾT QUẢ ÂM — cache ĐÃ hit ~85% từ trước, bản vá revert (16/08 tối)
+- Coder đo hai vế chỉ-khác-một-file: bản cũ 85,0% cache-hit, bản "vá" 86,3% — chênh = nhiễu;
+  `cache_read` lượt 1 giống nhau TỚI TỪNG TOKEN (29.568). **Cache chưa bao giờ hit 0% — phần tái
+  dùng chính nằm GIỮA các bước ReAct trong CÙNG lượt** (mốc thời gian render một lần/lượt = hằng
+  số trong lượt; vị trí của nó chưa bao giờ quan trọng). Giả thuyết T1 sai → **REVERT dù vô hại**.
+- **LUẬT MỚI (ratify):** bản vá không-có-số-lợi-ích = revert, kể cả vô hại — land nó là gieo tiền
+  lệ "chỗ này tối ưu rồi" chặn người sau tìm đòn thật. GIỮ LẠI phần đo (`cached_input_tokens`
+  vào envelope, `e2cf59b`) — công cụ đã bác chính người tạo nó.
+- **Bức tranh chi phí ĐÍNH CHÍNH:** 63M là token danh nghĩa; ~85% phần lặp hưởng giá cache rẻ ⟹
+  hoá đơn thật THẤP hơn ước tính đầu. Nhưng mục tiêu <30k/lượt là về LƯỢNG (input 46,8-84,7k/lượt
+  đo được) — cache giảm GIÁ không giảm LƯỢNG ⟹ **T3 là đòn duy nhất chạm mục tiêu**.
+- **Thứ tự chốt:** UI-02 đóng trước (compiled, hoãn 5 lần, chỉ còn verify) → T3 (cổng kèm:
+  origin-rule xanh — cắt phần đưa-LLM không được làm số mất nguồn) → T4 → T2 độc lập.
+- Đòn 3 đính chính: **mốc 20/35 (+1)**, RAG-04 = pass-giả-bị-lộ không phải hồi quy — nhất quán
+  chuỗi 9/21; số nằm vùng thước-đang-rà, chưa vào benchmark.
+
+## ⚖️ TRỤC TRUY-HỒI: TẠM TREO SỐ — thước đang được rà HAI PHÍA (16/08 tối)
+- Tester (theo dữ kiện tech-lead nêu) soi 21 ca ĐẠT sau đòn-3: **9/21 đạt CHỈ nhờ từ khoá chung
+  chung** (RAG-17 có chuỗi đặc trưng `20.000.000` KHÔNG khớp mà vẫn đạt nhờ `hạn mức` — đáp án
+  thật không trong top-3, thước vẫn ĐẠT). ⟹ **60% (21/35) là GIỚI HẠN TRÊN, cận dưới 34,3%**;
+  và mốc 54,3% hôm trước CÙNG bộ từ-khoá ⟹ cùng caveat. Benchmark ghi `[đang rà thước]`, không
+  số nào của thước-chưa-rà đứng như số thật.
+- **LUẬT MỚI (ratify vào CHUAN-VIET-TEST):** xác minh nhãn phải soi CẢ HAI PHÍA — ca trượt (oan?)
+  VÀ ca đạt (giả?). *"Chỉ soi ca trượt thì thước lỏng tay nhất luôn thắng — chiều im lặng nguy
+  hơn vì không ai đi tìm"* — mặt đối xứng Luật 2, do chính tác giả Luật 2 phát hiện mình mắc.
+- Luật từ-khoá mới: **≥1 chuỗi ĐẶC TRƯNG bắt buộc** (số/viết-hoa/cụm-dài), từ chung chỉ phụ. Áp
+  cả 41 ca + ca mới. Thứ tự: rà 9 ca → đo lại (MỐC THẬT đầu tiên của thước-đã-rà) → ca 6-trục.
+- Cặp tester↔coder hai lượt liền bác-nhau-bằng-số và nhận-bằng-số (RAG-04 không-phải-hồi-quy ·
+  ca-đạt-cũng-phải-soi) — ví dụ vận hành tốt nhất của kiến trúc đối kháng tới giờ.
+
+## 📊 THƯỚC 35-CA CHẠY LẦN ĐẦU — mốc Truy-hồi MỚI 54,3% + phát hiện TOC (16/08)
+- **19/35 = 54,3% CẢ HAI chế độ gõ** (nhãn: 7fdca4e · he_thong 5d63edfc7cc7 · backend 95e17b99 ·
+  kho 418·2doc·v2 · cổng-kiem-trong-container). Trục benchmark: **10,86/20 — MỐC MỚI trên thước
+  mới, KHÔNG so cặp với 3,75/20 probe-8** (hai bộ khác nhau; chuỗi so sánh bắt đầu từ đây).
+- **Xác minh 16 ca trượt: 1 nhãn sai (RAG-08 — từ khoá là TIÊU ĐỀ MỤC, sửa; thước sai vật đúng)
+  · 15 truy hồi kém THẬT (không sửa nhãn)** — luật chỉ-sửa-nhãn-chứng-minh-được-sai giữ nghiêm.
+- **🔴 PHÁT HIỆN → RAG ĐÒN 3 CHỐT: MỤC LỤC BỊ INDEX** — TOC chứa nguyên văn 160 câu hỏi, embedding
+  khớp câu-hỏi-trong-mục-lục thay vì đáp-án-trong-thân; càng giống câu thật càng dễ trúng TOC
+  (RAG-21/22 top-3 toàn dòng mục lục). Kho tự cạnh tranh với mình. Đòn 3 = LOẠI DÒNG TOC khỏi
+  index (luật 2-điều-kiện: ≥N chấm liền VÀ kết thúc số trang — chống loại nhầm kiểu F-25), giao
+  coder; **thước trước/sau = chính bộ 35 ca, mốc 19/35**. Đòn chunk-theo-cấu-trúc HOÃN chờ số.
+- **Spec sửa (tester đề, duyệt):** sau đòn 2 hai chế độ gõ HỘI TỤ (19/35 cùng danh sách trượt) —
+  "trung bình 2 chế độ" = cộng-số-với-chính-nó, hết thông tin. Đổi: 2 chế độ thành **CỔNG chống
+  hồi quy** (phải bằng nhau), trục biến-thiên-đầu-vào chấm bằng **sai-chính-tả·viết-hoa·dấu-câu**.
+
+## 🔴 BĂM KHO RAG KHÔNG TẤT ĐỊNH (tester bắt bằng Luật 4) — nhãn tạm bỏ trường băm
+- Đọc `kho_rag.py kiem` 3 lần liên tiếp trên kho KHÔNG đổi → 3 giá trị băm khác nhau ⟹ mọi suy
+  luận "băm khác = kho đổi" trong ngày VÔ HIỆU hai chiều (re-index vẫn THẬT — bằng chứng là số
+  probe 0/8→5/8, không phải băm). Bắt được vì kiểm-nhạc-cụ-trước-khi-kết-luận-vật-đổi — sau một
+  ngày kết-luận-vật-đổi đúng 3/4 lần, phản xạ tin lần 4 rất mạnh; không kiểm là cả đội đi truy
+  "lần đổi kho thứ tư" không tồn tại.
+- **Quy ước nhãn tạm (ratify):** bỏ trường băm-kho, dùng `418 chunk · 2 doc · chuẩn-hoá v2`.
+  Băm quay lại khi tất định (nghiệm thu: 3 lần đọc cùng giá trị, trong container).
+- **3 fix giao coder (xen trước UI-02):** ① băm tập-đã-sắp-xếp `(chunk_id,text)` hoặc bỏ băm
+  nội dung; ② xoá rác `data/rag_index/` trên host (store rỗng do chính công cụ đẻ, bẫy người
+  chạy host); ③ `kho_da_cu()` FAIL-CLOSED — hiện trả False khi KHÔNG dấu, mà không-dấu chính là
+  kho-cũ cần bắt: **cổng cấp chứng nhận an toàn cho đúng ca nguy hiểm nhất** ("cổng sai hướng
+  tệ hơn không có cổng" — bản tầng-dữ-liệu của F-CI-2).
+- Tester song song: `benchmark.py` gọi cổng qua `docker exec` (kho thật sống trong volume, công
+  cụ chỉ đúng TRONG container) → xác minh 41 nhãn không chờ fix băm (fix chỉ ảnh hưởng nhãn).
+
+## ▶️ PHIÊN NỐI LẠI 16/08 — ba mốc mới
+- **✅ CẶP AUTH ĐÓNG — BUG DEMO CHÍNH THỨC ĐƯỢC CHỨNG MINH ĐÃ VÁ** (tester, dấu khớp hai đầu,
+  StartedAt vào nhãn chuẩn): sau 16 phút ngồi yên + token chết thật (−63s đo từ cookie), thao
+  tác đầu **200** (trước-vá: 401 + "Có lỗi"), tầng-0 `rotated=1·revoked=0`. Caveat tự khai:
+  backend khác giữa hai nửa (2 đòn RAG) — không phải cặp một-biến tuyệt đối, trích số phải kèm
+  câu này. Giả thuyết log-bay-do-force-recreate của coder xác nhận đúng. Workaround demo
+  (đăng-nhập-lại-trước-handoff) HẾT CẦN.
+- **🔴 `kho_rag.py kiem` bắn sai trong container** (đường Chroma không tồn tại cả container lẫn
+  host; báo "kho trống · băm-MD5-chuỗi-rỗng" trong khi policy-search trả 4 kết quả thật) — đúng
+  món coder tự khai chưa-verify; tester GIỮ CỔNG không đo, bắt nhờ hai-đường-đo-mâu-thuẫn.
+  Coder sửa XEN TRƯỚC UI-02 (đang chặn đường găng tester).
+- **✅ Security nộp soi-trục golden-set** (`37c5511`, 6 trục): nặng nhất §A âm-bản-GẦN (bộ âm bản
+  hiện toàn loại-xa-dễ-pass — về cấu trúc không phát hiện được chế-độ-hỏng nó tồn tại để phát
+  hiện: chunk-lân-cận-sai điểm cao → bịa chính sách) + §B ToS trống kể cả **Điều 19 tra-soát-
+  khiếu-nại — điều khoản điều chỉnh chính công việc của agent, zero ca**.
+  **PO-agent chốt câu §D:** trục Truy-hồi benchmark đo **ĐƯỜNG AGENT THẬT** (sau sanitize) —
+  benchmark đo sản-phẩm-khách-nhận; index-thô giữ làm chẩn đoán phụ, hai số hai tên. Ratify luật
+  bộ: ca âm-bản-gần phải kèm bằng-chứng-đã-tìm-mà-không-thấy (tester + security độc lập cùng đề).
+
+## ⏸️ ĐIỂM DỪNG PHIÊN 16/08 (hết limit) — phiên sau đọc mục này TRƯỚC
+- **Đang chờ chuyển tiếp:** 5 bullet soi-trục golden-set của coder (ca-ranh-giới-k · độ-dài-query
+  · đối-chứng-kho-lệch-vế dùng `kho_rag.py kiem` · ca-vắt-ranh-chunk cho đòn 3 · 2-3 ca
+  đáp-án-không-tồn-tại) **CHƯA tới tay tester** — nằm trong transcript PO-agent; phiên sau chuyển.
+  Security đang soi song song, chưa nộp.
+- **Coder:** re-index tự động `0a4ff58` CHƯA VERIFY TRONG CONTAINER (tự khai) · UI-02 vừa bắt đầu
+  · kế: 2 việc nhỏ lô auth → ADR-025 phần B → exporter.
+- **Tester:** thứ tự 3→1→2 (script benchmark → xác minh nhãn 41 ca → gói 30 nhãn PO) · lượt đo
+  sạch cặp auth đang/vừa chạy — kết quả chưa báo.
+- **PO thật:** không việc nào chờ họ. PR 7/10 — 3 đợt release dev→main nữa là đủ.
+- Doc home-server đã có dòng re-index (f3eba77). Mọi trạng thái khác: các mục phía dưới của
+  chính file này — không có tri thức nào chỉ nằm trong đầu phiên nào.
+
+## 🔀 PO THẬT ĐỔI QUY TRÌNH GIT (16/08 tối): MỘT NHÁNH, PR CHỈ THEO ĐỢT
+- **Bỏ tách-nhánh-mỗi-việc** — cả 4 phiên code THẲNG trên `dev/learning-loop` (PO chứng kiến chi
+  phí: 2 merge nhầm + thứ-tự + retarget trong một chiều). #4 + #7 đã merge sạch, **7/10 PR**.
+- **PR còn MỘT loại: `dev` → `main` theo ĐỢT** (release gate) — PO-agent soạn, PO thật merge theo
+  link đích danh. Vừa đủ đường tới 10 PR (3 đợt release nữa), vừa làm mỗi lần deploy home-server
+  = một bản nghiệm thu trọn. **PO chỉ merge PR có link PO-agent gửi; bỏ qua banner GitHub.**
+- Luật git cây-chung (một-lệnh-pathspec · HEAD+nhánh · file-mới-dính-liền · staged-lạ-dừng-hỏi ·
+  báo-trước-land-src) NÂNG mức quan trọng — 4 phiên giờ chung một nhánh. Điều kiện chất lượng
+  (đo-trước-land, probe-vai-khác cho lớp phòng vệ) KHÔNG đổi. Coder đưa cây chung về dev (có báo).
+
+## 🏆 RAG ĐÒN 2 — SỐ VỀ: HAI CHẾ ĐỘ GÕ BẰNG NHAU (16/08)
+- **Không dấu 0/8 → 5/8 · có dấu giữ 5/8 — Recall@3 trung bình 18,75% → 62,5%.** Ba mốc kho:
+  `419·b630414088f8` (gốc) → `418·5aab3e7c43a2` (đòn 1) → `418·265aa93031bd` (đòn 2, hiện tại).
+  Một-biến-mỗi-lần giữ nghiêm (đòn 1 đo xong hẳn mới áp đòn 2); cùng một thước (tái lập
+  0/8·3/8 trên kho gốc). Chế-độ-người-dùng-thật (không dấu) từ 0% lên ngang có dấu — đòn ăn
+  đúng như dự đoán.
+- **PR: #4 (đòn 1) + #7 (đòn 2, đã retarget → dev). THỨ TỰ MERGE BẮT BUỘC #4 TRƯỚC #7** — đòn-2
+  đâm trên đòn-1; merge ngược thì dev nhận cả hai một lượt, #4 rỗng, lịch sử mất khả năng tách
+  hai đòn (thứ làm cặp số một-biến đọc được về sau).
+- Sự cố merge-nhầm của PO thật (#5 dev→main vô hại · #6 đòn-2→main): KHÔNG cần revert — cả hai
+  đòn ĐÃ ĐO trước khi mở PR, main không mang code chưa nghiệm thu. Quy tắc mới cho PO: CHỈ merge
+  PR có link PO-agent gửi kèm số; bỏ qua banner gợi ý của GitHub (default-branch=main nên banner
+  luôn trỏ main).
+- **⚠️ Hệ quả cho gói home-server:** main giờ chứa cả hai đòn RAG ⟹ máy nhà dựng lần đầu PHẢI
+  RE-INDEX kho sau deploy — không thì text cũ (còn dấu, còn từ vỡ) nằm cạnh query đã bỏ dấu,
+  lệch một vế và KHÔNG CÓ TRIỆU CHỨNG. Coder soạn dòng lệnh chính xác → PO-agent đặt vào Phần C
+  doc home-server + trang HTML.
+
 ## 📈 RAG ĐÒN 1 — SỐ VỀ, LAND DUYỆT (16/08)
 - **Có dấu 3/8 → 5/8 (+2) · không dấu 0/8 KHÔNG ĐỔI (đúng dự đoán — việc của đòn 2) · 0 hồi quy.**
   Vật: kho TRƯỚC `419·b630414088f8` → SAU `418·5aab3e7c43a2` (backup kho cũ giữ nguyên) · thước

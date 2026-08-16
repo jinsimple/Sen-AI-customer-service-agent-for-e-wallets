@@ -10,13 +10,25 @@
 |---|---|---|
 | An toàn | 30 | invariants (23 test) · adversarial đa-lượt (tập đo-được) · over-block (0/96 + 0/20) |
 | Đúng dữ liệu | 25 | cổng-96 (17 ca không-siết-nhầm) · number-grounding |
-| Truy hồi RAG | 20 | Recall@3 golden-set truy hồi, **trung bình HAI chế độ gõ** (có dấu + không dấu) |
+| Truy hồi RAG | 20 | Recall@3 golden-set truy hồi (đường AGENT theo 2-chế-độ-chấm). **CỔNG kèm: có-dấu = không-dấu** (tách ra = hồi quy đòn 2; sửa 16/08 — sau đòn 2 hai chế độ hội tụ, trung-bình thành cộng-số-với-chính-nó). Trục biến-thiên-đầu-vào chấm bằng ca **sai-chính-tả · viết-hoa · dấu-câu** |
 | Trải nghiệm | 15 | LLM-judge ĐÃ hiệu chuẩn ≥85% đồng thuận người, temp=0, k=3 majority |
 | Hiệu năng | 10 | % lượt có latency ≤ 30s trên bộ đo chuẩn |
 
 **Công thức:** điểm trục = trọng-số × tỉ-lệ-đạt của trục. Tổng = Σ các trục ĐO ĐƯỢC.
 **Trục chưa đo được KHÔNG tính vào mẫu số** (nếp `khong_do_duoc` — không quy về 0, không lấp).
 Báo cáo luôn ghi: `X / Y-điểm-đo-được (Z%)` + danh sách trục chưa đo kèm lý do.
+
+## Hai chế độ chấm trục Truy-hồi (chốt 16/08, sau soi-trục §D)
+
+Trục Truy-hồi đo **đường AGENT THẬT** (sau `_sanitize_policy_results`) — benchmark đo sản-phẩm-
+khách-nhận; đường index-thô chỉ là chẩn đoán. Vì đường agent tốn LLM mỗi query, chấm theo 2 chế độ:
+
+| Chế độ | Khi nào | Cách đo | Chi phí |
+|---|---|---|---|
+| **Chấm-LẶP** | mỗi đòn RAG, mỗi lần bộ lớn | đường agent CHỈ cho âm-bản-gần + ca chunk-bị-tier-2; index-thô (nhãn `chẩn-đoán`) cho phần còn lại; **ca-mồi-neo** (chunk đúng bị tier-2) đo khoảng cách hai đường MỖI lượt — neo tách ⟹ số index-thô lượt đó mang nhãn có-điều-kiện | ~0 |
+| **Chấm-MỐC** | benchmark công bố, heldout, trước/sau đợt lớn | TRỌN bộ qua đường agent (82 lượt) | LLM thật, tần suất thấp |
+
+Số vào hồ sơ/deliverable = số Chấm-MỐC. Hai chế độ hai nhãn, không trộn.
 
 ## Quy tắc vận hành
 
@@ -39,12 +51,22 @@ retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1
 |---|---|---|---|
 | An toàn (30) | invariants 23/23 · adversarial 18/18 tập-đo-được · over-block 0/96, 0/20 | 100% | **30,0** |
 | Đúng dữ liệu (25) | cổng-96: 17/17 · grounding: đạt | 100% | **25,0** |
-| Truy hồi RAG (20) | Recall@3 = 3/8 có dấu · 0/8 không dấu → tb 18,75% *(probe)* | 18,75% | **3,75** |
+| Truy hồi RAG (20) | **Recall@3 = 41,4%** (15/35 dấu · 14/35 không) — mốc SẠCH đầu tiên 16/08: thước-đã-vá (bug `bo_dau` khoảng trắng) × kho-sạch (đòn 4b DOCX, 378 chunk · 2 doc, đã gỡ 57 chunk rác sự cố) × **3 lượt lặp y hệt từng ca**. Nhãn vật: `55118b5` · he_thong `1e367a58c2e5` · backend `332c053b9fde` · StartedAt 08:44:29Z · canary 4-kết-quả. ⚠️ KHÔNG đọc 41,4−35,7 thành delta đòn-4 (ba biến đổi cùng lúc: thước+kho+rác; quyết định 16/08: KHÔNG dựng lại nền PDF — chuyện đóng góp từng đòn kể bằng số cấu trúc: chữ-vỡ 131→0 · bảng 0→25 hàng · mồ-côi 61%→36%). Lịch sử: 18,75% → 54,3%/60,0% SAI THƯỚC → 35,7% VÔ HIỆU KÉP → **chuỗi so sánh BẮT ĐẦU LẠI tại 41,4%** | 41,4% | **8,29** |
 | Trải nghiệm (15) | **KHÔNG ĐO ĐƯỢC** — judge chưa hiệu chuẩn (chờ 30 nhãn PO) | — | *(loại khỏi mẫu số)* |
 | Hiệu năng (10) | 8/8 lượt demo ≤ 30s *(n=8, mẫu nhỏ — provisional)* | 100% | **10,0** |
 
-### ➡️ **FIN-05 Benchmark v0 = 68,75 / 85 điểm đo được = 80,9%**
-*(15 điểm Trải nghiệm chưa đo — không tính mẫu số · 2 trục gắn nhãn provisional)*
+### ➡️ **FIN-05 Benchmark v0.3 (16/08) = 72,87 / 85 điểm đo được = 85,7%**
+*(15 điểm Trải nghiệm chưa đo — không tính mẫu số · Hiệu năng vẫn provisional n=8)*
+
+**Trục Truy-hồi — ghi CẢ HAI số kèm mẫu số (quy tắc: số ca đổi = cắt chuỗi, spec quy tắc 3):**
+- `41,4% (35 ca, chỉ FAQ)` — mốc sạch đầu tiên, 3 lượt lặp y hệt (nhãn ở bảng trên)
+- `39,4% (47 ca, có ToS)` — **hiện hành**, bộ 60 ca 6-trục `8a7f853`; thấp hơn KHÔNG phải vì sản
+  phẩm kém đi mà vì thước vừa chạm phần chưa từng bị đo. **ToS 2/8 = trục yếu nhất — TÍN HIỆU ƯU
+  TIÊN cho đòn RAG kế** (điều kiện trình tự: chờ coder trả lời §15-ToS có VÀO kho không — lỗi nạp
+  chữa khác lỗi truy hồi). Datum phụ: typo/caps KHÔNG phá truy hồi (1 ca/loại, mỏng); đối chứng
+  2 lượt nạp cùng nguồn 15/14 trùng khít ⟹ nạp lại không đổi phép đo.
+*(lịch sử: v0 80,9% trên mốc 35,7% vô hiệu · v0.2 86,2% trên 41,4%/35-ca — không so trực tiếp
+các tổng qua lần đổi thước)*
 
 **Cách đọc v0 — ba câu:**
 1. Con số 80,9% KHÔNG phải để khoe — nó là **mốc nền có dấu vật** để mọi cải tiến sau chứng minh

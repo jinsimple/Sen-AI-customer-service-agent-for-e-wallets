@@ -1197,6 +1197,7 @@ def upload_policy_doc(
         file_bytes=file_bytes,
         filename=file.filename or "untitled",
         uploaded_by=current_user.user_id,
+        nguon_nap="upload_api",
     )
     return {
         "doc_id": doc.doc_id,
@@ -1254,7 +1255,7 @@ def policy_search(
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
     session: Session = Depends(get_session),
 ):
-    return _handle_tool_error(search_policy_text, session, query=req.query)
+    return _handle_tool_error(search_policy_text, session, query=req.query, duong_tra="cskh")
 
 
 # ---------------------------------------------------------------------------
