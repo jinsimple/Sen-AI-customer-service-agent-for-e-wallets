@@ -1,0 +1,46 @@
+{
+  "_ghi_chu": "BẢNG GIÁ — dữ liệu, KHÔNG hardcode trong script. Giá đổi theo tháng; một bảng giá cũ làm mọi con số tiền sai mà không ai biết, nên nó là một loại NHÃN VẬT và phải mang ngày tra + nguồn.",
+  "_don_vi": "USD trên 1 TRIỆU token",
+  "_canh_bao_sau_ngay": 30,
+  "gia": {
+    "gpt-4o-mini": {
+      "vao": 0.15,
+      "ra": 0.60,
+      "vao_cached": 0.075,
+      "ngay_tra": "2026-08-17",
+      "nguon": "PO-agent tra, chuyển 17/08",
+      "nha_cung_cap": "OpenAI"
+    },
+    "qwen-flash": {
+      "vao": 0.03,
+      "ra": 0.13,
+      "vao_cached": null,
+      "ngay_tra": "2026-08-17",
+      "nguon": "PO-agent tra (Qwen quốc tế), chuyển 17/08",
+      "nha_cung_cap": "Alibaba DashScope intl"
+    },
+    "qwen-plus": {
+      "vao": 0.40,
+      "ra": 1.20,
+      "vao_cached": null,
+      "ngay_tra": "2026-08-17",
+      "nguon": "PO-agent tra (Qwen quốc tế), chuyển 17/08",
+      "nha_cung_cap": "Alibaba DashScope intl"
+    },
+    "qwen-max": {
+      "vao": 2.00,
+      "ra": 6.00,
+      "vao_cached": null,
+      "ngay_tra": "2026-08-17",
+      "nguon": "PO-agent tra (Qwen quốc tế), chuyển 17/08",
+      "nha_cung_cap": "Alibaba DashScope intl"
+    }
+  },
+  "bo_do": {
+    "adversarial_set": {"so_luot": 46, "ghi_chu": "46 ca, mỗi ca ≥1 lượt — ca đa lượt tốn hơn"},
+    "golden_set": {"so_luot": 120, "ghi_chu": "120 ca"},
+    "benchmark_cham_moc": {"so_luot": 82, "ghi_chu": "trọn đường agent, theo docstring benchmark.py"},
+    "ke_hoach_doi_model": {"so_luot": 260, "ghi_chu": "6 bước, xem eval/KE-HOACH-DO-DOI-MODEL.md §2"},
+    "goi_30_nhan_tang_C": {"so_luot": 16, "ghi_chu": "8 agent + 8 judge"}
+  }
+}
