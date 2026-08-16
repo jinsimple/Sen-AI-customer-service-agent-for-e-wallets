@@ -10,6 +10,7 @@ import datetime as dt
 import json
 import logging
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any
@@ -19,6 +20,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.errors import GraphRecursionError
+from openai import RateLimitError
 from sqlalchemy.orm import Session
 
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
@@ -53,6 +55,20 @@ _logger = logging.getLogger("fin05.agents.graph")
 # tục). 20 đủ cho vài vòng ReAct thật (LLM suy luận + gọi tool xen kẽ), thấp
 # hơn nhiều để chặn lặp vô hạn.
 _AGENT_RECURSION_LIMIT = 20
+
+def _giay_cho_lai(loi: Exception) -> float | None:
+    """Moi so giay nha cung cap BAO, khong tu doan.
+
+    OpenAI tra nguyen van "Please try again in 1.381s" trong than loi. Doc
+    dung so do de noi voi khach, thay vi bia mot con so nghe hop ly — cung
+    tinh than rang buoc cung 3: con so noi ra phai co nguon.
+
+    Khong tra duoc thi tra None, va cau tra loi noi "sau it giay" thay vi mot
+    con so gia.
+    """
+    m = re.search(r"try again in ([0-9.]+)s", str(loi))
+    return float(m.group(1)) if m else None
+
 
 def _ly_do_fallback(loi: Exception) -> str:
     """Phân loại vì sao rơi vào fallback. Trả chuỗi, không bao giờ None.
@@ -322,6 +338,57 @@ def run_agent_turn(
         executor = ThreadPoolExecutor(max_workers=1)
         try:
             result = executor.submit(_invoke).result(timeout=AGENT_TURN_TIMEOUT_SECONDS)
+        except RateLimitError as e:
+            # 429 quá tải nhà cung cấp. TRƯỚC BẢN NÀY nó không nằm trong tuple
+            # `except` dưới -> rơi thẳng ra ngoài thành HTTP 500, khách nhận
+            # `{"detail":"Internal Server Error"}` trong khi OpenAI đã nói rõ
+            # "try again in 1.381s". Đo thật: tester chạy `--lap 3` là tái hiện.
+            #
+            # NHÁNH RIÊNG, KHÔNG dùng chung với timeout/recursion bên dưới —
+            # khác nhau ở chỗ QUAN TRỌNG NHẤT: nhánh kia TẠO TICKET bàn giao
+            # người thật, đúng cho ca agent bó tay. 429 thì không: nó là nghẽn
+            # thoáng qua, tự hết sau vài giây. Tạo ticket cho nó nghĩa là mỗi
+            # phút cao điểm đổ một nắm ticket ma lên CSKH cho những khiếu nại
+            # KHÔNG TỒN TẠI — và khách vẫn chưa được trả lời.
+            #
+            # Không ngủ-rồi-thử-lại ở đây: `openai` SDK đã tự retry
+            # OPENAI_MAX_RETRIES lần theo đúng `Retry-After` của nhà cung cấp
+            # TRƯỚC KHI ném lên tới đây. Ngủ thêm ở tầng này chỉ ăn vào ngân
+            # sách AGENT_TURN_TIMEOUT_SECONDS rồi biến 429 thành timeout —
+            # đúng cái nhầm lẫn `_ly_do_fallback` đã cảnh báo.
+            executor.shutdown(wait=False)
+            giay = _giay_cho_lai(e)
+            _logger.warning(
+                "agent_turn_qua_tai",
+                extra={
+                    "user_id": user_id,
+                    "thread_id": thread_id or user_id,
+                    "retry_after_giay": giay,
+                    "so_lan_sdk_da_thu": OPENAI_MAX_RETRIES,
+                },
+            )
+            root_span.set_attribute("fin05.qua_tai", True)
+            khuyen = f" sau khoảng {giay:.0f} giây" if giay else " sau ít giây"
+            return {
+                "reply": (
+                    "Xin lỗi bạn, hệ thống đang bận nên mình chưa xử lý kịp. "
+                    f"Bạn nhắn lại giúp mình{khuyen} nhé — tin nhắn của bạn "
+                    "chưa bị mất gì cả."
+                ),
+                "tool_calls": None,
+                "ticket_id": None,
+                "should_escalate": False,
+                "usage": {
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "total_tokens": 0,
+                    "cached_input_tokens": 0,
+                },
+                "loc_dau_ra": [],
+                "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                "goi_y_handoff": False,
+                "ly_do_fallback": "qua_tai",
+            }
             executor.shutdown(wait=True)  # thread thật sự đã xong lúc .result() trả về, wait=True không tốn gì thêm
         except (GraphRecursionError, FutureTimeoutError) as e:
             # wait=False luôn an toàn ở đây: nếu thread đã xong (nhánh
