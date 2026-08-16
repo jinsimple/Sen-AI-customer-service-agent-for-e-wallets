@@ -137,6 +137,9 @@ nối Cloudflare chưa).
 
 Chạy lại bao nhiêu lần cũng vô hại. **Không đụng dữ liệu.** Mỗi lần có bản mới: chạy lại đúng lệnh đó.
 
+Script tự kiểm kho RAG và nạp lại nếu cần — không phải làm tay. Lần dựng đầu sẽ mất thêm vài
+phút ở bước này vì phải tính lại embedding cho toàn bộ kho.
+
 > Nếu `.ps1` báo lỗi cú pháp: dùng `bash scripts/deploy_home.sh` trong WSL. Bản `.sh` đã được
 > chạy thử thật; bản `.ps1` chưa (máy soạn không có PowerShell). Đó là đường lui có sẵn, không
 > phải dấu hiệu hỏng.
