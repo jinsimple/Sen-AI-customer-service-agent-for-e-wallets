@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import BannerLechVai from "@/components/BannerLechVai";
 import { ApiError, agentChat, getCustomerHistory, requestLiveChatWsTicket, requestOtp, verifyOtp } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, type ComplaintType, type CustomerHistory } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -137,6 +138,10 @@ function OtpForm({
 }
 
 export default function ChatClient({ userId, phone }: { userId: string; phone: string }) {
+  // UI-02 — vai của phiên hiện tại KHÔNG khớp màn này. Đặt từ phản hồi 403 của
+  // API chứ không đọc lúc render: tab đang mở không điều hướng lần nào, nên
+  // guard route (`proxy.ts`) không bao giờ chạy — 403 là tín hiệu DUY NHẤT.
+  const [vaiLech, setVaiLech] = useState<string | null>(null);
   const [history, setHistory] = useState<CustomerHistory | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [stage, setStage] = useState<Stage>("greeting");
@@ -154,6 +159,11 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
   const [liveChatWsTicket, setLiveChatWsTicket] = useState<string | null>(null);
   const [liveChatSessionId, setLiveChatSessionId] = useState<string | null>(null);
   const liveChatConnectStartedRef = useRef(false);
+  // Ref-guard GIỮ NGUYÊN mục đích gốc (chặn StrictMode double-invoke, lý do
+  // thật từ 2026-08-11 — cùng pattern greetedRef). `lanThuLai` là đường mở lại
+  // CÓ CHỦ Ý của người dùng, không phải gỡ bỏ ref.
+  const [lanThuLai, setLanThuLai] = useState(0);
+  const [loiKetNoiChat, setLoiKetNoiChat] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const greetedRef = useRef(false);
   // Xác thực 1 lần/phiên — sau khi true, không hỏi lại OTP dù chip/rail/agent
@@ -204,10 +214,21 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
         setLiveChatWsTicket(res.ws_ticket);
       })
       .catch(() => {
-        push({ id: nid(), from: "system", text: "Không mở được kết nối chat trực tiếp — thử lại giúp mình nhé." });
+        // UI-02 — MỞ LẠI CỬA THỬ LẠI. Trước bản này `liveChatConnectStartedRef`
+        // set `true` một lần và KHÔNG BAO GIỜ reset ở đâu (grep toàn repo: đúng
+        // 3 dòng — khai báo, kiểm, set). Một lần thử, vĩnh viễn. Và `.catch`
+        // lại bảo khách "thử lại giúp mình nhé" trong khi KHÔNG TỒN TẠI đường
+        // nào để thử lại: effect chỉ chạy lại khi `liveChatTicketId` đổi, mà
+        // nó không đổi.
+        //
+        // ⚠️ RESET REF MỘT MÌNH KHÔNG ĐỦ — deps không đổi thì effect không chạy
+        // lại dù ref đã về false. Phải có `lanThuLai` trong deps. Một bản vá
+        // chỉ reset ref sẽ TRÔNG đúng và KHÔNG có hiệu lực.
+        liveChatConnectStartedRef.current = false;
+        setLoiKetNoiChat(true);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveChatTicketId]);
+  }, [liveChatTicketId, lanThuLai]);
 
   const handleLiveChatEvent = useCallback((event: LiveChatEvent) => {
     if (event.type === "message") {
@@ -403,6 +424,16 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
       }
       setStage("chat");
     } catch (e) {
+      // 403 kèm chữ "role" = lệch vai, KHÔNG phải lỗi trợ lý. Đổ nguyên văn
+      // `"Cần role thuộc ['customer'], tài khoản hiện tại là cskh"` vào khung
+      // chat là thứ PO đọc thấy giữa buổi demo — vô nghĩa với người dùng và
+      // trông như sản phẩm hỏng.
+      if (e instanceof ApiError && e.status === 403 && /role/i.test(e.message)) {
+        const m = /hiện tại là (\w+)/.exec(e.message);
+        setVaiLech(m?.[1] ?? "khác");
+        setStage("chat");
+        return;
+      }
       push({
         id: nid(),
         from: "bot",
@@ -451,6 +482,31 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
           Trợ lý AI — mọi con số đều được tra cứu từ hệ thống thật, không tự suy đoán.
         </p>
       </div>
+
+      {/* UI-02 — băng lệch vai. Đặt TRÊN CÙNG, ngoài khung chat: lỗi vai không
+          phải một tin nhắn của trợ lý, và nhét nó vào dòng hội thoại chính là
+          thứ PO đọc thấy giữa buổi demo ("Có lỗi: Cần role thuộc..."). */}
+      {vaiLech && <BannerLechVai vaiHienTai={vaiLech} vaiCanCo="customer" />}
+
+      {/* UI-02 — ĐƯỜNG THỬ LẠI THẬT. Bản trước `.catch` chỉ đẩy một dòng chữ
+          "thử lại giúp mình nhé" vào khung chat — trong khi KHÔNG TỒN TẠI
+          đường nào để thử lại (ref-guard đã bật, deps không đổi). Nút này
+          tăng `lanThuLai` -> effect chạy lại thật. */}
+      {loiKetNoiChat && (
+        <div role="alert" className="note" style={{ margin: "10px 0" }}>
+          Không mở được kết nối chat trực tiếp.{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setLoiKetNoiChat(false);
+              setLanThuLai((n) => n + 1);
+            }}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline", font: "inherit", color: "inherit", fontWeight: 600 }}
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
 
       <div className="chat-shell">
         <div className="chat-rail">
