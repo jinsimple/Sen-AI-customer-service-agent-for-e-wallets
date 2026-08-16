@@ -152,3 +152,8 @@ và các ràng buộc đó không nằm trong lời hứa của chúng tôi — 
    là một lần chạy test thật."* USR-0145 có ~9 khiếu nại — agent đọc số đó là đúng.
 8. Một lần lẻ agent mở đầu thẳng "Mình đã tạo hồ sơ…" thiếu câu đồng cảm — dữ liệu vẫn đúng,
    diễn tiếp, đừng dừng chờ.
+9. **MỘT TRÌNH DUYỆT = MỘT PHIÊN ĐĂNG NHẬP** (bẫy ĐÃ CẮN THẬT ở demo 15/08): đăng nhập CSKH/Sếp
+   trong cùng cửa sổ sẽ ĐÈ phiên khách → tab chat khách gõ tiếp là nhận *"Có lỗi: Cần role
+   customer…"* giữa buổi demo. Vai khách ở cửa sổ thường, MỌI vai nhân viên ở **cửa sổ ẩn danh**
+   (Cmd/Ctrl+Shift+N). Lỡ dính: đăng nhập lại vai khách là hết, ~15 giây. (Fix sản phẩm UI-02
+   đang trong hàng đợi coder.)
