@@ -69,6 +69,11 @@ if not DATABASE_URL:
 # ---------------------------------------------------------------------------
 APP_ENV = os.environ.get("APP_ENV", "development")
 
+# Dấu vật, do Dockerfile ARG đặt lúc build. "khong-ro" = không truyền được —
+# tự tố cáo, không im lặng giả vờ hợp lệ.
+BUILD_COMMIT = os.environ.get("BUILD_COMMIT") or "khong-ro"
+BUILD_AT = os.environ.get("BUILD_AT") or "khong-ro"
+
 
 def _db_identity(url: str) -> tuple[str, str]:
     """Trả (loại_db, tên_db) từ DATABASE_URL, đã lược bỏ mọi thông tin nhạy cảm."""

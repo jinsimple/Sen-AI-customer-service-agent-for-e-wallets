@@ -44,6 +44,17 @@ if v=$(grep -E "^[[:space:]]*SSL_CERT_FILE[[:space:]]*=" .env | head -1 | cut -d
   esac
 fi
 
+# APP_ENV: CUNG HO bay voi SSL_CERT_FILE o tren. `.env` tren may nay la ban
+# CHEP tu may Mac (chinh script nay dan chep, vi khoa ma hoa phai la khoa cu),
+# nen no mang theo ca nhung dong CHI DUNG o may dev. `.env` cang duoc mang sang
+# trung thanh thi loi cang chac chan tai hien.
+# CANH BAO chu KHONG CHAN: sai nhan moi truong khong lam hong dich vu. Khac
+# FIELD_ENCRYPTION_KEY (thieu = du lieu thanh rac vinh vien) nen cai do chan cung.
+if grep -qE "^[[:space:]]*APP_ENV[[:space:]]*=[[:space:]]*development" .env; then
+  warn "APP_ENV=development tren may chay 24/7 — /api/env-info se bao 'development'"
+  warn "        Sua .env thanh APP_ENV=production roi chay lai."
+fi
+
 docker info >/dev/null 2>&1 || { bad "Docker chua chay."; exit 1; }
 ok "Docker dang chay"
 
@@ -52,6 +63,11 @@ git pull --ff-only origin main || { bad "git pull --ff-only that bai — co thay
 ok "Da o main moi nhat: $(git rev-parse --short HEAD)"
 
 echo; echo "--- Build + khoi dong (profile home) ---"
+# DAU VAT: doc git ngay TRUOC khi build, tren may co `.git`. Image runtime
+# khong co `.git` nen khong the tu doc — xem ghi chu trong Dockerfile.
+export BUILD_COMMIT=$(git rev-parse --short HEAD)
+export BUILD_AT=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)
+ok "Dau build: $BUILD_COMMIT · $BUILD_AT"
 docker compose --profile home build
 docker compose --profile home up -d
 

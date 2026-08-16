@@ -62,6 +62,15 @@ if ($envText -match "(?m)^\s*SSL_CERT_FILE\s*=\s*(.+)$") {
     }
 }
 
+# --- CỔNG 2b: APP_ENV còn là development ---------------------------------
+# Cung ho voi SSL_CERT_FILE o tren: `.env` chep tu may Mac mang theo ca dong
+# chi dung o may dev. CANH BAO chu khong CHAN — sai nhan moi truong khong lam
+# hong dich vu.
+if ($envText -match "(?m)^\s*APP_ENV\s*=\s*development") {
+    Warn "APP_ENV=development tren may chay 24/7 — /api/env-info se bao 'development'"
+    Warn "        Sua .env thanh APP_ENV=production roi chay lai."
+}
+
 # --- Docker còn sống không -----------------------------------------------
 try { docker info *> $null; Ok "Docker dang chay" }
 catch { Bad "Docker Desktop chua chay. Mo Docker Desktop roi chay lai."; exit 1 }
@@ -78,6 +87,10 @@ Ok "Da o ban main moi nhat: $(git rev-parse --short HEAD)"
 
 # --- Build + up ----------------------------------------------------------
 Say ""; Say "--- Build + khoi dong (profile home) ---"
+# DAU VAT: doc git ngay TRUOC khi build, tren may co `.git`.
+$env:BUILD_COMMIT = (git rev-parse --short HEAD)
+$env:BUILD_AT     = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss+00:00")
+Ok "Dau build: $($env:BUILD_COMMIT) · $($env:BUILD_AT)"
 docker compose --profile home build
 if ($LASTEXITCODE -ne 0) { Bad "Build that bai"; exit 1 }
 docker compose --profile home up -d

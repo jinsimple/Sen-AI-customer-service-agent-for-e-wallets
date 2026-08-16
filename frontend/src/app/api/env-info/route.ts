@@ -21,11 +21,14 @@ export async function GET() {
       signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) throw new Error(`backend trả ${res.status}`);
-    const data = (await res.json()) as { env?: string; db_kind?: string; db_name?: string };
+    const data = (await res.json()) as { env?: string; db_kind?: string; db_name?: string; build_commit?: string; build_at?: string };
     return NextResponse.json({
       env: data.env ?? "unknown",
       db_kind: data.db_kind ?? "unknown",
       db_name: data.db_name ?? "unknown",
+      // Dấu vật — hỏi được TỪ NGOÀI production đang chạy bản nào.
+      build_commit: data.build_commit ?? "khong-ro",
+      build_at: data.build_at ?? "khong-ro",
       backend: backendUrl,
     });
   } catch {
@@ -37,6 +40,10 @@ export async function GET() {
       env: "unreachable",
       db_kind: "unknown",
       db_name: "unknown",
+      // Không với tới backend thì KHÔNG BIẾT nó bản nào — nói "khong-ro",
+      // tuyệt đối không đoán bằng giá trị của lần gọi trước.
+      build_commit: "khong-ro",
+      build_at: "khong-ro",
       backend: backendUrl,
     });
   }

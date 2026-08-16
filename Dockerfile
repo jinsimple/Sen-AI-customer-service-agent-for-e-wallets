@@ -47,6 +47,20 @@ COPY --from=builder /install /install
 ENV PYTHONUSERBASE=/install
 ENV PATH=/install/bin:$PATH
 
+# DẤU VẬT của bản đang chạy. Truyền bằng --build-arg, KHÔNG đọc git lúc chạy:
+# image runtime không có `.git` (.dockerignore loại), nên một cách lấy nhãn mà
+# tự nó có thể thất bại im lặng thì tệ hơn không có nhãn.
+#
+# Vì sao cần: 16/08 phải đọc `git merge-base` trên máy dev mới biết production
+# đã nhận vá 429 chưa — KHÔNG có cách nào hỏi chính sản phẩm đang chạy.
+#
+# Mặc định "khong-ro" CỐ Ý tự tố cáo. Tuyệt đối không để rỗng hay một giá trị
+# trông hợp lệ: nhãn nói dối nguy hơn không nhãn.
+ARG BUILD_COMMIT=khong-ro
+ARG BUILD_AT=khong-ro
+ENV BUILD_COMMIT=$BUILD_COMMIT
+ENV BUILD_AT=$BUILD_AT
+
 # Non-root user cho tiến trình ứng dụng thật (không chạy uvicorn bằng root) —
 # việc hạ quyền thực hiện trong docker-entrypoint.sh lúc container khởi động,
 # không phải ở đây, vì named volume (chroma_data/logs_data) chỉ tồn tại lúc

@@ -75,6 +75,8 @@ from src.auth import (
     try_decode,
 )
 from src.config import (
+    BUILD_AT,
+    BUILD_COMMIT,
     APP_ENV,
     DB_KIND,
     DB_NAME,
@@ -1482,4 +1484,9 @@ def health():
         "env": APP_ENV,
         "db_kind": DB_KIND,
         "db_name": DB_NAME,
+        # Trả lời được câu 16/08 KHÔNG trả lời được: "production đã nhận vá
+        # 429 chưa?". Hôm đó phải đọc `git merge-base` trên máy dev vì sản
+        # phẩm đang chạy không có nhãn vật nào.
+        "build_commit": BUILD_COMMIT,
+        "build_at": BUILD_AT,
     }
