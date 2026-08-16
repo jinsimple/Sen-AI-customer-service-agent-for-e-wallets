@@ -1,38 +1,22 @@
-# Architecture Diagram
+# Architecture Diagram — FIN-05
 
-## System Overview
-
-```mermaid
-graph TB
-    User([User]) --> UI[Frontend<br/>React/Next.js]
-    UI -->|REST API| API[FastAPI Backend]
-    API --> Agent[LangGraph Agent]
-    Agent --> LLM[LLM Service<br/>GPT-4o / Gemini]
-    Agent --> Tools[Agent Tools]
-    Tools --> DB[(Database)]
-    Agent --> VS[Vector Store<br/>ChromaDB]
-```
-
-## Agent Flow
+> Sơ đồ đầy đủ + data flow + bảng quyết định kiến trúc: **[ARCHITECTURE.md](../ARCHITECTURE.md)**
+> (nguồn duy nhất, không nhân bản để tránh trôi). File này giữ bản rút gọn cho deliverable #3.
 
 ```mermaid
 graph LR
-    START((Start)) --> Input[Parse Input]
-    Input --> Analyze[Analyze Query]
-    Analyze --> Decide{Need Tool?}
-    Decide -->|Yes| CallTool[Call Tool]
-    CallTool --> Analyze
-    Decide -->|No| Generate[Generate Response]
-    Generate --> END((End))
+    U([Khách / CSKH / Sếp / Đối tác]) --> C[Caddy + Cloudflare Tunnel]
+    C --> FE[Next.js BFF<br/>JWT không rời server]
+    FE --> BE[FastAPI]
+    BE --> AG[LangGraph Agent<br/>GPT-4o-mini · 5 tool<br/>danh nghĩa customer]
+    AG --> GD[Guardrails tất định:<br/>scrub PII · spotlighting ·<br/>O1-O4 + origin-rule]
+    GD --> DB[(PostgreSQL<br/>EncryptedText ·<br/>CHECK maker-checker)]
+    AG --> RAG[(ChromaDB — RAG<br/>trích nguyên văn)]
+    BE --> RD[(Redis — vé WS ·<br/>rate limit · thread signals)]
+    BE -.-> JG[Jaeger — OTel đã scrub]
+    BE --> HITL[HITL: CSKH điều tra →<br/>Sếp duyệt + OTP step-up<br/>— AI không có mặt]
 ```
 
-## Component Details
-
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| Frontend | React/Next.js | User interface |
-| Backend | FastAPI | API server |
-| Agent | LangGraph | AI agent orchestration |
-| LLM | OpenAI/Gemini | Language model |
-| Database | PostgreSQL/SQLite | Data persistence |
-| Vector Store | ChromaDB | RAG / embeddings |
+**Data flow một câu:** khách gõ → scrub PII → agent gọi tool thật → lọc đầu ra (số phải truy về
+tool result) → khách; tiền chỉ đi khi Sếp mở hồ sơ đọc căn cứ và duyệt bằng OTP gắn đúng đề xuất —
+ràng buộc người-tạo-≠-người-duyệt nằm ở tầng database.
