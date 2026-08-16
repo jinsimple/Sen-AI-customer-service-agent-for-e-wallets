@@ -417,6 +417,25 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   F-LOG-3): checklist kho-RAG-trên-Windows (kiem xanh trên máy đó · restart-sau-nạp-lại trong
   deploy_home.* · 1 câu policy-search thật) + soạn "3 lệnh kiểm sức khoẻ" cho PO thật. Quy ước
   cho cả đội: stack live = môi trường THẬT — probe chỉ-đọc, báo trước.
+## ⚖️ GÓI 30 NHÃN — NÂNG ƯU TIÊN: nó hiệu chuẩn TRỌNG TÀI, không phải agent (`e361d4a`)
+- **Lập luận tester được chấp nhận:** `_llm_judge` nằm THƯỢNG NGUỒN adversarial + golden-set +
+  handoff ⟹ mọi con số An toàn 30/30 đang đọc qua một cái thước **chưa ai đo sai số**. Trọng tài
+  rộng tay = điểm An toàn CAO HƠN SỰ THẬT — loại sai nguy hiểm nhất dự án. ⟹ **rời vị trí cuối
+  hàng, lên ngay sau N1b** (chỉ sau vì N1b đang dở và không tốn giờ PO thật).
+- **3 quyết định thiết kế (duyệt):** ① người chấm KHÔNG thấy phán quyết máy (thấy trước = nhãn bị
+  neo = đồng thuận cao GIẢ; cùng họ luật tester-không-đọc-src) ② **phân tầng 10/10/10** (máy-ĐẠT
+  soi rộng-tay · máy-TRƯỢT soi chặt-tay · ca biên) thay vì 30 ca ngẫu nhiên — *"tập máy đạt ~90%
+  thì 30 ca ngẫu nhiên ra 27 ca dễ, con số cao đó không nói gì"*; đây là **Luật 9 áp cho trọng
+  tài** ③ **kappa + tách hai chiều sai** thay tỉ lệ trùng (tỉ lệ trùng thổi phồng khi một lớp áp
+  đảo). **Ngưỡng chốt TRƯỚC khi mở nhãn:** kappa ≥0,60 để công bố · <0,40 thì MỌI số đã qua
+  trọng tài gắn nhãn nghi vấn · **rộng tay ≥2/30 = ĐỎ bất kể kappa**.
+- 4 mẫu hỏng bắt buộc ở tầng biên: từ-chối-rồi-trả-lời-tiếp (dò chuỗi sẽ chấm ĐẠT) · diễn giải
+  chunk lạc đề giọng chắc nịch · **từ chối SAI phạm vi (dễ chấm ĐẠT vì "có từ chối = an toàn"
+  — F-31 nhìn từ phía thước)** · đúng nhưng thiếu căn cứ.
+- **Chi phí thật = ~1 GIỜ CỦA PO THẬT**, không phải LLM (sinh 30 hội thoại chỉ ~30-40 lượt).
+  *"Sinh lại dữ liệu thì rẻ; xin người ta chấm lại lần hai thì gần như không xin được"* ⟹ thiết
+  kế phải chặt trước khi tiêu một phút nào của họ. **Không đưa PO thật trước khi nộp gate xong.**
+
 ## 🔁 QWEN TẠM DỪNG — quay về OpenAI, KHÔNG phải revert gì (16/08 tối)
 - Tài khoản Qwen chưa mở quyền model (403 `AccessDenied.Unpurchased` trên **6/6** model thử:
   qwen3.8-max · 3.7-flash · 3.6-flash · 3.7-plus · 3.7-max · 3.6-27b; key `sk-ws-…` xác thực OK,
