@@ -683,6 +683,42 @@ làm mọi harness gọi model tự từ chối, và `FIN05_CHO_PHEP_EP_429` tá
 test **cố ý** đốt hạn mức — bỏ đóng băng nghĩa là *được dùng model bình thường*,
 không phải *được phép làm cạn hạn mức của cả đội*.
 
+### 10c — một cổng phải-NHỚ-BẬT vẫn còn một nửa là lời hứa
+
+*(PO phê chuẩn 17/08, từ một vi phạm của chính người dựng cổng.)*
+
+Tôi dựng cổng đóng băng ở trên, đề nghị cả đội dùng nó, rồi **tự đốt 3 lượt LLM
+trong lúc đang đóng băng**. Cổng không hỏng — nó chỉ đọc biến môi trường, mà
+biến môi trường **chết theo shell**. Tôi `export` nó trong cái shell dùng để
+**kiểm cổng**, rồi mở lệnh khác để **thật sự chạy đo**.
+
+> **Một cổng phải-NHỚ-BẬT chỉ chặn được người đang nhớ — tức đúng người không
+> cần chặn.**
+
+Đây là bản nâng cấp của chính luật *cơ-chế-thắng-lời-hứa* ở trên: **cơ chế nào
+còn một nửa dựa vào trí nhớ thì vẫn còn một nửa là lời hứa.** Và nửa còn lại
+hỏng đúng lúc người ta bận — tức đúng lúc cần nó nhất.
+
+**Cách soi một cổng:** hỏi *"cổng này bật bằng cái gì, và cái đó sống được bao
+lâu?"*
+
+| Bật bằng | Sống qua | Đủ chưa |
+|---|---|---|
+| trí nhớ người chạy | không gì cả | ❌ |
+| biến môi trường | một shell | ❌ với việc dài hơn một shell |
+| **file trong repo** | shell · phiên · nén ngữ cảnh · người khác | ✅ và `ls` là thấy |
+| kiểm tra trong CI | mọi lần push | ✅ mạnh nhất, nhưng chậm hơn |
+
+Cổng đóng băng nay nổ khi có **biến môi trường HOẶC** file `.DANG-DONG-BANG-LLM`
+ở gốc repo, và thông báo in rõ **nguồn nào** đang chặn — vì bỏ nhầm nguồn cũng
+là một cách vô hiệu hoá cổng mà không ai định làm thế.
+
+**Hệ quả về cách báo cáo:** vi phạm này không ai đếm, không ai biết. Tôi vẫn
+báo, vì **chọn báo cái gì theo mức độ bị phát hiện** thì mọi con số sau đó mất
+chỗ dựa. Và bản thân vi phạm **có giá trị**: nó chỉ ra một lỗ hổng mà đọc code
+không tìm ra, bởi lỗ hổng nằm ở chỗ *"con người phải nhớ"* — chỗ không có dòng
+code nào để đọc.
+
 ---
 
 ## Luật 10b — NUỐT MÃ TRẠNG THÁI là một NHÁNH IM LẶNG
