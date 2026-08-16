@@ -345,6 +345,20 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   bản `.sh` đã chạy thật cả hai cổng. PO gặp lỗi cú pháp `.ps1` → dùng `.sh` trong WSL, đó là
   đường lui có sẵn.
 
+## ⚖️ TRỤC TRUY-HỒI: TẠM TREO SỐ — thước đang được rà HAI PHÍA (16/08 tối)
+- Tester (theo dữ kiện tech-lead nêu) soi 21 ca ĐẠT sau đòn-3: **9/21 đạt CHỈ nhờ từ khoá chung
+  chung** (RAG-17 có chuỗi đặc trưng `20.000.000` KHÔNG khớp mà vẫn đạt nhờ `hạn mức` — đáp án
+  thật không trong top-3, thước vẫn ĐẠT). ⟹ **60% (21/35) là GIỚI HẠN TRÊN, cận dưới 34,3%**;
+  và mốc 54,3% hôm trước CÙNG bộ từ-khoá ⟹ cùng caveat. Benchmark ghi `[đang rà thước]`, không
+  số nào của thước-chưa-rà đứng như số thật.
+- **LUẬT MỚI (ratify vào CHUAN-VIET-TEST):** xác minh nhãn phải soi CẢ HAI PHÍA — ca trượt (oan?)
+  VÀ ca đạt (giả?). *"Chỉ soi ca trượt thì thước lỏng tay nhất luôn thắng — chiều im lặng nguy
+  hơn vì không ai đi tìm"* — mặt đối xứng Luật 2, do chính tác giả Luật 2 phát hiện mình mắc.
+- Luật từ-khoá mới: **≥1 chuỗi ĐẶC TRƯNG bắt buộc** (số/viết-hoa/cụm-dài), từ chung chỉ phụ. Áp
+  cả 41 ca + ca mới. Thứ tự: rà 9 ca → đo lại (MỐC THẬT đầu tiên của thước-đã-rà) → ca 6-trục.
+- Cặp tester↔coder hai lượt liền bác-nhau-bằng-số và nhận-bằng-số (RAG-04 không-phải-hồi-quy ·
+  ca-đạt-cũng-phải-soi) — ví dụ vận hành tốt nhất của kiến trúc đối kháng tới giờ.
+
 ## 📊 THƯỚC 35-CA CHẠY LẦN ĐẦU — mốc Truy-hồi MỚI 54,3% + phát hiện TOC (16/08)
 - **19/35 = 54,3% CẢ HAI chế độ gõ** (nhãn: 7fdca4e · he_thong 5d63edfc7cc7 · backend 95e17b99 ·
   kho 418·2doc·v2 · cổng-kiem-trong-container). Trục benchmark: **10,86/20 — MỐC MỚI trên thước
