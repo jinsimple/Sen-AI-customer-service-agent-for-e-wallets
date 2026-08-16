@@ -44,8 +44,12 @@ Số vào hồ sơ/deliverable = số Chấm-MỐC. Hai chế độ hai nhãn, k
 
 ## 📊 BENCHMARK v0 — mốc nền, chấm 16/08
 
-Nhãn vật: HEAD `dev/learning-loop` 16/08 · backend demo `a216b98c1b79` · kho RAG **419 chunk** ·
-retrieval đo bằng probe 8-câu (sẽ thay bằng golden-set 30-50 câu ở v1 — v0 đánh dấu PROVISIONAL).
+Nhãn vật **của lượt đo hiện hành (v0.4)**: HEAD `dev/learning-loop` 16/08 tối · backend
+`332c053b9fde` · kho RAG **378 chunk · 2 doc**, băm `2209afc2042c` · retrieval đo bằng **bộ 47 ca
+thước-rà-hai-phía** (script `6eef7e1`) · latency bằng bộ lệnh cố định v2 (`aa020d3`).
+> ⚠️ Nhãn cũ của v0 gốc (`backend a216b98c1b79` · kho **419 chunk** · probe 8-câu · PROVISIONAL)
+> **KHÔNG áp cho bảng dưới** — và kho 419 chunk chính là kho **có 57 chunk rác `.md`** của sự cố
+> 16/08, đã gỡ. Giữ dòng này làm lịch sử, không dùng làm nhãn.
 
 | Trục | Số thật | Tỉ lệ | Điểm |
 |---|---|---|---|
@@ -63,10 +67,14 @@ hiện trên he_thong `f36435ac6f4a` sau T3; giữ làm cổng hồi quy vì hà
 phụ chưa-cố-ý. F-31 rộng ra: câu thứ 3 dính, và dính BẤT ỔN ĐỊNH — 8 lượt cùng một câu: 6 lượt
 từ chối an toàn · 2 lượt đuổi "ngoài phạm vi" ⟹ ranh giới do LLM phán, không do luật.)*
 
-**Đổi metric Truy-hồi @3 → @4 (cắt chuỗi, lý do):** `/api/policy-search` LUÔN đưa agent 4 kết
-quả (bỏ qua top_k — coder đang xác nhận chủ-đích/bug) ⟹ Recall@3 đo một sản phẩm không tồn tại;
-triết lý spec là đo-sản-phẩm-khách-nhận. Dải chẩn đoán: @1 27,7% · @3 40,4% · **@4 = 48,9%
-(23/47, số sổ sách) → trục 9,79/20**. 24/47 không nằm trong top-4 ⟹ nới k KHÔNG phải đòn chính.
+**Đổi metric Truy-hồi @3 → @4 (cắt chuỗi, lý do):** **mặc định của sản phẩm là 4, và đó là thứ
+agent THẬT SỰ nhận** (đọc từ `tool_calls`) ⟹ Recall@3 đo một sản phẩm không tồn tại; triết lý
+spec là đo-sản-phẩm-khách-nhận. *(Đính chính: `top_k` CÓ hiệu lực, trần 8 — `top_k=10` trả HTTP
+422. Phát biểu cũ "API bỏ qua top_k" là SAI, do đọc `422` thành "0 kết quả" — Luật 10b nuốt mã
+trạng thái. Kết luận @4 KHÔNG đổi vì nó dựa trên số đoạn agent thật sự nhận, chỉ LÝ DO sai.)*
+Dải chẩn đoán: @1 27,7% · @3 40,4% · **@4 = 48,9% (23/47, chế độ có-dấu)**; **số vào điểm trục là
+TB hai chế độ = 47,9% → 9,57/20** (công thức spec: trung bình có-dấu/không-dấu, KHÔNG lấy một
+chế độ). 24/47 không nằm trong top-4 ⟹ nới k KHÔNG phải đòn chính.
 
 **2 finding mở (cổng tuân-thủ-ToS của security — mệnh đề "ToS trượt = an toàn" SẬP 4/8 ca):**
 - **F-31 từ-chối-sai-phạm-vi:** RAG-38/40 — câu cốt lõi bị "ngoài phạm vi", 0 tool call; vô hình
@@ -82,7 +90,8 @@ ghi lại SAU khi F-31/F-32 vá + đo lại.
 
 **Trục Truy-hồi — ghi CẢ HAI số kèm mẫu số (quy tắc: số ca đổi = cắt chuỗi, spec quy tắc 3):**
 - `41,4% (35 ca, chỉ FAQ)` — mốc sạch đầu tiên, 3 lượt lặp y hệt (nhãn ở bảng trên)
-- `39,4% (47 ca, có ToS)` — **hiện hành, THƯỚC-ĐÃ-RÀ-HAI-PHÍA 16/08**: 28/28 ca trượt công bằng
+- `39,4% (47 ca, có ToS — **số cũ, Recall@3**, giữ làm lịch sử; thay bởi 47,9% khi đổi metric @4)`
+  — THƯỚC-ĐÃ-RÀ-HAI-PHÍA 16/08: 28/28 ca trượt công bằng
   (0 nhãn hỏng, kiểm bằng đường độc lập) · 0/47 chuỗi lỏng (42/47 ≤2 chunk) · kho `2209afc2042c`
   378c/2doc. Thấp hơn 41,4% KHÔNG phải vì sản phẩm kém đi mà vì thước vừa chạm phần chưa từng bị
   đo. Bản đồ phủ kho (eval/phu_kho.json, băm `5b5dbc12719f`): ToS 200/206=97,1% · FAQ
@@ -93,11 +102,13 @@ ghi lại SAU khi F-31/F-32 vá + đo lại.
 *(lịch sử: v0 80,9% trên mốc 35,7% vô hiệu · v0.2 86,2% trên 41,4%/35-ca — không so trực tiếp
 các tổng qua lần đổi thước)*
 
-**Cách đọc v0 — ba câu:**
-1. Con số 80,9% KHÔNG phải để khoe — nó là **mốc nền có dấu vật** để mọi cải tiến sau chứng minh
-   bằng cặp trước/sau.
-2. **Chỗ mất điểm lớn nhất lộ ra bằng số: Truy hồi RAG 3,75/20** — khớp độc lập với mọi quan sát
-   trước (end-to-end 3/5 fail, security thấy top-1 lạc đề). Ưu tiên đầu tư đã có bằng chứng định lượng.
+**Cách đọc v0 — ba câu** *(viết cho v0 GỐC; số trong mục này là số của v0 gốc, KHÔNG phải số hiện
+hành — xem bảng v0.4 ở trên)*:
+1. Con số **80,9%** *(v0 gốc — nay 87,7%)* KHÔNG phải để khoe — nó là **mốc nền có dấu vật** để
+   mọi cải tiến sau chứng minh bằng cặp trước/sau.
+2. **Chỗ mất điểm lớn nhất lộ ra bằng số: Truy hồi RAG 3,75/20** *(v0 gốc — nay 9,57/20 sau đòn 4
+   + rà thước)* — khớp độc lập với mọi quan sát trước (end-to-end 3/5 fail, security thấy top-1
+   lạc đề). Ưu tiên đầu tư đã có bằng chứng định lượng, và **đầu tư đó đã trả về số**.
 3. Hai trục 100% (An toàn, Đúng dữ liệu) là sản phẩm của 2 tuần guardrails — benchmark ghi nhận
    nó thành CON SỐ GIỮ ĐƯỢC: tụt dưới 100% ở đây là báo động đỏ, không phải "vẫn ổn".
 
@@ -105,10 +116,12 @@ các tổng qua lần đổi thước)*
 
 | Việc | Ai | Trạng thái |
 |---|---|---|
-| Golden-set truy hồi 30-50 câu (cặp dấu/không-dấu, phản biện chéo trục) | tester (+security/coder soi) | GIAO 16/08 |
-| Script benchmark một-lệnh in scorecard + nhãn vật | tester | GIAO 16/08 |
-| Gói 30 ca gán nhãn cho PO (hiệu chuẩn judge) | tester chuẩn bị → PO 30-45 phút | GIAO 16/08 |
-| Bộ đo latency chuẩn (thay n=8) | tester, gộp vào script | GIAO 16/08 |
-| RAG đòn 1-2 (extraction sạch + chuẩn hoá dấu) → đo lại | coder | GIAO 16/08 |
-| RAG đòn 3-4 (chunk theo cấu trúc · hybrid nếu cần) | coder | sau đòn 1-2 |
+| Golden-set truy hồi 30-50 câu (cặp dấu/không-dấu, phản biện chéo trục) | tester (+security/coder soi) | ✅ **XONG** — bộ 47 ca, thước rà hai phía |
+| Script benchmark một-lệnh in scorecard + nhãn vật | tester | ✅ **XONG** (`6eef7e1`, in dải @1/@3/@4) |
+| Gói 30 ca gán nhãn cho PO (hiệu chuẩn judge) | tester soạn → PO ~1 giờ | 🔶 **thiết kế + bộ soạn XONG**; chờ tầng C (~16 lượt) + giờ PO thật |
+| Bộ đo latency chuẩn (thay n=8) | tester, gộp vào script | ✅ **XONG** (`aa020d3`, bộ lệnh cố định v2, lặp 3) |
+| RAG đòn 1-2 (extraction sạch + chuẩn hoá dấu) → đo lại | coder | ✅ **XONG** |
+| RAG đòn 3-4 (chunk theo cấu trúc · hybrid nếu cần) | coder | ✅ **đòn 4 XONG**; hybrid/BM25/HyDE **đo ÂM, đã bác** |
+| Reranker (bge-reranker-v2-m3) — chất lượng chạm trần 38/47 | coder | 🔶 **N1 TRƯỢT latency** (3.767ms); vé **N1b** tối ưu đang chạy |
+| Vá F-31 + F-32 (một vé, đường-thứ-ba) | coder soạn đặc tả → security rà → tester test | ⏳ ĐANG CHỜ đặc tả |
 | **Benchmark CÔNG BỐ trên heldout 60** | tester chấm · PO chứng kiến | GẦN DEMO DAY, một lần |
