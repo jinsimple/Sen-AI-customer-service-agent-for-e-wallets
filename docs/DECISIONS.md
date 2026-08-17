@@ -1346,6 +1346,64 @@ nguon_duoc_duyet:
     trong khi người đọc tưởng nó khai NỘI DUNG? `authority-matrix` và
     `resolution-state-machine` cần một lượt rà cùng câu hỏi này.
 
+## ADR-028 — Tách `/ready` khỏi `/health`: kho RỖNG và khoá CHẾT đều phải làm đỏ readiness
+
+- **Ngày:** 2026-08-17 · **Trạng thái:** ĐỀ XUẤT — chờ PO thật duyệt (quy trình §3: ADR trước, code sau)
+- **Bối cảnh:**
+
+  Ngày 17/08 hệ thống rơi vào **hai chế độ hỏng khác nhau**, và `/health` báo **xanh trong cả hai**:
+
+  | | hiện tượng | thời lượng | `docker ps` |
+  |---|---|---|---|
+  | ① khoá chết | `embed_query` → `401 token_invalidated`, agent **không tra được chính sách nào** | ~1 giờ, 2 stack | `healthy` |
+  | ② kho rỗng | `policy_faq` có **0 vector**, trả lời *"không tìm thấy"* cho **mọi** câu | **24 giờ** | `healthy` |
+
+  Tính cả hai lần khoá chết trên hai stack, **`/health` báo xanh giả 4 lần trong một ngày**.
+
+  **Chế độ ② nguy hiểm hơn ① và không ai lường trước.** Khoá chết cho `500` — ồn ào, có người
+  nhận ra. Kho rỗng cho **`200` + danh sách rỗng** — agent nói *"không tìm thấy chính sách nào"*,
+  một câu **đúng ngữ pháp, hợp lệ về hình thức, và hoàn toàn sai**. Hệ thống **không phân biệt được
+  "không có chính sách nào KHỚP" với "tôi không có chính sách nào CẢ"**.
+
+  *(Ghi lại một nhánh đã bị BÁC bằng phép đo: PO-agent từng giả thuyết có tầng nuốt lỗi xác thực
+  thành danh sách rỗng. Coder dựng ca đối chứng khoá-sai có kiểm soát trên stack sạch → `store.search`,
+  `search_policy_text` và lớp bọc tool **đều nổ `AuthenticationError`, không tầng nào nuốt**. Chế độ
+  ② hoàn toàn do **kho rỗng thật**, không do lỗi bị nuốt.)*
+
+- **Quyết định:**
+
+  1. **`/health` GIỮ NGUYÊN là liveness thuần** — không chạm dependency nào. *Đây là điểm dễ làm
+     sai nhất:* cho `/health` gọi OpenAI thì mỗi lần nhà cung cấp sập, Docker sẽ **giết và restart
+     vòng lặp một container hoàn toàn khoẻ mạnh** — biến sự cố bên ngoài thành sự cố của ta.
+  2. **Thêm `GET /ready`** (readiness), **ĐỎ** khi bất kỳ điều nào:
+     - DB không tới được
+     - **kho vector RỖNG** — rỗng **không phải** trạng thái phục vụ được
+     - embedding không gọi được (khoá chết / nhà cung cấp từ chối)
+  3. Có **cache TTL** cho kết quả probe để không đốt tiền mỗi lượt gọi.
+  4. `/ready` **mở cho mọi role** (kể cả chưa đăng nhập) — nó là endpoint hạ tầng, không trả dữ liệu
+     nghiệp vụ. Phải khai trong `authority-matrix.yaml` (INV-00 đòi khớp chính xác `app.routes`).
+
+- **Phương án đã bác:**
+
+  - *Cho `/health` chạm dependency thay vì thêm route mới* — bác, xem §1: liveness chạm dependency
+    tạo vòng lặp restart khi bên ngoài sập.
+  - *Chỉ cảnh báo khi kho rỗng, không làm đỏ* — bác: kho rỗng nghĩa là **mọi** câu trả lời chính sách
+    đều sai. Một hệ thống trả lời sai 100% mà vẫn nhận traffic thì cảnh báo không đủ.
+  - *Thêm một dòng checklist "nhớ kiểm kho sau khi deploy"* — bác, và đây là lý do có ADR này thay vì
+    một dòng tài liệu: **hôm nay đã có 4 lần xanh giả, mỗi lần đều có người làm đúng quy trình.**
+    Sau lần thứ ba PO-agent đã ghi *"lần thứ ba thì sửa chính cái đèn, không sửa checklist nữa"*.
+
+- **Hệ quả:**
+
+  - Đổi `contracts/authority-matrix.yaml` ⟹ `check_contracts.py --update` + bump `CONTRACT_VERSION`
+    + **commit kèm file baseline**.
+  - Deploy/monitoring phải trỏ readiness vào `/ready`, **không** vào `/health`.
+  - **Nghiệm thu bắt buộc bằng ca âm bản:** làm rỗng kho trên stack thử → `/ready` phải ĐỎ. Không
+    chấp nhận nghiệm thu chỉ bằng đường xanh — chính đường xanh là thứ đã nói dối 4 lần.
+  - Việc này **không** đóng chế độ hỏng gốc ở tầng sản phẩm: agent vẫn nên phân biệt được
+    *"không khớp"* với *"không có kho"* khi trả lời khách. `/ready` chặn ở tầng hạ tầng; tầng agent
+    là việc riêng, chưa xếp lịch.
+
 ## Mẫu ADR mới
 
 ```markdown
