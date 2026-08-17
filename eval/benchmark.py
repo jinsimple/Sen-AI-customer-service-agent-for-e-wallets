@@ -425,6 +425,22 @@ def in_khoi_spec(nhan: dict, truc: list[tuple[str, float, float, str]],
     # số hợp lệ từ lượt khác. In cả bảng với 4 dòng "KHÔNG ĐO ĐƯỢC" thì ai chép
     # nguyên văn sẽ XOÁ MẤT số đúng — công cụ sinh ra để chống số-cũ-còn-sót lại
     # tự tay xoá số-mới-đang-đúng. Nên lượt một phần chỉ in ĐÚNG dòng nó đo.
+    # CỔNG HIỆU CHUẨN TRỌNG TÀI — chặn ở chỗ SINH RA số, không ở chỗ đọc số.
+    # Security dựng một khối giới hạn phạm vi có dòng "chưa có kappa thì KHÔNG
+    # công bố". Khối đó tự chặn — nhưng chỉ chặn được người ĐỌC nó đúng lúc
+    # công bố, tức vẫn còn một nửa là trí nhớ (Luật 10c). Cổng thật phải nằm ở
+    # công cụ sinh ra con số, vì đó là chỗ không ai đi vòng qua được.
+    hc = GOC / "eval" / "results" / "hieu_chuan_trong_tai.json"
+    if not mot_phan and not hc.exists():
+        print("\n" + "=" * 74)
+        print("🔴 KHÔNG IN KHỐI ĐẦY ĐỦ — trọng tài CHƯA HIỆU CHUẨN")
+        print("=" * 74)
+        print(f"  Thiếu {hc.relative_to(GOC)} (kappa + tỉ lệ rộng-tay/chặt-tay).")
+        print("  Con số tổng đi qua `_llm_judge`, nên chưa đo sai số của trọng tài")
+        print("  thì con số đó CHƯA CÓ KHOẢNG TIN CẬY — công bố nó ở dạng một con")
+        print("  số đơn là nói quá phần đo được.")
+        print("  Trục truy hồi KHÔNG qua trọng tài: dùng `--chi-truy-hoi --khoi-spec`.")
+        return
     print("\n" + "=" * 74)
     print("KHỐI CHÉP VÀO SPEC — chép NGUYÊN VĂN, đừng diễn giải lại")
     if mot_phan:
