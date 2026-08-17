@@ -156,14 +156,76 @@ def main() -> int:
         print(bc)
         tat_ca_dat &= dat
 
-    print("\n  ── ĐC-1..5 ─────────────────────────────────────────")
-    print("  ĐC-2  phân loại theo TỪNG LƯỢT  → cần dấu `duong` từng lượt, CHƯA CÓ")
-    print("  ĐC-5  mọi câu bộ âm đi day_du   → đã chấm ở trên")
-    print("  🔴 ĐC-1 · ĐC-3 · ĐC-4 — KHÔNG TÌM THẤY ĐỊNH NGHĨA trong docs/")
-    print("     Tôi KHÔNG đoán. Một cổng có ba mục tự nghĩ ra là cổng đo ý kiến")
-    print("     của người viết cổng, không đo điều kiện dự án đã chốt.")
-    print("\n  ⟹ CỔNG CHƯA ĐẠT — thiếu định nghĩa ĐC-1/3/4. Mã thoát 3.")
-    return 3 if tat_ca_dat else 1
+    print("\n  ── ĐC-1..5 ── nguồn: docs/giao-viec/2026-08-17-dinh-nghia-cong-DC-phan-luong.md")
+    print(f"     sha256[:12] = {_bam_tep(GOC / 'docs/giao-viec/2026-08-17-dinh-nghia-cong-DC-phan-luong.md')}")
+    dc = {}
+
+    # ĐC-1 — xã giao thuần PHẢI đi nhẹ. Vế "kêu thật lúc bất thường".
+    # 🔴 DÂN SỐ: ĐC-1 nói "câu xã giao THUẦN (kiểu 'alo')" — KHÔNG phải mọi ca
+    # nhãn `nhe`. Bản đầu của tôi lấy cả 10 ca nhãn nhe (gồm 'cho mình hỏi cái
+    # này với') rồi báo 5/10 — đo sai DÂN SỐ, đúng lớp lỗi golden_set-không-có-
+    # lượt-đơn. Dân số đúng là nhóm ① chào hỏi, phân nhóm tôi đặt TỪ ĐẶC TẢ
+    # trước khi thấy luật.
+    _d = json.loads((GOC / "eval/bo_ca_luot_don.json").read_text(encoding="utf-8"))
+    xa_giao = [c["cau"] for c in _d["ca"] if c["nhom"].startswith("①")]
+    sai1 = [c for c in xa_giao if luat.phan_luong(c)[0] != "nhe"]
+    dc["ĐC-1"] = (not sai1, f"{len(xa_giao)-len(sai1)}/{len(xa_giao)} câu xã giao đi nhẹ"
+                  + (f" · TRƯỢT: {sai1[:3]}" if sai1 else ""))
+
+    # ĐC-3 — ném lỗi / đầu vào bất thường ⟹ ĐẦY ĐỦ, KHÔNG được nổ ra ngoài.
+    # fail-open VỀ PHÍA ĐẮT TIỀN: lỗi của lớp tiết kiệm không bao giờ thành lỗi của khách.
+    quai = [("", "chuỗi rỗng"), ("   ", "toàn khoảng trắng"), ("\n\t", "toàn ký tự trắng"),
+            ("\x00\x01", "byte điều khiển"), ("😀🔥", "chỉ emoji"),
+            ("a" * 5000, "5000 ký tự"), ("﷽" * 50, "ký tự hợp âm"),
+            (None, "None"), (12345, "số nguyên"), ([], "list rỗng")]
+    hong3 = []
+    for v, ten in quai:
+        try:
+            d, _ = luat.phan_luong(v)
+            if d != "day_du":
+                hong3.append(f"{ten} → {d} (phải day_du)")
+        except Exception as e:
+            hong3.append(f"{ten} → NÉM {type(e).__name__} (phải nuốt và trả day_du)")
+    dc["ĐC-3"] = (not hong3, f"{len(quai)-len(hong3)}/{len(quai)} đầu vào bất thường → day_du"
+                  + ("\n         🔴 " + "\n         🔴 ".join(hong3) if hong3 else ""))
+
+    # ĐC-4 — câu lạ / không phân định được ⟹ ĐẦY ĐỦ.
+    la = ["asdkjhasd", "xin chào ạaaaa bqzxk", "test test 123 abc xyz",
+          "ủa gì vậy trời", "hmm thế à ừ nhỉ sao lại thế được nhỉ"]
+    sai4 = [c for c in la if luat.phan_luong(c)[0] != "day_du"]
+    dc["ĐC-4"] = (not sai4, f"{len(la)-len(sai4)}/{len(la)} câu lạ → day_du"
+                  + (f" · LỌT: {sai4}" if sai4 else ""))
+
+    # 🔴 DÂN SỐ: ĐC-5 nói "mọi câu của BỘ ÂM" — bản đầu tôi dùng `tat_ca_dat`
+    # gộp CẢ bộ dương, nên 5 ca dương trượt (đúng theo thiết kế, chúng lệch phía
+    # an toàn) kéo ĐC-5 xuống đỏ. Đo sai dân số lần thứ HAI trong cùng một hàm.
+    dat_am = all(luat.phan_luong(c)[0] == "day_du"
+                 for ten, cn in bo if "âm" in ten for c, _ in cn)
+    n_am = sum(len(cn) for ten, cn in bo if "âm" in ten)
+    dc["ĐC-5"] = (dat_am, f"mọi câu của {n_am} CÂU bộ ÂM đi day_du (KHÔNG gồm bộ dương)")
+
+    for k in ("ĐC-1", "ĐC-3", "ĐC-4", "ĐC-5"):
+        ok, mo = dc[k]
+        print(f"  {'✅' if ok else '🔴'} {k}  {mo}")
+
+    # RÀNG BUỘC ĐỌC ①: ĐC-1 và ĐC-5 chỉ có nghĩa khi ĐỨNG CÙNG NHAU
+    if dc["ĐC-1"][0] != dc["ĐC-5"][0]:
+        print("  ⚠️  ĐC-1 và ĐC-5 KHÔNG cùng trạng thái — mỗi cái một mình bị một")
+        print("      router suy biến qua mặt (không-làm-gì ↔ cho-tất-qua).")
+
+    print("\n  ── CHƯA CHẠY ĐƯỢC (cần hệ thống, không phải luật thuần) ──")
+    print("  ĐC-2  phân loại theo TỪNG LƯỢT — luật này KHÔNG có trạng thái nên ở")
+    print("        tầng luật nó đạt HIỂN NHIÊN. Phép thử THẬT phải qua hệ thống,")
+    print("        nơi có thể có cache/phiên. Đạt ở đây KHÔNG có nghĩa gì.")
+    print("  Δ     đường nhẹ: không LLM · không trả lời nghiệp vụ · không bản ghi")
+    print("        → tests/test_bat_bien_dinh_tuyen_duong_nhe.py, chờ dấu `duong`")
+
+    het = all(v[0] for v in dc.values())
+    if not het:
+        print("\n  ⟹ 🔴 CỔNG ĐỎ.")
+        return 1
+    print("\n  ⟹ ✅ phần LUẬT THUẦN đạt. CHƯA ĐẠT TOÀN PHẦN: ĐC-2 và Δ cần hệ thống.")
+    return 3
 
 
 if __name__ == "__main__":
