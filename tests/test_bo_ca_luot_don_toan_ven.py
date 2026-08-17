@@ -20,8 +20,10 @@ BO = json.loads(FILE.read_text(encoding="utf-8"))
 
 def test_bam_nhan_khop_noi_dung():
     """Nhãn BẤT ĐỘNG từ giây công bố băm — test này là thứ thi hành điều đó."""
-    d = dict(BO)
-    ghi = d.pop("bam_nhan")
+    ghi = BO["bam_nhan"]
+    # bỏ CẢ HAI khoá — `thuat_toan_bam` cố ý nằm NGOÀI phần được băm, để lời
+    # khai thuật toán thêm vào được mà KHÔNG đổi băm đã công bố.
+    d = {k: v for k, v in BO.items() if k not in ("bam_nhan", "thuat_toan_bam")}
     tinh = hashlib.sha256(
         json.dumps(d, ensure_ascii=False, indent=1, sort_keys=True).encode()
     ).hexdigest()[:12]
@@ -81,3 +83,32 @@ def test_nhan_CO_DIEU_KIEN_phai_khai_du_dieu_kien_va_nhan_lat():
             "nếu điều kiện không đổi được nhãn thì nó không phải điều kiện."
         )
         assert c.get("nguon_nhan"), f"{c['id']}: nhãn có điều kiện phải khai NGUỒN (ai phán)"
+
+
+def test_bam_phai_khai_TEN_THUAT_TOAN():
+    """Một chuỗi hex 12 ký tự KHÔNG tự khai nó sinh ra từ đâu.
+
+    17/08: cùng một file 6.305 byte cho `md5 = 1edd51dff555` và
+    `sha256 = 742df94b195a`. Hai người đọc hai con số, **nhìn giống hệt nhau**,
+    và không ai kiểm — vì cả hai đều là 12 ký tự hex.
+
+    Đây là lần thứ BA trong ngày cùng lớp (`4.862 vs 4.334` · `120 ca vs 124
+    câu` · và cái này), và lần này nó **lọt qua chính quy ước đặt ra để chặn
+    nó**: quy ước ghi "sha256, 12 ký tự đầu", một bên dùng md5, con số vẫn
+    trông hợp lệ.
+
+    > **`1edd51dff555` không phải một băm. `md5:1edd51dff555` mới là.**
+    """
+    khai = str(BO.get("thuat_toan_bam", "")).strip()
+    assert khai, (
+        "có `bam_nhan` mà KHÔNG khai thuật toán. Một chuỗi hex không tự khai "
+        "nguồn gốc — người sau sẽ băm lại bằng thuật toán khác và thấy lệch, "
+        "hoặc tệ hơn: thấy giống rồi tin nhầm."
+    )
+    assert any(x in khai.lower() for x in ("sha256", "md5", "sha1", "blake")), (
+        f"lời khai không nêu TÊN thuật toán: {khai!r}"
+    )
+    assert "bam_nhan" in khai and "thuat_toan_bam" in khai, (
+        "lời khai phải nêu RÕ khoá nào bị loại trước khi băm — thiếu, người "
+        "sau không tái lập được con số dù biết thuật toán."
+    )

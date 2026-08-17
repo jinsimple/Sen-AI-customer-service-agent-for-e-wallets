@@ -28,6 +28,7 @@
 | **15** | DẤU VẾT bộ đo để lại trong hệ đang chạy, không phải độ chính xác của nó | hậu quả của phép đo |
 | **16** | N mệnh đề cần N ĐỘT BIẾN, mỗi cái làm đúng một tập con đỏ | quan hệ GIỮA các test |
 | **17** | che theo VẬT không theo MẪU — danh sách CHO PHÉP, không phải danh sách CẤM | thứ bộ đo IN RA |
+| **18** | băm phải khai TÊN THUẬT TOÁN — hex không tự khai nguồn gốc | định danh phép đo |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -1588,6 +1589,53 @@ Cùng ngày, hai chỗ khác hỏng đúng hình dạng này:
 Cùng một sai lầm: **bắt theo cái mình nhận ra được, thay vì theo cái mình cần
 xử lý.** Cách chữa cũng cùng một hình: liệt kê **cái được phép đi qua**, mọi
 thứ khác vào nhánh an toàn.
+
+---
+
+## Luật 18 — BĂM phải khai TÊN THUẬT TOÁN
+
+> Nguồn: 17/08. Lần thứ ba trong ngày cùng lớp lỗi, và lần này nó lọt qua
+> **chính quy ước đặt ra để chặn nó**.
+
+    cùng một file, 6.305 byte
+      md5    = 1edd51dff555     ← một bên công bố
+      sha256 = 742df94b195a     ← bên kia đo
+
+Hai người đọc hai con số, **nhìn giống hệt nhau** — cùng 12 ký tự hex — và
+không ai kiểm. Quy ước dự án ghi *"sha256, lấy 12 ký tự đầu"*; một bên dùng
+md5; con số vẫn **trông hợp lệ**.
+
+> **`1edd51dff555` không phải một băm. `md5:1edd51dff555` mới là.**
+> Một chuỗi hex **không tự khai nó sinh ra từ đâu** — và đó là toàn bộ vấn đề.
+
+Nó cùng họ với `4.862 vs 4.334` (hai runtime) và `120 ca vs 124 câu` (hai đơn
+vị đếm): **con số đúng, phép đo không định danh được.** Nhưng nó tệ hơn hai ca
+kia ở một điểm — băm sinh ra **để** định danh. Một băm không định danh được
+chính nó là công cụ tự phủ định.
+
+### Khai cái gì
+
+Không chỉ tên thuật toán. Phải đủ để **người khác tái lập được con số**:
+
+    thuat_toan_bam: "sha256[:12] của json.dumps(obj, ensure_ascii=False,
+                     indent=1, sort_keys=True) SAU KHI bỏ hai khoá
+                     'bam_nhan' và 'thuat_toan_bam'"
+
+Biết `sha256` mà không biết **thứ tự khoá** hay **khoá nào bị loại** thì vẫn
+không tái lập được. Tên thuật toán là điều kiện cần, không phải đủ.
+
+### Mẹo: khai mà KHÔNG đổi băm đã công bố
+
+Vấn đề thực tế: nhãn đã băm và **đã có con số gắn với băm đó**. Thêm một trường
+vào là đổi băm, và mọi con số đã công bố **mất chỗ neo**.
+
+Cách gỡ: cho trường khai báo **nằm ngoài phần được băm** — loại nó cùng với
+`bam_nhan` trước khi tính. Bốn nhãn của dự án này được bổ sung lời khai theo
+cách đó, băm **không đổi một ký tự**.
+
+> Thứ tự đúng khi sửa một quy ước băm: **tìm cách khai mà không đụng băm
+> trước**, chỉ băm lại khi không còn cách nào — vì mỗi lần băm lại là một lần
+> mọi con số cũ phải được đọc lại xem còn thuộc về đâu.
 
 ---
 

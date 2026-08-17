@@ -45,5 +45,6 @@
   "④_dem_TUNG_kho_truoc_va_sau": "Postgres (mọi bảng) · Redis (dbsize + khoá) · Chroma (policy_chunks) · phía nhà cung cấp (token). Lần này hiệu số QUY ĐƯỢC trách nhiệm vì không ai khác ghi vào fin05do được — đó là thứ ngăn xếp riêng mua cho ta."
  },
  "luat": "Từ giây công bố băm, luật chấm BẤT ĐỘNG.",
- "bam_nhan": "43fb345f3e62"
+ "bam_nhan": "43fb345f3e62",
+ "thuat_toan_bam": "sha256[:12] của json.dumps(obj, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ hai khoá 'bam_nhan' và 'thuat_toan_bam'"
 }

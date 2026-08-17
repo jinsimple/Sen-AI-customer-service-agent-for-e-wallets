@@ -185,5 +185,6 @@
   "cau_ngan": "ĐỌC NGỮ CẢNH ≠ GIỮ PHÁN QUYẾT",
   "vi_sao_ghi_o_day": "để coder gặp nó lúc ĐỌC ĐẶC TẢ, không phải lúc code xong rồi mới phát hiện hai ràng buộc mâu thuẫn"
  },
- "bam_nhan": "241851470116"
+ "bam_nhan": "241851470116",
+ "thuat_toan_bam": "sha256[:12] của json.dumps(obj, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ hai khoá 'bam_nhan' và 'thuat_toan_bam'"
 }

@@ -96,5 +96,6 @@
    "🔴_bay_noi_danh_sach": "chứa 'giúp mình với' NGUYÊN VĂN DON-08. Nếu ai nới danh sách để DON-08 đi nhẹ thì ca này cũng đi nhẹ — và đây là khách đang mất tiền."
   }
  ],
- "bam_nhan": "e411a9dbcc74"
+ "bam_nhan": "e411a9dbcc74",
+ "thuat_toan_bam": "sha256[:12] của json.dumps(obj, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ hai khoá 'bam_nhan' và 'thuat_toan_bam'"
 }

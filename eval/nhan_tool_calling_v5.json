@@ -184,5 +184,6 @@
   "cau_②_thuoc_ve_phep_do_khac": "đo qua CHÍNH /agent/chat — không dựng lại payload nào. Năm lỗi hôm nay ĐỀU sinh từ việc DỰNG LẠI thứ sản phẩm gửi (prompt tự soạn · mật độ đo trên phần đang chú ý · runtime sai · lược đồ phồng · current_time trôi). Phép đo duy nhất không sai theo lớp đó là phép đo KHÔNG DỰNG LẠI GÌ.",
   "danh_doi_cua_duong_do_that": "đắt hơn, và đo CẢ ĐƯỜNG ỐNG thay vì riêng phép chọn tool — nhưng 'cả đường ống' CHÍNH LÀ định nghĩa của 'hành vi sản phẩm'. Đổi lại chỉ đo được MỘT model (model sản phẩm đang cấu hình), không so được bốn."
  },
- "bam_nhan": "dd134bfddd09"
+ "bam_nhan": "dd134bfddd09",
+ "thuat_toan_bam": "sha256[:12] của json.dumps(obj, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ hai khoá 'bam_nhan' và 'thuat_toan_bam'"
 }
