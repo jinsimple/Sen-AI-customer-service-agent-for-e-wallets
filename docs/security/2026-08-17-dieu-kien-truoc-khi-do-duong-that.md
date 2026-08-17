@@ -177,3 +177,65 @@ tác dụng đó **dừng ở trong mạng nội bộ** vì BFF không xuyên t�
 thông tin nhạy cảm theo thiết kế). Đây là **mở một bề mặt công khai**, nên phải
 là quyết định cố ý của PO — nhưng nó biến một câu hỏi-người thành một câu
 hỏi-máy, đúng loại nợ vừa làm cả đội đứng chờ.
+
+---
+
+## §8. Lượt đã bắn — "0 dòng" ĐÚNG nhưng **KHÔNG ĐỦ**: phép đếm bỏ sót một kho trạng thái
+
+Tester bắn trước khi điều kiện tới, rồi đo hậu quả và báo **0 dòng mới ở CẢ HAI
+Postgres**, mọi bảng. **Tôi kiểm và không bác con số đó.** Họ cũng tự viết vào
+hồ sơ đúng cách đọc ngược — *"số 0 nói **lượt bị chặn không ghi**, không nói
+**đường thật an toàn**"* — đó là câu quan trọng nhất trong báo cáo của họ, và
+nó giữ nguyên cảnh báo ADR-025 ở §2.
+
+**Nhưng phép đếm chỉ phủ Postgres.** [ĐO] ngay bây giờ:
+
+```
+fin05-redis-1  — TOÀN BỘ kho, đúng MỘT khoá:
+   refresh:3eee797a…                       TTL còn 604.311 s
+   JWT_REFRESH_EXPIRE_DAYS_CUSTOMER = 7d  = 604.800 s
+   ⟹ khoá được tạo cách đây ≈ 489 s  ≈ 8 phút 9 giây
+```
+
+⟹ **Lượt đo ĐÃ ghi trạng thái** — một phiên đăng nhập vai `customer`, còn sống
+7 ngày. Không có khoá `ratelimit:` nào còn lại (cửa sổ trượt đã hết hạn), nhưng
+hạn ngạch **đã bị tiêu** lúc chạy.
+
+**Mức độ: THẤP** — một vé phiên, tự hết hạn, **không chạm bảng bằng chứng nào**.
+Kết luận đầu của tester đứng. Cái sai không nằm ở con số, **nằm ở phạm vi của
+phép đếm**.
+
+### ⟹ Điều kiện ④ phải mở rộng, và đây là dạng tổng quát
+
+> **Một phép đo chạy qua hệ thật để lại dấu ở MỌI kho trạng thái nó chạm, không
+> chỉ ở kho ta nghĩ tới.** Phải **liệt kê kho TRƯỚC**, rồi đếm **từng kho** —
+> không đếm *"chỗ tôi nghĩ nó sẽ ghi"*.
+
+Danh mục tối thiểu cho `/agent/chat`: **Postgres** (bảng nghiệp vụ) ·
+**Redis** (phiên · refresh · rate-limit · concurrency) · **Chroma** (nếu chạm
+nạp kho) · **log/trace** (tệp, Jaeger) · **phía nhà cung cấp** (token đã tiêu,
+và bản ghi phía họ — §2 hồ sơ Qwen).
+
+*(Đây là **khuôn mặt thứ ba trong một ngày** của cùng một luật: đo **trọn vẹn**
+thứ mình đang nói tới, không đo **phần mình đang chú ý**. Sáng nay là kích thích
+gửi cho model; trưa là runtime sinh ra nó; giờ là kho trạng thái nó chạm.)*
+
+### Và ghi nhận đúng chỗ đáng ghi nhận
+
+Tester tự chỉ ra Luật 10 của họ canh chiều *"bộ đo làm méo phép đo"*, còn chiều
+*"bộ đo để lại dấu trong hệ đang chạy"* thì **không luật nào trong mười bốn luật
+canh**. Họ nêu khoảng trống đó **trước khi** có ai đo ra khoá Redis trên. Phép
+đo ở §8 này **không bác họ — nó xác nhận khoảng trống họ vừa tự tìm ra**, bằng
+một ca cụ thể.
+
+## §9. Đính chính "cặp lệch thứ sáu" — **không phải lệch**
+
+Tester đo `SITE_DOMAIN` **rỗng**, tôi đo **`localhost`**. [ĐO]: biến
+`SITE_DOMAIN` **không tồn tại** trong môi trường của `fin05-backend-1` (đếm =
+**0**); giá trị `localhost` tôi đọc là của **`fin05-caddy-1`** — nơi biến đó
+**thực sự được dùng** để dựng site block.
+
+⟹ **Hai phép đo đều đúng, về hai đối tượng khác nhau.** Đây là **lần thứ sáu**
+đúng một khuôn: *hai người đo "cùng một thứ" mà thực ra đo hai vật*. Cách chữa
+vẫn y hệt bốn lần trước — **nói rõ VẬT trước khi so SỐ**. Kết luận không đổi:
+**không ngăn xếp nào tự khai được nó phục vụ tên miền nào.**
