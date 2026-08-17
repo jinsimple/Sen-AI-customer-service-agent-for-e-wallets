@@ -50,6 +50,178 @@ viết ca cứ viết, **không chạy lượt tính tiền nào cho A2 tới kh
 chỉ ra **mẫu số khác nhau** (3 lượt rải trên 3 ngăn xếp; log `fin05` chỉ có ×1) — Luật F dùng
 đúng lúc, ngay trên báo cáo của đồng đội.
 
+### ⛔ KẾT CỤC — (a)/(b)/(c) ĐÓNG HẾT. Trần là câu trả lời SAI cho câu hỏi này.
+
+Bóc log lượt timeout thật (`USR-0001:1786976758`, `fin05` 14:25:58, không lượt nào chạy song song):
+
+```
++8,2 · +13,0 · +17,3 · +24,0 · +28,7 · +32,9 · +36,5s   → 7 lời gọi, TẤT CẢ 200 OK
++46,2s   agent_turn_timeout
++47,3s   lời gọi thứ 8 trả 200 OK — SAU khi ta đã bỏ
+```
+
+**8 lời gọi model, 0 tool call.** Mọi lời gọi đều NHANH (4–10s, khớp p50–p95). Lượt chết vì
+**QUÁ NHIỀU lời gọi**, không vì lời gọi nào chậm. ⟹ trần mỗi-lời-gọi `20s` **chưa từng liên quan
+tới ca này**; nâng trần lượt lên 60s chỉ cho ra lượt **10 lời gọi thay vì 8** — đắt hơn, vẫn hỏng.
+**Trần quyết định nó CHẾT LÚC NÀO, không quyết định nó CÓ XẢY RA KHÔNG.**
+
+Hai bản vá đã land GIỮ NGUYÊN (đúng trong phạm vi của chúng): `ttl_seconds` dẫn xuất từ trần lượt
+(`59bf4d7`) + cổng mạch lạc fail-fast lúc import, có ca đối chứng. **Cổng ② tự khai giới hạn:** nó
+kiểm `TIMEOUT × (RETRIES+1) ≤ TURN` nhưng **KHÔNG nhìn SỐ LẦN GỌI** — mà `8 × 5,8s = 46s` mới là
+đại lượng giết lượt này. Cổng xanh, và xanh không có nghĩa ở lớp này.
+**Việc thật chuyển sang: VÌ SAO 8 lời gọi model mà 0 tool — hành vi, thuộc F-31/32.**
+**Dấu thời gian (UTC):** `13:59:29` recreate `fin05` BẬT cờ · `14:01:14` commit A1 `ccbf09c` ·
+`14:25:58` lượt timeout ⟹ **SAU, 26 phút.** Nhưng `ccbf09c` **không đổi một dòng mã** (chỉ
+`docker-compose.yml`, lật mặc định một biến env); mã phân luồng đã trong ảnh từ `1e42146`/`8060261`
+và chạy với cờ TẮT suốt. Sổ usage: `duong='day_du'` · `so_tool_schema_gui=5` ⟹ nhánh phân luồng
+chạy, trả `day_du`, rơi về đúng đường cũ; nhánh `day_du` **giống hệt trước T1**.
+⚠️ **Nhưng đó là lập luận CẤU TRÚC, không phải phép đo** — coder tự chặn, đúng, vì hôm nay đã sai
+2 lần vì đúng loại lập luận ấy. **Một điểm không phân biệt được "sau" với "vì".**
+🔴 **PO-agent CHƯA DUYỆT phép thử tốn tiền** (chạy lại câu đó với cờ TẮT ≈ 50–70K). Có phép thử
+**0 token phân định TRƯỚC**, từ chính tiên đoán của lập luận cấu trúc: nếu nhánh `day_du` giống hệt
+trước T1 thì vòng lặp 8-gọi-0-tool **phải TỪNG xảy ra trước khi T1 tồn tại**. ⟹ **quét log `httpx`
+cả 3 ngăn xếp: có lượt nào TRƯỚC `1e42146` với ≥5 POST `/chat/completions` liên tiếp không xen
+ToolResult không?** CÓ ⟹ loại phân luồng **bằng QUAN SÁT**, đóng nhánh, 0 đồng. KHÔNG ⟹ lúc đó mới
+đáng xin PO thật ngân sách, với câu hỏi đã sắc.
+⚠️ Phép quét này **cũng có bộ lọc phải khai TRƯỚC**: chỉ thấy được khoảng log còn giữ. Log đã xoay
+vòng ⟹ kết quả "KHÔNG" **không có sức phân biệt** (Luật 17). Kiểm tầm với của log TRƯỚC khi đọc.
+Nếu vẫn phải chạy: `AGENT_TURN_TIMEOUT=15s` (coder) **+ hạ `_AGENT_RECURSION_LIMIT` xuống 4**
+(PO-agent) — trần bước TẤT ĐỊNH thắng trần thời gian XÁC SUẤT; chi phí xấu nhất **biết trước chính
+xác** ~28K thay vì "khoảng 15–20K tuỳ mạng". Ngân sách đó **xin PO thật riêng**, không rút từ ~32K
+còn lại (A3: chưa nạp gì cho tới khi tối ưu xong).
+
+### 💸 NGÂN SÁCH: sổ đang ghi 1/6 TỚI 1/9 SỐ THẬT — và có thể là lời giải cho câu "2,3M"
+
+Tester đo (`fin05` 14:26): **`14:26:44.157` ta bỏ → `14:26:45.335` DashScope trả HTTP 200 TRỌN
+VẸN, 1,2s SAU.** ⟹ đếm-thiếu **THÔI LÀ GIẢ THUYẾT**. Câu đúng để trình: **"chắc chắn đã tiêu thêm,
+chưa biết bao nhiêu."**
+
+Cơ chế (coder đọc mã, `graph.py:977`): usage cộng bằng cách lặp `turn_messages` SAU khi lượt xong;
+nhánh fallback `return` TRƯỚC vòng đó và `turn_messages` KHÔNG TỒN TẠI (`.result()` đã ném). Cùng
+bệnh `tool_calls` — nhưng `0` **không lộ ra vì nó trông giống một phép đo hợp lệ**. ⟹ vá `0 → None`
+ưu tiên TRÊN vá callback (callback thu về 0 ở chính ca đang chảy — khai trước để sau không đọc
+nhầm thành "bản vá hỏng").
+
+```
+1 lượt HỎNG        ≈ 49.700 – 71.600   (8 gọi × 6.216–8.956 đo được trong R)
+1 lượt bình thường    15.136            (main.py:376)
+⟹ lượt hỏng đắt gấp 3,3 – 4,7 lần lượt CHẠY XONG, và là lượt DUY NHẤT ghi 0
+đã ghi sổ 28.000 · 3 lượt hỏng 149.000–215.000 ⟹ THỰC TẾ ~177.000–243.000
+```
+
+**Trực giác "timeout thì đỡ tốn" lật ngược hoàn toàn.** 🔴 Giả thuyết: đây là lời giải cho câu PO
+hỏi sáng nay *"sao hết 2,3M?"* — **có cơ chế + có một ca đo, CHƯA xác nhận.** Phân định rẻ và tất
+định: đối chiếu **tổng sổ nội bộ một ngày** vs **tổng trên bảng điều khiển nhà cung cấp** cùng ngày
+→ thuộc PO thật. Còn hở: lời gọi thứ 8 (về sau khi client bỏ) có bị tính không → phiếu Alibaba.
+
+### 🧠 BÀI HỌC LỚN NHẤT NGÀY: 5 lỗi, MỘT lớp — suy từ tập ĐÃ BỊ LỌC mà không khai bộ lọc
+
+| ai | lỗi | bộ lọc giấu |
+|---|---|---|
+| coder | "không ToolResult ⟹ chết ở lời gọi đầu" | **vắng mặt** (không tool ≠ không lời gọi — thật ra 8 gọi, 0 tool) |
+| coder | "0/70 lời gọi chạm trần 20s" | `giay` **chỉ tồn tại cho lời gọi ĐÃ TRẢ VỀ** ⟹ hằng đúng, thiên lệch sống sót |
+| coder | "trần đệ quy 20 đặt xa gấp 4 hành vi thật (max 5)" | max 5 là của **lượt THÀNH CÔNG**; lượt HỎNG có **8** |
+| PO-agent | `P(cả 3 ≥ p95)=1/8.000` | tính từ **trung bình** `8,07`; số thật `[10,2·5,4·6,9]` — **một** giá trị trên p95, cấu hình "cả 3" **chưa từng quan sát** |
+| PO-agent | "phương sai co lại ⟹ có cái ghìm ~30s" | **chọn mẫu theo chính biến sắp đo** — 3 điểm chọn VÌ gần nhau. Trên n=5 cùng lớp: CV 28% ≈ CV thành phần. **Rút trọn.** |
+
+> **LUẬT MỚI (đề nghị số hiệu):** khi nhiều ước lượng ĐỘC LẬP của cùng một đại lượng đều lệch
+> **CÙNG MỘT HƯỚNG**, đó không phải nhiễu — đó là **thiên lệch chung**, và phải đi tìm bộ lọc
+> chung. Bằng chứng hôm nay: `45K` (PO-agent) → `0–21K` (coder "đính chính") → **thực tế
+> 149–215K**. Đính chính đi XA HƠN khỏi sự thật. Bộ lọc chung: **vắng mặt luôn trông giống "ít",
+> không bao giờ trông giống "nhiều".**
+
+**Luật 17 dùng ngược lên PO-agent (tester):** `total_tokens=0` với lượt CHỈ-1-lời-gọi ⟹ cả hai giả
+thuyết (mất-trọn-lượt / mất-lời-gọi-đang-bay) **dự đoán CÙNG giá trị** ⟹ sức phân biệt **BẰNG
+KHÔNG**, không phải "yếu nghiêng một bên". Chặn con số là đúng, nhưng vì **không có dữ kiện nào**.
+
+### 📋 BỐN THỨ CHO PO THẬT (gom, đừng hỏi lẻ)
+
+1. **Phiếu Alibaba — 4 câu một vòng, thứ tự đã xếp lại:** ① 🔴 **trần TPM/RPM ở Singapore có nâng
+   được theo yêu cầu không, điều kiện gì** (tester đề, ưu tiên CAO NHẤT — nâng được thì cả nhánh
+   đổi vùng LẪN hồ sơ pháp lý cùng rụng bằng một câu hỏi, và nó là đường thoát cho con số 106%)
+   ② request client ngắt giữa chừng có tính tiền/TPM không ③ cached-token có vào TPM không
+   ④ batch ở **Singapore**: giá 50% và bucket riêng hay không
+2. **Đối chiếu bảng điều khiển** tổng token 1 ngày vs sổ nội bộ — phân định giả thuyết "2,3M"
+3. **Cư trú dữ liệu** — xem mục dưới
+4. (giữ nguyên) xoay khoá Qwen · secret GitHub Actions · số hotline thật
+
+### ✅ ĐÓNG — Batch API ở vùng ta: KHÔNG KHẢ DỤNG (tester `930e9ff`, hạng: TÀI LIỆU NÓI)
+
+Singapore (`dashscope-intl`, vùng ta chạy) hỗ trợ batch cho **đúng 4 model**: `qwen-max` ·
+`qwen-plus` · `qwen-flash` · `qwen-turbo`. **`qwen3.7-max` và `qwen3.8-max` KHÔNG có.** Danh sách
+Bắc Kinh dài gấp ba và **không áp dụng cho ta**.
+> **Lỗi mẫu, ghi sổ:** câu chuyên gia hỏi (*"qwen3.8-max có trong danh sách batch chưa"*) **thiếu
+> một chiều**. Câu đúng: *"model nào hỗ trợ batch **Ở VÙNG NÀY**"*. **Một danh sách năng lực không
+> có nghĩa cho tới khi khai vùng/tài khoản/gói mà nó áp dụng.** Cùng họ Luật 12b (khai trục).
+
+### ✅ ĐÓNG — bucket TPM: ĐỘC LẬP theo MODEL, GỘP theo TÀI KHOẢN GỐC (tester, hạng: TÀI LIỆU NÓI)
+
+*"Each model has its own rate limit"* ⟹ route-theo-bước **CỘNG được** thông lượng ✅
+*"Rate limits applied at the **root account level** — mọi RAM user, workspace, API key gộp chung"*
+⟹ 🔴 **bác trước** ý "tạo thêm API key để có thêm hạn mức" — cùng tài khoản = cùng bucket; tách
+khoá chỉ tách **trách nhiệm**, không tách **hạn mức**. Và **thu hẹp** ý tài-khoản-riêng của hồ sơ
+chuyên gia vòng 2: tách *workspace* vô ích, chỉ tách **tài khoản gốc** mới đổi bucket — tức đúng
+thứ nằm sau cổng điều-khoản đã dựng, không phải đường vòng rẻ hơn.
+
+### 🔴🔴 SỐ QUAN TRỌNG NHẤT NGÀY: ta ĐÃ VƯỢT TRẦN TPM ở đúng cấu hình buổi 150 người
+
+Tester **tự bác con số "50×" của chính mình** bằng chính Luật 12b họ viết 4 giờ trước (xếp hạng
+trên một trục — và trục RPM **còn không phải trục ràng buộc**). Số học từ số đã đo, **không cần
+lưu lượng người thật**:
+
+```
+trần TPM  1.000.000 / 14.198 token/lượt =  70,4 lượt/phút   ← TRẦN THẬT
+trần RPM        600 /   2,39 gọi/lượt   = 251,0 lượt/phút   ← không bao giờ chạm trước
+
+150 người × 0,5 lượt/ph =  75 lượt/ph → TPM 🔴 106%  · RPM 30%
+100 người × 1,0 lượt/ph = 100 lượt/ph → TPM 🔴 142%  · RPM 40%
+```
+
+**Không phải "sát trần" — VƯỢT, ở mức gõ chậm hơn người dùng thật.** ⟹ chỉ có ba đường, không có
+đường thứ tư: **giảm token/lượt · giảm lượt/phút · nâng trần** — trước buổi đó.
+
+**Đổi hạng cho T1 phân luồng:** nếu 30% lưu lượng là lượt đơn, T1 cho ~×1,4 — ở mức 106% thì
+×1,4 chính là **hiệu số giữa vỡ và không vỡ**. T1 thôi là "tối ưu chi phí", nó thành **điều kiện
+đủ tải**, miễn phí, đã ship. ⟹ **việc kế, 0 token: tỉ lệ lượt-đơn trong lưu lượng thật là bao
+nhiêu?** ≥30% ⟹ qua được 150 người mà không đụng vùng lẫn hạn mức.
+
+⚠️ **Hở phải khai kèm:** `14.198 token/lượt` là trung bình lượt **THÀNH CÔNG**; lượt hỏng tốn
+50–70K. Có lượt hỏng trong lưu lượng thật ⟹ `70,4 lượt/phút` là **quá lạc quan** — đúng thiên
+lệch sống sót đã đốt 2 giờ hôm nay. Không sửa số, chỉ khai kèm.
+
+**Đổi vùng mua ×5, KHÔNG phải ×50:** Singapore 600 RPM/1M TPM = 70 lượt/ph · US-Virginia
+30.000 RPM/**5M TPM** = 352 lượt/ph.
+> ⛔ **CỔNG GIỮ NGUYÊN:** US-Virginia = đưa hội thoại khách VN ra hạ tầng Mỹ. Hôm nay dữ liệu tổng
+> hợp nên vô hại; **khách thật là NĐ 13/2023 + cư trú dữ liệu**. Cùng ngăn với ý nhiều-tài-khoản:
+> *đo được, QUYẾT ĐỊNH thuộc người có thẩm quyền pháp lý.* Nhưng hạng đã đổi: không phải *"đòn bẩy
+> 50× bị pháp lý chặn"* mà *"đòn bẩy 5× đòi đưa dữ liệu khách Việt ra Mỹ"* — hai mức giá rất khác
+> nhau để cân, và ×5 có thể **thua** T1 (×1,4 miễn phí, không hồ sơ pháp lý).
+> **Phép đo RPM tôi định xếp hàng đợi: KHÔNG CẦN CHẠY** — phép chia đã trả lời.
+
+### 📊 Số nền đo được hôm nay (giữ để đối chiếu, ĐÃ KHAI bộ lọc)
+
+```
+lời gọi (n=70, ĐIỀU KIỆN HOÁ TRÊN THÀNH CÔNG — lời gọi bị giết KHÔNG có `giay`)
+  p50 3,3 · p90 6,9 · p95 8,0 · p99 11,6 · max 11,6 · tb 4,0
+lời gọi/lượt (n=33 lượt THÀNH CÔNG)  tb 2,12 · max 5    ⟵ lượt HỎNG có 8
+thời gian NGOÀI lời gọi model: trung vị 24% · min 10% · max 61%
+lượt ≥3 lời gọi (n=5): 13,1 · 19,6 · 29,3 · 29,4 · 30,7  → CV 28%, KHÔNG có chỗ tụ
+biên hiện tại: lượt nặng nhất 30,7 / trần 45 = 68%  ⟵ báo động biên, thuộc bộ ca tester
+`agent_recursion_limit_reached`: 0 lần trên cả 3 ngăn xếp — nhưng lượt hỏng đã đi tới 8/20
+```
+
+### 🧭 A2 — phạm vi chốt, cách đếm chốt (tester `d510187`, trục 3 đã vào bộ ca)
+
+Tester ĐO thay vì nhận mệnh đề của PO-agent: `other/*` `trans_id` rỗng ×101 · `human_handoff_
+requested=true` ×107 / **761** ⟹ **~14% thuộc lớp không phân biệt được**. Hai tập gần trùng nhưng
+không trùng, và `human_handoff_requested=true` **đúng về ngữ nghĩa** cho cả khách CHỦ ĐỘNG xin gặp
+người ⟹ **không cột nào tách được** — Luật G nguyên bản: *cơ chế đang làm đúng việc của nó không
+có nghĩa nó đang làm việc ta giả định.*
+⟹ **Cách đếm cho bộ A2: qua SỔ USAGE (`ly_do_fallback ≠ null`, coder land `559d6df`), KHÔNG qua
+`Δcomplaints` thuần.** Nửa còn thiếu ở bản ghi nghiệp vụ = ADR-029 mục 2 + F-33c, chờ PO.
+Ép đường hỏng bằng `AGENT_TURN_TIMEOUT=1`: **được, 0 token**, nhưng cần recreate ⟹ **đổi vật** ⟹
+phải nằm trong đợt đổi bộ số của coder, **không làm riêng** (tester tự chặn trước khi PO-agent nói).
+
 ## 🔴 ĐANG ĐIỀU TRA (16/08) — DEMO-BUG "gặp người thật ra lỗi": đua-refresh → AUTH5-03 thu hồi family
 PO gặp lỗi giữa demo mentor 15/08 (đúng quy trình 2 cửa sổ — giả thuyết đè-phiên BỊ BÁC bởi dữ
 kiện PO). **Dữ kiện bổ sung của PO siết thêm:** trước demo họ chạy TRỌN kịch bản KỂ CẢ handoff —
