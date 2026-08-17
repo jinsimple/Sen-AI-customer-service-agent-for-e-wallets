@@ -65,6 +65,10 @@ services:
       # khởi động (src/observability/tracing.py — BatchSpanProcessor tự
       # retry/nuốt lỗi ở background thread, KHÔNG chặn healthcheck).
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
+      # T1 · phân luồng. Cờ đọc LÚC IMPORT ⟹ đổi nó bắt buộc phải RECREATE
+      # container, `docker exec -e` chỉ đổi tiến trình con và KHÔNG chạm
+      # uvicorn đang phục vụ (tester bắt được đúng bẫy này 17/08).
+      PHAN_LUONG_BAT: ${PHAN_LUONG_BAT:-}
       # Ghi đè SSL_CERT_FILE của .env — CÙNG LÝ DO với REDIS_URL ở trên, nhưng
       # hậu quả nặng hơn nhiều nên ghi kỹ.
       #
