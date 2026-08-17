@@ -80,6 +80,7 @@ from src.config import (
     BUILD_COMMIT,
     DB_KIND,
     DB_NAME,
+    DIALABLE,
     OTP_MAX_FAILED_ATTEMPTS,
     REDIS_URL,
     RESOLUTION_APPROVAL_OTP_FRESH_MINUTES,
@@ -1533,17 +1534,24 @@ def _khai_khoang_trong_kenh_ho_tro():
     ⟹ Khoảng trống TỰ KHAI, dịch vụ vẫn sống. Tên sự kiện riêng để grep được
     hôm nay và để gắn cảnh báo vào TÊN sau này, không phải sửa code.
     """
-    if not os.environ.get("HOTLINE_CSKH", "").strip():
-        _logger.error(
-            "thieu_hotline_cskh",
-            extra={
-                "hau_qua": (
-                    "khach gap loi nha cung cap nhom can-can-thiep se nhan cau mem "
-                    "KHONG kem so tong dai — loi di sang nguoi that chi la cum chung chung"
-                ),
-                "cach_va": "dat bien moi truong HOTLINE_CSKH roi recreate container",
-            },
-        )
+    if DIALABLE:
+        return
+    tho = os.environ.get("HOTLINE_CSKH", "").strip()
+    # HAI ca khác nhau, và gộp chúng sẽ làm mất đúng thông tin người vận hành
+    # cần: "chưa ai điền" vs "đã điền một chỗ giữ chỗ". Ca thứ hai NGUY HƠN vì
+    # ô đã có chữ, nhìn qua tưởng xong — cảnh báo phải SỐNG TIẾP, không được
+    # tắt chỉ vì ô đã điền.
+    _logger.error(
+        "hotline_cskh_khong_bam_duoc" if tho else "thieu_hotline_cskh",
+        extra={
+            "gia_tri_tho": tho or None,
+            "hau_qua": (
+                "khach gap loi nha cung cap nhom can-can-thiep nhan cau mem KHONG kem "
+                "so tong dai — loi di sang nguoi that chi la cum chung chung"
+            ),
+            "cach_va": "dat HOTLINE_CSKH = so THAT bam duoc roi recreate container",
+        },
+    )
 
 
 @app.on_event("startup")

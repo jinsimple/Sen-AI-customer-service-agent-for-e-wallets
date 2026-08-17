@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -240,8 +241,26 @@ LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or None
 # vào câu trả lời cho khách là vi phạm ràng buộc cứng 3 theo đúng nghĩa đen —
 # khách sẽ GỌI vào đó. PO đặt `HOTLINE_CSKH` thì câu trả lời có số thật.
 _hotline = os.environ.get("HOTLINE_CSKH", "").strip()
+
+# Số có BẤM ĐƯỢC không — phép thử KHẲNG ĐỊNH, không phải danh sách chặn.
+#
+# 17/08 PO đặt `HOTLINE_CSKH=1900-XXXX (SỐ TẠM — CHƯA CẤU HÌNH)`: cố ý không
+# bấm được, để ô đã điền mà vẫn tự khai là chưa cấu hình. Đúng cho vận hành —
+# nhưng mã cũ nội suy THẲNG giá trị đó vào câu nói với khách, tức khách sẽ đọc
+# "bạn liên hệ tổng đài chăm sóc khách hàng 1900-XXXX (SỐ TẠM — CHƯA CẤU HÌNH)".
+#
+# Nên chỗ này phải hỏi "giá trị này BẤM ĐƯỢC không", không phải "biến có được
+# đặt không". Một danh sách chặn ("XXXX", "TODO", "chưa cấu hình"...) sẽ hụt ở
+# placeholder thứ tư ai đó nghĩ ra; phép thử khẳng định thì không.
+_CHU_SO_TOI_THIEU = 8
+DIALABLE = bool(re.fullmatch(r"[0-9 ()+.\-]+", _hotline)) and \
+    sum(c.isdigit() for c in _hotline) >= _CHU_SO_TOI_THIEU
+
+# Khách CHỈ thấy số khi số bấm được. Không bấm được -> lùi về cụm chung chung,
+# vì một số không gọi được còn tệ hơn không có số: nó biến "không có đường"
+# thành "một đường dẫn tới hư không", và khách tưởng mình đã có lối đi.
 KENH_HO_TRO_KHAC = (
-    f"tổng đài chăm sóc khách hàng {_hotline}" if _hotline
+    f"tổng đài chăm sóc khách hàng {_hotline}" if DIALABLE
     else "tổng đài chăm sóc khách hàng"
 )
 # `or OPENAI_MODEL` CÙNG HÌNH DẠNG với lỗ khoá ở trên, nhưng KHÔNG cần guard —
