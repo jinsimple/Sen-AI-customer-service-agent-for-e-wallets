@@ -27,6 +27,7 @@
 | **14** | hai người đo độc lập rồi so SỐ — cấm hoà ở tầng KẾT LUẬN | quy trình đo |
 | **15** | DẤU VẾT bộ đo để lại trong hệ đang chạy, không phải độ chính xác của nó | hậu quả của phép đo |
 | **16** | N mệnh đề cần N ĐỘT BIẾN, mỗi cái làm đúng một tập con đỏ | quan hệ GIỮA các test |
+| **17** | che theo VẬT không theo MẪU — danh sách CHO PHÉP, không phải danh sách CẤM | thứ bộ đo IN RA |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -1525,6 +1526,68 @@ khoảng hở giữa hai thứ đó.
 **Và test 2 phải đo trên ĐÚNG cửa mà thứ được canh sẽ dùng** — ở đây là
 `get_default_client()`, chính hàm `flushdb()` gọi vào. Đo qua một đường khác,
 dù tương đương về lý thuyết, là quay lại Luật 13: đo một vật gần giống vật thật.
+
+---
+
+## Luật 17 — CHE THEO VẬT, không che theo MẪU mình tưởng
+
+> Nguồn: 17/08, và cái giá là một khoá API thật. Lỗi của tôi.
+
+Tôi in biến môi trường của container để xem model nào đang chạy, có che:
+
+```bash
+env | grep -iE "^LLM_|^OPENAI_BASE|MODEL" | sed "s/=.*key.*/=***/I"
+```
+
+Regex đó khớp trên **giá trị**. Giá trị của `LLM_API_KEY` không chứa chuỗi
+`key`, nên nó **không khớp** — và khoá in ra nguyên văn.
+
+Điều làm nó đáng ghi: **ngay dòng bên cạnh tôi làm đúng.** Cùng lệnh, tôi cắt
+`OPENAI_API_KEY` bằng `cut -c1-12` và chỉ lộ 12 ký tự vô hại. Tôi **biết** cách
+đúng, và vẫn hỏng ở dòng kế — vì hai dòng đó dùng hai **cách nghĩ** khác nhau.
+
+> **Một regex đoán hình dạng bí mật LÀ một danh sách cấm.** Và danh sách cấm
+> hỏng ở đúng thứ nó chưa từng thấy — tức đúng thứ ta cần nó bắt.
+
+**Hai cách đúng, điểm chung là KHÔNG đoán hình dạng giá trị:**
+
+1. **Che theo TÊN** — liệt kê `*_API_KEY` · `*_SECRET*` · `*_TOKEN*` ·
+   `*PASSWORD*` rồi che vế phải, bất kể giá trị trông thế nào.
+2. **Che theo VỊ TRÍ** — `cut` **mọi** giá trị xuống vài ký tự đầu, rồi mới mở
+   ra đúng thứ cần đọc.
+
+Cả hai là **danh sách CHO PHÉP**. Danh sách cho phép hỏng theo hướng **phiền**
+(che nhầm thứ vô hại, thấy ngay, sửa một dòng); danh sách cấm hỏng theo hướng
+**im lặng** (để lọt thứ nhạy cảm, không ai thấy).
+
+### Vì sao luật này nằm trong chuẩn viết TEST
+
+Bộ đo là thứ **in ra nhiều nhất** trong dự án: nó dump env để khai runtime,
+dump cấu hình để khai phạm vi, dump payload để khai kích thích. Chính kỷ luật
+*"khai đủ để vai khác bác được"* (Luật 5) là thứ **đẩy** ta in nhiều hơn — và
+mỗi lần in là một cơ hội lộ.
+
+> **Luật 5 và Luật 17 kéo ngược chiều nhau, và cả hai đều đúng.** Chỗ hoà là:
+> khai **TÊN** và **BĂM** của bí mật, không khai **giá trị**. Băm đủ để đối
+> chiếu hai lượt chạy dùng cùng khoá hay không — đúng thứ ta cần — mà không
+> mang theo khoá.
+
+### Và vế cùng họ, gặp lần thứ ba trong ngày
+
+Cùng ngày, hai chỗ khác hỏng đúng hình dạng này:
+
+    except RateLimitError:        bắt theo TÊN NGOẠI LỆ
+                                  trong khi thứ cần xử là TRẠNG THÁI
+                                  "nhà cung cấp không phục vụ lượt này"
+                                  ⟹ 403 hết hạn mức · 401 khoá sai · 5xx
+                                     đều rơi ra ngoài, thành HTTP 500
+
+    sed "s/=.*key.*/…"            bắt theo HÌNH DẠNG GIÁ TRỊ
+                                  trong khi thứ cần che là VAI TRÒ của biến
+
+Cùng một sai lầm: **bắt theo cái mình nhận ra được, thay vì theo cái mình cần
+xử lý.** Cách chữa cũng cùng một hình: liệt kê **cái được phép đi qua**, mọi
+thứ khác vào nhánh an toàn.
 
 ---
 
