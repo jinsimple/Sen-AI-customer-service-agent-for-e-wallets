@@ -1458,6 +1458,41 @@ app.add_api_websocket_route("/ws/live-chat", live_chat_websocket_endpoint)
 
 
 @app.on_event("startup")
+def _khai_khoang_trong_kenh_ho_tro():
+    """FAIL-VISIBLE cho `HOTLINE_CSKH` (ADR-025 QĐ 4) — KHÔNG fail-fast.
+
+    Khi lỗi nhà cung cấp thuộc nhóm "cần can thiệp" (401/403/400/404), agent
+    trả câu mềm và CỐ Ý không tạo vé. Lối đi sang người thật là biện pháp duy
+    nhất còn lại cho một khách có thể đang định báo gian lận — giá của việc mất
+    dấu KHÔNG đồng đều, và ta không phân biệt được vì agent hỏng TRƯỚC khi kịp
+    phân loại.
+
+    VÌ SAO KHÔNG fail-fast dù thiếu nó làm suy giảm đúng câu đó:
+      · fail-fast là luật cho BÍ MẬT — một khoá rỗng/mặc định là lỗ hổng giả vờ
+        có bảo mật. `HOTLINE_CSKH` không phải bí mật: thiếu nó làm suy giảm một
+        câu xin lỗi, không mở lỗ hổng nào.
+      · cái giá bất đối xứng nặng: chết mọi ngăn xếp đang chạy cho tới khi có
+        người điền — biến một suy giảm CỤC BỘ thành mất dịch vụ TOÀN PHẦN. Cùng
+        hình dạng với lý do `/ready` không được phép gating trên phụ thuộc
+        ngoài.
+
+    ⟹ Khoảng trống TỰ KHAI, dịch vụ vẫn sống. Tên sự kiện riêng để grep được
+    hôm nay và để gắn cảnh báo vào TÊN sau này, không phải sửa code.
+    """
+    if not os.environ.get("HOTLINE_CSKH", "").strip():
+        _logger.error(
+            "thieu_hotline_cskh",
+            extra={
+                "hau_qua": (
+                    "khach gap loi nha cung cap nhom can-can-thiep se nhan cau mem "
+                    "KHONG kem so tong dai — loi di sang nguoi that chi la cum chung chung"
+                ),
+                "cach_va": "dat bien moi truong HOTLINE_CSKH roi recreate container",
+            },
+        )
+
+
+@app.on_event("startup")
 async def _khoi_dong_fanout_live_chat():
     """Chạy nền vòng lặp nhận fan-out live-chat từ worker khác (ADR-015).
 
