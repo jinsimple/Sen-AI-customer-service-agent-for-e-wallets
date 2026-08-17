@@ -734,6 +734,28 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   service chết giữa chừng; phải biết TRƯỚC khi bấm.
 - **Ghi nhận công bằng:** lỗi của coder, nhưng tìm ra bằng cách duy nhất tìm được là **chạy thật**
   — nếu không, PO-agent đã điền đúng cấu hình rò đó vào `.env` rồi đẩy lên production.
+- **⚖️ LUẬT (coder tự nêu khi nhận đính chính, PO-agent nâng thành luật):** *"Nói giảm một sự cố
+  TỆ HƠN việc gây ra sự cố, vì nó làm người đọc định giá sai."* ⟹ **thì của động từ trong báo cáo
+  sự cố là một DỮ KIỆN KỸ THUẬT, không phải văn phong** — "sẽ kích hoạt" vs "đã chạy" là hai sự
+  việc khác nhau.
+- **KIỂM KÊ 6 VỊ TRÍ `OPENAI_API_KEY` (coder, chỉ vị trí, 0 giá trị được in):** ① `.env` Mac (PO
+  giữ quyền ghi) ② biến môi trường trong `fin05-backend-1` — *`frontend` KHÔNG có, đúng thiết kế
+  BFF* ③ `docker inspect … Config.Env` ④ GitHub Actions secret ⑤ **`.env` máy Windows production —
+  coder KHÔNG truy cập được, không đoán** ⑥ **log của Alibaba — ngoài tầm kiểm soát, không ai xoay
+  được**. Kèm 3 phát hiện phụ đã kiểm: khoá **không** lọt log của ta (`grep -c "sk-proj"` = 0, SDK
+  không in khoá trong lỗi 401) · **0 khoá thật** trong scratchpad (6 chuỗi `sk-…` đều là placeholder
+  — đối chiếu GIÁ TRỊ thật chứ không đoán theo hình dạng).
+- **🪤 BẪY XOAY KHOÁ (coder, cùng HỌ với `PersistentClient` hôm qua):** `Config.Env` của container
+  ghi **lúc container được TẠO**, không phải lúc chạy ⟹ sửa `.env` rồi `docker compose restart` thì
+  **container vẫn giữ khoá CŨ**, service chết bằng 401 và người xoay tưởng mình sót chỗ khác.
+  **Luật: `restart` KHÔNG ĐỦ khi thứ cần đổi được ghim lúc TẠO.** Thứ tự bắt buộc: sửa `.env` →
+  `docker compose up -d --force-recreate backend` → `docker inspect` xác minh.
+- **🟡 `/health` XANH GIẢ — lần thứ HAI trong dự án:** `/health` không chạm OpenAI ⟹ khoá sai vẫn
+  xanh, production chết **im lặng**. **Nghiệm thu xoay khoá = bắn một lượt CHAT THẬT**, không tin
+  `/health`. *Nếu xuất hiện lần thứ ba thì phải sửa chính `/health`, không sửa checklist nữa.*
+- **TRẠNG THÁI: chưa xoay gì cả.** Chờ ① security phán quyết `401`-có-tính-lộ ② **PO thật quyết**
+  (họ giữ máy Windows #5 + dashboard GitHub #4). Coder được dặn **không đụng** `.env`/container —
+  **xoay nửa vời tệ hơn chưa xoay**.
 
 ## ⭐ ĐỔI API SANG QWEN — PO thật quyết 16/08, ƯU TIÊN CAO sau gate (chi tiết: brief `2026-08-17-dot-nang-cap-oss.md` §N7)
 - **🔒🔒 PO THẬT CHỐT 17/08: `qwen3.7-plus`.** Cấu hình: `LLM_BASE_URL=https://dashscope-intl.
