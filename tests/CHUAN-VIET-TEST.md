@@ -22,7 +22,7 @@
 | **9** | xác minh nhãn phải soi CẢ HAI phía | nhãn |
 | **10** · 10b · 10c · **10d** | bộ đo tự tạo ra hiện tượng nó đo · nuốt mã trạng thái · cổng phải-nhớ-bật · vô hiệu hậu quả trước khi kiểm cổng | bộ đo & cổng |
 | **11** | từ chối rồi trả lời tiếp là bịa có VỎ BỌC | đầu ra agent |
-| **12** | không sai một chữ nào mà vẫn gây hiểu sai | tài liệu & báo cáo |
+| **12** · 12b | không sai một chữ nào mà vẫn gây hiểu sai · xếp hạng trên MỘT trục | tài liệu & báo cáo |
 | **13** · 13b | đo đúng thứ, nhưng đưa vào một KÍCH THÍCH khác · đo trên phần đang chú ý thay vì kích thích trọn vẹn | đầu vào của bộ đo |
 | **14** | hai người đo độc lập rồi so SỐ — cấm hoà ở tầng KẾT LUẬN | quy trình đo |
 | **15** | DẤU VẾT bộ đo để lại trong hệ đang chạy, không phải độ chính xác của nó | hậu quả của phép đo |
@@ -1636,6 +1636,45 @@ cách đó, băm **không đổi một ký tự**.
 > Thứ tự đúng khi sửa một quy ước băm: **tìm cách khai mà không đụng băm
 > trước**, chỉ băm lại khi không còn cách nào — vì mỗi lần băm lại là một lần
 > mọi con số cũ phải được đọc lại xem còn thuộc về đâu.
+
+### 12b — XẾP HẠNG TRÊN MỘT TRỤC là nói dối mà không sai chữ nào
+
+> Nguồn: 17/08, buổi bàn tối ưu token. Lỗi của PO-agent, họ tự khai.
+
+Phát hiện *"cached token có thể vẫn đếm vào TPM"* dẫn tới một xếp hạng:
+prompt-cache **mất giá**, semantic-cache **lên giá**. Từng vế đều đúng **trên
+trục thông lượng**. Bảng xếp hạng không sai một chữ nào.
+
+Nhưng hai vật đó khác nhau **chính ở một trục thứ hai** không được nhắc:
+
+    prompt-cache hit    → khách nhận câu trả lời CỦA CHÍNH LƯỢT ĐÓ.  rủi ro ~0
+    semantic-cache hit  → khách nhận câu trả lời CỦA MỘT KHÁCH KHÁC. 🔴 ràng buộc cứng 3
+
+> **Xếp hạng trên một trục, giữa hai vật khác nhau ở trục KHÁC, là một kết luận
+> đúng dùng để trả lời sai câu hỏi.**
+
+Điều làm ca này đáng ghi: **mọi rào cho trục thứ hai đã nằm sẵn trong thiết kế**
+— shadow mode, bộ ca ranh giới, cổng an-toàn-cache-miss. Không ai thiếu công cụ.
+Thứ thiếu là **một câu trong lời trình**.
+
+> **Đó là cách một thiết kế tốt bị triển khai tồi: người trình nói về LỢI ÍCH,
+> người nghe không nghe thấy ĐIỀU KIỆN.** (PO-agent tự khai, nguyên văn.)
+
+**Vế thi hành:** khi xếp hạng hai phương án, nêu **mọi trục chúng khác nhau**,
+kể cả trục làm phương án mình đang nghiêng về trông xấu đi. Không đủ chỗ thì
+đừng xếp hạng — nêu **điều kiện** thay vì nêu **thứ tự**.
+
+Và có một dạng câu **miễn nhiễm** với lỗi này, đáng học riêng: câu chỉ nói phần
+**không phụ thuộc ẩn số**.
+
+    ✗ "semantic cache lên hạng, prompt cache xuống hạng"
+      → phụ thuộc một câu trả lời chưa có, và giấu trục rủi ro
+
+    ✅ "T2 là nhánh DUY NHẤT nên hoãn tới khi nhà cung cấp trả lời. Mọi nhánh
+       khác quyết được ngay, và thứ tự không đổi vì câu trả lời đó."
+      → không xếp hạng gì, và làm được việc của cả bảng xếp hạng
+
+Câu thứ hai **không thể sai** theo hướng ca này, vì nó không đứng trên ẩn số.
 
 ---
 
