@@ -747,6 +747,38 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## 🌐 VÒNG BRAINSTORM 2 VỚI CHUYÊN GIA (17/08 khuya) — chốt sau ba lỗ tester bắt
+- **Chuyên gia TỰ KHAI một trong ba lỗ có chữ ký họ** (đã ký "bảng của PO-agent đúng" = cùng thiếu
+  thừa-số-trúng ② và cùng bỏ trục rủi ro ③). **Tester bắt được cả chuyên gia lẫn PO-agent.**
+- **Tinh chỉnh hạng suy luận cache-TPM:** `cached ⊂ input_tokens` trong usage nói về BÁO CÁO/TÍNH
+  TIỀN, không tự động nói về cách LIMITER đếm (Anthropic cũng báo cached trong usage nhưng limiter
+  loại ra) ⟹ cấu trúc usage *nhất quán với* "vẫn đếm", **chưa chứng minh**. Ticket vẫn là thứ khép.
+- **Ticket bổ sung 2 yêu cầu:** (a) *"point to the specific documentation clause"* — trả lời không
+  kèm trích dẫn = nguồn cấp hai, không đủ làm căn cứ kiến trúc; (b) hỏi riêng implicit vs explicit.
+- **Đường đo dự phòng nếu ticket mơ hồ:** TÀI KHOẢN THỬ mới (trần theo tài khoản gốc) + prompt tổng
+  hợp (né residency) + burst cùng-prefix vượt trần danh nghĩa → 429? Caveat khai trước: cùng region
+  + cùng loại PAYG (bẫy snapshot 60RPM/100k — trần thấp lại làm phép đo RẺ hơn nếu cơ chế đếm giống).
+- **Prompt caching hạ hạng, KHÔNG vứt:** "đòn bẩy thông lượng" → **"phụ phẩm latency (TTFT) + tiền,
+  nhận không mất gì, 0 công thiết kế thêm"** — khớp kết quả 85,0→86,3 đã revert.
+- **🔒 Kiến trúc semantic cache chốt thêm (mạnh hơn ngưỡng similarity):** đặt cache **TRƯỚC cổng OTP
+  về kiến trúc** — chỉ phục vụ lớp câu `search_policy` trả lời (chính sách công khai, không OTP,
+  không dữ liệu khách); **lượt nào đã gọi tool nhạy cảm ⟹ KHÔNG đủ điều kiện GHI vào cache**. Rủi
+  ro "trả lời của khách khác" bị loại **bằng VỊ TRÍ trong kiến trúc**, không bằng ngưỡng similarity
+  (thứ có thể bị nới theo phản xạ — họ `XA_GIAO`).
+- **Shadow mode đo HAI số:** tỉ lệ TRÚNG (quyết định lợi) và **tỉ lệ TRÚNG-SAI** (khác nghĩa nhưng
+  vượt ngưỡng — tiếng Việt CSKH đầy cặp *"chuyển nhầm CHO người khác"* vs *"BỊ người khác chuyển
+  nhầm cho"*) — **số thứ hai quyết định sống chết**. Giả thuyết để KIỂM, không giả định: câu chính
+  sách phân bố dồn ⟹ hit có thể cao.
+- **LUẬT XẾP HẠNG (chuyên gia khái quát từ điểm T1 của tester):** *cơ chế TẤT ĐỊNH luôn thắng cơ chế
+  XÁC SUẤT cùng lớp* — tất định thì trúng=100% theo định nghĩa, rủi≈0 vì kiểm được bằng test thường.
+- **T2 hoãn CÓ ĐIỀU KIỆN MỞ LẠI:** câu trả lời Alibaba, hoặc phép đo tài-khoản-thử — tránh "hoãn"
+  trượt thành "quên".
+- **NẾP MỚI (ratify): mọi phát biểu XẾP HẠNG khi trình kèm một dòng KHAI TRỤC** — *"xếp trên trục X,
+  chưa xét trục Y"*. Họ lỗi số-đúng-phạm-vi-sai không bị bắt bởi kiểm số (số vẫn đúng), chỉ bị bắt
+  bởi câu hỏi *"kết luận này đứng trên trục nào, trục nào chưa nói?"* — rẻ hơn ba lần đính chính.
+- **INV token-budget:** CI in **headroom còn lại** mỗi lần chạy, không chỉ đỏ/xanh — xu hướng phình
+  nhìn thấy trước mốc 90%.
+
 ## 🌐 PHẢN HỒI CHUYÊN GIA TOKEN (17/08 tối) — ba câu trả lời đổi kế hoạch
 - **① Cache-hit vs rate-limit: NGÀNH CHIA ĐÔI, không suy được từ thông lệ.** Anthropic: cached token
   **ĐƯỢC TRỪ** khỏi ITPM (cache-aware rate limits, công bố tường minh, vd 2M ITPM + 80% hit ⟹ 10M
