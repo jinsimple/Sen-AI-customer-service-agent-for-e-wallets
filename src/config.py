@@ -170,6 +170,40 @@ OPENAI_MAX_RETRIES = int(os.environ.get("OPENAI_MAX_RETRIES", "1"))
 # nạp lại toàn bộ, và mọi con số truy hồi đo trước đó bị cắt chuỗi. Hai việc
 # khác hạng, gộp một biến là mời người vận hành làm việc thứ hai trong khi họ
 # tưởng mình chỉ làm việc thứ nhất.
+# ---------------------------------------------------------------------------
+# CẤM HẲN hai biến của SDK. Không suy luận về chúng — chặn chúng.
+#
+# SDK openai tự đọc `OPENAI_BASE_URL` và `OPENAI_API_BASE` từ môi trường, và
+# chúng THẮNG CẢ `base_url=None` truyền tường minh. Đo thật:
+#     ChatOpenAI(api_key=...)                    -> dashscope-intl…/v1/
+#     ChatOpenAI(api_key=..., base_url=None)     -> dashscope-intl…/v1/
+#     OpenAIEmbeddings(api_key=..., base_url=None) -> dashscope-intl…/v1/
+#
+# ⟹ `_khoa_cho_nha_cung_cap` bên dưới KHÔNG đủ một mình: nó hỏi "CHÚNG TA có
+# đổi đích đến không?" (`LLM_BASE_URL` có đặt không). Câu đúng là "ĐÍCH ĐẾN có
+# đổi không?" — mà đích đến là HỢP của biến của ta VÀ biến của SDK. Đặt
+# `OPENAI_BASE_URL` rồi để trống `LLM_API_KEY` là tái lập CHÍNH XÁC sự cố
+# 17/08, im lặng, không lỗi khởi động.
+#
+# Và đó là thao tác TRỰC GIÁC NHẤT: bảo ai đó "trỏ hệ thống sang nhà cung cấp
+# mới", thứ họ tìm đầu tiên là `OPENAI_BASE_URL`. Bản vá cũ chặn con đường CÓ
+# TÀI LIỆU; con đường trực giác vẫn mở.
+#
+# Cấm thay vì hỗ trợ: dự án đã có biến riêng cho TỪNG VAI (`LLM_*` cho chat,
+# `EMBEDDING_*` cho embedding). Biến của SDK áp cho CẢ HAI cùng lúc, nên nó chỉ
+# có thể ĐI VÒNG qua sự phân tách đó, không bao giờ phục vụ nó.
+for _bien_cam in ("OPENAI_BASE_URL", "OPENAI_API_BASE"):
+    if os.environ.get(_bien_cam):
+        raise RuntimeError(
+            f"{_bien_cam} bị CẤM trong dự án này.\n"
+            f"  SDK đọc nó và nó THẮNG cả base_url truyền tường minh, nên nó đổi\n"
+            f"  đích đến của CẢ chat lẫn embedding cùng lúc mà không cơ chế nào\n"
+            f"  của ta nhìn thấy — đúng đường đã làm rò khoá OpenAI sang bên thứ\n"
+            f"  ba ngày 17/08.\n"
+            f"  Dùng LLM_BASE_URL (chat) hoặc EMBEDDING_BASE_URL (embedding)."
+        )
+
+
 def _khoa_cho_nha_cung_cap(ten_khoa: str, base_url: str | None) -> str | None:
     """Khoá chỉ được PHÉP rơi về OPENAI_API_KEY khi ĐÍCH ĐẾN vẫn là OpenAI.
 
@@ -197,6 +231,10 @@ def _khoa_cho_nha_cung_cap(ten_khoa: str, base_url: str | None) -> str | None:
 
 
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or None
+# `or OPENAI_MODEL` CÙNG HÌNH DẠNG với lỗ khoá ở trên, nhưng KHÔNG cần guard —
+# ghi ra để người đọc sau phân biệt "đã cân nhắc" với "bỏ sót": tải trọng ở đây
+# lành. Quên đặt thì ta hỏi nhà cung cấp mới một model tên "gpt-4o-mini" và
+# nhận lỗi của họ. Có tiết lộ TA DÙNG GÌ, không tiết lộ BÍ MẬT nào.
 LLM_MODEL = os.environ.get("LLM_MODEL") or OPENAI_MODEL
 LLM_API_KEY = _khoa_cho_nha_cung_cap("LLM_API_KEY", LLM_BASE_URL)
 

@@ -3,7 +3,8 @@
 
     python scripts/kho_rag.py nhan      # in nhãn kho (số chunk + băm + phiên bản)
     python scripts/kho_rag.py kiem      # exit 1 nếu kho dựng bằng chuẩn-hoá CŨ
-    python scripts/kho_rag.py nap-lai   # xoá + nạp lại từ data/raw/ (ưu tiên .docx)
+    python scripts/kho_rag.py nap-lai     # xoá + parse lại từ data/raw/ (ưu tiên .docx)
+    python scripts/kho_rag.py nap-vector  # GIỮ Postgres, chỉ nhúng lại cho model hiện tại
 
 VÌ SAO TỒN TẠI: đòn 2 bỏ dấu ở CẢ HAI vế (index + query). Kho dựng bằng code
 cũ + query chạy code mới = LỆCH MỘT VẾ, và ca đó **không có triệu chứng nào** —
@@ -137,7 +138,10 @@ def nhan() -> None:
     print(f"  kho RAG: {n} chunk (Postgres) · {d} doc · băm-nội-dung {_bam_kho()}")
     print(f"  đường dẫn Chroma: {RAG_INDEX_DIR}")
     print(f"  chuẩn hoá: kho={pb if pb is not None else '(không có dấu)'} · code={store.CHUAN_HOA_VERSION} · trạng thái={tt}")
-    print(f"  model embedding: {store.RAG_EMBEDDING_MODEL}")
+    print(f"  model embedding: {store.RAG_EMBEDDING_MODEL} · collection {store._ten_collection()}")
+    # NHÃN VẬT phải mang tên model nhúng: hai model = hai không gian vector,
+    # số đo KHÔNG so chéo được. Thiếu dòng này thì một bảng trước/sau bắc qua
+    # hai kho trông y hệt một bảng hợp lệ.
 
 
 def kiem() -> int:
@@ -232,6 +236,52 @@ def _in_canh_bao_kho_cu(t_nap: float, t_server: float) -> None:
     print("              BẮT BUỘC: docker compose restart backend")
 
 
+
+def nap_vector() -> None:
+    """Nhúng LẠI các chunk ĐÃ CÓ trong Postgres vào collection của model hiện tại.
+
+    KHÁC `nap-lai` ở chỗ quyết định: `nap-lai` XOÁ sạch `PolicyDocument` rồi
+    parse lại từ `data/raw/` -> sinh `chunk_id` MỚI.
+
+    Với thiết kế hai-kho-song-song, làm thế là PHÁ kho kia: Postgres giữ text
+    dùng chung, khoá theo `chunk_id`. Sinh id mới -> collection của model cũ
+    trỏ vào những id KHÔNG CÒN TỒN TẠI -> `search` vẫn trả đủ k, tất cả bị
+    `bo_qua_thieu_chunk` loại, kết quả rỗng. Đúng chế độ hỏng đã tốn một buổi
+    hôm qua, lần này do chính ta gây ra.
+
+    Lệnh này GIỮ NGUYÊN Postgres, chỉ tính vector mới cho đúng những chunk đó.
+    ⟹ đổi nhà cung cấp nhúng = nạp MỘT LẦN cho model mới, hai kho song song,
+    không kho nào phá kho nào, và chuỗi đo của kho cũ không bị cắt.
+
+    MỘT đường nạp cho mọi model (kỷ luật hai-kho đã chốt): không có lệnh riêng
+    cho Qwen và lệnh riêng cho OpenAI — cùng lệnh này, khác biến môi trường.
+    """
+    _chan_tu_tao_kho()
+    with SessionLocal() as s:
+        rows = [(c.chunk_id, c.doc_id, c.text)
+                for c in s.scalars(select(PolicyChunk).order_by(PolicyChunk.chunk_id)).all()]
+    if not rows:
+        print("  Postgres KHÔNG có chunk nào — chạy `nap-lai` trước, đừng dùng lệnh này.")
+        raise SystemExit(1)
+
+    col = store._get_collection()
+    if col.count() > 0:
+        print(f"  Collection {store._ten_collection()} ĐÃ có {col.count()} vector.")
+        print("  KHÔNG ghi đè — xoá tường minh trước nếu thật sự muốn nạp lại.")
+        raise SystemExit(1)
+
+    print(f"  nhúng {len(rows)} chunk bằng {store.RAG_EMBEDDING_MODEL} -> {store._ten_collection()}")
+    theo_doc: dict[str, list] = {}
+    for cid, did, text in rows:
+        theo_doc.setdefault(did, []).append((cid, text))
+    for did, ds in theo_doc.items():
+        store.add_chunks(did, [c for c, _ in ds], [t for _, t in ds])
+        print(f"     {did}: {len(ds)} chunk")
+    store._dong_dau(col)
+    print()
+    nhan()
+
+
 def nap_lai() -> None:
     # nap-lai CÓ QUYỀN tạo kho (đó là việc của nó), nhưng chỉ khi thư mục
     # đích thuộc container — kiểm bằng sự tồn tại của thư mục cha.
@@ -280,6 +330,8 @@ if __name__ == "__main__":
         raise SystemExit(kiem())
     elif lenh == "nap-lai":
         nap_lai()
+    elif lenh == "nap-vector":
+        nap_vector()
     else:
         print(__doc__)
         raise SystemExit(2)

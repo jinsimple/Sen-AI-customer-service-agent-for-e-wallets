@@ -26,7 +26,50 @@ from src.config import (
     RAG_INDEX_DIR,
 )
 
-_COLLECTION_NAME = "policy_faq"
+_COLLECTION_GOC = "policy_faq"
+
+
+def _ten_collection() -> str:
+    """Tên collection MANG THEO model nhúng — công tắc, không phải migrate.
+
+    Chiều vector khác nhau (`text-embedding-3-small` 1536 · Qwen
+    `text-embedding-v4` 1024) và Chroma GHIM chiều lúc TẠO collection, nên hai
+    model KHÔNG dùng chung một collection được. Làm ngây thơ thì mỗi lần đổi
+    nhà cung cấp là nạp lại toàn bộ kho.
+
+    Đặt tên theo model -> hai kho sống SONG SONG, mỗi kho nạp MỘT LẦN, đổi qua
+    đổi lại là đổi biến môi trường và 0 giây nạp lại.
+
+    Và nó CỨU CHUỖI ĐO: kho `3-small` còn nguyên vẹn nên mọi số truy hồi cũ
+    (nền 23/47, rerank 38/47, trần Recall@20, 47 ca golden) vẫn đo lại được
+    trên đúng vật cũ — chỉ cần lật biến về.
+    """
+    return f"{_COLLECTION_GOC}__{RAG_EMBEDDING_MODEL}"
+
+
+def _doi_ten_kho_cu_mot_lan(client) -> None:
+    """Kho dựng TRƯỚC quy ước đặt tên này nằm ở tên trần `policy_faq`.
+
+    Đổi quy ước mà không xử nó = 378 vector trở thành VÔ HÌNH, và `kiem` sẽ
+    báo TRONG rồi bảo người ta nạp lại một kho vốn hoàn toàn đúng — tốn tiền
+    nhúng lại và cắt chuỗi đo, đúng hai thứ quy ước này sinh ra để tránh.
+
+    Đổi TÊN chứ không nhúng lại: vector giữ nguyên, 0 lượt gọi API.
+
+    ⚠️ CHỈ đổi khi model hiện tại ĐÚNG LÀ model đã dựng kho cũ. Kho trần đó
+    dựng bằng `text-embedding-3-small` (hardcode thời đó); nếu ai chạy lần đầu
+    với model khác thì gán nhãn model mới cho vector cũ là tạo ra đúng loại
+    lệch-một-vế mà cả `chuan_hoa` lẫn `model_embed` tồn tại để chặn.
+    """
+    if RAG_EMBEDDING_MODEL != "text-embedding-3-small":
+        return
+    ten_moi = _ten_collection()
+    co = {c.name for c in client.list_collections()}
+    if _COLLECTION_GOC in co and ten_moi not in co:
+        cu = client.get_collection(_COLLECTION_GOC)
+        if cu.count() > 0:
+            cu.modify(name=ten_moi, metadata={"chuan_hoa": CHUAN_HOA_VERSION,
+                                              "model_embed": RAG_EMBEDDING_MODEL})
 
 _client: chromadb.ClientAPI | None = None
 _embeddings: OpenAIEmbeddings | None = None
@@ -68,7 +111,9 @@ CHUAN_HOA_VERSION = 2
 
 
 def _get_collection():
-    return _get_client().get_or_create_collection(_COLLECTION_NAME)
+    c = _get_client()
+    _doi_ten_kho_cu_mot_lan(c)
+    return c.get_or_create_collection(_ten_collection())
 
 
 def _dong_dau(col) -> None:
@@ -102,7 +147,7 @@ TRANG_THAI_KHOP = "khop"
 
 def trang_thai_kho() -> tuple[str, int | None]:
     """(trang_thai, phien_ban_tren_dia)."""
-    col = _get_client().get_or_create_collection(_COLLECTION_NAME)
+    col = _get_collection()
     if col.count() == 0:
         return TRANG_THAI_TRONG, None
     pb = (col.metadata or {}).get("chuan_hoa")
