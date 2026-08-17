@@ -1,133 +1,160 @@
-"""Bất biến cho LỚP ĐỊNH TUYẾN — viết TRƯỚC khi cài đặt tồn tại.
+"""Bất biến cho LỚP ĐỊNH TUYẾN — viết TRƯỚC cài đặt, chạy SAU khi có dấu.
 
     Một lượt đi ĐƯỜNG NHẸ không được tạo bản ghi nghiệp vụ nào:
-        Δcomplaints = 0 · Δtickets = 0 · Δresolutions = 0
+        Δcomplaints = 0 · Δtickets = 0
 
 Nếu một lượt **cần** tạo bản ghi thì tự nó đã không phải lượt đơn — việc nó đi
-được đường nhẹ **chính là** bằng chứng phân loại sai. Bất biến biến *"phân loại
-sai"* từ một phán đoán của người thành **một hiệu số của máy**.
+được đường nhẹ **chính là** bằng chứng phân loại sai.
 
-## 🔴 PHÁT BIỂU NHƯ TRÊN CHƯA ĐO ĐƯỢC — thiếu một vế
+## Lịch sử của chính file này, giữ lại vì nó là bài học
 
-PO dặn: *"nếu bạn thấy cần đọc `src/` mới viết được thì phát biểu đang sai,
-báo lại"*. Tôi không cần đọc `src/`. Tôi cần một thứ khác, và nó thiếu:
+Bản đầu (17/08) **không chạy được**, và tôi ghi rõ vì sao thay vì viết đại: khi
+đó phản hồi **không có trường nào** nói lượt đó đi đường nào ⟹ `Δ = 0` không
+phân biệt được *"đường nhẹ không ghi"* với *"đường đầy đủ không có gì để ghi"*.
+`Δ = 0` là **trạng thái thường trực** — đại đa số lượt chat không tạo vé, bất
+kể đường nào. Assertion trùng trạng thái mặc định, đúng Luật 1.
 
-> **Không có cách nào biết một lượt ĐÃ ĐI ĐƯỜNG NÀO.**
+Đề nghị của tôi lúc đó là **dấu tường minh**; nó được chọn và cài. Giờ có
+`duong` trong phản hồi, ba test dưới đây mới có nghĩa.
 
-Thiếu vế đó thì bất biến rơi thẳng vào Luật 1 — **assertion trùng trạng thái
-mặc định**. Vì `Δ = 0` là **trạng thái thường trực**: đại đa số lượt chat không
-tạo vé, bất kể chúng đi đường nào. Gửi `"alo"`, đếm ra `Δ = 0`, rồi kết luận
-*"đường nhẹ không ghi gì"* — trong khi có thể lượt đó đi **đường đầy đủ** và
-chỉ đơn giản là không có gì để ghi.
+> Vế đáng nhớ: **một bất biến không đo được thì đừng viết assertion cho nó** —
+> viết ra chỗ đứt, `skip` với lý do là thiếu NĂNG LỰC thật, rồi đòi cái còn
+> thiếu.
 
-    Δ = 0 và đi đường nhẹ        → bất biến ĐÚNG
-    Δ = 0 và đi đường đầy đủ     → bất biến CHƯA ĐƯỢC THỬ
-    hai thứ này KHÔNG phân biệt được nếu không có dấu đường
+## Vì sao `Δresolutions` không có mặt ở đây
 
-**Đề nghị sửa phát biểu** (một trong hai, tôi không chọn hộ):
-
-1. **Dấu tường minh** — phản hồi mang một trường kiểu `duong: "nhe" | "day_du"`.
-   Rẻ, chắc, và nó còn có ích cho vận hành: khi tỉ lệ đi-đường-nhẹ nhảy vọt
-   trên production, đó là tín hiệu sớm của phân loại trôi.
-2. **Dấu suy ra được từ `usage`** — đường đầy đủ đã đo được `input_tokens ≈
-   12.667`/lượt (17/08, `fin05do`). Đường nhẹ, theo mô tả, không mang prompt
-   15.094 ký tự lẫn lược đồ tool ⟹ phải thấp hơn **một bậc độ lớn**. Dùng được,
-   nhưng nó là **suy luận từ một đại lượng có mục đích khác** — nó sẽ nói dối
-   ngay ngày ai đó đổi prompt hoặc bật nén ngữ cảnh.
-
-Tôi ưu tiên (1). Nhưng đây là **đề xuất**, và cả hai đều nằm ngoài vùng ghi của
-tôi — quyết định thuộc PO và coder.
-
-## Vế thứ hai: `Δresolutions` không mang thông tin
-
-`resolutions` sinh ra khi `supervisor` duyệt (ràng buộc cứng 1), **không** sinh
-ra từ một lượt chat. Nên `Δresolutions = 0` đúng cho **mọi** lượt, đường nào
-cũng vậy — nó là một vế **luôn xanh**. Giữ lại cũng không hại, nhưng đừng tính
-nó là một trong ba bằng chứng: bất biến này thực chất có **hai** vế.
-
-## Ca đối chứng — vế PO đã yêu cầu, và tôi giữ nguyên vì nó đúng
-
-Thiếu nó, một cài đặt *"đường nhẹ chặn mọi ghi"* vẫn xanh **kể cả khi nó chặn
-nhầm cả đường đầy đủ** — tức chặn nhầm đúng những khiếu nại thật.
+`resolutions` sinh khi `supervisor` duyệt (ràng buộc cứng 1), **không** sinh từ
+một lượt chat ⟹ nó bằng 0 ở **mọi** đường, luôn luôn. Một vế **luôn đúng vì lý
+do cấu trúc** làm bất biến **trông chắc hơn thực tế**. Bất biến này có HAI vế.
 """
 from __future__ import annotations
 
-import os
+import json
 import subprocess
 
 import pytest
 
 from tests._dong_bang import LY_DO, dang_dong_bang
 
-BASE = os.environ.get("FIN05_TEST_BASE_URL", "")
-BANG_NGHIEP_VU = ("complaints", "tickets", "resolutions")
+BANG = ("complaints", "tickets")
+CT = "fin05do-backend-1"
+PG = "fin05do-postgres-1"
+API = "http://localhost:8010"
+CAU_DON = "alo"
+CAU_NGHIEP_VU = "cho em gặp người thật"  # → request_human_handoff → TẠO VÉ
 
 
-def _stack_do_song() -> bool:
-    r = subprocess.run(["docker", "ps", "-q", "-f", "name=fin05do-backend-1"],
+def _stack_song() -> bool:
+    r = subprocess.run(["docker", "ps", "-q", "-f", f"name={CT}"],
                        capture_output=True, text=True)
     return bool(r.stdout.strip())
 
 
 pytestmark = [
     pytest.mark.slow,
-    pytest.mark.skipif(not _stack_do_song(),
-                       reason="cần ngăn xếp ĐO DÙNG RIÊNG fin05do — phép đo này GHI, "
-                              "không được chạy trên ngăn xếp dùng chung (Luật 15)"),
+    pytest.mark.skipif(not _stack_song(),
+                       reason=f"cần ngăn xếp ĐO DÙNG RIÊNG {CT} — phép đo này GHI, "
+                              "không chạy trên ngăn xếp dùng chung (Luật 15)"),
     pytest.mark.skipif(dang_dong_bang(), reason=LY_DO),
 ]
 
 
 def _dem() -> dict[str, int]:
-    """Đếm TỪNG bảng nghiệp vụ. Đếm cả ba, không đếm bảng mình đoán sẽ đổi."""
-    sql = " UNION ALL ".join(f"SELECT '{b}',count(*) FROM {b}" for b in BANG_NGHIEP_VU)
-    r = subprocess.run(
-        ["docker", "exec", "fin05do-postgres-1", "psql", "-U", "fin05", "-d", "fin05", "-tAc", sql],
-        capture_output=True, text=True, timeout=60)
+    sql = " UNION ALL ".join(f"SELECT '{b}',count(*) FROM {b}" for b in BANG)
+    r = subprocess.run(["docker", "exec", PG, "psql", "-U", "fin05", "-d", "fin05", "-tAc", sql],
+                       capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"không đếm được: {(r.stderr or r.stdout)[:200]}"
     return {l.split("|")[0]: int(l.split("|")[1]) for l in r.stdout.splitlines() if "|" in l}
 
 
-@pytest.fixture
-def duong_cua_luot():
-    """Trả một hàm `(phản_hồi) -> "nhe" | "day_du"`. CHƯA CÀI ĐẶT ĐƯỢC.
+def _chat(cau: str) -> dict:
+    ma = (
+        "import httpx,json;"
+        "c=httpx.Client(timeout=300);"
+        f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
+        "h={'Authorization':'Bearer '+r.json()['access_token']};"
+        f"r=c.post('{API}/agent/chat',json={{'message':{cau!r}}},headers=h);"
+        "print(json.dumps({'http':r.status_code,'than':r.json()},ensure_ascii=False))"
+    )
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+                       capture_output=True, text=True, timeout=600)
+    assert r.returncode == 0, f"gọi chat hỏng: {(r.stderr or r.stdout)[-400:]}"
+    return json.loads(r.stdout.strip().splitlines()[-1])
 
-    Đây là chỗ bất biến đứt, và nó `skip` với lý do là **thiếu NĂNG LỰC thật**,
-    không phải skip cho qua chuyện (Luật 6): phản hồi hiện không mang trường nào
-    nói lượt đó đi đường nào, nên **không quy được** một `Δ` cho một đường.
+
+@pytest.fixture(scope="module")
+def hai_luot():
+    """Bắn ĐÚNG HAI lượt cho cả ba test — lượt nhẹ 0 token, lượt đầy đủ 1 lượt LLM.
+
+    `scope="module"` cố ý: ba test dùng chung hai lượt này. Bắn lại mỗi test là
+    tiêu hạn mức cho cùng một quan sát, và tệ hơn — mỗi lần bắn là một lần GHI
+    vào hệ (Luật 15), nên số lần bắn phải là số ít nhất đủ dùng.
     """
-    pytest.skip(
-        "THIẾU DẤU ĐƯỜNG. Phản hồi /agent/chat chưa có trường phân biệt lượt đi "
-        "đường nhẹ hay đường đầy đủ. Không có nó, Δ=0 KHÔNG phân biệt được "
-        "'đường nhẹ không ghi' với 'đường đầy đủ không có gì để ghi' — assertion "
-        "trùng trạng thái mặc định (Luật 1). Xem docstring: hai cách chữa đã đề "
-        "xuất, quyết định thuộc PO/coder."
+    ra = {}
+    for ten, cau in (("nhe", CAU_DON), ("day_du", CAU_NGHIEP_VU)):
+        t = _dem()
+        j = _chat(cau)
+        s = _dem()
+        ra[ten] = {"tra": j, "truoc": t, "sau": s,
+                   "delta": {k: s[k] - t[k] for k in t}}
+    return ra
+
+
+def test_luot_don_di_duong_NHE(hai_luot):
+    """Điều kiện tiên quyết: `"alo"` phải THỰC SỰ đi đường nhẹ.
+
+    Tách khỏi test Δ bên dưới vì nếu ca này hỏng thì Δ=0 ở dưới **không chứng
+    minh gì** — nó chỉ nói "một lượt đường đầy đủ tình cờ không tạo vé".
+    """
+    o = hai_luot["nhe"]
+    assert o["tra"]["http"] == 200, f"HTTP {o['tra']['http']}"
+    assert o["tra"]["than"].get("duong") == "nhe", (
+        f"{CAU_DON!r} đi {o['tra']['than'].get('duong')!r}, không phải 'nhe' — "
+        "mọi assertion Δ bên dưới mất nghĩa."
+    )
+    u = o["tra"]["than"].get("usage") or {}
+    assert u.get("so_luot_goi_model") == 0, f"đường nhẹ vẫn gọi model: {u}"
+    assert (u.get("total_tokens") or 0) == 0, f"đường nhẹ vẫn tiêu token: {u}"
+
+
+def test_duong_NHE_khong_tao_ban_ghi_nghiep_vu(hai_luot):
+    """🔴 BẤT BIẾN CHÍNH: đường nhẹ ⟹ Δcomplaints = Δtickets = 0."""
+    d = hai_luot["nhe"]["delta"]
+    assert d == {k: 0 for k in BANG}, (
+        f"đường nhẹ ĐÃ GHI vào bảng nghiệp vụ: {d}\n"
+        "Một lượt cần tạo bản ghi thì tự nó đã không phải lượt đơn — việc nó đi "
+        "được đường nhẹ chính là bằng chứng phân loại sai."
     )
 
 
-def test_luot_don_di_duong_nhe_KHONG_tao_ban_ghi_nghiep_vu(duong_cua_luot):
-    """`"alo"` ⟹ đi đường nhẹ ⟹ Δcomplaints = Δtickets = 0.
+def test_DOI_CHUNG_duong_day_du_VAN_tao_duoc_ban_ghi(hai_luot):
+    """🔴 VẾ BẮT BUỘC (Luật 2) — thiếu nó thì bất biến trên vô nghĩa.
 
-    Chỉ có nghĩa khi `duong_cua_luot` khẳng định được lượt đó ĐÃ đi đường nhẹ.
+    Một cài đặt *"chặn mọi ghi"* làm test trên xanh **kể cả khi nó chặn nhầm cả
+    đường đầy đủ** — tức chặn nhầm đúng những khiếu nại thật. Ca này chứng minh
+    `Δ ≠ 0` **vẫn đạt tới được**.
     """
-    raise AssertionError("không tới đây — fixture skip trước")
+    o = hai_luot["day_du"]
+    assert o["tra"]["than"].get("duong") == "day_du", (
+        f"{CAU_NGHIEP_VU!r} đi {o['tra']['than'].get('duong')!r} — ca đối chứng "
+        "không đi đúng đường thì nó không đối chứng cho cái gì cả."
+    )
+    d = o["delta"]
+    assert sum(d.values()) > 0, (
+        f"đường ĐẦY ĐỦ cũng KHÔNG ghi gì: {d}\n"
+        "⟹ bất biến ở test trên xanh vì guardrail chặn TẤT CẢ, không phải vì nó "
+        "chặn đúng chỗ. Không phân biệt được hai thứ đó thì cả bộ vô nghĩa."
+    )
 
 
-def test_DOI_CHUNG_luot_nghiep_vu_di_duong_day_du_CO_tao_ban_ghi(duong_cua_luot):
-    """🔴 VẾ BẮT BUỘC — thiếu nó thì bất biến trên vô nghĩa.
+def test_dau_duong_PHAN_BIET_duoc_hai_duong(hai_luot):
+    """Bản thân DẤU ĐƯỜNG cũng phải được canh (Luật 7 — thước cũng cần canh).
 
-    Một cài đặt *"đường nhẹ chặn mọi ghi"* sẽ làm test trên xanh **kể cả khi nó
-    chặn nhầm cả đường đầy đủ**. Ca này chứng minh `Δ ≠ 0` **vẫn đạt tới được** —
-    tức guardrail có hiệu lực mà không quá rộng (Luật 2).
+    Dấu luôn trả `"day_du"` ⟹ test đường-nhẹ đỏ vì lý do sai. Dấu luôn trả
+    `"nhe"` ⟹ ca đối chứng đỏ vì lý do sai. Cả hai chế độ hỏng đều làm bộ test
+    nói về một thứ khác thứ nó tưởng đang đo.
     """
-    raise AssertionError("không tới đây — fixture skip trước")
-
-
-def test_dau_duong_phai_PHAN_BIET_duoc_hai_duong(duong_cua_luot):
-    """Bản thân DẤU ĐƯỜNG cũng phải được canh.
-
-    Một dấu luôn trả `"day_du"` sẽ làm test 1 `skip`/xanh vĩnh viễn mà không ai
-    biết; một dấu luôn trả `"nhe"` sẽ làm ca đối chứng đỏ vì lý do sai. Dấu là
-    **thước**, và thước cũng cần được canh (Luật 7).
-    """
-    raise AssertionError("không tới đây — fixture skip trước")
+    a = hai_luot["nhe"]["tra"]["than"].get("duong")
+    b = hai_luot["day_du"]["tra"]["than"].get("duong")
+    assert a != b, f"dấu `duong` trả CÙNG một giá trị {a!r} cho cả hai đường"
+    assert {a, b} == {"nhe", "day_du"}, f"giá trị lạ: {a!r} · {b!r}"
