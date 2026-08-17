@@ -1404,6 +1404,101 @@ nguon_duoc_duyet:
     *"không khớp"* với *"không có kho"* khi trả lời khách. `/ready` chặn ở tầng hạ tầng; tầng agent
     là việc riêng, chưa xếp lịch.
 
+## ADR-029 — `scope` phải là `unknown` khi không tra ra, và contract phải khai đủ 4 giá trị
+
+- **Ngày:** 2026-08-17 · **Trạng thái:** ĐỀ XUẤT — chờ PO thật duyệt (quy trình §3: ADR trước, code sau)
+- **Bối cảnh:**
+
+  Tester tìm ra qua nhánh timeout; security xác nhận bằng đọc mã và **mở rộng phạm vi**.
+
+  `flag_human_handoff()` → `create_ticket_with_fraud_check()` với **`scope="internal_wallet"`
+  HẰNG SỐ trong mã**, không đến từ nguồn nào:
+
+  ```
+  graph.py:466 → complaint_intake.py:166-173
+      complaint_type = "other"
+      scope          = "internal_wallet"   ← HẰNG SỐ, không tra, không hỏi
+      description_raw= reason              ← câu do HỆ THỐNG soạn
+      trans_id       = None
+  ```
+
+  **Hệ thống làm đúng điều nó CẤM model làm.** Mô tả tool `create_ticket` nói thẳng: *"không tra ra
+  giao dịch VÀ khách cũng không xác định được phạm vi → dùng `unknown`, KHÔNG tự đoán bừa 1 trong 3
+  giá trị thật."* Và đây **không phải k=1** — giá trị là hằng số, nhánh đó **luôn** ghi đúng nó;
+  với một nhánh tất định, `k` không có nghĩa.
+
+  🔴 **Phạm vi rộng hơn một nhánh lỗi.** `flag_human_handoff` có **hai** nơi gọi:
+
+  | nơi gọi | khi nào | |
+  |---|---|---|
+  | `graph.py:466` | agent timeout / vượt đệ quy | nhánh lỗi |
+  | **`customer_tools.py:801`** | tool `request_human_handoff` — khách gõ *"cho tôi gặp người thật"* | 🔴 **ĐƯỜNG BÌNH THƯỜNG** |
+
+  Đường thứ hai là **tính năng có thiết kế** (CTRL-001 · ISO/IEC 25059 *user controllability*) — thứ
+  ta chủ động xây để khách luôn thoát được sang người thật. ⟹ **một khách bình thường, không lỗi gì,
+  gõ "cho tôi gặp nhân viên" là sinh ra một hồ sơ khiếu nại thật mang phạm vi giao dịch BỊA.** Không
+  cần timeout, không cần ai chạy phép đo nào.
+
+  Rà đủ **4** nơi gọi `create_ticket_with_fraud_check`: model điền (`customer_tools.py:765`) · hai
+  cửa trên (không qua model) · người điền (`main.py:562`) ⟹ **đúng một nhánh không-qua-model**.
+
+- **Ràng buộc bị chạm — khoanh cho đúng:**
+
+  - **Ràng buộc 1 (HITL): KHÔNG bị chạm.** `fraud_policy.py` **không tham chiếu `scope`** một lần
+    nào ⟹ `scope` sai **không tạo đường tắt**; mọi phạm vi vẫn cần `supervisor` duyệt.
+  - **Ràng buộc 3 (cấm bịa số liệu): CÓ, hai lần.** ① giá trị nghiệp vụ không nguồn ② **chuỗi truy
+    vết đứt ở mắt ĐẦU** — `write_investigation_logs_for_ticket` gọi ở `graph.py:569`, nhánh fallback
+    **`return` ở `:476`**, trước đó ⟹ `investigation_logs` rỗng, vé **không truy về được bất kỳ tool
+    result nào**.
+  - **ADR-025 nhóm A:** `description_raw` là **câu do hệ thống soạn** nằm trong bảng *"lời khai =
+    bằng chứng"*. Security cảnh báo điều này cho **một phép đo** buổi sáng — hoá ra **sản phẩm đã tự
+    làm**, với khách thật.
+
+- **Quyết định:**
+
+  1. **`scope="unknown"`** thay `"internal_wallet"` ở cả hai nơi gọi (`unknown` đã hợp lệ trong
+     `VALID_SCOPES` + CHECK constraint).
+  2. **Ghi `investigation_logs` cho nhánh fallback** — hoặc **một dòng nói rõ không có bước điều tra
+     nào**. *Bảng rỗng và bảng nói "không có gì" giống nhau với máy, khác hẳn với người đọc hồ sơ
+     sáu tháng sau.*
+  3. **Đánh dấu `description_raw` do hệ thống soạn** — bảng bằng chứng phải phân biệt **lời khách**
+     với **ghi chú của máy**.
+  4. **`contracts/authority-matrix.yaml` khai đủ 4 giá trị `scope`, thống nhất tên khoá với
+     `models.py`.**
+
+- **🔴 Nợ contract lộ ra khi đi tìm giá trị đúng — lý do mục 4 tồn tại:**
+
+  ```
+  authority-matrix.yaml  scopes:  noi_bo_vi · tu_ngan_hang · ra_ngan_hang        (BA, tiếng Việt)
+  models.py:209  CHECK:  internal_wallet · from_bank · to_bank · unknown          (BỐN, tiếng Anh)
+  ```
+
+  **`unknown` — chính giá trị bản vá cần — không được khai trong contract.** Và vì **tên khoá khác
+  hệ ngôn ngữ**, **không phép so máy nào bắt được lệch này** — cùng lớp với ADR-027 (contract khai
+  CẤU TRÚC mà người đọc tưởng nó khai NỘI DUNG), lần này là *contract và code dùng hai bộ từ vựng
+  cho cùng một khái niệm*.
+
+- **Phương án đã bác:**
+
+  - *Chỉ sửa nhánh timeout (chỗ tester tìm ra)* — bác: đường bình thường mới là đường có khách thật
+    đi qua hàng ngày.
+  - *Giữ `internal_wallet` vì "đa số giao dịch là nội bộ ví"* — bác: đó đúng là định nghĩa của bịa số
+    liệu. Một giá trị **có khả năng đúng** vẫn là giá trị **không có nguồn**.
+  - *Sửa code trước, cập nhật contract sau* — bác theo §3, và lần này đặc biệt không được: giá trị
+    cần dùng (`unknown`) **chưa tồn tại trong contract**, nên sửa code trước là làm lệch thêm.
+
+- **Hệ quả:**
+
+  - `check_contracts.py --update` + bump `CONTRACT_VERSION` + **commit kèm file baseline**.
+  - **Chưa đếm được bao nhiêu vé kiểu này đã tồn tại** (`scope='internal_wallet'` ∧
+    `complaint_type='other'` ∧ `trans_id IS NULL`). Security **cố ý không chạy** — đếm là chạm DB, và
+    theo điều kiện ⑤ của chính họ, chưa biết ngăn xếp nào phục vụ thật thì chưa đụng. **Làm được
+    ngay khi PO thật trả lời câu ngăn-xếp.**
+  - **Sửa điều kiện dọn dữ liệu đo (③):** *kế hoạch dọn phải có **ngoại lệ khai trước** — nếu dữ liệu
+    sinh ra là **bằng chứng của một finding** thì dừng dọn, khai lý do, giữ tới khi finding được đọc
+    xong.* Không có ngoại lệ này, một kế hoạch dọn **nghiêm túc** sẽ xoá đúng thứ đáng giữ nhất — và
+    xoá **có kỷ luật**, nên không ai thấy gì sai.
+
 ## Mẫu ADR mới
 
 ```markdown
