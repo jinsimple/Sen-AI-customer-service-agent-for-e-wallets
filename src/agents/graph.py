@@ -47,9 +47,11 @@ from src.config import (
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
 )
+from src.dau_ma_nguon import nhan_luc_dung
 from src.db.models import Complaint, Ticket, User
 from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.pii import scrub_pii
+from src.observability.so_usage import ghi_usage
 from src.observability.tracing import get_tracer
 from src.services.complaint_intake import flag_human_handoff
 from src.services.emotion_signals import danh_gia_luot
@@ -158,6 +160,40 @@ def _mo_ta_loi_nha_cung_cap(loi: APIError) -> dict[str, object]:
         # sơ nội bộ, KHÔNG bao giờ đưa ra khách.
         "request_id_ncc": getattr(loi, "request_id", None),
     }
+
+
+def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
+    """Ghi MỘT dòng sổ usage cho MỌI đường ra của `run_agent_turn`.
+
+    Đặt ở một hàm vì bài học vừa trả giá: bản đầu tôi gắn `ghi_usage` ngay
+    trước `return` cuối cùng — và MỌI đường fallback (429 · lỗi nhà cung cấp ·
+    hết giờ · recursion) `return` SỚM, không bao giờ tới đó. Sổ kế toán vắng
+    mặt đúng những lượt HỎNG, tức nó đếm thiếu số lượt và đọc thành "ít lượt
+    hơn thực tế" chứ không thành một khoảng trống nhìn thấy được.
+
+    Cùng hình dạng với ca `flag_human_handoff` sáng nay: một cơ chế đúng, gắn
+    đúng chỗ nó được nghĩ ra, và không ai đi tìm chỗ thứ hai cùng lớp. Ở đây
+    "chỗ thứ hai" là bốn `return` khác.
+
+    `ly_do_fallback` lấy TỪ CHÍNH dict trả về, không dựng lại — hai nguồn sẽ
+    lệch nhau, và lệch trong im lặng.
+    """
+    u = kq.get("usage") or {}
+    ghi_usage({
+        "ts": dt.datetime.utcnow().isoformat() + "Z",
+        "thread_id": thread_id or user_id,
+        "model": LLM_MODEL,
+        "bam_ma_nguon": nhan_luc_dung(),   # VẬT nào sinh ra số này
+        "so_luot_goi_model": u.get("so_luot_goi_model", 0),
+        "input_tokens": u.get("input_tokens", 0),
+        "output_tokens": u.get("output_tokens", 0),
+        "cached_input_tokens": u.get("cached_input_tokens", 0),
+        "reasoning_tokens": u.get("reasoning_tokens", 0),
+        "input_chars": u.get("input_chars", 0),
+        "so_tool_call": len(kq.get("tool_calls") or []),
+        "ly_do_fallback": kq.get("ly_do_fallback"),
+        "co_ticket": bool(kq.get("ticket_id")),
+    })
 
 
 def _ly_do_fallback(loi: Exception) -> str:
@@ -485,7 +521,7 @@ def run_agent_turn(
             )
             root_span.set_attribute("fin05.qua_tai", True)
             khuyen = f" sau khoảng {giay:.0f} giây" if giay else " sau ít giây"
-            return {
+            _kq = {
                 "reply": (
                     "Xin lỗi bạn, hệ thống đang bận nên mình chưa xử lý kịp. "
                     f"Bạn nhắn lại giúp mình{khuyen} nhé — tin nhắn của bạn "
@@ -505,6 +541,8 @@ def run_agent_turn(
                 "goi_y_handoff": False,
                 "ly_do_fallback": "qua_tai",
             }
+            _ghi_so(_kq, thread_id, user_id)
+            return _kq
             executor.shutdown(wait=True)  # thread thật sự đã xong lúc .result() trả về, wait=True không tốn gì thêm
         except APIError as e:
             # Mọi cách từ chối CÒN LẠI của nhà cung cấp. `RateLimitError` đã
@@ -591,7 +629,7 @@ def run_agent_turn(
                 "Bạn nhắn lại giúp mình sau ít phút nhé — tin nhắn của bạn "
                 "chưa bị mất gì cả."
             )
-            return {
+            _kq = {
                 "reply": reply,
                 "tool_calls": None,
                 "ticket_id": None,          # CỐ Ý: xem chú thích ở _LOI_CAN_CAN_THIEP
@@ -611,6 +649,8 @@ def run_agent_turn(
                     "nha_cung_cap_can_can_thiep" if can_thiep else "nha_cung_cap_thoang_qua"
                 ),
             }
+            _ghi_so(_kq, thread_id, user_id)
+            return _kq
         except (GraphRecursionError, FutureTimeoutError) as e:
             # wait=False luôn an toàn ở đây: nếu thread đã xong (nhánh
             # GraphRecursionError) thì trả về ngay lập tức; nếu chưa (nhánh
@@ -653,7 +693,7 @@ def run_agent_turn(
                 # không (eval harness rollback giữa các case) — báo mã ticket
                 # không tra được chính là bịa số liệu, ràng buộc cứng #3.
                 session.commit()
-            return {
+            _kq = {
                 "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là "
                 + handoff["ticket_id"]
                 + ".",
@@ -695,6 +735,8 @@ def run_agent_turn(
                 # thứ trôi được sau một lần sửa câu chữ.
                 "ly_do_fallback": _ly_do_fallback(e),
             }
+            _ghi_so(_kq, thread_id, user_id)
+            return _kq
     all_messages = result["messages"]
     turn_messages = all_messages[prev_len:]
 
@@ -873,7 +915,7 @@ def run_agent_turn(
     # chẩn đoán bên dưới: eval gọi thẳng graph, Redis là fakeredis per-process,
     # nên bộ đếm vô hình với người đo nếu chỉ ghi Redis.
     tin_hieu_lo_chi_thi_ket_qua = tin_hieu_lo_chi_thi(reply, thread_id=thread_id or user_id)
-    return {
+    _kq_cuoi = {
         "reply": reply_da_loc,
         "tool_calls": tool_calls_out,
         "ticket_id": ticket_id,
@@ -896,3 +938,5 @@ def run_agent_turn(
         # không phân biệt được với "bản cũ chưa có trường này".
         **_reply_goc_cho_eval(reply, nhom_khop),
     }
+    _ghi_so(_kq_cuoi, thread_id, user_id)
+    return _kq_cuoi
