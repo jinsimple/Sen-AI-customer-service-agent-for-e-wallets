@@ -164,5 +164,13 @@
  "cach_dung": "Chạy CÙNG golden_set (120 ca âm). Bộ âm PHỦ QUYẾT ngưỡng, bộ dương CHỌN ngưỡng. Một mình bộ nào cũng không đủ: chỉ bộ âm ⟹ 'không định tuyến gì' thắng tuyệt đối; chỉ bộ dương ⟹ 'định tuyến tất' thắng tuyệt đối.",
  "🔴_dieu_kien_land": "Nhóm ④ và ⑤ KHÔNG ĐƯỢC SAI MỘT CA. Chúng là khách đang mất tiền và tham số điều tra. Nhóm ⑥ sai = bịa chính sách. Nhóm ① ② ③ sai = tốn tiền, không hại người.",
  "luat": "Từ giây công bố băm, nhãn BẤT ĐỘNG. Viết TRƯỚC khi có encoder nào để chiều.",
- "bam_nhan": "4976afbaf63f"
+ "🔴_DON_VI_DEM_khai_ro": {
+  "bo_ca_nay": "20 ca = 20 CÂU. Mỗi ca đúng MỘT câu, không ca nào nhiều câu.",
+  "kiem_bang_may": "assert len(ca) == số câu — xem test kèm, không để người đọc tự tin lời khai này",
+  "bo_ca_AM_doi_chieu": "golden_set = 120 CA nhưng 124 CÂU · băm 5d3b477ddfc6. Router chấm từng CÂU.",
+  "🔴_bay": "Viết `assert == 120` trên bộ âm ⟹ 4 câu KHÔNG BAO GIỜ được chấm, và cổng VẪN XANH. Con số đúng, tập hợp sai.",
+  "luat_rut_ra": "Mọi cổng phải khai ĐƠN VỊ ĐẾM ngay trong nhãn. 'ca' và 'câu' là hai mẫu số khác nhau, và chúng trùng nhau đủ thường xuyên để không ai đi kiểm."
+ },
+ "bam_cu_da_thay": "4976afbaf63f → sửa TRƯỚC khi có phép đo nào. Lý do: khai rõ đơn vị đếm (ca vs câu) sau khi PO sửa con số bộ âm 120 ca → 124 câu. KHÔNG đụng một nhãn ca nào.",
+ "bam_nhan": "8dafb881bb4c"
 }
