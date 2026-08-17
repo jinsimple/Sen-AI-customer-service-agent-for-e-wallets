@@ -11,14 +11,14 @@ pydantic-settings>=2.7.0
 python-dotenv>=1.0.0
 
 # AI / LangChain
-langchain>=0.3.0
-langchain-openai>=0.3.0
-langgraph>=0.2.0
+langchain==1.3.15
+langchain-openai==1.5.0
+langgraph==1.2.11
 # Checkpointer Postgres (ADR-014) — thay MemorySaver để bộ nhớ hội thoại nằm
 # NGOÀI process: mở đường chạy multi-worker và giúp hội thoại sống sót qua
 # restart backend. Kéo theo psycopg (v3) + psycopg_pool, KHÁC psycopg2-binary
 # mà SQLAlchemy dùng — hai driver cùng tồn tại, không xung đột.
-langgraph-checkpoint-postgres>=3.1.2
+langgraph-checkpoint-postgres==3.1.2
 
 # Database — backend thật (src/db, scripts/seed_db.py) đã dùng, xem FIN05-Backend-Handoff.md
 sqlalchemy>=2.0
@@ -55,8 +55,8 @@ slowapi>=0.1.9
 # nhúng qua PersistentClient, không chạy chromadb server), xem chi tiết +
 # quyết định risk-accepted ở ci.yml (job dependency-and-secret-scan) và
 # docs/TESTING.md.
-chromadb>=0.5.0
-langchain-text-splitters>=0.3.0
+chromadb==1.5.9  # chạm cách lưu/tra vector -> chạm kho, ghim
+langchain-text-splitters==1.1.2  # chạm CÁCH CHIA CHUNK -> chạm kho, ghim
 
 # Parse tài liệu upload cho RAG — src/rag/parsers.py (chỉ .md/.txt/.pdf/.docx,
 # KHÔNG hỗ trợ .doc nhị phân cũ, xem ghi chú trong parsers.py)
@@ -98,3 +98,18 @@ pytest>=8.0.0
 pytest-asyncio>=0.24.0
 httpx>=0.28.0
 fakeredis>=2.26
+
+# ─────────────────────────────────────────────────────────────────────────
+# GHIM CHÍNH XÁC — đường LLM. KHÔNG nới thành `>=`.
+#
+# security đo: langchain-core 1.5.4 vs 1.5.3 cho MÔ TẢ TOOL khác nhau
+# (4.862 vs 4.334 ký tự) trên CÙNG mã nguồn — mô tả tool đi thẳng vào prompt
+# gửi model. Một bản vá thư viện đổi ~12% kích thích, không commit, không
+# diff, không cảnh báo.
+#
+# `langchain-core` và `tiktoken` TRƯỚC ĐÂY không xuất hiện trong file này —
+# chúng vào theo phụ thuộc bắc cầu, tức trôi hoàn toàn tự do. Đó chính là gói
+# gây ra chuyện trên. Nêu tên tường minh để nó không còn vô hình.
+langchain-core==1.5.4
+tiktoken==0.13.0
+openai==3.0.0
