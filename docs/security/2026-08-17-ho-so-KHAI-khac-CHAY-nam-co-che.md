@@ -128,3 +128,91 @@ chế #3. Thứ cứu được là tester **từ chối cách hoà đó**.
 | 🟡 | Dựng ảnh từ cây **sạch** hoặc `git archive HEAD` (cơ chế #2) | tech-lead |
 | 🟡 | Thêm **mốc thời gian prompt** vào `dau_thuoc()` (cơ chế #4) | tech-lead |
 | 🟢 | Đếm vé `scope='internal_wallet'` ∧ `complaint_type='other'` ∧ `trans_id IS NULL` — **chờ câu hỏi ngăn xếp** | security, sau khi PO trả lời |
+
+---
+
+## §8. Bổ sung sau khi kiểm lượt land `c01223a` — nhãn và mã lệch nhau theo **CẢ HAI CHIỀU**
+
+Kiểm độc lập lời tech-lead, [ĐO]:
+
+```
+container            build      chuông thiếu_hotline   sửa-tay(.py, trừ __pycache__)
+fin05-backend-1      c01223a          ×4                      0
+fin05ttl-backend-1   36d6a1a          ×4                      0
+fin05do-backend-1    c01223a          ×4                      0
+
+git diff --name-only c01223a..HEAD -- src/   →  RỖNG
+c01223a chạm đúng 1 tệp: src/api/main.py (+35)
+36d6a1a LÀ HẬU DUỆ của c01223a, và nó chỉ đổi docs/
+```
+
+⟹ Ba ảnh **khác nhãn, cùng mã sản phẩm**. Xác nhận, không cần dựng lại.
+
+### 🔴 Nhưng `fin05ttl-backend-1` đang mang nhãn `36d6a1a` — **một commit TÀI LIỆU của tôi**
+
+Ảnh đó **không chứa gì** của `36d6a1a` (commit ấy chỉ thêm chính tài liệu bạn
+đang đọc). Nhãn dịch **vì tôi commit docs**, không vì mã sản phẩm đổi. Người đọc
+nhãn đó sáu tháng sau sẽ tra ra một commit **chẳng liên quan gì** tới thứ đang
+chạy.
+
+**Gộp với ca sáng nay, ta có đủ HAI CHIỀU:**
+
+| Chiều | Ca | Cơ chế |
+|---|---|---|
+| **nhãn ĐỨNG YÊN, mã DỊCH** | `fin05-backend-1` khai `7450184` trong khi chạy `graph.py` đã sửa | `docker cp` (#1) |
+| **nhãn DỊCH, mã ĐỨNG YÊN** | `fin05ttl-backend-1` khai `36d6a1a` = commit docs | HEAD dịch vì lý do **không liên quan tới mã** |
+
+> **`commit` KHÔNG phải một hàm của `src/`, theo cả hai chiều.** Dùng nó làm nhãn
+> của một ảnh là dùng sai loại định danh — nó định danh **trạng thái kho**, còn
+> thứ ta cần định danh là **nội dung được đóng gói**.
+
+### ⟹ Đề nghị của tech-lead là bản vá đúng, và **dự án đã có sẵn hàm để làm**
+
+> **Nhãn ảnh nên là BĂM CỦA `src/`, không phải băm của commit.**
+
+Ba lý do, và lý do thứ ba là lý do tôi không nghĩ tới cho tới lượt này:
+
+1. **Bắt được cơ chế #1** — băm lại `src/` **trong container đang chạy** rồi so
+   với nhãn; `docker cp` làm hai số lệch ngay.
+2. **Bắt được cơ chế #2** — băm `src/` **đưa vào ảnh lúc dựng** rồi so với băm
+   `src/` **tại HEAD**; dựng trên cây bẩn làm hai số lệch ngay. Cơ chế #2 hôm
+   nay **không có phép kiểm nào**; cách này cho nó một phép kiểm miễn phí.
+3. **Nhãn thôi dịch vì lý do không liên quan** — docs, ADR, hồ sơ security
+   commit bao nhiêu lần cũng **không** làm nhãn ảnh nhúc nhích. Nhãn chỉ đổi khi
+   **thứ nó định danh** đổi.
+
+**Và không phải viết hàm mới:** `eval/measure_quality.py::dau_thuoc()` đã băm
+`src/**/*.py` cho trường `he_thong`. Bản vá là **dùng lại đúng hàm đó làm nhãn
+ảnh** — cùng một định nghĩa cho *"mã sản phẩm nào"* ở **cả** tầng đo lường lẫn
+tầng đóng gói, thay vì hai định nghĩa lệch nhau như hôm nay.
+
+## §9. Một cơ chế THỨ SÁU, tech-lead tự bắt — ở tầng khác
+
+> **`>/dev/null` nuốt một lệnh KHÔNG CHẠY, và trạng thái cũ bị đọc thành kết quả mới.**
+
+Vòng lặp shell của họ làm hỏng tham số `-f`, `docker compose` **không chạy**,
+nhưng output đã bị chuyển hết ra `/dev/null` nên chỉ còn bảng kết quả — nhãn
+vẫn `faad6e8`, chuông ×0. Họ **suýt đọc thành *"bản vá không hoạt động"***.
+
+Không phải **khai-vs-chạy** mà **lệnh-không-chạy-vs-tưởng-đã-chạy** — nhưng cùng
+mệnh đề bị phá: *thứ được báo cáo không phải thứ đã xảy ra.*
+
+🔴 **Thứ cứu được là một cột họ in ra vì lý do hoàn toàn khác** (`sửa-tay=1`).
+
+> **Trong một bảng đo, trường DƯ THỪA là thứ bắt được ca "phép đo không hề chạy".**
+> Một bảng chỉ chứa đúng thứ ta muốn biết thì **không phân biệt được** *"kết quả
+> là X"* với *"lệnh không chạy nên bảng còn giá trị cũ"*.
+
+Đó cũng là lý do quy trình §4 đòi **lặp ① ② trên TỪNG container** thay vì tin
+một dòng tổng: giá trị giống nhau ở nhiều nguồn độc lập là thứ phát hiện được
+sự im lặng.
+
+## §10. Hai con số bị rút trong ngày — ghi để không ai trích lại
+
+| Con số | Người báo | Trạng thái |
+|---|---|---|
+| *"23 · 20 · 9 file bị sửa tay"* | tech-lead | 🔴 **RÚT** — đếm cả thư mục + `__pycache__`. Không tái dựng được (lớp writable đã mất khi recreate). Kết luận **không đổi**: phép so md5 độc lập cho `0 · 3 · 2` và **không dính nhiễu này** |
+| *"tổng mô tả tool 4.334 ký tự"* | security (tôi) | 🔴 **RÚT** — đo trên venv mượn (`langchain-core` 1.5.3), số đúng là **4.862** (1.5.4, trong container) |
+
+Cả hai đều là **cùng một lỗi ở hai người**: đọc một con số mà **không hỏi nó
+đếm cái gì, ở đâu**. Và cả hai đều chỉ lộ ra khi **người thứ hai đo lại**.
