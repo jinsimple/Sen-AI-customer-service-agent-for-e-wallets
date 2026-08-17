@@ -85,10 +85,99 @@ ToolResult không?** CÓ ⟹ loại phân luồng **bằng QUAN SÁT**, đóng n
 đáng xin PO thật ngân sách, với câu hỏi đã sắc.
 ⚠️ Phép quét này **cũng có bộ lọc phải khai TRƯỚC**: chỉ thấy được khoảng log còn giữ. Log đã xoay
 vòng ⟹ kết quả "KHÔNG" **không có sức phân biệt** (Luật 17). Kiểm tầm với của log TRƯỚC khi đọc.
-Nếu vẫn phải chạy: `AGENT_TURN_TIMEOUT=15s` (coder) **+ hạ `_AGENT_RECURSION_LIMIT` xuống 4**
-(PO-agent) — trần bước TẤT ĐỊNH thắng trần thời gian XÁC SUẤT; chi phí xấu nhất **biết trước chính
-xác** ~28K thay vì "khoảng 15–20K tuỳ mạng". Ngân sách đó **xin PO thật riêng**, không rút từ ~32K
-còn lại (A3: chưa nạp gì cho tới khi tối ưu xong).
+### ✅ PHÂN LUỒNG LOẠI BẰNG QUAN SÁT — nhánh đóng, 0 ĐỒNG
+
+Coder kiểm tầm với TRƯỚC (Luật 17): `docker logs` chỉ có từ `13:59` mà T1 land `09:47` ⟹ quét ra
+"KHÔNG" **không có sức phân biệt** ⟹ **không chạy phép quét**. Tìm nguồn thứ hai sống qua recreate:
+**sổ usage**, 62 dòng từ `09:28:18`, có ~19 phút TRƯỚC T1.
+
+```
+so_luot_goi_model:  0 gọi ×22 · 1 ×6 · 2 ×29 · 3 ×4 · 5 ×1
+lượt ≥4 gọi: ĐÚNG MỘT →  09:38:18 · 5 gọi · duong=None   ⟵ TRƯỚC T1 chín phút
+```
+
+⟹ **Vòng lặp nhiều bước xảy ra trước khi phân luồng tồn tại. Phân luồng vô can, loại bằng QUAN
+SÁT chứ không bằng cấu trúc mã. Không xin ngân sách phép thử tốn tiền.**
+Hạng coder tự khai, chép nguyên (cái thứ ba dễ bị người sau lặng lẽ nâng hạng nhất):
+`phân luồng vô can` = quan sát · `vòng lặp dài là bệnh CÓ TỪ TRƯỚC` = quan sát ·
+**`tần suất của nó` = KHÔNG BIẾT, và sổ KHÔNG ĐO ĐƯỢC.**
+
+> 🔴 **BỘ LỌC VÔ HÌNH LẦN THỨ NĂM — lần này NẰM TRONG CHÍNH DỤNG CỤ ĐO.** Lượt hỏng ghi
+> `so_luot_goi_model = 0` ⟹ trong 22 dòng ghi `0` lẫn **hai thứ khác hẳn nhau**: *"đường nhẹ, đúng
+> là 0"* và *"lượt hỏng, không đọc được"*. **Sổ dựng ra để đếm lời gọi, và nó lọc mất đúng loại
+> lượt ta đang đi tìm — rồi báo bằng một giá trị trông hợp lệ.** ⟹ "chỉ 1 lượt ≥4 gọi" là câu về
+> **lượt THÀNH CÔNG**, không phải về hệ thống.
+
+### ⬆️ `0 → None` LÊN HẠNG: từ "đáng làm" thành **CHẶN BUỔI TEST 150 NGƯỜI**
+
+PO-agent **DUYỆT** đề nghị của tester: buổi 150 người ghi `duong · total_tokens · mốc thời gian`
+cho **MỌI lượt** (+ PO-agent thêm `ly_do_fallback · so_luot_goi_model`). Lý do tester nêu và nó
+đúng: **lần đầu và có thể là lần DUY NHẤT có lưu lượng thật — không có buổi thứ hai để sửa.** Có
+đủ trường thì sau buổi test trả lời được MỘT LÚC: tỉ lệ lượt đơn · nhịp gõ thật · token/lượt thật ·
+tỉ lệ lượt hỏng · trần nào chạm trước.
+📌 **PO-agent RÚT câu "`0 → None` phải land TRƯỚC buổi test"** — tester đọc thẳng 62 dòng
+`usage.jsonl`: 22 dòng `goi=0` tách **sạch 22/22, bất đồng 0 lần** bằng `duong` + `ly_do_fallback`
+(`nhe`·không-fallback·token 0 → 13 · `day_du`·CÓ-fallback·token 0 → 9; và `nhe ⟺ goi==0` đúng
+tuyệt đối trên mọi dòng không fallback). ⟹ **vệ sinh, KHÔNG phải điều kiện chặn**: buổi test chạy
+được với vật hôm nay miễn script đọc **bộ ba** thay vì đọc `goi` một mình. **PO-agent đã tự tạo
+một phụ thuộc lịch không cần thiết vào việc code.**
+⚠️ **Hạng — hở duy nhất còn lại:** đồng thuận 100% trên n=22 là thứ ta kỳ vọng thấy **cả khi hai
+trường do CÙNG một dòng mã đặt ra**; lúc ấy chúng là **một nguồn viết hai lần**, và **Luật D không
+được thoả**. ⟹ câu cho coder: **`duong` và `ly_do_fallback` ghi bởi HAI đoạn mã hay một chỗ?** Hai
+chỗ ⟹ tách được **theo cấu trúc**. Một chỗ ⟹ chỉ tách được **trên dữ liệu đang có**.
+
+**✅ DUYỆT land `0 → None` NGAY, riêng** (lý do LỊCH của coder, độc lập với lý do vừa rút): đóng
+băng `src/` đang bảo vệ **một phép đo CHƯA BẮT ĐẦU** — nền A2 của coder (13,9K) không tái hiện được
+finding, nền của tester (14K) là lượt timeout không tới model, ca A/B/C đang viết lại, ngăn xếp
+chưa chốt. A2 **không có nền hợp lệ nào để mất**.
+> **`0` có BA nghĩa, không phải hai** (coder): ① đường nhẹ = ĐÚNG 0 ② 429/lỗi NCC = 0 lời gọi trả
+> về, nhưng **token có bị tính không: KHÔNG BIẾT** ③ timeout/recursion = lời gọi ĐÃ CHẠY (8, log
+> httpx chứng minh), đếm được KHÔNG · token KHÔNG BIẾT. ⟹ `so_luot_goi_model`: `0·0·None` ·
+> `*_tokens`: `0·None·None`. **`None` ở đây nghĩa "KHÔNG ĐỌC ĐƯỢC", không phải "KHÔNG CÓ"** — vá
+> một giá trị hai nghĩa bằng một giá trị hai nghĩa khác thì chỉ dời chỗ bệnh.
+> 🔴 **Chưa chốt:** trường `so_luot_goi_model` đếm lời gọi **ĐÃ PHÁT** hay **ĐÃ TRẢ VỀ**? Tên nó
+> không nói. Đếm-đã-phát ⟹ `0` ở ② **sai y hệt** `0` ở ③, và ③ ghi được **8** thật thay vì `None`.
+> **Định nghĩa trường TRƯỚC, chọn null SAU** — một trường không khai nó đếm gì thì mọi giá trị của
+> nó đều mơ hồ, kể cả giá trị đúng.
+> ⚠️ **"KHAI ≠ CHẠY" ĐỌC NGƯỢC:** `59bf4d7` đang ở git mà KHÔNG ở container — git đi trước
+> container **4 tiếng**. Cú dựng lại **trả hết nợ cùng lúc**. ⟹ **liệt kê MỌI commit chạm `src/`
+> giữa ảnh đang chạy và HEAD trước khi build**, rồi ba phép kiểm sau khi dựng. Ba lần
+> `git ≠ container` hôm nay đều theo chiều kia; chiều này chưa ai vấp nên chưa ai canh.
+
+**BỐN RỔ bắt buộc cho script tổng hợp buổi test** (tester, duyệt): `nhe` → lượt đơn thật ·
+`day_du`+fallback=None → chạy xong · `day_du`+fallback CÓ → HỎNG · **KHÔNG có khoá `duong` → 🔴
+ĐIỀU TRA, không gộp vào đâu**. Rổ 4 khác 0 = dừng trước khi công bố tỉ lệ nào. Bẫy cụ thể: viết
+`duong != 'day_du'` thì lượt 422/500 thành "lượt đơn" ⟹ **thổi tỉ lệ tiết kiệm đúng hướng ta muốn
+nghe** — confound hướng-có-lợi.
+**BA RỔ cho token** (coder→tester): `đo được` · `không đọc được` · `đúng 0`. **KHÔNG `sum()` với
+`or 0`** — `or 0` biến *"không biết"* thành *"không tốn"*: cùng lời nói dối, dời sang phía đo.
+
+### 🧭 NGƯỠNG CỨU BUỔI TEST — và biến quyết định KHÔNG phải T1
+
+Tester **từ chối** trả lời "tỉ lệ lượt đơn là bao nhiêu" vì **cả hai nguồn đều sai dân số**:
+`messages` là **script sinh** (p10=p50=3s ⟹ 19,8 lượt/ph/người, và script **không bao giờ gõ
+"alo"** ⟹ sàn giả ~0%) · `bo_ca_luot_don.json` 9/20=45% là **bộ ca dò biên soạn tay**, đọc thành
+tỉ lệ lưu lượng = dùng mẫu làm-giàu-ca-hiểm làm mẫu đại diện (ngược chiều lỗi `golden_set thiếu
+lượt đơn` sáng nay). ⟹ **chỉ đo được ở buổi test người thật.** Rồi **đảo câu hỏi** thành điều kiện:
+
+```
+150 × 0,50 lượt/ph → TPM 106% → cần ≥  6,1% lượt đơn
+150 × 0,75         →      160% → cần ≥ 37,4%
+150 × 1,00         →      213% → cần ≥ 53,0%
+100 × 0,50         →       71% → không cần gì ✅
+```
+
+🔴 **BIẾN QUYẾT ĐỊNH LÀ NHỊP GÕ, KHÔNG PHẢI T1** — thứ ta điều khiển bằng **kịch bản chạy**, không
+phải bằng code: nhịp ≤0,5 lượt/ph/người thì T1 chỉ cần **6,1%** (gần như chắc đạt); nhịp 1,0 thì
+**53%** là bất khả, **không bản vá nào cứu kịp**.
+**Dạng phát biểu ĐÚNG cho ẩn số không đo được trước: ĐIỀU KIỆN, không phải con số** — và nó tự
+kiểm trong 10 phút đầu buổi test bằng dấu `duong` đã ship.
+⚠️ Mọi `% cần` ở trên là **CẬN DƯỚI** (thiên lệch sống sót: `14.198` là trung bình lượt THÀNH
+CÔNG). 5% lượt hỏng ở 60K ⟹ token/lượt ~16.500, trần tụt ~61 lượt/ph, **106% → ~123%**. Tester
+**không sửa số** — *"sửa là bịa"*. Một cận dưới CÓ KHAI thì dùng được; một số "đã hiệu chỉnh" bằng
+giả định thì không.
+📌 Tester tự bắt mình trích `30%` **không kèm kịch bản** (đó là ngưỡng của `100×1,0`) — nếu không
+tự sửa thì PO-agent đã đóng dấu nó vào STATE như ngưỡng chung. Khai-trục, lần thứ hai trong một giờ.
 
 ### 💸 NGÂN SÁCH: sổ đang ghi 1/6 TỚI 1/9 SỐ THẬT — và có thể là lời giải cho câu "2,3M"
 
@@ -143,7 +232,9 @@ KHÔNG**, không phải "yếu nghiêng một bên". Chặn con số là đúng,
    ④ batch ở **Singapore**: giá 50% và bucket riêng hay không
 2. **Đối chiếu bảng điều khiển** tổng token 1 ngày vs sổ nội bộ — phân định giả thuyết "2,3M"
 3. **Cư trú dữ liệu** — xem mục dưới
-4. (giữ nguyên) xoay khoá Qwen · secret GitHub Actions · số hotline thật
+4. 🔴 **CHỐT NHỊP GÕ cho buổi 150 người** — biến quyết định duy nhất. ≤0,5 lượt/ph/người ⟹ T1 đủ;
+   1,0 ⟹ không bản vá nào cứu kịp. Đây là **kịch bản chạy**, không phải code, nên là việc của PO.
+5. (giữ nguyên) xoay khoá Qwen · secret GitHub Actions · số hotline thật
 
 ### ✅ ĐÓNG — Batch API ở vùng ta: KHÔNG KHẢ DỤNG (tester `930e9ff`, hạng: TÀI LIỆU NÓI)
 
