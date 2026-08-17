@@ -60,12 +60,19 @@ from src.config import OPENAI_MODEL
 
 EVAL_DIR = Path(__file__).resolve().parent
 
-# USD/1M token, ước lượng tại thời điểm viết (2026-08-10) — KHÔNG phải giá
-# billing thật, chỉ để có thứ tự độ lớn. Cập nhật nếu OpenAI đổi giá.
-_PRICE_PER_1M_TOKENS: dict[str, tuple[float, float]] = {
-    "gpt-4o-mini": (0.150, 0.600),  # (input, output)
-    "gpt-4o": (2.50, 10.00),
-}
+# GIÁ ĐỌC TỪ eval/gia_tien.json — KHÔNG hardcode ở đây nữa.
+#
+# Bảng cũ hardcode 2 model và tra bằng `.get(model, (0.0, 0.0))`. Hai lỗi:
+#   1. HAI NGUỒN GIÁ trong cùng repo (đây + gia_tien.json) sẽ trôi khỏi nhau,
+#      và không ai biết bản nào đang tính.
+#   2. Model lạ -> (0.0, 0.0) -> **cost 0đ, im lặng**. Số 0đ hợp lệ về hình
+#      thức nên nó đi thẳng vào báo cáo chi phí. Đây đúng nhánh-im-lặng: không
+#      lỗi, không cảnh báo, chỉ là một con số sai theo hướng CÓ LỢI cho ta.
+def _bang_gia() -> dict[str, tuple[float, float]]:
+    import json
+
+    d = json.loads((EVAL_DIR / "gia_tien.json").read_text(encoding="utf-8"))
+    return {k: (v["vao"], v["ra"]) for k, v in d["gia"].items()}
 
 # Số tiền VND thường >=4 chữ số (>=1.000đ) — lọc bớt false positive từ hằng số
 # chính sách 1-3 chữ số (vd "48 giờ", "30 ngày", "4 ngày làm việc") vốn không
@@ -337,11 +344,27 @@ def run(cases: list[dict]) -> list[dict]:
 def write_report(results: list[dict], out_path: Path) -> None:
     total = len(results)
     latencies = [r["elapsed_seconds"] for r in results if r["error"] is None]
-    input_price, output_price = _PRICE_PER_1M_TOKENS.get(OPENAI_MODEL, (0.0, 0.0))
+    gia = _bang_gia()
+    if OPENAI_MODEL not in gia:
+        # KHÔNG rơi về 0đ. Thà không có số còn hơn một số 0 trông như "rẻ".
+        raise SystemExit(
+            f"🔴 KHÔNG CÓ GIÁ cho model {OPENAI_MODEL!r} trong eval/gia_tien.json.\n"
+            "   Thêm giá (kèm ngay_tra + nguon) rồi chạy lại. Tính cost bằng 0đ\n"
+            "   là sai theo hướng CÓ LỢI cho ta, và số 0đ đi thẳng vào báo cáo."
+        )
+    input_price, output_price = gia[OPENAI_MODEL]
     costs = []
     for r in results:
         u = r.get("usage") or {}
-        cost = (u.get("input_tokens", 0) / 1e6) * input_price + (u.get("output_tokens", 0) / 1e6) * output_price
+        # TOKEN SUY NGHĨ tính vào ĐẦU RA. Đo được 17/08 trên Qwen: suy nghĩ
+        # chiếm 74% output ở qwen3.7-plus, 91% ở flash. Bỏ nó thì cost thấp
+        # hơn sự thật tới ~4x — sai theo hướng có lợi cho ta.
+        # Cộng phòng hờ: nếu nhà cung cấp ĐÃ gộp reasoning vào output_tokens
+        # thì `reasoning_tokens` vắng mặt và phép cộng này là 0.
+        ra = u.get("output_tokens", 0)
+        if u.get("reasoning_tokens") and not u.get("reasoning_da_gom_trong_output"):
+            ra += u["reasoning_tokens"]
+        cost = (u.get("input_tokens", 0) / 1e6) * input_price + (ra / 1e6) * output_price
         r["cost_usd_estimate"] = round(cost, 6)
         costs.append(cost)
 

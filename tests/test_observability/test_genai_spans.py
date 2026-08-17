@@ -68,7 +68,7 @@ def test_llm_generation_span_has_genai_semantic_convention_attributes(monkeypatc
     run_id = uuid4()
 
     handler.on_chat_model_start(
-        {"kwargs": {"model_name": "gpt-4o-mini"}},
+        {"kwargs": {"model_name": "model-gia-chi-de-kiem"}},
         [[HumanMessage(content="khách hỏi giao dịch của tôi")]],
         run_id=run_id,
     )
@@ -84,7 +84,11 @@ def test_llm_generation_span_has_genai_semantic_convention_attributes(monkeypatc
     assert span.name == "gen_ai.generation"
     attrs = dict(span.attributes)
     assert attrs["gen_ai.system"] == "openai"
-    assert attrs["gen_ai.request.model"] == "gpt-4o-mini", (
+        # Tên model ở đây là GIÁ TRỊ FIXTURE do chính test bơm vào, KHÔNG đọc
+    # config — nên nó KHÔNG đỏ khi sản phẩm đổi model. Đặt tên rõ ràng là giả
+    # để người sau không tưởng đây là một assertion về cấu hình rồi đi "sửa"
+    # nó mỗi lần đổi nhà cung cấp.
+    assert attrs["gen_ai.request.model"] == "model-gia-chi-de-kiem", (
         "Phải đọc serialized['kwargs']['model_name'], KHÔNG phải "
         "serialized['name'] (tên class 'ChatOpenAI') — đúng bug thật đã "
         "từng xảy ra, xem docstring module."
