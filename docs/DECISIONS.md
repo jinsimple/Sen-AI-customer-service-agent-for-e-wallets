@@ -1375,10 +1375,25 @@ nguon_duoc_duyet:
   1. **`/health` GIỮ NGUYÊN là liveness thuần** — không chạm dependency nào. *Đây là điểm dễ làm
      sai nhất:* cho `/health` gọi OpenAI thì mỗi lần nhà cung cấp sập, Docker sẽ **giết và restart
      vòng lặp một container hoàn toàn khoẻ mạnh** — biến sự cố bên ngoài thành sự cố của ta.
-  2. **Thêm `GET /ready`** (readiness), **ĐỎ** khi bất kỳ điều nào:
-     - DB không tới được
-     - **kho vector RỖNG** — rỗng **không phải** trạng thái phục vụ được
-     - embedding không gọi được (khoá chết / nhà cung cấp từ chối)
+  2. **Thêm `GET /ready`** (readiness) — 🔴 **SỬA 17/08 sau khi PO yêu cầu tra thực tiễn ngành:**
+     ```
+     ĐỎ  (rút khỏi vòng phục vụ)   trạng thái CỤC BỘ của chính instance
+                                    · DB không tới được
+                                    · kho vector RỖNG  ← local state, đúng loại readiness
+     VÀNG (BÁO CÁO, KHÔNG rút)      phụ thuộc NGOÀI
+                                    · embedding/LLM không gọi được (khoá chết · hết hạn mức · 429)
+     ```
+     **Bản đầu của ADR này SAI ở dòng embedding.** Thực tiễn ngành (Kubernetes/SRE) thống nhất:
+     **readiness KHÔNG được phụ thuộc dependency ngoài** — nếu nhà cung cấp sập, **MỌI replica cùng
+     ĐỎ một lúc**, orchestrator rút hết khỏi vòng phục vụ, và ta **biến một suy giảm thành mất dịch
+     vụ toàn phần**. Khuyến nghị chuẩn là **"degraded mode"**: vẫn phục vụ phần làm được, trả 503
+     cho phần không làm được, **không tự rút mình ra**.
+     ⟹ Điều này **xác nhận điều kiện security đã nêu độc lập** (*"`/ready` được phép BÁO CÁO, KHÔNG
+     được phép GATING"*) và **sắc hơn**: ranh giới không phải *"báo cáo hay chặn"* mà **"trạng thái
+     CỤC BỘ hay phụ thuộc NGOÀI"**. Kho rỗng là **cục bộ** ⟹ ĐỎ hợp lệ. Nhà cung cấp sập là
+     **ngoài** ⟹ báo cáo, không rút.
+     *(Nguồn: đồng thuận vận hành Kubernetes/SRE về liveness/readiness probe — "cardinal rule:
+     probes must never check external dependencies", "a good compromise is degraded mode".)*
   3. Có **cache TTL** cho kết quả probe để không đốt tiền mỗi lượt gọi.
   4. `/ready` **mở cho mọi role** (kể cả chưa đăng nhập) — nó là endpoint hạ tầng, không trả dữ liệu
      nghiệp vụ. Phải khai trong `authority-matrix.yaml` (INV-00 đòi khớp chính xác `app.routes`).
@@ -1570,6 +1585,32 @@ nguon_duoc_duyet:
   xanh đó **không mang thông tin nào**. Tester đã viết test canh (`c1c2482`), hai test đầu
   `xfail(strict)` — **đánh dấu nợ đã biết để CI không đỏ, KHÔNG để giấu**; khi contract khai đủ,
   chúng **XPASS** và buộc người sửa quay lại gỡ dấu.
+
+- **🌍 ĐỐI CHIẾU CHUẨN QUỐC TẾ (PO yêu cầu 17/08) — cả ba mục đều có chỗ bám, không phải chuẩn mực nội bộ:**
+
+  **① Mỹ — Regulation E / EFTA §1005.11 (áp cho ví điện tử và P2P phi ngân hàng):** tổ chức **không
+  được từ chối khiếu nại của khách nếu chưa tiến hành ĐIỀU TRA HỢP LÝ**, và *"a reasonable
+  investigation includes **reviewing relevant information within the institution's records**"*.
+  ⟹ Đây là chỗ bám **trực tiếp và mạnh nhất** cho ADR này: khi hồ sơ mang **`scope` bịa** và
+  **`investigation_logs` RỖNG**, thì **chính bản ghi mà cuộc điều tra bắt buộc phải dựa vào đã
+  hỏng**. Vấn đề không còn là *"dữ liệu chưa đẹp"* — nó chạm **đầu vào của một nghĩa vụ pháp lý**.
+  *(Kèm mốc thời gian Reg E: báo kết quả trong 3 ngày làm việc sau khi xong điều tra; sửa lỗi trong
+  1 ngày làm việc sau khi xác định có lỗi.)*
+
+  **② EU — AI Act Điều 50, hiệu lực 02/08/2026:** đầu ra của hệ thống AI sinh nội dung phải được
+  **đánh dấu bằng dấu MÁY ĐỌC ĐƯỢC**, để nhận ra đó là nội dung do AI sinh/chỉnh sửa. ⟹ chỗ bám
+  **trực tiếp** cho **mục 3** (đánh dấu `description_raw` do hệ thống soạn) — ta đang đặt **văn bản
+  do máy sinh** vào bảng *"lời khai = bằng chứng"* mà **không có dấu nào**. Kèm nghĩa vụ công bố
+  *"đang nói chuyện với AI"* ngay đầu tương tác.
+
+  **③ Ranh giới rủi ro cao:** AI Act xếp **chấm điểm tín dụng / bảo hiểm** vào nhóm rủi ro cao;
+  **agent CSKH xử lý khiếu nại thì KHÔNG** ⟹ nghĩa vụ nặng của nhóm rủi ro cao **không áp**, nhưng
+  Điều 50 **vẫn áp**. Ghi rõ để không tự khoác lên mình nghĩa vụ không phải của mình — **cũng là
+  một dạng nói quá.**
+
+  ⚠️ **Hạng bằng chứng:** đọc ở mức **văn bản quy định + hướng dẫn tuân thủ công khai**, **chưa** ở
+  mức ý kiến pháp lý cho đúng pháp nhân/thị trường của ta. Dùng để **định hướng thiết kế**, không
+  dùng làm **kết luận tuân thủ**. *(Nguyên tắc "khai đúng hạng bằng chứng rồi dừng".)*
 
 - **Phương án đã bác:**
 
