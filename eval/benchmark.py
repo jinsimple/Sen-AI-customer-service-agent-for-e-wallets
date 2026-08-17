@@ -191,7 +191,21 @@ def dan_nhan(so_ca: int) -> dict:
     # fin05-backend-1 đã nạp khoá mới (embedding sống), fin05ttl-backend-1 còn
     # mang khoá đã xoá (embedding chết). Một bảng số trộn hai stack sẽ trộn
     # "embedding sống" với "embedding chết" mà NHÌN KHÔNG RA.
-    nhan["stack"] = os.environ.get("FIN05_STACK", "fin05") + " (đặt qua FIN05_STACK)"
+    # STACK + DẤU BUILD. Tên stack không đủ: 17/08 có hai stack cùng báo
+    # `healthy` mà LỆCH NHAU NHIỀU NGÀY CODE — fin05ttl chạy image cũ, thiếu
+    # công tắc collection · TraLoiRongError · reasoning_tokens · top_k · vá
+    # 429->500, và kho 0 vector. `--force-recreate` tạo lại CONTAINER từ IMAGE
+    # CŨ, không rebuild. Số đo trên đó thuộc về MỘT SẢN PHẨM KHÁC.
+    ten_stack = os.environ.get("FIN05_STACK", "fin05")
+    build = _chay(["docker", "exec", f"{ten_stack}-backend-1", "python", "-c",
+                   "from src.config import BUILD_COMMIT; print(BUILD_COMMIT)"]) or "?"
+    if build in ("?", "") or "Error" in build or "Traceback" in build:
+        # `?` ở đây KHÔNG phải "chưa tra được" — nó là "import BUILD_COMMIT NỔ",
+        # tức image không có hằng số đó, tức code cũ. Để nguyên dấu `?` là lặp
+        # lại đúng lỗi `0001-01-01`: một giá trị trông vô hại cho một trạng thái
+        # nghiêm trọng.
+        build = "🔴 KHÔNG ĐỌC ĐƯỢC BUILD_COMMIT — image CŨ, số đo trên stack này KHÔNG dùng được"
+    nhan["stack"] = f"{ten_stack} · build {build}"
     for ten, c in (("backend", "fin05-backend-1"), ("frontend", "fin05-frontend-1")):
         dang_chay = bool(_chay(["docker", "ps", "-q", "-f", f"name={c}"]))
         nhan[f"{ten}_image"] = (_chay(["docker", "inspect", c, "--format", "{{.Image}}"]) or "?")[7:19]
