@@ -208,12 +208,12 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         # nhiều tháng, là chỗ tệ nhất để bỏ nhãn.
         "bam_ma_nguon": nhan_luc_dung(),
         "cach_bam": CACH_BAM,
-        "so_luot_goi_model": u.get("so_luot_goi_model", 0),
-        "input_tokens": u.get("input_tokens", 0),
-        "output_tokens": u.get("output_tokens", 0),
-        "cached_input_tokens": u.get("cached_input_tokens", 0),
-        "reasoning_tokens": u.get("reasoning_tokens", 0),
-        "input_chars": u.get("input_chars", 0),
+        "so_luot_goi_model": u.get("so_luot_goi_model"),
+        "input_tokens": u.get("input_tokens"),
+        "output_tokens": u.get("output_tokens"),
+        "cached_input_tokens": u.get("cached_input_tokens"),
+        "reasoning_tokens": u.get("reasoning_tokens"),
+        "input_chars": u.get("input_chars"),
         "so_tool_call": len(kq.get("tool_calls") or []),
         "ly_do_fallback": kq.get("ly_do_fallback"),
         "duong": kq.get("duong"),
@@ -645,14 +645,16 @@ def run_agent_turn(
                 "ticket_id": None,
                 "should_escalate": False,
                 "usage": {
-                    "input_tokens": 0,
-                    "output_tokens": 0,
-                    "total_tokens": 0,
-                    "cached_input_tokens": 0,
-                    # Ba trường dưới PHẢI có mặt kể cả ở đường lỗi: thiếu khoá
-                    # thì `.get()` trả None y hệt khoá tồn tại mang None, và
-                    # người đọc sổ sáu tháng sau không phân biệt được "lượt lỗi"
-                    # với "trường chưa bao giờ được ghi". Đúng bẫy tester sập.
+                    # `None` = KHÔNG ĐỌC ĐƯỢC, khác hẳn `0` = KHÔNG CÓ.
+                    # Ở nhánh này request ĐÃ ĐƯỢC GỬI nhưng không lời gọi nào
+                    # TRẢ VỀ ⟹ `so_luot_goi_model = 0` là SỰ THẬT. Nhưng nhà
+                    # cung cấp có tính tiền request bị từ chối/bỏ dở hay không
+                    # thì ta KHÔNG kiểm được từ trong hệ thống ⟹ token là None.
+                    # Đặt 0 ở đó là khẳng định một điều ta không biết.
+                    "input_tokens": None,
+                    "output_tokens": None,
+                    "total_tokens": None,
+                    "cached_input_tokens": None,
                     "so_luot_goi_model": 0,
                     "so_tool_schema_gui": _SO_TOOL_GUI,
                     "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
@@ -758,14 +760,16 @@ def run_agent_turn(
                 "ticket_id": None,          # CỐ Ý: xem chú thích ở _LOI_CAN_CAN_THIEP
                 "should_escalate": False,
                 "usage": {
-                    "input_tokens": 0,
-                    "output_tokens": 0,
-                    "total_tokens": 0,
-                    "cached_input_tokens": 0,
-                    # Ba trường dưới PHẢI có mặt kể cả ở đường lỗi: thiếu khoá
-                    # thì `.get()` trả None y hệt khoá tồn tại mang None, và
-                    # người đọc sổ sáu tháng sau không phân biệt được "lượt lỗi"
-                    # với "trường chưa bao giờ được ghi". Đúng bẫy tester sập.
+                    # `None` = KHÔNG ĐỌC ĐƯỢC, khác hẳn `0` = KHÔNG CÓ.
+                    # Ở nhánh này request ĐÃ ĐƯỢC GỬI nhưng không lời gọi nào
+                    # TRẢ VỀ ⟹ `so_luot_goi_model = 0` là SỰ THẬT. Nhưng nhà
+                    # cung cấp có tính tiền request bị từ chối/bỏ dở hay không
+                    # thì ta KHÔNG kiểm được từ trong hệ thống ⟹ token là None.
+                    # Đặt 0 ở đó là khẳng định một điều ta không biết.
+                    "input_tokens": None,
+                    "output_tokens": None,
+                    "total_tokens": None,
+                    "cached_input_tokens": None,
                     "so_luot_goi_model": 0,
                     "so_tool_schema_gui": _SO_TOOL_GUI,
                     "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
@@ -849,14 +853,16 @@ def run_agent_turn(
                 # này phải biết: lượt fallback ÂM THẦM báo thiếu tiền đã tiêu,
                 # và một assertion `usage == 0` sẽ xanh ở CẢ HAI nghĩa.
                 "usage": {
-                    "input_tokens": 0,
-                    "output_tokens": 0,
-                    "total_tokens": 0,
-                    "cached_input_tokens": 0,
-                    # Ba trường dưới PHẢI có mặt kể cả ở đường lỗi: thiếu khoá
-                    # thì `.get()` trả None y hệt khoá tồn tại mang None, và
-                    # người đọc sổ sáu tháng sau không phân biệt được "lượt lỗi"
-                    # với "trường chưa bao giờ được ghi". Đúng bẫy tester sập.
+                    # `None` = KHÔNG ĐỌC ĐƯỢC, khác hẳn `0` = KHÔNG CÓ.
+                    # Ở nhánh này request ĐÃ ĐƯỢC GỬI nhưng không lời gọi nào
+                    # TRẢ VỀ ⟹ `so_luot_goi_model = 0` là SỰ THẬT. Nhưng nhà
+                    # cung cấp có tính tiền request bị từ chối/bỏ dở hay không
+                    # thì ta KHÔNG kiểm được từ trong hệ thống ⟹ token là None.
+                    # Đặt 0 ở đó là khẳng định một điều ta không biết.
+                    "input_tokens": None,
+                    "output_tokens": None,
+                    "total_tokens": None,
+                    "cached_input_tokens": None,
                     "so_luot_goi_model": 0,
                     "so_tool_schema_gui": _SO_TOOL_GUI,
                     "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
@@ -963,6 +969,10 @@ def run_agent_turn(
         "cached_input_tokens": 0,
         "reasoning_tokens": 0,
         "input_chars": 0,
+        # ĐẾM LỜI GỌI **ĐÃ TRẢ VỀ**, không phải đã phát — nó chỉ tăng khi một
+        # `AIMessage` có `usage_metadata`, tức chỉ khi nhà cung cấp đã đáp.
+        # Khai ở đây vì tên trường không nói ra điều đó, và một trường không
+        # khai nó đếm gì thì MỌI giá trị của nó đều mơ hồ, kể cả giá trị đúng.
         "so_luot_goi_model": 0,
         "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
         "so_tool_schema_gui": _SO_TOOL_GUI,
