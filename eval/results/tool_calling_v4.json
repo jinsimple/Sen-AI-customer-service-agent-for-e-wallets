@@ -191,9 +191,23 @@
   "KET_LUAN": "🔴 BỘ ĐO THIẾU 15.094 ký tự CHỈ DẪN mà sản phẩm gửi mọi lượt — tôi gửi 123 ký tự tự soạn, tức 1/123 lượng chỉ dẫn. Hai câu quyết định hành vi đúng của ca 4 và ca 6 nằm TRONG phần thiếu đó.\n⟹ v4 đo NĂNG LỰC GỌI TOOL TRẦN CỦA MODEL, không đo hành vi sản phẩm.\n⟹ Bốn model đồng thuận ở ca 4/6 là ĐIỀU ĐÁNG KỲ VỌNG, không phải bí ẩn — chúng không hề nhận được chỉ dẫn đó.\n⟹ KHÔNG kết luận nào về SẢN PHẨM được rút từ v4, theo CẢ HAI chiều: không 'sản phẩm đang sai', và cũng không 'sản phẩm ổn'.\n⟹ Nhãn ca 4/6 của security ĐỨNG — nó dẫn từ contracts + prompt sản phẩm, hai dẫn xuất độc lập cùng kết luận. Lỗi ở KÍCH THÍCH của bộ đo, không ở nhãn.",
   "VAN_DUNG_DUOC": [
    "So sánh GIỮA CÁC MODEL trên cùng một kích thích: max thắng cả hai trục (43/50 và 28/30), plus thấp nhất — thấp hơn cả gpt-4o-mini. Kết luận này KHÔNG phụ thuộc việc thiếu system prompt vì mọi model nhận CÙNG payload.",
-   "Trục BỊA THAM SỐ = 0 / ~500 lượt / 4 model — MẠNH HƠN khi thiếu prompt: 0 lần bịa KHI THIẾU 15k ký tự dặn dò. Lệnh cấm bịa nằm trong MÔ TẢ TOOL, artefact sản phẩm, bắt buộc có mặt trong mọi bộ đo gọi được tool.",
+   "Trục BỊA THAM SỐ = 0 / ~500 lượt / 4 model — 🔴 ĐÃ ĐÍNH CHÍNH: TÔI TỪNG VIẾT 'mạnh hơn vì thiếu 15k dặn dò'. SAI. Security bác đúng: 123 ký tự của bộ đo CHỨA 'Không bịa' + 'LUÔN gọi tool trước khi nói bất kỳ con số nào' — lệnh cấm bịa chiếm ~1/3 system prompt bộ đo. Trong sản phẩm nó là MỘT chỉ dẫn giữa 15.094 ký tự, cạnh tranh với mọi chỉ dẫn khác. ⟹ với trục này bộ đo là điều kiện DỄ HƠN sản phẩm, không khắc nghiệt hơn. Con số 0 KHÔNG mạnh lên.",
    "Hỏng định dạng = 0 / ~500 lượt."
   ],
-  "CACH_CONG_BO_TRUC_BIA": "Trục này trả 0 ở CẢ BỐN model ⟹ nó CHƯA PHÂN BIỆT ĐƯỢC GÌ lượt này. Giá trị hôm nay là DÂY BẪY GIỮ CHO TƯƠNG LAI, không phải thước phân loại model. Nói: 'không model nào bịa tham số bắt buộc trong ~500 lượt'. KHÔNG nói: 'trục này cho thấy model X an toàn hơn'."
+  "CACH_CONG_BO_TRUC_BIA": "NÓI: '0 lần bịa tham số bắt buộc trong ~500 lượt, TRONG ĐIỀU KIỆN BỘ ĐO — nơi lệnh cấm bịa chiếm ~1/3 system prompt.'\nKHÔNG NÓI: 'kể cả khi thiếu 15k ký tự dặn dò' (nghe như phép thử khắc nghiệt hơn — nó DỄ hơn) · 'trục này cho thấy model X an toàn hơn' (trả 0 ở cả bốn ⟹ chưa phân biệt được gì; giá trị hôm nay là DÂY BẪY GIỮ CHO TƯƠNG LAI).\nCÂU THẬT SỰ QUAN TRỌNG, CHƯA AI ĐO: lệnh 'không bịa' có SỐNG SÓT QUA PHA LOÃNG trong 15.094 ký tự không? Trục 2 dưới điều kiện sản phẩm là phép thử CHƯA TỪNG CHẠY — bắt buộc chạy lại trong v5.",
+  "DUONG_DOI_CHUNG_v5": {
+   "v4_v5_khac": "ĐÚNG MỘT yếu tố: prompt bộ đo ↔ prompt sản phẩm. Mô tả tool đã nguyên văn, lược đồ đã introspect, ca và k giữ nguyên.",
+   "canh_bao": "Biến đó là 'prompt NÀO', KHÔNG phải 'prompt DÀI BAO NHIÊU' — gộp độ dài + nội dung + tên thương hiệu (bộ đo ghi MoMo, sản phẩm ghi khác). KHÔNG cô lập riêng pha loãng.",
+   "doc_v5_dung": {
+    "ca_4_6_DUNG": "15k chỉ dẫn CÓ hiệu lực ở họ ca này — và CHỈ họ này.",
+    "ca_4_6_SAI": "🔴 finding sản phẩm thật, VÀ là ca đối chứng trực tiếp cho giả thuyết PHÂN TÁN: chỉ dẫn CÓ MẶT mà KHÔNG CÓ HIỆU LỰC. hiện-diện ≠ hiệu-lực, ĐO ĐƯỢC chứ không suy ra."
+   },
+   "du_doan_khai_TRUOC_khi_chay": "security khai trước, để nếu v5 đỏ thì là dự đoán chứ không phải giải thích hậu nghiệm: chỉ dẫn 'PHẢI tra ra CẢ HAI' xuất hiện ×1, còn 'create_ticket' — hành động mà nó có nhiệm vụ chặn — xuất hiện ×7. Độ chênh giữa hành động và tiền đề của nó là ứng viên cơ chế ĐẦU TIÊN cần soi, trước khi kết luận 'model kém'.",
+   "rang_buoc_van_hanh": [
+    "đóng băng mọi thứ khác giữa v4↔v5",
+    "công bố BĂM CẢ HAI prompt cạnh kết quả (v4: 9d6dbff3bc7f)",
+    "CHẠY LẠI trục 2 trong v5"
+   ]
+  }
  }
 }
