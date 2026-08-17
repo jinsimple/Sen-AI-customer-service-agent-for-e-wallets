@@ -1,5 +1,55 @@
 # Trạng thái hiện tại
 
+## 🔴 CHỐT 17/08 — BỘ SỐ THỜI GIAN "hai đồng hồ không biết nhau" + phạm vi A2 ở đường hỏng
+
+Coder chẩn: `OPENAI_TIMEOUT=20` × `MAX_RETRIES=1` ⟹ **một** lời gọi hỏng ăn 40s trên trần lượt
+45s, trong khi lượt điển hình cần 2–5 lời gọi (lượt 4 đo thật 30,7s = 68% ngân sách lúc BÌNH
+THƯỜNG). Tổng quát hoá đúng của F-33b: **không cần 429 — mọi chậm trễ đủ lớn đều đội lốt
+timeout, và timeout thì đẻ vé.**
+
+**PO-agent tự đọc config xác nhận 3 số, và tìm ra ĐỒNG HỒ THỨ TƯ coder chưa thấy:**
+`api/main.py:384` `ttl_seconds=90` là **HẰNG SỐ CHẾT**; quan hệ "2× trần lượt" chỉ sống trong
+CHÚ THÍCH dòng 379. ⟹ **(b) nâng trần lượt lên 90s TỰ SÁT**: trần = TTL ⟹ lưới thu hồi cướp slot
+của lượt đang chạy hợp lệ — đúng thứ chính chú thích đó viết ra để tránh, và nổ ở chỗ đắt nhất
+(buổi 150 người, limiter là thứ duy nhất giữ dưới ngưỡng bão 429). Cùng lớp với
+`docs/2026-08-17-ra-soat-khai-bao-vs-ep-buoc.md`: **khai quan hệ trong chú thích, đọc thành
+ràng buộc — không có ràng buộc nào cả.**
+
+| ph.án | quyết | vì sao |
+|---|---|---|
+| (a) hạ trần lời gọi 12s | **NHẬN HƯỚNG, HOÃN SỐ** | 11,6s là CỰC ĐẠI QUAN SÁT — Luật F: mẫu số đâu? Đặt trần ở max+3% = hiệu chuẩn van trên mẫu nhỏ hơn nhiều lần quần thể nó cai quản. Hỏi p50/p90/p99 (0 token, số đã trên đĩa) |
+| (b) nâng trần lượt 90s | **BÁC** | đụng TTL 90 hardcode (trên) |
+| (c) `MAX_RETRIES=0` | **BÁC** | coder viết "để tầng lượt quyết định" — nhưng **tầng lượt không thử lại, nó ĐẺ VÉ**. (c) không dời quyền quyết định lên trên, nó XOÁ lớp tự lành duy nhất. Đổi "tự lành im lặng" lấy "vé" là đi NGƯỢC CHIỀU A2 |
+
+**Chữa đúng bệnh, không chỉnh số (làm ngay, không chờ mẫu số):** ① rút `ttl_seconds` khỏi
+hardcode, dẫn xuất từ trần lượt — quan hệ phải sống trong CODE ② **kiểm mạch lạc lúc khởi động,
+fail-fast**: `TIMEOUT × (RETRIES+1) ≤ TURN × k` ⟹ bộ config vô lý KHÔNG deploy được, thay vì lộ
+qua một lượt hỏng của khách. Chọn số nào cũng chỉ chữa lần này.
+
+**🔴 CÂU HỎI HIẾN PHÁP suýt lọt — A2 vs đường hỏng.** Nhánh timeout TẠO VÉ không hỏi ai (thiết
+kế ĐÚNG: khách vừa được đọc mã vé ⟹ vé phải có thật, ràng buộc cứng #3). Nhưng A2 chốt sáng nay
+là "chờ khách đồng ý mới mở ticket". **Phán quyết (đề xuất lên PO thật, đội thi hành ngay vì
+tester đang viết ca):**
+
+> A2 chi phối đường agent **CHỦ Ý** mở vé thay khách. A2 **KHÔNG** chi phối đường bàn giao khi
+> **hệ thống hỏng** — đồng ý giả định một hội thoại còn hoạt động; lúc timeout agent không hỏi
+> được ai, và bỏ khách tay trắng tệ hơn một cái vé họ không xin.
+> **ĐIỀU KIỆN CỨNG:** vé từ đường hỏng phải PHÂN BIỆT ĐƯỢC BẰNG MÁY với vé từ đường đồng ý —
+> mốc thuộc **SỰ KIỆN** không thuộc **VÉ** (tinh thần ADR-029). Bằng chứng cần thiết đã có sẵn
+> trong tay tester: `Δcomplaints=+1` với `total_tokens=0` ⟹ **hôm nay đếm vé không tách được hai
+> loại**, nên mọi số A2 dựa trên đếm vé đều bị vé-fallback pha loãng.
+
+Không chốt trước khi tester viết xong ⟹ bộ ca **đóng băng một hành vi chưa ai xét** — đúng cái
+§4 dựng tường đọc để tránh.
+
+**Trình tự (giữ nguyên đề nghị coder):** quyết trọn → đổi MỘT lần → đo lại nền → rồi mới A2.
+Nền A2 đã đo (13,9K + 14K) là **chi phí chìm**; nuốt bây giờ rẻ hơn nuốt sau khi A2 xong. Tester:
+viết ca cứ viết, **không chạy lượt tính tiền nào cho A2 tới khi có nền mới.**
+
+**Ghi nhận nếp đúng:** coder KHÔNG kết luận "nhà cung cấp chậm" từ "3/3 gần nhất" của tester mà
+chỉ ra **mẫu số khác nhau** (3 lượt rải trên 3 ngăn xếp; log `fin05` chỉ có ×1) — Luật F dùng
+đúng lúc, ngay trên báo cáo của đồng đội.
+
 ## 🔴 ĐANG ĐIỀU TRA (16/08) — DEMO-BUG "gặp người thật ra lỗi": đua-refresh → AUTH5-03 thu hồi family
 PO gặp lỗi giữa demo mentor 15/08 (đúng quy trình 2 cửa sổ — giả thuyết đè-phiên BỊ BÁC bởi dữ
 kiện PO). **Dữ kiện bổ sung của PO siết thêm:** trước demo họ chạy TRỌN kịch bản KỂ CẢ handoff —
