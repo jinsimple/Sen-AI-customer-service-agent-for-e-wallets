@@ -75,12 +75,15 @@ from src.auth import (
     try_decode,
 )
 from src.config import (
+    AGENT_TURN_TIMEOUT_SECONDS,
     APP_ENV,
     BUILD_AT,
     BUILD_COMMIT,
     DB_KIND,
     DB_NAME,
     DIALABLE,
+    OPENAI_MAX_RETRIES,
+    OPENAI_TIMEOUT_SECONDS,
     OTP_MAX_FAILED_ATTEMPTS,
     REDIS_URL,
     RESOLUTION_APPROVAL_OTP_FRESH_MINUTES,
@@ -380,8 +383,17 @@ _otp_request_user_limiter = RedisSlidingWindowLimiter(max_calls=10, window_secon
 # process chết giữa chừng, đặt LỚN HƠN timeout để không cướp slot của lượt
 # đang chạy hợp lệ. Chỉnh qua biến môi trường khi có số đo từ load test thật.
 _AGENT_MAX_CONCURRENT = int(os.environ.get("AGENT_MAX_CONCURRENT", "20"))
+# TTL DẪN XUẤT, không gõ cứng. Trước 17/08 nó là hằng số `90` với quan hệ
+# "2× AGENT_TURN_TIMEOUT" sống trong CHÚ THÍCH — tức không có ràng buộc nào.
+# Nâng `AGENT_TURN_TIMEOUT_SECONDS` lên 90 (một trong ba phương án đang cân)
+# sẽ làm trần lượt BẰNG ttl ⟹ lưới thu hồi CƯỚP SLOT của lượt đang chạy hợp lệ
+# — đúng điều chú thích đó viết ra để tránh, và nó hỏng IM LẶNG: over-admission
+# không log nào kêu, đúng lúc limiter là thứ duy nhất giữ ta dưới ngưỡng 429.
+_AGENT_LIMITER_TTL_HE_SO = 2
 _agent_turn_limiter = RedisConcurrencyLimiter(
-    max_concurrent=_AGENT_MAX_CONCURRENT, ttl_seconds=90, name="agent_turn"
+    max_concurrent=_AGENT_MAX_CONCURRENT,
+    ttl_seconds=int(AGENT_TURN_TIMEOUT_SECONDS * _AGENT_LIMITER_TTL_HE_SO),
+    name="agent_turn",
 )
 
 
@@ -1457,6 +1469,43 @@ def live_chat_submit_csat(
 
 
 app.add_api_websocket_route("/ws/live-chat", live_chat_websocket_endpoint)
+
+
+def _kiem_mach_lac_ngan_sach_thoi_gian() -> None:
+    """Bộ config VÔ LÝ về thời gian thì KHÔNG deploy được — fail-fast lúc import.
+
+    17/08 đo được: ba đồng hồ không biết nhau.
+
+        OPENAI_TIMEOUT_SECONDS   20,0   trần MỘT lời gọi
+        OPENAI_MAX_RETRIES        1     SDK tự thử lại
+        AGENT_TURN_TIMEOUT_SEC   45,0   trần CẢ LƯỢT
+
+    ⟹ một lời gọi chậm + một retry = 40s = **89% ngân sách của cả lượt**, mà
+    lượt điển hình cần 2–5 lời gọi. Lượt thật đo được chạm 30,7s khi mọi thứ
+    bình thường; thêm đúng một retry là vượt trần ⟹ `agent_turn_timeout` ⟹ và
+    nhánh đó **ĐẺ VÉ**. Một cấu hình lệch sinh ra hồ sơ khiếu nại thật.
+
+    Kiểm này KHÔNG chọn con số đúng — nó chỉ từ chối bộ số **tự mâu thuẫn**.
+    Chọn số vẫn là việc của người, và cần phân bố độ trễ thật (p99 = 11,6s
+    trên n=70 lời gọi đo 17/08), không phải cực đại quan sát.
+
+    Vì sao fail-fast chứ không cảnh báo: hậu quả không hiện ở chỗ sai. Nó hiện
+    ở một lượt hỏng của khách, nhiều giờ sau, dưới dạng một cái vé không ai
+    xin — cách xa nguyên nhân đến mức không ai nối lại được.
+    """
+    ngan_sach_mot_goi = OPENAI_TIMEOUT_SECONDS * (OPENAI_MAX_RETRIES + 1)
+    if ngan_sach_mot_goi > AGENT_TURN_TIMEOUT_SECONDS:
+        raise RuntimeError(
+            f"Ngân sách thời gian tự mâu thuẫn: MỘT lời gọi có thể tiêu "
+            f"{ngan_sach_mot_goi:.0f}s (OPENAI_TIMEOUT_SECONDS="
+            f"{OPENAI_TIMEOUT_SECONDS} × (OPENAI_MAX_RETRIES="
+            f"{OPENAI_MAX_RETRIES} + 1)) trong khi trần CẢ LƯỢT chỉ "
+            f"{AGENT_TURN_TIMEOUT_SECONDS:.0f}s. Một lượt cần nhiều lời gọi ⟹ "
+            f"timeout là chắc chắn chứ không phải rủi ro, và nhánh timeout TẠO VÉ."
+        )
+
+
+_kiem_mach_lac_ngan_sach_thoi_gian()
 
 
 @app.on_event("startup")
