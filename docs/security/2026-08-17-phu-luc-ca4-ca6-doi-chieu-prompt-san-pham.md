@@ -186,6 +186,71 @@ viên cơ chế đầu tiên cần soi, trước khi kết luận "model kém".
 prompt** cạnh kết quả (v4 đã có `9d6dbff3bc7f`), và **chạy trục 2 lại trong
 v5** — vì đúng theo §5b, trục 2 dưới sản phẩm là phép thử **chưa từng chạy**.
 
+## §5d. Tỉ lệ pha loãng: **~2×, không phải ~20×** — đo trên KÍCH THÍCH TRỌN VẸN
+
+Tester đo mật độ *"bịa"* và ra **loãng ~20 lần** (`6/15.094` = 0,04%/ký tự so
+với `1/123` = 0,81%/ký tự). Tôi kiểm phần họ đo — **khớp chính xác cả ba số**:
+`len=15094` · băm `33d66da05520` · `"bịa"` **×6**. Phép đo của họ đúng.
+
+**Nhưng nó so system-prompt với system-prompt, trong khi model không nhận riêng
+system prompt.** Mô tả tool cũng là chỉ dẫn, cũng chứa lệnh cấm bịa, và **có
+mặt ở CẢ HAI phiên bản**. Ở v4 chúng **áp đảo** kích thích:
+
+```
+mô tả tool (chung cho cả hai)     4.334 ký tự · "bịa" ×3
+   get_customer_history ×1 · create_ticket ×1 · request_human_handoff ×1
+
+KÍCH THÍCH TRỌN VẸN (system + mô tả tool)
+   v4 (bộ đo)      4.457 ký tự · "bịa" ×4 · 0,0897 %/ký tự
+   v5 (sản phẩm)  19.428 ký tự · "bịa" ×9 · 0,0463 %/ký tự
+                                          ⟹ loãng ~1,94×
+```
+
+⟹ **Kết luận §5b không đổi** — v4 **vẫn** là điều kiện dễ hơn cho trục 2. Nhưng
+**độ mạnh phải hạ theo**: chênh lệch là **~2 lần**, không phải 20. Tôi đã nới
+lời văn một lần (bỏ *"khắc nghiệt hơn"*); giờ nới lần thứ hai theo hướng ngược
+lại — *"loãng 20 lần"* cũng **không** công bố được.
+
+🔴 **Và đây là điều chỉnh quan trọng hơn con số:** *"pha loãng"* là câu trả lời
+cho **trục 2**, và nó **không nói gì về ca 4/6**. Với ca 4/6, chỉ dẫn quyết
+định (*"PHẢI tra ra CẢ HAI"*, *"chủ động tra giúp"*) **VẮNG MẶT hoàn toàn**
+trong v4 — đó là **hiện diện/vắng mặt**, không phải **đậm/loãng**. Hai trục
+khác nhau, đừng gộp:
+
+| | Delta v4→v5 | Loại |
+|---|---|---|
+| **ca 4/6** (tra trước khi tạo vé) | ×0 → ×1 | **vắng mặt → có mặt** |
+| **trục 2** (cấm bịa) | 0,0897% → 0,0463% | **loãng ~2×** |
+
+Suy luận của tester — *"nếu nhắc 'bịa' tận 6 lần mà lệnh vẫn không sống sót thì
+pha loãng mạnh hơn ta tưởng"* — là một **điều kiện đúng cách đặt**, nhưng
+**×6 trong một kích thích dài gấp 4,4 lần** không ấn tượng như con số trần gợi
+ra. Giữ nó làm giả thuyết, đừng làm kết luận chờ sẵn.
+
+⚠️ **Một lệch chưa giải thích, ghi lại thay vì làm phẳng:** tester báo độ dài
+mô tả tool `680·947·1266·793·1176` (tổng 4.862); tôi đo `t.description` ra
+`608·851·1114·713·1048` (tổng 4.334). Lệch đều ~70–150 mỗi tool — nhiều khả
+năng họ tính cả tên tool/lược đồ tham số mà nhà cung cấp thực nhận. **Không đổi
+tỉ lệ** (~2× hai đằng), nhưng phải khai: hai bên đang băm **hai đối tượng khác
+nhau**, và nếu sau này ai đó đối chiếu hai file sẽ thấy lệch mà không rõ vì sao.
+
+## §5e. Ratify phát hiện `current_time` của tester — và một hệ quả họ chưa nêu
+
+`build_system_prompt(*, current_time)` là tham số **bắt buộc**, và ngày/giờ đi
+thẳng vào prompt. ⟹ **prompt sản phẩm KHÔNG cố định — nó đổi theo thời điểm
+gọi.** Tester ghim `2026-08-17 10:00:00` và khai băm `33d66da05520` là **băm
+của mốc đó**, không phải của hàm. **Đúng, và đây là loại lỗi hỏng-lặng-lẽ điển
+hình** — hai đợt cách nhau vài giờ nhận hai prompt khác nhau, cặp đối chứng
+hỏng mà không có triệu chứng nào.
+
+**Hệ quả họ chưa nêu:** điều đó áp **ngược về quá khứ**. Mọi mốc đã công bố đo
+qua sản phẩm (An toàn 30/30, mốc nền đối kháng 18/20…) chạy dưới một prompt mà
+**ta không băm lại được trừ khi biết mốc thời gian của lượt chạy**. Không phải
+báo động — chưa có bằng chứng ngày/giờ đổi hành vi — nhưng nó có nghĩa là câu
+*"cùng một prompt"* giữa hai ngày **là một giả định, không phải một sự kiện**.
+**Đề nghị:** từ nay ghi **mốc thời gian truyền vào prompt** cạnh mọi con số đo
+qua sản phẩm, cùng chỗ với băm THƯỚC và băm VẬT.
+
 ## §6. Hai kết quả v4 ĐỨNG VỮNG bất kể phán quyết trên — ghi vào hồ sơ an toàn
 
 **🟢 Bịa tham số bắt buộc = 0 / ~500 lượt / 4 model / 2 nhà cung cấp.**
