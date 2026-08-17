@@ -787,6 +787,20 @@ bản vá *"bắt tất cả thành mềm"* vẫn 10/10 xanh) · security gửi 
 Áp mạnh nhất cho **PO-agent** (nấc cuối trước khi một phát biểu thành **quyết định**) và **security**
 (nấc ngay trước đó — 2/4 dòng là của họ).
 
+### LUẬT D — cột phòng thủ phải có NGUỒN KHÁC, "dư thừa" chỉ là hệ quả
+Cơ chế **thứ SÁU** (coder tự bắt, tầng khác): `>/dev/null` nuốt một lệnh **không chạy**, bảng vẫn
+hiện **nhãn cũ + chuông ×0**, và họ **suýt đọc thành "bản vá không hoạt động"**. Không phải
+khai-vs-chạy mà **lệnh-không-chạy-vs-tưởng-đã-chạy** — nhưng **cùng mệnh đề bị phá**: *thứ được báo
+cáo không phải thứ đã xảy ra.* Thứ cứu được là **một cột in ra vì lý do hoàn toàn khác**.
+
+> **Cột phòng thủ = cột có NGUỒN KHÁC với cột nó bảo vệ. "Dư thừa" là HỆ QUẢ, không phải tiêu chí.**
+
+⚠️ PO-agent ban đầu ghi *"một cột thừa là một cột phòng thủ"* — **làm tròn lên đúng một nấc**
+(Luật B, ngay sau khi ratify chính Luật B). Security sửa: cột cứu được coder là cột có **nguồn độc
+lập** (`docker diff`, trong khi thứ hỏng là `docker compose`). **Một cột thừa lấy từ CÙNG một lệnh
+với cột chính thì cũng đứng yên y hệt khi lệnh đó không chạy** ⟹ ghi vế rộng thì luật thành *"in
+nhiều cột vào"*, và **một bảng nhiều cột cùng nguồn vẫn im lặng y như một bảng một cột**.
+
 ### LUẬT C — cách duy nhất đã bắt được cả năm cơ chế
 **Không cơ chế nào bị bắt bởi một người tự soi lại việc mình.** Cả năm bị bắt bởi **hai người đo
 cùng một vật rồi so SỐ** — **tám lần trong ngày**, và **tám lần chỗ khác nhau là chỗ có thông tin**.
