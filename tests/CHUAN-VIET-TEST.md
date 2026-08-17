@@ -1394,6 +1394,19 @@ phải chứng minh **cả hai chiều** (Luật 2):
 lượt đo — mà ở **hạ tầng test của chính mình**, thứ chạy hàng trăm lần mà không
 ai coi là "một phép đo".
 
+**Và bán kính của nó không trùng với vật đang đo.** `test_dua_refresh_token.py`
+đo ngăn xếp **ttl** qua HTTP (`FIN05_TEST_BASE_URL=…:8443`), nhưng fixture
+`autouse` xoá Redis mà **`REDIS_URL` của tiến trình pytest** trỏ tới — một ngăn
+xếp **khác**. Đo được:
+
+    fin05-redis-1     flushdb=437 · dbsize 0     ← NGƯỜI NGOÀI CUỘC, bị xoá sạch
+    fin05ttl-redis-1  flushdb=0   · dbsize 22    ← ngăn xếp ĐANG ĐƯỢC ĐO, nguyên vẹn
+
+> Fixture phá **thứ không ai đang nhìn**, và tha **thứ đang được đo**. Nên thiệt
+> hại không xuất hiện trong kết quả của người chạy test — nó xuất hiện trong
+> công việc của **người bên cạnh**, ở một thời điểm không ai nối lại được với
+> lệnh đã gây ra nó.
+
 Và hệ quả vận hành, đáng nói riêng: **một ngăn xếp đang có người khác dùng thì
 không phải chỗ để chạy phép đo có ghi.** Không chỉ vì lẫn số — mà vì phép đo
 tiêu hạn ngạch, đụng rate-limit, và làm hỏng phép đo của người bên cạnh.
