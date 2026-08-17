@@ -63,9 +63,26 @@ Số vào hồ sơ/deliverable = số Chấm-MỐC. Hai chế độ hai nhãn, k
 
 ## 📊 BENCHMARK v0 — mốc nền, chấm 16/08
 
-Nhãn vật **của lượt đo hiện hành (v0.4)**: HEAD `dev/learning-loop` 16/08 tối · backend
-`332c053b9fde` · kho RAG **378 chunk · 2 doc**, băm `2209afc2042c` · retrieval đo bằng **bộ 47 ca
-thước-rà-hai-phía** (script `6eef7e1`) · latency bằng bộ lệnh cố định v2 (`aa020d3`).
+Nhãn vật **của lượt đo hiện hành (v0.4)** — **chép NGUYÊN VĂN từ `benchmark.py --khoi-spec`**,
+không diễn giải lại (chống lỗi số-cũ-còn-sót; xem `e886307`):
+
+```
+# đo lúc 2026-08-16T22:43:03
+# nhãn vật: commit 3407d6b · he_thong a26a1ee01383 · backend 36f5222ef4d2 (StartedAt 2026-08-16T15:42:30)
+#           kho RAG: 378 chunk (Postgres) · 2 doc · băm-nội-dung 11b11b494a6a
+# bộ ca: 60
+
+| Trục                   | Số thật                           | Điểm |
+|------------------------|-----------------------------------|------|
+| Truy hồi RAG (20)      | Recall@4 TB hai chế độ · ToS 2/10 | 9.57 |
+```
+> ⚠️ **Khối MỘT PHẦN** — chỉ thay dòng «Truy hồi RAG»; bốn trục khác **giữ nguyên** (lượt này
+> không chạy chúng ≠ chúng chưa đo). Không có tổng vì lượt một phần không đủ dữ kiện để cộng.
+> *Ghi nhận: khối này lệch với nhãn PO viết tay trước đó (`backend 332c053b9fde` · băm
+> `2209afc2042c` · "bộ 47 ca") — **đúng loại lệch mà công cụ sinh ra để bắt**. Số điểm 9,57 không
+> đổi; "bộ ca 60" là kích thước file, 47 là số ca dương tính dùng cho Recall.*
+
+Latency đo bằng bộ lệnh cố định v2 (`aa020d3`).
 > ⚠️ Nhãn cũ của v0 gốc (`backend a216b98c1b79` · kho **419 chunk** · probe 8-câu · PROVISIONAL)
 > **KHÔNG áp cho bảng dưới** — và kho 419 chunk chính là kho **có 57 chunk rác `.md`** của sự cố
 > 16/08, đã gỡ. Giữ dòng này làm lịch sử, không dùng làm nhãn.
