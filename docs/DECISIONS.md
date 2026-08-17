@@ -1348,7 +1348,7 @@ nguon_duoc_duyet:
 
 ## ADR-028 — Tách `/ready` khỏi `/health`: kho RỖNG và khoá CHẾT đều phải làm đỏ readiness
 
-- **Ngày:** 2026-08-17 · **Trạng thái:** ĐỀ XUẤT — chờ PO thật duyệt (quy trình §3: ADR trước, code sau)
+- **Ngày:** 2026-08-17 · **Trạng thái:** Đang hiệu lực — PO thật chốt 17/08/2026 (quy trình §3: ADR trước, code sau)
 - **Bối cảnh:**
 
   Ngày 17/08 hệ thống rơi vào **hai chế độ hỏng khác nhau**, và `/health` báo **xanh trong cả hai**:
@@ -1436,7 +1436,7 @@ nguon_duoc_duyet:
 
 ## ADR-029 — `scope` phải là `unknown` khi không tra ra, và contract phải khai đủ 4 giá trị
 
-- **Ngày:** 2026-08-17 · **Trạng thái:** ĐỀ XUẤT — chờ PO thật duyệt (quy trình §3: ADR trước, code sau)
+- **Ngày:** 2026-08-17 · **Trạng thái:** Đang hiệu lực — PO thật chốt 17/08/2026 (quy trình §3: ADR trước, code sau)
 - **Bối cảnh:**
 
   Tester tìm ra qua nhánh timeout; security xác nhận bằng đọc mã và **mở rộng phạm vi**.
@@ -1673,7 +1673,7 @@ nguon_duoc_duyet:
 
 ## ADR-030 — Tầng "trình bày cho model" là MỘT PHẦN CỦA PROMPT, phải được đóng dấu như prompt
 
-- **Ngày:** 17/08/2026 · **Trạng thái:** ĐỀ XUẤT — chờ PO thật duyệt
+- **Ngày:** 17/08/2026 · **Trạng thái:** Đang hiệu lực — PO thật chốt 17/08/2026
 - **Bối cảnh:**
 
   Chuyên gia token của PO đề xuất tách tầng *"trình bày cho model"* khỏi tầng *"lưu sổ"* cho kết quả
