@@ -93,6 +93,9 @@ _SO_TOOL_GUI = 0
 # model, không từ config. Xem chú thích tại chỗ gán.
 _SUY_LUAN_GUI = True
 
+# Kích thước lược đồ tool ĐO ĐƯỢC ở lần dựng gần nhất — thay hằng số gõ tay.
+_CHARS_TOOL_SCHEMA_THAT = _CHARS_TOOL_SCHEMA
+
 def _giay_cho_lai(loi: Exception) -> float | None:
     """Moi so giay nha cung cap BAO, khong tu doan.
 
@@ -194,6 +197,11 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "ts": dt.datetime.utcnow().isoformat() + "Z",
         "thread_id": thread_id or user_id,
         "model": LLM_MODEL,
+        # ĐO Ở ĐÂU. tester phải loại trừ ngăn xếp ttl bằng đường gián tiếp vì
+        # "không bản ghi nào ghi URL của lượt đo" — cùng họ với mốc-thời-gian
+        # của security. Một con số không tự khai NÓ ĐO Ở ĐÂU thì lần sau lại
+        # phải điều tra như lần này.
+        "base_url": LLM_BASE_URL or "openai",
         # VẬT nào sinh ra số này — KÈM cách băm, vì một chuỗi 12 hex không tự
         # khai nguồn gốc của nó. 17/08 đã mất một vòng vì tôi so md5 với sha256
         # của người khác rồi kết luận ".env đổi 4 lần". Sổ này được đọc lại sau
@@ -209,11 +217,11 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "so_tool_call": len(kq.get("tool_calls") or []),
         "ly_do_fallback": kq.get("ly_do_fallback"),
         "duong": kq.get("duong"),
-        "so_tool_schema_gui": kq.get("so_tool_schema_gui"),
+        "so_tool_schema_gui": u.get("so_tool_schema_gui"),
         # TRẠNG THÁI THẬT của lượt, không phải giá trị cờ config — nếu không có
         # trường này thì dòng R2 và R3 trong sổ KHÔNG phân biệt được khi đọc
         # lại sau nhiều tháng, mà sổ sinh ra để được đọc lại sau nhiều tháng.
-        "suy_luan_gui": _SUY_LUAN_GUI,
+        "suy_luan_gui": u.get("suy_luan_gui"),
         "co_ticket": bool(kq.get("ticket_id")),
     })
 
@@ -418,8 +426,19 @@ def _build_agent(
     # Trường này đến từ cơ chế KHÁC với quyết định phân luồng, nên hai thứ
     # không thể cùng nói dối một lúc: dấu `duong` kẹt ở "day_du" trong khi số
     # này = 0 là mâu thuẫn tự lộ, và ngược lại.
-    global _SO_TOOL_GUI
+    global _SO_TOOL_GUI, _CHARS_TOOL_SCHEMA_THAT
     _SO_TOOL_GUI = len(tools)
+    # Kích thước lược đồ ĐO TỪ CHÍNH LƯỢC ĐỒ, không gõ tay. `_CHARS_TOOL_SCHEMA
+    # = 6773` phía trên kèm chú thích "đổi khi thêm/bớt tool" — một con số
+    # NGƯỜI PHẢI NHỚ cập nhật, tức nó sẽ hỏng im lặng vào ngày có tool thứ sáu.
+    # Đo payload thật 17/08: 6.773 ký tự — hằng số ĐÚNG hôm nay, và đúng do
+    # người, không do cơ chế.
+    try:
+        from langchain_core.utils.function_calling import convert_to_openai_tool
+        _CHARS_TOOL_SCHEMA_THAT = len(json.dumps(
+            [convert_to_openai_tool(t) for t in tools], ensure_ascii=False))
+    except Exception:  # noqa: BLE001 — số đo hỏng không được làm chết lượt chat
+        _CHARS_TOOL_SCHEMA_THAT = _CHARS_TOOL_SCHEMA
     # KHÔNG truyền customer_name — họ tên thật không được rời hệ thống lên LLM
     # (ADR-010). Giữ tham số ở chữ ký hàm để không vỡ caller cũ.
     system_prompt = build_system_prompt(current_time=dt.datetime.utcnow())
@@ -450,6 +469,15 @@ def run_agent_turn(
     if user is None:
         raise ToolError(f"user_id không tồn tại: {user_id}")
 
+    # Đặt lại đầu MỖI lượt: hai biến này là toàn cục cấp module (ghi ở
+    # `_build_agent`). Không đặt lại thì một `return` sớm xảy ra TRƯỚC khi agent
+    # được dựng sẽ báo giá trị của LƯỢT TRƯỚC — một con số hợp lý và sai.
+    # `None` ở đây là CỐ Ý: nó nói "chưa dựng agent", khác hẳn `0` nghĩa là
+    # "đã dựng, không gửi tool nào".
+    global _SO_TOOL_GUI, _CHARS_TOOL_SCHEMA_THAT
+    _SO_TOOL_GUI = None
+    _CHARS_TOOL_SCHEMA_THAT = None
+
     # ── T1 · PHÂN LUỒNG ─────────────────────────────────────────────────────
     # Sau cờ, MẶC ĐỊNH TẮT. Tắt thì hàm này chạy y hệt trước khi có nhánh này.
     #
@@ -474,7 +502,14 @@ def run_agent_turn(
                 "should_escalate": False,
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
                           "cached_input_tokens": 0, "reasoning_tokens": 0,
-                          "input_chars": 0, "so_luot_goi_model": 0},
+                          "input_chars": 0, "so_luot_goi_model": 0,
+                          # Hai trường ĐẾM cùng tầng với `so_luot_goi_model`.
+                          # tester sập bẫy hai-tầng: `.get()` trên khoá không
+                          # tồn tại trả None, y hệt khoá tồn tại mang None.
+                          # `duong` GIỮ top-level — nó là NHÃN, không phải số đo.
+                          "so_tool_schema_gui": 0,
+                          "chars_tool_schema_moi_luot": 0,
+                          "suy_luan_gui": None},
                 "loc_dau_ra": [],
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 "goi_y_handoff": False,
@@ -484,7 +519,6 @@ def run_agent_turn(
                 # phân luồng, nên một điểm hỏng không giả được cả hai: dấu kẹt
                 # "day_du" mà số này = 0 là mâu thuẫn tự lộ.
                 "duong": DUONG_NHE,
-                "so_tool_schema_gui": 0,
             }
             _ghi_so(_kq_nhe, thread_id, user_id)
             return _kq_nhe
@@ -615,13 +649,20 @@ def run_agent_turn(
                     "output_tokens": 0,
                     "total_tokens": 0,
                     "cached_input_tokens": 0,
+                    # Ba trường dưới PHẢI có mặt kể cả ở đường lỗi: thiếu khoá
+                    # thì `.get()` trả None y hệt khoá tồn tại mang None, và
+                    # người đọc sổ sáu tháng sau không phân biệt được "lượt lỗi"
+                    # với "trường chưa bao giờ được ghi". Đúng bẫy tester sập.
+                    "so_luot_goi_model": 0,
+                    "so_tool_schema_gui": _SO_TOOL_GUI,
+                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
+                    "suy_luan_gui": _SUY_LUAN_GUI,
                 },
                 "loc_dau_ra": [],
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 "goi_y_handoff": False,
                 "ly_do_fallback": "qua_tai",
                 "duong": DUONG_DAY_DU,
-                "so_tool_schema_gui": _SO_TOOL_GUI,
             }
             _ghi_so(_kq, thread_id, user_id)
             return _kq
@@ -721,6 +762,14 @@ def run_agent_turn(
                     "output_tokens": 0,
                     "total_tokens": 0,
                     "cached_input_tokens": 0,
+                    # Ba trường dưới PHẢI có mặt kể cả ở đường lỗi: thiếu khoá
+                    # thì `.get()` trả None y hệt khoá tồn tại mang None, và
+                    # người đọc sổ sáu tháng sau không phân biệt được "lượt lỗi"
+                    # với "trường chưa bao giờ được ghi". Đúng bẫy tester sập.
+                    "so_luot_goi_model": 0,
+                    "so_tool_schema_gui": _SO_TOOL_GUI,
+                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
+                    "suy_luan_gui": _SUY_LUAN_GUI,
                 },
                 "loc_dau_ra": [],
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
@@ -731,7 +780,6 @@ def run_agent_turn(
                     "nha_cung_cap_can_can_thiep" if can_thiep else "nha_cung_cap_thoang_qua"
                 ),
                 "duong": DUONG_DAY_DU,
-                "so_tool_schema_gui": _SO_TOOL_GUI,
             }
             _ghi_so(_kq, thread_id, user_id)
             return _kq
@@ -805,6 +853,14 @@ def run_agent_turn(
                     "output_tokens": 0,
                     "total_tokens": 0,
                     "cached_input_tokens": 0,
+                    # Ba trường dưới PHẢI có mặt kể cả ở đường lỗi: thiếu khoá
+                    # thì `.get()` trả None y hệt khoá tồn tại mang None, và
+                    # người đọc sổ sáu tháng sau không phân biệt được "lượt lỗi"
+                    # với "trường chưa bao giờ được ghi". Đúng bẫy tester sập.
+                    "so_luot_goi_model": 0,
+                    "so_tool_schema_gui": _SO_TOOL_GUI,
+                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
+                    "suy_luan_gui": _SUY_LUAN_GUI,
                 },
                 # Câu fallback do CHÍNH TA viết, không qua LLM -> không cần lọc.
                 "loc_dau_ra": [],
@@ -819,7 +875,6 @@ def run_agent_turn(
                 # thứ trôi được sau một lần sửa câu chữ.
                 "ly_do_fallback": _ly_do_fallback(e),
                 "duong": DUONG_DAY_DU,
-                "so_tool_schema_gui": _SO_TOOL_GUI,
             }
             _ghi_so(_kq, thread_id, user_id)
             return _kq
@@ -909,7 +964,9 @@ def run_agent_turn(
         "reasoning_tokens": 0,
         "input_chars": 0,
         "so_luot_goi_model": 0,
-        "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA,
+        "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
+        "so_tool_schema_gui": _SO_TOOL_GUI,
+        "suy_luan_gui": _SUY_LUAN_GUI,
         # Danh tính CHỈ DẪN của lượt này. Prompt đã render đổi mỗi phút (có
         # ngày/giờ), nên "cùng một prompt" giữa hai đợt đo là GIẢ ĐỊNH chứ
         # không phải sự kiện — trừ khi so băm MẪU. Trả sẵn để không ai phải
@@ -1021,7 +1078,6 @@ def run_agent_turn(
         # (CTRL-001 / ISO-IEC 25059), hệ thống chỉ ĐỀ NGHỊ.
         "goi_y_handoff": bool(tin_hieu_cam_xuc),
         "duong": DUONG_DAY_DU,
-        "so_tool_schema_gui": _SO_TOOL_GUI,
         "ly_do_fallback": None,  # TƯỜNG MINH null, KHÔNG thiếu key — thiếu key
         # không phân biệt được với "bản cũ chưa có trường này".
         **_reply_goc_cho_eval(reply, nhom_khop),
