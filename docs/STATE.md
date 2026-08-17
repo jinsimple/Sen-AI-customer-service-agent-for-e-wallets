@@ -747,6 +747,27 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## ✅ PO THẬT CHỐT 17/08 KHUYA — 5 quyết định + vòng chuyên gia 3
+- **A1 BẬT phân luồng** trên ngăn xếp thật · **A2 chờ khách ĐỒNG Ý tường minh mới `create_ticket`**
+  (vá prompt qua F-31/32, thử-rẻ-trước) · **A3 KHÔNG nạp hạn mức tới khi tối ưu chi tiêu đạt chuẩn PO**
+  ⟹ `qwen3.7-max` là model TẠM chính thức (PO biết, không phải trạng thái trôi) · **ADR-028/029/030:
+  Đang hiệu lực** · 4 thao tác tài khoản (ticket Alibaba · xoay khoá Qwen · GitHub secret · hotline):
+  **để sau, chưa chốt**.
+- **Vòng chuyên gia 3 (ý "chuyên gia Amazon"):** ① rule-trước-LLM: đã ship, nhận thêm tiền lệ ngành
+  cho pitch, 0 việc mới. ② model tiering: **NHẬN nhưng XOAY TRỤC** — route theo **LOẠI BƯỚC** (tất
+  định) không theo **ĐỘ KHÓ CÂU** (xác suất + **bề mặt tấn công social engineering**: kẻ gian điều
+  khiển được nội dung câu, không điều khiển được vị trí bước). Giá trị thông lượng MỚI: **trần TPM
+  theo TỪNG MODEL ⟹ route = CỘNG BUCKET** — khác hẳn prompt caching; cần kiểm bucket có độc lập thật
+  không. Thí nghiệm mở: flash cho **bước-đơn-cuối-chuỗi** (flash trượt ở CHUỖI, chưa bị kết án ở
+  bước đơn cuối — ô chưa đo), chấm bằng bộ nghiệm thu nguyên ngưỡng. ③ khoanh research vào tập-con
+  cho người-thuê-API; việc mới duy nhất: **Batch API cho eval** (50% giá, tách traffic đánh giá khỏi
+  bucket TPM sản xuất; caveat: không dùng context cache · thinking mặc định BẬT trong batch ở một số
+  model · **qwen3.8-max có trong danh sách batch chưa: PHẢI KIỂM**). Nhãn từng ý chuyên gia tự khai
+  theo Luật 12b.
+- Ghi chú áp dụng PO-agent: Batch API hợp cho **lời gọi judge/chấm điểm** (độc lập, gom lô được);
+  **eval qua vòng lặp agent sản phẩm là real-time theo bản chất** — không đẩy sang batch được. Khai
+  rõ trước khi ai ước tiết kiệm trên toàn bộ eval.
+
 ## 🧊 SEMANTIC CACHE — ĐẶC TẢ CODER + phán quyết A-TRƯỚC-B (17/08 khuya)
 - **🔴 Con số quyết định KHÔNG TỒN TẠI và không truy hồi được:** 4.613 bản ghi `search_policy` chỉ có
   `['results','status']` — **TRUY VẤN KHÔNG ĐƯỢC LƯU** (`rag/search.py:95` ghi kết quả, không ghi câu
