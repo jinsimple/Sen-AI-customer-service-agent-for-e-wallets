@@ -195,3 +195,54 @@ một hỏng-ồn lấy một hỏng-câm**.
 "cố ý mất dấu"), **tự nêu điều nó không giải quyết** (§6), và **tự viết ca đối
 chứng** trước khi ai đòi. Ba thứ đó là lý do bản rà này ngắn hơn hẳn bản rà
 F-31/F-32.
+
+---
+
+## §7. 🔴 CHẶN XOAY KHOÁ — "bước 1 xong" là SAI. Bản vá **chưa chạy** ở đâu cả (trừ một container sửa tay)
+
+Tech-lead land `5ac18bf` và kết luận *"bước 1 xong, xoay khoá được rồi"*. **Đo
+lại — không phải vậy:**
+
+```
+fin05-backend-1     /health build_commit = 7450184   ·  grep "ncc_can_can_thiep" = 1
+fin05ttl-backend-1  /health build_commit = 7450184   ·  grep "ncc_can_can_thiep" = 0   🔴
+git: 5ac18bf (bản vá) LÀ HẬU DUỆ của 7450184 ⟹ ẢNH CỦA CẢ HAI KHÔNG CHỨA BẢN VÁ
+docker diff fin05-backend-1  →  C /app/src/agents/graph.py                     🔴
+```
+
+⟹ Bản vá tồn tại ở **git** và ở **đúng một container bị sửa tay bằng `docker
+cp`**. **Không ảnh nào chứa nó.**
+
+**Hệ quả trực tiếp lên thứ tự `vá → xoay`:**
+
+| Ngăn xếp | Khi xoay khoá bây giờ |
+|---|---|
+| `fin05ttl-backend-1` | **không có bản vá** ⟹ chuỗi `AuthenticationError` 401 → **500 trần** |
+| `fin05-backend-1` | có bản vá **cho tới lần restart/rebuild đầu tiên**, rồi mất |
+
+Và `fin05ttl-*` chính là ngăn xếp **có "đường tunnel"** trong Caddyfile — tức
+ứng viên số một cho đường ra Internet, câu hỏi **vẫn đang chờ PO thật**.
+
+> **Điều kiện xoay khoá, sửa lại cho chính xác:** không phải *"bản vá đã land"*
+> mà **"bản vá ĐANG CHẠY trên MỌI ngăn xếp có thể nhận traffic"** — kiểm bằng
+> `grep` trong **từng** container, sau khi **dựng lại ảnh**, không bằng `git log`.
+
+## §8. 🔴 Và nó làm hỏng một lời khuyên tôi đã đưa: `build_commit` KHÔNG định danh mã ĐANG CHẠY
+
+Ở `b35e9dc` §6 tôi đưa PO một câu hỏi đóng: *so `build_commit`/`build_at` để
+biết ngăn xếp nào là ngăn xếp nào.* Phép đo trên **bác một nửa lời khuyên đó**:
+
+`fin05-backend-1` khai `build_commit=7450184` **trong khi đang chạy mã khác** —
+vì `docker cp` sửa tệp mà **không** đụng nhãn. Hai container khai **cùng**
+`build_commit` và **cùng** `build_at` mà **nội dung khác nhau**.
+
+**Sửa lời khuyên:**
+- `build_commit` định danh **ẢNH**, không định danh **MÃ ĐANG CHẠY**. Nó vẫn
+  dùng được cho câu hỏi *"máy nào"* (câu tôi đưa PO), nhưng **không** dùng được
+  cho câu *"mã nào"*.
+- Muốn trả lời *"mã nào đang chạy"*, phải kèm `docker diff <container>` — nếu
+  có dòng `C /app/...` thì **nhãn đang nói dối**.
+
+*(Đây là lần thứ hai trong ngày `docker cp` tạo ra một khoảng cách giữa **thứ
+được khai** và **thứ đang chạy**: lần đầu là `tests/conftest.py`, lần này là
+`graph.py`. Cùng cơ chế, và lần này nó nằm chắn trước một thao tác bảo mật.)*
