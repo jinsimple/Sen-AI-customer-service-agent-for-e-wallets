@@ -183,3 +183,39 @@ một dạng câu.
 ⟹ Nếu nó tái lập, **tần suất gặp trong đời thật cao hơn hẳn ca 4/6**. Thứ hạng
 bằng chứng thấp, thứ hạng phơi nhiễm cao — hai trục khác nhau, đừng để trục thứ
 nhất che trục thứ hai.
+
+### ⑧ 🔴 Phép đếm của tôi THIẾU PHẠM VI — và ngăn xếp đang có người khác dùng
+
+Security bắt được: tôi đếm bảy bảng trên hai Postgres và kết luận *"0 dòng"* —
+đúng số, **thiếu kho**. Lượt đo **có** ghi Redis: một vé `refresh:` sống 7 ngày.
+
+Tôi kiểm lại bằng đường của mình, và ra một bức tranh khác họ:
+
+    security đo:  1 khoá        (lúc ~05:18)
+    tôi đo:      14 khoá        (lúc  05:26)
+
+**Không ai sai.** Suy ngược tuổi từ TTL (`604800 − ttl`):
+
+    05:15:54            vé của TÔI                    ← khớp lượt đo 05:16
+    05:24:10 → 05:25:18 TÁM vé khác, không phải tôi
+    ratelimit:login_phone · otp_request  ttl ~15s     ← có người ĐANG đăng nhập
+
+⟹ **Ngăn xếp `fin05-*` đang có phiên khác dùng ngay lúc này.** Đây là dữ kiện
+vận hành lớn hơn cái vé phiên:
+
+1. `sau − trước` **không quy được trách nhiệm** ở đây — hiệu số gộp việc của tôi
+   với việc của mọi phiên khác, không tách ra được. Đó là lỗ trong chính điều
+   kiện ④ tôi vừa nhận. Đã vá thành **Luật 15 §4b**: quy trách nhiệm bằng **DẤU**
+   (tài khoản hạt giống, tiền tố, định danh cụ thể), **không bằng hiệu số**.
+2. Phép đo có ghi chạy ở đây sẽ **đụng rate-limit và làm hỏng phép đo của phiên
+   bên cạnh** — không chỉ lẫn số.
+
+### Vé phiên của tôi — ĐỀ XUẤT, không tự dọn
+
+    refresh:3eee797aefe8…   tạo 05:15:54 UTC   TTL còn ~6 ngày 23 giờ
+
+Định danh được chắc chắn là của tôi (khớp mốc lượt đo, và là vé duy nhất trong
+khoảng đó). **Tôi không xoá.** Ba lý do: nó tự hết hạn; đây là ghi vào một hệ
+đang có người khác dùng; và xoá nhầm khoá trên hệ đó đắt hơn nhiều so với việc
+để một vé phiên hết hạn tự nhiên. Xin PO/security quyết — nếu cần dọn, lệnh là
+`DEL refresh:3eee797aefe8…` và tôi chạy sau khi có xác nhận.

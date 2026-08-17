@@ -1314,7 +1314,7 @@ xong. Một bộ đo đã ghi thì phải **dọn**, và dọn cần biết **đ
    thật, kể cả của PO.
 3. **Bản ghi đo phân biệt được** — tiền tố quy ước trong trường lời khai + mốc
    thời gian — và **chốt cách dọn TRƯỚC khi bắn**, không phải sau.
-4. **Đếm dòng TRƯỚC và SAU**, ghi cả hai vào kết quả.
+4. **Liệt kê KHO trước, rồi đếm TỪNG kho** — trước và sau.
 
 **Điều kiện 4 là điều kiện tôi vi phạm**, và cách tôi vi phạm nó đáng ghi: tôi
 đếm **sau**, không đếm **trước**. Lần này thoát vì hoá ra không có gì để dọn —
@@ -1322,6 +1322,50 @@ xong. Một bộ đo đã ghi thì phải **dọn**, và dọn cần biết **đ
 là thứ tôi biết **sau khi** bắn, không phải trước.
 
 > **Không đếm trước thì không dọn được, và không CHỨNG MINH được là đã dọn.**
+
+#### 4a — đếm **mọi kho**, không đếm kho mình nghĩ tới
+
+Tôi đếm sạch **bảy bảng trên hai Postgres** và báo *"0 dòng"*. Đúng số, **thiếu
+phạm vi**: lượt đo có ghi **Redis** — một vé phiên `refresh:` sống **7 ngày**.
+Mức thấp (tự hết hạn, không chạm bảng bằng chứng), nhưng kết luận *"không để
+lại gì"* thì sai.
+
+Danh mục tối thiểu cho một lượt qua API sản phẩm:
+
+    Postgres · Redis (phiên · refresh · rate-limit · concurrency)
+    kho vector (nếu chạm nạp) · log & trace (tệp, Jaeger)
+    PHÍA NHÀ CUNG CẤP — token đã tiêu, VÀ bản ghi input/output phía họ
+
+Đây là **khuôn mặt thứ ba trong một ngày** của cùng một luật (13b): đo **trọn
+vẹn** thứ mình đang nói tới, không đo **phần mình đang chú ý**. Sáng: kích thích
+gửi cho model. Trưa: runtime sinh ra nó. Chiều: kho trạng thái nó chạm.
+
+#### 4b — 🔴 trên hệ DÙNG CHUNG, phép đếm trước/sau KHÔNG quy được trách nhiệm
+
+Đây là lỗ trong chính điều kiện 4 ở trên, và nó lộ ra ngay khi đo lần hai:
+
+    05:15:54   vé phiên của TÔI
+    05:24:10 → 05:25:18   TÁM vé phiên khác, không phải của tôi
+    và các khoá rate-limit sống ~15s — có người đang đăng nhập ngay lúc đo
+
+Kho có **14 khoá** lúc tôi đếm, **1 khoá** lúc người khác đếm tám phút trước.
+Không ai sai — **đại lượng biến thiên theo thời gian trên một hệ có nhiều
+người dùng**.
+
+> **`sau − trước` chỉ quy được trách nhiệm khi KHÔNG AI KHÁC ghi xen vào.** Trên
+> một ngăn xếp dùng chung, hiệu số đó gộp việc của tôi với việc của mọi phiên
+> khác, và nó **không có cách nào tách ra**.
+
+**Cách chữa — quy trách nhiệm bằng DẤU, không bằng HIỆU SỐ:**
+
+- ghi bằng **tài khoản hạt giống riêng**, rồi lọc theo tài khoản đó
+- **tiền tố quy ước** trong trường lời khai + mốc thời gian
+- với kho không có chỗ gắn dấu (vé phiên, khoá rate-limit): ghi lại **định danh
+  cụ thể** tạo ra lúc đo (mã vé, mã khoá), không dựa vào việc đếm
+
+Và hệ quả vận hành, đáng nói riêng: **một ngăn xếp đang có người khác dùng thì
+không phải chỗ để chạy phép đo có ghi.** Không chỉ vì lẫn số — mà vì phép đo
+tiêu hạn ngạch, đụng rate-limit, và làm hỏng phép đo của người bên cạnh.
 
 ### Và cái bẫy ngay sau đó: số 0 làm lời bào chữa
 
