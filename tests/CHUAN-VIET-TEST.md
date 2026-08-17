@@ -23,7 +23,7 @@
 | **10** · 10b · 10c · **10d** | bộ đo tự tạo ra hiện tượng nó đo · nuốt mã trạng thái · cổng phải-nhớ-bật · vô hiệu hậu quả trước khi kiểm cổng | bộ đo & cổng |
 | **11** | từ chối rồi trả lời tiếp là bịa có VỎ BỌC | đầu ra agent |
 | **12** | không sai một chữ nào mà vẫn gây hiểu sai | tài liệu & báo cáo |
-| **13** | đo đúng thứ, nhưng đưa vào một KÍCH THÍCH khác | đầu vào của bộ đo |
+| **13** · 13b | đo đúng thứ, nhưng đưa vào một KÍCH THÍCH khác · đo trên phần đang chú ý thay vì kích thích trọn vẹn | đầu vào của bộ đo |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -1162,6 +1162,45 @@ dòng nào là "tôi tin nó đúng".
 gửi và thứ sản phẩm gửi — rồi in tỉ lệ. Đây là Luật 7c (bắc cầu hai đầu) áp cho
 **đầu vào**, không phải đầu ra. Tôi đã áp nó cho kết quả và quên áp cho kích
 thích.
+
+### 13b — vế thi hành: đo trên KÍCH THÍCH TRỌN VẸN, không đo trên phần đang chú ý
+
+> Biết Luật 13 **không** miễn nhiễm với Luật 13. Trong ngày viết ra nó, lớp lỗi
+> này bắt cả tôi lẫn security, **mỗi người hai lần, trên cùng một đoạn văn bản**.
+
+Lần hai của tôi xảy ra **bên trong phần sửa lỗi lần một**. Tôi so *"lệnh cấm
+bịa"* giữa hai `system` message — 1 lần / 123 ký tự so với 6 lần / 15.094 — và
+công bố **loãng 20 lần**. Sai, vì **mô tả tool cũng là chỉ dẫn, cũng chứa lệnh
+cấm bịa, và có mặt ở CẢ HAI phiên bản**. Tôi đo trên kênh mình đang chú ý, chứ
+không trên thứ model thật sự đọc.
+
+Đo lại trên ba định nghĩa kích thích:
+
+    chỉ system (bỏ mô tả tool)      0,8130% → 0,0398%  =  20,45×
+    system + description            0,0802% → 0,0451%  =   1,78×
+    system + JSON tool trọn vẹn     0,0548% → 0,0404%  =   1,36×
+
+**Hướng ổn định, độ lớn không.** Kết luận định tính (*"bộ đo đậm hơn sản phẩm"*)
+đứng ở mọi định nghĩa; con số thì đi từ 1,36× tới 20,5× **chỉ vì đổi ranh giới
+của thứ được gọi là "kích thích"**.
+
+> Một đại lượng đổi **15 lần** theo định nghĩa mà không ai đổi phép đo nào —
+> đó không phải kết quả, đó là **một câu hỏi chưa đặt xong**.
+
+**Hai vế thi hành:**
+
+1. **Chốt định nghĩa "kích thích" MỘT lần, trước khi đo**, và băm đúng vật đó.
+   Ở đây: `system message + JSON tool trọn vẹn như gửi đi` — vì đó là thứ thực
+   sự lên dây; *"chỉ description"* bỏ mất tên tool và lược đồ tham số, mà model
+   đọc cả hai.
+2. **Đại lượng phải sửa nhiều lần trong một ngày thì KHÔNG rời khỏi đội** — kể
+   cả khi lần sửa cuối trông đã đúng. Ghi lại đầy đủ trong hồ sơ, công bố ra
+   ngoài chỉ phần định tính đã ổn định.
+
+**Dấu hiệu quy trình đang lành:** ba lần sửa con số này đi **ngược chiều nhau**
+(hạ · nâng · thành khoảng), và mỗi lần do **bên bất lợi vì nó** tự nêu ra. Khi
+mọi lần đính chính đều đẩy số về phía có lợi cho người đính chính, đó là lúc
+phải nghi ngờ — không phải khi nó đổi nhiều.
 
 **Hệ quả khi lỡ vi phạm rồi:** bộ đo **câm theo cả hai chiều**. Không được rút
 *"sản phẩm sai"*, và cũng không được rút *"sản phẩm ổn"* — chiều thứ hai dễ
