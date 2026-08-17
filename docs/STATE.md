@@ -126,8 +126,7 @@ bộ. Đây là phép phân định cho giả thuyết *"lượt hỏng ghi 0 l�
 | việc | vùng | ghi chú |
 |---|---|---|
 | **Bất biến chống livelock** — *"cùng tool + cùng tham số + cùng lỗi ⟹ lần thứ hai là DỪNG"* | `src/` | **Ưu tiên cao nhất.** Tất định, **không cần hiệu chuẩn**. Xem mục 6 |
-| **Quét cả lớp: test nào TÊN hứa X mà ASSERTION kiểm Y** | `tests/` | **Công bố tiêu chí TRƯỚC khi quét**, nếu không thì kết quả "0" vô nghĩa |
-| Viết vế thiếu cho `path_traversal_filename_is_safe` | `tests/` | assert **không tệp nào ra ngoài thư mục kho** |
+| 🔴 **VÁ 6 ca "TÊN hứa X, ASSERTION kiểm Y" — 5/6 trên ĐƯỜNG DUYỆT HITL** | `tests/` | Quét **ĐÃ XONG** (`4ac2162`, `eval/QUET-TEN-HUA-KHAC-ASSERTION.md`), tiêu chí công bố trước, bộ quét bắt được ca đã biết. **Việc còn lại là VÁ**, mỗi ca một dòng. Bắt đầu từ 5 ca HITL |
 | Ca A2 (đồng ý trước khi tạo vé) — viết lại câu | `tests/` | ba trục: thuận · ngược (đã đồng ý thì KHÔNG hỏi lại) · **ca hỏng** |
 | F-31/32 — prompt thiếu *"làm gì khi một điều kiện KHÔNG TỰ SỬA ĐƯỢC"* | `src/` | Cùng họ với A2. Vá **sau** bất biến |
 | Truy ca đỏ còn lại (`kho rỗng`) | `tests/` | chưa ai gán nguyên nhân |
@@ -374,6 +373,10 @@ vì phản xạ dọn nhanh hơn phản xạ đọc.)*
 ## 12. TÀI LIỆU LIÊN QUAN
 
 ```
+docs/khoi-dong-lai/                           ← 🔴 BỘ PROMPT BẬT LẠI 4 VAI (README + 01..04)
+scripts/BAN-GIAO-coder-2026-08-17.md          ← bàn giao tech-lead (3734c2b)
+tests/BAN-GIAO-TESTER-17-08.md                ← bàn giao tester    (27b6ea3)
+eval/QUET-TEN-HUA-KHAC-ASSERTION.md           ← 6 ca, 5/6 trên đường HITL (4ac2162)
 docs/nhat-ky/2026-08-17-nhat-ky-day-du.md    ← toàn bộ lập luận + số đo 17/08 (3.001 dòng)
 docs/DECISIONS.md                             ← ADR-001..031 (031 TẠM DỪNG, xem §5.A1)
 docs/security/                                ← 20+ hồ sơ; 2 file quan trọng nhất:
