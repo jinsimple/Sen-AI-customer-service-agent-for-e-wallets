@@ -71,13 +71,24 @@ ADR-027 vừa vá phía **input**. Phía **output** còn nguyên hình dạng đ
 | `yeu_cau_otp` | 3 | ✅ INV-10 |
 | `ghi_chu` | 5 | ❌ *(văn xuôi — đúng, không nên ép)* |
 
-Cả 5 tool khai `output: status: {type: enum, values: [found, not_found, error]}`.
-Không test nào đối chiếu enum đó với giá trị app thật trả. Nếu một tool thêm `multiple_matches`
-(mà `lookup_transaction` **có** dùng, theo mô tả thật của nó) thì contract sai và không ai biết.
+Không test nào đối chiếu enum khai với giá trị app thật trả về.
 
-⟹ **Nghi vấn cụ thể, cần coder xác nhận:** mô tả thật của `lookup_transaction` nói rõ
-`status=multiple_matches`, nhưng contract khai enum chỉ có 3 giá trị. Nếu đúng thì đây **không phải
-rủi ro tiềm ẩn mà là lệch đang tồn tại**, cùng ADR-027 nên vá luôn.
+**⚠️ Một nghi vấn của chính bản rà này đã bị BÁC bằng phép đo — ghi lại nguyên trạng vì nó là dữ
+kiện đáng giá.** Bản nháp đầu viết: *"contract khai enum chỉ 3 giá trị, nhưng `lookup_transaction`
+có dùng `multiple_matches` ⟹ lệch đang tồn tại"*. **Sai.** Đo thật:
+
+```
+lookup_transaction    ['found','not_found','multiple_matches','error']   ✅ khai đủ
+get_customer_history  ['found','not_found','multiple_matches','error']   ✅ khai đủ
+create_ticket / request_human_handoff / search_policy   3 giá trị        ✅ đúng
+```
+
+Nguyên nhân sai: người rà đọc **một đoạn** contract (`create_ticket`, 3 giá trị) rồi **khái quát cho
+cả 5 tool** — đúng họ **Luật 7b (nguồn dữ liệu đúng, dân số sai)**.
+
+⟹ A2 **không phải lệch đang tồn tại**, chỉ là **lỗ chờ**: hôm nay bản khai `output` đúng, nhưng nó
+đúng **mà không ai canh**. Xếp hạng hạ từ 🔴 xuống 🟠. *Và bài học tự soi: một bản rà đi tìm "chỗ
+người ta khái quát quá đà từ mẫu nhỏ" đã tự làm đúng điều đó ở mục thứ hai của chính nó.*
 
 ---
 
