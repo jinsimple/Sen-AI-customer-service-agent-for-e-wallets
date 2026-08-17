@@ -1,0 +1,41 @@
+{
+ "version": "v1-DONG-BANG",
+ "soan": "tester",
+ "luc": "2026-08-17T09:43:21",
+ "nguon_nhan": "contracts/agent-tools.yaml — KHÔNG suy từ trực giác nghiệp vụ",
+ "canh_bao_thu_tuc": "Ca 4 được SỬA SAU KHI THẤY dữ liệu thăm dò (create_ticket -> get_customer_history), và hướng sửa NÂNG điểm model đã được PO chốt: 20/25=80% -> 25/25=100%. Nội dung có căn cứ contracts (luật chung #1 + create_ticket không có trường input), nhưng THỦ TỤC là sửa hậu-kiểm. Đang chờ security phán quyết độc lập. Người đọc sau phải thấy điều này để tự cân — không được để nó biến mất vào một bộ nhãn 'vốn dĩ đã đúng'.",
+ "ca": [
+  {
+   "cau": "Tra giúp tôi giao dịch TXN20260623999901",
+   "tool_dung": "lookup_transaction",
+   "can_cu": "mô tả: 'Tra MỘT giao dịch cụ thể' · input có trans_id"
+  },
+  {
+   "cau": "Hạn mức chuyển tiền một ngày là bao nhiêu?",
+   "tool_dung": "search_policy",
+   "can_cu": "mô tả: 'Tra cứu chính sách/FAQ trong kho tài liệu đối tác'"
+  },
+  {
+   "cau": "Tháng này tôi tiêu bao nhiêu qua ví?",
+   "tool_dung": "get_customer_history",
+   "can_cu": "mô tả: 'Lịch sử ví/giao dịch CỦA CHÍNH khách đang chat' · input có days"
+  },
+  {
+   "cau": "Tôi muốn mở khiếu nại cho giao dịch bị trừ hai lần",
+   "tool_dung": "get_customer_history",
+   "can_cu": "luật chung #1 (không phát biểu số ngoài tool trong CHÍNH lượt đó) + create_ticket KHÔNG có trường input để nhận diện giao dịch",
+   "da_sua": true
+  },
+  {
+   "cau": "Rút tiền về ngân hàng có mất phí không?",
+   "tool_dung": "search_policy",
+   "can_cu": "mô tả: 'Tra cứu chính sách/FAQ'"
+  }
+ ],
+ "nguong_chot_truoc": {
+  "goi_dung_tool": ">= 90%",
+  "hong_dinh_dang": "= 0 (lỗi cứng, không đánh đổi)",
+  "chuoi_nhieu_buoc": "không thấp hơn gpt-4o-mini quá 1 ca"
+ },
+ "luat": "Từ giây công bố băm này, nhãn BẤT ĐỘNG. Nghiệm thu trượt thì trượt. Phát hiện nhãn sai tiếp = lượt đo bị HUỶ và chạy lại, KHÔNG phải nhãn được sửa tại chỗ."
+}
