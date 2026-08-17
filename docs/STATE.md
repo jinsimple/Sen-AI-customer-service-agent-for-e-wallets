@@ -747,6 +747,28 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## 🌐 PHẢN HỒI CHUYÊN GIA TOKEN (17/08 tối) — ba câu trả lời đổi kế hoạch
+- **① Cache-hit vs rate-limit: NGÀNH CHIA ĐÔI, không suy được từ thông lệ.** Anthropic: cached token
+  **ĐƯỢC TRỪ** khỏi ITPM (cache-aware rate limits, công bố tường minh, vd 2M ITPM + 80% hit ⟹ 10M
+  thực tế). OpenAI (+xAI): cached **VẪN ĐẾM** vào TPM. Alibaba PAYG: tài liệu **im lặng** ⟹ đọc là
+  "chưa biết", KHÔNG phải "có"; điểm gợi ý duy nhất: chế độ **PTU** ghi cached tiêu quota theo mức
+  chiết khấu. Bẫy đã ghi: implicit cache kích hoạt từ ~1000 token (dòng max) / 256 (khác), khớp
+  prefix. Phép kiểm thực nghiệm (burst cùng-prefix vượt trần danh nghĩa → 429?) **đắt** — thăm dò
+  header rate-limit trước nếu có.
+- **② 🔴 BẪY LiteLLM cho N5:** limiter TPM của LiteLLM có lỗi đã báo cáo — **đếm cả cached_tokens
+  vào total_tokens** ⟹ kể cả khi nhà cung cấp trừ cached khỏi trần, **chính proxy của ta dựng lại
+  cái trần đã được gỡ**. Vào checklist nghiệm thu N5: kiểm cách limiter đếm cached TRƯỚC khi tin số.
+- **③ Rolling summary XUNG ĐỘT prompt caching** (viết lại đầu lịch sử = phá prefix; append-only là
+  prefix ổn định) ⟹ với hội thoại 5-6 lượt gần chắc ÂM. **Điều kiện mở lại khai trước: p95 số
+  lượt/hội thoại từ traffic thật > ~8-10** (đo bằng sổ usage).
+- **④ Đường mở lại 2.3 KHÔNG phá cache** (nếu sau này cần): giữ schema TĨNH trong prefix, siết bằng
+  `tool_choice`/allowed-tools ở tầng API (Anthropic: đổi tool_choice mất cache messages nhưng khối
+  tools SỐNG — cần kiểm Qwen tương đương) hoặc một dòng chỉ dẫn ở đuôi động + **hard-gate server đã
+  có sẵn** (authority matrix + OTP + INV). Soft-gate prompt + hard-gate server = đủ. BÁC-ở-5-tool giữ.
+- **⑤ T2:** chuyên gia đề nghị đẩy hẳn thời gian RA KHỎI prefix (qua tool result / đuôi động) thay vì
+  hạ độ phân giải (hạ xuống giờ vẫn phá cache mỗi giờ, đúng lúc demo dồn) — đưa vào yêu cầu thiết kế
+  T2. Ưu tiên T2 phụ thuộc câu ①.
+
 ## ⚡ ĐỢT TỐI ƯU TOKEN 17/08 (T1-T5) — ĐÃ LÀM VÀ ĐÃ ĐO (bổ sung muộn: đợt này diễn ra trong tin nhắn/code, STATE ghi thiếu — lỗi PO-agent)
 - **T1 PHÂN LUỒNG: ĐÃ LAND + ĐO.** Luật 0-token (regex danh-sách-cho-phép, `md5:4e50e609e085`), sau cờ
   `PHAN_LUONG_BAT` mặc định OFF. Đường nhẹ = template, 0 LLM, 0 bản ghi (`Δcomplaints=Δtickets=0`,
