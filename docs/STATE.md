@@ -747,6 +747,29 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## 🗄️ PHÁN QUYẾT KHO RAG CHUẨN (17/08 tối) — "lệch 41 chunk" KHÔNG tồn tại như một tập
+- Coder diff hai kho (0 LLM): **không phải ttl thiếu/thừa 41 chunk** — hai kho dựng từ **HAI ĐỊNH
+  DẠNG NGUỒN** của cùng bộ tài liệu:
+  ```
+  fin05  378 chunk · nguồn .DOCX · băm nội dung 2b9f271b0d26   ← đi qua parser ĐÃ VÁ (đòn 4b:
+                                                                  bảng→dòng tự mô tả, đọc doc.tables)
+  ttl    419 chunk · nguồn .PDF  · băm nội dung b165930f0e81   ← KHÔNG qua đường đó; có chunk
+                                                                  MỤC LỤC toàn dấu chấm = rác truy hồi
+  ```
+  `+41` chỉ là hiệu số ngẫu nhiên của hai lần chunk hai văn bản khác nhau. **Đuổi theo "41 chunk đó
+  là gì" sẽ không ra gì — chúng không tồn tại như một tập.** (Một câu hỏi sai được giải thể bằng đo,
+  không phải được trả lời.)
+- **PHÁN QUYẾT: `fin05` (378, .docx) là KHO CHUẨN** — lý do mạnh hơn "vật của benchmark": nó là kho
+  **duy nhất đi qua parser đã vá**. Bằng chứng dấu vết: chunk "hạn mức" của fin05 bắt đầu bằng NỘI
+  DUNG; của ttl bắt đầu bằng "MỤC LỤC \n I. ..." — khớp mọi truy vấn nhắc tên mục mà không mang câu
+  trả lời nào.
+- **Hệ quả:** ① mọi phép kiểm chính sách (gồm RG-12/13) **bắt buộc chạy trên fin05** ② bất kỳ kết
+  luận RAG nào từng đo trên `ttl` là đo **một kho chưa vá** — cần rà lại (giao tester xác nhận không
+  có số công bố nào dính) ③ vì sao ttl nạp từ PDF: **chưa biết, không đoán** — có thể lần nạp cũ
+  trước khi có .docx.
+- Coder khai rõ điều KHÔNG kết luận: chưa so **chất lượng truy hồi** giữa hai định dạng — việc đó
+  tốn embedding, thuộc cửa sổ được hô.
+
 ## 🧭 TỔNG KẾT 17/08 — "KHAI ≠ CHẠY": SÁU cơ chế, và cách duy nhất bắt được chúng
 > Hồ sơ đầy đủ: `docs/security/2026-08-17-ho-so-KHAI-khac-CHAY-nam-co-che.md` (`36d6a1a`)
 >
