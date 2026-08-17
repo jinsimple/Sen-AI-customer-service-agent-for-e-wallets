@@ -63,6 +63,7 @@ def _nhan_kho() -> dict:
         "so_chunk": len(texts),
         "so_doc": so_doc,
         "bam_noi_dung": h.hexdigest()[:12],
+        "cach_bam": "md5-chuan-hoa-text-da-sap-xep-12",  # so chéo cách khác = báo động giả
         "chuan_hoa": pb,
         "trang_thai": tt,
         "model_embedding": RAG_EMBEDDING_MODEL,

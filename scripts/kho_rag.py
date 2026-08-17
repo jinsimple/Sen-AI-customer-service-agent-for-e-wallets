@@ -143,6 +143,12 @@ def _bam_kho() -> str:
     "băm khác ⟹ kho đổi" thành vô hiệu THEO CẢ HAI CHIỀU. (Re-index vẫn là
     thật — bằng chứng là probe 0/8→5/8, không phải băm.)
 
+    ⚠️ CÁCH BĂM PHẢI ĐI KÈM CON SỐ. Đây là băm CHUẨN-HOÁ (md5 của text đã sắp
+    xếp), KHÔNG phải băm file thô — hai cách cho hai con số khác nhau trên cùng
+    một vật, và so chéo chúng tạo báo động giả. Đã xảy ra HAI LẦN trong một
+    ngày: lược đồ tool (chuẩn-hoá vs file-thô) và `.env` (md5 vs sha256, tôi
+    kết luận nhầm là file bị sửa loạn xạ trong khi nó đứng yên).
+
     Bản này băm thứ TẤT ĐỊNH: tập `(chunk_id, text)` ĐÃ SẮP XẾP, đọc từ
     Postgres qua ORM (text đã giải mã, không phải ciphertext — Fernet có IV
     ngẫu nhiên nên băm ciphertext cũng sẽ không tất định).
@@ -174,7 +180,7 @@ def nhan() -> None:
         n = s.query(PolicyChunk).count()
         d = s.query(PolicyDocument).count()
     tt, pb = store.trang_thai_kho()
-    print(f"  kho RAG: {n} chunk (Postgres) · {d} doc · băm-nội-dung {_bam_kho()}")
+    print(f"  kho RAG: {n} chunk (Postgres) · {d} doc · băm-chuẩn-hoá(md5,12) {_bam_kho()}")
     print(f"  đường dẫn Chroma: {RAG_INDEX_DIR}")
     print(f"  chuẩn hoá: kho={pb if pb is not None else '(không có dấu)'} · code={store.CHUAN_HOA_VERSION} · trạng thái={tt}")
     print(f"  model embedding: {store.RAG_EMBEDDING_MODEL} · collection {store._ten_collection()}")

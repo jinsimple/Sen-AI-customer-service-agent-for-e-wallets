@@ -87,6 +87,12 @@ def _get_client() -> chromadb.ClientAPI:
 def _get_embeddings() -> OpenAIEmbeddings:
     global _embeddings
     if _embeddings is None:
+        # ⚠️ "TƯƠNG THÍCH OpenAI" LÀ TƯƠNG THÍCH Ở TẦNG HTTP, KHÔNG PHẢI Ở
+        # TẦNG THƯ VIỆN CLIENT. Endpoint nhận đúng đường dẫn và đúng hình dạng
+        # JSON, nhưng client `langchain-openai` gửi những thứ chỉ OpenAI chấp
+        # nhận. Hai lỗi dưới đây KHÔNG đọc tài liệu nào ra được, chỉ gọi thật
+        # mới thấy — mỗi cái là một lượt 400 và nửa buổi nếu không biết trước.
+        #
         # `check_embedding_ctx_length=False` CHỈ khi trỏ nhà cung cấp khác.
         #
         # Mặc định LangChain TOKENISE phía client rồi gửi MẢNG SỐ NGUYÊN.
