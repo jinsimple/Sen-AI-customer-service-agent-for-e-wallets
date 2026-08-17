@@ -82,7 +82,25 @@ def _nhanh(ly_do: str) -> str:
     return f"khác({ly_do[:24]})"
 
 
-def cham(ten, cau_nhan, phan_luong) -> tuple[bool, str]:
+def _nhanh_luat_CO(nguon: str) -> set[str]:
+    """Nhánh nào luật THỰC SỰ có — đọc từ nguồn, không từ danh sách tôi nhớ.
+
+    🔴 Bản đầu dùng một danh sách CỨNG ba nhánh, nên sau khi `DAI_TOI_DA` bị
+    XOÁ nó vẫn cảnh báo *"ĐỘ DÀI chưa khai hoả"* ở cả ba bộ ca. Cảnh báo về một
+    nhánh KHÔNG CÒN TỒN TẠI là nhiễu — và nhiễu dạy người đọc bỏ qua cảnh báo,
+    tức nó phá đúng thứ Luật E dựng ra.
+    """
+    co = set()
+    if "CO_CHU_SO" in nguon:
+        co.add("CHỮ SỐ")
+    if "DAI_TOI_DA" in nguon:
+        co.add("ĐỘ DÀI")
+    if "XA_GIAO" in nguon:
+        co.add("TOKEN NGOÀI TẬP")
+    return co
+
+
+def cham(ten, cau_nhan, phan_luong, nhanh_co=None) -> tuple[bool, str]:
     """Trả (đạt, báo cáo). `cau_nhan` = list[(câu, nhãn kỳ vọng)]."""
     dem = collections.Counter()
     sai = []
@@ -95,7 +113,7 @@ def cham(ten, cau_nhan, phan_luong) -> tuple[bool, str]:
     d = n - len(sai)
     ra = [f"\n  {ten}: {d}/{n}"]
     ra.append("    phân bố lý do: " + " · ".join(f"{k}={v}" for k, v in dem.most_common()))
-    chua_chay = [k for k in ("CHỮ SỐ", "ĐỘ DÀI", "TOKEN NGOÀI TẬP") if dem[k] == 0]
+    chua_chay = sorted(k for k in (nhanh_co or set()) if dem[k] == 0)
     if chua_chay:
         ra.append(f"    ⚠️  nhánh CHƯA KHAI HOẢ lần nào: {chua_chay} — chưa được kiểm (Luật E)")
     for cau, mong, thuc, ly in sai[:8]:
@@ -150,9 +168,11 @@ def main() -> int:
         print(f"\n  ⚠️  ĐƠN VỊ ĐẾM: golden_set.jsonl có 120 CA nhưng {len(cau)} CÂU. "
               "Cổng chấm theo CÂU.")
 
+    nhanh_co = _nhanh_luat_CO(p_luat.read_text(encoding="utf-8"))
+    print(f"  nhánh luật CÓ: {sorted(nhanh_co)}")
     tat_ca_dat = True
     for ten, cn in bo:
-        dat, bc = cham(ten, cn, luat.phan_luong)
+        dat, bc = cham(ten, cn, luat.phan_luong, nhanh_co)
         print(bc)
         tat_ca_dat &= dat
 
