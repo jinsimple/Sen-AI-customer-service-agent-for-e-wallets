@@ -188,8 +188,16 @@ def dan_nhan(so_ca: int) -> dict:
         "luc": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
     for ten, c in (("backend", "fin05-backend-1"), ("frontend", "fin05-frontend-1")):
+        dang_chay = bool(_chay(["docker", "ps", "-q", "-f", f"name={c}"]))
         nhan[f"{ten}_image"] = (_chay(["docker", "inspect", c, "--format", "{{.Image}}"]) or "?")[7:19]
-        nhan[f"{ten}_started"] = _chay(["docker", "inspect", c, "--format", "{{.State.StartedAt}}"])[:19]
+        # Container KHÔNG chạy thì `StartedAt` là `0001-01-01T00:00:00` — một
+        # NGÀY HỢP LỆ VỀ HÌNH THỨC cho một trạng thái không tồn tại. Nhãn in ra
+        # nó thì người đọc sáu tháng sau thấy một mốc thời gian, không thấy sự
+        # thật. Cùng họ `.get(x, <mặc định trông hợp lệ>)`: điền đại một giá trị
+        # hợp lệ vào chỗ đáng lẽ phải kêu.
+        nhan[f"{ten}_started"] = (
+            _chay(["docker", "inspect", c, "--format", "{{.State.StartedAt}}"])[:19]
+            if dang_chay else "🔴 CONTAINER KHÔNG CHẠY")
     # NHÃN KHO — thêm 16/08 sau khi thiếu nó suýt làm tôi báo cáo sai.
     # Hai lượt chấm cùng ra 35,7% được coi là "cùng một phép đo lặp lại", trong
     # khi kho đã đổi 362 chunk/2 doc → 419 chunk/4 doc giữa hai lượt (đòn 4).
@@ -282,8 +290,25 @@ def canary_kho(c) -> None:
         print("     KHO CÓ THỂ HOÀN TOÀN NGUYÊN VẸN — đừng nạp lại, đừng sửa nhãn.")
         print("     Mọi số đo lúc này KHÔNG nói gì về sản phẩm.")
         sys.exit(5)
-    print("  🔴 KHO KHÔNG TRẢ LỜI ĐƯỢC — 3 canary trả 200 nhưng RỖNG. DỪNG, không đo.")
-    print("     Nhiều khả năng kho đang nạp lại. Số đo lúc này là 0 GIẢ, không phải sản phẩm hỏng.")
+    # 200 + RỖNG có ÍT NHẤT hai nguyên nhân, và chúng đòi hai hành động ngược
+    # nhau. 17/08 canary bản trước đoán "kho đang nạp lại" trong khi sự thật là
+    # "khoá nhúng chết, kho NGUYÊN VẸN" — người đọc suýt đi nạp lại một cái kho
+    # không hỏng. Hỏi thẳng trạng thái kho để tách hai nhánh.
+    kho = _chay(["docker", "exec", "fin05-backend-1", "sh", "-c",
+                 "cd /app && python scripts/kho_rag.py nhan"])
+    kho_con_nguyen = "chunk" in kho and " 0 chunk" not in kho
+    print("  🔴 CANARY TRẢ 200 NHƯNG RỖNG — DỪNG, không đo.")
+    print(f"     kho: {kho.splitlines()[0].strip() if kho else '?'}")
+    if kho_con_nguyen:
+        print("     🔴 KHO NGUYÊN VẸN mà tra ra rỗng ⟹ KHÔNG phải kho đang nạp lại.")
+        print("        Nghi tầng trên NUỐT một lỗi xác thực thành DANH SÁCH RỖNG:")
+        print("        store.search() nổ 401, nhưng HTTP trả 200 + rỗng.")
+        print("        Hình dạng ở sản phẩm: khách hỏi chính sách → hạ tầng mù →")
+        print("        agent trả lời 'không tìm thấy chính sách nào'. Câu đó NGHE")
+        print("        HỢP LỆ, và đó là loại nguy hơn bịa số — một câu trả lời")
+        print("        đúng ngữ pháp cho một hệ thống đã hỏng.")
+        sys.exit(6)
+    print("     Kho trống/đang nạp lại. Số đo lúc này là 0 GIẢ, không phải sản phẩm hỏng.")
     sys.exit(4)
 
 

@@ -772,6 +772,71 @@ một phép dò báo chúng vắng.
 
 ---
 
+### 8b — nhiều đối tượng ĐỘC LẬP cùng cho một kết quả lạ ⟹ nghi KÍCH THÍCH trước
+
+*(PO phê chuẩn 17/08.)*
+
+Ba model **độc lập**, 15/15 lượt, cùng từ chối gọi một tool. Tôi đi được **nửa
+đường**: nghi **nhãn** thay vì nghi model — đúng, và Luật 9 dạy thế. Rồi dừng.
+
+Cả đội bàn tiếp về nhãn: tôi sửa nhãn, PO ra ba điều kiện thủ tục, ta khoá băm,
+ta tranh luận thiên vị hậu-kiểm. **Không ai hỏi vì sao cả ba model cùng từ chối
+đúng một tool.**
+
+Câu trả lời thật: tool đó **trống rỗng** — mô tả **31 ký tự**, **0 tham số**,
+vì tôi dựng lược đồ từ `contracts/` mà contract khai thiếu. Sản phẩm thật đưa
+model **1266 ký tự và 5 tham số**. Ba model không "sai giống nhau"; chúng phản
+ứng **đúng** với thứ ta đưa.
+
+> **Nhiều đối tượng độc lập cùng cho một kết quả bất thường thì thứ đáng nghi
+> là NGUỒN KÍCH THÍCH, không phải các đối tượng — và cũng không dừng ở nhãn.**
+
+Thứ tự nghi ngờ khi thấy một kết quả nhất quán bất thường:
+
+    1. kích thích ta ĐƯA vào có đúng thứ sản phẩm đưa không?
+    2. nhãn ta gán có suy được từ nguồn sự thật không?
+    3. đối tượng có thật sự yếu không?
+
+Ta quen bắt đầu từ (3), Luật 9 kéo về (2), và luật này kéo về (1). **Càng gần
+(1) thì lỗi càng rẻ để sửa và càng làm hỏng nhiều số nếu bỏ qua.**
+
+**Hệ quả cụ thể:** `contracts/` là nguồn sự thật về **CẤU TRÚC** (tên tool, ai
+gọi được, ràng buộc) — **không phải** về **NỘI DUNG** mô tả mà model đọc. Bộ đo
+nào cần đúng kích thích thì phải **introspect app đang chạy**, không đọc
+contract. Đo được ngày 17/08: mô tả contract ngắn hơn app **11×–41×**.
+
+---
+
+### 8c — người GIAO việc mô tả một lỗi KHÔNG đảm bảo lỗi đó tồn tại
+
+*(PO phê chuẩn 17/08, sau khi chính họ giao một lỗi không tồn tại.)*
+
+PO xếp `by_severity.get(sev, 0)` là **ca ưu tiên cao nhất** trong họ mặc-định-
+im-lặng, kèm lập luận đúng và cấp bách. Tôi bắt tay sửa. Rồi đọc dòng trên:
+
+```python
+by_severity = Counter(r["severity"] for r in results)
+```
+
+`Counter` — **khoá vắng nghĩa là đếm được 0**, đúng nghĩa. Bản sửa của tôi sẽ
+in `"KHÔNG BIẾT"` trong khi sự thật là `0`. **Người giao làm output tệ hơn qua
+tay người làm.**
+
+> **Kiểm tiền đề trước khi sửa — kể cả khi người giao việc mô tả rõ ràng, cấp
+> bách, và có lý.**
+
+Đây là mặt đối xứng của Luật 8b: ở đó ta nghi sai **đối tượng đo**; ở đây ta
+nhận sai **mô tả lỗi**. Cả hai đều là *"làm theo thứ được đưa mà không kiểm thứ
+được đưa"*.
+
+**Và đừng vứt cả yêu cầu.** Sau khi bác tiền đề, vẫn còn một ca thật: `results`
+rỗng, hoặc `severity` thiếu trường ⟹ bảng in `Blocker=0` từ **zero dữ liệu**,
+và lúc đó *"0 Blocker"* với *"chưa đo được"* đúng là giống hệt nhau trên slide.
+Cảnh báo **đúng ca đó**, im lặng ca lành — kết quả tốt hơn cả bản gốc lẫn bản
+sửa theo mô tả.
+
+---
+
 ### 7b — NGUỒN DỮ LIỆU ĐÚNG, DÂN SỐ SAI
 
 *(PO phê chuẩn 17/08.)*
