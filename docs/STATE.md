@@ -707,6 +707,59 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   thì chấp nhận nhưng **ghi rõ hai biến**, không để trôi vào báo cáo như một (bài học đòn 4).
 
 ## ⭐ ĐỔI API SANG QWEN — PO thật quyết 16/08, ƯU TIÊN CAO sau gate (chi tiết: brief `2026-08-17-dot-nang-cap-oss.md` §N7)
+- **🔒🔒 PO THẬT CHỐT 17/08: `qwen3.7-plus`.** Cấu hình: `LLM_BASE_URL=https://dashscope-intl.
+  aliyuncs.com/compatible-mode/v1` · `LLM_MODEL=qwen3.7-plus` · **EMBEDDING GIỮ OpenAI** (đổi =
+  đổi VẬT) · **JUDGE giữ gpt-4o-mini** (giám khảo ≠ bị chấm). Free quota đã kích hoạt: 1M token/
+  model, hết hạn 15/11/2026 — 403 `AccessDenied.Unpurchased` đã hết, 4/4 model trả lời.
+- **⚠️ LÝ LẼ CHỌN: nửa đầu SAI, PO-agent tự bắt và rút trong ngày.** Tôi khuyến nghị plus bằng lập
+  luận *"5M TPM/15K RPM là tầng DUY NHẤT đủ cho 100 CSKH"*. **`qwen3.7-flash` CŨNG 5M TPM**, và
+  tester đã đo từ 16/08 rằng lợi thế 15.000 RPM chỉ đáng **12% ở vùng giữa, HOÀ ở đuôi** (TPM chặn
+  trước) — tức lý lẽ thông lượng plus-vs-flash **đã chết trước khi tôi dựng nó lại**. Phần đúng
+  còn lại: plus > `qwen3.8-max` (5M vs 1M TPM ≈ 36 lượt/phút < 75 cần). ⟹ **Lý do sống duy nhất
+  để chọn bản lớn vẫn là độ tin cậy gọi tool nhiều bước — CHƯA ĐO XONG.** Bài học ghi thành luật:
+  **một lý lẽ đã bị số bác thì CHẾT VĨNH VIỄN, không hồi sinh được bằng việc quên mất là nó đã
+  chết** — dạng tự lừa êm ái nhất, vì nó tiện cho kết luận đang muốn.
+- **Hệ quả bắt buộc:** `LLM_MODEL` phải là biến env thuần, **không hardcode tên model ở bất kỳ đâu
+  kể cả default và test** — flash rẻ hơn plus ~13× (`0,03/0,13` vs `0,40/1,20`), nếu flash đạt
+  ngưỡng thì đổi phải là một dòng `.env`, không phải một PR.
+- **§2b nâng lên BA model** (plus đã chốt · max mốc trên · **flash kẻ thách thức giá**) và đổi
+  tính chất: từ *phép chọn model* thành **phép NGHIỆM THU**. Chốt trước ≠ miễn kiểm; ngưỡng giữ
+  nguyên, **hỏng định dạng = 0** không nới. Trượt thì tester báo, KHÔNG tự lùi model.
+- **HAI BẪY MODEL-BIẾT-SUY-NGHĨ (PO-agent đo, đã giao coder — `b2d9f4f` land bản đầu):**
+  ① **trả lời RỖNG im lặng**: model tiêu `max_tokens` vào suy nghĩ thầm → `content` rỗng, **không
+  exception, không mã lỗi** (đúng họ hỏng-im-lặng; nếu rơi giữa demo thì chatbot câm mà log sạch).
+  ② **`reasoning_tokens` tính vào ĐẦU RA** ⟹ mọi ước tính chi phí đang ước THẤP. Tester đo được:
+  **suy nghĩ chiếm 74% output ở plus, 91% ở flash** — bảng giá `eval/measure_quality.py:67` sai
+  theo hướng có lợi cho ta, loại sai nguy hiểm nhất. Kèm: `cached_input_tokens` đọc
+  `input_token_details` kiểu OpenAI có thể trả 0 im lặng trên Qwen.
+- **🟡 SỰ CỐ NHÃN (tester tự bắt, 17/08) — nhãn sửa ĐÚNG nhưng sửa SAU KHI THẤY SỐ.** Nhãn cũ kỳ
+  vọng `create_ticket` cho câu *"mở khiếu nại cho giao dịch bị trừ hai lần"*; **cả 3 model, 15/15
+  lượt** đều gọi `get_customer_history` — nhất quán tuyệt đối giữa các model độc lập = **dấu hiệu
+  nhãn hỏng, không phải model yếu**. Contracts xác nhận nhãn cũ sai hai lần (luật chung #1: số phải
+  đến từ tool TRONG LƯỢT ĐÓ · `create_ticket` **không có trường `input`** nhận diện giao dịch).
+  Chấm lại dữ liệu cũ: plus 80%→**100%**, max 80%→**100%**, flash 84%→**92%**.
+  **Rủi ro thủ tục PO-agent nêu (nội dung đúng ≠ quy trình lành):** hướng sửa nâng chính model PO
+  vừa chốt; nếu chỉ cần một lời giải thích hợp lý là sửa được nhãn hậu-kiểm thì *ngưỡng-chốt-trước*
+  hết ràng buộc. ⟹ **3 điều kiện trước khi nghiệm thu chạy:** ① **security xác nhận nhãn** (đọc
+  `contracts/`, KHÔNG đọc `tests/`, **không được cho xem bảng điểm** — phán quyết mù) ② **rà TOÀN
+  BỘ nhãn còn lại theo cùng cách** (luật *vá một họ thì đi tìm họ*: ca này lộ vì cả 3 model cùng
+  cãi; **nhãn sai mà model tình cờ chiều theo thì không bao giờ lộ** — mới là loại nguy hiểm)
+  ③ **đóng băng + công bố bộ nhãn kèm băm file** trước khi chạy; sau đó phát hiện nhãn sai = **huỷ
+  lượt đo và chạy lại**, không sửa tại chỗ. Biên bản phải ghi rõ nhãn được sửa SAU khi thấy dữ liệu.
+- **HOÁ ĐƠN ĐO LẠI (không được giả định chuyển giao):** An toàn 30/30 (cổng-96 · adversarial 45 ca
+  · over-block 0/96) hiệu chuẩn trên gpt-4o-mini → **chạy lại TOÀN BỘ trên Qwen** ≈ 140 lượt. Free
+  quota ⟹ tiền không còn là ràng buộc, **TPM là thứ phải xếp lịch**. Lịch: sau §2b, trước F-31/32.
+- **Mệnh đề "Qwen tiếng Việt tốt hơn" vẫn CHƯA kiểm được:** tỉ lệ ký-tự/token tester đo (0,21-0,22)
+  **không so được** với 2,43 của gpt-4o-mini — hai định nghĩa đếm khác nhau (tester chỉ đếm prompt
+  gửi đi, không gồm system prompt sản phẩm). Tester tự bắt trước khi ai kịp dùng nó phán. Phải đo
+  lại cùng định nghĩa; **cấm trích con số này cho tới lúc đó**.
+- **Data residency thành việc THẬT (giao security, ưu tiên cao):** hội thoại khách giờ đi tới hạ
+  tầng Alibaba Cloud. Cần 1 trang: ① vùng đặt endpoint `-intl` + NĐ 13/2023 Đ.25 ② điều khoản
+  train-on-data **theo từng bậc** (free vs trả phí — nếu khác nhau thì đây là cờ đỏ vận hành)
+  ③ **khai Qwen thuộc CỬA NÀO trong ADR-025** trước khi vào compose ④ lớp che PII trước khi gửi ra
+  ngoài có đủ cho **tài phán mới** không — cần là *kết luận đã kiểm*, không phải mặc định. Mốc:
+  **trước buổi demo tiếp theo**, vì mốc kích hoạt đã chốt là "dữ liệu thật ĐẦU TIÊN" (mentor gõ số
+  điện thoại thật là đã tính), không phải "mở cho người ngoài".
 - PO thật ĐÃ CÓ key. PO-agent đã đặt khối biến **chưa-hiệu-lực** vào `.env` local (QWEN_API_KEY +
   LLM_*/EMBEDDING_*/JUDGE_* comment sẵn) — không ảnh hưởng gì cho tới khi coder land code.
 - **🔒 PO thật CHỐT 16/08: DÙNG API Qwen, KHÔNG tự host.** Nhánh khảo sát tự-host HUỶ (coder khỏi
