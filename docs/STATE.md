@@ -747,6 +747,34 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## ⚡ ĐỢT TỐI ƯU TOKEN 17/08 (T1-T5) — ĐÃ LÀM VÀ ĐÃ ĐO (bổ sung muộn: đợt này diễn ra trong tin nhắn/code, STATE ghi thiếu — lỗi PO-agent)
+- **T1 PHÂN LUỒNG: ĐÃ LAND + ĐO.** Luật 0-token (regex danh-sách-cho-phép, `md5:4e50e609e085`), sau cờ
+  `PHAN_LUONG_BAT` mặc định OFF. Đường nhẹ = template, 0 LLM, 0 bản ghi (`Δcomplaints=Δtickets=0`,
+  4 test Δ xanh trên HTTP thật). Cổng: 124/124 âm · 14/14 âm-ngắn · 15/20 dương · ĐC-1..5 đạt
+  (định nghĩa chuẩn: `docs/giao-viec/2026-08-17-dinh-nghia-cong-DC-phan-luong.md`).
+- **Chuỗi R (k=1, cùng ảnh `86b652d18e26`, kho 378):**
+  | | PO 5 lượt | đơn 4 lượt |
+  |---|---|---|
+  | R1 OFF/ON | 87.470 (11 gọi) | 46.909 |
+  | R2 ON/ON | 86.633 | **31.193 = −33,5% TẤT ĐỊNH** (2 lượt nhẹ 0-token) |
+  | R3 ON/OFF | 76.986 (10 gọi) | 30.761 |
+  **"alo": 6.566 → 0 token, 0,01s (kiểm chéo HTTP).** Sàn nhiễu đo được: **dao động ≥3 lời gọi giữa
+  hai lần chạy y hệt** (14 vs 11) ⟹ "−32% nhờ tắt thinking" sáng 17/08 bác còn **−11% k=1**; hiệu
+  ứng <3 lời gọi = không kết luận được. R3: ToolResult +4 y hệt cả ba vòng (tra như nhau, khác tầng
+  ghi), bớt gọi `create_ticket` thừa, nhanh 2,2×.
+- **T3 `SUY_LUAN_BAT`: đã land** (mặc định = giữ thinking; sổ ghi trạng thái THẬT từ payload).
+  **T2 (hạ độ phân giải current_time): CHƯA làm** — thiết kế trước, đã bác phương án dời-chỗ bằng đo
+  (85,0→86,3%). **T4: cố ý không làm** (đường nhẹ = 0 model). **T5: có sẵn.**
+- **Finding từ chuỗi R:** lượt-4 tạo vé TRƯỚC đồng ý = model TUÂN prompt (tiền đề bước 4 toàn
+  data-completeness, không có consent — F-31/32, tái hiện 3/3) · gọi 2 lần = VI PHẠM chỉ dẫn tường
+  minh, chống-trùng tầng code đang gánh · reply lượt-4 trong log là bản BỊ output_filter THAY (mù
+  nội dung; harness đã vá cho lượt sau) · `request_human_handoff` không vào sổ tool (ADR-029 mục 2b).
+- Sổ usage: JSONL trên volume, mỗi dòng mang `bam_ma_nguon+cach_bam · duong · so_tool_schema_gui ·
+  suy_luan_gui · base_url`. Ngân sách đợt: 556K/640K free `qwen3.7-max`, dừng chủ động.
+- **Semantic cache: hướng đã duyệt** — shadow mode (ghi không phục vụ) · trong đường-chính-sách sau
+  router · vô hiệu theo băm kho · bộ an toàn = cache-miss theo thiết kế (cổng hit=0). Bộ ca ranh giới
+  16 ca `0dae3b0c3949` (nhóm ⑤ "chung về ngôn ngữ, cá nhân theo DỮ LIỆU" = nhóm giết bộ lọc câu).
+
 ## 🧊 NGUYÊN TẮC SEMANTIC CACHE (17/08 tối — sinh từ câu hỏi của PO thật, chốt TRƯỚC khi ai thiết kế)
 PO hỏi: *"đi đường semantic cache thì bộ an toàn sẽ rẻ hơn từ lần gọi thứ 2 đúng không?"* — trả lời:
 **KHÔNG, và đảo thành nguyên tắc thiết kế:**
