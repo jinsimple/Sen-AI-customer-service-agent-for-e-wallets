@@ -23,6 +23,7 @@
 | **10** · 10b · 10c · **10d** | bộ đo tự tạo ra hiện tượng nó đo · nuốt mã trạng thái · cổng phải-nhớ-bật · vô hiệu hậu quả trước khi kiểm cổng | bộ đo & cổng |
 | **11** | từ chối rồi trả lời tiếp là bịa có VỎ BỌC | đầu ra agent |
 | **12** | không sai một chữ nào mà vẫn gây hiểu sai | tài liệu & báo cáo |
+| **13** | đo đúng thứ, nhưng đưa vào một KÍCH THÍCH khác | đầu vào của bộ đo |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -1117,6 +1118,60 @@ ai đi kiểm vì nó không có mùi khoe.
 
 ---
 
+## Luật 13 — ĐO ĐÚNG THỨ, NHƯNG ĐƯA VÀO MỘT KÍCH THÍCH KHÁC
+
+> Nguồn: bộ đo tool-calling v4, 17/08. Ba lần siết kích thích rồi, vẫn sót.
+
+Bộ đo v4 đã làm đúng thứ khó: lược đồ tham số **introspect từ app**, mô tả tool
+lấy **nguyên văn** `build_customer_tools()` — vì v1/v2 từng dựng từ `contracts/`
+và đo nhầm một kích thích ngắn hơn thật 11–41 lần. Tưởng đã sạch.
+
+Nhưng `system` message thì tôi **tự soạn 123 ký tự**. Sản phẩm gửi **15.094 ký
+tự**, mọi lượt, vô điều kiện.
+
+    bộ đo :    123 ký tự  (tôi viết)
+    sản phẩm: 15.094 ký tự (build_system_prompt())
+    ⟹ bộ đo gửi 1/123 lượng chỉ dẫn
+
+Và phần thiếu không phải rìa: nó chứa `"PHẢI tra ra CẢ HAI"` và `"chủ động tra
+giúp"` — chỉ dẫn cho **đúng hai ca mà cả bốn model đều sai**.
+
+**Vì sao nó nguy hiểm hơn một bộ đo hỏng hẳn.** Bộ đo hỏng hẳn thì ra số vô lý,
+ai cũng thấy. Cái này ra một **quy luật đẹp và nhất quán**: bốn nhà cung cấp
+khác nhau, hai họ model khác nhau, cùng sai đúng hai ca. Sự đồng thuận đó **tự
+nó trông như bằng chứng** — bốn chứng nhân độc lập khai giống nhau. Đội tôi đã
+bắt đầu đi tìm *"vì sao sản phẩm sai"*, tức đi giải một bí ẩn không tồn tại.
+Chúng nó chưa từng được đọc chỉ dẫn đó.
+
+> **Một bộ đo thiếu kích thích không tạo ra nhiễu — nó tạo ra TÍN HIỆU SẠCH của
+> một câu hỏi khác.** Càng nhiều model đồng thuận, tín hiệu càng thuyết phục,
+> càng khó ngờ.
+
+**Cách chặn — kê khai kích thích, không kê khai ý định.** Mọi bộ đo gọi model
+phải in ra, cạnh kết quả:
+
+    system   : <độ dài> ký tự · băm · NGUỒN (tự soạn / lấy từ hàm nào của app)
+    mô tả tool: <độ dài từng cái> · NGUỒN
+    lược đồ  : NGUỒN
+
+Trường **NGUỒN** là thứ bắt lỗi này, không phải độ dài. `123 ký tự` không gợi
+gì; `TỰ SOẠN` đặt cạnh `introspect app` thì lệch lộ ra ngay. Ba dòng, không có
+dòng nào là "tôi tin nó đúng".
+
+**Và luật đối chiếu:** với mỗi kênh kích thích, đo cả **hai đầu** — thứ bộ đo
+gửi và thứ sản phẩm gửi — rồi in tỉ lệ. Đây là Luật 7c (bắc cầu hai đầu) áp cho
+**đầu vào**, không phải đầu ra. Tôi đã áp nó cho kết quả và quên áp cho kích
+thích.
+
+**Hệ quả khi lỡ vi phạm rồi:** bộ đo **câm theo cả hai chiều**. Không được rút
+*"sản phẩm sai"*, và cũng không được rút *"sản phẩm ổn"* — chiều thứ hai dễ
+trượt hơn vì nó nghe như sự thận trọng. Thứ **còn** dùng được là **so sánh giữa
+các model**, vì mọi model nhận cùng payload; thứ **mất** là mọi ngưỡng đặt theo
+hành vi sản phẩm (`≥45/50` ở đây) — ngưỡng ấy nói về sản phẩm, không nói về
+model trần.
+
+---
+
 ## Áp dụng khi review test của nhau
 
 Bốn câu hỏi, hỏi theo thứ tự:
@@ -1132,3 +1187,7 @@ Bốn câu hỏi, hỏi theo thứ tự:
    không phải lỗi agent: SyntaxError giữa lúc lưu file · false positive của
    bộ chấm · rate limit 429 · và một bản vá của chính tôi làm ngược mục đích
    của nó vì tôi chỉ chạy lint mà chưa chạy thử.
+5. **Bộ đo đưa vào ĐÚNG kích thích sản phẩm dùng chưa?** Với mỗi kênh (system
+   prompt · mô tả tool · lược đồ tham số) phải kê được **nguồn**, không phải
+   độ dài. Kê không được → vi phạm Luật 13, và kết luận câm theo **cả hai**
+   chiều.
