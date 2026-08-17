@@ -747,6 +747,27 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## 🧊 SEMANTIC CACHE — ĐẶC TẢ CODER + phán quyết A-TRƯỚC-B (17/08 khuya)
+- **🔴 Con số quyết định KHÔNG TỒN TẠI và không truy hồi được:** 4.613 bản ghi `search_policy` chỉ có
+  `['results','status']` — **TRUY VẤN KHÔNG ĐƯỢC LƯU** (`rag/search.py:95` ghi kết quả, không ghi câu
+  hỏi). ⟹ shadow mode là cách DUY NHẤT có tỉ lệ lặp. **Và là lỗ TRUY VẾT độc lập với cache:** một
+  `tool_result_id` được trích **không tự nói nó trả lời cho cái gì** (ràng buộc 3). Thêm `query` vào
+  payload = việc cần làm dù có cache hay không — nhưng là chữ khách gõ ⟹ **mức che PII chờ security**.
+- **PHÁN QUYẾT (tự áp luật tất-định-thắng-xác-suất): shadow đo CẢ HAI, A TRƯỚC.**
+  ```
+  A · khớp CHÍNH XÁC (chuẩn hoá + băm)   trúng-sai = 0 THEO ĐỊNH NGHĨA · 0 ngưỡng · 0 byte · 0 bên nhận mới
+  B · ngữ nghĩa (nhúng + cosine)          trúng-sai > 0 · ngưỡng nới được · trả 1 lời gọi embedding mỗi lượt
+  trúng(A) = CẬN DƯỚI của trúng(B) · B−A = phần B mua thêm = phần DUY NHẤT mang rủi ro
+  A đạt đủ ⟹ B không đáng rủi ro
+  ```
+- **Siết giá trị lưu:** khoá theo CÂU HỎI; giá trị **không chứa một chữ nào khách gõ/agent sinh** —
+  chỉ đoạn chính sách + `tool_result_id`. (Lọt vào KHOÁ ⟹ trúng sụp ~0; lọt vào GIÁ TRỊ ⟹ mẩu hội
+  thoại khách A vào câu trả lời khách B — rủi ro vị-trí quay lại qua cửa sau.)
+- **Ca đối chứng ④: hai câu Y HỆT PHẢI trúng** — ba ca "không-làm-sai" một mình thì **cache chết đạt
+  cả ba** (khuôn ĐC-5).
+- Ba số trừ trước khi ước: 54% input đã được nhà cung cấp cache · cache-vs-TPM chưa xác định · B khi
+  trúng vẫn trả một lời gọi embedding (tính NET).
+
 ## 📐 CHỐT TỪ VÒNG 2 — ba vật mới của tester (17/08 khuya)
 - **Bộ ca cặp na-ná cho semantic cache: `2ecb739780f4`** — 10 cặp TRÚNG-SAI + **4 cặp TRÚNG-ĐÚNG
   (phần tester tự thêm)**: bộ TS một mình thì *cache-không-bao-giờ-trúng* đạt 100% — hoàn hảo và vô
