@@ -760,6 +760,27 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   cãi; **nhãn sai mà model tình cờ chiều theo thì không bao giờ lộ** — mới là loại nguy hiểm)
   ③ **đóng băng + công bố bộ nhãn kèm băm file** trước khi chạy; sau đó phát hiện nhãn sai = **huỷ
   lượt đo và chạy lại**, không sửa tại chỗ. Biên bản phải ghi rõ nhãn được sửa SAU khi thấy dữ liệu.
+  **✅ ĐÃ ĐÓNG (tester, 17/08):** ① gửi security 5 cặp câu-hỏi/tool **không kèm bảng điểm** (phán
+  quyết mù) + tự nêu câu chưa chắc: *3 tool đòi OTP mà probe gọi thẳng API không có phiên OTP —
+  nhãn có sai không?* ② rà cả 5 nhãn, 4 nhãn kia suy thẳng từ mô tả tool trong contracts, nay mỗi
+  nhãn có trường `can_cu` trích nguyên văn ③ **đóng băng `eval/nhan_tool_calling_v1.json` SHA-256
+  `c759b81c76ab` @ `8e264d9`**, và **`canh_bao_thu_tuc` nằm TRONG file** (ghi rõ ca 4 sửa hậu-kiểm,
+  hướng sửa có lợi cho model đã chốt, số trước/sau 80%→100%) — người đọc sau mở file là thấy, không
+  phải lục lịch sử chat. *Nguyên tắc rút ra: khai thủ tục phải sống cùng dữ liệu, không sống trong
+  tin nhắn.*
+- **🧊 LUẬT ĐÓNG BĂNG NHÃN (PO-agent ra 17/08, vá mâu thuẫn "bất động" vs "sẽ thêm ca"):** thêm ca =
+  đổi file = **băng đã tan** — không ai cần cố ý làm bậy để chuỗi so sánh đứt. ⟹ ① `v1` đóng VĨNH
+  VIỄN, sai thì sai vĩnh viễn trong sổ ② ca mới → **file `v2` băm mới, công bố TRƯỚC khi chạy**, có
+  `dua_tren: v1@<băm>` + liệt kê chính xác cái được thêm ③ **điều kiện cứng: nhãn của ca mới phải
+  viết TRƯỚC khi cho bất kỳ model nào chạy trên chúng** — ca 4 dạy rằng nhãn viết từ trực giác
+  nghiệp vụ thì hỏng, nhưng **nhãn viết sau khi thấy model làm gì thì hỏng theo cách tệ hơn: nó
+  luôn *có vẻ* đúng** ④ `v1→v2` = **đổi thước** ⟹ **cấm đọc `100% → x%` thành hồi quy**.
+- **Câu OTP — phán quyết PO-agent (security có quyền bác):** nhãn đo **Ý ĐỊNH**, không đo việc lời
+  gọi có được phép thực thi. Model chọn đúng tool = đạt, kể cả khi cổng OTP chặn ngay sau đó; trộn
+  hai thứ = đúng **Luật 10d** (vô hiệu hậu quả rồi kiểm cổng). **Nhưng lộ ra khoảng trống lớn hơn:**
+  probe gọi thẳng API không có phiên OTP ⟹ **chưa ai đo đường THẬT** — model làm gì khi tool bị từ
+  chối vì thiếu OTP? Đó đúng là chỗ dễ đẻ bịa-số nhất (bị chặn, không có dữ liệu, vẫn phải trả lời
+  khách). Ghi sổ, chưa xếp lịch.
 - **HOÁ ĐƠN ĐO LẠI (không được giả định chuyển giao):** An toàn 30/30 (cổng-96 · adversarial 45 ca
   · over-block 0/96) hiệu chuẩn trên gpt-4o-mini → **chạy lại TOÀN BỘ trên Qwen** ≈ 140 lượt. Free
   quota ⟹ tiền không còn là ràng buộc, **TPM là thứ phải xếp lịch**. Lịch: sau §2b, trước F-31/32.
