@@ -17,10 +17,24 @@ THUẬT TOÁN LẤY NGUYÊN của `eval/measure_quality.py::dau_thuoc()` (trư�
 nào" là hai thứ sẽ lệch nhau, và lệch trong im lặng: tầng đo lường và tầng
 đóng gói sẽ nói về hai vật khác nhau bằng cùng một từ.
 
-⚠️ Băm NỘI DUNG, không băm đường dẫn — giống hệt bản gốc bên `eval/`. Nghĩa là
-đổi tên một file mà giữ nguyên nội dung KHÔNG đổi băm. Chấp nhận có ý thức: giữ
-hai bên bằng nhau quan trọng hơn bịt một ca hiếm, và bịt nó ở một bên sẽ tạo ra
-đúng sự lệch mà module này sinh ra để chống.
+⚠️ ĐIỂM MÙ — phát biểu CHÍNH XÁC, vì một câu nói quá sẽ bị dùng để giải thích
+oan một báo động, và giải thích sai một báo động là cách nhanh nhất để tắt nó.
+
+Băm NỘI DUNG chứ không băm đường dẫn (giống hệt bản gốc bên `eval/`) — nhưng
+`sorted(rglob("*.py"))` sắp theo ĐƯỜNG DẪN rồi băm nội dung THEO THỨ TỰ ĐÓ.
+Nên đổi tên file:
+
+    · làm DỊCH vị trí sắp xếp  ->  băm ĐỔI    (đo: 6335a5b899e3 -> bdd05b87c4e4
+                                               khi src/config.py -> zzz_config.py)
+    · GIỮ nguyên vị trí        ->  băm KHÔNG đổi  (đo: config.py -> configz.py,
+                                               vẫn 6335a5b899e3)
+
+Tức điểm mù hẹp hơn nhiều so với "mọi lần đổi tên": nó chỉ là ca đổi tên KHÔNG
+làm xê dịch thứ tự. Bản mô tả trước của file này nói quá về phía yếu hơn —
+security bắt được, và cả hai số trên là đo, không phải suy.
+
+Vẫn không bịt: giữ băm này BẰNG ĐÚNG bản bên `eval/` quan trọng hơn bịt một ca
+hiếm, và bịt ở một bên sẽ tạo ra đúng sự lệch mà module này sinh ra để chống.
 """
 from __future__ import annotations
 
