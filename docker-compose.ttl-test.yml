@@ -9,6 +9,24 @@
 # stack cùng sống" mà đội đã mất nhiều giờ vì nó — chỉ khác là lần này nó
 # không tạo stack thứ hai mà PHÁ stack thứ nhất.
 #
+# ═══ KHO RAG CỦA STACK NÀY CỐ Ý ĐỂ TRỐNG ═══════════════════════════════════
+# Chroma: 0 vector. Postgres: 419 chunk từ đợt nạp PDF cũ (trước đòn 4 DOCX).
+# `kho_rag.py kiem` ở đây báo [MÂU THUẪN] — ĐÚNG, không phải bug cần sửa.
+#
+# Stack này chỉ để đo AUTH (TTL 1 phút). RAG không liên quan, nên không ai nạp.
+#
+# ⚠️ NHƯNG NÓ ĐÃ TỪNG GÂY HIỂU NHẦM THẬT: 17/08 stack này chạy 24 giờ với kho
+# 0 vector, `docker ps` báo `healthy` suốt, và nó trả lời MỌI câu chính sách
+# bằng "không tìm thấy" mà không một tín hiệu nào. Ai đo truy hồi ở đây trong
+# cửa sổ đó đều nhận số 0 GIẢ.
+#
+# ⟹ CẤM đo bất kỳ chỉ số RAG/truy hồi nào trên stack này. Muốn đo RAG thì dùng
+#    stack `fin05`. Nếu ngày nào đó cần RAG ở đây thì nạp bằng
+#    `kho_rag.py nap-vector` và XOÁ khối cảnh báo này — đừng để nó nói dối.
+#
+# Cách chữa thật (không phải bằng lời): `/ready` phải ĐỎ khi kho rỗng — kho
+# rỗng không phải một trạng thái phục vụ được. Chờ ADR-028.
+#
 # Vì sao instance này tồn tại: tái lập lớp lỗi đua-refresh phải chờ tới cửa sổ
 # 120s cuối của phiên (~phút 13 với TTL 15 phút). k=10 mất hơn 2 giờ. Với TTL
 # 1 phút, cửa sổ mở ngay từ giây thứ 0 nên k=30 gọn trong ~20 phút — và test
