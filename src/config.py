@@ -247,6 +247,12 @@ LLM_API_KEY = _khoa_cho_nha_cung_cap("LLM_API_KEY", LLM_BASE_URL)
 # NGHĨ trước khi sinh nội dung. Trần thấp -> tiêu hết vào suy nghĩ -> `content`
 # RỖNG, và KHÔNG có lỗi nào. Khi đổi sang model như vậy, đặt biến này tường
 # minh thay vì hy vọng mặc định của họ đủ.
+# ⚠️ SỐ ĐO THEO MODEL — phần suy nghĩ thầm chiếm bao nhiêu token ĐẦU RA:
+#     qwen3.7-plus  61%        qwen3.8-max  77%
+# Càng cao thì trần này càng phải rộng. Siết nó để tiết kiệm tiền trên model
+# reasoning là mua trả-lời-rỗng: model tiêu hết trần vào suy nghĩ rồi không
+# còn chỗ sinh nội dung -> `TraLoiRongError` (graph.py). Tiết kiệm ở đây không
+# giảm chi phí suy nghĩ, nó chỉ vứt bỏ phần đã trả tiền.
 LLM_MAX_TOKENS = int(os.environ["LLM_MAX_TOKENS"]) if os.environ.get("LLM_MAX_TOKENS") else None
 
 EMBEDDING_BASE_URL = os.environ.get("EMBEDDING_BASE_URL") or None
