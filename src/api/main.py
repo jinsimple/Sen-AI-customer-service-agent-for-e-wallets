@@ -78,7 +78,6 @@ from src.config import (
     APP_ENV,
     BUILD_AT,
     BUILD_COMMIT,
-    BUILD_SRC_HASH,
     DB_KIND,
     DB_NAME,
     OTP_MAX_FAILED_ATTEMPTS,
@@ -86,7 +85,7 @@ from src.config import (
     RESOLUTION_APPROVAL_OTP_FRESH_MINUTES,
     ROOT_DIR,
 )
-from src.dau_ma_nguon import CACH_BAM, bam_ma_nguon
+from src.dau_ma_nguon import CACH_BAM, DUONG_NHAN, bam_ma_nguon, nhan_luc_dung
 from src.db.models import (
     AuthSession,
     ChatSession,
@@ -1477,14 +1476,31 @@ def _khai_ma_nguon_lech_anh():
     phải bằng chứng mã sai. Giết dịch vụ vì nó là biến một nghi vấn thành một
     sự cố — cùng lý do đã áp cho `HOTLINE_CSKH` và cho `/ready` không gating.
     """
-    if BUILD_SRC_HASH == "khong-ro":
-        return  # chạy ngoài Docker (dev cục bộ) — không có nhãn để so, không ồn
+    nhan = nhan_luc_dung()
+    if nhan is None:
+        return  # ngoài ảnh (dev cục bộ, pytest) — không có nhãn để so, không ồn
+    if not nhan:
+        # TRONG ảnh mà nhãn rỗng/hỏng: CHẾT, không bỏ qua.
+        #
+        # Phân biệt với `HOTLINE_CSKH` (FAIL-VISIBLE, không fail-fast) — hai ca
+        # khác nhau ở chỗ THIẾU NÓ THÌ MẤT GÌ:
+        #   hotline thiếu -> SẢN PHẨM suy giảm; giết dịch vụ là biến một suy
+        #                    giảm cục bộ thành mất dịch vụ toàn phần.
+        #   nhãn thiếu    -> CƠ CHẾ KIỂM CHỨNG biến mất, và biến mất IM LẶNG.
+        #                    Không có "suy giảm" nào ở đây, chỉ có mù — và một
+        #                    cổng mù trông y hệt một cổng đang bảo vệ.
+        raise RuntimeError(
+            f"Nhãn băm mã nguồn rỗng/hỏng tại {DUONG_NHAN}. Ảnh này không do "
+            f"Dockerfile của dự án dựng, hoặc bước tính nhãn đã hỏng. TỪ CHỐI "
+            f"khởi động: chạy tiếp nghĩa là chạy với một cổng kiểm chứng đã tắt "
+            f"mà không ai biết."
+        )
     dang_chay = bam_ma_nguon()
-    if dang_chay != BUILD_SRC_HASH:
+    if dang_chay != nhan:
         _logger.error(
             "ma_nguon_lech_anh",
             extra={
-                "bam_luc_dung": BUILD_SRC_HASH,
+                "bam_luc_dung": nhan,
                 "bam_dang_chay": dang_chay,
                 "cach_bam": CACH_BAM,
                 "y_nghia": (
@@ -1582,7 +1598,7 @@ def health():
         # endpoint này CÔNG KHAI, và một cờ "hộp này có mã sửa tay" là trạng
         # thái vận hành — cùng loại thông tin đã từ chối phơi ở đây trước đó.
         # Kết quả so nằm ở sự kiện log `ma_nguon_lech_anh`.
-        "build_src_hash": BUILD_SRC_HASH,
+        "build_src_hash": nhan_luc_dung() or "ngoai-anh",
         "db_kind": DB_KIND,
         "db_name": DB_NAME,
         # Trả lời được câu 16/08 KHÔNG trả lời được: "production đã nhận vá

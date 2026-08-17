@@ -54,3 +54,21 @@ def bam_ma_nguon(goc: Path | str | None = None) -> str:
     for f in sorted(goc.rglob("*.py")):
         h.update(f.read_bytes())
     return h.hexdigest()[:DO_DAI]
+
+
+# Nhãn đóng vào ảnh lúc `docker build`, do chính `bam_ma_nguon()` tính ra ngay
+# sau `COPY . .` (xem Dockerfile). KHÔNG có file này = không chạy trong ảnh do
+# Dockerfile của dự án dựng.
+DUONG_NHAN = Path("/app/.bam_ma_nguon")
+
+
+def nhan_luc_dung() -> str | None:
+    """Nhãn băm đóng vào ảnh, hoặc None khi chạy ngoài ảnh (dev cục bộ, test).
+
+    Phân biệt None (ngoài ảnh) với chuỗi rỗng/hỏng (trong ảnh nhưng nhãn sai)
+    là điều kiện để phép kiểm lúc khởi động CHẾT thay vì im lặng bỏ qua —
+    xem `_khai_ma_nguon_lech_anh` ở main.py.
+    """
+    if not DUONG_NHAN.exists():
+        return None
+    return DUONG_NHAN.read_text().strip()

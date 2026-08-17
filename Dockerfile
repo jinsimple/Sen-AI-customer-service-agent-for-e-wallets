@@ -63,8 +63,7 @@ ENV BUILD_AT=$BUILD_AT
 # Nhãn định danh MÃ SẢN PHẨM (băm nội dung src/**/*.py), khác BUILD_COMMIT là
 # nhãn định danh TRẠNG THÁI KHO. Cần cả hai: commit trả lời "kho ở đâu", băm
 # trả lời "mã nào" — và 17/08 đã chứng minh commit không trả lời được câu sau.
-ARG BUILD_SRC_HASH=khong-ro
-ENV BUILD_SRC_HASH=$BUILD_SRC_HASH
+# (nhãn băm src/ KHÔNG phải build-arg — xem RUN sau COPY bên dưới)
 
 # Non-root user cho tiến trình ứng dụng thật (không chạy uvicorn bằng root) —
 # việc hạ quyền thực hiện trong docker-entrypoint.sh lúc container khởi động,
@@ -74,6 +73,19 @@ RUN useradd -m appuser
 
 # Copy application code
 COPY . .
+# NHÃN BĂM src/ — tính TỪ NỘI DUNG VỪA COPY, không nhận từ ngoài.
+#
+# Bản đầu (17/08) nhận qua `--build-arg BUILD_SRC_HASH`. Sai, và sai theo hình
+# dạng tệ nhất: quên truyền -> nhãn thành "khong-ro" -> phép kiểm lúc khởi động
+# TỰ TẮT, mà vẫn trông y hệt một cổng đang bảo vệ. Cổng tự tắt khi thiếu đầu
+# vào tệ hơn cổng không có, vì nó tắt đúng lúc quy trình dựng bị làm ẩu — tức
+# đúng lúc cần nó nhất.
+#
+# Sửa tận gốc thay vì fail-closed trên tham số: BỎ tham số. Không còn gì để
+# quên truyền. Dùng lại chính `bam_ma_nguon()` nên ảnh và runtime không thể
+# dùng hai thuật toán khác nhau.
+RUN python -c "import sys; sys.path.insert(0,'/app'); from src.dau_ma_nguon import bam_ma_nguon; open('/app/.bam_ma_nguon','w').write(bam_ma_nguon())"  && cat /app/.bam_ma_nguon
+
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh && mkdir -p /app/data /app/logs
 
