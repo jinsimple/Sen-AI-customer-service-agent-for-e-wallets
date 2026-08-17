@@ -247,3 +247,82 @@ số"* bằng **"khai đúng hạng bằng chứng và dừng lại ở đó"**.
 
 **Việc đúng là chuyển nó cho người có thẩm quyền pháp lý** — cùng chỗ với hồ sơ
 Đ.25 — **không phải cho người đọc tài liệu kỹ hơn.**
+
+## §12. Nghiệm thu nhãn `src` — và luật thứ tư, từ một báo động đỏ GIẢ
+
+### Kiểm độc lập, [ĐO]
+
+```
+container            build_src_hash   build_commit   lệch×  hotline×
+fin05-backend-1      6335a5b899e3     7a79e7d          0       4
+fin05ttl-backend-1   6335a5b899e3     6161cd9          0       4
+fin05do-backend-1    6335a5b899e3     7a79e7d          0       4
+```
+
+**Ba nhãn `commit` khác nhau, MỘT nhãn `src` duy nhất.** `commit` dịch thêm một
+lần nữa (`6161cd9`) trong lúc dựng — **vì docs**. Nhãn mới **đứng yên**. Tính
+chất ③ tự nghiệm thu ngay trong lượt land nó.
+
+Đọc mã (`src/dau_ma_nguon.py`, `main.py:1461-1493`): dùng lại **nguyên thuật
+toán** của `dau_thuoc()`, chạy ở `@app.on_event("startup")`, **FAIL-VISIBLE
+không fail-fast**, và bỏ qua khi chạy ngoài Docker. Hai giới hạn tech-lead khai
+trong docstring **đều đúng và đều quan trọng** — đặc biệt: **phép kiểm này KHÔNG
+thay `docker diff`.** Nó trả lời *"ảnh có bị sửa TRƯỚC khi tiến trình này khởi
+động không"*; `docker diff` trả lời *"container có đang bị sửa LÚC NÀY không"*.
+**Quy trình §4 giữ nguyên cả hai bước.**
+
+*(Một chỉnh nhỏ theo chiều **an toàn hơn**: docstring nói *"đổi tên file mà giữ
+nội dung không đổi băm"*. Chỉ đúng khi việc đổi tên **giữ nguyên thứ tự sắp
+xếp** — `sorted(rglob("*.py"))` sắp theo đường dẫn rồi băm nội dung **theo thứ
+tự đó**, nên một lần đổi tên làm dịch vị trí sắp xếp **sẽ** đổi băm. Kiểm soát
+mạnh hơn mức đã khai. Ghi lại vì nếu sau này có người dùng câu đó để **giải
+thích một báo động**, họ sẽ giải thích sai.)*
+
+### 🔴 Luật D — từ ca tech-lead tự bắt, và nó là ca sạch nhất trong ngày
+
+Lần chạy **vế B đầu tiên** (tiêm `docker cp` thật để xem chuông có kêu không),
+bộ đo của họ báo **"KHÔNG KÊU — phép kiểm vô dụng"**. **Sai.** Chuông có kêu,
+chỉ ra sau 22 giây.
+
+```
+docker logs … | grep … | tail -1 | python3 -c "…"  ||  echo "🔴 KHÔNG KÊU — phép kiểm vô dụng"
+```
+
+`||` bắt **mọi** mã thoát khác 0 — kể cả *parse hỏng*, kể cả *log chưa kịp ra*.
+Nó **gộp "không có sự kiện" với "tôi không đọc được sự kiện"** thành một dòng
+chữ, và dòng chữ đó **khẳng định vế thứ nhất**.
+
+> **Luật D — một nhánh xử lý lỗi in ra KẾT LUẬN thay vì TRIỆU CHỨNG là một
+> nhánh NÓI DỐI ĐƯỢC.** Bộ đo phải báo *"tôi thấy gì"* (mã thoát · số dòng
+> khớp · thời gian chờ), **không** báo *"tôi kết luận gì"*. Kết luận là việc
+> của người đọc — và người đọc **cần dữ kiện thô mới bác được bộ đo**.
+
+**Vì sao nó là Luật B ở tầng công cụ:** `|| echo "vô dụng"` là **một phép làm
+tròn lên một nấc được ĐÓNG CỨNG vào công cụ** — nó biến *"mã thoát ≠ 0"* thành
+một **khẳng định về thế giới**, và làm việc đó **mỗi lần chạy, mãi mãi**.
+
+**Và ca đối chiếu nằm ngay trong cùng ngày, cùng dự án:** tester giữ
+`0 ĐẠT · 0 TRƯỢT · 5 không_đo_được` — **giữ nguyên trạng thái thứ ba**. Công cụ
+của tech-lead **xoá** trạng thái thứ ba. Cùng một tình huống ba-trạng-thái, hai
+cách xử lý ngược nhau, và **chỉ cách thứ nhất bác được**.
+
+### Một sai lầm thứ hai, đắt hơn cái thứ nhất
+
+Ngay sau khi đọc *"KHÔNG KÊU"*, họ `--force-recreate` để dọn — **xoá bằng chứng
+trước khi chẩn đoán**, phải tiêm lại từ đầu mới soi được.
+
+> **Nếu đó là một sự cố thật thì thao tác dọn vừa xoá hiện trường của chính nó.**
+
+Đây **đúng ca** mà §5c của hồ sơ *"điều kiện trước khi đo đường thật"* đã lường:
+*kế hoạch dọn phải có ngoại lệ khai trước cho trường hợp thứ cần dọn LÀ bằng
+chứng.* Hôm nay ngoại lệ đó đã được viết ra — và **vẫn bị bỏ qua trong cùng
+ngày**, vì phản xạ dọn nhanh hơn phản xạ đọc.
+
+⟹ Vế thi hành cho ngoại lệ đó, gọn hơn: **đọc trước, dọn sau. Luôn.** Một bằng
+chứng giữ thừa vài phút không tốn gì; một bằng chứng dọn sớm không mua lại được.
+
+### §10 bổ sung — con số bị rút thứ BA trong ngày
+
+| Con số | Người báo | Trạng thái |
+|---|---|---|
+| *"KHÔNG KÊU — phép kiểm vô dụng"* (vế B lần 1) | tech-lead | 🔴 **RÚT** — chuông **có** kêu ×4, log ra sau 22s. Cùng lỗi với hai dòng trên, nhưng ở **tầng công cụ đo**, không ở tầng đo |
