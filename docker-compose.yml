@@ -68,7 +68,12 @@ services:
       # T1 · phân luồng. Cờ đọc LÚC IMPORT ⟹ đổi nó bắt buộc phải RECREATE
       # container, `docker exec -e` chỉ đổi tiến trình con và KHÔNG chạm
       # uvicorn đang phục vụ (tester bắt được đúng bẫy này 17/08).
-      PHAN_LUONG_BAT: ${PHAN_LUONG_BAT:-}
+      # BẬT MẶC ĐỊNH từ 17/08 (PO thật chốt, A1). Trước đó mặc định TẮT vì
+      # chưa có số; giờ có: lượt đường-nhẹ = 0 token · 0,06s, so với 6.216
+      # token · 8,7s cùng câu đi đường đầy đủ. Tiết kiệm TẤT ĐỊNH, không phụ
+      # thuộc hành vi model.
+      # Đặt `PHAN_LUONG_BAT=0` để tắt cho một ngăn xếp cụ thể.
+      PHAN_LUONG_BAT: ${PHAN_LUONG_BAT:-1}
       # Ghi đè SSL_CERT_FILE của .env — CÙNG LÝ DO với REDIS_URL ở trên, nhưng
       # hậu quả nặng hơn nhiều nên ghi kỹ.
       #
