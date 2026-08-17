@@ -92,7 +92,18 @@ def ingest_document(
         "policy_doc_nap",
         extra={
             "doc_id": doc_id,
-            "filename": filename,
+            # 🔴 KHÔNG được đặt tên `filename`. Đó là **thuộc tính dành riêng**
+            # của `logging.LogRecord` (Python gán = tên file NGUỒN), nên
+            # `logging/__init__.py` ném `KeyError: "Attempt to overwrite
+            # 'filename' in LogRecord"`.
+            #
+            # Và log ném ⟹ REQUEST ném: một `partner_admin` tải tài liệu lên
+            # nhận **HTTP 500**, vì một cái tên trường. Không phải lỗi log.
+            #
+            # Nó im lặng tới ngày nhánh này chạy: mọi lượt log khác không có
+            # `extra=` nên không ai thấy. tester bắt được 17/08 qua 3 test đỏ
+            # trên đường tải tài liệu.
+            "ten_tep": filename,
             "uploaded_by": uploaded_by,
             "chunk_count": len(pieces),
             "status": doc.status,
