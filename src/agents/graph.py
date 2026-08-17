@@ -33,6 +33,7 @@ from src.config import (
     DB_KIND,
     LLM_API_KEY,
     LLM_BASE_URL,
+    LLM_MAX_TOKENS,
     LLM_MODEL,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
@@ -249,6 +250,9 @@ def _build_agent(
         temperature=0.2,
         api_key=LLM_API_KEY,
         base_url=LLM_BASE_URL,
+        # Chỉ truyền khi CÓ đặt — `max_tokens=None` và "không truyền" khác nhau
+        # ở một số client. Xem LLM_MAX_TOKENS trong config.py.
+        **({"max_tokens": LLM_MAX_TOKENS} if LLM_MAX_TOKENS else {}),
         timeout=OPENAI_TIMEOUT_SECONDS,
         max_retries=OPENAI_MAX_RETRIES,
     )
@@ -511,6 +515,24 @@ def run_agent_turn(
             reply = m.content
             break
 
+    # KÊU khi model trả nội dung RỖNG. Trước bản này `reply` nhận "" và đi
+    # thẳng ra khách: màn hình trắng, HTTP 200, không lỗi, không log.
+    # Ca sinh ra nó: model có reasoning tiêu hết trần token vào phần suy nghĩ
+    # rồi không còn chỗ sinh nội dung. Không vá được bằng đoán trần — vá bằng
+    # cách làm nhánh im lặng KÊU LÊN, rồi mới biết có cần chỉnh trần không.
+    if not str(reply).strip():
+        _logger.warning(
+            "agent_reply_rong",
+            extra={
+                "user_id": user_id,
+                "thread_id": thread_id or user_id,
+                "model": LLM_MODEL,
+                "so_message_luot_nay": len(turn_messages),
+                "ghi_chu": "Model trả content rỗng. Nghi trần token bị phần "
+                "reasoning ăn hết — xem LLM_MAX_TOKENS.",
+            },
+        )
+
     tool_msgs_by_id = {m.tool_call_id: m for m in turn_messages if isinstance(m, ToolMessage)}
     tool_calls_out: list[dict] = []
     ticket_id = None
@@ -565,6 +587,7 @@ def run_agent_turn(
         "output_tokens": 0,
         "total_tokens": 0,
         "cached_input_tokens": 0,
+        "reasoning_tokens": 0,
         "input_chars": 0,
         "so_luot_goi_model": 0,
         "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA,
@@ -587,6 +610,11 @@ def run_agent_turn(
             # LangChain gom chi tiết provider vào `input_token_details`; OpenAI
             # đặt phần đã cache ở khoá `cache_read`. Đọc phòng thủ vì tên khoá
             # là hợp đồng của provider, không phải của ta.
+            # Token SUY NGHĨ của model reasoning nằm ở `output_token_details`,
+            # KHÔNG phải `input_token_details`. Nó được tính vào `output_tokens`
+            # nên hoá đơn không sai — nhưng không tách ra thì không ai biết bao
+            # nhiêu tiền đang trả cho phần khách không bao giờ đọc.
+            usage["reasoning_tokens"] += (meta.get("output_token_details") or {}).get("reasoning", 0) or 0
             chi_tiet = meta.get("input_token_details") or {}
             usage["cached_input_tokens"] += chi_tiet.get("cache_read", 0) or 0
 

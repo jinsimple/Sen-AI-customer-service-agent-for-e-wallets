@@ -174,6 +174,17 @@ LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or None
 LLM_MODEL = os.environ.get("LLM_MODEL") or OPENAI_MODEL
 LLM_API_KEY = os.environ.get("LLM_API_KEY") or OPENAI_API_KEY
 
+# Trần token sinh ra. MẶC ĐỊNH None = KHÔNG truyền tham số -> y hệt hành vi
+# hôm nay (dựa vào mặc định nhà cung cấp). CỐ Ý không đặt một con số:
+# thêm trần ở đây sẽ CẮT NGẮN câu trả lời dài đang chạy tốt, tức sửa một bug
+# chưa xảy ra bằng cách tạo một bug chắc chắn xảy ra.
+#
+# Vì sao cần cái knob này: model có reasoning (Qwen) tiêu token vào phần SUY
+# NGHĨ trước khi sinh nội dung. Trần thấp -> tiêu hết vào suy nghĩ -> `content`
+# RỖNG, và KHÔNG có lỗi nào. Khi đổi sang model như vậy, đặt biến này tường
+# minh thay vì hy vọng mặc định của họ đủ.
+LLM_MAX_TOKENS = int(os.environ["LLM_MAX_TOKENS"]) if os.environ.get("LLM_MAX_TOKENS") else None
+
 EMBEDDING_BASE_URL = os.environ.get("EMBEDDING_BASE_URL") or None
 EMBEDDING_API_KEY = os.environ.get("EMBEDDING_API_KEY") or OPENAI_API_KEY
 
