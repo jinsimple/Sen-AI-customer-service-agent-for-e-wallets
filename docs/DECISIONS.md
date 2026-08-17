@@ -1706,7 +1706,7 @@ nguon_duoc_duyet:
 
 ## ADR-031 — Truy vấn `search_policy` phải được ghi lại làm BẰNG CHỨNG: hai trường, hai vòng đời
 
-- **Ngày:** 17/08/2026 · **Trạng thái:** 🔴 CHỜ PO THẬT DUYỆT
+- **Ngày:** 17/08/2026 · **Trạng thái:** Đang hiệu lực — **PO thật chốt 17/08/2026**
 - **Bối cảnh:**
 
   **Lỗ:** `search_policy` **không bao giờ ghi lại truy vấn**. Một `tool_result_id` được
