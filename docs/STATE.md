@@ -747,6 +747,24 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## 🧊 NGUYÊN TẮC SEMANTIC CACHE (17/08 tối — sinh từ câu hỏi của PO thật, chốt TRƯỚC khi ai thiết kế)
+PO hỏi: *"đi đường semantic cache thì bộ an toàn sẽ rẻ hơn từ lần gọi thứ 2 đúng không?"* — trả lời:
+**KHÔNG, và đảo thành nguyên tắc thiết kế:**
+
+> **BỘ AN TOÀN PHẢI LÀ CACHE-MISS THEO THIẾT KẾ. Tỉ lệ cache-hit trên ca an toàn = 0 là một CỔNG.
+> Một ca an toàn trúng cache = ranh giới cache đã thủng — điều tra, không ăn mừng tiết kiệm.**
+
+Lý do: ① bộ an toàn đo **hành vi HIỆN TẠI của model** — câu trả lời từ cache đo **cái cache**, tức
+lần chạy thứ 2 trở đi vừa rẻ vừa **vô giá trị**: xanh-giả hoàn hảo (model thoái hoá bao nhiêu cũng
+không thấy, vì cache phát lại câu trả lời của model CŨ lúc còn tốt). ② theo ranh giới đã chốt (chỉ
+cache **câu chính-sách-chung khách-bất-biến**), mọi ca an toàn — tấn công, dò OTP, khiếu nại cá nhân
+— **không thuộc lớp cache được**; ca nào hit là ranh giới hỏng. ③ cache còn **mở bề mặt tấn công
+mới** mà bộ an toàn phải MỞ RỘNG để canh: hai câu na ná nhưng khác người/khác dữ kiện trúng nhầm
+nhau (N3 đã ghi: *"cache lẫn của người khác = thảm hoạ"*) + kẻ tấn công dò được đáp án tất định.
+
+Chỗ có tiền THẬT của cache: **production** — câu chính-sách-chung lặp lại rẻ từ lần hỏi thứ 2, đo
+bằng tỉ lệ hit trên traffic thật. **Tiết kiệm nằm ở phần được phép rẻ; an toàn nằm ở phần không
+bao giờ được phép rẻ.**
 ## 🗄️ PHÁN QUYẾT KHO RAG CHUẨN (17/08 tối) — "lệch 41 chunk" KHÔNG tồn tại như một tập
 - Coder diff hai kho (0 LLM): **không phải ttl thiếu/thừa 41 chunk** — hai kho dựng từ **HAI ĐỊNH
   DẠNG NGUỒN** của cùng bộ tài liệu:
