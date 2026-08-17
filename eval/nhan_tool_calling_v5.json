@@ -110,6 +110,22 @@
     ],
     "luat": "MỘT CON SỐ KHÔNG KÈM CÁCH ĐO THÌ KHÔNG PHẢI BẰNG CHỨNG. Ba vùng khác nhau, ba cặp vai khác nhau, cùng một lớp lỗi trong một ngày."
    }
+  },
+  "🔴_BAM_SINH_TRONG_CONTAINER": {
+   "dieu_kien_security_neu": "băm kích thích phải sinh TRONG container sẽ chạy lượt đo, không sinh ở host/venv khác",
+   "da_kiem": "sinh lại trong fin05-backend-1 (langchain-core 1.5.4) ⟹ 0c08f10a8f55, TRÙNG với băm sinh ở host. Băm tái lập được.",
+   "🔴_NHUNG_KIEM_RA_MOT_LECH_THAT": {
+    "name_va_description": "KHỚP TỪNG BYTE với app sống",
+    "parameters": "LỆCH cả 5 tool",
+    "lech_gi": "file lược đồ của bộ đo mang 17 trường \"title\" (vd {\"title\":\"Query\"}) mà convert_to_openai_tool của app KHÔNG sinh. Và required=[] ở 2 tool nơi app bỏ hẳn khoá required.",
+    "do_lon": "JSON tool bộ đo 7.172 ký tự · app 6.773 ⟹ bộ đo THỪA 399 ký tự sản phẩm KHÔNG BAO GIỜ GỬI",
+    "khop_so_cua_coder": "6.773 đúng bằng con số coder báo trong envelope — họ đã có số đúng, tôi có số phồng. Cặp đo độc lập bắt được, lần thứ NĂM trong ngày.",
+    "✅_KHONG_anh_huong_TRUC_2": "required KHỚP NGHĨA cả 5 tool (rỗng == vắng mặt) ⟹ hàm bia() chấm trên cùng tập tham số bắt buộc. Kết quả 0/~500 của v4 KHÔNG bị ảnh hưởng.",
+    "anh_huong_gi": "chỉ token/độ dài kích thích (+399 ký tự ≈ +100 token/lượt) và nội dung thừa vô nghĩa"
+   },
+   "QUYET_DINH": "v5 GIỮ NGUYÊN file lược đồ của v4, KHÔNG đổi sang bản app sinh. Lý do: đổi làm HAI biến khác nhau giữa v4↔v5 (system prompt VÀ lược đồ tool) ⟹ mất cặp chỉ-khác-một-biến, đúng thứ v5 tồn tại để giữ. Khai lệch này ra thay vì sửa nó.",
+   "he_qua_phai_cong_bo": "v5 KHÔNG phải bản sao chính xác kích thích sản phẩm — nó thiếu 15.094 ký tự... không, nó CÓ system prompt sản phẩm nhưng THỪA 399 ký tự title trong lược đồ tool. Khoảng cách còn lại tới 'đúng y sản phẩm' là 399 ký tự vô nghĩa, không phải chỉ dẫn.",
+   "viec_cho_lan_sau": "dựng lại luoc_do_tool_app.json bằng convert_to_openai_tool TRONG CONTAINER, dùng cho mọi bộ đo SAU v5. Không sửa bây giờ."
   }
  },
  "🔴_PHA_LOANG_KHONG_CONG_BO_DINH_LUONG": {
@@ -159,6 +175,6 @@
   "tech-lead": "KÝ d20cb85890a2",
   "security": "đã nhận ①②④⑤, chờ xác nhận cuối"
  },
- "bam_cu_da_thay": "d20cb85890a2 — thay TRƯỚC khi có bất kỳ phép đo v5 nào. Lý do: ① giải thích xong chênh 4.862/4.334 (cùng vật, hai phép đo — KHÔNG phải finding), ② thêm hệ quả tech-lead về trục 2, ③ thêm cửa RAG khác nhau. Không đụng một con số nào của LUẬT DỪNG.",
- "bam_nhan": "802132ff4ec4"
+ "bam_cu_da_thay": "802132ff4ec4 → sửa TRƯỚC khi chạy, lần 2. Lý do: security nêu điều kiện băm-trong-container; kiểm ra lược đồ tool của bộ đo THỪA 399 ký tự \"title\" so với app. Không đụng luật dừng.",
+ "bam_nhan": "a1e9e21aa81f"
 }

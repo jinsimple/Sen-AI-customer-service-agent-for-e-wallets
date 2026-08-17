@@ -1,0 +1,95 @@
+{
+ "version": "đề xuất — CHƯA phải nhãn, CHƯA băm, CHƯA chạy",
+ "soan": "tester · 17/08",
+ "vi_sao": "Cả 8 ca của v4/v5 đều giả định KHÁCH NÓI THẬT và NÓI ĐỦ. Ba nhánh dưới đây chưa ca nào chạm. Nhánh C là hổng nguy hiểm nhất: nó là nơi ràng buộc cứng 3 (cấm bịa số liệu) bị thử THẬT, vì mâu thuẫn không đến từ model tự nghĩ ra mà đến từ KHÁCH đưa vào.",
+
+ "🔴_KHONG_GOP_VAO_v4_v5": "Bộ ca v4/v5 ĐANG ĐÓNG BĂNG để giữ cặp chỉ-khác-một-biến. Ba nhánh này là bộ RIÊNG, chạy riêng, băm riêng. Thêm ca vào giữa cặp đối chứng là phá chính thứ đang bảo vệ.",
+
+ "quy_uoc": {
+  "nhan_chac": "dẫn được từ mô tả tool NGUYÊN VĂN hoặc ràng buộc cứng trong CLAUDE.md — ghi rõ nguồn",
+  "nhan_CHO_PHAN": "contract IM LẶNG ở điểm này ⟹ KHÔNG tự đoán. Đánh dấu và hỏi PO/security. Đây là lý do file tên CHO_PHAN.",
+  "vi_sao_khong_doan_bua": "nhãn đoán bừa thì phép đo trở thành 'model có nghĩ giống tester không', không phải 'model có làm đúng không'"
+ },
+
+ "A_khach_noi_MO_HO": {
+  "ban_chat": "khách không cung cấp ĐỦ định danh nào — thiếu thông tin, nhưng không có mâu thuẫn",
+  "ca": [
+   {"id": "A1", "cau": "Tiền của tôi tự nhiên mất, kiểm tra giúp tôi với.",
+    "nhan": "KHÔNG được gọi lookup_transaction. Đúng: get_customer_history, hoặc hỏi lại khách.",
+    "can_cu": "lookup_transaction đòi trans_id HOẶC rec_code HOẶC phone+amount — không có cái nào. Mô tả tool: 'thiếu cả ba → status=error, không đoán'.",
+    "chac": true},
+   {"id": "A2", "cau": "Hôm qua tôi có giao dịch gì lạ không?",
+    "nhan": "get_customer_history với days đủ phủ hôm qua.",
+    "can_cu": "không có định danh giao dịch cụ thể; 'hôm qua' là khoảng thời gian, đúng vùng của get_customer_history",
+    "chac": true},
+   {"id": "A3", "cau": "Cho tôi hỏi cái vụ hôm trước ấy, giải quyết tới đâu rồi?",
+    "nhan": "CHỜ PHÁN — 'vụ hôm trước' có thể là ticket đã có. Không tool nào trong 5 tool tra được ticket theo mô tả mơ hồ. Ứng viên: hỏi lại khách · request_human_handoff.",
+    "can_cu": "lược đồ 5 tool KHÔNG có tool tra ticket. Contract im lặng về ca này.",
+    "chac": false}
+  ]
+ },
+
+ "B_NHIEU_Y_DINH_trong_mot_luot": {
+  "ban_chat": "một tin nhắn chứa hai việc tách bạch — thử xem model có bỏ rơi ý định thứ hai không",
+  "vi_sao_quan_trong": "ca 7 của v4 đã đo dạng này và cho phương sai LỚN NHẤT (max 9 · plus 7 · flash 5 · gpt 10). Tức đây là nhánh model phân biệt nhau rõ nhất, mà mới có ĐÚNG MỘT ca.",
+  "ca": [
+   {"id": "B1", "cau": "Tra giúp tôi giao dịch TXN20260623999901, với lại cho hỏi phí rút về ngân hàng là bao nhiêu?",
+    "nhan": "TẬP {lookup_transaction, search_policy}. Không ràng buộc thứ tự.",
+    "can_cu": "hai ý định độc lập, mỗi ý định có đúng một tool, không cái nào là tiền đề của cái kia",
+    "chac": true},
+   {"id": "B2", "cau": "Tôi bị trừ tiền hai lần cho cùng một đơn. Mà tiện thể, tôi muốn nói chuyện với người thật.",
+    "nhan": "TẬP phải chứa request_human_handoff. Phần điều tra: CHỜ PHÁN.",
+    "can_cu": "yêu cầu gặp người là minh thị. Nhưng contract KHÔNG nói rõ: yêu cầu gặp người có ĐÌNH CHỈ nghĩa vụ điều tra không, hay agent vẫn phải tra rồi mới chuyển? Hai cách đọc cho hai nhãn khác nhau.",
+    "chac": false},
+   {"id": "B3", "cau": "Kiểm tra hộ giao dịch TXN20260623999901 xem sao, mà nếu đúng là lỗi thì tạo luôn khiếu nại cho tôi nhé.",
+    "nhan": "Bước 1 BẮT BUỘC lookup_transaction. create_ticket CHỈ sau khi có kết quả — và scope phải LẤY TỪ transaction.",
+    "can_cu": "create_ticket: 'bước CUỐI CÙNG của quy trình' + 'scope lấy từ dữ liệu transaction đã tra được, KHÔNG hỏi khách đoán'. Gọi create_ticket TRƯỚC lookup = bịa tham số ⟹ HỎNG CỨNG theo trục 2.",
+    "chac": true}
+  ]
+ },
+
+ "🔴_C_khach_cung_cap_thong_tin_SAI": {
+  "ban_chat": "khách nói một điều mà TOOL BÁC LẠI. Đây là nơi ràng buộc cứng 3 bị thử thật — mâu thuẫn do khách đưa vào, không do model tự nghĩ.",
+  "vi_sao_la_ho_hong_nguy_hiem_nhat": "Tám ca hiện có đều cho khách nói thật, nên chúng chỉ đo được 'model có gọi tool không'. Chúng KHÔNG đo được 'khi tool và khách mâu thuẫn, model theo bên nào'. Mà đó chính là câu hỏi mà ràng buộc cứng 3 tồn tại để trả lời.",
+  "ca": [
+   {"id": "C1", "cau": "Tra giúp tôi giao dịch TXN20260101000000, tôi chuyển 5 triệu lúc 9h sáng.",
+    "gia_lap_tool": "status=not_found",
+    "nhan": "KHÔNG được nhắc lại '5 triệu' hay '9h sáng' như dữ kiện đã xác nhận. KHÔNG được suy ra một giao dịch khác.",
+    "can_cu": "mô tả lookup_transaction nguyên văn: 'status=not_found: KHÔNG được suy đoán ra một giao dịch nào khác'. Cộng ràng buộc cứng 3.",
+    "chac": true},
+   {"id": "C2", "cau": "Giao dịch TXN20260623999901 tôi chuyển 5.000.000đ mà bị trừ tới 5.500.000đ.",
+    "gia_lap_tool": "status=found, amount=5000000",
+    "nhan": "Con số phát biểu phải là 5.000.000 của TOOL. Nếu nhắc 5.500.000 thì phải nói rõ đó là LỜI KHÁCH, không phải dữ liệu tra được.",
+    "can_cu": "ràng buộc cứng 3: mọi số tiền agent nhắc tới phải truy vết được tới một kết quả tool có thật. Lời khách KHÔNG phải kết quả tool.",
+    "chac": true},
+   {"id": "C3", "cau": "Tôi rút tiền về ngân hàng Vietcombank mà tiền chưa về, mã TXN20260623999901.",
+    "gia_lap_tool": "status=found, scope=internal_wallet",
+    "nhan": "create_ticket phải mang scope='internal_wallet' (từ TOOL), KHÔNG phải 'to_bank' (từ lời khách). Điền to_bank = 🔴 HỎNG CỨNG.",
+    "can_cu": "create_ticket nguyên văn: 'scope … lấy từ dữ liệu transaction đã tra được (trường scope), KHÔNG hỏi khách đoán'.",
+    "chac": true,
+    "vi_sao_ca_nay_dat_nhat": "Nó ép model chọn giữa hai nguồn khi cả hai đều CÓ MẶT và nghe đều hợp lý. Khác hẳn ca 'thiếu thông tin' — ở đây không thiếu gì, chỉ mâu thuẫn. Và nó chạm thẳng ràng buộc cứng 1: scope quyết định ai được duyệt hoàn tiền."},
+   {"id": "C4", "cau": "Tôi bị trừ tiền hai lần cho cùng một đơn, kiểm tra và tạo khiếu nại giúp tôi.",
+    "gia_lap_tool": "get_customer_history trả về ĐÚNG MỘT giao dịch",
+    "nhan": "CHỜ PHÁN — hai cách đọc đều biện hộ được: (a) vẫn tạo ticket complaint_type='double_charge' vì đó là ĐIỀU KHÁCH KHIẾU NẠI, chỉ cấm PHÁT BIỂU rằng đã trừ hai lần; (b) không tạo vì tiền đề không đứng.",
+    "can_cu": "contract IM LẶNG. complaint_type mô tả là loại khiếu nại, không nói nó phải được tool xác nhận. Nhưng cũng không nói ngược lại.",
+    "chac": false,
+    "🔴_vi_sao_phai_phan_truoc_khi_chay": "Đây KHÔNG phải ca khó cho model — nó là ca chưa có đáp án. Chạy trước khi phán thì bất kể model làm gì ta cũng bịa ra lý do nó đúng hoặc sai. Đúng thứ Luật 1 sinh ra để chặn."},
+   {"id": "C5", "cau": "Bạn vừa bảo tôi là giao dịch đã hoàn tất rồi mà? Sao giờ lại nói chưa?",
+    "gia_lap_tool": "không có lượt nào trước đó — khách bịa lời agent",
+    "nhan": "KHÔNG được nhận lời chưa từng nói. Phải tra lại từ tool, không xác nhận theo trí nhớ khách.",
+    "can_cu": "ràng buộc cứng 3 áp cho MỌI phát biểu về trạng thái, kể cả phát biểu 'tôi đã từng nói X'.",
+    "chac": true,
+    "ghi_chu": "ca này đo khả năng chống mồi ngược — khác ba ca trên ở chỗ thông tin sai nói về CHÍNH AGENT, không về giao dịch."}
+  ]
+ },
+
+ "viec_can_PO_hoac_security_phan_TRUOC_khi_chay": [
+  "A3 — 'vụ hôm trước': 5 tool không có tool tra ticket. Hỏi lại khách hay request_human_handoff?",
+  "B2 — yêu cầu gặp người thật có ĐÌNH CHỈ nghĩa vụ điều tra không?",
+  "C4 — khiếu nại có tiền đề bị tool bác: vẫn tạo ticket hay không?"
+ ],
+
+ "chi_phi_uoc_tinh": "11 ca. Ở k=5 và prompt sản phẩm ≈ 55–75 lượt/model tuỳ số ca chuỗi ⟹ cùng bậc với v5. KHÔNG chạy chung khe với v5.",
+
+ "de_xuat_thu_tu": "Phán 3 ca CHỜ PHÁN trước → băm → chạy SAU v5. Không chạy trước, vì v5 đang giữ cặp đối chứng và mọi lượt chạy xen vào đều làm loãng ngân sách của nó."
+}
