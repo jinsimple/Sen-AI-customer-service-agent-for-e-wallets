@@ -22,6 +22,7 @@ from langchain_openai import OpenAIEmbeddings
 from src.config import (
     EMBEDDING_API_KEY,
     EMBEDDING_BASE_URL,
+    EMBEDDING_BATCH_SIZE,
     RAG_EMBEDDING_MODEL,
     RAG_INDEX_DIR,
 )
@@ -86,10 +87,24 @@ def _get_client() -> chromadb.ClientAPI:
 def _get_embeddings() -> OpenAIEmbeddings:
     global _embeddings
     if _embeddings is None:
+        # `check_embedding_ctx_length=False` CHỈ khi trỏ nhà cung cấp khác.
+        #
+        # Mặc định LangChain TOKENISE phía client rồi gửi MẢNG SỐ NGUYÊN.
+        # OpenAI nhận; endpoint "tương thích OpenAI" của Qwen TỪ CHỐI:
+        #   400 InvalidParameter: contents is neither str nor list of str
+        # Tắt cờ đó -> gửi chuỗi thô, đúng thứ mọi endpoint đều hiểu.
+        #
+        # CÓ ĐIỀU KIỆN chứ không bật luôn: cờ này cũng tắt phép cắt-theo-ngữ-
+        # cảnh phía client. Chunk của ta 800 ký tự nên không chạm trần, nhưng
+        # bật nó cho đường OpenAI là ĐỔI VẬT trên kho 378 vector đang giữ cả
+        # chuỗi đo — không đổi thứ đang chạy đúng để chiều một nhà cung cấp
+        # chưa dùng.
         _embeddings = OpenAIEmbeddings(
             model=RAG_EMBEDDING_MODEL,
             api_key=EMBEDDING_API_KEY,
             base_url=EMBEDDING_BASE_URL,
+            **({"check_embedding_ctx_length": False} if EMBEDDING_BASE_URL else {}),
+            **({"chunk_size": EMBEDDING_BATCH_SIZE} if EMBEDDING_BATCH_SIZE else {}),
         )
     return _embeddings
 

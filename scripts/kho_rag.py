@@ -5,6 +5,8 @@
     python scripts/kho_rag.py kiem      # exit 1 nếu kho dựng bằng chuẩn-hoá CŨ
     python scripts/kho_rag.py nap-lai     # xoá + parse lại từ data/raw/ (ưu tiên .docx)
     python scripts/kho_rag.py nap-vector  # GIỮ Postgres, chỉ nhúng lại cho model hiện tại
+        [--embed-model M] [--embed-base-url URL] [--embed-api-key-tu TEN_BIEN]
+        # nạp kho cho model KHÁC mà KHÔNG đổi cấu hình đang phục vụ
 
 VÌ SAO TỒN TẠI: đòn 2 bỏ dấu ở CẢ HAI vế (index + query). Kho dựng bằng code
 cũ + query chạy code mới = LỆCH MỘT VẾ, và ca đó **không có triệu chứng nào** —
@@ -21,6 +23,43 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# --- TIÊM BIẾN TỪ CLI, PHẢI chạy TRƯỚC mọi `from src...` -------------------
+# `src.config` đọc biến môi trường LÚC IMPORT, nên muốn nạp kho cho một model
+# khác mà KHÔNG đổi cấu hình đang phục vụ thì phải đặt biến trước import.
+#
+# Vì sao cần: lật `.env` sang model mới là hệ đang phục vụ chuyển NGAY sang
+# collection RỖNG — đúng chế độ hỏng vừa phát hiện ở stack ttl (24 giờ trả
+# "không tìm thấy" cho mọi câu, không một tín hiệu). Đường CLI này biến việc
+# đổi nhà cung cấp thành thao tác KHÔNG CÓ TRẠNG THÁI TRUNG GIAN HỎNG: nạp
+# xong, kiểm xong, rồi mới lật — lật lúc đó là tức thì.
+#
+# Script này là TIẾN TRÌNH RIÊNG nên biến chỉ sống trong nó, không chạm server.
+#
+# ⚠️ KHOÁ nhận qua TÊN BIẾN MÔI TRƯỜNG (`--embed-api-key-tu`), KHÔNG nhận giá
+# trị trực tiếp: tham số dòng lệnh hiện trong `ps` cho mọi tiến trình trên máy,
+# và trong shell history. Truyền khoá qua argv là tự tạo một đường rò mới ngay
+# trong công cụ vừa sinh ra để xử một vụ rò khoá.
+def _tiem_bien_tu_cli() -> None:
+    import os as _os
+    import sys as _sys
+
+    cap = {"--embed-model": "EMBEDDING_MODEL", "--embed-base-url": "EMBEDDING_BASE_URL"}
+    argv = _sys.argv
+    for co, bien in cap.items():
+        if co in argv:
+            _os.environ[bien] = argv[argv.index(co) + 1]
+    if "--embed-api-key-tu" in argv:
+        ten = argv[argv.index("--embed-api-key-tu") + 1]
+        gt = _os.environ.get(ten)
+        if not gt:
+            print(f"  Biến {ten} rỗng hoặc không tồn tại — dừng.", file=_sys.stderr)
+            raise SystemExit(2)
+        _os.environ["EMBEDDING_API_KEY"] = gt
+
+
+_tiem_bien_tu_cli()
+
 
 from sqlalchemy import select  # noqa: E402
 

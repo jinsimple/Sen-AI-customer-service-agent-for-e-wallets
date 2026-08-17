@@ -252,6 +252,13 @@ LLM_MAX_TOKENS = int(os.environ["LLM_MAX_TOKENS"]) if os.environ.get("LLM_MAX_TO
 EMBEDDING_BASE_URL = os.environ.get("EMBEDDING_BASE_URL") or None
 EMBEDDING_API_KEY = _khoa_cho_nha_cung_cap("EMBEDDING_API_KEY", EMBEDDING_BASE_URL)
 
+# Số chunk gửi trong MỘT lời gọi embedding. LangChain mặc định 1000 — OpenAI
+# nhận, Qwen từ chối: "batch size is invalid, it should not be larger than 10".
+# Trần này KHÔNG có chuẩn chung giữa các nhà cung cấp, nên nó phải là biến.
+# Mặc định 10 khi trỏ nhà cung cấp khác (giá trị an toàn nhất đã gặp), giữ
+# nguyên mặc định thư viện cho đường OpenAI để không đổi vật.
+EMBEDDING_BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE") or (10 if EMBEDDING_BASE_URL else 0))
+
 # --- THƯỚC của eval: GHIM BẰNG HẰNG SỐ, KHÔNG theo model sản phẩm ---------
 # Một lượt adversarial có BA vai cùng gọi model:
 #     ĐỐI TƯỢNG   agent bị đo        (run_agent_turn -> LLM_MODEL)
