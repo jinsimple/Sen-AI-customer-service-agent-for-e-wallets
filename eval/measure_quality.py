@@ -110,6 +110,7 @@ def dau_thuoc() -> dict[str, str]:
     `commit` vẫn được ghi kèm nhưng chỉ để TRA CỨU, không dùng để so.
     """
     import hashlib
+    import os
     import subprocess
 
     h = hashlib.sha256()
@@ -139,7 +140,36 @@ def dau_thuoc() -> dict[str, str]:
         ).stdout.strip() or "khong-ro"
     except Exception:  # noqa: BLE001
         commit = "khong-ro"
-    return {"cham_diem": h.hexdigest()[:12], "he_thong": h_src.hexdigest()[:12], "commit": commit}
+
+    # DẤU CỦA NƠI ĐO — thêm 17/08 sau một cuộc điều tra đáng lẽ không cần có.
+    #
+    # PO hỏi: *"có con số RAG nào đã công bố từng đo trên ngăn xếp `ttl` không?"*
+    # — vì hai ngăn xếp hoá ra có HAI KHO KHÁC NHAU (378 vs 419 chunk, dựng từ
+    # hai định dạng nguồn; bản `ttl` còn chứa chunk mục-lục-toàn-dấu-chấm).
+    #
+    # Tôi trả lời được "không", nhưng phải dùng BA đường GIÁN TIẾP: mã nguồn
+    # mặc định `https://localhost`, số chunk 378 trong một trường `kho`, và
+    # việc `8443` không xuất hiện ở tệp đo nào. **Không bản ghi nào có một
+    # trường nói thẳng lượt đó chạy vào đâu.**
+    #
+    # `BASE` đọc từ `FIN05_BASE_URL`, nên về lý một lượt CÓ THỂ đã chạy vào
+    # 8443 mà bản ghi không lưu lại — tôi kết luận bằng suy luận có căn cứ, và
+    # phải khai đúng hạng đó với PO. Một trường đọc thẳng thì không phải khai.
+    #
+    # > **Một con số không tự khai NÓ ĐO Ở ĐÂU thì lần sau lại phải điều tra.**
+    #
+    # Cùng họ với `cham_diem` (thước) và `he_thong` (vật): đây là **nơi**. Ba
+    # thứ, ba câu hỏi khác nhau — và trước hôm nay ta chỉ canh hai.
+    #
+    # Ghi giá trị ĐÃ GIẢI, không ghi tên biến: `os.environ.get(...)` lúc gọi,
+    # để nếu ai đó đổi mặc định trong mã thì bản ghi cũ vẫn nói đúng nơi cũ.
+    return {
+        "cham_diem": h.hexdigest()[:12],
+        "he_thong": h_src.hexdigest()[:12],
+        "commit": commit,
+        "noi_do": os.environ.get("FIN05_BASE_URL", "https://localhost"),
+        "cach_bam": "sha256[:12] của nội dung tệp đã nối; noi_do là giá trị ĐÃ GIẢI lúc đo",
+    }
 
 
 def _tap_check_hong(r: dict) -> set[str]:
@@ -549,6 +579,31 @@ def so_sanh(truoc_path: Path, sau_path: Path, out_path: Path | None = None) -> i
         lines += [
             "> ⚠️ Có lượt chưa đóng dấu commit thước (file raw cũ). Không tự đối chiếu "
             "được — người đọc phải tự xác nhận hai lượt cùng thước.",
+            "",
+        ]
+
+    # --- Cảnh báo chặn: hai nhánh đo ở HAI NƠI khác nhau --------------------
+    #
+    # Thêm 17/08. `cham_diem` canh THƯỚC, `he_thong` canh VẬT — không cái nào
+    # canh NƠI. Và hai ngăn xếp của dự án này có HAI KHO KHÁC NHAU (378 vs 419
+    # chunk, dựng từ hai định dạng nguồn), nên một cặp `fin05` ↔ `ttl` là hai
+    # phép đo trên hai kho chính sách khác nhau — cùng hạng vô hiệu với hai
+    # thước khác nhau, mà trước hôm nay không có gì kêu.
+    n_t, n_s = (thuoc_truoc or {}).get("noi_do"), (thuoc_sau or {}).get("noi_do")
+    if n_t and n_s and n_t != n_s:
+        lines += [
+            f"> 🔴 **HAI LƯỢT ĐO Ở HAI NƠI KHÁC NHAU** (`{n_t}` vs `{n_s}`). Hai ngăn "
+            "xếp có thể mang hai kho RAG khác nhau ⟹ chênh lệch dưới đây lẫn cả "
+            "chênh lệch của KHO. Cặp đo VÔ HIỆU cho tới khi chạy lại cùng một nơi.",
+            "",
+        ]
+    elif not (n_t and n_s):
+        # KHÔNG im lặng, và KHÔNG đoán. Bản ghi cũ không có trường này, nên
+        # "không truy được" là trạng thái THỨ BA — khác hẳn "đã kiểm, cùng nơi".
+        lines += [
+            "> ⚠️ Có lượt **không ghi nơi đo** (`noi_do`) — bản ghi trước 17/08. "
+            "KHÔNG kết luận được hai lượt cùng ngăn xếp hay không; đây là "
+            "*không truy được*, không phải *đã kiểm*.",
             "",
         ]
 
