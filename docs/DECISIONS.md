@@ -1474,8 +1474,17 @@ nguon_duoc_duyet:
      GIẢ ĐỊNH đã có điều tra.** Dấu khẳng định chặn đúng rủi ro đó; mắt xích giả thì nuôi nó.
   3. **Đánh dấu `description_raw` do hệ thống soạn** — bảng bằng chứng phải phân biệt **lời khách**
      với **ghi chú của máy**.
-  4. **`contracts/authority-matrix.yaml` khai đủ 4 giá trị `scope`, thống nhất tên khoá với
-     `models.py`.**
+  4. **`contracts/authority-matrix.yaml` khai đủ 4 giá trị `scope`, MỖI GIÁ TRỊ KÈM MÃ.** Thiết kế
+     cụ thể (tester đề, PO-agent duyệt):
+     ```yaml
+     scopes:
+       noi_bo_vi:    {mo_ta: "...", gia_tri_ma: internal_wallet}
+       tu_ngan_hang: {mo_ta: "...", gia_tri_ma: from_bank}
+       ra_ngan_hang: {mo_ta: "...", gia_tri_ma: to_bank}
+       khong_ro:     {mo_ta: "...", gia_tri_ma: unknown}      # ← đang THIẾU
+     ```
+     Giữ tên khoá tiếng Việt (đọc được cho người), **thêm `gia_tri_ma`** làm cầu nối máy đọc được.
+     Khi đó phép so **thành máy móc** và bảng nối tay trong test biến mất.
 
 - **🔴 Nợ contract lộ ra khi đi tìm giá trị đúng — lý do mục 4 tồn tại:**
 
@@ -1488,6 +1497,14 @@ nguon_duoc_duyet:
   hệ ngôn ngữ**, **không phép so máy nào bắt được lệch này** — cùng lớp với ADR-027 (contract khai
   CẤU TRÚC mà người đọc tưởng nó khai NỘI DUNG), lần này là *contract và code dùng hai bộ từ vựng
   cho cùng một khái niệm*.
+
+  > **Hai artefact cùng mô tả một thứ bằng HAI HỆ TÊN thì không so được tự động — và "không so được"
+  > trông y hệt "đã so, khớp". Cả hai đều im lặng.**
+
+  Đó là lý do khi `unknown` vào CHECK ngày 11/08, **không có gì đỏ**: 23 invariant vẫn xanh, và cái
+  xanh đó **không mang thông tin nào**. Tester đã viết test canh (`c1c2482`), hai test đầu
+  `xfail(strict)` — **đánh dấu nợ đã biết để CI không đỏ, KHÔNG để giấu**; khi contract khai đủ,
+  chúng **XPASS** và buộc người sửa quay lại gỡ dấu.
 
 - **Phương án đã bác:**
 
