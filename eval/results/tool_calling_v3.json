@@ -1,0 +1,44 @@
+{
+ "qwen3.7-plus": {
+  "r_reasoning": 6264,
+  "r_completion": 10287,
+  "r_vao": 114048,
+  "r_ky_tu": 4110,
+  "0_dat": 19,
+  "1_khong_goi": 6,
+  "6_chuoi_xong": 6,
+  "6_chuoi_gay": 9,
+  "2_goi_nham": 0,
+  "3_tham_so_sai": 0,
+  "4_hong_dinh_dang": 0,
+  "5_content_rong": 0
+ },
+ "qwen3.8-max": {
+  "r_reasoning": 10561,
+  "r_completion": 13745,
+  "r_vao": 123021,
+  "r_ky_tu": 4110,
+  "0_dat": 23,
+  "1_khong_goi": 2,
+  "6_chuoi_gay": 9,
+  "6_chuoi_xong": 6,
+  "2_goi_nham": 0,
+  "3_tham_so_sai": 0,
+  "4_hong_dinh_dang": 0,
+  "5_content_rong": 0
+ },
+ "qwen3.7-flash": {
+  "r_reasoning": 27086,
+  "r_completion": 30549,
+  "r_vao": 102349,
+  "r_ky_tu": 4110,
+  "0_dat": 21,
+  "1_khong_goi": 3,
+  "2_goi_nham": 1,
+  "6_chuoi_gay": 15,
+  "3_tham_so_sai": 0,
+  "4_hong_dinh_dang": 0,
+  "5_content_rong": 0,
+  "6_chuoi_xong": 0
+ }
+}
