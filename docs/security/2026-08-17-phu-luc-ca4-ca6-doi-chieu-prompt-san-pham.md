@@ -359,13 +359,16 @@ khoảng trắng đổi hành vi (nhiều khả năng ảnh hưởng nhỏ, ch�
 nên **không rút mốc nào** — nhưng đây là **lỗ thứ hai trong cùng một ngày** ở
 mệnh đề *"cùng một prompt"*, sau lỗ `current_time` (§5e).
 
-### Đề nghị — hai việc, cái đầu tester ĐÃ vô tình làm đúng
+### Đề nghị — hai việc
 
-1. **Băm CHÍNH PAYLOAD, đừng băm nguồn sinh ra payload.** Quyết định của tester
-   — định nghĩa kích thích là *"system message + JSON tool trọn vẹn như gửi
-   đi"* và băm nó (`0c08f10a8f55` / `5bee2e87bf24`) — **vá đúng lỗ này**, vì
-   băm payload bắt được trôi do thư viện mà băm mã nguồn **không bao giờ bắt
-   được**. Họ chọn nó vì lý do khác; nó đúng vì một lý do mạnh hơn.
+1. **Băm CHÍNH PAYLOAD, đừng băm nguồn sinh ra payload.** Quy tắc *"băm thứ
+   thực sự lên dây"* mà tester áp — định nghĩa kích thích là *"system message +
+   JSON tool trọn vẹn như gửi đi"* rồi băm nó — **vá đúng lỗ này**, vì băm
+   payload bắt được trôi do thư viện mà băm mã nguồn **không bao giờ bắt được**.
+   *(Đính chính theo yêu cầu của chính tester: họ áp nó như một **quy tắc
+   chung**, **không** vì lường trước trôi-do-thư-viện. Ghi đúng công: quy tắc
+   tốt che được cả rủi ro người đặt ra nó chưa nhìn thấy — đó là lý do nên theo
+   quy tắc, không phải bằng chứng ai đó tiên đoán được.)*
 2. **Ghim phiên bản + lockfile** (vùng tech-lead). `langchain>=0.3.0` để ngỏ
    đúng thứ vừa chứng minh là có ảnh hưởng tới đầu vào model. Đây cũng là mục
    đã có sẵn trong playbook đóng gói (*ghim phiên bản, không dùng dải mở*), chỉ
@@ -377,3 +380,66 @@ mệnh đề *"cùng một prompt"*, sau lỗ `current_time` (§5e).
 `len=15094` · băm `33d66da05520` — **trùng khít số tester ghim**. Prompt hệ
 thống là chuỗi thuần, không qua `langchain`, nên nó **không** dính lớp lỗi trên.
 Cặp v4↔v5 vẫn dựng được; chỉ phần mô tả tool phải lấy **từ container**.
+
+## §5g. Lược đồ tool bộ đo thừa 399 ký tự — **KHÔNG bác quyết định của tester, nhưng gắn một nhãn**
+
+Tester kiểm điều kiện *"băm trong container"* và bắt được lỗi của chính họ: băm
+`0c08f10a8f55` **tái lập được**, nhưng so **từng trường** thì `parameters`
+**lệch cả năm tool** — file lược đồ bộ đo mang **17 trường `"title"`** mà
+`convert_to_openai_tool` của app không sinh, cộng `required: []` ở hai tool nơi
+app bỏ hẳn khoá. **7.172 (bộ đo) vs 6.773 (app) — thừa 399 ký tự ≈ +100
+token/lượt mà sản phẩm KHÔNG BAO GIỜ GỬI.**
+
+Họ chọn **giữ nguyên lược đồ v4 cho v5** và khai lệch ra, thay vì sửa — vì sửa
+làm **hai biến** khác nhau giữa v4↔v5 (system prompt **và** lược đồ), phá đúng
+cặp chỉ-khác-một-biến mà v5 tồn tại để giữ.
+
+**Tôi KHÔNG bác. Lập luận một-biến đúng, và đó là lựa chọn đúng — cho MỘT trong
+hai mục đích.** Vấn đề là v5 đang được giao **hai** mục đích:
+
+| Mục đích của v5 | Giữ lược đồ v4 |
+|---|---|
+| **① so cặp v4↔v5** (giả thuyết vắng-mặt / pha-loãng) | ✅ **ĐÚNG** — một biến, đọc được |
+| **② đo hành vi SẢN PHẨM ở ca 4/6** | ❌ **KHÔNG đạt** — vẫn mang 399 ký tự sản phẩm không gửi |
+
+⟹ **Ràng buộc tôi gắn:** v5 phải được gán nhãn là **“phép SO CẶP”**, **không**
+được đọc thành *“đo hành vi sản phẩm”*. Nếu để hai mục đích dính vào nhau, câu
+*"sản phẩm hành xử thế nào ở ca 4/6"* sẽ **được coi là đã trả lời** trong khi nó
+**vẫn chưa có phép đo nào** — đúng lớp lỗi ta vừa mất cả ngày để gỡ ở v4.
+
+### 🔴 Và câu hỏi ② đáng một phép đo KHÁC HẲN: đừng dựng lại payload nữa
+
+Năm lỗi hôm nay **đều sinh từ việc DỰNG LẠI** thứ sản phẩm gửi: prompt tự soạn ·
+mật độ đo trên phần đang chú ý · runtime sai · lược đồ phồng ·
+`current_time` trôi. **Phép đo duy nhất không thể sai theo lớp đó là phép đo
+không dựng lại gì** — gọi thẳng endpoint của sản phẩm.
+
+**Đề nghị:** câu *"sản phẩm có tra trước khi tạo vé không"* đo qua **chính
+`/agent/chat`**, không qua bộ đo dựng payload. Đắt hơn (vòng ReAct đủ, DB, phiên
+OTP) và nó đo **cả đường ống** thay vì riêng phép chọn tool — nhưng *"cả đường
+ống"* **chính là định nghĩa của "hành vi sản phẩm"**. Bộ đo dựng-payload giữ
+đúng việc nó làm tốt: **so model với model**.
+
+### Một chỗ tôi đồng ý nhưng hạ mức chắc chắn
+
+Tester khai `required: []` **khớp nghĩa** với việc app bỏ hẳn khoá (rỗng ==
+vắng mặt) nên trục 2 không bị ảnh hưởng. Theo JSON Schema thì **đúng**. Nhưng
+*"hai nhà cung cấp xử lý hai dạng đó y hệt nhau"* là một **suy luận**, không
+phải một phép đo — rủi ro thấp, không chặn gì, chỉ **đừng ghi nó vào hồ sơ như
+một sự kiện đã kiểm**.
+
+### §5h. Luật rút ra từ NĂM lần trong một ngày
+
+Tester tổng kết, và tôi ratify vì nó khớp cả năm ca:
+
+> **Lớp lỗi "đọc kích thích qua một đại diện thay vì đọc chính nó" KHÔNG chết vì
+> bị đặt tên.** Hôm nay nó bắt tester ba lần và tôi ba lần — kể cả **ngay sau**
+> khi mỗi người vừa viết ra luật cấm chính nó.
+> **Không lần nào bị bắt bởi tự kiểm. Cả năm lần đều bị bắt bởi HAI NGƯỜI ĐO
+> ĐỘC LẬP RỒI SO SỐ.**
+
+**Vế thi hành — chỗ dễ trượt nhất, ghi rõ:** phải so **SỐ**, không so **KẾT
+LUẬN**. Chính tôi đã suýt đóng vụ `4.862 vs 4.334` bằng cách hoà *"hai cách đếm
+khác nhau"* — một câu ở tầng **kết luận**, nghe hợp lý, và nó **đã che mất** một
+finding về phiên bản thư viện. Thứ cứu được là tester **từ chối cách hoà đó** và
+đòi so tiếp ở tầng số.
