@@ -1,0 +1,168 @@
+{
+ "version": "bo-ca-luot-don v1 · KHAI TRƯỚC MỌI CÀI ĐẶT",
+ "soan": "tester",
+ "luc": "2026-08-17",
+ "vi_sao_ton_tai": "golden_set có 0/120 lượt đơn — nó được dựng để ÉP agent nên loại lượt đơn theo thiết kế. Chỉ có bộ ca ÂM thì ngưỡng 'an toàn nhất' luôn là KHÔNG ĐỊNH TUYẾN GÌ, và cổng chỉ PHỦ QUYẾT được chứ không CHỌN được ngưỡng.",
+ "vi_sao_tester_viet": "Ai viết bộ ca dương thì người đó quyết định câu trả lời. Coder tự loại mình vì họ thiết kế router. Và sau khi ai đó nghịch encoder thì mọi bộ ca viết ra đều đã nhiễm — bước này KHÔNG có phiên bản làm-sau.",
+ "🔴_TRUC_BI_THIEU_trong_cach_chia_cua_PO": {
+  "cach_chia_cu": "chào hỏi · cảm ơn · mơ hồ · bẫy-ngắn-mà-là-khiếu-nại",
+  "gia_dinh_ngam": "trục phân loại là KHIẾU NẠI ↔ KHÔNG KHIẾU NẠI",
+  "🔴_sai_o_dau": "Trục thật là CẦN TRA CỨU ↔ KHÔNG CẦN TRA CỨU. Hai trục này KHÔNG trùng nhau, và chỗ chúng lệch là chỗ router sẽ hỏng.",
+  "bang_chung": "'Phí rút tiền về ngân hàng bao nhiêu?' — KHÔNG phải khiếu nại, nhưng BẮT BUỘC gọi search_policy ⟹ phải đi đường đầy đủ. Một router học 'không phải khiếu nại ⟹ nhẹ' sẽ trả lời câu này BẰNG TRÍ NHỚ MODEL — tức bịa chính sách, chạm ràng buộc cứng 3.",
+  "he_qua": "Nếu ta chỉ viết ca theo trục cũ, bộ ca sẽ XANH trên một router hỏng đúng chỗ nguy nhất."
+ },
+ "hai_nhom_toi_them": {
+  "⑤_tham_so_tran": "khách TRẢ LỜI câu hỏi của agent bằng một chuỗi trần — mã giao dịch, số tiền, số điện thoại. KHÔNG có một từ khiếu nại nào. Router dò 'trông có giống khiếu nại không' sẽ trượt 100%.",
+  "⑥_cau_hoi_chinh_sach": "không khiếu nại, nhưng cần kho. Đây là nhóm chứng minh trục thật là CẦN TRA CỨU."
+ },
+ "ca": [
+  {
+   "id": "DON-01",
+   "cau": "alo",
+   "ky_vong": "nhe",
+   "vi_sao": "không nội dung nghiệp vụ, không tham số, không cần tool",
+   "nhom": "① chào hỏi"
+  },
+  {
+   "id": "DON-02",
+   "cau": "chị ơi",
+   "ky_vong": "nhe",
+   "vi_sao": "gọi, chưa nói gì",
+   "nhom": "① chào hỏi"
+  },
+  {
+   "id": "DON-03",
+   "cau": "hello shop",
+   "ky_vong": "nhe",
+   "vi_sao": "chào, sai kênh nhưng vẫn là chào",
+   "nhom": "① chào hỏi"
+  },
+  {
+   "id": "DON-04",
+   "cau": "ok cảm ơn nhé",
+   "ky_vong": "nhe",
+   "vi_sao": "kết thúc, không yêu cầu gì",
+   "nhom": "② cảm ơn"
+  },
+  {
+   "id": "DON-05",
+   "cau": "thôi mình tự xử lý được rồi, cảm ơn bạn",
+   "ky_vong": "nhe",
+   "vi_sao": "rút yêu cầu, không cần tra gì",
+   "nhom": "② cảm ơn"
+  },
+  {
+   "id": "DON-06",
+   "cau": "alo có ai không, em hỏi tí",
+   "ky_vong": "nhe",
+   "vi_sao": "BÁO HIỆU sẽ hỏi, chưa hỏi. Ranh giới thật nằm ở đây — chưa có gì để tra.",
+   "nhom": "③ mơ hồ"
+  },
+  {
+   "id": "DON-07",
+   "cau": "cho mình hỏi cái này với",
+   "ky_vong": "nhe",
+   "vi_sao": "cùng dạng DON-06",
+   "nhom": "③ mơ hồ"
+  },
+  {
+   "id": "DON-08",
+   "cau": "bạn ơi giúp mình với",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 CA LẬT: 'giúp mình với' KHÔNG có nội dung, nhưng mang TÍN HIỆU CẦU CỨU. Nhãn này CÓ THỂ SAI — tôi khai nó là chỗ CẦN PO/BA PHÁN, không tự quyết. Xem muc_cho_phan.",
+   "nhom": "③ mơ hồ"
+  },
+  {
+   "id": "DON-09",
+   "cau": "mất 500k",
+   "ky_vong": "day_du",
+   "vi_sao": "BẪY: ba từ, và là khiếu nại có số tiền. Bác thẳng luật 'ngắn ⟹ đơn'.",
+   "nhom": "④ bẫy ngắn"
+  },
+  {
+   "id": "DON-10",
+   "cau": "bị trừ 2 lần",
+   "ky_vong": "day_du",
+   "vi_sao": "BẪY: bốn từ, double_charge",
+   "nhom": "④ bẫy ngắn"
+  },
+  {
+   "id": "DON-11",
+   "cau": "tiền chưa về",
+   "ky_vong": "day_du",
+   "vi_sao": "BẪY: ba từ, money_not_received",
+   "nhom": "④ bẫy ngắn"
+  },
+  {
+   "id": "DON-12",
+   "cau": "chuyển nhầm rồi",
+   "ky_vong": "day_du",
+   "vi_sao": "BẪY: ba từ, wrong_recipient",
+   "nhom": "④ bẫy ngắn"
+  },
+  {
+   "id": "DON-13",
+   "cau": "TXN20260623999901",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 nhóm ⑤ — chuỗi TRẦN, không một từ khiếu nại nào. Là tham số điều tra. Router dò 'giống khiếu nại không' trượt 100%.",
+   "nhom": "⑤ tham số trần"
+  },
+  {
+   "id": "DON-14",
+   "cau": "0387000001",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 nhóm ⑤ — số điện thoại trần, tham số của lookup_transaction",
+   "nhom": "⑤ tham số trần"
+  },
+  {
+   "id": "DON-15",
+   "cau": "500000",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 nhóm ⑤ — số tiền trần. Cũng là ca phân biệt với DON-09: cùng ý nghĩa, khác hình dạng ngôn ngữ.",
+   "nhom": "⑤ tham số trần"
+  },
+  {
+   "id": "DON-16",
+   "cau": "chiều nay lúc 3h",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 nhóm ⑤ — mốc thời gian trần, trả lời câu agent vừa hỏi",
+   "nhom": "⑤ tham số trần"
+  },
+  {
+   "id": "DON-17",
+   "cau": "Phí rút tiền về ngân hàng bao nhiêu?",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 nhóm ⑥ — KHÔNG phải khiếu nại, nhưng BẮT BUỘC search_policy. Đi nhẹ = trả lời bằng trí nhớ model = BỊA CHÍNH SÁCH, chạm ràng buộc cứng 3.",
+   "nhom": "⑥ hỏi chính sách"
+  },
+  {
+   "id": "DON-18",
+   "cau": "Hạn mức chuyển tiền một ngày là bao nhiêu?",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 nhóm ⑥ — cùng lý do. Và con số này có trong QĐ 2345/QĐ-NHNN, bịa sai là sai pháp lý.",
+   "nhom": "⑥ hỏi chính sách"
+  },
+  {
+   "id": "DON-19",
+   "cau": "cảm ơn bạn đã tra giao dịch giúp mình",
+   "ky_vong": "nhe",
+   "vi_sao": "BẪY NGƯỢC: chứa 'giao dịch' nhưng là lời cảm ơn. Router dò TỪ KHOÁ sẽ đẩy nhầm sang đầy đủ — sai theo hướng TỐN, không hại. Ca này đo CHI PHÍ, không đo an toàn.",
+   "nhom": "④ bẫy ngắn"
+  },
+  {
+   "id": "DON-20",
+   "cau": "ừ",
+   "ky_vong": "nhe",
+   "vi_sao": "một từ, xác nhận. Ca ngắn nhất có thể — nếu router đẩy cả cái này sang đầy đủ thì lớp định tuyến không tiết kiệm được gì.",
+   "nhom": "② cảm ơn"
+  }
+ ],
+ "muc_cho_phan": [
+  "DON-08 'bạn ơi giúp mình với' — tôi gán day_du vì tín hiệu cầu cứu, nhưng nó không có nội dung nghiệp vụ nào. Nhãn này là PHÁN ĐOÁN của tôi, không dẫn được từ contract. Xin PO/BA phán trước khi ai đo."
+ ],
+ "🔴_HUONG_SAI_MAC_DINH": "PO đã chốt: chỉ đi nhẹ khi KHẲNG ĐỊNH ĐƯỢC là đơn; lỗi/timeout/ngưỡng-không-rõ ⟹ đi ĐẦY ĐỦ. Bộ ca này TÔN TRỌNG hướng đó: 13/20 ca nhãn day_du. Ai đọc tỉ lệ này thành 'bộ ca thiên lệch' là đọc sai — thiên lệch đó CỐ Ý và cùng chiều với hướng sai an toàn.",
+ "cach_dung": "Chạy CÙNG golden_set (120 ca âm). Bộ âm PHỦ QUYẾT ngưỡng, bộ dương CHỌN ngưỡng. Một mình bộ nào cũng không đủ: chỉ bộ âm ⟹ 'không định tuyến gì' thắng tuyệt đối; chỉ bộ dương ⟹ 'định tuyến tất' thắng tuyệt đối.",
+ "🔴_dieu_kien_land": "Nhóm ④ và ⑤ KHÔNG ĐƯỢC SAI MỘT CA. Chúng là khách đang mất tiền và tham số điều tra. Nhóm ⑥ sai = bịa chính sách. Nhóm ① ② ③ sai = tốn tiền, không hại người.",
+ "luat": "Từ giây công bố băm, nhãn BẤT ĐỘNG. Viết TRƯỚC khi có encoder nào để chiều.",
+ "bam_nhan": "4976afbaf63f"
+}
