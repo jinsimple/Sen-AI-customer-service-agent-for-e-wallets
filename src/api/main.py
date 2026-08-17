@@ -1607,6 +1607,10 @@ def health():
         # thái vận hành — cùng loại thông tin đã từ chối phơi ở đây trước đó.
         # Kết quả so nằm ở sự kiện log `ma_nguon_lech_anh`.
         "build_src_hash": nhan_luc_dung() or "ngoai-anh",
+        # Người đọc endpoint này sẽ so nó với một băm họ tự tính. Không có
+        # dòng dưới thì họ phải ĐOÁN cách tính — và đoán sai thì hai chuỗi
+        # khác nhau được đọc thành "mã đã lệch".
+        "build_src_hash_cach_bam": CACH_BAM,
         "db_kind": DB_KIND,
         "db_name": DB_NAME,
         # Trả lời được câu 16/08 KHÔNG trả lời được: "production đã nhận vá

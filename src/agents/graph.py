@@ -47,7 +47,7 @@ from src.config import (
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
 )
-from src.dau_ma_nguon import nhan_luc_dung
+from src.dau_ma_nguon import CACH_BAM, nhan_luc_dung
 from src.db.models import Complaint, Ticket, User
 from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.pii import scrub_pii
@@ -183,7 +183,12 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "ts": dt.datetime.utcnow().isoformat() + "Z",
         "thread_id": thread_id or user_id,
         "model": LLM_MODEL,
-        "bam_ma_nguon": nhan_luc_dung(),   # VẬT nào sinh ra số này
+        # VẬT nào sinh ra số này — KÈM cách băm, vì một chuỗi 12 hex không tự
+        # khai nguồn gốc của nó. 17/08 đã mất một vòng vì tôi so md5 với sha256
+        # của người khác rồi kết luận ".env đổi 4 lần". Sổ này được đọc lại sau
+        # nhiều tháng, là chỗ tệ nhất để bỏ nhãn.
+        "bam_ma_nguon": nhan_luc_dung(),
+        "cach_bam": CACH_BAM,
         "so_luot_goi_model": u.get("so_luot_goi_model", 0),
         "input_tokens": u.get("input_tokens", 0),
         "output_tokens": u.get("output_tokens", 0),
