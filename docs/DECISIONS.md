@@ -1704,6 +1704,61 @@ nguon_duoc_duyet:
   cố định là hằng số mỗi lời gọi, không có một con số đúng cho cả hai (giải mâu thuẫn "4% vs 36,2k":
   **cả hai đúng, khác dân số**).
 
+## ADR-031 — Truy vấn `search_policy` phải được ghi lại làm BẰNG CHỨNG: hai trường, hai vòng đời
+
+- **Ngày:** 17/08/2026 · **Trạng thái:** 🔴 CHỜ PO THẬT DUYỆT
+- **Bối cảnh:**
+
+  **Lỗ:** `search_policy` **không bao giờ ghi lại truy vấn**. Một `tool_result_id` được
+  `resolutions.cited_tool_result_ids` trích dẫn nói được *"đã trả về gì"* nhưng **không** nói được
+  *"đã hỏi gì"*. Với ràng buộc cứng 3 (cấm bịa số liệu — mọi phát biểu phải truy vết tới một kết
+  quả tool có thật), một bằng chứng không nói được nó **trả lời câu hỏi nào** là bằng chứng khuyết:
+  không phân biệt được *agent tra đúng điều nó viện dẫn* với *agent tra một câu khác rồi gán kết
+  quả sang chỗ khác*.
+
+  **Và cùng chuỗi ký tự đó rời hạ tầng:** kiểm kê Đ.25 của security ([ĐO], `873109f`) ghi *"truy
+  vấn RAG dẫn xuất từ lời khách"* **rời sang OpenAI** để nhúng. ⟹ **không ghi lại ở trong, mà có
+  rời ra ngoài** — hai hồ sơ, một vật.
+
+- **Quyết định — PA4: HAI TRƯỜNG, không phải chia đôi rủi ro.**
+  Hai mục đích khác nhau đòi hai trường khác nhau: **băm** phục vụ cache/điều tra tần suất, **nguyên
+  văn** phục vụ bằng chứng. Bốn điều kiện, cả bốn bắt buộc:
+  1. 🔴 **Trường băm PHẢI tái dùng `_bam_truy_van` — CẤM tự đặt hàm băm mới.** Băm trần không khoá
+     trên câu tra tiếng Việt ngắn (entropy thấp) ⟹ **băm CHÍNH LÀ query**, ai có DB là dò ngược
+     bằng từ điển. `_bam_truy_van` là HMAC có khoá, đã có, đã fail-fast. *(Cùng lý do coder tái
+     dùng `dau_thuoc()` cho `dau_ma_nguon`: **hai định nghĩa của cùng một vật sẽ lệch trong im
+     lặng**.)* Và tệ hơn nữa: băm trần **trông giống** một biện pháp bảo vệ ⟹ **tệ hơn không băm
+     gì**, vì không băm thì ai cũng thấy ngay là plaintext (Luật G).
+  2. **Nguyên văn nằm ở CỘT MÃ HOÁ**, cùng chỗ `description_raw`/`messages.content`. **KHÔNG** vào
+     `raw_json` — [ĐO] `tool_results.raw_json` là JSON **thường, không mã hoá** (`models.py:316`).
+  3. **Hai vòng đời TÁCH RỜI:** băm sống theo **cache**, nguyên văn sống theo **hồ sơ nó chống
+     lưng**. Gộp một vòng đời = lại tạo một cột phục vụ hai mục đích.
+  4. **Hạng mới trong ADR-025 + CẤM che-lúc-ghi.** ADR-025 phân theo *ai sửa lại được*; query là
+     **dẫn xuất của MÁY nhưng mang giá trị BẰNG CHỨNG** — không ai sửa được (như nhóm A) mà cũng
+     không ai khai (khác nhóm A). Cấm che-lúc-ghi vì cùng lý do nhóm A: **sửa chữ trong một bản ghi
+     bằng chứng thì bản ghi mất giá trị.**
+
+- **Bác — cả ba phương án kia bị loại BẰNG ĐO, không bằng ý kiến:**
+  - **PA2 (scrub rồi log)** — bản án nằm sẵn trong docstring `_bam_truy_van` (`src/rag/search.py`):
+    S-01 `scrub_pii` **chặn nhầm 40%** văn bản nghiệp vụ tiếng Việt, và **câu tra chính sách CHÍNH
+    LÀ loại văn bản đó** ⟹ cho ra chuỗi *vừa còn khả năng rò, vừa hỏng nghĩa*. Không mở lại.
+  - **PA3 (băm thôi)** — hỏng ở đúng mục đích sinh ra nó. F-LOG-3 chọn băm vì mục đích là **điều
+    tra sự cố** (*"cùng câu lặp bao nhiêu lần"*); mục đích ở đây là **ràng buộc cứng 3**, mà băm
+    không nói được *"trả lời câu hỏi nào"*. ⟹ **cùng dữ liệu, khác mục đích — đừng chép kết luận
+    F-LOG-3 sang đây.**
+  - **PA1 (nguyên văn vào `raw_json`)** — bỏ chữ khách vào một cột plaintext (điều kiện 2).
+
+- **Lý do tách cột phải phát biểu ĐÚNG:** `search_policy` payload **đã** chứa `results[].text`
+  (nguyên văn đoạn chính sách — tài liệu công khai, không phải PII). ⟹ căn cứ tách **không phải**
+  *"cột kia bẩn"* (ai đó sẽ bác bằng *"vậy làm sạch cột kia là xong"*) mà là: **hai loại dữ liệu có
+  hai vòng đời và hai mức nhạy cảm.**
+
+- **Còn treo, KHÔNG được đánh dấu xong:** audit-log Pha-1 phủ cột mới **ở mức ENDPOINT** theo cấu
+  trúc (`audit_log_middleware`, `main.py:195` — mọi request có JWT, không danh sách route ⟹ *không
+  liệt kê thì không sót*), **nhưng chỉ ghi `path`** ⟹ **CHƯA XÁC ĐỊNH ở mức bản ghi** (*"ai đọc bản
+  ghi nào"*). Mức bản ghi **không lấy được từ middleware** (tầng HTTP không biết truy vấn nào đã
+  chạy) — nếu security cần mức đó thì đấy là **một hạng việc MỚI**, không phải một dòng thêm vào.
+
 ## Mẫu ADR mới
 
 ```markdown
