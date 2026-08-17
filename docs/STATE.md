@@ -706,6 +706,47 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   rerank + có thể đổi `k` = **HAI biến**; land tách hai lượt thì đo được cặp sạch, land một lượt
   thì chấp nhận nhưng **ghi rõ hai biến**, không để trôi vào báo cáo như một (bài học đòn 4).
 
+## 🔒 QUYẾT ĐỊNH 17/08 — MODEL CHAT = `qwen3.8-max` (PO thật đổi từ `qwen3.7-plus`, ưu tiên CHẤT LƯỢNG)
+- **Căn cứ: nghiệm thu §2b v3 của tester** (`e92c5d1`, nhãn `797b8c509a8d`, lược đồ lấy TỪ APP
+  `4129d298555c`, ~190 lượt, 3 model):
+  | model | gọi-đúng | không gọi | hỏng ĐN | chuỗi nhiều bước | suy nghĩ % |
+  |---|---|---|---|---|---|
+  | **qwen3.8-max** | **23/25 = 92%** ✅ | 2 | 0 | 6/15 = 40% | 77% |
+  | qwen3.7-plus | 19/25 = 76% ❌ | 6 | 0 | 6/15 = 40% | 61% |
+  | qwen3.7-flash | 21/25 = 84% ❌ | 3 | 0 | **0/15 = 0%** | 89% |
+  Ngưỡng công bố trước: gọi-đúng ≥90% · hỏng-định-dạng = 0. **Chỉ `max` đạt.**
+- **`flash` bị LOẠI DỨT ĐIỂM và đây là bài học đắt nhất của phép đo:** 84% ở bước đơn nhưng **0/15
+  chuỗi hai bước**. Nếu đo như v1/v2 (chỉ một bước) thì flash *trông gần đạt* và có thể đã được chọn
+  vì rẻ hơn 5,7×. ⟹ **một phép đo THIẾU ĐÚNG MỘT CỘT đã đủ để dẫn tới quyết định sai về sản phẩm
+  thật.** Dùng lập luận này khi cần bảo vệ chi phí đo. Ca chuỗi là **điều kiện** do PO-agent chốt.
+- **❌ Quan sát `1/4 JSON hỏng` của PO-agent: CHẾT HẲN** — 0 hỏng định dạng trên n≈190, cả 3 model,
+  cả bước đơn lẫn chuỗi. Ghi là *tôi sai*, không phải *chưa kết luận*.
+- **🟡 LƯỢT v3 BỊ HUỶ (PO-agent quyết), nhưng model vẫn chốt được vì `max` thắng dưới CẢ hai cách
+  đọc.** Lý do huỷ: **cả 6 lượt trượt của `plus` rơi vào ĐÚNG MỘT CÂU (ca 4)**; tách ca đó ra thì
+  plus = **20/20 = 100%**. Đây là lần **thứ hai** ca 4 cho kết quả nhất quán tuyệt đối ⟹ Luật 8b.
+  Lần một là **lược đồ trống**; lần này lược đồ đã đúng ⟹ nghi ngờ chuyển sang **nhãn**.
+- **🔴 NGHI VẤN THƯỚC, lớn hơn ca 4:** `create_ticket` đòi 3 tham số bắt buộc (`complaint_type` ·
+  `scope` · `description_raw`) mà khách **chưa cung cấp**. Model **hỏi lại khách** thay vì gọi tool.
+  Với sản phẩm có **ràng buộc cứng 3 (cấm bịa số)**, hỏi lại có thể là hành vi **ĐÚNG NHẤT** ⟹
+  **bộ nhãn hiện đang trừ điểm chính xác hành vi an toàn nhất, và thưởng model nào chịu BỊA tham
+  số.** Lỗ gốc: **nhãn chỉ có ô "gọi tool nào", KHÔNG có ô "chưa đủ dữ kiện, hỏi lại"** — trong sản
+  phẩm điều tra khiếu nại đó là trạng thái thường xuyên và đúng đắn.
+- **PO-agent KHÔNG tự phán nhãn** (có động cơ rõ: kết quả bất lợi cho model đang chốt) ⟹ **security
+  phán mù lần 2**, không được xem bảng điểm, không được đọc lập luận của PO-agent. Tester **không
+  tự sửa nhãn, không nới ngưỡng, không tự lùi model** — giữ nguyên số bất lợi và báo lên.
+- **v4 VẪN CHẠY dù model đã chốt**, hai lý do: ① **2 lượt không-gọi của `max` chưa biết rơi vào ca
+  nào** — nếu cũng là ca 4 thì max/plus **HOÀ về chất lượng**, mà plus hơn 5× thông lượng và rẻ hơn
+  4,6× ⟹ **quyết định có thể lật** ② thước sai thì **mọi phép đo sau đều mang lỗi đó** (F-31/32, An
+  toàn 140 lượt, benchmark công bố). *Sửa thước vì thước sai, không phải vì model nào.*
+- **BA HỆ QUẢ của việc chọn `max`, không được để trôi:** ① **trần TPM tụt 5×** (5M→1M ≈ **36
+  lượt/phút toàn hệ thống**, dưới mức 75 cần cho 150 người) ⟹ **hàng đợi chống burst (N5/LiteLLM)
+  LÊN HẠNG: giờ chặn cả buổi test nội bộ, không chỉ pilot** ② **chi phí/lượt ×4,61**
+  (`$0,002257` vs `$0,000489`) ⟹ mọi ước tính đang dùng số `plus` sai theo hướng CÓ LỢI ③ **77%
+  token đầu ra là suy nghĩ thầm** (plus 61%) ⟹ bẫy `TraLoiRongError` nguy hơn, `LLM_MAX_TOKENS`
+  phải rộng hơn, ai siết để tiết kiệm sẽ gặp trả-lời-rỗng thường xuyên.
+- `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
+  **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
+
 ## 🔴🔴 SỰ CỐ 17/08 — KHOÁ OpenAI PRODUCTION ĐÃ TRUYỀN TỚI MÁY CHỦ ALIBABA (chờ security phán quyết xoay khoá)
 - **Cơ chế:** `config.py` (`54164fa`, PO-agent duyệt) có fallback **vô điều kiện**
   `LLM_API_KEY or OPENAI_API_KEY`. Trỏ `LLM_BASE_URL` sang `dashscope-intl` mà để `LLM_API_KEY`
