@@ -25,6 +25,7 @@
 | **12** | không sai một chữ nào mà vẫn gây hiểu sai | tài liệu & báo cáo |
 | **13** · 13b | đo đúng thứ, nhưng đưa vào một KÍCH THÍCH khác · đo trên phần đang chú ý thay vì kích thích trọn vẹn | đầu vào của bộ đo |
 | **14** | hai người đo độc lập rồi so SỐ — cấm hoà ở tầng KẾT LUẬN | quy trình đo |
+| **15** | DẤU VẾT bộ đo để lại trong hệ đang chạy, không phải độ chính xác của nó | hậu quả của phép đo |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -1269,6 +1270,83 @@ hơn. Bộ đo dựng-payload giữ đúng việc nó làm tốt: **so model v�
 
 ---
 
+## Luật 15 — DẤU VẾT của bộ đo, không phải độ chính xác của nó
+
+> Nguồn: 17/08, lượt đo đầu tiên qua `/api/agent-chat`. Tôi xin PO một lượt để
+> biến ước thành đo, PO duyệt, tôi bắn — rồi security chỉ ra thứ **cả hai chúng
+> tôi đều không nghĩ tới**: đường đó **GHI DỮ LIỆU THẬT**.
+
+Mười bốn luật trước đều canh **một** câu hỏi: *phép đo có đúng không?* Không
+luật nào hỏi câu thứ hai: ***phép đo để lại gì sau khi chạy xong?***
+
+    bộ đo dựng-payload   gọi API nhà cung cấp        → không chạm hệ ta
+    đường THẬT           chạy đủ vòng ReAct          → GHI vào hệ đang chạy
+
+Một lượt **thành công** ở ca điều tra kết thúc bằng `create_ticket`, tức ghi vào
+`complaints` · `tickets` · `investigation_logs` · `tool_results` · `messages`.
+
+### Ba mức thiệt hại, nặng dần
+
+**① Làm bẩn hàng chờ vận hành.** `k=10 × 2 ca` = tới **20 khiếu nại giả** người
+thật nhìn thấy — ngay trước buổi test 150 người. Không phân biệt được vé đo với
+vé thật ⟹ buổi test bắt đầu trên một hàng chờ đã bẩn, và **không ai biết số nào
+của buổi đó là thật**.
+
+**② Bơm dữ liệu máy sinh vào bảng BẰNG CHỨNG.** `complaints.description_raw`
+thuộc nhóm *lời khai = bằng chứng* (ADR-025). Cả thiết kế nhóm đó dựng trên một
+mệnh đề: **mọi dòng ở đây đều do một người thật gõ** — đó là lý do ADR-025 bác
+che-lúc-ghi cho nhóm này. Thêm lời khai **chưa từng có người nào khai** là cùng
+một tổn hại, đi từ cửa khác.
+
+> Với một bảng mà giá trị duy nhất là *"không ai sửa, không ai thêm"*, việc ghi
+> vào nó phải là quyết định **cố ý** — không bao giờ là **tác dụng phụ của một
+> phép đo**.
+
+**③ Không hoàn tác được bằng cách chạy lại.** Một bộ đo sai thì chạy lại là
+xong. Một bộ đo đã ghi thì phải **dọn**, và dọn cần biết **đã ghi gì**.
+
+### Bốn điều kiện, thoả TRƯỚC lượt đo — kể cả lượt thăm dò
+
+1. **Ngăn xếp không lộ ra ngoài.** Nếu không xác định chắc chắn được ⟹ **DỪNG,
+   hỏi người thật.** Cổng mở trên máy **không** đồng nghĩa ra được Internet, và
+   `SITE_DOMAIN` rỗng ở mọi ngăn xếp thì **không** định danh được cái nào.
+2. **Tài khoản hạt giống**, khai trong hồ sơ đo. Không bao giờ tài khoản người
+   thật, kể cả của PO.
+3. **Bản ghi đo phân biệt được** — tiền tố quy ước trong trường lời khai + mốc
+   thời gian — và **chốt cách dọn TRƯỚC khi bắn**, không phải sau.
+4. **Đếm dòng TRƯỚC và SAU**, ghi cả hai vào kết quả.
+
+**Điều kiện 4 là điều kiện tôi vi phạm**, và cách tôi vi phạm nó đáng ghi: tôi
+đếm **sau**, không đếm **trước**. Lần này thoát vì hoá ra không có gì để dọn —
+`create_ticket` chưa từng chạy, cửa OTP chặn trước. Nhưng *"không có gì để dọn"*
+là thứ tôi biết **sau khi** bắn, không phải trước.
+
+> **Không đếm trước thì không dọn được, và không CHỨNG MINH được là đã dọn.**
+
+### Và cái bẫy ngay sau đó: số 0 làm lời bào chữa
+
+Tôi đếm ra **0 dòng mới ở cả hai CSDL, mọi bảng**. Rất dễ dừng ở đó và coi như
+không có chuyện gì. Nhưng lượt của tôi **chết ở cửa OTP** — nó không đại diện
+cho lượt sẽ chạy thật.
+
+> **Số 0 nói *"lượt bị chặn thì không ghi"*. Nó không nói *"đường này an
+> toàn"*.** Lượt THÀNH CÔNG mới là lượt kết thúc bằng `create_ticket`, tức đúng
+> lượt sẽ ghi.
+
+Cách kiểm cũng phải chặt hơn `count(*) = 0` — đó là một số **trùng với trạng
+thái mặc định** (Luật 1). Phải đọc `max(<cột thời gian>)` **từng bảng** và xác
+nhận mốc mới nhất nằm **trước** lượt đo, mới loại được khả năng *"đã ghi rồi bị
+dọn"*.
+
+### Vế cuối, thuộc về người thiết kế phép đo
+
+Khi câu hỏi buộc phải đo trên đường thật, **đừng bỏ đường thật** — nó là **sự
+thật nền duy nhất**. Hãy trả **giá của việc đo đúng chỗ**: tài khoản hạt giống,
+quy ước đánh dấu, kế hoạch dọn, và một lần hỏi người thật trước khi bắn phát
+đầu tiên.
+
+---
+
 ## Áp dụng khi review test của nhau
 
 Bốn câu hỏi, hỏi theo thứ tự:
@@ -1288,7 +1366,10 @@ Bốn câu hỏi, hỏi theo thứ tự:
    bằng chứng. Và nếu hai số lệch, **cấm hoà bằng "hai cách đếm khác nhau"**
    khi chưa ai chỉ ra phép biến đổi cụ thể đưa số này thành số kia → vi phạm
    Luật 14.
-6. **Bộ đo đưa vào ĐÚNG kích thích sản phẩm dùng chưa?** Với mỗi kênh (system
+6. **Phép đo này GHI gì vào hệ đang chạy?** Có ghi → bốn điều kiện Luật 15
+   phải thoả TRƯỚC lượt đầu tiên, kể cả lượt thăm dò. Không xác định được ngăn
+   xếp có lộ ra ngoài hay không → DỪNG, hỏi người thật.
+7. **Bộ đo đưa vào ĐÚNG kích thích sản phẩm dùng chưa?** Với mỗi kênh (system
    prompt · mô tả tool · lược đồ tham số) phải kê được **nguồn**, không phải
    độ dài. Kê không được → vi phạm Luật 13, và kết luận câm theo **cả hai**
    chiều.

@@ -173,3 +173,13 @@ router/DNS mà tôi không đo được từ đây.
 
 **⟹ DỪNG, hỏi PO thật.** Đúng loại việc security nói: ghi vào một CSDL có thể
 đang phục vụ người thật, và **không hoàn tác bằng cách chạy lại**.
+
+### Bổ sung của PO — vì sao quan sát ⑤ đáng theo dõi hơn thứ hạng của nó gợi ra
+
+Quan sát ⑤ vẫn ở hạng **quan sát** (k=1, cần k≥5). Nhưng nó nằm trên **đường mà
+MỌI khách chưa xác thực đều đi qua** — khác hẳn ca 4/6, vốn cần khách hỏi đúng
+một dạng câu.
+
+⟹ Nếu nó tái lập, **tần suất gặp trong đời thật cao hơn hẳn ca 4/6**. Thứ hạng
+bằng chứng thấp, thứ hạng phơi nhiễm cao — hai trục khác nhau, đừng để trục thứ
+nhất che trục thứ hai.
