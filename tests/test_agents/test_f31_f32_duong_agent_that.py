@@ -77,6 +77,7 @@ import time
 import pytest
 
 from tests._dong_bang import LY_DO, dang_dong_bang
+from tests._ton_tien import duoc_phep_ton_tien, ly_do
 
 BASE = os.environ.get("FIN05_BASE_URL", "https://localhost")
 # Tài khoản CUSTOMER. `/api/agent-chat` đòi role customer — dùng nhầm tài khoản
@@ -123,6 +124,14 @@ def _api_song() -> bool:
 
 
 pytestmark = [
+    # 🔴 CỔNG CHI PHÍ — thêm 17/08. Bộ này gọi LLM THẬT qua /api/agent-chat.
+    # Hôm nay nó tốn 0 token, nhưng vì các lượt rơi vào đường nhẹ/fallback —
+    # tức MAY, không phải thiết kế. Ngày chúng đi hết đường bình thường thì
+    # mỗi `pytest tests/` là một hoá đơn. Coder đã phải chạy TỪNG FILE thay vì
+    # cả suite vì lỗ này ⟹ nó đang bóp méo thao tác hằng ngày của đội, không
+    # còn là rủi ro tương lai.
+    pytest.mark.skipif(not duoc_phep_ton_tien(),
+                       reason=ly_do(28_000, "4 lượt chat thật: RAG-38/40/41/43")),
     pytest.mark.slow,
     pytest.mark.skipif(not _song(), reason="container fin05-backend-1 không chạy — chưa có agent để hỏi"),
     # CỔNG ĐÓNG BĂNG: file này gọi /api/agent-chat ~14 lượt (test F-32 chạy k=3).
