@@ -239,3 +239,74 @@ Tester đo `SITE_DOMAIN` **rỗng**, tôi đo **`localhost`**. [ĐO]: biến
 đúng một khuôn: *hai người đo "cùng một thứ" mà thực ra đo hai vật*. Cách chữa
 vẫn y hệt bốn lần trước — **nói rõ VẬT trước khi so SỐ**. Kết luận không đổi:
 **không ngăn xếp nào tự khai được nó phục vụ tên miền nào.**
+
+---
+
+## §10. Rà chính đề nghị của tôi (BFF xuyên `GET /health`) — mặt trái + hai thứ PO chưa biết khi duyệt
+
+PO duyệt kèm bốn điều kiện. Tôi là người đề xuất nên tôi nợ **mặt trái**, và có
+**hai dữ kiện đo được** đổi mức quan trọng của điều kiện ②.
+
+### ① 🔴 `/openapi.json` · `/docs` · `/redoc` ĐANG BẬT trên backend — [ĐO]
+
+```
+docker exec fin05-backend-1 → http://127.0.0.1:8010
+   /openapi.json   HTTP 200 · 28.470 byte · 31 path
+   /docs           HTTP 200
+   /redoc          HTTP 200
+```
+
+`main.py:131` dựng `FastAPI(title=…, version=…)` — **không** `docs_url=None`,
+**không** `openapi_url=None`.
+
+**Hôm nay KHÔNG rò:** Caddy chỉ proxy frontend (`handle { reverse_proxy
+frontend:3000 }`) cộng đúng một path WebSocket ⟹ backend không với tới được từ
+ngoài. Đây là **rủi ro tiềm ẩn**, không phải rò đang xảy ra.
+
+**Nhưng nó đổi hạng điều kiện ② của PO từ "nên có" thành "chặn land".** Nếu bản
+xuyên của coder khớp theo **tiền tố** thay vì **khớp chính xác**, thứ rò ra
+không phải một endpoint sức khoẻ — mà là **toàn bộ bề mặt API 31 path kèm lược
+đồ và mô hình xác thực**, cho bất kỳ ai. Đó là món quà giá trị nhất một kẻ dò
+tìm có thể nhận.
+
+**Sửa danh sách ca âm bản của PO cho đúng thứ tồn tại:** `GET /health/../ready`
+**không** kiểm được gì — **`/ready` KHÔNG TỒN TẠI** trong `main.py` (chỉ có
+`/health`; `/ready` mới nằm ở playbook, chưa hiện thực). Ca âm bản phải bắn vào
+thứ **có thật**:
+
+```
+/openapi.json · /docs · /redoc          ← giá trị cao nhất, PHẢI 404
+/tickets · /resolutions · /policy-docs · /policy-search   ← dữ liệu thật
+/health/ · /healthz · /health/x · POST /health            ← biến thể khớp
+```
+
+### ② Mặt trái của chính đề nghị tôi — nói ra thay vì bỏ qua
+
+Mở `/health` công khai là **đánh đổi**: ta trả một ít **dấu vân tay** để mua khả
+năng trả lời *"tôi đang nói chuyện với ngăn xếp nào"* **bằng máy thay vì bằng
+người**. Cái trả ra: `build_commit` (SHA ngắn của repo **riêng tư** — không tra
+ngược ra mã), `build_at` (thời điểm deploy), `env`, và `db_kind`/`db_name`.
+
+**Tôi vẫn đề nghị làm** — nhưng nếu PO muốn siết: **`db_kind`/`db_name` là hai
+trường có giá trị NGOÀI thấp nhất và giá trị dò-tìm cao nhất.** Câu hỏi cần trả
+lời chỉ cần `env` + `build_commit` + `build_at`. ⟹ **Tuỳ chọn rẻ:** bản công
+khai trả **ba trường**, giữ `db_*` cho đường nội bộ. Chi phí gần bằng 0, và nó
+gỡ đúng phần tôi thấy khó biện minh nhất.
+
+### ③ Tôi nhận điều kiện ③ và nói rõ sẽ kiểm gì sau khi coder land
+
+Không kiểm chung chung *"không chứa bí mật"* mà kiểm bốn thứ, trên **hệ đã
+land**, không trên diff:
+
+1. `curl` từ **ngoài** → so **từng khoá** trả về với danh sách được duyệt;
+2. bắn **đủ** danh sách ca âm bản ở §10.① → mọi ca **404/405**;
+3. xác nhận `/health` **vẫn không chạm DB/Redis** (đo bằng đếm truy vấn hoặc
+   đơn giản là dừng Postgres rồi gọi lại — nó phải vẫn `200`);
+4. đối chiếu `authority-matrix.yaml` đã có dòng route công khai mới (điều kiện
+   ④ của PO) **và** `check_contracts.py` xanh.
+
+### ④ Một hạng mục độc lập, không dính quyết định `/health`
+
+**Tắt `docs_url`/`redoc_url`/`openapi_url` khi `APP_ENV=production`.** Không ai
+cần chúng ở production; chúng là thứ **đắt nhất khi rò** và **rẻ nhất khi tắt**.
+Đề nghị này **đứng độc lập** — nên làm kể cả khi `/health` **không** được mở.
