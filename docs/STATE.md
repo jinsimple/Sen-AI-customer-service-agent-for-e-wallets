@@ -1,5 +1,44 @@
 # Trạng thái hiện tại
 
+## 🔴 VA CHẠM SỐ HIỆU LUẬT (17/08) — hai Luật D, cách nhau 8 phút, hai file
+
+```
+14:59:20  docs/STATE.md   Luật D = "cột phòng thủ phải có NGUỒN ĐỘC LẬP"
+15:07:24  ec8026e         Luật D = "nhánh lỗi in KẾT LUẬN thay vì TRIỆU CHỨNG là nhánh NÓI DỐI ĐƯỢC"
+```
+
+**Va chạm là triệu chứng. Bệnh:** luật đang được đúc vào **HAI không gian tên song song** — dãy số
+(`1·2·4·5·6·7·8·9·10·12b·14·16·17·18`) và dãy chữ (`A·B·C·D·F·G`) — bởi **BA phiên**, **không ai
+cấp phát**. Đây là cái đầu tiên nổ, không phải cái cuối.
+
+**XỬ LÝ (PO-agent, `docs/` là vùng ghi của po):** STATE là **SỔ ĐĂNG KÝ LUẬT** duy nhất, PO-agent
+cấp phát ký hiệu. Phiên nào đúc luật mới → đề xuất, **không tự đặt ký hiệu**.
+**Căn cứ phân xử KHÔNG phải 8 phút** (8 phút là nhiễu) mà là **chi phí sửa**: Luật-D-nguồn-độc-lập
+đang được coder + tester trích trong hội thoại sống ⟹ giữ `D`. Luật của security nhận **`H`**.
+
+> ### ⭐ LUẬT H (security, `ec8026e`, phát biểu giữ nguyên văn)
+> **Một nhánh xử lý lỗi in ra KẾT LUẬN thay vì TRIỆU CHỨNG là một nhánh NÓI DỐI ĐƯỢC.**
+> Bộ đo phải báo *"tôi thấy gì"* (mã thoát · số dòng khớp · thời gian chờ), **không** báo *"tôi kết
+> luận gì"*. Kết luận là việc của người đọc — **và người đọc cần dữ kiện thô mới bác được bộ đo.**
+>
+> **BA TẦNG, BA PHIÊN, CÙNG MỘT NGÀY, KHÔNG AI BIẾT NHAU** — lý do nó được số hiệu riêng chứ không
+> phải một ghi chú trong hồ sơ security:
+>
+> | tầng | ca | ai |
+> |---|---|---|
+> | **công cụ đo** | `\|\| echo "KHÔNG KÊU"` gộp *"không có sự kiện"* với *"tôi không đọc được"* | security §12 |
+> | **envelope sản phẩm** | `total_tokens=0` gộp *"không tốn"* với *"không đọc được"* → vá `0 → None` (`620de3e`) | coder |
+> | **bộ chấm** | `0 ĐẠT · 0 TRƯỢT · 5 không_đo_được` — **GIỮ** trạng thái thứ ba | tester |
+>
+> **Vế Luật B ở tầng công cụ (security):** `\|\| echo "vô dụng"` là **một phép làm tròn lên một nấc
+> được ĐÓNG CỨNG vào công cụ** — nó biến *"mã thoát ≠ 0"* thành một khẳng định về thế giới, và làm
+> việc đó **mỗi lần chạy, mãi mãi**.
+
+**Vào QUY TRÌNH, không vào tài liệu — "ĐỌC TRƯỚC, DỌN SAU. LUÔN."** Security `--force-recreate` xoá
+hiện trường trước khi chẩn, phải tiêm lại từ đầu. Ngoại lệ này **đã được viết ra sáng nay và vẫn bị
+bỏ qua trong cùng ngày, vì phản xạ dọn nhanh hơn phản xạ đọc** ⟹ một luật thua phản xạ thì phải
+thành **bước trong quy trình**.
+
 ## 🔴 CHỐT 17/08 — BỘ SỐ THỜI GIAN "hai đồng hồ không biết nhau" + phạm vi A2 ở đường hỏng
 
 Coder chẩn: `OPENAI_TIMEOUT=20` × `MAX_RETRIES=1` ⟹ **một** lời gọi hỏng ăn 40s trên trần lượt
@@ -267,7 +306,26 @@ KHÔNG**, không phải "yếu nghiêng một bên". Chặn con số là đúng,
 3. **Cư trú dữ liệu** — xem mục dưới
 4. 🔴 **CHỐT NHỊP GÕ cho buổi 150 người** — biến quyết định duy nhất. ≤0,5 lượt/ph/người ⟹ T1 đủ;
    1,0 ⟹ không bản vá nào cứu kịp. Đây là **kịch bản chạy**, không phải code, nên là việc của PO.
-5. (giữ nguyên) xoay khoá Qwen · secret GitHub Actions · số hotline thật
+5. 🔴🔴 **HỒ SƠ Đ.25 (NĐ 13/2023) — MỐC KÍCH HOẠT CÓ THỂ ĐÃ NỔ.** Security (hồ sơ kiểm kê
+   `873109f`) chốt mốc: *"dữ liệu thật ĐẦU TIÊN — và một buổi demo mentor gõ số điện thoại thật là
+   đã tính"*. **PO thật có demo mentor 15/08**, đang nằm trong hồ sơ DEMO-BUG ngay dưới. ⟹ câu cho
+   PO thật: **hồ sơ ĐGTĐ chuyển dữ liệu ra nước ngoài đã có chưa?** Security **không** biết và
+   **không** kết luận thay — họ chỉ dựng vật liệu §2/§3/§4 mà người làm hồ sơ không tự dựng được.
+   > 🔴 **Nghĩa vụ này CÓ TỪ TRƯỚC QWEN** — hệ thống gửi văn bản khách sang Mỹ từ thời
+   > `gpt-4o-mini`. Đổi nhà cung cấp **không** làm nó nặng/nhẹ hơn, chỉ **THÊM một bên nhận**.
+   > Security nguyên văn: *"cả ngày hôm nay đội bận với thứ ĐỔI ĐƯỢC; đây là thứ VỐN ĐÃ SAI TỪ
+   > TRƯỚC và vì thế không ai chạm tới."*
+   > **Phần nặng nhất, KHÔNG che được:** văn bản khách gõ rời hạ tầng **nguyên văn** — agent cần
+   > chính cái nghĩa mà việc che phá đi (đo: `scrub_pii` chặn nhầm **40%** văn bản nghiệp vụ tiếng
+   > Việt). Che = đổi rủi ro tuân thủ lấy sản phẩm hỏng ⟹ hồ sơ phải ghi là **quyết định thiết kế
+   > CÓ Ý THỨC**, không phải thiếu sót. **Và nó chứa dữ liệu NGƯỜI THỨ BA chưa từng đồng ý** (ca
+   > điển hình nhất: *"em chuyển nhầm cho anh X, sđt 09…"*) — chính là kịch bản PO thật đưa 17/08.
+6. **Kiểm công tắc `Model monitoring` trên console Alibaba + GHI NGÀY KIỂM.** Nó ghi *input/output/
+   latency mỗi lời gọi*, giữ **30 ngày**, **bật bằng một nút**, bởi bất kỳ ai có tài khoản, và
+   **không diff nào của ta nhìn thấy**. (security §4.2)
+7. **Kiểm phía OpenAI: tài khoản có bật lưu nội dung yêu cầu (stored completions / org logging)
+   không?** — CHƯA AI KIỂM, và nó là ô **định hạng sự cố lộ khoá sáng nay**. (security §4.3)
+8. (giữ nguyên) xoay khoá Qwen · secret GitHub Actions · số hotline thật
 
 ### ✅ ĐÓNG — Batch API ở vùng ta: KHÔNG KHẢ DỤNG (tester `930e9ff`, hạng: TÀI LIỆU NÓI)
 
@@ -315,7 +373,13 @@ lệch sống sót đã đốt 2 giờ hôm nay. Không sửa số, chỉ khai k
 
 **Đổi vùng mua ×5, KHÔNG phải ×50:** Singapore 600 RPM/1M TPM = 70 lượt/ph · US-Virginia
 30.000 RPM/**5M TPM** = 352 lượt/ph.
-> ⛔ **CỔNG GIỮ NGUYÊN:** US-Virginia = đưa hội thoại khách VN ra hạ tầng Mỹ. Hôm nay dữ liệu tổng
+> ⛔ **CỔNG GIỮ NGUYÊN — nhưng LÝ LẼ CỦA PO-AGENT ĐÃ BỊ SECURITY SỬA, ghi để không trích lại bản
+> sai.** Tôi viết *"đổi vùng = đưa hội thoại khách VN ra hạ tầng Mỹ"*. Security đo tài liệu chính
+> thức: Alibaba **LƯU** ở Singapore nhưng **XỬ LÝ** tại *"inference node within the service
+> deployment scope"* = **node toàn cầu ngoài Trung Quốc đại lục**. ⟹ **xử lý ĐÃ vượt biên từ hôm
+> nay, không cần đổi vùng.** Cổng vẫn đứng (nơi **LƯU** vẫn đổi), nhưng lý lẽ tôi dùng **rộng hơn
+> sự thật** — lại đúng chiều thiên lệch của ngày.
+> US-Virginia = đưa hội thoại khách VN ra hạ tầng Mỹ. Hôm nay dữ liệu tổng
 > hợp nên vô hại; **khách thật là NĐ 13/2023 + cư trú dữ liệu**. Cùng ngăn với ý nhiều-tài-khoản:
 > *đo được, QUYẾT ĐỊNH thuộc người có thẩm quyền pháp lý.* Nhưng hạng đã đổi: không phải *"đòn bẩy
 > 50× bị pháp lý chặn"* mà *"đòn bẩy 5× đòi đưa dữ liệu khách Việt ra Mỹ"* — hai mức giá rất khác
