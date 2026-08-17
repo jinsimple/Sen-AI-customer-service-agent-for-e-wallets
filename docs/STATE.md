@@ -795,6 +795,35 @@ bản vá *"bắt tất cả thành mềm"* vẫn 10/10 xanh) · security gửi 
 Áp mạnh nhất cho **PO-agent** (nấc cuối trước khi một phát biểu thành **quyết định**) và **security**
 (nấc ngay trước đó — 2/4 dòng là của họ).
 
+### LUẬT F — con số đi vào một QUYẾT ĐỊNH phải mang MẪU SỐ trong CÙNG MỘT DÒNG
+Ba lần trong ngày 17/08, một con số **đúng** thiếu mẫu số suýt dẫn tới quyết định sai:
+```
+f ≈ 0%      đo trên golden_set — bộ ca CỐ Ý không có lượt đơn   ⟹ suýt bác đòn bẩy tốt nhất
+120 ca      thứ được chấm là 124 CÂU                            ⟹ 4 câu không bao giờ được chấm
+473M        ảnh hiện tại 892M ⟹ thật ra là +53%                 ⟹ PO phải tự đoán lớn hay nhỏ
+```
+**Cả ba lần mẫu số tìm được trong MỘT lệnh** (`wc -l` · `du -sh`). Không phải nó khó tìm — là
+**không ai nghĩ tới việc tìm**, kể cả người đang rất cẩn thận về một chuyện khác.
+
+> **LUẬT F: con số nào đi vào một quyết định thì phải mang MẪU SỐ của nó trong CÙNG MỘT DÒNG.
+> Không phải "nhớ hỏi so với cái gì" — mà là KHÔNG ĐƯỢC VIẾT CON SỐ TRẦN RA.**
+
+*(Vế thi hành do coder đề. Khác biệt: "nhớ hỏi" là một thói quen — hỏng khi người ta bận;
+"không được viết con số trần" là một quy tắc về hình thức đầu ra — kiểm được bằng mắt.)*
+
+### LUẬT G — cơ chế CÓ MẶT và làm ĐÚNG việc của nó, không làm việc ta tưởng
+Bốn ca cùng khuôn trong ngày:
+```
+build_commit   định danh ẢNH        — tưởng định danh MÃ ĐANG CHẠY
+docker diff    bắt drift MÃ         — tưởng bắt drift PHỤ THUỘC (4GB site-packages lọt)
+multi-stage    bỏ compiler+cache    — tưởng bỏ cả dev-tool (cùng requirements.txt, COPY nguyên khối)
+băm 12 hex     md5 vs sha256        — chuỗi hex KHÔNG TỰ KHAI nó sinh ra từ đâu
+```
+**Không cơ chế nào hỏng.** Cả bốn làm **đúng** việc chúng sinh ra để làm. Cái sai nằm ở **phạm vi
+ta gán cho chúng**, và phạm vi đó **không được ghi ở đâu cả** ⟹ mỗi người tự suy, và suy rộng ra.
+⟹ Hệ quả cho quy ước băm: **băm phải công bố kèm TÊN THUẬT TOÁN** — `1edd51dff555` không phải một
+băm, `md5:1edd51dff555` mới là.
+
 ### LUẬT E — một bộ ca XANH phải kèm PHÂN BỐ LÝ DO xanh
 Coder mổ con số `124/124` (bộ ca âm, luật phân luồng `1edd51dff555`) xem nó **đạt vì lý do gì**:
 ```
