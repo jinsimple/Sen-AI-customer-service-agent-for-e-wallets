@@ -68,9 +68,16 @@
   {
    "id": "DON-08",
    "cau": "bạn ơi giúp mình với",
-   "ky_vong": "day_du",
-   "vi_sao": "🔴 CA LẬT: 'giúp mình với' KHÔNG có nội dung, nhưng mang TÍN HIỆU CẦU CỨU. Nhãn này CÓ THỂ SAI — tôi khai nó là chỗ CẦN PO/BA PHÁN, không tự quyết. Xem muc_cho_phan.",
-   "nhom": "③ mơ hồ"
+   "ky_vong": "nhe",
+   "vi_sao": "Theo TRỤC THẬT (cần tra cứu không): câu này không cần tra gì, nó cần một câu HỎI LẠI.",
+   "nhom": "③ mơ hồ",
+   "nguon_nhan": "PHÁN QUYẾT CỦA PO 17/08 — KHÔNG dẫn được từ contract",
+   "🔴_NHAN_CO_DIEU_KIEN": {
+    "dieu_kien": "đường nhẹ được phép HỎI LẠI, KHÔNG được trả lời một câu nghiệp vụ, KHÔNG được tạo bản ghi",
+    "nhan_neu_dieu_kien_SAI": "day_du — vì khi đó đường nhẹ không có hành động hợp lệ nào cho câu này",
+    "🔴_vi_sao_phai_ghi_rieng": "Đây KHÔNG phải nhãn đặc tả — nó phụ thuộc một TÍNH CHẤT CỦA CÀI ĐẶT chưa tồn tại. Một nhãn như vậy có thể im lặng trở thành SAI khi cài đặt đổi, mà bộ ca vẫn xanh. Phải có test canh chính ĐIỀU KIỆN, không chỉ canh nhãn.",
+    "an_toan_nho_dau": "ĐC-2 — phân loại lại từ đầu mỗi lượt. Khách trả lời 'mình bị mất 500k' thì câu ĐÓ đi đường đầy đủ."
+   }
   },
   {
    "id": "DON-09",
@@ -158,11 +165,11 @@
   }
  ],
  "muc_cho_phan": [
-  "DON-08 'bạn ơi giúp mình với' — tôi gán day_du vì tín hiệu cầu cứu, nhưng nó không có nội dung nghiệp vụ nào. Nhãn này là PHÁN ĐOÁN của tôi, không dẫn được từ contract. Xin PO/BA phán trước khi ai đo."
+  "DON-08 — ĐÃ PHÁN (PO, nhe, CÓ ĐIỀU KIỆN). Nếu security hoặc BA thấy khác thì NHÃN đổi, không phải bộ ca đổi. Không để phán quyết này trôi thành 'đã có căn cứ'."
  ],
  "🔴_HUONG_SAI_MAC_DINH": "PO đã chốt: chỉ đi nhẹ khi KHẲNG ĐỊNH ĐƯỢC là đơn; lỗi/timeout/ngưỡng-không-rõ ⟹ đi ĐẦY ĐỦ. Bộ ca này TÔN TRỌNG hướng đó: 13/20 ca nhãn day_du. Ai đọc tỉ lệ này thành 'bộ ca thiên lệch' là đọc sai — thiên lệch đó CỐ Ý và cùng chiều với hướng sai an toàn.",
  "cach_dung": "Chạy CÙNG golden_set (120 ca âm). Bộ âm PHỦ QUYẾT ngưỡng, bộ dương CHỌN ngưỡng. Một mình bộ nào cũng không đủ: chỉ bộ âm ⟹ 'không định tuyến gì' thắng tuyệt đối; chỉ bộ dương ⟹ 'định tuyến tất' thắng tuyệt đối.",
- "🔴_dieu_kien_land": "Nhóm ④ và ⑤ KHÔNG ĐƯỢC SAI MỘT CA. Chúng là khách đang mất tiền và tham số điều tra. Nhóm ⑥ sai = bịa chính sách. Nhóm ① ② ③ sai = tốn tiền, không hại người.",
+ "🔴_dieu_kien_land": "Nhóm ④ (bẫy ngắn) và ⑤ (tham số trần) KHÔNG ĐƯỢC SAI MỘT CA — khách đang mất tiền và tham số điều tra. Nhóm ⑥ CŨNG KHÔNG ĐƯỢC SAI CA NÀO khi câu hỏi chạm CON SỐ PHÁP LÝ (DON-18, QĐ 2345/QĐ-NHNN): 'sai = bịa chính sách' là mô tả đúng cơ chế, KHÔNG phải một hạng nhẹ hơn ④⑤ — chỉ khác cách gây hại. Nhóm ① ② ③ sai = tốn tiền, không hại người.",
  "luat": "Từ giây công bố băm, nhãn BẤT ĐỘNG. Viết TRƯỚC khi có encoder nào để chiều.",
  "🔴_DON_VI_DEM_khai_ro": {
   "bo_ca_nay": "20 ca = 20 CÂU. Mỗi ca đúng MỘT câu, không ca nào nhiều câu.",
@@ -171,6 +178,12 @@
   "🔴_bay": "Viết `assert == 120` trên bộ âm ⟹ 4 câu KHÔNG BAO GIỜ được chấm, và cổng VẪN XANH. Con số đúng, tập hợp sai.",
   "luat_rut_ra": "Mọi cổng phải khai ĐƠN VỊ ĐẾM ngay trong nhãn. 'ca' và 'câu' là hai mẫu số khác nhau, và chúng trùng nhau đủ thường xuyên để không ai đi kiểm."
  },
- "bam_cu_da_thay": "4976afbaf63f → sửa TRƯỚC khi có phép đo nào. Lý do: khai rõ đơn vị đếm (ca vs câu) sau khi PO sửa con số bộ âm 120 ca → 124 câu. KHÔNG đụng một nhãn ca nào.",
- "bam_nhan": "8dafb881bb4c"
+ "bam_cu_da_thay": "8dafb881bb4c → PO phán DON-08 = nhe (CÓ ĐIỀU KIỆN) + nâng hạng nhóm ⑥ + ghi căng kéo nhóm ⑤. Chưa phép đo nào chạy.",
+ "🔴_CANG_KEO_o_nhom_⑤": {
+  "hai_rang_buoc_keo_nguoc": "phân loại theo TỪNG LƯỢT (ĐC-2) ↔ nhóm ⑤ có ngữ cảnh nằm ở lượt TRƯỚC",
+  "chot_cua_PO": "Đường nhẹ PHẢI nhìn được lượt trước để biết agent vừa hỏi gì, nhưng KHÔNG được nhớ 'phiên này là phiên đơn giản'.",
+  "cau_ngan": "ĐỌC NGỮ CẢNH ≠ GIỮ PHÁN QUYẾT",
+  "vi_sao_ghi_o_day": "để coder gặp nó lúc ĐỌC ĐẶC TẢ, không phải lúc code xong rồi mới phát hiện hai ràng buộc mâu thuẫn"
+ },
+ "bam_nhan": "241851470116"
 }

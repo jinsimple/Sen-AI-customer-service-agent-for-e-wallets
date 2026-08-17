@@ -53,3 +53,31 @@ def test_moi_ca_co_nhan_hop_le_va_KHONG_bo_trong():
 def test_id_khong_trung():
     ids = [c["id"] for c in BO["ca"]]
     assert len(ids) == len(set(ids)), f"ID trùng: {sorted({i for i in ids if ids.count(i) > 1})}"
+
+
+def test_nhan_CO_DIEU_KIEN_phai_khai_du_dieu_kien_va_nhan_lat():
+    """Một nhãn phụ thuộc TÍNH CHẤT CÀI ĐẶT không phải nhãn đặc tả.
+
+    DON-08 được PO phán `nhe`, nhưng chỉ đúng NẾU đường nhẹ được phép hỏi lại và
+    không được trả lời nghiệp vụ. Nếu cài đặt không có tính chất đó, nhãn phải
+    lật sang `day_du`.
+
+    > **Nhãn như vậy có thể im lặng trở thành SAI khi cài đặt đổi — và bộ ca vẫn
+    > xanh.** Nó là `hiện-diện ≠ hiệu-lực` áp cho một cái NHÃN.
+
+    Test này không kiểm được điều kiện (chưa có cài đặt). Nó kiểm thứ kiểm được
+    ngay: **điều kiện phải được KHAI, và nhãn-nếu-điều-kiện-sai phải được khai**.
+    Thiếu một trong hai, người sau sẽ đọc nhãn như một sự thật vô điều kiện.
+    """
+    for c in BO["ca"]:
+        dk = c.get("🔴_NHAN_CO_DIEU_KIEN")
+        if not dk:
+            continue
+        assert str(dk.get("dieu_kien", "")).strip(), f"{c['id']}: nhãn có điều kiện mà KHÔNG khai điều kiện"
+        lat = str(dk.get("nhan_neu_dieu_kien_SAI", "")).strip()
+        assert lat, f"{c['id']}: không khai NHÃN LẬT khi điều kiện sai"
+        assert lat != c["ky_vong"], (
+            f"{c['id']}: nhãn lật ({lat}) trùng nhãn hiện tại ({c['ky_vong']}) — "
+            "nếu điều kiện không đổi được nhãn thì nó không phải điều kiện."
+        )
+        assert c.get("nguon_nhan"), f"{c['id']}: nhãn có điều kiện phải khai NGUỒN (ai phán)"
