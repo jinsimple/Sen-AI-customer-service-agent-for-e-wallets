@@ -1363,6 +1363,37 @@ người dùng**.
 - với kho không có chỗ gắn dấu (vé phiên, khoá rate-limit): ghi lại **định danh
   cụ thể** tạo ra lúc đo (mã vé, mã khoá), không dựa vào việc đếm
 
+#### 4c — 🔴 và thủ phạm hoá ra là CHÍNH BỘ TEST NÀY
+
+Vé phiên tôi cố ý giữ lại làm bằng chứng **biến mất trong ba phút**. Kết luận
+đầu tiên của cả đội là *"có người xoá tay"*. Redis tự khai số khác:
+
+    cmdstat_flushdb: calls=437
+
+Nguồn: `tests/conftest.py` — fixture `autouse=True` gọi `flushdb()` **trước mỗi
+test**. Docstring của nó nói *"fakeredis trong test"*, nhưng đó là một **giả
+định**, không phải ràng buộc: `flushdb()` gọi vào **bất cứ client nào**
+`get_default_client()` trả về. Chạy `docker exec <backend> pytest` thì
+`REDIS_URL=redis://redis:6379/0` — **Redis thật của ngăn xếp**.
+
+> **Fixture chạy THÀNH CÔNG trong cả hai trường hợp.** Không đỏ, không cảnh
+> báo. Nó chỉ **im lặng làm một việc khác hẳn** khi biến môi trường đổi — và
+> việc khác đó là cuốn sạch phiên đăng nhập của mọi người đang dùng ngăn xếp.
+
+Đây là **cùng họ với `restart` / `recreate` / `rebuild`**: lệnh yếu hơn vẫn chạy
+xong và vẫn báo xanh.
+
+**Cách chữa: cổng NỔ, không cổng BỎ QUA.** Bỏ qua sẽ trả lại đúng chỗ rò rỉ
+state mà fixture sinh ra để chặn, rồi ta có một suite xanh vì lý do sai. Và cổng
+phải chứng minh **cả hai chiều** (Luật 2):
+
+    REDIS_URL=fake://ci          → 23/23 invariant XANH      (không chặn nhầm)
+    trong container, Redis thật  → RuntimeError, flushdb=437 KHÔNG tăng  (chặn thật)
+
+**Bài học rộng hơn ca này:** một bộ đo có-ghi nguy hiểm nhất **không phải** ở
+lượt đo — mà ở **hạ tầng test của chính mình**, thứ chạy hàng trăm lần mà không
+ai coi là "một phép đo".
+
 Và hệ quả vận hành, đáng nói riêng: **một ngăn xếp đang có người khác dùng thì
 không phải chỗ để chạy phép đo có ghi.** Không chỉ vì lẫn số — mà vì phép đo
 tiêu hạn ngạch, đụng rate-limit, và làm hỏng phép đo của người bên cạnh.

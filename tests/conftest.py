@@ -43,6 +43,23 @@ TEST_PASSWORD = "Demo@123"
 _TEST_PASSWORD_HASHER = PasswordHasher()
 
 
+def _redis_la_gia() -> tuple[bool, str]:
+    """Redis mà fixture sắp XOÁ SẠCH có phải bản GIẢ không?
+
+    Trả `(là_giả, mô_tả)`. Nhận diện bằng HAI đường độc lập, chỉ cần một đường
+    khẳng định là đủ để CHẶN — vì hậu quả của dương-tính-giả (tưởng giả, hoá ra
+    thật) là xoá sạch một Redis đang chạy, còn hậu quả của âm-tính-giả chỉ là
+    một dòng báo lỗi phải sửa.
+    """
+    url = os.environ.get("REDIS_URL", "")
+    if url.startswith("fake://"):
+        return True, f"REDIS_URL={url}"
+    cls = type(get_default_client()).__module__
+    if "fakeredis" in cls:
+        return True, f"client={cls}"
+    return False, f"REDIS_URL={url or '(không đặt)'} · client={cls}"
+
+
 @pytest.fixture(autouse=True)
 def _flush_redis_between_tests():
     """Đợt nâng cấp Auth Flow (2026-08-12) — JWT revocation/refresh-token
@@ -53,7 +70,37 @@ def _flush_redis_between_tests():
     state rate-limit/revocation RÒ RỈ giữa các test dùng chung user_id (rất
     phổ biến, "USR-A" xuất hiện khắp nơi), gây fail giả kiểu 429 ở test không
     liên quan gì tới rate-limit. flushdb() TRƯỚC mỗi test — cô lập hoàn toàn,
-    cùng tinh thần db_session tạo SQLite file mới mỗi test."""
+    cùng tinh thần db_session tạo SQLite file mới mỗi test.
+
+    ## 🔴 CỔNG THÊM 17/08 — vì sao fixture này từng XOÁ SẠCH REDIS THẬT
+
+    Câu chữ *"fakeredis trong test"* ở trên là một **giả định**, không phải một
+    ràng buộc: `flushdb()` gọi vào **bất cứ client nào** `get_default_client()`
+    trả về. Chạy `docker exec fin05-backend-1 pytest` thì `REDIS_URL` là
+    `redis://redis:6379/0` — **Redis THẬT của ngăn xếp** — và fixture
+    `autouse=True` này xoá sạch nó **trước mỗi test**.
+
+    Đo được trên `fin05-redis-1` ngày 17/08: `cmdstat_flushdb calls=437`, và
+    `DBSIZE` về **0** giữa hai phép đo cách nhau ba phút — cuốn sạch phiên đăng
+    nhập của mọi người đang dùng ngăn xếp đó.
+
+    > Fixture chạy **thành công** trong cả hai trường hợp. Không có gì đỏ, không
+    > có cảnh báo nào. Nó chỉ **im lặng làm một việc khác hẳn** khi biến môi
+    > trường đổi.
+
+    Cổng dưới đây **nổ thay vì bỏ qua**. Bỏ qua sẽ trả lại đúng chỗ rò rỉ state
+    mà fixture sinh ra để chặn, rồi ta có một suite xanh vì lý do sai.
+    """
+    la_gia, mo_ta = _redis_la_gia()
+    if not la_gia:
+        raise RuntimeError(
+            "🔴 TỪ CHỐI flushdb() — Redis này KHÔNG phải bản giả.\n"
+            f"   {mo_ta}\n"
+            "   Fixture autouse này xoá SẠCH Redis trước MỖI test. Chạy nó lên\n"
+            "   một Redis thật sẽ cuốn phiên đăng nhập của mọi người đang dùng\n"
+            "   ngăn xếp đó — đã xảy ra thật 17/08 (flushdb calls=437).\n"
+            "   Đặt REDIS_URL=fake://ci rồi chạy lại."
+        )
     get_default_client().flushdb()
     yield
 
