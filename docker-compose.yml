@@ -50,6 +50,7 @@ services:
       args:
         BUILD_COMMIT: ${BUILD_COMMIT:-khong-ro}
         BUILD_AT: ${BUILD_AT:-khong-ro}
+        BUILD_SRC_HASH: ${BUILD_SRC_HASH:-khong-ro}
     restart: unless-stopped
     env_file:
       - .env

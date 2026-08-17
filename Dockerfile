@@ -60,6 +60,11 @@ ARG BUILD_COMMIT=khong-ro
 ARG BUILD_AT=khong-ro
 ENV BUILD_COMMIT=$BUILD_COMMIT
 ENV BUILD_AT=$BUILD_AT
+# Nhãn định danh MÃ SẢN PHẨM (băm nội dung src/**/*.py), khác BUILD_COMMIT là
+# nhãn định danh TRẠNG THÁI KHO. Cần cả hai: commit trả lời "kho ở đâu", băm
+# trả lời "mã nào" — và 17/08 đã chứng minh commit không trả lời được câu sau.
+ARG BUILD_SRC_HASH=khong-ro
+ENV BUILD_SRC_HASH=$BUILD_SRC_HASH
 
 # Non-root user cho tiến trình ứng dụng thật (không chạy uvicorn bằng root) —
 # việc hạ quyền thực hiện trong docker-entrypoint.sh lúc container khởi động,

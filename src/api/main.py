@@ -78,6 +78,7 @@ from src.config import (
     APP_ENV,
     BUILD_AT,
     BUILD_COMMIT,
+    BUILD_SRC_HASH,
     DB_KIND,
     DB_NAME,
     OTP_MAX_FAILED_ATTEMPTS,
@@ -85,6 +86,7 @@ from src.config import (
     RESOLUTION_APPROVAL_OTP_FRESH_MINUTES,
     ROOT_DIR,
 )
+from src.dau_ma_nguon import CACH_BAM, bam_ma_nguon
 from src.db.models import (
     AuthSession,
     ChatSession,
@@ -1458,6 +1460,42 @@ app.add_api_websocket_route("/ws/live-chat", live_chat_websocket_endpoint)
 
 
 @app.on_event("startup")
+def _khai_ma_nguon_lech_anh():
+    """Bắt cơ chế `docker cp` TỰ ĐỘNG — băm lại mã ĐANG CHẠY, so nhãn lúc dựng.
+
+    17/08: `fin05-backend-1` khai `build_commit=7450184` trong khi `graph.py`
+    đã bị `docker cp` sửa. Nhãn không nhúc nhích vì `docker cp` chép TỆP, không
+    đụng biến môi trường. Phát hiện được là nhờ CÓ NGƯỜI ĐI KIỂM bằng
+    `docker diff` — không nhờ cơ chế nào.
+
+    Phép kiểm này làm điều đó tự động ở mỗi lần khởi động. Nó KHÔNG thay
+    `docker diff`: `docker cp` mà không restart thì đây chưa bắt được (lớp
+    writable sống qua restart nhưng module đã nạp thì không tự nạp lại). Hai
+    phép bù nhau — cái này rẻ và luôn chạy, cái kia đắt và phải nhớ.
+
+    FAIL-VISIBLE, không fail-fast: mã lệch ảnh là dấu hiệu quy trình hỏng, KHÔNG
+    phải bằng chứng mã sai. Giết dịch vụ vì nó là biến một nghi vấn thành một
+    sự cố — cùng lý do đã áp cho `HOTLINE_CSKH` và cho `/ready` không gating.
+    """
+    if BUILD_SRC_HASH == "khong-ro":
+        return  # chạy ngoài Docker (dev cục bộ) — không có nhãn để so, không ồn
+    dang_chay = bam_ma_nguon()
+    if dang_chay != BUILD_SRC_HASH:
+        _logger.error(
+            "ma_nguon_lech_anh",
+            extra={
+                "bam_luc_dung": BUILD_SRC_HASH,
+                "bam_dang_chay": dang_chay,
+                "cach_bam": CACH_BAM,
+                "y_nghia": (
+                    "ma /app/src dang chay KHAC ma duoc dong vao anh — dau hieu "
+                    "docker cp hoac sua tay trong container"
+                ),
+            },
+        )
+
+
+@app.on_event("startup")
 def _khai_khoang_trong_kenh_ho_tro():
     """FAIL-VISIBLE cho `HOTLINE_CSKH` (ADR-025 QĐ 4) — KHÔNG fail-fast.
 
@@ -1539,6 +1577,12 @@ def health():
     return {
         "status": "ok",
         "env": APP_ENV,
+        # Nhãn định danh MÃ, bên cạnh `build_commit` là nhãn định danh KHO.
+        # CỐ Ý chỉ trả nhãn LÚC DỰNG, không trả kết quả so với mã đang chạy:
+        # endpoint này CÔNG KHAI, và một cờ "hộp này có mã sửa tay" là trạng
+        # thái vận hành — cùng loại thông tin đã từ chối phơi ở đây trước đó.
+        # Kết quả so nằm ở sự kiện log `ma_nguon_lech_anh`.
+        "build_src_hash": BUILD_SRC_HASH,
         "db_kind": DB_KIND,
         "db_name": DB_NAME,
         # Trả lời được câu 16/08 KHÔNG trả lời được: "production đã nhận vá
