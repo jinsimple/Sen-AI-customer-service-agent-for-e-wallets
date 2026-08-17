@@ -1552,6 +1552,24 @@ nguon_duoc_duyet:
      không phải vì bảng rỗng **im lặng**, mà vì cờ hiện có **NÓI SAI** — nó gợi ý *"khách yêu cầu"*
      cho cả những vé thật ra là *"AI bó tay"*. Im lặng nghiêng về người đọc lạc quan; cái này **chủ
      động đẩy** họ về đó.
+  2b. **(BỔ SUNG 17/08 tối, từ chuỗi đo R) — `request_human_handoff` phải vào SỔ TOOL.** Coder đếm
+     bản ghi theo tên tool trong đúng ba cửa sổ R: **tất định cả ba vòng**, đúng một lời gọi không
+     sinh bản ghi, **và luôn là cùng một tool** — `request_human_handoff` **không bao giờ** gọi
+     `record_tool_result`, trong khi `src/tools/base.py` dòng 3 ghi *"Mọi tool PHẢI gọi
+     `record_tool_result` trước khi return"*. **Một luật phát biểu tường minh trong chính module cơ
+     sở, và một tool không tuân** — cùng khuôn `unknown`-hợp-lệ-sáu-ngày.
+     **Mức: CAO HƠN `investigation_logs`** — tool này **tạo/đánh dấu một vé thật** rồi biến mất khỏi
+     sổ: vé sinh qua đường handoff **không có `tool_result_id` nào trỏ về hành động tạo ra nó**.
+     Chuỗi `tool_results → investigation_logs → cited_tool_result_ids` đứt ở **mắt xích SỐ KHÔNG**,
+     trước cả mắt xích mục 2. Và nó khớp ca 101-vé: *chỉ 1/101 vé handoff có investigation_logs* —
+     **hai finding là cùng một lỗ nhìn từ hai phía.**
+     **Cố ý KHÔNG vá lẻ** (một dòng `record_tool_result` thêm vào sẽ tạo một bản ghi rời không nối
+     với dấu sự kiện mà mục 2 đang định nghĩa) ⟹ thiết kế **cùng gói** với mục 2: dấu sự kiện bàn
+     giao + bản ghi tool là **một thiết kế truy vết**, không phải hai bản vá.
+     *(Ghi chú đối chứng từ cùng phép đếm: `create_ticket` gọi 2 lần → ghi 1 là hành vi **ĐÚNG** —
+     lời gọi thứ hai bị cơ chế chống trùng chặn **trước khi ghi**, bằng chứng thêm rằng cơ chế đó
+     đang gánh thật.)*
+
   3. **Đánh dấu `description_raw` do hệ thống soạn** — bảng bằng chứng phải phân biệt **lời khách**
      với **ghi chú của máy**.
   4. **`contracts/authority-matrix.yaml` khai đủ 4 giá trị `scope`, MỖI GIÁ TRỊ KÈM MÃ.** Thiết kế
