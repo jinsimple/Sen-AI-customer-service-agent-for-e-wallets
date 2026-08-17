@@ -234,6 +234,12 @@ năng họ tính cả tên tool/lược đồ tham số mà nhà cung cấp th�
 tỉ lệ** (~2× hai đằng), nhưng phải khai: hai bên đang băm **hai đối tượng khác
 nhau**, và nếu sau này ai đó đối chiếu hai file sẽ thấy lệch mà không rõ vì sao.
 
+> 🔴 **ĐÃ GIẢI THÍCH — và tôi sai, xem §5f.** Không phải "hai cách đếm". **Cùng
+> một trường `description`, cùng một file, và hai giá trị khác nhau vì HAI
+> RUNTIME khác nhau.** Số **4.862 của tester là số đúng của sản phẩm**; **4.334
+> là artefact của môi trường tôi đo**. Tỉ lệ ở bảng trên tính trên 4.334 nên
+> **không dùng nữa** — dùng bảng §5f.
+
 ## §5e. Ratify phát hiện `current_time` của tester — và một hệ quả họ chưa nêu
 
 `build_system_prompt(*, current_time)` là tham số **bắt buộc**, và ngày/giờ đi
@@ -282,3 +288,92 @@ không phải thước phân loại model. Nói *"không model nào bịa tham s
 trong ~500 lượt"* — **không** nói *"trục này cho thấy model X an toàn hơn"*.
 (Cùng nguyên tắc khối GIỚI HẠN PHẠM VI của heldout: con số không tự mang theo
 phạm vi.)
+
+## §5f. 🔴 Lệch 4.862 vs 4.334 — TRUY RA GỐC. Tôi sai, và gốc là một FINDING lớn hơn con số
+
+Tester từ chối nhận §5d③ và làm đúng: họ đo lại **trên container đang chạy**,
+ba lần, ra y hệt `4.862`. Tôi đi tìm gốc.
+
+### Loại trừ từng khả năng — [ĐO]
+
+```
+① mã nguồn khác nhau?
+   md5 src/agents/tools/customer_tools.py
+       container fin05-backend-1 : bc02c7a59bb1b4116ad2b4bf997cac11 · 827 dòng
+       cây làm việc (HEAD 9e42faa): bc02c7a59bb1b4116ad2b4bf997cac11 · 827 dòng
+   ⟹ TRÙNG KHÍT. Không phải "bản mô tả tool thứ hai trong src/".
+
+② mã hoá / chuẩn hoá?   NFC=4.334 · NFD=5.233 · utf-8=5.457 — không số nào ra 4.862.
+   ⟹ KHÔNG phải.
+
+③ RUNTIME?
+   container           : langchain-core 1.5.4 · Python 3.12.14   ⟹ 4.862
+   venv tôi mượn       : langchain-core 1.5.3 · Python 3.14.6    ⟹ 4.334
+```
+
+**⟹ Nguyên nhân: hai phiên bản `langchain-core` khác nhau ĐÚNG MỘT SỐ VÁ.**
+
+### Lệch là gì, chính xác
+
+Bản `1.5.4` **giữ nguyên thụt đầu dòng** của docstring khi dựng `description`;
+bản `1.5.3` **gỡ thụt** (dedent). Dán từ container:
+
+```
+'Tra chính sách/phí/quy định chung của ví (KHÔNG phải tra 1 giao\n        dịch cụ thể — …'
+                                                          ↑ 8 dấu cách còn nguyên
+```
+
+Kiểm chéo: mọi delta đều **chia hết cho 8** — `72·96·152·80·128` = `8×(9·12·19·10·16)`
+= đúng **số dòng tiếp nối × 8 dấu cách**. Lệch là **khoảng trắng thuần**, không
+phải nội dung.
+
+### Chỗ tôi sai, nói thẳng
+
+Tôi đo trên **một venv mượn của dự án khác** (`P-121-new/.venv`) thay vì trên
+**hệ đang chạy**. Tôi vừa viết cho tester đúng một câu — *"luôn đo trên KÍCH
+THÍCH TRỌN VẸN, không đo trên phần mình đang chú ý"* — rồi **đo kích thích đó
+trên một runtime không phải runtime của sản phẩm**. Số của tester đúng; số của
+tôi là artefact; **tỉ lệ 1,94× ở §5d phải bỏ**.
+
+*(Có sẵn bài học trong sổ mà tôi không áp: **kiểm trong container trước khi tin
+một phép đo**. Lần trước nó là chuyện xác nhận bản vá; lần này là chuyện đo
+kích thích. Cùng một luật.)*
+
+### 🔴 Nhưng gốc mới là phần đáng giá — tester đoán đúng rằng nó lớn hơn con số
+
+> **Văn bản thực sự gửi cho model là hàm của PHIÊN BẢN MỘT THƯ VIỆN PHỤ THUỘC,
+> không chỉ của mã ta viết.** Một bản vá của `langchain-core` đổi kích thích
+> ~12% mà **không có commit nào của ta, không diff nào, không cảnh báo nào**.
+
+Và bộ đóng dấu hiện tại **không bắt được**:
+
+- `dau_thuoc()` → `he_thong` băm `src/**/*.py` + `commit`. **Cả hai TRÙNG KHÍT**
+  giữa hai lần đo trên — mà prompt gửi đi vẫn khác nhau.
+- `requirements.txt:14` ghi `langchain>=0.3.0` — **sàn, không ghim**, và
+  **không có lockfile** (`ls` chỉ có `requirements.txt`). ⟹ **dựng lại image vào
+  một ngày khác có thể đổi prompt gửi cho model**, im lặng.
+
+**Hệ quả cho các mốc đang giữ:** hai lượt đo cùng `he_thong`, cùng commit, khác
+ngày dựng image ⟹ **có thể là hai kích thích khác nhau**. Chưa có bằng chứng
+khoảng trắng đổi hành vi (nhiều khả năng ảnh hưởng nhỏ, chủ yếu ở đếm token),
+nên **không rút mốc nào** — nhưng đây là **lỗ thứ hai trong cùng một ngày** ở
+mệnh đề *"cùng một prompt"*, sau lỗ `current_time` (§5e).
+
+### Đề nghị — hai việc, cái đầu tester ĐÃ vô tình làm đúng
+
+1. **Băm CHÍNH PAYLOAD, đừng băm nguồn sinh ra payload.** Quyết định của tester
+   — định nghĩa kích thích là *"system message + JSON tool trọn vẹn như gửi
+   đi"* và băm nó (`0c08f10a8f55` / `5bee2e87bf24`) — **vá đúng lỗ này**, vì
+   băm payload bắt được trôi do thư viện mà băm mã nguồn **không bao giờ bắt
+   được**. Họ chọn nó vì lý do khác; nó đúng vì một lý do mạnh hơn.
+2. **Ghim phiên bản + lockfile** (vùng tech-lead). `langchain>=0.3.0` để ngỏ
+   đúng thứ vừa chứng minh là có ảnh hưởng tới đầu vào model. Đây cũng là mục
+   đã có sẵn trong playbook đóng gói (*ghim phiên bản, không dùng dải mở*), chỉ
+   là chưa ai nghĩ nó chạm tới **nội dung prompt**.
+
+### Một điểm ĐỨNG VỮNG qua cả vụ này
+
+`build_system_prompt(current_time=2026-08-17 10:00:00)` đo **trong container**:
+`len=15094` · băm `33d66da05520` — **trùng khít số tester ghim**. Prompt hệ
+thống là chuỗi thuần, không qua `langchain`, nên nó **không** dính lớp lỗi trên.
+Cặp v4↔v5 vẫn dựng được; chỉ phần mô tả tool phải lấy **từ container**.
