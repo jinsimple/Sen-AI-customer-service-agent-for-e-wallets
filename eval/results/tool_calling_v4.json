@@ -166,5 +166,34 @@
     "b1 đúng": 10
    }
   }
+ },
+ "PHAM_VI_BAT_BUOC_DOC_KEM": {
+  "cau_hoi": "bộ đo gửi CHÍNH XÁC payload gì cho nhà cung cấp?",
+  "system_message_BO_DO": {
+   "co": true,
+   "do_dai": 123,
+   "bam": "9d6dbff3bc7f",
+   "nguyen_van": "Bạn là trợ lý CSKH ví điện tử MoMo. LUÔN gọi tool để tra dữ liệu trước khi nói bất kỳ con số hay trạng thái nào. Không bịa.",
+   "nguon": "TÔI TỰ SOẠN — không phải build_system_prompt() của sản phẩm"
+  },
+  "system_message_SAN_PHAM": {
+   "do_dai": 15094,
+   "gui": "vô điều kiện mọi lượt",
+   "chua": {
+    "PHẢI tra ra CẢ HAI": 1,
+    "chủ động tra giúp": 1,
+    "create_ticket": 7
+   },
+   "ghi_chu": "hai chuỗi đầu là chỉ dẫn cho ĐÚNG ca 4 và ca 6 — hai ca lỗi"
+  },
+  "mo_ta_tool": "NGUYÊN VĂN từ build_customer_tools() qua introspect (luoc_do_tool_app.json, băm 4129d298555c) — KHÔNG soạn lại",
+  "luoc_do_tham_so": "introspect app, KHÔNG viết tay từ contract",
+  "KET_LUAN": "🔴 BỘ ĐO THIẾU 15.094 ký tự CHỈ DẪN mà sản phẩm gửi mọi lượt — tôi gửi 123 ký tự tự soạn, tức 1/123 lượng chỉ dẫn. Hai câu quyết định hành vi đúng của ca 4 và ca 6 nằm TRONG phần thiếu đó.\n⟹ v4 đo NĂNG LỰC GỌI TOOL TRẦN CỦA MODEL, không đo hành vi sản phẩm.\n⟹ Bốn model đồng thuận ở ca 4/6 là ĐIỀU ĐÁNG KỲ VỌNG, không phải bí ẩn — chúng không hề nhận được chỉ dẫn đó.\n⟹ KHÔNG kết luận nào về SẢN PHẨM được rút từ v4, theo CẢ HAI chiều: không 'sản phẩm đang sai', và cũng không 'sản phẩm ổn'.\n⟹ Nhãn ca 4/6 của security ĐỨNG — nó dẫn từ contracts + prompt sản phẩm, hai dẫn xuất độc lập cùng kết luận. Lỗi ở KÍCH THÍCH của bộ đo, không ở nhãn.",
+  "VAN_DUNG_DUOC": [
+   "So sánh GIỮA CÁC MODEL trên cùng một kích thích: max thắng cả hai trục (43/50 và 28/30), plus thấp nhất — thấp hơn cả gpt-4o-mini. Kết luận này KHÔNG phụ thuộc việc thiếu system prompt vì mọi model nhận CÙNG payload.",
+   "Trục BỊA THAM SỐ = 0 / ~500 lượt / 4 model — MẠNH HƠN khi thiếu prompt: 0 lần bịa KHI THIẾU 15k ký tự dặn dò. Lệnh cấm bịa nằm trong MÔ TẢ TOOL, artefact sản phẩm, bắt buộc có mặt trong mọi bộ đo gọi được tool.",
+   "Hỏng định dạng = 0 / ~500 lượt."
+  ],
+  "CACH_CONG_BO_TRUC_BIA": "Trục này trả 0 ở CẢ BỐN model ⟹ nó CHƯA PHÂN BIỆT ĐƯỢC GÌ lượt này. Giá trị hôm nay là DÂY BẪY GIỮ CHO TƯƠNG LAI, không phải thước phân loại model. Nói: 'không model nào bịa tham số bắt buộc trong ~500 lượt'. KHÔNG nói: 'trục này cho thấy model X an toàn hơn'."
  }
 }
