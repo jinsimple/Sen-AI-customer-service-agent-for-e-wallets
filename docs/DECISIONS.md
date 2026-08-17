@@ -1382,6 +1382,21 @@ nguon_duoc_duyet:
   3. Có **cache TTL** cho kết quả probe để không đốt tiền mỗi lượt gọi.
   4. `/ready` **mở cho mọi role** (kể cả chưa đăng nhập) — nó là endpoint hạ tầng, không trả dữ liệu
      nghiệp vụ. Phải khai trong `authority-matrix.yaml` (INV-00 đòi khớp chính xác `app.routes`).
+  5. **GỘP VÀO ĐÂY: nơi phơi tín hiệu VẬN HÀNH cho lỗi nhà cung cấp** (sinh từ bản vá `5ac18bf`).
+     Bối cảnh: bản vá đó biến `403/401/5xx` của nhà cung cấp từ **500 trần** thành **câu mềm cho
+     khách** — nhưng nó cũng làm sự cố **im hơn**. Coder nêu đúng nghịch lý và tự chặn:
+     > **Tester phát hiện hạn mức cạn CHÍNH VÌ lượt đo trả 500. Bản vá land một mình thì lần sau
+     > harness ghi "agent đã trả lời" và không ai biết — bản vá làm chính finding sinh ra nó vô hình.**
+     ⟹ Trạng thái hiện tại: **hỏng-ỒN đã thành hỏng-CÓ-DẤU-VẾT, CHƯA thành hỏng-CÓ-NGƯỜI-BIẾT.** Ai
+     muốn biết phải chủ động mở Jaeger hoặc `grep` log.
+     **Vì sao gộp vào ADR-028 thay vì mở ADR riêng:** phơi bộ đếm cần **một route**, mà contract 33
+     route **không có route vận hành nào** để bám vào ⟹ thêm route = đổi contract = đúng việc ADR-028
+     đang xin duyệt. **Một lần duyệt, một lần đổi contract.**
+     ⚠️ **KHÔNG phơi ở `/health`** — nó CÔNG KHAI; đặt `lop_loi_cuoi="AuthenticationError"` ở đó là
+     **báo cho người ngoài biết khoá ta đang hỏng**. Tín hiệu vận hành phải nằm sau xác thực, hoặc ở
+     `/ready` dạng **có/không** không kèm chi tiết lớp lỗi.
+     *(Coder cố ý KHÔNG thêm bộ đếm 5 phút khi chưa có chỗ phơi — theo luật "bản vá không-có-số-lợi
+     = revert": một bộ đếm không ai đọc được là code chết.)*
 
 - **Phương án đã bác:**
 
