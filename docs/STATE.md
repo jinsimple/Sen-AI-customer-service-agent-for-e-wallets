@@ -747,6 +747,56 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## 🧭 TỔNG KẾT 17/08 — "KHAI ≠ CHẠY": NĂM cơ chế, và cách duy nhất bắt được chúng
+> Hồ sơ đầy đủ: `docs/security/2026-08-17-ho-so-KHAI-khac-CHAY-nam-co-che.md` (`36d6a1a`)
+
+| # | Cơ chế | Dấu vẫn khớp? | Bắt bằng |
+|---|---|---|---|
+| 1 | `docker cp` vào container đang chạy | ✅ `build_commit` không đổi | `docker diff` (bản siết) |
+| 2 | Ảnh dựng từ **cây làm việc**, không từ HEAD | ✅ `BUILD_COMMIT=HEAD` vẫn đúng | md5 `src/` ↔ `git show HEAD` |
+| 3 | **Phiên bản thư viện phụ thuộc đổi** | ✅ commit **và** `he_thong` **đều** trùng | băm **payload đã gửi** |
+| 4 | **Prompt chứa thời gian thực** | ✅ mọi dấu trùng | ghi **mốc thời gian** cạnh dấu |
+| 5 | Bộ đo tự soạn lại kích thích | — | so **từng trường** với app sống |
+
+🔴 **#3 và #4 đáng sợ nhất và mãi tới hôm nay mới được xếp cùng họ:** chúng **không cần thao tác
+Docker nào**, **không ai làm gì sai**, và **mọi dấu ta đang có đều trùng khít**. `langchain-core`
+1.5.3→1.5.4 đổi kích thích **~12%** với `he_thong` y hệt; `current_time` đổi prompt **mỗi lần gọi**.
+
+⟹ **BẢN VÁ CHO CẢ HỌ, MỘT CÂU: băm THỨ ĐÃ GỬI / ĐANG CHẠY, đừng băm THỨ SINH RA NÓ.**
+Băm `src/` **không bao giờ** bắt được #3/#4/#5; nhãn `build_commit` **không bao giờ** bắt được #1/#2.
+
+### LUẬT A — cổng phải hỏng được theo HAI hướng ngược nhau
+> **Cổng phải IM lúc bình thường VÀ KÊU THẬT lúc bất thường — vế hai chỉ chứng minh được bằng
+> CA ĐỐI CHỨNG.**
+
+Vế một chống **cổng bị tắt bằng thói quen** (ca: `docker diff` bản thô kêu ở mọi lần chạy vì
+`__pycache__` ⟹ *"một cái còi kêu lúc bình thường là cái còi người ta tắt đi"*). **Vế hai chống
+cổng CHƯA BAO GIỜ HOẠT ĐỘNG** — và *"im lúc bình thường"* một mình cũng là tiêu chí của **một cổng
+chết**. Hai ca đối chứng hôm nay chứng minh vế hai: coder ép `ValueError` **phải ném ra** (chặn một
+bản vá *"bắt tất cả thành mềm"* vẫn 10/10 xanh) · security gửi dấu tới **chính localhost** cũng ra
+0 ⟹ phép thử **mù**. **Không có vế hai, cả hai cổng đó đều "xanh".**
+
+### LUẬT B — làm tròn một phát biểu lên đúng MỘT NẤC là lỗi đắt nhất trong ngày
+| Phát biểu ĐÚNG | Bị làm tròn thành |
+|---|---|
+| *"không nghi can nào trong `src/`"* | *"có người xoá tay"* |
+| *"bản vá đã land"* | *"bước 1 xong, xoay khoá được rồi"* |
+| *"lệnh cấm bịa chiếm 1/3 prompt bộ đo"* | *"phép thử khắc nghiệt hơn"* |
+| *"v4 không đo được hành vi sản phẩm"* | *(suýt)* *"sản phẩm đang sai"* |
+
+Áp mạnh nhất cho **PO-agent** (nấc cuối trước khi một phát biểu thành **quyết định**) và **security**
+(nấc ngay trước đó — 2/4 dòng là của họ).
+
+### LUẬT C — cách duy nhất đã bắt được cả năm cơ chế
+**Không cơ chế nào bị bắt bởi một người tự soi lại việc mình.** Cả năm bị bắt bởi **hai người đo
+cùng một vật rồi so SỐ** — **tám lần trong ngày**, và **tám lần chỗ khác nhau là chỗ có thông tin**.
+
+🔴 **Vế thi hành, chỗ dễ trượt nhất: SO SỐ, KHÔNG SO KẾT LUẬN.** Security suýt đóng vụ
+`4.862 vs 4.334` bằng câu hoà *"hai cách đếm khác nhau thôi"* — ở tầng **kết luận**, nghe hợp lý,
+**hai bên cùng yên** — và nó **đã che mất cơ chế #3**. Thứ cứu được là **tester TỪ CHỐI cách hoà đó**.
+⟹ **Một quy ước "hai người cùng đo" mà thiếu vế "cấm hoà ở tầng kết luận" sẽ tự vô hiệu ngay lần
+đầu hai người lịch sự với nhau.**
+
 ## 🔴🔴 SỰ CỐ 17/08 — KHOÁ OpenAI PRODUCTION ĐÃ TRUYỀN TỚI MÁY CHỦ ALIBABA (chờ security phán quyết xoay khoá)
 - **Cơ chế:** `config.py` (`54164fa`, PO-agent duyệt) có fallback **vô điều kiện**
   `LLM_API_KEY or OPENAI_API_KEY`. Trỏ `LLM_BASE_URL` sang `dashscope-intl` mà để `LLM_API_KEY`
