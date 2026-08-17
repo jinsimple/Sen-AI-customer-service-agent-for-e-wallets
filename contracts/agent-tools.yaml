@@ -15,7 +15,7 @@
 #   gọi thẳng build_customer_tools() rồi so tên tool với danh sách dưới.
 #   Thêm/xoá/đổi tên tool mà quên sửa file này  →  test ĐỎ.
 
-version: "2.0.0"
+version: "2.1.0"
 source: "Sinh ngược từ src/agents/tools/customer_tools.py @ 2026-08-13"
 
 # ---------------------------------------------------------------------------
@@ -70,6 +70,25 @@ tools:
 
   create_ticket:
     mo_ta: "Tạo ticket khiếu nại chính thức"
+    input:
+      complaint_type: {type: string,  required: true,  ghi_chu: "1 trong 4 loại taxonomy"}
+      scope:          {type: string,  required: true,  ghi_chu: "1 trong 3 phạm vi giao dịch"}
+      description_raw:
+        type: string
+        required: true
+        ghi_chu: >
+          Lời khai NGUYÊN VĂN của khách. Trần 2.000 ký tự ép ở tầng schema
+          (A2/ADR-025 QĐ 5) — TỪ CHỐI khi vượt, KHÔNG cắt ngắn: cắt là sửa
+          lời khai của khách.
+      trans_id:       {type: string,  required: false, ghi_chu: "mã giao dịch nếu đã tra được"}
+      otp_disclosed:
+        type: boolean
+        required: false
+        ghi_chu: >
+          RÀNG BUỘC CỨNG 4. Cờ ghi nhận khách ĐÃ TỰ nói ra mã OTP giao dịch
+          trong lời kể — dùng để cảnh báo và nâng ưu tiên, KHÔNG BAO GIỜ là
+          đường để agent hỏi xin OTP. Agent tuyệt đối không hỏi OTP giao dịch
+          và không hỏi mật khẩu ví; trường này chỉ mô tả điều khách đã lỡ nói.
     yeu_cau_otp: OTP_STEPUP_FRESH_MINUTES
     output:
       status: {type: enum, values: [found, not_found, error]}
