@@ -1,0 +1,141 @@
+{
+ "version": "bo-ca-RANH-GIOI chính-sách ↔ cá-nhân v1",
+ "soan": "tester",
+ "luc": "2026-08-17",
+ "vi_sao_ton_tai": "Đường thứ BA (lọc trước câu-hỏi-chính-sách rồi gửi prompt gọn) sống chết ở ranh giới này. Kế hoạch OSS N3 đã ghi 'câu-chính-sách-chung vs câu-cá-nhân — lẫn là thảm hoạ' nhưng chưa ai dựng bộ ca. Viết TRƯỚC khi có bộ lọc nào để chiều.",
+ "don_vi_dem": "16 ca = 16 CÂU, mỗi ca đúng một câu",
+ "huong_sai_an_toan": "nghi ngờ ⟹ đường ĐẦY ĐỦ. 11/16 ca nhãn day_du — CỐ Ý, cùng chiều.",
+ "🔴_NHOM_PO_THIEU": {
+  "PO_de": "① chung thuần · ② cá nhân đội lốt chung · ③ lai · ④ chung nhạy pháp lý",
+  "toi_them": "⑤ CHUNG-NHƯNG-PHỤ-THUỘC-HẠNG · ⑥ chung nhưng đang giữa một ca · ⑦ chính sách KHÔNG có trong kho",
+  "🔴_vi_sao_⑤_NGUY_HƠN_②": "Nhóm ② PO gọi là 'nhóm giết thiết kế' vì câu trông y hệt câu chung. Nhưng ② CÓ dấu hiệu ngôn ngữ — 'của tôi' · 'hôm qua' · 'giao dịch này'. Một bộ lọc dò cụm sở hữu bắt được ②.\nNhóm ⑤ thì KHÔNG CÓ DẤU HIỆU NÀO. 'Chuyển tiền có mất phí không?' là câu chung hoàn hảo về mặt ngôn ngữ. Nó chỉ là câu CÁ NHÂN nếu biểu phí phụ thuộc hạng khách — một sự thật nằm trong DỮ LIỆU, không nằm trong CÂU.\n⟹ Bộ lọc bắt ② sẽ IM LẶNG trượt ⑤, và trượt theo hướng trả lời chung chung cho một câu riêng — nghe hợp lệ, sai về vật chất.",
+  "⑦_khong_phai_phan_loai": "Nhóm ⑦ kiểm ĐƯỜNG THOÁT chứ không kiểm phân loại: khi đường chính sách tra không ra, nó PHẢI nói 'không tra được' chứ không được để model trả lời từ trí nhớ. Đó chính là chỗ bịa chính sách sinh ra, và nó nằm TRONG đường mới."
+ },
+ "muc_cho_phan": [
+  "RG-12 · RG-13 — nhãn day_du đúng CHỈ KHI biểu phí/hạn mức phân hạng theo khách. Nếu phẳng cho mọi người thì lật sang chinh_sach. Tôi KHÔNG tra được điều này từ contract; xin PO/BA phán.",
+  "RG-14 — cùng câu RG-02 nhưng nhãn ngược, vì ngữ cảnh lượt trước. Nếu ĐC-2 (phân loại TỪNG LƯỢT) là tuyệt đối thì nhãn phải là chinh_sach và ta chấp nhận trả lời chung cho một câu riêng. Đây là căng kéo ĐC-2 ↔ nhóm tham-số-trần tôi đã báo, lần này ở trục khác."
+ ],
+ "ca": [
+  {
+   "id": "RG-01",
+   "cau": "Phí rút tiền về ngân hàng là bao nhiêu?",
+   "ky_vong": "chinh_sach",
+   "nhom": "① chung thuần",
+   "vi_sao": "không cần dữ liệu của ai để trả lời"
+  },
+  {
+   "id": "RG-02",
+   "cau": "Quy trình tra soát mất bao lâu?",
+   "ky_vong": "chinh_sach",
+   "nhom": "① chung thuần",
+   "vi_sao": "hỏi về quy trình, không về một ca cụ thể"
+  },
+  {
+   "id": "RG-03",
+   "cau": "Tôi gửi yêu cầu tra soát bằng cách nào?",
+   "ky_vong": "chinh_sach",
+   "nhom": "① chung thuần",
+   "vi_sao": "'tôi' ở đây là ngôi xưng, KHÔNG phải sở hữu dữ liệu — bẫy ngược: có đại từ mà vẫn là câu chung"
+  },
+  {
+   "id": "RG-04",
+   "cau": "Phí rút tiền giao dịch hôm qua của tôi là bao nhiêu?",
+   "ky_vong": "day_du",
+   "nhom": "② cá nhân đội lốt chung",
+   "vi_sao": "phải lookup_transaction mới biết giao dịch nào, phí bao nhiêu"
+  },
+  {
+   "id": "RG-05",
+   "cau": "Giao dịch này của tôi bị tính phí đúng chưa?",
+   "ky_vong": "day_du",
+   "nhom": "② cá nhân đội lốt chung",
+   "vi_sao": "'giao dịch này' = tham chiếu tới một bản ghi cụ thể"
+  },
+  {
+   "id": "RG-06",
+   "cau": "Tôi bị trừ phí bao nhiêu cho lần chuyển tuần trước?",
+   "ky_vong": "day_du",
+   "nhom": "② cá nhân đội lốt chung",
+   "vi_sao": "mốc thời gian + sở hữu ⟹ cần lịch sử"
+  },
+  {
+   "id": "RG-07",
+   "cau": "Hạn mức là bao nhiêu, và tôi đã dùng bao nhiêu rồi?",
+   "ky_vong": "day_du",
+   "nhom": "③ lai",
+   "vi_sao": "MỘT câu, HAI ý định — vế sau cần dữ liệu cá nhân. Trả lời được vế đầu KHÔNG đủ."
+  },
+  {
+   "id": "RG-08",
+   "cau": "Chính sách hoàn tiền thế nào, ca của em có được không?",
+   "ky_vong": "day_du",
+   "nhom": "③ lai",
+   "vi_sao": "vế sau đòi phán xét trên một ca cụ thể"
+  },
+  {
+   "id": "RG-09",
+   "cau": "Hạn mức chuyển tiền một ngày là bao nhiêu?",
+   "ky_vong": "chinh_sach",
+   "nhom": "④ chung nhạy pháp lý",
+   "vi_sao": "QĐ 2345/QĐ-NHNN. Câu chung, nhưng bịa sai là SAI PHÁP LÝ.",
+   "🔴_danh_dau": "con số pháp lý — KHÔNG được trả lời từ trí nhớ model, BẮT BUỘC truy hồi được"
+  },
+  {
+   "id": "RG-10",
+   "cau": "Ngưỡng 10 triệu là ngưỡng gì?",
+   "ky_vong": "chinh_sach",
+   "nhom": "④ chung nhạy pháp lý",
+   "vi_sao": "🔴 CA CÓ ĐÁP ÁN SAI PHỔ BIẾN: QĐ 2345 là ngưỡng XÁC THỰC SINH TRẮC, KHÔNG phải ngưỡng gian lận (hiến pháp §8). Model trả lời từ trí nhớ gần như chắc chắn nói sai.",
+   "🔴_danh_dau": "phải nói rõ 'ngưỡng xác thực sinh trắc, không phải ngưỡng gian lận'"
+  },
+  {
+   "id": "RG-11",
+   "cau": "Phí chuyển tiền của tôi là bao nhiêu?",
+   "ky_vong": "day_du",
+   "nhom": "⑤ CHUNG-nhưng-phụ-thuộc-hạng",
+   "vi_sao": "có 'của tôi' — vẫn có dấu hiệu"
+  },
+  {
+   "id": "RG-12",
+   "cau": "Chuyển tiền có mất phí không?",
+   "ky_vong": "day_du",
+   "nhom": "⑤ CHUNG-nhưng-phụ-thuộc-hạng",
+   "vi_sao": "🔴 KHÔNG một dấu hiệu ngôn ngữ nào. Nhưng nếu biểu phí phụ thuộc HẠNG KHÁCH thì một câu trả lời 'chung' là câu trả lời SAI cho người này — nghe hợp lệ, sai về vật chất.",
+   "🔴_danh_dau": "CHỜ PHÁN: nhãn này đúng CHỈ KHI biểu phí có phân hạng. Nếu phí phẳng cho mọi khách thì nhãn lật sang chinh_sach."
+  },
+  {
+   "id": "RG-13",
+   "cau": "Được rút tối đa bao nhiêu một lần?",
+   "ky_vong": "day_du",
+   "nhom": "⑤ CHUNG-nhưng-phụ-thuộc-hạng",
+   "vi_sao": "cùng dạng RG-12 — hạn mức thường phụ thuộc hạng/trạng thái xác thực của tài khoản",
+   "🔴_danh_dau": "CHỜ PHÁN cùng RG-12"
+  },
+  {
+   "id": "RG-14",
+   "cau": "Quy trình tra soát mất bao lâu?",
+   "ky_vong": "day_du",
+   "nhom": "⑥ chung NHƯNG đang giữa một ca",
+   "vi_sao": "🔴 CÂU Y HỆT RG-02, nhãn NGƯỢC — vì lượt trước agent vừa hỏi mã giao dịch. Khách đang hỏi 'ca CỦA TÔI mất bao lâu'.",
+   "🔴_danh_dau": "CHỜ PHÁN: phân loại theo TỪNG LƯỢT (ĐC-2) thì lượt này KHÔNG có dấu hiệu nào. Nếu ĐC-2 tuyệt đối thì nhãn phải là chinh_sach và ta chấp nhận trả lời chung cho một câu riêng."
+  },
+  {
+   "id": "RG-15",
+   "cau": "Chính sách bảo hiểm số dư của MoMo thế nào?",
+   "ky_vong": "day_du",
+   "nhom": "⑦ chính sách KHÔNG CÓ TRONG KHO",
+   "vi_sao": "🔴 Nếu kho không có mục này, đường chính sách PHẢI nói 'không tra được' — KHÔNG được để model trả lời từ trí nhớ. Đây là chỗ 'bịa chính sách' sinh ra.",
+   "🔴_danh_dau": "kiểm ĐƯỜNG THOÁT của đường chính sách, không kiểm phân loại"
+  },
+  {
+   "id": "RG-16",
+   "cau": "Phí chuyển tiền quốc tế bao nhiêu?",
+   "ky_vong": "day_du",
+   "nhom": "⑦ chính sách KHÔNG CÓ TRONG KHO",
+   "vi_sao": "cùng dạng RG-15 — sản phẩm là ví nội địa, mục này gần như chắc không có",
+   "🔴_danh_dau": "kiểm đường thoát"
+  }
+ ],
+ "bam_nhan": "392ea05b4aaf",
+ "thuat_toan_bam": "sha256[:12] của json.dumps(obj, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ hai khoá 'bam_nhan' và 'thuat_toan_bam'"
+}
