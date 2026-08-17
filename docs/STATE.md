@@ -811,6 +811,27 @@ cùng một vật rồi so SỐ** — **tám lần trong ngày**, và **tám l�
 ⟹ **Một quy ước "hai người cùng đo" mà thiếu vế "cấm hoà ở tầng kết luận" sẽ tự vô hiệu ngay lần
 đầu hai người lịch sự với nhau.**
 
+### 🔴 GIỚI HẠN CỦA LUẬT C — nơi KHÔNG có vật đo thì luật không áp được
+Luật C bắt được **cả sáu** cơ chế chỉ nhờ một điều kiện chưa ai nêu ra: **mỗi ca đều có một VẬT ĐO
+ĐƯỢC mà hai người truy cập ĐỘC LẬP được** — một băm, một số đếm, một dòng log, một `docker diff`.
+**Chỗ lệch hiện ra thành SỐ, và số thì không thương lượng.**
+
+⟹ **Ở nơi không có vật đo, Luật C không áp được.** Ca điển hình: đọc *Product Terms of Service* của
+Alibaba rồi kết luận *"hợp đồng có cam kết"* — **không băm, không số đếm, không phép đo nào để
+lệch** ⟹ cái sai đó **không bao giờ bị bắt bởi cơ chế đã cứu ta sáu lần**.
+
+**Lớp này nguy nhất vì HAI lý do cộng lại: nó không tự lộ, VÀ nó nghe có thẩm quyền.** Cùng hình
+dạng lỗi security mắc buổi sáng với MISINFO-002 (biến một **giọng văn nhấn mạnh** thành một **ràng
+buộc chịu lực** chỉ vì nó viết hoa).
+
+> **Quy tắc thay thế: ở nơi không có vật đo, thay "hai người đo rồi so số" bằng "KHAI ĐÚNG HẠNG
+> BẰNG CHỨNG rồi DỪNG".** *"Cam kết ở mức trang tài liệu, chưa kiểm mức hợp đồng"* là phát biểu
+> **dùng được**; *"hợp đồng cam kết"* là phát biểu **không ai bác được, nên không ai kiểm được**.
+
+**Và đây là lý do phải ghi giới hạn KÈM luật:** một luật không có giới hạn ghi kèm **sẽ được áp ra
+ngoài vùng nó hoạt động**, và ở đó nó **tạo ra sự tự tin mà không tạo ra kiểm chứng** — *đó là cách
+một quy trình tốt sinh ra một sai lầm mà chính nó che.*
+
 ## 🔴🔴 SỰ CỐ 17/08 — KHOÁ OpenAI PRODUCTION ĐÃ TRUYỀN TỚI MÁY CHỦ ALIBABA (chờ security phán quyết xoay khoá)
 - **Cơ chế:** `config.py` (`54164fa`, PO-agent duyệt) có fallback **vô điều kiện**
   `LLM_API_KEY or OPENAI_API_KEY`. Trỏ `LLM_BASE_URL` sang `dashscope-intl` mà để `LLM_API_KEY`
