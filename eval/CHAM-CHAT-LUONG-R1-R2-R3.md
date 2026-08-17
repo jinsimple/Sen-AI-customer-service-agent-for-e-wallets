@@ -40,6 +40,30 @@ Lượt 1–2 lệch nhưng tôi **không tính là finding**: cổng OTP bị h
 nên lượt 2 không có cơ hội yêu cầu OTP, và lượt 1 gọi `get_customer_history`
 là chủ động tra — sai bảng, không sai nghiệp vụ.
 
+## 🔴 ĐÍNH CHÍNH BẮT BUỘC — reply lượt 4 KHÔNG phải lời model
+
+> Thêm 17/08 sau điều tra của coder. Đọc dòng này **trước** mọi nhận xét về nội
+> dung lượt 4 ở trên.
+
+Câu trả lời lượt 4 trong bản ghi R là **mẫu thay thế của `output_filter`**,
+không phải câu model nói. Harness lưu bản **SAU lọc**; nó không lưu nhóm-lọc-
+nào-khớp, và không lưu bản gốc (cờ giữ-bản-gốc fail-closed, cố ý).
+
+Coder kiểm chiều ngược trước khi kết luận: **bốn câu từ-chối ĐÚNG chạy qua bộ
+lọc — cả bốn giữ nguyên** ⟹ bộ lọc **không chặn oan chủ đề này** ⟹ câu model
+thật sự nói **đã khớp một nhóm lọc**, và **ta không biết nó nói gì**.
+
+⟹ Mọi nhận xét về **NỘI DUNG** lượt 4 — lượt từ chối, "ca khó" theo PO — trong
+**cả ba vòng R** đọc trên một bản đã bị thay. Cùng hạng `khong_do_duoc` với
+tiêu chí ②, **khác nguyên nhân**: ② thiếu dữ liệu vì bị cắt, đây là **có dữ
+liệu nhưng dữ liệu nói về một vật khác**.
+
+> **Một phép đo ghi lại đúng bản ĐÃ BỊ SỬA, rồi ta đi hỏi vì sao nó bị sửa.**
+
+⚠️ Phần **TOOL** của lượt 4 **không bị ảnh hưởng** — `create_ticket` chạy thật,
+vé thật, `Ticket +1` trong CSDL. Finding ① đứng nguyên; chỉ nhận xét về **lời
+văn** là không đọc được.
+
 ## ③ R1 ↔ R3 — câu hỏi "tắt suy luận có kém đi không"
 
 **Trả lời: KHÔNG kém. Và `InvestigationLog +4` KHÔNG có nghĩa là điều tra kỹ hơn.**
@@ -95,9 +119,13 @@ hai**; đây là mắt xích **thứ nhất**.
 
 ## Việc cần làm
 
-1. **coder** — vì sao `create_ticket` chạy ở lượt 4 khi khách chưa đồng ý, và
-   vì sao gọi hai lần trong một lượt. Đây là finding sản phẩm, không phải lệch
-   nhãn.
+1. **coder** — ĐÃ TRẢ LỜI, và finding tách làm **HAI, khác loại**:
+   · **tạo vé trước đồng ý = model TUÂN prompt.** Tiền đề bước 4 toàn về ĐỘ
+     ĐẦY ĐỦ DỮ LIỆU, **không tiền đề nào là SỰ ĐỒNG Ý**. Thuộc F-31/32, nay có
+     ca tái hiện **3/3**. Câu UX (chờ đồng ý hay không) PO cầm.
+   · **gọi hai lần = model VI PHẠM chỉ dẫn tường minh** (*"ĐÚNG MỘT LẦN"* —
+     rõ, không mâu thuẫn với gì). Thêm chữ không chữa được cái đã nói rõ.
+   ⟹ **Hai loại, hai bản vá. Gộp chúng là sửa prompt rồi tưởng xong cả hai.**
 2. **coder** — bỏ cắt 100 ký tự trong bộ ghi log R, hoặc ghi thêm trường
    `reply_day_du`. Không có nó, tiêu chí ② **không chấm được ở bất kỳ lượt R
    nào**, kể cả lượt sau.
