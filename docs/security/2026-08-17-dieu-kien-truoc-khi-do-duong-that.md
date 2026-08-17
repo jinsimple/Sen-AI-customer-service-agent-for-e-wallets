@@ -481,3 +481,68 @@ lập** (`GIA_LAP`) **có** trả kết quả về model.
 PII**), nhưng **lý do phải sửa**: thứ rời hạ tầng gồm **cả kết quả tool giả
 lập**, không chỉ câu hỏi. Ghi đúng vì hồ sơ Điều 25 cần **liệt kê trường dữ liệu
 thực sự đi**, không phải một câu tóm tắt nghe hợp lý.
+
+## §17. Rút một mẩu bằng chứng của chính tôi, và khoanh BÁN KÍNH VỤ NỔ
+
+### ① Rút — mẩu "bằng chứng yếu" ở §11 không còn giá trị
+
+Tôi viết: *"`fin05-redis-1` bị xoá trắng phiên hợp với hành vi trên ngăn xếp
+**dev** hơn"*. **Rút.** Việc xoá trắng **không phải hành vi của người vận hành**
+— nó là **tác dụng phụ của `pytest`**. Nó **không nói gì** về việc máy nào phục
+vụ Internet. Câu hỏi ngăn xếp vẫn **hoàn toàn** chờ PO thật.
+
+*(Đây là mẩu bằng chứng tôi đã tự dán nhãn "yếu và gián tiếp" khi đưa ra. Nhãn
+đó đúng, và nó là lý do rút nó tốn đúng một dòng thay vì tốn một vòng tranh
+luận. Ghi lại như một lý lẽ ủng hộ việc dán nhãn mức chắc chắn ngay lúc phát
+biểu.)*
+
+### ② Ratify chẩn đoán của PO-agent về VÌ SAO nó ẩn được 437 lần
+
+> **Bán kính của fixture không trùng với vật đang đo.** Fixture xoá Redis mà
+> tiến trình `pytest` trỏ tới; test lại nói chuyện HTTP với ngăn xếp **khác**.
+> ⟹ **Người gây ra không thấy hậu quả. Người chịu hậu quả không thấy nguyên
+> nhân.**
+
+Đó cũng là lý do phép suy luận *"vé biến mất ⟹ có người xoá tay"* nghe rất chặt
+mà vẫn sai: tôi đi tìm **một tác nhân có chủ đích**, trong khi thủ phạm là **một
+tác dụng phụ không quan sát được từ phía người gây ra**.
+
+### ③ 🔴 Bán kính vụ nổ — hướng nguy hiểm là **XANH GIẢ**, không phải đỏ
+
+Một lượt `flushdb` xen giữa một phép đo đang chạy có **hai** hậu quả, và chúng
+**không đối xứng**:
+
+| Bị xoá | Hậu quả | Nhìn ra sao |
+|---|---|---|
+| phiên · vé refresh | phép đo **gãy** | **ĐỎ** — thấy ngay, đi tìm |
+| **bộ đếm rate-limit · cửa sổ trượt · bộ đếm cost/OTP** | ngưỡng **được đặt lại về 0** | 🔴 **XANH GIẢ — không triệu chứng** |
+
+⟹ Chiều nguy hiểm chạm đúng **các chốt an toàn ta quan tâm nhất**: giới hạn tần
+suất · chặn chi phí · độ tươi OTP. Một test *"gửi quá hạn mức phải bị chặn"* mà
+bộ đếm bị cuốn giữa chừng sẽ **PASS vì lý do sai**.
+
+**Khoanh phạm vi cho đúng, đừng thổi:**
+- Quy ước dự án là `REDIS_URL=fake://ci` cho test/CI ⟹ **lượt chạy bình thường
+  không chạm Redis thật**.
+- Rủi ro chỉ hiện khi **có ai chạy `pytest` TRONG container** **đồng thời** với
+  một phép đo khác dùng **cùng** Redis. Cần **đồng thời**, nên nó hiếm.
+- **[ĐO] AUTH5-03 an toàn** (PO-agent kiểm): đo qua ngăn xếp `ttl` (8443), và
+  `fin05ttl-redis-1` có `cmdstat_flushdb` = **chưa có lệnh nào**, 22 khoá nguyên.
+
+**Việc còn lại:** với **mọi phép đo phụ thuộc trạng thái Redis tích luỹ** từng
+chạy qua `fin05-*` (rate-limit · 429/F-33 · cost guard · độ tươi OTP), hoặc
+**chạy lại sau khi cổng đã land**, hoặc **ghi rõ là chưa xác minh**. Ta **không
+định vị được 437 lần đó trong thời gian** — `INFO commandstats` chỉ có tổng,
+không có mốc — nên **không thể loại trừ từng lượt bằng lập luận**, chỉ bằng chạy
+lại.
+
+### ④ Điều khó chịu phải nói ra: lời khuyên của chính tôi là thứ NẠP ĐẠN cho lỗi này
+
+Suốt hôm nay tôi lặp lại — đúng — rằng **phải kiểm trong container, đừng tin một
+phép đo chạy trên runtime mượn**. Và **`docker exec … pytest` chính là cách người
+ta làm đúng lời khuyên đó** — cũng chính là cách duy nhất kích hoạt lỗi này.
+
+⟹ Không rút lời khuyên; **thêm vế còn thiếu**: *chạy trong container để **ĐỌC**
+trạng thái thật là đúng; chạy **BỘ TEST** trong container thì bộ test mang theo
+đồ nghề dọn dẹp của nó.* **Quan sát và thực thi là hai việc — công cụ của việc
+sau không được dùng cho việc trước.**
