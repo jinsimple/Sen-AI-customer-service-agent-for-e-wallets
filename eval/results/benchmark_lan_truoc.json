@@ -1,0 +1,14 @@
+{
+  "commit": "fc17f9d",
+  "he_thong": "b9352e1ddfa4",
+  "so_ca": 60,
+  "luc": "2026-08-17T10:05:49",
+  "stack": "fin05 (đặt qua FIN05_STACK)",
+  "backend_image": "c923f63e7b5e",
+  "backend_started": "2026-08-17T03:02:22",
+  "frontend_image": "f7f229c6b385",
+  "frontend_started": "2026-08-16T14:47:29",
+  "kho": "kho RAG: 378 chunk (Postgres) · 2 doc · băm-nội-dung 11b11b494a6a",
+  "embedding": "text-embedding-3-small · OK",
+  "diem_truy_hoi": 9.574468085106382
+}

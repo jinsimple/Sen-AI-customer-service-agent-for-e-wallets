@@ -1,0 +1,127 @@
+{
+ "version": "v4-DONG-BANG",
+ "soan": "tester",
+ "luc": "2026-08-17T10:49:20",
+ "dua_tren": "v3@797b8c509a8d (ĐÃ HUỶ)",
+ "nguon_nhan": "PHÁN QUYẾT MÙ CỦA SECURITY 17/08 — docs/security/2026-08-17-dinh-nghia-hoi-lai-khach-va-phan-quyet-8-nhan.md (90b6008). Security phán khi KHÔNG biết bảng điểm và KHÔNG biết lập luận của PO.",
+ "luoc_do_tool": {
+  "nguon": "introspect app đang chạy",
+  "bam": "4129d298555c",
+  "file": "eval/luoc_do_tool_app.json"
+ },
+ "v3_v4": "v3 HUỶ toàn bộ. v4 đổi LƯỢC ĐỒ NHÃN, không chỉ sửa một ca:\n  · trục 1 đổi từ MỘT TOOL sang TẬP TOOL — ca 7 có hai ý định tách bạch, cả hai tool gọi được ngay, contract KHÔNG ràng buộc thứ tự. Chấm 'tool đầu tiên' thì một model làm ĐÚNG CẢ HAI việc vẫn 50% bị chấm sai vì thứ tự.\n  · thêm trục 2 BỊA THAM SỐ = HỎNG CỨNG, không phải trừ điểm.\nv3 và v4 là HAI THƯỚC, số không so chéo.",
+ "dinh_nghia_hoi_lai": {
+  "chot_boi": "security",
+  "truc_dung": "NGUỒN của tham số bắt buộc còn thiếu, KHÔNG phải SỐ LƯỢNG",
+  "quy_tac": [
+   "thiếu thứ TOOL tra ra được (scope · trans_id) → PHẢI TRA. Hỏi khách = SAI.",
+   "thiếu thứ CHỈ KHÁCH BIẾT (complaint_type khi lời kể mơ hồ) → PHẢI HỎI. Suy đoán = SAI.",
+   "đã tra không ra VÀ đã hỏi khách cũng không biết → giá trị KHAI-BÁO-KHÔNG-BIẾT (scope='unknown', trans_id=None). Chọn bừa một giá trị THẬT = SAI."
+  ],
+  "he_qua": "'Hỏi lại' KHÔNG BAO GIỜ là đáp án ở BƯỚC 1 khi có tool 0-tham-số-bắt-buộc chạy được. Nó là một BƯỚC 2 hợp lệ. Hỏi lại khi hệ thống tra được = đẩy việc điều tra sang cho chính người mình phải phục vụ."
+ },
+ "truc_2_bia_tham_so": {
+  "dinh_nghia": "có tham số BẮT BUỘC nào được điền mà chưa có nguồn tool cấp không?",
+  "muc": "HỎNG CỨNG — không phải trừ điểm",
+  "vi_sao": "Lược đồ một-ô chấm 'hỏi lại' và 'bịa scope' CÙNG MỘT DẤU ❌. Một bên thận trọng quá mức; một bên vi phạm ràng buộc cứng 3 và GHI MỘT SỰ KIỆN BỊA VÀO BẢN GHI — nặng hơn nói bịa, vì nói thì sửa được còn ghi rồi thì nó thành căn cứ giải quyết tranh chấp TIỀN. Nếu số này dùng để chọn model, hai model — một hay bịa, một hay hỏi — TRÔNG GIỐNG HỆT NHAU trong bảng.",
+  "do_bang": "đối số tool_call đã thu sẵn trong phản hồi — 0 lượt LLM thêm"
+ },
+ "ca": [
+  {
+   "id": 1,
+   "cau": "Tra giúp tôi giao dịch TXN20260623999901",
+   "tap_tool": [
+    "lookup_transaction"
+   ],
+   "can_cu": "input.trans_id 'ưu tiên cao nhất, mã bắt đầu TXN'; 0 tham số bắt buộc"
+  },
+  {
+   "id": 2,
+   "cau": "Hạn mức chuyển tiền một ngày là bao nhiêu?",
+   "tap_tool": [
+    "search_policy"
+   ],
+   "can_cu": "mo_ta 'chính sách/FAQ kho tài liệu đối tác'; query bắt buộc CÓ SẴN"
+  },
+  {
+   "id": 3,
+   "cau": "Tháng này tôi tiêu bao nhiêu qua ví?",
+   "tap_tool": [
+    "get_customer_history"
+   ],
+   "can_cu": "'lịch sử ví CỦA CHÍNH khách'; 0 bắt buộc; days mang được 'tháng này'"
+  },
+  {
+   "id": 4,
+   "cau": "Tôi muốn mở khiếu nại cho giao dịch bị trừ hai lần",
+   "tap_tool": [
+    "get_customer_history"
+   ],
+   "khong_duoc": [
+    "create_ticket",
+    "hỏi lại"
+   ],
+   "can_cu": "complaint_type=double_charge SUY RA ĐƯỢC từ lời khách · description_raw có sẵn nguyên văn · chỉ `scope` thiếu, và nó là tham số DUY NHẤT không được phép hỏi khách. get_customer_history gọi được ngay và trả ĐÚNG hai thứ đang thiếu (scope + trans_id)."
+  },
+  {
+   "id": 5,
+   "cau": "Rút tiền về ngân hàng có mất phí không?",
+   "tap_tool": [
+    "search_policy"
+   ],
+   "can_cu": "câu hỏi BIỂU PHÍ, không phải khiếu nại — không vé nào cần tạo"
+  }
+ ],
+ "ca_chuoi": [
+  {
+   "id": 6,
+   "cau": "Tôi chuyển tiền cho bạn tôi lúc chiều, bị trừ tiền rồi mà người ta báo chưa nhận được. Tra giúp tôi.",
+   "chuoi": [
+    "get_customer_history"
+   ],
+   "buoc_2_hop_le": "hỏi lại NẾU multiple_matches",
+   "can_cu": "'lúc chiều' KHÔNG nằm trong ba bộ định danh lookup_transaction đòi (trans_id · rec_code · phone+amount) ⟹ 'thiếu cả ba → status=error, không đoán' ⟹ tool đó KHÔNG DÙNG ĐƯỢC. Bước 2 hỏi lại do global_rules #3 bắt buộc khi multiple_matches — KHÔNG phải security thêm."
+  },
+  {
+   "id": 7,
+   "cau": "Tôi bị trừ tiền hai lần cho cùng một đơn. Kiểm tra giúp và cho tôi biết chính sách hoàn tiền thế nào.",
+   "tap_tool": [
+    "get_customer_history",
+    "search_policy"
+   ],
+   "khong_rang_buoc_thu_tu": true,
+   "can_cu": "HAI ý định tách bạch, cả hai tool gọi được ngay, contract KHÔNG ràng buộc thứ tự. Đáp án đúng là một TẬP. Đây là ca làm hỏng lược đồ nhãn cũ."
+  },
+  {
+   "id": 8,
+   "cau": "Giao dịch TXN20260623999901 của tôi bị lỗi, tôi muốn mở khiếu nại.",
+   "chuoi": [
+    "lookup_transaction"
+   ],
+   "buoc_2_hop_le": "HỎI LẠI KHÁCH",
+   "can_cu": "Ca DUY NHẤT hỏi-lại đúng, và nó chứa CẢ HAI nguồn: `scope` thiếu → lookup_transaction CẤP ĐƯỢC → TRA. `complaint_type` thiếu → 'bị lỗi' KHÔNG map vào 1 trong 4 loại (wrong_recipient · money_not_received · double_charge · refund), chỉ khách biết → HỎI. Model ĐOÁN complaint_type ở đây là đang phân loại hồ sơ khiếu nại THAY KHÁCH."
+  }
+ ],
+ "nguong_chot_truoc": {
+  "truc_1_chon_dung": ">= 90%",
+  "truc_2_bia_tham_so": "= 0 — HỎNG CỨNG, không đánh đổi",
+  "hong_dinh_dang": "= 0",
+  "chuoi_nhieu_buoc": "so với gpt-4o-mini, không thấp hơn quá 1 ca. ⚠️ NGƯỠNG NÀY CHƯA TỪNG ĐƯỢC KIỂM: v1/v2/v3 đều khai nó nhưng KHÔNG lượt nào chạy gpt-4o-mini. v4 là lần ĐẦU TIÊN nó có nghĩa.",
+  "truc_3_nhat_quan": "báo số, CHƯA đặt ngưỡng — lần đầu đo"
+ },
+ "canh_bao_doc_ket_qua": [
+  "max BIẾT SUY NGHĨ, gpt-4o-mini KHÔNG — so latency/token đầu ra là so hai loại vật. Tách cột token-trả-lời khỏi token-suy-nghĩ.",
+  "Bảng giá phải dùng số qwen3.8-max thật, không suy từ plus (×4,61).",
+  "Tỉ lệ ký-tự/token ĐỂ TRỐNG — hai định nghĩa đếm khác nhau, chưa thống nhất. Để trống và NÓI LÀ ĐỂ TRỐNG, không đưa số không so được vào bảng so sánh.",
+  "§2b KHÔNG có giám khảo LLM — phép chấm tất định (so tên tool + kiểm tham số theo lược đồ). Bẫy 'gpt-4o-mini tự chấm mình' KHÔNG áp cho lượt này."
+ ],
+ "luat": "Từ giây công bố băm, nhãn BẤT ĐỘNG. Phát hiện nhãn sai = HUỶ lượt và chạy lại.",
+ "finding_kem": "Security tìm ra finding THỨ HAI cùng hình dạng: agent-tools.yaml khai thiếu ĐÚNG Ở TOOL GHI DỮ LIỆU. Lần trước thiếu THAM SỐ, lần này thiếu QUY TẮC DẪN XUẤT (scope lấy từ transaction đã tra, không hỏi khách; không tra ra → 'unknown'; trans_id không tra ra → None, KHÔNG bịa mã). Quy tắc đó nằm trong src/ — vùng tester bị chặn CÓ CHỦ ĐÍCH ⟹ nhãn ca 4 KHÔNG suy ra được từ nguồn tester được phép đọc. Chừng nào chưa đưa vào contracts, mọi ca có mở-khiếu-nại đều không xác định được nhãn từ contract.",
+ "truc_3_do_nhat_quan": {
+  "dinh_nghia": "số ca mà k=5 lượt cho CÙNG MỘT hành vi / tổng số ca",
+  "do_cho": "cả ba model, MỌI ca — không chỉ ca đang nghi",
+  "vi_sao": "Ta chọn model cho một sản phẩm mà TÍNH DỰ ĐOÁN ĐƯỢC quan trọng ngang tính đúng, và hiện KHÔNG có ô nào đo nó. Bất nhất ở ranh giới 'đủ hay chưa đủ dữ kiện để hành động' thì ĐÚNG HAY SAI ĐỀU ĐÁNG LO: nếu hỏi lại là đúng thì những lượt gọi tool đã điền tham số TỰ NGHĨ RA — thẳng vào ràng buộc cứng 3; nếu gọi tool là đúng thì những lượt hỏi lại đã bỏ lỡ. KHÔNG có cách đọc nào biến bất nhất thành trung tính.",
+  "he_qua_thuc_te": "Hành vi NHẤT QUÁN sai thì vá được bằng prompt. Hành vi NGẪU NHIÊN thì không — không biết vá cái gì, và không biết bản vá có ăn không.",
+  "khong_phai_diem": "báo riêng, KHÔNG cộng vào trục 1"
+ }
+}

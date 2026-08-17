@@ -1,0 +1,125 @@
+# Rà cơ học nhãn — heldout_set.jsonl
+
+> Sinh bởi `eval/ra_nhan_co_hoc.py`. **Chỉ lỗi CƠ HỌC**, không đọc nội dung.
+> Người rà không sửa: báo dạng [ca → lỗi → cách sửa] để vai khác quyết.
+
+- `CASE-003` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-006` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-009` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-012` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-015` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-018` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-021` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-024` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-027` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-030` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-033` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-036` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-039` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-042` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-045` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-048` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-051` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-054` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-057` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-060` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-063` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-066` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-069` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-072` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-075` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-078` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-081` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-084` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-087` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-090` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-093` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-096` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-099` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-102` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-105` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-108` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-111` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-114` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-117` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-120` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-123` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-126` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-129` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-132` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-135` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-138` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-141` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-144` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-147` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-150` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-153` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-156` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-159` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-162` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-165` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-168` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-171` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-174` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-177` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 
+- `CASE-179` — KHÔNG CÓ TRƯỜNG NHÃN NÀO
+  - nhãn: 

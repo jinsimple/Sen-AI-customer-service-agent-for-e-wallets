@@ -1,0 +1,5 @@
+  Tra giúp tôi giao dịch TXN20260623999901       {'đúng': 5}
+  Hạn mức chuyển tiền một ngày là bao nhiêu?     {'đúng': 5}
+  Tháng này tôi tiêu bao nhiêu qua ví?           {'đúng': 4, 'KHÔNG GỌI': 1}
+  Tôi muốn mở khiếu nại cho giao dịch bị trừ h   {'KHÔNG GỌI': 4, 'đúng': 1}
+  Rút tiền về ngân hàng có mất phí không?        {'đúng': 5}
