@@ -1458,9 +1458,20 @@ nguon_duoc_duyet:
 
   1. **`scope="unknown"`** thay `"internal_wallet"` ở cả hai nơi gọi (`unknown` đã hợp lệ trong
      `VALID_SCOPES` + CHECK constraint).
-  2. **Ghi `investigation_logs` cho nhánh fallback** — hoặc **một dòng nói rõ không có bước điều tra
-     nào**. *Bảng rỗng và bảng nói "không có gì" giống nhau với máy, khác hẳn với người đọc hồ sơ
-     sáu tháng sau.*
+  2. **Nhánh fallback ghi một DẤU KHẲNG ĐỊNH "chưa điều tra", không ghi một mắt xích truy vết giả.**
+     PO-agent chọn giữa ba hướng coder nêu:
+     - ① *ghi một `investigation_log` "hệ thống bó tay" trỏ về chính `create_ticket`* — **BÁC**: chuỗi
+       liền **về hình thức** mà không thêm một thông tin thật nào. Đúng lớp *"xanh vì đo trúng thứ
+       khác"* đã cắn đội nhiều lần trong ngày; tệ hơn không vá, vì nó **tạo ra vẻ đã truy vết được**.
+     - ③ *coi là lỗ hổng ràng buộc cứng 3 phải bịt trước demo* — **BÁC**: ràng buộc 3 cấm **phát biểu
+       một con số không truy được**. Vé fallback **không phát biểu con số nào** — nó là một **sự
+       vắng mặt**, không phải một điều bịa. Gọi nó là vi phạm sẽ làm loãng chính ràng buộc đó.
+     - ② **CHỌN**, với một siết: dấu phải là **khẳng định**, không phải **vắng mặt**. *Bảng rỗng và
+       bảng nói "không có gì" giống nhau với máy, khác hẳn với người đọc hồ sơ sáu tháng sau.*
+       ⟹ vé fallback mang một trạng thái **đọc được bằng máy và bằng mắt**: *"vé này sinh ra không
+       qua bước điều tra nào"*, hiện ngay trên màn CSKH.
+     **Rủi ro thật cần chặn không phải chuỗi đứt — mà là một người đọc hồ sơ sáu tháng sau và
+     GIẢ ĐỊNH đã có điều tra.** Dấu khẳng định chặn đúng rủi ro đó; mắt xích giả thì nuôi nó.
   3. **Đánh dấu `description_raw` do hệ thống soạn** — bảng bằng chứng phải phân biệt **lời khách**
      với **ghi chú của máy**.
   4. **`contracts/authority-matrix.yaml` khai đủ 4 giá trị `scope`, thống nhất tên khoá với
@@ -1489,6 +1500,19 @@ nguon_duoc_duyet:
 
 - **Hệ quả:**
 
+  - **Mục 1 (`scope="unknown"`) ĐÃ LAND (`27ccfbf`) mà KHÔNG cần ADR — và đó là đúng:** `unknown`
+    **đã hợp lệ trong CHECK constraint từ 11/08**, nên đổi code sang dùng một giá trị **contract đã
+    công nhận** không phải đổi contract. Đo thật trên `fin05do`: `type=other · scope=unknown ·
+    TCK-f4f500ce42b3` · 23/23 invariants · contract 3/3 khớp. Phần **còn cần ADR này duyệt** là mục
+    2 (dấu "chưa điều tra") và mục 4 (khai đủ 4 `scope` trong `authority-matrix`).
+  - 🔴 **Và đây là phần đáng báo cáo hơn cả bản vá:** `unknown` được thêm vào CHECK constraint ngày
+    **11/08**, kèm comment mô tả **đúng lớp lỗi này** (*"trước đây agent bị ép đoán bừa 1 trong 3 giá
+    trị thật... thay vì AI bịa"*). **Cơ chế chữa đã có sẵn SÁU NGÀY** — áp cho đường agent, **bỏ sót
+    đường code**. Không phải thiếu hiểu biết: là **một bản vá đúng không được đi tìm chỗ thứ hai
+    cùng lớp**.
+    ⟹ **Luật (coder đề, PO-agent duyệt): vá một ca của một lớp lỗi ⟹ LIỆT KÊ NGƯỜI GỌI và quét cả
+    lớp, không dừng ở chỗ phát hiện.** Đây là phiên bản có răng của *"vá một họ thì phải đi tìm họ"*:
+    nêu rõ **cách** đi tìm — đi theo call-site, không đi theo trí nhớ.
   - `check_contracts.py --update` + bump `CONTRACT_VERSION` + **commit kèm file baseline**.
   - **Chưa đếm được bao nhiêu vé kiểu này đã tồn tại** (`scope='internal_wallet'` ∧
     `complaint_type='other'` ∧ `trans_id IS NULL`). Security **cố ý không chạy** — đếm là chạm DB, và
