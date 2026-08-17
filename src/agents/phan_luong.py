@@ -52,8 +52,13 @@ là đơn; mọi thứ khác — lỗi, câu rỗng, token lạ — đi đầy �
 """
 from __future__ import annotations
 
+import hashlib
+import logging
 import re
 import unicodedata
+from pathlib import Path
+
+_logger = logging.getLogger("fin05.phan_luong")
 
 DUONG_NHE = "nhe"
 DUONG_DAY_DU = "day_du"
@@ -83,15 +88,53 @@ TRA_LOI_NHE = (
     "nếu có vấn đề với giao dịch nào, bạn kể giúp mình chi tiết ạ."
 )
 
-BAM_LUAT = "0885bab00a04"  # md5-toan-file-12 của bản nháp đã chấm 124/124 bộ âm
+# Băm của CHÍNH FILE NÀY, tính lúc import. KHÔNG gõ tay.
+#
+# Bản đầu tôi gõ cứng `"0885bab00a04"` — băm của một file NHÁP ở nơi khác. Đúng
+# lúc viết, sai ngay khi một trong hai file đổi. Và tester vừa trả giá cho đúng
+# chuyện đó: họ chấm 15/20 trên `1edd51dff555` rồi chạy cổng trên
+# `0885bab00a04` mà không có gì báo — "luật đổi dưới chân tôi giữa hai lần đo".
+#
+# Một băm tự khai thì không thể lệch với thứ nó định danh.
+CACH_BAM_LUAT = "md5-toan-file-12"
+BAM_LUAT = hashlib.md5(Path(__file__).read_bytes()).hexdigest()[:12]
 
 
 def _chuan_hoa(s: str) -> str:
     return _DAU_CAU.sub(" ", unicodedata.normalize("NFC", s).lower().strip())
 
 
-def phan_luong(cau: str) -> tuple[str, str]:
-    """Trả `(duong, ly_do)`. Mọi nhánh không khẳng định được -> `day_du`."""
+def phan_luong(cau: object) -> tuple[str, str]:
+    """Trả `(duong, ly_do)`. **KHÔNG BAO GIỜ ném.** Mọi bất thường -> `day_du`.
+
+    Nhận `object` chứ không phải `str`: tester bắt được `phan_luong(12345)` ném
+    `AttributeError` (`int` không có `.strip()`). Nghe hiếm, nhưng ở tầng hàm
+    này cắm vào thì không hiếm — `{"message": 12345}` là JSON hợp lệ và tầng
+    dựng request chưa chắc ép kiểu.
+
+    Vì sao bắt TẤT CẢ ngoại lệ chứ không chỉ ép kiểu: hợp đồng của lớp này là
+    *"bất kỳ ngoại lệ nào ⟹ lượt đó đi ĐẦY ĐỦ, không chặn khách"*. Nếu hàm ném
+    thì hành vi phụ thuộc vào việc NGƯỜI GỌI có bắt hay không — mà đó đúng là
+    thứ hợp đồng này tồn tại để không phải phụ thuộc. Một cổng an toàn không
+    được để cách gọi nó quyết định nó có an toàn hay không.
+
+    FAIL-VISIBLE: hướng sai là chiều đắt-tiền-nhưng-vô-hại (tốn token, không ai
+    bị bỏ rơi), nên nuốt lỗi ở đây là đúng — nhưng nuốt IM LẶNG thì không.
+    """
+    try:
+        return _phan_luong(cau)
+    except Exception as e:  # noqa: BLE001 — xem docstring
+        _logger.error(
+            "phan_luong_nem_loi",
+            extra={"lop_loi": type(e).__name__, "kieu_dau_vao": type(cau).__name__,
+                   "hau_qua": "luot nay di duong DAY DU (huong an toan)"},
+        )
+        return DUONG_DAY_DU, f"lớp phân loại ném {type(e).__name__} — đi đường an toàn"
+
+
+def _phan_luong(cau: object) -> tuple[str, str]:
+    if not isinstance(cau, str):
+        return DUONG_DAY_DU, f"đầu vào không phải chuỗi ({type(cau).__name__})"
     if not cau or not cau.strip():
         return DUONG_DAY_DU, "câu rỗng — không khẳng định được gì"
 
