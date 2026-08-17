@@ -1671,6 +1671,39 @@ nguon_duoc_duyet:
     xong.* Không có ngoại lệ này, một kế hoạch dọn **nghiêm túc** sẽ xoá đúng thứ đáng giữ nhất — và
     xoá **có kỷ luật**, nên không ai thấy gì sai.
 
+## ADR-030 — Tầng "trình bày cho model" là MỘT PHẦN CỦA PROMPT, phải được đóng dấu như prompt
+
+- **Ngày:** 17/08/2026 · **Trạng thái:** ĐỀ XUẤT — chờ PO thật duyệt
+- **Bối cảnh:**
+
+  Chuyên gia token của PO đề xuất tách tầng *"trình bày cho model"* khỏi tầng *"lưu sổ"* cho kết quả
+  tool (mục 3.1 báo cáo 17/08). Coder đo trước khi ai làm gì (Luật F) và phát hiện **hai điều**:
+
+  **① Đề xuất ĐÃ ĐƯỢC CÀI cho tool lớn nhất** — `get_customer_history` (payload trung vị **11.369
+  ký tự = 75% cả system prompt**) đã tách hai tầng từ bản land 17/08: sổ nhận nguyên vẹn, context
+  nhận bản rút gọn (~2.500 ký tự) kèm `tool_result_id` + `complaints_tong` bắt buộc (chú thích tại
+  chỗ: *"cắt im lặng khiến LLM tưởng khách có 10 khiếu nại rồi NÓI RA con số đó"*). Đo trên lượt R
+  thật: context tăng +839 token, không phải ~3.789 ⟹ bản rút gọn đang chạy.
+
+  **② Nhưng bản rút gọn là MỘT VẬT ĐI VÀO PROMPT — và KHÔNG băm nào phủ nó.** `bam_mau_prompt` chỉ
+  băm template hệ thống. Đổi `limit_complaints` 10→5 sẽ **đổi thứ model nhận trong khi mọi băm y
+  nguyên** — lớp `khai ≠ chạy` thứ SÁU của ngày, lần này **đang tồn tại thật**, có số: **bản lưu
+  11.369 vs context ~2.500 — chênh 4,5×, không băm nào bắc qua khoảng chênh đó.**
+
+- **Quyết định:**
+  1. **Mọi tầng trình bày cho model (hàm rút gọn + tham số của nó, vd `limit_complaints`) được đóng
+     dấu vào nhãn VẬT** — cùng hạng với `bam_mau_prompt` và mô tả tool. Nguyên tắc: **thứ gì model
+     ĐỌC thì thứ đó thuộc prompt, và prompt thì phải băm được.**
+  2. `search_policy` (4.613 bản ghi, trung vị 2.886, **không tách tầng**, là nguồn phình lịch sử
+     chính) — **KHÔNG cắt theo cách của `get_customer_history`**: với đoạn chính sách, cắt là bỏ
+     chữ model cần để trả lời. Việc giảm chi phí RAG-context thuộc **trục chất lượng truy hồi**
+     (N1 reranker: top-20→rerank→top-4 tốt hơn = ít chunk lãng phí hơn), đo bằng thước Recall,
+     không đo bằng thước token.
+- **Bác:** *cắt `search_policy` payload như một việc tối ưu token* — hai bài toán khác nhau đội một
+  cái tên; và *"mọi %-chi-phí-lịch-sử phải kèm 'ở lượt thứ mấy'"* — lịch sử cộng dồn theo lượt, phần
+  cố định là hằng số mỗi lời gọi, không có một con số đúng cho cả hai (giải mâu thuẫn "4% vs 36,2k":
+  **cả hai đúng, khác dân số**).
+
 ## Mẫu ADR mới
 
 ```markdown
