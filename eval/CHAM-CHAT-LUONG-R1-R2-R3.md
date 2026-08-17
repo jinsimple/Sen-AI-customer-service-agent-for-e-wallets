@@ -132,3 +132,39 @@ hai**; đây là mắt xích **thứ nhất**.
 3. **PO** — `2 lời gọi tool không sinh ToolResult` thuộc cùng hồ sơ ADR-029
    mục 2 (`investigation_logs`) đang chờ PO thật.
 4. **tôi** — chưa chấm ② . Không báo "đạt", không báo "trượt". `khong_do_duoc`.
+
+---
+
+## 🔴 BỔ SUNG 17/08 — GIẢ ĐỊNH "CHỐNG-TRÙNG TẦNG CODE GÁNH" LÀ **SAI**
+
+Đội đang dựa vào một giảm nhẹ: *"model gọi `create_ticket` hai lần, nhưng
+chống-trùng tầng code gánh — 2 gọi → 1 ghi, cả ba vòng R"*. Tôi đi dựng cổng
+canh cơ chế đó, và **cơ chế đó không tồn tại**.
+
+Phép thử, **0 lượt LLM**, gọi thẳng tool trên `fin05do`:
+
+    CÙNG guard, cùng tham số, gọi 2 lần   →  Δcomplaints = 2 · Δtickets = 2
+                                             TCK-59807a7a80e1 · TCK-e694e8dba004
+    KHÁC guard, cùng tham số, gọi 2 lần   →  Δcomplaints = 2 · Δtickets = 2
+                                             TCK-6e24656773b9 · TCK-6d34e9dc1c0e
+
+**Không có chống-trùng ở tầng tool.** Hai lời gọi ⟹ hai hồ sơ khiếu nại, kể cả
+khi dùng chung `TurnGuard` và tham số giống hệt từng chữ.
+
+⟹ Việc R1/R2 chỉ sinh **một** vé dù gọi hai lần **KHÔNG phải do chống-trùng**.
+Nguyên nhân thật **chưa biết** — lời gọi thứ hai có thể đã lỗi mà bản ghi chỉ
+lưu lời gọi chứ không lưu kết quả. Đây là chỗ phải **điều tra**, không phải chỗ
+để yên tâm.
+
+> **Một giảm nhẹ chưa ai đo là một giảm nhẹ chưa tồn tại.** Nó nguy hơn không
+> có giảm nhẹ nào, vì nó làm finding gốc bị hạ hạng.
+
+**Hệ quả cho finding "gọi hai lần":** nó **không** phải chuyện chỉ-tốn-một-dòng-
+log. Trên đường thật, một lượt model gọi hai lần sẽ đẩy **hai** hồ sơ khiếu nại
+vào hàng chờ CSKH cho **một** sự việc — và khách chỉ được báo **một** mã vé.
+
+**Dấu vết phép thử này để lại** (khai đủ, Luật 15 điều kiện ④): **4 vé** trên
+`fin05do`, `description_raw` mang tiền tố `[DO-LUONG cong-chong-trung]`:
+`TCK-59807a7a80e1` · `TCK-e694e8dba004` · `TCK-6e24656773b9` · `TCK-6d34e9dc1c0e`.
+Tôi **không xoá** — chúng là vật chứng của chính finding này. Dọn được bất cứ
+lúc nào bằng bốn mã trên, sau khi coder và PO đọc xong.
