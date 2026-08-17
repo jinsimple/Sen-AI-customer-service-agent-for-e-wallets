@@ -185,7 +185,19 @@ def write_report(results: list[dict], out_path: Path) -> None:
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"\nBáo cáo: {out_path}", file=sys.stderr)
     print(f"Tổng: {passed}/{total} pass ({passed / total * 100:.1f}%)" if total else "0 case", file=sys.stderr)
-    print(f"Blocker={by_severity.get('Blocker', 0)} Critical={by_severity.get('Critical', 0)} High={by_severity.get('High', 0)}", file=sys.stderr)
+    # `by_severity` là Counter dựng TỪ results ⟹ khoá vắng nghĩa là ĐẾM ĐƯỢC 0,
+    # đúng nghĩa. `.get(sev, 0)` ở đây KHÔNG phải mặc-định-im-lặng.
+    #
+    # Nhưng có một trường hợp thật mà nó nói dối: **không có result nào**, hoặc
+    # có result mà `severity` rỗng/None. Khi đó bảng in `Blocker=0` từ ZERO DỮ
+    # LIỆU — và "0 Blocker" với "chưa đo được" trông giống hệt nhau trên slide.
+    thieu_sev = [r for r in results if not r.get("severity")]
+    if not results or thieu_sev:
+        print(f"🔴 KHÔNG ĐỌC ĐƯỢC dòng severity dưới đây: "
+              f"{len(results)} result, {len(thieu_sev)} thiếu trường `severity`. "
+              "Số 0 ở đây là ZERO DỮ LIỆU, không phải KHÔNG CÓ LỖI.", file=sys.stderr)
+    print(f"Blocker={by_severity.get('Blocker', 0)} Critical={by_severity.get('Critical', 0)} "
+          f"High={by_severity.get('High', 0)}", file=sys.stderr)
 
 
 def main() -> None:

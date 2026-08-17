@@ -210,8 +210,14 @@ def dan_nhan(so_ca: int) -> dict:
         cc.post(f"{BASE}/api/session", json={"phone": "0353000201", "password": "Demo@123"})
         rr = cc.post(f"{BASE}/api/policy-search", json={"query": "hạn mức"})
         cc.close()
-        nhan["embedding"] = ("OK" if rr.status_code == 200 and (rr.json().get("results") or [])
-                             else f"NGHI CHẾT (policy-search HTTP {rr.status_code})")
+        song = rr.status_code == 200 and (rr.json().get("results") or [])
+        # DANH TÍNH model nhúng, không chỉ trạng thái sống/chết. Sắp có công tắc
+        # hai chiều OpenAI <-> Qwen cho đường nhúng ⟹ HAI KHO = HAI KHÔNG GIAN
+        # VECTOR = số KHÔNG so chéo được. Một nhãn chỉ ghi "embedding OK" sẽ để
+        # hai chuỗi số khác không gian nằm cạnh nhau trông như một chuỗi.
+        ten_nhung = _chay(["docker", "exec", "fin05-backend-1", "python", "-c",
+                           "from src.config import RAG_EMBEDDING_MODEL as m; print(m)"]) or "?"
+        nhan["embedding"] = (f"{ten_nhung} · {'OK' if song else f'NGHI CHẾT (HTTP {rr.status_code})'}")
     except Exception as e:  # noqa: BLE001
         nhan["embedding"] = f"KHÔNG KIỂM ĐƯỢC ({type(e).__name__})"
     return nhan
