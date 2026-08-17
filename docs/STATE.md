@@ -747,6 +747,17 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## 📁 HỒ SƠ CHUYÊN GIA ĐÃ LƯU + một ý mới cần CỔNG ĐIỀU KHOẢN
+- Hồ sơ vòng 2 (đã sửa theo 3 lỗ tester, nhãn bằng chứng từng mục): `docs/giao-viec/2026-08-17-ho-so-
+  brainstorm-toi-uu-vong2.md` · vòng 1: `…bao-cao-chuyen-gia-toi-uu-token-vong1.md`. Bảng trạng thái
+  12 nhánh trong Phần C là bản đồ hiện hành.
+- **Ý MỚI trong hồ sơ, chưa xử: eval agent-loop trên TÀI KHOẢN/WORKSPACE TÁCH RIÊNG** (dataset toàn
+  tổng hợp ⟹ rào residency không áp). 🔴 **CỔNG BẮT BUỘC TRƯỚC MỌI BƯỚC: đọc điều khoản Alibaba về
+  nhiều tài khoản** — *"cách ly tải" khác bản chất với "né trần/farm quota free", nhưng RANH GIỚI DO
+  NHÀ CUNG CẤP ĐỊNH NGHĨA, không phải do ta tự thấy thiện chí*. Đọc ToS mức hợp đồng = việc người có
+  thẩm quyền pháp lý (đúng giới hạn Luật C — không có vật đo). Chưa ai làm gì nhánh này cho tới khi
+  cổng đó qua. Phương án hạ cấp không cần cổng: lệch giờ demo + siết concurrency.
+
 ## ✅ PO THẬT CHỐT 17/08 KHUYA — 5 quyết định + vòng chuyên gia 3
 - **A1 BẬT phân luồng** trên ngăn xếp thật · **A2 chờ khách ĐỒNG Ý tường minh mới `create_ticket`**
   (vá prompt qua F-31/32, thử-rẻ-trước) · **A3 KHÔNG nạp hạn mức tới khi tối ưu chi tiêu đạt chuẩn PO**
