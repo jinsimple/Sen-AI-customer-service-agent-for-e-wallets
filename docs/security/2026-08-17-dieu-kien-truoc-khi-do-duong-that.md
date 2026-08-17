@@ -96,3 +96,84 @@ lại**.
 - **Không** phản đối lượt đo. Đường thật là **phép đo đúng** cho câu hỏi ②, và
   đề xuất biến **ước thành đo** bằng một lượt 2% là kỷ luật đúng — tôi chỉ đòi
   nó **không ghi bừa vào bảng bằng chứng** trên đường đi.
+
+---
+
+## §5. Tôi thử biến "bằng chứng vắng mặt" thành bằng chứng dương — **và THẤT BẠI. Ca đối chứng cứu.**
+
+PO-agent đo bốn lần, tất cả là **vắng mặt** (không container tunnel · không
+tiến trình `cloudflared` · không launchd/`~/.cloudflared` · IP tên miền là dải
+Cloudflare ≠ IP công cộng của máy). Họ tự khai đó là vắng mặt và vẫn hỏi PO
+thật. Tôi thử tìm một phép **dương tính**.
+
+### Phép thử — và ca đối chứng bác chính nó
+
+```
+① gửi một dấu duy nhất tới tên miền công khai
+   curl "https://app.adaptivealgo.uk/?probe-sec-…"          -> http 307
+   grep dấu đó trong log 4 container (caddy ×2, frontend ×2) -> 0 / 0 / 0 / 0
+   → nhìn như "KHẲNG ĐỊNH: không phải máy này"
+
+② CA ĐỐI CHỨNG — gửi dấu tương tự tới CHÍNH ngăn xếp cục bộ
+   curl -k "https://localhost/?ctrl-sec-…"                   -> http 307 (y hệt)
+   grep dấu đó trong log                                     -> 0 / 0
+```
+
+⟹ **Một yêu cầu tôi BIẾT CHẮC đã tới ngăn xếp cục bộ cũng không để lại dấu
+nào.** Các container **không ghi log truy cập**. ⟹ **Phép thử ① không có khả
+năng phát hiện điều nó định phát hiện; kết quả âm tính của nó KHÔNG mang thông
+tin.**
+
+Không có ca đối chứng, tôi đã báo *"xác nhận không phải máy này"* — một **khẳng
+định sai** trên đúng câu hỏi mà khẳng định sai đắt nhất. Đây là Luật 2 (*ca đối
+chứng bắt buộc*) tự chứng minh giá trị của nó trong vòng ba phút.
+
+### Các đường đọc-thuần khác đều đóng — [ĐO]
+
+- Caddy **chỉ lộ frontend** (`handle { reverse_proxy frontend:3000 }`, cộng
+  đúng một path WebSocket) ⟹ `/health` của backend — nơi có `env` ·
+  `build_commit` · `build_at` — **không với tới được từ ngoài**.
+- `/api/health` · `/api/ready` → **404** · `/bff/health` → **307 `/login`**.
+  Không có đường xuyên tới health của backend.
+- Băm module font trùng nhau ở cả ba nguồn — **nhưng không phân biệt được gì**:
+  chúng cũng trùng giữa **hai** build cục bộ khác commit, nên chúng không phải
+  dấu vân tay của build.
+
+⟹ **Tôi KHÔNG kết luận được bằng đo từ máy này.** Quyết định hỏi PO thật của
+PO-agent là **đúng**, và giờ nó có thêm một lý do: **các phép đo rẻ ở đây hoặc
+là vắng mặt, hoặc là mù.**
+
+## §6. Câu hỏi đóng nên gửi kèm — biến câu trả lời của PO thật thành phép đo
+
+Thay vì hỏi *"production nằm ở đâu"* (trả lời bằng trí nhớ), đưa họ **một lệnh**
+và xin **dán nguyên văn kết quả**:
+
+```
+curl -s http://<máy chạy production>:8010/health
+```
+
+`/health` **cố ý công khai, không xác thực, không chạm DB**, và **cố ý không
+chứa host/user/mật khẩu** (`main.py:1479-1481`) ⟹ dán ra ngoài an toàn.
+
+Đối chiếu với hai ngăn xếp trên máy này — [ĐO] vừa xong:
+
+```
+fin05-backend-1    env=development · build_commit=61631ad · build_at=2026-08-17T05:07:39Z
+fin05ttl-backend-1 env=development · build_commit=526dce7 · build_at=2026-08-17T04:01:18Z
+```
+
+**Khác `build_commit`/`build_at` ⟹ khác máy, dứt điểm.** Và lưu ý sẵn: **cả hai
+ngăn xếp ở đây đều `env=development`** — nếu bản phục vụ Internet cũng trả
+`development` thì đó là **một finding riêng**, độc lập với câu đang hỏi.
+
+## §7. Đề nghị nhỏ, trả nợ đúng tình huống này (vùng tech-lead, cần PO duyệt)
+
+Câu *"tôi đang nói chuyện với ngăn xếp nào"* hôm nay **chỉ trả lời được bằng
+cách hỏi người**. Chính docstring của `/health` nói nó sinh ra sau một sự cố y
+hệt (hai stack song song, hai trình duyệt giống nhau, khác database) — nhưng
+tác dụng đó **dừng ở trong mạng nội bộ** vì BFF không xuyên tới nó.
+
+**Đề nghị:** cho BFF xuyên **đúng `/health`** ra ngoài (chỉ GET, đã tự lược bỏ
+thông tin nhạy cảm theo thiết kế). Đây là **mở một bề mặt công khai**, nên phải
+là quyết định cố ý của PO — nhưng nó biến một câu hỏi-người thành một câu
+hỏi-máy, đúng loại nợ vừa làm cả đội đứng chờ.
