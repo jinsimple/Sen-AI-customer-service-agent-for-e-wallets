@@ -1,0 +1,84 @@
+{
+ "version": "v3-DONG-BANG",
+ "soan": "tester",
+ "luc": "2026-08-17T10:05:34",
+ "nguon_nhan": "contracts/agent-tools.yaml — KHÔNG suy từ trực giác nghiệp vụ",
+ "canh_bao_thu_tuc": "Ca 4 được SỬA SAU KHI THẤY dữ liệu thăm dò (create_ticket -> get_customer_history), và hướng sửa NÂNG điểm model đã được PO chốt: 20/25=80% -> 25/25=100%. Nội dung có căn cứ contracts (luật chung #1 + create_ticket không có trường input), nhưng THỦ TỤC là sửa hậu-kiểm. Đang chờ security phán quyết độc lập. Người đọc sau phải thấy điều này để tự cân — không được để nó biến mất vào một bộ nhãn 'vốn dĩ đã đúng'.",
+ "ca": [
+  {
+   "cau": "Tra giúp tôi giao dịch TXN20260623999901",
+   "tool_dung": "lookup_transaction",
+   "can_cu": "mô tả: 'Tra MỘT giao dịch cụ thể' · input có trans_id"
+  },
+  {
+   "cau": "Hạn mức chuyển tiền một ngày là bao nhiêu?",
+   "tool_dung": "search_policy",
+   "can_cu": "mô tả: 'Tra cứu chính sách/FAQ trong kho tài liệu đối tác'"
+  },
+  {
+   "cau": "Tháng này tôi tiêu bao nhiêu qua ví?",
+   "tool_dung": "get_customer_history",
+   "can_cu": "mô tả: 'Lịch sử ví/giao dịch CỦA CHÍNH khách đang chat' · input có days"
+  },
+  {
+   "cau": "Tôi muốn mở khiếu nại cho giao dịch bị trừ hai lần",
+   "tool_dung": "get_customer_history",
+   "can_cu": "PHÁN QUYẾT SECURITY 17/08 — thay hai căn cứ cũ của tôi: khách KHÔNG đưa mã giao dịch, mà lookup_transaction.ghi_chu đòi ÍT NHẤT một trong trans_id · rec_code · (phone kèm amount), thiếu cả ba thì status='error'. get_customer_history KHÔNG đòi định danh nào ⟹ nó là tool DUY NHẤT trong contract dùng được ở tình huống này.",
+   "da_sua": true,
+   "can_cu_cu_da_bo": "(a) global_rules #1 — security bác: luật đó cấm PHÁT BIỂU CON SỐ, tạo vé không phải phát biểu con số. Lân cận, không trúng. (b) 'create_ticket không có input' — TIỀN ĐỀ SAI: app có 5 tham số. Contract khai thiếu, và INV-09 chỉ so TÊN tool nên không test nào bảo vệ khối `input`. Đây là finding về contracts, security đã gửi tech-lead.",
+   "luu_y_thiet_ke": "Security nêu: đây là ca DUY NHẤT mà đáp án đúng là một TRÌNH TỰ (tra trước → tạo vé sau), bốn ca kia là MỘT LỰA CHỌN. Chấm 'model chọn tool nào' trên ca có đáp án 'tool nào TRƯỚC' là trộn hai phép đo. Nhãn nay ghi tường minh: đo TOOL ĐẦU TIÊN.",
+   "do_cai_gi": "tool ĐẦU TIÊN"
+  },
+  {
+   "cau": "Rút tiền về ngân hàng có mất phí không?",
+   "tool_dung": "search_policy",
+   "can_cu": "mô tả: 'Tra cứu chính sách/FAQ'"
+  }
+ ],
+ "nguong_chot_truoc": {
+  "goi_dung_tool": ">= 90%",
+  "hong_dinh_dang": "= 0 (lỗi cứng, không đánh đổi)",
+  "chuoi_nhieu_buoc": "không thấp hơn gpt-4o-mini quá 1 ca"
+ },
+ "luat": "Từ giây công bố băm này, nhãn BẤT ĐỘNG. Nghiệm thu trượt thì trượt. Phát hiện nhãn sai tiếp = lượt đo bị HUỶ và chạy lại, KHÔNG phải nhãn được sửa tại chỗ.",
+ "v1_v2": "v1 (băm c759b81c76ab) CHỈ có ca MỘT BƯỚC. v2 thêm 3 ca CHUỖI NHIỀU BƯỚC — PO chốt đây là ĐIỀU KIỆN của lượt nghiệm thu, không phải phần thêm nếu kịp. Việc thêm ca xảy ra TRƯỚC mọi phép đo nghiệm thu, và băm mới công bố trước khi chạy: đó là lý do nó KHÔNG vi phạm luật nhãn-bất-động. Luật đó cấm SỬA NHÃN SAU KHI THẤY SỐ, không cấm MỞ RỘNG BỘ TRƯỚC KHI ĐO. Hệ quả: v1 và v2 là HAI THƯỚC — số của chúng không so trực tiếp.",
+ "chi_so_tach_rieng": "PO yêu cầu: 'không gọi tool' phải TÁCH RIÊNG khỏi 'gọi sai tool', không tan vào tỉ lệ tổng. Hai bệnh khác nhau, và cái sau nguy hơn trong một sản phẩm CẤM BỊA SỐ: model không gọi tool mà vẫn trả lời thì nó lấy số ở đâu ra? Biên bản in 6 cột riêng, không in một tỉ lệ gộp.",
+ "ca_chuoi": [
+  {
+   "cau": "Tôi chuyển tiền cho bạn tôi lúc chiều, bị trừ tiền rồi mà người ta báo chưa nhận được. Tra giúp tôi.",
+   "chuoi_dung": [
+    "get_customer_history",
+    "lookup_transaction"
+   ],
+   "can_cu": "không có mã giao dịch => phải liệt kê lịch sử trước, rồi tra CỤ THỂ giao dịch tìm được. contracts: lookup_transaction = 'Tra MỘT giao dịch cụ thể'",
+   "gay_o_dau": "bước 2 phải dùng trans_id LẤY TỪ kết quả bước 1 — model yếu sẽ bịa mã hoặc dừng ở bước 1"
+  },
+  {
+   "cau": "Tôi bị trừ tiền hai lần cho cùng một đơn. Kiểm tra giúp và cho tôi biết chính sách hoàn tiền thế nào.",
+   "chuoi_dung": [
+    "get_customer_history",
+    "search_policy"
+   ],
+   "can_cu": "hai nhu cầu tách bạch trong một câu: dữ liệu CỦA KHÁCH + chính sách CHUNG",
+   "gay_o_dau": "model yếu chỉ làm một nửa rồi trả lời"
+  },
+  {
+   "cau": "Giao dịch TXN20260623999901 của tôi bị lỗi, tôi muốn mở khiếu nại.",
+   "chuoi_dung": [
+    "lookup_transaction",
+    "create_ticket"
+   ],
+   "can_cu": "có mã cụ thể => tra thẳng; rồi mở vé. luật chung #1: không phát biểu trạng thái giao dịch trước khi tra",
+   "gay_o_dau": "đây là ca DUY NHẤT create_ticket đúng ra phải xuất hiện — nếu model KHÔNG bao giờ gọi create_ticket kể cả ở đây thì nhãn ca 4 (một bước) được củng cố; nếu nó gọi được ở đây thì ca 4 cần soi lại"
+  }
+ ],
+ "dua_tren": "v2@b4b85433a8a0",
+ "v2_v3": "🔴 v1 và v2 ĐO SAI KÍCH THÍCH. Lược đồ tool dựng từ contracts/agent-tools.yaml, trong khi sản phẩm đưa model lược đồ KHÁC HẲN — đo được: mô tả contract ngắn hơn app 11x–41x (lookup 62 vs 680 · create_ticket 31 vs 1266), và create_ticket khai 0 tham số trong contract nhưng có 5 trong app, ba trong đó BẮT BUỘC (complaint_type · scope · description_raw). Hệ quả: kết quả v1/v2 KHÔNG nói gì về sản phẩm, và cuộc tranh cãi 'ba model cùng từ chối create_ticket' là TRIỆU CHỨNG chứ không phải bệnh — ba model phản ứng ĐÚNG với một tool trống rỗng do tôi đưa. v3 lấy lược đồ TỪ APP ĐANG CHẠY (introspect build_customer_tools), băm lược đồ 4129d298555c, lưu ở eval/luoc_do_tool_app.json. v1/v2/v3 là BA THƯỚC — số không so chéo.",
+ "luoc_do_tool": {
+  "nguon": "introspect app đang chạy, KHÔNG phải contracts/",
+  "bam": "4129d298555c",
+  "file": "eval/luoc_do_tool_app.json",
+  "vi_sao": "contracts là nguồn sự thật về CẤU TRÚC (tên tool, ai gọi được), KHÔNG phải về NỘI DUNG mô tả mà model đọc để chọn tool (Luật 8b)"
+ },
+ "luu_y_cham_diem": "Security cảnh báo về KỲ VỌNG, không phải nhãn: contract không đảm bảo hạn mức có trong kho ⟹ status='not_found' là kết quả HỢP LỆ, và global_rules #1 buộc agent nói 'không tra được'. Nếu bộ đo chấm cả câu trả lời chứ không chỉ tool đã gọi thì ĐỪNG chấm not_found là sai."
+}

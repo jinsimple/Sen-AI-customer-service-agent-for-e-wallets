@@ -187,6 +187,11 @@ def dan_nhan(so_ca: int) -> dict:
         "so_ca": so_ca,
         "luc": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
+    # STACK NÀO — 17/08 có HAI stack ở HAI chế độ hạ tầng khác nhau cùng lúc:
+    # fin05-backend-1 đã nạp khoá mới (embedding sống), fin05ttl-backend-1 còn
+    # mang khoá đã xoá (embedding chết). Một bảng số trộn hai stack sẽ trộn
+    # "embedding sống" với "embedding chết" mà NHÌN KHÔNG RA.
+    nhan["stack"] = os.environ.get("FIN05_STACK", "fin05") + " (đặt qua FIN05_STACK)"
     for ten, c in (("backend", "fin05-backend-1"), ("frontend", "fin05-frontend-1")):
         dang_chay = bool(_chay(["docker", "ps", "-q", "-f", f"name={c}"]))
         nhan[f"{ten}_image"] = (_chay(["docker", "inspect", c, "--format", "{{.Image}}"]) or "?")[7:19]
