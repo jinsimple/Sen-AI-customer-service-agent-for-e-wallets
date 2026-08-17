@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
 from src.agents.output_filter import loc_dau_ra, tin_hieu_lo_chi_thi
+from src.agents.phan_luong import BAM_LUAT, DUONG_DAY_DU, DUONG_NHE, TRA_LOI_NHE, phan_luong
 from src.agents.prompt import bam_mau_prompt, build_system_prompt
 from src.agents.tools.customer_tools import TurnGuard, build_customer_tools
 from src.config import (
@@ -46,6 +47,7 @@ from src.config import (
     LLM_MODEL,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
+    PHAN_LUONG_BAT,
 )
 from src.dau_ma_nguon import CACH_BAM, nhan_luc_dung
 from src.db.models import Complaint, Ticket, User
@@ -81,6 +83,10 @@ class TraLoiRongError(RuntimeError):
 # JSON schema của 5 tool gửi kèm MỌI lượt gọi model — hằng số, đo 2026-08-16.
 # Đổi khi thêm/bớt tool. Xem giải thích ở chỗ dựng `usage["input_chars"]`.
 _CHARS_TOOL_SCHEMA = 6773
+
+# Số tool bind ở lần dựng agent gần nhất trong tiến trình này. Ghi bởi tầng
+# DỰNG REQUEST, không phải bởi tầng quyết định — xem chú thích tại chỗ gán.
+_SO_TOOL_GUI = 0
 
 def _giay_cho_lai(loi: Exception) -> float | None:
     """Moi so giay nha cung cap BAO, khong tu doan.
@@ -197,6 +203,8 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "input_chars": u.get("input_chars", 0),
         "so_tool_call": len(kq.get("tool_calls") or []),
         "ly_do_fallback": kq.get("ly_do_fallback"),
+        "duong": kq.get("duong"),
+        "so_tool_schema_gui": kq.get("so_tool_schema_gui"),
         "co_ticket": bool(kq.get("ticket_id")),
     })
 
@@ -384,6 +392,15 @@ def _build_agent(
     tools = build_customer_tools(
         session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard
     )
+    # Số lược đồ tool THẬT SỰ bind vào lời gọi. Lấy từ chính danh sách vừa
+    # dựng, KHÔNG gõ tay — `_CHARS_TOOL_SCHEMA = 6773` phía trên là hằng số
+    # người phải nhớ cập nhật, và ta không thêm cái thứ hai cùng loại.
+    #
+    # Trường này đến từ cơ chế KHÁC với quyết định phân luồng, nên hai thứ
+    # không thể cùng nói dối một lúc: dấu `duong` kẹt ở "day_du" trong khi số
+    # này = 0 là mâu thuẫn tự lộ, và ngược lại.
+    global _SO_TOOL_GUI
+    _SO_TOOL_GUI = len(tools)
     # KHÔNG truyền customer_name — họ tên thật không được rời hệ thống lên LLM
     # (ADR-010). Giữ tham số ở chữ ký hàm để không vỡ caller cũ.
     system_prompt = build_system_prompt(current_time=dt.datetime.utcnow())
@@ -413,6 +430,45 @@ def run_agent_turn(
     user = session.get(User, user_id)
     if user is None:
         raise ToolError(f"user_id không tồn tại: {user_id}")
+
+    # ── T1 · PHÂN LUỒNG ─────────────────────────────────────────────────────
+    # Sau cờ, MẶC ĐỊNH TẮT. Tắt thì hàm này chạy y hệt trước khi có nhánh này.
+    #
+    # Đường nhẹ TRẢ NGAY, KHÔNG chạm model, KHÔNG chạm tool, KHÔNG ghi bản ghi
+    # nghiệp vụ nào. Đó là toàn bộ điểm của nó: rẻ hơn mọi model rẻ, vì không
+    # có model nào.
+    #
+    # Đặt SAU khi nạp `user` (cần user tồn tại thật) và TRƯỚC mọi thứ khác —
+    # đặt muộn hơn là đã tiêu mất thứ ta định tiết kiệm.
+    if PHAN_LUONG_BAT:
+        _duong, _ly_do_duong = phan_luong(message)
+        if _duong == DUONG_NHE:
+            _logger.info(
+                "agent_turn_duong_nhe",
+                extra={"user_id": user_id, "thread_id": thread_id or user_id,
+                       "ly_do": _ly_do_duong, "bam_luat": BAM_LUAT},
+            )
+            _kq_nhe = {
+                "reply": TRA_LOI_NHE,
+                "tool_calls": None,
+                "ticket_id": None,
+                "should_escalate": False,
+                "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                          "cached_input_tokens": 0, "reasoning_tokens": 0,
+                          "input_chars": 0, "so_luot_goi_model": 0},
+                "loc_dau_ra": [],
+                "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                "goi_y_handoff": False,
+                "ly_do_fallback": None,
+                # Dấu do TẦNG NÀY ghi, từ thứ nó THẬT SỰ gửi đi (không gửi gì).
+                # `so_tool_schema_gui` đến từ một cơ chế KHÁC với quyết định
+                # phân luồng, nên một điểm hỏng không giả được cả hai: dấu kẹt
+                # "day_du" mà số này = 0 là mâu thuẫn tự lộ.
+                "duong": DUONG_NHE,
+                "so_tool_schema_gui": 0,
+            }
+            _ghi_so(_kq_nhe, thread_id, user_id)
+            return _kq_nhe
 
     # ES-xx (ADR-022) — tính TRƯỚC khi gọi agent, trên tin nhắn khách, ở TẦNG
     # SERVICE. Không gọi LLM, không đi vào prompt, không thêm bước nào.
@@ -545,6 +601,8 @@ def run_agent_turn(
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 "goi_y_handoff": False,
                 "ly_do_fallback": "qua_tai",
+                "duong": DUONG_DAY_DU,
+                "so_tool_schema_gui": _SO_TOOL_GUI,
             }
             _ghi_so(_kq, thread_id, user_id)
             return _kq
@@ -653,6 +711,8 @@ def run_agent_turn(
                 "ly_do_fallback": (
                     "nha_cung_cap_can_can_thiep" if can_thiep else "nha_cung_cap_thoang_qua"
                 ),
+                "duong": DUONG_DAY_DU,
+                "so_tool_schema_gui": _SO_TOOL_GUI,
             }
             _ghi_so(_kq, thread_id, user_id)
             return _kq
@@ -739,6 +799,8 @@ def run_agent_turn(
                 # Trước đây họ phải nhận diện bằng chữ ký chuỗi trong `reply`,
                 # thứ trôi được sau một lần sửa câu chữ.
                 "ly_do_fallback": _ly_do_fallback(e),
+                "duong": DUONG_DAY_DU,
+                "so_tool_schema_gui": _SO_TOOL_GUI,
             }
             _ghi_so(_kq, thread_id, user_id)
             return _kq
@@ -939,6 +1001,8 @@ def run_agent_turn(
         # request_human_handoff: quyền quyết định gặp người là của KHÁCH
         # (CTRL-001 / ISO-IEC 25059), hệ thống chỉ ĐỀ NGHỊ.
         "goi_y_handoff": bool(tin_hieu_cam_xuc),
+        "duong": DUONG_DAY_DU,
+        "so_tool_schema_gui": _SO_TOOL_GUI,
         "ly_do_fallback": None,  # TƯỜNG MINH null, KHÔNG thiếu key — thiếu key
         # không phân biệt được với "bản cũ chưa có trường này".
         **_reply_goc_cho_eval(reply, nhom_khop),
