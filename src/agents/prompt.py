@@ -81,3 +81,26 @@ def build_system_prompt(*, current_time: dt.datetime, customer_name: str | None 
         current_time=current_time.strftime("%H:%M"),
         max_rounds=CLARIFY_QUESTION_MAX_ROUNDS,
     )
+
+
+def bam_mau_prompt() -> str:
+    """Băm của MẪU prompt (chưa render) — danh tính phiên bản chỉ dẫn.
+
+    Vì sao cần: `build_system_prompt()` chèn ngày/giờ, nên prompt ĐÃ RENDER đổi
+    mỗi phút. Hai đợt đo cách nhau vài giờ nhận hai chuỗi khác nhau, và cặp
+    đối chứng hỏng KHÔNG TRIỆU CHỨNG — không lỗi, không cảnh báo, chỉ là hai
+    vật khác nhau bị coi là một.
+
+    Băm MẪU thì bất biến theo thời gian và chỉ đổi khi có người sửa chỉ dẫn —
+    đúng thứ người ta muốn nói khi hỏi "hai lượt này có cùng một prompt không".
+
+    Đóng dấu mốc-thời-gian cũng giải được, nhưng yếu hơn: nó bắt người đọc tự
+    suy từ hai mốc ra "cùng mẫu hay khác mẫu", trong khi băm trả lời thẳng.
+    Và mốc thời gian không phát hiện được việc ai đó SỬA mẫu.
+
+    Cùng họ `BUILD_COMMIT`: một thứ trông tĩnh mà thực ra động thì phải TỰ KHAI
+    danh tính, đừng bắt người dùng nhớ hộ.
+    """
+    import hashlib
+
+    return hashlib.md5(_TEMPLATE.encode()).hexdigest()[:12]

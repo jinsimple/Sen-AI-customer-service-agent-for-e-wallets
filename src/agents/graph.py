@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
 from src.agents.output_filter import loc_dau_ra, tin_hieu_lo_chi_thi
-from src.agents.prompt import build_system_prompt
+from src.agents.prompt import bam_mau_prompt, build_system_prompt
 from src.agents.tools.customer_tools import TurnGuard, build_customer_tools
 from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
@@ -602,6 +602,11 @@ def run_agent_turn(
         "input_chars": 0,
         "so_luot_goi_model": 0,
         "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA,
+        # Danh tính CHỈ DẪN của lượt này. Prompt đã render đổi mỗi phút (có
+        # ngày/giờ), nên "cùng một prompt" giữa hai đợt đo là GIẢ ĐỊNH chứ
+        # không phải sự kiện — trừ khi so băm MẪU. Trả sẵn để không ai phải
+        # nhớ ghi, và để một cặp trước/sau bắc qua hai mẫu khác nhau LỘ RA.
+        "bam_mau_prompt": bam_mau_prompt(),
     }
     _ky_tu_he_thong = len(build_system_prompt(current_time=dt.datetime.utcnow()))
     for m in turn_messages:
