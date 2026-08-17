@@ -101,7 +101,7 @@
    "ky_vong": "day_du",
    "nhom": "⑤ CHUNG-nhưng-phụ-thuộc-hạng",
    "vi_sao": "🔴 KHÔNG một dấu hiệu ngôn ngữ nào. Nhưng nếu biểu phí phụ thuộc HẠNG KHÁCH thì một câu trả lời 'chung' là câu trả lời SAI cho người này — nghe hợp lệ, sai về vật chất.",
-   "🔴_danh_dau": "CHỜ PHÁN: nhãn này đúng CHỈ KHI biểu phí có phân hạng. Nếu phí phẳng cho mọi khách thì nhãn lật sang chinh_sach."
+   "🔴_danh_dau": "CHỜ DỮ KIỆN (PO chốt cách kiểm): tra /policy-search xem biểu phí/hạn mức trong KHO có phân hạng khách không. Kho nói PHẲNG ⟹ lật sang chinh_sach · kho PHÂN HẠNG ⟹ giữ day_du · KHO KHÔNG NÓI GÌ ⟹ giữ day_du (không rõ = đường an toàn).\n🔴 DỮ KIỆN PO CHƯA BIẾT: fin05do có policy_chunks = 0 — kho TRỐNG. Phép kiểm này KHÔNG chạy được trên ngăn xếp đo dùng riêng; phải chạy trên ngăn xếp CÓ kho, tức ngăn xếp DÙNG CHUNG. Nó chỉ ĐỌC nên bán kính hẹp, nhưng nó tiêu token nhúng và đụng rate-limit của phiên khác — xin xếp lượt, đừng chạy tuỳ tiện (Luật 15)."
   },
   {
    "id": "RG-13",
@@ -109,7 +109,7 @@
    "ky_vong": "day_du",
    "nhom": "⑤ CHUNG-nhưng-phụ-thuộc-hạng",
    "vi_sao": "cùng dạng RG-12 — hạn mức thường phụ thuộc hạng/trạng thái xác thực của tài khoản",
-   "🔴_danh_dau": "CHỜ PHÁN cùng RG-12"
+   "🔴_danh_dau": "CHỜ DỮ KIỆN (PO chốt cách kiểm): tra /policy-search xem biểu phí/hạn mức trong KHO có phân hạng khách không. Kho nói PHẲNG ⟹ lật sang chinh_sach · kho PHÂN HẠNG ⟹ giữ day_du · KHO KHÔNG NÓI GÌ ⟹ giữ day_du (không rõ = đường an toàn).\n🔴 DỮ KIỆN PO CHƯA BIẾT: fin05do có policy_chunks = 0 — kho TRỐNG. Phép kiểm này KHÔNG chạy được trên ngăn xếp đo dùng riêng; phải chạy trên ngăn xếp CÓ kho, tức ngăn xếp DÙNG CHUNG. Nó chỉ ĐỌC nên bán kính hẹp, nhưng nó tiêu token nhúng và đụng rate-limit của phiên khác — xin xếp lượt, đừng chạy tuỳ tiện (Luật 15)."
   },
   {
    "id": "RG-14",
@@ -117,7 +117,8 @@
    "ky_vong": "day_du",
    "nhom": "⑥ chung NHƯNG đang giữa một ca",
    "vi_sao": "🔴 CÂU Y HỆT RG-02, nhãn NGƯỢC — vì lượt trước agent vừa hỏi mã giao dịch. Khách đang hỏi 'ca CỦA TÔI mất bao lâu'.",
-   "🔴_danh_dau": "CHỜ PHÁN: phân loại theo TỪNG LƯỢT (ĐC-2) thì lượt này KHÔNG có dấu hiệu nào. Nếu ĐC-2 tuyệt đối thì nhãn phải là chinh_sach và ta chấp nhận trả lời chung cho một câu riêng."
+   "🔴_danh_dau": "CẶP RG-02/RG-14 GIỮ NGUYÊN: câu Y HỆT, nhãn NGƯỢC, và đó là ĐÚNG THIẾT KẾ. Ai thấy 'trùng câu' rồi gộp/xoá một ca là xoá đúng thứ cặp này mã hoá.",
+   "nguon_nhan": "PHÁN QUYẾT PO 17/08 — day_du. Căn cứ: ĐC-2 cấm GIỮ PHÁN QUYẾT qua lượt, KHÔNG cấm ĐỌC NGỮ CẢNH. Lượt trước agent vừa hỏi mã giao dịch ⟹ lượt này là một phần của cuộc điều tra đang mở."
   },
   {
    "id": "RG-15",
@@ -136,6 +137,15 @@
    "🔴_danh_dau": "kiểm đường thoát"
   }
  ],
- "bam_nhan": "392ea05b4aaf",
+ "🔴_HE_QUA_THIET_KE_tu_nhom_⑤": {
+  "PO_rut": "bộ lọc NGÔN NGỮ không đủ làm cổng cho đường chính sách",
+  "rang_buoc": "quyết định cuối phải tham chiếu PHÍA DỮ LIỆU: chỉ chủ đề chính sách được đánh dấu KHÁCH-BẤT-BIẾN mới đi đường chính sách; chủ đề phân hạng ⟹ đầy đủ, BẤT KỂ câu trông thế nào",
+  "bo_loc_cau": "chỉ còn là tầng SƠ LOẠI, không phải cổng",
+  "ghi_chu": "lại là DANH SÁCH CHO PHÉP — lần thứ tư nguyên tắc này xuất hiện, lần này ở tầng DỮ LIỆU chứ không phải tầng văn bản"
+ },
+ "RG-10_may_do_bia_chinh_xac_tuyet_doi": "Ca duy nhất trong bộ mà ta BIẾT TRƯỚC đáp án sai trông thế nào: QĐ 2345 là ngưỡng XÁC THỰC SINH TRẮC, không phải ngưỡng gian lận. ⟹ chấm được BẰNG MÁY: câu trả lời chứa 'gian lận' là bắt được ngay, không cần người phán. Một wrong-answer-đã-biết là máy dò bịa chính xác tuyệt đối.",
+ "nhom_⑦_la_dieu_kien_land": "Đường ba có prompt GỌN ⟹ ÍT LỚP CHỐNG BỊA HƠN đường đầy đủ ⟹ nhóm ⑦ (chính sách không có trong kho) là bộ kiểm an toàn RIÊNG của nó. PO chốt: ngang hàng ĐC-5 khi land.",
+ "bam_cu_da_thay": "392ea05b4aaf → PO phán RG-14=day_du (giữ cặp RG-02/RG-14) + cách kiểm RG-12/13 + hệ quả thiết kế nhóm ⑤. Chưa phép đo nào chạy trên bộ này.",
+ "bam_nhan": "0dae3b0c3949",
  "thuat_toan_bam": "sha256[:12] của json.dumps(obj, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ hai khoá 'bam_nhan' và 'thuat_toan_bam'"
 }
