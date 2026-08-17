@@ -720,8 +720,22 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   **một lý lẽ đã bị số bác thì CHẾT VĨNH VIỄN, không hồi sinh được bằng việc quên mất là nó đã
   chết** — dạng tự lừa êm ái nhất, vì nó tiện cho kết luận đang muốn.
 - **Hệ quả bắt buộc:** `LLM_MODEL` phải là biến env thuần, **không hardcode tên model ở bất kỳ đâu
-  kể cả default và test** — flash rẻ hơn plus ~13× (`0,03/0,13` vs `0,40/1,20`), nếu flash đạt
-  ngưỡng thì đổi phải là một dòng `.env`, không phải một PR.
+  kể cả default và test** — nếu flash đạt ngưỡng thì đổi phải là một dòng `.env`, không phải một PR.
+- **📉 GIÁ NIÊM YẾT ≠ GIÁ THỰC ĐO — token suy nghĩ ăn mất hơn NỬA lợi thế giá của flash.** Tester đo
+  (prompt tối giản 733 token vào): plus `164` token ra/lượt (74% suy nghĩ) `$0,000489` · max `119`
+  (63%) `$0,002257` = **4,61×** · flash **`492`** (**91%** suy nghĩ) `$0,000086` = **0,18×**. ⟹ trên
+  giấy flash rẻ hơn plus **13×**, đo thật chỉ **5,7×** — vì flash đốt gần gấp ba token ra để suy
+  nghĩ. Câu hỏi *"chọn plus có tốn gấp 13 lần vô ích không"* thật ra là *"gấp 5,7 lần"*: vẫn đáng
+  hỏi, **nhỏ hơn một bậc**. ⚠️ Đo trên prompt 733 token, **không phải prompt sản phẩm ~14k** — dùng
+  để biết THỨ TỰ ĐỘ LỚN, cấm dùng cho quyết định cuối.
+- **❌ Quan sát `1/4 JSON hỏng` của PO-agent về flash: KHÔNG TÁI HIỆN ở n=25 (hỏng định dạng 0/25).**
+  Cả 3 model đều 0 lỗi định dạng; flash 23/25 = 92%, trượt 2 ca là **không gọi tool** (plus/max: 0).
+  ⟹ quan sát n=4 của tôi là **nhiễu**, phải rút. Nhưng tester chặn luôn chiều ngược lại, và đây mới
+  là điều quan trọng: **cả `1/4` lẫn `0/25` đều đo trên NHÁNH SAI** — bộ probe là gọi tool **MỘT
+  BƯỚC**, còn thứ đang bỏ ngỏ là **chuỗi NHIỀU BƯỚC**. `0/25` không phải bằng chứng flash ổn, chỉ là
+  bằng chứng flash ổn **ở nhánh dễ nhất**; và 2 lượt không-gọi-tool của flash là dấu hiệu đúng ở
+  chiều đó (F-31 nhìn từ phía model). ⟹ nghiệm thu **BẮT BUỘC có ca chuỗi nhiều bước**, nếu không
+  nó chỉ lặp lại đúng lỗ hổng của probe.
 - **§2b nâng lên BA model** (plus đã chốt · max mốc trên · **flash kẻ thách thức giá**) và đổi
   tính chất: từ *phép chọn model* thành **phép NGHIỆM THU**. Chốt trước ≠ miễn kiểm; ngưỡng giữ
   nguyên, **hỏng định dạng = 0** không nới. Trượt thì tester báo, KHÔNG tự lùi model.
