@@ -747,6 +747,22 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
+## 📐 CHỐT TỪ VÒNG 2 — ba vật mới của tester (17/08 khuya)
+- **Bộ ca cặp na-ná cho semantic cache: `2ecb739780f4`** — 10 cặp TRÚNG-SAI + **4 cặp TRÚNG-ĐÚNG
+  (phần tester tự thêm)**: bộ TS một mình thì *cache-không-bao-giờ-trúng* đạt 100% — hoàn hảo và vô
+  dụng (khuôn router-toàn-day_du). ⟹ **hai số đọc CÙNG NHAU**: `TS=0` và `TD cao` mới là cache dùng
+  được. Công thức dựng TS: *giữ nguyên gần hết từ vựng, đổi ĐÚNG MỘT thứ có nghĩa nghiệp vụ* — vùng
+  embedding yếu nhất (bề mặt gần nhất, nghiệp vụ xa nhất). Cặp mạnh nhất: **B chứa trọn A** (*"Tôi
+  chuyển 2 triệu"* vs *"…nhưng bị trừ 4 triệu"*). Điều kiện land: **TS = 0/10, không ngưỡng mặc cả.**
+- **Luật 12b (ratify): KHAI TRỤC khi xếp hạng** — `xếp trên trục X · CHƯA XÉT trục Y`; không đủ chỗ
+  cho dòng đó ⟹ đừng xếp hạng, nêu ĐIỀU KIỆN thay vì THỨ TỰ. Lý do tồn tại riêng: *số-đúng-phạm-vi-
+  sai không bị bắt bởi kiểm số — vì số vẫn đúng.*
+- **INV token-budget in headroom cả khi ĐẠT** (`1b96c63`) ⟹ chuỗi thời gian trong log CI — prompt bò
+  6.565→7.400 qua mười lần xanh rồi đỏ lần 11 thì phải thấy được nó bò từ bao giờ.
+- Tester tự hạ hạng suy luận cache-TPM của chính mình (`⟹` → *nhất quán với cả hai giả thuyết*) —
+  hai giờ sau khi viết luật cấm đúng lỗi đó. Ghi kèm câu của họ: *"thứ khác nhau không phải ai mắc —
+  mà là nó CÓ BỊ BẮT TRONG NGÀY hay không."*
+
 ## 🌐 VÒNG BRAINSTORM 2 VỚI CHUYÊN GIA (17/08 khuya) — chốt sau ba lỗ tester bắt
 - **Chuyên gia TỰ KHAI một trong ba lỗ có chữ ký họ** (đã ký "bảng của PO-agent đúng" = cùng thiếu
   thừa-số-trúng ② và cùng bỏ trục rủi ro ③). **Tester bắt được cả chuyên gia lẫn PO-agent.**
