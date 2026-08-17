@@ -1255,6 +1255,97 @@ nguon_duoc_duyet:
 
 ---
 
+## ADR-027 — Contract phải khai LƯỢC ĐỒ tool, và bộ kiểm phải so lược đồ chứ không chỉ so TÊN
+
+- **Ngày:** 2026-08-17 · **Trạng thái:** Đang hiệu lực — PO thật chốt 17/08/2026 (quy trình §3: ADR trước, code sau)
+- **Bối cảnh:**
+
+  Tester dựng lại bộ đo gọi-tool bằng cách **introspect app đang chạy** (thay vì
+  đọc `contracts/`) và phát hiện lược đồ thật lệch bản khai. Số đo, lấy từ
+  `eval/luoc_do_tool_app.json` (băm bản chuẩn hoá `4129d298555c`, commit
+  `bc6b3d3`) đối chiếu `contracts/agent-tools.yaml`:
+
+  | tool | mô tả (ký tự) | tham số | bắt buộc | contract khai `input:` |
+  |---|---|---|---|---|
+  | `lookup_transaction` | 680 | 6 | — | CÓ |
+  | `get_customer_history` | 947 | 3 | — | CÓ |
+  | **`create_ticket`** | **1266** | **5** | **`complaint_type` · `scope` · `description_raw`** | **KHÔNG CÓ** |
+  | `search_policy` | 793 | 1 | `query` | CÓ |
+  | `request_human_handoff` | 1176 | 2 | `reason` | CÓ |
+
+  **`create_ticket` không có khối `input:` nào trong contract**, trong khi app
+  đòi **ba tham số bắt buộc** — một trong số đó là `description_raw`, tức
+  **nguyên văn lời khách gõ**.
+
+  Suốt thời gian đó **`tests/test_invariants.py` xanh 23/23**. Cơ chế introspect
+  của nó so **TÊN** tool (và tool bị cấm), **không** so lược đồ. Hiến pháp §3
+  hứa *"đổi tên 1 tool ... mà quên cập nhật contract → ĐỎ NGAY"* — lời hứa đó
+  đúng theo đúng nghĩa đen của nó, và **người đọc hiểu rộng hơn nghĩa đen**.
+
+  **Ba thiệt hại đã xảy ra, không phải giả định:**
+  1. **Tester mất hai lượt đo.** Bộ v1/v2 dựng mô tả tool từ contract ⟹ model
+     nhận kích thích lệch **11×–41×** so với sản phẩm. Kết quả không nói gì về
+     sản phẩm. (Xem thêm: nó cũng tạo ra cả một cuộc tranh luận về "nhãn ca 4"
+     — ba model độc lập cùng từ chối `create_ticket` vì contract mô tả nó bằng
+     **31 ký tự và 0 tham số**. Triệu chứng bị điều trị suốt nửa ngày trong khi
+     bệnh nằm ở kích thích.)
+  2. **Security rà thẩm quyền trên bản khai sai.** Họ rà một tool tưởng như
+     không nhận dữ liệu vào, trong khi nó nhận `description_raw` — đúng chỗ PII
+     bên thứ ba hay xuất hiện nhất (*"em chuyển nhầm cho anh X, sđt 09…"*).
+  3. **Bất kỳ ai đọc contract để hiểu hệ thống** đều đọc một mô tả sai về vật
+     chất, chứ không phải lỗi thời chút ít.
+
+  Đây đúng thứ hiến pháp §3 gọi là *"lỗi nghiêm trọng nhất của dự án — nguyên
+  nhân khiến tester và security làm việc trên thông tin đã chết"*. Khác biệt
+  duy nhất, và là khác biệt làm nó nguy hơn: **cơ chế phát hiện tự động không
+  bắt được, nên nó chết âm thầm và không ai được báo.**
+
+- **Quyết định:**
+
+  1. `contracts/agent-tools.yaml` khai **đầy đủ lược đồ** mọi tool: tên trường,
+     kiểu, `required`. Sửa cho **khớp app đang chạy** — app là thực tại, contract
+     đang sai, nên lần này contract chạy theo app. *(Đây là ngoại lệ có lý do,
+     KHÔNG phải tiền lệ: bình thường contract đi trước. Ngoại lệ áp dụng vì bản
+     khai chưa bao giờ được ép, nên không có ai từng dựa vào nó mà đúng.)*
+  2. `tests/test_invariants.py` mở rộng: so **lược đồ** (tên trường + `required`)
+     giữa app và contract, không chỉ so tên tool. Lệch = ĐỎ.
+  3. **Mô tả tool (`description`) KHÔNG đưa vào phép so bằng.** Nó là văn bản
+     prompt sẽ được sửa thường xuyên trong lúc tinh chỉnh; ép khớp từng ký tự
+     sẽ tạo một cổng đỏ liên tục rồi bị người ta học cách bỏ qua — cổng bị bỏ
+     qua tệ hơn không có cổng. Thay vào đó contract ghi **một dòng tóm tắt mục
+     đích** + con trỏ tới nơi mô tả thật sống.
+  4. **Nguồn sự thật cho ai muốn ĐO:** `eval/luoc_do_tool_app.json` sinh bằng
+     introspect. Ai dựng kích thích cho model **phải lấy từ đó**, không từ
+     contract. Contract khai **CẤU TRÚC**; nó không và không nên khai **NỘI
+     DUNG mô tả**.
+
+- **Phương án đã bác:**
+
+  - *Ép khớp cả `description` từng ký tự* — bác, xem §3 trên (cổng đỏ liên tục
+    sẽ bị vô hiệu hoá bằng thói quen, không bằng quyết định).
+  - *Bỏ khai `input:` khỏi contract cho mọi tool cho nhất quán* — bác: đó là
+    làm cho bản khai nhất quán bằng cách **hạ nó xuống mức vô dụng**. Vấn đề
+    không phải bốn tool khai thừa, mà một tool khai thiếu.
+  - *Chỉ sửa `create_ticket`, không đụng bộ kiểm* — bác, và đây là phần đắt
+    nhất của ADR: sửa dữ liệu mà không sửa cơ chế phát hiện thì **lần sau vẫn
+    im lặng y hệt**. Bài học chung của ngày 17/08 (năm lỗi cùng họ *"mặc định
+    trông hợp lệ"*, bốn vai khác nhau, chưa lần nào do người mắc chăm chú hơn
+    mà tìm ra): **lớp lỗi im lặng không phản ứng với sự cẩn thận, chỉ phản ứng
+    với cấu trúc.**
+
+- **Hệ quả:**
+
+  - Phải chạy `python scripts/check_contracts.py --update` và cập nhật
+    `CONTRACT_VERSION` — **commit kèm file baseline**, nếu không local xanh / CI đỏ.
+  - Bộ v1/v2 của tester giữ trong sổ với nhãn *"đo trên kích thích rút gọn,
+    không phải kích thích sản phẩm"* — **không xoá**, vì chúng là bằng chứng gốc
+    của chính ADR này.
+  - Security cần rà lại `create_ticket` với lược đồ đúng, đặc biệt
+    `description_raw` trên đường PII bên thứ ba.
+  - **Câu hỏi mở, chưa quyết:** còn bộ phận nào khác mà contract khai CẤU TRÚC
+    trong khi người đọc tưởng nó khai NỘI DUNG? `authority-matrix` và
+    `resolution-state-machine` cần một lượt rà cùng câu hỏi này.
+
 ## Mẫu ADR mới
 
 ```markdown
