@@ -706,6 +706,35 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   rerank + có thể đổi `k` = **HAI biến**; land tách hai lượt thì đo được cặp sạch, land một lượt
   thì chấp nhận nhưng **ghi rõ hai biến**, không để trôi vào báo cáo như một (bài học đòn 4).
 
+## 🔴🔴 SỰ CỐ 17/08 — KHOÁ OpenAI PRODUCTION ĐÃ TRUYỀN TỚI MÁY CHỦ ALIBABA (chờ security phán quyết xoay khoá)
+- **Cơ chế:** `config.py` (`54164fa`, PO-agent duyệt) có fallback **vô điều kiện**
+  `LLM_API_KEY or OPENAI_API_KEY`. Trỏ `LLM_BASE_URL` sang `dashscope-intl` mà để `LLM_API_KEY`
+  trống ⟹ client gửi **khoá OpenAI production `sk-proj…` nguyên văn trong header `Authorization`
+  tới Alibaba**. Alibaba trả `401`. Coder đo thật, không suy luận.
+- **Luật rút ra:** **một fallback chỉ an toàn khi ĐÍCH ĐẾN KHÔNG ĐỔI. Đổi đích mà giữ fallback là
+  biến tiện lợi thành RÒ RỈ.** Và nó **im lặng**: người vận hành đọc `401` rồi đi tìm sai chỗ,
+  trong khi khoá đã rời hệ thống. Điều kiện sinh ra lớp lỗi này = **hai nhà cung cấp cùng sống
+  trong một tiến trình** — đúng thiết kế ta vừa chọn (chat→Qwen, embedding→GIỮ OpenAI).
+- **⚠️ PHÂN KỲ CÁCH ĐỌC — đã nêu với coder:** coder mô tả ở **thì tương lai** (*"cấu hình đó sẽ
+  kích hoạt đường này"*), PO-agent đọc ở **thì quá khứ**: phép đo chứng minh đường đó **ĐÃ chạy
+  thật, hôm nay, trên máy này**. `401` = *họ TỪ CHỐI DÙNG khoá*, **không phải** *họ KHÔNG NHẬN ĐƯỢC
+  khoá*. ⟹ PO-agent coi là **LỘ**, đề xuất **xoay `OPENAI_API_KEY`**. Đã hỏi security 3 câu, có
+  nêu rõ *"tôi có thể đang phản ứng thái quá, muốn biết nếu vậy"*: ① `401` có đủ để coi là chưa lộ
+  không (cần căn cứ, vì xoay khoá có giá thật) ② nghĩa vụ thông báo NĐ 13/2023 hay chỉ là secret
+  hạ tầng ③ **rà cả HỌ**: còn cặp `X_API_KEY or Y_API_KEY` / `X_BASE_URL` nào cùng hình dạng trong
+  `src/`, đặc biệt đường embedding.
+- **✅ Đã chặn bằng CODE, không phải dặn nhau (`7ce8209`):** base_url khác + thiếu khoá → **CHẾT
+  lúc khởi động nêu rõ lý do** · không base_url → fallback giữ nguyên · base_url khác + có khoá →
+  dùng đúng khoá đó. 23/23 invariants xanh.
+- **`.env` đã điền TƯỜNG MINH** `LLM_API_KEY=<giá trị QWEN_API_KEY>` (117 ký tự `sk-ws-…`) +
+  `LLM_BASE_URL` + `LLM_MODEL=qwen3.7-plus`; `EMBEDDING_*` **cố ý không đặt** (giữ OpenAI = giữ
+  VẬT); JUDGE giữ gpt-4o-mini. Băm nội dung `.env` `22529a2cbf76`. `git ls-files .env` = **0**.
+- **Chờ coder liệt kê VỊ TRÍ (không giá trị) mọi nơi `OPENAI_API_KEY` tồn tại** — `.env` dev ·
+  `.env` Windows production · biến trong container đang chạy · CI secrets. Xoay mà sót một nơi =
+  service chết giữa chừng; phải biết TRƯỚC khi bấm.
+- **Ghi nhận công bằng:** lỗi của coder, nhưng tìm ra bằng cách duy nhất tìm được là **chạy thật**
+  — nếu không, PO-agent đã điền đúng cấu hình rò đó vào `.env` rồi đẩy lên production.
+
 ## ⭐ ĐỔI API SANG QWEN — PO thật quyết 16/08, ƯU TIÊN CAO sau gate (chi tiết: brief `2026-08-17-dot-nang-cap-oss.md` §N7)
 - **🔒🔒 PO THẬT CHỐT 17/08: `qwen3.7-plus`.** Cấu hình: `LLM_BASE_URL=https://dashscope-intl.
   aliyuncs.com/compatible-mode/v1` · `LLM_MODEL=qwen3.7-plus` · **EMBEDDING GIỮ OpenAI** (đổi =
@@ -780,7 +809,15 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   hai thứ = đúng **Luật 10d** (vô hiệu hậu quả rồi kiểm cổng). **Nhưng lộ ra khoảng trống lớn hơn:**
   probe gọi thẳng API không có phiên OTP ⟹ **chưa ai đo đường THẬT** — model làm gì khi tool bị từ
   chối vì thiếu OTP? Đó đúng là chỗ dễ đẻ bịa-số nhất (bị chặn, không có dữ liệu, vẫn phải trả lời
-  khách). Ghi sổ, chưa xếp lịch.
+  khách). Ghi sổ, chưa xếp lịch. **Tester ghi tiếp (`66d4694`): đúng hình dạng F-32 nhưng do HỆ
+  THỐNG gây ra chứ không do truy hồi trượt, nằm đúng trên ràng buộc cứng 3, CHƯA CÓ CA NÀO CANH**
+  ⟹ *phải làm trước khi bất kỳ con số an toàn nào được công bố*.
+- **Nhãn `v2` = `b4b85433a8a0` @ `98701de`** (3 ca chuỗi nhiều bước, nhãn viết TRƯỚC khi model nào
+  chạy, trường `v1_v2` trỏ ngược `c759b81c76ab`, trong file ghi *"v1 và v2 là HAI THƯỚC"*). Tester
+  làm xong TRƯỚC khi nhận luật — luật chỉ chép lại thành chữ thứ họ vốn đã làm.
+- **PO-agent RÚT yêu cầu đổi tên trường `dua_tren`** — tester từ chối đúng: **đổi một ký tự là đổi
+  băm đã công bố; churn băm vì lý do ĐẶT TÊN làm loãng chính cơ chế** (băm đổi được vì thẩm mỹ thì
+  người đọc mất khả năng tin rằng băm đổi = nội dung đổi).
 - **HOÁ ĐƠN ĐO LẠI (không được giả định chuyển giao):** An toàn 30/30 (cổng-96 · adversarial 45 ca
   · over-block 0/96) hiệu chuẩn trên gpt-4o-mini → **chạy lại TOÀN BỘ trên Qwen** ≈ 140 lượt. Free
   quota ⟹ tiền không còn là ràng buộc, **TPM là thứ phải xếp lịch**. Lịch: sau §2b, trước F-31/32.
