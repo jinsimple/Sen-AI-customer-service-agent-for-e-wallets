@@ -1,0 +1,51 @@
+  qwen3.8-max xong
+  qwen3.7-plus xong
+  qwen3.7-flash xong
+  gpt-4o-mini xong
+
+model             ĐẠT  k.gọi  ngoài tập   BỊA   HỎNG     chuỗi  suy nghĩ%
+----------------------------------------------------------------------------
+qwen3.8-max      43/50      7         0      0     0    28/30         75%
+qwen3.7-plus     39/50     11         0      0     0    19/30         59%
+qwen3.7-flash    41/50      9         0      0     0    21/30         88%
+gpt-4o-mini      40/50     10         0      0     0    20/30          0%
+
+  nhãn v4 b39de7942aee · lược đồ 4129d298555c · k=10 · một bước n=50 · chuỗi n=30
+
+  PER-CA (độ nhất quán in CẠNH đúng/sai):
+    qwen3.8-max
+      ca 1: {'đúng': 10}  ← NHẤT QUÁN
+      ca 2: {'đúng': 10}  ← NHẤT QUÁN
+      ca 3: {'đúng': 10}  ← NHẤT QUÁN
+      ca 4: {'không gọi': 7, 'đúng': 3}  ← lưng chừng (2 kiểu)
+      ca 5: {'đúng': 10}  ← NHẤT QUÁN
+      ca 6: {'b1 đúng': 9, 'b1 không gọi': 1}  ← lưng chừng (2 kiểu)
+      ca 7: {"thiếu:['get_customer_history']": 1, 'đúng': 9}  ← lưng chừng (2 kiểu)
+      ca 8: {'b1 đúng': 10}  ← NHẤT QUÁN
+    qwen3.7-plus
+      ca 1: {'đúng': 10}  ← NHẤT QUÁN
+      ca 2: {'đúng': 10}  ← NHẤT QUÁN
+      ca 3: {'đúng': 9, 'không gọi': 1}  ← lưng chừng (2 kiểu)
+      ca 4: {'không gọi': 10}  ← NHẤT QUÁN
+      ca 5: {'đúng': 10}  ← NHẤT QUÁN
+      ca 6: {'b1 không gọi': 8, 'b1 đúng': 2}  ← lưng chừng (2 kiểu)
+      ca 7: {'đúng': 7, "thiếu:['search_policy']": 2, "thiếu:['get_customer_history']": 1}  ← lưng chừng (3 kiểu)
+      ca 8: {'b1 đúng': 10}  ← NHẤT QUÁN
+    qwen3.7-flash
+      ca 1: {'đúng': 10}  ← NHẤT QUÁN
+      ca 2: {'đúng': 10}  ← NHẤT QUÁN
+      ca 3: {'đúng': 10}  ← NHẤT QUÁN
+      ca 4: {'không gọi': 9, 'đúng': 1}  ← lưng chừng (2 kiểu)
+      ca 5: {'đúng': 10}  ← NHẤT QUÁN
+      ca 6: {'b1 không gọi': 4, 'b1 đúng': 6}  ← lưng chừng (2 kiểu)
+      ca 7: {"thiếu:['get_customer_history']": 5, 'đúng': 5}  ← lưng chừng (2 kiểu)
+      ca 8: {'b1 đúng': 10}  ← NHẤT QUÁN
+    gpt-4o-mini
+      ca 1: {'đúng': 10}  ← NHẤT QUÁN
+      ca 2: {'đúng': 10}  ← NHẤT QUÁN
+      ca 3: {'đúng': 10}  ← NHẤT QUÁN
+      ca 4: {'không gọi': 10}  ← NHẤT QUÁN
+      ca 5: {'đúng': 10}  ← NHẤT QUÁN
+      ca 6: {'b1 không gọi': 10}  ← NHẤT QUÁN
+      ca 7: {'đúng': 10}  ← NHẤT QUÁN
+      ca 8: {'b1 đúng': 10}  ← NHẤT QUÁN
