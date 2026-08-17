@@ -168,3 +168,44 @@ vào hàng chờ CSKH cho **một** sự việc — và khách chỉ được b�
 `TCK-59807a7a80e1` · `TCK-e694e8dba004` · `TCK-6e24656773b9` · `TCK-6d34e9dc1c0e`.
 Tôi **không xoá** — chúng là vật chứng của chính finding này. Dọn được bất cứ
 lúc nào bằng bốn mã trên, sau khi coder và PO đọc xong.
+
+
+---
+
+## 🔴 BỔ SUNG — `investigation_logs` RỖNG được TÁI LẬP TRÊN `fin05`, finding ĐỨNG
+
+> 17/08, sau một vòng tôi suýt tự rút nhầm finding của mình.
+
+Tôi từng định **rút** phần *"`investigation_logs` rỗng ⟹ chuỗi truy vết đứt ở
+mắt xích đầu"*, vì thấy `fin05do` có `investigation_logs = 0` **toàn bảng** và
+kết luận đó là **artefact ngăn xếp**. Coder chặn lại, và họ đúng:
+
+    tôi thấy   fin05do  tool_results: CHỈ create_ticket · investigation_logs 0
+    tôi suy    ⟹ ngăn xếp này không GHI ⟹ mọi phép đo truy vết ở đó vô giá trị
+    coder đo   gọi thẳng tool trên fin05do → ToolResult Δ=+1, kể cả status=not_found
+    ⟹ cơ chế GHI hoạt động. Cái tôi thấy là **VẮNG MẶT LƯU LƯỢNG**, không phải
+      vắng mặt cơ chế.
+
+**Tôi suy một cơ chế từ một con số đếm** — đúng lớp lỗi coder mắc sáng nay với
+*"chống-trùng đang gánh"*, cùng khuôn, **ngược dấu**: họ suy *"đếm ra 1 ⟹ có cơ
+chế"*, tôi suy *"đếm ra 0 ⟹ hỏng cơ chế"*.
+
+### Và phép đo quyết định, trên `fin05` — ngăn xếp CÓ 93 dòng `investigation_logs`
+
+Một lượt fallback thật, đo hiệu số từng bảng:
+
+    Δcomplaints = +1 · Δtickets = +1 · ΔToolResult = +1 · **ΔInvestigationLog = +0**
+    vé TCK-4c5165e91770 · type=other · scope=unknown
+    log: `agent_turn_timeout` · total_tokens = 0 · không tool_calls nào
+
+⟹ **Finding ĐỨNG, và giờ đã tái lập trên ngăn xếp có lưu lượng thật.** Nhánh
+fallback ghi vé **mà không ghi một dòng điều tra nào** — không phải vì ngăn xếp
+không ghi được (nó ghi 93 dòng cho các lượt đi hết đường bình thường), mà vì
+`write_investigation_logs_for_ticket` nằm **sau** chỗ nhánh fallback `return`.
+
+**Hai dân số khác nhau, không phải hai kết quả khác nhau cho cùng câu hỏi.**
+
+### Điểm tốt đo được cùng lượt
+
+`scope = unknown` ✅ — bản vá của coder giữ đúng trên đường fallback ở `fin05`,
+không chỉ ở `fin05do`. Trước đây chỗ này ghi `internal_wallet` bịa.
