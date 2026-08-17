@@ -795,6 +795,32 @@ bản vá *"bắt tất cả thành mềm"* vẫn 10/10 xanh) · security gửi 
 Áp mạnh nhất cho **PO-agent** (nấc cuối trước khi một phát biểu thành **quyết định**) và **security**
 (nấc ngay trước đó — 2/4 dòng là của họ).
 
+### LUẬT E — một bộ ca XANH phải kèm PHÂN BỐ LÝ DO xanh
+Coder mổ con số `124/124` (bộ ca âm, luật phân luồng `1edd51dff555`) xem nó **đạt vì lý do gì**:
+```
+103 ca  chặn vì CÓ CHỮ SỐ
+ 21 ca  chặn vì DÀI > 40 ký tự        ← chỉ mình mệnh đề này gánh
+  0 ca  chặn vì TOKEN NGOÀI TẬP XÃ GIAO   🔴 mệnh đề CHÍNH, chưa khai hoả lần nào
+```
+**Danh-sách-cho-phép — nguyên tắc số ① của cả thiết kế, vừa được PO-agent ratify — chưa chặn được
+một ca nào.** Nó **chưa hề được thử**. Và 21 ca kia đứng **chỉ trên một ngưỡng độ dài chọn tuỳ
+tiện** (`DAI_TOI_DA=40`) — đúng mệnh đề coder tự tuyên bố *"độ dài không bao giờ đủ một mình"*.
+Nới ngưỡng lên 60 là mở cửa cho 21 ca đó, **và `124/124` vẫn xanh cho tới lúc ai đó nới**.
+
+> **LUẬT E: một bộ ca xanh phải kèm PHÂN BỐ LÝ DO xanh. Nhánh nào không xuất hiện lần nào là nhánh
+> CHƯA ĐƯỢC KIỂM — dù tỉ lệ có là 100%.**
+> **Hỏi "mỗi ca ĐẠT nhờ nhánh nào", đừng hỏi "bao nhiêu ca ĐẠT".**
+
+**Khác với các ca cùng ngày ở TẦNG:** không phải sai **dân số** (`golden_set` không có lượt đơn),
+không phải sai **mẫu số** (120 ca vs 124 câu) — mà là **bộ ca KHÔNG CHẠM ĐƯỢC mệnh đề cần chạm**.
+`124/124` **đúng, không bịa**, và vẫn **không chứng minh** điều người đọc sẽ tưởng nó chứng minh.
+
+*(Coder tự soạn 8 ca "khiếu nại thật · ngắn · không chữ số" để ĐI TÌM LỖ — cả 8 đi `day_du`, và
+lần này chặn bằng **đúng mệnh đề danh-sách-cho-phép**. ⟹ luật không có lỗ ở đó, **nhưng chỉ biết
+được sau khi đi tìm**. Và họ **không** đưa 8 ca đó vào bộ chấm: soạn ca để thử luật của chính mình
+là thứ đội đã cấm. Cũng **không sửa `DAI_TOI_DA`** — *"phát hiện này về BỘ CA, không về LUẬT; sửa
+luật lúc này là tối ưu cho một bộ ca tôi vừa tự soạn."*)*
+
 ### LUẬT D — cột phòng thủ phải có NGUỒN KHÁC, "dư thừa" chỉ là hệ quả
 Cơ chế **thứ SÁU** (coder tự bắt, tầng khác): `>/dev/null` nuốt một lệnh **không chạy**, bảng vẫn
 hiện **nhãn cũ + chuông ×0**, và họ **suýt đọc thành "bản vá không hoạt động"**. Không phải
