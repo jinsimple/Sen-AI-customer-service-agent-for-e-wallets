@@ -24,6 +24,26 @@ os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 # với OTEL_SDK_DISABLED ở trên.
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
+# 🔴 REDIS_URL — ÉP, không `setdefault`. Đây là chỗ bất đối xứng đã gây thiệt
+# hại thật, và nó nằm cách hai dòng trên chưa tới mười dòng.
+#
+# `db_session` TỰ DỰNG engine SQLite riêng trong tmp_path ⟹ cô lập theo KIẾN
+# TRÚC: dù `DATABASE_URL` trỏ Postgres production, test cũng không chạm tới.
+# Fixture Redis thì MƯỢN client toàn cục của tiến trình qua `get_default_client()`
+# ⟹ cô lập theo GIẢ ĐỊNH về một biến môi trường. Giả định đó sai ngay khi ai đó
+# chạy `docker exec <backend> pytest`, nơi REDIS_URL là Redis THẬT của ngăn xếp.
+#
+# Hậu quả đo được 17/08 trên `fin05-redis-1`: `cmdstat_flushdb calls=437`, và
+# DBSIZE về 0 — cuốn sạch phiên đăng nhập của mọi người đang dùng ngăn xếp đó.
+#
+# `setdefault` KHÔNG chữa được ca này: trong container biến ĐÃ có giá trị thật,
+# nên setdefault im lặng nhường cho nó. Phải ÉP.
+#
+# Không test nào cần Redis thật: test cần hạ tầng sống thì nói chuyện HTTP qua
+# `FIN05_TEST_BASE_URL` — một biến KHÁC, không đụng vào đây.
+_REDIS_URL_GOC = os.environ.get("REDIS_URL")
+os.environ["REDIS_URL"] = "fake://ci"
+
 import pytest
 from argon2 import PasswordHasher
 from sqlalchemy.orm import Session, sessionmaker
@@ -88,18 +108,31 @@ def _flush_redis_between_tests():
     > có cảnh báo nào. Nó chỉ **im lặng làm một việc khác hẳn** khi biến môi
     > trường đổi.
 
-    Cổng dưới đây **nổ thay vì bỏ qua**. Bỏ qua sẽ trả lại đúng chỗ rò rỉ state
-    mà fixture sinh ra để chặn, rồi ta có một suite xanh vì lý do sai.
+    ## HAI LỚP, cố ý — CÔ LẬP rồi mới tới KIỂM
+
+    **Lớp 1 (cô lập):** đầu file ÉP `REDIS_URL=fake://ci` **trước mọi import**,
+    cùng cơ chế và cùng lý do với `OTEL_SDK_DISABLED` / `DATABASE_URL`. Sau lớp
+    này, `get_default_client()` **không thể** trả về một client thật.
+
+    **Lớp 2 (kiểm — chính là cổng dưới đây):** vẫn nổ nếu client hoá ra là thật.
+    Nó không thừa: lớp 1 chỉ có hiệu lực khi `conftest.py` này được nạp **trước**
+    module đầu tiên chạm `src.config`. Cổng là thứ **chứng minh** lớp 1 đã ăn —
+    và nếu ai đó gỡ lớp 1, cổng biến thiệt hại im lặng thành một dòng đỏ.
+
+    Cổng **nổ thay vì bỏ qua**. Bỏ qua sẽ trả lại đúng chỗ rò rỉ state mà fixture
+    sinh ra để chặn, rồi ta có một suite xanh vì lý do sai.
     """
     la_gia, mo_ta = _redis_la_gia()
     if not la_gia:
         raise RuntimeError(
             "🔴 TỪ CHỐI flushdb() — Redis này KHÔNG phải bản giả.\n"
             f"   {mo_ta}\n"
+            f"   REDIS_URL lúc vào tiến trình: {_REDIS_URL_GOC or '(không đặt)'}\n"
             "   Fixture autouse này xoá SẠCH Redis trước MỖI test. Chạy nó lên\n"
             "   một Redis thật sẽ cuốn phiên đăng nhập của mọi người đang dùng\n"
             "   ngăn xếp đó — đã xảy ra thật 17/08 (flushdb calls=437).\n"
-            "   Đặt REDIS_URL=fake://ci rồi chạy lại."
+            "   Lớp ép ở ĐẦU conftest.py đáng lẽ đã chặn — nếu bạn thấy dòng này\n"
+            "   thì conftest được nạp SAU module đầu tiên chạm src.config."
         )
     get_default_client().flushdb()
     yield

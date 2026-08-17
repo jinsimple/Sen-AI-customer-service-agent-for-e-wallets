@@ -1407,6 +1407,43 @@ xếp **khác**. Đo được:
 > công việc của **người bên cạnh**, ở một thời điểm không ai nối lại được với
 > lệnh đã gây ra nó.
 
+#### 4d — QUAN SÁT và THỰC THI là hai việc; đừng dùng công cụ của việc sau cho việc trước
+
+Suốt ngày 17/08 cả đội nhắc nhau một lời khuyên **đúng**: *kiểm trong container,
+đừng tin runtime mượn* — chính nó gỡ được vụ `langchain-core` 1.5.3/1.5.4.
+
+Rồi hoá ra `docker exec <backend> pytest` **chính là cách người ta làm đúng lời
+khuyên đó**, và cũng là **cách duy nhất kích hoạt** vụ 437 lần. Người chạy nó
+làm đúng cả lời khuyên lẫn hiến pháp §7.
+
+> **Chạy trong container để ĐỌC trạng thái thật là đúng. Chạy BỘ TEST trong
+> container thì bộ test mang theo đồ nghề dọn dẹp của nó.** Quan sát và thực thi
+> là hai việc — công cụ của việc sau không được dùng cho việc trước.
+
+Muốn đọc trạng thái thật trong container: dùng `python -c` một dòng, `redis-cli`,
+truy vấn chỉ-đọc. **Đừng** gọi `pytest`, vì fixture của nó tồn tại để **dọn**,
+và nó sẽ dọn thứ nó gặp.
+
+#### 4e — hai chiều hỏng, và chiều KHÔNG có triệu chứng mới là chiều nguy
+
+    phiên · vé refresh bị cuốn      → phép đo GÃY        → ĐỎ, thấy ngay
+    bộ đếm tích luỹ bị cuốn         → ngưỡng đặt lại 0   → 🔴 XANH GIẢ, im lặng
+
+Một test *"gửi quá hạn mức phải bị chặn"* mà bộ đếm bị cuốn giữa chừng sẽ **PASS
+vì lý do sai** — đúng họ Luật 1, và đúng các chốt ta quan tâm nhất: rate-limit,
+cost guard, độ tươi OTP.
+
+**Và không loại trừ được bằng lập luận:** `INFO commandstats` chỉ có **tổng**,
+không có mốc thời gian ⟹ không định vị được 437 lần đó trong thời gian. Chỉ có
+hai đường: **chạy lại**, hoặc **chứng minh mình chưa từng đo đại lượng đó**.
+
+Đường thứ hai rẻ hơn nhiều khi nó đúng, nhưng phải chứng minh bằng **rà bản
+ghi**, không bằng trí nhớ. Ở đây là năm phép rà độc lập, tất cả trống: không
+file kết quả nào chứa trường trạng thái Redis · không file nào chứa trường bộ
+đếm tích luỹ · không tệp đo nào vừa nhắc ba đại lượng đó vừa gọi HTTP vào ngăn
+xếp bị ảnh hưởng · 81 file kết quả không có 401/403 nào · và ca ép 429 nằm sau
+một cờ chưa từng bật.
+
 Và hệ quả vận hành, đáng nói riêng: **một ngăn xếp đang có người khác dùng thì
 không phải chỗ để chạy phép đo có ghi.** Không chỉ vì lẫn số — mà vì phép đo
 tiêu hạn ngạch, đụng rate-limit, và làm hỏng phép đo của người bên cạnh.
