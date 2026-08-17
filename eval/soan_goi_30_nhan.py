@@ -45,7 +45,14 @@ MOI_TANG = 10
 # Chuỗi KHÔNG được xuất hiện trong file người chấm. Danh sách này là cổng chống
 # rò rỉ; thêm trường mới vào bản ghi thì thêm khoá vào đây.
 CAM_TRONG_FILE_NGUOI = ("passed", "verdict", "judge", "reason", "checks_failed",
-                        "severity", "ĐẠT theo máy", "điểm máy")
+                        "severity", "ĐẠT theo máy", "điểm máy",
+                        # Metadata transcript của TẦNG C — mang dấu vết PHÂN TÍCH
+                        # của tester (ca này thuộc mẫu hỏng nào, gọi mấy tool,
+                        # vì sao fallback). Người chấm thấy "F-31 từ chối sai
+                        # phạm vi" thì họ không còn chấm mù nữa — họ chấm theo
+                        # kết luận của tôi.
+                        "mau_hong", "so_tool", "ma_http", "ly_do_fallback",
+                        "F-31", "F-32", "F-33", "diễn giải", "từ chối SAI")
 
 
 def _chay(cmd: list[str]) -> str:

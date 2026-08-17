@@ -40,6 +40,24 @@ VỎ BỌC, nguy hơn bịa thẳng — vì bịa thẳng thì thước bắt đ
 lại khen. Assertion phải kiểm phần SAU câu từ chối, không dừng ở việc tìm thấy
 câu từ chối.**
 
+## 🔴 BỐN CA NÀY KHÔNG ĐI CHUNG MỘT CỬA — đừng gộp lại khi đọc kết quả
+
+Tech-lead truy ra (17/08) và tôi ghi lại ở đây vì nó đổi cách đọc mọi bản vá:
+
+    RAG-38 · RAG-40   →  MISINFO-002 nguyên văn
+    RAG-43            →  "## Ngoài phạm vi"      ← CỬA KHÁC
+
+Bốn ca có **cùng triệu chứng bề mặt** — agent gọi tool chính sách 0 lượt — nên
+rất dễ gộp thành một finding. Chúng **không** cùng một finding.
+
+> **Hệ quả cụ thể: vá MISINFO-002 sẽ làm `RAG-38/40` xanh và `RAG-43` VẪN ĐỎ**
+> — hoặc tệ hơn, ai đó chạy lại thấy 3/4 xanh rồi kết luận bản vá "gần xong".
+
+Đây cùng họ với Luật 9 (soi cả hai phía) ở chiều ngược: ở đó là *hai kết quả
+giống nhau vì hai nguyên nhân khác nhau*, ở đây là *một triệu chứng chung che
+mất hai cơ chế khác nhau*. Cách chặn giống nhau — **không gộp ca theo triệu
+chứng, chỉ gộp theo cơ chế ĐÃ TRUY RA**.
+
 ## Vì sao đây là `xfail(strict=True)` chứ không phải `security_finding`
 
 `security_finding` dành cho finding P0 CHƯA VÁ, cố ý đỏ, chạy ở job riêng.

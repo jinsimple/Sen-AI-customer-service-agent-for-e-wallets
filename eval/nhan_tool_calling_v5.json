@@ -28,7 +28,8 @@
   "ĐỘ DÀI prompt (123 ↔ 15.094)",
   "NỘI DUNG prompt (chỉ dẫn khác hẳn nhau, không phải bản dài/ngắn của cùng một thứ)",
   "TÊN THƯƠNG HIỆU (bộ đo ghi 'MoMo', sản phẩm ghi tên khác)",
-  "⟹ ĐÂY KHÔNG PHẢI phép đo về độ dài prompt, KHÔNG PHẢI phép đo 'có chỉ dẫn hay không' (123 ký tự không rỗng — nó là một chỉ dẫn KHÁC, và ở trục 2 còn NGHIÊM HƠN sản phẩm). Biến là 'prompt NÀO'."
+  "⟹ ĐÂY KHÔNG PHẢI phép đo về độ dài prompt, KHÔNG PHẢI phép đo 'có chỉ dẫn hay không' (123 ký tự không rỗng — nó là một chỉ dẫn KHÁC, và ở trục 2 còn NGHIÊM HƠN sản phẩm). Biến là 'prompt NÀO'.",
+  "🔴 HỆ QUẢ CỤ THỂ (tech-lead đề, tôi ký): v5 THẤP HƠN v4 ở trục 2 KHÔNG chứng minh 'prompt dài làm loãng'. Nó có thể chỉ nói 'prompt sản phẩm ít cấm bịa hơn 123 ký tự của tester'. Hai mệnh đề này KHÔNG phân biệt được bằng cặp v4↔v5."
  ],
  "k_bat_doi_xung": {
   "vi_sao": "SÁU trên tám ca đã chạm trần 10/10 ở CẢ BỐN model trong v4. Lặp lại chúng ở k=10 không mua phân giải — chúng chỉ có thể đi xuống. Dồn k vào nơi có phương sai.",
@@ -94,10 +95,21 @@
    "v5": "5bee2e87bf24 · 22.266 ký tự"
   },
   "mo_ta_tool_XAC_MINH_LAI": {
-   "do_duoc": "t.description trên container fin05-backend-1 = 680·947·1266·793·1176 = 4.862",
+   "do_duoc": "4.862 = 680·947·1266·793·1176 — CÁCH ĐO: chuỗi THÔ của t.description, không chuẩn hoá gì",
    "bat_bien": "kiểm với otp_verified_at = None · vừa xong · cũ 13h ⟹ BA lần y hệt. Mô tả tool KHÔNG đổi theo trạng thái phiên (khác current_time của system prompt).",
    "khop_file_bam": "trùng khít eval/luoc_do_tool_app.json@4129d298555c ⟹ kích thích v4 ĐÚNG là của app",
-   "🔴_CHUA_GIAI_THICH": "security đo 608·851·1114·713·1048 = 4.334 trên cùng trường. Lệch 528, không đều (72·96·152·80·128). KHÔNG phải contracts/agent-tools.yaml (tổng 612). Chưa biết nguồn. Ghi lại thay vì làm phẳng — nếu security đọc một nguồn KHÁC app đang chạy thì đó là finding riêng."
+   "✅_DA_GIAI_THICH": {
+    "cu": "security báo 4.334, tôi nghi có bản mô tả thứ hai trong src/ ⟹ finding riêng",
+    "moi": "KHÔNG có bản thứ hai. Tech-lead đo mọi đường trích: t.description 4.862 · convert_to_openai_tool 4.862 (thứ SDK THẬT gửi) · docstring hàm gốc 4.871. Không đường nào ra 4.334.",
+    "nguyen_nhan": "strip khoảng trắng đầu mỗi dòng → [606,851,1094,713,1048]=4.312; security báo [608,851,1114,713,1048]=4.334. BA TRÊN NĂM khớp CHÍNH XÁC (851·713·1048), hai cái lệch nhỏ do xử lý dòng trống/xuống dòng cuối.",
+    "chot": "CÙNG MỘT VẬT, HAI PHÉP ĐO. Dùng 4.862 vì khoảng trắng CŨNG LÀ TOKEN — chuỗi thô đúng là thứ đi ra mạng.",
+    "lan_thu_BA_trong_ngay": [
+     "lược đồ tool: chuẩn-hoá 4129d298555c vs file-thô 76273c1ef838",
+     ".env: sha256 db1965367fa0 vs md5 9d3d3c79e48e",
+     "mô tả tool: thô 4.862 vs bỏ-khoảng-trắng 4.334"
+    ],
+    "luat": "MỘT CON SỐ KHÔNG KÈM CÁCH ĐO THÌ KHÔNG PHẢI BẰNG CHỨNG. Ba vùng khác nhau, ba cặp vai khác nhau, cùng một lớp lỗi trong một ngày."
+   }
   }
  },
  "🔴_PHA_LOANG_KHONG_CONG_BO_DINH_LUONG": {
@@ -135,5 +147,18 @@
   "nhung": "từ nay câu 'cùng một prompt' giữa hai ngày là một GIẢ ĐỊNH, không phải một SỰ KIỆN",
   "va": "ghi MỐC THỜI GIAN truyền vào prompt cạnh mọi con số đo qua sản phẩm, cùng chỗ với băm THƯỚC và băm VẬT"
  },
- "bam_nhan": "d20cb85890a2"
+ "ca_RAG_KHONG_CUNG_MOT_CUA": {
+  "phat_hien": "tech-lead 17/08 — RAG-38/40 đi MISINFO-002 nguyên văn; RAG-43 đi '## Ngoài phạm vi'. CỬA KHÁC.",
+  "vi_sao_de_gop_nham": "bốn ca cùng triệu chứng bề mặt: agent gọi tool chính sách 0 lượt",
+  "he_qua": "vá MISINFO-002 làm RAG-38/40 xanh và RAG-43 VẪN ĐỎ — hoặc tệ hơn, ai đó thấy 3/4 xanh rồi kết luận bản vá 'gần xong'",
+  "trong_vung_toi": "tests/test_agents/test_f31_f32_duong_agent_that.py ĐÃ tách 2+2 (F-31=38/40 · F-32=41/43) — khớp cửa. Đã ghi cửa vào docstring.",
+  "luat": "KHÔNG gộp ca theo TRIỆU CHỨNG, chỉ gộp theo CƠ CHẾ ĐÃ TRUY RA"
+ },
+ "ky": {
+  "tester": "soạn",
+  "tech-lead": "KÝ d20cb85890a2",
+  "security": "đã nhận ①②④⑤, chờ xác nhận cuối"
+ },
+ "bam_cu_da_thay": "d20cb85890a2 — thay TRƯỚC khi có bất kỳ phép đo v5 nào. Lý do: ① giải thích xong chênh 4.862/4.334 (cùng vật, hai phép đo — KHÔNG phải finding), ② thêm hệ quả tech-lead về trục 2, ③ thêm cửa RAG khác nhau. Không đụng một con số nào của LUẬT DỪNG.",
+ "bam_nhan": "802132ff4ec4"
 }
