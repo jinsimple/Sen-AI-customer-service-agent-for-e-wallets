@@ -231,6 +231,19 @@ def _khoa_cho_nha_cung_cap(ten_khoa: str, base_url: str | None) -> str | None:
 
 
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or None
+
+# Kênh cho khách khi agent KHÔNG phục vụ được và ta CỐ Ý không tạo vé (lỗi nhà
+# cung cấp cần can thiệp: 401/403/400/404). Đây là lối đi duy nhất còn lại cho
+# một khách có thể đang định báo gian lận — xem chú thích ở graph.py.
+#
+# Mặc định CỐ Ý là cụm chung chung, KHÔNG có số điện thoại: bịa một số tổng đài
+# vào câu trả lời cho khách là vi phạm ràng buộc cứng 3 theo đúng nghĩa đen —
+# khách sẽ GỌI vào đó. PO đặt `HOTLINE_CSKH` thì câu trả lời có số thật.
+_hotline = os.environ.get("HOTLINE_CSKH", "").strip()
+KENH_HO_TRO_KHAC = (
+    f"tổng đài chăm sóc khách hàng {_hotline}" if _hotline
+    else "tổng đài chăm sóc khách hàng"
+)
 # `or OPENAI_MODEL` CÙNG HÌNH DẠNG với lỗ khoá ở trên, nhưng KHÔNG cần guard —
 # ghi ra để người đọc sau phân biệt "đã cân nhắc" với "bỏ sót": tải trọng ở đây
 # lành. Quên đặt thì ta hỏi nhà cung cấp mới một model tên "gpt-4o-mini" và

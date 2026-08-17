@@ -20,7 +20,15 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.errors import GraphRecursionError
-from openai import RateLimitError
+from openai import (
+    APIError,
+    AuthenticationError,
+    BadRequestError,
+    NotFoundError,
+    PermissionDeniedError,
+    RateLimitError,
+)
+from opentelemetry.trace import Status, StatusCode
 from sqlalchemy.orm import Session
 
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
@@ -31,6 +39,7 @@ from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
     DATABASE_URL,
     DB_KIND,
+    KENH_HO_TRO_KHAC,
     LLM_API_KEY,
     LLM_BASE_URL,
     LLM_MAX_TOKENS,
@@ -83,6 +92,72 @@ def _giay_cho_lai(loi: Exception) -> float | None:
     """
     m = re.search(r"try again in ([0-9.]+)s", str(loi))
     return float(m.group(1)) if m else None
+
+
+# ═══ Phân loại lỗi NHÀ CUNG CẤP ════════════════════════════════════════════
+#
+# `APIError` là ranh giới CHÍNH XÁC của họ này: mọi lỗi nhà cung cấp đều kế
+# thừa nó (đã kiểm cây thừa kế trên openai==3.0.0 đang chạy: 401/403/400/404/
+# 429/5xx đi qua APIStatusError, timeout/rớt mạng đi qua APIConnectionError,
+# cả hai đều dưới APIError), và KHÔNG lỗi nào của ta lọt vào. Bắt rộng hơn
+# (`Exception`) sẽ nuốt cả bug của chính mình thành "hệ thống bận".
+#
+# VÌ SAO CẦN: trước bản này `except` khoá vào ĐÚNG MỘT TÊN — `RateLimitError`.
+# Nhưng thứ cần xử lý không phải một tên, mà là TRẠNG THÁI "nhà cung cấp không
+# phục vụ lượt này". 429 chỉ là một trong các cách họ từ chối; 6 lớp còn lại
+# rơi thẳng ra HTTP 500 trần. tester quan sát được trên đường thật khi hạn mức
+# Qwen cạn giữa buổi: hết giờ -> 200 + vé fallback, nhưng 403 -> 500, không vé,
+# không gì cả.
+#
+# ⚠️ TUYỆT ĐỐI KHÔNG nối họ này vào nhánh fallback-TẠO-VÉ bên dưới. Lý do đã
+# đúng với 429 (chú thích ở nhánh đó), và MẠNH HƠN với 401/403: hết hạn mức là
+# hỏng TOÀN CỤC, nó đánh mọi khách cùng lúc ⟹ tạo vé nghĩa là một vé cho mỗi
+# khách đang online. Trong buổi 150 người đó là 150 vé ma trong một phút, cho
+# những khiếu nại KHÔNG TỒN TẠI — và làm loãng đúng hàng chờ mà vé "AI bó tay"
+# cần được nhìn thấy.
+
+# Bốn lớp mà KHÁCH THỬ LẠI BAO NHIÊU LẦN CŨNG KHÔNG HẾT — phải có người xử.
+# 400/404 là lỗi CỦA TA (sai model/tham số), không phải sự cố nhà cung cấp;
+# xếp chung ở đây vì đứng từ phía khách chúng giống hệt nhau: chờ không hết.
+_LOI_CAN_CAN_THIEP = (
+    AuthenticationError,      # 401 khoá sai / vừa xoay / hết hạn
+    PermissionDeniedError,    # 403 hết hạn mức HOẶC sai quyền
+    BadRequestError,          # 400 lỗi của ta
+    NotFoundError,            # 404 lỗi của ta
+)
+
+# Dấu hiệu "hết tiền" trong thân thông báo. CỐ Ý chỉ dùng cho MỘT trường log,
+# không bao giờ cho thứ khách nhìn thấy:
+#   `403 free quota exhausted` của DashScope CÙNG LỚP PermissionDeniedError với
+#   403 sai quyền. Tách hai ca bắt buộc phải so chuỗi -> mong manh theo từng
+#   nhà cung cấp, và hỏng IM LẶNG khi họ đổi câu chữ.
+#   Luật: một phép phân biệt MONG MANH chỉ được điều khiển hậu quả RẺ. Sai ở
+#   đây tốn một nhãn log lệch (tự lộ ngay khi người vận hành mở ra xem). Nếu
+#   nó điều khiển "khách thấy gì" thì một lần đổi câu chữ = khách nhận 500.
+_DAU_HIEU_HET_HAN_MUC = ("quota", "exhaust", "insufficient", "balance", "arrear", "unpurchased")
+
+
+def _mo_ta_loi_nha_cung_cap(loi: APIError) -> dict[str, object]:
+    """Trường để hồi cứu sự cố. KHÔNG chứa thân thông báo thô.
+
+    Thân thô có thể mang khoá hoặc định danh nội bộ; ta chỉ rút ra một cờ
+    boolean từ nó. Đủ để người vận hành biết "hết tiền hay sai khoá", không đủ
+    để rò thứ gì ra log.
+    """
+    than = (str(getattr(loi, "message", "") or str(loi))).lower()
+    return {
+        "lop_loi": type(loi).__name__,
+        "ma_trang_thai": getattr(loi, "status_code", None),
+        "nha_cung_cap": LLM_BASE_URL or "openai",
+        "model": LLM_MODEL,
+        "can_can_thiep": isinstance(loi, _LOI_CAN_CAN_THIEP),
+        "co_dau_hieu_het_han_muc": any(d in than for d in _DAU_HIEU_HET_HAN_MUC),
+        # `request_id` của nhà cung cấp: CHÍNH thứ bộ phận hỗ trợ của họ hỏi khi
+        # ta khiếu nại hoá đơn/hạn mức — không có nó thì hồi cứu với họ là bất
+        # khả (security ④). Không phải bí mật, không phải PII. CHỈ dùng trong hồ
+        # sơ nội bộ, KHÔNG bao giờ đưa ra khách.
+        "request_id_ncc": getattr(loi, "request_id", None),
+    }
 
 
 def _ly_do_fallback(loi: Exception) -> str:
@@ -431,6 +506,111 @@ def run_agent_turn(
                 "ly_do_fallback": "qua_tai",
             }
             executor.shutdown(wait=True)  # thread thật sự đã xong lúc .result() trả về, wait=True không tốn gì thêm
+        except APIError as e:
+            # Mọi cách từ chối CÒN LẠI của nhà cung cấp. `RateLimitError` đã
+            # được bắt ở trên — nó là CON của APIError, nên thứ tự hai nhánh
+            # này KHÔNG hoán đổi được: đảo lại thì 429 bị nuốt vào đây và mất
+            # thông điệp `retry_after` cụ thể mà nhà cung cấp đã nói rõ.
+            #
+            # HAI TRỤC ĐỘC LẬP, không phải hai đầu của một trục:
+            #   trục KHÁCH     — mềm 8/8, không bao giờ 500 trần. Kể cả 400/404
+            #                    (bug của ta): khách không đáng nhận 500 vì bug
+            #                    của ta.
+            #   trục VẬN HÀNH  — mức ồn đặt riêng. error cho ca cần người xử,
+            #                    warning cho ca tự hết.
+            # Ghép hai trục làm một sinh ra CẢ HAI lỗi sai: nổ to thì khách
+            # nhận 500 (đúng ca hôm nay), êm thì vận hành không biết khoá sai.
+            executor.shutdown(wait=False)
+            mo_ta = _mo_ta_loi_nha_cung_cap(e)
+            can_thiep = bool(mo_ta["can_can_thiep"])
+            # HAI TÊN SỰ KIỆN RIÊNG, không phải một tên với một trường phân
+            # loại. Lý do (security ①): có tên riêng thì `grep` ra được ngay hôm
+            # nay, và ngày ai đó gắn cảnh báo thật thì gắn vào tên — không phải
+            # sửa code. Một tên chung + trường lọc bắt người dựng cảnh báo phải
+            # biết trường đó tồn tại.
+            ten_su_kien = (
+                "agent_turn_ncc_can_can_thiep" if can_thiep else "agent_turn_ncc_thoang_qua"
+            )
+            ghi = _logger.error if can_thiep else _logger.warning
+            ghi(
+                ten_su_kien,
+                extra={
+                    "user_id": user_id,
+                    # correlation_id: nối sự cố với SỐ PHIÊN bị ảnh hưởng mà
+                    # không lưu nội dung nào (security ④).
+                    "thread_id": thread_id or user_id,
+                    **mo_ta,
+                },
+            )
+            # Bề mặt máy-đọc-được THỨ HAI, và là bề mặt DUY NHẤT truy vấn được
+            # hôm nay: span Jaeger. Đã nối sẵn, không cần route mới (thêm route
+            # = đổi contract), không phơi trạng thái vận hành ra `/health` công
+            # khai — `lop_loi_cuoi="AuthenticationError"` trên một endpoint
+            # không xác thực chính là báo cho người ngoài biết khoá ta đang hỏng.
+            root_span.set_attribute("fin05.su_kien", ten_su_kien)
+            root_span.set_attribute("fin05.loi_nha_cung_cap", str(mo_ta["lop_loi"]))
+            root_span.set_attribute("fin05.can_can_thiep", can_thiep)
+            root_span.set_attribute("fin05.het_han_muc", bool(mo_ta["co_dau_hieu_het_han_muc"]))
+            if can_thiep:
+                # Span ĐỎ, không chỉ là span có tag. Jaeger lọc theo `error=true`
+                # mặc định; một tag tự đặt thì người trực phải biết trước tên nó.
+                root_span.set_status(Status(StatusCode.ERROR, ten_su_kien))
+                root_span.record_exception(e)
+
+            # HAI CÂU KHÁC NHAU, và khác nhau ở đúng chỗ có hậu quả. Gộp lại là
+            # bảo khách "thử lại sau ít phút" trong khi sự thật là "hết tiền,
+            # thử lại bao nhiêu lần cũng không hết".
+            #
+            # Ba điều CẢ HAI câu cố ý KHÔNG nói:
+            #  · không "chưa cho phép truy cập" — agent từng nói vậy rồi xin mã
+            #    giao dịch, đẩy khách đi làm một việc vô ích (quan sát ⑤).
+            #  · không "đã ghi nhận"/"CSKH sẽ liên hệ" — nhánh này KHÔNG tạo vé
+            #    nào. Hứa một bản ghi không tồn tại là loại bịa tệ nhất: khách
+            #    NGỒI CHỜ một cuộc gọi không bao giờ tới.
+            #  · không mã lỗi, không tên nhà cung cấp — vô ích với khách, và lộ
+            #    hạ tầng.
+            #
+            # Chuỗi là HẰNG SỐ ở tầng code, KHÔNG nhờ model sinh: model vừa
+            # hỏng mới rơi vào đây, nhờ nó viết câu xin lỗi là phụ thuộc đúng
+            # thứ vừa gãy.
+            # Nhóm CẦN CAN THIỆP: KHÔNG hứa mốc thời gian (thử lại có thể
+            # không giúp gì trong nhiều giờ) VÀ phải chỉ đường sang kênh khác.
+            # Đây là ĐIỀU KIỆN của security ③, không phải tuỳ chọn: ta cố ý
+            # không ghi lại lượt này, mà cái giá của việc mất dấu KHÔNG đồng
+            # đều — mất một khách hỏi phí thì giá ≈ 0, mất một khách đang định
+            # BÁO GIAN LẬN thì giá cao và nhạy thời gian. Ta không phân biệt
+            # được vì agent hỏng TRƯỚC khi phân loại. Lối đi cho người thật là
+            # biện pháp duy nhất còn lại — nó biến "ta mất dấu khách" thành
+            # "khách vẫn còn đường".
+            reply = (
+                "Xin lỗi bạn, hệ thống đang gặp sự cố kỹ thuật nên tạm thời "
+                "chưa xử lý được yêu cầu này. Nếu việc của bạn cần xử lý ngay, "
+                f"bạn liên hệ {KENH_HO_TRO_KHAC} giúp mình nhé."
+                if can_thiep else
+                "Xin lỗi bạn, hệ thống đang bận nên mình chưa xử lý kịp. "
+                "Bạn nhắn lại giúp mình sau ít phút nhé — tin nhắn của bạn "
+                "chưa bị mất gì cả."
+            )
+            return {
+                "reply": reply,
+                "tool_calls": None,
+                "ticket_id": None,          # CỐ Ý: xem chú thích ở _LOI_CAN_CAN_THIEP
+                "should_escalate": False,
+                "usage": {
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "total_tokens": 0,
+                    "cached_input_tokens": 0,
+                },
+                "loc_dau_ra": [],
+                "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                "goi_y_handoff": False,
+                # Hai giá trị RIÊNG, không gộp: câu hỏi vận hành "sự cố này tự
+                # hết hay cần người xử" phải trả lời được bằng một truy vấn.
+                "ly_do_fallback": (
+                    "nha_cung_cap_can_can_thiep" if can_thiep else "nha_cung_cap_thoang_qua"
+                ),
+            }
         except (GraphRecursionError, FutureTimeoutError) as e:
             # wait=False luôn an toàn ở đây: nếu thread đã xong (nhánh
             # GraphRecursionError) thì trả về ngay lập tức; nếu chưa (nhánh
