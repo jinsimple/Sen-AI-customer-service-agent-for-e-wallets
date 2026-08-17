@@ -68,3 +68,48 @@ làm và **không** đề nghị làm. Nếu cần chắc, gộp vào cùng phi�
 3. Batch có **bucket hạn mức riêng** khỏi real-time không?
 
 Ba câu, một vòng. Thao tác tài khoản ⟹ PO thật gửi.
+
+---
+
+## 🔴 BỔ SUNG — "50×" là con số SAI TRỤC. Trần thật chỉ ×5.
+
+PO xếp việc đổi vùng vào ngăn *"đo được, quyết định thuộc người có thẩm quyền
+pháp lý"* và đề nghị **đo cái rẻ để khỏi phải quyết cái đắt**. Tôi làm được
+ngay bằng số học từ số đã đo — **không cần lưu lượng người thật**.
+
+### Trần nào chạm trước
+
+    trần TPM   1.000.000 / 14.198 token/lượt  =  70,4 lượt/phút
+    trần RPM         600 /   2,39 gọi/lượt    = 251,0 lượt/phút
+
+⟹ **TPM chạm trước, sớm hơn 3,6 lần.** Ở mọi mức tải thực tế, RPM **không bao
+giờ** là trần chặn:
+
+    150 người × 0,5 lượt/ph =  75 lượt/ph → TPM 106% 🔴 · RPM  30%
+    100 người × 1,0 lượt/ph = 100 lượt/ph → TPM 142% 🔴 · RPM  40%
+
+### Nên "50× RPM" mua được gì — tra tiếp, và câu trả lời là ×5
+
+    Singapore     qwen3.7-max   600 RPM  ·  1.000.000 TPM
+    US Virginia   qwen3.7-max  30.000 RPM  ·  5.000.000 TPM
+
+    trần thật:  Singapore  70 lượt/phút  →  US  352 lượt/phút
+                TPM vẫn là trần chặn ở CẢ HAI vùng
+
+> **Đổi vùng mua `×5`, không phải `×50`.** Con số 50 là tỉ lệ của một trục
+> **không chặn gì cả**. Ai trích `50×` vào một quyết định về thông lượng đang
+> trích một đại lượng đúng để trả lời sai câu hỏi — **Luật 12b, xếp hạng trên
+> một trục**, lần này trục đó còn không phải trục ràng buộc.
+
+### Hệ quả cho hồ sơ pháp lý
+
+`×5` **vẫn đáng kể** — nó là hiệu số giữa *"vỡ ở 150 người"* và *"chịu được
+150 người"*. Nên nhánh vùng **không tự rụng** như PO hy vọng.
+
+Nhưng nó đổi **hạng** của cuộc thảo luận: không phải *"một đòn bẩy 50× đang bị
+pháp lý chặn"* mà *"một đòn bẩy 5× đòi đưa hội thoại khách Việt Nam ra hạ tầng
+Mỹ (NĐ 13/2023 · cư trú dữ liệu)"*. Cùng một quyết định, hai mức giá rất khác
+nhau để cân.
+
+⚠️ Hạng: **TÀI LIỆU NÓI** cho các con số trần; **ĐO ĐƯỢC** cho `14.198
+token/lượt` và `2,39 gọi/lượt`. Phép chia là số học, không phải phép đo.
