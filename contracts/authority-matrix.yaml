@@ -43,10 +43,35 @@ roles:
       tiền, không xem dữ liệu khách hàng. Vai này KHÔNG có trong PRD §4 gốc —
       phát sinh khi thêm tính năng RAG chính sách.
 
+# ADR-029 mục 4 (PO thật duyệt 17/08). TRƯỚC bản này mục `scopes` khai 3 giá
+# trị bằng chuỗi mô tả trần, KHÔNG khai `gia_tri_ma` — nên không phép kiểm nào
+# bắc được từ contract sang CHECK constraint thật, và giá trị thứ tư `unknown`
+# (thêm vào DB 11/08) sống sáu ngày ngoài mọi tài liệu.
+#
+# Hậu quả đã đo: `flag_human_handoff` ghi cứng `scope="internal_wallet"` cho cả
+# đường khách-xin-gặp-người — hệ thống làm đúng điều nó CẤM model làm — và
+# không cổng nào đỏ, vì contract không biết `unknown` tồn tại.
+#
+# `gia_tri_ma` là thứ cho phép `test_invariants` so contract ↔ CHECK constraint.
+# Thêm/bớt một giá trị ở một bên mà quên bên kia ⟹ ĐỎ.
 scopes:
-  noi_bo_vi:    "Giao dịch ví ↔ ví trong cùng hệ thống"
-  tu_ngan_hang: "Nạp tiền từ ngân hàng vào ví"
-  ra_ngan_hang: "Rút/chuyển tiền từ ví ra ngân hàng"
+  noi_bo_vi:
+    mo_ta: "Giao dịch ví ↔ ví trong cùng hệ thống"
+    gia_tri_ma: internal_wallet
+  tu_ngan_hang:
+    mo_ta: "Nạp tiền từ ngân hàng vào ví"
+    gia_tri_ma: from_bank
+  ra_ngan_hang:
+    mo_ta: "Rút/chuyển tiền từ ví ra ngân hàng"
+    gia_tri_ma: to_bank
+  khong_ro:
+    mo_ta: >
+      KHÔNG tra ra được phạm vi, và khách cũng không xác định được. CSKH tự
+      xác định thủ công sau. Song song với `other` của complaint_type.
+      CHỈ hợp lệ trên `complaints` — `transactions` luôn biết phạm vi thật của
+      nó, nên CHECK của bảng đó CỐ Ý chỉ có 3 giá trị.
+    gia_tri_ma: unknown
+    rang_buoc_db: ck_complaints_scope
 
 # ---------------------------------------------------------------------------
 # BẢNG ROUTE — sinh bằng máy, so khớp bằng máy.
