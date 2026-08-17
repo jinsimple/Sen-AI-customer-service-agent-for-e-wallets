@@ -1,0 +1,68 @@
+# NGĂN XẾP ĐO DÙNG RIÊNG — dữ liệu của nó là của nó, không ai ghi đè.
+#
+#   docker compose -p fin05do -f docker-compose.yml -f docker-compose.do.yml up -d
+#   docker compose -p fin05do -f docker-compose.yml -f docker-compose.do.yml down -v
+#
+# ⚠️ `-p fin05do` BẮT BUỘC. `docker-compose.yml` ghi cứng `name: fin05`; thiếu
+# `-p` là file này đè thẳng lên ngăn xếp demo. 17/08 tôi đã cắn đúng bẫy đó với
+# file ttl và làm chết stack chính 2 phút — lệnh đúng phải trích từ nhãn
+# container (`docker inspect ... com.docker.compose.project`), không gõ từ trí nhớ.
+#
+# ═══ VÌ SAO TỒN TẠI ═══════════════════════════════════════════════════════
+#
+# 17/08: `tests/conftest.py` có fixture `autouse=True` gọi `flushdb()` TRƯỚC MỖI
+# test. Docstring nói "fakeredis trong test" — nhưng đó là GIẢ ĐỊNH, không phải
+# ràng buộc. Chạy `docker exec fin05-backend-1 pytest` thì `REDIS_URL` là Redis
+# THẬT, và fixture cuốn sạch nó. **437 lượt flushdb** trước khi ai đó nhận ra.
+#
+# Hình dạng đáng sợ hơn con số: bán kính của fixture KHÔNG trùng vật đang đo.
+# Nó xoá Redis mà TIẾN TRÌNH PYTEST trỏ tới, còn test thì nói chuyện HTTP với
+# ngăn xếp khác ⟹ **người gây ra không thấy hậu quả** (suite xanh, số đúng),
+# **người chịu hậu quả không thấy nguyên nhân** (phiên chết ở nơi khác, không
+# nối lại được với lệnh nào).
+#
+# Trên hệ dùng chung ta KHÔNG chứng minh được sự CÓ MẶT của dấu mình (người
+# khác xoá) lẫn sự VẮNG MẶT (người khác ghi). Đó là giới hạn CẤU TRÚC — kế
+# toán tốt hơn không cứu được.
+#
+# ⚠️ NGĂN XẾP NÀY KHÔNG CỨU ĐƯỢC CA TRÊN. Cùng fixture sẽ xoá sạch nó y hệt
+# ngay lần đầu ai chạy pytest vào đây. **Cổng chặn tại nguồn (tests/conftest.py
+# @36b68c2); ngăn xếp riêng chỉ GIỚI HẠN BÁN KÍNH.** Cần cả hai, không thay nhau.
+#
+# ═══ BA QUYẾT ĐỊNH THIẾT KẾ ═══════════════════════════════════════════════
+#
+# ① `image:` trỏ ĐÚNG image đã dựng, KHÔNG có khối `build:`.
+#    Nếu để compose tự build, nó tạo image `fin05do-backend` — và ta lại đo một
+#    VẬT KHÁC. "Cùng image" phải là cùng một sha, không phải cùng Dockerfile.
+#
+# ② KHÔNG publish cổng nào ra host. Ngăn xếp đo không cần ai gõ vào từ ngoài;
+#    mọi thứ chạy qua `docker exec`. Không cổng = không đụng cổng, và cũng
+#    không có đường để ai đó vô tình trỏ trình duyệt vào đây rồi tưởng là demo.
+#    `!override` trên MỌI khối `ports` — compose GỘP danh sách cổng, không thay.
+#
+# ③ Không dùng lại `fin05ttl`. Nó đang là hạ tầng đo vùng auth (TTL 1 phút) và
+#    là ngăn xếp DUY NHẤT chưa từng bị flush — chồng mục đích thứ hai lên nó là
+#    đánh mất đúng thứ đang có giá trị nhất ở đó.
+
+services:
+  postgres:
+    ports: !override []
+
+  redis:
+    ports: !override []
+
+  backend:
+    image: fin05-backend            # ① cùng sha với ngăn xếp chính
+    build: !reset null
+    ports: !override []
+    environment:
+      APP_ENV: do-luong             # nhãn tự khai: nhìn /health là biết đây là stack đo
+
+  jaeger:
+    ports: !override []
+
+  caddy:
+    ports: !override []
+
+  frontend:
+    ports: !override []
