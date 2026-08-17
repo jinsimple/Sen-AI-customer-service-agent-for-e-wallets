@@ -392,3 +392,92 @@ này: mô tả tool của ta — tức **một phần thiết kế nội bộ** 
 của hai nhà cung cấp, 30 ngày (Alibaba) và không rõ hạn (OpenAI). Không phải
 PII, không phải sự cố; là **dữ kiện cho hồ sơ Điều 25**, ghi để không phải phát
 hiện lại.
+
+---
+
+## §13. 🔴 ĐÍNH CHÍNH §11: **"có người xoá tay" là SAI.** Thủ phạm là `tests/conftest.py`
+
+Tester truy tiếp bằng đường của họ và bác kết luận của tôi. **Tôi kiểm lại và
+không cãi** — Redis tự khai:
+
+```
+cmdstat_flushdb: calls=437        ← khớp CHÍNH XÁC số tester đưa
+tests/conftest.py — fixture autouse=True gọi get_default_client().flushdb()
+                    TRƯỚC MỖI test
+```
+
+Chạy `docker exec fin05-backend-1 pytest` thì `REDIS_URL=redis://redis:6379/0`
+— **Redis THẬT** — và fixture cuốn sạch nó trước mỗi test. Không ai xoá tay:
+**bộ test của tester xoá vé của chính tester**, 437 lần tính tới giờ.
+
+**Chỗ tôi sai, và nó có hình dạng rõ:** ở §11 tôi loại trừ hết hạn · restart ·
+eviction · `FLUSHDB` trong `src/` — rồi kết luận *"có người xoá tay"* từ việc
+**không còn nghi can nào TRONG PHẠM VI TÔI NHÌN**. Phạm vi đó dừng ở `src/`.
+Nghi can nằm ở `tests/` — vùng tôi **không có lý do nào để nhìn vào**, và đúng
+vì thế tôi đã coi như nó không tồn tại.
+
+> **Vắng mặt bằng chứng trong phạm vi mình soi ≠ vắng mặt bằng chứng.** Sáng nay
+> tôi cảnh báo PO-agent đúng câu này về `cloudflared`; buổi chiều tôi vi phạm
+> nó. Cách chữa giống hệt cách chữa cả ngày: **khai PHẠM VI cùng lúc với khai
+> KẾT LUẬN** — *"không nghi can nào trong `src/`"* đứng vững; *"có người xoá
+> tay"* thì không.
+
+## §14. Rà cả HỌ theo luật đội — và kết quả nói lên bản vá nào là đúng
+
+Redis bị lộ vì fixture **mượn tài nguyên của tiến trình**. Hai anh em còn lại:
+
+| Kho | Fixture làm gì | Kết luận |
+|---|---|---|
+| **Postgres** | `db_session` **TỰ DỰNG** engine SQLite riêng trong `tmp_path` (`conftest.py:110-112`); `DATABASE_URL` chỉ tồn tại vì `src/config.py` đọc lúc import | ✅ **an toàn theo kiến trúc** — không bao giờ chạm DB thật, kể cả khi env trỏ vào Postgres |
+| **Chroma** | test RAG monkeypatch `store.search`; ca duy nhất chạm index thật chỉ **ĐỌC** (`test_thanh_phan_tai_lieu_kho.py`), không `reset()`/`delete_collection` | ✅ an toàn |
+| **Redis** | `get_default_client()` — **MƯỢN client toàn cục của tiến trình** | 🔴 nguồn của 437 lần |
+
+⟹ **Bất đối xứng nằm ngay trong một file, cách nhau chưa tới 50 dòng:** fixture
+DB **tự dựng** tài nguyên; fixture Redis **mượn**. Cái tự dựng **cô lập theo
+kiến trúc**; cái mượn cô lập **theo giả định về một biến môi trường**.
+
+> **Luật rút ra: fixture phải TỰ DỰNG tài nguyên của nó, không mượn tài nguyên
+> của tiến trình.** Cổng `RuntimeError` của tester là bản vá **đúng và cần**,
+> nhưng nó là một **phép KIỂM**, không phải **sự CÔ LẬP**. Hình mẫu cô lập đã
+> nằm sẵn trong cùng file — `tmp_path`.
+
+**Và tester đúng khi nói điều kiện ⑤ của tôi KHÔNG đủ cho ca này:** ngăn xếp
+dùng riêng cũng bị chính fixture đó xoá sạch ngay lần đầu ai chạy pytest vào nó.
+**Cổng chặn tại NGUỒN, ⑤ chặn tại PHẠM VI** — cần cả hai, và cổng mạnh hơn.
+*(Mệnh đề ở §11 — "trên hệ dùng chung không chứng minh được CÓ MẶT lẫn VẮNG MẶT
+của dấu" — vẫn đứng; chỉ đổi ví dụ cho chiều "thiếu".)*
+
+## §15. Bản vá mới ở MỘT container — [ĐO] ngăn xếp kia vẫn đang mở
+
+```
+fin05-backend-1     có cổng "TỪ CHỐI flushdb"        → 1 (tester docker cp)
+fin05ttl-backend-1  có cổng                          → 0   🔴 VẪN BẢN CŨ
+fin05ttl-redis-1    cmdstat_flushdb                  → chưa có lệnh nào
+                    DBSIZE                           → 22 khoá đang sống
+```
+
+⟹ **Lỗi vẫn còn nạp đạn ở `fin05ttl-*`.** Chưa nổ vì chưa ai chạy pytest trong
+container đó — 22 khoá còn nguyên là bằng chứng. Ai chạy `docker exec
+fin05ttl-backend-1 pytest` **trước khi image được dựng lại** sẽ xoá sạch chúng.
+
+**Hai việc:**
+1. **Không chạy pytest trong bất kỳ container nào** cho tới khi bản vá vào git
+   **và** cả hai image được dựng lại. `docker cp` sửa **một container**, và mất
+   khi dựng lại.
+2. Coder land bản vá + dựng lại **cả hai** ngăn xếp. Sau đó tôi kiểm lại đúng
+   ô `grep -c` trên **từng** container, không suy từ một cái.
+
+*(Tester tự khai đã `docker cp tests/conftest.py` vào `fin05-backend-1` — ghi
+vào container người khác đang dùng, dù nội dung đúng hơn bản cũ. Khai là đúng.
+§15 là hệ quả trực tiếp của việc đó và là lý do khai có giá trị.)*
+
+## §16. Sửa một vế trong §12 — theo đính chính của tester
+
+Tôi viết *"lượt chết ở cửa OTP ⟹ không kết quả tool nào quay lại model"*. **Đúng
+cho lượt `/agent/chat` hôm nay, SAI cho ~500 lượt v4** — v4 dùng **tool giả
+lập** (`GIA_LAP`) **có** trả kết quả về model.
+
+**Kết luận mức THẤP không đổi** (dữ liệu vẫn tổng hợp do tester soạn, **không
+PII**), nhưng **lý do phải sửa**: thứ rời hạ tầng gồm **cả kết quả tool giả
+lập**, không chỉ câu hỏi. Ghi đúng vì hồ sơ Điều 25 cần **liệt kê trường dữ liệu
+thực sự đi**, không phải một câu tóm tắt nghe hợp lý.
