@@ -121,10 +121,43 @@ tỉ lệ lượt hỏng · trần nào chạm trước.
 tuyệt đối trên mọi dòng không fallback). ⟹ **vệ sinh, KHÔNG phải điều kiện chặn**: buổi test chạy
 được với vật hôm nay miễn script đọc **bộ ba** thay vì đọc `goi` một mình. **PO-agent đã tự tạo
 một phụ thuộc lịch không cần thiết vào việc code.**
-⚠️ **Hạng — hở duy nhất còn lại:** đồng thuận 100% trên n=22 là thứ ta kỳ vọng thấy **cả khi hai
-trường do CÙNG một dòng mã đặt ra**; lúc ấy chúng là **một nguồn viết hai lần**, và **Luật D không
-được thoả**. ⟹ câu cho coder: **`duong` và `ly_do_fallback` ghi bởi HAI đoạn mã hay một chỗ?** Hai
-chỗ ⟹ tách được **theo cấu trúc**. Một chỗ ⟹ chỉ tách được **trên dữ liệu đang có**.
+**✅ PHÂN GIẢI — hai người đo hai TÍNH CHẤT khác nhau, không ai sai.** Tester đo bảng chéo trên 62
+dòng: **4 ô** (`nhe·null` 13 · `day_du·CÓ` 9 · **`day_du·null` 25** · `None·null` 15) ⟹ ô thứ ba
+bác được *"một biến viết ra hai lần"*. Coder đọc mã: hai trường nằm **CÙNG một dict literal**, mỗi
+nhánh cách nhau **1–5 dòng** (`521→516 · 667→666 · 786→783 · 883→882 · 1090→1091`) — **hai hằng số
+gõ cạnh nhau**.
+
+> 🔴 **"MANG THÔNG TIN ĐỘC LẬP" ≠ "CÓ NGUỒN ĐỘC LẬP".**
+> Cái thứ nhất = tính chất của **dữ liệu đã có** — đủ để tách 22 dòng HÔM NAY.
+> Cái thứ hai = tính chất của **MÃ** — thứ duy nhất giữ được khi có **nhánh mới**.
+> **Luật D đòi cái thứ hai** ⟹ cặp `duong × ly_do_fallback` **KHÔNG thoả Luật D**.
+>
+> ⚠️ **Cảnh báo dùng lại (bảng chéo sẽ có người mượn):** bảng chéo là **phép thử hay cho tính chất
+> SAI**. Nó bác được *"một biến viết hai lần"* nhưng **KHÔNG** bác được *"hai hằng số gõ cạnh
+> nhau"* — mà đó mới là thứ vỡ trong tương lai. Không có giới hạn này, nó cấp một giấy chứng nhận
+> Luật D mà nó không có quyền cấp.
+
+**✅ TRỤC THAY THẾ, CHỐT:** `duong × so_tool_schema_gui` — `_SO_TOOL_GUI` ghi ở `_build_agent`
+(dòng 430, tầng **dựng request**), `duong` ở tầng **quyết định**. `nhe ⟹ schema=0` ·
+`day_du ⟹ schema=5`, mâu thuẫn **TỰ LỘ**. Coder thiết kế cặp này đúng cho mục đích ấy.
+
+**📌 DẤU THỜI GIAN COMMIT ≠ DẤU THỜI GIAN TRIỂN KHAI — và nó LỆCH VỀ HƯỚNG DỄ CHỊU.** Nếp của đội
+là *chạy → xác minh → mới commit*, nên mã luôn **chạy TRƯỚC** khi commit đóng dấu ⟹ **mọi lập luận
+neo vào `git log` đều tính một cửa sổ RỘNG HƠN sự thật** — cùng chiều với bài học lớn của ngày:
+thiên lệch luôn chạy về phía cách đọc dễ chịu, tức phía khó bắt. `duong` xuất hiện lần đầu
+`09:45:55`;
+commit T1 `1e42146` ghi `09:47` ⟹ trường có mặt **TRƯỚC commit 65 giây** (chạy → xác minh → mới
+commit). Ta đã dùng `09:47` làm ranh giới loại phân luồng. **May là kết luận neo vào BIÊN QUAN SÁT
+ĐƯỢC** (`duong=None` kéo tới `09:39:19`, lượt 5-gọi ở `09:38:18`) **chứ không vào dấu commit** —
+mỏ neo thật mạnh hơn mỏ neo ta tưởng đang dùng. Người sau đừng dựng lại lập luận trên mốc yếu.
+
+**✅ RỔ THỨ TƯ = 15 dòng, TOÀN BỘ là dòng CŨ** (`09:28:18 → 09:39:19`; **0 dòng thiếu `duong` sau
+khi trường bắt đầu có**) ⟹ không phải lỗ đang chảy. **Nhưng bài học vận hành:** sổ **sống qua
+recreate, tích luỹ mọi đợt** ⟹ script gộp cả sổ sẽ đếm 15 dòng lịch sử thành "lượt đơn" nếu viết
+`duong != 'day_du'`. ⟹ **ĐIỀU KIỆN THỨ HAI cho script buổi test: LỌC THEO CỬA SỔ THỜI GIAN, đừng
+gộp cả sổ.**
+**Vế mẫu số (tester):** ba rổ phải có **BA MẪU SỐ RIÊNG** — loại nhóm *"không đọc được"* khỏi tử
+số mà giữ trong mẫu số thì token trung bình tụt, **cùng lời nói dối, lần này ở mẫu số**.
 
 **✅ DUYỆT land `0 → None` NGAY, riêng** (lý do LỊCH của coder, độc lập với lý do vừa rút): đóng
 băng `src/` đang bảo vệ **một phép đo CHƯA BẮT ĐẦU** — nền A2 của coder (13,9K) không tái hiện được
