@@ -1706,7 +1706,9 @@ nguon_duoc_duyet:
 
 ## ADR-031 — Truy vấn `search_policy` phải được ghi lại làm BẰNG CHỨNG: hai trường, hai vòng đời
 
-- **Ngày:** 17/08/2026 · **Trạng thái:** Đang hiệu lực — **PO thật chốt 17/08/2026**
+- **Ngày:** 17/08/2026 · **Trạng thái:** 🔴 **TẠM DỪNG THI HÀNH — TIỀN ĐỀ SAI, chờ PO thật quyết
+  lại phạm vi.** (PO thật đã duyệt 17/08, nhưng duyệt trên một tiền đề PO-agent chưa kiểm — xem
+  **Đính chính** ở cuối ADR này. Không sửa phần thân: `DECISIONS.md` chỉ ghi thêm.)
 - **Bối cảnh:**
 
   **Lỗ:** `search_policy` **không bao giờ ghi lại truy vấn**. Một `tool_result_id` được
@@ -1758,6 +1760,50 @@ nguon_duoc_duyet:
   liệt kê thì không sót*), **nhưng chỉ ghi `path`** ⟹ **CHƯA XÁC ĐỊNH ở mức bản ghi** (*"ai đọc bản
   ghi nào"*). Mức bản ghi **không lấy được từ middleware** (tầng HTTP không biết truy vấn nào đã
   chạy) — nếu security cần mức đó thì đấy là **một hạng việc MỚI**, không phải một dòng thêm vào.
+
+### 🔴 ĐÍNH CHÍNH ADR-031 (17/08/2026, cùng ngày) — tiền đề "query chưa được lưu ở đâu" là SAI
+
+**Ai bắt:** coder, khi dừng ở bước 1 của §3 thay vì sửa contract ngay. **Ai gây:** PO-agent.
+
+**[ĐO]** `investigation_logs.tool_input_json` **đã lưu query từ lâu, plaintext**:
+
+```
+contracts/agent-tools.yaml:150   cot: [step_no, tool_called, tool_input_json, tool_result_id]
+src/db/models.py:328             tool_input_json: mapped_column(JSON, nullable=False)   ← JSON THƯỜNG
+fin05, 10 dòng search_policy:    {"query": "hạn mức chuyển tiền một ngày"} …
+```
+
+> **PO-agent trích `contracts/agent-tools.yaml:143-146` cho coder rồi DỪNG ĐỌC — câu trả lời nằm ở
+> dòng 150, BA DÒNG DƯỚI cùng khối vừa trích.** Cùng lớp lỗi của cả ngày ở dạng thuần nhất: **đọc
+> một khung nhìn đã bị lọc (bởi chính lệnh grep của mình) rồi dùng nó như toàn cảnh.** Lần này bộ
+> lọc do chính người đọc đặt ra.
+
+**Ba hệ quả — đổi cả phạm vi lẫn hướng của bản vá:**
+
+1. **Lỗ truy vết HẸP HƠN ADR-031 mô tả.** Với lượt **có tạo vé**, `investigation_logs` đã nối
+   `tool_input_json ↔ tool_result_id` ⟹ *"tool_result này trả lời câu hỏi nào"* **trả lời được
+   rồi**. Lỗ chỉ còn ở lượt **KHÔNG tạo vé** — nhưng đó là tuyệt đại đa số (**4.613** `tool_results`
+   vs **10** dòng log).
+2. 🔴 **Vấn đề bảo mật NGƯỢC CHIỀU với thứ ADR-031 đi vá.** ADR-031 lo *"đừng đưa chữ khách vào cột
+   plaintext"* — **chữ khách đã ở đó rồi**, chỉ ở bảng ta không nhìn. Vá `tool_results` cho đúng
+   chuẩn mà để `investigation_logs` như cũ = **dựng một cửa mới cạnh một cửa đang mở.**
+   ⚠️ Và `tool_input_json` chứa input của **MỌI** tool, không riêng `search_policy`:
+   `lookup_transaction` (11 dòng) · `get_customer_history` (44 dòng) ⟹ **mã giao dịch · SĐT · số
+   tiền, plaintext.** Mức nhạy cảm cao hơn hẳn câu tra chính sách. **Câu này thuộc security.**
+3. **Hai bảng, một loại dữ liệu, hai chuẩn khác nhau.** Điều kiện ① (HMAC `_bam_truy_van`) áp cho
+   `tool_results`; `investigation_logs` **không có gì**. Đúng lớp lỗi đội rà cả ngày.
+
+**Đường có thể RẺ HƠN, chưa quyết:** *dùng lại cơ chế đã có ở `investigation_logs` và mở rộng nó
+cho lượt không tạo vé* — rẻ hơn hẳn thêm hai cột mới, và **không tạo chuẩn thứ ba**.
+
+**🔴 BA CÂU CHO PO THẬT (không ai trong đội quyết thay được):**
+① phạm vi là **một bảng** (`tool_results`, như ADR-031) hay **hai bảng**?
+② bản vá là **thêm cột mới** hay **mở rộng cơ chế đã có** ở `investigation_logs`?
+③ `investigation_logs.tool_input_json` đang plaintext chứa mã GD/SĐT/số tiền — **xử riêng như một
+finding bảo mật**, độc lập với ADR-031?
+
+**Coder DỪNG bước 1 của §3, không sửa contract.** Đúng: sửa contract theo một ADR có tiền đề đã
+lung lay thì ta **khoá sai chỗ** — và §3 làm việc khoá đó rất chắc.
 
 ## Mẫu ADR mới
 
