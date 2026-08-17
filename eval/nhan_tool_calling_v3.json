@@ -80,5 +80,13 @@
   "file": "eval/luoc_do_tool_app.json",
   "vi_sao": "contracts là nguồn sự thật về CẤU TRÚC (tên tool, ai gọi được), KHÔNG phải về NỘI DUNG mô tả mà model đọc để chọn tool (Luật 8b)"
  },
- "luu_y_cham_diem": "Security cảnh báo về KỲ VỌNG, không phải nhãn: contract không đảm bảo hạn mức có trong kho ⟹ status='not_found' là kết quả HỢP LỆ, và global_rules #1 buộc agent nói 'không tra được'. Nếu bộ đo chấm cả câu trả lời chứ không chỉ tool đã gọi thì ĐỪNG chấm not_found là sai."
+ "luu_y_cham_diem": "Security cảnh báo về KỲ VỌNG, không phải nhãn: contract không đảm bảo hạn mức có trong kho ⟹ status='not_found' là kết quả HỢP LỆ, và global_rules #1 buộc agent nói 'không tra được'. Nếu bộ đo chấm cả câu trả lời chứ không chỉ tool đã gọi thì ĐỪNG chấm not_found là sai.",
+ "TRANG_THAI": "🔴 LƯỢT ĐO ĐÃ HUỶ (PO quyết 17/08). Huỷ TOÀN BỘ, không giữ lại phần có lợi — đúng luật nhãn-bất-động: phát hiện nhãn sai sau khi thấy số = huỷ và chạy lại, KHÔNG phải sửa nhãn tại chỗ.",
+ "LY_DO_HUY": "Nghi ngờ nhãn ca 4, KHÔNG PHẢI số sai. Số v3 là số thật và giữ trong sổ: plus 19/25 · max 23/25 · flash 21/25. Nghi vấn: cả 6 lượt 'không gọi tool' của plus rơi vào ĐÚNG ca 4 (soi riêng k=5: 4 câu kia 5/5 đúng, ca 4 5/5 không gọi). create_ticket đòi 3 tham số BẮT BUỘC mà khách chưa cung cấp ⟹ 'hỏi lại khách' có thể là đáp án ĐÚNG, mà bộ nhãn KHÔNG CÓ Ô cho nó.",
+ "LO_HONG_THIET_KE": "Bộ nhãn chỉ có ô 'gọi tool nào', không có ô 'chưa đủ dữ kiện để gọi'. Với sản phẩm điều tra khiếu nại thì 'chưa đủ dữ kiện' là trạng thái THƯỜNG XUYÊN và ĐÚNG ĐẮN. Nhãn hiện tại có thể đang TRỪ ĐIỂM chính hành vi an toàn nhất và THƯỞNG model nào chịu bịa tham số — sai theo đúng chiều nguy hiểm với ràng buộc cứng 3. v4 phải có ô đó, ĐỊNH NGHĨA DO SECURITY CHỐT.",
+ "KHONG_HUY_THEO": [
+  "flash 0/15 CHUỖI — ca 4 không nằm trong bộ chuỗi ⟹ kết luận 'flash không đi hết chuỗi hai bước' ĐỘC LẬP với nghi vấn nhãn, và nó loại flash bất kể v4 ra sao.",
+  "0 hỏng định dạng trên n≈190 — quan sát '1/4 JSON hỏng' của PO CHẾT HẲN. Ghi là PO SAI, không phải 'chưa kết luận'.",
+  "flash 84% một bước → 0% chuỗi: một phép đo THIẾU ĐÚNG MỘT CỘT đã đủ dẫn tới quyết định sai về sản phẩm thật (flash trông gần đạt + rẻ 5,7x ⟹ có thể đã được chọn). Đây là lập luận cho 'đo CÁI GÌ quan trọng ngang đo THẾ NÀO'."
+ ]
 }
