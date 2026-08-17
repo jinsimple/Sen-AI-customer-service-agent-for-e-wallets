@@ -48,6 +48,7 @@ from src.config import (
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
     PHAN_LUONG_BAT,
+    SUY_LUAN_BAT,
 )
 from src.dau_ma_nguon import CACH_BAM, nhan_luc_dung
 from src.db.models import Complaint, Ticket, User
@@ -87,6 +88,10 @@ _CHARS_TOOL_SCHEMA = 6773
 # Số tool bind ở lần dựng agent gần nhất trong tiến trình này. Ghi bởi tầng
 # DỰNG REQUEST, không phải bởi tầng quyết định — xem chú thích tại chỗ gán.
 _SO_TOOL_GUI = 0
+
+# Suy luận có BẬT ở lần dựng model gần nhất không — đọc ngược từ đối tượng
+# model, không từ config. Xem chú thích tại chỗ gán.
+_SUY_LUAN_GUI = True
 
 def _giay_cho_lai(loi: Exception) -> float | None:
     """Moi so giay nha cung cap BAO, khong tu doan.
@@ -205,6 +210,10 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "ly_do_fallback": kq.get("ly_do_fallback"),
         "duong": kq.get("duong"),
         "so_tool_schema_gui": kq.get("so_tool_schema_gui"),
+        # TRẠNG THÁI THẬT của lượt, không phải giá trị cờ config — nếu không có
+        # trường này thì dòng R2 và R3 trong sổ KHÔNG phân biệt được khi đọc
+        # lại sau nhiều tháng, mà sổ sinh ra để được đọc lại sau nhiều tháng.
+        "suy_luan_gui": _SUY_LUAN_GUI,
         "co_ticket": bool(kq.get("ticket_id")),
     })
 
@@ -388,7 +397,17 @@ def _build_agent(
         **({"max_tokens": LLM_MAX_TOKENS} if LLM_MAX_TOKENS else {}),
         timeout=OPENAI_TIMEOUT_SECONDS,
         max_retries=OPENAI_MAX_RETRIES,
+        # T3 · chỉ TRUYỀN khi TẮT. Không truyền gì khi bật = hành vi cũ y hệt,
+        # không phải "truyền enable_thinking=True" (hai thứ đó khác nhau ở một
+        # số nhà cung cấp, và ta không có lý do để thử).
+        **({} if SUY_LUAN_BAT else {"extra_body": {"enable_thinking": False}}),
     )
+    # Đọc NGƯỢC ra từ đối tượng vừa dựng, KHÔNG đọc lại biến config: nếu tên
+    # tham số sai thì `extra_body` sẽ không bám vào model, mà biến config vẫn
+    # nói "đã tắt". Quan sát hiện vật, đừng tin lời khai — cùng nguyên tắc dấu
+    # `duong` và `so_tool_schema_gui`.
+    global _SUY_LUAN_GUI
+    _SUY_LUAN_GUI = not bool((getattr(model, "extra_body", None) or {}).get("enable_thinking") is False)
     tools = build_customer_tools(
         session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard
     )

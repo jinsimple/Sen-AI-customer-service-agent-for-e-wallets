@@ -76,6 +76,14 @@ APP_ENV = os.environ.get("APP_ENV", "development")
 # chưa có số nào về `f` (tỉ lệ lượt đơn thật) để biết nó đáng bao nhiêu.
 PHAN_LUONG_BAT = os.environ.get("PHAN_LUONG_BAT", "").strip().lower() in ("1", "true", "yes")
 
+# T3 · công tắc suy luận của model. MẶC ĐỊNH = HÀNH VI HIỆN TẠI (thinking BẬT).
+# Đây là cờ ĐO, chưa phải quyết định sản phẩm: `qwen3.7-max` là model suy luận
+# và ta chưa biết suy luận đáng tiền hay tốn tiền ở lượt điều tra.
+#
+# ⚠️ Đọc LÚC IMPORT ⟹ đổi nó bắt buộc RECREATE container. `docker exec -e` chỉ
+# đổi tiến trình con, KHÔNG chạm uvicorn đang phục vụ.
+SUY_LUAN_BAT = os.environ.get("SUY_LUAN_BAT", "1").strip().lower() not in ("0", "false", "no")
+
 BUILD_COMMIT = os.environ.get("BUILD_COMMIT") or "khong-ro"
 BUILD_AT = os.environ.get("BUILD_AT") or "khong-ro"
 
