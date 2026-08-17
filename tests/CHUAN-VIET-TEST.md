@@ -24,6 +24,7 @@
 | **11** | từ chối rồi trả lời tiếp là bịa có VỎ BỌC | đầu ra agent |
 | **12** | không sai một chữ nào mà vẫn gây hiểu sai | tài liệu & báo cáo |
 | **13** · 13b | đo đúng thứ, nhưng đưa vào một KÍCH THÍCH khác · đo trên phần đang chú ý thay vì kích thích trọn vẹn | đầu vào của bộ đo |
+| **14** | hai người đo độc lập rồi so SỐ — cấm hoà ở tầng KẾT LUẬN | quy trình đo |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -1211,6 +1212,63 @@ model trần.
 
 ---
 
+## Luật 14 — HAI NGƯỜI ĐO ĐỘC LẬP RỒI SO **SỐ**, và cấm hoà ở tầng KẾT LUẬN
+
+> Nguồn: 17/08. **Năm** cặp số lệch trong một ngày, năm vùng khác nhau, năm cặp
+> vai khác nhau. **Không cặp nào bị bắt bởi một người tự kiểm.**
+
+    lược đồ tool   chuẩn-hoá 4129d298555c   vs  file-thô 76273c1ef838
+    .env           sha256 db1965367fa0      vs  md5 9d3d3c79e48e
+    mô tả tool     thô 4.862                vs  bỏ-thụt-dòng 4.334
+    contracts/     9 trường 612             vs  5 trường 241
+    lược đồ gửi đi bộ đo 7.172              vs  app 6.773
+
+Lớp lỗi *"đọc kích thích qua một đại diện thay vì đọc chính nó"* (Luật 13/13b)
+**không chết vì bị đặt tên.** Hôm nay nó bắt tôi ba lần và security ba lần —
+kể cả **ngay sau** khi mỗi người vừa tự tay viết ra luật cấm chính nó.
+
+### Vế thi hành, và đây là chỗ dễ trượt nhất
+
+**Phải so SỐ. Cấm hoà ở tầng KẾT LUẬN.**
+
+Ca thật, và người suýt phạm là bên đang đúng về mọi thứ khác: vụ `4.862` vs
+`4.334` suýt đóng bằng câu
+
+> *"hai cách đếm khác nhau thôi, lấy bản của tester."*
+
+Câu đó ở tầng **kết luận**. Nó nghe hợp lý, nó đúng về mặt hành động (bản của
+tester đúng là bản nên dùng), và **hai bên cùng yên**. Nó cũng **che mất** gốc
+thật: `langchain-core` **1.5.4 giữ thụt đầu dòng docstring, 1.5.3 gỡ** — mọi
+delta chia hết cho 8 = số dòng tiếp nối × 8 dấu cách. Tức **văn bản gửi cho
+model là hàm của phiên bản một thư viện phụ thuộc**, mà `requirements.txt` ghi
+`langchain>=0.3.0` — sàn, không lockfile. Dựng lại image ngày khác đổi prompt,
+**im lặng, không commit nào, không diff nào**.
+
+Thứ cứu được finding đó là **một bên từ chối cách hoà** và đòi so tiếp ở tầng
+số cho tới khi ra nguyên nhân.
+
+> **Một luật "hai người cùng đo" mà thiếu vế "cấm hoà ở tầng kết luận" sẽ tự vô
+> hiệu ngay lần đầu hai người lịch sự với nhau.**
+
+### Ba dấu hiệu đang hoà thay vì đang đo
+
+1. Câu chốt chứa *"hai cách đếm"*, *"tuỳ định nghĩa"*, *"đằng nào cũng…"* mà
+   **chưa ai chỉ ra được phép biến đổi cụ thể** biến số này thành số kia.
+2. Kết luận **giữ nguyên hành động** của cả hai bên — không ai phải sửa gì.
+3. Không ai hỏi *"nếu đúng là cách đếm khác, thì cách đếm nào, và nó ra đúng
+   con số kia chứ?"* — ở đây phép thử là `strip` từng dòng, và nó cho **3/5
+   khớp CHÍNH XÁC**, đó mới là bằng chứng.
+
+### Và vế phòng, mạnh hơn cả hai vế trên
+
+**Phép đo không thể sai theo lớp này là phép đo KHÔNG DỰNG LẠI GÌ.** Cả năm
+lỗi trên đều sinh từ việc *dựng lại* thứ sản phẩm gửi — prompt tự soạn, mật độ
+đo trên phần đang chú ý, runtime khác, lược đồ phồng, mốc thời gian trôi. Khi
+câu hỏi là *"sản phẩm hành xử thế nào"*, đo qua **chính cửa sản phẩm**, dù đắt
+hơn. Bộ đo dựng-payload giữ đúng việc nó làm tốt: **so model với model**.
+
+---
+
 ## Áp dụng khi review test của nhau
 
 Bốn câu hỏi, hỏi theo thứ tự:
@@ -1226,7 +1284,11 @@ Bốn câu hỏi, hỏi theo thứ tự:
    không phải lỗi agent: SyntaxError giữa lúc lưu file · false positive của
    bộ chấm · rate limit 429 · và một bản vá của chính tôi làm ngược mục đích
    của nó vì tôi chỉ chạy lint mà chưa chạy thử.
-5. **Bộ đo đưa vào ĐÚNG kích thích sản phẩm dùng chưa?** Với mỗi kênh (system
+5. **Con số này đã có ai đo độc lập bằng đường KHÁC chưa?** Chưa → chưa phải
+   bằng chứng. Và nếu hai số lệch, **cấm hoà bằng "hai cách đếm khác nhau"**
+   khi chưa ai chỉ ra phép biến đổi cụ thể đưa số này thành số kia → vi phạm
+   Luật 14.
+6. **Bộ đo đưa vào ĐÚNG kích thích sản phẩm dùng chưa?** Với mỗi kênh (system
    prompt · mô tả tool · lược đồ tham số) phải kê được **nguồn**, không phải
    độ dài. Kê không được → vi phạm Luật 13, và kết luận câm theo **cả hai**
    chiều.

@@ -120,7 +120,7 @@
     "lech_gi": "file lược đồ của bộ đo mang 17 trường \"title\" (vd {\"title\":\"Query\"}) mà convert_to_openai_tool của app KHÔNG sinh. Và required=[] ở 2 tool nơi app bỏ hẳn khoá required.",
     "do_lon": "JSON tool bộ đo 7.172 ký tự · app 6.773 ⟹ bộ đo THỪA 399 ký tự sản phẩm KHÔNG BAO GIỜ GỬI",
     "khop_so_cua_coder": "6.773 đúng bằng con số coder báo trong envelope — họ đã có số đúng, tôi có số phồng. Cặp đo độc lập bắt được, lần thứ NĂM trong ngày.",
-    "✅_KHONG_anh_huong_TRUC_2": "required KHỚP NGHĨA cả 5 tool (rỗng == vắng mặt) ⟹ hàm bia() chấm trên cùng tập tham số bắt buộc. Kết quả 0/~500 của v4 KHÔNG bị ảnh hưởng.",
+    "✅_KHONG_anh_huong_TRUC_2": "required KHỚP NGHĨA cả 5 tool theo JSON Schema (rỗng == vắng mặt) ⟹ hàm bia() chấm trên cùng tập tham số bắt buộc. ⚠️ HẠ MỨC CHẮC CHẮN (security nêu): 'hai nhà cung cấp xử lý hai dạng đó y hệt nhau' là một SUY LUẬN, không phải phép đo. Rủi ro thấp, không chặn gì — nhưng KHÔNG ghi vào hồ sơ như một sự kiện đã kiểm.",
     "anh_huong_gi": "chỉ token/độ dài kích thích (+399 ký tự ≈ +100 token/lượt) và nội dung thừa vô nghĩa"
    },
    "QUYET_DINH": "v5 GIỮ NGUYÊN file lược đồ của v4, KHÔNG đổi sang bản app sinh. Lý do: đổi làm HAI biến khác nhau giữa v4↔v5 (system prompt VÀ lược đồ tool) ⟹ mất cặp chỉ-khác-một-biến, đúng thứ v5 tồn tại để giữ. Khai lệch này ra thay vì sửa nó.",
@@ -175,6 +175,14 @@
   "tech-lead": "KÝ d20cb85890a2",
   "security": "đã nhận ①②④⑤, chờ xác nhận cuối"
  },
- "bam_cu_da_thay": "802132ff4ec4 → sửa TRƯỚC khi chạy, lần 2. Lý do: security nêu điều kiện băm-trong-container; kiểm ra lược đồ tool của bộ đo THỪA 399 ký tự \"title\" so với app. Không đụng luật dừng.",
- "bam_nhan": "a1e9e21aa81f"
+ "bam_cu_da_thay": "a1e9e21aa81f → sửa lần 3, TRƯỚC khi chạy. Gán nhãn PHÉP SO CẶP (security §5g) + hạ mức chắc chắn required. Luật dừng không đụng.",
+ "🔴_V5_LA_PHEP_SO_CAP_KHONG_PHAI_PHEP_DO_SAN_PHAM": {
+  "gan_nhan_TRUOC_khi_chay": "v5 = PHÉP SO CẶP v4↔v5. CẤM đọc thành 'đo hành vi sản phẩm'.",
+  "muc_dich_①_so_cap": "✅ ĐẠT — đúng một biến (system message), đọc được",
+  "muc_dich_②_do_hanh_vi_san_pham_o_ca_4_6": "❌ KHÔNG ĐẠT — kích thích vẫn mang 399 ký tự \"title\" sản phẩm KHÔNG BAO GIỜ GỬI, và tool vẫn GIẢ LẬP, không qua ReAct/DB/phiên OTP",
+  "vi_sao_phai_gan_nhan_TRUOC": "Nếu hai mục đích dính vào nhau, câu 'sản phẩm hành xử thế nào ở ca 4/6' sẽ BỊ COI LÀ ĐÃ TRẢ LỜI trong khi nó vẫn chưa có phép đo nào. Đúng lớp lỗi mất cả ngày để gỡ khỏi v4 — gán nhãn lúc CÔNG BỐ là quá muộn, lúc đó số đã có và ai cũng muốn nó trả lời nhiều hơn nó trả lời được.",
+  "cau_②_thuoc_ve_phep_do_khac": "đo qua CHÍNH /agent/chat — không dựng lại payload nào. Năm lỗi hôm nay ĐỀU sinh từ việc DỰNG LẠI thứ sản phẩm gửi (prompt tự soạn · mật độ đo trên phần đang chú ý · runtime sai · lược đồ phồng · current_time trôi). Phép đo duy nhất không sai theo lớp đó là phép đo KHÔNG DỰNG LẠI GÌ.",
+  "danh_doi_cua_duong_do_that": "đắt hơn, và đo CẢ ĐƯỜNG ỐNG thay vì riêng phép chọn tool — nhưng 'cả đường ống' CHÍNH LÀ định nghĩa của 'hành vi sản phẩm'. Đổi lại chỉ đo được MỘT model (model sản phẩm đang cấu hình), không so được bốn."
+ },
+ "bam_nhan": "dd134bfddd09"
 }
