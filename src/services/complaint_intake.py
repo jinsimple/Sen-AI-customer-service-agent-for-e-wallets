@@ -167,7 +167,24 @@ def flag_human_handoff(
         session,
         user_id=user_id,
         complaint_type="other",
-        scope="internal_wallet",
+        # 🔴 TRƯỚC 17/08 đây là "internal_wallet" — một HẰNG SỐ CỨNG, tức
+        # đường này BỊA ra một trong ba phạm vi thật mà không tra giao dịch nào.
+        #
+        # tester bắt được bằng hiệu số CSDL của đúng một lượt hết-giờ trên ngăn
+        # xếp đo: `tool_results` 0->1 (chỉ MỘT dòng, và là create_ticket),
+        # `investigation_logs` 0->0, `trans_id` rỗng — vậy mà
+        # `scope=internal_wallet`. Không giao dịch nào được tra.
+        #
+        # Giá trị 'unknown' được thêm vào CHECK constraint ngày 11/08 CHO ĐÚNG
+        # CA NÀY (xem models.py): "trước đây agent bị ép đoán bừa 1 trong 3 giá
+        # trị thật... cho phép CSKH tự xác định thủ công thay vì AI bịa". Cơ chế
+        # có sẵn từ sáu ngày trước; đường fallback này chưa bao giờ được cập
+        # nhật theo — bản vá áp cho đường AGENT mà bỏ sót đường CODE.
+        #
+        # Áp cho CẢ HAI người gọi (graph.py hết-giờ · request_human_handoff):
+        # không đường nào trong hai đường đó tra giao dịch, nên mọi giá trị
+        # phạm vi cụ thể ở đây đều là bịa.
+        scope="unknown",
         description_raw=reason,
         trans_id=None,
         now=now,
