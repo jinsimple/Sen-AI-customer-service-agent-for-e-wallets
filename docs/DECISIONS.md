@@ -1490,6 +1490,34 @@ nguon_duoc_duyet:
      cột bool"* mà là **TÁCH MỘT CỜ ĐANG QUÁ TẢI**. `Ticket.human_handoff_requested` (`models.py:304`)
      hiện được **cả hai đường đặt `=True` không phân biệt** ⟹ trên màn CSKH hôm nay, *"hệ thống bó
      tay"* và *"khách chủ động xin gặp người"* là **cùng một cờ**.
+     🔴 **HỒ SƠ CŨ — 101 vé đã mang cờ, và chỉ backfill được MỘT NỬA.** Coder đo trên `fin05`
+     (đọc thuần): `tickets` tổng **755**, `human_handoff_requested=True`: **101**.
+     ```
+     ① hệ thống bó tay (khớp chuỗi lý do HẰNG)                 15   ← truy hồi ĐƯỢC
+     ② khách xin, TẠO vé mới  (other · trans_id rỗng)          85   ← KHÔNG truy hồi được
+     ② khách xin, ĐẶT CỜ lên vé có sẵn                          1
+     trong cả 101 vé, số vé CÓ investigation_logs:              1
+     ```
+     **Vé duy nhất có log chính là vé nhánh ②-tái-dùng** (`TCK-2cc91cba110d` · logs=3 ·
+     `wrong_recipient` · `trans_id=TXN20260730000113`) — **một vé đã phân loại xong, có giao dịch
+     thật, đã điều tra 3 bước** rồi mới bị đóng cờ handoff. ⟹ dấu-theo-VÉ **sai trên một hồ sơ CÓ
+     THẬT đang nằm trong CSDL**, không phải sai trên giả thuyết. Siết "dấu thuộc SỰ KIỆN" có ca thật.
+     ⟹ **Quyết định về hồ sơ cũ (PO-agent):** ① **backfill 15 vé** truy hồi được — chuỗi lý do hằng
+     là **dấu vết duy nhất còn sót, và nó tồn tại TÌNH CỜ chứ không do ai thiết kế** ② **86 vé còn
+     lại mang một dấu KHẲNG ĐỊNH riêng: *"nguồn gốc bàn giao không truy hồi được"*** — **không** để
+     trống. Lý do: để trống là **tái lập đúng cái bẫy ADR này đang vá** — sáu tháng sau người đọc
+     thấy 86 vé không có dấu sẽ hiểu là *"đã điều tra"*. **Sự mơ hồ phải được KHAI, không được suy
+     ra từ vắng mặt** — đúng nguyên tắc của chính mục 2.
+     ⚠️ **Người ghi thứ BA vào cờ này, ngoài hai đường trên:** `scripts/load/ws_live_chat_load.py:103`
+     đặt thẳng `ticket.human_handoff_requested = True`, **không qua `flag_human_handoff`**. Là script
+     tải dựng cảnh cố ý, **không phải bug** — nhưng nếu sau này ta đặt bất biến *"cờ bật ⟹ phải có
+     bản ghi sự kiện bàn giao"* thì **script này sẽ phá bất biến đó**. Ghi ra để lúc viết bất biến
+     không phải đi tìm lại.
+     ⚠️ **Giới hạn của phép đo, đọc đúng mức:** `fin05` là ngăn xếp demo, 755 vé **lẫn dữ liệu hạt
+     giống và dữ liệu chạy thử** ⟹ các con số trên dùng để **định cỡ câu hỏi backfill**, **KHÔNG
+     phải chỉ số sản phẩm**. Phần **không phụ thuộc dân số** là phần cấu trúc: chuỗi hằng truy hồi
+     được ①, không gì truy hồi được ②, và ca `TCK-2cc91cba110d` tồn tại.
+
      ⟹ **Rủi ro "người đọc giả định đã có điều tra" hôm nay MẠNH HƠN mức ADR này mô tả ban đầu:**
      không phải vì bảng rỗng **im lặng**, mà vì cờ hiện có **NÓI SAI** — nó gợi ý *"khách yêu cầu"*
      cho cả những vé thật ra là *"AI bó tay"*. Im lặng nghiêng về người đọc lạc quan; cái này **chủ
