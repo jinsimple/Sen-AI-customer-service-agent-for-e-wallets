@@ -199,6 +199,21 @@ def dan_nhan(so_ca: int) -> dict:
         ["docker", "exec", "fin05-backend-1", "sh", "-c",
          "cd /app && python scripts/kho_rag.py nhan"]
     ).splitlines()[0].strip() if _chay(["docker", "ps", "-q", "-f", "name=fin05-backend-1"]) else "?"
+    # DẤU HẠ TẦNG — đóng vào nhãn VẬT, không để trong đầu người chạy.
+    # 17/08: khoá OpenAI bị xoá ⟹ toàn bộ truy hồi chết, mà `docker ps` vẫn
+    # `healthy`. Sáu tháng nữa ai mở bảng số ra sẽ thấy một ngày recall tụt đáy
+    # mà không hiểu vì sao — trừ khi lý do nằm ngay trong nhãn.
+    try:
+        import httpx
+
+        cc = httpx.Client(verify=False, timeout=20)
+        cc.post(f"{BASE}/api/session", json={"phone": "0353000201", "password": "Demo@123"})
+        rr = cc.post(f"{BASE}/api/policy-search", json={"query": "hạn mức"})
+        cc.close()
+        nhan["embedding"] = ("OK" if rr.status_code == 200 and (rr.json().get("results") or [])
+                             else f"NGHI CHẾT (policy-search HTTP {rr.status_code})")
+    except Exception as e:  # noqa: BLE001
+        nhan["embedding"] = f"KHÔNG KIỂM ĐƯỢC ({type(e).__name__})"
     return nhan
 
 
@@ -242,12 +257,26 @@ def canary_kho(c) -> None:
     Ba nguồn xác nhận "kho ổn" đều đọc chỗ KHÁC với chỗ sản phẩm đọc. Thứ duy
     nhất bắt được là hỏi kho một câu và xem nó có trả lời không.
     """
+    ma = []
     for q in ("hạn mức", "MoMo", "ngân hàng"):
         r = c.post(f"{BASE}/api/policy-search", json={"query": q})
+        ma.append(r.status_code)
         if r.status_code == 200 and (r.json().get("results") or []):
             print(f"  ✅ kho TRẢ LỜI được (canary {q!r} → {len(r.json()['results'])} kết quả)")
             return
-    print("  🔴 KHO KHÔNG TRẢ LỜI ĐƯỢC — 3 canary đều rỗng. DỪNG, không đo.")
+    # PHÂN BIỆT BA NGUYÊN NHÂN — chúng đòi ba hành động khác nhau, và gộp lại
+    # thì ta đi sửa nhầm chỗ. 17/08: khoá OpenAI bị XOÁ ⟹ embedding 401 ⟹
+    # policy-search trả 500, trong khi `docker ps` vẫn báo `healthy`. Nếu canary
+    # chỉ nói "kho không trả lời được", người đọc sẽ đi nạp lại kho — mà kho
+    # hoàn toàn nguyên vẹn.
+    if any(m >= 500 for m in ma):
+        print("  🔴 HẠ TẦNG HỎNG, KHÔNG PHẢI KHO — canary trả 5xx.")
+        print(f"     mã trạng thái: {ma}")
+        print("     Nghi khoá embedding chết (401 ở tầng dưới nổi lên thành 500).")
+        print("     KHO CÓ THỂ HOÀN TOÀN NGUYÊN VẸN — đừng nạp lại, đừng sửa nhãn.")
+        print("     Mọi số đo lúc này KHÔNG nói gì về sản phẩm.")
+        sys.exit(5)
+    print("  🔴 KHO KHÔNG TRẢ LỜI ĐƯỢC — 3 canary trả 200 nhưng RỖNG. DỪNG, không đo.")
     print("     Nhiều khả năng kho đang nạp lại. Số đo lúc này là 0 GIẢ, không phải sản phẩm hỏng.")
     sys.exit(4)
 

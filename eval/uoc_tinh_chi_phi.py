@@ -174,7 +174,18 @@ def main() -> None:
            "output_tokens": statistics.median(ra),
            "cached_input_tokens": statistics.median([u.get("cached_input_tokens") or 0 for u in us])}
 
-    ty_le = bg.get("_ty_le_cache_do_duoc", 0.85)
+    # KHÔNG mặc định 0.85. Đây đúng lỗi tôi vừa phê bình ở measure_quality:
+    # một mặc định TRÔNG HỢP LỆ nuôi thẳng vào phép tính tiền, và nó thiên vị
+    # theo hướng RẺ ĐI — tức có lợi cho kết luận "đổi model tiết kiệm được".
+    # Thiếu số thì DỪNG, không đoán hộ.
+    if "_ty_le_cache_do_duoc" not in bg:
+        raise SystemExit(
+            "🔴 THIẾU `_ty_le_cache_do_duoc` trong eval/gia_tien.json.\n"
+            "   Đây là tỉ lệ ĐO ĐƯỢC trên hệ ta, không phải hằng số đoán được.\n"
+            "   Không có nó thì cột '$/lượt có cache' KHÔNG tính được — và đoán\n"
+            "   một tỉ lệ là thiên vị thẳng vào quyết định chọn model."
+        )
+    ty_le = bg["_ty_le_cache_do_duoc"]
     print(f"\n{'model':<16}{'$/lượt 0% cache':>17}{f'$/lượt {ty_le:.0%} cache':>19}"
           f"{'$/1000 ký tự':>15}")
     print("-" * 74)

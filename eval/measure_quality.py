@@ -361,12 +361,26 @@ def write_report(results: list[dict], out_path: Path) -> None:
         # hơn sự thật tới ~4x — sai theo hướng có lợi cho ta.
         # Cộng phòng hờ: nếu nhà cung cấp ĐÃ gộp reasoning vào output_tokens
         # thì `reasoning_tokens` vắng mặt và phép cộng này là 0.
+        # Token THIẾU != token BẰNG 0. Nhà cung cấp khác trả bộ trường khác;
+        # coi thiếu là 0 thì cost tụt xuống một cách IM LẶNG và có lợi cho ta —
+        # cùng họ với `.get(model, (0.0, 0.0))` vừa gỡ ở trên.
+        if "input_tokens" not in u or "output_tokens" not in u:
+            r["cost_usd_estimate"] = None
+            r["cost_khong_do_duoc"] = f"usage thiếu trường: {sorted(set(('input_tokens','output_tokens')) - set(u))}"
+            costs.append(None)
+            continue
         ra = u.get("output_tokens", 0)
         if u.get("reasoning_tokens") and not u.get("reasoning_da_gom_trong_output"):
             ra += u["reasoning_tokens"]
         cost = (u.get("input_tokens", 0) / 1e6) * input_price + (ra / 1e6) * output_price
         r["cost_usd_estimate"] = round(cost, 6)
         costs.append(cost)
+
+    thieu = [r for r in results if r.get("cost_khong_do_duoc")]
+    if thieu:
+        print(f"  ⚠️  {len(thieu)}/{len(results)} lượt KHÔNG tính được cost — usage thiếu trường."
+              " Chúng bị LOẠI khỏi trung bình, KHÔNG quy về 0.", file=sys.stderr)
+    costs = [c for c in costs if c is not None]
 
     hallucinated = [r for r in results if r["unfounded_amounts"]]
     errored = [r for r in results if r["error"] is not None]
