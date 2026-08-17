@@ -1,0 +1,100 @@
+{
+ "version": "bo-ca-AM ngắn-không-chữ-số v1",
+ "soan": "tester",
+ "luc": "2026-08-17",
+ "vi_sao_ton_tai": "Coder mổ 124/124 của bộ âm: 103 ca chặn nhờ CHỮ SỐ, 21 nhờ ĐỘ DÀI, và 0 ca nhờ TOKEN NGOÀI TẬP — mệnh đề CHÍNH của cả thiết kế CHƯA KHAI HOẢ LẦN NÀO. Bộ này kiểm đúng mệnh đề đó: khiếu nại THẬT · NGẮN · KHÔNG CHỮ SỐ.",
+ "don_vi_dem": "14 ca = 14 CÂU, mỗi ca đúng một câu",
+ "🔴_thiet_ke_co_y": "Ba ca cuối (AM-12·13·14) chứa ĐÚNG những từ mà ai đó sẽ thêm vào XA_GIAO để cứu nhóm ③ trượt 0/3 trên bộ dương — 'mình' · 'cho' · 'hỏi' · 'giúp'. Chúng là BẪY CHO MỘT BẢN VÁ CHƯA XẢY RA: nới danh sách để cứu 3 ca tốn tiền sẽ làm 3 ca này đi đường nhẹ, và cả ba là khách đang mất tiền. Không có chúng, cú nới đó trông như một cải tiến thuần.",
+ "ai_soan": "tester. Coder tự thử 8 ca cùng loại nhưng KHÔNG đưa vào bộ chấm — soạn ca để thử luật của chính mình là thứ dự án đã cấm. PO cố ý không chuyển 8 câu đó sang tôi.",
+ "kiem_may": "mọi ca phải KHÔNG chứa chữ số và dài < 40 ký tự sau chuẩn hoá — nếu không, nó bị chặn bởi nhánh KHÁC và không kiểm được mệnh đề chính",
+ "ca": [
+  {
+   "id": "AM-01",
+   "cau": "tiền chưa về",
+   "ky_vong": "day_du",
+   "vi_sao": "money_not_received. Ba từ, không chữ số."
+  },
+  {
+   "id": "AM-02",
+   "cau": "chuyển nhầm rồi",
+   "ky_vong": "day_du",
+   "vi_sao": "wrong_recipient. Ba từ, không chữ số."
+  },
+  {
+   "id": "AM-03",
+   "cau": "bị trừ hai lần",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 double_charge viết CHỮ. Cùng nghĩa 'bị trừ 2 lần' nhưng luật chữ số MÙ HOÀN TOÀN. Chỉ danh sách cho phép cứu được."
+  },
+  {
+   "id": "AM-04",
+   "cau": "chưa hoàn tiền cho em",
+   "ky_vong": "day_du",
+   "vi_sao": "refund. Không chữ số."
+  },
+  {
+   "id": "AM-05",
+   "cau": "mất mấy trăm k",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 số tiền viết bằng chữ + tiếng lóng. Không một chữ số nào."
+  },
+  {
+   "id": "AM-06",
+   "cau": "tài khoản bị trừ mà bên kia chưa nhận",
+   "ky_vong": "day_du",
+   "vi_sao": "money_not_received, dài 37 ký tự — DƯỚI ngưỡng 40, nên luật độ dài cũng không cứu."
+  },
+  {
+   "id": "AM-07",
+   "cau": "hình như bị hack",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 tín hiệu gian lận (ràng buộc cứng 5). Không chữ số, bốn từ."
+  },
+  {
+   "id": "AM-08",
+   "cau": "có người lạ vào ví em",
+   "ky_vong": "day_du",
+   "vi_sao": "tín hiệu gian lận. Không chữ số."
+  },
+  {
+   "id": "AM-09",
+   "cau": "có người hỏi mã otp của em",
+   "ky_vong": "day_du",
+   "vi_sao": "🔴 chạm ràng buộc cứng 4. Đi đường nhẹ = agent trả lời về OTP bằng trí nhớ model."
+  },
+  {
+   "id": "AM-10",
+   "cau": "cho em gặp người thật",
+   "ky_vong": "day_du",
+   "vi_sao": "request_human_handoff — đường TẠO VÉ. Đi nhẹ thì khách không thoát được sang người."
+  },
+  {
+   "id": "AM-11",
+   "cau": "ví em bị khoá",
+   "ky_vong": "day_du",
+   "vi_sao": "không chữ số, và chạm ràng buộc cứng 5 (khoá ví ≠ cờ gian lận)."
+  },
+  {
+   "id": "AM-12",
+   "cau": "mình bị mất tiền",
+   "ky_vong": "day_du",
+   "vi_sao": "money_not_received.",
+   "🔴_bay_noi_danh_sach": "chứa 'mình' — từ tôi đã cảnh báo ai đó sẽ thêm vào XA_GIAO để cứu nhóm ③ mơ hồ."
+  },
+  {
+   "id": "AM-13",
+   "cau": "cho mình hỏi sao tiền chưa về",
+   "ky_vong": "day_du",
+   "vi_sao": "money_not_received nêu dưới dạng câu hỏi.",
+   "🔴_bay_noi_danh_sach": "chứa CẢ 'cho' 'mình' 'hỏi' — ba từ của DON-07 'cho mình hỏi cái này với'. Nới để cứu DON-07 là mở cửa cho ca NÀY."
+  },
+  {
+   "id": "AM-14",
+   "cau": "giúp mình với, tiền không thấy đâu",
+   "ky_vong": "day_du",
+   "vi_sao": "money_not_received.",
+   "🔴_bay_noi_danh_sach": "chứa 'giúp mình với' NGUYÊN VĂN DON-08. Nếu ai nới danh sách để DON-08 đi nhẹ thì ca này cũng đi nhẹ — và đây là khách đang mất tiền."
+  }
+ ],
+ "bam_nhan": "e411a9dbcc74"
+}

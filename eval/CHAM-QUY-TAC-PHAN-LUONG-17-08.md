@@ -109,3 +109,62 @@ PO báo luật băm `1edd51dff555`. Tôi đo `sha256[:12] = 742df94b195a` trên
 Không kết luận ai đúng — nhiều khả năng **hai cách băm**, đúng lần thứ mười
 trong ngày. Nhưng nó phải được giải trước khi ai trích `15/20`: **một con số
 chấm trên một luật không định danh được thì không tái lập được.**
+
+---
+
+## Bổ sung: PHÂN BỐ LÝ DO, và bộ ca âm kiểm ĐÚNG mệnh đề chính
+
+### ① Phân bố lý do trên bộ DƯƠNG — nó BÙ đúng lỗ của bộ âm
+
+    bộ ÂM  (124 câu, coder đo)      bộ DƯƠNG (20 câu, tôi đo)
+      103  CÓ CHỮ SỐ                   6  CÓ CHỮ SỐ
+       21  DÀI > 40                    1  DÀI > 40
+        0  TOKEN NGOÀI TẬP  🔴         8  TOKEN NGOÀI TẬP  ← mệnh đề CHÍNH
+                                       5  mọi token xã giao (→ nhe)
+
+⟹ Mệnh đề chính **khai hoả 8 lần** trên bộ dương, trong đó ba ca là **khiếu nại
+thật, ngắn, không chữ số**: `tiền chưa về` · `chuyển nhầm rồi` · `Phí rút tiền
+về ngân hàng bao nhiêu?`.
+
+**Hai bộ ca bù nhau, không chồng nhau** — và không bộ nào một mình đủ. Đó là lý
+lẽ mạnh hơn cả hai con số cộng lại.
+
+### ② Bộ ca ÂM mới — `eval/bo_ca_am_ngan_khong_so.json` · băm `e411a9dbcc74`
+
+14 ca, **tất cả không chữ số và dưới 40 ký tự** — tự kiểm bằng máy trước khi
+băm, vì một ca lọt vào nhánh khác là một ca **không kiểm được mệnh đề chính**.
+
+    LUẬT HIỆN TẠI        14/14 day_du · 100% qua TOKEN NGOÀI TẬP
+    LUẬT ĐÃ XOÁ ĐỘ DÀI   14/14 day_du · 100% qua TOKEN NGOÀI TẬP
+    số ca đổi quyết định: 0
+
+⟹ **Con số này thuộc CẢ HAI vật.** PO không phải chờ một vòng đo: dù coder xoá
+mệnh đề độ dài hay không, `14/14` vẫn đúng, vì bộ ca **cố ý không chạm** nhánh
+đó.
+
+### 🔴 ③ Ba ca cuối là BẪY CHO MỘT BẢN VÁ CHƯA XẢY RA
+
+Tôi đã cảnh báo ở phần trên: ai đó thấy nhóm ③ trượt 0/3 sẽ **thêm từ vào
+`XA_GIAO`** — `mình` · `cho` · `hỏi` · `giúp`. `AM-12/13/14` chứa **đúng những
+từ đó**, trong những câu là **khách đang mất tiền**:
+
+    AM-12  "mình bị mất tiền"                  ← 'mình'
+    AM-13  "cho mình hỏi sao tiền chưa về"     ← 'cho' 'mình' 'hỏi' — nguyên văn DON-07
+    AM-14  "giúp mình với, tiền không thấy đâu" ← 'giúp mình với' — nguyên văn DON-08
+
+> Không có ba ca này, cú nới danh sách để cứu 3 ca **tốn tiền** trông như một
+> cải tiến thuần — và nó sẽ đẩy 3 ca **hại người** sang đường nhẹ.
+
+Và `AM-03` `"bị trừ hai lần"` là ca tôi thích nhất: **cùng nghĩa** với
+`"bị trừ 2 lần"` nhưng viết bằng chữ ⟹ luật chữ số **mù hoàn toàn**. Chỉ danh
+sách cho phép cứu được. Nó chứng minh luật chữ số **không** phải lớp phòng thủ
+cho nhóm này — điều mà bộ âm cũ (103/124 dựa vào chữ số) che mất.
+
+### ④ Nguyên tắc PO rút, tôi ký và ghi
+
+> **Chữa bằng XOÁ thì không thể vừa-khít bộ ca.**
+
+Xoá một mệnh đề **thu hẹp** không gian hành vi ⟹ không thể ôm sát một bộ ca cụ
+thể. Chỉnh một ngưỡng (`40 → 60`) thì **có thể** — và đó đúng thứ ta vừa cấm.
+Hai bản vá nghe giống nhau ở chỗ *"động vào mệnh đề độ dài"* mà **khác hẳn về
+hạng an toàn**: một cái không gian lận được, một cái có.
