@@ -747,8 +747,16 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 - `.env`: `LLM_MODEL=qwen3.8-max`, băm `db1965367fa0`. Chờ coder recreate 2 backend.
   **`EMBEDDING_*` CHƯA đụng** — kho phục vụ vẫn `3-small`, không có cửa sổ hỏng.
 
-## 🧭 TỔNG KẾT 17/08 — "KHAI ≠ CHẠY": NĂM cơ chế, và cách duy nhất bắt được chúng
+## 🧭 TỔNG KẾT 17/08 — "KHAI ≠ CHẠY": SÁU cơ chế, và cách duy nhất bắt được chúng
 > Hồ sơ đầy đủ: `docs/security/2026-08-17-ho-so-KHAI-khac-CHAY-nam-co-che.md` (`36d6a1a`)
+>
+> ### 🔑 **DÒNG DUY NHẤT NẾU CHỈ ĐƯỢC GIỮ MỘT (security, chốt cuối phiên):**
+> # **Kiểm chéo không phải một THÁI ĐỘ. Nó là một CƠ CHẾ, và nó cần một VẬT ĐO.**
+>
+> *Hôm nay hai vai bắt chéo nhau **bảy lần** (security→PO-agent 4 · PO-agent→security 3), và
+> **không lần nào ai tự bắt được mình**. Nhưng **tỉ số không phải luận điểm — ĐIỀU KIỆN của nó mới
+> là**: cả bảy lần đều có **một vật đo được mà cả hai truy cập ĐỘC LẬP**. Ở chỗ không có vật đó,
+> hai vai vẫn ngồi đủ và **không lần bắt chéo nào xảy ra được** — **không phải vì ai lơ là.***
 
 | # | Cơ chế | Dấu vẫn khớp? | Bắt bằng |
 |---|---|---|---|
