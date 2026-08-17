@@ -37,6 +37,42 @@ tôi luôn"* ngay từ đầu ⟹ agent **không được** quay lại xin phép
 một bản vá *"luôn hỏi trước khi tạo"* sẽ làm hai test trên xanh **và** làm sản
 phẩm hỏi xin phép vô hạn — đúng Luật 2.
 
+## 🔴 TRỤC BA — đường BÀN GIAO-DO-HỎNG, và vì sao nó phải có mặt
+
+PO chốt phạm vi 17/08:
+
+> **A2 chi phối đường agent CHỦ Ý mở vé thay khách. A2 KHÔNG chi phối đường bàn
+> giao khi hệ thống hỏng** (timeout / vòng lặp không ra kết quả).
+
+Lý do: đồng ý giả định một cuộc hội thoại **còn hoạt động**. Lúc hệ thống hỏng,
+agent không hỏi được ai — và bỏ khách tay trắng tệ hơn một cái vé họ không xin.
+Vé đó **buộc** phải tồn tại thật, vì khách vừa được đọc mã vé; báo một mã không
+tra được **chính là bịa số liệu** (ràng buộc cứng 3).
+
+⟹ Trục 3 là **vế đối chứng của trục 1** (Luật 2): nó chứng minh trục 1
+im-lặng-**đúng-lúc** chứ không im-lặng-**vì-liệt**. Một bản vá chặn `create_ticket`
+ở mọi nhánh sẽ làm trục 1 xanh **và** bỏ rơi khách ở lượt hỏng.
+
+### 🔴 Điều kiện kèm theo — ĐO ĐƯỢC LÀ CHƯA CÓ
+
+Vé sinh từ đường hỏng phải **phân biệt được BẰNG MÁY** với vé sinh từ đường
+đồng ý. Tôi đo trên `fin05`, và **hiện không có cột nào làm được**:
+
+    other/internal_wallet  × 100   trans_id rỗng: 100   ← dân số fallback CŨ
+    other/* trans_id rỗng  × 101
+    human_handoff_requested = true × 107   ·  false × 654
+
+Hai tập **gần trùng nhưng không trùng** — `human_handoff_requested` cũng `true`
+cho khách **chủ động xin gặp người**, và đó là **đúng về ngữ nghĩa**: cả hai
+đều là bàn giao. Nên không cột nào tách được *"vé do hệ thống hỏng"* khỏi *"vé
+do khách xin"*.
+
+> **Hệ quả: mọi con số A2 đếm theo `Δcomplaints` đều tính cả vé timeout là "vé
+> có đồng ý".** ~101–107 vé trong lớp này trên tổng 761 ≈ **14%** — không phải
+> sai số làm tròn.
+
+Cùng tinh thần ADR-029: **mốc thuộc SỰ KIỆN, không thuộc VÉ.**
+
 ## Ngân sách
 
 Ba lượt LLM (~42K), trong hạn mức thử ≤60K PO cấp. `scope="module"`: ba test
