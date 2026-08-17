@@ -105,6 +105,87 @@ nội dung có phải `build_system_prompt()` không, mô tả tool là nguyên 
 Chừng nào chưa có câu đó, **không kết luận nào về sản phẩm được rút ra từ v4**,
 theo cả hai chiều.
 
+---
+
+# ĐÃ TRẢ LỜI — nhánh MỘT. Cập nhật 2026-08-17, sau `1de72a1` của tester
+
+Tester đo và trả lời (không nhớ lại):
+
+```
+bộ đo v4 gửi system :    123 ký tự · băm 9d6dbff3bc7f · TESTER TỰ SOẠN
+sản phẩm     gửi system: 15.094 ký tự · vô điều kiện mọi lượt
+                          "PHẢI tra ra CẢ HAI" ×1 · "chủ động tra giúp" ×1
+                          · "create_ticket" ×7
+mô tả tool          : NGUYÊN VĂN từ build_customer_tools() (băm 4129d298555c)
+lược đồ tham số     : introspect app, KHÔNG viết tay
+```
+
+⟹ **Nhánh MỘT của bảng §4, và ở dạng tệ hơn mức tôi phòng:** không chỉ thiếu
+system prompt — hai câu **thiếu** lại **chính là hai câu quyết định hành vi
+đúng của ca 4 và ca 6**, đúng hai ca lỗi.
+
+**Theo tiền cam kết §4, chốt:**
+- v4 đo **năng lực gọi tool trần của model**. **Không** đo hành vi sản phẩm.
+- *"Sản phẩm đang sai"* **không được thiết lập** — và tester bổ sung đúng chiều
+  còn lại mà tôi chưa ghi: ***"sản phẩm ổn"* cũng không.** v4 **câm về sản phẩm
+  theo cả hai chiều.** Ghi nhận bổ sung này, nó chặt hơn bản của tôi.
+- Bốn model đồng thuận ở ca 4/6 **không còn là bí ẩn cần giải**.
+- **Nhãn ca 4/6 đứng.** Sai nằm ở **kích thích của bộ đo**, không ở nhãn.
+
+## §5b. 🔴 Tôi BÁC một câu của tester — và bác theo chiều bất lợi cho con số
+
+Tester nêu, kèm lời mời bác nếu sai:
+> *"0 lần bịa xảy ra **KHI THIẾU** 15k ký tự dặn dò … nên kết quả này không phụ
+> thuộc phần bị thiếu."*
+
+**Vế sau đúng. Vế trước — "khi thiếu dặn dò" — SAI, và tôi đã viết y hệt ở bản
+đầu §6 nên đây là tự đính chính.**
+
+Đọc chính 123 ký tự đó: *"**LUÔN gọi tool để tra dữ liệu trước khi nói bất kỳ
+con số hay trạng thái nào. Không bịa.**"*
+
+⟹ Bộ đo **không hề bị tước** chỉ dẫn chống bịa. Ngược lại: **lệnh cấm bịa chiếm
+khoảng một phần ba toàn bộ system prompt** mà model nhận. Trong sản phẩm, chính
+lệnh đó là **một chỉ dẫn giữa 15.094 ký tự** cạnh tranh với mọi chỉ dẫn khác.
+
+**⟹ Đối với TRỤC 2, bộ đo là điều kiện DỄ HƠN sản phẩm, không phải khắc nghiệt
+hơn.** Con số 0 **không mạnh lên**; nó được đo dưới một kích thích có tỉ lệ
+tín-hiệu/nhiễu cho đúng trục đó **cao hơn** sản phẩm.
+
+**Cách công bố sửa lại:** *"0 lần bịa tham số bắt buộc trong ~500 lượt, **trong
+điều kiện bộ đo — nơi lệnh cấm bịa chiếm ~1/3 system prompt**."*
+**KHÔNG** nói *"kể cả khi thiếu 15k ký tự dặn dò"* — câu đó nghe như một phép
+thử khắc nghiệt hơn, và nó không phải.
+
+Câu hỏi thật — *"lệnh 'không bịa' có SỐNG SÓT qua pha loãng trong 15.094 ký tự
+không?"* — **chưa ai đo**, và nó là câu quan trọng hơn cho sản phẩm.
+
+## §5c. v5 là phép phân đôi rẻ nhất cho giả thuyết PHÂN TÁN — đừng bỏ lỡ
+
+v4 và v5 sẽ khác nhau **đúng một yếu tố**: prompt của bộ đo ↔ prompt của sản
+phẩm. Mô tả tool đã nguyên văn, lược đồ đã introspect, ca và `k` giữ nguyên.
+**Một cặp so sánh chỉ-khác-một-biến** — thứ dự án này hiếm khi có được miễn phí.
+
+⚠️ *Biến đó là **"prompt nào"**, không phải **"prompt dài bao nhiêu"*** — nó gộp
+độ dài, nội dung, và cả tên thương hiệu (bộ đo ghi *"MoMo"*, sản phẩm ghi
+*"Sen" của "một ví điện tử"*). Nên nó **không cô lập riêng pha loãng**. Vẫn
+đáng chạy, và phải đọc đúng mức:
+
+| v5 ở ca 4/6 | Đọc |
+|---|---|
+| **ĐÚNG** | 15k chỉ dẫn **có hiệu lực** ở họ ca này. Giả thuyết phân-tán **không** được củng cố ở đây. Sản phẩm ổn ở họ ca này (và chỉ họ này). |
+| **SAI** | 🔴 **finding sản phẩm thật** — **và** đây là ca đối chứng đẹp nhất từ trước tới nay cho giả thuyết **PHÂN TÁN** (§B, `6e44750`): cùng model, cùng tool, cùng ca, chỉ đổi prompt; chỉ dẫn **có mặt** (`"PHẢI tra ra CẢ HAI"` ×1) mà **không có hiệu lực**. `hiện-diện ≠ hiệu-lực` **đo được trực tiếp**, không phải suy ra. |
+
+**Quan sát khai TRƯỚC, để nếu v5 đỏ thì nó là dự đoán chứ không phải giải thích
+hậu nghiệm:** chính số đếm tester đưa đã lệch sẵn — chỉ dẫn *tra trước* xuất
+hiện **×1**, còn `create_ticket` — hành động mà nó có nhiệm vụ chặn — xuất hiện
+**×7**. Nếu v5 đỏ, **độ chênh nổi bật giữa hành động và tiền đề của nó** là ứng
+viên cơ chế đầu tiên cần soi, trước khi kết luận "model kém".
+
+**Đề nghị vận hành:** đóng băng mọi thứ khác giữa v4↔v5, công bố **băm cả hai
+prompt** cạnh kết quả (v4 đã có `9d6dbff3bc7f`), và **chạy trục 2 lại trong
+v5** — vì đúng theo §5b, trục 2 dưới sản phẩm là phép thử **chưa từng chạy**.
+
 ## §6. Hai kết quả v4 ĐỨNG VỮNG bất kể phán quyết trên — ghi vào hồ sơ an toàn
 
 **🟢 Bịa tham số bắt buộc = 0 / ~500 lượt / 4 model / 2 nhà cung cấp.**
@@ -118,8 +199,15 @@ trong **mô tả tool** (*"KHÔNG bịa một mã giao dịch"*, *"KHÔNG tự �
 trong 3 giá trị thật"*), mà mô tả tool là **artefact sản phẩm** và phải có mặt
 trong mọi bộ đo gọi được tool. ⟹ kết quả quy được cho **model + mô tả tool**,
 cả hai đều là của ta, **bất kể system prompt có hay không**.
-Nếu bộ đo **không** có system prompt thì đây còn là **phép thử KHẮC NGHIỆT
-HƠN** — 0 lần bịa khi thiếu 15k ký tự dặn dò, không phải nhờ chúng.
+
+> ~~Nếu bộ đo **không** có system prompt thì đây còn là **phép thử KHẮC NGHIỆT
+> HƠN** — 0 lần bịa khi thiếu 15k ký tự dặn dò, không phải nhờ chúng.~~
+>
+> 🔴 **ĐÍNH CHÍNH (xem §5b):** câu gạch trên **SAI**. Sau khi đọc chính 123 ký
+> tự bộ đo gửi, hoá ra nó **chứa** lệnh *"Không bịa"* và chiếm ~1/3 prompt ⟹
+> với **trục 2**, bộ đo là điều kiện **DỄ HƠN** sản phẩm, không khắc nghiệt
+> hơn. Tôi suy ra "thiếu prompt = thiếu dặn dò" mà **chưa đọc prompt bộ đo** —
+> đúng lớp lỗi tôi đang bắt ở người khác cả ngày hôm nay.
 
 **🟢 Hỏng định dạng = 0 / ~500 lượt / 4 model.**
 
