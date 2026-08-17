@@ -113,3 +113,50 @@ nhau để cân.
 
 ⚠️ Hạng: **TÀI LIỆU NÓI** cho các con số trần; **ĐO ĐƯỢC** cho `14.198
 token/lượt` và `2,39 gọi/lượt`. Phép chia là số học, không phải phép đo.
+
+---
+
+## 🔴 BỔ SUNG 2 — tỉ lệ lượt-đơn KHÔNG ĐO ĐƯỢC, nhưng câu hỏi đảo được
+
+PO hỏi: *"tỉ lệ lượt-đơn trong lưu lượng thật là bao nhiêu? trả lời được bằng
+bộ ca sẵn có, không cần token."*
+
+**Không trả lời được, và cả hai nguồn đều hỏng theo cùng một kiểu — DÂN SỐ SAI:**
+
+- `messages` (230 tin khách, 85 phiên): **script sinh ra**, không phải người.
+  Tôi đã chứng minh sáng nay bằng nhịp gõ — p10 = 3s · trung vị = 3s ⟹ **19,8
+  lượt/phút/người**, tức máy gõ tiếp ngay khi nhận xong phản hồi. Và script
+  không bao giờ gõ *"alo"*. ⟹ tỉ lệ tính từ đây là **sàn giả**, gần 0%.
+  *(Nội dung còn mã hoá trường, nhưng kể cả giải mã được thì dân số vẫn sai.)*
+- `eval/bo_ca_luot_don.json` (20 ca): **tôi soạn tay để dò RANH GIỚI**, cố ý
+  làm giàu ca hiểm. Tỉ lệ 9/20 = 45% là **một lựa chọn thiết kế**, không phải
+  một thống kê. Đọc 45% thành tỉ lệ lưu lượng là **dùng bộ ca dò biên làm mẫu
+  đại diện** — đúng lỗi `golden_set không có lượt đơn` ta gặp sáng nay, chỉ
+  ngược chiều.
+
+> **Không corpus nào ta có là một mẫu của lưu lượng thật.** Con số này chỉ đo
+> được ở buổi test người thật đầu tiên.
+
+### Nhưng ĐẢO câu hỏi thì trả lời được ngay, và nó hữu ích hơn
+
+    150 người × 0,50 lượt/ph →  75 lượt/ph → TPM 106%  →  cần ≥  6,1% lượt đơn
+    150 người × 0,75 lượt/ph → 113 lượt/ph → TPM 160%  →  cần ≥ 37,4%
+    150 người × 1,00 lượt/ph → 150 lượt/ph → TPM 213%  →  cần ≥ 53,0%
+    100 người × 1,00 lượt/ph → 100 lượt/ph → TPM 142%  →  cần ≥ 29,6%
+
+⟹ **Ở nhịp thận trọng chỉ cần 6,1%.** Con số `30%` tôi đưa lúc trước là ngưỡng
+của **kịch bản xấu**, không phải ngưỡng chung — tôi trích nó không kèm kịch bản,
+lại đúng lỗi *khai trục* (Luật 12b).
+
+**Và đây là dạng câu miễn nhiễm với ẩn số:** thay vì chờ một con số không đo
+được, ta phát biểu **điều kiện** — *"T1 đủ cứu buổi test nếu ≥6,1% lượt là lượt
+đơn ở nhịp 0,5"*. Nó kiểm được ngay trong 10 phút đầu buổi test, bằng chính dấu
+`duong` đã có.
+
+### ⚠️ Thiên lệch sống sót — PO khai, tôi ghi kèm
+
+`14.198 token/lượt` là **trung bình lượt THÀNH CÔNG**. Coder đo lượt **hỏng**
+tốn **50–70K**. Nếu lưu lượng thật có lượt hỏng thì `70,4 lượt/phút` là **quá
+lạc quan**, và mọi ngưỡng `% lượt đơn cần` ở trên là **cận dưới**.
+
+Không sửa số — sửa là bịa. Khai kèm.
