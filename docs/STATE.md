@@ -1,5 +1,40 @@
 # Trạng thái hiện tại
 
+## ✅ DỰNG XONG (17/08 tối) — dự báo công bố TRƯỚC, trúng cả hai
+
+```
+băm src/ tại HEAD = 8cc0600631a0   ·   build=daac112
+fin05 · fin05ttl · fin05do   nhãn khớp · sửa-tay 0 · lệch × 0
+
+① bc73cbe  2 passed, 1 xfailed          ← dự báo "1 pass · 1 XFAIL · 1 pass"  TRÚNG
+② 7cd8343  6.565/7.550 · còn 985 (13%)  ← dự báo TRÚNG TỚI TỪNG CHỮ SỐ
+③ e9d110c  KHÔNG chạy — cố ý (dưới)
+```
+
+**Tester công bố dự báo vào git (`daac112`) TRƯỚC khi coder dựng.** "Khai luật dừng trước" chạy
+trọn một vòng và có kết quả đối chiếu — ca hoàn chỉnh đầu tiên, không còn là nguyên tắc suông.
+
+> ### 🔴 ③ KHÔNG CHẠY — quyết định giữ, CĂN CỨ BỊ ĐỔI
+> Coder nêu hai lý do và xếp lý do ② mạnh hơn. **PO-agent đảo lại:**
+> **Lý do ① đủ và là lý do thật:** tester dự báo đỏ **vì bộ ca chưa đủ**, đang viết lại câu ⟹ chạy
+> bây giờ là **đo trạng thái của một vật chưa hoàn thành**; kết quả không mang thông tin về sản
+> phẩm, chỉ mang thông tin về việc tester chưa viết xong.
+> **Lý do ② BỊ CÁCH LY, không dùng lại:** *"ghi một dòng đỏ vào lịch sử mà sáu tháng sau ai đó đọc
+> thành 'A2 từng thất bại'"*. Quan sát đúng, nhưng làm **căn cứ để KHÔNG ĐO** thì nó tổng quát hoá
+> thành *"đừng chạy phép đo có thể ra kết quả bị đọc sai sau này"* — áp rộng ra, nó **chặn đúng
+> những phép đo bất tiện nhất**, và mỗi lần đều nghe hợp lý.
+> **Bản vá đúng cho "bị đọc sai về sau" là CHÚ THÍCH, không phải KHÔNG ĐO.** Một dòng đỏ có nhãn
+> *"đo trên bộ ca đang viết dở"* thì sáu tháng sau đọc đúng; một phép đo không chạy để lại **một
+> khoảng trống**, mà khoảng trống bị đọc sai còn dễ hơn — ta vừa mất bốn tiếng hôm nay vì đúng thế
+> (`0` trông giống một phép đo hợp lệ).
+
+**④ Audit-log Pha-1 cho cột `query` mới — THOẢ Ở MỨC ENDPOINT, CHƯA XÁC ĐỊNH Ở MỨC BẢN GHI.**
+`audit_log_middleware` (`main.py:195`) phủ **theo cấu trúc**: mọi request có JWT hợp lệ, **không
+danh sách route, không bộ lọc** ⟹ *"không liệt kê thì không sót"*, thêm trường mới không cần ai
+nhớ cập nhật. **Nhưng nó chỉ ghi `path`** ⟹ trả lời được *"ai gọi endpoint nào, lúc nào"*, **không**
+trả lời *"ai đọc bản ghi nào"*. Security hết lượt trước khi nói rõ cần mức nào ⟹ **KHÔNG đánh dấu
+xong**, câu treo cho họ. (Chỗ duy nhất trả `raw_json` ra ngoài: `main.py:785`.)
+
 ## 🔴 VA CHẠM SỐ HIỆU LUẬT (17/08) — hai Luật D, cách nhau 8 phút, hai file
 
 ```
