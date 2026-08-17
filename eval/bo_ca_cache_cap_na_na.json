@@ -1,0 +1,125 @@
+{
+ "version": "bo-ca-CACHE cặp na-ná v1 · KHAI TRƯỚC MỌI CÀI ĐẶT",
+ "soan": "tester",
+ "luc": "2026-08-17",
+ "vi_sao_ton_tai": "Shadow mode của semantic cache đo HAI số: tỉ lệ TRÚNG (lợi) và tỉ lệ TRÚNG-SAI (khác nghĩa nhưng vượt ngưỡng similarity). Số thứ hai quyết định sống chết — một trúng-sai là một khách nhận CÂU TRẢ LỜI CỦA NGƯỜI KHÁC, chạm ràng buộc cứng 3.",
+ "🔴_VI_SAO_PHAI_CO_CA_HAI_NHOM": "Bộ trúng-SAI một mình KHÔNG ĐỦ, và đây là chỗ dễ hỏng nhất: một cache KHÔNG BAO GIỜ TRÚNG sẽ đạt 100% trên bộ trúng-sai — hoàn hảo, và vô dụng. Đúng khuôn 'router trả day_du cho mọi thứ đạt 124/124'. Nhóm TD (cặp NÊN trúng) là vế Luật 2: chứng minh ngưỡng không chặt tới mức cache chẳng bao giờ dùng được.\n⟹ Hai số phải đọc CÙNG NHAU: `TS trúng = 0` một mình không nói gì; `TS = 0 VÀ TD trúng cao` mới là một cache dùng được.",
+ "don_vi_dem": "10 cặp TRÚNG-SAI + 4 cặp TRÚNG-ĐÚNG = 14 CẶP",
+ "cach_dung": "Với mỗi cặp: nạp A vào cache, hỏi B, xem có TRÚNG không.\n  nhóm TS: trúng = 🔴 SAI. Điều kiện land: 0/10.\n  nhóm TD: trúng = ✅ ĐÚNG. Ngưỡng chưa chốt — nhưng 0/4 nghĩa là cache vô dụng, phải nói ra.",
+ "🔴_dieu_kien_land": "nhóm TS phải 0/10. Không có ngưỡng để mặc cả — một trúng-sai là một khách nhận câu trả lời của người khác.",
+ "thiet_ke_cap": "Mọi cặp TS được dựng theo cùng công thức: GIỮ NGUYÊN gần hết từ vựng, đổi ĐÚNG MỘT thứ có nghĩa nghiệp vụ — chiều · vai · phạm vi · vật · trạng thái · loại bí mật. Đó là vùng nguy hiểm của embedding: khoảng cách bề mặt nhỏ nhất, khoảng cách nghiệp vụ lớn nhất.\nBa cặp (TS-06 · TS-10) còn có tính chất mạnh hơn: câu B CHỨA TRỌN câu A. Không phép so bề mặt nào tách được chúng.",
+ "cap_TRUNG_SAI": [
+  {
+   "id": "TS-01",
+   "cau_A": "Mình chuyển nhầm tiền cho người khác",
+   "cau_B": "Có người chuyển nhầm tiền cho mình",
+   "truc_khac_nhau": "CHIỀU giao dịch",
+   "vi_sao": "Cùng từ vựng gần như y hệt, đảo vai gửi/nhận.",
+   "🔴_hau_qua_neu_trung_nham": "A cần mở tra soát đòi lại; B là tiền của người khác trong ví mình — trả lời A cho B là xúi khách tiêu tiền không phải của họ."
+  },
+  {
+   "id": "TS-02",
+   "cau_A": "Tôi đã nhận được tiền chưa?",
+   "cau_B": "Người ta đã nhận được tiền chưa?",
+   "truc_khac_nhau": "AI là người nhận",
+   "vi_sao": "Đổi một đại từ.",
+   "🔴_hau_qua_neu_trung_nham": "Tra sai tài khoản ⟹ trả lời về giao dịch của người khác."
+  },
+  {
+   "id": "TS-03",
+   "cau_A": "Tiền đã về ví chưa?",
+   "cau_B": "Tiền đã về ngân hàng chưa?",
+   "truc_khac_nhau": "PHẠM VI (ví ↔ ngân hàng)",
+   "vi_sao": "Đổi một danh từ.",
+   "🔴_hau_qua_neu_trung_nham": "Hai phạm vi có SLA và quy trình khác nhau (ADR/contract 3 scope)."
+  },
+  {
+   "id": "TS-04",
+   "cau_A": "Tôi muốn huỷ giao dịch",
+   "cau_B": "Tôi muốn huỷ khiếu nại",
+   "truc_khac_nhau": "VẬT bị huỷ",
+   "vi_sao": "Đổi một danh từ, cùng động từ.",
+   "🔴_hau_qua_neu_trung_nham": "Huỷ khiếu nại là rút yêu cầu; huỷ giao dịch là việc hệ thống KHÔNG làm được. Trả lời chéo = hứa sai hoặc từ chối oan."
+  },
+  {
+   "id": "TS-05",
+   "cau_A": "Phí rút tiền là bao nhiêu?",
+   "cau_B": "Phí rút tiền đã bị trừ là bao nhiêu?",
+   "truc_khac_nhau": "CHUNG ↔ CÁ NHÂN",
+   "vi_sao": "Thêm ba chữ.",
+   "🔴_hau_qua_neu_trung_nham": "Đúng nhóm ⑤ của bộ ranh giới: câu sau cần lookup, câu trước không."
+  },
+  {
+   "id": "TS-06",
+   "cau_A": "Tôi bị trừ tiền hai lần",
+   "cau_B": "Tôi bị trừ tiền hai lần nhưng đã được hoàn một lần",
+   "truc_khac_nhau": "TRẠNG THÁI đã xử lý",
+   "vi_sao": "Câu B chứa trọn câu A.",
+   "🔴_hau_qua_neu_trung_nham": "Trả lời A cho B ⟹ mở khiếu nại trùng cho phần đã hoàn."
+  },
+  {
+   "id": "TS-07",
+   "cau_A": "Làm sao để khoá ví?",
+   "cau_B": "Làm sao để mở khoá ví?",
+   "truc_khac_nhau": "HÀNH ĐỘNG ngược",
+   "vi_sao": "Đổi một tiền tố.",
+   "🔴_hau_qua_neu_trung_nham": "Hướng dẫn ngược = khách khoá ví khi đang cần mở, hoặc ngược lại."
+  },
+  {
+   "id": "TS-08",
+   "cau_A": "Tôi quên mật khẩu ví",
+   "cau_B": "Tôi quên mã OTP",
+   "truc_khac_nhau": "LOẠI bí mật",
+   "vi_sao": "Cùng khuôn 'tôi quên X'.",
+   "🔴_hau_qua_neu_trung_nham": "🔴 Chạm ràng buộc cứng 4: hai quy trình khác hẳn, và một trong hai KHÔNG BAO GIỜ được agent xử."
+  },
+  {
+   "id": "TS-09",
+   "cau_A": "Giao dịch của tôi bị treo",
+   "cau_B": "Tài khoản của tôi bị treo",
+   "truc_khac_nhau": "VẬT bị treo",
+   "vi_sao": "Đổi một danh từ.",
+   "🔴_hau_qua_neu_trung_nham": "Một cái là giao dịch pending, cái kia là tài khoản bị hạn chế — quy trình không liên quan."
+  },
+  {
+   "id": "TS-10",
+   "cau_A": "Tôi chuyển 2 triệu",
+   "cau_B": "Tôi chuyển 2 triệu nhưng bị trừ 4 triệu",
+   "truc_khac_nhau": "CÓ hay KHÔNG có khiếu nại",
+   "vi_sao": "Câu B chứa trọn câu A.",
+   "🔴_hau_qua_neu_trung_nham": "A là trần thuật, B là khiếu nại double_charge. Trả lời A cho B = bỏ rơi một khiếu nại."
+  }
+ ],
+ "cap_TRUNG_DUNG": [
+  {
+   "id": "TD-01",
+   "cau_A": "Phí rút tiền về ngân hàng là bao nhiêu?",
+   "cau_B": "Rút tiền về ngân hàng mất phí bao nhiêu?",
+   "truc_khac_nhau": "— (cùng câu, khác cách nói)",
+   "vi_sao": "Đảo trật tự, đổi động từ. Cùng ý định, cùng đáp án."
+  },
+  {
+   "id": "TD-02",
+   "cau_A": "Quy trình tra soát mất bao lâu?",
+   "cau_B": "Tra soát thường mất mấy ngày?",
+   "truc_khac_nhau": "— (cùng câu)",
+   "vi_sao": "Cùng ý định về SLA."
+  },
+  {
+   "id": "TD-03",
+   "cau_A": "Hạn mức chuyển tiền một ngày là bao nhiêu?",
+   "cau_B": "Một ngày được chuyển tối đa bao nhiêu tiền?",
+   "truc_khac_nhau": "— (cùng câu)",
+   "vi_sao": "Cùng câu hỏi chính sách, cùng nguồn pháp lý."
+  },
+  {
+   "id": "TD-04",
+   "cau_A": "Làm sao gửi yêu cầu tra soát?",
+   "cau_B": "Mình nộp yêu cầu tra soát bằng cách nào?",
+   "truc_khac_nhau": "— (cùng câu)",
+   "vi_sao": "Cùng quy trình."
+  }
+ ],
+ "bam_nhan": "2ecb739780f4",
+ "thuat_toan_bam": "sha256[:12] của json.dumps(obj, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ hai khoá 'bam_nhan' và 'thuat_toan_bam'"
+}
