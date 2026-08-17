@@ -75,9 +75,9 @@ from src.auth import (
     try_decode,
 )
 from src.config import (
+    APP_ENV,
     BUILD_AT,
     BUILD_COMMIT,
-    APP_ENV,
     DB_KIND,
     DB_NAME,
     OTP_MAX_FAILED_ATTEMPTS,
@@ -128,7 +128,29 @@ configure_tracing()  # OTel -> Jaeger (OTEL_EXPORTER_OTLP_ENDPOINT, mặc địn
 # không regression, không cần Redis thật để chạy test.
 limiter = Limiter(key_func=get_remote_address, storage_uri=None if REDIS_URL.startswith("fake://") else REDIS_URL)
 
-app = FastAPI(title="FIN-05 AI Agent CSKH — Backend", version="0.1.0")
+# TẮT tài liệu tự sinh khi APP_ENV=production.
+#
+# security đo trong container: `/openapi.json` trả HTTP 200, 28.470 byte,
+# **31 path** — kèm lược đồ tham số và mô hình xác thực của toàn bộ API.
+#
+# HÔM NAY KHÔNG RÒ: Caddy chỉ proxy frontend, ba đường này không ra ngoài. Nên
+# đây là tiềm ẩn, không phải sự cố — nhưng nó **đắt nhất khi rò và rẻ nhất khi
+# tắt**, và bề mặt nó phơi ra không phải một endpoint mà là tấm bản đồ đầy đủ.
+#
+# Gate theo môi trường chứ không tắt hẳn: dev cần `/docs` để làm việc, và một
+# biện pháp làm dev khó chịu là biện pháp sẽ bị ai đó gỡ.
+#
+# `INV-00` đã bỏ qua ba tiền tố này (tests/test_invariants.py) nên việc chúng
+# xuất hiện/biến mất theo môi trường KHÔNG làm cổng contract đỏ — đã kiểm
+# trước khi sửa, vì một bản vá bảo mật làm đỏ cổng khác sẽ bị revert vội.
+_LA_PROD = APP_ENV == "production"
+app = FastAPI(
+    title="FIN-05 AI Agent CSKH — Backend",
+    version="0.1.0",
+    docs_url=None if _LA_PROD else "/docs",
+    redoc_url=None if _LA_PROD else "/redoc",
+    openapi_url=None if _LA_PROD else "/openapi.json",
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 instrument_fastapi_app(app)  # auto-instrument tầng HTTP (Giai đoạn 4) — span
