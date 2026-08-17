@@ -191,6 +191,27 @@ gpt-4o-mini, nên cặp so sánh sạch sẵn.
 **k = 5 lượt mỗi câu mỗi model** (Luật 3: lượt LLM sinh thì một lượt là quan
 sát). 7 câu × 5 lượt × 2 model = **70 lượt**. Ở giá đo được, dưới 0,50 USD.
 
+### 🔴 Lỗ hổng ĐÃ BIẾT của §2b: probe không có phiên OTP
+
+Bộ đo gọi **thẳng API nhà cung cấp**, nên **không có phiên OTP nào**. Ba trong
+năm tool đòi OTP (`lookup_transaction`, `get_customer_history` — OTP xem;
+`create_ticket` — OTP step-up 15 phút).
+
+**Nhãn vẫn đúng**, vì nó đo **Ý ĐỊNH chọn tool**, không đo việc lời gọi có được
+phép thực thi hay không. Model chọn đúng tool = đạt, kể cả khi cổng OTP chặn
+ngay sau đó. Trộn hai thứ vào một chỉ số là vi phạm **Luật 10d**: sẽ không phân
+biệt được *"model chọn sai"* với *"hệ thống chặn đúng"*.
+
+**Nhưng chỗ chưa ai đo, và nó là chỗ dễ đẻ ra bịa số nhất:** ở sản phẩm thật,
+model chọn tool → **bị cổng OTP từ chối** → không có dữ liệu → **vẫn phải trả
+lời khách**. Model làm gì trong tình huống đó?
+
+Đây đúng hình dạng F-32 (*"từ chối rồi trả lời tiếp"*) nhưng do **hệ thống**
+gây ra chứ không do truy hồi trượt. Chưa có ca nào canh nó.
+
+⟹ Ghi vào danh sách, **chưa làm** — nhưng phải làm trước khi con số an toàn nào
+được công bố, vì nó nằm đúng trên đường của **ràng buộc cứng 3**.
+
 ### Ngưỡng — chốt TRƯỚC khi chạy
 
 | | flash được chọn nếu |
