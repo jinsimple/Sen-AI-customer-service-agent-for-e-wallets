@@ -1468,10 +1468,32 @@ nguon_duoc_duyet:
        vắng mặt**, không phải một điều bịa. Gọi nó là vi phạm sẽ làm loãng chính ràng buộc đó.
      - ② **CHỌN**, với một siết: dấu phải là **khẳng định**, không phải **vắng mặt**. *Bảng rỗng và
        bảng nói "không có gì" giống nhau với máy, khác hẳn với người đọc hồ sơ sáu tháng sau.*
-       ⟹ vé fallback mang một trạng thái **đọc được bằng máy và bằng mắt**: *"vé này sinh ra không
-       qua bước điều tra nào"*, hiện ngay trên màn CSKH.
+       ⟹ dấu là một trạng thái **đọc được bằng máy và bằng mắt**, hiện ngay trên màn CSKH.
      **Rủi ro thật cần chặn không phải chuỗi đứt — mà là một người đọc hồ sơ sáu tháng sau và
      GIẢ ĐỊNH đã có điều tra.** Dấu khẳng định chặn đúng rủi ro đó; mắt xích giả thì nuôi nó.
+
+     🔴 **SIẾT LẦN HAI (coder đề, PO-agent duyệt) — dấu thuộc về SỰ KIỆN BÀN GIAO, không thuộc về VÉ.**
+     Đo được: hai đường gọi **khác nhau ở chỗ có tạo vé mới hay không**.
+     ```
+     ① graph.py:466 (hết giờ)     gọi KHÔNG kèm ticket_id ⟹ LUÔN tạo vé mới, chắc chắn chưa điều tra
+     ② customer_tools.py:801      truyền ticket_id ⟹ chỉ ĐẶT CỜ lên vé CÓ SẴN,
+                                  vé đó có thể đã điều tra đầy đủ và CÓ investigation_logs
+     ```
+     ⟹ mệnh đề *"vé này sinh ra không qua bước điều tra nào"* **đúng cho ①, SAI cho ②**. Và nó bịt
+     luôn đường tắt *"suy từ `count(logs)==0`"* — nhánh ② cho ra vé có log đầy đủ mà vẫn là handoff.
+     **Suy-từ-vắng-mặt sai ở cả hai chiều.**
+     ⟹ Phát biểu đúng: *"lần bàn giao NÀY xảy ra vì hệ thống bó tay, tại thời điểm đó chưa có bước
+     điều tra nào"* — đúng cho cả hai nhánh, và **không bao giờ hết đúng** khi vé được điều tra tiếp
+     sau đó.
+
+     🔴 **Và giá của mục 2 vì thế KHÁC hẳn — PO phải duyệt trên đúng giá này:** không phải *"thêm một
+     cột bool"* mà là **TÁCH MỘT CỜ ĐANG QUÁ TẢI**. `Ticket.human_handoff_requested` (`models.py:304`)
+     hiện được **cả hai đường đặt `=True` không phân biệt** ⟹ trên màn CSKH hôm nay, *"hệ thống bó
+     tay"* và *"khách chủ động xin gặp người"* là **cùng một cờ**.
+     ⟹ **Rủi ro "người đọc giả định đã có điều tra" hôm nay MẠNH HƠN mức ADR này mô tả ban đầu:**
+     không phải vì bảng rỗng **im lặng**, mà vì cờ hiện có **NÓI SAI** — nó gợi ý *"khách yêu cầu"*
+     cho cả những vé thật ra là *"AI bó tay"*. Im lặng nghiêng về người đọc lạc quan; cái này **chủ
+     động đẩy** họ về đó.
   3. **Đánh dấu `description_raw` do hệ thống soạn** — bảng bằng chứng phải phân biệt **lời khách**
      với **ghi chú của máy**.
   4. **`contracts/authority-matrix.yaml` khai đủ 4 giá trị `scope`, MỖI GIÁ TRỊ KÈM MÃ.** Thiết kế
@@ -1528,7 +1550,14 @@ nguon_duoc_duyet:
     đường code**. Không phải thiếu hiểu biết: là **một bản vá đúng không được đi tìm chỗ thứ hai
     cùng lớp**.
     ⟹ **Luật (coder đề, PO-agent duyệt): vá một ca của một lớp lỗi ⟹ LIỆT KÊ NGƯỜI GỌI và quét cả
-    lớp, không dừng ở chỗ phát hiện.** Đây là phiên bản có răng của *"vá một họ thì phải đi tìm họ"*:
+    lớp, không dừng ở chỗ phát hiện.**
+  - **Đã quét cả lớp `scope` — SẠCH.** `grep scope="…"` ngoài `unknown` → **0**; các cờ/số khẳng định
+    về thế giới (`is_*`/`verified`/`fraud`/`eligible`/`amount`) → **0**. Bốn literal còn lại
+    (`pending_approval` · `investigating` · `processing` · `waiting`) được **mở từng chỗ ra đọc**,
+    không suy từ tên: cả bốn là **trạng thái khởi tạo của chính vật đang được tạo**.
+    ⟹ **Ranh giới của lớp lỗi, ghi kèm luật để lần sau quét không bắt nhầm: literal khẳng định một
+    SỰ THẬT VỀ THẾ GIỚI mà chưa ai tra ≠ literal đặt TRẠNG THÁI BAN ĐẦU của vật vừa tạo. Cái đầu bịa
+    được; cái sau đúng theo cấu tạo.** Đây là phiên bản có răng của *"vá một họ thì phải đi tìm họ"*:
     nêu rõ **cách** đi tìm — đi theo call-site, không đi theo trí nhớ.
   - `check_contracts.py --update` + bump `CONTRACT_VERSION` + **commit kèm file baseline**.
   - **Chưa đếm được bao nhiêu vé kiểu này đã tồn tại** (`scope='internal_wallet'` ∧
