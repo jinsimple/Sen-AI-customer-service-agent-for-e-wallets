@@ -123,5 +123,20 @@
   "vi_sao": "Ta chọn model cho một sản phẩm mà TÍNH DỰ ĐOÁN ĐƯỢC quan trọng ngang tính đúng, và hiện KHÔNG có ô nào đo nó. Bất nhất ở ranh giới 'đủ hay chưa đủ dữ kiện để hành động' thì ĐÚNG HAY SAI ĐỀU ĐÁNG LO: nếu hỏi lại là đúng thì những lượt gọi tool đã điền tham số TỰ NGHĨ RA — thẳng vào ràng buộc cứng 3; nếu gọi tool là đúng thì những lượt hỏi lại đã bỏ lỡ. KHÔNG có cách đọc nào biến bất nhất thành trung tính.",
   "he_qua_thuc_te": "Hành vi NHẤT QUÁN sai thì vá được bằng prompt. Hành vi NGẪU NHIÊN thì không — không biết vá cái gì, và không biết bản vá có ăn không.",
   "khong_phai_diem": "báo riêng, KHÔNG cộng vào trục 1"
- }
+ },
+ "k": 10,
+ "bam_cu_da_thay": "06e5776e9e18 — thay TRƯỚC khi có bất kỳ phép đo v4 nào. Lý do: đổi k=5→10 theo quyết định PO, sau khi ĐO ĐƯỢC sàn nhiễu. Đây là đổi GIAO THỨC (số lần lặp), không phải đổi NHÃN — nhãn không đụng một ký tự. Ghi cả hai băm để người sau truy được, không lặng lẽ thay.",
+ "san_nhieu_do_duoc": {
+  "gia_tri": "±1 ca trên n=25 = ±4 điểm phần trăm",
+  "do_bang": "hai lượt chạy RIÊNG, cùng nhãn v3, cùng bộ câu, cùng k=5. Cả BA model đều lệch đúng 1 ca: plus 19→20 · max 23→22 · flash 21→20.",
+  "khong_phai": "ước lượng lý thuyết — đây là số đo được",
+  "he_qua": [
+   "Ngưỡng 90% trên n=25 THỰC CHẤT là '≥23 ca'. Một ngưỡng PHẦN TRĂM trên mẫu nhỏ KHÔNG có độ phân giải mà con số phần trăm gợi ý.",
+   "max đo 23/25 (92%) ở lượt v3 và 22/25 (88%) ở lượt soi ⟹ nằm ĐÚNG TRÊN ranh giới, nhiễu ±1 ca đủ lật ĐẠT thành TRƯỢT. Đó là lý do k=10.",
+   "Với k=10 (n=50): 90% = ≥45 ca, sàn nhiễu ~±2%.",
+   "🔴 KẾT LUẬN VỀ flash KHÔNG bị ảnh hưởng: 0/15 vs 6/15 chuỗi là khoảng cách quá lớn so với ±1. Flash vẫn đóng hồ sơ — đừng mở lại nhân danh 'sàn nhiễu'.",
+   "Con số này là NỀN cho MỌI ngưỡng trên bộ này về sau, kể cả người khác dùng lại."
+  ]
+ },
+ "k_mua_gi": "k=10 mua PHÂN GIẢI, KHÔNG mua PHỦ. Nó lặp lại CÙNG 8 ca — thu hẹp sai số trên thứ đang đo, KHÔNG mở rộng thứ được đo. Mà bộ ca này đã hỏng HAI lần (lược đồ rút gọn · ca 7 hai-ý-định). Mở rộng bộ ca là việc TIẾP THEO, không phải việc này — ca mới cần nhãn suy từ contract + phán quyết security. Ưu tiên nhánh chưa ai chạm: khách nói mơ hồ · nhiều ý định · khách cung cấp thông tin SAI."
 }
