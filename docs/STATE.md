@@ -1,6 +1,73 @@
 # Trạng thái hiện tại
 
-## ✅ DỰNG XONG (17/08 tối) — dự báo công bố TRƯỚC, trúng cả hai
+## ✅ DỰNG LẦN 2 — `bec7235` · ba ngăn xếp đồng nhất trở lại · dự báo trúng 6/6
+
+```
+băm src/ = b8e7c5397457      ← coder dự báo b8e7c5397457, KHỚP CHÍNH XÁC
+fin05 · ttl · do   nhãn khớp · sửa-tay 0 · lệch×0 · dòng-lỗi 0
+23/23 invariants · check_contracts sạch
+docker diff SAU khi đo:  0 · 0 · 0     ← LẦN ĐẦU thi hành luật mới
+```
+
+**Vì sao phải dựng:** `fin05` chạy mã **không nằm trong ảnh nào** (`docker cp` lúc ai đó ĐO —
+coder và tester **cùng nhận là mình gây ra**, chưa phân định, và lần dựng này xoá sạch nên không
+điều tra). Câu quyết định là của coder: ***"Không dựng" không có nghĩa "không đổi gì" — nó có nghĩa
+"đổi vào một lúc ta không chọn."*** PO-agent chọn **(c) dựng CẢ BA** thay vì (a) dựng `fin05` hay
+(b) hoàn nguyên `cp` — nhất quán **VÀ** đúng **VÀ** bền, thay vì nhất quán ở trạng thái hỏng.
+
+> ### 🔴 LUẬT MỚI — bước ĐO không được ghi vào container đang chạy
+> **Nếu buộc phải ghi, KHAI TRƯỚC và HOÀN NGUYÊN NGAY — và trạng thái "đã ghi" phải hiện ra ở chỗ
+> ai cũng nhìn thấy, KHÔNG nằm trong trí nhớ người vừa ghi.**
+> **Vế THI HÀNH (coder):** sau MỖI phiên đo, chạy `docker diff` **trước khi báo cáo bất cứ số nào**
+> — không phải *"nhớ hoàn nguyên"* (nhớ thì hỏng lúc bận) mà là **một bước bắt buộc trong chính
+> báo cáo**, cùng chỗ khai băm vật.
+> **Bằng chứng nó cần:** coder **dựng ra cột `sửa-tay`** để bắt lớp lỗi này, dùng nó suốt ngày, và
+> vẫn tạo ra `sửa-tay=1` — chỉ phát hiện khi tình cờ đi trả lời câu khác. **Công cụ đúng; thiếu là
+> bước BUỘC PHẢI ĐỌC nó.** Và bằng chứng thứ hai: **hai phiên cùng nhận là nguồn của cùng một vết**
+> ⟹ *"nhớ hoàn nguyên"* không bao giờ đủ khi nhiều người cùng chạm.
+> **Gốc thật (coder khai):** họ `docker cp` để chạy `ruff`/`pytest` **trong ảnh** vì đó là nơi có
+> đủ phụ thuộc, host thì không ⟹ luật "cấm ghi" một mình sẽ bị vi phạm lại. **Chữa gốc = container
+> lint/test riêng** — và nó **không phải hạ tầng mới**: `fin05-THU-ROUTER-vut-di` đã dựng hôm nay
+> cùng khuôn. Xếp sau; `docker diff` chữa triệu chứng ngay.
+
+**PO-agent sửa dự báo ② của coder:** *"ảnh mới khác ảnh cũ đúng một dòng mã"* — đúng về **sản
+phẩm**, sai về **ảnh**: `tests/` NẰM TRONG ẢNH, và dải này đổi **5 file tests/**, trong đó
+`5fbd01f` **đổi thứ CHẠY MẶC ĐỊNH**. ⟹ **màu cổng đổi được mà không một dòng sản phẩm nào đổi** —
+chỗ người sau sẽ quy nhầm cho `d0aabc0`. Tách thành `②a` (sản phẩm, 1 dòng) và `②b` (bộ cổng,
+5 file). Coder **đi kiểm** ràng buộc đó thay vì nhận, thấy nó **không áp** cho `test_ingest.py`
+(dùng cổng tốn tiền 0 lần, unit test đã monkeypatch) — và ghi câu đúng: ***"ở đây nó thừa, nhưng
+nó thừa VÌ TÔI ĐI KIỂM — không phải vì hiển nhiên."*** Một ràng buộc được kiểm rồi bỏ khác hẳn một
+ràng buộc bị bỏ qua; hai cái cùng kết quả hôm nay, **chỉ cái thứ nhất còn đúng ngày mai**.
+
+> ### ⭐ LUẬT H LẦN THỨ TƯ TRONG NGÀY — coder tự đi tới nó trong lúc soạn dự báo
+> Dự báo ⑥: ***"skip là kết quả ĐÚNG — không phải xanh, không phải đỏ."***
+> ```
+> security  "không có sự kiện"  ≠  "tôi không đọc được sự kiện"
+> coder     "không tốn"         ≠  "không đọc được"          (0 → None)
+> tester    ĐẠT · TRƯỢT · không_đo_được
+> coder ⑥   xanh · đỏ · SKIP
+> ```
+> **Bốn lần, bốn chỗ, ba người, một ngày** — và lần thứ tư **không ai nhắc**. Dấu hiệu luật đã
+> thành phản xạ chứ chưa phải một dòng trong sổ.
+> Kết quả: `sssssss` — **7 skipped, không một ca nào chạy** ⟹ cờ `FIN05_CHO_PHEP_TON_TIEN` có tác
+> dụng thật, **bẫy ngược của tester (nếu chúng CHẠY thì cờ bị đặt sẵn) KHÔNG bung.**
+
+**🔴 ⑤ — XANH, ghi "CHƯA GIẢI THÍCH", KHÔNG ghi "đã vá".** `test_injection.py -k traversal` →
+1 passed. Coder **khai TRƯỚC khi dựng**: *"tôi chưa đọc test đó… nếu nó xanh thì tôi được lợi từ
+MAY MẮN, không phải từ HIỂU BIẾT — và tôi sẽ nói đúng thế."* Nó xanh; họ giữ lời.
+⟹ **Câu cho tester** (người duy nhất có màu TRƯỚC và SAU): test đó từng đỏ vì `KeyError` của
+`filename`, hay vì **một trục khác** (path traversal thật)? Cùng gốc ⟹ đổi ô thành "đã vá". Trục
+khác ⟹ ô "chưa giải thích" **giữ nguyên, và đó là kết quả CÓ GIÁ TRỊ**. Một test đổi màu mà không
+ai giải thích được là một test **không còn nói cho ta điều gì** — và tên nó đang canh một thứ đáng
+canh.
+
+**🔴 VIỆC CHẶN THAO TÁC HẰNG NGÀY — `tests/`, vùng tester:** `test_f31_f32_duong_agent_that.py`
+**gọi LLM thật, CHƯA CÓ CỔNG CHI PHÍ** (tester tự khai, chọn không sửa giữa chừng vì sẽ thành
+commit thứ chín trong dải đang dựng — đúng). Hôm nay tốn 0 token vì rơi vào đường nhẹ/fallback,
+tức **MAY, không phải thiết kế**. **Coder vừa phải chạy TỪNG FILE thay vì cả suite vì lỗ này** ⟹
+nó **đã đang bóp méo cách đội làm việc**, không còn là rủi ro tương lai. A3 còn hiệu lực, ~32K cuối.
+
+## ✅ DỰNG LẦN 1 (17/08 tối) — dự báo công bố TRƯỚC, trúng cả hai
 
 ```
 băm src/ tại HEAD = 8cc0600631a0   ·   build=daac112
