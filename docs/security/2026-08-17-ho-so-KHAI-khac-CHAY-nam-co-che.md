@@ -216,3 +216,34 @@ sự im lặng.
 
 Cả hai đều là **cùng một lỗi ở hai người**: đọc một con số mà **không hỏi nó
 đếm cái gì, ở đâu**. Và cả hai đều chỉ lộ ra khi **người thứ hai đo lại**.
+
+## §11. Giới hạn của Luật §6 — ghi ngay cạnh luật, trước khi ai áp nó ra ngoài vùng nó hoạt động
+
+Luật §6 (*"hai người đo cùng một vật rồi so SỐ"*) đã bắt được **cả sáu** cơ chế
+trong ngày. Nhưng nó hoạt động được **chỉ vì một điều kiện** mà ta chưa nêu:
+
+> **Cả sáu ca đều có một VẬT ĐO ĐƯỢC mà hai người truy cập độc lập được** — một
+> băm, một số đếm, một dòng log, một `docker diff`. Chỗ lệch **hiện ra thành
+> SỐ**, và số thì không thương lượng.
+
+⟹ **Luật §6 KHÔNG áp được ở nơi không có vật đo.** PO-agent nêu đúng ca điển
+hình: một **kết luận pháp lý**.
+
+- Nếu tôi đọc lướt *Product Terms of Service* của Alibaba rồi kết luận *"hợp
+  đồng có cam kết không huấn luyện"*, **không ai trong đội so số lại được** —
+  không có băm, không có số đếm, không có phép đo nào để lệch.
+- Cái sai đó sẽ **không bao giờ bị bắt bởi cơ chế đã cứu ta sáu lần hôm nay.**
+
+🔴 **Và nó là lớp nguy hiểm nhất trong cả loạt**, vì hai lý do cộng lại: nó
+**không tự lộ**, và nó **nghe có thẩm quyền** — đúng hình dạng của lỗi tôi đã
+mắc sáng nay với MISINFO-002 (*biến một giọng văn nhấn mạnh thành một ràng buộc
+chịu lực chỉ vì nó viết hoa*).
+
+**⟹ Quy tắc kèm theo:** ở nơi **không có vật đo**, thay *"hai người đo rồi so
+số"* bằng **"khai đúng hạng bằng chứng và dừng lại ở đó"**. Cụ thể cho ca này:
+*"cam kết ở mức TRANG TÀI LIỆU, chưa kiểm ở mức HỢP ĐỒNG"* là một phát biểu
+**đúng và dùng được**; *"hợp đồng cam kết"* là một phát biểu **không ai bác
+được, và vì thế không ai kiểm được**.
+
+**Việc đúng là chuyển nó cho người có thẩm quyền pháp lý** — cùng chỗ với hồ sơ
+Đ.25 — **không phải cho người đọc tài liệu kỹ hơn.**
