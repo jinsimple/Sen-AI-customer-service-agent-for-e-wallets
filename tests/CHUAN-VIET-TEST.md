@@ -1660,9 +1660,21 @@ Thứ thiếu là **một câu trong lời trình**.
 > **Đó là cách một thiết kế tốt bị triển khai tồi: người trình nói về LỢI ÍCH,
 > người nghe không nghe thấy ĐIỀU KIỆN.** (PO-agent tự khai, nguyên văn.)
 
-**Vế thi hành:** khi xếp hạng hai phương án, nêu **mọi trục chúng khác nhau**,
-kể cả trục làm phương án mình đang nghiêng về trông xấu đi. Không đủ chỗ thì
-đừng xếp hạng — nêu **điều kiện** thay vì nêu **thứ tự**.
+**Vế thi hành — NẾP KHAI TRỤC, phê chuẩn 17/08:** mọi phát biểu **xếp hạng**
+khi trình phải kèm một dòng
+
+    xếp trên trục X · CHƯA XÉT trục Y
+
+kể cả khi trục Y làm phương án mình đang nghiêng về trông xấu đi. Không đủ chỗ
+cho dòng đó thì **đừng xếp hạng** — nêu **điều kiện** thay vì nêu **thứ tự**.
+
+Lý do nếp này cần tồn tại riêng, không gộp vào việc kiểm số:
+
+> **`số-đúng-phạm-vi-sai` KHÔNG bị bắt bởi kiểm số — vì số vẫn đúng.** Nó chỉ
+> bị bắt bởi một câu hỏi khác hẳn: *"đứng trên trục nào, và trục nào chưa nói?"*
+
+Cả ba lần đính chính trong ngày 17/08 đều thuộc họ này, và không lần nào bị bắt
+bởi việc đọc lại con số.
 
 Và có một dạng câu **miễn nhiễm** với lỗi này, đáng học riêng: câu chỉ nói phần
 **không phụ thuộc ẩn số**.

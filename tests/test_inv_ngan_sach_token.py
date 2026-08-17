@@ -99,9 +99,27 @@ def kich_thich() -> dict[str, int]:
     return {"system": len(e.encode(d["sys"])), "tool": len(e.encode(d["tool"]))}
 
 
-def test_kich_thich_co_dinh_khong_vuot_ngan_sach(kich_thich):
-    """🔴 BẤT BIẾN: system prompt + lược đồ tool ≤ 7.550 token."""
+def test_kich_thich_co_dinh_khong_vuot_ngan_sach(kich_thich, capsys):
+    """🔴 BẤT BIẾN: system prompt + lược đồ tool ≤ 7.550 token.
+
+    IN CHỖ TRỐNG CÒN LẠI mỗi lần chạy, không chỉ xanh/đỏ. Một cổng chỉ có hai
+    trạng thái giấu mất **xu hướng**: prompt bò từ 6.565 lên 7.400 qua mười lần
+    sửa vẫn xanh cả mười lần, rồi đỏ ở lần mười một — và lúc đó không ai biết
+    nó đã bò từ bao giờ.
+
+    Con số này in ra cả khi ĐẠT (`-s` để thấy), nên nó thành một chuỗi thời
+    gian đọc được từ log CI thay vì một bit.
+    """
     tong = kich_thich["system"] + kich_thich["tool"]
+    con = NGUONG_TOKEN - tong
+    with capsys.disabled():
+        print(
+            f"\n  NGÂN SÁCH TOKEN  {tong:,}/{NGUONG_TOKEN:,}"
+            f"  ·  còn {con:,} ({con / NGUONG_TOKEN:.0%})"
+            f"  ·  so nền {tong - NEN['tong']:+,}"
+            f"\n    system {kich_thich['system']:,} ({kich_thich['system'] - NEN['system']:+,})"
+            f"  ·  tool {kich_thich['tool']:,} ({kich_thich['tool'] - NEN['tool']:+,})"
+        )
     assert tong <= NGUONG_TOKEN, (
         f"kích thích cố định = {tong:,} token > ngưỡng {NGUONG_TOKEN:,}\n"
         f"  system {kich_thich['system']:,} (nền {NEN['system']:,}) · "
