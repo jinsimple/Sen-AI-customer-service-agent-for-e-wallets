@@ -1,5 +1,9 @@
 """INV ngân sách token — kích thước KÍCH THÍCH CỐ ĐỊNH là bất biến CI.
 
+> ⚠️ **Chạy TỪ HOST, cần `docker` CLI** — bộ này điều khiển container qua
+> `docker exec`. Chạy bên trong container thì `FileNotFoundError: docker`.
+> ✅ **0 lượt LLM** — không tốn token.
+
     system prompt + lược đồ tool  ≤ NGƯỠNG   (đo bằng token, không bằng ký tự)
 
 ## Vì sao đây là bất biến, không phải một con số theo dõi

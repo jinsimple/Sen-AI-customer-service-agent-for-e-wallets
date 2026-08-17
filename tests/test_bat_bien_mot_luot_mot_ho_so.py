@@ -1,5 +1,9 @@
 """🔴 BẤT BIẾN NGHIỆP VỤ: một lượt chat không bao giờ sinh > 1 hồ sơ khiếu nại.
 
+> ⚠️ **Chạy TỪ HOST, cần `docker` CLI** — bộ này điều khiển container qua
+> `docker exec`. Chạy bên trong container thì `FileNotFoundError: docker`.
+> ✅ **0 lượt LLM** — không tốn token.
+
     hai lời gọi `create_ticket` trong CÙNG MỘT lượt  ⟹  ≤ 1 complaint
 
 ## Vì sao bất biến này tồn tại, và vì sao nó đang ĐỎ

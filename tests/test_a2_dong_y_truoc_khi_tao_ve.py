@@ -1,5 +1,10 @@
 """A2 — agent phải CHỜ ĐỒNG Ý TƯỜNG MINH trước khi `create_ticket`.
 
+> ⚠️ **Chạy TỪ HOST, cần `docker` CLI.** Bộ này điều khiển container qua
+> `docker exec`; chạy nó *bên trong* container thì `FileNotFoundError: docker`.
+> ⚠️ **TỐN TIỀN** — 3 lượt LLM ≈ 42K token. Mặc định TẮT, bật bằng
+> `FIN05_CHO_PHEP_TON_TIEN=1`.
+
 Viết **TRƯỚC khi coder vá prompt**, bởi vai không đọc `src/` — để ca kiểm không
 phản chiếu bản vá.
 
@@ -88,6 +93,7 @@ import uuid
 import pytest
 
 from tests._dong_bang import LY_DO, dang_dong_bang
+from tests._ton_tien import duoc_phep_ton_tien, ly_do
 
 CT = "fin05do-backend-1"
 PG = "fin05do-postgres-1"
@@ -107,6 +113,11 @@ def _song() -> bool:
 
 pytestmark = [
     pytest.mark.slow,
+    # 🔴 CỔNG CHI PHÍ ĐỨNG TRƯỚC cổng hạ tầng — cố ý. Người đọc phải thấy
+    # "tốn tiền" trước khi thấy "thiếu container", vì cái đầu là quyết định
+    # còn cái sau chỉ là điều kiện kỹ thuật.
+    pytest.mark.skipif(not duoc_phep_ton_tien(),
+                       reason=ly_do(42_000, "3 lượt chat thật qua /agent/chat")),
     pytest.mark.skipif(not _song(), reason=f"cần ngăn xếp ĐO DÙNG RIÊNG {CT} (Luật 15)"),
     pytest.mark.skipif(dang_dong_bang(), reason=LY_DO),
 ]

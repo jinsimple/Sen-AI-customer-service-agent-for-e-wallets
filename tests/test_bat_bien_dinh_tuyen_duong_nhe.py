@@ -1,5 +1,9 @@
 """Bất biến cho LỚP ĐỊNH TUYẾN — viết TRƯỚC cài đặt, chạy SAU khi có dấu.
 
+> ⚠️ **Chạy TỪ HOST, cần `docker` CLI.**
+> ⚠️ **TỐN TIỀN** — ~14K token (lượt nhẹ 0đ, lượt đối chứng đầy đủ). Mặc định
+> TẮT, bật bằng `FIN05_CHO_PHEP_TON_TIEN=1`.
+
     Một lượt đi ĐƯỜNG NHẸ không được tạo bản ghi nghiệp vụ nào:
         Δcomplaints = 0 · Δtickets = 0
 
@@ -35,6 +39,7 @@ import subprocess
 import pytest
 
 from tests._dong_bang import LY_DO, dang_dong_bang
+from tests._ton_tien import duoc_phep_ton_tien, ly_do
 
 BANG = ("complaints", "tickets")
 CT = "fin05do-backend-1"
@@ -52,6 +57,8 @@ def _stack_song() -> bool:
 
 pytestmark = [
     pytest.mark.slow,
+    pytest.mark.skipif(not duoc_phep_ton_tien(),
+                       reason=ly_do(14_000, "1 lượt nhẹ 0 token + 1 lượt đầy đủ")),
     pytest.mark.skipif(not _stack_song(),
                        reason=f"cần ngăn xếp ĐO DÙNG RIÊNG {CT} — phép đo này GHI, "
                               "không chạy trên ngăn xếp dùng chung (Luật 15)"),
