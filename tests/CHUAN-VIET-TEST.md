@@ -26,6 +26,7 @@
 | **13** · 13b | đo đúng thứ, nhưng đưa vào một KÍCH THÍCH khác · đo trên phần đang chú ý thay vì kích thích trọn vẹn | đầu vào của bộ đo |
 | **14** | hai người đo độc lập rồi so SỐ — cấm hoà ở tầng KẾT LUẬN | quy trình đo |
 | **15** | DẤU VẾT bộ đo để lại trong hệ đang chạy, không phải độ chính xác của nó | hậu quả của phép đo |
+| **16** | N mệnh đề cần N ĐỘT BIẾN, mỗi cái làm đúng một tập con đỏ | quan hệ GIỮA các test |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -1472,6 +1473,61 @@ quy ước đánh dấu, kế hoạch dọn, và một lần hỏi người th�
 
 ---
 
+## Luật 16 — N mệnh đề cần N ĐỘT BIẾN, mỗi cái làm đúng MỘT tập con đỏ
+
+> Nguồn: 17/08, nghiệm thu bộ test canh lớp cô lập Redis của `conftest.py`.
+
+Ba test viết ra để canh **ba** mệnh đề. Chúng xanh cả ba — chưa chứng minh gì
+(Luật 1). Nên chạy hai đột biến:
+
+    A · ÉP → setdefault (đúng lỗi gốc)   ⟹ cả 3 ĐỎ
+    B · cổng luôn trả "an toàn"          ⟹ CHỈ test canh cổng đỏ
+                                            hai test canh lớp 1 VẪN XANH
+
+**B là phép thử đắt nhất, và nó không nhắm vào bản vá — nó nhắm vào bộ test.**
+Nếu cả ba cùng đỏ ở B thì ba test đang **đo lẫn nhau**, không đo ba mệnh đề
+riêng.
+
+> Một bộ test như thế **vẫn xanh, vẫn trông đầy đủ**. Thứ nó mất là khả năng
+> nói cho ta biết **CÁI GÌ** hỏng vào ngày nó đỏ — ta chỉ biết *"có gì đó
+> hỏng"*, đúng lúc cần biết nhất.
+
+**Luật:** một bộ test chỉ chứng minh được nó đo `N` mệnh đề khi có `N` đột
+biến, **mỗi đột biến làm đúng một tập con dự kiến đỏ**. Cả bộ cùng đỏ ở mọi đột
+biến là dấu hiệu chúng đo **một** thứ, không phải `N` thứ.
+
+Đây là bậc trên của Luật 2 và Luật 1: hai luật đó áp cho **một** phép thử (nó
+có hiệu lực không · có quá rộng không). Luật 16 áp cho **quan hệ giữa các phép
+thử** — chúng có độc lập với nhau không.
+
+### Vế kèm: test canh một cái cửa không được tự mình mở đúng cái cửa đó
+
+Test canh cổng phải dựng một client thật **GIẢ ĐỊNH** (monkeypatch), tuyệt đối
+không nối vào một Redis nào. Làm ngược lại thì test-canh-`flushdb` trở thành
+thứ tiếp theo cuốn Redis của người bên cạnh — **công cụ kiểm trở thành thứ nó
+đi kiểm**.
+
+Cùng họ với một ca đã có trong dự án: công cụ soi kho tự tạo ra một kho rỗng
+rồi báo *"kho trống"*.
+
+### Và vế thứ ba: kiểm Ý ĐỊNH khác kiểm KẾT QUẢ
+
+Trong ba test trên, hai test cùng canh "lớp 1" nhưng **không** trùng nhau:
+
+    test 1  REDIS_URL == "fake://…"                → kiểm Ý ĐỊNH  (đã đặt chưa)
+    test 2  client toàn cục thực sự là fakeredis   → kiểm KẾT QUẢ (đã ăn chưa)
+
+Biến đúng mà client vẫn thật là **hoàn toàn có thể** — khi `conftest.py` được
+nạp sau module đầu tiên chạm `src.config`. Đó chính là `hiện-diện ≠ hiệu-lực`,
+lần này ở tầng fixture. Bỏ test 2 vì *"trùng test 1"* là bỏ đúng cái đo được
+khoảng hở giữa hai thứ đó.
+
+**Và test 2 phải đo trên ĐÚNG cửa mà thứ được canh sẽ dùng** — ở đây là
+`get_default_client()`, chính hàm `flushdb()` gọi vào. Đo qua một đường khác,
+dù tương đương về lý thuyết, là quay lại Luật 13: đo một vật gần giống vật thật.
+
+---
+
 ## Áp dụng khi review test của nhau
 
 Bốn câu hỏi, hỏi theo thứ tự:
@@ -1494,7 +1550,10 @@ Bốn câu hỏi, hỏi theo thứ tự:
 6. **Phép đo này GHI gì vào hệ đang chạy?** Có ghi → bốn điều kiện Luật 15
    phải thoả TRƯỚC lượt đầu tiên, kể cả lượt thăm dò. Không xác định được ngăn
    xếp có lộ ra ngoài hay không → DỪNG, hỏi người thật.
-7. **Bộ đo đưa vào ĐÚNG kích thích sản phẩm dùng chưa?** Với mỗi kênh (system
+7. **Bộ test này đo mấy mệnh đề, và đã chạy đủ ngần ấy đột biến chưa?** Cả bộ
+   cùng đỏ ở mọi đột biến → chúng đo MỘT thứ, không phải N thứ → vi phạm
+   Luật 16.
+8. **Bộ đo đưa vào ĐÚNG kích thích sản phẩm dùng chưa?** Với mỗi kênh (system
    prompt · mô tả tool · lược đồ tham số) phải kê được **nguồn**, không phải
    độ dài. Kê không được → vi phạm Luật 13, và kết luận câm theo **cả hai**
    chiều.
