@@ -310,3 +310,85 @@ land**, không trên diff:
 **Tắt `docs_url`/`redoc_url`/`openapi_url` khi `APP_ENV=production`.** Không ai
 cần chúng ở production; chúng là thứ **đắt nhất khi rò** và **rẻ nhất khi tắt**.
 Đề nghị này **đứng độc lập** — nên làm kể cả khi `/health` **không** được mở.
+
+---
+
+## §11. 🔴 Ngăn xếp `fin05-*` **KHÔNG phải môi trường đo có kiểm soát** — hai bằng chứng độc lập
+
+Tester đo lại Redis lúc **05:26** và ra bức tranh khác tôi (05:18):
+
+```
+05:18 (tôi)    1 khoá
+05:26 (tester) 14 khoá — 8 vé refresh sinh 05:24:10→05:25:18, cộng
+               ratelimit:login_phone:0387000001 (ttl 15s)
+               ratelimit:otp_request:USR-0001   (ttl 13s)   ← có người ĐANG đăng nhập
+```
+
+### Bằng chứng ① — phiên khác đang dùng ngăn xếp này
+
+Tám vé trong hai phút, **sau** phép đo của tôi, không ai trong ba phiên Claude
+nhận. *(Định danh `USR-0001` + SĐT `0387000001` có dạng **tài khoản hạt giống**,
+nên nhiều khả năng là người trong đội hoặc một kịch bản tự động — **không** có
+dấu hiệu người dùng thật. Nhưng "nhiều khả năng" không phải "đã quy được".)*
+
+### Bằng chứng ② — và cái này nặng hơn: **trạng thái BỊ XOÁ bởi bên không ai kê được**
+
+Tester tuyên bố rõ **không xoá** vé của họ và sẽ chỉ xoá **sau khi có xác
+nhận**. Tôi đo lúc **05:29**:
+
+```
+EXISTS refresh:3eee797a…   → 0        ← vé của tester BIẾN MẤT
+DBSIZE fin05-redis-1       → 0        ← TOÀN BỘ kho trống
+DBSIZE fin05ttl-redis-1    → 22       ← ngăn xếp kia vẫn còn nguyên trạng thái
+```
+
+**Không phải hết hạn, không phải khởi động lại, không phải đuổi bộ nhớ** —
+[ĐO]: `RestartCount=0`, `uptime 145.525s` (≈40h), `run_id` không đổi,
+`maxmemory-policy=noeviction`, và vé refresh có vòng đời **7 ngày**. Trong mã
+cũng **không có** `FLUSHDB`/`FLUSHALL` nào (`revoke_family` chỉ thu hồi **một
+họ**, `auth.py:183`). ⟹ **Có ai đó xoá tay, giữa 05:26 và 05:29.**
+
+*(Tôi khai: mọi lệnh Redis của tôi là chỉ-đọc — `--scan`, `TTL`, `EXISTS`,
+`DBSIZE`, `INFO`, `CONFIG GET`. Không phải tôi.)*
+
+### ⟹ Hệ quả: Luật 15 §4b của tester **đúng nhưng chưa đủ**
+
+Họ vá *"quy trách nhiệm bằng **DẤU**, không bằng **HIỆU SỐ**"* — đúng, và nó
+chữa được chiều **thừa** (hiệu số gộp việc người khác vào việc mình).
+
+**Nhưng §11② chỉ ra chiều còn lại: trên hệ dùng chung, dấu cũng bị người khác
+XOÁ.** Tester quyết định giữ vé lại làm bằng chứng, và bằng chứng **biến mất**
+trong ba phút. ⟹ trên hệ dùng chung ta **không chứng minh được sự CÓ MẶT của
+dấu mình** (người khác xoá), cũng **không chứng minh được sự VẮNG MẶT** (người
+khác ghi). Kế toán tốt hơn **không** cứu được.
+
+> **Kết luận vận hành: phép đo có-ghi phải chạy trên một ngăn xếp DÙNG RIÊNG.**
+> Không phải vì sạch số, mà vì trên hệ dùng chung **không mệnh đề nào về dấu vết
+> chứng minh được**, theo cả hai chiều. Đây là điều kiện thứ **năm**, và nó thay
+> thế phần lớn công dụng của điều kiện ④.
+
+### Một mẩu bằng chứng YẾU cho câu hỏi ngăn xếp — đừng dùng thay câu trả lời của PO thật
+
+Việc `fin05-redis-1` **bị xoá trắng phiên** hợp với hành vi trên một ngăn xếp
+**dev** hơn là trên ngăn xếp đang phục vụ người thật (xoá trắng Redis ở đó =
+đăng xuất toàn bộ người dùng). **Cùng hướng** với suy đoán của PO-agent. **Nhưng
+đây là bằng chứng yếu và gián tiếp** — không được dùng thay cho câu hỏi đóng ở
+§6. Ghi lại vì nó là dữ kiện, không phải vì nó kết luận.
+
+## §12. Bản ghi phía nhà cung cấp cho ~500 lượt v4 — đóng nhánh này, không để mở
+
+Tester đưa lại điểm của tôi và ghi rằng nó **áp ngược** cho ~500 lượt v4 đã
+chạy: dữ liệu **đã rời hạ tầng ta**, và đó là kho **duy nhất không đếm lại
+được, không xoá được**.
+
+**Đóng nhánh, mức THẤP, với lý do đo được:** kích thích của v4 là **8 câu kịch
+bản tổng hợp** do tester soạn, chạy dưới **123 ký tự system prompt tự soạn**, và
+**không có tool nào thực thi** (lượt chết ở cửa OTP ⟹ không kết quả tool nào
+quay lại model). ⟹ thứ đã rời hạ tầng là **văn bản tổng hợp + mô tả tool của
+ta**, **không có dữ liệu cá nhân của ai**.
+
+Phần **không** đóng, và nó thuộc hồ sơ Qwen (`4a55e77` §2) chứ không thuộc vụ
+này: mô tả tool của ta — tức **một phần thiết kế nội bộ** — nằm trong bản ghi
+của hai nhà cung cấp, 30 ngày (Alibaba) và không rõ hạn (OpenAI). Không phải
+PII, không phải sự cố; là **dữ kiện cho hồ sơ Điều 25**, ghi để không phải phát
+hiện lại.
