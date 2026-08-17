@@ -306,11 +306,27 @@ KHÔNG**, không phải "yếu nghiêng một bên". Chặn con số là đúng,
 3. **Cư trú dữ liệu** — xem mục dưới
 4. 🔴 **CHỐT NHỊP GÕ cho buổi 150 người** — biến quyết định duy nhất. ≤0,5 lượt/ph/người ⟹ T1 đủ;
    1,0 ⟹ không bản vá nào cứu kịp. Đây là **kịch bản chạy**, không phải code, nên là việc của PO.
-5. 🔴🔴 **HỒ SƠ Đ.25 (NĐ 13/2023) — MỐC KÍCH HOẠT CÓ THỂ ĐÃ NỔ.** Security (hồ sơ kiểm kê
-   `873109f`) chốt mốc: *"dữ liệu thật ĐẦU TIÊN — và một buổi demo mentor gõ số điện thoại thật là
-   đã tính"*. **PO thật có demo mentor 15/08**, đang nằm trong hồ sơ DEMO-BUG ngay dưới. ⟹ câu cho
-   PO thật: **hồ sơ ĐGTĐ chuyển dữ liệu ra nước ngoài đã có chưa?** Security **không** biết và
-   **không** kết luận thay — họ chỉ dựng vật liệu §2/§3/§4 mà người làm hồ sơ không tự dựng được.
+5. 🔴🔴 **Đ.25 (NĐ 13/2023) — ĐỒNG HỒ CÓ THỂ ĐÃ CHẠY TỪ 15/08. VIỆC ĐẦU TIÊN LÀ XÁC ĐỊNH, KHÔNG
+   PHẢI LÀM HỒ SƠ.**
+   ```
+   demo mentor  15/08/2026   ·   hôm nay 17/08 (đã trôi 2 ngày)
+   hạn 60 ngày  14/10/2026   ·   CÒN 58 NGÀY
+   ```
+   > 📌 **Security viết "quá hạn" → PO-agent tính lại → security RÚT.** Đ.25 tính **60 ngày kể từ
+   > ngày BẮT ĐẦU XỬ LÝ**, không phải từ ngày ta nhận ra. Ca Luật B **sạch nhất ngày**: câu sai và
+   > câu đúng nằm **trong cùng một mục, cách nhau hai dòng** — không thiếu dữ kiện, không vội, chỉ
+   > là **bản làm tròn nghe dứt khoát hơn nên ra trước**.
+   > **⭐ MỞ RỘNG LUẬT B (security đề, PO-agent duyệt):** *kiểm tra cuối cùng trước khi một phát
+   > biểu RỜI KHỎI ĐỘI là hỏi nó **ĐẨY NGƯỜI NHẬN VÀO CHẾ ĐỘ NÀO**, không chỉ hỏi nó có đúng
+   > không.* Ở đây: *"quá hạn"* đẩy PO vào **chế độ khắc phục vi phạm**; *"còn 58 ngày"* là **một
+   > việc có lịch**. Cùng dữ kiện, hai hành động khác hẳn — và cái sai lại là cái **đáng sợ hơn**.
+
+   **CÂU DUY NHẤT CHO PO THẬT, TRẢ LỜI ĐƯỢC NGAY:** buổi demo mentor 15/08 **có ai gõ SĐT / tên /
+   mã giao dịch THẬT vào ô chat không?** Nó quyết định hồ sơ là *chuẩn bị* hay *bù* — **và nếu
+   không ai gõ dữ liệu thật thì đồng hồ CHƯA chạy**, tức câu của security sai theo chiều thứ hai.
+   Chính vì sai được cả hai chiều nên phải **xác định trước, hồ sơ sau**.
+   Security (kiểm kê `873109f`) **không** biết hồ sơ đã có chưa và **không** kết luận thay — họ
+   dựng vật liệu §2/§3/§4 mà người làm hồ sơ không tự dựng được.
    > 🔴 **Nghĩa vụ này CÓ TỪ TRƯỚC QWEN** — hệ thống gửi văn bản khách sang Mỹ từ thời
    > `gpt-4o-mini`. Đổi nhà cung cấp **không** làm nó nặng/nhẹ hơn, chỉ **THÊM một bên nhận**.
    > Security nguyên văn: *"cả ngày hôm nay đội bận với thứ ĐỔI ĐƯỢC; đây là thứ VỐN ĐÃ SAI TỪ
