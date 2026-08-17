@@ -58,6 +58,15 @@ _logger = logging.getLogger("fin05.agents.graph")
 # hơn nhiều để chặn lặp vô hạn.
 _AGENT_RECURSION_LIMIT = 20
 
+
+class TraLoiRongError(RuntimeError):
+    """Model trả nội dung rỗng vì HẾT TRẦN TOKEN — lỗi cấu hình của TA.
+
+    Có lớp riêng để bộ đo phân biệt được nó với mọi lỗi khác. Nuốt nó thành
+    một câu trả lời rỗng nghĩa là thước sẽ ghi "model trả lời kém" cho một
+    lỗi hạ tầng của chính ta — tính nhầm lỗi của mình thành lỗi nhà cung cấp.
+    """
+
 # JSON schema của 5 tool gửi kèm MỌI lượt gọi model — hằng số, đo 2026-08-16.
 # Đổi khi thêm/bớt tool. Xem giải thích ở chỗ dựng `usage["input_chars"]`.
 _CHARS_TOOL_SCHEMA = 6773
@@ -510,9 +519,11 @@ def run_agent_turn(
     turn_messages = all_messages[prev_len:]
 
     reply = ""
+    ly_do_dung = None
     for m in reversed(turn_messages):
         if isinstance(m, AIMessage) and not m.tool_calls:
             reply = m.content
+            ly_do_dung = (getattr(m, "response_metadata", None) or {}).get("finish_reason")
             break
 
     # KÊU khi model trả nội dung RỖNG. Trước bản này `reply` nhận "" và đi
@@ -528,8 +539,8 @@ def run_agent_turn(
                 "thread_id": thread_id or user_id,
                 "model": LLM_MODEL,
                 "so_message_luot_nay": len(turn_messages),
-                "ghi_chu": "Model trả content rỗng. Nghi trần token bị phần "
-                "reasoning ăn hết — xem LLM_MAX_TOKENS.",
+                "finish_reason": ly_do_dung,
+                "ghi_chu": "Content rỗng nhưng KHÔNG phải do hết trần — chưa rõ nguyên nhân.",
             },
         )
 
@@ -617,6 +628,31 @@ def run_agent_turn(
             usage["reasoning_tokens"] += (meta.get("output_token_details") or {}).get("reasoning", 0) or 0
             chi_tiet = meta.get("input_token_details") or {}
             usage["cached_input_tokens"] += chi_tiet.get("cache_read", 0) or 0
+
+    # HAI ca rỗng KHÁC HẲN NHAU, cố ý không gộp:
+    #   rỗng + finish_reason="length" -> model tiêu hết trần token vào phần suy
+    #       nghĩ thầm, không còn chỗ sinh nội dung. Đây là hỏng CẤU HÌNH CỦA TA,
+    #       sửa được bằng LLM_MAX_TOKENS. Phải NỔ: để nó đi tiếp thì bộ đo ghi
+    #       một lỗi hạ tầng của ta thành "model trả lời kém" (Luật 1c).
+    #   rỗng vì lý do khác -> chưa biết. Cảnh báo, không đoán, không nuốt.
+    if not str(reply).strip() and ly_do_dung == "length":
+        _logger.error(
+            "agent_reply_rong_het_tran",
+            extra={
+                "user_id": user_id,
+                "model": LLM_MODEL,
+                "finish_reason": ly_do_dung,
+                "reasoning_tokens": usage["reasoning_tokens"],
+                "output_tokens": usage["output_tokens"],
+                "llm_max_tokens": LLM_MAX_TOKENS,
+            },
+        )
+        raise TraLoiRongError(
+            f"Model {LLM_MODEL} tra noi dung RONG voi finish_reason=length — "
+            f"tran token bi phan suy nghi an het ({usage['reasoning_tokens']}/"
+            f"{usage['output_tokens']} token dau ra la reasoning). "
+            f"Nang LLM_MAX_TOKENS (hien {LLM_MAX_TOKENS})."
+        )
 
     # NGUỒN TRUY VẾT cho luật xuất xứ của O3: mọi mã/dãy số >=7 ký tự agent nói
     # ra phải có mặt ở một trong hai nơi này — nếu không thì nó ở đâu ra?

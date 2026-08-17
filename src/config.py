@@ -170,9 +170,35 @@ OPENAI_MAX_RETRIES = int(os.environ.get("OPENAI_MAX_RETRIES", "1"))
 # nạp lại toàn bộ, và mọi con số truy hồi đo trước đó bị cắt chuỗi. Hai việc
 # khác hạng, gộp một biến là mời người vận hành làm việc thứ hai trong khi họ
 # tưởng mình chỉ làm việc thứ nhất.
+def _khoa_cho_nha_cung_cap(ten_khoa: str, base_url: str | None) -> str | None:
+    """Khoá chỉ được PHÉP rơi về OPENAI_API_KEY khi ĐÍCH ĐẾN vẫn là OpenAI.
+
+    🔴 Bản đầu của tôi viết `os.environ.get("LLM_API_KEY") or OPENAI_API_KEY`
+    VÔ ĐIỀU KIỆN. Với `LLM_BASE_URL` trỏ nhà cung cấp khác mà quên điền khoá,
+    nó GỬI KHOÁ OPENAI SANG MÁY CHỦ BÊN THỨ BA. Đo thật: base_url dashscope +
+    LLM_API_KEY trống -> khoá `sk-proj…` đi tới Alibaba.
+
+    Không có lỗi nào bắn ra: bên kia chỉ trả 401, người vận hành đọc "401" rồi
+    đi tìm sai chỗ, trong khi khoá production đã rời hệ thống.
+
+    Một fallback chỉ an toàn khi ĐÍCH ĐẾN không đổi. Đổi đích mà giữ fallback
+    là biến tiện lợi thành rò rỉ.
+    """
+    khoa = os.environ.get(ten_khoa)
+    if khoa:
+        return khoa
+    if base_url:
+        raise RuntimeError(
+            f"Thiếu {ten_khoa} trong khi đã đặt base_url tới nhà cung cấp khác "
+            f"({base_url}). KHÔNG tự dùng OPENAI_API_KEY thay thế — làm vậy là "
+            f"gửi khoá OpenAI sang máy chủ của họ. Đặt {ten_khoa} trong .env."
+        )
+    return OPENAI_API_KEY
+
+
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or None
 LLM_MODEL = os.environ.get("LLM_MODEL") or OPENAI_MODEL
-LLM_API_KEY = os.environ.get("LLM_API_KEY") or OPENAI_API_KEY
+LLM_API_KEY = _khoa_cho_nha_cung_cap("LLM_API_KEY", LLM_BASE_URL)
 
 # Trần token sinh ra. MẶC ĐỊNH None = KHÔNG truyền tham số -> y hệt hành vi
 # hôm nay (dựa vào mặc định nhà cung cấp). CỐ Ý không đặt một con số:
@@ -186,7 +212,7 @@ LLM_API_KEY = os.environ.get("LLM_API_KEY") or OPENAI_API_KEY
 LLM_MAX_TOKENS = int(os.environ["LLM_MAX_TOKENS"]) if os.environ.get("LLM_MAX_TOKENS") else None
 
 EMBEDDING_BASE_URL = os.environ.get("EMBEDDING_BASE_URL") or None
-EMBEDDING_API_KEY = os.environ.get("EMBEDDING_API_KEY") or OPENAI_API_KEY
+EMBEDDING_API_KEY = _khoa_cho_nha_cung_cap("EMBEDDING_API_KEY", EMBEDDING_BASE_URL)
 
 # --- THƯỚC của eval: GHIM BẰNG HẰNG SỐ, KHÔNG theo model sản phẩm ---------
 # Một lượt adversarial có BA vai cùng gọi model:
