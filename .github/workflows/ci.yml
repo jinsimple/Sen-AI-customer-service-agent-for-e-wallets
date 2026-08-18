@@ -34,7 +34,20 @@ on:
 # và khai ra — đừng đổi im lặng.
 concurrency:
   group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'push' }}
-  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+  # 🔴 ĐỔI true -> false 18/08, 12 phút sau khi land `true`. KHÔNG phải đổi ý
+  # theo cảm tính — theo MỘT PHÉP ĐO:
+  #     job invariants chạy hết      4′04″   (đo được)
+  #     khoảng cách giữa hai lần đẩy ≈ 2′30″–3′  (4 lượt: 12:16·12:19·12:23·12:26)
+  # Cổng chạy LÂU HƠN khoảng cách giữa hai lần đẩy ⟹ với `true` và bốn phiên
+  # cùng đẩy lên một nhánh, hệ quả không phải "thỉnh thoảng mất một kết quả"
+  # mà là GẦN NHƯ KHÔNG LƯỢT NÀO VỀ ĐÍCH. Đó là cổng bị vô hiệu hoá, và nó
+  # tái lập đúng cái đau vừa mất hai ngày để chữa ("17/08 tới nay không commit
+  # nào qua cổng") — trước là billing chặn, sau là ta tự chặn.
+  # Ca đầu tiên đã chứng minh: `0939e2f` giết lượt đo `5c8fba4` sau 150 giây.
+  #
+  # Cái giá phía kia (lượt xếp hàng chiếm chỗ FIFO của team khác) nhẹ hơn:
+  # lượt ĐANG XẾP HÀNG không giữ máy, chỉ chiếm khi thật sự chạy.
+  cancel-in-progress: false
 env:
   # JWT_SECRET_KEY/FIELD_ENCRYPTION_KEY: src/config.py raise lỗi ngay lúc
   # import nếu thiếu (cố ý, chống "trông như bảo mật nhưng không có key thật")
