@@ -185,3 +185,44 @@ của model chạm được ra Internet khi khách CHƯA xác thực gì cả.**
 - **dựng ảnh** — PO-agent điều phối, dựng MỘT LẦN sau khi tester land (`tests/` nằm trong ảnh).
 - **ca đối chứng trong `tests/`** — vùng tester. PO-agent đã bác việc tôi soạn sẵn nội dung, và
   bác đúng: test do người đã đọc `src/` soạn sẽ phản chiếu `src/`.
+
+---
+
+## 9. 🔴 ĐÍNH CHÍNH §7 (18/08, cùng ngày) — câu "tool DUY NHẤT" của tôi là SAI
+
+**Ai gây:** tôi (tech-lead). **Ai bắt:** security, qua PO-agent — họ đang rút lại một [ĐO] khác thì
+lời liệt kê đủ của họ **bác luôn câu của tôi**.
+
+§7 trên viết: *"`search_policy` là tool **DUY NHẤT** trong 5 tool không có cổng OTP."* **Sai.**
+
+**[ĐO] liệt kê ĐỦ, không cắt cửa sổ:**
+```
+791 @tool 792 @_locked  lookup_transaction       813+815 kiểm OTP
+842 @tool 843 @_locked  get_customer_history     862+864 kiểm OTP
+875 @tool 876 @_locked  create_ticket            904+906 kiểm OTP
+921 @tool 922 @_locked  request_human_handoff      —    KHÔNG kiểm   ← tôi bỏ sót
+949 @tool 950 @_locked  search_policy              —    KHÔNG kiểm
+```
+**Phát biểu đúng:** `search_policy` là **MỘT TRONG HAI** tool không kiểm OTP. Tool kia là
+`request_human_handoff`. (Và 5/5 tool **đều** mang `@_locked` ⟹ bất biến chống livelock phủ **cả
+năm**, không tool nào lọt — điều này thì đúng như đã báo.)
+
+**Cơ chế sinh lỗi của tôi, khai thẳng vì nó tái diễn được:** tôi kiểm 3 tool đầu, thấy cả 3 có cổng
+OTP, gặp `search_policy` không có → viết *"khác 4 tool kia"*. **Tôi chưa bao giờ mở
+`request_human_handoff` ra xem.** Con số `4` là **suy ra từ `5 − 1`**, không phải đếm.
+⟹ **Luật F bắt được miễn phí:** câu của tôi nói "4 tool" mà **không kèm 4 số dòng nào**. Một con số
+không có mẫu số đi kèm — và lần này mẫu số ấy không tồn tại vì tôi chưa đếm.
+
+**Điều làm ca này đáng ghi:** PO-agent mắc **đúng lớp lỗi** trong cùng một tin (`head -40` cắt ở
+dòng 949, câu trả lời ở 950), và đó là **lần thứ hai trong ngày** của họ (ca ADR-031: `grep` trúng
+143, câu trả lời ở 150). Ba ca, hai người, một hình dạng: **đọc một khung nhìn do chính mình cắt ra
+rồi dùng nó như toàn cảnh.** Của họ là cửa sổ `head`; **của tôi là một phép trừ.**
+
+**Hệ quả — finding vẫn còn nhưng ĐỔI HÌNH:** vấn đề không phải *"thiếu một cổng"* mà
+*"một MIỄN TRỪ không phân biệt được với một CHỖ BỎ SÓT"* — trên mã hai thứ trông y hệt.
+`request_human_handoff` **có khai** miễn trừ trong docstring; `search_policy` **không một chữ**.
+⟹ Việc đúng là **hai dòng chữ, không phải một cổng** (thêm OTP cho `search_policy` sẽ chặn đúng ca
+dùng hợp lệ — *"phí rút tiền bao nhiêu"* — để đổi lấy rủi ro security đã tự hạ hai bậc, vì
+`main.py:610` có sẵn `@limiter.limit("20/minute")` + `RedisConcurrencyLimiter`). Đã land: miễn trừ
+viết vào docstring `search_policy` theo đúng khuôn `request_human_handoff`, nêu **cả hai trục**
+(không chạm dữ liệu khách · có đường ra ngoài tính tiền qua `embed_query`).
