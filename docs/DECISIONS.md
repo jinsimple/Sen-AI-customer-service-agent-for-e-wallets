@@ -2330,6 +2330,65 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 - **Hệ quả:** `CLAUDE.md` §7b (mới) · `.claude/commands/wrapup` nên nhắc bước dọn ·
   `docs/nhat-ky/` là nơi nhận mục đã đóng.
 
+## ADR-040 — DỜI cổng finding bảo mật từ CI sang BƯỚC DEPLOY. Không tắt, không gỡ nhãn.
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — **PO thật chốt 18/08** (*"dời lại nhưng phải
+  note lại để không ai quên"*). Phát hiện + đề xuất: **security** (`6c5bbb3`, §19).
+- **Bối cảnh:**
+
+  ```
+  [ĐO] ci.yml:251-262  security-findings-gate  chạy `pytest -m security_finding`
+       KHÔNG có continue-on-error  ⟹  job ĐỎ LIÊN TỤC TỪ 12/08 — SÁU NGÀY
+  ```
+
+  > ## Một cái chuông kêu liên tục sáu ngày không còn là một cái chuông.
+  **Luật A vế một:** *cổng phải IM lúc bình thường.* Cổng này **chưa bao giờ im** ⟹ nó **đã bị vô hiệu
+  hoá bằng THÓI QUEN, không bằng quyết định.**
+
+  🔴 **Và finding nó canh thì KHÔNG vá được theo cách test đòi.** Test khẳng định
+  `raw_phone not in saved["content"]` = **che LÚC GHI**. **ADR-025 QĐ1 (ký 15/08, ba ngày SAU khi
+  finding mở) BÁC đúng điều đó**: *hệ thống tự sửa chữ trong lời khai thì bản ghi **mất giá trị chứng
+  cứ** (NHNN/toà)*. ⟹ **Bản vá làm test xanh sẽ vi phạm một ADR PO đã ký.** *"Chưa vá"* ở đây
+  **không phải nợ kỹ thuật — là TUÂN THỦ.**
+
+  ⚠️ **Nguy hiểm thật của nguyên trạng không phải PII:** một cổng đỏ dai dẳng mang nhãn **P0**, đặt
+  trước người đang chịu áp lực gộp `main`, là **một lời mời sửa nó** — và cách sửa rẻ nhất **phá giá
+  trị chứng cứ của lời khai**, trong khi **CI sẽ XANH HƠN sau khi phá**.
+
+- **Quyết định 1 — DỜI, không TẮT.**
+  ```
+  BỎ    job CI đỏ vĩnh viễn        (đã habituate, không ai còn đọc)
+  THÊM  cổng ở BƯỚC DEPLOY PRODUCTION:  `pytest -m security_finding` đỏ  ⟹  CHẶN deploy
+  ```
+
+- **🔴 Quyết định 2 — LUẬT KHÔNG ĐƯỢC QUÊN. Đây là lý do PO bắt ghi lại.**
+  > ***"Chấp nhận rủi ro cho `main`" KHÔNG được lặng lẽ trở thành "chấp nhận rủi ro cho PRODUCTION".***
+  Cổng deploy **chính là cơ chế** ép điều đó: nó bắn đúng vào **SỰ KIỆN làm đổi mức**, nên **mức không
+  cần tự nhảy** — **việc deploy bị CHẶN cho tới khi có người quyết lần nữa.**
+  ⟹ Biến *"chấp nhận rủi ro"* từ **một câu nói** thành **một trạng thái có cơ chế**.
+  **Ai gỡ cổng này phải trả lời được: điều gì thay thế nó ép ra quyết định thứ hai?**
+
+- **🔴 Quyết định 3 — CA ĐỐI CHỨNG BẮT BUỘC trước khi tin cổng mới.**
+  Chạy một lần với **finding giả** để xem nó **THẬT SỰ CHẶN**. *(Luật A vế hai · Luật R vế ④.)*
+  **Một cổng deploy chưa từng chặn gì không phân biệt được với một cổng deploy hỏng** — và ta sẽ chỉ
+  phát hiện vào **đúng ngày cần nó**.
+
+- **Quyết định 4 — cách "chấp nhận" ĐƯỢC PHÉP và KHÔNG được phép.**
+  🚫 **KHÔNG** gỡ `@pytest.mark.security_finding`, **KHÔNG** đổi thành `xfail` trơn — `ci.yml:367` đã
+  cấm, **GIỮ lệnh cấm**. Đổi trạng thái test thì phải đổi **KÈM LÝ DO trong docstring**:
+  *"assertion này đòi thứ ADR-025 QĐ1 bác"*.
+
+- **Lý do BÁC BỎ *"để nguyên job CI đỏ"*:** sáu ngày đã chứng minh nó không được đọc. Giữ một cổng
+  không ai đọc **đắt hơn bỏ nó**, vì nó **chiếm chỗ** của cổng thật *(Luật R vế ④)*.
+- **Lý do BÁC BỎ *"gỡ nhãn cho CI xanh"*:** đó là **tắt chuông**, và nó biến chuông-hỏng thành
+  **KHÔNG-CÓ-CHUÔNG**.
+
+- **Hệ quả:** `.github/workflows/ci.yml` (bỏ job) · **bước deploy** (thêm cổng) · `tests/` (ca đối
+  chứng) · `docs/security/` §19.
+  📌 **CÒN NỢ, security mở, chưa ai quyết:** `messages.content` phân loại **Nhóm A "lời khai KHÁCH"**
+  nhưng [ĐO] chứa **staff 237 / customer 230** — **nhiều chữ NHÂN VIÊN hơn chữ khách**. Trục phân loại
+  (**theo CỘT**) không cắt đúng trục ADR-025 tự khai (**theo AI SỬA LẠI ĐƯỢC**). Cần ADR riêng.
+
 ## Mẫu ADR mới
 
 ```markdown

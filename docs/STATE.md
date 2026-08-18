@@ -1630,6 +1630,16 @@ THÓI QUEN CỦA MÔI TRƯỜNG HIỆN TẠI.**
 > chứng dương cho chính nó**. Và là **Luật H ở tầng phương pháp**: nó gộp *"đã kiểm, âm tính"* với
 > *"không thể kiểm"* thành một dòng chữ, rồi dòng ấy khẳng định vế thứ nhất. **Ba trạng thái.**
 
+**Luật S** *(tester đúc 18/08 sau khi tự làm lọt khoá và tự báo — PO-agent cấp ký hiệu)* —
+**TÌM CẤU HÌNH THÌ `grep` TÊN BIẾN, ĐỪNG `grep` CẢ DÒNG.**
+> `env | grep -i llm` **in nguyên văn giá trị** — và đó là câu lệnh **ai cũng gõ** khi đi tìm cấu
+> hình. Dạng an toàn: `env | cut -d= -f1 | grep -i llm`.
+> **[ĐO] 18/08:** một lượt như thế đưa `LLM_API_KEY` **đang hoạt động** vào log phiên — **chỗ thứ BA**
+> khoá tồn tại, ngoài `.env` và `Config.Env` của container. Hai chỗ kia đã được kiểm kê; **chỗ thứ ba
+> không ai liệt kê, vì nó không phải một tệp — nó là một THÓI QUEN gõ lệnh.**
+> **Vế thi hành:** mọi bước ĐO chạm biến môi trường phải in **TÊN**, và chỉ in **giá trị** khi đã
+> khẳng định biến ấy không nhạy cảm. Nghi ngờ ⟹ in tên.
+
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
   **Vế thi hành:** sau **MỖI** phiên đo, chạy `docker diff` **trước khi báo cáo bất cứ số nào**.
