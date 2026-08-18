@@ -614,9 +614,23 @@ nhanh — **không cần cache, tránh rủi ro đọc dữ liệu cũ**"*.
 phục vụ tài liệu **đã duyệt**; một tài liệu `supervisor` vừa duyệt mà cache còn giữ câu trả lời cũ thì
 **ADR-026 bị vô hiệu bởi một lớp cache** — cơ chế chạy đúng, vẫn bị đi vòng.
 
-**H4 · CHƯA BIẾT, và nó chặn việc bán bản vá này như một bản vá TPM:** prompt cache của DashScope **có
-tính vào TPM hay không** — đó đúng là **câu ③ phiếu Alibaba**, mà PO đã gác. ⟹ lợi ích tính bằng
-**TIỀN** thì chắc; tính bằng **TPM** thì **CHƯA BIẾT** — và **TPM mới là trần chặn buổi 150 người**.
+**H4 · 🔴 SẮC LẠI 18/08 — việc rút 10.2 làm H2 và H4 NẶNG THÊM, không nhẹ đi.**
+- **H2 nặng hơn:** bản cũ viết *"cái bẫy nằm ở bước sau"* như một rủi ro **tương lai**. **Sai chiều.**
+  Cache **đang ăn 50,8% THẬT** ⟹ prompt cache **không phải cơ chế lý thuyết**, nên áp lực đẩy tỉ lệ
+  ấy lên cao hơn là áp lực **có thật, đang diễn ra**. Ranh giới tiền tố = ranh giới phân loại dữ liệu
+  cần được **ghim SỚM HƠN**, không phải muộn hơn.
+- **H4 đổi hạng:** bản cũ là *"chưa biết TPM"* — một ô trống. Nay **tiền đề đã xác nhận**: ta biết
+  **50,8% là có thật**, nên câu *"50,8% ấy có được MIỄN khỏi TPM không"* thành câu **có trọng lượng**:
+  **CÓ miễn** ⟹ trần hiệu dụng **cao hơn ta tưởng**. **KHÔNG miễn** ⟹ mọi tối ưu cache **không chạm
+  được trần đang chặn buổi 150 người** (§6.⓵).
+  ⟹ **Hai thế giới rất khác nhau, và ta chưa biết đang ở cái nào.** Đây là **câu ③ phiếu Alibaba**
+  (§5.A3) — PO đã gác cả phiếu 18/08, **và quyết định đó không bị mở lại ở đây**; chỉ ghi rằng **giá
+  trị của riêng câu ③ đã tăng** kể từ lúc gác, để PO có dữ kiện nếu muốn xem lại.
+
+⚠️ **BA số cho cùng một vật — khai, KHÔNG hoà:** `graph.py:949` ghi `233/16.082` · bàn giao ghi
+`208/15.094` · security đo 18/08 `189/15.094`. Mẫu số **15.094 khớp hai trong ba** ⟹ `16.082` ở
+`graph.py:949` **nhiều khả năng đã cũ** (một dòng cho tech-lead). **Chưa truy nguyên và KHÔNG CẦN —
+không quyết định nào còn treo trên ba con số này** sau khi 10.2 đã rút.
 
 
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
@@ -853,6 +867,26 @@ nó không nhìn vào cái gì cả.
 > `grep` trúng 143 dừng, câu ở 150 *(PO-agent, ADR-031)* · `head -40` cắt ở 949, câu ở 950
 > *(PO-agent, §5.G)* · **một phép trừ** *(tech-lead)*. Hai ca đầu bộ lọc nằm trong **công cụ**; ca thứ
 > ba bộ lọc nằm **trong đầu**. ⟹ Sửa công cụ không đủ.
+
+> 🔴 **VẾ THI HÀNH của Luật M** *(security đúc 18/08 sau khi tự rút §10.2 — PO-agent duyệt)*:
+> **Trước khi phát biểu về một ĐẠI LƯỢNG, hỏi: *"sổ nào của ta có TRƯỜNG ĐO THẲNG đại lượng này?"*
+> và MỞ NÓ RA TRƯỚC KHI LẬP LUẬN.** Có trường đó ⟹ mọi lý lẽ tĩnh là **GIẢ THUYẾT**, không phải
+> kết quả.
+> *Ở ca `cached_input_tokens` nó tốn **một dòng lệnh**. Nó không đòi ai nghi ngờ động cơ của mình —
+> chỉ đòi **HỎI TRƯỚC KHI SUY**.*
+>
+> 🔴 **VÌ SAO CẦN VẾ THI HÀNH, VÀ ĐÂY LÀ DỮ LIỆU CHỨ KHÔNG PHẢI LỜI TỰ TRÁCH:**
+> **KHAI RA MỘT THIÊN LỆCH KHÔNG VÔ HIỆU HOÁ NÓ.** Security **tự đặt tên** cho đúng bộ lọc của mình
+> (*"kiểm mẫu số kỹ hơn khi con số bất lợi, lỏng hơn khi nó có lợi cho báo cáo của tôi"*) ở **§9.5**,
+> rồi viết **§10.2** — cách đó **vài trăm dòng trong CÙNG MỘT TỆP** — và **không kiểm gì cả**.
+> Thí nghiệm ấy đã chạy thật trên một người trong một phiên, kết quả **ÂM TÍNH**.
+> ⟹ **Thứ chặn được KHÔNG THỂ là một quyết tâm cẩn thận hơn.** Phải là một **phép kiểm máy móc bắn
+> BẤT KỂ kết quả nghe thế nào**.
+> ⚠️ Và câu cấm làm đúng việc ấy **nằm trong chính đoạn đang được trích** — `graph.py:945-949`:
+> *"`cached_tokens` là thứ **DUY NHẤT** nói prompt-cache có ăn hay không… **suy luận từ tài liệu
+> không thay được số đo** — và suy luận đó **đã sai một lần**."*
+> **Ba ca cùng ngày, khoảng cách thu dần:** grep 143→150 · `head` cắt 949→950 · **câu trả lời nằm
+> trong CÙNG ĐOẠN VĂN đang được trích dẫn.**
 
 **Luật 1** — assertion **không được trùng trạng thái mặc định** (test xanh giả).
 **Luật 12b** — mọi phát biểu xếp hạng phải **khai TRỤC**: *"xếp trên trục X, trục Y chưa xét"*.
