@@ -59,9 +59,9 @@ from __future__ import annotations
 import os
 import subprocess
 
-from tests._docker_co_mat import co_docker, container_song
-
 import pytest
+
+from tests._docker_co_mat import co_docker, container_song
 
 POSTGRES = os.environ.get("FIN05_POSTGRES_CONTAINER", "fin05-postgres-1")
 
@@ -226,7 +226,7 @@ def _song(container: str) -> bool:
 
 
 @pytest.mark.skipif(not _song(TTL), reason=f"container {TTL} không chạy")
-def test_doi_chung_cong_KEU_tren_quan_the_chua_nap_lai():
+def test_doi_chung_cong_keu_tren_quan_the_chua_nap_lai():
     """🔴 Nửa **KÊU LÚC BẤT THƯỜNG** của Luật A — trên VẬT THẬT, 0 byte ghi ra.
 
     Nửa *"im lúc bình thường"* đã có (`fin05` xanh). Nửa còn lại chỉ chứng minh

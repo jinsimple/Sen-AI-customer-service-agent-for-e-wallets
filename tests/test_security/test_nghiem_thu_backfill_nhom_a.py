@@ -54,9 +54,9 @@ import os
 import pathlib
 import subprocess
 
-from tests._docker_co_mat import container_song
-
 import pytest
+
+from tests._docker_co_mat import container_song
 
 GOC = pathlib.Path(__file__).resolve().parent.parent.parent
 NEN = GOC / "eval" / "NEN-TRUOC-BACKFILL-2026-08-18.json"
@@ -74,7 +74,7 @@ import hashlib, json, os, sys
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import create_engine, text
 moc = sys.argv[1] if len(sys.argv) > 1 else None
-COT = %r
+COT = __COT__
 f = Fernet(os.environ["FIELD_ENCRYPTION_KEY"].encode())
 e = create_engine(os.environ["DATABASE_URL"])
 ra = {}
@@ -102,7 +102,7 @@ with e.connect() as c:
         d["van_tay_gop"] = hashlib.md5("".join(sorted(van)).encode()).hexdigest()[:16]
         ra[bang + "." + cot] = d
 print(json.dumps(ra, sort_keys=True))
-''' % (COT,)
+'''.replace("__COT__", repr(COT))
 
 
 def _song() -> bool:

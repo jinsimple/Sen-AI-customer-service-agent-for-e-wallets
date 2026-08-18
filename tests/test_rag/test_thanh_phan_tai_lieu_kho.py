@@ -48,9 +48,9 @@ import os
 import pathlib
 import subprocess
 
-from tests._docker_co_mat import container_song
-
 import pytest
+
+from tests._docker_co_mat import container_song
 
 GOC = pathlib.Path(__file__).resolve().parent.parent.parent
 

@@ -115,7 +115,7 @@ def _nap(bang: str, gia_tri: tuple[str, ...]) -> None:
         _psql_vut_di(f"INSERT INTO {bang} (description_raw) VALUES ('{v}');")
 
 
-def test_cong_KEU_khi_quan_the_CO_dong_plaintext(quan_the_vut_di):
+def test_cong_keu_khi_quan_the_co_dong_plaintext(quan_the_vut_di):
     """🔴 Nửa **KÊU LÚC BẤT THƯỜNG** của Luật A — thứ ca thật không tự chứng minh được.
 
     Đây là bước ② của ADR-036, và nó là **bước nghiệm thu, không phải thủ tục**:
@@ -133,7 +133,7 @@ def test_cong_KEU_khi_quan_the_CO_dong_plaintext(quan_the_vut_di):
     )
 
 
-def test_cong_IM_khi_quan_the_SACH(quan_the_vut_di):
+def test_cong_im_khi_quan_the_sach(quan_the_vut_di):
     """Luật 2 — ca chứng minh cổng **KHÔNG chặn nhầm**.
 
     Thiếu vế này thì một bộ phân loại đánh dấu **mọi thứ** là trần cũng "đạt" ca
@@ -145,7 +145,7 @@ def test_cong_IM_khi_quan_the_SACH(quan_the_vut_di):
     assert phan_bo.get("ma_hoa", 0) == len(MA_HOA_GIA), phan_bo
 
 
-def test_khong_doc_duoc_quan_the_bao_RIENG_khong_lang_le_xanh():
+def test_khong_doc_duoc_quan_the_bao_rieng_khong_lang_le_xanh():
     """🔴 TRẠNG THÁI THỨ BA — chỗ dễ mất nhất, và mất thì không ai thấy.
 
     Nếu quần thể vứt đi bị dọn/hỏng/đổi tên, phép đo **không đọc được gì**. Một
