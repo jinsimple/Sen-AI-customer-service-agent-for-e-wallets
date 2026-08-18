@@ -1645,6 +1645,19 @@ THÓI QUEN CỦA MÔI TRƯỜNG HIỆN TẠI.**
 > **Vế thi hành:** mọi bước ĐO chạm biến môi trường phải in **TÊN**, và chỉ in **giá trị** khi đã
 > khẳng định biến ấy không nhạy cảm. Nghi ngờ ⟹ in tên.
 
+**Luật T** *(Lead đúc 19/08 sau khi tự bắt mình thổi "thuần thắng" ngay sau hai lần sai liên tiếp —
+PO-agent cấp ký hiệu; hệ quả của Luật M)* —
+**RỦI RO LUẬT M KHÔNG PHÂN BỐ ĐỀU TRONG ĐỘI — NÓ DỒN VÀO NGƯỜI VỪA SAI.**
+> Luật M nói: *kết quả ai cũng muốn nghe là kết quả không ai đi kiểm.* Luật T thêm vế phân bố:
+> **người vừa sai liên tiếp là người MUỐN nghe "thắng" nhất trong phòng** — nên chính phát biểu
+> "thắng" của họ là phát biểu ít được kiểm nhất, bởi đúng người ít có khả năng kiểm nhất.
+> **[ĐO] 19/08:** Lead sai hai lần liền (đo regex thay cổng · lệnh thêm `\s`), rồi lập tức relay
+> *"bản vá thuần thắng, giới hạn rỗng"* trên bộ ca do chính mình chọn — bộ ấy không có dạng
+> phân-cách-trộn; ba ca trộn lọt, và mẫu GỐC từng bắt được cả ba (thu hẹp thật so với đường nền).
+> **Vế thi hành:** sau khi sai ≥2 lần liên tiếp trong một mạch việc, phát biểu "thắng/sạch/xong"
+> kế tiếp của mình phải được **người KHÁC kiểm trước khi relay** — tự kiểm kỹ hơn không thay được
+> kiểm chéo, vì bộ lọc nằm ở khâu CHỌN CA, không ở khâu chạy ca.
+
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
   **Vế thi hành:** sau **MỖI** phiên đo, chạy `docker diff` **trước khi báo cáo bất cứ số nào**.
