@@ -2124,10 +2124,18 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 
   [ĐO] `grep -rn "runs-on:"` → **15 dòng**: `ci.yml` 14 · `deploy.yml` 1.
 
-  **Lý do tách đúng ở ranh giới này, không phải chỗ khác:** `deploy.yml` mang
-  **`secrets.DEPLOY_SSH_KEY`** — khoá riêng SSH vào **production**. Nó đang **skipped** ở mọi run
-  gần đây ⟹ chuyển nó sang runner dùng chung **không mua được gì** mà đặt tài sản nặng nhất lên
-  máy dùng chung với các team khác. **Rẻ nhất là để yên.**
+  🔴 **ĐÍNH CHÍNH NGAY TRONG ADR NÀY (PO-agent tự bắt, cùng phiên):** bản đầu viết *"`deploy.yml`
+  **mang** `secrets.DEPLOY_SSH_KEY`"*. **SAI** — nó **KHAI** secret ấy, không **CÓ** nó.
+  [ĐO] `gh secret list` → **DUY NHẤT `OPENAI_API_KEY`**. `DEPLOY_HOST` · `DEPLOY_USER` ·
+  `DEPLOY_SSH_KEY` **chưa tồn tại**. Tôi đọc `${{ secrets.X }}` trong tệp YAML rồi kết luận về kho
+  secret — **đúng lớp lỗi Luật Q (KHAI ≠ CÓ), mắc phải một lượt sau khi tự đúc ra nó.**
+
+  **Lý do tách đúng ở ranh giới này — phát biểu lại cho đúng:** hôm nay `deploy.yml` **không phơi
+  nhiễm gì** (không có khoá để mà lộ) và đang **skipped** ở mọi run ⟹ chuyển nó **không mua được
+  gì**. Nhưng nó **được thiết kế để mang** khoá SSH vào production, và **ngày PO đặt secret ấy là
+  ngày phơi nhiễm bắt đầu** — lúc đó **sẽ không ai quay lại đọc dòng `runs-on` này**. Chính tệp
+  `deploy.yml` tự gọi đó là *"quả mìn hẹn giờ: nổ đúng vào lúc PO đặt secret để deploy lần đầu"*.
+  ⟹ **Quyết định BÂY GIỜ, khi nó còn rẻ và còn thấy được.** Rẻ nhất là để yên trên `ubuntu-latest`.
 
 - **🔴 Quyết định 3 — RỦI RO PHẢI KHAI RA, KHÔNG ĐƯỢC ĐỂ IM.**
 
