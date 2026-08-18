@@ -13,6 +13,7 @@ tính tới trước.
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 import unicodedata
@@ -152,7 +153,59 @@ def _a_la_phong_doan(tin_nhan_khach: str) -> bool:
 #
 # CA BIEN, ghi ro de khong ai "sua cho xanh": so agent TU CONG (tong hai giao
 # dich) BI CHAN vi khong nguon nao chua no. Do la TINH NANG dung rang buoc 3.
-_DAY_SO = re.compile(r"\d[\d.,\s]{5,}\d|\d{7,}")
+# SIẾT ĐỊNH DẠNG (vá B) — dấu phân cách CHỈ hợp lệ khi mang hình dạng NGĂN HÀNG
+# NGHÌN, tức mỗi nhóm sau dấu phải ĐÚNG 3 chữ số. Mẫu cũ `\d[\d.,\s]{5,}\d` coi
+# MỌI dấu chấm/phẩy/khoảng trắng là dấu ngăn, nên nó dán những thứ không phải một
+# con số thành một dãy KHÔNG TỒN TẠI ở đâu cả, rồi chặn agent vì "không truy được":
+#   "01.08.2026"           -> 01082026        (một cái NGÀY, chặn oan)
+#   "1.100.000, 262.000"   -> 1100000262000   (hai số tiền ĐỀU hợp lệ, chặn oan)
+# Nhánh `\d{7,}` giữ nguyên chiều bắt-bịa cho số viết LIỀN — bẫy F không bị nới.
+#
+# HAI LỖ ĐÃ ĐO, HAI CƠ CHẾ KHÁC NHAU ĐÓNG — bỏ `\s` (nháp giữa của tôi) BỊ RÚT:
+# nó đóng lỗ ① nhưng MỞ lỗ mới ở chiều bắt-bịa (Lead [ĐO] độc lập, xem dưới).
+# Bản đứng là NEO BIÊN + PHÂN CÁCH NHẤT QUÁN, đóng cả hai mà không đánh đổi.
+#
+# ① NEO BIÊN `(?<!\d)…(?!\d)` (Lead tìm, [ĐO]) — thiếu neo, mẫu chọn một điểm
+#    bắt đầu BẤT KỲ giữa một chuỗi số bị dấu chấm cắt rời, miễn phần còn lại
+#    tình cờ khớp hình-nhóm-3: "01.08.2026" sinh dãy ma "08.202" (bắt đầu từ
+#    giữa "08", nhóm với ".202" của "2026"). Neo `(?!\d)` chặn nó: ký tự theo
+#    sau "08.202" là '6' (chữ số) → match bị bác, không còn điểm bắt đầu nào
+#    khác thoả cả \d{1,3} lẫn phần đuôi.
+# ② PHÂN CÁCH NHẤT QUÁN qua backreference `([.,\s])…\1` (tôi tìm, sau khi bản
+#    "bỏ \s" của mình bị Lead [ĐO] bắt hồi quy trên `'so 1 100 000 bia'` — số
+#    BỊA dùng khoảng trắng ngăn hàng nghìn, mẫu CŨ bắt được, bản "bỏ \s" làm
+#    mù). Giữ `\s` trong TẬP ký tự phân cách (không mất chiều bắt-bịa của
+#    Lead), nhưng ép mọi lần lặp trong CÙNG một dãy phải dùng ĐÚNG MỘT ký tự
+#    phân cách (`\1` khớp lại đúng ký tự đã bắt ở lần đầu) — không cho MỘT dãy
+#    trộn '.' với ' '. Đây chính là hình dạng phân biệt hai ca:
+#      "1 100 000" (bịa, TOÀN khoảng trắng)      -> nhất quán -> CHẶN  ✅
+#      "1.100.000 262.000" (hai số ĐỘC LẬP, số 1 -> nhất quán tới "1.100.000",
+#       dùng '.', rồi gặp ' ' TRƯỚC "262" — không    dừng ở đó, "262.000" là
+#       khớp \1='.' -> dừng match ở số thứ nhất)      match RIÊNG kế tiếp  ✅
+#    [ĐO] script, 12 ca (9 ca Lead + 2 ca tôi tự tìm + 1 ca giới hạn cũ) —
+#    0/12 lệch kỳ vọng, và mẫu này ĐÓNG LUÔN giới hạn "dán không khoảng trắng"
+#    ('1.100.000,262.000') mà bản trước phải khai là chấp nhận để lại: phẩy
+#    sau '.' giờ cũng bị backreference bác vì không khớp \1='.'.
+#
+# 🔴 GIỚI HẠN CÒN LẠI (PO-agent tìm, Lead [ĐO] xác nhận độc lập, tôi [ĐO] lại
+# lần ba trước khi ghi — cả ba khớp): số agent BỊA viết phân cách KHÔNG NHẤT
+# QUÁN (`2.500 000` · `2 500.000` · `2.500,000`) KHÔNG bị bắt — backreference
+# đòi CÙNG một ký tự cho mọi nhóm trong một dãy, nên dãy trộn không bao giờ
+# ghép đủ ≥7 chữ số và rơi ra khỏi tập trích HOÀN TOÀN (`_cac_day_so` trả về
+# rỗng cho các ca này, không phải trả về sai). Mẫu GỐC `\d[\d.,\s]{5,}\d` BẮT
+# ĐƯỢC cả ba ca này ⟹ đây là THU HẸP THẬT so với đường nền, không chỉ là vùng
+# ngoài tầm với — đánh đổi CÓ Ý THỨC để đóng hai ca chặn oan
+# ('1.100.000 262.000' và '1.100.000,262.000'). Đánh đổi này HẸP HƠN HẲN bản
+# "bỏ \s" đã bị rút (bản đó để lọt MỌI số bịa viết bằng space, kể cả thuần
+# space), nhưng KHÔNG RỖNG: số bịa dùng phân cách THUẦN NHẤT (toàn chấm hoặc
+# toàn khoảng trắng) vẫn bị chặn đúng. Vá lỗ này đòi ép nhất quán ở TẦNG KHÁC
+# hoặc nới trở lại chiều chặn oan — cả hai đắt hơn giá trị thu được, và mọi ca
+# sai của chúng rơi về phía CHẶN OAN, đúng thứ hôm nay đang chữa. ĐỪNG vá.
+_DAY_SO = re.compile(r"(?<!\d)\d{1,3}([.,\s])\d{3}(?:\1\d{3})*(?!\d)|(?<!\d)\d{7,}(?!\d)")
+# ⚠️ `([.,\s])` là NHÓM BẮT (bắt buộc, để `\1` neo được phân cách) — chỉ dùng
+# qua `finditer(...).group()` (đúng MỘT nơi, `_cac_day_so` dưới). Gọi
+# `_DAY_SO.findall(...)` sẽ trả về DẤU PHÂN CÁCH của group 1, KHÔNG phải số —
+# và sai IM LẶNG (không lỗi, chỉ sai kiểu dữ liệu người gọi không ngờ tới).
 # Ca OR-F03 cua tester: "43a5940" la LAT CAT cua tool_result_id "TR-43a5940ecd78"
 # — dinh danh NOI BO cua bo do, khong bao gio duoc phat ra cho khach. No khong
 # phai day so thuan (co chu xen giua) nen luat chi-soi-chu-so mu hoan toan voi no.
@@ -190,7 +243,41 @@ def _cac_day_so(text: str, *, cho_phep_phan_cach: bool = True) -> set[str]:
     return ra
 
 
-def _khop_o3(reply: str, tin_nhan_khach: str, nguon: str, loi_khach: str = "") -> bool:
+# CHẨN ĐOÁN không lưu nội dung (vá C). CẤM chứa giá trị hay BĂM của giá trị —
+# băm vẫn là một định danh, vẫn đối chiếu ngược được với một con số cụ thể; chỉ
+# HÌNH DẠNG mới được log. Xem call-site trong `loc_dau_ra` — nguyên tắc "reply
+# khớp O3 gần như chắc chắn chứa dữ liệu bị che, log nó ra là tự tay làm rò" áp
+# y hệt cho MỌI trường chẩn đoán mới, không chỉ cho `reply` gốc.
+def _hinh_dang_day_la(day_la: set[str]) -> dict[str, object]:
+    return {
+        "o3_so_luong_day_la": len(day_la),
+        "o3_do_dai_day_la": sorted(len(t) for t in day_la),
+        "o3_co_chu_cai": any(any(c.isalpha() for c in t) for t in day_la),
+        # Hình dạng NGÀY thuần đoán: dãy TOÀN CHỮ SỐ, đúng 8 ký tự (DDMMYYYY dán
+        # liền — đúng ca bịa "01.08.2026" -> "01082026" mà vá B vừa đóng). Đoán
+        # THÔ có chủ đích: mục đích là chẩn đoán nhanh, không phải phân loại
+        # chính xác — dùng sai chỗ này thì đi hỏi giá trị thật, không đoán thêm.
+        "o3_co_hinh_dang_ngay": any(len(t) == 8 and t.isdigit() for t in day_la),
+    }
+
+
+def _payload_luot_nay_rong(nguon: str) -> bool | None:
+    """`luot_nay` (bao bì của `rap_nguon_o3`, graph.py) rỗng hay không.
+
+    `None` = KHÔNG XÁC ĐỊNH ĐƯỢC (nguồn không mang bao bì này — vd nguồn dựng
+    bằng quy ước riêng của eval offline) — đây là trạng thái thứ BA bắt buộc
+    (Luật H): không được gộp "không đo được" vào "không rỗng"/"rỗng".
+    """
+    try:
+        d = json.loads(nguon)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(d, dict) or "luot_nay" not in d:
+        return None
+    return not d["luot_nay"]
+
+
+def _khop_o3(reply: str, tin_nhan_khach: str, nguon: str, loi_khach: str = "") -> tuple[bool, dict]:
     # nguon = payload tool (JSON) -> trích NGHIÊM, không cho dấu phân cách gộp số.
     # loi_khach + tin_nhan_khach = văn xuôi -> trích THOÁNG, chấp nhận "262.000đ".
     hop_le = (
@@ -198,28 +285,28 @@ def _khop_o3(reply: str, tin_nhan_khach: str, nguon: str, loi_khach: str = "") -
         | _cac_day_so(tin_nhan_khach)
         | _cac_day_so(loi_khach)
     )
-    for so in _cac_day_so(reply):
-        # SO THEO GIA TRI, KHONG so chuoi con — bay F cua tester.
-        # Ban dau toi so `so in g or g in so` de "tool tra so dai hon ma agent
-        # chi doc mot phan" van qua. Nhung chinh no mo mot cua BIA SO MOI:
-        # "20260504" la CHUOI CON cua trans_id that TXN20260504000247, nen mot
-        # con so agent bia ra van "truy vet duoc" chi vi no tinh co la tien to
-        # cua mot ma that. Do that: LOT.
-        # Bay B (dinh dang) va bay F (chuoi con) KEO NGUOC NHAU — noi de cuu B
-        # lam do F, siet de cuu F lam do B. Loi ra: chuan hoa DINH DANG (bo dau
-        # phan cach) de cuu B, nhung so KHOP TUYET DOI de dong F.
-        if so not in hop_le:
-            return True
+    # SO THEO GIA TRI, KHONG so chuoi con — bay F cua tester.
+    # Ban dau toi so `so in g or g in so` de "tool tra so dai hon ma agent
+    # chi doc mot phan" van qua. Nhung chinh no mo mot cua BIA SO MOI:
+    # "20260504" la CHUOI CON cua trans_id that TXN20260504000247, nen mot
+    # con so agent bia ra van "truy vet duoc" chi vi no tinh co la tien to
+    # cua mot ma that. Do that: LOT.
+    # Bay B (dinh dang) va bay F (chuoi con) KEO NGUOC NHAU — noi de cuu B
+    # lam do F, siet de cuu F lam do B. Loi ra: chuan hoa DINH DANG (bo dau
+    # phan cach) de cuu B, nhung so KHOP TUYET DOI de dong F.
+    day_la = {so for so in _cac_day_so(reply) if so not in hop_le}
+    if day_la:
+        return True, _hinh_dang_day_la(day_la)
     if not _a_la_phong_doan(tin_nhan_khach):
-        return False
+        return False, {}
     for md in _tach_menh_de(_bo_dau(reply)):
         # `.match` chứ không `.search`: giữ nguyên ngữ nghĩa "đứng ĐẦU mệnh đề"
         # của `startswith` cũ. Luật 18 chỉ nới phần GIỮA cụm, không nới cái neo
         # đầu mệnh đề — neo đó mới là thứ phân biệt câu TRẢ LỜI đúng/sai với chữ
         # "chính xác" nằm lọt giữa một câu vô hại.
         if any(k.match(md) for k in _B_KHANG_DINH):
-            return True
-    return False
+            return True, {}
+    return False, {}
 
 
 # ---------------------------------------------------------------- O4
@@ -306,7 +393,8 @@ def loc_dau_ra(
         khop.append("O1")
     if _khop_o2(reply):
         khop.append("O2")
-    if _khop_o3(reply, tin_nhan_khach, nguon, loi_khach):
+    o3_khop, o3_hinh_dang = _khop_o3(reply, tin_nhan_khach, nguon, loi_khach)
+    if o3_khop:
         khop.append("O3")
     if _khop_o4(reply):
         khop.append("O4")
@@ -316,12 +404,17 @@ def loc_dau_ra(
 
     # Log CÓ CẤU TRÚC, KHÔNG log nguyên văn reply: reply khớp O3 gần như chắc
     # chắn chứa dữ liệu bị che — log nó ra là tự tay làm rò đúng thứ vừa chặn.
+    # Vá C: khi O3 chặn, thêm HÌNH DẠNG dãy lạ (số lượng/độ dài/có chữ cái/có
+    # hình-dạng-ngày) + payload lượt này rỗng không — CHỈ hình dạng, KHÔNG giá
+    # trị, KHÔNG băm của giá trị (băm vẫn đối chiếu ngược được với giá trị thật).
     _logger.warning(
         "output_filter_khop",
         extra={
             "nhom": ",".join(khop),
             "correlation_id": correlation_id,
             "do_dai_reply": len(reply),
+            **(o3_hinh_dang if o3_khop else {}),
+            **({"o3_payload_luot_nay_rong": _payload_luot_nay_rong(nguon)} if o3_khop else {}),
         },
     )
     # Đếm theo thread — dùng CHUNG hạ tầng với ES-xx (5a) và guardrail 5c.

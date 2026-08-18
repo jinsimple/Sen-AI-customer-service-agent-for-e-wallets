@@ -419,6 +419,103 @@ _CHECKPOINTER = _build_checkpointer()
 _ALWAYS_FRESH = object()
 
 
+# ---------------------------------------------------------------- nguồn O3
+# Nhánh LỖI của tool bị loại khỏi nguồn (điều kiện Đ1 của Bảo Mật,
+# docs/security/2026-08-18-dinh-hang-ban-va-A-o3-toolmessage-lich-su.md §3):
+# nhánh error echo nguyên văn THAM SỐ DO MODEL TỰ ĐẶT (vd
+# `create_ticket.py:42 "complaint_type không hợp lệ: {complaint_type}"`), nên
+# một mã/số agent BỊA ở lượt N-1, tool từ chối, echo nó vào ToolMessage — nếu
+# nhánh đó lọt vào nguồn thì lượt N nhắc lại đúng mã bịa ấy sẽ được O3 coi là
+# "đã truy được về tool", cấp giấy thông hành vĩnh viễn cho một số KHÔNG THẬT.
+#
+# ĐÃ TỪNG là allow-list `status in {found, not_found, multiple_matches}` —
+# RÚT, vì tiền đề sai: Lead [ĐO] 3/5 tool (get_customer_history · create_ticket
+# · request_human_handoff) KHÔNG có khoá `status` ở TOP-LEVEL trên đường THÀNH
+# CÔNG (status nằm lồng trong từng phần tử, hoặc không tồn tại). Allow-list
+# theo đúng chữ sẽ loại sạch payload thành công của CẢ BA tool đó khỏi nguồn —
+# và `get_customer_history` chính là tool đứng sau câu verify "xem giao dịch
+# gần đây", nên bản vá sẽ KHÔNG chữa được ca nó dựng ra để chữa.
+# `contracts/agent-tools.yaml:65,94,106` cũng khai `output.status` cho CẢ BA
+# tool đó (`get_customer_history`/`create_ticket`/`request_human_handoff`) mà
+# runtime KHÔNG phát — allow-list cũ tin đúng nguồn sự thật của dự án, và
+# nguồn đó LỆCH runtime. Không ai chế ra tiền đề sai từ không khí: đây là hạng
+# mù ADR-027 — checker `test_invariants` so KHAI-BÁO với KHAI-BÁO (contract ↔
+# CHECK constraint/route), chưa bao giờ so contract với PAYLOAD THẬT lúc chạy.
+#
+# Deny-list `status == "error"` — vị ngữ này NEO VÀO HÀNH VI QUAN SÁT ĐƯỢC,
+# KHÔNG NEO VÀO CONTRACT (bài học vừa trả giá ở trên).
+#
+# [ĐO] 19/08, `grep -rn '"status": "error"' src/agents/tools/customer_tools.py`
+# → 9 điểm trả lỗi (`:597 :601 :637 :819 :840 :873 :919 :947 :997`), 0 payload
+# thành công mang khoá này. `:637` là hằng số `_CHI_THI_DUNG_LAP` DÙNG LẠI, trả
+# về ở `:777` (chỉ thị dừng livelock) — không phải `return {...}` inline, nên
+# nó lọt khỏi BA lần quét độc lập trước đó (Review, Lead, tôi) cùng đếm ra 8:
+# cả ba đều quét theo hình dạng `return {...}`, không theo hình dạng hằng số.
+#
+# Con số trên là ẢNH CHỤP, SẼ LỆCH LẠI khi có tool thứ 6 hoặc một nhánh lỗi
+# mới (đúng Luật N: một con số ĐẾM phải kèm phép đếm; đúng Luật P: con số làm
+# cũ phải niêm, không phải mốc neo vĩnh viễn). Thứ giữ tính chất này đúng VỀ
+# SAU là ca ⑩ của QA/QC (canh mọi đường trả lỗi thật đều mang `status:"error"`)
+# — KHÔNG phải dòng comment này.
+_TRANG_THAI_LOI_TOOL = "error"
+
+# Tool được gom kết quả LỊCH SỬ vào nguồn. Khai TƯỜNG MINH ở đúng một chỗ để
+# thu hẹp phạm vi sau này là sửa một dòng, không phải đọc lại vòng lặp: Bảo Mật
+# đã cân trục "payload có echo tham số model tự đặt không" và chỉ ra nhánh error
+# là kênh rửa số bịa (đóng bằng allow-list trên), nhưng nếu trục ấy được cân lại
+# cho tool GHI thì chỗ sửa là dòng dưới.
+TOOL_GOM_LICH_SU = frozenset({
+    "lookup_transaction",
+    "get_customer_history",
+    "create_ticket",
+    "request_human_handoff",
+    "search_policy",
+})
+
+
+def rap_nguon_o3(all_messages: list, tool_calls_out: list[dict]) -> str:
+    """Ráp kênh NGUỒN (JSON) cho luật xuất xứ của O3.
+
+    Gồm HAI phần, và ranh giới giữa chúng là có chủ đích:
+
+    · `tool_calls_out` — kết quả tool của LƯỢT NÀY, giữ nguyên hình dạng cũ
+      (gồm cả `args`).
+    · kết quả tool của các LƯỢT TRƯỚC trong cùng hội thoại — CHỈ phần `result`,
+      **không** gom `args`. Ràng buộc cứng 3 đòi số agent nói ra truy được về
+      một kết quả tool CÓ THẬT; `args` là tham số MODEL TỰ ĐẶT, không phải thứ
+      hệ thống trả về. Gom nó là để model tự cấp căn cứ cho chính nó, xuyên
+      lượt — đúng cửa rửa số mà Đ1 đóng, chỉ đi bằng trường khác.
+
+    KHÔNG gom `AIMessage`: lời agent không phải nguồn hợp lệ, gom vào là O3 tự
+    chứng thực đầu ra của chính mình.
+
+    Vì sao cần phần lịch sử (bản vá A): kênh nguồn cũ chỉ nạp payload của lượt
+    hiện tại, nên một lượt agent trả lời từ trí nhớ (không gọi lại tool) làm mọi
+    mã/số đã tra ở lượt trước thành "không truy được" -> O3 chặn OAN. Ràng buộc
+    cứng 3 nói "một kết quả tool có thật", KHÔNG nói "của lượt này".
+    """
+    lich_su: list[dict] = []
+    for m in all_messages:
+        if not isinstance(m, ToolMessage):
+            continue
+        if getattr(m, "name", None) not in TOOL_GOM_LICH_SU:
+            continue
+        try:
+            payload = json.loads(m.content)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue  # không parse được -> KHÔNG phải nguồn (fail-closed)
+        if not isinstance(payload, dict):
+            continue
+        if payload.get("status") == _TRANG_THAI_LOI_TOOL:
+            continue
+        lich_su.append(payload)
+    return json.dumps(
+        {"luot_nay": tool_calls_out, "luot_truoc": lich_su},
+        ensure_ascii=False,
+        default=str,
+    )
+
+
 def _build_agent(
     session: Session,
     *,
@@ -1096,7 +1193,7 @@ def run_agent_turn(
 
     # NGUỒN TRUY VẾT cho luật xuất xứ của O3: mọi mã/dãy số >=7 ký tự agent nói
     # ra phải có mặt ở một trong hai nơi này — nếu không thì nó ở đâu ra?
-    #   · kết quả tool của lượt này (`tool_calls_out` mang cả `result` payload)
+    #   · kết quả tool của lượt này VÀ của các lượt trước (`rap_nguon_o3`)
     #   · mọi lời KHÁCH đã gõ trong hội thoại — không chỉ lượt hiện tại, vì
     #     khách có thể đọc mã biên lai ở lượt 1 rồi agent nhắc lại ở lượt 3
     # Đây là ràng buộc cứng 3 viết thành một phép kiểm chạy được.
@@ -1105,7 +1202,7 @@ def run_agent_turn(
     # phẩy/chấm là dấu ngăn hàng nghìn. Gộp chung rồi trích bằng một luật thì một
     # trong hai kênh chắc chắn bị hiểu sai — và hiểu sai ở kênh JSON đẻ ra số
     # KHÔNG TỒN TẠI trong tập nguồn hợp lệ.
-    nguon_tool = json.dumps(tool_calls_out, ensure_ascii=False, default=str)
+    nguon_tool = rap_nguon_o3(all_messages, tool_calls_out)
     loi_khach = " ".join(
         m.content for m in all_messages if isinstance(m, HumanMessage) and isinstance(m.content, str)
     )
