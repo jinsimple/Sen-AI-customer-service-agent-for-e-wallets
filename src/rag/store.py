@@ -26,6 +26,7 @@ from src.config import (
     RAG_EMBEDDING_MODEL,
     RAG_INDEX_DIR,
 )
+from src.cong_ra_ngoai import http_client_dung_chung
 
 _COLLECTION_GOC = "policy_faq"
 
@@ -106,6 +107,12 @@ def _get_embeddings() -> OpenAIEmbeddings:
         # chuỗi đo — không đổi thứ đang chạy đúng để chiều một nhà cung cấp
         # chưa dùng.
         _embeddings = OpenAIEmbeddings(
+            # DUNG CHUNG http_client voi duong chat (src/agents/graph.py) —
+            # xem src/cong_ra_ngoai.py. BAT BUOC o day: duong embedding KHONG
+            # di qua graph.py, nen mot chot chan chi cam o duong chat se de lot
+            # DUNG duong it cong nhat — va do la duong ca tester lan coder da
+            # dam vao trong cung mot ngay (§5.F).
+            http_client=http_client_dung_chung(),
             model=RAG_EMBEDDING_MODEL,
             api_key=EMBEDDING_API_KEY,
             base_url=EMBEDDING_BASE_URL,

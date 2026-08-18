@@ -50,6 +50,7 @@ from src.config import (
     PHAN_LUONG_BAT,
     SUY_LUAN_BAT,
 )
+from src.cong_ra_ngoai import http_client_dung_chung
 from src.dau_ma_nguon import CACH_BAM, nhan_luc_dung
 from src.db.models import Complaint, Ticket, User
 from src.observability.langchain_callback import OTelTracingCallbackHandler
@@ -396,6 +397,13 @@ def _build_agent(
         # LLM_* fallback ve OPENAI_* (src/config.py) -> khong dat gi thi hanh vi
         # y het truoc. `base_url=None` la mac dinh cua SDK, khong phai mot gia
         # tri dac biet can xu ly rieng.
+        #
+        # `http_client` DUNG CHUNG voi duong embedding (src/rag/store.py) —
+        # xem src/cong_ra_ngoai.py. Day la noi DUY NHAT moi loi goi ra nha cung
+        # cap di qua, nen no la cho duy nhat co cho chot chan + bo dem. Dat o
+        # tang nay con thay ca luot SDK TU RETRY (max_retries duoi day): dem o
+        # tang tren SDK ghi 1 cho 3 lan ban ra day.
+        http_client=http_client_dung_chung(),
         model=LLM_MODEL,
         temperature=0.2,
         api_key=LLM_API_KEY,

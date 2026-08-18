@@ -77,16 +77,23 @@ giai đoạn 2 (sau dựng) đảo mặc định + compose khai =1  ⟹ phủ c�
 
 | # | vật | DỰ BÁO | THẬT | |
 |---|---|---|---|---|
-| 1 | băm `src/` | ĐỔI khỏi `42960d5fc61f` | | |
-| 2 | file `src/` đổi | **3** — 1 module mới + `graph.py` + `store.py` | | |
-| 3 | `contracts/` · `check_contracts` | 0 đổi · sạch | | |
-| 4 | `test_invariants.py` | **23 passed** | | |
-| 5 | hồi quy 7 file tầng tool | **50 passed** | | |
-| 6 | ca đối chứng **đường EMBEDDING** | **KÊU** — `store.search` bị chặn khi cờ tắt | | |
-| 7 | ca đối chứng **đường CHAT** | **KÊU** — cùng transport, cùng cờ | | |
-| 8 | ca IM: cờ bật | cả hai đường chạy bình thường, `da_phat` tăng | | |
-| 9 | `docker diff` | 0 · 0 · 0 | | |
-| 10 | token tiêu | **0** — mọi ca đối chứng chặn TRƯỚC khi ra dây | | |
+| 1 | băm `src/` | ĐỔI khỏi `42960d5fc61f` | `b94dc658ee66` | ✅ |
+| 2 | file `src/` đổi | **3** — 1 module mới + `graph.py` + `store.py` | 3 (`cong_ra_ngoai.py` mới · graph +8 · store +7) | ✅ |
+| 3 | `contracts/` · `check_contracts` | 0 đổi · sạch | 0 · sạch | ✅ |
+| 4 | `test_invariants.py` | **23 passed** | 23 passed | ✅ |
+| 5 | hồi quy 7 file tầng tool | **50 passed** | 50 passed | ✅ |
+| 6 | ca đối chứng **đường EMBEDDING** | **KÊU** — `store.search` bị chặn khi cờ tắt | KÊU, `bi_chan` 0→3 | ✅ |
+| 7 | ca đối chứng **đường CHAT** | **KÊU** — cùng transport, cùng cờ | KÊU, cùng bộ đếm | ✅ |
+| 8 | ca IM: cờ bật | cả hai đường chạy bình thường, `da_phat` tăng | IM ✅ — nhưng vào rổ `hong`, **không** `da_phat` | ⚠️ |
+| 9 | `docker diff` | 0 · 0 · 0 | 0 · 0 · 0 | ✅ |
+| 10 | token tiêu | **0** — mọi ca đối chứng chặn TRƯỚC khi ra dây | 0 | ✅ |
+
+**9/10 trúng, 1 lệch — và dòng lệch là dòng tôi phát biểu ẩu, không phải cơ chế sai.**
+Dòng 8 tôi viết *"`da_phat` tăng"*. Ca IM của tôi bắn vào `127.0.0.1:59999` (không có gì lắng nghe)
+⟹ đúng ra nó phải vào rổ **`hong`**, và nó đã vào đúng rổ `hong`. **Cơ chế đúng, dự báo của tôi
+sai** — tôi dự báo kết quả của một ca mà tôi chưa nghĩ kỹ nó sẽ ra gì. Ghi lại thay vì sửa dòng dự
+báo cho khớp: chính vì dự báo được **công bố trước** nên chỗ ẩu này mới lộ ra.
+⟹ **`da_phat` vẫn = 0 sau toàn bộ nghiệm thu** — chưa lượt nào ra tới nhà cung cấp thật, đúng ý đồ.
 
 ## 5. Nếu khác thì nghi gì
 
@@ -104,6 +111,58 @@ Ca đối chứng xanh ⟹ *"cờ chặn được ở tầng transport trong ti�
 *"§5.F đã đóng"* (script nháp chưa phủ — mục 3) và **KHÔNG** ⟹ *"sản phẩm đang chạy được bảo vệ"*
 (container còn mã cũ, `lệch× = 1·1·1`, chỉ hết sau lần dựng ảnh chung).
 
-## 7. KẾT QUẢ THẬT
+## 7. KẾT QUẢ THẬT — và cái ca đối chứng đường embedding BẮT ĐƯỢC
 
-*(để trống tới khi đo xong)*
+Đây là lý do ca đối chứng **bắt buộc chạy trên đường embedding**, không suy từ đường chat.
+Nó không chỉ xác nhận chốt chặn bắn — **nó bắt được một khiếm khuyết của chính bản vá**:
+
+```
+[ĐO] store.search(...) với cờ TẮT:
+     nơi gọi THẤY   openai.APIConnectionError — "Connection error."
+     __cause__      src.cong_ra_ngoai.GoiRaNgoaiBiChanError
+     bộ đếm         bi_chan +3 · da_phat 0
+```
+
+🔴 **Chốt chặn hoạt động (0 lượt ra dây) NHƯNG NÓ BÁO SAI.** SDK nhà cung cấp **bọc mọi lỗi
+transport** thành `APIConnectionError`, nên ở nơi gọi một lượt **bị ta cố ý chặn** trông **y hệt**
+một lượt **đứt mạng thật**. Người debug đọc *"Connection error"* rồi đi tìm lỗi mạng, trong khi sự
+thật là một cái cổng của chính ta đang đóng.
+
+**Đây là Luật H ở một tầng ta KHÔNG SỬA ĐƯỢC** — nhánh lỗi in ra KẾT LUẬN (*"mất kết nối"*) thay vì
+TRIỆU CHỨNG (*"bị chốt chặn từ chối"*), và cái nhánh ấy là của SDK. Không revert được, không vá
+được ở nguồn.
+⟹ **Việc làm được là để SỰ THẬT VỚI TỚI ĐƯỢC:** chuỗi `__cause__` giữ nguyên lỗi gốc, và
+`la_bi_chan(exc)` là đường đi tới nó. Đã ghi vào docstring **kèm số đo**, vì một cảnh báo không có
+số sẽ bị đọc thành phòng xa.
+⚠️ Ca nghiệm thu vì thế assert **cả hai vế**: `la_bi_chan(e)` là `True` **và** `isinstance(e,
+GoiRaNgoaiBiChanError)` là `False` — vế thứ hai là thứ ghi lại *vì sao phải có `la_bi_chan`*, nếu
+không người sau sẽ gỡ nó đi cho gọn.
+
+**Tính chất đã đo, không phải bug:** SDK **thử lại 3 lần** vào một cổng đã đóng (`max_retries=2` +
+lần đầu) ⟹ một lời gọi bị chặn sinh **3** dòng `bi_chan`. Tốn 0 đồng, nhưng ai đọc bộ đếm phải biết
+`bi_chan` đếm **lượt RA DÂY BỊ CHẶN**, không phải **lượt gọi của người dùng**. Hai mẫu số khác nhau.
+
+**Nghiệm thu đầy đủ — 16/16 đạt:**
+```
+① CỜ ba trạng thái      không khai+không pytest → CHO PHÉP        ✅
+                        khai '0' → TỪ CHỐI, nhãn khai_tuong_minh  ✅
+                        không khai+CÓ pytest → nhãn suy_tu_pytest ✅
+                        lời KHAI thắng suy đoán                   ✅
+② ĐƯỜNG EMBEDDING       bị chặn trước khi ra dây · bi_chan 0→3    ✅
+③ ĐƯỜNG CHAT            cùng transport, CÙNG MỘT bộ đếm           ✅
+④ IM khi cờ BẬT         không vào bi_chan (Luật A vế "im")        ✅
+⑤ BA RỔ giữ riêng       da_phat 0 · bi_chan 4 · hong 1            ✅
+```
+
+**Cổng tại chỗ** (CI đang là **cổng bị TẮT** vì lý do thanh toán — không job nào khởi động, nên
+không có gì đỡ): invariants **23** · hồi quy 7 file **50** · `tests/test_rag/` **22 passed, 1 skip,
+1 xfail** · nghiệm thu crypto ĐẠT · nghiệm thu bất biến livelock **TRƯỢT 0** · `check_contracts`
+sạch · `docker diff` **0·0·0**.
+
+## 8. Còn lại — KHÔNG làm trong đợt này
+
+- **Giai đoạn 2 của cờ** (đảo mặc định thành TỪ CHỐI + compose khai `=1`) ⟹ chỉ làm được **sau** lần
+  dựng ảnh. Tới lúc đó **script nháp vẫn chưa được phủ** — đúng ca tôi tự đâm vào.
+- **Ngưỡng ngân sách** — chưa có số thật. Bộ đếm này chính là thứ sinh ra mẫu số ấy.
+- **Rổ `hit`** — đếm ở **tầng cache**, không ở đây (nguồn độc lập, Luật D).
+- **Cổng trong `tests/`** — vùng tester.
