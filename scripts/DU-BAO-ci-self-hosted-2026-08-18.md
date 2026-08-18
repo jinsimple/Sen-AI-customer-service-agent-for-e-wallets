@@ -88,16 +88,16 @@ runner là để cơ chế chưa từng chạy lần nào gánh đúng lượt �
 
 | # | vật | DỰ BÁO | THẬT |
 |---|---|---|---|
-| 1 | file đổi | **1** — `.github/workflows/ci.yml` | |
-| 2 | `runs-on: self-hosted` | **1** (job `invariants`), còn **13** `ubuntu-latest` | |
-| 3 | lệnh compose mang `-p` | **8/8** | |
-| 4 | bước dọn thêm | **2**, `if: always()` **trần**, không guard | |
-| 5 | tiền kiểm cổng thêm | **2** | |
-| 6 | `deploy.yml` · `src/` · `contracts/` · `tests/` | **0 dòng đổi** cả bốn | |
-| 7 | YAML parse | hợp lệ, 14 job | |
-| 8 | cổng cục bộ (invariants) | **23 passed** — `src/` không đổi thì không có lý do đổi | |
-| 9 | token tiêu | **0** | |
-| 10 | sau khi đẩy: job `invariants` | **KHÔNG DÁM DỰ BÁO** — xem §5 | |
+| 1 | file đổi | **1** — `.github/workflows/ci.yml` | 1 (+100/−9) | ✅ |
+| 2 | `runs-on: self-hosted` | **1** (job `invariants`), còn **13** `ubuntu-latest` | 1 · 13 | ✅ |
+| 3 | lệnh compose mang `-p` | **8/8** | 8/8 (+2 trong bước dọn = 10) · 0 lệnh sót | ✅ |
+| 4 | bước dọn thêm | **2**, `if: always()` **trần**, không guard | 2 · cả hai `if=always()` trần · là bước **cuối** của cả hai job | ✅ |
+| 5 | tiền kiểm cổng thêm | **2** | 2, đặt **ngay trước** `up` | ✅ |
+| 6 | `deploy.yml` · `src/` · `contracts/` · `tests/` | **0 dòng đổi** cả bốn | 0 · 0 · 0 · 0 | ✅ |
+| 7 | YAML parse | hợp lệ, 14 job | hợp lệ · 14 job · hai job docker 10→**12** bước | ✅ |
+| 8 | cổng cục bộ (invariants) | **23 passed** | **23 passed** · `check_contracts` sạch | ✅ |
+| 9 | token tiêu | **0** | 0 | ✅ |
+| 10 | sau khi đẩy: job `invariants` | **KHÔNG DÁM DỰ BÁO** — xem §5 | *(điền sau khi đẩy)* | |
 
 ## 5. 🔴 Ô #10 là ô tôi KHÔNG đọc được, và nói thẳng thay vì đoán
 
@@ -142,3 +142,18 @@ tự quản và **không gỡ được**, nên nó khớp bất kỳ runner nào
 Nhịp 1 xanh ⟹ *"runner cấp máy được cho một job KHÔNG cần Docker"*.
 **KHÔNG** ⟹ *"runner chạy được `ci.yml`"*: job `invariants` không đụng Docker, không đụng
 Compose v2, không đụng `services:`. Ba thứ ấy **chưa được kiểm bởi nhịp 1** và chỉ lộ ở nhịp 2.
+
+## 8. Đọc kết quả lượt đẩy này — 13 ĐỎ là DỰ KIẾN, không phải hồi quy
+
+Lý do CI chết là **billing tài khoản**, không phải code. 13 job còn ở `ubuntu-latest` ⟹ vẫn
+*"was not started"*. **Chỉ job `invariants` là phép đo.** Ai đọc bảng 14 job mà thấy 13 đỏ rồi kết
+luận "nhánh hỏng" là đang đọc **hoá đơn** thành **chất lượng mã**.
+
+Runner tự quản không tính vào phút bị chặn — đó chính là cơ chế được kỳ vọng, và nó **chưa được
+chứng minh**; lượt đẩy này là để chứng minh.
+
+Ngoài ra `route-guards-docker` lần này sẽ tự cho `chay=khong` (tôi chỉ chạm `.github/`) ⟹ mọi bước
+có guard đều bỏ qua, **trừ bước dọn**. Vô tình đó là bản thu nhỏ của nghiệm thu ③: nếu bước dọn
+xanh trong lúc cả job bị bỏ qua, `if: always()` trần đã làm đúng việc. (Nhưng job này cũng nằm
+trên `ubuntu-latest` ⟹ nhiều khả năng **không được cấp máy** — thì đó là **SKIP**, không phải bằng
+chứng bước dọn hỏng.)

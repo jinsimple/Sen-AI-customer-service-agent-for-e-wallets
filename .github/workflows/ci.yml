@@ -62,7 +62,7 @@ jobs:
   # ---------------------------------------------------------------------
   invariants:
     name: Ràng buộc cứng + contract drift
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -554,12 +554,43 @@ jobs:
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           SITE_DOMAIN=localhost
           EOF
+      - name: 🔴 Tiền kiểm CỔNG — tách "đỏ vì đụng cổng" khỏi "đỏ vì code"
+        if: steps.xet.outputs.chay == 'co'
+        # `-p` đổi TÊN PROJECT, KHÔNG đổi cổng host: docker-compose.yml ghim cứng
+        # caddy "80:80"/"443:443" (+ postgres 5432, jaeger 16686 trên loopback).
+        # Trên runner DÙNG CHUNG, bốn cổng ấy là tài nguyên độc quyền của cả máy.
+        # Đọc /proc/net/tcp thay vì `ss`/`lsof`: hai công cụ đó có thể không có
+        # trên runner lạ, còn /proc là tệp — không phụ thuộc gì.
+        run: |
+          python3 - <<'PY'
+          import sys
+          CAN = {80: "caddy", 443: "caddy", 5432: "postgres", 16686: "jaeger"}
+          nghe = set()
+          for f in ("/proc/net/tcp", "/proc/net/tcp6"):
+              try:
+                  for hang in open(f).read().splitlines()[1:]:
+                      c = hang.split()
+                      if c[3] == "0A":  # 0A = LISTEN
+                          nghe.add(int(c[1].split(":")[1], 16))
+              except FileNotFoundError:
+                  print(f"KHÔNG ĐỌC ĐƯỢC {f} — bỏ qua tệp này (không kết luận gì từ nó)")
+          ban = sorted(p for p in CAN if p in nghe)
+          print(f"cần: {sorted(CAN)} · đang có người nghe: {ban or 'không cổng nào'}")
+          if ban:
+              sys.exit(
+                  "🔴 ĐỎ VÌ ĐỤNG CỔNG — KHÔNG PHẢI ĐỎ VÌ CODE.\n"
+                  f"Bị chiếm: {ban} ({', '.join(CAN[p] for p in ban)}).\n"
+                  "Máy dùng chung: hoặc team khác đang chạy, hoặc một lượt CI trước\n"
+                  "chưa được dọn. ĐỪNG đi tìm bug trong src/."
+              )
+          print("Không cổng nào bị chiếm ⟹ bước sau mà đỏ thì KHÔNG phải vì đụng cổng.")
+          PY
       - name: docker compose up + chờ healthy
         if: steps.xet.outputs.chay == 'co'
         run: |
-          docker compose up -d --build
+          docker compose -p fin05-ci-${{ github.run_id }} up -d --build
           for i in $(seq 1 30); do
-            unhealthy=$(docker compose ps --format json | python3 -c "
+            unhealthy=$(docker compose -p fin05-ci-${{ github.run_id }} ps --format json | python3 -c "
           import json, sys
           rows = [json.loads(l) for l in sys.stdin]
           print(sum(1 for r in rows if r.get('Health') not in ('healthy', '')))
@@ -569,7 +600,7 @@ jobs:
           done
       - name: Seed dữ liệu demo (bộ quét cần đăng nhập được 4 vai)
         if: steps.xet.outputs.chay == 'co'
-        run: docker compose exec -T backend su appuser -c "python3 scripts/seed_db.py" || true
+        run: docker compose -p fin05-ci-${{ github.run_id }} exec -T backend su appuser -c "python3 scripts/seed_db.py" || true
       - name: Bộ quét vai × trang
         if: steps.xet.outputs.chay == 'co'
         run: pytest tests/test_api/test_frontend_route_guards.py -v --junitxml=route-guards.xml
@@ -595,8 +626,23 @@ jobs:
           PY
       - name: Docker logs (khi fail, để debug)
         if: failure() && steps.xet.outputs.chay == 'co'
-        run: docker compose logs --tail=200
+        run: docker compose -p fin05-ci-${{ github.run_id }} logs --tail=200
 
+      - name: 🔒 DỌN — xoá .env chứa khoá THẬT + hạ container
+        # 🔴 `if: always()` TRẦN, cố ý KHÔNG kèm guard nào. Bước dọn phải chạy
+        # cả khi job bị huỷ giữa chừng hoặc guard đổi về sau — đó đúng là lúc
+        # cần nó nhất. `rm -f` trên tệp không có là vô hại.
+        #
+        # `down -v` ĐÚNG Ở ĐÂY, đừng nhầm với luật cấm `-v` ở máy PO: nhờ
+        # `-p fin05-ci-<run_id>` tên project là DUY NHẤT theo từng lượt, nên -v
+        # chỉ xoá volume của chính lượt này. Bỏ volume lại trên máy dùng chung
+        # là bỏ lại CSDL của lượt CI cho team khác.
+        if: always()
+        run: |
+          docker compose -p fin05-ci-${{ github.run_id }} down -v --remove-orphans || true
+          rm -f .env
+          echo "— còn .env không? —"
+          ls -la .env 2>/dev/null && echo "🔴 VẪN CÒN .env" || echo "  không còn (đúng)"
   livechat-e2e-nightly:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
@@ -618,11 +664,41 @@ jobs:
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           SITE_DOMAIN=localhost
           EOF
+      - name: 🔴 Tiền kiểm CỔNG — tách "đỏ vì đụng cổng" khỏi "đỏ vì code"
+        # `-p` đổi TÊN PROJECT, KHÔNG đổi cổng host: docker-compose.yml ghim cứng
+        # caddy "80:80"/"443:443" (+ postgres 5432, jaeger 16686 trên loopback).
+        # Trên runner DÙNG CHUNG, bốn cổng ấy là tài nguyên độc quyền của cả máy.
+        # Đọc /proc/net/tcp thay vì `ss`/`lsof`: hai công cụ đó có thể không có
+        # trên runner lạ, còn /proc là tệp — không phụ thuộc gì.
+        run: |
+          python3 - <<'PY'
+          import sys
+          CAN = {80: "caddy", 443: "caddy", 5432: "postgres", 16686: "jaeger"}
+          nghe = set()
+          for f in ("/proc/net/tcp", "/proc/net/tcp6"):
+              try:
+                  for hang in open(f).read().splitlines()[1:]:
+                      c = hang.split()
+                      if c[3] == "0A":  # 0A = LISTEN
+                          nghe.add(int(c[1].split(":")[1], 16))
+              except FileNotFoundError:
+                  print(f"KHÔNG ĐỌC ĐƯỢC {f} — bỏ qua tệp này (không kết luận gì từ nó)")
+          ban = sorted(p for p in CAN if p in nghe)
+          print(f"cần: {sorted(CAN)} · đang có người nghe: {ban or 'không cổng nào'}")
+          if ban:
+              sys.exit(
+                  "🔴 ĐỎ VÌ ĐỤNG CỔNG — KHÔNG PHẢI ĐỎ VÌ CODE.\n"
+                  f"Bị chiếm: {ban} ({', '.join(CAN[p] for p in ban)}).\n"
+                  "Máy dùng chung: hoặc team khác đang chạy, hoặc một lượt CI trước\n"
+                  "chưa được dọn. ĐỪNG đi tìm bug trong src/."
+              )
+          print("Không cổng nào bị chiếm ⟹ bước sau mà đỏ thì KHÔNG phải vì đụng cổng.")
+          PY
       - name: docker compose up (đủ 5 service) + chờ healthy
         run: |
-          docker compose up -d --build
+          docker compose -p fin05-ci-${{ github.run_id }} up -d --build
           for i in $(seq 1 30); do
-            unhealthy=$(docker compose ps --format json | python3 -c "
+            unhealthy=$(docker compose -p fin05-ci-${{ github.run_id }} ps --format json | python3 -c "
           import json, sys
           rows = [json.loads(l) for l in sys.stdin]
           print(sum(1 for r in rows if r.get('Health') not in ('healthy', '')))
@@ -631,7 +707,7 @@ jobs:
             sleep 5
           done
       - name: Seed dữ liệu demo (users.jsonl cần cho login test)
-        run: docker compose exec -T backend su appuser -c "python3 scripts/seed_db.py" || true
+        run: docker compose -p fin05-ci-${{ github.run_id }} exec -T backend su appuser -c "python3 scripts/seed_db.py" || true
       - run: npm ci --prefix frontend
       - name: Cài Playwright browser
         run: npx --prefix frontend playwright install --with-deps chromium
@@ -639,9 +715,24 @@ jobs:
         run: npm run test:e2e:livechat --prefix frontend
       - name: Docker logs (khi fail, để debug)
         if: failure()
-        run: docker compose logs backend --tail=200
+        run: docker compose -p fin05-ci-${{ github.run_id }} logs backend --tail=200
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: livechat-playwright-report
           path: frontend/playwright-report-livechat/
+      - name: 🔒 DỌN — xoá .env chứa khoá THẬT + hạ container
+        # 🔴 `if: always()` TRẦN, cố ý KHÔNG kèm guard nào. Bước dọn phải chạy
+        # cả khi job bị huỷ giữa chừng hoặc guard đổi về sau — đó đúng là lúc
+        # cần nó nhất. `rm -f` trên tệp không có là vô hại.
+        #
+        # `down -v` ĐÚNG Ở ĐÂY, đừng nhầm với luật cấm `-v` ở máy PO: nhờ
+        # `-p fin05-ci-<run_id>` tên project là DUY NHẤT theo từng lượt, nên -v
+        # chỉ xoá volume của chính lượt này. Bỏ volume lại trên máy dùng chung
+        # là bỏ lại CSDL của lượt CI cho team khác.
+        if: always()
+        run: |
+          docker compose -p fin05-ci-${{ github.run_id }} down -v --remove-orphans || true
+          rm -f .env
+          echo "— còn .env không? —"
+          ls -la .env 2>/dev/null && echo "🔴 VẪN CÒN .env" || echo "  không còn (đúng)"
