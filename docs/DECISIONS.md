@@ -2097,7 +2097,27 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 - **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026
   ✅ **QĐ1 · QĐ2 phê chuẩn nguyên văn** (*"làm theo ý bạn đề xuất"*), gồm cả việc **giữ `deploy.yml`
   trên `ubuntu-latest`**.
-  ⏸ **QĐ3 mục 1 (hỏi BTC runner có ephemeral không) — PO HOÃN sang tối 18/08**, PO tự hỏi.
+  ✅ **QĐ3 mục 1 — ĐÃ ĐÓNG BẰNG PHÉP ĐO 18/08, KHÔNG CẦN BTC TRẢ LỜI. Kết quả: PERSISTENT.**
+  [ĐO] tech-lead, log lượt 4: tệp mốc ghi ở job chạy trên `eph-vmrunner2-4938b971` **đọc lại được
+  6 phút sau** từ job chạy trên `eph-vmrunner2-e0a3b5ab`. **Hai TÊN khác nhau, CÙNG một đĩa.**
+  ⟹ Nhánh *"nếu hoá ra ephemeral"* trong định hạng security **KHÔNG áp dụng**; mức **CHẶN không hạ**.
+  ⟹ Bước dọn `if: always()` chuyển từ **biện pháp phòng xa** sang **ĐIỀU KIỆN BẮT BUỘC** — và [ĐO]
+  nó vẫn là **mã CHƯA TỪNG THỰC THI**.
+  🔴 **CƠ CHẾ thì CHƯA biết, và hai khả năng khác hẳn nhau về mức độ:** (a) máy dùng lại, đăng ký lại
+  dưới tên mới ⟹ rò rỉ theo **TỪNG MÁY** · (b) `$HOME` là mount **dùng chung cả hồ** ⟹ rò rỉ theo
+  **CẢ HỒ**. [ĐO] nhịp 2 có **5 job `eph-vmrunner-*` song song** ⟹ không thể là một máy ⟹ **(b) không
+  loại trừ được**. **Giả định (b) cho tới khi có dữ kiện tách.**
+  ⭐ **VÀ ĐIỀU KIỆN DỨT ĐIỂM CẢ HAI PHIÊN CÙNG ĐẶT RA — *"hai lượt trúng CÙNG TÊN MÁY"* — LÀ ĐIỀU KIỆN
+  SAI.** Nó không bao giờ xảy ra; chờ nó là chờ mãi trong khi bằng chứng đã nằm sẵn.
+  ```
+  giả định ngầm :  tên máy khác  ⟹  đĩa khác
+  thực tế       :  tên máy khác,  ĐĨA VẪN CHUNG
+  ```
+  Bài học **không phải** *"`eph-` là tên dối"* mà là: **cả cái TÊN lẫn cái PHÉP THỬ ta dựng ra để kiểm
+  cái tên đều đứng trên CÙNG MỘT giả định chưa ai kiểm.** Phép đo cứu được **chỉ vì nó hỏi thẳng thứ
+  ta quan tâm** (*tệp có còn không*), không hỏi thứ **đại diện** cho nó (*tên có trùng không*).
+  ⟹ **PO vẫn nên hỏi BTC, nhưng câu đã đổi:** không còn *"có ephemeral không"* (đã biết: KHÔNG) mà
+  ***"`$HOME` của runner có dùng chung giữa các máy trong hồ không, và hồ có bao nhiêu máy?"***
   🔴 **HỆ QUẢ CỦA VIỆC HOÃN, ĐỌC KỸ:** chưa có câu trả lời ⟹ **giả định AN TOÀN là PERSISTENT**
   (máy dùng lại giữa các job và giữa các team). Suy ngược lại — *"chắc là ephemeral"* — là chọn giả
   định **dễ chịu nhất** thay vì giả định **đắt nhất khi sai**.
