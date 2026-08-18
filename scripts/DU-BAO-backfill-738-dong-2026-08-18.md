@@ -180,3 +180,40 @@ docker exec -w /app fin05-backend-1 python migrations/backfill_ma_hoa_descriptio
 ```
 *(cần dựng lại ảnh để script có mặt ở `/app/migrations/` — hoặc chạy từ host với `PYTHONPATH`,
 tôi sẽ hỏi bạn chọn đường nào.)*
+
+## 10. HAI PHÉP KIỂM PO-agent ĐÒI TRƯỚC KHI GẬT — cả hai XANH
+
+### ① KHOÁ — so BYTE, không so "chắc là giống"
+
+```
+FIELD_ENCRYPTION_KEY  từ Config.Env container   44 byte · sha256 c3071a75e5fb765ba5a283b3
+FIELD_ENCRYPTION_KEY  do src.config đọc ra      44 byte · sha256 c3071a75e5fb765ba5a283b3
+⟹ GIỐNG TỪNG BYTE ✅
+
+FIELD_ENCRYPTION_KEY trên HOST                  <KHÔNG ĐẶT>
+```
+🔴 **Vế thứ hai mới là vế quan trọng, và nó xác nhận đúng rủi ro PO-agent nêu:** host **không có
+sẵn khoá nào**. Nghĩa là mọi lệnh chạy từ host **bắt buộc** phải lấy khoá **từ container** — và nếu
+ai đó theo phản xạ gõ `Fernet.generate_key()` (đúng thứ tôi làm suốt buổi cho **test**, nơi nó vô
+hại) thì đó là **ghi đè 738 dòng bằng một khoá không ai giải được**.
+⟹ Lệnh chạy thật **phải mang khoá lấy từ container ngay trong chính lệnh đó**, không dựa vào biến
+môi trường có sẵn — vì **không có biến nào có sẵn**.
+
+### ② VÒNG TRÒN py3.14 ↔ py3.12 — biến *"tôi không nghĩ có khác biệt"* thành phép đo
+
+Mẫu: **chuỗi tiếng Việt có dấu**, 128 byte UTF-8, có `đ`/`—`/số tiền/SĐT/mã GD — **không** dùng
+ASCII, vì hôm nay đã có một ca bộ dò mù đúng phần tiếng Việt (§5.J).
+
+```
+py host      3.14.6   cryptography 50.0.0
+py container 3.12.14  cryptography 50.0.0      ← CÙNG phiên bản thư viện, khác bản Python
+
+① host (3.14) mã hoá  →  container (3.12) giải  →  == gốc, SO BẰNG BYTE: True (128/128)
+② container (3.12) mã hoá  →  host (3.14) giải  →  == gốc, SO BẰNG BYTE: True (128/128)
+③ `_co_hinh_dang_fernet`  container: True/False  ·  host: True/False   ← HAI BÊN ĐỒNG Ý
+```
+🔴 **Chiều đúng của phép thử** (PO-agent nêu, tôi ghi lại vì nó dễ làm sai): thứ cần chứng minh
+**không phải** *"hai bên sinh ra token giống nhau"* — không thể, IV ngẫu nhiên — mà **"bên kia ĐỌC
+ĐƯỢC thứ bên này ghi"**. Đo cả hai chiều, vì backfill ghi từ host còn sản phẩm đọc từ container.
+
+⟹ **Chạy từ HOST là an toàn.** Không dựng lại ảnh cho một script chạy một lần, và `docker cp` đã bị cấm.
