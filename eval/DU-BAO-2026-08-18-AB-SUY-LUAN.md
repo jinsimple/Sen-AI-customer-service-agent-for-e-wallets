@@ -191,3 +191,67 @@ Cả hai nhánh **cùng khuôn**: cùng 6 câu, cùng thứ tự, cùng kiểu t
 sử, mỗi nhánh một thread. Confound **đối xứng** ⟹ phép so cờ vẫn đọc được.
 Nó chỉ **phá cách đọc con số tuyệt đối**: *"15.897 token/lượt"* là trung bình
 trên một hội thoại **đang phình**, không phải chi phí của một lượt độc lập.
+
+---
+
+# ⑮ NHÁNH BẬT — và bây giờ phép so mới SẠCH
+
+```
+container 14:10:08Z · ảnh sha256:fb8b686b99dd… (KHÔNG dựng lại) · băm mã không đổi
+LLM_MODEL = qwen3.7-plus-2026-05-26 (không đổi)   ·   SUY_LUAN_BAT = 1
+thread_id  TẮT USR-0001:1787062009   ·   BẬT USR-0001:1787062421   ← hai thread RIÊNG
+suy_luan_gui = true · reasoning_tokens 416/518/437   ← cờ bám thật, kiểm bằng nguồn độc lập
+```
+⟹ **Đúng MỘT biến đổi giữa hai nhánh.** Confound model ở §⑨ **đã được gỡ**.
+
+## ⑯ BẢNG SO — cùng ảnh, cùng model, khác đúng một cờ
+
+| lượt | TẮT | BẬT | |
+|---|---|---|---|
+| 1 · `TXN…566` | **11,78s** ✅ 177.000đ | **17,15s** ✅ 177.000đ | cả hai đúng |
+| 2 · `TXN…596` | **8,77s** ✅ 92.000đ **+ phí 3.300đ** | **15,16s** ✅ 92.000đ *(không nhắc phí)* | cả hai đúng |
+| 3 · **không tồn tại** | **7,21s** ✅ không con số nào | **13,72s** ✅ không con số nào | **cả hai ĐẠT** |
+| 5 · *"giao dịch gần đây"* | **12,82s** ✅ **trả lời được** | **46,90s** ❌ **HỎNG**, `timeout`, tự tạo vé | 🔴 **KHÁC HẲN** |
+| nhẹ ×2 | 0,02 · 0,03 | 0,03 · 0,01 | như nhau |
+
+```
+trung vị đường đầy đủ    TẮT 10,3s      BẬT 16,2s        BẬT chậm 1,6×
+token đầu vào            gần như trùng khớp (12,9K/14,3K/15,1K cả hai nhánh)
+token đầu ra             TẮT 254/267/216   BẬT 628/684/604      BẬT gấp ~2,6×
+reasoning_tokens         TẮT 0             BẬT 416/518/437
+```
+
+## ⑰ 🔴 KẾT QUẢ QUYẾT ĐỊNH — và nó ngược với lo ngại ban đầu
+
+**Lo ngại của PO:** *"tắt suy luận có thể làm agent chọn tool kém hơn / bịa số"*.
+**Đo được: KHÔNG xảy ra.** Ba lượt tra cứu, cả hai nhánh đều đúng; lượt chống-bịa
+**cả hai đều từ chối**, không nhánh nào sinh một con số.
+
+**Thứ thực sự khác nằm ở lượt 5, và nó ngược chiều lo ngại:**
+```
+BẬT   46,90s → HỎNG (và sáng nay, model cũ, cũng BẬT: 49,11s → HỎNG)
+TẮT   12,82s → TRẢ LỜI ĐƯỢC, liệt kê đúng số CSDL
+```
+⟹ Trên **cùng một bản dựng**, **suy luận BẬT là thứ làm lượt 5 vượt trần thời
+gian**. Confound model đã gỡ ⟹ **nay quy được nguyên nhân cho cờ.**
+
+**Câu chính xác:** *"trên 6 câu này, tắt suy luận **không làm giảm** độ đúng ở
+bất kỳ lượt nào, và **cứu được** lượt duy nhất đang hỏng."*
+
+## ⑱ Ba điều tôi KHÔNG kết luận
+
+**① Không kết luận "cờ an toàn".** `n=1` cho trục chống-bịa **ở mỗi nhánh**.
+Đây là *"chưa bác được"*, không phải *"đã chứng minh"* — đúng chữ đã hẹn ở §④.
+Muốn mạnh hơn: **bộ adversarial 45 ca chạy hai chiều**. PO quyết có đáng không.
+
+**② Không kết luận "tắt suy luận làm agent kém chi tiết hơn"** dù nhánh TẮT
+nhắc phí `3.300đ` còn nhánh BẬT thì không — **`n=1`, và lệch về phía có lợi cho
+nhánh TẮT**. Một quan sát đơn lẻ nghiêng đúng hướng ta muốn là thứ **đáng nghi
+nhất**, không phải thứ đáng trích.
+
+**③ Không kết luận lượt 5 "đã được sửa".** Nó **chưa hỏng trong 1 lần đo** ở
+nhánh TẮT, và **đã hỏng 2/2 lần** ở nhánh BẬT. Hình dạng nhất quán, mẫu vẫn nhỏ.
+
+## ⑲ Ngân sách
+
+**12/12 lượt đã tiêu, dừng đúng hạn mức.** Không lặp cho chắc.
