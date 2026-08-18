@@ -62,7 +62,7 @@ import logging
 import os
 import sys
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -253,7 +253,7 @@ def _ghi_ro(ro: str, *, host: str | None = None, duong: str | None = None,
     # của chính nó.
     ghi_usage(
         {
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": datetime.now(UTC).isoformat(),
             "ro": ro,
             # host + PATH thôi. 🔴 KHÔNG query string: một số nhà cung cấp mang
             # tham số ở đó, và dựng một đường rò vào log NGAY TRONG cơ chế sinh
