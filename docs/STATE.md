@@ -683,6 +683,101 @@ hoá là việc của ADR, không phải của tester tự viết chính sách b
 **Chờ:** security **định hạng** (mã GD trần có phải finding mức nào) → PO thật duyệt ADR mới.
 
 
+### 🔴🔴🔴 J. KHO CHECKPOINT CHỨA TOÀN BỘ BẢN GHI HỘI THOẠI, KHÔNG MÃ HOÁ — mức CAO
+
+*(Security định hạng sau khi hỏi *"cái gì đã KHÔNG sinh ra dòng nào ở đây"*. PO-agent kiểm lại độc
+lập bằng **byte thật**, **chỉ đếm, 0 byte nội dung được in, không giải mã gì**.)*
+
+```
+[ĐO] checkpoint_blobs WHERE channel='messages'
+     tổng                       3.597
+     mang hình dạng Fernet          0      ⟹ 0% mã hoá
+     chứa "HumanMessage"        3.597      ⟹ TIN NHẮN KHÁCH, MỌI DÒNG
+     chứa "AIMessage"           3.220
+     kích thước bảng             37 MB     (security báo 105 MB — MẪU SỐ khác,
+                                            có thể là mọi channel / trước nén. Chưa truy,
+                                            KHÔNG ĐỔI kết luận)
+[ĐO] FK trên mọi bảng checkpoint*   0
+```
+
+⟹ **Kho checkpoint không chứa "một ít mã giao dịch". Nó chứa TOÀN BỘ BẢN GHI HỘI THOẠI — gồm văn bản
+KHÁCH TỰ GÕ — chưa mã hoá.** §5.I (2.179 dòng mã GD) là **phần vô hại nhất** của bức tranh này.
+
+🔴 **VÌ SAO CẢ SECURITY LẪN PO-AGENT ĐỀU MÙ Ở VÒNG TRƯỚC — bẫy này sẽ tái diễn, [ĐO] chứng minh:**
+
+```
+dò TIẾNG VIỆT bằng BYTE THẬT      position('\xe1babf'::bytea in blob)  →  2.738   (ế)
+                                   position('\xe1bb8b'::bytea in blob)  →  2.833   (ị)
+dò qua encode(blob,'escape') ~ '[àáảãạăâđ…]'                          →      0   🔴 MÙ HOÀN TOÀN
+```
+
+`encode(…,'escape')` biến **mọi byte ngoài ASCII** thành escape bát phân ⟹ **mọi ký tự tiếng Việt biến
+mất khỏi phép so khớp**, trong khi `TXN2026` (thuần ASCII) hiện ra bình thường.
+> **Một bộ dò PII chạy trên `bytea` mà so khớp bằng CHUỖI sẽ THẤY đúng phần ASCII và MÙ đúng phần
+> tiếng Việt** — tức **mù đúng phần chứa lời khai khách, thấy đúng phần vô hại nhất**. Kết quả nó trả
+> về **không phải *"ít PII"*** mà là ***"chỉ những PII viết bằng chữ không dấu"***.
+> **Luật L ở một mặt phẳng mới:** không phải ngưỡng lỏng/chặt, mà **bộ dò MÙ VỚI CHÍNH BẢNG MÃ của
+> dữ liệu nhạy cảm nhất**. **Sửa: dò trên BYTE THẬT** (`position(…::bytea in blob)`).
+
+**MỘT MITIGATION CÓ THẬT, [ĐO] chứ không giả định:** `ToolMessage` **đã được che** —
+`_scrub_pii_cho_llm` (`customer_tools.py:495`) che `full_name`/`phone`/`account_no` trước khi vào hội
+thoại LLM. **Đó chính là lý do SĐT ra `0/6.213` ở §5.I.**
+🔴 ⟹ **Con số `0` ấy là bằng chứng CƠ CHẾ CHE ĐANG CHẠY, KHÔNG phải bằng chứng KHO SẠCH. Đừng ai trích
+`0/6.213` như một lời trấn an.**
+Còn **`HumanMessage` KHÔNG được che, và đó là CỐ Ý, đúng thiết kế** — ADR-025 QĐ1 bác che-lúc-ghi cho
+Nhóm A. **Quyết định ấy đúng** — nó chỉ giả định lời khai được bảo vệ bằng **MÃ HOÁ** thay vì bằng che.
+**Ở kho checkpoint KHÔNG CÓ VẾ THỨ HAI.**
+
+🔴 **HỆ QUẢ NẶNG NHẤT — nó làm dấu ✅ ở §5.E thành GÂY HIỂU NHẦM:**
+
+| | cột được chỉ định | bản sao plaintext |
+|---|---|---|
+| lời khai | 23/761 — nợ migrate (ADR-032) | `investigation_logs` 27 |
+| **hội thoại** | **`messages.content` 467/467 — HOÀN HẢO** | **`checkpoint_blobs` 3.597 · 37 MB** |
+
+Con số `467/467` **vẫn đúng**. Nhưng kết luận người đọc rút ra — *"nội dung hội thoại được mã hoá
+at-rest"* — **SAI**. ⟹ **Người đọc không hỏi *"cột khai `Encrypted*` có sạch không"*; họ hỏi *"lời khai
+khách có được bảo vệ không"*.** Ta trả lời câu thứ nhất và **để họ tưởng đã có câu thứ hai.**
+
+**HẠNG: finding RIÊNG · mức CAO · hạng "HỆ SỐ NHÂN BÁN KÍNH", KHÔNG phải "cửa mới".**
+Security **cố ý không chọn hạng cao nhất**, và nói rõ cả hai vế:
+- **KHÔNG phải P0 gấp:** không kẻ tấn công mới · không đường ra ngoài hạ tầng · không vi phạm ràng
+  buộc cứng nào. Cùng CSDL, **cùng biên tin cậy** — ai đọc được cái này thì đã đọc được 738 dòng
+  `complaints`. **Không phải cửa mới; cùng một cửa, mở ra căn phòng lớn hơn nhiều.**
+- **LÀ mức cao vì BA tính chất CỘNG LẠI, không vì kích thước:** ① **8,4×** mẫu số ADR-032, **39×**
+  finding ① · ② **vô hình với job retention** ([ĐO] **0 FK**) trong khi `thread_id` = `"USR-0145:…"`
+  **CHỨA `user_id`** ⟹ **không tra ra được nhưng QUY TRÁCH NHIỆM ĐƯỢC — kết hợp tệ nhất** · ③ **0 cơ
+  chế prune/TTL/delete** trong `src/`, ~21 MB/ngày, **không trần**.
+  *Khác `investigation_logs`: ở đó `NO ACTION` ít nhất làm job **báo lỗi**. Ở đây **job chạy xong, báo
+  thành công, bản ghi hội thoại vẫn nguyên. Không cổng nào kêu.***
+- 🔴 **CHI PHÍ CỦA VIỆC KHÔNG LÀM, phát biểu chính xác:** ngày ADR-032 backfill xong, **sẽ có người
+  viết *"lời khai khách đã được mã hoá at-rest"*. Câu đó SAI chừng nào kho checkpoint còn như hôm nay**
+  — và sai theo kiểu **nghe rất đúng**, đi vào hồ sơ, rồi không ai kiểm lại. **Luật G ở tầng hồ sơ,
+  bán kính lớn nhất trong ngày.**
+
+**Sắc lại ca "đảo dấu" §5.I:** cách nói đúng **không phải** *"xoay khoá an toàn hơn ta tưởng"* mà
+**"xoay khoá KHÔNG BẢO VỆ GÌ ở đây, vì ở đây CHƯA TỪNG có gì được bảo vệ"** — hai câu khác nhau:
+ADR-032 nói về rủi ro **HỎNG** dữ liệu; mục này nói về **vùng khoá chưa bao giờ với tới**.
+
+**BỐN RÀNG BUỘC cho ADR mới** *(security nêu ràng buộc, KHÔNG thiết kế — thiết kế thuộc tech-lead)*:
+1. 🔴 **Bảo vệ ở tầng SERDE, KHÔNG đổi kiểu cột** — `PostgresSaver` sở hữu lược đồ; đổi cột là đánh
+   nhau với thư viện mỗi lần nâng phiên bản.
+2. **ĐỪNG che `HumanMessage`** — cùng lý lẽ ADR-025 QĐ1. **Mã hoá, không che.** Bản vá đi hướng scrub
+   là **đi ngược một quyết định đã ký**.
+3. 🔴 **Giải quyết RETENTION CÙNG LÚC, không để lần sau.** 0 FK ⟹ mục này **sẽ không tự lộ ra** khi ai
+   viết job xoá. ADR chỉ nói *"mã hoá kho checkpoint"* mà không nói *"và xoá theo cùng lịch với hồ sơ
+   khiếu nại"* ⟹ ta đổi **kho plaintext vĩnh viễn** lấy **kho ĐÃ MÃ HOÁ vĩnh viễn**.
+4. **Nghiệm thu phải dò trên BYTE, không dò trên chuỗi đã escape** — nếu không, cổng nghiệm thu **báo
+   xanh đúng theo cách nó đã mù hôm nay**.
+
+**THỨ TỰ:** **SAU** ADR-032 (rẻ, đóng khoảng trống **đã khai**), **TRƯỚC** phần còn lại. Không phải vì
+nhỏ hơn — vì **đắt hơn và ta không sở hữu lược đồ**, nên nó cần một **QUYẾT ĐỊNH**, không cần một script.
+
+**KHÔNG kết luận:** ❌ có PII **người thứ ba** trong kho (rất có thể có, **chưa đo** — cần NER, chưa
+chạy) · ❌ về `fin05ttl`/`fin05do` (số này của `fin05`) · ❌ không giải mã, không trích, không xem tin
+nhắn nào.
+
+
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
 
 **C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
