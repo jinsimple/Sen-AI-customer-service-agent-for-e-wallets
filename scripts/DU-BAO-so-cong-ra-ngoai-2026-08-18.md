@@ -57,16 +57,31 @@ KHÔNG ghi   query string · thân request · khoá · nội dung khách
 
 | # | vật | DỰ BÁO | THẬT | |
 |---|---|---|---|---|
-| 1 | file `src/` đổi | **2** — `cong_ra_ngoai.py` + `so_usage.py` | | |
-| 2 | `contracts/` · `check_contracts` | 0 đổi · sạch | | |
-| 3 | `test_invariants.py` | **23 passed** | | |
-| 4 | suite `not security_finding` | **0 failed** | | |
-| 5 | ca đối chứng: 1 lượt **bị chặn** | sổ có **3** dòng `bi_chan` (SDK retry 3 lần) | | |
-| 6 | ca đối chứng: 1 lượt **hỏng** | sổ có **1** dòng `hong` | | |
-| 7 | sổ KHÔNG chứa query string | 0 dòng có `?` trong trường `duong` | | |
-| 8 | `usage.jsonl` | **không thêm dòng nào** — hai sổ tách rời | | |
-| 9 | `docker diff` | 0 · 0 · 0 | | |
-| 10 | token tiêu | **0** | | |
+| 1 | file `src/` đổi | **2** — `cong_ra_ngoai.py` + `so_usage.py` | 2 | ✅ |
+| 2 | `contracts/` · `check_contracts` | 0 đổi · sạch | 0 · sạch | ✅ |
+| 3 | `test_invariants.py` | **23 passed** | 23 passed | ✅ |
+| 4 | suite `not security_finding` | **0 failed** | **577 passed, 0 failed** | ✅ |
+| 5 | ca đối chứng: 1 lượt **bị chặn** | sổ có **3** dòng `bi_chan` (SDK retry 3 lần) | **3 dòng**, tất cả `bi_chan` | ✅ |
+| 6 | ca đối chứng: 1 lượt **hỏng** | sổ có **1** dòng `hong` | 1 dòng `hong` | ✅ |
+| 7 | sổ KHÔNG chứa query string | 0 dòng có `?` trong `duong` | 0 · `duong` = `/v1/embeddings` | ✅ |
+| 8 | `usage.jsonl` | **không thêm dòng nào** | 90 → 90 | ✅ |
+| 9 | `docker diff` | 0 · 0 · 0 | 0 · 0 · 0 | ✅ |
+| 10 | token tiêu | **0** | 0 | ✅ |
+
+**10/10 trúng.** (Quy trình dự báo-trước, lần thứ tám hôm nay: 6/6 · 2/2 · 10/10 · 8/8 · 9/10 · 9/10 · 10/10.)
+
+⚠️ Suite ra **577 passed** (trước là 570) — **tester đang land song song**, `src/` tôi đổi 2 file và
+không đụng `tests/`. Ghi ra vì lệch **về phía dễ chịu** (Luật K).
+
+### Phân biệt quan trọng mà dự báo #5 làm đúng
+
+```
+httpx TRẦN, một POST bị chặn        →  1 dòng `bi_chan`
+qua SDK (store.search → embed_query) →  3 dòng `bi_chan`   ← max_retries=2 + lần đầu
+```
+Đây chính là lý lẽ chọn tầng transport: **bộ đếm đặt TRÊN SDK sẽ ghi 1 cho 3 lần bắn ra dây.** Số
+`3` không phải bug — nó là **bằng chứng bộ đếm nằm ĐÚNG dưới lớp retry**. Và nó nhắc lại điều đã
+khai: `bi_chan` đếm **lượt RA DÂY**, không đếm **lượt gọi của người dùng**.
 
 ## 5. Nếu khác thì nghi gì
 
@@ -84,6 +99,14 @@ Sổ có dòng ⟹ *"cơ chế ghi được"*. **KHÔNG** ⟹ *"đã có mốc n
 nối với `usage` của nhà cung cấp — và [ĐO §6.⓷] nhà cung cấp tính theo thứ họ **sinh**, không theo
 thứ ta **đọc**, nên rổ `hong` vẫn là **"không đọc được"** kể cả khi đã vào sổ.
 
-## 7. KẾT QUẢ THẬT
+## 7. KẾT QUẢ THẬT — một dòng sổ trông thế nào
 
-*(để trống)*
+```json
+{"ts":"2026-08-18T…","ro":"bi_chan","host":"api.openai.com","duong":"/v1/embeddings",
+ "ly_do":"khai_tuong_minh","bam_ma_nguon":"2382aeec51f7","pid":63342}
+```
+`pid` có mặt để **tách lại 4 worker**; `bam_ma_nguon` để một dòng sổ tự khai **mã nào sinh ra nó**
+— cùng nếp `usage.jsonl` đã dùng, không đúc quy ước thứ hai.
+
+**Không vòng import** dù `cong_ra_ngoai` → `so_usage` còn `graph` → cả hai: đã kiểm bằng import
+thật, không suy từ đồ thị.

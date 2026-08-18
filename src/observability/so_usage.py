@@ -54,24 +54,42 @@ _khoa = threading.Lock()
 _da_canh_bao = False
 
 
-def ghi_usage(ban_ghi: dict) -> None:
+def ghi_usage(ban_ghi: dict, duong: Path | None = None) -> None:
     """Ghi một dòng. KHÔNG BAO GIỜ làm hỏng lượt chat vì lỗi ghi sổ.
 
     Nuốt lỗi ở đây là đúng — sổ đo hỏng không được phép làm khách mất câu trả
     lời. Nhưng nuốt IM LẶNG thì không: cảnh báo MỘT lần (không mỗi lượt, tránh
     đúng cái còi kêu bừa rồi bị tắt), và sổ rỗng sẽ tự lộ khi ai đó đi đọc.
+
+    `duong` — 18/08: cho phép MỘT hàm ghi phục vụ NHIỀU sổ. Sổ thứ hai là
+    `cong_ra_ngoai.jsonl` (`src/cong_ra_ngoai.py`).
+
+    🔴 NHIỀU SỔ, MỘT HÀM GHI — và đây là hai quyết định riêng biệt, đừng gộp:
+
+    · **Nhiều sổ** vì `usage.jsonl` là *một dòng một LƯỢT CHAT* (18 trường,
+      có `thread_id`/`ly_do_fallback`/`duong`) còn sổ cổng-ra-ngoài là *một
+      dòng một REQUEST HTTP*. Khác HẠT, khác DÂN SỐ. Trộn chung thì `wc -l`
+      cho ra một con số **không phải số lượt, cũng không phải số request** —
+      và nó **trông hợp lệ**. Đúng bẫy "dân số pha tạp" (STATE §8), thứ dự án
+      đã trả giá qua `4%` (13/370) và `so_luot_goi_model = 0`.
+
+    · **Một hàm ghi** vì hàm này mang hai tính chất khó làm lại cho đúng:
+      *không bao giờ làm hỏng lượt vì lỗi ghi sổ*, và *cảnh báo MỘT lần thay
+      vì mỗi lượt*. Viết writer thứ hai là tạo hai định nghĩa của cùng một
+      vật — chúng sẽ lệch, và lệch trong im lặng.
     """
     global _da_canh_bao
+    dich = duong or DUONG_SO
     try:
-        DUONG_SO.parent.mkdir(parents=True, exist_ok=True)
+        dich.parent.mkdir(parents=True, exist_ok=True)
         dong = json.dumps(ban_ghi, ensure_ascii=False)
-        with _khoa, DUONG_SO.open("a", encoding="utf-8") as f:
+        with _khoa, dich.open("a", encoding="utf-8") as f:
             f.write(dong + "\n")
     except Exception as e:  # noqa: BLE001 — xem docstring
         if not _da_canh_bao:
             _da_canh_bao = True
             _logger.error(
                 "khong_ghi_duoc_so_usage",
-                extra={"duong": str(DUONG_SO), "loi": type(e).__name__,
+                extra={"duong": str(dich), "loi": type(e).__name__,
                        "hau_qua": "mat moc nen cho moi phep so truoc/sau"},
             )

@@ -62,10 +62,20 @@ import logging
 import os
 import sys
 import threading
+from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 
+from src.dau_ma_nguon import bam_ma_nguon
+from src.observability.so_usage import ghi_usage
+
 _logger = logging.getLogger("fin05.cong_ra_ngoai")
+
+# Sổ RIÊNG, cùng volume với `usage.jsonl` — KHÔNG chung file.
+# `usage.jsonl` là *một dòng một LƯỢT CHAT*; sổ này là *một dòng một REQUEST
+# HTTP*. Khác hạt, khác dân số — xem docstring `ghi_usage`.
+DUONG_SO_CONG = Path(os.environ.get("DUONG_SO_CONG_RA_NGOAI", "/app/logs/cong_ra_ngoai.jsonl"))
 
 BIEN_CO = "FIN05_CHO_PHEP_GOI_RA_NGOAI"
 _TAT = {"", "0", "false", "no", "off"}
@@ -194,9 +204,52 @@ def so_luot_da_phat() -> dict[str, int]:
         return dict(_dem)
 
 
-def _ghi_ro(ro: str) -> None:
+def _ghi_ro(ro: str, *, host: str | None = None, duong: str | None = None,
+            ly_do: str | None = None) -> None:
+    """Tăng bộ đếm trong tiến trình VÀ ghi một dòng vào SỔ TRÊN VOLUME.
+
+    🔴 VÌ SAO CẦN CẢ HAI, và vì sao bộ đếm một mình là KHÔNG ĐỦ — tôi (coder)
+    land bộ đếm sáng 18/08 rồi tự bác cách nó được mô tả:
+
+        [ĐO] docker-entrypoint.sh:16   UVICORN_WORKERS mặc định 4
+             ⟹ BỐN tiến trình ⟹ BỐN bộ đếm độc lập, không cái nào biết cái nào
+             ⟹ cả bốn về 0 mỗi lần recreate
+             ⟹ không endpoint, không file ⟹ KHÔNG đọc được từ ngoài tiến trình
+
+    PO-agent đã định ghi nó vào STATE là *"mốc nền đầu tiên của dự án"*. Sai —
+    và nó là **đúng loại con số trông hợp lệ** mà dự án đã trả giá (§8).
+
+    Sổ trên named volume đóng cả ba khoảng cách: **gộp được 4 worker** (cùng
+    ghi một file), **sống qua recreate**, **đọc được từ ngoài**. Và nó làm được
+    thứ một endpoint KHÔNG làm được — endpoint chỉ trả con số của **một** worker
+    ngẫu nhiên mà **trông như** trả toàn bộ.
+
+    Bộ đếm trong RAM vẫn giữ: nó là thứ **ca đối chứng** đọc được ngay trong
+    cùng tiến trình, không phải đi mở file.
+    """
     with _khoa_dem:
         _dem[ro] += 1
+    # `ghi_usage` có hợp đồng "KHÔNG BAO GIỜ làm hỏng lượt vì lỗi ghi sổ" —
+    # nên gọi thẳng, không bọc thêm try: bọc chồng là giấu mất cảnh báo-một-lần
+    # của chính nó.
+    ghi_usage(
+        {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "ro": ro,
+            # host + PATH thôi. 🔴 KHÔNG query string: một số nhà cung cấp mang
+            # tham số ở đó, và dựng một đường rò vào log NGAY TRONG cơ chế sinh
+            # ra để chặn rò là hỏng theo cách buồn cười nhất.
+            "host": host,
+            "duong": duong,
+            "ly_do": ly_do,
+            "bam_ma_nguon": bam_ma_nguon(),
+            # PID để tách lại BỐN worker. Thiếu nó thì sổ gộp được nhưng không
+            # bao giờ tách lại được — và "gộp mà không tách lại được" là cách
+            # một dân số pha tạp hình thành.
+            "pid": os.getpid(),
+        },
+        duong=DUONG_SO_CONG,
+    )
 
 
 class _TransportCoChotChan(httpx.BaseTransport):
@@ -212,7 +265,7 @@ class _TransportCoChotChan(httpx.BaseTransport):
     def handle_request(self, request: httpx.Request) -> httpx.Response:
         cho_phep, ly_do = cho_phep_goi_ra_ngoai()
         if not cho_phep:
-            _ghi_ro("bi_chan")
+            _ghi_ro("bi_chan", host=request.url.host, duong=request.url.path, ly_do=ly_do)
             # KHÔNG log URL đầy đủ: query string của một số nhà cung cấp mang
             # tham số, và ta không muốn dựng thêm một đường rò vào log ngay
             # trong cơ chế sinh ra để chặn rò.
@@ -231,9 +284,9 @@ class _TransportCoChotChan(httpx.BaseTransport):
         except Exception:
             # Ra dây rồi mới hỏng ⟹ KHÔNG BIẾT có tốn tiền không. Vào rổ `hong`,
             # KHÔNG vào `da_phat` (nói quá) và KHÔNG bỏ qua (nói thiếu).
-            _ghi_ro("hong")
+            _ghi_ro("hong", host=request.url.host, duong=request.url.path)
             raise
-        _ghi_ro("da_phat")
+        _ghi_ro("da_phat", host=request.url.host, duong=request.url.path)
         return phan_hoi
 
     def close(self) -> None:
