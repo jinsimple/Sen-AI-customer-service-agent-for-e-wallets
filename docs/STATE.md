@@ -961,6 +961,32 @@ duyệt không có biểu diễn nào**. Dựng nó sẽ cho ra một cơ chế 
 không thi hành gì** — đúng hình dạng *"hồ sơ trông kín hơn"*. **H3 GÁC LẠI cho tới khi ADR-026 được
 thi hành.**
 
+🔴 **CÁI BẪY SẼ CẮN NGƯỜI TIẾP THEO — `CHUAN_HOA_VERSION` KHÔNG PHẢI khoá vô hiệu hoá cache.**
+Nó **TÊN là** version, **NẰM TRÊN** collection Chroma, **TRÔNG ĐÚNG NHƯ** thứ ta cần — và không phải.
+[ĐO] `src/rag/store.py:138` → `CHUAN_HOA_VERSION = 2`, một **hằng số gõ cứng trong mã**, ghi vào
+metadata ở `:73` · `:160`, so ở `:184`. ⟹ nó đổi khi **TA ĐỔI MÃ** (cách chuẩn hoá text + model
+nhúng), **KHÔNG đổi khi KHO ĐỔI NỘI DUNG**. **CẤM dùng làm khoá cache** — đó là *"hai định nghĩa của
+cùng một vật"*, đúng lớp lỗi ADR-031 điều kiện ① đã cấm.
+**Khoá đúng phải là hàm của NỘI DUNG KHO** — vd `(count(chunks), max(created_at), count(docs))`, phủ
+được thêm + xoá. *(Bốn ứng viên đã rà, không cái nào phủ đủ `{thêm · xoá · duyệt · gỡ duyệt}`.)*
+
+📌 **GHI VÀO ADR-026 TRƯỚC KHI AI CODE PHẦN DUYỆT — rẻ bây giờ, đắt sau:** *khoá cache phải gồm
+**TRẠNG THÁI DUYỆT***. Thiếu nó thì cache **giữ nguyên câu trả lời sinh từ tài liệu chưa duyệt** sau
+khi `supervisor` gỡ duyệt — ADR-026 bị **một lớp cache** vô hiệu.
+
+**PHÂN BIỆT SẮC HƠN — ba ca cùng hạng mù KHÔNG bằng nhau, và trục phân biệt là CÓ KHAI HAY KHÔNG:**
+| ca | ADR có TỰ KHAI là chưa code không? |
+|---|---|
+| `/ready` (ADR-028, §5.D2) | ❌ không |
+| `assigned_to` (ADR-025 QĐ2) | ✅ **CÓ** — ADR tự khai *"tính năng nghiệp vụ MỚI"* |
+| **duyệt tài liệu (ADR-026)** | ❌ **không** — và nó đóng một **sự cố có thật** |
+⟹ Một ADR **tự khai** phần chưa xây thì **không cần cổng nào canh**. Cổng chỉ cần cho ca **không khai**.
+
+🔴 **RANH GIỚI PHÁT BIỂU — security tự dựng, PO-agent giữ nguyên, ĐỪNG NỚI:**
+*"**Cơ chế duyệt CHƯA TỒN TẠI**"* ✅ đo được — **KHÔNG** phải *"đang có tài liệu chưa duyệt được phục
+vụ"* ❌ chưa đo. Kho có 2 tài liệu, **cả hai do `partner_admin` nạp qua đúng cửa**. Hai câu khác nhau,
+và câu thứ hai đẩy người đọc vào **chế độ xử lý sự cố** cho một sự cố **chưa được chứng minh**.
+
 **🔴 CẦN PO THẬT:** ADR-026 do PO chốt 16/08 sau một sự cố thật. **Việc thi hành nó chạm `contracts/`
 + `migrations/` + `src/`** ⟹ đủ §10. **Trình PO: thi hành ngay, hay chấp nhận rủi ro có khai?**
 
