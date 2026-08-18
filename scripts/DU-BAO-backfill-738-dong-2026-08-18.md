@@ -1,0 +1,120 @@
+# DỰ BÁO — backfill 738 dòng `complaints.description_raw` (ADR-032 ②)
+
+> Công bố **trước** khi viết script, và **rất trước** khi chạy nó.
+> Nền: `HEAD=bb20f6f`, băm `src/` = `d5b73a04d6ef` (khớp cả ba ảnh, lệch× 0·0·0).
+> tech-lead · 18/08/2026.
+
+---
+
+## 0. 🔴 VIỆC NÀY KHÁC MỌI VIỆC TÔI LÀM HÔM NAY — nó GHI VÀO DỮ LIỆU THẬT
+
+Bốn bản vá trước đều hoàn nguyên được bằng `git checkout`. Cái này **không**. Nó viết đè lên
+**738 dòng lời khai của khách**. Một lỗi ở đây không phải một cổng đỏ — nó là **738 khiếu nại
+không đọc lại được**, và `FIELD_ENCRYPTION_KEY` thì *"xoay là mất vĩnh viễn"* (STATE §1).
+
+⟹ Ba thứ dưới đây **không phải thủ tục cho đẹp**, chúng là điều kiện để việc này được phép chạy:
+**sao lưu trước · đếm hai đầu · dừng hỏi trước khi ghi**.
+
+## 1. 🔴 QUYẾT ĐỊNH THIẾT KẾ: script ĐỘC LẬP, **KHÔNG** phải một revision alembic
+
+PO-agent giao *"script nạp lại 738 dòng trong `migrations/`"*. Tôi để nó trong `migrations/` nhưng
+**KHÔNG** làm nó thành alembic revision, và lý do là một phép đo:
+
+```
+[ĐO] docker-entrypoint.sh:17
+     exec su appuser -c "alembic upgrade head && uvicorn …"
+     ⟹ chạy MỖI LẦN container khởi động, trên CẢ BA ngăn xếp
+     ⟹ và trên production app.adaptivealgo.uk
+```
+Làm nó thành revision nghĩa là: lần tới ai đó `docker compose up`, **738 dòng dữ liệu khách bị
+viết đè tự động** — không sao lưu, không ai bấm nút, không ai đọc số trước/sau. Trên **production**,
+nơi mọi phiên chỉ được **CHỈ ĐỌC** (STATE §1).
+
+**Di trú LƯỢC ĐỒ nên tự động; di trú NỘI DUNG thì không.** Cái đầu hoàn nguyên được bằng
+`downgrade`; cái sau thì bản gốc **không còn ở đâu** để lấy lại nếu ta không tự cất.
+
+## 2. Bất biến của script — ba cái, cái ① là cái sống còn
+
+**① IDEMPOTENT, và không phải theo nghĩa "chạy lại thì bỏ qua".**
+Chạy hai lần mà không chặn ⟹ `encrypt(encrypt(text))`. Giải mã một lần cho ra **chuỗi bản mã**,
+đúng kiểu `str`, đúng chỗ — tức **chính xác cái lỗi `crypto_types` vừa vá**, nhưng lần này ta **tự
+tay tạo ra nó** và **bản gốc đã bị ghi đè**. Chặn bằng **cùng một phép** `_co_hinh_dang_fernet()`
+đã dùng ở `crypto_types` — **không viết phép thứ hai**: hai định nghĩa của cùng một vật sẽ lệch
+trong im lặng.
+
+**② Đọc RAW, không qua ORM.** Đọc qua ORM là đã giải mã rồi — ta sẽ mã hoá lại một thứ đã giải mã
+và **không nhìn thấy dòng nào đang ở trạng thái nào**. Phải `SELECT` thô, tự phân loại, tự ghi.
+
+**③ Dùng lại `_fernet` của `crypto_types`**, không dựng `Fernet()` mới. Cùng lý do ①.
+
+## 3. DỰ BÁO — điền TRƯỚC
+
+| # | vật | DỰ BÁO | THẬT | |
+|---|---|---|---|---|
+| 1 | phân bố TRƯỚC (`fin05`) | `giải mã 23 · plaintext 738 · khoá khác 0` | | |
+| 2 | số dòng script ĐỘNG VÀO | **738** — đúng bằng rổ plaintext | | |
+| 3 | phân bố SAU | `giải mã 761 · plaintext 0 · khoá khác 0` | | |
+| 4 | tổng số dòng `complaints` | **761 trước = 761 sau** — không thêm, không mất | | |
+| 5 | chạy LẦN HAI | **0 dòng động vào** (idempotent) | | |
+| 6 | đọc lại qua ORM sau backfill | nội dung **y hệt** bản sao lưu, 738/738 | | |
+| 7 | cổng `test_cot_nhom_a_khong_nam_plaintext` | **ĐỎ → XANH** | | |
+| 8 | suite `not security_finding` | **569 passed, 0 failed** (không đổi) | | |
+| 9 | `src/` | **0 file đổi** — đây là việc dữ liệu, không phải việc mã | | |
+| 10 | token tiêu | **0** | | |
+
+## 4. Nếu khác thì nghi gì
+
+| lệch | nghi |
+|---|---|
+| #1 khác `23/738/0` | 🔴 **DỪNG, KHÔNG CHẠY.** Có người đã đụng dữ liệu giữa chừng. Mẫu số đầu trong git là của lúc 18/08 sáng; nếu nó đã đổi thì tôi đang đọc một quần thể khác |
+| #1 cột `khoá khác` > 0 | 🔴 **DỪNG.** Khoá đã bị xoay. Việc phải làm là **khôi phục**, không phải backfill — và backfill lúc này sẽ **ghi đè bản mã cũ bằng bản mã mới**, xoá vĩnh viễn cơ hội khôi phục |
+| #2 ≠ 738 | phép phân loại của script khác phép của `crypto_types` ⟹ chúng đã lệch, đúng thứ ① sinh ra để chống |
+| #4 khác nhau | script đang **XOÁ hoặc THÊM** dòng — không được phép, revert từ sao lưu |
+| #5 ≠ 0 | 🔴 **KHÔNG idempotent** ⟹ đã có mã hoá hai lần ⟹ revert từ sao lưu **ngay**, đừng chạy tiếp |
+| #7 ĐỎ → XANH nhưng #6 lệch | 🔴 **Luật J ở dạng tệ nhất**: cổng xanh vì cột hết plaintext, trong khi **nội dung đã hỏng**. Cổng ấy kiểm *hình dạng*, không kiểm *nội dung* — chỉ #6 mới trả lời được |
+
+## 5. Khai trước — điều gì KHÔNG được tính là xác nhận
+
+**Cổng `test_cot_nhom_a…` chuyển XANH KHÔNG chứng minh backfill đúng.** Nó kiểm *"còn dòng nào
+trông như plaintext không"* — một script ghi **rác đã mã hoá** vào cả 738 dòng cũng làm nó xanh.
+Thứ duy nhất chứng minh là **#6**: đọc lại qua ORM và so **từng dòng** với bản sao lưu.
+⟹ Vì thế bản sao lưu **không phải lưới an toàn, nó là DỤNG CỤ ĐO**. Không có nó thì không có phép
+kiểm nào phân biệt được *"đã mã hoá đúng"* với *"đã mã hoá một thứ khác"*.
+
+**Và việc này KHÔNG đóng §5.E toàn phần:** nó chỉ chạy trên `fin05`. `fin05ttl`/`fin05do` và
+**production** là quần thể riêng, mỗi nơi một quyết định, mỗi nơi một lần sao lưu.
+
+## 6. KẾT QUẢ THẬT
+
+*(để trống — và 🔴 tôi DỪNG ở đây, hỏi PO-agent một lần nữa trước khi chạy lệnh ghi đầu tiên)*
+
+---
+
+## 7. ĐIỀU KIỆN PO-agent THÊM — sao lưu phải được KIỂM PHỤC HỒI, không chỉ được TẠO
+
+> *"Một bản sao lưu chưa từng được phục hồi thử **không phải một bản sao lưu** — nó là một tệp mà
+> ta TIN là bản sao lưu."*
+
+Đây là **KHAI ≠ CHẠY ở chỗ đắt nhất có thể**: một `pg_dump` rỗng/cụt trông y hệt một `pg_dump` tốt
+cho tới **đúng lúc ta cần nó**, và lúc đó thì bản gốc đã bị ghi đè. Ba bước, không rút gọn:
+
+```
+① dump ra file            → ghi ĐƯỜNG DẪN + KÍCH THƯỚC + SỐ DÒNG vào mục 8
+② PHỤC HỒI THỬ vào một CSDL VỨT ĐI     ← KHÔNG phục hồi đè lên bản thật
+③ đếm TRÊN BẢN PHỤC HỒI: 761 dòng · 738 plaintext · 23 mã hoá
+   khớp mẫu số ĐẦU  ⟹  sao lưu mới được tính là CÓ
+```
+Nếu ② không làm được: **DỪNG và NÓI**, không đổi ② thành *"tôi tin là được"*.
+
+**Hai điều kiện nữa:**
+- **Mẫu số hai đầu đo bằng CÙNG MỘT câu lệnh.** Hai câu lệnh khác nhau cho hai đầu là **hai phép
+  đo**, không phải một hiệu số. ⟹ tôi dùng đúng một hàm `dem()`, gọi hai lần.
+- 🔴 **Khai trước cả ca THUẬN LỢI (Luật M).** Nếu sau backfill ra `761 mã hoá / 0 plaintext` thì đó
+  **đúng thứ ta muốn nghe** — và đó chính là lúc **không gì kích hoạt phản xạ soi lại**. Khai
+  trước, ngay đây: **con số đó CHƯA ĐỦ.** Một dòng mã hoá bằng **khoá sai** cũng cho `gAAAAA` và
+  cũng làm cổng xanh. Thứ duy nhất kết luận được là **#6**: giải mã lại và so **từng dòng** với bản
+  sao lưu.
+
+## 8. SAO LƯU — số thật, điền trước khi xin gật
+
+*(để trống)*
