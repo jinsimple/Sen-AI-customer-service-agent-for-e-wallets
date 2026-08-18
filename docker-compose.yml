@@ -103,6 +103,14 @@ services:
       # Bộ kiểm ở `config.py` là phép thử KHẲNG ĐỊNH (bấm được không), không
       # phải danh sách chặn — placeholder kiểu "1900-XXXX (SỐ TẠM)" tự rớt.
       HOTLINE_CSKH: ${HOTLINE_CSKH:-19000000}
+      # 🔴 GHIM NGÀY, không dùng nhãn động `qwen3.7-plus`: nhãn động để nhà
+      # cung cấp đổi model dưới chân ta, và MỌI SỐ ĐO âm thầm hết hạn. Ta đã
+      # ghim mã (`bam_ma_nguon`) và ghim ảnh (`BUILD_COMMIT`) — đây là vật thứ
+      # ba cùng lớp, trước nay chưa ghim.
+      LLM_MODEL: ${LLM_MODEL:-qwen3.7-plus-2026-05-26}
+      # Suy luận TẮT mặc định — xem lý lẽ đo được ở src/config.py (T3).
+      # Bật lại để đo chất lượng: SUY_LUAN_BAT=1, rồi RECREATE (đọc lúc import).
+      SUY_LUAN_BAT: ${SUY_LUAN_BAT:-0}
       # Ghi đè SSL_CERT_FILE của .env — CÙNG LÝ DO với REDIS_URL ở trên, nhưng
       # hậu quả nặng hơn nhiều nên ghi kỹ.
       #

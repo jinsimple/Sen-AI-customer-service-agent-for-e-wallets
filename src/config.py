@@ -76,13 +76,30 @@ APP_ENV = os.environ.get("APP_ENV", "development")
 # chưa có số nào về `f` (tỉ lệ lượt đơn thật) để biết nó đáng bao nhiêu.
 PHAN_LUONG_BAT = os.environ.get("PHAN_LUONG_BAT", "").strip().lower() in ("1", "true", "yes")
 
-# T3 · công tắc suy luận của model. MẶC ĐỊNH = HÀNH VI HIỆN TẠI (thinking BẬT).
-# Đây là cờ ĐO, chưa phải quyết định sản phẩm: `qwen3.7-max` là model suy luận
-# và ta chưa biết suy luận đáng tiền hay tốn tiền ở lượt điều tra.
+# T3 · công tắc suy luận của model. MẶC ĐỊNH ĐỔI 1 -> 0 ngày 18/08: đây không
+# còn là cờ ĐO, nó là bản vá cho một sản phẩm ĐANG HỎNG.
+#
+# [ĐO] cùng `qwen3.7-plus-2026-05-26`, cùng câu hỏi CSKH thật:
+#     mặc định (suy luận BẬT)   20,88s · out 1161 · suy luận 980
+#     enable_thinking=False      2,48s · out  101 · suy luận   0     ← 8,4× nhanh
+#     thinking_budget=0          HTTP 400 — đường này KHÔNG dùng được
+# [ĐO tester] một lượt agent thật: trung vị 18,6s · CHẬM NHẤT 49,1s
+# [ĐO] AGENT_TURN_TIMEOUT_SECONDS = 45,0
+# ⟹ 49,1 > 45 ⟹ câu "xem giao dịch gần đây" — câu khách CHẮC CHẮN hỏi — đang
+# rơi fallback vì hết giờ. Bật suy luận là trạng thái làm sản phẩm vượt trần.
+#
+# 🔴 Cờ này mua TỐC ĐỘ, KHÔNG mua TOKEN. [ĐO] sổ thật 5 lượt gần nhất:
+# input 10.920–23.520 · output 236–709 ⟹ input chiếm >95% chi phí. Đòn bẩy
+# token thật nằm ở input ~14K (nhắc hệ thống + schema tool + lịch sử), là việc
+# KHÁC. Ai đọc cờ này thành "đã tối ưu chi phí" là đọc sai.
+#
+# 🔴 KHÔNG đặt thêm biến thứ hai (`FIN05_LLM_SUY_LUAN`…) cho cùng một công tắc:
+# hai định nghĩa của cùng một vật sẽ lệch nhau, và lệch trong im lặng — cùng lý
+# do đã có `bam_ma_nguon` và `BUILD_COMMIT`. Bật lại: `SUY_LUAN_BAT=1`.
 #
 # ⚠️ Đọc LÚC IMPORT ⟹ đổi nó bắt buộc RECREATE container. `docker exec -e` chỉ
 # đổi tiến trình con, KHÔNG chạm uvicorn đang phục vụ.
-SUY_LUAN_BAT = os.environ.get("SUY_LUAN_BAT", "1").strip().lower() not in ("0", "false", "no")
+SUY_LUAN_BAT = os.environ.get("SUY_LUAN_BAT", "0").strip().lower() not in ("0", "false", "no")
 
 BUILD_COMMIT = os.environ.get("BUILD_COMMIT") or "khong-ro"
 BUILD_AT = os.environ.get("BUILD_AT") or "khong-ro"
