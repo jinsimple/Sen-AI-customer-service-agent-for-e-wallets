@@ -88,4 +88,15 @@ Trả lời tường minh hai trục Lead nêu tối 18/08, bằng số đo đã
 
 ---
 
+## CHỮ KÝ Đ1 — 19/08, kiểm trên diff THẬT (đã `git diff`, không nhận tóm tắt)
+
+**Cả hai câu Lead hỏi: ĐẠT.**
+
+1. **Dạng thi hành đúng ràng buộc đã ký.** [ĐO] `graph.py:496-503` (`rap_nguon_o3`): ba `continue` liên tiếp — `json.loads` lỗi → continue · `not isinstance(payload, dict)` → continue · **SHAPE fail-closed đúng, phủ cả ba đường không mang khoá `status`** đã cảnh báo ở §PHÁN QUYẾT. Dòng cuối `payload.get("status") == _TRANG_THAI_LOI_TOOL` → continue = **BRANCH đúng, không phải allow-list theo enum**. Đối chiếu với 8/8 điểm trả lỗi liệt kê trong comment (`customer_tools.py:596,600,818,840,873,919,947,997`) khớp với chính danh sách tôi lập lúc định hạng (§1, §3) — không thêm, không thiếu.
+2. **Không có call-site thứ hai.** [ĐO] tự tìm, không dựa Review: `loc_dau_ra` gọi đúng **1 lần** trong toàn bộ production path (`graph.py:1203`), `nguon_tool` dựng đúng **1 lần** qua `rap_nguon_o3` (`:1199`). `run_agent_turn` là entrypoint AI-chat **duy nhất** (`main.py:641`, `grep -rln run_agent_turn src/api/ src/agents/` → chỉ graph.py + main.py gọi thật). Đường nhẹ `phan_luong.py` (câu "alo") — `grep -n "O3\|nguon\|ToolMessage" phan_luong.py` → **0 hit**, không có kênh nguồn song song. Bốn chỗ `"loc_dau_ra": []` khác (`:646·802·919·1020`) là **fallback tĩnh không qua LLM** — comment tại chỗ tự khai "câu do CHÍNH TA viết, không cần lọc", không phải đường vòng.
+
+**Về ba dữ kiện Lead khai kèm:** ① đúng, khớp diff tôi vừa đọc. ② đồng ý xử lý ngoài-phạm-vi-hôm-nay. ③ **không đổi kết luận chữ ký** — đúng như Lead nói, tôi định hạng CƠ CHẾ (đã đọc trong mã, không phụ thuộc cổng nào chạy), độ phủ cổng là việc của QA/QC. Nhưng khai lại cho hồ sơ: *trước khi PO thật merge*, mục "ĐỊNH NGHĨA XONG" của brief cần ca ⑪⑫⑬ **xanh thật**, không chỉ được giao — nếu không, Đ1 đúng trên giấy mà chưa có cổng nào canh nó đúng mãi (đúng câu "nợ, không phải bảo đảm vĩnh viễn" trong chính comment của Coder).
+
+**KÝ: Đ1 THI HÀNH ĐÚNG.** 0 token tiêu, không chạm container.
+
 **Vì sao Đ1 tốt hơn phương án thu hẹp về 2 tool đọc (gợi ý dự phòng của Lead):** thu hẹp sẽ loại `create_ticket` lịch sử khỏi nguồn ⟹ agent nhắc lại `ticket_id`/`complaint_id` của vé vừa tạo ở lượt trước (ca rất phổ biến: *"mã hồ sơ của tôi là gì?"*) lại **bị chặn oan tiếp** — tái tạo đúng cơ chế #3 mà bản vá A sinh ra để chữa. Đ1 giữ được ca đó và vẫn đóng kênh rửa.
