@@ -52,18 +52,21 @@ và livelock chạy y nguyên.
 
 ## 3. DỰ BÁO — điền TRƯỚC, không sửa sau
 
-| # | vật | DỰ BÁO | THẬT |
-|---|---|---|---|
-| 1 | băm `src/` | **ĐỔI** khỏi `b8e7c5397457` (sửa ≥1 file `.py`) | *(điền sau)* |
-| 2 | số file `src/` đổi | **1** — chỉ `customer_tools.py` | |
-| 3 | `contracts/` | **0 file đổi** | |
-| 4 | `check_contracts.py` | **sạch** — băm 3 contract KHÔNG đổi | |
-| 5 | `test_invariants.py` | **23 passed** — không đổi số ca | |
-| 6 | `docker diff` ba container | **0 · 0 · 0** (không dựng ảnh, không `docker cp`) | |
-| 7 | `BUILD_COMMIT` ba container | **`bec7235`, KHÔNG đổi** | |
-| 8 | nhãn băm trong ảnh | **`b8e7c5397457`, KHÔNG đổi** ⟹ **lệch× = 1·1·1** so cây | |
-| 9 | ca đỏ "kho rỗng" | **VẪN ĐỎ** — bản vá này không liên quan | |
-| 10 | token tiêu | **0** — bất biến tất định, không lượt LLM nào | |
+| # | vật | DỰ BÁO | THẬT | |
+|---|---|---|---|---|
+| 1 | băm `src/` | **ĐỔI** khỏi `b8e7c5397457` (sửa ≥1 file `.py`) | `78154194edff` | ✅ |
+| 2 | số file `src/` đổi | **1** — chỉ `customer_tools.py` | 1 file, +145/−1 | ✅ |
+| 3 | `contracts/` | **0 file đổi** | 0 | ✅ |
+| 4 | `check_contracts.py` | **sạch** — băm 3 contract KHÔNG đổi | sạch, `cd3d15a5c90a`·`a5afeae0684b`·`a39f2b84ec5d` | ✅ |
+| 5 | `test_invariants.py` | **23 passed** — không đổi số ca | **23 passed** in 1,83s | ✅ |
+| 6 | `docker diff` ba container | **0 · 0 · 0** (không dựng ảnh, không `docker cp`) | 0 · 0 · 0 | ✅ |
+| 7 | `BUILD_COMMIT` ba container | **`bec7235`, KHÔNG đổi** | `bec7235` cả ba | ✅ |
+| 8 | nhãn băm trong ảnh | **`b8e7c5397457`, KHÔNG đổi** ⟹ **lệch× = 1·1·1** so cây | `b8e7c5397457` cả ba ⟹ lệch× 1·1·1 | ✅ |
+| 9 | ca đỏ "kho rỗng" | **VẪN ĐỎ** — bản vá này không liên quan | vẫn đỏ, cùng dòng `:112` | ✅ |
+| 10 | token tiêu | **0** — bất biến tất định, không lượt LLM nào | 0 tính tiền — **nhưng xem §7** | ⚠️ |
+
+**10/10 dự báo trúng.** Lần thứ ba quy trình này chạy (trước đó 6/6 và 2/2).
+⚠️ Dòng 10 trúng về **con số** nhưng tôi đã suýt làm nó sai — xem §7, đó là phần đáng đọc nhất.
 
 🔴 **Dòng 8 là dòng dễ đọc nhầm nhất.** Sau khi tôi land, cây làm việc **cố ý lệch** khỏi ảnh
 đang chạy, vì PO-agent đã ra lệnh **không dựng ảnh** cho tới khi tester land xong (`tests/` nằm
@@ -98,10 +101,87 @@ IM     lượt KHÁC                          ⟹ không bắn (sổ đếm ch�
 Ba dòng `IM` quan trọng ngang dòng `KÊU`: một bất biến bắn cả vào vòng lặp hợp lệ sẽ bị gỡ trong
 vòng một tuần, và lúc đó ta mất luôn dòng `KÊU`.
 
-`tests/` là vùng **tester**. Tôi **không viết test**. Tôi soạn nội dung bốn ca trên để họ dán.
+`tests/` là vùng **tester**. Tôi **không viết test**. ~~Tôi soạn nội dung bốn ca trên để họ dán.~~
+
+> 🔴 **ĐÍNH CHÍNH sau khi công bố (giữ nguyên câu gạch trên, không xoá dấu vết):** PO-agent **bác**
+> việc tôi soạn sẵn nội dung test, và bác **đúng**. Lý lẽ của họ sắc hơn lý lẽ của tôi: tôi vừa đọc
+> `src/rag/store.py` nên nếu tôi soạn, tester sẽ dán một test **gõ cứng tên collection lấy từ
+> `src/`** — vẫn là test chép từ code, vẫn chết lần sau khi đổi model nhúng. Đó **chính xác** là
+> thứ tường §11 dựng ra để chặn, và tôi suýt trèo qua nó bằng cửa "giúp cho nhanh".
+> ⟹ Tester **tự liệt kê** collection từ container đang chạy (quan sát hộp đen, họ được phép) và
+> cho ra test **không gõ cứng tên nào cả** — tốt hơn thứ tôi định soạn. Tôi chỉ chuyển **kết luận
+> và lý lẽ**, qua PO-agent, không chuyển nội dung.
 
 ---
 
-## 6. KẾT QUẢ THẬT — điền sau khi chạy, KHÔNG sửa mục 3
+## 6. NGHIỆM THU — chạy trên SEAM THẬT, không chỉ trên bản sao
 
-*(để trống tới khi đo xong)*
+Vòng đầu tôi kiểm bằng một **bản sao** của `_locked` (15/15 đạt). Bản sao có thể lệch khỏi vật
+thật, nên nó **không đủ**. Vòng hai gọi thẳng `build_customer_tools(None, user_id=…,
+otp_verified_at=None, guard=…)` — dựng **đúng 5 tool sản phẩm**, và `otp_verified_at=None` đưa
+lời gọi vào **đúng đường livelock đã đo** (cổng OTP `return` trước khi chạm DB, nên `session=None`
+là an toàn và có chủ đích).
+
+```
+KÊU  lookup_transaction(TXN-0001) ×3   lần 1 lỗi OTP · lần 2+3 → chỉ thị DỪNG      ✅
+KÊU  get_customer_history(days=30) ×2  tool thứ hai được bảo vệ ĐỘC LẬP             ✅
+KÊU  kwargs đảo thứ tự                 `{a,b}` và `{b,a}` vẫn khớp cùng một khoá    ✅
+IM   tham số KHÁC (TXN-0002)           không chặn oan dù TXN-0001 đang trong sổ     ✅
+IM   THÀNH CÔNG lặp 4 lần              chạy đủ 4, không vào sổ                      ✅
+IM   `not_found` lặp 3 lần             ranh giới cố ý — không tính là lỗi           ✅
+IM   TOOL KHÁC cùng tham số            không gộp 5 tool làm một                     ✅
+IM   LƯỢT MỚI (`TurnGuard` mới)        lời gọi ĐẦU không bị chặn oan                ✅
+```
+
+Bốn dòng `IM` quan trọng ngang bốn dòng `KÊU`: một bất biến bắn cả vào vòng lặp hợp lệ sẽ bị gỡ
+trong một tuần, và lúc đó mất luôn dòng `KÊU`.
+
+**Hồi quy**, 7 file test chạm tầng tool (`test_customer_tools` · `test_audit_trail_completeness` ·
+`test_request_human_handoff` · `test_otp` · `test_tools_rest_parity` · `test_fault_tolerance` ·
+`test_pii_khong_ro_ri_len_llm`):
+
+```
+lần 1   49 passed · 1 FAILED  ← test_run_agent_turn_times_out_gracefully_instead_of_hanging
+lần 2   50 passed
+lần 3   50 passed
+lần 4   50 passed
+```
+🔴 **Ghi lại ca đỏ đó thay vì im lặng chạy lại tới lúc xanh.** Cùng mã, cùng lệnh, 1 đỏ / 4 lần.
+Chạy riêng một mình: xanh. Trên mã CŨ trong container: xanh. ⟹ **ca NHIỄU, không phải hồi quy** —
+nó là test canh `timeout`, nhạy tải máy, và lô 7 file làm máy nặng hơn. Nhưng *"nhiễu"* ở đây là
+**kết luận của tôi từ 4 lần chạy**, không phải một điều đã chứng minh; `tests/` là vùng tester và
+họ nên biết có một ca đỏ-ngẫu-nhiên ở đó.
+
+## 7. 🔴 SUÝT SAI — một lời gọi mạng THẬT ngoài ý định, tôi tự khai
+
+Lúc dựng ca nghiệm thu tôi chọn `search_policy` làm "tool khác" để kiểm việc không-gộp-5-tool.
+`search_policy` **không có cổng OTP** (khác 4 tool kia), nên nó chạy thẳng xuống
+`store.search()` → `embed_query()` → **gọi thật ra OpenAI**. Chặn lại bởi `OPENAI_API_KEY=gia`
+⟹ `401`, **0 token, 0 đồng**. Nhưng nếu biến môi trường đó là khoá thật thì đây là một lượt nhúng
+tính tiền **ngoài hạn mức A3**.
+
+**Bài học không phải "tôi bất cẩn" mà là một lỗ có thật trong ba lớp giữ hoá đơn:**
+```
+lớp ①  FIN05_CHO_PHEP_TON_TIEN   là `skipif` NẰM TRONG FILE TEST
+lớp ②  .DANG-DONG-BANG-LLM       PO thật quyết 18/08: bỏ hẳn — video demo quay xong
+lớp ③  PHAN_LUONG_BAT            chỉ định tuyến lượt CHAT
+```
+Cả ba **không lớp nào chặn một script gọi thẳng tool**. Lớp ① sống trong `tests/`; script nháp
+không đi qua `tests/`. Sau quyết định 18/08 thì lớp ② đã mất, nên đây **không còn là hai lớp mà là
+một lớp, và lớp đó không phủ đường tôi vừa đi**.
+⟹ **Đề xuất (không tự làm, thuộc `src/` nhưng cần PO-agent xếp):** chốt chặn phải nằm ở **tầng
+client nhà cung cấp** (`_khoa_cho_nha_cung_cap()` — nơi MỌI đường ra ngoài đi qua), không nằm ở
+`tests/`. Một cờ ở đó phủ cả test, cả script nháp, cả lượt chat. Đây cũng chính là chỗ
+`so_luot_da_phat` (sổ nợ §5.B) cần cắm — **một chỗ, hai việc**.
+
+⚠️ Và ghi cho người sau: **`search_policy` là tool DUY NHẤT trong 5 tool không có cổng OTP.**
+Tôi **không** kết luận đó là lỗi — tra chính sách là tài liệu công khai, không phải dữ liệu khách,
+nên nhiều khả năng là cố ý. Nhưng nó có nghĩa: **`search_policy` là tool duy nhất mà một lời gọi
+của model chạm được ra Internet khi khách CHƯA xác thực gì cả.** Ai rà thẩm quyền nên biết.
+
+## 8. Còn lại — KHÔNG làm trong đợt này
+
+- nửa **(b)** *"nói gì với khách"* — 12 ca mẫu đã có, việc riêng.
+- **dựng ảnh** — PO-agent điều phối, dựng MỘT LẦN sau khi tester land (`tests/` nằm trong ảnh).
+- **ca đối chứng trong `tests/`** — vùng tester. PO-agent đã bác việc tôi soạn sẵn nội dung, và
+  bác đúng: test do người đã đọc `src/` soạn sẽ phản chiếu `src/`.

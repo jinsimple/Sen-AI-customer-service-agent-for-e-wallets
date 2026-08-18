@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import datetime as dt
 import functools
+import logging
 import re
 import threading
 import unicodedata
@@ -35,6 +36,10 @@ from src.tools.get_customer_history import get_customer_history as _get_customer
 from src.tools.lookup_transaction import la_mot_ben_cua_giao_dich
 from src.tools.lookup_transaction import lookup_transaction as _lookup_transaction
 from src.tools.masking import mask_account_no, mask_full_name, mask_phone  # PII-OK: import hàm CHE, không phải đọc PII
+
+# Cùng cây tên với `fin05.agents.graph` — một sự kiện của bất biến chống
+# livelock phải grep được cùng tiền tố với phần còn lại của tầng agent.
+_logger = logging.getLogger("fin05.agents.tools")
 
 
 class TurnAbandonedError(Exception):
@@ -67,6 +72,19 @@ class TurnGuard:
     def __init__(self) -> None:
         self.lock = threading.Lock()
         self.abandoned = threading.Event()
+        # Sổ LỖI cho bất biến chống livelock — xem `_CHI_THI_DUNG_LAP`.
+        # Khoá `(tên tool, dấu tham số)` -> **dấu lỗi lần đầu**. Giữ dấu lỗi
+        # làm GIÁ TRỊ chứ không nhét vào khoá là có chủ đích: nó không tham gia
+        # phép khớp (xem lý lẽ tại chỗ chặn) nhưng phải đi vào log, nếu không
+        # thì lúc điều tra ta chỉ biết "có chặn" mà không biết "chặn vì lỗi gì".
+        # Sống trong TurnGuard vì TurnGuard đã là vật-MỘT-LƯỢT (dựng mới trong
+        # `run_agent_turn`), đúng phạm vi livelock đã đo: 8 tool call TRONG MỘT
+        # lượt. Đặt ở module-level thì sổ rò từ lượt này sang lượt sau và một
+        # khách hỏi lại đúng câu cũ sẽ bị chặn oan ngay lời gọi đầu.
+        # Đọc/ghi LUÔN dưới `self.lock` — cùng khoá đã serialize hoá tool call
+        # song song của ToolNode, nên không cần khoá thứ hai (hai khoá cho một
+        # vật là hai thứ sẽ lệch nhau).
+        self.lan_loi_giong_het: dict[tuple[str, str], str] = {}
 
 
 def _strip_diacritics(text: str) -> str:
@@ -585,6 +603,89 @@ _OTP_EXPIRED_ERROR = {
 }
 
 
+# ---------------------------------------------------------------------------
+# BẤT BIẾN CHỐNG LIVELOCK — "cùng tool + cùng tham số + cùng lỗi ⟹ lần thứ hai
+# là DỪNG."  (STATE §6.⓶ · nửa (a): phát-hiện-và-dừng)
+#
+# CHẾ ĐỘ HỎNG NÓ ĐÓNG, đo thật (thread `USR-0001:1786976758`, chuỗi 16 message
+# khôi phục từ PostgresSaver):
+#     khách đã đăng nhập nhưng CHƯA xác thực OTP phiên
+#     -> hỏi câu cần tra cứu -> tool trả `status=error`
+#     -> model KHÔNG có tool nào để xin OTP (đúng thiết kế — OTP ở tầng HTTP)
+#     -> không sửa được điều kiện nên THỬ LẠI Y HỆT
+#     -> không gì đếm số lần thử -> lặp tới khi trần thời gian cắt
+#     = 8 tool call, 6 lần `lookup_transaction` CÙNG THAM SỐ, 46s,
+#       49.700–71.600 token (đắt gấp 3,3–4,7 lần một lượt chạy xong),
+#       và sổ ghi `total_tokens = 0`.
+#
+# VÌ SAO PHẢI LÀ BẤT BIẾN TẤT ĐỊNH, không phải sửa prompt: so 12 ca đối chứng
+# trên 6 biến, KHÔNG biến nào tách được ca lặp khỏi 12 ca xử lý đúng, và có 2
+# ca GIỐNG HỆT cho kết quả khác nhau. Không có đầu vào nào để lọc ⟹ mọi bản vá
+# prompt là bản vá XÁC SUẤT đánh vào hiện tượng XÁC SUẤT: giảm tỉ lệ, không
+# đóng cửa. Chỉ thứ tất định mới đóng được.
+#
+# 🔴 VÌ SAO KHÔNG PHẢI `_AGENT_RECURSION_LIMIT` (graph.py): trần đệ quy đếm
+# MỌI bước, nên nó chặn cả vòng lặp HỢP LỆ — đã đo một lượt tra cứu 5 bước
+# hoàn toàn bình thường. Hai cơ chế khác TRỤC, không thay nhau được: trần đệ
+# quy hỏi "đã đi bao xa", bất biến này hỏi "có đang giậm chân KHÔNG TIẾN".
+#
+# 🔴 VÌ SAO ĐẶT Ở TẦNG NÀY chứ không bắt exception: cổng OTP `return` một dict
+# `{"status": "error"}` — nó KHÔNG raise (xem `_OTP_REQUIRED_ERROR` ngay trên).
+# Một bất biến chỉ bắt exception sẽ không thấy gì và livelock chạy y nguyên.
+# Nên chỗ chèn bắt buộc phải đọc được GIÁ TRỊ TRẢ VỀ.
+_CHI_THI_DUNG_LAP = {
+    "status": "error",
+    "loai": "lap_lai_vo_ich",
+    # `message` CỐ Ý khác hẳn lỗi gốc. Trả lại đúng câu cũ thì model đọc được
+    # đúng thứ nó vừa đọc và không có lý do gì để đổi hành vi — bất biến sẽ
+    # "bắn" mà vòng lặp vẫn chạy. Câu này phải nói ba điều model chưa biết:
+    # (1) đây là lần lặp, (2) thử lại sẽ KHÔNG khác, (3) làm gì thay thế.
+    "message": (
+        "DỪNG: lời gọi này trùng khít một lời gọi vừa thất bại trong cùng lượt "
+        "(cùng tool, cùng tham số, cùng lỗi). Gọi lại sẽ cho ĐÚNG kết quả đó — "
+        "điều kiện gây lỗi không tự đổi trong một lượt. TUYỆT ĐỐI không gọi lại "
+        "tool này với bộ tham số này. Hãy làm MỘT trong hai: trả lời khách bằng "
+        "dữ liệu đã có và nói rõ phần nào chưa tra được cùng lý do, HOẶC bàn giao "
+        "cho nhân viên hỗ trợ."
+    ),
+}
+
+
+def _dau_tham_so(args: tuple, kwargs: dict) -> str:
+    """Dấu TẤT ĐỊNH của bộ tham số một lời gọi tool.
+
+    `sorted()` trên kwargs vì thứ tự khoá do model sinh ra, không ổn định giữa
+    hai lời gọi giống nhau về NGHĨA — không sắp thì `{a,b}` và `{b,a}` thành
+    hai khoá khác nhau và bất biến im lặng không bắn.
+
+    `repr` chứ không `json.dumps`: tham số tool có thể mang giá trị không
+    serialize được (đã có `None`, số, chuỗi; nhưng ta không kiểm soát được thứ
+    model gửi). `repr` không bao giờ ném — một bất biến an toàn không được phép
+    tự nó là nguồn lỗi mới.
+    """
+    return repr((args, sorted(kwargs.items())))
+
+
+def _dau_loi(ket_qua: object) -> str | None:
+    """Dấu của LỖI trong giá trị tool trả về — `None` nghĩa là KHÔNG PHẢI LỖI.
+
+    ⚠️ `None` ở đây = "không phải lỗi", KHÔNG phải "không đọc được". Hai thứ đó
+    khác nhau và dự án đã trả giá cho việc trộn chúng (STATE §8: sổ usage ghi
+    `0` cho cả "đường nhẹ, đúng 0" lẫn "lượt hỏng, không biết"). Ở đây chúng
+    KHÔNG thể trộn: mọi giá trị không phải dict-có-status-error đều là kết quả
+    hợp lệ theo đúng hợp đồng 5 tool, không có ca "không đọc được".
+
+    RANH GIỚI CỐ Ý — `not_found` và `multiple_matches` KHÔNG tính là lỗi:
+    chúng là kết quả HỢP LỆ (docstring `lookup_transaction` khai cả ba dạng).
+    Lặp lại chúng cũng vô ích, nhưng nới bất biến sang đó là đổi hành vi ở
+    nhánh chưa ai đo, và bất biến thôi tất định. Muốn nới thì đo trước.
+    """
+    if not isinstance(ket_qua, dict) or ket_qua.get("status") != "error":
+        return None
+    # Gộp cả `loai` để chỉ thị dừng không tự khớp với chính nó ở lần thứ ba.
+    return f"{ket_qua.get('loai', '')}|{ket_qua.get('message', '')}"
+
+
 def _otp_fresh(otp_verified_at: float | None, max_minutes: int) -> bool:
     if otp_verified_at is None:
         return False
@@ -640,7 +741,50 @@ def build_customer_tools(
                     # này rồi — ghi thêm bất cứ thứ gì nữa là sinh dữ liệu mồ
                     # côi mà khách không hề được báo.
                     raise TurnAbandonedError("lượt chat đã bị bỏ (timeout) — không ghi DB nữa")
-                return fn(*args, **kwargs)
+
+                # BẤT BIẾN CHỐNG LIVELOCK, nửa (a) — xem `_CHI_THI_DUNG_LAP`.
+                #
+                # Thứ tự BẮT BUỘC là: tra sổ TRƯỚC khi chạy `fn`. Chạy rồi mới
+                # tra thì lời gọi thứ hai vẫn chạm DB/OpenAI đủ một lượt —
+                # đúng thứ ta đang đi cắt.
+                #
+                # `fn.__name__` sống được qua `functools.wraps` ở đúng dòng
+                # trên; đừng thay bằng `fn.__qualname__` (mang tên hàm bọc
+                # ngoài, giống nhau cho cả 5 tool) — chọn nhầm là bất biến
+                # gộp 5 tool thành một và bắn oan giữa các tool khác nhau.
+                khoa = (fn.__name__, _dau_tham_so(args, kwargs))
+                loi_lan_truoc = _guard.lan_loi_giong_het.get(khoa)
+                if loi_lan_truoc is not None:
+                    # Đã có MỘT lần hỏng y hệt trong lượt này ⟹ lần này là lần
+                    # thứ hai ⟹ DỪNG, KHÔNG chạy `fn`.
+                    #
+                    # 🔴 VẾ "CÙNG LỖI" ĐƯỢC THOẢ BẰNG CẤU TRÚC, KHÔNG BẰNG PHÉP
+                    # SO — viết ra vì đây là chỗ người đọc sau sẽ tưởng tôi bỏ
+                    # sót một vế của bất biến:
+                    # muốn SO lỗi thì phải CHẠY lời gọi thứ hai để có lỗi mà
+                    # so — tức trả đúng cái giá ta đang đi cắt. Ta chặn trước
+                    # được vì trong PHẠM VI MỘT LƯỢT, cả ba thứ quyết định lỗi
+                    # đều đứng yên: `otp_verified_at` đóng cứng trong closure
+                    # lúc `build_customer_tools()`, `user_id` đóng cứng, và bộ
+                    # tham số thì chính là khoá. Cùng tool + cùng tham số +
+                    # điều kiện đứng yên ⟹ cùng lỗi, không cần so.
+                    # ⚠️ Ràng buộc này SẼ VỠ nếu sau này ai đó cho `otp_verified_at`
+                    # làm mới GIỮA LƯỢT. Lúc đó phải quay lại đúng dòng này.
+                    _logger.warning(
+                        "bat_bien_chong_livelock: chan loi goi lap lai thu 2",
+                        extra={"tool": fn.__name__, "dau_loi_lan_truoc": loi_lan_truoc},
+                    )
+                    return _CHI_THI_DUNG_LAP
+
+                ket_qua = fn(*args, **kwargs)
+
+                dau_loi = _dau_loi(ket_qua)
+                if dau_loi is not None:
+                    # Chỉ ghi sổ khi HỎNG. Lời gọi thành công không bao giờ vào
+                    # sổ ⟹ tra cứu lặp hợp lệ (khách hỏi lại đúng giao dịch đó)
+                    # không bao giờ bị chặn.
+                    _guard.lan_loi_giong_het[khoa] = dau_loi
+                return ket_qua
 
         return wrapper
 
