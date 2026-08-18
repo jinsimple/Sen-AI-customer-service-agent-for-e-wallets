@@ -1187,6 +1187,52 @@ là mất trắng một ngày.
 **KHÔNG kết luận:** ❌ ai chạy lệnh checkout — PO-agent **không** chạy nó, và không đi đoán tiếp.
 ❌ đây là phá hoại — cây dùng chung, một cú `checkout` nhầm tab là đủ.
 
+### 🔴🔴 Q. BA BRIEF NẰM KHÔNG HƠN BỐN TIẾNG — kênh giao việc KHÔNG CÓ CHUÔNG
+
+*(PO thật phát hiện: **"tôi có thấy đội chạy đâu bạn?"**. PO-agent chẩn đoán sai lần đầu, **security
+bác**, tester đặt tên đúng cho nó.)*
+
+```
+[ĐO] ListAgents → 3 phiên đội SỐNG 11 GIỜ, gọi thẳng được: p-226-ab · p-226-cf · p-226-b0
+[ĐO] docs/giao-viec/ ngày 18/08:
+     14:39  tech-lead-adr033-adr034.md        → chưa ai mở
+     14:40  tester-doi-chung-quan-the-vut-di  → chưa ai mở
+     19:00  tech-lead-ci-self-hosted.md       → chưa ai mở
+[ĐO] cả ba phiên tự khai: "chưa nhận brief nào từ docs/giao-viec/"
+```
+**Ba brief · hơn 4 tiếng · thông lượng 0.** Và phần nặng nhất: **PO-agent viết cái thứ BA mà không hề
+thấy cái thứ NHẤT chưa chạy** — hàng đợi dài ra trong khi tôi báo cáo tiến độ như thể mọi thứ đang trôi.
+
+🔴 **CHẨN ĐOÁN ĐẦU CỦA PO-AGENT SAI, VÀ SAI VỀ PHÍA "TỰ TRÁCH QUÁ TAY":**
+tôi phát biểu *"tôi viết file rồi chờ dán tay, trong khi gọi thẳng được"* — đọc như thể **kênh file là
+chỗ kém hiệu quả**. **Security bác, và đúng:** kênh file **là THIẾT KẾ của PO thật** — mỗi vai một tab,
+**log riêng, tự quản lý được**, thay vì một phiên sinh ra phiên khác.
+> ⚠️ **Suýt nữa tôi "tối ưu" mất một ràng buộc có chủ đích** — ca thứ BA trong ngày cùng hình dạng
+> (`search_policy` miễn OTP · `complaint_intake` không cache · và ca này). Security nêu đúng phản xạ:
+> **hỏi PO một câu trước khi đổi thì rẻ; đổi rồi phát hiện là quyết định của sếp thì đắt.**
+
+⭐ **VÀ VẾ SECURITY THÊM — PO-agent chưa hề nghĩ tới:**
+```
+brief trong docs/giao-viec/   → CÓ VẾT TRONG GIT: ai giao gì, lúc nào, nội dung ra sao
+brief qua SendMessage         → KHÔNG vết nào trong repo
+```
+Với dự án lấy `contracts/` làm nguồn sự thật và bắt mọi quyết định phải có ADR, **một kênh giao việc
+không vết là một khoảng trống truy vết.** ⟹ **Chốt: GIỮ FILE LÀM BẢN GHI, DÙNG TIN NHẮN LÀM CÁI CHUÔNG.**
+Tin nhắn **trỏ tới** file, không thay file. Được cả hai.
+
+🔴 **KHOẢNG TRỐNG THẬT NẰM CHỖ KHÁC CHỖ TÔI TƯỞNG — không phải "sai kênh", mà là:**
+**thiết kế giả định PO biết có brief đang chờ, và KHÔNG CÓ GÌ báo cho PO.**
+
+**Tester đặt tên đúng — Luật P ở tầng thứ TƯ, kênh giao việc:** việc đã **RỜI KHỎI TAY người viết**
+(vào file) nhưng **CHƯA TỚI TAY người nhận**, và **không ai `grep` ra được khoảng trống đó vì file
+TỒN TẠI** — trông y hệt một việc đã giao. `ls` không phân biệt được; `git log` càng không, nó chỉ
+chứng minh ai đã **VIẾT**, không chứng minh ai đã **ĐỌC**.
+⟹ **Đây là dạng khó bịt nhất của Luật P**: ba dạng trước còn để lại vật để đối chiếu; dạng này **vật
+trông hoàn hảo**, chỉ thiếu một sự kiện **không được ghi ở đâu cả**.
+
+**KHÔNG kết luận:** ❌ kênh file sai — nó đúng, và có lý do bảo mật để giữ. ❌ ai lười — cả ba phiên
+đều rảnh và sẵn sàng suốt 11 tiếng, **không ai biết có việc đang chờ mình**.
+
 ### ⓵ Trần thật là TPM, và ta ĐÃ VƯỢT ở cấu hình buổi 150 người
 
 ```
