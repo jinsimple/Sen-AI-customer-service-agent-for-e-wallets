@@ -16,6 +16,14 @@ on:
     # BỎ giới hạn đích: PR vào nhánh nào cũng phải qua CI. Giới hạn cũ [main]
     # nghĩa là PR dev/learning-loop -> dev/khac không chạy test nào.
     branches: ["**"]
+  # 🔴 `if:` schedule/dispatch trên BỐN job nightly là LỚP PHÒNG THỦ NGÂN SÁCH
+  # DUY NHẤT còn lại — đừng gỡ. Trước có ba lớp, hai lớp kia đã mất hoặc sắp:
+  #   ① tính ephemeral của `ubuntu-latest` — lớp KHÔNG AI KHAI (STATE §5.R)
+  #   ② billing hỏng — thứ ĐANG thật sự chặn chúng, sẽ hết ngay khi trả tiền
+  #   ③ `if:` này — lớp duy nhất còn lại
+  # Bốn job ấy gọi model bằng KHOÁ THẬT lúc 03:00 giờ VN, KHÔNG AI NGỒI XEM.
+  # Gỡ `if:`, hoặc chuyển chúng sang runner tự quản, = một quyết định TIÊU TIỀN
+  # cần PO duyệt ngân sách — KHÔNG phải việc dọn dẹp cấu hình.
   schedule:
     - cron: "0 20 * * *" # 03:00 giờ VN — Stage 6 (load test) chạy nightly
   workflow_dispatch: {}
@@ -144,7 +152,7 @@ jobs:
   # Stage 1: Lint + Unit test
   # ---------------------------------------------------------------------
   lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -173,7 +181,7 @@ jobs:
   # host, xem tests/test_observability/test_network_isolation.py).
   # ---------------------------------------------------------------------
   db-migration-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     services:
       postgres:
         image: postgres:16-alpine
@@ -210,7 +218,7 @@ jobs:
   # cần dựng backend/docker compose, chạy được mọi PR.
   # ---------------------------------------------------------------------
   frontend-lint-and-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -241,7 +249,7 @@ jobs:
   # giống cách CVE chromadb đã xử lý — không xoá/skip test).
   # ---------------------------------------------------------------------
   security-findings-gate:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -258,7 +266,7 @@ jobs:
   # Stage 2: Dependency & secret scan (C5, C7)
   # ---------------------------------------------------------------------
   dependency-and-secret-scan:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
         with:
@@ -309,7 +317,7 @@ jobs:
   # ở lần deploy Postgres thật đầu tiên — đúng lúc đắt nhất.
   # ---------------------------------------------------------------------
   migration-chain:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -341,7 +349,7 @@ jobs:
   # Stage 3: AppSec test (Nhóm C) — ma trận phân quyền + injection
   # ---------------------------------------------------------------------
   appsec:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
