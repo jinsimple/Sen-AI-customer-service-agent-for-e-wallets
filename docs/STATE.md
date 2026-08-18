@@ -633,6 +633,56 @@ phục vụ tài liệu **đã duyệt**; một tài liệu `supervisor` vừa d
 không quyết định nào còn treo trên ba con số này** sau khi 10.2 đã rút.
 
 
+### 🔴 I. MỞ RỘNG PHẠM VI (KHÔNG phải đính chính) — kho checkpoint nằm NGOÀI sơ đồ mã hoá
+
+*(Bắt bởi **tester**, khi soi tiếp **sau khi** cổng plaintext trúng dự báo 4/4 tới từng chữ số.
+PO-agent kiểm lại độc lập bằng `psql`, **chỉ đếm, không in một byte nội dung nào**.)*
+
+```
+[ĐO] phép dò của cổng quét KIỂU GÌ:
+     character varying 83 · text 30   → 113 cột, QUÉT ĐƯỢC
+     json 6 · jsonb 2 · bytea 2       →  10 cột, MÙ HOÀN TOÀN
+
+[ĐO] checkpoint_blobs — chỉ ĐẾM:
+     tổng                            6.213
+     mang hình dạng Fernet (gAAAAA)      0     ⟹ 0% mã hoá
+     CHỨA mã giao dịch "TXN2026…"    2.179
+```
+
+⟹ **`738` KHÔNG phải toàn cảnh.** Mẫu số của kho checkpoint (**6.213**) lớn gấp **8,4 lần** mẫu số
+ADR-032 đang bàn (**761**).
+
+✅ **KHÔNG AI SAI — đây là MỞ RỘNG PHẠM VI, không phải đính chính.** ADR-032 BỔ SUNG ① **đã khai đúng
+mẫu số của nó**: *"[ĐO] cả bốn cột khai `Encrypted*`"*. Kết luận *"hệ thống mã hoá KHÔNG hỏng"* **đúng
+BÊN TRONG mẫu số ấy**. Phân biệt này quan trọng: gọi nhầm nó là "đính chính" sẽ làm người đọc mất
+niềm tin vào một phát biểu vốn trung thực.
+
+🔴 **RANH GIỚI PHÁT BIỂU — giữ nguyên, đừng nới (Luật B mở rộng: phát biểu này đẩy người nhận vào
+CHẾ ĐỘ NÀO):**
+`2.179/6.213` là **số dòng chứa MÃ GIAO DỊCH**. **KHÔNG** phải *"2.179 dòng chứa PII khách hàng"*.
+SĐT tài khoản hạt giống: **0/6.213**. Khoảng cách giữa hai câu ấy là việc **định hạng của security**,
+không phải của tester và không phải của PO-agent.
+
+⚠️ **Nối thẳng vào cảnh báo xoay khoá ở §1, và nó ĐẢO DẤU tin tốt:** `checkpoint_blobs` và
+`investigation_logs.tool_input_json` **0% mã hoá** ⟹ chúng **KHÔNG bị ảnh hưởng** khi xoay
+`FIELD_ENCRYPTION_KEY`. Nghe như tin tốt. **Nó là tin xấu:** nghĩa là một phần dữ liệu hội thoại
+**chưa bao giờ được bảo vệ bởi khoá nào.**
+
+**PHẠM VI — PO-agent chốt: ADR RIÊNG, KHÔNG mở rộng ADR-032.** Ba lý do:
+1. **Khác LOẠI, đúng phân biệt đã dùng cho 032 vs 034:** ADR-032 là **nợ MIGRATE** trên một cột **đã
+   được khai là mã hoá**; `checkpoint_blobs` **chưa bao giờ nằm trong sơ đồ** — không có gì để migrate.
+2. **Ta KHÔNG sở hữu lược đồ ấy** — nó là bảng của LangGraph `PostgresSaver`. Bảo vệ nó là việc ở
+   **tầng serde**, không phải đổi kiểu cột ⟹ **cơ chế khác, chi phí khác, rủi ro khác**.
+3. **Gộp vào là khoá ADR-032 lại.** 032 đang gần đóng (① xong, ② chờ dựng ảnh, ③ cổng đã land); buộc
+   nó chờ một bài toán nặng hơn là **cách chắc chắn nhất để cả hai không xong** — cùng lý lẽ đã dùng
+   khi tách finding `tool_input_json` khỏi ADR-031.
+🔴 **Cổng CỐ Ý không assert trên 10 cột đó, và đó là quyết định ĐÚNG** — *quyết định cột nào phải mã
+hoá là việc của ADR, không phải của tester tự viết chính sách bằng một assertion.* Đúng thứ quy trình
+§10 sinh ra để chặn.
+
+**Chờ:** security **định hạng** (mã GD trần có phải finding mức nào) → PO thật duyệt ADR mới.
+
+
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
 
 **C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
@@ -887,6 +937,14 @@ nó không nhìn vào cái gì cả.
 > không thay được số đo** — và suy luận đó **đã sai một lần**."*
 > **Ba ca cùng ngày, khoảng cách thu dần:** grep 143→150 · `head` cắt 949→950 · **câu trả lời nằm
 > trong CÙNG ĐOẠN VĂN đang được trích dẫn.**
+
+> 🔴 **VẾ THI HÀNH THỨ HAI** *(tester đúc 18/08 — PO-agent duyệt; bổ sung cho vế của security, không
+> thay thế)*: **kết quả KHỚP DỰ BÁO tới từng chữ số ⟹ soi PHẠM VI của phép đo, KHÔNG soi lại con số.**
+> *Bằng chứng [ĐO]: ba lỗi tester tìm được 18/08 (`doc_id` mồ côi lọt im lặng · path gõ cứng · dòng
+> báo lỗi giả định trước kết quả) — **cả ba con số đều ĐÚNG**; cái sai là **cái phép đo KHÔNG NHÌN
+> TỚI**. Cả ba **không có triệu chứng nào**, và cả ba lộ ra vì hỏi tiếp **sau khi kết quả đã khớp**.*
+> ⟹ Ghép với vế của security: **trước khi lập luận, mở sổ có trường đo thẳng; sau khi khớp, soi phạm
+> vi.** Hai vế bịt hai đầu của cùng một khoảnh khắc mất cảnh giác.
 
 **Luật 1** — assertion **không được trùng trạng thái mặc định** (test xanh giả).
 **Luật 12b** — mọi phát biểu xếp hạng phải **khai TRỤC**: *"xếp trên trục X, trục Y chưa xét"*.
