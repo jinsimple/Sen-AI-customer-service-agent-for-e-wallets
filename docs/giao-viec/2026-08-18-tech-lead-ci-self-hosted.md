@@ -64,9 +64,16 @@ Và **mọi** lệnh compose sau đó trong cùng job phải mang đúng `-p` �
    livechat-e2e-nightly (ci.yml:618)
 ```
 
-**Việc của bạn ở đây — một thứ, làm cùng lúc với đổi `runs-on`:**
+🔴 **CHƯA BIẾT runner có ephemeral (huỷ sau mỗi job) hay không — PO hỏi BTC tối 18/08.**
+⟹ **Làm theo giả định PERSISTENT** (máy dùng lại giữa các job và giữa các team). Đó là giả định
+**đắt nhất khi sai**, và khi chưa có dữ kiện thì chọn nó, không chọn giả định dễ chịu.
+
+**Việc của bạn ở đây — một thứ, làm CÙNG LÚC với đổi `runs-on`, KHÔNG chờ câu trả lời của BTC:**
 bước dọn tệp `.env` ở hai job đó phải là **`if: always()`**. Dọn chỉ khi job thành công là
 **không dọn ở đúng lúc cần dọn nhất** (job bị huỷ giữa chừng để lại khoá thật trên đĩa máy dùng chung).
+> **Vì sao KHÔNG chờ:** `if: always()` **đúng dù câu trả lời là gì** — ephemeral thì nó vô hại,
+> persistent thì nó là thứ duy nhất cứu. Buộc một biện pháp đã chín vào một câu hỏi đang treo là
+> cách chắc chắn nhất để nó không được làm.
 
 🚫 **Không tự quyết chuyện xoay khoá OpenAI** — `security` đang định hạng, PO quyết. Bạn chỉ làm
 phần cơ học: `if: always()`.
