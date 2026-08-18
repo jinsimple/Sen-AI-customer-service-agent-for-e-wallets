@@ -1755,3 +1755,170 @@ vế thứ nhất. **Ba trạng thái, không phải hai. Lần này ở tầng 
 > **Một phép thử không bao giờ bắn không phải một phép thử đã qua — nó là một phép thử CHƯA CHẠY.**
 > Và nó **nguy hiểm hơn** một phép thử vắng mặt, vì nó **chiếm chỗ** của phép thử thật: người ta thấy
 > nó trong danh sách, tick, rồi đi tiếp.
+
+---
+
+## §19. Định hạng lại ST2-P0-3 (live-chat PII) — **câu hỏi bị đặt sai, và đó là kết quả chính**
+
+### 19.1 🔴 Phát hiện đầu tiên: ASSERTION của test đòi thứ ADR-025 đã BÁC
+
+Test khẳng định `raw_phone not in saved["content"]` — tức **che LÚC GHI** cho `messages.content`.
+
+```
+finding mở      12/08
+ADR-025 ký      15/08   ← BA NGÀY SAU, và nó quyết NGƯỢC LẠI cho đúng cột này
+```
+
+ADR-025 Quyết định 1, nguyên văn:
+
+> **Nhóm A (lời khai — bằng chứng): `description_raw` + `messages.content`. … BÁC che-lúc-ghi** —
+> hệ thống tự sửa chữ trong lời khai thì bản ghi mất giá trị chứng cứ (NHNN/toà). Cơ chế: mã hoá
+> at-rest + trần độ dài + siết đọc need-to-know + retention + che **lúc XUẤT**.
+
+⟹ **Một bản vá làm test này XANH sẽ vi phạm một ADR đã được PO thật ký.** Và **không cổng nào bắt
+được**: 23 invariant introspect route/vai/CHECK/tên tool — **không cái nào nhìn thấy "cột này có bị
+sửa lúc ghi không"**. Hạng mù §5.D2, lần thứ tư.
+
+🔴 **Đây là rủi ro thật của việc để nguyên trạng, và nó KHÔNG phải rủi ro PII:** một cổng đỏ dai dẳng
+mang nhãn **P0** đặt trước một người đang chịu áp lực gộp `main` là **một lời mời sửa nó**. Cách sửa
+rẻ nhất — thêm một lệnh mask vào `record_message` — **phá giá trị chứng cứ của lời khai**, và **CI sẽ
+xanh hơn sau khi phá.**
+
+### 19.2 Rủi ro THẬT có tồn tại — nhưng nó đã DỜI CHỖ, [ĐO]
+
+Docstring của test nêu đúng rủi ro: *"nếu bị lộ (audit log, export dữ liệu, DSAR PDPA…)"*. Đó chính
+là **đường XUẤT** mà ADR-025 chỉ định phải che. Nó được che chưa?
+
+```
+[ĐO] scrub_pii được gọi ở:
+     graph.py:574                đường AI          ✅ có che
+     langchain_callback.py:65    trace/quan sát    ✅ có che
+     main.py:1399                GET /live-chat/sessions/{id}/messages   🔴 KHÔNG che
+```
+
+Đường xuất qua API **trả `m.content` nguyên văn**. Nhưng nó **có kiểm quyền**: `customer` chỉ đọc được
+phiên của chính mình (`chat_session.customer_id != current_user.user_id` → 403). ⟹ PII tới **chính chủ**
+(BR-06: không che chính chủ — đúng thiết kế) và tới **nhân viên**.
+
+⟹ **Phần còn lại đúng bằng phần dư ADR-025 Pha 1 đã biết và đã chấp nhận** (đọc theo VAI, chưa có
+`assigned_to`), **đã được bù bằng audit-log**. Nó **không phải một finding riêng** — nó là **một bản
+sao của một mục đã có chủ**.
+
+### 19.3 ⭐ Nhưng có một thứ ADR-025 KHÔNG lường, và tôi đo được
+
+ADR-025 phân loại **theo CỘT**: `messages.content` = Nhóm A = *"lời khai khách, khách không sửa lại
+được"*. [ĐO] cột ấy chứa gì:
+
+```
+role = staff      237
+role = customer   230
+```
+
+> 🔴 **Cột được phân loại trọn vẹn là "lời khai KHÁCH" đang chứa NHIỀU chữ NHÂN VIÊN hơn chữ khách.**
+
+Chữ nhân viên gõ trong live-chat **hợp mô tả Nhóm B từng chữ** (*"nhân viên đang ngồi trước màn hình,
+sửa lại được"*) — tức **che-lúc-ghi ĐƯỢC, với vòng preview-confirm** (QĐ 4). Nhưng vì nó **rơi vào cột
+Nhóm A**, nó thừa hưởng lệnh **cấm che**.
+
+⟹ **Trục phân loại của ADR-025 (theo cột) không cắt đúng trục nó tự khai (theo *ai sửa lại được*)** —
+và **`messages.content` là chỗ duy nhất hai trục lệch nhau**. Đây là **finding mới, độc lập**, và nó
+**giải thích vì sao ST2-P0-3 cứ trông có lý**: ca người viết finding hình dung (*CSKH gõ SĐT thô*)
+**đúng là ca Nhóm B**, chỉ nằm nhầm cột.
+
+### 19.4 Trả lời câu ① — mức thật hôm nay
+
+> ## Không còn là P0. Mức: 🟡 — **và lý do KHÔNG phải "`main` chưa phải production".**
+
+Lý do `main` ≠ production là **lý do đúng nhưng yếu**, vì nó **hết hiệu lực vào đúng ngày deploy** mà
+không ai quyết lại (câu ③). Ba lý do bền hơn, xếp theo sức nặng:
+
+1. **Bản vá mà test đòi bị một ADR đã ký CẤM** (§19.1) ⟹ *"chưa vá"* ở đây **không phải nợ kỹ thuật**,
+   nó là **tuân thủ một quyết định**.
+2. **Rủi ro nó nêu đã có chủ** — phần dư Pha 1 ADR-025, có cơ chế bù (audit-log), có lộ trình (Pha 2).
+3. Dữ liệu tổng hợp — **lý do YẾU NHẤT**, và tôi xếp nó cuối cùng có chủ đích: §16.2 đã đo rằng đó là
+   **một tư thế, không phải cơ chế**, và **nó đã rò một lần** (4 chuỗi dạng SĐT ngoài bộ seed).
+   **Đừng dùng nó làm chân chính của quyết định.**
+
+**Thứ nên thay chỗ ST2-P0-3 là finding §19.3** — nhỏ hơn về nhãn, **thật hơn về nội dung**, và có một
+bản vá **không mâu thuẫn ADR nào**.
+
+### 19.5 Trả lời câu ② — điều kiện kèm theo nếu PO chấp nhận rủi ro
+
+Ba điều kiện. Điều kiện ① là điều kiện tôi coi là bắt buộc, hai cái sau là nên có:
+
+```
+① KHÔNG được "chấp nhận" bằng cách gỡ mark hay đổi thành xfail trơn.
+   ci.yml:367 đã cấm đúng điều này — GIỮ NGUYÊN lệnh cấm đó.
+   Nếu đổi trạng thái test, phải đổi kèm LÝ DO trong docstring: "assertion này
+   đòi thứ ADR-025 QĐ1 bác" — để người sau không vá nó thành xanh.
+② Ghi ADR (hoặc mục ADR-025 bổ sung) khai ĐÚNG BA VẾ, không gộp:
+      · che-lúc-ghi cho messages.content: BÁC, theo ADR-025 QĐ1
+      · che-lúc-xuất trên main.py:1399:   CHƯA CÓ, còn nợ
+      · lệch trục Nhóm A/B ở cột này:     §19.3, chưa ai quyết
+③ Mốc xem lại KHÔNG theo thời gian mà theo SỰ KIỆN — xem câu ③.
+```
+
+### 19.6 🔴 Trả lời câu ③ — **cái gì kêu? Có một cái chuông, và nó ĐÃ HỎNG rồi.**
+
+Đây là câu bạn quan tâm nhất, và câu trả lời không phải *"chưa có gì kêu"*. [ĐO] `ci.yml:251-262`:
+
+```
+security-findings-gate:   pytest tests/ -m security_finding
+                          KHÔNG có continue-on-error  ⟹  job NÀY ĐANG ĐỎ
+```
+
+**Chuông có thật, và nó đã kêu liên tục từ 12/08 tới giờ — sáu ngày.**
+
+> ## 🔴 Một cái chuông kêu liên tục sáu ngày **không còn là một cái chuông**.
+> Luật A vế một: *cổng phải IM lúc bình thường*. Cổng này **chưa bao giờ im** ⟹ nó **đã bị vô hiệu
+> hoá bằng thói quen, không bằng quyết định** — đúng câu hồ sơ Luật A của tôi viết ngày 17/08.
+
+Và đây là chỗ nguy hiểm thật: **"chấp nhận rủi ro" sẽ tự nhiên dẫn tới việc làm job ấy xanh** (gỡ
+mark, `xfail`, `continue-on-error`). Lúc đó **cái chuông hỏng biến thành KHÔNG CÓ CHUÔNG**, và câu
+*"chấp nhận cho `main`"* **lặng lẽ thành "chấp nhận cho production"** — đúng thứ bạn lo.
+
+**⟹ Đề nghị: DỜI cái chuông, đừng tắt nó.**
+
+```
+BỎ    một job CI đỏ vĩnh viễn   (đã habituate, không ai đọc)
+THÊM  một cổng ở BƯỚC DEPLOY LÊN PRODUCTION:
+         pytest -m security_finding   →  đỏ  ⟹  CHẶN deploy
+```
+
+Vì sao đây là bản vá đúng, ba lẽ:
+
+1. **Nó IM lúc bình thường** (gộp `main`, chạy CI hằng ngày — không ai bị làm phiền) **và KÊU đúng lúc
+   bất thường** (ai đó đẩy lên production khi finding còn mở). **Luật A đủ cả hai vế.**
+2. **Nó bắn đúng vào SỰ KIỆN làm đổi mức**, không bắn theo lịch. Câu ③ của bạn hỏi *"ngày nào deploy,
+   mức có tự nhảy không"* — với cổng này, **mức không cần tự nhảy: việc deploy bị chặn cho tới khi có
+   người quyết lần nữa.**
+3. **Nó biến "chấp nhận rủi ro" từ một câu nói thành một trạng thái có cơ chế.** Không ai phải nhớ.
+
+⚠️ **Và nó phải kèm CA ĐỐI CHỨNG** (Luật A vế hai, và Luật R §18): trước khi tin cổng ấy, **chạy một
+lần với finding giả để xem nó có thật sự CHẶN không**. Một cổng deploy chưa từng chặn gì **không phân
+biệt được** với một cổng deploy hỏng — và ta sẽ chỉ phát hiện vào đúng ngày cần nó.
+
+### 19.7 Việc GĐ2 — ký duyệt dữ liệu demo, và **đây đúng là lúc biến TƯ THẾ thành CƠ CHẾ**
+
+**Đồng ý, và tôi đề nghị đưa vào kế hoạch.** §16.2 đo được rằng *"không có dữ liệu khách thật"* hiện
+là **một tư thế** — và nó **đã rò một lần**. Sinh thêm 4 hành trình đầy đủ là lúc rẻ nhất để cắm cổng.
+
+**Cổng rẻ nhất, và nó dùng lại đúng thứ tôi đã dựng hôm nay** (§3.3): một phép kiểm chạy trên dữ liệu
+demo sau khi sinh, khẳng định **mọi chuỗi dạng SĐT đều thuộc bộ seed**. Bốn chuỗi ngoài bộ seed mà tôi
+tìm ra ở §3.3 **chính là ca đối chứng dương có sẵn** — cổng nào không bắt được bốn chuỗi ấy là cổng
+hỏng, và ta biết điều đó **trước khi** tin nó. **Luật A vế hai, có sẵn vật thử, không phải dựng.**
+
+🔴 **Và ràng buộc cứng 5 cho khách ④** (`otp_disclosed=true` · `priority=critical` · escalate): kịch
+bản demo **được phép** dựng cờ gian lận đầy đủ, **nhưng không được có bất kỳ bước nào khoá ví**, và
+**không được để hai thứ đó cạnh nhau trong cùng một hàm/bước** kể cả khi không nối. Lý do: kịch bản
+demo là **thứ người ngoài đọc để hiểu hệ thống làm gì** — một demo dựng cờ rồi khoá ví ngay sau đó
+**dạy sai đúng điều hiến pháp cấm**, kể cả khi mã không hề nối hai việc.
+
+### 19.8 Điều tôi KHÔNG kết luận
+
+- **Không** nói ST2-P0-3 là finding sai. Rủi ro nó nêu **có thật**; **assertion** của nó bị một quyết
+  định sau đó vượt qua, và **rủi ro đã dời sang đường xuất**. Ba câu khác nhau.
+- **Không** quyết chấp nhận rủi ro thay PO. Tôi nêu mức, điều kiện, và cơ chế.
+- **Không** kết luận về `(a)/(b)` runner, gitleaks, nightly — đồng ý chúng **không chặn** bản `main`.
+  *(Một ghi chú lề: `security-findings-gate` ở `ci.yml:251` **đã** `runs-on: self-hosted` — nhưng nó
+  dùng khoá GIẢ, nên không nằm trong 6 job của §15. Nhất quán với đo lường hôm qua, không phải mục mới.)*
