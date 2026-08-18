@@ -2094,7 +2094,17 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 
 ## ADR-037 — `.github/workflows/**` thuộc vùng ghi `tech-lead`; và CI chuyển sang runner self-hosted của BTC
 
-- **Ngày:** 2026-08-18 · **Trạng thái:** ⏳ **CHỜ PO THẬT PHÊ CHUẨN** (QĐ2 · QĐ3 do PO-agent đề xuất)
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026
+  ✅ **QĐ1 · QĐ2 phê chuẩn nguyên văn** (*"làm theo ý bạn đề xuất"*), gồm cả việc **giữ `deploy.yml`
+  trên `ubuntu-latest`**.
+  ⏸ **QĐ3 mục 1 (hỏi BTC runner có ephemeral không) — PO HOÃN sang tối 18/08**, PO tự hỏi.
+  🔴 **HỆ QUẢ CỦA VIỆC HOÃN, ĐỌC KỸ:** chưa có câu trả lời ⟹ **giả định AN TOÀN là PERSISTENT**
+  (máy dùng lại giữa các job và giữa các team). Suy ngược lại — *"chắc là ephemeral"* — là chọn giả
+  định **dễ chịu nhất** thay vì giả định **đắt nhất khi sai**.
+  ⟹ **QĐ3 mục 3 (`if: always()` cho bước dọn `.env`) KHÔNG ĐƯỢC CHỜ mục 1.** Nó là biện pháp
+  **đúng dù câu trả lời là gì**, và **cần hơn** khi chưa biết. Buộc nó vào một câu hỏi đang treo là
+  cách chắc chắn nhất để nó không được làm — đúng lý lẽ ADR-034 QĐ3.
+  ⏸ **QĐ3 mục 2 (security định hạng)** phụ thuộc mục 1 ⟹ chờ.
 - **Bối cảnh:**
 
   Từ 17/08 tới nay **không commit nào qua cổng tự động**. [ĐO] annotation nguyên văn GitHub trên
