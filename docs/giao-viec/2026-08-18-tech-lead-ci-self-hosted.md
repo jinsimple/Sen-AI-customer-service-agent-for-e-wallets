@@ -43,11 +43,32 @@ hỏng vì lý do gì.
 
 ## 3. 🔴 Cổng đụng nhau — cái này SẼ cắn nếu bỏ qua
 
-`docker compose` của ta publish cổng ra host. Runner **dùng chung** ⟹ hai team chạy cùng lúc trên
-một máy ⟹ **đụng cổng** ⟹ cổng ĐỎ vì lý do **không liên quan gì tới code ta**. Đúng lớp tín hiệu
-giả nguy hiểm nhất: đỏ mà không phải lỗi mình.
+🔴 **ĐÍNH CHÍNH — bản đầu của mục này SAI CƠ CHẾ (tech-lead bắt, PO-agent nhận):**
+bản đầu viết *"publish cổng ra host ⟹ đụng cổng ⟹ **bắt buộc `-p`**"*, đọc ra thành *"`-p` lo phần
+cổng"*. **`-p` đổi TÊN PROJECT. Nó KHÔNG đổi cổng host.**
+[ĐO] `docker-compose.yml`: caddy `"80:80"` · `"443:443"` (mọi interface) · postgres `127.0.0.1:5432`
+· jaeger `127.0.0.1:16686` — **ghim cứng trong file, `-p` không chạm tới**.
+⟹ Tin `-p` đã lo phần cổng thì **mọi lần đỏ vì cổng sẽ bị đọc thành đỏ vì code** — Luật G.
 
-⟹ **Bắt buộc `-p` với tên project DUY NHẤT theo run:**
+**`-p` vẫn BẮT BUỘC, nhưng nó mua thứ khác:** hai lượt **của chính ta** khỏi giẫm container/volume
+nhau (tên project mặc định đều là `p-226`), và `down -v` xoá **đúng volume lượt mình**.
+
+🔴 **VÀ CÓ KỊCH BẢN TỆ HƠN "ĐỎ" — tech-lead phát hiện, đây mới là lý do thật của Việc 2:**
+[ĐO] cả hai job docker chạy test **từ host, trỏ `https://localhost`**
+(`test_frontend_route_guards.py:30` · `playwright.livechat.config.ts:28`). Ghép với *"không có
+`compose down`"*:
+```
+stack lượt TRƯỚC còn sống giữ 443
+  → lượt sau `up` hỏng
+  → nhưng test chạy từ host VẪN kết nối được — vào STACK CŨ
+  → XANH, và nó chứng minh mã của LƯỢT TRƯỚC
+```
+**Đỏ vì đụng cổng còn đọc ra được. Cái này thì không** — cổng **IM đúng lúc bất thường**, Luật A.
+⟹ Dọn không chỉ để khỏi bỏ khoá lại, mà để **lượt sau không đo nhầm lượt trước**.
+⟹ **Cần thêm TIỀN KIỂM CỔNG** trước `up`, báo đúng chữ *"ĐỎ VÌ ĐỤNG CỔNG — KHÔNG PHẢI ĐỎ VÌ CODE"*
+(đọc `/proc/net/tcp`, đừng dùng `ss`/`lsof` — runner lạ chưa chắc có).
+
+**Cú pháp `-p` với tên project DUY NHẤT theo run:**
 ```bash
 docker compose -p fin05-ci-${{ github.run_id }} up -d --build
 ```
