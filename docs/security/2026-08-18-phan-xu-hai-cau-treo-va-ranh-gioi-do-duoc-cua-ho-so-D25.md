@@ -1452,3 +1452,188 @@ không*. Cùng lớp với §10.2: **đo cái đang có, không hỏi cái đó 
 - **Không** kết luận bản script vi phạm ràng buộc cứng nào — nó không.
 - **Không** quyết `fin05ttl`. Đó là quyết định hạ tầng của PO thật.
 - **Không** thiết kế màn hình duyệt. Nêu ràng buộc, không nêu giải pháp.
+
+---
+
+## §15. ADR-037 — định hạng phơi nhiễm khoá OpenAI trên runner DÙNG CHUNG
+
+### 15.1 Kiểm lại số đo trước, [ĐO] độc lập
+
+| | PO-agent | tôi đo | |
+|---|---|---|---|
+| **job mang khoá THẬT** | **6** | **6** | ✅ **khớp — đây là con số quyết định** |
+| tổng job | 14 | **17** | ⚠️ lệch, chưa truy nguyên |
+| job khoá GIẢ | 8 | 6 (+5 job không dùng khoá) | ⚠️ lệch, **cùng cách chia khác nhau** |
+| ghi `.env` ra đĩa | `554` · `618` | `548` · `612` | ✅ **cùng hai chỗ** (mốc heredoc vs dòng khoá) |
+| `rm .env` | 0 | **0** | ✅ |
+| `compose down` | 0 | **0** | ✅ |
+| `always()` | 5, cả 5 là upload-artifact | **5** | ✅ |
+| `gh secret list` | chỉ `OPENAI_API_KEY` | ✅ **chỉ một**, tạo 17/08 03:54Z | ✅ |
+
+**Sáu job mang khoá thật — hai người đo độc lập, cùng số.** Hai chỗ lệch nằm ở **cách phân loại job**
+(tôi tách thêm rổ *"không dùng khoá"* = 5), **không** ở kết luận nào. Khai theo Luật C, **không hoà**.
+
+🔴 **Và một dữ kiện định khung toàn mục:** `runs-on: self-hosted` → **0 hit**. `ubuntu-latest` → **14**.
+⟹ **CHƯA CÓ PHƠI NHIỄM NÀO XẢY RA.** Đây là **định hạng cho một thay đổi SẮP LAND**, không phải cho
+một sự cố. Đó là thời điểm rẻ nhất có thể có, và nó đổi hạng của khuyến nghị (§15.7).
+
+### 15.2 🔴 Khoá nằm ở HAI chỗ, không phải một — và chỗ thứ hai chưa ai nêu
+
+`.env` được `cat` ra đĩa runner (dòng 548 · 612), chứa **`OPENAI_API_KEY` thật** cạnh các giá trị
+CI-ephemeral. **Ngay sau đó là `docker compose up -d --build`.**
+
+```
+bản sao ①   .env trên ĐĨA runner            ← đã nêu
+bản sao ②   Config.Env của CONTAINER đang chạy   ← CHƯA AI NÊU
+```
+
+Compose đọc `.env` rồi **ghim biến vào container lúc TẠO**. Không `compose down` ⟹ **container sống
+tiếp sau khi job kết thúc** ⟹ bất kỳ ai trên máy đó `docker inspect` là đọc được khoá.
+
+> 🔴 **Hệ quả thi hành, và nó là chỗ dễ trượt nhất của cả mục:** một bước dọn chỉ làm `rm .env`
+> **trông như đã vá và KHÔNG vá** — bản sao ② còn nguyên, và giờ **không còn `.env` để ai nhìn thấy
+> vấn đề**. Đúng luật 17/08: *bản vá đúng có thể làm IM một cổng đang hỏng vì lý do khác.*
+> **Dọn phải là `compose down -v` RỒI `rm .env`, và phải chạy trong `always()`** — 5 `always()` hiện
+> có đều là `upload-artifact`, **không cái nào dọn gì.**
+
+### 15.3 Định hạng DƯỚI GIẢ ĐỊNH PERSISTENT — giả định đắt nhất khi sai
+
+Bốn tính chất, [ĐO] hoặc suy trực tiếp từ [ĐO]:
+
+| | |
+|---|---|
+| **Ai đọc được** | mọi job của **mọi team trong cohort** chạy trên cùng runner — theo **thiết kế** của BTC, không phải do lỗi cấu hình |
+| **Đọc bằng gì** | `cat .env` · `docker inspect` · `docker exec`. **Không cần đặc quyền nào** ngoài việc chạy được một job |
+| **Kéo dài bao lâu** | **vô hạn** — 0 bước dọn, không TTL, không `always()` nào chạm tới |
+| **Có phát hiện được không** | **KHÔNG.** Không log nào ghi ai đọc `.env`; khoá dùng lại được **im lặng** ở bất cứ đâu |
+
+> ## 🔴 Hạng: **CHẶN việc chuyển `runs-on`** — không phải sự cố P0
+>
+> **Không phải P0** vì [ĐO] cho thấy **chưa job nào chạy trên self-hosted** ⟹ **chưa có gì bị lộ**.
+> **Là CHẶN** vì ba tính chất trên **có hiệu lực ngay lời-gọi-job đầu tiên** sau khi `runs-on` đổi,
+> và **bản vá rẻ hơn nhiều so với việc xoay khoá + kiểm hoá đơn sau đó.**
+
+**Điều làm nó nặng hơn một khoá CI thông thường:** đây là khoá của **một nhà cung cấp TRẢ TIỀN**, và
+sổ chi tiêu của đội **không đối chiếu được với bảng điều khiển nhà cung cấp** (§5.A4 vẫn treo). ⟹ Một
+người dùng lại khoá này để tiêu tiền sẽ **không hiện ra ở đâu trong dụng cụ đo của ta** cho tới khi
+ai đó mở hoá đơn. **Ta không có cửa nào để thấy.**
+
+### 15.4 Cái gì ĐỔI nếu hoá ra EPHEMERAL — đọc thẳng, không định hạng lại
+
+| | persistent | ephemeral |
+|---|---|---|
+| `.env` còn lại | 🔴 vô hạn | ✅ chết theo máy |
+| container mang khoá | 🔴 chạy tiếp | ✅ chết theo máy |
+| volume CSDL CI | 🔴 tích luỹ | ✅ chết theo máy |
+| đụng cổng giữa các team | 🔴 có | ✅ không |
+| **khoá đi qua máy KHÔNG PHẢI của ta** | 🔴 có | 🔴 **VẪN CÓ** |
+
+⟹ **Ephemeral hạ từ CHẶN xuống 🟡**, không xuống 🟢. **Một dòng sống sót qua cả hai thế giới:** khoá
+thật vẫn **rót xuống đĩa một máy do BTC quản trị**, và BTC có quyền quản trị trên máy đó. Ephemeral
+bảo vệ khỏi **team khác**, **không** bảo vệ khỏi **chủ máy**.
+
+**Và bản vá §15.2 nên land BẤT KỂ câu trả lời là gì** — nó rẻ (hai dòng trong `always()`), nó đúng
+trong cả hai thế giới, và **nó không phải chờ BTC**.
+
+### 15.5 Xoay `OPENAI_API_KEY` — có, và mốc thì khai theo điều kiện
+
+- **Bây giờ: KHÔNG cần** *vì lý do này*. [ĐO] chưa job self-hosted nào chạy ⟹ chưa phơi nhiễm.
+- 🔴 **Xoay NGAY nếu** một job self-hosted chạy **trước khi** bản vá §15.2 land. Đó là điều kiện
+  **quan sát được**, không phải một phán đoán — ai cũng kiểm được bằng `runs-on` + lịch sử Actions.
+- **Xoay khi kết thúc cohort, bất kể chuyện gì xảy ra.** Lý do: khoá đã tồn tại trên hạ tầng của một
+  bên thứ ba trong suốt kỳ, và *"không có bằng chứng bị đọc"* ≠ *"có bằng chứng không bị đọc"* — ta
+  **không có cửa nào để phân biệt hai câu ấy** (§15.3).
+
+⚠️ **Việc xoay này KHÁC hẳn `FIELD_ENCRYPTION_KEY`** — xoay `OPENAI_API_KEY` **không phá dữ liệu nào**,
+không cần script nạp lại, không có 738 dòng nào phụ thuộc. **Rẻ. Đừng để nó bị lây tâm lý "không xoay
+khoá" từ cảnh báo STATE §1** — cảnh báo ấy nói về một khoá khác, vì một lý do khác.
+
+### 15.6 Container bỏ lại — định hạng riêng, và nó THẤP hơn khoá
+
+CSDL trong container CI là **dữ liệu seed** (`fin05_ci`), không phải khách thật — cùng bộ sinh mà tôi
+đã đo cả ngày (`0xxx0000NN`). ⟹ **Phơi nhiễm dữ liệu: 🟢 thấp.**
+
+**Nhưng hai thứ khác thì không thấp:** ① container **giữ cổng** ⟹ team khác dựng service sẽ **đụng
+cổng**, và triệu chứng sẽ là *"CI của họ hỏng"*, không phải *"máy còn rác của ta"* — **một lỗi rất tốn
+thời gian của người khác**; ② container **mang bản sao ② của khoá** (§15.2) — **đó mới là lý do phải
+dọn nó**, không phải vì CSDL.
+
+### 15.7 Tóm tắt cho PO — ba dòng
+
+```
+① Bản vá dọn (compose down -v + rm .env, trong always())  →  LAND TRƯỚC khi đổi runs-on.
+                                                              Đúng trong CẢ HAI thế giới, không chờ BTC.
+② Câu ephemeral của BTC                                   →  quyết CHẶN hay 🟡, KHÔNG quyết ① .
+③ Xoay OPENAI_API_KEY cuối cohort                          →  rẻ, không phá dữ liệu. Và xoay NGAY
+                                                              nếu ① land sau một lượt self-hosted.
+```
+
+---
+
+## §16. ⭐ Câu PO-agent hỏi: **còn chỗ nào dựa vào một bảo đảm KHÔNG KHAI?**
+
+Chẩn đoán của họ đúng và tôi phát biểu lại cho gọn: `ubuntu-latest` **bị huỷ sau mỗi job** là một tính
+chất **ta chưa từng khai, chưa test nào canh, chưa ADR nào nhắc** — và nó đang gánh **BỐN việc**:
+dọn `.env` · dọn container · dọn volume · chống đụng cổng. **Một cơ chế gánh bốn việc ta không hề giao
+cho nó**, và ta chỉ biết mình đứng trên nó vào đúng lúc sắp rút nó đi.
+
+Đi tìm chỗ khác cùng hình dạng. Tiêu chí tôi khai trước: **① có một tính chất đang được DỰA VÀO ·
+② không khai ở contract/ADR/test nào · ③ mất đi thì hỏng IM LẶNG.**
+
+### 🔴 16.1 Độ bền của nhật ký kiểm toán — ứng viên MẠNH NHẤT, và tôi suýt phát biểu sai về nó
+
+```
+[ĐO] grep -rn "logs_data"  →  docker-compose.yml:127, :229.  HẾT.
+     tests/ · contracts/ · docs/DECISIONS.md  →  0 hit
+```
+
+`access.log` là **cơ chế bù duy nhất của Pha 1 ADR-025** — thứ đứng thay cho `assigned_to` chưa tồn
+tại. Nó sống sót qua `recreate` **chỉ vì đúng một dòng compose khai một volume có tên**. Đổi sang
+bind-mount, sang volume ẩn danh, hay dọn tay một lần — **nhật ký thành theo-container**, và:
+
+- **không test nào đỏ** · **không cổng nào kêu** · **triệu chứng là một tệp NGẮN HƠN**, thứ không ai
+  nhìn cho tới khi cần điều tra một sự cố **đã xảy ra rồi**.
+
+> **Tôi đã tự dự đoán sai về đúng cơ chế này ở §2.4** — tưởng nó nằm trong lớp writable và chết theo
+> `recreate`. `docker inspect` cho thấy ngược lại. **Việc tôi phải đi ĐO mới biết chính là bằng chứng
+> nó chưa được khai ở đâu cả.** Nếu có một dòng trong ADR-025 hoặc một test, tôi đã đọc ra thay vì
+> đoán — và đoán sai.
+
+### 16.2 "Không có dữ liệu khách THẬT" — một tư thế, không phải một cơ chế
+
+Mọi kết luận PII của tôi hôm nay (§3.3, §3.4, §11) đứng một phần trên việc bộ dữ liệu là **tổng hợp**
+(`users.phone` = dãy sinh `0xxx0000NN`). **Không cơ chế nào ngăn dữ liệu thật đi vào** — không cổng
+nhập, không cờ môi trường, không CHECK. Nó đúng **vì chưa ai nạp**, không vì có gì chặn.
+
+**Và nó ĐÃ rò một lần, đo được:** 4 chuỗi dạng SĐT trong lời khai **không thuộc bộ seed** (§3.3). Tức
+tính chất này **đã bị vi phạm ở quy mô nhỏ**, và thứ phát hiện ra là **một phép đo tình cờ**, không
+phải một cổng.
+
+### 16.3 `heldout_set.jsonl` niêm phong · quy tắc `-p` cho ba ngăn xếp
+
+Cả hai **có khai** (STATE §1) nhưng **chỉ khai bằng CHỮ**: không cơ chế nào chặn chạy heldout lần hai,
+không cơ chế nào chặn `compose` thiếu `-p`. **Khai bằng chữ tốt hơn không khai** — nên tôi xếp chúng
+**dưới** 16.1/16.2 — nhưng cả hai vẫn thoả tiêu chí ③: **hỏng im lặng**, và hỏng **không đảo ngược
+được** (heldout đã nhìn thì không niêm lại được; `down -v` nhầm ngăn xếp thì không hoàn nguyên được).
+
+### 16.4 Chỗ tôi KIỂM và thấy nó SẠCH — ghi để không ai đi tìm lại
+
+Ứng viên mạnh nhất tôi nghĩ ra là **`thread_id` của kho checkpoint**: nếu client đặt được `thread_id`
+thì đọc được trạng thái hội thoại của người khác — BOLA ở tầng LangGraph. **[ĐO] `main.py:645`:**
+
+```
+thread_id=f"{current_user.user_id}:{current_user.iat}"     ← dẫn từ CLAIM CỦA JWT, server tự dựng
+```
+
+**Client không chạm được.** Và nó **có khai** — ba chú thích (`main.py:315`, `:488`, `:498`) giải thích
+vì sao `iat` phải giữ nguyên qua refresh **chính vì** `thread_id` phụ thuộc nó. ⟹ **Không phải bảo đảm
+không khai. Đây là một quyết định có ý thức, được ghi lại, ở đúng ba chỗ người ta sẽ phá nó.**
+Ghi ra vì §16 mà chỉ liệt kê chỗ hỏng thì thành một danh sách thiên lệch — **và một mục "đã kiểm,
+sạch" là thứ giữ cho danh sách này đọc được.**
+
+### 16.5 Nếp kiểm đề nghị, rút từ cả năm mục trên
+
+> **Một tính chất được DỰA VÀO mà không nêu được nó khai ở ĐÂU, thì nó không phải một bảo đảm — nó là
+> một THÓI QUEN của môi trường hiện tại.**
+> Phép thử một câu: ***"nếu ngày mai thứ này biến mất, cái gì kêu?"*** — không trả lời được thì **thứ
+> đang giữ ta an toàn là sự may mắn về cấu hình**, và may mắn thì không xuất hiện trong diff.
