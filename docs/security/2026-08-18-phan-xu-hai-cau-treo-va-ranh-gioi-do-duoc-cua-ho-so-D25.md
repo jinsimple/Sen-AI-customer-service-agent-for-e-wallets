@@ -1246,3 +1246,102 @@ collection Chroma (`chuan_hoa`/`model_embed` đang mang giá trị gì trên ả
 - **Không** kết luận ai sai. §3 hiến pháp ghi rõ *ADR trước, code sau*; phần "code sau" **chưa tới**.
   Vấn đề là **không chỗ nào theo dõi việc nó chưa tới** — y hệt lời §5.D2.
 - **Không** thiết kế cơ chế duyệt. Đó là tính năng nghiệp vụ, thuộc PO + tech-lead.
+
+---
+
+## §13. Mẫu số đầy đủ cho §11 — ba ngăn xếp. **Và backfill ADR-032 ② mới chạy trên MỘT trong BA.**
+
+> Cửa sổ dựng ảnh đã đóng (PO-agent nghiệm thu 09:30, ảnh `d5b73a04d6ef`). Toàn mục là `psql`
+> **chỉ-đọc** trên ba ngăn xếp **cục bộ**. **Production `app.adaptivealgo.uk` KHÔNG chạm** — §1 quy
+> định chỉ-đọc + thăm dò phải báo trước; nếu §11 cần số của nó thì đó là **việc xin phép PO thật**,
+> không phải việc tôi tự đi. Xem §13.4.
+
+### 13.1 🔴 Phát hiện ngoài kế hoạch: `fin05ttl` **CHƯA** được backfill
+
+Tôi đi đo mẫu số cho §11 và đụng phải thứ này trước:
+
+```
+                       complaints   PLAINTEXT      trạng thái
+fin05                     761            0        ✅ đã backfill
+fin05ttl                  742          738        🔴 NGUYÊN VẸN, chưa chạm
+fin05do                   607            0        ✅ sạch (nạp sau khi EncryptedText đã có)
+```
+
+[ĐO] thêm trên 738 dòng của `fin05ttl`: **105 dòng chứa chữ Việt có dấu**, mới nhất **14/08** —
+**đúng cùng tập dữ liệu** đã nằm ở `fin05` trước khi backfill chạy.
+
+⟹ **Phát biểu *"738 → 0"* đúng cho `fin05`, và chỉ cho `fin05`.** Tính trên cả ba ngăn xếp cục bộ,
+số dòng lời khai còn plaintext là **738**, không phải **0**.
+
+### 13.2 Cơ chế — và lần này nó nằm ở PHÉP NGHIỆM THU, không ở bản vá
+
+Bản vá **đúng**. Phép nghiệm thu cũng **chặt** — PO-agent đọc lại qua ORM trong container, 761 đọc
+được, 0 dòng còn ở dạng bản mã. Không ai làm ẩu.
+
+> 🔴 **Phép nghiệm thu thừa hưởng MẪU SỐ của bản vá.** Bản vá chạy trên `fin05` ⟹ người kiểm mở
+> `fin05` ⟹ kết quả sạch ⟹ **kết luận mang tên "backfill xong", không mang tên "backfill xong TRÊN
+> `fin05`"**. Tập tự đến đã bị lọc bởi **chính thao tác đang được kiểm**.
+
+Đây là **§8 áp lên một phép NGHIỆM THU** thay vì lên một phép đo — và nó là chỗ hiểm hơn, vì nghiệm
+thu là bước ta **dựng ra để bắt** thiếu sót. **Ba ngăn xếp là một tính chất đã được ghi ở dòng thứ tư
+của STATE §1**; không ai phải đi tìm nó. Nó chỉ **không có mặt trong câu hỏi**.
+
+**Và tôi mắc đúng lỗi ấy cùng ngày, độc lập:** §11 định hạng kho checkpoint **chỉ trên `fin05`**, và
+tôi đã tự khai điều đó ở §11.9 — nhưng **khai một khoảng trống không lấp nó**. Cùng hình dạng với ca
+§10.2: nêu tên một thiếu sót rồi đi tiếp. **Hai người, hai artefact, một bộ lọc, một ngày.**
+
+### 13.3 Mẫu số đầy đủ cho §11 — kho checkpoint, ba ngăn xếp
+
+```
+                    blob(messages)   chứa HumanMessage   chứa tiếng Việt   dung lượng
+fin05                    3.597            3.597              3.413          105 MB
+fin05ttl                 2.482            2.482              2.318           95 MB
+fin05do                     62               62                 59          127 kB
+─────────────────────────────────────────────────────────────────────────────────────
+TỔNG cục bộ              6.141            6.141              5.790         ~200 MB
+```
+
+⟹ **Mẫu số thật là 6.141, không phải 3.597 — gấp 1,7×.** Và `fin05ttl` **mang cùng hình dạng nội
+dung** (100% blob chứa `HumanMessage`, 93% chứa tiếng Việt), không phải một kho rỗng hay kho giả.
+
+**Định hạng §11: GIỮ NGUYÊN mức CAO. Không nâng.** Lý do không nâng, nói rõ vì hôm nay tôi đã phải
+tự hạ hai lần: mẫu số lớn hơn **không đổi bản chất** — vẫn cùng biên tin cậy, vẫn không có kẻ tấn
+công mới, vẫn không có đường ra ngoài hạ tầng. Nó **đổi ĐỘ CHÍNH XÁC của hồ sơ**, và hồ sơ này sắp
+được PO thật dùng để quyết một ADR. **Một định hạng đúng với mẫu số sai vẫn là một định hạng phải
+làm lại.**
+
+### 13.4 Câu cần một QUYẾT ĐỊNH, không cần thêm phép đo
+
+Cả hai mục trên quy về **một câu chưa ai trả lời**:
+
+> **`fin05ttl` và `fin05do` là ngăn xếp DÙNG MỘT LẦN, hay là dữ liệu phải được bảo vệ như `fin05`?**
+
+Hai đường, cả hai chấp nhận được, **và sự im lặng thì không**:
+
+- **Nếu DÙNG MỘT LẦN** ⟹ khai ra, và mọi phát biểu về mã hoá at-rest phải **kèm phạm vi** (*"trên
+  ngăn xếp phục vụ"*). `fin05ttl` giữ 738 dòng plaintext là **chấp nhận được có ý thức**.
+- **Nếu KHÔNG** ⟹ **backfill chưa xong**, và cả hai mục ADR-032 (nhánh giải mã ba trạng thái +
+  script nạp lại) phải chạy trên `fin05ttl`.
+
+**Tôi không quyết thay** — đây là phạm vi hạ tầng/sản phẩm. Nhưng tôi ghi hệ quả của việc **không
+quyết**: hôm nay đội đang tin *"lời khai khách đã mã hoá at-rest"*, và **câu đó sai với 738 dòng**.
+Nó là **đúng loại phát biểu Luật B cảnh báo** — nghe dứt khoát, đi vào hồ sơ, không ai kiểm lại.
+
+### 13.5 Quần thể thứ TƯ — tôi KHÔNG chạm, và nêu để nó không bị quên
+
+**Production `app.adaptivealgo.uk`.** §1 STATE: **CHỈ ĐỌC với mọi phiên, thăm dò phải báo trước.**
+Tôi **không gửi một request nào**, không đo, không suy đoán.
+
+**Nêu ra vì hai lẽ:** ① mọi số ở §11 và §13 là của **ba ngăn xếp cục bộ** — nếu ai trích chúng như
+*"toàn hệ thống"* thì đó là một mẫu số sai nữa; ② nếu định hạng §11 dùng để quyết một ADR có phạm vi
+production, thì **quần thể quyết định nhất là quần thể duy nhất chưa ai đo** — và đó là **câu xin
+phép PO thật**, không phải câu đo.
+
+### 13.6 Điều tôi KHÔNG kết luận
+
+- **Không** kết luận `fin05ttl` là một sự cố. Nó là **một bản vá chạy chưa hết phạm vi**, và phạm vi
+  đúng thì **chưa ai định nghĩa** (§13.4). Hai câu khác nhau.
+- **Không** kết luận ai làm sai. Bản vá đúng, phép nghiệm thu chặt; thiếu sót nằm ở **câu hỏi**, không
+  ở **thao tác**.
+- **Không** đo production. Không đo metadata Chroma (§12.5) — H3 đã gác, đo bây giờ là đo cho một việc
+  chưa chạy.
