@@ -17,7 +17,7 @@
 | **Cây làm việc DÙNG CHUNG** giữa nhiều phiên | 🔴 **Mọi lệnh `git` phải có pathspec.** `stash`/`commit`/`checkout`/`clean` không pathspec sẽ đụng việc dở của phiên khác. Đã gây 3 sự cố. |
 | **Ba ngăn xếp Docker** | `fin05` (demo, kho RAG 378 chunk) · `fin05ttl` (đo) · `fin05do` (đo, kho RỖNG) |
 | **Bắt buộc `-p`** | `docker compose -p fin05 …` — thiếu `-p` là hạ ngăn xếp khác |
-| **Chạy test** | `docker exec … pytest` (an toàn). `P-121-new/.venv` chạy được test nhưng **CẤM dùng để đo kích thích gửi model** (lệch `langchain-core` với container) |
+| **Chạy test** | 🔴 **`docker exec … pytest` NAY KHÔNG CHẠY ĐƯỢC CẢ SUITE** — `.dockerignore:11` loại `eval/`, 3 tệp test đọc `eval/` ⟹ `Interrupted`, **0 ca chạy, hiện ra như "0 failed"**. **Chạy cổng từ HOST.** `docker exec` chỉ còn đúng cho tập con không đụng `eval/`. `P-121-new/.venv` **CẤM dùng để đo kích thích gửi model** (lệch `langchain-core`) |
 | **Biến bắt buộc** | `JWT_SECRET_KEY` · `FIELD_ENCRYPTION_KEY` · `REDIS_URL` (`fake://ci` cho test) |
 | 🔴 **`FIELD_ENCRYPTION_KEY`** | **KHÔNG được xoay** nếu chưa có script mã hoá lại — xoay là **mất vĩnh viễn** dữ liệu đã mã hoá |
 | **Production** `app.adaptivealgo.uk` | **CHỈ ĐỌC** với mọi phiên. Thăm dò phải báo trước |
