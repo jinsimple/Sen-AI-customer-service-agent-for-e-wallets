@@ -188,3 +188,70 @@ hoàn nguyên: băm khớp lại 71204425330e
 ```
 ⟹ nửa xanh **biết đỏ**, và **phân biệt được hai kiểu hỏng** thay vì gộp thành
 "khác nền". Đúng Luật 16: N mệnh đề cần N đột biến.
+
+---
+
+# ⑪ SAU BACKFILL — gỡ nhãn, và đọc lại CỔNG KHẲNG ĐỊNH CÁI GÌ (Luật J)
+
+Backfill land `5939b6a`. **Tôi đo lại bằng phép của mình, không nhận số relay:**
+
+```
+fin05      ma_hoa=761              ← 738 trần → 0
+fin05ttl   ma_hoa=4   tran=738     ← 🔴 CÒN NGUYÊN
+fin05do    ma_hoa=607              ← sạch vì HẠT GIỐNG SINH SAU, không do backfill
+production ——                      ← CHƯA AI ĐO
+```
+🔴 **BỐN quần thể, đừng gộp.** `fin05do` sạch **không phải bằng chứng backfill
+tốt** — nó chưa bao giờ bẩn. Đọc nó thành "hai ngăn xếp đã sạch" là **dân số
+pha tạp**, đúng lớp lỗi §8.
+
+**Cổng nay khẳng định gì** — đọc, không chỉ ghi nhận màu:
+```
+tong        761  (không đổi)      ⟹ không mất dòng
+vân tay gộp 2805e52d1a4d0bed (không đổi) ⟹ NỘI DUNG BẢO TOÀN, không bị thay
+                                            bằng thứ khác cho đúng hình dạng
+chua_ma_hoa 738 → 0 · khoa_khac 0 · boc_hai_lan 0
+```
+Vân tay không đổi là mốc **không ai đặt ra trước** khi tôi viết cổng: nó phân
+biệt *"đã mã hoá"* với *"đã mã hoá ĐÚNG THỨ CŨ"*.
+
+## ⑫ Ca đối chứng dương — thứ cổng này THIẾU cho tới hôm nay
+
+Cổng chuyển ĐỎ → XANH nhờ backfill. **Nhưng không ai chứng minh nó CÒN BIẾT ĐỎ.**
+Nửa *"im lúc bình thường"* có rồi; nửa *"KÊU lúc bất thường"* thì trống — và
+Luật A nói nửa sau **chỉ chứng minh được bằng ca đối chứng**.
+
+Cách rẻ nhất trông có vẻ là nhét một dòng plaintext giả vào CSDL. **Không làm** —
+ghi vào ngăn xếp đang phục vụ (Luật I).
+
+**Không cần.** `fin05ttl` **chưa được nạp lại** ⟹ đó là một **quần thể bẩn có
+thật, sẵn có, không do ta tạo ra**. Chĩa đúng phép đo ấy sang đó thì cổng phải
+kêu. Xác minh **hai chiều**:
+```
+chĩa vào fin05ttl (bẩn)  → PASSED       ← cổng KÊU đúng
+chĩa vào fin05   (sạch)  → "KHÔNG ĐO ĐƯỢC … mất quần thể bẩn để chứng minh
+                            cổng biết KÊU. Đừng bỏ ca này."
+```
+Chiều thứ hai là phần quan trọng: ngày `fin05ttl` cũng được nạp lại, ca này
+**báo mất khả năng đối chứng** thay vì lặng lẽ xanh.
+
+## ⑬ Trạng thái hai job CI, đo ở host
+
+```
+-m "not security_finding"   577 passed · 42 skipped · 1 deselected · 11 xfailed   ✅
+-m "security_finding"       1 failed  ← P0 live-chat, file sửa lần cuối 12/08
+docker diff quanh mọi lượt đo:  Δ = 0
+```
+Ca đỏ còn lại **không phải hồi quy** — nó đã đỏ từ trước và **phân định ấy được
+đưa ra TRƯỚC khi backfill chạy**, không phải giải thích sau.
+
+## ⑭ Một chỗ tôi suýt báo sai, ghi lại vì nó đúng lớp lỗi cả ngày
+
+Lệnh chạy suite của tôi **vượt hạn hai lần** (2 phút, rồi 7 phút). Phản xạ đầu
+là *"bộ ca treo sau bản vá của tôi"*. Chạy lại có mốc thời gian: **`exit 0`,
+`577 passed` trong `106s`** — cái vượt hạn là **cửa sổ lệnh của tôi** (tôi nhét
+**hai** lượt quét toàn suite vào một lệnh), không phải bộ ca.
+
+> **"Lệnh của tôi hết giờ" ≠ "thứ tôi đo bị treo".** Suýt nữa tôi báo một kết
+> luận thay vì một triệu chứng — đúng Luật H, lần thứ tư trong ngày, lần này
+> là tôi.

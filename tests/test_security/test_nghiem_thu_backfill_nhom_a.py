@@ -171,16 +171,26 @@ def test_backfill_khong_lam_mat_dong_hay_doi_noi_dung():
     )
 
 
-@pytest.mark.security_finding
 @pytest.mark.skipif(not _song(), reason=f"container {BACKEND} không chạy")
 def test_cot_nhom_a_da_duoc_nap_lai_het():
     """🔴 ĐIỀU KIỆN NGHIỆM THU của ADR-032 việc ② — cố ý ĐỎ tới khi backfill chạy.
 
-    `security_finding`: finding P0 chưa vá, chạy ở job riêng (`pytest.ini`).
-    Xanh khi 738 dòng đã được nạp lại — lúc đó gỡ nhãn.
+    🟢 **18/08 — GỠ NHÃN `security_finding`.** Backfill đã chạy (`5939b6a`);
+    ca chuyển ĐỎ → XANH và nay là **test hồi quy thường**.
 
-    Ca này **một mình không đủ** để nghiệm thu: nó xanh cả khi backfill xoá
-    sạch bảng. Nó chỉ có nghĩa khi đọc **cùng** ca trên.
+    🔴 **Luật J — nó khẳng định CÁI GÌ:** *"trong tập đóng băng tại mốc
+    `2026-08-18 02:40:29 UTC`, không dòng nào còn mang dạng bản rõ"* —
+    `complaints.description_raw` **738 trần → 0**, `tong` vẫn **761**, vân tay
+    gộp **không đổi** (`2805e52d1a4d0bed`) ⟹ nội dung được **bảo toàn**, không
+    phải bị thay bằng thứ khác cho đúng hình dạng.
+
+    Ca này **một mình không đủ**: nó xanh cả khi backfill xoá sạch bảng. Nó chỉ
+    có nghĩa khi đọc **cùng** `test_backfill_khong_lam_mat_dong_hay_doi_noi_dung`
+    — ca ấy mới là ca bám `tong` và vân tay.
+
+    🔴 Và nó nói về **MỘT quần thể**: `fin05`. `fin05ttl` còn nguyên 738 dòng
+    trần, `fin05do` sạch vì hạt giống sinh sau (không do backfill),
+    **`production` chưa ai đo**.
     """
     nen = _nen()
     moc = nen["__moc_thoi_gian__"]

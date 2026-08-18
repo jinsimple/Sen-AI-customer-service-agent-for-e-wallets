@@ -75,15 +75,15 @@ COT_NHOM_A = (
 TIEN_TO_FERNET = "gAAAAA"
 
 
-def _psql(sql: str) -> list[list[str]]:
+def _psql(sql: str, container: str = POSTGRES) -> list[list[str]]:
     r = subprocess.run(
-        ["docker", "exec", POSTGRES, "sh", "-c",
+        ["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", container, "sh", "-c",
          f'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F "|" -c "{sql}"'],
         capture_output=True, text=True, timeout=180,
     )
     if r.returncode != 0:
         pytest.fail(
-            f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'sạch'): không truy vấn được {POSTGRES} — "
+            f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'sạch'): không truy vấn được {container} — "
             f"{(r.stderr or r.stdout)[:300]}"
         )
     return [d.split("|") for d in r.stdout.strip().splitlines() if d.strip()]
@@ -112,7 +112,7 @@ def phan_loai(gia_tri: str | None) -> str:
     return "ma_hoa" if gia_tri.startswith(TIEN_TO_FERNET) else "tran"
 
 
-def _dem(bang: str, cot: str) -> dict[str, int]:
+def _dem(bang: str, cot: str, container: str = POSTGRES) -> dict[str, int]:
     """Phân bố `{ma_hoa, tran, khong_do_duoc}` trên TOÀN BẢNG.
 
     🔴 KHÔNG `LIMIT`. ADR-032 ghi lại chính xác cách sự cố này lọt: security
@@ -125,7 +125,7 @@ def _dem(bang: str, cot: str) -> dict[str, int]:
         f"WHEN {cot} LIKE '{TIEN_TO_FERNET}%' THEN 'ma_hoa' ELSE 'tran' END AS loai, "
         f"count(*) FROM {bang} GROUP BY 1;"
     )
-    return {h[0]: int(h[1]) for h in _psql(sql) if len(h) == 2}
+    return {h[0]: int(h[1]) for h in _psql(sql, container) if len(h) == 2}
 
 
 def _cot_van_ban() -> list[tuple[str, str]]:
@@ -152,16 +152,33 @@ def test_doi_chung_phan_loai():
         assert phan_loai(rong) == "khong_do_duoc", f"{rong!r} bị xếp sai rổ"
 
 
-@pytest.mark.security_finding
 @pytest.mark.skipif(not _kho_dang_song(), reason=f"container {POSTGRES} không chạy")
 @pytest.mark.parametrize(("bang", "cot"), COT_NHOM_A, ids=lambda x: x)
 def test_cot_nhom_a_khong_co_dong_nao_nam_plaintext(bang, cot):
     """(a) NEO ĐẶC TẢ — mỗi cột Nhóm A phải 100% mang hình dạng mã hoá.
 
-    `security_finding`: đây là finding P0 **CHƯA VÁ**, cố ý đỏ làm bằng chứng,
-    chạy ở job riêng (`pytest.ini`). Khoản nợ đã có ADR-032 và đã giao người
-    (script backfill trong `migrations/`). Cổng xanh khi backfill chạy xong —
-    lúc đó gỡ nhãn.
+    🟢 **18/08 — GỠ NHÃN `security_finding`.** Backfill đã chạy (`5939b6a`) và
+    cổng tự chuyển ĐỎ → XANH. Nay nó là **test hồi quy thường**: mở lại lỗ là
+    đỏ ngay, không núp được dưới nhãn nữa.
+
+    🔴 **Luật J — cổng này nay khẳng định CÁI GÌ, đọc chứ đừng chỉ ghi nhận màu:**
+
+        TRƯỚC  complaints.description_raw   23 mã hoá /  738 trần
+        SAU    complaints.description_raw  761 mã hoá /    0 trần
+
+    Nó khẳng định *"không giá trị nào trong bốn cột Nhóm A mang hình dạng bản
+    rõ **trên ngăn xếp đang đo**"*. Nó **KHÔNG** khẳng định giá trị ấy giải mã
+    được — việc đó do `test_nghiem_thu_backfill_nhom_a` canh, và **hai ca phải
+    đọc cùng nhau**: cổng này một mình vẫn xanh khi bảng bị xoá sạch.
+
+    🔴 **VÀ NÓ CHỈ NÓI VỀ MỘT QUẦN THỂ.** Backfill chạy trên **`fin05`**.
+    [ĐO] 18/08, cùng một câu truy vấn, ba ngăn xếp:
+
+        fin05      ma_hoa=761              ← đã nạp lại
+        fin05ttl   ma_hoa=4  tran=738      ← 🔴 CÒN NGUYÊN khoản nợ
+        fin05do    ma_hoa=607              ← sạch vì hạt giống sinh sau, không do backfill
+
+    `production` **chưa ai đo**. Bốn quần thể, đừng gộp.
     """
     phan_bo = _dem(bang, cot)
     tong = sum(phan_bo.values())
@@ -182,7 +199,45 @@ def test_cot_nhom_a_khong_co_dong_nao_nam_plaintext(bang, cot):
     )
 
 
-@pytest.mark.security_finding
+TTL = os.environ.get("FIN05_TTL_POSTGRES_CONTAINER", "fin05ttl-postgres-1")
+
+
+def _song(container: str) -> bool:
+    r = subprocess.run(["docker", "ps", "-q", "-f", f"name={container}"],
+                       capture_output=True, text=True)
+    return bool(r.stdout.strip())
+
+
+@pytest.mark.skipif(not _song(TTL), reason=f"container {TTL} không chạy")
+def test_doi_chung_cong_KEU_tren_quan_the_chua_nap_lai():
+    """🔴 Nửa **KÊU LÚC BẤT THƯỜNG** của Luật A — trên VẬT THẬT, 0 byte ghi ra.
+
+    Nửa *"im lúc bình thường"* đã có (`fin05` xanh). Nửa còn lại chỉ chứng minh
+    được bằng **ca đối chứng**, và cho tới 18/08 nó chưa có: cổng chuyển ĐỎ →
+    XANH nhờ backfill, nhưng **không ai chứng minh nó còn biết đỏ**.
+
+    Cách rẻ nhất trông có vẻ là nhét một dòng plaintext giả vào CSDL — **không
+    làm**: đó là ghi vào ngăn xếp đang phục vụ (Luật I).
+
+    Không cần. **`fin05ttl` CHƯA được nạp lại** ([ĐO] 18/08: `ma_hoa=4 ·
+    tran=738`) ⟹ nó là một quần thể bẩn **có thật, sẵn có, không do ta tạo ra**.
+    Chĩa đúng phép đo ấy sang đó thì cổng **phải kêu**.
+
+    Nếu ngày nào đó `fin05ttl` cũng được nạp lại, ca này báo **KHÔNG ĐO ĐƯỢC**
+    chứ không im lặng xanh — mất quần thể bẩn nghĩa là mất khả năng chứng minh
+    cổng biết đỏ, và điều đó phải **hiện ra**, không được lặng lẽ thành "đạt".
+    """
+    phan_bo = _dem("complaints", "description_raw", TTL)
+    tran = phan_bo.get("tran", 0)
+    if tran == 0:
+        pytest.fail(
+            f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'đạt'): {TTL} nay cũng sạch "
+            f"({phan_bo}) — mất quần thể bẩn để chứng minh cổng biết KÊU. "
+            "Tìm quần thể khác hoặc đổi cách đối chứng; đừng bỏ ca này."
+        )
+    assert tran > 0 and phan_bo.get("ma_hoa", 0) >= 0, phan_bo
+
+
 @pytest.mark.skipif(not _kho_dang_song(), reason=f"container {POSTGRES} không chạy")
 def test_khong_cot_van_ban_nao_pha_tron_ma_hoa_voi_tran():
     """(b) TỰ DÒ CẢ HỌ — không cột nào được vừa có dòng `gAAAAA…` vừa có dòng trần.
