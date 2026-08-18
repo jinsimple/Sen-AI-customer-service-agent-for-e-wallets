@@ -76,3 +76,64 @@ chỉ trở thành tin xấu nếu **XANH** — khi ấy nghi theo thứ tự �
 - **Không** phủ nhãn nằm trong `json`/`jsonb` (10 cột — đúng vùng mù đã khai ở
   cổng plaintext).
 - **Không** nói gì về `production` hay `fin05do`; nó đo **ngăn xếp được trỏ tới**.
+
+---
+
+# ⑥ KẾT QUẢ — dự báo ở `4103aa4`, viết trước khi gõ dòng nào. **5/5 TRÚNG.**
+
+```
+🔴 20 NHÃN KHÔNG CÓ DÒNG NÀO MANG NÓ
+nguồn ①  20 cột enum bóc từ CHECK  ·  10 CHECK BỊ BỎ QUA vì không phải liệt kê
+nguồn ②  4 cột boolean
+bảng rỗng: —
+```
+
+| # | dự báo | thực tế | |
+|---|---|---|---|
+| 1 | cổng ĐỎ | ĐỎ, 20 nhãn | ✅ |
+| 2 | `otp_disclosed = true` thiếu | **thiếu** | ✅ |
+| 3 | ≥2/4 boolean thiếu một phía | **2** (`otp_disclosed` · `note_flagged`) | ✅ |
+| 4 | ≥3 nhãn enum thiếu | **18** | ✅ |
+| 5 | 8–20 / 32 CHECK bị bỏ qua | **10** | ✅ |
+
+## ⑦ Luật J — cổng khẳng định CÁI GÌ. Đối chiếu thật, không tin cổng.
+
+```
+messages.role              staff 237 · customer 230        → agent 0 · system 0
+resolutions.status         approved 8 · pending 3 · rejected 1   → draft 0
+resolutions.reject_reason  (NULL) 11 · khac 1              → 6 giá trị taxonomy = 0
+chat_sessions.status       closed 161                      → waiting 0 · active 0
+```
+Cổng nói đúng từng dòng.
+
+## ⑧ 🔴 HAI PHÁT HIỆN LỚN HƠN `otp_disclosed`
+
+**① Toàn bộ taxonomy lý do từ chối CHƯA TỪNG CÓ MỘT DÒNG NÀO.**
+```
+sai_so_lieu · sai_phan_loai · thieu_can_cu · sai_chinh_sach · trung_case · khach_rut
+                                                                  ⟹ 0 dòng, cả sáu
+đúng MỘT lần từ chối từng xảy ra, và nó dùng ô gộp `khac`
+```
+ADR-019 dựng taxonomy này **để nuôi vòng học Phase 2**. Vòng học ấy hôm nay
+**không có tín hiệu nào** — không phải "ít dữ liệu", mà **rỗng**, và ca duy nhất
+có thì rơi vào ô *"khác"*, tức ô **không dạy được gì**.
+> Và ràng buộc `note` bắt buộc khi `reject_reason='khac'` (ADR-024/INV-17) —
+> nhánh **duy nhất từng bắn** lại đúng là nhánh ngoại lệ.
+
+**② `messages.role = agent` chưa từng có dòng nào**, trên 467 tin.
+`staff 237 · customer 230` — **lời của chính agent không nằm trong bảng
+`messages`**. Hoặc nó ghi ở nơi khác, hoặc giá trị `agent` trong constraint là
+**nhãn chết**. Cần `src/` để trả lời ⟹ **không phải việc của tester**, chuyển
+tech-lead. Nhưng nó chạm một thứ đo được: mọi thống kê đếm "tin của agent" từ
+bảng này **đang trả về 0** và **không ai kêu**.
+
+## ⑨ Vì sao đề bài suýt bỏ sót đúng ca đối chứng của chính nó
+
+`complaints.otp_disclosed` là **boolean, không CHECK nào** ⟹ nguồn ① mù hoàn
+toàn. Nếu tôi làm đúng chữ *"quét mọi CHECK constraint"*, cổng vẫn **ĐỎ 18 nhãn**
+— trông rất thuyết phục — trong khi **im lặng ở đúng cột được nêu ra để chứng
+minh nó hoạt động**. Và không ai kiểm lại, vì cổng đã đỏ rồi.
+
+> **Một cổng đỏ vì 18 lý do đúng vẫn có thể mù ở lý do thứ 19** — và cái đỏ ấy
+> làm người ta **thôi nghi ngờ**. Đây là mặt trái của Luật A: nửa "biết kêu"
+> được chứng minh **không** kéo theo "kêu đủ chỗ".
