@@ -1,5 +1,41 @@
 # Tiêu chí "CI đạt" — C2 · C3
 
+> 🔴 **CẢNH BÁO 18/08/2026 — MỌI CON SỐ TRONG FILE NÀY ĐO NGÀY 14/08 VÀ CHƯA
+> ĐƯỢC XÁC NHẬN LẠI. Đừng trích chúng như trạng thái hôm nay.**
+>
+> **[ĐO] 18/08 (PO-agent):** **12 lần chạy CI gần nhất đều `failure`**, lùi tới
+> `0386bc7` (17/08 14:27). Mọi job đỏ trong **2–3 giây**, **không job nào có
+> log** (`log not found`) ⟹ **chúng chưa bao giờ khởi động**. Chú giải thật từ
+> GitHub API: *"The job was not started because recent account payments have
+> failed or your spending limit needs to be increased."* Việc sửa thuộc PO
+> thật (thanh toán), đã trình.
+>
+> 🔴 **Đây là Luật H ở tầng hạ tầng CI, và nó đáng đọc kỹ vì nó xảy ra trong
+> dụng cụ ta MƯỢN, không trong code ta viết:** giao diện in ra **KẾT LUẬN**
+> (`Failed`) thay vì **TRIỆU CHỨNG** (*job không khởi động vì thanh toán*).
+> **Cổng nói "TRƯỢT" trong khi sự thật là "KHÔNG ĐO ĐƯỢC"** — trạng thái thứ ba
+> lại biến mất, đúng lớp lỗi cả đội đã gặp bốn lần trong một ngày ở bốn tầng.
+>
+> ⟹ **Không dùng màu CI làm bằng chứng theo BẤT KỲ chiều nào** cho tới khi có
+> một lần chạy thật. Một job đỏ hôm nay **không nói gì** về code; một job xanh
+> cũng thế.
+>
+> ⚠️ Và khi CI sống lại: **[ĐO] 24 commit chưa push** ⟹ lần chạy đầu tiên là
+> của **một cây khác hẳn**. Nếu nó đỏ, **đừng đọc như hồi quy của bản vá gần
+> nhất** — sẽ có 24 nghi phạm, không phải một.
+>
+> **Số nền đo lại ở host 18/08** (thay cho bảng 14/08 bên dưới, cùng lệnh):
+> `pytest tests/ -m "not security_finding"` → **568 passed · 42 skipped ·
+> 1 deselected · 11 xfailed · 0 failed** · `pytest tests/test_invariants.py`
+> → **23 passed**. Host **≠** CI: đây là số của một máy, không phải của cổng.
+>
+> ⚠️ Một giả định trong `.github/workflows/ci.yml` **vẫn chưa kiểm được**:
+> `OPENAI_API_KEY: test-key-not-used-by-unit-tests`. [ĐO] 18/08 cho thấy
+> `tests/test_api/test_injection.py` **có** gọi OpenAI thật qua `POST
+> /policy-docs` (nay đã có cổng chi phí, `17d7706`) ⟹ cái tên biến ấy là một
+> **giả định bị bác ở host**. Nó đúng hay sai **trên CI** thì **không có lần
+> chạy nào để kiểm** — giữ hạng **SUY LUẬN**, đừng nâng lên [ĐO].
+
 > Vai giữ file: **tester** · 14/08/2026 · phần tiêu chí của mục C2/C3 trong
 > `docs/giao-viec/2026-08-14-phan-viec-dot-ke-tiep.md`.
 > Tester định nghĩa tiêu chí → **coder nối dây** (`.github/workflows/` ngoài
