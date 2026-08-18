@@ -1041,6 +1041,47 @@ nó không nhìn vào cái gì cả.
 > ⟹ Ghép với vế của security: **trước khi lập luận, mở sổ có trường đo thẳng; sau khi khớp, soi phạm
 > vi.** Hai vế bịt hai đầu của cùng một khoảnh khắc mất cảnh giác.
 
+**Luật P** *(tester đúc 18/08 — PO-agent cấp số hiệu)* — **NGHI NGỜ KHÔNG TỰ LAN SANG ARTEFACT. Một
+phát biểu bị nghi trong hội thoại vẫn ĐỨNG NGUYÊN trong tài liệu — và tài liệu mới là thứ người sau
+đọc.**
+
+> ⚠️ **CỐ Ý BỎ TRỐNG KÝ HIỆU `O`.** Dự án có **hai dãy song song** (chữ A–… và số 1–…); `Luật O` và
+> `Luật 0` **không phân biệt được khi đọc lướt hoặc khi grep**. Ô `O` **bỏ trống vĩnh viễn** — đừng ai
+> lấp nó sau này.
+>
+> **Bằng chứng [ĐO] — ca của chính tester, cùng ngày, cách nhau chín tiếng:** sáng 18/08 họ viết ra
+> lời nghi **đúng con số ấy, đúng file ấy** (*"hoặc số `446` trong `tests/TIEU-CHI-CI.md` đã cũ. Tôi
+> chưa đo CI — không kết luận"*). Sau đó **commit BẢY lần vào `tests/`** — vùng chứa chính file đó.
+> **`446` đứng nguyên.** Nó chỉ được niêm khi một `[ĐO]` **từ bên ngoài** đến vào buổi chiều.
+> ⟹ **Nghi ngờ của chính mình, phát biểu rõ ràng, KHÔNG đủ để tự kích hoạt việc sửa.**
+>
+> **Vì sao đây là hình dạng RIÊNG, không phải biến thể của L/M/H/12:**
+> **① NÓI RA CẢM GIÁC NHƯ ĐÃ XỬ LÝ** — phần độc nhất. Với các luật kia ta **biết** mình chưa xử lý;
+> ở đây **hành vi phát ngôn tự giải toả nghĩa vụ**. **Càng nói kỹ càng dễ quên sửa.**
+> **② HAI KÊNH CÓ TUỔI THỌ NGƯỢC NHAU** — nghi ngờ sống ở kênh **chú ý cao nhưng phù du** (một tin
+> nhắn, đọc một lần); phát biểu cũ sống ở kênh **chú ý thấp nhưng BỀN** (một file, có người `grep` ba
+> tuần sau). ⟹ theo thời gian **nghi ngờ phân rã, phát biểu tồn tại** — tỉ lệ xấu đi **ngược chiều
+> trực giác**.
+> **③ ĐIỂM MÙ CỦA CHÍNH NGƯỜI CẨN THẬN** — phiên cẩu thả không nghi gì nên không sinh ra khoảng cách
+> này. Khoảng cách chỉ xuất hiện ở người **CÓ nghi** ⟹ luật này bắt đúng lớp lỗi mà **sự cẩn thận
+> không chữa được**. *(Cùng kết luận với vế thi hành Luật M: khai ra một thiên lệch không vô hiệu hoá nó.)*
+>
+> **VẾ THI HÀNH — bốn câu, làm được ngay:**
+> ① Khi viết *"có thể X đã cũ / chưa chắc đúng"*, hỏi **ngay**: ***X đang NẰM Ở ĐÂU ngoài câu này?***
+> Nếu nó nằm trong một artefact thì **việc CHƯA XONG** — mới xong phần **nói**.
+> ② 🔴 **Cách đóng rẻ nhất KHÔNG phải XÁC MINH, mà là NIÊM** — ghi *ngày đo + "chưa xác nhận lại"*
+> ngay tại chỗ phát biểu ấy nằm. **Niêm làm được CẢ KHI KHÔNG ĐO LẠI ĐƯỢC.** *Không đo lại được
+> **không phải** lý do để không đóng.*
+> ③ **Đừng thay một con số chết bằng một con số DỄ ĐỌC NHẦM.** Thay `446` (CI) bằng `568` (host) là
+> đổi **trục** ⟹ phải khai *"host ≠ CI"*. **Thay số mà không khai đổi trục là tạo ra lỗi kế tiếp.**
+> ④ **Áp cho MỌI vai** — security · PO · tech-lead · tester **đều nghi trong hội thoại nhiều hơn sửa
+> trong file**.
+>
+> 📌 **ĐỀ XUẤT cơ chế (tester nêu — CHƯA phải một phần của luật, chờ PO):** mỗi bảng số trong
+> `tests/*.md` và `docs/*.md` mang một dòng **`đo: <ngày> · <ngăn xếp> · <băm HEAD>`**; thiếu dòng đó
+> ⟹ **con số không được trích**. Biến "niêm" từ một quyết định phải nhớ ra thành **điền một chỗ trống
+> sẵn có** — đúng tinh thần *cơ chế thắng lời hứa*.
+
 **Luật 1** — assertion **không được trùng trạng thái mặc định** (test xanh giả).
 **Luật 12b** — mọi phát biểu xếp hạng phải **khai TRỤC**: *"xếp trên trục X, trục Y chưa xét"*.
 **Luật 17** — **trước** khi chạy một phép thử, hỏi: *nếu giả thuyết SAI thì phép thử này ra gì, và
