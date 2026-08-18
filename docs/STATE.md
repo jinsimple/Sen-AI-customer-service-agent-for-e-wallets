@@ -1072,6 +1072,12 @@ phát biểu bị nghi trong hội thoại vẫn ĐỨNG NGUYÊN trong tài li�
 > ② 🔴 **Cách đóng rẻ nhất KHÔNG phải XÁC MINH, mà là NIÊM** — ghi *ngày đo + "chưa xác nhận lại"*
 > ngay tại chỗ phát biểu ấy nằm. **Niêm làm được CẢ KHI KHÔNG ĐO LẠI ĐƯỢC.** *Không đo lại được
 > **không phải** lý do để không đóng.*
+> 🔴 **NIÊM Ở ĐẦU, GIỮ NGUYÊN THÂN** *(tester bổ sung 18/08 sau khi áp P ba lần trong vùng mình —
+> cả ba lần thao tác đúng đều là NIÊM, không SỬA)*: **cám dỗ tự nhiên khi phát hiện số sai là ĐI SỬA
+> SỐ — và sửa xong thì KHÔNG AI CÒN BIẾT cả đội đã tin gì, trong bao lâu.** Bản ghi lịch sử (bàn
+> giao, biên bản quét, nhật ký) mang bằng chứng về **thứ ta TỪNG tin**; sửa thân là xoá đúng bằng
+> chứng ấy. Cùng nếp `docs/DECISIONS.md` **chỉ ghi thêm** — nay khai rõ là một nguyên tắc chung, không
+> phải một quy ước riêng của một file.
 > ③ **Đừng thay một con số chết bằng một con số DỄ ĐỌC NHẦM.** Thay `446` (CI) bằng `568` (host) là
 > đổi **trục** ⟹ phải khai *"host ≠ CI"*. **Thay số mà không khai đổi trục là tạo ra lỗi kế tiếp.**
 > ④ **Áp cho MỌI vai** — security · PO · tech-lead · tester **đều nghi trong hội thoại nhiều hơn sửa
