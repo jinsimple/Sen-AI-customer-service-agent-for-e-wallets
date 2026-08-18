@@ -20,6 +20,8 @@ import time
 
 import pytest
 
+from tests._eval_co_mat import doi_hoi_eval
+
 # Thiếu `eval/` ⟹ SKIP cả module KÈM LÝ DO (tests/_eval_co_mat.py).
 # Trong container `.dockerignore` loại eval/ CÓ CHỦ ĐÍCH — heldout_set
 # là tập NIÊM PHONG, không được vào ảnh. Thiếu nó KHÔNG phải lỗi tệp test.

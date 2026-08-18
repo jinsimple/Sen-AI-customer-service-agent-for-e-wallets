@@ -14,6 +14,8 @@ import hashlib
 import json
 import pathlib
 
+from tests._eval_co_mat import doi_hoi_tep
+
 # Thiếu `eval/` ⟹ SKIP KÈM LÝ DO, không được thành `Interrupted` (xem
 # tests/_eval_co_mat.py — trong container `.dockerignore` loại eval/ CÓ CHỦ ĐÍCH).
 FILE = doi_hoi_tep("bo_ca_luot_don.json")
