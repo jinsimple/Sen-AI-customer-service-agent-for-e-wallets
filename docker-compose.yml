@@ -99,6 +99,10 @@ services:
       # (`JWT_ACCESS_EXPIRE_MINUTES`, `APP_ENV`), không thay cả khối
       # `environment` — nên đừng chép dòng này sang hai file kia.
       FIN05_CHO_PHEP_GOI_RA_NGOAI: ${FIN05_CHO_PHEP_GOI_RA_NGOAI:-1}
+      # Số tổng đài khách được đọc khi agent hỏng ở nhóm "cần can thiệp".
+      # Bộ kiểm ở `config.py` là phép thử KHẲNG ĐỊNH (bấm được không), không
+      # phải danh sách chặn — placeholder kiểu "1900-XXXX (SỐ TẠM)" tự rớt.
+      HOTLINE_CSKH: ${HOTLINE_CSKH:-19000000}
       # Ghi đè SSL_CERT_FILE của .env — CÙNG LÝ DO với REDIS_URL ở trên, nhưng
       # hậu quả nặng hơn nhiều nên ghi kỹ.
       #

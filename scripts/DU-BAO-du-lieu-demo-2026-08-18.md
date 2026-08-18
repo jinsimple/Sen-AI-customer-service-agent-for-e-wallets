@@ -35,16 +35,16 @@ phép tự kiểm cố tình dựng bản ghi `created_by == approved_by` trong 
 
 | # | vật | DỰ BÁO | THẬT |
 |---|---|---|---|
-| 1 | chạy lần 1 (`--ghi`) tạo | 4 user · 4 ví · 2 tài khoản NH · 5 giao dịch · 4 khiếu nại · 4 vé | |
-| 2 | · resolutions · investigation_logs · tool_results | 4 · 13 · 13 | |
-| 3 | · chat_sessions · messages · escalations | 4 · 26 · 2 | |
-| 4 | chạy lần 2 (`--ghi`) tạo thêm | **0 dòng ở MỌI bảng** · `da_co` = đủ số trên | |
-| 5 | 200 khách + 60.001 giao dịch cũ | **KHÔNG đổi một dòng** | |
-| 6 | phép tự kiểm maker=checker | CSDL **TỪ CHỐI** (IntegrityError) | |
-| 7 | ví của ca ④ | `status='active'` — cờ gian lận KHÔNG nối sang khoá | |
-| 8 | `description_raw` của 4 khiếu nại demo | **có hình dạng Fernet** (không plaintext) | |
-| 9 | `cited_tool_result_ids` | mọi id **tra được** trong `tool_results` | |
-| 10 | `otp_disclosed=true` | 761 dòng cũ = 0 ⟹ sau khi chạy **đúng 1** | |
+| 1 | chạy lần 1 (`--ghi`) tạo | 4 user · 4 ví · 2 tài khoản NH · 5 giao dịch · 4 khiếu nại · 4 vé | 4·4·2·5·4·4 | ✅ |
+| 2 | · resolutions · investigation_logs · tool_results | 4 · 13 · 13 | **7** · 13 · 13 | ⚠️ đổi phạm vi, xem §6 |
+| 3 | · chat_sessions · messages · escalations | 4 · 26 · 2 | 4 · **28** · 2 | ❌ trượt #messages |
+| 4 | chạy lần 2 (`--ghi`) tạo thêm | **0 dòng ở MỌI bảng** | **0 mới · 90 đã có** · mọi mẫu số y hệt | ✅ |
+| 5 | 200 khách + 60.001 giao dịch cũ | **KHÔNG đổi một dòng** | khách nền vẫn **200** · script chỉ INSERT | ✅ |
+| 6 | phép tự kiểm maker=checker | CSDL **TỪ CHỐI** | TỪ CHỐI — br12 còn sống | ✅ |
+| 7 | ví của ca ④ | `status='active'` | `active` | ✅ |
+| 8 | `description_raw` của 4 khiếu nại demo | **hình dạng Fernet** | 4/4 Fernet | ✅ |
+| 9 | `cited_tool_result_ids` | mọi id **tra được** | 7/7 resolution, 0 id treo | ✅ |
+| 10 | `otp_disclosed=true` | **đúng 1** | 1 | ✅ |
 
 ## 4. Nếu khác thì nghi gì
 
@@ -68,3 +68,41 @@ không phép nào trong số đó tôi tự làm thay được.
 🔴 `wallets.status='frozen'` **cố ý không thắp ở ca ④** — thắp nó cạnh cờ gian lận là dựng
 đúng liên tưởng mà RÀNG BUỘC CỨNG 5 cấm. Muốn phủ, nó phải là một tài khoản **không liên
 quan gì tới gian lận**, và đó là một quyết định phạm vi, không phải việc cơ học.
+
+## 6. ĐỔI PHẠM VI GIỮA CHỪNG — khai, không giấu vào ô ✅
+
+Sau khi dự báo đã công bố, PO-agent chuyển tin của tester: **cả 6 giá trị
+`reject_reason` đều 0 dòng**, và ADR-019 dựng taxonomy ấy để nuôi vòng học
+Phase 2 — vòng học đó hôm nay **rỗng tín hiệu**, không phải "ít".
+
+⟹ Tôi thêm **3 bản ghi TỪ CHỐI** vào lịch sử của chính 4 vé (4 → 7 resolutions).
+Đó là **đổi phạm vi**, không phải dự báo trúng. Ô #2 đánh ⚠️ chứ không đánh ✅.
+
+**Vì sao gắn vào 4 vé cũ thay vì dựng hành trình thứ 5:** một vé HITL thật thường
+có nhiều lượt đề xuất — bị trả lại, sửa, trình lại. Dựng chúng thành lịch sử của
+vé có sẵn là **mô tả đúng quy trình**; dựng thêm khách chỉ để thắp nhãn là dựng
+dữ liệu không có ai đứng sau.
+
+**Kết quả đo:** `sai_so_lieu` · `sai_phan_loai` · `thieu_can_cu` · `sai_chinh_sach`
+**đã thắp**. 🔴 `trung_case` · `khach_rut` **CÒN RỖNG** — hai lý do ấy mô tả tình
+huống mà **không hành trình nào trong bốn cái này LÀ**. Thắp chúng đòi thêm hành
+trình ⟹ **quyết định phạm vi của PO**, và bịa cho đủ nhãn chính là thứ tester vừa
+TỪ CHỐI làm với `messages.role`.
+
+## 7. Ô #3 TRƯỢT THẬT — 26 dự báo, 28 thật
+
+Tôi ước số lượt hội thoại **trước khi viết** chúng, rồi viết 7 lượt/ca thay vì 6,5.
+Trượt nhỏ và vô hại, nhưng nó là **ước lượng, không phải phép đo**, và tôi để nguyên
+ô ❌ thay vì sửa dự báo cho khớp.
+
+## 8. Hai lỗi trong lúc chạy, cả hai đã khai trong mã
+
+**① `add_all` + một `flush` ⟹ `ForeignKeyViolation`** — `bank_accounts` bị chèn
+trước `users`. Sửa bằng chèn theo nhóm bảng, flush sau mỗi nhóm.
+🔴 **Tôi KHÔNG biết cơ chế.** Lời giải thích hiển nhiên — *"ORM không thấy ràng
+buộc"* — **SAI**: `models.py:87` có khai `ForeignKey`. Chú thích trong mã ghi
+**triệu chứng** và để ngỏ nguyên nhân, thay vì gắn một cơ chế nghe hợp lý mà chưa đo.
+Lần chạy hỏng ấy **không ghi một dòng nào** (giao dịch rollback) — đã kiểm: `users=208`.
+
+**② `docker cp` script vào `/tmp` container** — khai theo Luật I, đã xoá,
+`docker diff /app/src` = **0**, và chuyển sang chạy **từ host** với `PYTHONPATH`.
