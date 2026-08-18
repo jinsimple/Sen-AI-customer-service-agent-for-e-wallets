@@ -133,7 +133,7 @@ Biến môi trường bắt buộc (fail-fast nếu thiếu): `JWT_SECRET_KEY`, 
 
 ## 8. Tài liệu ngoài
 
-- GitHub: `AI20K-Build-Phase-Cohort-3/P-121`
+- GitHub: `AI20K-Build-Phase-Cohort-3/P-226` *(đo 18/08 từ `git remote -v` — dòng cũ ghi `P-121`, SAI)*
 - Pháp lý hiện hành: NĐ 52/2024, TT 40/2024 (**không** dùng TT 39/2014 — đã hết hiệu lực),
   NĐ 13/2023 (PDPA), QĐ 2345/QĐ-NHNN (ngưỡng 10tr/lần, 20tr/ngày — là ngưỡng **xác thực
   sinh trắc**, KHÔNG phải ngưỡng gian lận; nói rõ điều này khi trao đổi với chuyên gia).
