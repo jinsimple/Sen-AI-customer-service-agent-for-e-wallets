@@ -28,6 +28,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+# Thiếu `eval/` ⟹ SKIP cả module KÈM LÝ DO (tests/_eval_co_mat.py).
+# Trong container `.dockerignore` loại eval/ CÓ CHỦ ĐÍCH — heldout_set
+# là tập NIÊM PHONG, không được vào ảnh. Thiếu nó KHÔNG phải lỗi tệp test.
+doi_hoi_eval()
+
 from eval._harness import cham_bo_da_luot  # noqa: E402
 
 # 5 câu PHẢI KHÔNG bị cờ. Hai câu đầu là câu THẬT agent đã nói trong lượt chạy

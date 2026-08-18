@@ -14,7 +14,9 @@ import hashlib
 import json
 import pathlib
 
-FILE = pathlib.Path(__file__).resolve().parent.parent / "eval" / "bo_ca_luot_don.json"
+# Thiếu `eval/` ⟹ SKIP KÈM LÝ DO, không được thành `Interrupted` (xem
+# tests/_eval_co_mat.py — trong container `.dockerignore` loại eval/ CÓ CHỦ ĐÍCH).
+FILE = doi_hoi_tep("bo_ca_luot_don.json")
 BO = json.loads(FILE.read_text(encoding="utf-8"))
 
 
