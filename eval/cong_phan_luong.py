@@ -71,13 +71,13 @@ def _nap_luat(p: pathlib.Path):
 
 def _nhanh(ly_do: str) -> str:
     dg = ly_do.lower()
-    if "chữ số" in l:
+    if "chữ số" in dg:
         return "CHỮ SỐ"
-    if "dài" in l:
+    if "dài" in dg:
         return "ĐỘ DÀI"
-    if "ngoài tập" in l:
+    if "ngoài tập" in dg:
         return "TOKEN NGOÀI TẬP"
-    if "xã giao" in l:
+    if "xã giao" in dg:
         return "mọi token xã giao"
     return f"khác({ly_do[:24]})"
 
@@ -159,9 +159,9 @@ def main() -> int:
     if p.exists():
         cau = []
         for dg in p.read_text(encoding="utf-8").splitlines():
-            if not l.strip():
+            if not dg.strip():
                 continue
-            x = json.loads(l)
+            x = json.loads(dg)
             u = x.get("utterances") or ([x["utterance"]] if "utterance" in x else [])
             cau += [(c, "day_du") for c in u if isinstance(c, str) and c.strip()]
         bo.append((f"âm gốc {len(cau)} CÂU [{_bam_tep(p)}]", cau))

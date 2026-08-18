@@ -90,15 +90,15 @@ def gom_usage(mau: list[str]) -> list[dict]:
             for x in muc:
                 for u in ([x["usage"]] if isinstance(x.get("usage"), dict)
                           else [dg.get("usage") for dg in (x.get("luot") or [])
-                                if isinstance(l, dict)]):
+                                if isinstance(dg, dict)]):
                     if isinstance(u, dict) and u.get("input_tokens"):
                         ra.append(u)
                 # bộ đo token của tôi lưu phẳng, không lồng trong `usage`
                 for dg in (x.get("luot") or []):
-                    if isinstance(l, dict) and l.get("vao"):
-                        ra.append({"input_tokens": l["vao"], "output_tokens": l.get("ra") or 0,
-                                   "cached_input_tokens": l.get("cache") or 0,
-                                   "input_chars": l.get("ky_tu_vao")})
+                    if isinstance(dg, dict) and dg.get("vao"):
+                        ra.append({"input_tokens": dg["vao"], "output_tokens": dg.get("ra") or 0,
+                                   "cached_input_tokens": dg.get("cache") or 0,
+                                   "input_chars": dg.get("ky_tu_vao")})
     return ra
 
 

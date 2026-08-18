@@ -168,7 +168,7 @@ def main() -> int:
         print(f"  → chi tiết ghi ra {r} ({len(chi_tiet)} ca) — KHÔNG in ra đây")
     elif not a.chi_tom_tat:
         for c, dg, n in chi_tiet:
-            print(f"    {c:<12} {l}\n                 {n[:100]}")
+            print(f"    {c:<12} {dg}\n                 {n[:100]}")
     else:
         print("  (chi tiết KHÔNG in — dùng --ra để ghi ra file cho vai khác đọc)")
     return 0
