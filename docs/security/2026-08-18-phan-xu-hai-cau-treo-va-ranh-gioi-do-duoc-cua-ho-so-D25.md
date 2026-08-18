@@ -1922,3 +1922,86 @@ demo là **thứ người ngoài đọc để hiểu hệ thống làm gì** —
 - **Không** kết luận về `(a)/(b)` runner, gitleaks, nightly — đồng ý chúng **không chặn** bản `main`.
   *(Một ghi chú lề: `security-findings-gate` ở `ci.yml:251` **đã** `runs-on: self-hosted` — nhưng nó
   dùng khoá GIẢ, nên không nằm trong 6 job của §15. Nhất quán với đo lường hôm qua, không phải mục mới.)*
+
+---
+
+## §20. Nội dung suy luận có đọng vào kho checkpoint không — **ÂM TÍNH**. Và phép dò tôi đề xuất đã HỎNG.
+
+### 20.1 Kiểm độc lập, [ĐO] — mạnh hơn mẫu tech-lead có
+
+```
+tu_reasoning             3192
+khoa_reasoning_tokens    3192      ← TRÙNG KHÍT: mọi lần chữ "reasoning" xuất hiện đều là KHOÁ ĐẾM
+khoa_reasoning_content      0
+thinking                    0
+tổng blob                3643
+
+usage.jsonl:  64 lượt suy_luan_gui=True  ·  tổng 10.564 reasoning_tokens
+```
+
+⟹ **64 lượt đã sinh suy luận THẬT (10.564 token) và ghi xong vào checkpoint — `reasoning_content` vẫn
+bằng 0.** Mẫu tech-lead có là 3 lượt / 1.371 token; mẫu tôi đo lại là **64 lượt / 10.564 token**.
+**Cùng kết luận, mẫu số lớn hơn 7,7×.**
+
+**Kết luận: ÂM TÍNH.** Văn bản suy luận **không bám vào `AIMessage`**, **không vào `checkpoint_blobs`**.
+
+⚠️ **Giới hạn tech-lead khai, tôi giữ nguyên và nhấn:** kết luận này gắn với **`langchain-core` hiện
+tại + hình dạng response DashScope hiện tại**. Nâng thư viện hoặc nhà cung cấp đổi response ⟹ **phải
+đo lại**, và **nó sẽ không tự kêu** — đúng cơ chế #3 KHAI≠CHẠY. Chỗ đúng để cắm cái kêu là một cổng
+khẳng định `reasoning_content` trong `checkpoint_blobs` **= 0**, thuộc `tests/`.
+
+### 20.2 🔴 Phép dò TÔI đề xuất không tách được hai thứ — và nó hỏng đúng kiểu Luật R vừa viết
+
+Tôi gửi tech-lead phép này:
+
+```sql
+count(*) FILTER (WHERE position('reasoning'::bytea in blob) > 0)
+```
+
+**Nó trúng cả tên khoá `reasoning_tokens` lẫn văn bản suy luận.** Chạy nó ra **3192 > 0**, và cách đọc
+tự nhiên là ***"CÓ — nội dung suy luận đang được lưu"***. Sai. **Toàn bộ 3192 là tên khoá đếm token.**
+
+> 🔴 **Tôi hỏi một ĐẠI DIỆN (*"chuỗi `reasoning` có xuất hiện không"*) thay vì hỏi THỨ TA QUAN TÂM
+> (*"văn bản suy luận có được lưu không"*).** Đó **nguyên văn** là Luật R §18 — mà tôi viết ra **một
+> tin nhắn trước đó**.
+
+Ba điều đáng ghi, không phải một:
+
+1. **Luật viết ra không tự thi hành ở điểm dùng.** Đây là **lần thứ hai trong phiên**: §10.2 tôi đặt
+   tên cho một thiên lệch rồi chạy đúng nó vài trăm dòng sau; giờ tôi phát biểu một luật rồi phá nó ở
+   tin nhắn kế tiếp. **Hai thí nghiệm, cùng kết quả âm tính** ⟹ *"nhớ luật"* **không phải một cơ chế**.
+2. **Sai số lại lệch về phía BÁO ĐỘNG.** `3192 > 0` sẽ làm §11 — finding tôi vừa xếp mức CAO — **trông
+   lớn hơn sự thật**. Lần thứ **ba** cùng một hướng (447 · "cache hit 0%" · lần này). **Luật K: thiên
+   lệch chung, và tôi đã khai bộ lọc chung ở §9.5. Nó vẫn chạy.**
+3. **Thứ cứu được không phải tôi.** tech-lead **hỏi hẹp hơn** — tách `reasoning_tokens` khỏi
+   `reasoning_content` — rồi **đọc thẳng tên khoá trong một blob thật**. Đúng cơ chế §6 hồ sơ
+   KHAI≠CHẠY: **hai người đo cùng một vật rồi so SỐ**, và **chỗ khác nhau là chỗ có thông tin**.
+
+**Và một chỗ họ tự khai làm kết quả MẠNH HƠN, đáng ghi:** họ **trễ mốc "TRƯỚC"** tôi dặn giữ. Nhưng
+mốc ấy hoá ra **không cần** — một hiệu số giữa hai lần đếm **vẫn bị lẫn** giữa tên khoá và văn bản.
+Thứ trả lời được là **quan sát trực tiếp trên vật đã có suy luận thật**, không phải chênh lệch.
+⟹ **Lời dặn "giữ mốc trước" của tôi đúng về nguyên tắc nhưng thừa cho câu hỏi này**, vì nó phục vụ
+một phép đo mà **bản thân phép đo ấy mới là chỗ hỏng**.
+
+### 20.3 Một số cho §11, do tech-lead trả về — và nó là phần nặng nhất của cả trao đổi
+
+```
+một blob = 315.245 byte,  chứa `content` của lượt chat — LỜI KHAI KHÁCH — KHÔNG mã hoá
+```
+
+Đặt cạnh §11 và §13:
+
+| | kho nghiệp vụ | kho checkpoint |
+|---|---|---|
+| `messages.content` | ✅ 467/467 mã hoá | 🔴 cùng nội dung, **0 mã hoá** |
+| `complaints.description_raw` | ✅ 761/761 (sau ADR-032) | 🔴 lời khai cũng nằm trong blob |
+| retention | trong phạm vi ADR-025 QĐ3 | 🔴 **0 FK, 0 prune** |
+
+> **Hai kho, MỘT hạng dữ liệu, HAI chế độ bảo vệ.** Và chế độ yếu hơn là chế độ **không ai khai**.
+
+Đây **không phải mục mới** — nó là §11 nói lại bằng một con số đơn vị (315 KB/blob) khiến quy mô đọc
+được ngay. **Và nó độc lập hoàn toàn với cờ suy luận**: bật hay tắt, `content` vẫn nằm đó.
+
+⟹ Ghi nhận: **câu hỏi tôi gửi đi (suy luận) ra âm tính; câu tech-lead gửi về (hai chế độ bảo vệ) là
+câu nặng hơn.** Tôi đi hỏi một hạng nội dung **có thể có**, và họ chỉ lại một hạng nội dung **chắc
+chắn đang có**.
