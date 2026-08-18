@@ -1233,6 +1233,47 @@ trông hoàn hảo**, chỉ thiếu một sự kiện **không được ghi ở 
 **KHÔNG kết luận:** ❌ kênh file sai — nó đúng, và có lý do bảo mật để giữ. ❌ ai lười — cả ba phiên
 đều rảnh và sẵn sàng suốt 11 tiếng, **không ai biết có việc đang chờ mình**.
 
+### 🔴🔴🔴 R. BỐN THỨ ĐỘI ĐANG DỰA VÀO MÀ KHÔNG AI KHAI — và một trong số đó là MỘT SỰ CỐ
+
+*(Mở bởi PO-agent từ ca `ubuntu-latest`; **security** dựng thành danh sách có tiêu chí (§16);
+**tech-lead** thêm ca nặng nhất khi tự phanh giữa lúc dựng. Ba nguồn độc lập, một hình dạng.)*
+
+| # | thứ đang được dựa vào | khai ở đâu | mất đi thì cái gì kêu |
+|---|---|---|---|
+| 1 | **`ubuntu-latest` bị huỷ sau mỗi job** — gánh **BỐN** việc: dọn `.env` · dọn container · dọn volume · chống đụng cổng | ❌ không đâu | **không gì** |
+| 2 | 🔴 **billing hỏng đang CHẶN 3 job nightly** | ❌ không đâu | **không gì** |
+| 3 | **`access.log` sống sót `recreate`** — cơ chế bù DUY NHẤT của Pha 1 ADR-025, thay cho `assigned_to` chưa tồn tại | ❌ chỉ **1 dòng** `docker-compose.yml:127,229`; `tests/` · `contracts/` · ADR → **0 hit** | **không gì** — triệu chứng là *một tệp ngắn hơn* |
+| 4 | **"không có dữ liệu khách THẬT trong CSDL"** — nền của mọi kết luận PII | ❌ **một TƯ THẾ**, không cổng nhập/cờ/CHECK nào | **không gì** — và **đã rò 1 lần**: 4 chuỗi dạng SĐT ngoài bộ seed, phát hiện bởi **một phép đo tình cờ** |
+
+🔴 **CA SỐ 2 LÀ CA NẶNG NHẤT, VÀ NÓ SUÝT ĐƯỢC DÙNG LÀM CƠ CHẾ AN TOÀN.**
+tech-lead định lấy lượt đo thứ hai bằng `workflow_dispatch` — rẻ nhất, không cần commit. Rồi dừng:
+**dispatch thoả `if:` của ba job nightly**, trong đó `livechat-e2e-nightly` **ghi `OPENAI_API_KEY`
+THẬT ra `.env`**, hai job kia gọi model tính tiền. Ba job ấy hiện không chạy được **NHỜ BILLING HỎNG**.
+> ⟹ **Dựa vào một SỰ CỐ HẠ TẦNG làm cơ chế an toàn.** Nó phản lại đúng vào **ngày billing được sửa** —
+> và đó là ngày ta đang chủ động đi tới. **Không ai sẽ nhớ rằng có thứ đang dựa vào nó.**
+> Họ lấy lượt B bằng **một lần đẩy thường** (push không thoả `if:` của ba job đó): đắt hơn một commit,
+> **không mượn cái lưới nào**.
+
+⚠️ **HỆ QUẢ VẬN HÀNH — GHIM CHO NGÀY BILLING ĐƯỢC SỬA:** job `self-hosted` **không phụ thuộc billing**.
+⟹ Giây phút `livechat-e2e-nightly` được đổi sang `self-hosted`, nó **chạy được ngay**, bất kể billing.
+**Ràng buộc thứ tự giữ nguyên: KHÔNG đổi `runs-on` của hai job docker cho tới khi bước dọn được CHỨNG
+MINH LÀ CHẠY** — và [ĐO] tech-lead tự khai: **bước dọn hiện là mã CHƯA TỪNG THỰC THI**.
+
+⭐ **VÀ MỘT CÁI BẪY ĐỌC-NHẦM ai cũng sẽ mắc, tech-lead phát biểu:**
+> ***`always()` chỉ có nghĩa "luôn chạy khi job ĐÃ ĐƯỢC CẤP MÁY". Job chưa từng khởi động thì không
+> có gì luôn cả.*** Họ **dự báo** bước dọn sẽ chạy, dự báo **TRƯỢT**, và **báo trượt** thay vì lặng lẽ
+> bỏ qua — job còn ở `ubuntu-latest` nên không job nào khởi động, kể cả `if: always()`.
+
+✅ **GHI CẢ Ô SẠCH để danh sách không thiên lệch** *(security §16.4)*: ứng viên mạnh nhất họ nghĩ ra là
+`thread_id` — [ĐO] `main.py:645` `thread_id=f"{user_id}:{iat}"`, **server tự dựng từ claim JWT, client
+không chạm được**, và **có khai ở BA chỗ** (`main.py:315·488·498`) giải thích vì sao `iat` phải giữ
+nguyên qua refresh **chính vì** `thread_id` phụ thuộc nó. **Không phải bảo đảm không khai — là quyết
+định có ý thức, ghi đúng ba chỗ người ta sẽ phá nó.** Đó là hình dạng ĐÚNG của cả bốn ca trên.
+
+**KHÔNG kết luận:** ❌ bốn ca này là lỗ hổng đang bị khai thác — **không ca nào có sự cố**. Chúng là
+**bảo đảm không khai**, và giá trị của việc liệt kê nằm ở chỗ ta đang **chủ động thay đổi môi trường**
+(đổi runner, sửa billing) — đúng lúc rẻ nhất để phát hiện mình đang đứng trên cái gì.
+
 ### ⓵ Trần thật là TPM, và ta ĐÃ VƯỢT ở cấu hình buổi 150 người
 
 ```
@@ -1551,6 +1592,23 @@ lệch nhau thì KHÔNG CÓ TRIỆU CHỨNG — vì mỗi cái đều tự nhấ
 >   PO-agent đã làm ngược — lục sang một repo khác trước, tốn lượt, đưa PO một khúc lạc đề.
 > **Khác Luật G ở chỗ nào:** Luật G nói *cơ chế làm đúng việc của NÓ ≠ việc ta tưởng*. Luật Q nói một
 > câu **nằm trước cả G** — *vật bạn đang soi có phải vật bạn nghĩ không*. G giả định đã đúng vật.
+
+**Luật R** *(security đúc 18/08 §16.5, PO-agent cấp ký hiệu — bốn ca ở §5.R, ba nguồn độc lập)* —
+**MỘT TÍNH CHẤT ĐƯỢC DỰA VÀO MÀ KHÔNG NÊU ĐƯỢC NÓ KHAI Ở ĐÂU THÌ KHÔNG PHẢI MỘT BẢO ĐẢM — NÓ LÀ MỘT
+THÓI QUEN CỦA MÔI TRƯỜNG HIỆN TẠI.**
+> **Phép thử một câu:** ***"nếu ngày mai thứ này biến mất, CÁI GÌ KÊU?"*** Không trả lời được ⟹ thứ
+> đang giữ ta an toàn là **sự may mắn về cấu hình**, và **may mắn thì không xuất hiện trong diff**.
+> **Ba điều khoản thi hành:**
+> ① **Ba tiêu chí nhận dạng** (security khai trước khi đi tìm, không sau): đang được **dựa vào** ·
+>   **không khai** ở contract/ADR/test nào · mất đi thì **hỏng IM LẶNG**. Đủ cả ba mới tính.
+> ② 🔴 **Dạng nặng nhất là khi thứ được dựa vào lại là MỘT SỰ CỐ** (vd billing hỏng đang chặn job
+>   tiêu tiền). Nó phản lại đúng vào **ngày ta sửa sự cố ấy** — tức đúng ngày ta đang chủ động đi tới,
+>   và không ai nhớ có thứ đang dựa vào nó. **Đừng bao giờ để một sự cố làm cơ chế an toàn.**
+> ③ **Ghi cả ô SẠCH.** Một danh sách chỉ có ca dương là danh sách không đọc được độ phủ. `thread_id`
+>   (§5.R) là ca đối chứng: **có khai, đúng ba chỗ người ta sẽ phá nó** — đó là hình dạng đúng.
+> **Khác Luật G ở chỗ nào:** G nói *cơ chế đang làm đúng việc của NÓ ≠ việc ta tưởng*. R hỏi một câu
+> **hẹp hơn và kiểm được**: *ta có nêu ra được nó ĐƯỢC KHAI Ở ĐÂU không*. G là chẩn đoán; R là **phép
+> thử ai cũng chạy được trong 10 giây**.
 
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
