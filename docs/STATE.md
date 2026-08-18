@@ -750,6 +750,21 @@ NGƯỠNG của bộ dò, M nói về **KHI NÀO người ta chịu kiểm bộ 
 > ADR-025 đã hứa** ⟹ trượt, và cả đội tin theo. **Hai kết cục ngược nhau, khác nhau đúng ở chỗ kết
 > quả có làm người đọc ngạc nhiên hay không.**
 
+**Luật N** *(tech-lead đúc 18/08, PO-agent cấp số hiệu)* — **một con số ĐẾM phải kèm PHÉP ĐẾM. Một số
+suy ra bằng phép TRỪ trên tổng đã biết KHÔNG PHẢI một quan sát** — nó trông y hệt một số đếm được, và
+nó không nhìn vào cái gì cả.
+> **Vì sao Luật F chưa phủ:** F đòi **có mẫu số**; N đòi mẫu số phải **ĐƯỢC QUAN SÁT**. Một câu có thể
+> thoả F mà vẫn sai theo N.
+> **Bằng chứng [ĐO] 18/08 — chuỗi ba người, một câu:** tech-lead mở **3** tool đầu, thấy cả ba có cổng
+> OTP, gặp `search_policy` không có ⟹ viết *"khác **4** tool kia"*. **`4` là phép trừ `5−1`, không phải
+> phép đếm** — `request_human_handoff` **chưa bao giờ được mở ra xem**, và nó cũng không có cổng OTP.
+> Câu sai đi tiếp: PO-agent chuyển nó cho security **kèm ba số dòng cho "4 tool"** (Luật F: mẫu số và
+> danh sách lệch nhau trong một câu), security bắt được bằng cách **liệt kê đủ**.
+> 🔴 **Ba ca cùng ngày, hai người, MỘT hình dạng — nhưng ca này KHÔNG CÓ LỆNH NÀO ĐỂ ĐỔ LỖI:**
+> `grep` trúng 143 dừng, câu ở 150 *(PO-agent, ADR-031)* · `head -40` cắt ở 949, câu ở 950
+> *(PO-agent, §5.G)* · **một phép trừ** *(tech-lead)*. Hai ca đầu bộ lọc nằm trong **công cụ**; ca thứ
+> ba bộ lọc nằm **trong đầu**. ⟹ Sửa công cụ không đủ.
+
 **Luật 1** — assertion **không được trùng trạng thái mặc định** (test xanh giả).
 **Luật 12b** — mọi phát biểu xếp hạng phải **khai TRỤC**: *"xếp trên trục X, trục Y chưa xét"*.
 **Luật 17** — **trước** khi chạy một phép thử, hỏi: *nếu giả thuyết SAI thì phép thử này ra gì, và
