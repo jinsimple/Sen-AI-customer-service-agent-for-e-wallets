@@ -1520,6 +1520,15 @@ ai đó mở hoá đơn. **Ta không có cửa nào để thấy.**
 
 ### 15.4 Cái gì ĐỔI nếu hoá ra EPHEMERAL — đọc thẳng, không định hạng lại
 
+> 📌 **NIÊM 18/08 tối (Luật P) — CÂU HỎI ĐÃ ĐÓNG. Nhánh "ephemeral" dưới đây KHÔNG ÁP DỤNG.
+> Thân giữ nguyên.** tech-lead đo được, [ĐO] nguyên văn: tệp mốc do một job ghi trên runner
+> `eph-vmrunner2-4938b971` **đọc lại được 6 phút sau** từ `eph-vmrunner2-e0a3b5ab` — **hai tên khác
+> nhau, cùng một đĩa**. ⟹ **PERSISTENT, đo được, không còn là giả định.**
+> **Mức CHẶN KHÔNG hạ xuống 🟡.** Câu tôi viết ở cuối mục này — *"ephemeral bảo vệ khỏi TEAM KHÁC,
+> không bảo vệ khỏi CHỦ MÁY"* — nay đọc là: **không bảo vệ khỏi ai cả.**
+> Giữ nguyên thân vì nó ghi lại **vì sao** ta chọn giả định đắt-nhất-khi-sai, và lần này giả định ấy
+> **trúng**. Xem §17.
+
 | | persistent | ephemeral |
 |---|---|---|
 | `.env` còn lại | 🔴 vô hạn | ✅ chết theo máy |
@@ -1637,3 +1646,112 @@ sạch" là thứ giữ cho danh sách này đọc được.**
 > một THÓI QUEN của môi trường hiện tại.**
 > Phép thử một câu: ***"nếu ngày mai thứ này biến mất, cái gì kêu?"*** — không trả lời được thì **thứ
 > đang giữ ta an toàn là sự may mắn về cấu hình**, và may mắn thì không xuất hiện trong diff.
+
+---
+
+## §17. PERSISTENT đã đo được — (a) máy dùng lại hay (b) đĩa dùng chung, và cách tách chúng KHÔNG ghi gì
+
+### 17.1 Trả lời trước, để nó không bị chôn dưới phần kỹ thuật
+
+> **(a) và (b) KHÔNG đổi định hạng. Cả hai đều là CHẶN, và bản vá dọn giống hệt nhau.**
+> ⟹ **Đừng để câu (a)/(b) hoãn bản vá.** Nó **không nằm trên đường tới hạn của quyết định đang chờ.**
+
+Nói vậy trước vì đây đúng hình dạng một câu hỏi hay **làm chậm** một việc đã rõ: nó thú vị, nó đo
+được, và nó **không đổi thứ ta phải làm sáng mai**.
+
+### 17.2 Nhưng nó đổi HAI thứ khác, và cả hai đều thật
+
+| | (a) máy dùng lại, đăng ký tên mới | (b) `$HOME` là mount dùng chung cả hồ |
+|---|---|---|
+| **bán kính** | theo TỪNG MÁY — job team khác phải **rơi trúng đúng máy đó** | **CẢ HỒ** — mọi job của mọi team, ngay lập tức |
+| **thời gian tới phơi nhiễm** | xác suất, trễ, **tích luỹ theo thời gian** | **tức thì và chắc chắn** |
+| **nếu MỘT job thật đã chạy** | quần thể "ai có thể đã đọc" hẹp, đếm được | quần thể = **mọi job song song**, không đếm được |
+| **câu nói với BTC** | *"máy của các anh giữ lại tệp giữa các job"* | *"các team đang đọc được đĩa của nhau"* |
+
+⟹ **Đổi ĐỘ GẤP của việc xoay khoá nếu lỡ có job chạy, và đổi CÂU NÓI VỚI BTC** — không đổi bản vá.
+Dưới (b), một lượt job mang khoá thật là **đủ để xoay khoá không cần bàn**; dưới (a) vẫn nên xoay
+nhưng câu *"ai có thể đã đọc"* còn trả lời được.
+
+### 17.3 🔴 Phép tách — có, và nó KHÔNG ghi một byte nào
+
+Điều kiện PO-agent đặt ra là **không ghi thêm vào máy dùng chung**. Ba phép dưới đây **đọc thuần**, và
+phép ① trả lời **thẳng CƠ CHẾ** chứ không suy từ quan sát:
+
+```
+① df -T "$HOME"   ·   grep " $HOME " /proc/mounts   ·   grep gh-runner /proc/mounts
+   → nfs / cifs / 9p / bất kỳ fs MẠNG nào     ⟹  (b) XÁC NHẬN, bằng CẤU TRÚC
+   → ext4/xfs trên thiết bị cục bộ            ⟹  (b) LOẠI, còn lại (a)
+
+② cat /proc/sys/kernel/random/boot_id   +   cat /etc/machine-id
+   in ở CẢ 5 job song song của nhịp 2
+   → 5 job cùng boot_id            ⟹  một nhân, tức container trên MỘT máy → (a)
+   → boot_id KHÁC + vẫn đọc được cùng tệp  ⟹  (b), quyết định
+
+③ stat -c '%d %i %Y' ~/.fin05-moc-ci.txt        ← TỆP ĐÃ CÓ SẴN, không tạo gì mới
+   → khác boot_id nhưng CÙNG (device, inode)  ⟹  cùng một hệ tệp ⟹ (b)
+```
+
+**① là phép nên chạy trước.** Hai phép kia **suy ra** cơ chế từ quan sát; **① đọc thẳng bảng mount** —
+nó trả lời *"`$HOME` có phải một hệ tệp dùng chung không"* bằng cách **hỏi hệ điều hành**, không bằng
+cách bố trí một thí nghiệm. Rẻ hơn, chắc hơn, và **không phụ thuộc vào việc job có chạy song song hay
+không**.
+
+⚠️ **Và một cảnh báo về chính phép ③:** nó dùng tệp mốc **đã có**. Đó là lý do nó hợp lệ dưới ràng buộc
+"không ghi" — **nhưng cũng nghĩa là nó không lặp lại được sau khi ai đó dọn tệp ấy.** Nếu định dùng ③,
+**đọc trước khi dọn.** *(Đọc trước, dọn sau. Lại đúng chỗ ấy.)*
+
+### 17.4 Điều tôi KHÔNG kết luận về cơ chế
+
+tech-lead **cố ý không kết luận cơ chế, chỉ kết luận quan sát** — tôi giữ nguyên ranh giới đó và
+**không** đoán (a) hay (b). Lập luận *"5 job `eph-vmrunner-*` song song ⟹ không thể là một máy"* là
+**đúng nếu** mỗi runner là một máy, nhưng **năm container trên một nhân cũng cho ra năm tên** — nên nó
+**không loại được (a)**, chỉ **không loại được (b)**. Hai câu ấy khác nhau. Phép ② phân định.
+
+---
+
+## §18. Điều khoản Luật R — **phép thử phủ định cũng là một thứ được DỰA VÀO**
+
+PO-agent đề nghị tôi đúc; đồng ý nó thuộc **Luật R** chứ không phải luật mới — nó là §16.5 áp cho
+**dụng cụ chẩn đoán** thay vì cho hệ thống.
+
+### 18.1 Ca sinh ra nó
+
+```
+điều kiện dứt điểm đã dựng:   "hai lượt trúng CÙNG TÊN MÁY"   →  KHÔNG BAO GIỜ BẮN
+giả định nhúng bên trong  :   danh tính runner  ≡  đĩa
+thực tế đo được           :   tên khác nhau,     ĐĨA VẪN CHUNG
+thứ cứu được              :   một phép hỏi THẲNG  ("tệp có còn không")
+```
+
+**Bài học KHÔNG phải *"`eph-` là một cái tên dối"*.** Là: **cái TÊN và cái ĐIỀU KIỆN ta dựng ra để
+kiểm cái tên đứng trên CÙNG MỘT giả định chưa ai kiểm.** Kiểm chứng không độc lập với thứ nó kiểm ⟹
+**nó không thể phát hiện đúng loại sai lầm nó được dựng ra để phát hiện.**
+
+### 18.2 Phát biểu
+
+> ### 🔴 Luật R — điều khoản "phép thử phủ định"
+>
+> **Một phép thử phải hỏi THỨ TA QUAN TÂM, không hỏi THỨ ĐẠI DIỆN CHO NÓ.** Mỗi đại diện mang theo
+> **một giả định chưa kiểm**; khi giả định ấy sai, phép thử trả về *"không có bằng chứng"* **mãi
+> mãi** — và *"không có bằng chứng"* thì **không phân biệt được** với *"không có hiện tượng"*.
+>
+> **Vế thi hành, một câu hỏi:** trước khi tin một kết quả **âm tính**, hỏi
+> ***"điều kiện này ĐÃ BAO GIỜ bắn chưa — ở đâu, lúc nào?"***
+> **Chưa bao giờ ⟹ nó chưa phải bằng chứng. Nó mới là một giả thuyết chưa được kiểm.**
+
+### 18.3 Vì sao nó là Luật A áp cho DỤNG CỤ, không phải một luật mới
+
+Luật A: *cổng phải IM lúc bình thường **VÀ KÊU** lúc bất thường; vế hai chỉ chứng minh được bằng **ca
+đối chứng**.* Điều khoản này là **cùng câu ấy, áp cho một phép chẩn đoán thay vì một cổng** — và nó
+giải thích vì sao ca hôm nay trượt: điều kiện *"trùng tên máy"* **im lúc bình thường** (đúng) nhưng
+**chưa ai chứng minh nó KÊU lúc bất thường**, vì **chưa ai dựng ca đối chứng dương cho nó**.
+
+Và nó là **Luật H ở tầng chẩn đoán**: một phép thử phủ định chưa từng bắn đang gộp **hai trạng thái**
+— *"đã kiểm, âm tính"* và *"không thể kiểm"* — thành **một dòng chữ duy nhất**, và dòng ấy khẳng định
+vế thứ nhất. **Ba trạng thái, không phải hai. Lần này ở tầng phương pháp.**
+
+### 18.4 Nếu chỉ nhớ một dòng
+
+> **Một phép thử không bao giờ bắn không phải một phép thử đã qua — nó là một phép thử CHƯA CHẠY.**
+> Và nó **nguy hiểm hơn** một phép thử vắng mặt, vì nó **chiếm chỗ** của phép thử thật: người ta thấy
+> nó trong danh sách, tick, rồi đi tiếp.
