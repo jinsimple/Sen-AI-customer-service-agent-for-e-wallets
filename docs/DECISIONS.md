@@ -1993,6 +1993,47 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   ADR-025 QĐ3 (retention liệt kê theo **danh sách cột**, không theo **cây khoá ngoại** ⟹ bản plaintext
   có thể **sống sót sau khi bản mã hoá đã bị xoá** — ghim trước, đừng để job tự phát hiện lúc chạy).
 
+## ADR-035 — `docker-compose*.yml` thuộc vùng ghi của `tech-lead`; §4 hiến pháp thiếu một dòng
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026
+- **Bối cảnh:**
+
+  Chốt chặn chi phí ở tầng transport (`src/cong_ra_ngoai.py`, land 18/08) còn **một lỗ cuối**: cờ cho
+  phép mặc định là **CHO PHÉP**, nên **script nháp** không được phủ — đúng đường tech-lead tự đâm vào
+  khi dựng ca nghiệm thu. Đảo mặc định thành **TỪ CHỐI** đòi `docker-compose.yml` khai `=1`, nếu không
+  **lần dựng tới sản phẩm chết**: mọi lượt chat và mọi lượt embedding bị chính chốt chặn của ta từ chối.
+
+  **[ĐO] Và không vai nào ghi được file ấy.** Bảng §4 `CLAUDE.md`:
+  ```
+  po         → docs/ · *.md ở gốc              ← docker-compose.yml KHÔNG phải .md
+  tech-lead  → src/ · frontend/src/ · migrations/ · contracts/
+  tester · security · ux-ui · critic → không ai
+  ```
+  ⟹ **`docker-compose*.yml` không nằm trong vùng ghi của BẤT KỲ vai nào.** Đây không phải ai thiếu
+  quyền — **hiến pháp thiếu một dòng**, và nó chỉ lộ ra 18/08 vì đây là lần đầu có việc cần sửa file ấy.
+
+- **Quyết định:** thêm `docker-compose*.yml` vào vùng ghi của **`tech-lead`**.
+
+- **Lý do:** compose khai **biến môi trường mà `src/` đọc lúc import** — nó là **phần nối dài của cấu
+  hình `src/`**, không phải tài liệu. Người viết `src/config.py` là người duy nhất biết một biến được
+  đọc lúc nào, đổi nó cần `recreate` hay `restart`, và mặc định nào làm sản phẩm chết. Tách hai thứ ấy
+  cho hai vai là **tạo đúng loại lệch mà `dau_ma_nguon.py` sinh ra để chống**: *hai định nghĩa của cùng
+  một vật sẽ lệch trong im lặng.*
+
+- **Lý do BÁC BỎ *"để `po` giữ, vì compose là hạ tầng"*:** `po` **không đọc `src/`** ở mức đủ để biết
+  một cờ được đọc lúc import hay lúc gọi — mà **chính điều đó** quyết định đổi cờ cần `recreate` hay
+  không (§9 KHAI ≠ CHẠY). Một vai không kiểm chứng được hệ quả của dòng mình viết thì không nên giữ bút.
+
+- **Lý do BÁC BỎ *"cấp quyền một lần cho đúng việc này"*:** quyền cấp theo từng ca **không để lại dấu
+  vết đọc được** — lần sau người khác lại vấp đúng chỗ này và lại phải hỏi. Sửa bảng thì **hết vấp**.
+
+- **Hệ quả:** `CLAUDE.md` §4 (hàng `tech-lead`) · `docs/STATE.md` §11 (bản nhắc lại) ·
+  **KHÔNG** đụng `contracts/`, **KHÔNG** cần `check_contracts --update` — bảng phân vùng quyền ghi
+  không phải một contract cấu trúc.
+  ⚠️ **Ràng buộc thứ tự cho việc đang chờ:** dòng compose phải vào ảnh **TRƯỚC hoặc CÙNG LÚC** với việc
+  đảo mặc định trong `src/`. Dán trước mà chưa đảo ⟹ **vô hại** (hành vi y hệt hôm nay). Đảo trước mà
+  chưa dán ⟹ **sản phẩm chết ở lần dựng tới**. **Thứ tự an toàn: compose trước, `src/` sau.**
+
 ## Mẫu ADR mới
 
 ```markdown
