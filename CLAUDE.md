@@ -90,11 +90,14 @@ suite xanh mướt chứng minh rằng bug hoạt động đúng như bug.
 ## 5. Quy tắc chung cho mọi phiên Claude
 
 - **Thiếu thông tin thì DỪNG và hỏi.** Tuyệt đối không suy đoán để lấp chỗ trống.
-  (Cùng triết lý với ràng buộc cứng số 3 — quy trình và sản phẩm cùng một nguyên tắc.)
+- 🔴 **NHƯNG PO ĐÃ CHỐT THÌ KHÔNG BAO GIỜ HỎI LẠI.** Hỏi lại một quyết định đã chốt —
+  kể cả dưới dạng "xác nhận lại", "lưu ý trước khi", "nếu sếp đổi ý" — là **đẩy ngược
+  công việc quyết định về phía PO** sau khi họ đã làm xong. Có dữ kiện MỚI làm quyết
+  định cũ sai thì **trình DỮ KIỆN kèm hệ quả**, không trình lại CÂU HỎI.
+  *(PO ra lệnh 18/08 sau khi PO-agent hỏi lại chuyện số hotline BA lần.)*
 - Đọc `docs/STATE.md` + 5 ADR gần nhất **trước khi** bắt đầu bất cứ việc gì.
 - Mọi con số nghiệp vụ trích từ tài liệu phải kèm nguồn (`PRD §x.y` hoặc tên file contract).
 - Không tạo file mới ngoài vùng quyền ghi của mình.
-- Kết thúc mỗi nhiệm vụ: đề xuất nội dung cập nhật `docs/STATE.md` (dùng `/wrapup`).
 - **Không báo cáo hoàn thành dựa trên suy luận từ code tĩnh** — chạy thật, đọc log thật,
   dán kết quả thật. Test không chạy được thì nói là chưa chạy được.
 
