@@ -74,6 +74,31 @@ services:
       # thuộc hành vi model.
       # Đặt `PHAN_LUONG_BAT=0` để tắt cho một ngăn xếp cụ thể.
       PHAN_LUONG_BAT: ${PHAN_LUONG_BAT:-1}
+      # Chốt chặn chi phí ở tầng TRANSPORT (`src/cong_ra_ngoai.py`). MỌI lời gọi
+      # tới nhà cung cấp — chat LẪN embedding — đi qua đúng một `httpx.Client`
+      # dùng chung và bị hỏi cờ này TRƯỚC khi ra dây.
+      #
+      # 🔴 DÒNG NÀY PHẢI CÓ TRƯỚC khi mặc định của cờ được đảo thành TỪ CHỐI
+      # trong `src/`. Hai nửa có thứ tự an toàn MỘT CHIỀU (ADR-035):
+      #     dán dòng này mà chưa đảo mặc định  -> VÔ HẠI, hành vi y hệt
+      #     đảo mặc định mà chưa có dòng này   -> SẢN PHẨM CHẾT ở lần dựng tới
+      #                                          (mọi lượt chat VÀ mọi lượt
+      #                                           embedding bị chính chốt chặn
+      #                                           của ta từ chối)
+      #
+      # Cờ đọc LÚC IMPORT ⟹ đổi nó bắt buộc RECREATE. `docker exec -e` chỉ đổi
+      # tiến trình con, KHÔNG chạm uvicorn đang phục vụ — cùng bẫy đã ghi ở
+      # `PHAN_LUONG_BAT` ngay trên (tester bắt được 17/08).
+      #
+      # Vì sao `${VAR:-1}` chứ không gõ cứng `1`: ai muốn một ngăn xếp TUYỆT ĐỐI
+      # không gọi ra ngoài (vd đo offline) thì đặt biến, KHÔNG phải sửa file —
+      # cùng khuôn `PHAN_LUONG_BAT`, không đúc quy ước thứ hai.
+      #
+      # ⚠️ MỘT CHỖ LÀ ĐỦ CHO CẢ BA NGĂN XẾP: [ĐO] `docker-compose.ttl-test.yml`
+      # và `docker-compose.do.yml` chỉ CHỒNG THÊM biến riêng
+      # (`JWT_ACCESS_EXPIRE_MINUTES`, `APP_ENV`), không thay cả khối
+      # `environment` — nên đừng chép dòng này sang hai file kia.
+      FIN05_CHO_PHEP_GOI_RA_NGOAI: ${FIN05_CHO_PHEP_GOI_RA_NGOAI:-1}
       # Ghi đè SSL_CERT_FILE của .env — CÙNG LÝ DO với REDIS_URL ở trên, nhưng
       # hậu quả nặng hơn nhiều nên ghi kỹ.
       #

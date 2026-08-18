@@ -142,31 +142,50 @@ def cho_phep_goi_ra_ngoai() -> tuple[bool, str]:
     theo suy đoán"* — và suy đoán sai thì phải sửa suy đoán, còn lời khai sai
     thì phải sửa `.env`. Hai việc khác nhau.
 
-    🔴 MẶC ĐỊNH KHÔNG THỂ LÀ TỪ-CHỐI-TẤT-CẢ ở giai đoạn này. Ba container đang
-    chạy không có `FIN05_CHO_PHEP_GOI_RA_NGOAI` trong `Config.Env`, và biến môi
-    trường **ghim lúc TẠO container** (STATE §9) ⟹ mặc-định-từ-chối sẽ GIẾT sản
-    phẩm ngay khi ảnh được dựng lại. Đó là đổi hành vi sản phẩm để vá một lỗ
-    của công cụ đo — không đánh đổi được.
+    🔴 MẶC ĐỊNH LÀ **TỪ CHỐI** (đảo 18/08, Giai đoạn 2 ②).
 
-    ⚠️ HẠN CHẾ KHAI TRƯỚC — bản này KHÔNG phủ script nháp chạy `python x.py`:
-    nó không phân biệt được với sản phẩm. Phủ nó cần ĐẢO mặc định thành từ chối
-    + compose khai `=1`, tức **giai đoạn 2, sau lần dựng ảnh**.
+    Bản đầu mặc định CHO PHÉP, và lý do khi đó đúng: ba container đang chạy
+    không có `FIN05_CHO_PHEP_GOI_RA_NGOAI` trong `Config.Env`, mà biến môi
+    trường **ghim lúc TẠO container** (STATE §9) ⟹ mặc-định-từ-chối sẽ **giết
+    sản phẩm** ngay khi ảnh được dựng lại.
 
-        giai đoạn 1 (bản này)   pytest ✅ · lượt chat ✅ · script nháp ❌
-        giai đoạn 2 (sau dựng)  đảo mặc định + compose khai =1  ⟹ cả ba ✅
+    Điều kiện ấy nay đã được gỡ: `docker-compose.yml` khai
+    `FIN05_CHO_PHEP_GOI_RA_NGOAI: ${…:-1}` cho service `backend`, và [ĐO]
+    `docker compose config` nội suy ra `"1"` ở **cả ba** ngăn xếp.
 
-    Viết ra vì **một bản vá được mô tả rộng hơn thứ nó làm chính là cách một lỗ
-    được coi như đã đóng.**
+    🔴 THỨ TỰ MỘT CHIỀU (ADR-035) — người sau đọc dòng này trước khi đảo lại:
+        dán compose mà chưa đảo mặc định  ->  VÔ HẠI
+        đảo mặc định mà chưa dán compose  ->  SẢN PHẨM CHẾT ở lần dựng tới
+    Ai revert một trong hai nửa **phải revert nửa kia trước**, không phải sau.
+
+    VÌ SAO ĐẢO — nó đóng lỗ CUỐI, và đó là lỗ tôi tự đâm vào:
+
+        giai đoạn 1   pytest ✅ · lượt chat ✅ · script nháp ❌
+        giai đoạn 2   cả ba ✅
+
+    Script nháp chạy `python x.py` **không phân biệt được với sản phẩm** — nên
+    thứ duy nhất phân biệt được là **sản phẩm TỰ KHAI mình là sản phẩm**
+    (compose đặt cờ), còn mọi thứ không khai thì mặc định **không được tiêu
+    tiền**. Đây là fail-closed đúng nghĩa: cùng nếp `dau_ma_nguon.py`
+    (`.bam_ma_nguon` rỗng ⟹ TỪ CHỐI khởi động).
+
+    ⚠️ Nhánh `suy_tu_pytest` GIỮ NGUYÊN dù mặc định đã là từ chối. Nó không còn
+    cần cho việc CHẶN, nhưng nó vẫn mang một thứ khác: **LÝ DO**. Một lượt bị
+    chặn dưới pytest và một lượt bị chặn vì thiếu khai là hai chuyện khác nhau
+    lúc điều tra, và sổ `cong_ra_ngoai.jsonl` ghi lại `ly_do` đó. Gộp chúng
+    thành một là mất một trạng thái — ba trạng thái, không phải hai.
     """
     khai = _khai_tuong_minh()
     if khai is not None:
         return khai, "khai_tuong_minh"
     # `pytest` trong `sys.modules` = đang chạy dưới bộ test. Đây là SUY ĐOÁN,
-    # không phải lời khai — nên nó được ghi nhãn khác ở dòng trên, và nó đứng
-    # sau lời khai tường minh (ai cần chạy test tốn tiền thật thì khai `=1`).
+    # không phải lời khai — nên nó được ghi nhãn khác, và nó đứng SAU lời khai
+    # tường minh (ai cần chạy test tốn tiền thật thì khai `=1`).
     if "pytest" in sys.modules:
         return False, "suy_tu_pytest"
-    return True, "mac_dinh_cho_phep"
+    # Không ai khai gì ⟹ TỪ CHỐI. Sản phẩm khai qua compose; thứ không khai thì
+    # không được tiêu tiền.
+    return False, "mac_dinh_tu_choi"
 
 
 # ---------------------------------------------------------------------------
