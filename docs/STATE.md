@@ -991,6 +991,75 @@ và câu thứ hai đẩy người đọc vào **chế độ xử lý sự cố*
 + `migrations/` + `src/`** ⟹ đủ §10. **Trình PO: thi hành ngay, hay chấp nhận rủi ro có khai?**
 
 
+### 🔴🔴 O. ĐÍNH CHÍNH §5.M — "738 → 0" ĐÚNG CHO MỘT NGĂN XẾP, KHÔNG ĐÚNG CHO HỆ THỐNG
+
+*(Ô `O` chỉ bỏ trống ở **SỔ LUẬT §7**, không ở đây — hai không gian tên khác nhau.)*
+*(Bắt ĐỘC LẬP bởi **security** và **tester**, cùng lúc, không ai biết việc của ai. PO-agent kiểm lại.)*
+
+```
+[ĐO] complaints.description_raw, cả ba ngăn xếp cục bộ:
+     fin05      mã hoá 761  ·  PLAINTEXT   0   ✅ đã backfill
+     fin05ttl   mã hoá   4  ·  PLAINTEXT 738   🔴 NGUYÊN VẸN
+     fin05do    mã hoá 607  ·  PLAINTEXT   0
+[ĐO] 738 dòng ở ttl: created_at 05/05/2026 → 14/08/2026  ⟹ ĐÚNG CÙNG TẬP đã có ở fin05
+```
+⟹ ***"738 → 0"* đúng cho `fin05`, và CHỈ cho `fin05`. Tính cả ba ngăn xếp cục bộ: VẪN 738.**
+
+🔴 **SẮC THÁI TESTER THÊM — `fin05do` sạch KHÔNG phải bằng chứng backfill tốt: NÓ CHƯA BAO GIỜ BẨN**
+(kho nạp **sau** khi `EncryptedText` đã có). Đọc *"hai ngăn xếp đã sạch"* là **dân số pha tạp** (§8):
+**BỐN quần thể, mỗi cái sạch/bẩn vì một LÝ DO KHÁC NHAU.**
+
+🔴 **CƠ CHẾ — VÀ NÓ NẰM Ở PHÉP NGHIỆM THU, KHÔNG Ở BẢN VÁ.**
+Bản vá **đúng**. Phép nghiệm thu của PO-agent cũng **chặt** (đọc lại qua ORM trong container, 761 đọc
+được, 0 dòng còn bản mã). **Không ai làm ẩu.**
+> **PHÉP NGHIỆM THU THỪA HƯỞNG MẪU SỐ CỦA BẢN VÁ.** Bản vá chạy trên `fin05` ⟹ người kiểm mở `fin05`
+> ⟹ kết luận mang tên *"backfill xong"* thay vì *"backfill xong TRÊN `fin05`"*.
+> **Tập tự đến bị lọc bởi CHÍNH THAO TÁC đang được kiểm.**
+Đây là §8 áp lên một **NGHIỆM THU** thay vì một **phép đo** — **hiểm hơn**, vì nghiệm thu là bước ta
+dựng ra **ĐỂ BẮT** thiếu sót. Ba ngăn xếp nằm ở **dòng thứ tư của §1**; không ai phải đi tìm. Nó chỉ
+**không có mặt trong CÂU HỎI**.
+⚠️ **Và security mắc đúng lỗi ấy cùng ngày, độc lập:** §11 định hạng kho checkpoint **chỉ trên
+`fin05`**. Họ **có tự khai** — nhưng **khai một khoảng trống không lấp nó**, y hệt ca §10.2.
+**Hai người, hai artefact, một bộ lọc, một ngày** ⟹ tính chất của **quy trình**, không phải lỗi của ai.
+
+**MẪU SỐ ĐẦY ĐỦ cho §5.J (kho checkpoint) — gấp 1,7× con số đã báo:**
+```
+             blob(messages)  HumanMessage  tiếng Việt   dung lượng
+fin05            3.597          3.597        3.413       105 MB
+fin05ttl         2.482          2.482        2.318        95 MB
+fin05do             62             62           59       127 kB
+TỔNG cục bộ      6.141          6.141        5.790      ~200 MB
+```
+**Hạng §5.J GIỮ NGUYÊN mức CAO — security KHÔNG nâng**, lý do họ nêu đúng: mẫu số lớn hơn **không đổi
+bản chất** (cùng biên tin cậy, không kẻ tấn công mới), nó đổi **độ chính xác của hồ sơ**. *Nhưng một
+định hạng đúng với mẫu số sai vẫn là một định hạng phải làm lại.*
+
+**🔴 CÂU CẦN MỘT QUYẾT ĐỊNH, KHÔNG CẦN THÊM PHÉP ĐO:**
+> **`fin05ttl` và `fin05do` là ngăn xếp DÙNG MỘT LẦN, hay dữ liệu ở đó phải được bảo vệ như `fin05`?**
+- **DÙNG MỘT LẦN** ⟹ khai ra, và **mọi phát biểu về mã hoá at-rest phải KÈM PHẠM VI** (*"trên ngăn xếp
+  phục vụ"*). 738 dòng ở `ttl` là **chấp nhận được CÓ Ý THỨC**.
+- **KHÔNG** ⟹ **backfill CHƯA XONG**; cả hai mục ADR-032 phải chạy trên `fin05ttl`.
+**Im lặng thì không nhận được** — hôm nay đội đang tin *"lời khai khách đã mã hoá at-rest"*, và **câu
+đó SAI với 738 dòng**.
+
+⭐ **VÀ `fin05ttl` NAY LÀ TÀI SẢN KIỂM THỬ, KHÔNG PHẢI RÁC** *(tester)*: cổng plaintext chuyển ĐỎ→XANH
+nhờ backfill, nhưng **không ai chứng minh nó CÒN BIẾT ĐỎ** — nửa *"KÊU lúc bất thường"* của **Luật A**
+bỏ trống. Cách rẻ nhất trông có vẻ là nhét một dòng plaintext giả vào CSDL — **tester TỪ CHỐI** (ghi
+vào ngăn xếp đang phục vụ, Luật I). **Không cần:** `fin05ttl` là **quần thể bẩn CÓ THẬT, sẵn có,
+không do ta tạo ra**. Ca đối chứng hai chiều đã dựng, và **chiều thứ hai mới quan trọng**: ngày
+`fin05ttl` được nạp lại, ca ấy **báo MẤT KHẢ NĂNG ĐỐI CHỨNG** thay vì lặng lẽ xanh.
+🔴 ⟹ **Ai định dọn `fin05ttl` phải biết: nạp lại nó sẽ TẮT ca đối chứng duy nhất chứng minh cổng
+plaintext còn sống.**
+
+**QUẦN THỂ THỨ TƯ — `app.adaptivealgo.uk` (production): CHƯA AI ĐO, KHÔNG AI CHẠM.** Mọi số ở §5.J và
+mục này là của **BA ngăn xếp CỤC BỘ**. Ai trích chúng như *"toàn hệ thống"* là **một mẫu số sai nữa**.
+Nếu một ADR có phạm vi production thì **quần thể quyết định nhất là quần thể duy nhất chưa ai đo** —
+đó là **câu xin phép PO thật**, chưa hỏi.
+
+**KHÔNG kết luận:** ❌ `fin05ttl` là **sự cố** — nó là **bản vá chạy chưa hết phạm vi, mà phạm vi đúng
+thì CHƯA AI ĐỊNH NGHĨA**. ❌ ai sai — **thiếu sót nằm ở CÂU HỎI, không ở THAO TÁC**.
+
+
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
 
 **C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
