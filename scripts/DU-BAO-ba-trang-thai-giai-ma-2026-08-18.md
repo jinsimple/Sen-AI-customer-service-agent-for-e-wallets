@@ -68,6 +68,26 @@ dòng (`migrations/`, chưa tồn tại). Không có số đếm thì script n�
 
 **8/8 trúng.** (Quy trình dự báo-trước: 6/6 · 2/2 · 10/10 · 8/8.)
 
+## 4. Nếu khác thì nghi gì
+
+| lệch | nghi |
+|---|---|
+| #4/#5/#6 ĐỎ | 🔴 nghi **nặng nhất**: có dòng mã hoá bằng khoá khác mà phép đo bán-kính của tôi **bỏ sót** — vì đó là điều kiện DUY NHẤT làm nhánh mới bắn. Đọc dòng nào, đừng vá cho xanh |
+| #6 đỏ ở **fixture test** chứ không phải dữ liệu thật | test tự sinh giá trị `gAAAAA…` giả làm bản mã ⟹ **nội dung của tester**, tôi không sửa, soạn kết luận chuyển qua PO-agent |
+| #3 bẩn | tôi chạm `contracts/` ngoài ý định ⟹ DỪNG, đi đủ §10 |
+| #7 ≠ 0 | Luật I — hoàn nguyên trước khi báo bất cứ số nào |
+
+## 5. Khai trước — điều gì KHÔNG được tính là xác nhận
+
+Cổng xanh ở đây ⟹ *"nhánh mới không làm hỏng đường đang chạy"*. Nó **KHÔNG** ⟹ *"đã bảo vệ được
+việc xoay khoá"* — điều đó chỉ chứng minh được bằng **ca đối chứng** (Luật A): nạp một giá trị mã
+hoá bằng khoá khác rồi xác nhận nó **NÉM**. Ca đó thuộc `tests/`, **vùng tester**. Tôi kiểm bằng
+nháp ngoài repo và chuyển **kết luận + lý lẽ** qua PO-agent, **không** soạn nội dung test.
+
+**Và việc này KHÔNG đóng được §5.E.** Nó là bước 1/3. Còn: script nạp lại 738 dòng (`migrations/`,
+chưa tồn tại) và **sao lưu + đếm phân bố trước/sau** (PO-agent đã dặn: *đọc trước, dọn sau* —
+đừng để script tự phát hiện lúc chạy).
+
 ## 6. KẾT QUẢ THẬT
 
 **Nghiệm thu ba trạng thái** (nháp ngoài repo, in băm vật; chạy lại sau khi siết `validate=True`):
@@ -112,30 +132,6 @@ làm thế là dựng lại đúng sự im lặng vừa gỡ bỏ.
 **Ca đối chứng ③ ở trên là nháp NGOÀI repo.** Nó chứng minh cơ chế bắn, **không** thay thế cổng
 trong `tests/` — nháp không chạy trong CI, và một cơ chế không có cổng là cơ chế sẽ bị gỡ mà không
 ai biết.
-
-## 4. Nếu khác thì nghi gì
-
-| lệch | nghi |
-|---|---|
-| #4/#5/#6 ĐỎ | 🔴 nghi **nặng nhất**: có dòng mã hoá bằng khoá khác mà phép đo bán-kính của tôi **bỏ sót** — vì đó là điều kiện DUY NHẤT làm nhánh mới bắn. Đọc dòng nào, đừng vá cho xanh |
-| #6 đỏ ở **fixture test** chứ không phải dữ liệu thật | test tự sinh giá trị `gAAAAA…` giả làm bản mã ⟹ **nội dung của tester**, tôi không sửa, soạn kết luận chuyển qua PO-agent |
-| #3 bẩn | tôi chạm `contracts/` ngoài ý định ⟹ DỪNG, đi đủ §10 |
-| #7 ≠ 0 | Luật I — hoàn nguyên trước khi báo bất cứ số nào |
-
-## 5. Khai trước — điều gì KHÔNG được tính là xác nhận
-
-Cổng xanh ở đây ⟹ *"nhánh mới không làm hỏng đường đang chạy"*. Nó **KHÔNG** ⟹ *"đã bảo vệ được
-việc xoay khoá"* — điều đó chỉ chứng minh được bằng **ca đối chứng** (Luật A): nạp một giá trị mã
-hoá bằng khoá khác rồi xác nhận nó **NÉM**. Ca đó thuộc `tests/`, **vùng tester**. Tôi kiểm bằng
-nháp ngoài repo và chuyển **kết luận + lý lẽ** qua PO-agent, **không** soạn nội dung test.
-
-**Và việc này KHÔNG đóng được §5.E.** Nó là bước 1/3. Còn: script nạp lại 738 dòng (`migrations/`,
-chưa tồn tại) và **sao lưu + đếm phân bố trước/sau** (PO-agent đã dặn: *đọc trước, dọn sau* —
-đừng để script tự phát hiện lúc chạy).
-
-## 6. KẾT QUẢ THẬT
-
-*(để trống tới khi đo xong)*
 
 ## 8. SIẾT SAU KHI CÔNG BỐ — `validate=True`, và vì sao nó KHÔNG phải chuyện nhỏ
 
