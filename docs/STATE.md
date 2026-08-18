@@ -177,6 +177,23 @@ ca A2 viết lại   → TESTER                  → chặn tech-lead vá F-31/3
 | §2 | cờ đóng băng LLM | ✅ video quay xong ⟹ **để nguyên trạng thái xoá** | Lớp ② tắt vĩnh viễn |
 | — | tab security | ✅ đã mở (`p-226-b0`) | Nhánh "chờ security" hết vô chủ |
 
+**VÒNG 2 — 18/08, sau khi PO đọc bản giải thích bốn đầu việc:**
+
+| # | việc | quyết định | hệ quả |
+|---|---|---|---|
+| ADR-033 | `/ready` + cổng canh hạng mù | ✅ **DUYỆT cả hai phần** | tech-lead mở khoá, đi đủ §10 (gồm **bước 7: commit KÈM baseline**) |
+| ADR-034 | gỡ tạm dừng ADR-031 | ✅ **DUYỆT cả ba lựa chọn phạm vi** | §5.A1 **ĐÓNG** — ba câu treo đã có ba trả lời |
+| — | `fin05ttl` · `fin05do` | ✅ **xoá `ttl` theo BA BƯỚC · giữ `do`** → **ADR-036** | tester có việc: dựng lại ca đối chứng trên quần thể vứt đi **TRƯỚC** |
+| ADR-026 | duyệt tài liệu chính sách | ⏸ **HOÃN — PO cần nghiên cứu kỹ hơn** | 🔴 lỗ §5.N **VẪN MỞ**, và đó là lựa chọn **có khai**, không phải bỏ quên |
+| CI | 11 job đỏ | ✅ **billing — XÁC NHẬN bằng annotation nguyên văn GitHub** | chỉ PO gỡ được; xem §5.P |
+
+> ⚠️ **ĐỌC KÈM MỤC ADR-026 HOÃN — đừng đọc "hoãn" thành "không còn là lỗ".**
+> §5.N đo được: **không có trạng thái `da_duyet`, không có ai duyệt**, tài liệu đi thẳng
+> `processing → indexed` rồi được phục vụ. Sự cố 16/08 (19 phút 33 giây, hai file nội bộ trong kho
+> đang phục vụ) **tái diễn được bằng đúng thao tác cũ**. PO hoãn **quyết định**, không hoãn **sự thật**.
+> **Ranh giới phát biểu giữ nguyên §5.N:** *"cơ chế duyệt chưa tồn tại"* ✅ — **KHÔNG** phải
+> *"đang có tài liệu chưa duyệt được phục vụ"* ❌ (2 tài liệu hiện có đều qua đúng cửa).
+
 **⟹ HƯỚNG ƯU TIÊN MỚI CỦA ĐỘI: tối ưu CACHING + TOKEN.** Mọi việc trong §5.B phải xếp lại theo trục
 này. Việc §6.⓶ (bất biến chống livelock) **vẫn là ưu tiên số một** — nó chính là việc tiết kiệm token
 lớn nhất đo được (~40K/lượt hỏng), không phải một việc khác cạnh tranh với nó.
@@ -194,6 +211,14 @@ lớn nhất đo được (~40K/lượt hỏng), không phải một việc khá
 
 ### 🔴 A. CHẶN, chỉ PO thật gỡ được
 
+**A1 · ADR-031 — ✅ ĐÓNG 18/08 vòng 2. Không còn chặn.**
+PO thật phê chuẩn **cả ba** lựa chọn phạm vi của **ADR-034** ⟹ ba câu treo dưới đây đã có ba trả lời:
+**① HAI bảng · ② MỞ RỘNG cơ chế đã có (không thêm cột) · ③ `tool_input_json` tách thành finding
+bảo mật ĐỘC LẬP.** Giữ nguyên văn ba câu bên dưới **để người đọc sau thấy câu hỏi, không chỉ thấy đáp
+án** — một đáp án không kèm câu hỏi là thứ phiên sau sẽ "tối ưu" ngược lại.
+
+<details><summary>nguyên văn ba câu treo (đã trả lời — bấm để xem)</summary>
+
 **A1 · ADR-031 (truy vấn `search_policy`) — TẠM DỪNG THI HÀNH, TIỀN ĐỀ SAI.**
 PO đã duyệt, nhưng duyệt trên tiền đề *"query chưa được lưu ở đâu"* — **sai**:
 `investigation_logs.tool_input_json` (`models.py:328`, JSON **thường không mã hoá**) đã lưu query
@@ -203,6 +228,8 @@ từ lâu. **Ba câu cần PO:**
    *(đường thứ hai rẻ hơn hẳn, không tạo chuẩn thứ ba)*
 3. `tool_input_json` plaintext chứa **mã GD · SĐT · số tiền** (input của MỌI tool, không riêng
    `search_policy`) — tách thành **finding bảo mật riêng**, độc lập ADR-031?
+
+</details>
 
 **A2 · Hồ sơ Đ.25 (NĐ 13/2023) — đồng hồ CÓ THỂ đã chạy từ 15/08.**
 ```
@@ -1108,6 +1135,55 @@ kiện ĐẨY hành động thì dữ kiện thắng* — nên nói rõ cả hai
 
 ## 6. BỐN CON SỐ QUYẾT ĐỊNH — kèm mẫu số, đừng trích thiếu
 
+### 🔴🔴 P. CÂY LÀM VIỆC BỊ CHUYỂN NHÁNH GIỮA LƯỢT — và KHÔNG có triệu chứng nào
+
+*(PO-agent tự phát hiện khi `src/` đột nhiên chỉ còn khung mẫu. PO thật khôi phục.)*
+
+```
+[ĐO] git reflog
+d09d4bb HEAD@{2026-08-18 14:25:52 +0700}: checkout: moving from dev/learning-loop to main
+```
+
+`main` = `d09d4bb "Initial commit"` — **khung mẫu do `phoenix-mentor[bot]` tạo 26/07**, đi sau nhánh
+làm việc **453 commit**. Trong khoảng cây đứng ở đó, trên đĩa **không tồn tại**: `CLAUDE.md` ·
+`docs/STATE.md` · `docs/DECISIONS.md` · `contracts/` · `tests/test_invariants.py` · toàn bộ `src/`
+thật. Cái `src/` nhìn thấy là `example_tool.py` · `example_node.py` của khung mẫu.
+
+🔴 **VÌ SAO KHÔNG CÓ TRIỆU CHỨNG — đây mới là phần đáng ghi.**
+```
+[ĐO] git status  →  "nothing added to commit"   (SẠCH)
+```
+Cây **hoàn toàn tự nhất quán**: index khớp HEAD, HEAD khớp đĩa. Không file nào tự khai *"tôi là bản
+khung mẫu"*. **Sạch là tính chất BÊN TRONG một ảnh chụp; danh tính là tính chất GIỮA các ảnh chụp** —
+và `git status` chỉ đo được cái thứ nhất.
+
+🔴 **SAI LẦM CỦA PO-AGENT — ĐI TÌM Ở REPO KHÁC TRƯỚC KHI HỎI CÂY ĐANG ĐỨNG Ở ĐÂU.**
+Thấy `src/` thành khung mẫu, tôi **sang `P-121-new` lục** (một bản sao cũ, PO xác nhận không còn
+dùng) để tìm xem "code thật rơi đâu" — tốn lượt, và đưa PO một khúc lạc đề. **Một lệnh
+`git rev-parse --abbrev-ref HEAD` đặt ĐẦU TIÊN đã đóng cả vụ.** Tôi đi tìm **vật** trước khi hỏi
+**mình đang đứng ở đâu**.
+
+⭐ **VÀ ĐÂY LÀ CA THỨ BA CỦA MỘT LỚP DỰ ÁN NÀY ĐÃ BIẾT — ở tầng thứ ba:**
+| tầng | cơ chế đã dựng | dựng lúc nào |
+|---|---|---|
+| **ảnh Docker** | `bam_ma_nguon` — băm nội dung `src/`, không tin nhãn | đã có |
+| **nhãn commit của ảnh** | `BUILD_COMMIT` tự nối `-CAY-KHAC-HEAD` khi cây ≠ HEAD | 18/08 |
+| **cây làm việc trong PHIÊN** | ❌ **KHÔNG CÓ GÌ** | ← lỗ này |
+⟹ Đội đã hai lần tự dựng cơ chế chống *"hai định nghĩa của cùng một vật lệch trong im lặng"* — và
+**chưa lần nào áp nó cho chính cây mình đang gõ lên**. ⟹ **Luật Q.**
+
+**MỨC RỦI RO THẬT — không phải mất dữ liệu, mà là thứ khác:**
+```
+[ĐO] dev/learning-loop  9a7666e   ahead 55  — toàn bộ việc 18/08 CÒN NGUYÊN
+[ĐO] origin/dev/learning-loop  27b6ea3     — 55 commit ấy CHƯA ĐẨY LÊN GITHUB
+```
+Không mất gì. **Nhưng 55 commit hôm nay chỉ tồn tại trong kho local trên MỘT máy** — và lý do chưa
+đẩy được là CI/billing (§5.A0 vòng 2). Hai việc tưởng rời nhau hoá ra **cùng một rủi ro**: máy hỏng
+là mất trắng một ngày.
+
+**KHÔNG kết luận:** ❌ ai chạy lệnh checkout — PO-agent **không** chạy nó, và không đi đoán tiếp.
+❌ đây là phá hoại — cây dùng chung, một cú `checkout` nhầm tab là đủ.
+
 ### ⓵ Trần thật là TPM, và ta ĐÃ VƯỢT ở cấu hình buổi 150 người
 
 ```
@@ -1410,6 +1486,23 @@ phát biểu bị nghi trong hội thoại vẫn ĐỨNG NGUYÊN trong tài li�
 có phân biệt được không?*
 
 **Luật I · J · K** — *(PO-agent CẤP PHÁT SỐ HIỆU 18/08; nội dung đúc 17/08, giữ nguyên):*
+**Luật Q** *(PO-agent đúc 18/08 từ sai lầm của chính mình — ô **O** bỏ trống có chủ đích, tránh đọc
+nhầm thành số 0)* — **NGỮ CẢNH CỦA BẠN LÀ MỘT ẢNH CHỤP; CÂY LÀM VIỆC LÀ MỘT THỨ SỐNG. Khi hai cái
+lệch nhau thì KHÔNG CÓ TRIỆU CHỨNG — vì mỗi cái đều tự nhất quán.**
+> **[ĐO] 18/08 (§5.P):** cây bị `checkout` sang nhánh khung mẫu **giữa lượt**. `git status` báo
+> **SẠCH**. Mọi đường dẫn + số dòng trong ngữ cảnh vẫn "đúng" — chỉ là chúng trỏ tới **một repo khác**.
+> **Ba điều khoản thi hành:**
+> ① **`git status` sạch KHÔNG chứng minh cây là cây bạn nghĩ.** Sạch đo *trong* một ảnh chụp; câu
+>   bạn cần trả lời nằm *giữa* các ảnh chụp. Hai câu hỏi khác nhau, một lệnh chỉ trả lời câu thứ nhất.
+> ② **Phát biểu về nội dung file phải mang DANH TÍNH CÂY**, không chỉ `đường/dẫn:dòng` — tối thiểu
+>   `nhánh @ commit`. Đây là **Luật F** (mẫu số cùng dòng) áp cho trích dẫn mã nguồn: một số dòng
+>   không kèm danh tính cây là một con số không có mẫu số.
+> ③ 🔴 **Khi một file "biến mất" hoặc mã "sai lạ lùng": hỏi MÌNH ĐANG ĐỨNG Ở ĐÂU trước khi đi tìm
+>   VẬT.** `git rev-parse --abbrev-ref HEAD && git log -1` **rẻ hơn mọi cuộc truy tìm**, và 18/08
+>   PO-agent đã làm ngược — lục sang một repo khác trước, tốn lượt, đưa PO một khúc lạc đề.
+> **Khác Luật G ở chỗ nào:** Luật G nói *cơ chế làm đúng việc của NÓ ≠ việc ta tưởng*. Luật Q nói một
+> câu **nằm trước cả G** — *vật bạn đang soi có phải vật bạn nghĩ không*. G giả định đã đúng vật.
+
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
   **Vế thi hành:** sau **MỖI** phiên đo, chạy `docker diff` **trước khi báo cáo bất cứ số nào**.
