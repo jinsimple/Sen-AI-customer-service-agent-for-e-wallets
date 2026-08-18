@@ -1345,3 +1345,110 @@ phép PO thật**, không phải câu đo.
   ở **thao tác**.
 - **Không** đo production. Không đo metadata Chroma (§12.5) — H3 đã gác, đo bây giờ là đo cho một việc
   chưa chạy.
+
+---
+
+## §14. Ý kiến trước khi PO quyết "bản rẻ" cho ADR-026 — vấn đề KHÔNG phải rẻ, mà là **CÁI GÌ rẻ**
+
+> PO-agent hỏi ý kiến thẩm quyền/dấu vết **trước** khi sếp quyết. Đây là ý kiến, không phải phán quyết
+> — phạm vi thuộc PO thật. `psql` chỉ-đọc, **0 thao tác chạm container** (cửa sổ dựng ảnh đang mở).
+
+### 14.1 Mở sổ trước: dự án ĐÃ trả lời đúng câu hỏi này một lần, và câu trả lời còn sống
+
+Tôi không đi tìm nguyên tắc — tôi đi tìm **tiền lệ có thật**. [ĐO]:
+
+```
+models.py:352   CheckConstraint(
+                  "(status != 'approved') OR (approved_by IS NOT NULL AND approved_at IS NOT NULL)",
+                  name="ck_resolutions_approved_requires_approver_br10")
+
+dữ liệu thật:   approved         8   ·  approved_by 8/8  ·  approved_at 8/8
+                pending_approval 3   ·  approved_by 0    ·  approved_at 0
+                rejected         1   ·  approved_by 0    ·  approved_at 0
+```
+
+⟹ Với `resolutions`, **"đã duyệt mà không có người duyệt" là một dòng KHÔNG TỒN TẠI ĐƯỢC.** CSDL từ
+chối nó. Không nhờ ai nhớ, không nhờ một bộ lọc, không nhờ một quy trình — **nhờ một ràng buộc**.
+
+**Đó chính xác là hình dạng ADR-026 đang xin cho tài liệu**, và dự án đã dựng nó một lần rồi, đặt tên
+theo một luật nghiệp vụ (`BR-10`), và nó đang giữ **8/8**.
+
+### 14.2 Vì sao bản-script-chạy-tay đắt về nghĩa — nói cho chính xác
+
+Cảnh báo của tech-lead đúng, và tôi làm nó sắc hơn một nấc. Vấn đề **không phải** *"ít dấu vết hơn"*:
+
+> **Một tài liệu được duyệt bởi một script là một hành vi duyệt KHÔNG CÓ CHỦ THỂ.**
+> Không phải *"chủ thể khó tra"* — mà là **không có chỗ nào để chủ thể tồn tại.**
+
+Đối chiếu `contracts/authority-matrix.yaml`: nó khai **route × vai nào được gọi**. Một script chạy tay
+**không đi qua route nào** ⟹ nó **nằm ngoài toàn bộ ma trận thẩm quyền**. ADR-026 phát biểu *duyệt là
+**hành vi riêng của `supervisor`***; bản script biến nó thành thao tác của **bất kỳ ai có quyền chạy
+lệnh trên máy chủ** — tức `partner_admin`, tức chính vai mà ADR-026 được viết ra để **tách khỏi** việc
+này. **Khoảng trống gốc quay lại nguyên hình, chỉ đổi cửa.**
+
+⚠️ **Nhưng nói cho công bằng, và tôi không nâng hạng:** đây **KHÔNG** vi phạm ràng buộc cứng nào.
+Ràng buộc 1 (HITL) nói về hoàn tiền/điều chỉnh số dư, không nói về duyệt tài liệu. Đây là một **bước
+lùi về truy vết so với một khuôn dự án đã tự đặt ra**, không phải một vi phạm hiến pháp. PO chọn bản
+rẻ là **hoàn toàn chính đáng**; ý kiến của tôi là về **rẻ ở CHỖ NÀO**.
+
+### 14.3 🔴 Lập luận mạnh nhất: cột rẻ HÔM NAY và **không dựng lại được** ngày mai
+
+Đây là lý do tôi viết mục này thay vì để im:
+
+| | thêm muộn | phục hồi được không? |
+|---|---|---|
+| `description_raw` mã hoá (ADR-032) | 738 dòng | ✅ **được** — bản rõ còn đó, mã hoá lại là xong |
+| **`approved_by` / `approved_at`** | n dòng đã duyệt | 🔴 **KHÔNG** — **ai đã duyệt** không suy ra được từ bất cứ đâu |
+
+Cả đội vừa tiêu một ngày cho 738 dòng của một cột **thêm muộn nhưng backfill được**. Cột này **thêm
+muộn và KHÔNG backfill được**: mọi tài liệu được duyệt trong giai đoạn "bản rẻ" sẽ **vĩnh viễn không
+có người duyệt**, và cách duy nhất để hồ sơ sạch là **duyệt lại từ đầu bằng tay**.
+
+**Chi phí của việc chờ không phải là chi phí của cột — nó là chi phí của mọi hàng duyệt trong khoảng
+chờ.** Và nó tăng theo thời gian, im lặng.
+
+### 14.4 Đề nghị: giữ "rẻ", chuyển chỗ rẻ
+
+**Phần đắt thật của ADR-026 là MÀN HÌNH cho `supervisor`** (giao diện, luồng, phân công). Đề nghị hoãn
+đúng phần đó. **Phần rẻ nên giữ lại là RÀNG BUỘC**, và tech-lead đã khai **cần 1 revision
+`migrations/` dù sao đi nữa**:
+
+```
+① thêm cột  approved_by (FK users) · approved_at        ← trong revision đã tính
+② CHECK: tài liệu chỉ được PHỤC VỤ khi approved_by IS NOT NULL
+          — chép nguyên khuôn ck_resolutions_approved_requires_approver_br10
+③ script (nếu vẫn cần) BẮT BUỘC nhận user_id của một supervisor làm tham số
+          — CSDL TỪ CHỐI dòng thiếu nó, nên script KHÔNG THỂ bỏ qua
+```
+
+⟹ Hôm nay **script điền chỗ ấy** (rẻ), mai **màn hình điền chỗ ấy** (đắt) — **dấu vết tồn tại ở CẢ
+HAI thế giới**, và bảo đảm cấu trúc **không phải chờ giao diện**.
+
+✅ **Và tôi ủng hộ mạnh phần còn lại của đề xuất tech-lead:** *hoãn đưa vector vào kho cho tới khi có
+người duyệt* — biến *"không được phục vụ"* thành **CẤU TRÚC** thay vì một bộ lọc ai đó quên gọi. Đó
+đúng là bài học §5.D2 + §12.4 được áp đúng chỗ: **thứ chỉ sống trong một lời dặn thì không có cổng nào
+canh được.**
+
+### 14.5 Về khả năng BỎ HẲN `fin05ttl` — đường thứ ba, và nó tốt hơn cả hai đường tôi nêu
+
+Tôi đặt câu hỏi nhị phân (*dùng một lần* / *phải bảo vệ*) và PO-agent tìm ra đường thứ ba: **bỏ thứ
+không ai cần**. Đường đó **tốt hơn cả hai** — nó không đổi rủi ro lấy công sức, nó **xoá cả rủi ro
+lẫn công sức**.
+
+**Ghi nhận sai sót trong cách tôi đặt vấn đề:** câu hỏi nhị phân của tôi **giả định ngăn xếp phải tồn
+tại**, và giả định ấy **không được kiểm** — tôi đã đo *dữ liệu trong đó*, không đo *có ai cần nó
+không*. Cùng lớp với §10.2: **đo cái đang có, không hỏi cái đó có nên có không.**
+
+**Hai điều kiện nếu bỏ**, nêu vì chúng dễ trượt:
+1. **`down -v`** — xoá volume là thao tác **không đảo ngược được**, và ba ngăn xếp dùng chung một cây
+   lệnh. Phải khai **đích danh `-p fin05ttl`**; một lần gõ thiếu `-p` là mất ngăn xếp khác. *(STATE §1
+   đã cảnh báo, nhắc lại vì đây đúng là lúc nó bị vấp.)*
+2. **Khai vào hồ sơ rằng 738 dòng ấy biến mất VÌ BỊ XOÁ, không vì được mã hoá** — hai câu cho ra cùng
+   một con số `0` và **khác hẳn nhau** khi ai đó đọc lại sau sáu tháng. Ba trạng thái, không phải hai.
+
+### 14.6 Điều tôi KHÔNG kết luận
+
+- **Không** phản đối bản rẻ. Tôi phản đối **rẻ ở chỗ không phục hồi được**, và nêu một chỗ rẻ khác.
+- **Không** kết luận bản script vi phạm ràng buộc cứng nào — nó không.
+- **Không** quyết `fin05ttl`. Đó là quyết định hạ tầng của PO thật.
+- **Không** thiết kế màn hình duyệt. Nêu ràng buộc, không nêu giải pháp.
