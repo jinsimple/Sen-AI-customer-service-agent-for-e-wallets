@@ -143,3 +143,126 @@ assertion mới toanh chưa bao giờ đỏ thì chưa ai biết nó có nối v
 
 Kết quả sẽ báo theo **BA** trạng thái: `ĐẠT` · `TRƯỢT` · `KHÔNG ĐO ĐƯỢC`.
 Ca 6a rơi vào rổ ba là **kết quả hợp lệ**, không phải thất bại của phép thử.
+
+---
+
+# ⑨ KẾT QUẢ THẬT — ghi SAU khi chạy, 18/08
+
+Dự báo ở trên nằm trong commit `e8d4541`, **trước** mọi dòng vá. Băm đối chiếu:
+
+```
+                                                 TRƯỚC vá      SAU vá
+test_api/test_resolution_approval_otp.py        ce1a135ea7a5  749c0fef8ff3
+test_api/test_resolution_reject.py              d1175f4d9189  4e6a8a4bc550
+test_api/test_injection.py                      4b17df02bead  f7839e4aa4ca
+```
+
+**Nền (trước vá, 3 file):** `25 passed` — khớp dự báo *"6/6 xanh"*.
+**Chốt (sau vá, 3 file):** `25 passed · 1 xfailed`.
+
+## Bảng đối chiếu dự báo × thực tế
+
+| # | ca | dự báo | thực tế | đọc |
+|---|---|---|---|---|
+| 1 | approve thiếu OTP | 🟢 | ⚠️ **KHÔNG ĐO ĐƯỢC** rồi 🟢 sau khi sửa hạt giống | **dự báo TRẬT** — xem ⑩ |
+| 2 | OTP của A duyệt B | 🟢 | 🟢 | trúng |
+| 3 | OTP quá hạn tươi | 🟢 | 🟢 | trúng |
+| 4 | mã OTP sai | 🟢 | 🟢 | trúng |
+| 5 | CSKH reject | 🟢 | 🟢 | trúng |
+| 6a | traversal — đối chứng dương + không thoát đĩa | 🟢 | 🟢 | trúng |
+| 6b | traversal — tên bị giam | ❓ không dự báo | 🔴 **TRƯỢT — FINDING** | xem ⑪ |
+
+**5/6 trúng · 1 trật · 1 ô cố ý bỏ trống và ô đó chính là ô mang thông tin.**
+
+## ⑩ Ca 1 trật — và nó là ca CÓ GIÁ NHẤT của đợt
+
+Ca 1 không đỏ vì thủng HITL. Nó báo **KHÔNG ĐO ĐƯỢC**: `sample_db.get(...)`
+trả `None`. Cơ chế: fixture `client` dùng CHUNG session với route, và
+`_override_session` **rollback** khi route ném `HTTPException` ⟹ hạt giống chưa
+commit bị chính cú rollback ấy cuốn đi.
+
+> 🔴 **Ba ca OTP còn lại quan sát được là nhờ MAY, không nhờ thiết kế**: chúng
+> có một request `request-approval-otp` **thành công** commit hộ trước đó. Nếu
+> tôi chỉ vá 3 ca ấy, cả ba xanh, và tôi sẽ báo cáo "đã canh" cho một khuôn mà
+> ca thứ tư chứng minh là **không tự đứng được**.
+
+Vá: `_make_resolution` commit hạt giống ⟹ khả năng quan sát thành **tất định**.
+Điều này chỉ lộ ra vì helper có **trạng thái thứ ba** — một helper chỉ biết
+ĐẠT/TRƯỢT đã báo TRƯỢT và đẩy cả đội đi truy một vụ thủng HITL không tồn tại.
+
+## ⑪ Ca 6b — FINDING, không vá, không nới assertion
+
+`policy_documents.filename` lưu **nguyên văn** `'../../../../etc/passwd.txt'`
+(HTTP 200, `chunk_count: 1`, `status: indexed`).
+
+Xử lý theo đúng dự báo ⑥: **không sửa `src/`, không nới assertion**. Ca gốc
+được **TÁCH ĐÔI**:
+- `..._khong_ghi_tep_ra_ngoai_repo` — 🟢 ở cổng chính, canh 12 đích thoát
+- `..._ten_tep_da_luu_phai_bi_giam` — `xfail(strict=True)`, **cố ý KHÔNG gắn
+  `security_finding`** (chưa có đồng thuận về mức độ; tiền lệ:
+  `test_tools_rest_parity.py:25`)
+
+**Vì sao tách chứ không gộp rồi gắn nhãn — Luật J:** gộp thì cả nửa ĐANG CANH
+ĐƯỢC cũng bị ẩn khỏi `lint-and-test`. Bản vá sẽ làm im một phép kiểm đang chạy tốt.
+
+## ⑫ Phép ĐỘT BIẾN — 6 assertion mới có BIẾT ĐỎ không
+
+Đổi mốc `"pending_approval"` → `"DOT-BIEN-KHONG-TON-TAI"` ở cả 2 file:
+
+```
+5 failed, 10 passed   ← ĐÚNG 5 ca đã vá đỏ, KHÔNG ca nào khác
+hoàn nguyên: băm khớp lại 749c0fef8ff3 · 4e6a8a4bc550
+```
+⟹ 5 assertion HITL **nối thật vào vật**. Ca 6b tự chứng minh (nó đang đỏ thật).
+
+## ⑬ 🔴 FINDING NGOÀI PHẠM VI — cổng chi phí thủng, mẫu số TOÀN BỘ `tests/`
+
+PO-agent hỏi (⑤ tin 18/08): *mẫu số "3/3 bộ ĐÃ KHAI" chưa quét cả suite tìm bộ
+thứ tư.* **Đã quét. Có bộ thứ tư.**
+
+`tests/test_api/test_injection.py` gọi **OpenAI `/v1/embeddings` THẬT** qua
+`POST /policy-docs` → ingest, và **KHÔNG qua `_ton_tien` lẫn `_dong_bang`**.
+Bằng chứng đo được, không suy luận:
+```
+{"logger":"httpx","message":"HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\""}
+{"logger":"fin05.rag","message":"policy_doc_nap","chunk_count":1,"status":"indexed"}
+```
+
+**Phép dò dùng — Luật 10d (vô hiệu hoá HẬU QUẢ trước, rồi mới thử cổng), 0 đồng:**
+`OPENAI_API_KEY=sk-invalid` + `DASHSCOPE_API_KEY=sk-invalid` +
+`FIN05_BASE_URL=https://127.0.0.1:9` rồi chạy **toàn bộ** `tests/`.
+
+```
+620 ca thu thập (566 passed · 2 failed · 40 skipped · 1 deselected · 11 xfailed)
+ĐÚNG 1 lời gọi nhà cung cấp rời khỏi máy:  POST /v1/embeddings → 401
+                                            nguồn: test_injection.py
+```
+**Đối chứng dương của chính phép dò:** file đã biết là gọi mạng thì kêu; 5 file
+ứng viên khác (`test_authz_matrix` · `test_frontend_route_guards` ·
+`test_rag/test_ingest` · `test_rag/test_parsers` · `test_invariants`) **vẫn
+xanh** với khoá giả ⟹ chúng không gọi. Không có đối chứng này thì *"chỉ 1 kết
+quả"* chỉ nghĩa là chưa nhìn kỹ (tiêu chí ④ của `4ac2162`).
+
+### Mẫu số — khai đúng phạm vi, đây là chỗ dễ trích quá nhất
+
+```
+620/620 ca ĐÃ CHẠY qua phép dò          ← mẫu số THẬT
+   1 file gọi nhà cung cấp không cổng
+```
+🔴 **Phép dò này chỉ bắt lời gọi Ở PHÍA HOST.** Đường đi **qua container** mang
+khoá RIÊNG của container ⟹ khoá giả ở host **không chạm tới** (đúng bảng Luật
+10d). Ba bộ đã khai đi đường đó và bị vô hiệu bằng `FIN05_BASE_URL` chết.
+**`tests/test_rag/test_thanh_phan_tai_lieu_kho.py` chạy `docker exec` vào
+container thật ⟹ nằm NGOÀI tầm phép dò này: KHÔNG ĐO ĐƯỢC, không được đọc
+thành "đã sạch".**
+
+### Hệ quả cần PO quyết — tôi KHÔNG tự làm
+
+Gắn `_ton_tien` cho cả `test_injection.py` sẽ **skip luôn 10 ca appsec** không
+tốn tiền (SQLi/XSS). Đó là đánh đổi độ phủ, **quyết định của PO, không phải
+của tester**. Ba đường: gắn cổng cho riêng 2 ca `/policy-docs` · giả lập tầng
+nhúng · để nguyên và ghi vào sổ nợ.
+
+⚠️ Và đọc kèm: `.DANG-DONG-BANG-LLM` nay **tắt vĩnh viễn** (PO chốt 18/08) ⟹
+lớp ① là lớp duy nhất còn lại — **mà chính lớp ① không phủ file này.**
+Với `pytest tests/` hôm nay, **lượt nhúng vẫn bay ra ngoài dù cả hai lớp đều bật.**

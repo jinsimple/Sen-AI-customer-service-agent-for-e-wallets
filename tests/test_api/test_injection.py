@@ -9,9 +9,12 @@ payload NGUYÊN VĂN dạng dữ liệu thô, không "thực thi"/biến dạng 
 from __future__ import annotations
 
 import datetime as dt
+import os.path
+import pathlib
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from src.api.deps import get_session
 from src.api.main import app
@@ -110,23 +113,124 @@ def test_request_more_info_note_injection_no_crash(client):
     assert resp.status_code == 404
 
 
-def test_policy_doc_upload_path_traversal_filename_is_safe(client, sample_db):
+# --------------------------------------------------------------------------
+# Path traversal — mốc để kiểm HIỆU QUẢ, không chỉ mã trạng thái
+# --------------------------------------------------------------------------
+
+_GOC_REPO = pathlib.Path(__file__).resolve().parents[2]
+# Payload nhắm `../../../../etc/passwd.txt` — bốn mức lên. Lấy dư một mức để
+# không phải đoán đúng thư mục kho nằm sâu bao nhiêu.
+_TO_TIEN = [_GOC_REPO, *list(_GOC_REPO.parents)[:5]]
+_MOC_THOAT = [t / "etc" / "passwd.txt" for t in _TO_TIEN] + [t / "passwd.txt" for t in _TO_TIEN]
+
+
+def _ten_tai_lieu(sample_db) -> set[str]:
+    """Tên tệp ĐÃ LƯU, đọc thẳng bằng SQL trên `policy_documents`.
+
+    Đọc bằng SQL chứ không qua model để ca này viết được từ ĐẶC TẢ: tên bảng và
+    tên cột lấy từ `tests/test_migrations/test_migration_chain.py` và
+    `tests/test_rag/test_thanh_phan_tai_lieu_kho.py:113`, không từ `src/`.
+    """
+    sample_db.expire_all()
+    return {hang[0] for hang in sample_db.execute(text("SELECT filename FROM policy_documents;"))}
+
+
+def _tao_partner_admin(sample_db) -> None:
     admin = User(
         user_id="USR-PA-TEST", role="partner_admin", full_name="Test PA", phone="0900000001", kyc_level=0,
     )
-    from datetime import datetime
-
-    admin.created_at = datetime(2026, 1, 1)
+    admin.created_at = dt.datetime(2026, 1, 1)
     sample_db.add(admin)
     sample_db.commit()
 
-    resp = client.post(
+
+def _nap(client, ten_tep: str, noi_dung: bytes = b"noi dung test khong lien quan"):
+    return client.post(
         "/policy-docs",
         headers=_auth("partner_admin", "USR-PA-TEST"),
-        files={"file": ("../../../../etc/passwd.txt", b"noi dung test khong lien quan", "text/plain")},
+        files={"file": (ten_tep, noi_dung, "text/plain")},
     )
-    # Không được 500 (crash) — hoặc parse như file .txt thường (200), hoặc từ
-    # chối định dạng (400) — tên file độc hại không được phép ảnh hưởng tới
-    # đường dẫn ghi file thật (ingest_document chỉ dùng filename để hiển thị/
-    # lưu DB, không dùng làm đường dẫn ghi đĩa trực tiếp).
-    assert resp.status_code in (200, 400)
+
+
+def test_policy_doc_upload_path_traversal_khong_ghi_tep_ra_ngoai_repo(client, sample_db):
+    """Nửa HIỆU QUẢ TRÊN ĐĨA của ca traversal.
+
+    Bản cũ (`..._filename_is_safe`) chỉ assert `status_code in (200, 400)` —
+    tức nó kiểm "không crash", một tính chất THẬT nhưng **thuộc trục khác với
+    trục tên nó hứa**. Nó đỏ suốt vì một `KeyError` trong logging, rồi xanh khi
+    lỗi đó được vá, và trong CẢ HAI trạng thái nó chưa từng kiểm path traversal
+    (`eval/QUET-TEN-HUA-KHAC-ASSERTION.md`, 17/08).
+
+    🔴 Vì sao BẮT BUỘC có nửa đối chứng dương ở đầu: nếu `/policy-docs` không
+    để lại dấu vết quan sát được nào, assertion "không tệp nào thoát ra" sẽ
+    XANH VĨNH VIỄN — xanh vì KHÔNG CÓ GÌ XẢY RA, chứ không phải vì an toàn
+    (Luật 1). Xanh kiểu đó trông y hệt xanh thật.
+
+    🔴 PHẠM VI ca này chứng minh — khai ra để người sau không trích quá: nó
+    chứng minh không có tệp mới nào ở **12 đích thoát cụ thể** mà payload nhắm
+    tới. Nó KHÔNG chứng minh "không tệp nào ghi ra ngoài thư mục kho" ở dạng
+    tổng quát — một tệp thoát khỏi thư mục kho nhưng vẫn NẰM TRONG cây repo sẽ
+    không bị phép này bắt.
+    """
+    _tao_partner_admin(sample_db)
+
+    resp_lanh = _nap(client, "chinh-sach-hoan-tien.txt", b"noi dung chinh sach lanh")
+    assert resp_lanh.status_code == 200, (
+        f"KHÔNG ĐO ĐƯỢC (không phải TRƯỢT): tệp .txt LÀNH bị từ chối "
+        f"({resp_lanh.status_code}) — kênh quan sát chết, phần tấn công bên dưới "
+        f"sẽ xanh mà không chứng minh gì. Body: {resp_lanh.text[:200]}"
+    )
+    ten_sau_doi_chung = _ten_tai_lieu(sample_db)
+    assert any("chinh-sach-hoan-tien" in t for t in ten_sau_doi_chung), (
+        f"KHÔNG ĐO ĐƯỢC: nạp lành trả 200 nhưng `policy_documents` không có hàng "
+        f"nào mang tên đó ({sorted(ten_sau_doi_chung)}) — ta đang soi nhầm chỗ."
+    )
+
+    thoat_tu_truoc = {m for m in _MOC_THOAT if m.exists()}
+    resp = _nap(client, "../../../../etc/passwd.txt")
+    # Không được 500 (crash) — hoặc parse như .txt thường (200), hoặc từ chối
+    # định dạng (400). Đây là assertion CŨ, giữ nguyên: nó có giá trị thật,
+    # chỉ là nó không phải thứ tên ca hứa.
+    assert resp.status_code in (200, 400), f"HTTP {resp.status_code}: {resp.text[:200]}"
+
+    thoat_moi = sorted(str(m) for m in _MOC_THOAT if m.exists() and m not in thoat_tu_truoc)
+    assert not thoat_moi, f"🔴 TRAVERSAL THẬT: tệp được ghi RA NGOÀI cây repo: {thoat_moi}"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "FINDING 18/08 (tester, chưa có đồng thuận về mức độ ⟹ CỐ Ý không gắn "
+        "`security_finding`): `policy_documents.filename` lưu NGUYÊN VĂN "
+        "'../../../../etc/passwd.txt'. Chưa phải lỗ hổng hôm nay — cột này "
+        "không được dùng làm đường ghi đĩa — nhưng nó là TIỀN ĐỀ của lỗ hổng "
+        "ngày bất kỳ ai nối nó vào một đường ghi. `strict=True` để khi ai đó "
+        "giam tên lại, CI báo XPASS và không ai kịp quên gỡ nhãn."
+    ),
+)
+def test_policy_doc_upload_ten_tep_da_luu_phai_bi_giam(client, sample_db):
+    """Nửa HIỆU QUẢ TRONG CSDL — phần thật sự mang đúng tên ca gốc.
+
+    Tách khỏi ca trên **có chủ đích**: nửa trên đang canh được và phải ở lại
+    cổng chính màu xanh; gộp chung rồi gắn nhãn thì cả hai nửa cùng bị ẩn khỏi
+    `lint-and-test`, tức bản vá làm IM một phép kiểm đang chạy tốt (Luật J).
+    """
+    _tao_partner_admin(sample_db)
+    truoc = _ten_tai_lieu(sample_db)
+
+    resp = _nap(client, "../../../../etc/passwd.txt")
+    assert resp.status_code in (200, 400), f"HTTP {resp.status_code}: {resp.text[:200]}"
+
+    ten_moi = _ten_tai_lieu(sample_db) - truoc
+    if resp.status_code == 200:
+        assert len(ten_moi) == 1, (
+            f"nạp trả 200 nhưng số hàng mới trong `policy_documents` là "
+            f"{len(ten_moi)}, chờ đúng 1: {sorted(ten_moi)} — KHÔNG ĐO ĐƯỢC"
+        )
+    assert ten_moi, "KHÔNG ĐO ĐƯỢC: không có hàng mới nào để soi tên"
+    for ten in ten_moi:
+        assert ten == os.path.basename(ten) and ".." not in ten, (
+            f"🔴 tên tệp KHÔNG bị giam, lưu nguyên văn {ten!r} trong "
+            "`policy_documents`. 200/400 không nói gì về điều này — đây là trục "
+            "mà tên ca gốc hứa."
+        )

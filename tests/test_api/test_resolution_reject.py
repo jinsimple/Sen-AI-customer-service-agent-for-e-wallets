@@ -149,6 +149,26 @@ def test_sec_a_cskh_khong_duoc_reject(client, sample_db):
     )
     assert resp.status_code == 403, f"CSKH reject được ({resp.status_code}) — vượt quyền."
 
+    # `403` chứng minh REQUEST bị chặn — nó KHÔNG chứng minh QUYẾT ĐỊNH không
+    # được ghi (`eval/QUET-TEN-HUA-KHAC-ASSERTION.md`, 17/08). Hai ca ngay
+    # trên trong CÙNG file này đã kiểm CSDL sau lời gọi; ca này thì không —
+    # cùng tác giả, cùng khuôn, nên là THIẾU SÓT chứ không phải lựa chọn.
+    #
+    # `expire_all()`: fixture `client` dùng CHUNG session với route ⟹ không
+    # đuổi cache thì ta đọc đối tượng trong bộ nhớ, không đọc hàng trong CSDL.
+    #
+    # Bám CẶP `(status, rejected_by, reject_reason)` — Luật D: `status` do
+    # tầng application ghi, hai cột kia bị CHECK `..._rejected_requires_reason_br11`
+    # (INV-14) ràng ở tầng DB. Và bám MỐC TƯỜNG MINH `pending_approval`, không
+    # bám Δ "không đổi" (Luật 1).
+    sample_db.expire_all()
+    res = sample_db.get(Resolution, resolution_id)
+    assert (res.status, res.rejected_by, res.reject_reason) == ("pending_approval", None, None), (
+        "🔴 RÀNG BUỘC CỨNG 1 (HITL): CSKH nhận 403 nhưng resolution ĐÃ bị từ chối thật — "
+        f"status={res.status!r} rejected_by={res.rejected_by!r} reject_reason={res.reject_reason!r}. "
+        "CSKH điều tra, KHÔNG quyết định — kể cả quyết định 'không làm gì'."
+    )
+
 
 # --------------------------------------------------------------------------
 # SEC-B — approve chỉ từ pending_approval
