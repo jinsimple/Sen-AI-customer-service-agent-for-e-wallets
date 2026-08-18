@@ -2229,6 +2229,59 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   `docs/STATE.md` §11 · `docs/security/` (định hạng của việc 2).
   **KHÔNG** đụng `contracts/`, **KHÔNG** cần `check_contracts --update`.
 
+## ADR-038 — Cấp chủ cho TOÀN BỘ thư mục gốc, một lần; và quy tắc mặc định cho thứ chưa cấp
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** ⏳ **CHỜ PO THẬT PHÊ CHUẨN**
+- **Bối cảnh:**
+
+  **BA lần trong một ngày** bảng §4 thiếu một dòng, và **cả ba chỉ lộ ra đúng lúc có việc cần sửa
+  tệp ấy**:
+  ```
+  ADR-035   docker-compose*.yml     → cần đảo mặc định cờ chi phí
+  ADR-037   .github/workflows/**    → cần chuyển CI sang runner BTC
+  ca 3      ruff.toml               → [ĐO] target-version="py311" trong khi CI chạy Python 3.12.14
+                                       ⟹ 2/57 lỗi lint là LỆCH CẤU HÌNH, không phải mã hỏng
+  ```
+  Vá lần thứ ba bằng lần thứ ba **một-dòng-một-ADR** là chữa triệu chứng. **Vấn đề không phải ba tệp
+  bị bỏ sót — mà là bảng §4 được viết theo thứ đội ĐÃ ĐỘNG TỚI**, nên nó **luôn** thiếu đúng thứ
+  người tiếp theo sắp cần.
+
+  **[ĐO] kiểm kê gốc (`git ls-files`, 18/08) — thứ CHƯA có chủ:**
+  ```
+  Dockerfile · Caddyfile · docker-entrypoint.sh · .dockerignore
+  alembic.ini · requirements.txt · requirements.lock.txt
+  ruff.toml · pytest.ini · Makefile · .gitignore · .gitleaks.toml
+  FIN05_QA_TestCases.jsonl · FIN05_Auth5_TestCases.jsonl
+  ```
+  *(Đã có chủ: `*.md` gốc → `po` · `FIN05-Wireframe-UXUI.html` → `ux-ui`.)*
+
+- **Quyết định 1 — cấp chủ, theo nguyên tắc "ai kiểm chứng được hệ quả thì cầm bút" (ADR-035):**
+
+  | vai | thêm vào vùng ghi | vì sao |
+  |---|---|---|
+  | `tech-lead` | `Dockerfile` · `Caddyfile` · `docker-entrypoint.sh` · `.dockerignore` · `alembic.ini` · `requirements*.txt` · `ruff.toml` · `Makefile` · `.gitignore` · `.gitleaks.toml` | đều khai **môi trường `src/` chạy trong đó** hoặc **công cụ áp lên `src/`**; chỉ người viết `src/` kiểm được hệ quả |
+  | `tester` | `pytest.ini` · `FIN05_*TestCases.jsonl` ở gốc | `pytest.ini` là cấu hình **bộ chạy test** — cùng vật với `tests/`; hai tệp `jsonl` là **ca kiểm thử** đặt nhầm chỗ |
+
+- **🔴 Quyết định 2 — QUY TẮC MẶC ĐỊNH. Đây mới là thứ chặn lần thứ TƯ.**
+  > **Mọi đường dẫn ở gốc KHÔNG được liệt kê ở §4 mặc định thuộc `tech-lead`** — **NHƯNG** vai nào
+  > chạm vào nó lần đầu **phải ghi một dòng vào §4 trong cùng commit ấy**.
+  Mặc định giữ cho công việc **không bị chặn** bởi một khoảng trống hành chính; nghĩa vụ ghi lại giữ
+  cho bảng **tự lấp** thay vì phải chờ một ADR nữa. **Cấp chủ không cần ADR; ĐỔI chủ thì cần.**
+
+- **Lý do BÁC BỎ *"cứ vá từng tệp khi cần"*:** đó chính là thứ đã làm ba lần và **sẽ có lần thứ tư** —
+  chi phí không nằm ở dòng sửa mà ở **việc dừng lại, hỏi, chờ duyệt** mỗi lần, và ở chỗ **người bị
+  chặn luôn là người đang có việc gấp**.
+
+- **Lý do BÁC BỎ *"cấp hết cho `tech-lead`, khỏi phân loại"*:** `pytest.ini` quyết **ca nào được thu
+  thập**. Đưa nó cho vai **không được đọc `tests/`** là tạo đúng loại lệch mà tường §11 sinh ra để
+  chống — người sửa không đọc được thứ mình đang đổi hành vi.
+
+- **Hệ quả:** `CLAUDE.md` §4 · `docs/STATE.md` §11. **KHÔNG** đụng `contracts/`.
+  ⚠️ **Việc đầu tiên mở khoá bởi ADR này:** `ruff.toml` `target-version="py311"` → `py312` cho khớp
+  runtime (`python-version: "3.12"`, ảnh `Python 3.12.14`). [ĐO] tech-lead đã xác nhận bằng
+  `ast.parse` trong container: tệp bị báo `invalid-syntax` **parse OK trên 3.12**. **Lỗi ở thước, không
+  ở vật.**
+
 ## Mẫu ADR mới
 
 ```markdown
