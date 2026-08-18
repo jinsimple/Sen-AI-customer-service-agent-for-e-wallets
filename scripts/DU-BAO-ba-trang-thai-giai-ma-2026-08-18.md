@@ -57,14 +57,61 @@ dòng (`migrations/`, chưa tồn tại). Không có số đếm thì script n�
 
 | # | vật | DỰ BÁO | THẬT | |
 |---|---|---|---|---|
-| 1 | băm `src/` | ĐỔI khỏi `78154194edff` | | |
-| 2 | file `src/` đổi | **1** — chỉ `crypto_types.py` | | |
-| 3 | `contracts/` · `check_contracts` | 0 đổi · sạch | | |
-| 4 | `test_invariants.py` | **23 passed** | | |
-| 5 | hồi quy 7 file tầng tool | **50 passed** | | |
-| 6 | bộ test chạm cột mã hoá | **xanh** — vì cột `KHOÁ KHÁC` = 0 ⟹ nhánh mới không bắn | | |
-| 7 | `docker diff` | 0 · 0 · 0 | | |
-| 8 | token tiêu | **0** | | |
+| 1 | băm `src/` | ĐỔI khỏi `78154194edff` | `5bc33a9b254c` | ✅ |
+| 2 | file `src/` đổi | **1** — chỉ `crypto_types.py` | 1 file | ✅ |
+| 3 | `contracts/` · `check_contracts` | 0 đổi · sạch | 0 · sạch, ba băm không đổi | ✅ |
+| 4 | `test_invariants.py` | **23 passed** | 23 passed | ✅ |
+| 5 | hồi quy 7 file tầng tool | **50 passed** | 50 passed | ✅ |
+| 6 | bộ test chạm cột mã hoá | **xanh** — vì cột `KHOÁ KHÁC` = 0 ⟹ nhánh mới không bắn | xanh | ✅ |
+| 7 | `docker diff` | 0 · 0 · 0 | 0 · 0 · 0 | ✅ |
+| 8 | token tiêu | **0** | 0 | ✅ |
+
+**8/8 trúng.** (Quy trình dự báo-trước: 6/6 · 2/2 · 10/10 · 8/8.)
+
+## 6. KẾT QUẢ THẬT
+
+**Nghiệm thu ba trạng thái** (nháp ngoài repo, in băm vật; chạy lại sau khi siết `validate=True`):
+
+```
+① giải mã ĐƯỢC      trả nội dung, KHÔNG log            ✅ đường nóng không được ồn
+② CHƯA mã hoá       nguyên văn + WARNING đếm được       ✅ `doc_gia_tri_chua_ma_hoa`
+③ KHOÁ KHÁC         NÉM `KhongGiaiMaDuocError`          ✅ ca đối chứng, Luật A vế "KÊU"
+   └ thông điệp lỗi KHÔNG chứa bản mã, KHÔNG chứa nội dung khách   ✅
+   └ log ERROR cũng KHÔNG mang bản mã                              ✅
+④ hình dạng         8/8 chuỗi thường không bị nhận nhầm ✅ gồm cả `"gAAAAA"` cụt và emoji
+⑤ `None`            đi qua nguyên vẹn                   ✅ không lẫn với "không đọc được"
+```
+
+🔴 **Phép kiểm mạnh nhất — chạy HÀM ĐÃ SHIP trên 1.851 DÒNG THẬT** (không phải bản chép, không
+phải mẫu tự nghĩ; qua cổng `127.0.0.1:5432` đã publish, chỉ đọc):
+
+```
+cột                          (1) giải mã   (2) chưa MH   (3) KHOÁ KHÁC
+complaints.description_raw            23           738              0
+messages.content                     467             0              0
+bank_accounts.account_no             245             0              0
+policy_chunks.text                   378             0              0
+TỔNG                                1113           738              0
+```
+**Tái hiện CHÍNH XÁC bảng đo trước khi vá.** Đây là thứ đóng được vế *"fail-safe có HƯỚNG"*: 738
+dòng tiếng Việt thật đi qua nhánh phân loại mới mà **không dòng nào** bị đẩy nhầm sang nhánh ném.
+
+⚠️ **Tính chất đã biết, không phải bug — nhưng phải nói ra:** WARNING phát **theo từng dòng**, nên
+quét cả bảng `complaints` in ra **738 dòng log**. Ở lưu lượng thật con số này rải ra theo request
+nên nhỏ, và nó **tự tắt về 0** sau khi script nạp lại chạy. Ai thấy log ồn thì đó là **đúng số dòng
+chưa mã hoá còn lại** — nó là **thước đo tiến độ**, không phải rác. Đừng hạ mức log để cho êm:
+làm thế là dựng lại đúng sự im lặng vừa gỡ bỏ.
+
+## 7. Việc này KHÔNG đóng ADR-032 — mới là 1/3
+
+- ✅ ① `crypto_types` ba trạng thái — **xong** (bản này)
+- ⬜ ② script nạp lại 738 dòng, `migrations/` — **chưa tồn tại**. PO-agent dặn: **sao lưu trước**,
+  **đếm phân bố hai đầu**. Bảng 1.851 dòng ở trên là **mẫu số ĐẦU** — đã có, đã ghi vào git.
+- ⬜ ③ cổng trong `tests/` — vùng tester, PO-agent giao.
+
+**Ca đối chứng ③ ở trên là nháp NGOÀI repo.** Nó chứng minh cơ chế bắn, **không** thay thế cổng
+trong `tests/` — nháp không chạy trong CI, và một cơ chế không có cổng là cơ chế sẽ bị gỡ mà không
+ai biết.
 
 ## 4. Nếu khác thì nghi gì
 
@@ -89,3 +136,29 @@ chưa tồn tại) và **sao lưu + đếm phân bố trước/sau** (PO-agent �
 ## 6. KẾT QUẢ THẬT
 
 *(để trống tới khi đo xong)*
+
+## 8. SIẾT SAU KHI CÔNG BỐ — `validate=True`, và vì sao nó KHÔNG phải chuyện nhỏ
+
+PO-agent đề xuất phân biệt bằng `startswith("gAAAAA")` (lý lẽ: byte phiên bản `0x80` → base64url
+luôn mở đầu `gA`). **Cùng một hiểu biết**, và bản tôi đã land mã hoá nó theo **cấu trúc** thay vì
+theo tiền tố chuỗi — mạnh hơn, lý do ghi trong docstring `_co_hinh_dang_fernet`.
+
+Nhưng lời nhắc ấy làm tôi soi lại phép giải base64 và **tìm ra một kẽ hở thật của bản đầu**:
+
+```
+base64.urlsafe_b64decode(v)                      ← mặc định validate=FALSE
+   ⟹ ÂM THẦM BỎ QUA mọi ký tự ngoài bảng chữ cái base64 rồi giải phần còn lại
+   ⟹ một chuỗi tiếng Việt có dấu/khoảng trắng VẪN có thể giải ra byte
+   ⟹ và nếu byte đầu tình cờ là 0x80 + đủ 57 byte thì nó bị NÉM OAN
+```
+Bản đầu **đúng trên 738 dòng thật**, nhưng đúng nhờ **may mắn về padding**, không nhờ phép kiểm.
+Một phép kiểm đúng vì trùng hợp là phép kiểm sẽ hỏng trong im lặng — đúng lớp lỗi cả ngày đang vá.
+
+⟹ Siết sang `base64.b64decode(..., altchars=b"-_", validate=True)`. Ký tự lạ ⟹ ném ⟹ rơi đúng
+nhánh *"chưa mã hoá"*. Đo lại **trên cùng 1.851 dòng thật**: `1113 / 738 / 0` — **y hệt**, và ca
+đối chứng khoá-khác **vẫn ném**. Tức siết chặt hơn mà **không đổi một phân loại nào** trên dữ liệu
+thật; nó chỉ đóng một cửa chưa ai đi qua.
+
+🔴 **Và đây là chỗ đáng ghi nhất:** nếu tôi chỉ chạy lại nghiệm thu mà **không đo lại 1.851 dòng**,
+tôi đã không có bằng chứng nào rằng việc siết không đẩy dòng thật sang nhánh ném. Cổng xanh sẽ
+"xác nhận" một điều nó không kiểm. Băm vật sau khi siết: `5bc33a9b254c`.
