@@ -1900,6 +1900,7 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 ## ADR-033 — `/ready` phải được THI HÀNH, và "ADR đã duyệt mà chưa ai code" phải có cổng canh
 
 - **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026
+  ✅ **CẢ HAI phần (a) `/ready` và (b) cổng canh hạng mù được PO thật phê chuẩn 18/08 vòng 2** (*"chốt theo ý bạn"*).
 - **Bối cảnh:**
 
   ADR-028 (PO thật chốt 17/08, trạng thái *"Đang hiệu lực"*) quyết tách `GET /ready` khỏi `/health`.
@@ -1943,7 +1944,8 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 
 - **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026 (*"chốt làm ADR-031"*).
   Thay thế trạng thái 🔴 TẠM DỪNG THI HÀNH của ADR-031.
-  ⚠️ **PO thật duyệt VIỆC; ba lựa chọn phạm vi dưới đây do PO-agent đề xuất — PO bác được bất kỳ mục nào.**
+  ✅ **PO thật PHÊ CHUẨN CẢ BA lựa chọn phạm vi, 18/08 vòng 2** (*"chốt theo ý bạn"*) — mục 1 · 2 · 3
+  dưới đây **không còn là đề xuất của PO-agent**, chúng là quyết định của PO. Caveat cũ đã gỡ.
 - **Bối cảnh:**
 
   ADR-031 bị dừng vì tiền đề *"query chưa được lưu ở đâu"* **sai** — `investigation_logs.tool_input_json`
@@ -2033,6 +2035,62 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   ⚠️ **Ràng buộc thứ tự cho việc đang chờ:** dòng compose phải vào ảnh **TRƯỚC hoặc CÙNG LÚC** với việc
   đảo mặc định trong `src/`. Dán trước mà chưa đảo ⟹ **vô hại** (hành vi y hệt hôm nay). Đảo trước mà
   chưa dán ⟹ **sản phẩm chết ở lần dựng tới**. **Thứ tự an toàn: compose trước, `src/` sau.**
+
+## ADR-036 — `fin05ttl` bị XOÁ, nhưng chỉ SAU khi ca đối chứng được dựng lại nơi khác; `fin05do` GIỮ
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026 (*"chốt theo ý bạn"*)
+- **Bối cảnh:**
+
+  Ba ngăn xếp Docker cục bộ. Backfill mã hoá ADR-032 ② **chỉ chạy trên `fin05`** (§5.O):
+  ```
+  [ĐO] complaints.description_raw          [ĐO] blob(messages) kho checkpoint
+  fin05      mã hoá 761 · PLAINTEXT   0    fin05      3.597   105 MB
+  fin05ttl   mã hoá   4 · PLAINTEXT 738    fin05ttl   2.482    95 MB
+  fin05do    mã hoá 607 · PLAINTEXT   0    fin05do        62   127 kB
+  ```
+  Câu hỏi *"ngăn xếp dùng một lần, hay dữ liệu phải được bảo vệ như `fin05`"* **chưa ai định nghĩa**
+  ⟹ 738 dòng lời khai khách nằm plaintext **không phải sự cố, mà là một phạm vi chưa được viết ra**.
+
+  🔴 **Và giữa lúc chờ quyết, `fin05ttl` ĐỔI VAI:** tester dựng ca đối chứng **hai chiều** cho cổng
+  plaintext trên chính quần thể bẩn ấy. Cổng chuyển ĐỎ→XANH nhờ backfill, nhưng nửa *"KÊU lúc bất
+  thường"* của **Luật A** bỏ trống — và `fin05ttl` là **quần thể bẩn CÓ THẬT, sẵn có, không do ta tạo
+  ra**, nên chứng minh được nửa ấy **mà không phải ghi vào ngăn xếp đang phục vụ** (Luật I).
+  ⟹ **Xoá `fin05ttl` = tắt ca đối chứng DUY NHẤT chứng minh cổng plaintext còn sống.**
+
+- **Quyết định 1 — `fin05ttl` XOÁ, theo ĐÚNG BA BƯỚC, không rút gọn:**
+  ```
+  ① tester dựng lại ca đối chứng trên một QUẦN THỂ VỨT ĐI (tạo riêng cho việc đó,
+     KHÔNG phải ngăn xếp đang phục vụ)
+  ② xác nhận ca mới ĐỎ đúng lúc cần đỏ  ← đây là bước nghiệm thu, không phải thủ tục
+  ③ bây giờ mới xoá fin05ttl
+  ```
+  **Lý do thứ tự là một phần của quyết định, không phải lời khuyên:** đảo bước ① và ③ tạo một khoảng
+  giữa **không ai biết cổng plaintext còn sống hay không**, và khoảng ấy **không có triệu chứng** —
+  cổng vẫn xanh y hệt. Đó chính là hình dạng Luật A cảnh báo.
+
+- **Quyết định 2 — TỪ NAY tới khi bước ③ xong, mọi phát biểu về mã hoá at-rest phải KÈM PHẠM VI.**
+  Câu *"lời khai khách đã mã hoá at-rest"* **SAI với 738 dòng**. Dạng đúng: *"đã mã hoá **trên ngăn
+  xếp phục vụ `fin05`**"*. Đây là **Luật F** (mẫu số cùng dòng) áp cho một phát biểu định tính.
+
+- **Quyết định 3 — `fin05do` GIỮ.** Nó là ngăn xếp đo **duy nhất có kho RAG RỖNG** ⟹ đo được chi phí
+  token **không lẫn nhiễu RAG**, mà đó đúng là trục ưu tiên PO đặt 18/08 (§5.A0: *tối ưu caching +
+  token*). Chi phí giữ **127 kB**, không đáng đem ra cân.
+
+- **Lý do BÁC BỎ *"xoá cả hai cho gọn"*:** gộp hai ngăn xếp vào một quyết định vì chúng **trông giống
+  nhau** (đều là "ngăn xếp đo") trong khi chúng **khác nhau ở thứ quyết định**: một cái đang giữ ca đối
+  chứng và 738 dòng plaintext, cái kia sạch và đang phục vụ trục ưu tiên hiện hành.
+
+- **Lý do BÁC BỎ *"giữ `fin05ttl` vô thời hạn vì nó là tài sản kiểm thử"*:** giữ một quần thể bẩn làm
+  dụng cụ đo nghĩa là **cột khả năng đo của đội vào việc KHÔNG BAO GIỜ vá 738 dòng ấy** — một dụng cụ
+  chỉ hoạt động chừng nào lỗ còn mở. Ca đối chứng phải sống trên vật **ta dựng ra để vứt đi**, không
+  phải trên vật **ta lỡ chưa dọn**.
+
+- **Hệ quả:** `tests/` (ca đối chứng chuyển sang quần thể vứt đi) · `docs/STATE.md` §5.O + §2 (bảng ba
+  ngăn xếp còn **hai**) · mọi tài liệu nói "mã hoá at-rest" phải rà lại phạm vi.
+  ⚠️ **Ràng buộc còn hiệu lực sau khi xoá:** `fin05ttl` **mở cổng 8443** — xoá xong phải xác nhận cổng
+  ấy không còn ai nghe, đừng để một ngăn xếp chết giữ cổng.
+  🔴 **Quần thể thứ tư `app.adaptivealgo.uk` (production) NẰM NGOÀI ADR này** — chưa ai đo, không ai
+  chạm. Đừng đọc "xoá `fin05ttl`" thành "chuyện plaintext đã đóng".
 
 ## Mẫu ADR mới
 
