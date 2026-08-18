@@ -817,6 +817,45 @@ có gì được ghi xuống.
 nháp**) · một đường đọc bộ đếm từ ngoài tiến trình. **Sau khi ảnh mới chạy ổn, TRƯỚC ADR-033.**
 
 
+### ✅ L. DỰNG ẢNH 18/08 — nghiệm thu ĐỘC LẬP ĐẠT, kèm MỘT nhãn đang nói dối
+
+**PO-agent kiểm bằng phép của mình, không đọc lại số của tech-lead:**
+```
+băm src/ cây làm việc   d5b73a04d6ef · 55 file
+fin05 · fin05ttl · fin05do   bam-anh d5b73a04d6ef ×3   sửa-tay 0·0·0   ⟹ lệch× 0·0·0  ✅
+cổng ngân sách token    6.565/7.550 · system 4.587 (+0) · tool 1.978 (+0) · 3 passed   ✅
+security_finding        3 failed · 3 passed  (chạy từ HOST)
+```
+
+🔴 **NHÃN `BUILD_COMMIT` ĐANG NÓI DỐI — ca thứ ba, đúng thứ `dau_ma_nguon.py` sinh ra để chống.**
+```
+[ĐO] BUILD_COMMIT trong cả ba container   bf1bd5a
+[ĐO] HEAD                                  9f864c6   (chuyển docstring search_policy → chú thích #)
+[ĐO] git show bf1bd5a:src/agents/tools/customer_tools.py  vs  bản trong cây  →  🔴 KHÁC
+```
+Mã trong ảnh là của **cây làm việc lúc dựng** (đã có bản vá `9f864c6`), nhưng nhãn trỏ về **`bf1bd5a`**
+— một commit mà `customer_tools.py` **vẫn còn docstring 376 token**. ⟹ **Ai lần theo nhãn sẽ tìm thấy
+mã KHÁC thứ đang chạy.**
+✅ **Băm `bam_ma_nguon` khớp tuyệt đối ở cả bốn chỗ ⟹ KHÔNG SAI VẬT.** Đúng như docstring
+`dau_ma_nguon.py` đã viết: ***`build_commit` định danh KHO, nhãn băm định danh MÃ — tin nhãn băm.***
+Nhưng đây là **lần thứ ba trong dự án** nhãn ấy lệch, nên nó không còn là tai nạn: **`BUILD_COMMIT`
+chỉ đúng khi cây làm việc == HEAD lúc build**, và nếp *chạy → xác minh → mới commit* của đội **bảo đảm
+điều đó thường KHÔNG đúng**. Ghi lại để không ai dùng cột ấy làm mỏ neo chẩn đoán.
+
+**Ba ca đỏ `security_finding` — đã phân định, KHÔNG ca nào là hồi quy:**
+2 ca là **cổng plaintext** (đỏ **đúng chủ đích**, ADR-032 chưa backfill). Ca thứ ba
+`test_live_chat_pii_gap::…raw_phone_number_is_not_masked` là **P0 CŨ**, xác nhận bằng **hai đường độc
+lập**: file sửa lần cuối **12/08** (`553b9e8`, sáu ngày trước) · nó import `live_chat` +
+`complaint_intake`, **không module nào nằm trong 5 file `src/` đổi hôm nay**.
+⟹ **Kỳ vọng đúng là `3 failed`**, không phải `2`. *(PO-agent relay "2" từ tester mà quên P0 có sẵn —
+đúng lớp §5.K: phát biểu phạm vi không kiểm.)*
+
+⚠️ **Và một bẫy PO-agent tự đâm vào, ghi để người sau khỏi vấp:** chạy
+`docker exec … pytest /app/tests` cho **12 lỗi thu thập** (`FileNotFoundError: 'docker'`,
+`No module named 'eval'`). **KHÔNG phải cổng hỏng** — 12 file ấy gọi `docker` CLI và đọc `eval/`, **phải
+chạy từ HOST**. Suýt báo động giả về chính lần dựng vừa nghiệm thu.
+
+
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
 
 **C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
