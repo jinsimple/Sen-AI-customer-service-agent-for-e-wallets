@@ -131,6 +131,35 @@ pytest tests/ -m "not security_finding"
 Biến môi trường bắt buộc (fail-fast nếu thiếu): `JWT_SECRET_KEY`, `FIELD_ENCRYPTION_KEY`,
 `REDIS_URL` (dùng `fake://ci` cho test/CI — fakeredis, không cần Redis thật).
 
+## 7b. THU GOM RÁC — quyền cao nhất, áp cho MỌI phiên
+
+**Nguyên tắc vàng ghi MỘT LẦN. Rồi dọn nhỏ MỖI NGÀY.**
+
+Một tài liệu không ai đọc hết có **cùng tác dụng với không có tài liệu**. Kho tri thức phình ra
+không làm đội thông minh hơn — nó làm mọi luật trong đó **rẻ đi như nhau**.
+
+**Ba tầng, ba luật khác nhau — đừng áp nhầm:**
+
+| tầng | tệp | luật |
+|---|---|---|
+| **Nguyên tắc vàng** | `CLAUDE.md` | ghi **MỘT LẦN**. Trần cứng **200 dòng**. Thêm một dòng ⟹ phải có một dòng **ra đi** |
+| **Trạng thái làm việc** | `docs/STATE.md` | **DỌN MỖI NGÀY**. Phát hiện đã đóng → lưu trữ. Luật trùng ý → gộp |
+| **Sổ quyết định** | `docs/DECISIONS.md` | **CHỈ GHI THÊM, không bao giờ xoá** — nhưng phải **tra được**: ADR bị thay thế phải tự khai |
+
+**Dọn nhỏ mỗi ngày, cuối mỗi phiên (`/wrapup`) — vài phút, không phải một dự án:**
+
+1. Mục §5 đã **đóng** (việc xong · quyết định đã ra · số đã hết hạn) → chuyển `docs/nhat-ky/`,
+   để lại **một dòng** trỏ tới.
+2. **Hai luật nói cùng một ý = một luật.** Gộp, giữ ký hiệu cũ hơn, ghi ký hiệu bị gộp.
+3. Con số đã **làm cũ** → **NIÊM tại chỗ** kèm mốc, đừng để người sau đi truy (Luật P).
+
+🔴 **Phép thử một câu, chạy trước khi thêm bất cứ thứ gì:**
+> ***"Người đọc NGUỘI sẽ đọc hết chỗ này chứ?"*** Không ⟹ thứ bạn sắp thêm **không làm kho giàu hơn,
+> nó làm phần còn lại nghèo đi.**
+
+⚠️ **Dọn KHÔNG PHẢI xoá lịch sử.** Chuyển chỗ + để lại đường dẫn. Xoá thẳng một phát hiện là
+làm phiên sau **phát hiện lại từ đầu** — đắt hơn hẳn việc giữ một dòng trỏ tới.
+
 ## 8. Tài liệu ngoài
 
 - GitHub: `AI20K-Build-Phase-Cohort-3/P-226` *(đo 18/08 từ `git remote -v` — dòng cũ ghi `P-121`, SAI)*

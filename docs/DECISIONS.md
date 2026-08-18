@@ -2282,6 +2282,54 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   `ast.parse` trong container: tệp bị báo `invalid-syntax` **parse OK trên 3.12**. **Lỗi ở thước, không
   ở vật.**
 
+## ADR-039 — Harness cần THU GOM RÁC: nguyên tắc vàng ghi một lần, dọn nhỏ mỗi ngày
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — **PO thật ra lệnh trực tiếp**, quyền cao nhất
+- **Bối cảnh:**
+
+  [ĐO] 18/08, kho tri thức của dự án:
+  ```
+  CLAUDE.md            139 dòng / trần 200
+  docs/STATE.md      1.770 dòng   ← ĐÃ TỪNG 3.001, bị dọn MỘT CÚ xuống 1.770
+  docs/DECISIONS.md  2.297 dòng · 39 ADR
+  17 luật chữ · 19 luật số · 24 mục §5
+  ```
+  **Riêng 18/08: 89 commit, 55 là `docs` (62%).** Ba `feat`, năm `fix`, một `migrations`.
+
+  🔴 **Và con số tự tố cáo cơ chế:** STATE.md **từng phình tới 3.001 dòng rồi bị dọn một cú**. Đó không
+  phải bảo trì — đó là **vỡ nợ rồi xoá nợ**. Giữa hai lần vỡ, kho ở trạng thái **không ai đọc hết**.
+
+  **Vì sao đây là vấn đề THẬT chứ không phải gọn gàng:** đội đúc luật để phiên sau không lặp lại sai
+  lầm. Nhưng **một luật không ai đọc có giá trị bằng không** — và **17 luật chữ + 19 luật số vượt xa
+  thứ một người đọc nguội giữ được trong đầu**. Kho phình ra **không làm đội thông minh hơn; nó làm
+  mọi luật trong đó rẻ đi như nhau.**
+
+- **Quyết định — BA TẦNG, BA LUẬT KHÁC NHAU. Áp nhầm tầng là hỏng.**
+
+  | tầng | tệp | luật |
+  |---|---|---|
+  | nguyên tắc vàng | `CLAUDE.md` | ghi **MỘT LẦN** · trần **200 dòng** · thêm một dòng ⟹ một dòng **ra đi** |
+  | trạng thái làm việc | `docs/STATE.md` | **DỌN MỖI NGÀY** — mục đã đóng → lưu trữ; luật trùng ý → gộp |
+  | sổ quyết định | `docs/DECISIONS.md` | **CHỈ GHI THÊM** — nhưng ADR bị thay thế phải **tự khai** |
+
+  **Dọn nhỏ cuối mỗi phiên (`/wrapup`) — vài phút, KHÔNG phải một dự án:** ① mục §5 đã đóng → chuyển
+  `docs/nhat-ky/`, để lại **một dòng trỏ tới** · ② hai luật cùng ý ⟹ **gộp**, giữ ký hiệu cũ hơn ·
+  ③ con số đã làm cũ ⟹ **NIÊM tại chỗ** kèm mốc (Luật P).
+
+  **Phép thử trước khi thêm bất cứ thứ gì:** ***"người đọc NGUỘI sẽ đọc hết chỗ này chứ?"*** Không ⟹
+  thứ sắp thêm **không làm kho giàu hơn, nó làm phần còn lại nghèo đi**.
+
+- **Lý do BÁC BỎ *"cứ ghi hết, dọn khi nào phình quá"*:** đó **chính là thứ đã làm** — và kết quả là
+  3.001 dòng rồi một cú dọn. Dọn theo đợt lớn **đắt hơn và mất mát hơn**: người dọn hàng loạt không
+  còn nhớ ngữ cảnh của từng mục, nên **cắt theo độ dài thay vì theo giá trị**.
+
+- **🔴 Lý do BÁC BỎ *"xoá thẳng cho gọn"*:** dọn **KHÔNG PHẢI** xoá lịch sử. Xoá thẳng một phát hiện là
+  bắt phiên sau **phát hiện lại từ đầu** — đắt hơn hẳn việc giữ một dòng trỏ tới. **Chuyển chỗ, để lại
+  đường dẫn.**
+
+- **Hệ quả:** `CLAUDE.md` §7b (mới) · `.claude/commands/wrapup` nên nhắc bước dọn ·
+  `docs/nhat-ky/` là nơi nhận mục đã đóng.
+
 ## Mẫu ADR mới
 
 ```markdown
