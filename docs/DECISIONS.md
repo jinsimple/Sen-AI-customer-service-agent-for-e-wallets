@@ -2105,8 +2105,16 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   nó vẫn là **mã CHƯA TỪNG THỰC THI**.
   🔴 **CƠ CHẾ thì CHƯA biết, và hai khả năng khác hẳn nhau về mức độ:** (a) máy dùng lại, đăng ký lại
   dưới tên mới ⟹ rò rỉ theo **TỪNG MÁY** · (b) `$HOME` là mount **dùng chung cả hồ** ⟹ rò rỉ theo
-  **CẢ HỒ**. [ĐO] nhịp 2 có **5 job `eph-vmrunner-*` song song** ⟹ không thể là một máy ⟹ **(b) không
-  loại trừ được**. **Giả định (b) cho tới khi có dữ kiện tách.**
+  **CẢ HỒ**. **Giả định (b) cho tới khi có dữ kiện tách.**
+  🔴 **ĐÍNH CHÍNH (security bắt, PO-agent đã chép suy luận sai vào bản trước):** *"5 job
+  `eph-vmrunner-*` song song ⟹ **không thể là một máy** ⟹ (b)"* — **vế giữa SAI**. Năm **container
+  trên MỘT nhân** cũng cho ra năm tên. ⟹ Quan sát song song **không loại được (a)**, nó chỉ **không
+  loại được (b)**. Hai câu khác nhau, và bản trước dùng nó như bằng chứng NGHIÊNG VỀ (b).
+  ⚠️ **VÀ (a)/(b) KHÔNG ĐỔI ĐỊNH HẠNG — security nói trước để nó không bị chôn:** cả hai đều là
+  **CHẶN**, và **bản vá dọn GIỐNG HỆT NHAU**. ⟹ **Đừng để câu (a)/(b) hoãn bản vá** — nó **không nằm
+  trên đường tới hạn**. Nó chỉ đổi **bán kính** (từng máy ↔ cả hồ), **độ gấp của việc xoay khoá nếu
+  lỡ có job đã chạy** (dưới (b): một lượt là đủ để xoay, không cần bàn), và **câu nói với BTC**
+  (*"máy của các anh giữ tệp giữa các job"* ↔ *"các team đang đọc được đĩa của nhau"*).
   ⭐ **VÀ ĐIỀU KIỆN DỨT ĐIỂM CẢ HAI PHIÊN CÙNG ĐẶT RA — *"hai lượt trúng CÙNG TÊN MÁY"* — LÀ ĐIỀU KIỆN
   SAI.** Nó không bao giờ xảy ra; chờ nó là chờ mãi trong khi bằng chứng đã nằm sẵn.
   ```

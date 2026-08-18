@@ -1609,6 +1609,26 @@ THÓI QUEN CỦA MÔI TRƯỜNG HIỆN TẠI.**
 > **Khác Luật G ở chỗ nào:** G nói *cơ chế đang làm đúng việc của NÓ ≠ việc ta tưởng*. R hỏi một câu
 > **hẹp hơn và kiểm được**: *ta có nêu ra được nó ĐƯỢC KHAI Ở ĐÂU không*. G là chẩn đoán; R là **phép
 > thử ai cũng chạy được trong 10 giây**.
+> ### 🔴 ④ MỘT PHÉP THỬ PHẢI HỎI **THỨ TA QUAN TÂM**, KHÔNG HỎI **THỨ ĐẠI DIỆN CHO NÓ**.
+> *(security đúc 18/08 §18 — chẩn đoán gốc của PO-agent + tech-lead, security phát biểu thành điều
+> khoản và tự khai điều đó. Đây là R áp cho **DỤNG CỤ CHẨN ĐOÁN**, không cho hệ thống.)*
+> Mỗi **đại diện** mang theo **một giả định chưa kiểm**. Khi giả định ấy sai, phép thử trả về *"không
+> có bằng chứng"* **MÃI MÃI** — và *"không có bằng chứng"* **không phân biệt được** với *"không có
+> hiện tượng"*.
+> **Vế thi hành, một câu hỏi:** trước khi tin một kết quả **ÂM TÍNH**, hỏi ***"điều kiện này ĐÃ BAO
+> GIỜ BẮN CHƯA — ở đâu, lúc nào?"*** **Chưa bao giờ ⟹ chưa phải bằng chứng, mới là giả thuyết.**
+> **Nếu chỉ nhớ một dòng:** *một phép thử không bao giờ bắn **không phải** một phép thử ĐÃ QUA — nó là
+> một phép thử **CHƯA CHẠY**. Và nó **nguy hiểm hơn** một phép thử vắng mặt, vì nó **CHIẾM CHỖ** của
+> phép thử thật: người ta thấy nó trong danh sách, tick, rồi đi tiếp.*
+> **[ĐO] ca sinh ra nó (ADR-037 QĐ3①):** điều kiện dứt điểm *"đợi hai lượt trúng CÙNG TÊN MÁY"* do
+> **PO-agent và tech-lead cùng đặt** — nó **không bao giờ bắn**, vì tên runner xoay theo từng job
+> **trong khi đĩa vẫn chung**. Cả cái **TÊN** lẫn cái **PHÉP THỬ dựng ra để kiểm cái tên** đứng trên
+> **CÙNG MỘT** giả định chưa ai kiểm: *danh tính runner đi cùng với đĩa*. Phép đo cứu được **chỉ vì
+> nó hỏi thẳng thứ ta quan tâm** — *tệp có còn không* — thay vì thứ đại diện — *tên có trùng không*.
+> **Vì sao thuộc R chứ không đứng riêng:** nó là **Luật A áp cho dụng cụ** — điều kiện ấy **IM lúc
+> bình thường** (đúng) nhưng **chưa ai chứng minh nó KÊU lúc bất thường**, vì **chưa ai dựng ca đối
+> chứng dương cho chính nó**. Và là **Luật H ở tầng phương pháp**: nó gộp *"đã kiểm, âm tính"* với
+> *"không thể kiểm"* thành một dòng chữ, rồi dòng ấy khẳng định vế thứ nhất. **Ba trạng thái.**
 
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
