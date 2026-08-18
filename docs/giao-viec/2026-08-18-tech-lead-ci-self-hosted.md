@@ -78,6 +78,64 @@ bước dọn tệp `.env` ở hai job đó phải là **`if: always()`**. Dọn
 🚫 **Không tự quyết chuyện xoay khoá OpenAI** — `security` đang định hạng, PO quyết. Bạn chỉ làm
 phần cơ học: `if: always()`.
 
+## 4b. 🔴 BẢN VÁ CHÍNH XÁC — đo lại 18/08, và nó LỚN HƠN "bật một cờ"
+
+**[ĐO] `grep -n "rm -f .env\|compose down\|always()" .github/workflows/ci.yml`:**
+```
+5 hit "always()"  →  CẢ NĂM đều là upload-artifact, KHÔNG có hit nào là bước dọn
+0 hit "rm .env"
+0 hit "compose down"
+```
+⟹ **KHÔNG CÓ bước dọn nào trong toàn bộ `ci.yml`.** Bản brief đầu viết *"bước dọn phải là
+`if: always()`"* — câu ấy **giả định bước dọn đã tồn tại**. Nó **không tồn tại**.
+
+**Hệ quả trên máy dùng chung nặng hơn hẳn:** tệp `.env` chứa khoá OpenAI thật bị bỏ lại **sau MỌI
+lần chạy**, không chỉ khi job bị huỷ. Và **không có `docker compose down`** ⟹ container **vẫn chạy
+tiếp** sau khi job xong, giữ cổng và giữ volume chứa CSDL của lượt CI.
+> Trên `ubuntu-latest` không ai thấy vì **cả máy ảo bị huỷ**. Đổi sang máy dùng chung là **rút mất
+> cái lưới đã đỡ cho ta bấy lâu mà không ai biết là mình đang dựa vào nó.**
+
+### Việc 1 — thêm `-p` cho **cả 8** lệnh compose
+
+```
+route-guards-docker    dòng 560 (up) · 562 (ps) · 572 (exec) · 598 (logs)
+livechat-e2e-nightly   dòng 623 (up) · 625 (ps) · 634 (exec) · 642 (logs)
+```
+Đổi `docker compose …` → `docker compose -p fin05-ci-${{ github.run_id }} …`
+**Thiếu một lệnh là hỏng cả cụm** — `exec`/`logs` không mang `-p` sẽ không tìm thấy container vừa
+dựng bằng `-p`, và bước ấy đỏ vì lý do không liên quan gì tới code.
+
+### Việc 2 — thêm bước DỌN vào CUỐI cả hai job
+
+```yaml
+      - name: 🔒 DỌN — xoá .env chứa khoá thật + hạ container
+        if: always()
+        run: |
+          docker compose -p fin05-ci-${{ github.run_id }} down -v --remove-orphans || true
+          rm -f .env
+```
+
+⚠️ **`if: always()` phải là TUYỆT ĐỐI, không kèm `&& steps.xet.outputs.chay == 'co'`.** Ở
+`route-guards-docker` mọi bước khác đều có guard ấy — **bước dọn thì không**. Lý do: nếu guard sai
+hoặc đổi về sau, ta cần bước dọn vẫn chạy. `rm -f` trên tệp không tồn tại là vô hại.
+
+🔴 **`down -v` ở ĐÂY là ĐÚNG — đừng nhầm với luật cấm ở máy local.**
+Luật *"không bao giờ `docker compose down -v`"* bảo vệ `usage.jsonl` + `postgres_data` **trên máy
+của PO**. Trên runner, `-p fin05-ci-<run_id>` làm tên project **duy nhất theo từng lượt** ⟹ `-v`
+chỉ xoá volume **của chính lượt ấy**, và **phải xoá** — bỏ lại volume trên máy dùng chung là bỏ lại
+CSDL của lượt CI cho team khác. **Cùng một lệnh, hai ngữ cảnh, hai kết luận ngược nhau** — đây đúng
+là chỗ một luật đọc rời ngữ cảnh sẽ dẫn sai.
+
+### Nghiệm thu riêng cho phần này
+
+```
+① sau khi job xong:  ls -la .env               → KHÔNG tồn tại
+②                    docker ps -a | grep fin05-ci-<run_id>   → rỗng
+③ ép job đỏ giữa chừng (sửa tạm 1 test cho fail) → ① và ② VẪN đúng   ← nửa "KÊU", Luật A
+```
+Bước ③ là bước duy nhất chứng minh `if: always()` thật sự luôn chạy. Bỏ ③ thì ta chỉ chứng minh
+được bước dọn chạy **khi mọi thứ suôn sẻ** — đúng lúc không cần tới nó.
+
 ## 5. Điều KHÔNG được làm
 
 - 🚫 **Không đụng `deploy.yml`.**

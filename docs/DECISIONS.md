@@ -2168,6 +2168,17 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
      **xoay khoá** sau khi cohort kết thúc không.
   3. **Bước dọn `.env` bắt buộc `if: always()`** ở hai job ghi tệp — dọn chỉ chạy khi job thành công
      là **không dọn ở đúng lúc cần dọn nhất**.
+     🔴 **ĐÍNH CHÍNH 18/08 (PO-agent, khi đi triển khai mục này):** câu trên **giả định bước dọn đã
+     tồn tại**. [ĐO] `grep -n "rm .env|compose down|always()" ci.yml` → **5 hit `always()`, CẢ NĂM là
+     `upload-artifact`; 0 hit `rm .env`; 0 hit `compose down`**. ⟹ **KHÔNG CÓ bước dọn nào trong toàn
+     bộ `ci.yml`.** Việc là **THÊM bước**, không phải bật cờ trên bước có sẵn.
+     ⟹ **Phơi nhiễm nặng hơn đã ghi:** `.env` chứa khoá thật bị bỏ lại sau **MỌI** lần chạy, không
+     chỉ lần bị huỷ; và **không `compose down`** ⟹ container **chạy tiếp** sau job, giữ cổng + giữ
+     volume CSDL của lượt CI.
+     ⭐ **Và đây là phần đáng ghi nhất:** trên `ubuntu-latest` **không ai thấy**, vì cả máy ảo bị huỷ
+     sau mỗi job. Đội đã dựa vào tính ephemeral của GitHub **suốt từ đầu mà không ai biết là mình
+     đang dựa vào nó** — nó không được khai ở đâu, không test nào canh. Chuyển runner là **rút cái
+     lưới ấy đi**. *(Cùng hình dạng Luật G: một cơ chế đang gánh một việc **ta không giao cho nó**.)*
 
 - **Lý do BÁC BỎ *"chuyển trước 8 job khoá giả, giữ 6 job kia chờ security"*:** nghe thận trọng nhưng
   cho ra **một CI vẫn ĐỎ** — 6 job kia vẫn `ubuntu-latest` nên vẫn `was not started`. Và tệ hơn:
