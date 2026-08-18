@@ -2389,6 +2389,61 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   nhưng [ĐO] chứa **staff 237 / customer 230** — **nhiều chữ NHÂN VIÊN hơn chữ khách**. Trục phân loại
   (**theo CỘT**) không cắt đúng trục ADR-025 tự khai (**theo AI SỬA LẠI ĐƯỢC**). Cần ADR riêng.
 
+## ADR-041 — Vé phải hiện TOÀN BỘ hội thoại. Lời agent ghi vào `messages`, không đọc từ checkpoint.
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — **PO thật chốt 18/08**
+  (*"CSKH và sếp mở vé phải thấy toàn bộ đoạn hội thoại — như thế họ mới có đủ dữ liệu"*)
+- **Bối cảnh:**
+
+  ```
+  [ĐO] Message(...) tạo ở ĐÚNG MỘT nơi   live_chat.record_message
+       gọi từ ĐÚNG MỘT nơi                live_chat_ws.py:578
+       với  role = "staff" if is_staff else "customer"
+  ⟹ KHÔNG đường mã nào ghi được `agent` hay `system`
+  [ĐO] messages.role   staff 237 · customer 230 · agent 0 · system 0   (467 tin)
+  [ĐO] lời AI nằm ở checkpoint LangGraph — `checkpoints` 4.682 · `checkpoint_writes` 6.405
+  [ĐO] GET /live-chat/sessions/{id}/messages  đọc DUY NHẤT bảng `messages`
+  ```
+
+  ⟹ **CSKH mở một vé chỉ thấy NỬA cuộc hội thoại — phần người.** Phần AI đã nói với khách
+  **không màn hình nào đọc**. Với sản phẩm mà toàn bộ giá trị là *"AI điều tra rồi bàn giao cho
+  người"*, đây là chỗ đứt ngay tại **điểm bàn giao**.
+
+  ⭐ **Và `ck_messages_role` ĐÃ cho phép `agent` từ đầu.** Nhãn chết ấy **không phải rác — nó là dấu
+  vết của một thiết kế đã lường trước việc này rồi chưa ai xây.** *(Tìm ra bởi cổng độ phủ nhãn của
+  tester, tức bởi một cơ chế dựng cho việc khác — dữ liệu rỗng chỉ ra một tính năng thiếu.)*
+
+- **Quyết định 1 — GHI lời agent vào `messages` (`role='agent'`), KHÔNG đọc từ checkpoint lúc hiển thị.**
+
+  **Lý do BÁC "đọc checkpoint lúc hiển thị":** `checkpoint_blobs` là **schema ta KHÔNG sở hữu** —
+  LangGraph đổi định dạng nội bộ là màn hình vé vỡ, **và không test nào của ta canh được**. Đọc từ
+  bảng ta sở hữu thì hình dạng do ta quyết.
+  **Lý do phụ, nhưng quyết định về lâu dài:** PO đã nêu ý định **dùng AI tóm tắt hội thoại CSKH↔khách**.
+  Tóm tắt từ **một bảng có `role`** là một truy vấn; tóm tắt bằng cách ghép **hai kho khác hình dạng**
+  là một dự án. **Quyết định hôm nay quyết luôn chi phí của tính năng đó.**
+
+- **Quyết định 2 — `messages` đổi NGHĨA, và phải khai lại.**
+  Nó thôi là *"biên bản live-chat khách↔người"*, thành ***"biên bản hội thoại của một vé, mọi bên nói"***.
+  ⚠️ **Mọi truy vấn/thống kê đang ngầm giả định "chỉ có người"** phải rà lại — thêm `role='agent'` sẽ
+  **đổi mẫu số của chúng trong im lặng**. Đây là việc bắt buộc, không phải tuỳ chọn.
+
+- **🔴 Quyết định 3 — chạm ADR-025, phải giải trước khi code.**
+  ADR-025 xếp `messages.content` vào **Nhóm A ("lời khai KHÁCH", CẤM che-lúc-ghi)**. Nhưng [ĐO] cột ấy
+  đã chứa **staff 237 > customer 230**, và security đã mở finding: **trục phân loại (theo CỘT) không
+  cắt đúng trục ADR tự khai (theo AI SỬA LẠI ĐƯỢC)**. Thêm `role='agent'` đưa vào cột ấy **loại thứ
+  ba** — chữ do **máy** sinh, không ai "sửa lại được", và **không phải lời khai của ai**.
+  ⟹ **`security` phải phân loại `role='agent'` TRƯỚC khi tech-lead ghi dòng đầu tiên.** Ghi trước rồi
+  phân loại sau là tạo một quần thể phải backfill — đúng thứ ADR-032 vừa dạy ta cái giá.
+
+- **Quyết định 4 — thứ tự: SAU bản cắt `main`.**
+  Đây là **tính năng**, không phải hỏng. Bản `main` ổn định không đợi nó. Nhưng **ADR ghi bây giờ**,
+  lúc còn nhìn thấy đủ ngữ cảnh — không phải lúc ai đó vấp lại vào nó.
+
+- **Hệ quả:** `src/services/live_chat.py` · `src/agents/graph.py` (điểm ghi) · `contracts/` nếu route
+  đổi hình dạng (⟹ đủ §10 + baseline) · `tests/` · `docs/security/` (QĐ3) · cổng độ phủ nhãn của
+  tester **tự chuyển xanh** cho `messages.role=agent` khi việc này xong — **đừng sinh dòng demo giả
+  để thắp nó trước** (tester đã từ chối một lần, giữ nguyên lằn ranh ấy).
+
 ## Mẫu ADR mới
 
 ```markdown
