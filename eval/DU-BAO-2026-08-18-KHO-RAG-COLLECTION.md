@@ -65,3 +65,95 @@ xanh rỗng** — tệ hơn hẳn trạng thái hiện tại.
    ba KHÔNG được gộp vào "sạch" (đúng lỗi vừa xảy ra ở đây).
 5. Đối chứng dương phải chạy trên **kho THỬ**, tuyệt đối không ghi vào kho đang
    phục vụ (Luật I — bước đo không ghi vào container đang chạy).
+
+---
+
+# ⑥ KẾT QUẢ THẬT — ghi SAU khi quan sát
+
+Dự báo ở trên nằm trong commit `09c8de2`, **trước** khi liệt kê.
+
+```
+fin05-backend-1   (3 collection)          fin05ttl-backend-1  (2 collection)
+  policy_faq                      0         policy_faq__text-embedding-3-small  0
+  policy_faq__text-embedding-v4 378         policy_faq                          0
+  policy_faq__text-embedding-3-small 378
+```
+
+| # | dự báo | thực tế | |
+|---|---|---|---|
+| 1 | `policy_faq` tồn tại, **0** metadata | tồn tại, **0** | ✅ **TRÚNG** |
+| 2 | index có ≥2 collection | **3** | ✅ TRÚNG |
+| 3 | **ĐÚNG 1** collection giữ gần hết dữ liệu, ≈378 | **HAI** collection, **mỗi cái 378** | ⚠️ **TRẬT ở phần "đúng 1"** |
+| 4 | `fin05ttl` cho số khác (≈419) | **0 và 0** — cả hai collection rỗng | ❌ TRẬT |
+
+**⓷ trật là phần quan trọng nhất của cả đợt.** Kho có **hai collection phục vụ
+song song, một cho mỗi model nhúng** (`text-embedding-v4` của DashScope và
+`text-embedding-3-small` của OpenAI). Tôi dự báo một, thực tế hai — và **đúng
+cái sai đó là lý do bản vá "sửa tên collection" sẽ hỏng**: nó lại chỉ soi một.
+
+**⓸ trật ⟹ ghi vào rổ CHƯA TRUY, không gán nguyên nhân.** Bàn giao 17/08 ghi
+`fin05ttl` có 419 chunk; hôm nay 0. Hoặc kho bị nạp lại, hoặc `fin05ttl` đọc
+index ở path khác. **Tôi không đo cái nào trong hai.**
+
+## ⑦ Nguyên nhân ca đỏ — KHÔNG phải "kho rỗng"
+
+Đầu dò gõ cứng `get_collection('policy_faq')` — **collection duy nhất RỖNG
+trong ba cái**. Kho thật có **378 chunk**. Suốt thời gian qua ca này đỏ vì
+**soi nhầm chỗ**, và vì `pytest.fail` in **KẾT LUẬN** (*"kho rỗng"*) thay vì
+**TRIỆU CHỨNG** (*"collection tên `policy_faq` trả 0 doc_id"*), `docs/STATE.md`
+§2 chép lại thành *"điều kiện hạ tầng"* và cả đội tin từ 17/08. **Luật H thuần
+nhất — không ai sai quy trình, cái đèn nói dối.**
+
+## ⑧ Bản vá — và vì sao nó KHÔNG phải "sửa tên"
+
+Test nay **tự liệt kê mọi collection**, không gõ cứng tên nào (tên mang tên
+model ⟹ nó SẼ đổi), và đối chiếu trên **hợp của tất cả**. Ba trạng thái tách
+bạch: **sạch** · **bẩn** · **KHÔNG ĐO ĐƯỢC** (không có collection nào · mọi
+collection rỗng · có vector mang `doc_id` không tra được hàng CSDL).
+
+### 🔴 Ca đối chứng bắt được lỗi trong CHÍNH CÔNG CỤ ĐO của tôi
+
+Bản đầu của `_tim_lot()` gộp `doc_id` mồ côi vào chung rổ "lọt" bằng cách thay
+nó bằng nhãn `<doc_id không có hàng…>`. Ca đối chứng đỏ ngay: bộ lọc đối chiếu
+`mau_cam` với **chuỗi doc_id**, không với nhãn ⟹ **mồ côi lọt qua im lặng**, và
+một kho có hàng CSDL bị mất sẽ được báo là **SẠCH**.
+
+> Đúng Luật 7 — công cụ đo là lớp không ai canh. Nó lọt qua mắt tôi và bị bắt
+> bởi **ca đối chứng viết trong cùng một giờ**. Đây là lý lẽ cụ thể cho việc
+> tách logic thuần ra khỏi phần đọc hạ tầng: nếu không tách, ca đối chứng ấy
+> **không viết được**, và lỗi này đã đi vào cổng.
+
+## ⑨ Cổng nay khẳng định CÁI GÌ — Luật J, đọc chứ không chỉ ghi nhận màu
+
+Đo thẳng, không suy:
+```
+TỔNG doc_id (hợp của mọi collection) = 2
+tên tệp cổng thật sự đối chiếu:  MoMo_FAQ_Giao_dich.docx · MoMo_ToS.docx
+=> lọt={}  mồ_côi={}
+```
+⟹ Phát biểu ĐÚNG là: *"kho phục vụ của `fin05` chứa đúng 2 tài liệu, và không
+tài liệu nào trong `{business_rules, scenario-candidates-momo-faq}` có mặt
+trong bất kỳ collection nào."* **Đây là lần đầu tiên cổng này khẳng định được
+điều tên nó hứa.**
+
+⚠️ **378 chunk = 2 TÀI LIỆU.** `chunk` và `doc_id` là hai đơn vị đếm khác nhau;
+`378` không phải "378 tài liệu" — đừng trích lẫn.
+
+### Đột biến trên VẬT THẬT (không phải trên dữ liệu bịa)
+
+```
+mẫu cấm = {'MoMo_F'}  ← chắc chắn CÓ trong kho
+=> cổng kêu ở 2/2 collection có dữ liệu, đúng tên MoMo_FAQ_Giao_dich.docx
+```
+⟹ dây nối container → logic thuần **biết đỏ**, và nó **không dừng ở collection
+đầu tiên** — đúng lớp lỗi vừa vá.
+
+## ⑩ Còn treo, KHÔNG kết luận
+
+- `fin05ttl` kho rỗng cả hai collection (bàn giao ghi 419) — **chưa truy**
+- **Hai kho song song, hai model nhúng.** Sản phẩm đọc cái nào? Cần `src/` để
+  trả lời ⟹ **không phải việc của tester.** Nếu nó chỉ đọc một, cái còn lại là
+  378 chunk **chết mà vẫn tốn đĩa**; nếu tuỳ cấu hình, đây là **hai đáp án cho
+  cùng một câu hỏi chính sách**. Chuyển tech-lead.
+- `test_kho_chi_chua_tai_lieu_duoc_duyet` vẫn **skip** — chưa có danh mục nguồn
+  đã duyệt. Cổng thật vẫn chưa bật; cái vừa vá là lớp chặn tối thiểu.

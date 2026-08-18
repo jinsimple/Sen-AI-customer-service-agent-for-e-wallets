@@ -61,6 +61,10 @@ UNG_VIEN_DANH_MUC = (
 )
 
 CONTAINER = os.environ.get("FIN05_BACKEND_CONTAINER", "fin05-backend-1")
+POSTGRES = os.environ.get("FIN05_POSTGRES_CONTAINER", "fin05-postgres-1")
+
+# Hai file đã THẬT SỰ lọt vào kho phục vụ ngày 16/08 — chặn đích danh, không đoán.
+DA_LOT = frozenset({"business_rules", "scenario-candidates-momo-faq"})
 
 
 def _tim_danh_muc() -> pathlib.Path | None:
@@ -74,58 +78,133 @@ def _kho_dang_song() -> bool:
     return bool(r.stdout.strip())
 
 
-def _doc_id_trong_chroma() -> set[str]:
-    """doc_id THỰC SỰ có vector trong index — thứ truy hồi có thể trả về."""
-    ma = (
-        "import json,chromadb;"
-        "c=chromadb.PersistentClient(path='/app/data/rag_index');"
-        "col=c.get_collection('policy_faq');"
-        "g=col.get(include=['metadatas']);"
-        "print(json.dumps(sorted({m.get('doc_id','?') for m in g['metadatas']})))"
-    )
+# Mã chạy TRONG container — liệt kê MỌI collection, không gõ cứng tên nào.
+#
+# 🔴 Bản cũ gõ cứng `get_collection('policy_faq')`. Đo được 18/08 (hộp đen,
+# `docker exec` chỉ-đọc, 0 token) — index của `fin05` có BA collection:
+#
+#     'policy_faq'                            count=0     ← bản cũ soi ĐÚNG cái này
+#     'policy_faq__text-embedding-v4'         count=378
+#     'policy_faq__text-embedding-3-small'    count=378
+#
+# Nên suốt thời gian qua ca này KHÔNG đỏ vì "kho rỗng" — nó đỏ vì **soi nhầm
+# một collection rỗng trong khi kho thật có 378 chunk**. Câu `pytest.fail` cũ in
+# ra KẾT LUẬN ("kho rỗng") thay vì TRIỆU CHỨNG ("collection tên X trả 0
+# doc_id"), nên `docs/STATE.md` chép lại và cả đội tin từ 17/08 (Luật H).
+#
+# Vì sao KHÔNG thay bằng tên mới: gõ `'policy_faq__text-embedding-v4'` là chép
+# từ code lần thứ hai, và chết y hệt ngày đổi model nhúng. Tên collection mang
+# TÊN MODEL ⟹ nó SẼ đổi.
+#
+# 🔴 Và vì sao phải kiểm MỌI collection chứ không riêng cái to nhất: hai
+# collection cùng giữ 378 chunk là hai kho phục vụ song song. Một cổng rò rỉ bỏ
+# sót một collection là một cổng rò rỉ hỏng.
+_MA_LIET_KE = """
+import json, chromadb
+c = chromadb.PersistentClient(path='/app/data/rag_index')
+ra = {}
+for mo_ta in c.list_collections():
+    ten = mo_ta.name if hasattr(mo_ta, 'name') else str(mo_ta)
+    col = c.get_collection(ten)
+    g = col.get(include=['metadatas'])
+    ra[ten] = sorted({m.get('doc_id', '?') for m in (g['metadatas'] or [])})
+print(json.dumps(ra))
+"""
+
+
+def _doc_id_moi_collection() -> dict[str, list[str]]:
+    """{ten_collection: [doc_id]} cho **mọi** collection trong index.
+
+    Không lọc, không gõ cứng tên. Collection rỗng vẫn xuất hiện với danh sách
+    rỗng — cần thế để phân biệt *"không có collection nào"* với *"có nhưng
+    rỗng"*, hai triệu chứng khác hẳn nhau.
+    """
     r = subprocess.run(
-        ["docker", "exec", CONTAINER, "python", "-c", ma],
+        ["docker", "exec", CONTAINER, "python", "-c", _MA_LIET_KE],
         capture_output=True, text=True, timeout=120,
     )
     if r.returncode != 0:
-        pytest.fail(f"không đọc được index: {(r.stderr or r.stdout)[:300]}")
-    return set(json.loads(r.stdout.strip().splitlines()[-1]))
+        pytest.fail(
+            "KHÔNG ĐO ĐƯỢC (không phải 'kho sạch'): không liệt kê được collection "
+            f"trong container {CONTAINER} — {(r.stderr or r.stdout)[:300]}"
+        )
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def _ten_theo_doc_id() -> dict[str, str]:
+    """`policy_documents.doc_id -> filename`, đọc từ Postgres của ngăn xếp."""
+    sql = "SELECT doc_id, filename FROM policy_documents;"
+    r = subprocess.run(
+        ["docker", "exec", POSTGRES, "sh", "-c",
+         f'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F "|" -c "{sql}"'],
+        capture_output=True, text=True, timeout=120,
+    )
+    if r.returncode != 0:
+        pytest.fail(f"KHÔNG ĐO ĐƯỢC: không đọc được policy_documents — {(r.stderr or r.stdout)[:300]}")
+    ten = {}
+    for dong in r.stdout.strip().splitlines():
+        if "|" in dong:
+            d, f = dong.split("|", 1)
+            ten[d.strip()] = f.strip()
+    return ten
+
+
+def _tim_lot(
+    kho: dict[str, list[str]], ten: dict[str, str], mau_cam: set[str]
+) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
+    """LOGIC THUẦN — trả **(lọt, mồ_côi)**, mỗi cái là {collection: {...}}.
+
+    Không chạm container. Tách khỏi phần đọc hạ tầng **có chủ đích**: nhờ nó mà
+    cổng này chứng minh được nửa *"KÊU lúc bất thường"* (Luật A) bằng dữ liệu
+    bịa, **không ghi một byte nào vào kho đang phục vụ** (Luật I). Xem
+    `test_doi_chung_cong_biet_keu_khi_kho_ban`.
+
+    🔴 **Vì sao trả HAI tập chứ không một** — bản đầu của hàm này gộp `doc_id`
+    không tra được tên vào chung với "lọt", bằng cách thay nó bằng một nhãn
+    `<doc_id không có hàng…>`. Ca đối chứng bắt được ngay: bộ lọc đối chiếu
+    `mau_cam` với **chuỗi doc_id**, không với nhãn ⟹ mồ côi **lọt qua im
+    lặng**, và một kho có hàng CSDL bị mất sẽ được báo là **SẠCH**.
+
+    Đó đúng là Luật 7 — công cụ đo là lớp không ai canh. Và gộp hai thứ là sai
+    cả về nghĩa: *"tài liệu nội bộ đã biết quay lại kho"* và *"có vector mà
+    không biết nó là gì"* là hai kết luận khác nhau, đòi hai hành động khác
+    nhau. Cái thứ hai là **KHÔNG ĐO ĐƯỢC**, không phải BẨN.
+    """
+    lot: dict[str, set[str]] = {}
+    mo_coi: dict[str, set[str]] = {}
+    for col, doc_ids in kho.items():
+        for d in doc_ids:
+            if d not in ten:
+                mo_coi.setdefault(col, set()).add(d)
+            elif any(x in ten[d] for x in mau_cam):
+                lot.setdefault(col, set()).add(ten[d])
+    return lot, mo_coi
 
 
 def _tai_lieu_trong_kho() -> set[str]:
-    """TÊN FILE của các tài liệu đang có vector trong index.
+    """TÊN FILE của tài liệu có vector trong **bất kỳ** collection nào.
 
     ⚠️ Bản đầu của hàm này đọc `doc_id` từ Chroma rồi đem so với tên file. Mà
     `doc_id` là **băm** (`DOC-b975b2f37aa4`), không phải tên — nên phép so không
     bao giờ khớp và test XANH RỖNG TUẾCH. Nó "chặn" đúng con số không.
 
     Đây là bẫy assertion-trùng-trạng-thái-mặc-định (PO phê chuẩn 14/08), lần này
-    ở dạng khó thấy hơn: hai vế **cùng kiểu dữ liệu** (đều là chuỗi, đều là
-    `set[str]`), chỉ khác KHÔNG GIAN TÊN. Không lỗi, không cảnh báo, xanh mượt.
-
-    Tên thật nằm ở `policy_documents.filename`. Ta lấy doc_id từ Chroma (thứ
-    truy hồi trả được) rồi tra tên qua Postgres — giao của hai nguồn, để một
-    hàng DB còn sót mà không có vector không bị tính là "đang phục vụ".
+    ở dạng khó thấy hơn: hai vế **cùng kiểu dữ liệu** (đều là `set[str]`), chỉ
+    khác KHÔNG GIAN TÊN. Không lỗi, không cảnh báo, xanh mượt.
     """
-    doc_ids = _doc_id_trong_chroma()
-    if not doc_ids:
-        pytest.fail("index KHÔNG có doc_id nào — kho rỗng, mọi khẳng định dưới đây vô nghĩa")
-    sql = "SELECT doc_id, filename FROM policy_documents;"
-    r = subprocess.run(
-        ["docker", "exec", "fin05-postgres-1", "sh", "-c",
-         f'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F "|" -c "{sql}"'],
-        capture_output=True, text=True, timeout=120,
-    )
-    if r.returncode != 0:
-        pytest.fail(f"không đọc được policy_documents: {(r.stderr or r.stdout)[:300]}")
-    ten = {}
-    for dong in r.stdout.strip().splitlines():
-        if "|" in dong:
-            d, f = dong.split("|", 1)
-            ten[d.strip()] = f.strip()
-    thieu = doc_ids - set(ten)
+    kho = _doc_id_moi_collection()
+    if not kho:
+        pytest.fail("KHÔNG ĐO ĐƯỢC: index KHÔNG có collection nào — không có gì để soi")
+    tong = {d for ds in kho.values() for d in ds}
+    if not tong:
+        pytest.fail(
+            "KHÔNG ĐO ĐƯỢC (KHÔNG phải 'kho sạch'): mọi collection đều rỗng — "
+            + ", ".join(f"{c}={len(ds)}" for c, ds in sorted(kho.items()))
+        )
+    ten = _ten_theo_doc_id()
+    thieu = tong - set(ten)
     assert not thieu, f"index có doc_id không có hàng trong policy_documents: {sorted(thieu)}"
-    return {ten[d] for d in doc_ids}
+    return {ten[d] for d in tong}
 
 
 @pytest.mark.xfail(
@@ -192,11 +271,66 @@ def test_kho_khong_chua_tai_lieu_noi_bo_da_biet():
     ⚠️ Đây KHÔNG thay được test trên. Nó chặn hai cái tên đã biết; nó **không**
     biết gì về file thứ ba. Xoá nó khi danh mục đặc tả đã bật cổng thật.
     """
-    da_lot = {"business_rules", "scenario-candidates-momo-faq"}
-    trong_kho = _tai_lieu_trong_kho()
-    lot_lai = {t for t in trong_kho if any(x in t for x in da_lot)}
+    kho = _doc_id_moi_collection()
+    if not kho:
+        pytest.fail("KHÔNG ĐO ĐƯỢC: index KHÔNG có collection nào — không có gì để soi")
+    if not any(kho.values()):
+        pytest.fail(
+            "KHÔNG ĐO ĐƯỢC (KHÔNG phải 'kho sạch'): mọi collection đều rỗng — "
+            + ", ".join(f"{c}={len(ds)}" for c, ds in sorted(kho.items()))
+        )
+
+    lot_lai, mo_coi = _tim_lot(kho, _ten_theo_doc_id(), DA_LOT)
+    if mo_coi:
+        pytest.fail(
+            "KHÔNG ĐO ĐƯỢC (KHÔNG phải 'kho sạch'): có vector mang doc_id không "
+            "tra được hàng trong `policy_documents` — không biết chúng là tài "
+            "liệu gì, nên không khẳng định được kho sạch:\n"
+            + "\n".join(f"  {c}: {sorted(t)}" for c, t in sorted(mo_coi.items()))
+        )
     assert not lot_lai, (
-        f"TÀI LIỆU NỘI BỘ QUAY LẠI KHO PHỤC VỤ: {sorted(lot_lai)}\n"
-        "Đây là hồi quy của sự cố 16/08 (F-KHO-1): bảng số chưa verify + danh "
+        "TÀI LIỆU NỘI BỘ QUAY LẠI KHO PHỤC VỤ, theo từng collection:\n"
+        + "\n".join(f"  {col}: {sorted(t)}" for col, t in sorted(lot_lai.items()))
+        + "\nĐây là hồi quy của sự cố 16/08 (F-KHO-1): bảng số chưa verify + danh "
         "sách kịch bản test được agent trích như chính sách thật."
+    )
+
+
+def test_doi_chung_cong_biet_keu_khi_kho_ban():
+    """Nửa **KÊU LÚC BẤT THƯỜNG** của Luật A — nửa mà không ca đối chứng nào thì
+    không chứng minh được.
+
+    Chạy trên dữ liệu BỊA, 0 container, 0 token: cổng này vừa đi qua đúng lớp
+    lỗi *"xanh vì soi nhầm chỗ"*, nên "xanh" của nó chỉ đọc được khi có một ca
+    chứng minh nó biết đỏ.
+
+    🔴 Ca bịa đặt tài liệu bẩn ở **collection THỨ HAI, không phải thứ nhất** —
+    đó chính là hình dạng của lỗi thật: index có 3 collection, bản cũ soi đúng
+    một cái (và đúng cái rỗng). Một cổng dừng ở collection đầu tiên sẽ XANH ở ca
+    này, và đó là điều cần bắt.
+    """
+    ten = {
+        "DOC-sach01": "MoMo_FAQ_Giao_dich.md",
+        "DOC-ban01": "business_rules.md",
+    }
+    kho_ban = {
+        "policy_faq__model-a": ["DOC-sach01"],
+        "policy_faq__model-b": ["DOC-sach01", "DOC-ban01"],
+    }
+    lot, mo_coi = _tim_lot(kho_ban, ten, DA_LOT)
+    assert lot == {"policy_faq__model-b": {"business_rules.md"}}, (
+        f"cổng KHÔNG kêu đúng chỗ khi kho bẩn ở collection thứ hai: {lot}"
+    )
+    assert mo_coi == {}, f"báo mồ côi oan trên dữ liệu tra được hết: {mo_coi}"
+
+    # Luật 2 — và nó KHÔNG chặn nhầm kho sạch.
+    sach, _ = _tim_lot({"policy_faq__model-a": ["DOC-sach01"]}, ten, DA_LOT)
+    assert sach == {}, f"cổng kêu oan trên kho sạch: {sach}"
+
+    # TRẠNG THÁI THỨ BA: `doc_id` không tra được tên phải rơi vào rổ RIÊNG,
+    # không được im thành "sạch" mà cũng không được kêu thành "bẩn".
+    lot_mc, mo_coi_mc = _tim_lot({"c": ["DOC-khong-co-trong-db"]}, ten, DA_LOT)
+    assert lot_mc == {}, "mồ côi bị đếm nhầm thành tài liệu nội bộ lọt"
+    assert mo_coi_mc == {"c": {"DOC-khong-co-trong-db"}}, (
+        f"doc_id không tra được tên bị nuốt mất — kho thủng mà cổng im: {mo_coi_mc}"
     )
