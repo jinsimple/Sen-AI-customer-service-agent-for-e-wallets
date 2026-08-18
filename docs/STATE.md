@@ -98,7 +98,12 @@ chặn.** Nó đủ mạnh và là nguồn độc lập thật (biến môi trư
 - **③ còn nguyên.** `PHAN_LUONG_BAT=1` trong `Config.Env` của **cả ba** container.
 
 🔴 **Hạn mức: A3 của PO thật còn hiệu lực — "chưa nạp gì cho tới khi tối ưu xong chi tiêu token."**
-Còn **~32K** token miễn phí trên `qwen3.7-max`. `qwen3.8-max` đã cạn. Quota là **1M/model**.
+~~Còn **~32K** token miễn phí trên `qwen3.7-max`~~ **[NIÊM 19/08 — số này đã chết, đừng lập kế hoạch
+trên nó]**: 32K là phần dư của model ĐÃ BỎ, tính từ 1/3 ngăn xếp. [ĐO] 19/08 (Lead đo, PO-agent kiểm
+độc lập, khớp từng chữ số, cộng đủ BA sổ `usage.jsonl`): `qwen3.7-max` **1.027.494/1M — VƯỢT** · họ
+`qwen3.7-plus` (bí danh 44.362 + bản ghim ngày 198.657) = **243.019 ⟹ còn ~757K trên model ĐANG CHẠY,
+theo SỔ NỘI BỘ**. Caveat giữ nguyên hiệu lực: lượt hỏng ghi 0 (tiêu thật cao hơn) · "1M/model" chưa đối
+chiếu dashboard (A4) · bí danh/bản ghim chung xô là GIẢ ĐỊNH thận trọng. `qwen3.8-max` đã cạn.
 
 ---
 
