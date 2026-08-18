@@ -134,7 +134,12 @@ def _doc_id_moi_collection() -> dict[str, list[str]]:
     rỗng"*, hai triệu chứng khác hẳn nhau.
     """
     r = subprocess.run(
-        ["docker", "exec", CONTAINER, "python", "-c", _MA_LIET_KE],
+        # PYTHONDONTWRITEBYTECODE: [ĐO] 18/08 — cùng lệnh này không có nó
+        # làm `docker diff` tăng +101 dòng (bytecode cache). Nó không hỏng
+        # dữ liệu, nhưng nó làm MÙ chính dây báo động cả đội dùng để hỏi
+        # "phép đo có chạm vật không". Xác minh Δ=0 trên container thứ ba.
+        ["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", CONTAINER,
+         "python", "-c", _MA_LIET_KE],
         capture_output=True, text=True, timeout=120,
     )
     if r.returncode != 0:

@@ -96,3 +96,95 @@ khi backfill chạy**, giống cổng plaintext.
   được PO chốt là **ADR riêng**.
 - Vân tay gộp bảo *"tập có đổi"*, **không** bảo *"dòng nào đổi"*. Đó là đánh
   đổi **cố ý** đã nêu ở ③.
+
+---
+
+# ⑦ KẾT QUẢ THẬT — ghi SAU khi đo. Dự báo nằm ở `3cd0dbc`.
+
+```
+nền chốt lúc  2026-08-18 02:40:29 UTC   ·  bam_ma_nguon d5b73a04d6ef
+tệp nền       eval/NEN-TRUOC-BACKFILL-2026-08-18.json
+```
+
+| # | dự báo | thực tế | |
+|---|---|---|---|
+| 1 | `complaints` vẫn 738 trần / 23 giải mã được | **738 / 23** | ✅ |
+| 2 | 0 dòng khoá khác, cả bốn cột | **0 / 0 / 0 / 0** | ✅ |
+| 3 | 0 dòng bọc hai lần, cả bốn cột | **0 / 0 / 0 / 0** | ✅ |
+| 4 | tổng bốn cột 1.113 giải mã được | **245+467+378+23 = 1.113** | ✅ |
+| 5 | container thật sự chạy nhánh ba trạng thái | **chỉ xác minh GIÁN TIẾP** | ⚠️ xem ⑨ |
+
+**4/5 trúng · 1 ô chỉ xác minh được gián tiếp và tôi hạ nó xuống đúng hạng.**
+
+## ⑧ 🔴 PHÉP ĐỐI CHỨNG BÁC CHÍNH TÔI — "chỉ đọc" vẫn GHI
+
+Tôi định báo cáo số ngay sau khi đo. Vế thi hành Luật I bắt chạy `docker diff`
+**trước khi báo bất cứ số nào** — nên tôi chạy, và nó **không rỗng**.
+
+Giả định của tôi: *"lệnh `SELECT` qua `docker exec python -c` là chỉ đọc."*
+Phép phân định: chạy **cùng lệnh** trên `fin05ttl-backend-1`, container tôi
+**chưa hề chạm**, đo `docker diff` hai đầu:
+
+```
+TRƯỚC 80  →  SAU 181   Δ = +101      🔴 giả định SAI
+124/125 mục mới nằm ở /usr/local/lib/python3.12/**/__pycache__
+```
+**Nhập một thư viện là biên dịch nó.** `import sqlalchemy` ghi bytecode cache.
+
+**Bản vá, xác minh trên container THỨ BA (`fin05do`, cũng chưa chạm):**
+```
+docker exec -e PYTHONDONTWRITEBYTECODE=1 …   TRƯỚC 287 → SAU 287   Δ = 0  ✅
+```
+
+### Vì sao đây không phải chuyện nhỏ
+
+101 tệp `.pyc` **không hỏng dữ liệu** và **không đổi hành vi**. Cái nó hỏng là
+**CÁI BẪY**: `docker diff` là dây báo động của cả đội cho câu *"phép đo có chạm
+vật không"*. Một phép đo tự thêm 101 dòng nhiễu khiến **lần dò tampering sau
+phải bới qua nhiễu của chính mình** — và một thay đổi thật sẽ nấp trong đó.
+
+> **Bộ đo làm MÙ chính dụng cụ dùng để canh bộ đo.** Luật 10 (*bộ đo tự tạo ra
+> hiện tượng nó đang đo*), nhưng ở trục **dụng cụ giám sát** thay vì trục kết quả.
+
+**Đã vá cả hai nơi dùng khuôn này** trong vùng tester: cổng nghiệm thu mới, và
+`tests/test_rag/test_thanh_phan_tai_lieu_kho.py` (`docker exec … python -c`
+tôi viết sáng nay — **nó đã rò suốt từ lúc đó**). Cả hai nay đo Δ=0.
+
+⚠️ **Còn nơi khác tôi KHÔNG vá được:** `docker exec … pytest /app/tests` ghi
+**121 tệp** vào `fin05-backend-1` (`.pytest_cache/` + `src/**/__pycache__`,
+dấu thời gian `02:31`). Đó là **lượt nghiệm thu ảnh của PO-agent**, không phải
+của tôi — nêu ra vì nó cùng một cơ chế và **`PYTHONDONTWRITEBYTECODE=1` không
+chữa được `.pytest_cache`** (cần `-p no:cacheprovider`). Đây là lý lẽ định
+lượng cho món *"container lint/test riêng"* đang nằm trong `STATE §5.B`.
+
+## ⑨ Ô số 5 — hạ hạng, không tự nâng
+
+Tôi **không xác minh trực tiếp được** rằng container chạy nhánh giải mã ba
+trạng thái: làm thế cần đọc `src/db/crypto_types.py`, mà tester **không được
+đọc `src/`**. Thứ tôi xác minh được, bằng **siêu dữ liệu**:
+- `git merge-base --is-ancestor c079323 HEAD` → **đúng**, commit vá nằm trong cây
+- `git show --stat` → nó chạm đúng **`src/db/crypto_types.py`** (đọc TÊN, không mở)
+- PO-agent [ĐO] độc lập: `bam_ma_nguon` khớp cả bốn chỗ ⟹ ảnh mang đúng cây đó
+
+⟹ Phát biểu đúng hạng: ***"ảnh mang cây có chứa commit tự khai là bản vá ba
+trạng thái"*** — **KHÔNG** phải *"đã xác minh nhánh ba trạng thái hoạt động"*.
+Khoảng cách giữa hai câu ấy chỉ đóng được bằng một phép thử **hành vi**, và
+phép thử đó cần một lượt đọc qua ORM. **Ghi là CHƯA XÁC MINH.**
+
+## ⑩ Cổng — hai nửa, và phép đột biến
+
+```
+🟢 test_backfill_khong_lam_mat_dong_hay_doi_noi_dung   ← cổng chính, XANH NGAY
+🔴 test_cot_nhom_a_da_duoc_nap_lai_het                 ← security_finding, cố ý đỏ
+```
+Tách vì **Luật J**: nửa trên canh được **ngay hôm nay** (nó là nửa bắt một
+backfill làm mất dữ liệu); gộp rồi gắn nhãn thì nó biến mất khỏi `lint-and-test`.
+
+**Đột biến trên tệp nền — hai kiểu hỏng, hai câu khác nhau:**
+```
+"tong" 761→762        ⟹ "MẤT/THÊM DÒNG trong tập đã đóng băng — nền 762 → nay 761"
+vân tay → 0000…       ⟹ "NỘI DUNG ĐỔI — vân tay 0000000000000000 → 2805e52d1a4d0bed"
+hoàn nguyên: băm khớp lại 71204425330e
+```
+⟹ nửa xanh **biết đỏ**, và **phân biệt được hai kiểu hỏng** thay vì gộp thành
+"khác nền". Đúng Luật 16: N mệnh đề cần N đột biến.

@@ -1,0 +1,39 @@
+{
+  "__moc_thoi_gian__": "2026-08-18 02:40:29.505902+00:00",
+  "bank_accounts.account_no": {
+    "boc_hai_lan": 0,
+    "chua_ma_hoa": 0,
+    "giai_ma_duoc": 245,
+    "khoa_khac": 0,
+    "rong": 0,
+    "tong": 245,
+    "van_tay_gop": "e4241c5cc2a143ea"
+  },
+  "complaints.description_raw": {
+    "boc_hai_lan": 0,
+    "chua_ma_hoa": 738,
+    "giai_ma_duoc": 23,
+    "khoa_khac": 0,
+    "rong": 0,
+    "tong": 761,
+    "van_tay_gop": "2805e52d1a4d0bed"
+  },
+  "messages.content": {
+    "boc_hai_lan": 0,
+    "chua_ma_hoa": 0,
+    "giai_ma_duoc": 467,
+    "khoa_khac": 0,
+    "rong": 0,
+    "tong": 467,
+    "van_tay_gop": "f3a1f200d7673a1b"
+  },
+  "policy_chunks.text": {
+    "boc_hai_lan": 0,
+    "chua_ma_hoa": 0,
+    "giai_ma_duoc": 378,
+    "khoa_khac": 0,
+    "rong": 0,
+    "tong": 378,
+    "van_tay_gop": "25943aab11bdfa55"
+  }
+}
