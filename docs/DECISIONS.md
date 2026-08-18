@@ -2092,6 +2092,86 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   🔴 **Quần thể thứ tư `app.adaptivealgo.uk` (production) NẰM NGOÀI ADR này** — chưa ai đo, không ai
   chạm. Đừng đọc "xoá `fin05ttl`" thành "chuyện plaintext đã đóng".
 
+## ADR-037 — `.github/workflows/**` thuộc vùng ghi `tech-lead`; và CI chuyển sang runner self-hosted của BTC
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** ⏳ **CHỜ PO THẬT PHÊ CHUẨN** (QĐ2 · QĐ3 do PO-agent đề xuất)
+- **Bối cảnh:**
+
+  Từ 17/08 tới nay **không commit nào qua cổng tự động**. [ĐO] annotation nguyên văn GitHub trên
+  mọi run: *"The job **was not started** because recent account payments have failed…"* — và
+  `gh run view --job … --log` trả **`log not found`, 0 dòng**: job chưa bao giờ được cấp máy, nên
+  không có log để mà đọc. **Không phải lỗi code** — mọi commit, kể cả commit rỗng, cho kết quả y hệt.
+
+  **BTC ra hướng dẫn:** đổi workflow sang `runs-on: self-hosted` để dùng runner dùng chung của
+  chương trình (FIFO, **chia sẻ giữa TẤT CẢ các team**); team muốn chủ động thì tự host, mở ticket.
+
+  🔴 **[ĐO] Và không vai nào ghi được `.github/`.** Bảng §4 `CLAUDE.md`:
+  ```
+  po         → docs/ · *.md ở gốc            ← ci.yml KHÔNG phải .md
+  tech-lead  → src/ · frontend/src/ · migrations/ · docker-compose*.yml · contracts/
+  còn lại    → không ai
+  ```
+  ⟹ **Lỗ §4 THỨ HAI, cùng lớp ADR-035** — và lần này còn mâu thuẫn với chính định nghĩa vai:
+  mô tả agent `tech-lead` ghi rõ *"dựng CI"*, nhưng bảng quyền không cho họ chạm file CI.
+  **Một lần là thiếu sót; hai lần là bảng §4 được viết theo thứ ĐÃ ĐỘNG TỚI, không theo thứ TỒN TẠI.**
+
+- **Quyết định 1 — thêm `.github/workflows/**` vào vùng ghi của `tech-lead`.**
+  Cùng lý lẽ ADR-035: CI khai **môi trường mà `src/` chạy trong đó**; người viết `src/` là người duy
+  nhất biết một biến được đọc lúc nào và một job cần dịch vụ gì. **Bác "cấp quyền một lần cho đúng
+  việc này"** — quyền theo ca không để lại dấu vết, lần sau lại vấp; đây là lần **thứ hai** vấp.
+
+- **Quyết định 2 — `ci.yml` (14 job) chuyển `self-hosted`; `deploy.yml` (1 job) GIỮ `ubuntu-latest`.**
+
+  [ĐO] `grep -rn "runs-on:"` → **15 dòng**: `ci.yml` 14 · `deploy.yml` 1.
+
+  **Lý do tách đúng ở ranh giới này, không phải chỗ khác:** `deploy.yml` mang
+  **`secrets.DEPLOY_SSH_KEY`** — khoá riêng SSH vào **production**. Nó đang **skipped** ở mọi run
+  gần đây ⟹ chuyển nó sang runner dùng chung **không mua được gì** mà đặt tài sản nặng nhất lên
+  máy dùng chung với các team khác. **Rẻ nhất là để yên.**
+
+- **🔴 Quyết định 3 — RỦI RO PHẢI KHAI RA, KHÔNG ĐƯỢC ĐỂ IM.**
+
+  [ĐO] phân loại 14 job theo khoá chúng mang:
+  ```
+  8 job  khoá GIẢ  (ci-dummy / test-key-…)         → chuyển sang máy dùng chung: KHÔNG thêm phơi nhiễm
+  6 job  khoá THẬT (secrets.OPENAI_API_KEY)        → khoá thật vào biến môi trường trên máy dùng chung
+  ├─ 2 trong số đó GHI KHOÁ THẬT RA TỆP `.env` TRÊN ĐĨA runner  (ci.yml:554 · ci.yml:618)
+  │  route-guards-docker · livechat-e2e-nightly
+  ```
+  **Runner dùng chung KHÔNG khởi động sạch giữa các job** (trừ khi BTC cấu hình ephemeral) ⟹ một
+  tệp `.env` chứa khoá thật **có thể còn lại trên đĩa** sau khi job bị huỷ giữa chừng, và máy ấy
+  **chạy job của team khác**. Đây **không phải suy đoán**: hai dòng ghi tệp là đo được, và tính
+  "dùng chung" là do chính BTC khai.
+
+  **Ba việc kèm theo, không cái nào thay được cái nào:**
+  1. **Hỏi BTC MỘT câu cụ thể:** *runner có phải **ephemeral** (huỷ sau mỗi job) không?* Có ⟹ rủi ro
+     tệp `.env` tan. Không ⟹ giữ nguyên mức, sang việc 2.
+  2. **`security` định hạng** phơi nhiễm khoá OpenAI thật trên máy dùng chung, và trả lời: có cần
+     **xoay khoá** sau khi cohort kết thúc không.
+  3. **Bước dọn `.env` bắt buộc `if: always()`** ở hai job ghi tệp — dọn chỉ chạy khi job thành công
+     là **không dọn ở đúng lúc cần dọn nhất**.
+
+- **Lý do BÁC BỎ *"chuyển trước 8 job khoá giả, giữ 6 job kia chờ security"*:** nghe thận trọng nhưng
+  cho ra **một CI vẫn ĐỎ** — 6 job kia vẫn `ubuntu-latest` nên vẫn `was not started`. Và tệ hơn:
+  **đỏ vì HAI lý do khác nhau trong cùng một bảng** thì người đọc không phân biệt được cái nào là
+  code hỏng, cái nào là hạ tầng. Một tín hiệu trộn hai nguyên nhân **tệ hơn một tín hiệu đỏ sạch**.
+
+- **Lý do BÁC BỎ *"tự host runner của team ngay"*:** BTC có mở đường (mở ticket), nhưng nó đổi một
+  vấn đề **chờ hàng đợi** thành một vấn đề **vận hành một máy** — trong khi thứ đang chặn là
+  *"job không được cấp máy"*, mà runner BTC giải quyết được **hôm nay, không tốn gì**. Giữ đường tự
+  host làm **phương án B nếu hàng đợi FIFO quá chậm**, không phải bước đầu.
+
+- **Điều kiện tiên quyết PHẢI KIỂM, KHÔNG ĐƯỢC GIẢ ĐỊNH** (runner BTC không nhất thiết có sẵn như
+  `ubuntu-latest`): **Docker** (job dùng `services: postgres:16-alpine` **và** `docker compose up
+  -d --build`) · **Docker Compose v2** · quyền chạy `actions/setup-python@v5` + `actions/setup-node@v4`.
+  ⚠️ **Và cổng bị đụng nhau:** `docker compose` của ta publish cổng ra host; hai team chạy cùng lúc
+  trên **một** runner ⟹ đụng cổng ⟹ **cổng đỏ vì lý do không liên quan gì tới code ta**.
+  ⟹ **Bắt buộc `-p` với tên project DUY NHẤT theo run** (vd `-p fin05-ci-${{ github.run_id }}`).
+
+- **Hệ quả:** `CLAUDE.md` §4 (hàng `tech-lead`) · `.github/workflows/ci.yml` (14 dòng) ·
+  `docs/STATE.md` §11 · `docs/security/` (định hạng của việc 2).
+  **KHÔNG** đụng `contracts/`, **KHÔNG** cần `check_contracts --update`.
+
 ## Mẫu ADR mới
 
 ```markdown
