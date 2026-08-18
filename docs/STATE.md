@@ -530,6 +530,95 @@ xuống *"một cái đuôi chi phí nhỏ trên một miễn trừ chưa khai"*
    Đụng contract ⟹ đủ §10.
 
 
+### 🔴🔴 H. "PREFIX CACHE HIT 0%" LÀ SAI — ĐO ĐƯỢC 50,8%, VÀ BẢN VÁ ĐỀ XUẤT ĐÃ TỪNG BỊ REVERT
+
+*(security báo 18/08 là **đòn bẩy caching lớn nhất**. PO-agent phân định trước khi giao việc. **Phát
+biểu tiêu đề SAI**; ba phần còn lại của phân tích thì **đúng và có giá trị** — tách bạch kỹ, đừng
+vứt cả gói.)*
+
+**Security phát biểu:** *"tiền tố ổn định ~189 ký tự, prompt cache cần ≥1024 token ⟹ **hit 0%, mọi
+lượt, từ trước tới nay**"*, và đề xuất dời `{current_time}` xuống cuối prompt.
+
+**[ĐO] PO-agent — sổ `usage.jsonl` CÓ SẴN trường `cached_input_tokens`, 90 dòng:**
+
+```
+dòng đọc được CẢ input LẪN cached   54/90        ← MẪU SỐ (36 dòng còn lại: None/0, ba rổ)
+tổng input_tokens                  923.787
+tổng cached_input_tokens           468.864
+⟹ TỈ LỆ CACHE THẬT                  50,8%       ← KHÔNG PHẢI 0%
+dòng có cached > 0                  50/54
+```
+
+**Và một NGUỒN ĐỘC LẬP THỨ HAI nói cùng chiều** — `scripts/BAN-GIAO-coder-2026-08-17.md:133-137`,
+mục *"Chỗ đã thử và THẤT BẠI — đừng thử lại"*:
+> *"Dời `{current_time}` xuống cuối prompt để cứu prefix cache — đo: **cache 85,0% → 86,3%. ĐÃ
+> REVERT.** Lý lẽ tĩnh rất thuyết phục (`current_time` ở byte 208/15.094) nhưng **phần lớn cache hit
+> là TRONG CÙNG MỘT LƯỢT, không liên lượt.**"*
+
+⟹ **Bản vá đề xuất KHÔNG PHẢI việc chưa ai làm — nó đã được làm, đo được +1,3 điểm, và revert.**
+
+🔴 **CƠ CHẾ SINH LỖI — nhãn `[ĐO]` gắn lên một phần SUY LUẬN:**
+Phép đo *"tiền tố 189 ký tự"* là **thật**. Bước *"⟹ hit 0%"* là **suy luận**, và nó sai vì nó giả định
+tiền tố cache-được **chỉ là system prompt**. Thực tế trong một lượt nhiều lời gọi, **toàn bộ ngữ cảnh
+lời gọi trước** trở thành tiền tố của lời gọi sau ⟹ cache ăn **trong cùng một lượt**. Đúng nguyên văn
+điều bàn giao đã ghi.
+> **Luật C:** đối chiếu chéo chỉ hoạt động ở nơi **CÓ VẬT ĐO** — ở đây **có vật đo** (`cached_input_tokens`
+> nằm sẵn trong sổ, 90 dòng, chưa ai mở) và phát biểu lại được dựng bằng **lý lẽ tĩnh**. Điều khoản
+> thi hành: **so SỐ, không so KẾT LUẬN.**
+> **Luật M áp cho chính đội:** *"đòn bẩy lớn nhất, bản vá một dòng"* là kết quả **ai cũng muốn nghe**
+> trên đúng trục PO vừa ưu tiên ⟹ **không gì kích hoạt phản xạ soi lại**. Suýt tiêu ô ưu tiên số một.
+
+**⟹ KHÔNG giao việc dời `current_time`.** Nếu ai muốn mở lại: bàn giao đã chỉ hướng khác —
+**giảm ĐỘ PHÂN GIẢI thời gian (chỉ ngày)**, chưa đo, và **đổi hành vi**.
+
+---
+
+**BA PHẦN CÒN LẠI CỦA PHÂN TÍCH: ĐÚNG, GIỮ NGUYÊN, và chúng KHÔNG phụ thuộc phát biểu sai ở trên.**
+
+**H1 · [ĐO] Chưa có cache tầng ứng dụng nào.** Mọi `lru_cache` trong `src/` đều `maxsize=1` (nạp cấu
+hình/model một lần). `_bam_truy_van` mới chỉ **ghi log** `query_hash` (`rag/search.py:116`), chưa làm
+khoá cache của gì. ⟹ mọi ràng buộc dưới đây là **phòng ngừa, đúng thời điểm**.
+
+**H2 · 🔴 RANH GIỚI TIỀN TỐ CACHE *LÀ* MỘT RANH GIỚI PHÂN LOẠI DỮ LIỆU.**
+```
+TRÊN ranh giới → nhà cung cấp GIỮ LẠI và TÁI DÙNG qua nhiều request
+DƯỚI ranh giới → mỗi request một lần
+```
+Hôm nay tiền tố là **hằng số thuần** — `build_system_prompt` đóng cứng `customer_name="quý khách"`
+(`prompt.py:79`, ADR-010 gỡ tên khách từ 13/08) ⟹ **an toàn**.
+**Bẫy ở BƯỚC SAU:** ai muốn đẩy hit rate lên sẽ **đưa THÊM lên tiền tố** — lịch sử hội thoại, hồ sơ
+khách, kết quả tool lượt trước. Đúng khoảnh khắc ấy tiền tố **thôi là hằng số** và bắt đầu là **dữ
+liệu khách được nhà cung cấp giữ lại**. Ba thứ làm nó không bị bắt: **không cổng nào canh**
+(`test_invariants` không nhìn thấy *thứ tự các đoạn trong một chuỗi prompt* — **hạng mù §5.D2, lần thứ
+ba**) · **không diff nào của ta thấy** · **triệu chứng là một con số ĐI ĐÚNG HƯỚNG TA MUỐN** (hit rate
+tăng) ⟹ **không ai đi kiểm** — Luật M, lần này áp cho một chỉ số **hiệu năng**.
+> 📌 **RÀNG BUỘC, ghim cạnh `build_system_prompt`:** *Mọi thứ nằm TRÊN ranh giới cache phải là **HẰNG
+> SỐ BIÊN DỊCH**. Đưa bất cứ giá trị nào phái sinh từ khách lên tiền tố là một quyết định **PHÂN LOẠI
+> DỮ LIỆU**, không phải một tinh chỉnh hiệu năng.*
+
+**H3 · 🔴 RÀNG BUỘC CỨNG 3 ĐẢM BẢO TRUY VẾT, KHÔNG ĐẢM BẢO TƯƠI.** Ràng buộc 3 đòi số liệu **tồn tại**
+trong một `tool_result` có thật — **không đòi tươi**. Một kết quả cache **là** một `tool_result` có
+thật ⟹ **thoả ràng buộc cứng 3 một cách HÌNH THỨC** trong khi nói với khách một trạng thái đã cũ.
+*Ca cụ thể:* `lookup_transaction` cache 5 phút · giao dịch `pending → completed` · agent trả lời
+`pending` · con số **truy vết được tới một dòng có thật** ⟹ **mọi cổng đều xanh.**
+*Tiền lệ đúng chiều đã có trong repo* (`services/complaint_intake.py:52`): *"nạp lại mỗi lần gọi là đủ
+nhanh — **không cần cache, tránh rủi ro đọc dữ liệu cũ**"*.
+
+| tool | cache được? | |
+|---|---|---|
+| `search_policy` | ✅ **có** | tài liệu đổi theo tuần. **Tool duy nhất caching có nghĩa** — và cũng đúng tool tốn embedding |
+| `lookup_transaction` · `get_customer_history` | 🔴 **không** | trạng thái là thứ khách **đang khiếu nại**; cũ = sai |
+| `create_ticket` · `request_human_handoff` | — | tool GHI |
+
+🔴 **Và `search_policy` phải vô hiệu hoá cache theo KHO RAG, KHÔNG theo đồng hồ.** ADR-026 buộc kho chỉ
+phục vụ tài liệu **đã duyệt**; một tài liệu `supervisor` vừa duyệt mà cache còn giữ câu trả lời cũ thì
+**ADR-026 bị vô hiệu bởi một lớp cache** — cơ chế chạy đúng, vẫn bị đi vòng.
+
+**H4 · CHƯA BIẾT, và nó chặn việc bán bản vá này như một bản vá TPM:** prompt cache của DashScope **có
+tính vào TPM hay không** — đó đúng là **câu ③ phiếu Alibaba**, mà PO đã gác. ⟹ lợi ích tính bằng
+**TIỀN** thì chắc; tính bằng **TPM** thì **CHƯA BIẾT** — và **TPM mới là trần chặn buổi 150 người**.
+
+
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
 
 **C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
