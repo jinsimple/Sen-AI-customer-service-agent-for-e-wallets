@@ -60,6 +60,7 @@ from tests._docker_co_mat import container_song
 
 GOC = pathlib.Path(__file__).resolve().parent.parent.parent
 NEN = GOC / "eval" / "NEN-TRUOC-BACKFILL-2026-08-18.json"
+NEN_ID = GOC / "eval" / "NEN-TRUOC-BACKFILL-2026-08-18-DANH-SACH-ID.json"
 BACKEND = os.environ.get("FIN05_BACKEND_CONTAINER", "fin05-backend-1")
 
 COT = (
@@ -69,19 +70,27 @@ COT = (
     ("bank_accounts", "account_no", "linked_at"),
 )
 
-_MA_DO = '''
-import hashlib, json, os, sys
+_MA_DO = """
+import hashlib, json, sys
 from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import create_engine, text
-moc = sys.argv[1] if len(sys.argv) > 1 else None
-COT = __COT__
+import os
+
+# 🔴 Tập đóng băng đến từ STDIN — nó được GHI LẠI lúc đóng băng, KHÔNG tính lại
+# lúc đọc. Bản đầu dùng `WHERE created_at <= mốc`; dữ liệu demo LÙI NGÀY tự chui
+# vào tập lẽ ra bất biến (complaints 761→765, messages 467→497) và cổng ĐỎ dù
+# không có gì hỏng. Một tập định nghĩa bằng PHÉP TÍNH LẠI thì thành viên của nó
+# đổi được sau lưng — hai định nghĩa của cùng một TẬP.
+ds = json.loads(sys.stdin.read())
 f = Fernet(os.environ["FIELD_ENCRYPTION_KEY"].encode())
 e = create_engine(os.environ["DATABASE_URL"])
 ra = {}
 with e.connect() as c:
-    for bang, cot, tcot in COT:
+    for khoa, m in ds.items():
+        bang, cot = khoa.split(".")
+        pk, ids = m["pk"], m["id"]
         hang = [r[0] for r in c.execute(
-            text("SELECT " + cot + " FROM " + bang + " WHERE " + tcot + " <= :m"), {"m": moc})]
+            text("SELECT " + cot + " FROM " + bang + " WHERE " + pk + " = ANY(:ids)"), {"ids": ids})]
         d = {"giai_ma_duoc": 0, "chua_ma_hoa": 0, "khoa_khac": 0, "boc_hai_lan": 0, "rong": 0}
         van = []
         for v in hang:
@@ -99,10 +108,11 @@ with e.connect() as c:
                 d["khoa_khac" if v.startswith("gAAAAA") else "chua_ma_hoa"] += 1
             van.append(hashlib.md5(ban_ro.encode()).hexdigest())
         d["tong"] = len(hang)
+        d["so_id_yeu_cau"] = len(ids)
         d["van_tay_gop"] = hashlib.md5("".join(sorted(van)).encode()).hexdigest()[:16]
-        ra[bang + "." + cot] = d
+        ra[khoa] = d
 print(json.dumps(ra, sort_keys=True))
-'''.replace("__COT__", repr(COT))
+"""
 
 
 def _song() -> bool:
@@ -144,12 +154,13 @@ def _nen() -> dict:
     return d
 
 
-def _do_lai(moc: str) -> dict:
+def _do_lai(ds_id: dict) -> dict:
+    """Đo lại ĐÚNG các ID đã đóng băng — không hỏi CSDL xem ai thuộc tập."""
     try:
         r = subprocess.run(
-            ["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", BACKEND,
-             "python", "-c", _MA_DO, moc],
-            capture_output=True, text=True, timeout=300,
+            ["docker", "exec", "-i", "-e", "PYTHONDONTWRITEBYTECODE=1", BACKEND,
+             "python", "-c", _MA_DO],
+            input=json.dumps(ds_id), capture_output=True, text=True, timeout=300,
         )
     except (FileNotFoundError, OSError, subprocess.SubprocessError) as e:
         pytest.fail(f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'đạt'): không gọi được docker — {e}")
@@ -159,6 +170,16 @@ def _do_lai(moc: str) -> dict:
             f"{(r.stderr or r.stdout)[:400]}"
         )
     return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def _nen_id() -> dict:
+    if not NEN_ID.exists():
+        pytest.fail(
+            f"KHÔNG ĐO ĐƯỢC: thiếu {NEN_ID.name} — tập đóng băng phải được GHI LẠI, "
+            "không được tính lại từ `created_at`. Xem `__do__.vi_sao_co_tep_nay` trong tệp ấy."
+        )
+    d = json.loads(NEN_ID.read_text())
+    return {k: v for k, v in d.items() if not k.startswith("__")}
 
 
 @pytest.mark.skipif(not _song(), reason=f"container {BACKEND} không chạy")
@@ -171,13 +192,16 @@ def test_backfill_khong_lam_mat_dong_hay_doi_noi_dung():
     mới là nửa bắt được một backfill làm mất dữ liệu.
     """
     nen = _nen()
-    moc = nen["__moc_thoi_gian__"]
-    nay = _do_lai(moc)
+    ds_id = _nen_id()
+    nay = _do_lai(ds_id)
 
     hong = []
     for bang, cot, _t in COT:
         k = f"{bang}.{cot}"
         a, b = nen[k], nay[k]
+        if b.get("tong") != b.get("so_id_yeu_cau"):
+            hong.append(f"  {k}: HỤT DÒNG — yêu cầu {b.get('so_id_yeu_cau')} ID, "
+                        f"CSDL trả {b.get('tong')} ⟹ có ID đã BIẾN MẤT khỏi bảng")
         if b["tong"] != a["tong"]:
             hong.append(f"  {k}: MẤT/THÊM DÒNG trong tập đã đóng băng — "
                         f"nền {a['tong']} → nay {b['tong']}")
@@ -194,8 +218,8 @@ def test_backfill_khong_lam_mat_dong_hay_doi_noi_dung():
     assert not hong, (
         "🔴 BACKFILL LÀM HỎNG DỮ LIỆU (hoặc có thứ khác đã đụng vào):\n"
         + "\n".join(hong)
-        + f"\n  tập đo đóng băng tại mốc {moc} — dòng mới KHÔNG nằm trong đây, "
-        "nên đây không thể là báo động giả do lưu lượng thường."
+        + f"\n  tập đo là DANH SÁCH ID ghi trong {NEN_ID.name} — không tính lại từ "
+        "`created_at`, nên dòng mới (kể cả LÙI NGÀY) không thể chui vào."
     )
 
 
@@ -221,8 +245,7 @@ def test_cot_nhom_a_da_duoc_nap_lai_het():
     **`production` chưa ai đo**.
     """
     nen = _nen()
-    moc = nen["__moc_thoi_gian__"]
-    nay = _do_lai(moc)
+    nay = _do_lai(_nen_id())
 
     con_tran = {k: nay[f"{b}.{c}"]["chua_ma_hoa"]
                 for b, c, _ in COT if (k := f"{b}.{c}") and nay[k]["chua_ma_hoa"]}
