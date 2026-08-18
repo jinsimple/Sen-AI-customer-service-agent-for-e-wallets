@@ -70,7 +70,7 @@ def _nap_luat(p: pathlib.Path):
 
 
 def _nhanh(ly_do: str) -> str:
-    l = ly_do.lower()
+    dg = ly_do.lower()
     if "chữ số" in l:
         return "CHỮ SỐ"
     if "dài" in l:
@@ -158,7 +158,7 @@ def main() -> int:
     p = GOC / "eval" / "golden_set.jsonl"
     if p.exists():
         cau = []
-        for l in p.read_text(encoding="utf-8").splitlines():
+        for dg in p.read_text(encoding="utf-8").splitlines():
             if not l.strip():
                 continue
             x = json.loads(l)

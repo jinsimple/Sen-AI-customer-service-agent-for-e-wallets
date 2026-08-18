@@ -207,7 +207,7 @@ def main() -> None:
     a = ap.parse_args()
     cong_dong_bang("gọi /api/agent-chat cho từng câu trong bộ lệnh")
 
-    dong = [json.loads(l) for l in BO_LENH.read_text(encoding="utf-8").splitlines() if l.strip()]
+    dong = [json.loads(dg) for dg in BO_LENH.read_text(encoding="utf-8").splitlines() if dg.strip()]
     phien_ban = dong[0]["phien_ban"]
     lenh = [d for d in dong[1:] if not a.nhom or d["nhom"] == a.nhom]
 

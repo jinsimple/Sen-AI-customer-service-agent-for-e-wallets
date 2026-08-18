@@ -89,12 +89,12 @@ def gom_usage(mau: list[str]) -> list[dict]:
             muc = d if isinstance(d, list) else d.get("ket", [])
             for x in muc:
                 for u in ([x["usage"]] if isinstance(x.get("usage"), dict)
-                          else [l.get("usage") for l in (x.get("luot") or [])
+                          else [dg.get("usage") for dg in (x.get("luot") or [])
                                 if isinstance(l, dict)]):
                     if isinstance(u, dict) and u.get("input_tokens"):
                         ra.append(u)
                 # bộ đo token của tôi lưu phẳng, không lồng trong `usage`
-                for l in (x.get("luot") or []):
+                for dg in (x.get("luot") or []):
                     if isinstance(l, dict) and l.get("vao"):
                         ra.append({"input_tokens": l["vao"], "output_tokens": l.get("ra") or 0,
                                    "cached_input_tokens": l.get("cache") or 0,

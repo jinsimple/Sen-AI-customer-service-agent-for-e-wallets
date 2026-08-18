@@ -131,7 +131,7 @@ def _dem() -> dict[str, int]:
     r = subprocess.run(["docker", "exec", PG, "psql", "-U", "fin05", "-d", "fin05", "-tAc", sql],
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"không đếm được: {(r.stderr or r.stdout)[:200]}"
-    return {l.split("|")[0]: int(l.split("|")[1]) for l in r.stdout.splitlines() if "|" in l}
+    return {dg.split("|")[0]: int(dg.split("|")[1]) for dg in r.stdout.splitlines() if "|" in dg}
 
 
 def _chat(cau: str, thread: str) -> dict:

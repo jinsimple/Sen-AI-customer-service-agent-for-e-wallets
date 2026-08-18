@@ -90,7 +90,7 @@ def main() -> int:
     a = ap.parse_args()
 
     p = pathlib.Path(a.bo_ca)
-    ca = [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
+    ca = [json.loads(dg) for dg in p.read_text(encoding="utf-8").splitlines() if dg.strip()]
 
     kho = ""
     if not a.khong_tra_kho:
@@ -163,11 +163,11 @@ def main() -> int:
             f"# Rà cơ học nhãn — {p.name}\n\n"
             f"> Sinh bởi `eval/ra_nhan_co_hoc.py`. **Chỉ lỗi CƠ HỌC**, không đọc nội dung.\n"
             f"> Người rà không sửa: báo dạng [ca → lỗi → cách sửa] để vai khác quyết.\n\n"
-            + "\n".join(f"- `{c}` — {l}\n  - nhãn: {n}" for c, l, n in chi_tiet) + "\n",
+            + "\n".join(f"- `{c}` — {dg}\n  - nhãn: {n}" for c, dg, n in chi_tiet) + "\n",
             encoding="utf-8")
         print(f"  → chi tiết ghi ra {r} ({len(chi_tiet)} ca) — KHÔNG in ra đây")
     elif not a.chi_tom_tat:
-        for c, l, n in chi_tiet:
+        for c, dg, n in chi_tiet:
             print(f"    {c:<12} {l}\n                 {n[:100]}")
     else:
         print("  (chi tiết KHÔNG in — dùng --ra để ghi ra file cho vai khác đọc)")
