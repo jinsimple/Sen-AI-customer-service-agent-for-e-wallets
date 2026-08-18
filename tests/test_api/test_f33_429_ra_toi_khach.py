@@ -41,6 +41,8 @@ from __future__ import annotations
 import os
 import subprocess
 
+from tests._docker_co_mat import co_docker, container_song
+
 import pytest
 
 from tests._dong_bang import LY_DO, dang_dong_bang
@@ -55,9 +57,11 @@ CHO_PHEP = os.environ.get("FIN05_CHO_PHEP_EP_429", "").strip() not in ("", "0", 
 
 
 def _song() -> bool:
-    r = subprocess.run(["docker", "ps", "-q", "-f", "name=fin05-backend-1"],
-                       capture_output=True, text=True)
-    return bool(r.stdout.strip())
+    # Uỷ cho `tests/_docker_co_mat.py` — nó KHÔNG NÉM khi máy thiếu `docker`.
+    # Bản cũ gọi thẳng `subprocess.run(["docker", ...])` trong biểu thức
+    # `skipif`, tức LÚC IMPORT ⟹ máy không có docker thì pytest ném
+    # FileNotFoundError lúc THU THẬP: 11 lỗi, `Interrupted`, 0 ca chạy.
+    return container_song("fin05-backend-1")
 
 
 pytestmark = [
@@ -136,6 +140,13 @@ def _dem_ticket() -> int:
 
 
 def _co_cot_ly_do_fallback() -> bool:
+    # 🔴 CHẶN TRƯỚC: hàm này chạy trong biểu thức `skipif`, tức LÚC IMPORT.
+    # Máy không có `docker` thì `subprocess` ném FileNotFoundError trong lúc
+    # pytest THU THẬP ⟹ `Interrupted`, và kết quả của MỌI ca khác biến mất.
+    # Đo được 18/08: 634 ca thu thập được → 0 ca chạy, chỉ vì thiếu một tệp
+    # nhị phân. Trạng thái đúng là SKIP KÈM LÝ DO, không phải 'tệp này hỏng'.
+    if not co_docker():
+        return False
     r = subprocess.run(
         ["docker", "exec", "fin05-postgres-1", "sh", "-c",
          'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c '

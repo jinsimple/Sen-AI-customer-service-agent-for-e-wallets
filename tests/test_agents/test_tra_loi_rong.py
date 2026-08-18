@@ -31,6 +31,8 @@ from __future__ import annotations
 import os
 import subprocess
 
+from tests._docker_co_mat import container_song
+
 import pytest
 
 from tests._dong_bang import LY_DO, dang_dong_bang
@@ -39,9 +41,11 @@ BASE = os.environ.get("FIN05_BASE_URL", "https://localhost")
 
 
 def _song() -> bool:
-    r = subprocess.run(["docker", "ps", "-q", "-f", "name=fin05-backend-1"],
-                       capture_output=True, text=True)
-    return bool(r.stdout.strip())
+    # Uỷ cho `tests/_docker_co_mat.py` — nó KHÔNG NÉM khi máy thiếu `docker`.
+    # Bản cũ gọi thẳng `subprocess.run(["docker", ...])` trong biểu thức
+    # `skipif`, tức LÚC IMPORT ⟹ máy không có docker thì pytest ném
+    # FileNotFoundError lúc THU THẬP: 11 lỗi, `Interrupted`, 0 ca chạy.
+    return container_song("fin05-backend-1")
 
 
 pytestmark = [

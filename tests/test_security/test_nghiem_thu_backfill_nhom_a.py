@@ -54,6 +54,8 @@ import os
 import pathlib
 import subprocess
 
+from tests._docker_co_mat import container_song
+
 import pytest
 
 GOC = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -104,9 +106,11 @@ print(json.dumps(ra, sort_keys=True))
 
 
 def _song() -> bool:
-    r = subprocess.run(["docker", "ps", "-q", "-f", f"name={BACKEND}"],
-                       capture_output=True, text=True)
-    return bool(r.stdout.strip())
+    # Uỷ cho `tests/_docker_co_mat.py` — nó KHÔNG NÉM khi máy thiếu `docker`.
+    # Bản cũ gọi thẳng `subprocess.run(["docker", ...])` trong biểu thức
+    # `skipif`, tức LÚC IMPORT ⟹ máy không có docker thì pytest ném
+    # FileNotFoundError lúc THU THẬP: 11 lỗi, `Interrupted`, 0 ca chạy.
+    return container_song(BACKEND)
 
 
 def _nen() -> dict:
@@ -141,11 +145,14 @@ def _nen() -> dict:
 
 
 def _do_lai(moc: str) -> dict:
-    r = subprocess.run(
-        ["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", BACKEND,
-         "python", "-c", _MA_DO, moc],
-        capture_output=True, text=True, timeout=300,
-    )
+    try:
+        r = subprocess.run(
+            ["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", BACKEND,
+             "python", "-c", _MA_DO, moc],
+            capture_output=True, text=True, timeout=300,
+        )
+    except (FileNotFoundError, OSError, subprocess.SubprocessError) as e:
+        pytest.fail(f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'đạt'): không gọi được docker — {e}")
     if r.returncode != 0:
         pytest.fail(
             f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'đạt'): không đo được trong {BACKEND} — "

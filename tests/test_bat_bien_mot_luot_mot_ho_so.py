@@ -54,10 +54,19 @@ import subprocess
 
 import pytest
 
+from tests._docker_co_mat import co_docker
+
 CT = "fin05do-backend-1"
 
 
 def _stack_song() -> bool:
+    # 🔴 CHẶN TRƯỚC: hàm này chạy trong biểu thức `skipif`, tức LÚC IMPORT.
+    # Máy không có `docker` thì `subprocess` ném FileNotFoundError trong lúc
+    # pytest THU THẬP ⟹ `Interrupted`, và kết quả của MỌI ca khác biến mất.
+    # Đo được 18/08: 634 ca thu thập được → 0 ca chạy, chỉ vì thiếu một tệp
+    # nhị phân. Trạng thái đúng là SKIP KÈM LÝ DO, không phải 'tệp này hỏng'.
+    if not co_docker():
+        return False
     r = subprocess.run(["docker", "ps", "-q", "-f", f"name={CT}"],
                        capture_output=True, text=True)
     return bool(r.stdout.strip())

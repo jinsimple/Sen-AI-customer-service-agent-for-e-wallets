@@ -141,3 +141,79 @@ song tới khi ca mới **ĐỎ THẬT ít nhất MỘT lần trong một lượ
 — không phải lượt tôi cố ý ép như hôm nay. Mốc ấy phân biệt *"ca chạy được khi
 tôi ép"* với *"ca sống trong nếp chạy hằng ngày"*, và hôm nay tôi mới chứng minh
 được vế đầu.
+
+---
+
+# ⑩ PHÉP THỬ TRẠNG THÁI THỨ BA — và nó lộ ra một thứ lớn hơn
+
+PO-agent đề nghị: *giết quần thể vứt đi rồi chạy lại, ca phải báo mất khả năng
+đối chứng.* Tôi chạy đúng phép ấy:
+```
+docker rm -f fin05-doi-chung-vut-di      →  còn 0 container
+chạy lại                                  →  3 passed
+```
+🔴 **Phép thử ấy KHÔNG tái hiện được cái chết lặng lẽ** — fixture **tự dựng lại**
+quần thể. Đó là tính chất của thiết kế, không phải may: quần thể **do ta tạo ra
+để vứt** thì mất nó không có nghĩa gì, ta tạo cái khác.
+
+⟹ Câu hỏi đúng không phải *"nếu quần thể mất thì sao"* mà ***"cái gì làm ca này
+ngừng chạy mà không ai thấy?"*** Và câu trả lời **không phải quần thể** — là
+**`docker`**.
+
+## [ĐO] Một tệp nhị phân vắng mặt xoá sạch kết quả của cả bộ ca
+
+```
+có docker      634 tests collected                         → chạy bình thường
+KHÔNG docker   594 collected · 11 errors · Interrupted     → 0 CA CHẠY
+```
+Bảy module dò container **ngay trong biểu thức `skipif`**, tức **lúc IMPORT** ⟹
+`FileNotFoundError` rơi vào **giai đoạn thu thập**, và pytest **huỷ cả lượt**.
+
+> Đây **không** phải cái chết lặng lẽ — nó ồn ào. Nhưng nó **sai hình dạng theo
+> hướng đắt hơn**: `Interrupted` **xoá sạch kết quả của 577 ca không liên quan
+> gì tới docker**. Người đọc thấy `0 passed` và **không có cách nào biết** 577
+> ca kia lẽ ra đã xanh.
+>
+> Trạng thái đúng là **SKIP KÈM LÝ DO** (*"môi trường này không chạy được phép
+> kiểm ấy"*), không phải *"tệp này hỏng"*. Luật 6 — và lý do ấy **kiểm được
+> bằng máy**.
+
+## Bộ quét đầu của tôi HỤT, và vì sao
+
+Tôi quét theo **TÊN hàm** (`_song` · `_kho_dang_song` · `_docker_co`) → vá 7
+chỗ → còn **6 lỗi**. Quét lại theo **HÀNH VI** bằng AST (*"hàm nào vừa chứa
+`"docker"` vừa gọi `subprocess.run`"*) → **29 hàm / 12 file**, lộ ra ba biến thể
+tên khác: `_stack_song` (3 file) · `_co_cot_ly_do_fallback` · `_song(container)`.
+
+> Đúng bài học `_dong_bang.py` đã ghi: **vá một HỌ lỗi thì phải đi tìm HỌ**. Và
+> **quét theo TÊN là một bộ lọc vô hình** — nó chỉ tìm thấy thứ ta đã biết cách
+> gọi tên. Cùng lớp với §8.
+
+## Kết quả — đối chứng HAI CHIỀU
+
+```
+                trước vá                          sau vá
+docker VẮNG     0 ca chạy (Interrupted)     →     563 passed · 61 skipped · 0 failed
+docker CÓ       580 passed                  →     580 passed · 42 skipped · 0 failed
+security_finding                                  1 failed (P0 live-chat 12/08)
+docker diff                                       Δ = 0
+```
+Chiều thứ hai bắt buộc (**Luật 2**): bản vá **không được** làm đổi hành vi khi
+docker **có mặt**. `580 → 580`, không đổi một ca.
+
+Và lý do skip **tự chứng minh được**:
+```
+SKIPPED: máy này không có `docker` trên PATH — phép kiểm cần container không
+chạy được ở đây. Đây là SKIP vì THIẾU CÔNG CỤ, kiểm được bằng máy (Luật 6),
+không phải skip cho qua chuyện.
+```
+
+## ⑪ Về mốc ② của PO-agent
+
+Tôi đã giao **cả hai vế**: ca đối chứng ĐỎ trên quần thể vứt đi (§⑦), và trạng
+thái thứ ba (§⑩) — **mạnh hơn phép thử được đề nghị**, vì nó tìm ra đường chết
+thật thay vì đường chết ta đoán.
+
+Còn lại đúng một vế **chỉ thời gian trả lời được**: ca chạy trót lọt **5 lượt
+suite bình thường liên tiếp**. Hôm nay mới có **1** (lượt `docker CÓ` ở trên).
+**Tôi không đếm gộp các lượt tôi ép** — chúng chứng minh một điều khác.

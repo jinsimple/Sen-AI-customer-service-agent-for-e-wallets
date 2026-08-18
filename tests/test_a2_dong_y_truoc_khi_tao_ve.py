@@ -88,6 +88,8 @@ from __future__ import annotations
 
 import json
 import subprocess
+
+from tests._docker_co_mat import container_song
 import uuid
 
 import pytest
@@ -106,9 +108,11 @@ CAU_DONG_Y_TU_DAU = "Tôi chuyển nhầm 2 triệu cho người lạ, mở khi�
 
 
 def _song() -> bool:
-    r = subprocess.run(["docker", "ps", "-q", "-f", f"name={CT}"],
-                       capture_output=True, text=True)
-    return bool(r.stdout.strip())
+    # Uỷ cho `tests/_docker_co_mat.py` — nó KHÔNG NÉM khi máy thiếu `docker`.
+    # Bản cũ gọi thẳng `subprocess.run(["docker", ...])` trong biểu thức
+    # `skipif`, tức LÚC IMPORT ⟹ máy không có docker thì pytest ném
+    # FileNotFoundError lúc THU THẬP: 11 lỗi, `Interrupted`, 0 ca chạy.
+    return container_song(CT)
 
 
 pytestmark = [

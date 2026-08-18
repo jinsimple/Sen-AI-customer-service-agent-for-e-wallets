@@ -38,6 +38,8 @@ import subprocess
 
 import pytest
 
+from tests._docker_co_mat import co_docker
+
 from tests._dong_bang import LY_DO, dang_dong_bang
 from tests._ton_tien import duoc_phep_ton_tien, ly_do
 
@@ -50,6 +52,13 @@ CAU_NGHIEP_VU = "cho em gặp người thật"  # → request_human_handoff → 
 
 
 def _stack_song() -> bool:
+    # 🔴 CHẶN TRƯỚC: hàm này chạy trong biểu thức `skipif`, tức LÚC IMPORT.
+    # Máy không có `docker` thì `subprocess` ném FileNotFoundError trong lúc
+    # pytest THU THẬP ⟹ `Interrupted`, và kết quả của MỌI ca khác biến mất.
+    # Đo được 18/08: 634 ca thu thập được → 0 ca chạy, chỉ vì thiếu một tệp
+    # nhị phân. Trạng thái đúng là SKIP KÈM LÝ DO, không phải 'tệp này hỏng'.
+    if not co_docker():
+        return False
     r = subprocess.run(["docker", "ps", "-q", "-f", f"name={CT}"],
                        capture_output=True, text=True)
     return bool(r.stdout.strip())

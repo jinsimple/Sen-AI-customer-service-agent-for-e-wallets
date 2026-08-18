@@ -59,6 +59,8 @@ from __future__ import annotations
 import os
 import subprocess
 
+from tests._docker_co_mat import co_docker, container_song
+
 import pytest
 
 POSTGRES = os.environ.get("FIN05_POSTGRES_CONTAINER", "fin05-postgres-1")
@@ -76,11 +78,17 @@ TIEN_TO_FERNET = "gAAAAA"
 
 
 def _psql(sql: str, container: str = POSTGRES) -> list[list[str]]:
-    r = subprocess.run(
-        ["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", container, "sh", "-c",
-         f'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F "|" -c "{sql}"'],
-        capture_output=True, text=True, timeout=180,
-    )
+    try:
+        r = subprocess.run(
+            ["docker", "exec", "-e", "PYTHONDONTWRITEBYTECODE=1", container, "sh", "-c",
+             f'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -F "|" -c "{sql}"'],
+            capture_output=True, text=True, timeout=180,
+        )
+    except (FileNotFoundError, OSError, subprocess.SubprocessError) as e:
+        # THIẾU CÔNG CỤ cũng là "không đọc được quần thể", không phải một sự cố
+        # lạ. Để traceback thô rơi ra ngoài là in KẾT LUẬN sai (`tệp này hỏng`)
+        # thay vì TRIỆU CHỨNG (`không chạy được docker ở đây`) — Luật H.
+        pytest.fail(f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'sạch'): không gọi được docker — {e}")
     if r.returncode != 0:
         pytest.fail(
             f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'sạch'): không truy vấn được {container} — "
@@ -90,9 +98,11 @@ def _psql(sql: str, container: str = POSTGRES) -> list[list[str]]:
 
 
 def _kho_dang_song() -> bool:
-    r = subprocess.run(["docker", "ps", "-q", "-f", f"name={POSTGRES}"],
-                       capture_output=True, text=True)
-    return bool(r.stdout.strip())
+    # Uỷ cho `tests/_docker_co_mat.py` — nó KHÔNG NÉM khi máy thiếu `docker`.
+    # Bản cũ gọi thẳng `subprocess.run(["docker", ...])` trong biểu thức
+    # `skipif`, tức LÚC IMPORT ⟹ máy không có docker thì pytest ném
+    # FileNotFoundError lúc THU THẬP: 11 lỗi, `Interrupted`, 0 ca chạy.
+    return container_song(POSTGRES)
 
 
 def phan_loai(gia_tri: str | None) -> str:
@@ -203,6 +213,13 @@ TTL = os.environ.get("FIN05_TTL_POSTGRES_CONTAINER", "fin05ttl-postgres-1")
 
 
 def _song(container: str) -> bool:
+    # 🔴 CHẶN TRƯỚC: hàm này chạy trong biểu thức `skipif`, tức LÚC IMPORT.
+    # Máy không có `docker` thì `subprocess` ném FileNotFoundError trong lúc
+    # pytest THU THẬP ⟹ `Interrupted`, và kết quả của MỌI ca khác biến mất.
+    # Đo được 18/08: 634 ca thu thập được → 0 ca chạy, chỉ vì thiếu một tệp
+    # nhị phân. Trạng thái đúng là SKIP KÈM LÝ DO, không phải 'tệp này hỏng'.
+    if not co_docker():
+        return False
     r = subprocess.run(["docker", "ps", "-q", "-f", f"name={container}"],
                        capture_output=True, text=True)
     return bool(r.stdout.strip())

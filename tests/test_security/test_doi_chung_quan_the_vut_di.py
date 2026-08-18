@@ -39,6 +39,7 @@ import uuid
 
 import pytest
 
+from tests._docker_co_mat import LY_DO, co_docker
 from tests.test_security.test_cot_nhom_a_khong_nam_plaintext import _dem
 
 ANH = "postgres:16-alpine"
@@ -52,7 +53,8 @@ MA_HOA_GIA = ("gAAAAABm" + "x" * 40, "gAAAAABm" + "y" * 40)
 
 
 def _docker_co() -> bool:
-    return subprocess.run(["docker", "info"], capture_output=True).returncode == 0
+    # Uỷ cho `tests/_docker_co_mat.py` — không ném khi máy thiếu `docker`.
+    return co_docker()
 
 
 def _psql_vut_di(sql: str) -> subprocess.CompletedProcess:
@@ -72,7 +74,7 @@ def quan_the_vut_di():
     lặng lẽ đọc CSDL sản phẩm.
     """
     if not _docker_co():
-        pytest.skip("không có docker — không dựng được quần thể vứt đi")
+        pytest.skip(LY_DO)
     subprocess.run(["docker", "rm", "-f", TEN], capture_output=True)
     r = subprocess.run(
         ["docker", "run", "-d", "--rm", "--name", TEN,

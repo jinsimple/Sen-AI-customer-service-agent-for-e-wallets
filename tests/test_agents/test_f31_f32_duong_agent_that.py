@@ -72,6 +72,8 @@ import os
 import pathlib
 import re
 import subprocess
+
+from tests._docker_co_mat import container_song
 import time
 
 import pytest
@@ -93,9 +95,11 @@ NGOAI_PHAM_VI = ("ngoài phạm vi", "không hỗ trợ được nội dung này
 
 
 def _song() -> bool:
-    r = subprocess.run(["docker", "ps", "-q", "-f", "name=fin05-backend-1"],
-                       capture_output=True, text=True)
-    return bool(r.stdout.strip())
+    # Uỷ cho `tests/_docker_co_mat.py` — nó KHÔNG NÉM khi máy thiếu `docker`.
+    # Bản cũ gọi thẳng `subprocess.run(["docker", ...])` trong biểu thức
+    # `skipif`, tức LÚC IMPORT ⟹ máy không có docker thì pytest ném
+    # FileNotFoundError lúc THU THẬP: 11 lỗi, `Interrupted`, 0 ca chạy.
+    return container_song("fin05-backend-1")
 
 
 def _api_song() -> bool:
