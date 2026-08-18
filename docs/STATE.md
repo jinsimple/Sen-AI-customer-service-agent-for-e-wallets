@@ -778,6 +778,45 @@ chạy) · ❌ về `fin05ttl`/`fin05do` (số này của `fin05`) · ❌ không
 nhắn nào.
 
 
+### 🔴 K. THIÊN LỆCH CỦA CHÍNH PO-AGENT — BA LẦN, MỘT HƯỚNG: thổi PHẠM VI lúc relay
+
+*(Ca thứ ba do **tech-lead** bắt, trước khi phát biểu kịp vào STATE. Ghi lại vì **ba lần cùng một
+hướng là TÍN HIỆU, không phải ba tai nạn** — Luật K.)*
+
+```
+① "search_policy là tool DUY NHẤT không có cổng OTP"   → SAI: một trong HAI (§5.G)
+② "lớp ① đủ chặn một mình"                             → SAI: pytest vẫn ra Internet (§5.F)
+③ "da_phat là MỐC NỀN ĐẦU TIÊN của dự án"              → SAI: bộ đếm trong RAM (dưới)
+```
+
+**Cả ba lệch CÙNG MỘT HƯỚNG: làm cho cơ chế nghe RỘNG HƠN thứ nó thật sự làm.**
+🔴 **Bộ lọc chung, PO-agent tự khai:** *ở vị trí relay, tôi thưởng cho câu nghe GỌN và DỨT KHOÁT* —
+và *"mốc nền đầu tiên của dự án"* gọn hơn *"bộ đếm trong tiến trình phục vụ ca đối chứng"* rất nhiều.
+⟹ **Đừng nhận phát biểu PHẠM VI từ PO-agent mà không kiểm.** Ba lần đều do phiên khác bắt, không lần
+nào do PO-agent tự bắt.
+
+**[ĐO] ca ③ — `so_luot_da_phat()` KHÔNG PHẢI MỘT CUỐN SỔ:**
+```
+docker-entrypoint.sh:16-17   UVICORN_WORKERS mặc định 4  ⟹ BỐN bộ đếm độc lập
+src/cong_ra_ngoai.py:173     _dem: dict[str, int]        ⟹ trong RAM, về 0 mỗi lần recreate
+grep so_luot_da_phat src/    2 hit, cả hai cùng một file ⟹ 0 endpoint · 0 ghi volume
+```
+**Phát biểu ĐÚNG:** bộ đếm **trong tiến trình**, phục vụ **ca đối chứng** — nó chứng minh chốt chặn
+có bắn hay không (16/16 ca nghiệm thu đọc nó). Nó **KHÔNG** trả lời được *"hôm nay cả hệ thống phát
+bao nhiêu lượt ra ngoài"*. **CHƯA PHẢI SỔ.**
+⚠️ **Hệ quả cho lời dặn `down -v`:** vẫn dặn, nhưng **đúng lý do** — `usage.jsonl` (sổ thật, volume,
+sống qua recreate) và `postgres_data`. **KHÔNG phải vì `da_phat`** — nó không mất gì, vì chưa bao giờ
+có gì được ghi xuống.
+
+> **Vì sao ca này suýt đắt hơn hai ca kia:** nếu nó vào STATE như PO-agent viết, sáu tháng sau sẽ có
+> người đi tìm *"mốc nền đầu tiên"* và **tìm thấy một con số bằng 0 trông hoàn toàn hợp lệ** — đúng
+> hình dạng `so_luot_goi_model=0` ở §8, **dựng lại bởi chính đội vừa vá nó**.
+
+**GIAI ĐOẠN 2 — ba việc, cùng một câu *"làm cho cơ chế đủ tốt như cách nó đang được MÔ TẢ"*:**
+đổ `da_phat` vào `usage.jsonl` · đảo mặc định cờ thành **TỪ CHỐI** + compose khai `=1` (phủ **script
+nháp**) · một đường đọc bộ đếm từ ngoài tiến trình. **Sau khi ảnh mới chạy ổn, TRƯỚC ADR-033.**
+
+
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
 
 **C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
