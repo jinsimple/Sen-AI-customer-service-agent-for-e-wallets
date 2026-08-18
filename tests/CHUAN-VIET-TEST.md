@@ -29,6 +29,7 @@
 | **16** | N mệnh đề cần N ĐỘT BIẾN, mỗi cái làm đúng một tập con đỏ | quan hệ GIỮA các test |
 | **17** | che theo VẬT không theo MẪU — danh sách CHO PHÉP, không phải danh sách CẤM | thứ bộ đo IN RA |
 | **18** | băm phải khai TÊN THUẬT TOÁN — hex không tự khai nguồn gốc | định danh phép đo |
+| **19** | KHẢ NĂNG QUAN SÁT của test bị chính cơ chế xử lý lỗi của hệ xoá đi | tiền đề của phép đo |
 >
 > **Vị trí file:** nội dung này thuộc về `docs/TESTING.md`, nhưng `docs/` là
 > vùng ghi của vai `po` (hiến pháp §4). Tôi giữ bản gốc ở đây — vùng của
@@ -1719,3 +1720,49 @@ Bốn câu hỏi, hỏi theo thứ tự:
    prompt · mô tả tool · lược đồ tham số) phải kê được **nguồn**, không phải
    độ dài. Kê không được → vi phạm Luật 13, và kết luận câm theo **cả hai**
    chiều.
+
+---
+
+## LUẬT 19 — Khả năng QUAN SÁT có thể bị chính cơ chế xử lý lỗi của hệ xoá đi
+
+*(Đo được 18/08, trong lúc vá 6 cổng `eval/QUET-TEN-HUA-KHAC-ASSERTION.md`.)*
+
+Luật 1 canh *"assertion có phân biệt được không"*. Luật 19 canh một tiền đề
+**nằm trước** cả Luật 1: **vật có còn ở đó để mà đọc không.**
+
+**Ca thật.** Bốn ca duyệt HITL, cùng khuôn: dựng resolution → gọi `/approve`
+sai điều kiện → nhận 403 → đọc CSDL xác nhận không có gì bị duyệt. Ba ca xanh.
+Ca thứ tư báo `sample_db.get(...) is None` — **hàng biến mất**.
+
+Cơ chế: fixture `client` dùng **CHUNG session** với route, và dependency
+`_override_session` **rollback** khi route ném `HTTPException`. Hạt giống chưa
+commit ⟹ chính cú rollback của **đường lỗi đang được kiểm** cuốn luôn vật cần
+đo. Cổng càng làm đúng việc, vật càng biến mất sạch.
+
+> 🔴 **Phần nguy hiểm không phải ca đỏ — là ba ca xanh.** Chúng quan sát được
+> vì tình cờ có một request **thành công** (`request-approval-otp`) commit hộ
+> trước đó. Tức **chúng đọc được nhờ MAY, không nhờ thiết kế.** Vá riêng ba ca
+> ấy thì cả ba xanh, và ta báo "đã canh" cho một khuôn không tự đứng được —
+> tới ngày ai đó viết ca thứ tư theo cùng khuôn, nó im.
+
+**Vì sao khó thấy:** ba ca xanh **không có triệu chứng nào**. Không có gì để
+nghi. Ca thứ tư chỉ khác ở một chi tiết trông vô hại — nó không cần xin OTP
+trước — và chính chi tiết ấy gỡ mất cái commit vô tình.
+
+### Quy tắc
+
+1. **Hạt giống của một ca kiểm ĐƯỜNG LỖI phải được commit tường minh.** Đường
+   lỗi gần như luôn kéo theo rollback; hạt giống sống nhờ transaction của
+   chính nó là hạt giống sống nhờ may.
+2. **Đuổi cache trước khi đọc** (`expire_all()` hoặc tương đương) khi test và
+   mã sản phẩm dùng chung session. Không đuổi thì ta đọc **đối tượng trong bộ
+   nhớ**, không đọc **hàng trong CSDL** — hai thứ khác nhau đúng lúc quan
+   trọng nhất. *(Repo này đã mất một bug thật vì điều đó, 10/08.)*
+3. **Trạng thái thứ ba là bắt buộc ở đây, không phải tuỳ chọn.** Helper phải
+   phân biệt *"đọc được, và nó ĐÚNG"* với *"không đọc được"*. Gộp hai thứ
+   thành TRƯỢT sẽ đẩy cả đội đi truy một vụ thủng ràng buộc cứng **không tồn
+   tại** — đúng điều suýt xảy ra ngày 18/08.
+4. **Khi N ca cùng khuôn mà chỉ một ca lộ vấn đề, đừng vá ca đó — hỏi vì sao
+   N-1 ca kia KHÔNG lộ.** Câu trả lời gần như luôn là một điều kiện ngẫu nhiên
+   mà không ai khai, và nó sẽ hết hiệu lực lặng lẽ.
+

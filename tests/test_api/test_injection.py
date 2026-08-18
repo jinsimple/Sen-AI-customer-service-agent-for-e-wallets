@@ -20,6 +20,7 @@ from src.api.deps import get_session
 from src.api.main import app
 from src.auth import create_access_token
 from src.db.models import User
+from tests._ton_tien import duoc_phep_ton_tien, ly_do
 
 SQLI_PAYLOADS = [
     "'; DROP TABLE tickets; --",
@@ -152,6 +153,31 @@ def _nap(client, ten_tep: str, noi_dung: bytes = b"noi dung test khong lien quan
     )
 
 
+# 🔴 CỔNG CHI PHÍ — chỉ hai ca dưới đây, KHÔNG gắn cả file.
+#
+# Đo được 18/08 (tester): `POST /policy-docs` → ingest → **OpenAI
+# /v1/embeddings THẬT**. Bằng chứng: `httpx` log `POST https://api.openai.com
+# /v1/embeddings "HTTP/1.1 200 OK"` + `fin05.rag policy_doc_nap chunk_count:1`.
+# Quét toàn bộ `tests/` với khoá giả cả hai nhà cung cấp (620/620 ca, kèm đối
+# chứng dương): đây là **lời gọi duy nhất** rời khỏi máy trong cả suite, và nó
+# **không qua `_ton_tien` lẫn `_dong_bang`**. `CLAUDE.md §7` in sẵn
+# `pytest tests/` ⟹ người mới sẽ gõ nó và trả tiền mà không định.
+#
+# Vì sao gắn ĐÚNG HAI CA chứ không cả file (Luật J): 10 ca appsec còn lại
+# (SQLi/XSS) đang canh đúng và **không tốn một xu**. Bịt một cổng bằng cách tắt
+# một cổng khác là đổi ngang, không phải vá.
+#
+# 🔴 CÁI GIÁ, ghi ra để không ai phải tự phát hiện: mặc định TẮT nghĩa là cổng
+# path-traversal **không chạy trong `pytest tests/` lẫn CI**. Đây là bản vá
+# TẠM. Bản vá thật là một tầng nhúng giả ở `tests/` để hai ca này chạy 0 đồng —
+# cần tech-lead chỉ ĐIỂM NỐI (tester không đọc `src/`).
+_CONG_CHI_PHI = pytest.mark.skipif(
+    not duoc_phep_ton_tien(),
+    reason=ly_do(60, "2 lời gọi OpenAI /v1/embeddings qua POST /policy-docs"),
+)
+
+
+@_CONG_CHI_PHI
 def test_policy_doc_upload_path_traversal_khong_ghi_tep_ra_ngoai_repo(client, sample_db):
     """Nửa HIỆU QUẢ TRÊN ĐĨA của ca traversal.
 
@@ -197,6 +223,7 @@ def test_policy_doc_upload_path_traversal_khong_ghi_tep_ra_ngoai_repo(client, sa
     assert not thoat_moi, f"🔴 TRAVERSAL THẬT: tệp được ghi RA NGOÀI cây repo: {thoat_moi}"
 
 
+@_CONG_CHI_PHI
 @pytest.mark.xfail(
     strict=True,
     reason=(
