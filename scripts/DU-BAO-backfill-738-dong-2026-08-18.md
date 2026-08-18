@@ -115,6 +115,68 @@ Nếu ② không làm được: **DỪNG và NÓI**, không đổi ② thành *"
   cũng làm cổng xanh. Thứ duy nhất kết luận được là **#6**: giải mã lại và so **từng dòng** với bản
   sao lưu.
 
-## 8. SAO LƯU — số thật, điền trước khi xin gật
+## 8. SAO LƯU — ĐÃ TẠO **VÀ ĐÃ KIỂM PHỤC HỒI**
 
-*(để trống)*
+### ① Bản sao lưu
+
+```
+đường dẫn   <scratchpad>/saoluu/complaints-truoc-backfill-DAY-DU.sql
+kích thước  260.828 byte
+INSERT      761          (khớp đúng 761 dòng của bảng)
+CREATE TABLE 1           ⟹ TỰ ĐỨNG ĐƯỢC, không cần bảng có sẵn
+sha256      496087c69ba54626…
+```
+⚠️ Bản `--data-only` đầu tiên tôi tạo **không tự phục hồi được** (cần bảng tồn tại sẵn). Đã làm
+lại bản đầy đủ. Ghi ra vì đó đúng loại "sao lưu mà ta TIN là sao lưu": nó có kích thước, có 761
+INSERT, trông hoàn hảo — và **không dùng được một mình**.
+
+### ② PHỤC HỒI THỬ vào CSDL **VỨT ĐI** (`vutdi_kiem_saoluu`, KHÔNG đè lên `fin05`)
+
+```
+⚠️ 2 ERROR khoá ngoại: relation "public.transactions" / "public.users" does not exist
+   ⟹ ĐÚNG và VÔ HẠI: CSDL vứt đi không có hai bảng kia nên FK không dựng được.
+     Bảng + DỮ LIỆU vào đủ. KHÔNG báo cáo đây là "phục hồi sạch" — nó là
+     "phục hồi ĐỦ PHẦN TA CẦN", hai câu khác nhau.
+```
+
+### ③ ĐẾM TRÊN BẢN PHỤC HỒI — và so **nội dung**, không chỉ so **số đếm**
+
+```
+                    bản THẬT      bản PHỤC HỒI
+tổng dòng              761            761
+plaintext              738            738
+đã mã hoá               23             23
+
+so md5(description_raw) TỪNG DÒNG, sắp theo complaint_id:
+  761 dòng / 761 dòng  ·  số dòng KHÁC nhau = 0  ⟹ ✅ GIỐNG NHAU TỪNG DÒNG
+```
+🔴 Bước so md5 từng dòng là bước biến bản sao lưu từ *"một tệp trông đúng"* thành **dụng cụ đo**.
+Ba con số đếm ở trên **giống nhau** vẫn có thể che một bản sao lưu chứa 761 dòng **nội dung khác**.
+
+⟹ **SAO LƯU ĐƯỢC TÍNH LÀ CÓ.**
+
+### ④ Xem thử script (`--ghi` KHÔNG bật) — khớp dự báo #1 và #2
+
+```
+MẪU SỐ ĐẦU   tổng 761 · đã mã hoá 23 · plaintext 738     ← dự báo #1 ✅
+SẼ ĐỘNG VÀO  738 dòng                                    ← dự báo #2 ✅
+```
+Script mặc định **không ghi một byte nào**; phải có `--ghi` mới chạy thật.
+
+⚠️ **Một bước sai của tôi, khai:** tôi `docker cp` script vào `/tmp` của container để chạy thử
+(import hỏng, không chạy được). **Đã chạy `docker diff` ngay: `/app/src` = 0 sửa-tay**, và đã xoá
+`/tmp/bf.py`. Đường đúng là chạy từ host với `PYTHONPATH` — đã làm lại thế. Ghi ra theo Luật I:
+*trạng thái "đã ghi vào container" phải HIỆN RA, không nằm trong trí nhớ.*
+
+## 9. 🔴 DỪNG Ở ĐÂY — chờ PO-agent gật cho lệnh ghi
+
+Mọi điều kiện đã đủ: dự báo trong git · sao lưu **đã kiểm phục hồi** · mẫu số hai đầu dùng **cùng
+một hàm `dem()`** · script mặc định không ghi · ba phép kiểm nằm **trong cùng giao dịch** và
+`raise` để rollback thay vì cảnh báo rồi commit.
+
+**Lệnh sẽ chạy khi được gật:**
+```
+docker exec -w /app fin05-backend-1 python migrations/backfill_ma_hoa_description_raw.py --ghi
+```
+*(cần dựng lại ảnh để script có mặt ở `/app/migrations/` — hoặc chạy từ host với `PYTHONPATH`,
+tôi sẽ hỏi bạn chọn đường nào.)*
