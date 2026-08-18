@@ -1,4 +1,12 @@
 {
+  "__cach_bam__": "md5-tung-dong-roi-sap-xep-roi-md5-lay-16-ky-tu",
+  "__cach_bam_dien_giai__": "van_tay_gop = md5( ''.join(sorted( md5(ban_ro_utf8).hexdigest() for moi dong )) )[:16]. B\u1ea3n r\u00f5 = k\u1ebft qu\u1ea3 Fernet.decrypt n\u1ebfu gi\u1ea3i m\u00e3 \u0111\u01b0\u1ee3c, ng\u01b0\u1ee3c l\u1ea1i l\u00e0 gi\u00e1 tr\u1ecb th\u00f4. D\u00f2ng NULL/r\u1ed7ng b\u1ecb lo\u1ea1i kh\u1ecfi v\u00e2n tay (\u0111\u1ebfm ri\u00eang \u1edf kho\u00e1 'rong'). \u0110\u1ecbnh ngh\u0129a g\u1ed1c: tests/test_security/test_nghiem_thu_backfill_nhom_a.py",
+  "__do__": {
+    "bam_ma_nguon": "d5b73a04d6ef",
+    "ghi_chu": "KH\u00d4NG d\u00f9ng BUILD_COMMIT l\u00e0m m\u1ed1c \u2014 nh\u00e3n bf1bd5a kh\u00e1c m\u00e3 \u0111ang ch\u1ea1y",
+    "ngan_xep": "fin05 (fin05-backend-1 + fin05-postgres-1)",
+    "ngay": "2026-08-18"
+  },
   "__moc_thoi_gian__": "2026-08-18 02:40:29.505902+00:00",
   "bank_accounts.account_no": {
     "boc_hai_lan": 0,

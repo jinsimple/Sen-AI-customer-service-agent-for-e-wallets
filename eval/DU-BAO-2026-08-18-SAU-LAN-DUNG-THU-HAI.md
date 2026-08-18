@@ -63,3 +63,58 @@ tạo lúc chạy test** — bảng tạm trong CSDL tạm, nhét dòng trần g
 Nó **không ghi vào ngăn xếp đang phục vụ** (Luật I vẫn được giữ) và **không
 phụ thuộc trạng thái bẩn của ai**. Ghi ra đây để nó là **việc đã lên lịch**,
 không phải một ý tưởng trong hội thoại — đúng Luật P.
+
+---
+
+# ⑥ KẾT QUẢ — dự báo ở `184ad00`, kiểm bởi PO-agent TRƯỚC khi tôi chạm
+
+| # | dự báo | thực tế ([ĐO] PO-agent) | |
+|---|---|---|---|
+| 3 | `fin05` vẫn 761 mã hoá / 0 trần | **761 / 0**, vân tay **khớp từng ký tự** | ✅ |
+| 4 | `fin05ttl` vẫn 4 / 738 | **4 / 738** | ✅ |
+| — | — | `fin05do` **607 / 0** không đổi | ✅ |
+
+Cơ chế: **chỉ container `backend` được tạo lại** (`18/08 05:06`); `postgres`
+tạo `17/08 03:02` ⟹ **volume không bị đụng**. Kịch bản đắt nhất **không xảy ra**.
+
+## ⑦ 🔴 BÀI HỌC KHÔNG NẰM Ở KẾT QUẢ — nó nằm ở HAI LẦN TÍNH SAI
+
+PO-agent kiểm dòng tôi nhờ và **suýt báo động giả trên chính dòng ấy**:
+```
+lần 1  sha256, theo thứ tự complaint_id, băm THẲNG giá trị   → 8440c6c14f5e9c08   SAI
+lần 2  md5, đã sắp xếp, vẫn băm THẲNG giá trị                → 51b7b71289005603   SAI
+đúng   md5 TỪNG DÒNG → sắp xếp danh sách md5 → md5 lần nữa   → 2805e52d1a4d0bed   ✅
+```
+Báo sau lần một thì sếp nhận tin *"dữ liệu bị thay"* — **cho một sự cố không
+tồn tại**, và đó là loại tin **đẩy người nhận vào chế độ xử lý sự cố** (Luật B
+mở rộng).
+
+🔴 **Và lỗi gốc là của TÔI, không phải của họ.** `NEN-TRUOC-BACKFILL.json` mang
+**bốn con số `van_tay_gop` mà không mang cách băm** — tức **tệp của tôi vi phạm
+Luật 18 của chính tôi** (*băm phải khai TÊN THUẬT TOÁN*, đúc từ ca `1edd51dff555`
+md5 và `742df94b195a` sha256 là **cùng một tệp**). Tôi đúc luật ấy, rồi để
+artefact của mình thiếu đúng thứ nó đòi.
+
+> Đây là **Luật P** ở một dạng tôi chưa gặp: không phải *"nghi mà không sửa"*,
+> mà ***"đúc luật mà không tự áp"***. Cùng khoảng cách — giữa thứ ta **biết**
+> và thứ ta **ghi vào vật**.
+
+## ⑧ Vá bằng CƠ CHẾ, không bằng lời nhắc
+
+Tệp nền nay tự khai:
+```
+__cach_bam__      "md5-tung-dong-roi-sap-xep-roi-md5-lay-16-ky-tu"
+__cach_bam_dien_giai__   công thức đầy đủ + xử lý dòng rỗng + trỏ về định nghĩa gốc
+__do__            ngày · ngăn xếp · bam_ma_nguon · "KHÔNG dùng BUILD_COMMIT"
+```
+Và **cổng TỪ CHỐI chạy** trên một tệp nền thiếu ba khoá ấy — người sau không
+phải đọc mã test mới dùng được tệp, và ai chép tệp đi nơi khác **mang theo
+định nghĩa**.
+
+Đột biến xác nhận cơ chế biết đỏ:
+```
+gỡ __cach_bam__  ⟹ "KHÔNG ĐO ĐƯỢC: tệp nền thiếu khoá tự-khai ['__cach_bam__']"
+hoàn nguyên: băm khớp lại d1cd22c7d2d7 · docker diff Δ=0
+```
+Đây đúng khuôn `đo: ngày · ngăn xếp · băm HEAD` mà tôi **đề xuất cho người khác
+sáng nay** — nay áp lên artefact của chính mình.

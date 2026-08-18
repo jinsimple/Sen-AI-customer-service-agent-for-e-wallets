@@ -116,7 +116,28 @@ def _nen() -> dict:
             "số ĐẦU thì 'sau' không nói lên điều gì. Nền này KHÔNG dựng lại được "
             "sau khi backfill chạy."
         )
-    return json.loads(NEN.read_text())
+    d = json.loads(NEN.read_text())
+    # 🔴 CƠ CHẾ, không phải lời nhắc — Luật 18 (băm phải khai TÊN THUẬT TOÁN).
+    #
+    # Tệp nền bản đầu mang bốn con số `van_tay_gop` mà KHÔNG mang cách băm, và
+    # chính tệp của tôi vi phạm chính luật của tôi. Hậu quả đo được ngay hôm đó:
+    # PO-agent tự gõ lại phép băm để đối chiếu, ra `8440c6c1…` rồi `51b7b712…`
+    # — cả hai SAI, cả hai vì băm THẲNG giá trị thay vì băm-từng-dòng-rồi-gộp.
+    # Nếu họ báo sau lần một, sếp đã nhận tin "dữ liệu bị thay" cho một sự cố
+    # KHÔNG TỒN TẠI — đúng loại tin đẩy người nhận vào chế độ xử lý sự cố.
+    #
+    # ⟹ Cổng TỪ CHỐI một tệp nền không tự khai cách băm. Người sau không phải
+    # đọc mã test mới dùng được tệp, và ai chép tệp này đi nơi khác cũng mang
+    # theo định nghĩa.
+    thieu = [k for k in ("__cach_bam__", "__moc_thoi_gian__", "__do__") if k not in d]
+    if thieu:
+        pytest.fail(
+            f"KHÔNG ĐO ĐƯỢC: tệp nền thiếu khoá tự-khai {thieu} — một con số băm "
+            "không kèm CÁCH BĂM thì không phải bằng chứng (Luật 18). Đã có ca "
+            "thật: hai lần tính lại độc lập ra hai giá trị khác nhau và cả hai "
+            "đều sai, chỉ vì phép băm được gõ lại từ trí nhớ."
+        )
+    return d
 
 
 def _do_lai(moc: str) -> dict:
