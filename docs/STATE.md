@@ -1373,15 +1373,31 @@ phát biểu bị nghi trong hội thoại vẫn ĐỨNG NGUYÊN trong tài li�
 > `eval/NEN-TRUOC-BACKFILL-2026-08-18.json` của họ mang **bốn `van_tay_gop` KHÔNG kèm cách băm** —
 > và PO-agent tính sai **HAI LẦN** trên chính con số ấy (sha256/theo-id → `8440c6c1…`; md5/sorted
 > nhưng băm thẳng → `51b7b712…`; phép đúng `md5 TỪNG DÒNG → sắp xếp → md5 → 16` → `2805e52d1a4d0bed`).
-> ⚠️ **Và ai chịu trách nhiệm là phần đáng ghi:** PO-agent tự nhận *"tôi phải đi tìm định nghĩa gốc
-> trước khi tự gõ"* — **tester bác**, và bác đúng: *"bạn không gõ sai phép băm, bạn gõ một phép băm
-> **vì tệp của tôi không cho bạn phép nào**. Câu ấy đặt gánh nặng lên NGƯỜI ĐỌC; gánh đúng chỗ là
-> NGƯỜI VIẾT TỆP."*
+> ⚠️ **Và ai chịu trách nhiệm là phần đáng ghi.** PO-agent tự nhận *"lần sau tôi phải đi tìm định
+> nghĩa gốc trước khi tự gõ"* — **phản xạ ấy SAI CHỖ**, vì nó là một **lời nhắc**, và lời nhắc hỏng
+> đúng lúc cần nhất.
+> 🔴 **NGUYÊN TẮC:** *một con số băm không kèm cách băm thì gánh nặng thuộc **NGƯỜI VIẾT TỆP**, không
+> thuộc **NGƯỜI ĐỌC**.* Người đọc gõ một phép băm **vì tệp không cho họ phép nào** — đó là khuyết tật
+> của tệp, không phải của người đọc.
+> ⭐ Đây **cùng một nguyên tắc** đã áp ở hai chỗ khác trong ngày, chỉ khác tầng: **chốt chặn cắm ở
+> tầng transport thay vì trong `tests/`** · **hoãn `add_chunks()` thay vì thêm một bộ lọc phải nhớ
+> gọi**. ⟹ ***Đặt cơ chế ở nơi không thể đi vòng, thay vì ở nơi phải nhớ.***
+> *(Ghi NGUYÊN TẮC, không ghi tên người — một luật mang tên người sẽ được đọc như một ý kiến.)*
 > ✅ **Vá bằng CƠ CHẾ, không bằng lời nhắc** ([ĐO] đã land `6f398f2`): tệp nền nay mang
 > `__cach_bam__` · `__cach_bam_dien_giai__` · `__do__` (kèm *"KHÔNG dùng BUILD_COMMIT làm mốc"*), và
 > **cổng TỪ CHỐI CHẠY** nếu thiếu — đột biến xác nhận: gỡ `__cach_bam__` ⟹ *"KHÔNG ĐO ĐƯỢC"*.
 > ⭐ **Hai thứ cơ chế ấy mua được mà một dòng chú thích trong code KHÔNG mua được:** người sau **không
 > phải đọc mã test mới dùng được tệp**, và **ai chép tệp đi nơi khác thì mang theo định nghĩa**.
+
+> 🔴 **VẾ THI HÀNH THỨ BA — *"MỘT CON SỐ ĐÃ RỜI KHỎI TAY BẠN LÀ ARTEFACT CỦA NGƯỜI NHẬN"*:**
+> **Khi bạn TỰ LÀM CŨ một con số đã đưa cho người khác, việc NIÊM nó là của BẠN — không phải việc
+> người ta đi truy.**
+> **Bằng chứng [ĐO] 18/08:** tester đưa PO-agent mốc chờ đợi *"`0 failed` / `2 failed`"* **trước** lần
+> dựng, rồi **tự làm nó lệch** khi gỡ 6 nhãn `security_finding` (`ba0b812`), và **không cập nhật**.
+> PO-agent phải đi truy một chênh lệch (`6 passed → 0 passed`) mà **một dòng đã đóng được**.
+> ⚠️ Khác hai vế trước ở chỗ: đây **không phải artefact trong repo** — nó là **một con số trong đầu
+> người khác**, và chính vì thế **không ai `grep` ra được** để tự phát hiện.
+> ⭐ *Và nó lộ ra CHỈ VÌ đọc bằng **SỐ CA CHẠY**: nhìn màu thì `1 failed` giống hệt nhau ở cả hai lượt.*
 
 > 📌 **ĐỀ XUẤT cơ chế (tester nêu — CHƯA phải một phần của luật, chờ PO):** mỗi bảng số trong
 > `tests/*.md` và `docs/*.md` mang một dòng **`đo: <ngày> · <ngăn xếp> · <băm HEAD>`**; thiếu dòng đó
