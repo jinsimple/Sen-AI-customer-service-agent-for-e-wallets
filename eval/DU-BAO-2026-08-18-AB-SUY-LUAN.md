@@ -134,3 +134,60 @@ reasoning 0 cả bốn                              đường nhẹ: input 0 (đ
 **Output giảm rõ**: nền BẬT sáng nay `647 · 709 · 514`; nay `254 · 267 · 216`.
 ⚠️ Nhưng **cũng đổi model**, nên con số này chịu **cùng một confound** ở §⑨ —
 ghi để đối chiếu sau, **không** dùng để kết luận.
+
+---
+
+# ⑫ 🔴 PHÁT HIỆN NGOÀI PHẠM VI A/B — `thread_id` client gửi bị BỎ QUA
+
+Tôi định ghi `thread_id` vào biên bản theo yêu cầu PO-agent, và phát hiện script
+của tôi gửi **6 uuid KHÁC NHAU** cho 6 lượt — nhưng sổ ghi **một** thread:
+
+```
+nhánh TẮT   USR-0001:1787062009  ×6   ← tôi gửi 6 uuid4 khác nhau
+nhánh BẬT   USR-0001:1787060288  ×6   ← cũng thế
+```
+⟹ **Server không dùng `thread_id` của client.** Nó dựng thread từ
+`<user_id>:<iat của token>`.
+
+**Ba hệ quả đo được:**
+```
+① input token tăng trong CÙNG nhánh: 12.995 → 14.390 → 15.451 → 18.267  (+40%)
+   ⟹ lịch sử tích lại vì SÁU LƯỢT DÙNG CHUNG MỘT THREAD
+② hai nhánh độc lập nhau — nhưng nhờ ĐĂNG NHẬP LẠI (iat mới), KHÔNG nhờ uuid ta gửi
+③ [ĐO] iat tính bằng GIÂY: 1787060288 → 13:38:08Z · 1787062009 → 14:06:49Z
+   [ĐO] hai lần login cách nhau 1,2s ⟹ iat 1787062351 vs 1787062352 — KHÁC NHAU
+```
+
+## ⑬ 🔴 Và nó bác tiền đề của MỘT BỘ CA ĐANG TỒN TẠI
+
+`tests/test_a2_dong_y_truoc_khi_tao_ve.py` đặt toàn bộ sức nặng lên một **CẶP**:
+```
+lượt A  "huỷ giao dịch được không?"   ⟹ Δ = 0
+lượt B  "Ừ tạo đi"  (CÙNG thread)     ⟹ Δ = +1
+```
+Và nó truyền `thread_id=thread` để giữ vế *"cùng thread"*.
+
+**Nhưng [ĐO]:** `_chat()` **đăng nhập lại ở MỖI lời gọi** (`{API}/auth/login`
+nằm trong thân hàm), và `thread_id` truyền vào **không có tác dụng**.
+⟹ Lượt A và lượt B cách nhau một lượt agent (**7–20 giây**), `iat` tính bằng
+**giây** ⟹ **hai lượt rơi vào HAI thread khác nhau, gần như luôn luôn.**
+
+> **Vế *"CÙNG thread"* — thứ làm cặp ấy thành bằng chứng — KHÔNG được giữ.**
+> Lượt B không thừa hưởng gì từ lượt A. Cặp `Δ=0 / Δ=+1` không còn là *"khác
+> đúng một thứ"*; nó là hai hội thoại rời nhau.
+
+⚠️ **Và nó có thể là cơ chế cho một câu treo từ 17/08.** Bàn giao ghi: *"bộ A2
+hiện tại không chạm được điều kiện nó định canh — trên thread mới agent còn đang
+hỏi thêm, chưa đủ tiền đề để tới bước tạo vé"*. Hạng: **CHƯA TRUY**.
+**"Trên thread mới"** — đúng thứ vừa đo được là **luôn xảy ra**.
+🔴 Tôi **không tuyên bố đã truy xong**: tôi đo được **cơ chế**, chưa đo được
+rằng cơ chế ấy **là** nguyên nhân. Phân định cần một lượt A2 chạy với hai lượt
+**thật sự cùng thread** — mà hôm nay **chưa có đường nào ép được điều đó từ
+vùng tester**.
+
+## ⑭ Việc này KHÔNG phá A/B
+
+Cả hai nhánh **cùng khuôn**: cùng 6 câu, cùng thứ tự, cùng kiểu tích luỹ lịch
+sử, mỗi nhánh một thread. Confound **đối xứng** ⟹ phép so cờ vẫn đọc được.
+Nó chỉ **phá cách đọc con số tuyệt đối**: *"15.897 token/lượt"* là trung bình
+trên một hội thoại **đang phình**, không phải chi phí của một lượt độc lập.
