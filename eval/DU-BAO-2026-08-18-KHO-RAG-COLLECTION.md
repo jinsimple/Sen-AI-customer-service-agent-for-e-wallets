@@ -157,3 +157,41 @@ mẫu cấm = {'MoMo_F'}  ← chắc chắn CÓ trong kho
   cùng một câu hỏi chính sách**. Chuyển tech-lead.
 - `test_kho_chi_chua_tai_lieu_duoc_duyet` vẫn **skip** — chưa có danh mục nguồn
   đã duyệt. Cổng thật vẫn chưa bật; cái vừa vá là lớp chặn tối thiểu.
+
+---
+
+# ⑪ VÒNG HAI — Luật M bắt được chỗ tôi đã ngừng soi
+
+PO-agent cấp **Luật M** (*"xác nhận không phải bằng chứng — dấu hiệu khó thấy
+là kết quả KHỚP với thứ tài liệu đã hứa"*) và chỉ thẳng: *khi bạn liệt kê
+collection và thấy đúng thứ mình đoán, đó là lúc dễ ngừng soi nhất.*
+
+**Áp vào chính tôi thì ra một chỗ thật.** Lần liệt kê đầu cho **378** — đúng con
+số bàn giao 17/08 đã hứa. Vì nó khớp, không gì kích hoạt phản xạ soi lại
+`path='/app/data/rag_index'` — **và tôi thừa kế nguyên văn path ấy từ chính đầu
+dò đã hỏng.**
+
+Đo tiếp (hộp đen, `find` chỉ-đọc):
+```
+fin05-backend-1     /app/data/rag_index    22M     ← index DUY NHẤT
+fin05ttl-backend-1  /app/data/rag_index   188K     ← index DUY NHẤT
+cả hai container:   CHROMA_PERSIST_DIR=./data/chroma   ← trỏ path KHÔNG có index
+```
+
+🔴 **Biến cấu hình và vị trí dữ liệu thật KHÔNG khớp nhau.** Hôm nay vô hại vì
+chỉ có một index. Nhưng nếu sản phẩm có ngày nghe theo biến ấy, một cổng gõ
+cứng path sẽ **soi nhầm chỗ y hệt lần trước, chỉ khác một tầng** — cùng lớp lỗi,
+cùng cách chết im lặng. *Sản phẩm đang đọc biến nào cần `src/` để trả lời ⟹
+**không phải việc của tester**, chuyển tech-lead.*
+
+**Vá:** mã trong container **tự tìm** `chroma.sqlite3` thay vì nhận path. Tìm
+thấy **≠1** index ⟹ **KHÔNG ĐO ĐƯỢC**, không được chọn đại một cái. Xác minh:
+`["/app/data/rag_index"]`, đúng một, và bộ ca vẫn `2 passed · 1 skipped · 1 xfailed`.
+
+**Và nó đóng nốt câu hỏi ⓸:** `fin05ttl` có index thật (188K) nhưng rỗng — **không
+phải** ta soi nhầm path. Vì sao 419 chunk biến mất thì **vẫn CHƯA TRUY.**
+
+> Đây là lần thứ **hai** trong cùng một đợt mà ca đối chứng / phép soi lại bắt
+> được lỗi trong **công cụ đo**, không phải trong sản phẩm (lần một: `doc_id`
+> mồ côi lọt im lặng). Cả hai đều không có triệu chứng nào — cả hai đều được
+> tìm ra vì có người **hỏi tiếp sau khi mọi thứ đã xanh**.

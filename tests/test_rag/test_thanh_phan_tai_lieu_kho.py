@@ -100,15 +100,29 @@ def _kho_dang_song() -> bool:
 # collection cùng giữ 378 chunk là hai kho phục vụ song song. Một cổng rò rỉ bỏ
 # sót một collection là một cổng rò rỉ hỏng.
 _MA_LIET_KE = """
-import json, chromadb
-c = chromadb.PersistentClient(path='/app/data/rag_index')
-ra = {}
-for mo_ta in c.list_collections():
-    ten = mo_ta.name if hasattr(mo_ta, 'name') else str(mo_ta)
-    col = c.get_collection(ten)
-    g = col.get(include=['metadatas'])
-    ra[ten] = sorted({m.get('doc_id', '?') for m in (g['metadatas'] or [])})
-print(json.dumps(ra))
+import glob, json, os, chromadb
+
+# TỰ TÌM index, không gõ cứng path.
+#
+# 🔴 Vì sao: bản trước gõ cứng '/app/data/rag_index' — thừa kế nguyên văn từ
+# chính đầu dò đã hỏng. Đo được 18/08: biến môi trường của container là
+# CHROMA_PERSIST_DIR=./data/chroma, tức nó trỏ MỘT PATH KHÁC, và path đó KHÔNG
+# có index nào. Nếu sản phẩm có ngày nghe theo biến ấy, một cổng gõ cứng path
+# sẽ soi nhầm chỗ y hệt lần trước, chỉ khác một tầng.
+#
+# Đây là Luật M đúng nghĩa: lần liệt kê đầu cho đúng con số tài liệu đã hứa
+# (378), nên không có gì kích hoạt phản xạ soi lại cái path.
+duong = sorted({os.path.dirname(f) for f in glob.glob('/app/**/chroma.sqlite3', recursive=True)})
+if len(duong) != 1:
+    print(json.dumps({'__khong_do_duoc__': 'so index Chroma != 1: ' + repr(duong)}))
+else:
+    c = chromadb.PersistentClient(path=duong[0])
+    ra = {'__duong__': duong[0]}
+    for mo_ta in c.list_collections():
+        ten = mo_ta.name if hasattr(mo_ta, 'name') else str(mo_ta)
+        g = c.get_collection(ten).get(include=['metadatas'])
+        ra[ten] = sorted({m.get('doc_id', '?') for m in (g['metadatas'] or [])})
+    print(json.dumps(ra))
 """
 
 
@@ -128,7 +142,15 @@ def _doc_id_moi_collection() -> dict[str, list[str]]:
             "KHÔNG ĐO ĐƯỢC (không phải 'kho sạch'): không liệt kê được collection "
             f"trong container {CONTAINER} — {(r.stderr or r.stdout)[:300]}"
         )
-    return json.loads(r.stdout.strip().splitlines()[-1])
+    ra = json.loads(r.stdout.strip().splitlines()[-1])
+    if "__khong_do_duoc__" in ra:
+        pytest.fail(
+            "KHÔNG ĐO ĐƯỢC (KHÔNG phải 'kho sạch'): " + ra["__khong_do_duoc__"]
+            + " — soi một index khi có nhiều index là soi nhầm chỗ, đúng lớp lỗi "
+            "vừa vá ngày 18/08."
+        )
+    ra.pop("__duong__", None)
+    return ra
 
 
 def _ten_theo_doc_id() -> dict[str, str]:
