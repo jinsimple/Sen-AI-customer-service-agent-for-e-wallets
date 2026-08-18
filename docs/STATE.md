@@ -856,6 +856,66 @@ lập**: file sửa lần cuối **12/08** (`553b9e8`, sáu ngày trước) · n
 chạy từ HOST**. Suýt báo động giả về chính lần dựng vừa nghiệm thu.
 
 
+### ✅ M. ADR-032 ② BACKFILL ĐÃ CHẠY — nghiệm thu độc lập ĐẠT. §5.E đóng MỘT PHẦN
+
+**PO-agent kiểm bằng phép của mình, sau khi tech-lead làm đủ ①→④:**
+```
+[ĐO] psql thẳng, GROUP BY toàn bảng   complaints.description_raw: MÃ HOÁ 761 · PLAINTEXT 0
+[ĐO] đọc qua ĐƯỜNG SẢN PHẨM (container py3.12, ORM, nhánh ba trạng thái):
+       tổng đọc được        761
+       rỗng                   0
+       CÒN dạng gAAAAA        0   ← >0 nghĩa là giải mã HỎNG, trả nguyên bản mã
+[ĐO] sửa-tay 0·0·0 · băm cây == băm ảnh d5b73a04d6ef · lệch× 0·0·0
+```
+**738 → 0.** Cột Nhóm A nặng nhất nay mã hoá 100% trên `fin05`.
+
+🔴 **PHÉP QUYẾT ĐỊNH KHÔNG PHẢI CON SỐ `761/0`** — nó là con số **ta muốn nghe**, và theo **Luật M**
+đó là lúc không gì kích hoạt phản xạ soi lại. Hai phép dưới mới phân định, và **cả hai được khai
+TRƯỚC khi chạy**, không nghĩ ra sau:
+- **① so TỪNG DÒNG với bản sao lưu:** `761/761 khớp · 0 lệch`. Chi tiết làm nó có nghĩa: **giải mã CẢ
+  HAI bên qua cùng `_giai_ma()` của sản phẩm**, không so chuỗi thô — bản gốc là *738 plaintext + 23 đã
+  mã hoá*, so thô sẽ cho 738 "lệch" và dẫn người ta đi chữa một thứ không hỏng.
+- **② đọc qua ORM trong container** *(phép PO-agent thêm)*: cảnh báo `doc_gia_tri_chua_ma_hoa`
+  **738 → 0**, lỗi `giai_ma_that_bai_nghi_xoay_khoa` **0**.
+  🔴 **Đây là số duy nhất chứng minh 738 dòng đổi trạng thái THEO CÁCH SẢN PHẨM NHÌN THẤY** — mọi số
+  khác đều đo bằng script của tech-lead, trên Python của tech-lead. Thiếu phép này thì toàn bộ báo cáo
+  là *"dụng cụ của tôi nói dụng cụ của tôi đúng"*.
+  ⭐ Và nó là **ca đối chứng TỰ NHIÊN** cho nhánh ba trạng thái land sáng nay: `738 → 0` là chuỗi thời
+  gian ngắn nhất chứng minh **cả cơ chế lẫn bản vá** cùng hoạt động.
+
+**Hai điều kiện PO-agent thêm đã bắt được HAI lỗi thật, trước khi ghi:**
+1. *"Sao lưu phải được KIỂM PHỤC HỒI, không chỉ được tạo"* → bản `pg_dump --data-only` đầu tiên có đủ
+   761 INSERT, kích thước đẹp, băm đẹp — **và không tự phục hồi được**.
+2. *"So BYTE khoá host với khoá container"* → [ĐO] host **KHÔNG có `FIELD_ENCRYPTION_KEY`**; phản xạ
+   mặc định cả buổi chiều là `Fernet.generate_key()`. Ở đây nó là **ghi đè 738 dòng bằng khoá không ai
+   giải được**.
+> 🔴 **Cả hai thuộc CÙNG MỘT LỚP, và tech-lead gọi đúng tên nó:**
+> ***"thứ tôi đã làm đúng 20 lần hôm nay ở một ngữ cảnh mà nó vô hại"***. Hai điều kiện ấy **không bắt
+> sự cẩu thả** — chúng bắt **một thói quen ĐÚNG bị mang sang chỗ nó SAI**. Đó là lý do chúng đáng tồn
+> tại kể cả khi người thao tác đang rất cẩn thận.
+
+**Quyết định thiết kế giữ lại — đừng ai đảo:** **KHÔNG làm alembic revision.** Entrypoint chạy
+`alembic upgrade head` **mỗi lần container khởi động, trên cả ba ngăn xếp VÀ production** ⟹ revision
+hoá nghĩa là **738 dòng lời khai khách bị viết đè tự động, không ai bấm nút**.
+> ***Di trú LƯỢC ĐỒ nên tự động; di trú NỘI DUNG thì không.***
+Và ba phép kiểm sau khi ghi nằm **trong cùng giao dịch, `raise` để rollback** — *một script ghi dữ
+liệu mà chỉ CẢNH BÁO khi phát hiện sai là script đã ghi rồi mới nói.*
+
+🔴 **CHƯA ĐÓNG — §5.E đóng ĐÚNG MỘT PHẦN:**
+- Backfill **chỉ chạy trên `fin05`**. **`fin05ttl` · `fin05do` · PRODUCTION là BA QUẦN THỂ RIÊNG**,
+  mỗi nơi **một quyết định, một lần sao lưu**. tech-lead **không tự mở rộng** — đúng.
+- **ADR-032 ③** (cổng trong `tests/`) thuộc tester.
+- **CSDL `vutdi_kiem_saoluu` GIỮ LẠI** — nó là bản phục hồi **đã kiểm**, và là **đường lùi duy nhất còn
+  lại**. Xoá khi PO thấy đủ an toàn.
+- **§5.J (kho checkpoint) KHÔNG bị đụng tới** — và nay nó thành **bản plaintext DUY NHẤT còn lại của
+  lời khai khách**, đúng như security dự đoán: *vá vũng nước làm vòi chảy lộ ra rõ hơn.*
+
+⚠️ **Dự báo 9/10 — dòng lệch tech-lead TRUY thay vì làm ngơ, và lệch về phía DỄ CHỊU:** `not
+security_finding` dự báo 569, thật **570** (tổng ca thu thập 628→630 vì **tester land song song**).
+`src/` đổi 0 file, backfill không đụng `tests/`. **Luật K:** lệch về phía nhiều-ca-xanh-hơn là loại
+lệch **không ai đi truy** — họ truy vì *"nếu nó lệch xuống 568 thì tôi đã truy ngay"*.
+
+
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
 
 **C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
