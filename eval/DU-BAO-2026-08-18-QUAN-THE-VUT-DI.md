@@ -62,3 +62,82 @@ giữ vô thời hạn là quay lại đúng cái bẫy vừa thoát.
 - **Không** phủ `production`, nơi **chưa ai đo**.
 - Và tới khi bước ③ xong: mọi phát biểu at-rest phải kèm phạm vi — *"đã mã hoá
   **trên ngăn xếp phục vụ `fin05`**"* (ADR-036 QĐ2, hiệu lực NGAY).
+
+---
+
+# ⑥ KẾT QUẢ THẬT — dự báo ở `42ccca7`, viết trước khi dựng
+
+| # | dự báo | thực tế | |
+|---|---|---|---|
+| 1 | ảnh có sẵn cục bộ, không kéo mạng | `postgres:16-alpine` có sẵn, không kéo | ✅ |
+| 2 | ca "có plaintext" → ĐỎ | **PASSED** (đếm đúng `tran=3`) | ✅ |
+| 3 | ca "sạch" → XANH | **PASSED** | ✅ |
+| 4 | ca "không đọc được" → báo riêng | **PASSED** — nhưng xem ⑧ | ⚠️ |
+| 5 | `docker diff` ba ngăn xếp Δ=0 | **Δ=0 · 0 · 0** | ✅ |
+| 6 | ca `fin05ttl` cũ vẫn PASSED | **7 passed** | ✅ |
+
+## ⑦ NGHIỆM THU — ba dòng brief yêu cầu, output thật
+
+**① Quần thể vứt đi — dựng bằng gì:**
+```
+docker run -d --rm --name fin05-doi-chung-vut-di \
+  -e POSTGRES_USER=vutdi -e POSTGRES_DB=vutdi -e POSTGRES_PASSWORD=<ngẫu nhiên> \
+  postgres:16-alpine
+```
+`vutdi` **có chủ đích**: ai lỡ trỏ ca này vào container thật thì `psql -U vutdi`
+**trượt ngay** thay vì lặng lẽ đọc CSDL sản phẩm. Lời khai nạp vào là **GIẢ**,
+không lấy từ dữ liệu thật — bộ đo không được sinh thêm một bản sao PII.
+
+**② Ca đối chứng ĐỎ — và đây là bằng chứng mạnh nhất:** không phải một ca mới
+tự khẳng định, mà là **chính cổng sản phẩm, không sửa một dòng**, chĩa vào quần
+thể vứt đi:
+```
+phân bố quần thể vứt đi : {'tran': 2, 'ma_hoa': 1}
+E  AssertionError: 🔴 CỘT NHÓM A CÓ DÒNG NẰM TRẦN TRÊN ĐĨA: complaints.description_raw
+E      trần          2
+```
+
+**③ Ca chiều xuôi XANH trên quần thể sạch (`fin05` thật):**
+```
+tests/test_security/test_doi_chung_quan_the_vut_di.py            3 passed
+tests/test_security/test_cot_nhom_a_khong_nam_plaintext.py  +
+tests/test_security/test_nghiem_thu_backfill_nhom_a.py           9 passed
+```
+
+## ⑧ 🔴 HAI LỖI TRONG PHÉP THỬ CỦA TÔI, cả hai bắt được nhờ ĐỌC chứ không nhờ màu
+
+**(a) Ca thứ ba đỏ vì test-của-test sai, KHÔNG phải vì cổng sai.**
+`pytest.fail()` ném `Failed` — kế thừa **`BaseException`**, không phải
+`Exception` ⟹ `pytest.raises(Exception)` **không bắt được**. Thông điệp cổng in
+ra **đã đúng ngay lượt đầu**. Nếu tôi đọc màu, tôi đã đi sửa cổng.
+> *"Phép thử của tôi hỏng" ≠ "thứ tôi đo hỏng"* — cùng câu đã dùng cho
+> `Exit code 143` sáng nay, lần này ở tầng assertion.
+
+**(b) Ca ① CHẬP CHỜN: xanh lượt đầu, đỏ lượt sau, cùng một mã.**
+Nguyên nhân thật, in ra trong output chứ không phải suy đoán:
+```
+FATAL: the database system is starting up
+```
+`pg_isready` **trả 0 trong khi CSDL còn đang khởi động** — ảnh postgres chạy một
+server **TẠM** lúc `initdb`, và `pg_isready` bắt tay được với server tạm ấy.
+
+🔴 **Cách chữa KHÔNG phải chạy lại tới khi xanh** — đó là biến một ca chập chờn
+thành một ca **không đọc được theo cả hai chiều**. Cách chữa là đổi **mốc sẵn
+sàng** sang thứ ta **thật sự cần**: một câu SQL chạy trót lọt.
+Xác nhận bằng **ba lượt liên tiếp**: `3 passed · 3 passed · 3 passed`.
+
+> Đây đúng **Luật 4c** — *đừng suy cơ chế từ một cái TÊN*. `pg_isready` tên là
+> "sẵn sàng chưa", nhưng nó trả lời *"có ai nhận kết nối không"*, **không** trả
+> lời *"CSDL của tôi dùng được chưa"*. Cùng họ với `Luật G`: một cơ chế đang làm
+> **đúng việc của NÓ** không có nghĩa nó đang làm việc **ta giả định**.
+
+## ⑨ Bước ③ — điều tôi KHÔNG làm, và vì sao
+
+Xoá `fin05ttl` **ngoài vùng ghi của tester**, và ADR-036 ghi rõ bước ③ là **báo
+lại**, không phải xoá. Tôi giao ①②, PO quyết ③.
+
+**Và tôi ĐỀ NGHỊ CHƯA xoá ngay**, theo tinh chỉnh PO-agent đã duyệt: giữ song
+song tới khi ca mới **ĐỎ THẬT ít nhất MỘT lần trong một lượt chạy BÌNH THƯỜNG**
+— không phải lượt tôi cố ý ép như hôm nay. Mốc ấy phân biệt *"ca chạy được khi
+tôi ép"* với *"ca sống trong nếp chạy hằng ngày"*, và hôm nay tôi mới chứng minh
+được vế đầu.
