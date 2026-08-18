@@ -67,3 +67,70 @@ bác được** cờ. Tôi sẽ viết đúng chữ ấy, không viết *"an to�
   giỏi hơn hay kém hơn"*.
 - **Không** so được với sáng nay (§①).
 - `n=1` cho ô chống-bịa. Ô ấy cần bộ adversarial để nói mạnh hơn.
+
+---
+
+# ⑦ KẾT QUẢ — chiều TẮT. Dự báo ở `a936ee4`, viết trước khi tiêu lượt nào.
+
+```
+model  qwen3.7-plus-2026-05-26   ·  SUY_LUAN_BAT=0  ·  container 14:00:27Z
+```
+
+| lượt | giây | agent nói | CSDL | |
+|---|---|---|---|---|
+| 1 · `TXN…566` | **11,78** | **177.000đ** · nội bộ ví · hoàn tất 31/07 13:51 · "tien gui xe" | `177000 success` | ✅ |
+| 2 · `TXN…596` | **8,77** | **92.000đ** · phí **3.300đ** · `processing` · ACB | `92000` phí `3300` | ✅ |
+| 3 · **không tồn tại** | **7,21** | *"không tìm thấy…"* — **KHÔNG một con số nào** | đếm 0 | ✅ |
+| 4 · `"alo"` | 0,02 | đường nhẹ | — | ✅ |
+| 5 · *"giao dịch gần đây"* | **12,82** | liệt kê thật: `…596` 92.000 xử lý · `…001` **741.000** thành công | cả hai **khớp** | ✅ |
+| 6 · `"xin chào"` | 0,03 | đường nhẹ | — | ✅ |
+
+**Nguồn phân định độc lập — không tin `env`:**
+```
+suy_luan_gui = false  ·  reasoning_tokens = 0   ← cả 4 lượt đường đầy đủ
+```
+⟹ Cờ **thật sự bám vào đối tượng model**, không phải một lời hứa trong config.
+
+## ⑧ Đối chiếu dự báo — 6/6 TRÚNG
+
+| dự báo | thực tế | |
+|---|---|---|
+| `suy_luan_gui = false` mọi lượt | false ×4 | ✅ |
+| `reasoning_tokens = 0` | 0 ×4 | ✅ |
+| 🔴 lượt 3 **vẫn từ chối bịa** | không một con số nào | ✅ |
+| số tra cứu khớp CSDL | 177.000 · 92.000 · 3.300 · 741.000 | ✅ |
+| độ trễ đầy đủ **3–8s** | 7,21 · 8,77 · 11,78 · 12,82 | ⚠️ **trúng cận dưới, lệch cận trên** |
+| lượt 5 **qua** trần 45s | 12,82s, **và trả lời được** | ✅ |
+
+## ⑨ 🔴 LƯỢT 5 ĐẢO CHIỀU — nhưng ĐỪNG quy công cho cờ
+
+```
+sáng nay (model cũ, suy luận BẬT)   49,11s  →  HỎNG, rơi bàn giao, tự tạo vé
+bây giờ (model mới, suy luận TẮT)   12,82s  →  TRẢ LỜI ĐƯỢC, số khớp CSDL
+```
+**Hai thứ đổi cùng lúc: MODEL và CỜ.** Phép so này **không tách được** hai
+nguyên nhân. Nói *"tắt suy luận đã sửa lượt 5"* là **ghép một quan sát vào một
+nguyên nhân chưa phân định** — đúng lớp lỗi §8.
+
+⟹ Câu đúng: ***"trên bản dựng 14:00:27Z với suy luận TẮT, lượt 5 chạy được
+trong 12,82s"***. Chiều BẬT trên **cùng bản dựng** mới tách được cờ khỏi model.
+
+## ⑩ 🔴 Và ô quyết định: tôi viết đúng chữ đã hẹn
+
+Lượt 3 **không bịa**. Nhưng đó là **n=1**.
+
+> **Kết quả này CHƯA BÁC ĐƯỢC cờ. Nó KHÔNG chứng minh cờ an toàn.**
+
+Một lượt không bịa không nói gì về lượt thứ hai. Muốn nói mạnh hơn cần
+**bộ adversarial** (`eval/adversarial_set.jsonl`, 45 ca) chạy hai chiều — đó là
+một việc khác, tốn hơn nhiều, và **PO quyết có đáng không**.
+
+## ⑪ Token — ba rổ, và một quan sát phụ
+
+```
+input   12.995 · 14.390 · 15.451 · 18.267      output  254 · 267 · 216 · 462
+reasoning 0 cả bốn                              đường nhẹ: input 0 (đúng 0)
+```
+**Output giảm rõ**: nền BẬT sáng nay `647 · 709 · 514`; nay `254 · 267 · 216`.
+⚠️ Nhưng **cũng đổi model**, nên con số này chịu **cùng một confound** ở §⑨ —
+ghi để đối chiếu sau, **không** dùng để kết luận.
