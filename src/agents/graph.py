@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any
@@ -217,6 +218,12 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "input_chars": u.get("input_chars"),
         "so_tool_call": len(kq.get("tool_calls") or []),
         "ly_do_fallback": kq.get("ly_do_fallback"),
+        # Ba trường TRIỆU CHỨNG, luôn có mặt (None ở lượt thường) — khoá thiếu
+        # và khoá null đọc khác nhau ở mọi công cụ phân tích, và "thiếu khoá"
+        # sẽ bị đọc thành "chưa bao giờ hỏng".
+        "lop_loi_ncc": (kq.get("trieu_chung") or {}).get("lop_loi_ncc"),
+        "ma_trang_thai_ncc": (kq.get("trieu_chung") or {}).get("ma_trang_thai_ncc"),
+        "giay_da_troi": (kq.get("trieu_chung") or {}).get("giay_da_troi"),
         "duong": kq.get("duong"),
         "so_tool_schema_gui": u.get("so_tool_schema_gui"),
         # TRẠNG THÁI THẬT của lượt, không phải giá trị cờ config — nếu không có
@@ -246,6 +253,33 @@ def _ly_do_fallback(loi: Exception) -> str:
     if isinstance(loi, GraphRecursionError):
         return "recursion_limit"
     return "khac"
+
+
+def _trieu_chung_loi(loi: BaseException | None) -> dict[str, object]:
+    """TRIỆU CHỨNG của lỗi, tách khỏi KẾT LUẬN về lỗi (Luật H).
+
+    Vì sao cần, bằng ca thật: sổ ghi `ly_do_fallback = "nha_cung_cap_can_can_thiep"`.
+    Đó là một KẾT LUẬN — nó nói *phải làm gì*, không nói *nhà cung cấp đã trả
+    lời gì*. Hai sự cố khác hẳn nhau (`401` khoá sai · `403` hết hạn ngạch ·
+    `404` sai tên model) đổ chung vào một nhãn, và cách xử ba ca đó KHÁC NHAU
+    hoàn toàn — một cái nạp tiền, một cái sửa khoá, một cái sửa cấu hình.
+    Người trực sự cố đọc sổ sẽ không phân biệt được, và sẽ đi thử cả ba.
+
+    ⟹ Mã trạng thái đi VÀO SỔ, cạnh kết luận, không thay thế nó. Hai trường,
+    hai câu hỏi: *"nhà cung cấp nói gì"* và *"ai phải làm gì"*.
+
+    🔴 `None` ở đây nghĩa **KHÔNG ĐỌC ĐƯỢC** (lỗi không mang mã trạng thái —
+    hết giờ, vòng lặp), KHÔNG phải "mã 0". Cùng quy ước với `input_tokens`.
+    """
+    if loi is None:
+        return {"lop_loi_ncc": None, "ma_trang_thai_ncc": None}
+    ma = getattr(loi, "status_code", None)
+    return {
+        "lop_loi_ncc": type(loi).__name__,
+        # ép về int hoặc None — vài SDK trả chuỗi, và một chuỗi lọt vào sổ sẽ
+        # làm mọi phép lọc `>= 500` im lặng trả rỗng thay vì báo lỗi.
+        "ma_trang_thai_ncc": int(ma) if isinstance(ma, (int, str)) and str(ma).isdigit() else None,
+    }
 
 
 def _reply_goc_cho_eval(reply_goc: str, nhom_khop: list[str]) -> dict:
@@ -591,6 +625,12 @@ def run_agent_turn(
         # lượt gọi OpenAI đang chạy dở bên dưới (Python không kill thread
         # được), nhưng trả quyền điều khiển lại cho client NGAY, không đợi.
         executor = ThreadPoolExecutor(max_workers=1)
+        # Mốc để sổ trả lời được "lượt này CHẠY BAO LÂU rồi mới hỏng".
+        # Thiếu nó thì nhãn `timeout` là một lời khẳng định KHÔNG KIỂM ĐƯỢC:
+        # một lượt bỏ cuộc tức thì và một lượt chạy trọn 45 giây trông y hệt
+        # nhau trong sổ. Có nó thì `giay_da_troi ≈ AGENT_TURN_TIMEOUT_SECONDS`
+        # là bằng chứng nhãn ĐÚNG, còn `0,4 giây` là bằng chứng nhãn SAI.
+        _bat_dau = time.monotonic()
         try:
             result = executor.submit(_invoke).result(timeout=AGENT_TURN_TIMEOUT_SECONDS)
         except RateLimitError as e:
@@ -672,6 +712,8 @@ def run_agent_turn(
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 "goi_y_handoff": False,
                 "ly_do_fallback": "qua_tai",
+                # KẾT LUẬN ở trên, TRIỆU CHỨNG ở đây — không cái nào thay được cái nào.
+                "trieu_chung": {**_trieu_chung_loi(e), "giay_da_troi": round(time.monotonic() - _bat_dau, 2)},
                 "duong": DUONG_DAY_DU,
             }
             _ghi_so(_kq, thread_id, user_id)
@@ -791,6 +833,13 @@ def run_agent_turn(
                 "ly_do_fallback": (
                     "nha_cung_cap_can_can_thiep" if can_thiep else "nha_cung_cap_thoang_qua"
                 ),
+                # 🔴 Hai nhãn trên là KẾT LUẬN ("ai phải làm gì"). Chúng gộp
+                # `401` khoá sai · `403` hết hạn ngạch · `404` sai tên model
+                # vào MỘT chuỗi — ba sự cố cần ba cách xử khác hẳn nhau.
+                # Mã trạng thái đi kèm ở đây để sổ trả lời được câu thứ hai:
+                # "nhà cung cấp đã nói gì". Giữ NGUYÊN hai nhãn cũ vì có test
+                # đang khẳng định chúng — đổi tên là việc phải đi qua tester.
+                "trieu_chung": {**_trieu_chung_loi(e), "giay_da_troi": round(time.monotonic() - _bat_dau, 2)},
                 "duong": DUONG_DAY_DU,
             }
             _ghi_so(_kq, thread_id, user_id)
@@ -888,6 +937,9 @@ def run_agent_turn(
                 # Trước đây họ phải nhận diện bằng chữ ký chuỗi trong `reply`,
                 # thứ trôi được sau một lần sửa câu chữ.
                 "ly_do_fallback": _ly_do_fallback(e),
+                # `giay_da_troi` là thứ làm nhãn `timeout` KIỂM ĐƯỢC thay vì
+                # phải tin. Không có nó, "timeout" chỉ là tên của một nhánh mã.
+                "trieu_chung": {**_trieu_chung_loi(e), "giay_da_troi": round(time.monotonic() - _bat_dau, 2)},
                 "duong": DUONG_DAY_DU,
             }
             _ghi_so(_kq, thread_id, user_id)
