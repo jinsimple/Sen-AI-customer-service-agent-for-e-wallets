@@ -20,6 +20,21 @@ on:
     - cron: "0 20 * * *" # 03:00 giờ VN — Stage 6 (load test) chạy nightly
   workflow_dispatch: {}
 
+
+# HAI NHÓM TÁCH HẲN — push không bao giờ giết nightly, và ngược lại.
+# Cần có vì runner tự quản là FIFO DÙNG CHUNG với team khác: hai lượt của
+# CHÍNH TA chạy song song sẽ tự giành cổng 80/443 (`-p` đổi TÊN PROJECT chứ
+# không đổi cổng host — xem bước "Tiền kiểm CỔNG").
+#
+# ⚠️ CÁI GIÁ, khai ra chứ không giấu: `cancel-in-progress` cho push nghĩa là
+# khi đẩy liên tiếp, COMMIT Ở GIỮA KHÔNG CÓ KẾT QUẢ CỔNG RIÊNG. Chấp nhận vì
+# lượt bị huỷ đang đo một cây KHÔNG CÒN LÀ HEAD, và trên máy dùng chung nó
+# còn chiếm chỗ của team khác cho một phép đo đã lỗi thời.
+# Cần chứng thực TỪNG commit (vd trước mốc nộp bài) thì đổi `false` TẠM THỜI
+# và khai ra — đừng đổi im lặng.
+concurrency:
+  group: ci-${{ github.ref }}-${{ github.event_name == 'schedule' && 'nightly' || 'push' }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 env:
   # JWT_SECRET_KEY/FIELD_ENCRYPTION_KEY: src/config.py raise lỗi ngay lúc
   # import nếu thiếu (cố ý, chống "trông như bảo mật nhưng không có key thật")
@@ -64,6 +79,37 @@ jobs:
     name: Ràng buộc cứng + contract drift
     runs-on: self-hosted
     steps:
+      - name: 🔬 ĐO EPHEMERAL — máy này có bị dùng lại không (ADR-037 QĐ3①)
+        # Trả lời câu PO đang định hỏi BTC bằng PHÉP ĐO thay vì bằng lời hứa.
+        #
+        # 🔴 BẤT ĐỐI XỨNG, đừng đọc lệch: phép này CHỈ chứng minh được
+        # PERSISTENT. Không đọc được tệp mốc thì KHÔNG kết luận gì — có thể là
+        # máy khác, có thể là cùng máy đã dọn, và từ đây không tách được hai
+        # khả năng ấy. Vắng mặt không phải bằng chứng.
+        #
+        # Tên máy `eph-vmrunner2-…` GỢI Ý ephemeral nhưng KHÔNG chứng minh:
+        # một cái TÊN không phải một CƠ CHẾ — cùng hình dạng với
+        # `CHUAN_HOA_VERSION` (tên là version, không đổi theo nội dung) và
+        # `pg_isready` (tên là "sẵn sàng chưa", trả lời "có ai nhận kết nối không").
+        #
+        # KHAI: bước này GHI vào $HOME của runner DÙNG CHUNG — ~150 byte, không
+        # chứa bí mật, tự ghi rõ là xoá được. Đó là cái giá tối thiểu để câu hỏi
+        # "máy có bị dùng lại không" trả lời được từ bên trong.
+        run: |
+          MOC="$HOME/.fin05-moc-ci.txt"
+          echo "runner : ${RUNNER_NAME:-(không có RUNNER_NAME)}"
+          echo "run_id : ${{ github.run_id }}"
+          if [ -f "$MOC" ]; then
+            echo "🔴 ĐỌC ĐƯỢC TỆP MỐC ⟹ MÁY BỊ DÙNG LẠI (PERSISTENT). Chứng minh xong:"
+            sed 's/^/    /' "$MOC"
+          else
+            echo "KHÔNG có tệp mốc ⟹ KHÔNG KẾT LUẬN GÌ (không phải bằng chứng ephemeral)."
+          fi
+          {
+            echo "moc-do-ephemeral FIN-05 (ADR-037 QĐ3①) — xoá được, vô hại, không chứa bí mật"
+            echo "run_id=${{ github.run_id }} runner=${RUNNER_NAME:-?} luc=$(date -u +%FT%TZ)"
+          } >> "$MOC"
+          echo "— $MOC nay có $(wc -l < "$MOC") dòng (ĐẾM thật, không phải hiệu số) —"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:

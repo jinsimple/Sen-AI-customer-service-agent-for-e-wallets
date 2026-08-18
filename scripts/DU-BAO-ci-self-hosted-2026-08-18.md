@@ -97,7 +97,7 @@ runner là để cơ chế chưa từng chạy lần nào gánh đúng lượt �
 | 7 | YAML parse | hợp lệ, 14 job | hợp lệ · 14 job · hai job docker 10→**12** bước | ✅ |
 | 8 | cổng cục bộ (invariants) | **23 passed** | **23 passed** · `check_contracts` sạch | ✅ |
 | 9 | token tiêu | **0** | 0 | ✅ |
-| 10 | sau khi đẩy: job `invariants` | **KHÔNG DÁM DỰ BÁO** — xem §5 | *(điền sau khi đẩy)* | |
+| 10 | sau khi đẩy: job `invariants` | **KHÔNG DÁM DỰ BÁO** — xem §5 | **success**, runner `eph-vmrunner2-1c2b45fc`, group `default`, 4′04″ | ✅ đọc được |
 
 ## 5. 🔴 Ô #10 là ô tôi KHÔNG đọc được, và nói thẳng thay vì đoán
 
@@ -157,3 +157,64 @@ có guard đều bỏ qua, **trừ bước dọn**. Vô tình đó là bản thu
 xanh trong lúc cả job bị bỏ qua, `if: always()` trần đã làm đúng việc. (Nhưng job này cũng nằm
 trên `ubuntu-latest` ⟹ nhiều khả năng **không được cấp máy** — thì đó là **SKIP**, không phải bằng
 chứng bước dọn hỏng.)
+
+## 9. KẾT QUẢ NHỊP 1 — run `32135940445`
+
+```
+Ràng buộc cứng + contract drift :: completed/SUCCESS
+  runner = eph-vmrunner2-1c2b45fc   group = default   labels = self-hosted
+  12:16:17Z -> 12:20:21Z  (4′04″)
+```
+**Log thật, không phải dấu tick:** `collected 23 items`, 23 dòng `PASSED`, `check_contracts` →
+*"Không có artifact lỗi thời"*. Phân biệt này quan trọng vì một bước `exit 0` với **0 test thu
+được** cũng cho conclusion `success` — dự án đã có hẳn một bước *"SKIP LÀ ĐỎ"* sinh ra vì đúng lỗi ấy.
+
+13 job kia: **11 `failure` runner rỗng** (billing, chưa từng khởi động) + **3 `skipped`** (nightly,
+đúng `if:`). Đây là **hoá đơn**, không phải chất lượng mã.
+
+### 🔴 Dự báo §8 của tôi TRƯỢT — ghi lại thay vì lặng lẽ bỏ
+
+Tôi dự báo `route-guards-docker` sẽ cho `chay=khong` và **bước dọn vẫn chạy**, thành bản thu nhỏ
+của nghiệm thu ③. **Không xảy ra.** Job ấy còn ở `ubuntu-latest` ⟹ **không được cấp máy** ⟹
+*không bước nào chạy, kể cả `if: always()`*.
+
+> **`always()` chỉ có nghĩa "luôn chạy khi job ĐÃ ĐƯỢC CẤP MÁY".**
+> **Job chưa từng khởi động thì không có gì luôn cả.**
+
+⟹ Bước dọn hiện là **mã CHƯA TỪNG THỰC THI**. Nghiệm thu ①②③ còn nợ nguyên.
+
+### Nhịp 1 xanh KHÔNG có nghĩa gì thêm
+
+`invariants` không đụng Docker, không đụng Compose v2, không đụng `services:`. Ba thứ ấy **chưa
+được kiểm** và chỉ lộ ở nhịp 2. Cái đã biết chắc: **runner cấp máy được, `self-hosted` là nhãn
+đúng, `setup-python` + `pip install` chạy được trên đó.**
+
+## 10. NHỊP 1b — hai thứ thêm, và cái giá của chúng
+
+**① `concurrency:`** (PO-agent chốt). Hai nhóm tách hẳn nên push không giết nightly.
+🔴 **Cái giá:** `cancel-in-progress` cho push ⟹ **commit ở giữa một chuỗi đẩy không có kết quả
+cổng riêng**. Với dự án vừa qua *"17/08 tới nay không commit nào qua cổng"*, giá này phải khai, không
+được giấu. Đổi `false` tạm thời khi cần chứng thực từng commit — và khai ra khi đổi.
+
+**② Phép đo ephemeral** — trả lời QĐ3① không cần BTC. Ghi `~/.fin05-moc-ci.txt` trên runner.
+
+| lượt sau đọc được gì | kết luận |
+|---|---|
+| **đọc được** tệp mốc | **PERSISTENT — chứng minh xong** |
+| **không** đọc được | **KHÔNG KẾT LUẬN GÌ** (máy khác? cùng máy đã dọn? không tách được) |
+| runner_name **giống hệt** | **PERSISTENT — kết luận ngay** |
+| runner_name **khác** | gợi ý, **không phải chứng minh** |
+
+🔴 **Bất đối xứng:** phép này **chỉ chứng minh được PERSISTENT**. Nó **không bao giờ** chứng minh
+được ephemeral. Ai đọc "không thấy tệp mốc" thành "vậy là ephemeral" đang lặp đúng lỗi mà `eph-`
+suýt gây ra.
+
+⚠️ **`cancel-in-progress` ăn vào chính phép đo này:** đẩy lượt B trong lúc lượt A còn chạy sẽ
+**huỷ A** ⟹ mất luôn điểm dữ liệu. **Phải đợi A xong rồi mới đẩy B.** Hai cơ chế cùng land một
+nhịp và một cái cắn cái kia — ghi ra để lần sau không phải phát hiện lại.
+
+🚫 **Cố ý KHÔNG dùng `workflow_dispatch`** để lấy lượt B, dù nó có sẵn: dispatch thoả `if:` của
+**ba job nightly** — trong đó `livechat-e2e-nightly` **ghi `OPENAI_API_KEY` thật ra `.env`** và
+hai job kia gọi model tính tiền. Chúng đang không chạy được **nhờ billing hỏng** — dựa vào một
+sự cố hạ tầng làm cơ chế an toàn là thứ sẽ phản lại ta đúng lúc nó được sửa. Lượt B lấy bằng
+**một lần đẩy thường** (push không thoả `if:` của ba job đó).
