@@ -51,16 +51,25 @@ và **không nhìn thấy dòng nào đang ở trạng thái nào**. Phải `SEL
 
 | # | vật | DỰ BÁO | THẬT | |
 |---|---|---|---|---|
-| 1 | phân bố TRƯỚC (`fin05`) | `giải mã 23 · plaintext 738 · khoá khác 0` | | |
-| 2 | số dòng script ĐỘNG VÀO | **738** — đúng bằng rổ plaintext | | |
-| 3 | phân bố SAU | `giải mã 761 · plaintext 0 · khoá khác 0` | | |
-| 4 | tổng số dòng `complaints` | **761 trước = 761 sau** — không thêm, không mất | | |
-| 5 | chạy LẦN HAI | **0 dòng động vào** (idempotent) | | |
-| 6 | đọc lại qua ORM sau backfill | nội dung **y hệt** bản sao lưu, 738/738 | | |
-| 7 | cổng `test_cot_nhom_a_khong_nam_plaintext` | **ĐỎ → XANH** | | |
-| 8 | suite `not security_finding` | **569 passed, 0 failed** (không đổi) | | |
-| 9 | `src/` | **0 file đổi** — đây là việc dữ liệu, không phải việc mã | | |
-| 10 | token tiêu | **0** | | |
+| 1 | phân bố TRƯỚC (`fin05`) | `giải mã 23 · plaintext 738 · khoá khác 0` | `23 · 738 · 0` | ✅ |
+| 2 | số dòng script ĐỘNG VÀO | **738** — đúng bằng rổ plaintext | 738 | ✅ |
+| 3 | phân bố SAU | `giải mã 761 · plaintext 0 · khoá khác 0` | `761 · 0 · 0` | ✅ |
+| 4 | tổng số dòng `complaints` | **761 trước = 761 sau** | 761 = 761 | ✅ |
+| 5 | chạy LẦN HAI | **0 dòng động vào** (idempotent) | *"không còn dòng plaintext nào"* | ✅ |
+| 6 | đọc lại và so với bản sao lưu | nội dung **y hệt** | **761/761 khớp, lệch 0** | ✅ |
+| 7 | cổng `test_cot_nhom_a…` | **ĐỎ → XANH** | 2 failed → **6 passed** | ✅ |
+| 8 | suite `not security_finding` | **569 passed, 0 failed** | **570 passed, 0 failed** | ⚠️ |
+| 9 | `src/` | **0 file đổi** | 0 | ✅ |
+| 10 | token tiêu | **0** | 0 | ✅ |
+
+**9/10 trúng.** Dòng #8 lệch **+1 ca** (569 → 570, và `deselected` 6 → 7): **không phải do backfill**
+— `src/` đổi 0 file, và backfill không đụng `tests/`. Tester đang land song song, tổng số ca thu
+thập tăng từ **628** lên **630**. Ghi ra thay vì làm ngơ vì con số lệch **về phía dễ chịu**, và
+theo Luật K đó đúng là loại lệch không ai đi truy. **Nguyên nhân đã xác định, không phải suy đoán.**
+
+`security_finding`: **3 failed → 1 failed.** Hai ca biến mất là **đúng hai ca cổng plaintext**; ca
+còn lại là P0 live-chat PII đã có từ trước (12/08, `553b9e8`) — khớp đúng phân định tôi đưa ra
+trước khi chạy.
 
 ## 4. Nếu khác thì nghi gì
 
@@ -84,9 +93,56 @@ kiểm nào phân biệt được *"đã mã hoá đúng"* với *"đã mã hoá
 **Và việc này KHÔNG đóng §5.E toàn phần:** nó chỉ chạy trên `fin05`. `fin05ttl`/`fin05do` và
 **production** là quần thể riêng, mỗi nơi một quyết định, mỗi nơi một lần sao lưu.
 
-## 6. KẾT QUẢ THẬT
+## 6. KẾT QUẢ THẬT — ĐÃ CHẠY, và bốn phép hậu kiểm
 
-*(để trống — và 🔴 tôi DỪNG ở đây, hỏi PO-agent một lần nữa trước khi chạy lệnh ghi đầu tiên)*
+```
+MẪU SỐ ĐẦU   tổng 761 · đã mã hoá  23 · plaintext 738
+SẼ ĐỘNG VÀO  738 dòng
+MẪU SỐ SAU   tổng 761 · đã mã hoá 761 · plaintext   0
+```
+Khoá dùng để ghi: lấy **từ container ngay trong chính lệnh**, sha256 `c3071a75e5fb765ba5a283b3` —
+in ra và đối chiếu **trước** khi chạy, vì host không có biến nào để dựa.
+
+### ① Phép kết luận duy nhất — giải mã lại, so TỪNG DÒNG với bản sao lưu
+
+```
+bản SAO LƯU (đã phục hồi)  761 dòng
+bản THẬT sau backfill      761 dòng
+tập complaint_id           GIỐNG NHAU
+NỘI DUNG khớp              761 / 761
+NỘI DUNG lệch              0
+```
+So bằng cách giải mã **cả hai bên qua CÙNG hàm `_giai_ma()` của sản phẩm** — không so chuỗi thô,
+vì bản gốc là 738 plaintext + 23 đã mã hoá, hai trạng thái khác nhau.
+
+### ② Đọc qua ORM TRONG CONTAINER — đường thật của sản phẩm (PO-agent thêm)
+
+Vòng tròn đo trước đó là **Fernet trần**. Đường sản phẩm là `EncryptedText` → nhánh **ba trạng
+thái** mới, chạy bằng **py3.12 trong container**. Đây là chỗ duy nhất còn lại một khác biệt có thể
+nấp, và là chỗ **khách hàng thật sự đọc**.
+
+```
+đọc TOÀN BỘ 761 dòng qua ORM      761/761 đọc được · 0 rỗng
+cảnh báo `doc_gia_tri_chua_ma_hoa`   0        ← trước backfill sẽ là 738
+lỗi   `giai_ma_that_bai_nghi_xoay_khoa`  0
+⟹ cả 761 dòng đi nhánh "GIẢI MÃ ĐƯỢC"
+```
+Con số `0` ở dòng cảnh báo là **số duy nhất chứng minh 738 dòng kia đã thật sự đổi trạng thái theo
+cách sản phẩm nhìn thấy** — trước backfill nó phải là 738.
+
+### ③ Ca THUẬN LỢI, khai trước và giữ lời (Luật M)
+
+`761 mã hoá / 0 plaintext` **là con số ta muốn nghe**, nên nó **không tự kích hoạt phản xạ soi
+lại**. Nó một mình **không phân biệt được** *"mã hoá đúng"* với *"mã hoá một thứ khác"* — chỉ ① và
+② phân biệt được, và đó là lý do cả hai được khai **trước** khi chạy chứ không nghĩ ra sau.
+
+### ④ Luật I
+
+```
+sửa-tay ba container   0 · 0 · 0
+băm cây d5b73a04d6ef == băm ảnh d5b73a04d6ef      ⟹ lệch× 0·0·0
+src/ đổi trong lượt này   0 file
+```
 
 ---
 
