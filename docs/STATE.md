@@ -916,6 +916,55 @@ security_finding` dự báo 569, thật **570** (tổng ca thu thập 628→630 
 lệch **không ai đi truy** — họ truy vì *"nếu nó lệch xuống 568 thì tôi đã truy ngay"*.
 
 
+### 🔴🔴🔴 N. ADR-026 "Đang hiệu lực" — NHƯNG CƠ CHẾ TRUNG TÂM CỦA NÓ KHÔNG TỒN TẠI. Sự cố nó đóng VẪN ĐANG MỞ
+
+*(Bắt bởi **security**, khi áp vế thi hành Luật M cho H3 — *mở sổ trước khi lập luận*: đi tìm trường
+nào đo thẳng *"kho RAG đổi lúc nào"*. **Không có trường nào**, và trên đường đi đụng thứ này.
+PO-agent kiểm lại độc lập từng điểm.)*
+
+```
+[ĐO] models.py:543   CheckConstraint("status IN ('processing','indexed','failed')")
+                     ⟹ KHÔNG có giá trị nào nghĩa là ĐÃ DUYỆT
+[ĐO] approved_by/approved_at  chỉ tồn tại trên `resolutions` (models.py:412-413)
+                              KHÔNG có gì tương đương cho tài liệu chính sách
+[ĐO] cả BA route /policy-docs (POST 1223 · GET 1249 · DELETE 1273)
+                              → require_role("partner_admin") · KHÔNG route supervisor nào
+[ĐO] dữ liệu thật             2 tài liệu, CẢ HAI status='indexed'
+```
+
+**ADR-026 Quyết định 1 ghi:** *"Agent chỉ được phục vụ chunk của tài liệu **`da_duyet`**"*.
+⟹ **Không có trạng thái `da_duyet`. Không có ai duyệt. Tài liệu đi thẳng `processing → indexed` rồi
+được phục vụ.**
+
+🔴 **VÌ SAO CA NÀY NẶNG HƠN §5.D2 (`/ready`) VÀ ADR-025 QĐ2 (`assigned_to`) — CA THỨ BA CÙNG LỚP,
+NHƯNG KHÁC HẲN VỀ HẬU QUẢ:**
+Hai ca kia là **tính năng chưa tới**. **ADR-026 được viết ĐỂ ĐÓNG MỘT SỰ CỐ CÓ THẬT** — [ĐO] chính
+ADR-026: `16/08, 08:23:14Z → 08:42:47Z` (**19 phút 33 giây**), hai file nội bộ (`business_rules.md`
+bảng số `verified=false` · `scenario-candidates-momo-faq.md`) **nằm trong kho ĐANG PHỤC VỤ**.
+⟹ **Khoảng trống ấy VẪN ĐANG MỞ.** Cùng một thao tác, cùng một người thiện chí, cùng một màn hình —
+**sẽ tái diễn y hệt.**
+> Và ADR-026 tự viết ra chẩn đoán ấy: *"người đầu tiên vấp vào khoảng trống đó là một người thiện chí,
+> dùng đúng cửa được thiết kế cho họ, không làm sai quy trình nào — đó là định nghĩa của khoảng trống
+> thiết kế."* **Bản vá được thiết kế, được PO duyệt, và chưa bao giờ được xây.**
+
+🔴 **CƠ CHẾ CONTRACT-FIRST KHÔNG BẮT ĐƯỢC — và lần này nó ĐAU HƠN §5.D2.** `CheckConstraint` **CHÍNH LÀ**
+thứ `tests/test_invariants.py` introspect (đọc qua AST). Nó đọc `('processing','indexed','failed')`,
+so với contract — **contract cũng không có `da_duyet`** ⟹ **khớp hoàn hảo ⟹ 23/23 XANH**.
+⟹ **Ca thứ ba của cùng một HẠNG MÙ** (§5.D2 · security §3 · ca này): contract-first canh **thứ khai
+được trong một tệp YAML**; nó **không canh được khoảng cách giữa QUYẾT ĐỊNH và THI HÀNH**.
+⭐ **Và ca này là ca chứng minh cổng ADR-033 đáng xây** — cổng *"mọi ADR Đang-hiệu-lực nêu tên file/cơ
+chế thì thứ đó phải tồn tại"*. Ba ca trước là lý lẽ; **ca này có một sự cố đứng sau.**
+
+**Hệ quả cho H3 — security tự bác việc của chính mình, và đúng:** *"H3 như đặt ra là PREMATURE, và lý
+do premature LỚN HƠN chính H3"* — không thể dựng *"vô hiệu hoá cache theo sự kiện duyệt"* khi **sự kiện
+duyệt không có biểu diễn nào**. Dựng nó sẽ cho ra một cơ chế **trông như đang thi hành ADR-026 và
+không thi hành gì** — đúng hình dạng *"hồ sơ trông kín hơn"*. **H3 GÁC LẠI cho tới khi ADR-026 được
+thi hành.**
+
+**🔴 CẦN PO THẬT:** ADR-026 do PO chốt 16/08 sau một sự cố thật. **Việc thi hành nó chạm `contracts/`
++ `migrations/` + `src/`** ⟹ đủ §10. **Trình PO: thi hành ngay, hay chấp nhận rủi ro có khai?**
+
+
 ### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
 
 **C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
