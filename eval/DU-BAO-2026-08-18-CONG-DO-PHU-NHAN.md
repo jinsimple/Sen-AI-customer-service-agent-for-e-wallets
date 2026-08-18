@@ -137,3 +137,63 @@ minh nó hoạt động**. Và không ai kiểm lại, vì cổng đã đỏ r�
 > **Một cổng đỏ vì 18 lý do đúng vẫn có thể mù ở lý do thứ 19** — và cái đỏ ấy
 > làm người ta **thôi nghi ngờ**. Đây là mặt trái của Luật A: nửa "biết kêu"
 > được chứng minh **không** kéo theo "kêu đủ chỗ".
+
+---
+
+# ⑩ VÒNG HAI — dữ liệu demo + DANH SÁCH MIỄN TRỪ
+
+```
+20 nhãn thiếu  →  sau khi tech-lead sinh dữ liệu (b0865e2)  →  11
+               →  sau khi khai 4 miễn trừ                    →  7 ĐỎ · 4 📋
+```
+
+## Bốn khai, hai LOẠI — và loại không phải trang trí
+
+```
+nhan_chet      messages.role = agent · system
+ngoai_pham_vi  resolutions.reject_reason = trung_case · khach_rut
+```
+Hai loại đòi **hai hành động khác hẳn**: `nhan_chet` ⟹ sửa **CONTRACT** (constraint
+cho phép một giá trị **sản phẩm không tạo được**); `ngoai_pham_vi` ⟹ **sinh dữ
+liệu**, khi PO mở rộng phạm vi. Gộp chúng vào một rổ *"đã khai"* là mất đúng
+thông tin dùng để hành động.
+
+**`messages.role` — [ĐO] của tech-lead khép câu hỏi:** `Message(...)` tạo ở
+**đúng một nơi** (`live_chat.record_message` ← `live_chat_ws.py:578`) với
+`role = "staff" if is_staff else "customer"`. **Không đường mã nào ghi được
+`agent`.** ⟹ `messages` là **biên bản LIVE-CHAT khách↔người thật**, không phải
+"lịch sử hội thoại" nói chung.
+> ⭐ Bản đầu script demo của tech-lead có **12 dòng `role="agent"`** — họ tự gỡ.
+> Nếu lằn ranh ấy không được giữ, **cổng đã XANH trên một điều không đúng**, và
+> dữ liệu demo đã dạy sai hình dạng của bảng cho mọi người đọc sau.
+> [ĐO] sau khi sinh: `staff 253 · customer 242`, **0 dòng `agent`**. Giữ được.
+
+## ⑪ Phép bắt KHAI THỪA — thứ brief không đòi, và là thứ giữ cho danh sách không mục
+
+Cổng còn kiểm chiều **ngược**: một nhãn **nay đã CÓ dòng** mà khai miễn trừ
+**vẫn còn** ⟹ **ĐỎ**, đòi gỡ khai.
+
+Không có nó thì danh sách miễn trừ **mục dần**: mỗi khai sống lâu hơn lý do của
+nó, và người sau đọc một danh sách **toàn thứ không còn đúng** — rồi tin nó.
+Đây là **Luật P ở dạng artefact tự làm cũ mà không ai niêm**, lần này **bịt bằng
+cơ chế** thay vì bằng lời dặn.
+
+**Đột biến xác nhận:** khai miễn trừ cho `messages.role = customer` (nhãn có
+**242 dòng**) ⟹
+```
+🔴 MIỄN TRỪ KHAI THỪA — nhãn nay đã có dòng, khai không còn đúng:
+    messages.role = customer  ← nay CÓ dòng, GỠ khai đi
+hoàn nguyên: băm khớp lại ef8948aa3bd4
+```
+
+## ⑫ Bảy nhãn còn ĐỎ — KHÔNG khai, cố ý
+
+```
+chat_sessions.status = waiting          escalations.target = authority
+policy_documents.status = processing    policy_documents.status = failed
+resolutions.action_type = no_action     resolutions.note_flagged = true
+wallets.status = closed
+```
+PO **chưa cấp miễn trừ** cho nhóm này ⟹ chúng ở lại màu đỏ. Đó **chính là thiết
+kế**: miễn trừ là **hành vi có chủ đích**, không phải mặc định. Ai muốn tắt một
+dòng đỏ ở đây phải **viết ra lý do** và ký tên vào đó.
