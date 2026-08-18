@@ -1805,6 +1805,194 @@ finding bảo mật**, độc lập với ADR-031?
 **Coder DỪNG bước 1 của §3, không sửa contract.** Đúng: sửa contract theo một ADR có tiền đề đã
 lung lay thì ta **khoá sai chỗ** — và §3 làm việc khoá đó rất chắc.
 
+## ADR-032 — Giải mã phải phân biệt BA trạng thái; và cột Nhóm A phải được nạp lại, không chỉ được khai
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026
+- **Bối cảnh:**
+
+  PO-agent kiểm lại một phát biểu của security (*"`complaints.description_raw` đã mã hoá"*) trước khi
+  relay cho PO thật. **[ĐO]** `psql` thẳng vào `fin05-postgres-1`, `GROUP BY` trên **toàn bảng**:
+
+  ```
+  complaints.description_raw   PLAINTEXT  738   tạo 05/05/2026 → 14/08/2026
+                               MÃ HOÁ      23   tạo 15/08/2026 → 17/08/2026   ⟹ 97% PLAINTEXT
+  messages.content             MÃ HOÁ     467   (467/467 — bảng chỉ có dữ liệu từ 11/08)
+  ```
+
+  `EncryptedText` được gắn vào `models.py:274` khoảng 15/08. **738 dòng có sẵn chưa bao giờ được nạp
+  lại.** Cột được ADR-025 chọn ra làm **Nhóm A** (lời khai của khách — dữ liệu nhạy cảm nhất hệ thống)
+  đang nằm plaintext trên đĩa cho tuyệt đại đa số bản ghi.
+
+  🔴 **Vì sao ba tháng không ai thấy — `src/db/crypto_types.py:59-65`:**
+
+  ```python
+  def process_result_value(self, value, dialect):
+      try:    return _fernet.decrypt(value.encode()).decode()
+      except InvalidToken:
+          return value          # ← nuốt IM LẶNG, trả nguyên văn
+  ```
+
+  Nhánh lỗi trả về thứ **trông y hệt một lần đọc thành công**. Ứng dụng đọc 738 dòng ấy không một lỗi
+  nào, không một dòng log nào. **Đây là Luật H ở dạng mạnh nhất dự án từng gặp:** các ca trước, nhánh
+  lỗi *in ra KẾT LUẬN thay vì TRIỆU CHỨNG*; ca này nhánh lỗi **không in gì cả — nó GIẢ TRANG THÀNH
+  THÀNH CÔNG**. Và **Luật G**: cơ chế đang làm **đúng việc của NÓ** (tương thích ngược trong lúc di
+  trú), ta đọc nó thành một thứ rộng hơn (*"cột này được mã hoá"*).
+
+  **Nếp kiểm đã bắt được nó** (§8): security trích **3 dòng mẫu** rồi đọc ra *"đã mã hoá"* — ba dòng ấy
+  tình cờ nằm trong 23 dòng mới, vì **`LIMIT` mặc định trả về dòng mới nhất**. Hỏi **MẪU SỐ** thì bức
+  tranh lật ngược. Bộ lọc vô hình, lần này nằm trong chính công cụ truy vấn.
+
+- **Quyết định — BA việc, cố ý KHÔNG gộp:**
+  1. 🔴 **`process_result_value` phải phân biệt BA trạng thái, không phải hai:** *giải mã được* ·
+     *chưa mã hoá (plaintext cũ)* · *mã hoá bằng KHOÁ KHÁC*. Trạng thái hai và ba **không được im
+     lặng** — phải sinh sự kiện quan sát được. Đây là **điều kiện tiên quyết** của việc 2: sửa nó
+     trước thì bước nạp lại mới có gì để quan sát.
+  2. **Script nạp lại 738 dòng** trong `migrations/`. Bắt buộc: **sao lưu trước**, và **đếm phân bố
+     trước/sau** để có mẫu số hai đầu — không để script tự phát hiện lúc chạy (*Đọc trước, dọn sau*).
+  3. **Một cổng trong `tests/` khẳng định *"không dòng nào trong cột Nhóm A nằm plaintext"*.** Hôm nay
+     **không cổng nào** khẳng định điều đó — và chính vì thế 738 dòng trôi ba tháng.
+
+- **Lý do phân biệt BA trạng thái thay vì bỏ hẳn `except`:** bỏ hẳn thì mọi dòng plaintext cũ làm chết
+  ứng dụng ngay khi đọc — một bản vá đúng biến thành sự cố vận hành. Ba trạng thái giữ được đường đọc
+  **và** làm hiện ra thứ đang bị giấu. Đúng nguyên tắc Luật H: **luôn là BA trạng thái, không phải hai.**
+
+- **Lý do BÁC BỎ *"cứ nạp lại rồi thôi, không đụng `crypto_types.py`"*:** nạp lại xong thì nhánh nuốt
+  lỗi **vẫn còn**, và nó là thứ sẽ giấu **lần sau**. Quan trọng hơn: nó giấu cả ca **khoá khác** —
+  ⟹ **xoay `FIELD_ENCRYPTION_KEY` sẽ KHÔNG báo lỗi**, 23 dòng đã mã hoá trả về nguyên chuỗi
+  `gAAAAA…` như thể đó là nội dung khiếu nại. Cảnh báo `docs/STATE.md` §1 (*"xoay là mất vĩnh viễn"*)
+  hoá ra **nhẹ hơn sự thật**: không phải mất ồn ào, mà **hỏng IM LẶNG**.
+
+- **Hệ quả:** `src/db/crypto_types.py` · `migrations/` (script mới) · `tests/` (cổng mới) ·
+  `docs/STATE.md` §1 (sửa lại cảnh báo xoay khoá) · ADR-025 (Nhóm A: *"được khai là mã hoá"* ≠
+  *"đã mã hoá"* — phân biệt này chưa từng được viết ra).
+
+### BỔ SUNG ADR-032 (18/08, cùng ngày) — security kiểm CẢ HỌ cột, và làm sắc lại THỨ TỰ
+
+*(`DECISIONS.md` chỉ ghi thêm — không sửa thân ADR-032 ở trên.)*
+
+**① Phạm vi HẸP HƠN ADR-032 để ngỏ. [ĐO] cả bốn cột khai `Encrypted*`:**
+`messages.content` 467/0 ✅ · `policy_chunks.text` 378/0 ✅ · `bank_accounts.account_no` 245/0 ✅ ·
+**`complaints.description_raw` 23/738 🔴 — DUY NHẤT.**
+⟹ **Hệ thống mã hoá KHÔNG hỏng**; đây là nợ migrate của cột **mới nhất được gắn kiểu** lên một bảng
+**đã có 738 dòng**. Việc sửa gói trong **một script backfill**, không phải một cuộc rà soát.
+
+**② Thứ tự "① trước ②" trong Quyết định KHÔNG phải vì mục 1 rẻ hơn — lý do thật, ghi rõ để phiên sau
+khỏi đảo:** **nếu backfill chạy trước, phép nghiệm thu của chính nó đi qua đúng nhánh đang nói dối.**
+Một dòng backfill hỏng sẽ đọc ra nguyên văn và **trông y hệt một dòng thành công**. **Sửa cái đèn
+trước khi soi.**
+
+**③ Cơ chế phân biệt cụ thể cho việc 1** — `gAAAAA` là dấu hiệu tin cậy của Fernet token (byte phiên
+bản `0x80` → base64url luôn mở đầu `gA`):
+```
+mở đầu "gAAAAA" mà decrypt hỏng  →  SAI KHOÁ      →  NÉM LỖI, không nuốt
+ngược lại                         →  plaintext cũ  →  trả nguyên văn (như nay)
+```
+**Phải land TRƯỚC mọi thao tác xoay `FIELD_ENCRYPTION_KEY`**, không phải sau.
+
+**④ [ĐO] Phép đo dứt điểm rằng ADR-032 và ADR-034 vá HAI LỖ KHÁC LOẠI**, không phải một lỗ hai triệu
+chứng: ghép 27 dòng `create_ticket` với `complaint` gốc ⟹ **16/27 dòng có bản gốc ĐÃ MÃ HOÁ ĐÚNG và
+một bản sao PLAINTEXT nằm cạnh** (15–17/08). Với 16 dòng ấy cơ chế ADR-025 **đã chạy, đã đúng, và vẫn
+bị đi vòng trong cùng một giao dịch**.
+⟹ **ADR-032 là VŨNG NƯỚC (tát một lần là hết); ADR-034 là VÒI ĐANG CHẢY (không script nào đóng được).**
+Và **vá ADR-032 làm ADR-034 nặng thêm tương đối**: backfill xong thì `investigation_logs` thành **bản
+plaintext DUY NHẤT còn lại của lời khai khách**.
+
+## ADR-033 — `/ready` phải được THI HÀNH, và "ADR đã duyệt mà chưa ai code" phải có cổng canh
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026
+- **Bối cảnh:**
+
+  ADR-028 (PO thật chốt 17/08, trạng thái *"Đang hiệu lực"*) quyết tách `GET /ready` khỏi `/health`.
+  **[ĐO] 18/08, liệt kê từ app đang chạy** (không suy từ vắng mặt): **37 cặp `(method, path)`**, khớp
+  `health|ready|ops` → **`GET /health`, DUY NHẤT**. `grep -rn "ready" src/` → 2 hit, **cả hai là chú
+  thích**. `grep -n "ready" contracts/authority-matrix.yaml` → **0 hit**.
+
+  **Không ai làm sai** — ADR ghi rõ *"§3: ADR trước, code sau"*, và phần *"code sau"* chưa tới. Vấn đề
+  là **không chỗ nào theo dõi việc nó chưa tới**, và hai chú thích ở `main.py:1527,1580` viết về
+  `/ready` **như thể nó đã tồn tại** ⟹ người đọc code sau sẽ tin là có.
+
+  🔴 **Vì sao cơ chế contract-first không bắt được — đây mới là phần đáng ghi.** INV-00 ép `app.routes`
+  khớp **chính xác** `authority-matrix.yaml`. **Cả hai phía đều thiếu `/ready`** ⟹ chúng khớp nhau
+  hoàn hảo ⟹ **23/23 xanh**. Cơ chế làm **đúng việc của NÓ** (bắt code lệch contract); đội đã quen đọc
+  nó thành một thứ rộng hơn (bắt **quyết định chưa được thi hành**). **Luật G ở tầng cơ chế phòng thủ.**
+
+  **Và security tới cùng hình dạng từ hướng độc lập:** `test_invariants` introspect route/vai/CHECK/tên
+  tool — **không cái nào nhìn thấy THỨ TỰ CÂU LỆNH TRONG THÂN HÀM**; một lần dọn dẹp chuyển khối ghi
+  lên trên một guard giữ **cả 23 invariant xanh VÀ cả 6 ca test xanh**.
+  ⟹ **Hai ca độc lập trong một ngày, một mệnh đề rộng hơn cả hai:** contract-first canh **thứ khai được
+  trong một tệp YAML**; nó **không canh được** thứ chỉ tồn tại trong **quan hệ giữa các câu lệnh**, hoặc
+  trong **khoảng cách giữa QUYẾT ĐỊNH và THI HÀNH**. Đó là **một HẠNG MÙ, không phải hai lỗ thủng.**
+
+- **Quyết định:**
+  1. **Thi hành ADR-028**: thêm `GET /ready` (liveness `/health` giữ nguyên, **không** chạm dependency;
+     readiness được phép check kho RAG + khoá), khai vào `contracts/authority-matrix.yaml`, đi **đủ
+     `docs/STATE.md` §10** — gồm **bước 7: commit KÈM file baseline** mà `CLAUDE.md` §3 không viết.
+  2. **Cổng mới canh HẠNG MÙ:** *mọi ADR trạng thái "Đang hiệu lực" có mục Hệ quả nêu tên file/route thì
+     thứ đó phải tồn tại.* Chỗ cắm **KHÔNG phải** `tests/test_invariants.py` (nó canh code-vs-contract,
+     một trục khác) mà là một cổng riêng.
+
+- **Lý do BÁC BỎ *"nhét phép kiểm này vào `test_invariants.py`"*:** trộn hai trục vào một tệp làm hỏng
+  đúng thứ khiến `test_invariants.py` đáng tin — nó có **một** câu hỏi rõ ràng (*code có khớp contract
+  không*) và trả lời được bằng introspection. Câu hỏi mới (*quyết định đã được thi hành chưa*) đọc
+  `docs/`, không đọc app. Hai nguồn sự thật khác nhau, hai tệp khác nhau.
+
+- **Hệ quả:** `src/api/main.py` · `contracts/authority-matrix.yaml` (⟹ `check_contracts --update` +
+  `CONTRACT_VERSION` + **baseline**) · `tests/` (cổng `/ready` + cổng hạng-mù) · `docs/STATE.md` §5.D2.
+
+## ADR-034 — Gỡ TẠM DỪNG cho ADR-031: HAI bảng, MỞ RỘNG cơ chế đã có, và tách finding bảo mật
+
+- **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026 (*"chốt làm ADR-031"*).
+  Thay thế trạng thái 🔴 TẠM DỪNG THI HÀNH của ADR-031.
+  ⚠️ **PO thật duyệt VIỆC; ba lựa chọn phạm vi dưới đây do PO-agent đề xuất — PO bác được bất kỳ mục nào.**
+- **Bối cảnh:**
+
+  ADR-031 bị dừng vì tiền đề *"query chưa được lưu ở đâu"* **sai** — `investigation_logs.tool_input_json`
+  đã lưu plaintext từ lâu. Ba câu treo cho PO. **Từ 18/08 có thêm hai dữ kiện đổi hẳn bức tranh:**
+
+  **① [ĐO] Chính đính chính ADR-031 cũng bị lọc.** Nó liệt kê 3 tool / 65 dòng. Đếm đủ bảng:
+  **5 tool / 93 dòng** (`get_customer_history` 44 · **`create_ticket` 27** · `lookup_transaction` 11 ·
+  `search_policy` 10 · `cskh_request_more_info` 1). Thiếu `create_ticket` — **và nó mang khoá
+  `description_raw`, tức LỜI KHAI KHÁCH.** Đính chính đi tìm *"query lưu ở đâu"* nên tập tự đến chỉ gồm
+  tool **ĐỌC**; `create_ticket` là tool **GHI** nên không bao giờ vào khung nhìn.
+  *(Bộ lọc vô hình **nằm trong chính văn bản sửa lỗi cho một bộ lọc vô hình khác** — §8, tầng thứ ba.)*
+
+  **② [ĐO] ADR-032: cột `complaints.description_raw` — thứ được cho là bản mã hoá — nằm PLAINTEXT trên
+  738/761 dòng (97%).** ⟹ Khung *"cột đã mã hoá đang có một BẢN SAO plaintext ở bảng khác"* **sai về
+  phía trấn an**. Bản sao ở `investigation_logs` là **lỗ thứ hai, không phải lỗ lớn nhất.**
+
+- **Quyết định — ba câu treo, ba câu trả lời:**
+
+  1. **Phạm vi: HAI BẢNG.** Vá `tool_results` mà để `investigation_logs` như cũ = **dựng một cửa mới
+     cạnh một cửa đang mở** — và tệ hơn ẩn dụ: cửa mới sẽ có ADR + contract + test ⟹ **hiện ra** trong
+     mọi kiểm kê sau; cửa cũ chứa **hạng nặng hơn** (mã GD · SĐT · số tiền · **lời khai khách**) và
+     **không cổng nào canh**. Sau bản vá, hồ sơ **trông kín hơn** trong khi bề mặt nặng nhất không đổi
+     — **Luật G ở tầng hồ sơ, và đắt hơn không vá gì**, vì hồ sơ trông kín thì không ai kiểm lại.
+  2. **Cơ chế: MỞ RỘNG cái đã có ở `investigation_logs` cho lượt không tạo vé — KHÔNG thêm cột mới ở
+     `tool_results`.** Rẻ hơn hẳn, và **không tạo chuẩn thứ ba** cho cùng một loại dữ liệu. Hai điều
+     kiện của ADR-031 giữ nguyên hiệu lực khi áp vào cơ chế mở rộng: **① tái dùng `_bam_truy_van`
+     (CẤM hàm băm mới)** — băm trần trên câu tra tiếng Việt ngắn là **băm CHÍNH LÀ query**, và nó
+     **trông giống** một biện pháp bảo vệ ⟹ **tệ hơn không băm gì**; **② nguyên văn nằm ở cột MÃ HOÁ**.
+  3. **`tool_input_json` plaintext: CÓ, tách thành finding bảo mật độc lập.** Lý do quyết định **không
+     phải** mức độ mà là **tính độc lập**: nó đúng dù phạm vi một bảng hay hai, cột mới hay cơ chế cũ.
+     **Buộc một finding đã chín vào một ADR đang treo là cách chắc chắn nhất để nó không được vá.**
+
+- **Ràng buộc hình dạng bản vá (security nêu, giữ lại):** **đừng phản xạ `EncryptedText` cả cột**
+  `tool_input_json` — cột này **được truy vấn theo khoá** (`jsonb ? 'query'`), và khả năng ấy đang là
+  dụng cụ điều tra. Hình dạng đúng là **tách trường nhạy cảm ra khỏi khối JSON**, không mã hoá cả khối.
+
+- **Ràng buộc thứ tự ĐÃ TAN:** security từng ghi *"vá finding ① sẽ xoá dụng cụ đo của Đ.25 ⟹ phải kiểm
+  kê xong TRƯỚC khi vá"*. **PO thật bỏ hồ sơ Đ.25 (18/08)** ⟹ ràng buộc ấy không còn ⟹ bản vá land
+  **sớm hơn**, không phải muộn hơn.
+
+- **Lý do BÁC BỎ *"làm đúng ADR-031 nguyên bản (một bảng, hai cột mới ở `tool_results`)"*:** nó được
+  thiết kế trên tiền đề đã chết. Thêm hai cột đạt chuẩn vào bảng **sạch hơn** trong khi bảng **bẩn hơn**
+  đứng yên là tối ưu đúng thứ đo được thay vì thứ đang hở.
+
+- **Hệ quả:** `src/db/models.py` · `migrations/` · `contracts/agent-tools.yaml` (cơ chế truy vết ⟹ đi
+  đủ §10 + baseline) · `tests/` (cổng cho cả hai bảng) · `docs/security/` (finding độc lập) ·
+  ADR-025 QĐ3 (retention liệt kê theo **danh sách cột**, không theo **cây khoá ngoại** ⟹ bản plaintext
+  có thể **sống sót sau khi bản mã hoá đã bị xoá** — ghim trước, đừng để job tự phát hiện lúc chạy).
+
 ## Mẫu ADR mới
 
 ```markdown
