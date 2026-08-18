@@ -186,6 +186,9 @@ ca A2 viết lại   → TESTER                  → chặn tech-lead vá F-31/3
 | — | `fin05ttl` · `fin05do` | ✅ **xoá `ttl` theo BA BƯỚC · giữ `do`** → **ADR-036** | tester có việc: dựng lại ca đối chứng trên quần thể vứt đi **TRƯỚC** |
 | ADR-026 | duyệt tài liệu chính sách | ⏸ **HOÃN — PO cần nghiên cứu kỹ hơn** | 🔴 lỗ §5.N **VẪN MỞ**, và đó là lựa chọn **có khai**, không phải bỏ quên |
 | CI | 11 job đỏ | ✅ **billing — XÁC NHẬN bằng annotation nguyên văn GitHub** | chỉ PO gỡ được; xem §5.P |
+| ADR-037 | `.github/` vào vùng ghi tech-lead · CI sang runner BTC | ✅ **DUYỆT QĐ1 + QĐ2** | `CLAUDE.md` §4 đã sửa; brief đã sẵn |
+| — | `deploy.yml` giữ `ubuntu-latest` | ✅ **DUYỆT** | quả mìn hẹn giờ được tháo TRƯỚC khi đặt secret |
+| — | hỏi BTC: runner ephemeral? | ⏸ **PO hỏi tối 18/08** | 🔴 tới lúc đó **giả định PERSISTENT**; `if: always()` **không chờ** |
 
 > ⚠️ **ĐỌC KÈM MỤC ADR-026 HOÃN — đừng đọc "hoãn" thành "không còn là lỗ".**
 > §5.N đo được: **không có trạng thái `da_duyet`, không có ai duyệt**, tài liệu đi thẳng
@@ -1600,9 +1603,19 @@ vì phản xạ dọn nhanh hơn phản xạ đọc.)*
 
 ## 11. PHÂN VÙNG QUYỀN GHI (nhắc lại — §4 hiến pháp)
 
-`po` → `docs/`, `*.md` gốc · `tech-lead` → `src/`, `frontend/src/`, `migrations/`, `contracts/`
+`po` → `docs/`, `*.md` gốc · `tech-lead` → `src/`, `frontend/src/`, `migrations/`,
+**`docker-compose*.yml`** (ADR-035), **`.github/workflows/**`** (ADR-037), `contracts/`
 (sau khi PO duyệt) · `tester` → `tests/`, `frontend/e2e/`, `eval/` — **KHÔNG đọc `src/`** ·
 `security` → `docs/security/` · `ux-ui` → `frontend/src/` · `critic` → không ghi gì.
+
+> 🔴 **HAI LẦN TRONG MỘT NGÀY (18/08) bảng này thiếu một dòng, và cả hai lần chỉ lộ ra lúc có việc
+> cần sửa file ấy:** `docker-compose*.yml` (ADR-035) rồi `.github/workflows/` (ADR-037) — lần thứ hai
+> còn **mâu thuẫn với chính định nghĩa vai**: mô tả agent `tech-lead` ghi *"dựng CI"* mà bảng không
+> cho họ chạm file CI.
+> ⟹ **Bảng §4 được viết theo thứ đội ĐÃ ĐỘNG TỚI, không theo thứ TỒN TẠI trong repo.** Việc còn nợ:
+> rà một lượt toàn bộ thư mục gốc, cấp chủ cho mọi thứ **trước** khi có người cần sửa nó.
+> **Và ADR-035 đã bác sẵn đường tắt:** cấp quyền một lần cho đúng một ca **không để lại dấu vết đọc
+> được** — lần sau người khác lại vấp đúng chỗ ấy. Sửa bảng thì hết vấp.
 
 > **Vì sao tester không đọc `src/`:** test sẽ **phản chiếu** logic đang có, kể cả logic sai. Kết quả
 > là một suite xanh mướt chứng minh rằng bug hoạt động đúng như bug.
@@ -1618,7 +1631,7 @@ scripts/BAN-GIAO-coder-2026-08-17.md          ← bàn giao tech-lead (3734c2b)
 tests/BAN-GIAO-TESTER-17-08.md                ← bàn giao tester    (27b6ea3)
 eval/QUET-TEN-HUA-KHAC-ASSERTION.md           ← 6 ca, 5/6 trên đường HITL (4ac2162)
 docs/nhat-ky/2026-08-17-nhat-ky-day-du.md    ← toàn bộ lập luận + số đo 17/08 (3.001 dòng)
-docs/DECISIONS.md                             ← ADR-001..031 (031 TẠM DỪNG, xem §5.A1)
+docs/DECISIONS.md                             ← ADR-001..037 (031 ĐÃ GỠ CHẶN bởi ADR-034)
 docs/security/                                ← 20+ hồ sơ; 2 file quan trọng nhất:
    2026-08-17-kiem-ke-du-lieu-roi-bien-gioi-cho-ho-so-D25.md   (vật liệu Đ.25)
    2026-08-17-ho-so-KHAI-khac-CHAY-nam-co-che.md               (Luật H + 5 cơ chế)
