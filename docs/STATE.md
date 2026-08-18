@@ -1365,6 +1365,24 @@ phát biểu bị nghi trong hội thoại vẫn ĐỨNG NGUYÊN trong tài li�
 > ④ **Áp cho MỌI vai** — security · PO · tech-lead · tester **đều nghi trong hội thoại nhiều hơn sửa
 > trong file**.
 >
+> 🔴 **DẠNG THỨ HAI CỦA LUẬT P — *"ĐÚC LUẬT MÀ KHÔNG TỰ ÁP"*** *(tester tự bắt 18/08)*:
+> không phải *"nghi mà không sửa"* mà **"biết luật, viết luật, rồi để artefact của chính mình thiếu
+> đúng thứ luật ấy đòi"**. **Cùng một khoảng cách — giữa thứ ta BIẾT và thứ ta GHI VÀO VẬT.**
+> **Bằng chứng [ĐO]:** tester đúc **Luật 18** (`tests/CHUAN-VIET-TEST.md:1596` — *"BĂM phải khai TÊN
+> THUẬT TOÁN"*) từ ca hai băm khác nhau của **cùng một tệp**. Rồi
+> `eval/NEN-TRUOC-BACKFILL-2026-08-18.json` của họ mang **bốn `van_tay_gop` KHÔNG kèm cách băm** —
+> và PO-agent tính sai **HAI LẦN** trên chính con số ấy (sha256/theo-id → `8440c6c1…`; md5/sorted
+> nhưng băm thẳng → `51b7b712…`; phép đúng `md5 TỪNG DÒNG → sắp xếp → md5 → 16` → `2805e52d1a4d0bed`).
+> ⚠️ **Và ai chịu trách nhiệm là phần đáng ghi:** PO-agent tự nhận *"tôi phải đi tìm định nghĩa gốc
+> trước khi tự gõ"* — **tester bác**, và bác đúng: *"bạn không gõ sai phép băm, bạn gõ một phép băm
+> **vì tệp của tôi không cho bạn phép nào**. Câu ấy đặt gánh nặng lên NGƯỜI ĐỌC; gánh đúng chỗ là
+> NGƯỜI VIẾT TỆP."*
+> ✅ **Vá bằng CƠ CHẾ, không bằng lời nhắc** ([ĐO] đã land `6f398f2`): tệp nền nay mang
+> `__cach_bam__` · `__cach_bam_dien_giai__` · `__do__` (kèm *"KHÔNG dùng BUILD_COMMIT làm mốc"*), và
+> **cổng TỪ CHỐI CHẠY** nếu thiếu — đột biến xác nhận: gỡ `__cach_bam__` ⟹ *"KHÔNG ĐO ĐƯỢC"*.
+> ⭐ **Hai thứ cơ chế ấy mua được mà một dòng chú thích trong code KHÔNG mua được:** người sau **không
+> phải đọc mã test mới dùng được tệp**, và **ai chép tệp đi nơi khác thì mang theo định nghĩa**.
+
 > 📌 **ĐỀ XUẤT cơ chế (tester nêu — CHƯA phải một phần của luật, chờ PO):** mỗi bảng số trong
 > `tests/*.md` và `docs/*.md` mang một dòng **`đo: <ngày> · <ngăn xếp> · <băm HEAD>`**; thiếu dòng đó
 > ⟹ **con số không được trích**. Biến "niêm" từ một quyết định phải nhớ ra thành **điền một chỗ trống
