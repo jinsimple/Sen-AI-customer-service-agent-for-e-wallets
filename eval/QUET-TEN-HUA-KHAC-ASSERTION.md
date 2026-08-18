@@ -77,3 +77,33 @@ Sáu ca cần thêm **một** assertion chạm vật: trạng thái CSDL sau l�
 HITL) · không tệp nào ngoài thư mục kho (ca traversal). Mỗi ca một dòng, 0
 token. Tôi làm, nhưng **báo trước** vì nó đổi sáu ô trong bảng an toàn từ
 *"đã canh"* sang *"đang canh một nửa"*.
+
+---
+
+## ĐÃ VÁ — 18/08/2026
+
+Sáu ca đã vá. Dự báo công bố trước ở `e8d4541`, bản vá ở `b29e0f3`, kết quả thật
+ở `eval/DU-BAO-2026-08-18-VA-6-CONG-AN-TOAN.md` §⑨–⑬. **5/6 trúng dự báo.**
+
+```
+5 ca HITL   thêm mốc chung cuộc sau 403:
+            (status, approved_by, approved_at) == ("pending_approval", None, None)
+ca 6        TÁCH ĐÔI — nửa "không ghi tệp ra ngoài repo" 🟢 ở cổng chính;
+            nửa "tên phải bị giam" 🔴 xfail(strict) = FINDING chưa vá
+```
+
+**Hai điều phiếu quét này KHÔNG lường trước, ghi lại vì chúng đắt hơn cả sáu ca:**
+
+**①** Ca `approve` khi chưa xin OTP báo **KHÔNG ĐO ĐƯỢC**, không phải TRƯỢT —
+hạt giống chưa commit bị chính cú rollback của route cuốn đi. **Ba ca OTP còn
+lại quan sát được là nhờ MAY** (có một request thành công commit hộ). Đã đúc
+thành **Luật 19** (`tests/CHUAN-VIET-TEST.md`).
+
+**②** Ca 6 có **BẪY CHÂN KHÔNG**: nếu `ingest_document` không ghi tệp nào thì
+assertion *"không tệp nào thoát ra"* xanh **vĩnh viễn** — xanh vì không có gì
+xảy ra. Nên nó bắt buộc kèm **đối chứng dương**, không phải "một dòng" như
+phiếu này ước lượng.
+
+> Câu cuối của phiếu gốc — *"Tôi làm, nhưng **báo trước** vì nó đổi sáu ô trong
+> bảng an toàn từ 'đã canh' sang 'đang canh một nửa'"* — nay đọc lại thì **ước
+> lượng ấy còn nhẹ**: một trong sáu ô hoá ra là một **finding thật** chưa vá.

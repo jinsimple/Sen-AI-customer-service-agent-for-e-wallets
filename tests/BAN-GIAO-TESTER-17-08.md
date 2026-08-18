@@ -1,5 +1,28 @@
 # Bàn giao — vai TESTER, phiên 17/08/2026
 
+> 🔴 **NIÊM 18/08/2026 — BA PHÁT BIỂU TRONG FILE NÀY ĐÃ BỊ ĐO KHÁC. Thân file
+> giữ nguyên (đây là bản ghi lịch sử); đọc ba dòng dưới TRƯỚC khi trích bất cứ
+> số nào.** *(Áp Luật P — nghi ngờ không tự lan sang artefact. Ba phát biểu này
+> đã được nói là sai trong hội thoại 18/08 và vẫn đứng nguyên ở đây tới lúc
+> niêm.)*
+>
+> | §  | file này nói | **[ĐO] 18/08** |
+> |---|---|---|
+> | ① | `1 failed · 567 passed · 40 skipped` | **`0 failed · 568 passed · 42 skipped · 11 xfailed`** |
+> | ④ | `fin05ttl … kho RAG 419 chunk` | **0 chunk.** Cả hai collection rỗng; index thật có (188K) nên **không phải** soi nhầm path. Vì sao mất: **CHƯA TRUY** |
+> | ⑥ | *"vì sao `test_kho_khong_chua_tai_lieu_noi_bo_da_biet` đỏ — **chưa truy**"* | **ĐÃ TRUY, và "kho rỗng" là SAI.** Đầu dò gõ cứng `get_collection('policy_faq')` — collection **rỗng duy nhất trong ba**. Kho thật có 378 chunk ở hai collection song song. Xem `eval/DU-BAO-2026-08-18-KHO-RAG-COLLECTION.md` |
+>
+> **Và một cảnh báo file này KHÔNG có, vì chưa ai biết lúc viết:**
+> `tests/test_api/test_injection.py` gọi **OpenAI embeddings thật** qua
+> `POST /policy-docs`, **không qua cổng chi phí nào** — nghĩa là câu *"`pytest
+> tests/` mặc định KHÔNG tốn token"* ở §① **đúng cho 3 bộ đã khai, SAI cho
+> suite**. Đã bịt ở `17d7706`.
+>
+> Phần còn lại của file (tài khoản hạt giống, `scripts/phien_do.py`, ba ngăn
+> xếp, bốn chỗ bị hạ tầng lừa, cạm bẫy đo lường §⑦) **chưa có gì mâu thuẫn** —
+> vẫn dùng được.
+
+
 > Viết cho **người đọc nguội**: bạn không có gì trong đầu, chỉ có repo, và
 > **không được đọc `src/`** (hiến pháp §4). Mọi thứ dưới đây kiểm lại được.
 >
