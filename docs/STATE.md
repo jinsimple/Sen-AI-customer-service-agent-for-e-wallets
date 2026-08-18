@@ -1415,6 +1415,12 @@ khai HẠNG BẰNG CHỨNG rồi DỪNG.)*
 **Luật D** — cột phòng thủ phải có **NGUỒN ĐỘC LẬP**; "dư thừa" là **hệ quả**, không phải tiêu chí.
 > ⚠️ **"Mang thông tin độc lập" ≠ "có NGUỒN độc lập".** Bảng chéo bác được *"một biến viết hai
 > lần"* nhưng **KHÔNG** bác được *"hai hằng số gõ cạnh nhau"* — mà cái sau mới là thứ vỡ về sau.
+> ⚠️ **Vế DỤNG CỤ (ca thật đầu tiên, 19/08 — Review bắt, Lead trình, PO-agent xếp vào D thay vì cấp
+> chữ mới):** độc lập phải là của **PHÉP QUÉT**, không phải của **NGƯỜI QUÉT**. [ĐO] ba người đếm
+> điểm-trả-lỗi độc lập cùng ra **8**; con số thật là **9** — điểm thứ chín (`_CHI_THI_DUNG_LAP`,
+> hằng số dùng lại thay vì `return {...}` inline) nằm ngoài **hình dạng cả ba cùng quét**. Số người
+> là mẫu số giả; phép quét mới là mẫu số thật. **Vế thi hành:** muốn có nguồn thứ hai cho một phép
+> ĐẾM, đổi **cách đếm** (AST vs grep · runtime vs tĩnh), đừng đổi người đếm.
 
 **Luật E** — bộ ca xanh phải chứa **PHÂN BỐ CÁC LÝ DO**; nhánh không bao giờ bắn = nhánh **chưa
 được kiểm**, kể cả khi độ phủ ghi 100%.
