@@ -146,3 +146,46 @@ trong docstring — nếu corpus không có case y hệt, QA/QC cần một câu
 **hồi quy** — bất kỳ hướng vá nào chọn (giới hạn Spacy / thêm ngưỡng score / mở rộng stoplist) đều
 PHẢI chạy qua ca này và biết rõ nó ĐẠT hay TRƯỢT, không được bỏ qua vì "hiếm gặp". Nếu hướng vá cuối
 cùng làm ca này TRƯỢT — đó là đánh đổi có Ý THỨC cần ghi vào hồ sơ, không phải một hồi quy im lặng.
+
+---
+
+## NIÊM 19/08 (khuya) — Review tìm lỗ trong chính stoplist: "Tuần" vừa là từ thời gian vừa là tên người thật. QUYẾT: GIỮ trong stoplist, khai rõ, thêm rào cho từ MỚI trong tương lai.
+
+**[ĐO] Review xác nhận `scrub_pii('Mình là Tuần')` không che** — đúng cơ chế: khớp chuỗi tuyệt đối,
+không có tín hiệu ngữ cảnh. **Sửa lại phạm vi Review nêu — hẹp hơn một chút so với câu hỏi đặt ra:**
+Review đóng khung theo case TỰ GIỚI THIỆU ("mình là Tuần" — TÊN CỦA CHÍNH KHÁCH). Rủi ro thật RỘNG
+HƠN thế: cùng lỗ này lọt cả khi "Tuần" là **tên BÊN THỨ BA** ("gửi giúp anh Tuần 500k") — đây mới là
+hạng rủi ro tôi đã xoay quanh suốt cuộc bàn D'/D. Ghi rõ để quyết định dưới đây tính đúng cả hai
+trường hợp, không chỉ trường hợp nhẹ hơn (tên chính khách).
+
+**QUYẾT: GIỮ "tuần" trong stoplist — không xoá, không chặn.** Lý do là PHÉP CÂN TẦN SUẤT, đúng logic
+ĐÃ DÙNG khi thêm "mã"/"ngày" vào danh sách này lúc đầu: "tuần" (từ chỉ thời gian: *"tuần này"/"tuần
+trước"/"2 tuần nữa"*) xuất hiện trong hội thoại khiếu nại giao dịch (thường hỏi về TIẾN ĐỘ xử lý)
+**thường xuyên hơn nhiều** so với "Tuần" (tên người, hiếm). Xoá khỏi stoplist để bắt đúng ca hiếm này
+sẽ TÁI TẠO lại đúng vấn đề tần suất cao đã sửa (bóp méo mọi câu hỏi "bao lâu thì xong"). Không có
+"nước đi miễn phí" ở đây — chỉ có chọn sai số ít hơn giữa hai loại lỗi, và tần suất nghiêng hẳn về
+giữ nguyên.
+
+**Không chọn "chặn thêm từ mới cho tới khi có tín hiệu ngữ cảnh thứ hai" (đề xuất 1 của Review) — quá
+tay cho MỌI từ tương lai vì MỘT từ có rủi ro thật.** "Mã"/"ngày" không phải tên người khả dĩ (không
+ai tên "Mã" hay "Ngày" theo cách viết hoa thông thường) — chặn chúng cùng "Tuần" vì cùng nhóm là nới
+rộng một bài học hẹp thành một luật rộng không cần thiết.
+
+**Thay vào đó — một RÀO CHẮN RẺ cho từ MỚI, không phải block toàn bộ, không phải xây hệ thống ngữ
+cảnh (đề xuất "vị trí đầu câu + văn cảnh giới thiệu" của Review là hướng ĐÚNG về lâu dài, nhưng KHÔNG
+làm hôm nay — đó là công trình NLP thật, không phải một dòng code chiều nay):** trước khi thêm từ W
+vào `_TU_THUONG_BI_NHAN_NHAM_LA_TEN`, người thêm phải tự hỏi và ghi câu trả lời vào comment: **"W có
+khả dĩ là một tên người Việt thật không?"** — nếu CÓ (như "Tuần"), thêm vẫn được nhưng phải kèm dòng
+khai rủi ro tồn dư ngay tại chỗ (như đang làm ở đây); nếu KHÔNG (như "Mã"/"Ngày"), thêm không cần
+khai gì thêm. Đây không phải cơ chế tự động — là một CÂU HỎI BẮT BUỘC TỰ HỎI, rẻ, đủ để không ai vô
+tình lặp lại đúng lỗ này với một từ mới mà không nhận ra.
+
+**Đề nghị QA/QC:** thêm một ca ÂM TÍNH TRACKED (không phải để làm xanh — để BIẾT nó đang trượt và
+trượt CÓ CHỦ Ý) cho `"Mình là Tuần"`/`"gửi giúp anh Tuần"`, đúng khuôn dự án đã dùng cho gap của
+underthesea ("Chưa có case nào cả 2 recognizer cùng bỏ sót... nếu phát sinh, cập nhật ghi chú này").
+Một ca TRƯỢT có khai còn giá trị hơn không có ca nào — người sau thấy ngay đây là rủi ro đã cân nhắc,
+không phải một lỗ chưa ai biết.
+
+**Không đổi gì về stakes tổng thể:** đây là lỗ TRONG PHƯƠNG ÁN A (regex+NER hiện tại)/D'
+(regex+underthesea, vẫn giữ stoplist) — SỐNG dưới cả hai hướng đang bàn hôm nay, không tự biến mất
+theo quyết định A/B/C/D'. Ghi nhận, không chặn gì đang chạy.
