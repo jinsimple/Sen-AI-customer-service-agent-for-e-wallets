@@ -1426,6 +1426,21 @@ KHUÔN VẪN XANH.**
 không so **KẾT LUẬN**. *(Ngoài vùng có vật đo — vd đọc ToS mức hợp đồng — quy tắc thay thế là:
 khai HẠNG BẰNG CHỨNG rồi DỪNG.)*
 **Luật D** — cột phòng thủ phải có **NGUỒN ĐỘC LẬP**; "dư thừa" là **hệ quả**, không phải tiêu chí.
+> ⭐ **MỞ RỘNG 19/08 (ca của PO-agent + Lead, cùng một sai; Lead đề nghị ghi lâu dài — nối vào D
+> thay vì cấp ký hiệu mới, §7b):** **NHIỀU LỆNH KHÁC NHAU ĐỌC CÙNG MỘT NGUỒN SAI thì chúng KHẲNG
+> ĐỊNH LẪN NHAU, không kiểm được nhau.** Độc lập phải là của **NGUỒN DỮ LIỆU**, không phải của số
+> lượng lệnh — đây là tầng dưới của vế DỤNG CỤ (độc lập của phép quét, không phải của người quét).
+> [ĐO] PO-agent chạy `git merge-base main HEAD` · `git rev-list --count main` · `git merge-tree …
+> main` — **ba lệnh, một ref `main` cục bộ ĐÃ CŨ TỪ LÚC CLONE** (`git fetch` KHÔNG cập nhật branch
+> cục bộ, chỉ cập nhật `origin/main`). Cả ba nhất quán ⟹ không lệnh nào gây nghi ngờ ⟹ kết luận
+> "hai nhánh không có tổ tiên chung, lệch 897 commit, 19 file xung đột" đã được **trình lên PO thật**
+> như một phát hiện lớn. Sự thật: có tổ tiên chung, **0 xung đột**. Thứ bắt được không phải suy nghĩ
+> lại mà là **`git push` bị từ chối** — tức chỉ một nguồn THỨ HAI (máy chủ) mới phá được vòng tự
+> khẳng định. Giá: ~2 giờ của Lead + Coder xây trên tiền đề sai.
+> **Vế thi hành:** ① trước khi kết luận về một nhánh, `git fetch` rồi so **`git branch -vv`** —
+> ref cục bộ và ref từ xa **cùng TÊN là hai VẬT khác nhau** (họ "hai định nghĩa một vật").
+> ② Tổng quát: khi ba phép đo cùng khớp, hỏi **chúng có đọc chung một nguồn không** trước khi coi
+> sự khớp đó là xác nhận.
 > ⚠️ **"Mang thông tin độc lập" ≠ "có NGUỒN độc lập".** Bảng chéo bác được *"một biến viết hai
 > lần"* nhưng **KHÔNG** bác được *"hai hằng số gõ cạnh nhau"* — mà cái sau mới là thứ vỡ về sau.
 > ⚠️ **Vế DỤNG CỤ (ca thật đầu tiên, 19/08 — Review bắt, Lead trình, PO-agent xếp vào D thay vì cấp
