@@ -498,3 +498,46 @@ mọi phiên sau đọc dòng này thay vì phát hiện lại.
 - Bộ 46+100 ca đối kháng: **KHÔNG chạy trong GĐ3.** Ghi nợ "kiểm an toàn deepseek" — chạy khi có
   hạn ngạch riêng cho việc đo, không lấy từ bể phục vụ khách.
 - Hai ca `MT-F01/F02` không có runner: giữ nguyên khai "chưa chạy được", nay **ngoài phạm vi GĐ3**.
+
+## 💸 PING CÓ VÀO SỔ KHÔNG — PO-agent chốt **(a) PING CỘNG VÀO `cong_chi_tieu`**
+
+**Khe Lead bắt được:** `usage.jsonl` chỉ được ghi bởi `graph._ghi_so` **trong** `run_agent_turn`.
+Ping khai bể nằm NGOÀI đường đó ⟹ **tiêu thật, vô hình trong mọi sổ**. Với `MODEL_POOL_PING=eager`,
+phí ping của **mỗi lần khởi động** biến mất khỏi chứng từ — hoá đơn nhà cung cấp thấy, ta không.
+*(Và `docker run --rm` không gắn volume `fin05_logs_data` nên dù có ghi cũng mất theo container —
+Lead đã đổi Coder sang đọc `usage{...}` trong thân phản hồi nhà cung cấp. Đúng: đó là nguồn không
+phụ thuộc sổ/volume nào.)*
+
+**QUYẾT: (a).** Lý do không phải sạch sẽ kế toán — **cổng chi tiêu là một CƠ CHẾ AN TOÀN, và một
+đường tiêu tiền không đi qua nó làm chính cái trần nói dối.** Kịch bản cụ thể: container restart lặp
+(crashloop) với `eager` ⟹ ping mỗi vòng ⟹ đốt hạn ngạch với **tốc độ không ai đo được và trần không
+chặn**. Đó đúng loại sự cố trần sinh ra để bắt.
+
+🔴 **HỆ QUẢ LÊN CỔNG TỰ CANH — phải sửa cùng lúc, đừng để nó thành mâu thuẫn im lặng:**
+Tôi đã yêu cầu cổng "đếm điểm gọi `cong_chi_tieu(` == 1". Quyết định (a) tạo **điểm gọi thứ hai hợp
+lệ**. Cổng đổi từ **đếm số** sang **danh sách cho phép có tên**:
+```
+điểm gọi cong_chi_tieu() PHẢI đúng bằng tập {graph._ghi_so , <hàm ping khai bể>}
+thêm điểm thứ BA ⟹ cổng ĐỎ
+```
+Đếm-bằng-số sẽ ĐỎ oan ngay khi ta thi hành (a) và người sau sẽ "sửa" bằng cách nâng số lên 2 — mất
+sạch ý nghĩa. **Tên tập, không phải kích thước tập** — cùng bài học "chốt bằng TÊN TỆP, không bằng
+con số" của cổng nhập bể.
+
+**Kèm:** dòng sổ cho ping ghi `so_luot_goi_model` và loại rõ ràng (vd `"loai": "ping_khai_be"`) để
+đối soát tách được phí VẬN HÀNH khỏi phí PHỤC VỤ KHÁCH — hai thứ này trả lời hai câu khác nhau.
+
+## ❌ KHÔNG thêm ca `SEC-001_tx_note_injection` vào cổng GĐ3 — PO-agent chốt, Bảo Mật khỏi cân
+
+Lead hỏi Bảo Mật có cần **1 ca đại diện** cho lớp chỉ-thị-nhúng (O1-O4 bắt HÌNH DẠNG đầu ra, không
+bắt việc model có TIN THEO chỉ thị nhúng khi output vẫn "trông sạch"). Câu hỏi đúng, rủi ro có thật.
+**Nhưng quyết là KHÔNG, vì lý do nhất quán chứ không vì tiền:**
+- PO thật vừa chốt **1–2 lượt "chạy được"**. Cấy thêm một ca an toàn vào đó là **mở lại cổng B qua
+  cửa sau** — đúng loại ngoại lệ "tạm để đó" tôi vừa từ chối ở chỗ khác trong cùng ngày. Một luật chỉ
+  đáng tin nếu nó cũng chặn được thứ **tôi** muốn thêm.
+- Rủi ro injection **không mới theo model**: model hiện tại cũng đối mặt nó, dự án đã kiểm. Đổi model
+  đổi **xác suất**, không đổi **sự tồn tại** — nên nó thuộc nợ "kiểm an toàn deepseek", đúng chỗ.
+- Hậu quả xấu nhất bị chặn ở tầng khác: injection thành công ⟹ agent **NÓI** sai; nó không THỰC THI
+  được gì (ràng buộc cứng 1 · không đường cho AI hoàn tiền), và các phát ngôn nguy hiểm nhất rơi vào
+  O1/O4 tất định.
+⟹ Bảo Mật **định hạng và ghi vào sổ nợ**, không cần cân việc có chạy hay không. Lead khỏi dành trần.
