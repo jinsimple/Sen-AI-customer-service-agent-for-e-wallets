@@ -478,7 +478,16 @@ def doc_transcript_bang_giao(thread_id: str) -> dict[str, object] | None:
         yêu cầu của khách). KHÔNG dùng `handoff_at` (mốc DB) để suy ra vị
         trí này — không có timestamp per-message để so khớp, dùng đúng SỰ
         KIỆN sinh ra bàn giao (lời gọi tool) chính xác hơn một phép so mốc
-        thời gian gián tiếp."""
+        thời gian gián tiếp.
+
+        Ca đặc biệt ĐÃ KHAI (PO-agent phát hiện 19/08, không phải bug): vé
+        sinh từ nhánh timeout/bỏ lượt (graph.py, `flag_human_handoff(...)`
+        gọi THẲNG, không qua tool `request_human_handoff` mà LLM gọi) sẽ có
+        `ticket.handoff_at` (DB) nhưng KHÔNG có `ToolMessage` tương ứng
+        trong checkpoint ⟹ `chi_so_bang_giao=None` dù có bàn giao thật. Route/
+        UI phải tự phân biệt "chưa từng bàn giao" khỏi "bàn giao qua nhánh
+        timeout" bằng cách so `handoff_at is not None` với `chi_so_bang_giao
+        is None` — KHÔNG coi cả hai là cùng một trường hợp."""
     tuple_ = _CHECKPOINTER.get_tuple({"configurable": {"thread_id": thread_id}})
     if tuple_ is None:
         return None

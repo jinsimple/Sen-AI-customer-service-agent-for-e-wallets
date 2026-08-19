@@ -281,6 +281,14 @@ export default function TicketDetailClient({
                     (không riêng dữ liệu nhạy cảm). Đây là giới hạn đã biết của bộ lọc tại thời điểm
                     ghi, không phải khách thực sự gõ như vậy.
                   </div>
+                  {transcript.handoff_at !== null && transcript.chi_so_bang_giao === null && (
+                    <div className="note" style={{ fontSize: 11, marginBottom: 10 }}>
+                      Vé này có bàn giao (lúc {new Date(transcript.handoff_at).toLocaleString("vi-VN")}) nhưng hội
+                      thoại không ghi lại đúng thời điểm khách yêu cầu gặp người thật — thường do vé được mở qua
+                      nhánh chờ quá lâu chứ không phải khách bấm yêu cầu. Không vẽ được vạch phân cách, nhưng toàn
+                      bộ hội thoại dưới đây vẫn đầy đủ.
+                    </div>
+                  )}
                   <div className="flex-col gap-sm">
                     {transcript.transcript.map((luot, i) => (
                       <div key={i}>
