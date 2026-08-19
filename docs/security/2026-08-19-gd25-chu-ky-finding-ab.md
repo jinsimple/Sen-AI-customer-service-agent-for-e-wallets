@@ -74,3 +74,45 @@ ghim), ba trạng thái được tôn trọng.
 **KHÔNG ký cho:** toàn vẹn mặt phẳng phụ thuộc ảnh (168 gói/OS) — ngoài phạm vi được giao, và đã nêu
 lý do kỹ thuật vì sao không cần chặn vì lý do đó (mục trên). Không ký thay Review (diff B/regex vá
 GĐ3 thuộc vai khác) — chỉ ký phần tôi được giao.
+
+---
+
+## 🔴 NIÊM 19/08 (Lead + Review) — SUY LUẬN LOCK-FILE Ở TRÊN SAI TIỀN ĐỀ. THÂN GIỮ NGUYÊN, ĐỌC KÈM MỤC NÀY.
+
+*(Đúng Luật P: niêm tại chỗ phát biểu sai đứng, không sửa lại chữ cũ — người sau cần thấy CẢ câu sai
+LẪN câu đúng, không chỉ câu đúng.)*
+
+**[ĐO] tự kiểm lại sau khi Lead báo, không nhận nguyên văn:**
+```
+Dockerfile:20-21   COPY requirements.txt .  →  RUN pip install -r requirements.txt
+grep -rn "requirements.lock" Dockerfile .github/ docker-compose*.yml scripts/  →  0 kết quả
+```
+**`requirements.lock.txt` KHÔNG được `docker build` đọc ở đâu cả.** Phép suy ở mục trên
+(*"diff lock file rỗng ⟹ không có lý do gói trôi"*) **sai vì tiền đề sai** — tôi kiểm diff đúng
+file, nhưng chưa kiểm file đó có được DÙNG hay không trước khi suy từ nó. Đúng lớp lỗi Lead tự nhận
+("suy đúng phép, tiền đề chưa kiểm") — và đúng cùng ngày ba người mắc same lớp, độc lập.
+
+**Định hạng 6 gói trôi thật (Lead+Review đo, tôi kiểm lại phần thuộc vai mình):**
+
+| gói | vai trò | [ĐO] kiểm thêm | rủi ro |
+|---|---|---|---|
+| `langsmith` 0.10.18→0.11.0 | tracer LangSmith Cloud — **kênh xuất PII SONG SONG bị TẮT có chủ đích** (`config.py:439-457`, F-30, 15/08) | `os.environ.setdefault("LANGCHAIN_TRACING_V2","false")` **VÀ** `setdefault("LANGSMITH_TRACING","false")` — code đã tự phòng cả TÊN CỜ CŨ LẪN MỚI ("tên mới của cùng cờ") | **THẤP, không PHẢI KHÔNG** — gate là biến môi trường phía TA, không phụ thuộc nội bộ langsmith; nhưng gate chỉ phòng được cờ ĐÃ BIẾT TÊN, không phòng được một kênh telemetry MỚI mà bản 0.11.0 có thể thêm dưới tên khác |
+| `orjson` 3.11.9→3.12.0 | không dùng trực tiếp trong `src/` — transitive qua `langgraph-checkpoint-postgres`, nhiều khả năng dùng để (de)serialize checkpoint state | chưa đo thẳng — [PHẢI KIỂM], không phải [ĐO] | **THẤP cho bảo mật** (không đổi CÁI GÌ được mã hoá — kho checkpoint đã biết 0% mã hoá từ trước, §5.J STATE, việc này không làm nó tệ hơn); **KHÔNG THẤP cho toàn vẹn dữ liệu** — đổi định dạng serialize có thể ảnh hưởng đọc lại checkpoint cũ, NGOÀI thẩm quyền bảo mật của tôi |
+| `pypdf` 6.16.0→6.16.1 | parse PDF chính sách `partner_admin` upload (`rag/parsers.py:126`) | patch version (6.16.0→.1), không phải minor/major | **THẤP** — cùng biên tin cậy cũ (`partner_admin` đã là role được tin), patch version ít khả năng đổi hành vi parse |
+| `charset-normalizer`·`phonenumbers`·`python-dotenv` | tiện ích chung | chưa thấy đường chạm PII/thẩm quyền trực tiếp | **THẤP**, không đáng phân tích riêng |
+
+**PHÁN QUYẾT: ĐỒNG Ý VỚI LEAD — KHÔNG CHẶN MERGE.** Nhưng không phải vì "trôi không đáng ngại nói
+chung" — vì **đã soi CỤ THỂ gói duy nhất chạm một gate bảo mật đặt tên** (`langsmith`) và gate đó có
+**lớp phòng thủ độc lập với version** (biến môi trường, không phải hành vi nội bộ thư viện). Không
+có gói nào trong 6 gói tạo ra một đường RÒ MỚI hôm nay — đây là kết luận có kiểm, không phải suy diễn
+từ "diff rỗng" như lần trước.
+
+**Đề nghị sổ nợ — GỘP với đề nghị base-image-digest ở mục trên, đúng như Lead gợi ý ("cùng một lỗ"):**
+1. **Nối `requirements.lock.txt` vào `Dockerfile`** (`pip install -r requirements.lock.txt`, không
+   phải `requirements.txt`) — đây là việc chính, đóng TOÀN BỘ lớp trôi transitive một lần.
+2. **Nếu (1) chưa làm ngay, ghim RIÊNG `langsmith==` trong `requirements.txt`** — không phải vì bản
+   thân gói này nguy hiểm, mà vì nó là gói DUY NHẤT trong 6 gói đứng sau một dòng comment bảo mật có
+   tên (F-30) — cùng lý do dự án đã ghim `langchain-core==1.5.4` sau khi đo lệch mô tả tool. Việc rẻ,
+   không gấp, nhưng đáng ưu tiên hơn 5 gói còn lại nếu chỉ chọn ghim một cái trước.
+
+Không đổi CHỮ KÝ Finding A/B ở trên — hai finding đó đứng độc lập với toàn bộ phát hiện này.
