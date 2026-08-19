@@ -137,7 +137,24 @@ function OtpForm({
   );
 }
 
-export default function ChatClient({ userId, phone }: { userId: string; phone: string }) {
+export default function ChatClient({
+  userId,
+  phone,
+  otpXemConHanLucTai,
+}: {
+  userId: string;
+  phone: string;
+  // Finding A (GĐ2.5 / M-10) — tính SẴN từ phiên lúc render trang (server,
+  // page.tsx), 12h theo OTP_VIEW_MAX_MINUTES. Tên có "LucTai" CÓ CHỦ ĐÍCH
+  // (Lead/PO-agent): đây là ẢNH CHỤP tại thời điểm render, KHÔNG PHẢI trạng
+  // thái sống — nếu trang mở lâu quá 12h thì giá trị này CŨ, đúng như tên nó
+  // nói. CHỈ gate hiển thị rail "Giao dịch gần đây" lúc TẢI TRANG — KHÔNG
+  // dùng để bỏ qua bước hỏi OTP trước thao tác nhạy cảm (đó là
+  // `otpVerifiedRef`, khác biến, khác mục đích: nó đúng khi CÒN reset mỗi
+  // lần mount, phần "hết tươi TRONG KHI đang mở trang" là việc của Finding B
+  // — xem sendToAgent).
+  otpXemConHanLucTai: boolean;
+}) {
   // UI-02 — vai của phiên hiện tại KHÔNG khớp màn này. Đặt từ phản hồi 403 của
   // API chứ không đọc lúc render: tab đang mở không điều hướng lần nào, nên
   // guard route (`proxy.ts`) không bao giờ chạy — 403 là tín hiệu DUY NHẤT.
@@ -167,13 +184,21 @@ export default function ChatClient({ userId, phone }: { userId: string; phone: s
   const threadRef = useRef<HTMLDivElement>(null);
   const greetedRef = useRef(false);
   // Xác thực 1 lần/phiên — sau khi true, không hỏi lại OTP dù chip/rail/agent
-  // có chạm dữ liệu nhạy cảm thêm lần nữa trong cùng phiên chat.
+  // có chạm dữ liệu nhạy cảm thêm lần nữa trong cùng phiên chat. LUÔN khởi
+  // tạo `false` — CỐ Ý, khác `otpVerified` bên dưới (xem Finding A/B GĐ2.5).
+  // Ref này gác bước "hỏi OTP TRƯỚC một thao tác nhạy cảm sắp làm" (chip/
+  // sendToAgent) — sai lệch RẺ theo hướng hỏi thừa (chấp nhận được), trong khi
+  // pre-set nó `true` từ một giá trị tính lúc render có thể làm lọt một thao
+  // tác đã hết tươi STEP-UP dù còn tươi VIEW — nguồn sự thật cho ca đó là 403/
+  // tool-error SỐNG, không phải suy ra lúc mount (Finding B xử lý).
   const otpVerifiedRef = useRef(false);
-  // Bản STATE của cờ trên (V6, hotfix 14/08): ref không kích hoạt re-render,
-  // mà rail "Giao dịch gần đây" cần hiện lên ĐÚNG LÚC xác thực xong. Giữ cả
-  // hai thay vì đổi ref thành state: ref được đọc bên trong các hàm async đã
-  // có sẵn (đọc state ở đó sẽ dính giá trị cũ của closure).
-  const [otpVerified, setOtpVerified] = useState(false);
+  // KHÔNG còn là "bản STATE của ref trên" (khác V6/14-08) — hai biến này nay
+  // tách bạch chủ đích: ref (trên) gác thao tác SẮP làm, state (dưới) chỉ gác
+  // HIỂN THỊ rail "Giao dịch gần đây" và ĐƯỢC PHÉP khởi tạo lạc quan từ phiên
+  // thật (Finding A) vì hậu quả sai chỉ là UI — rail cùng lắm mở nhầm khi
+  // otp_verified_at đã hết hạn 12h, còn mọi route đọc dữ liệu thật vẫn tự
+  // kiểm otp_verified_at ở server (INV-10), không có gì rò qua ngả này.
+  const [otpVerified, setOtpVerified] = useState(otpXemConHanLucTai);
   // Tin nhắn đang chờ gửi cho agent SAU KHI xác thực OTP xong — dùng cho 2
   // lối vào đã biết chắc chắn liên quan giao dịch/ticket NGAY TỪ ĐẦU (chip,
   // "Báo lỗi giao dịch này"): phải xác thực TRƯỚC khi gọi agent, không phải

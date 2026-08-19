@@ -76,7 +76,7 @@ async function xacThucOtpTrongPhien(user: ReturnType<typeof userEvent.setup>) {
 
 describe("ChatClient — rail giao dịch gần đây", () => {
   it("CHƯA xác thực OTP thì che danh sách, hiện lời mời xác thực", async () => {
-    render(<ChatClient userId="USR-A" phone="0901000001" />);
+    render(<ChatClient userId="USR-A" phone="0901000001" otpXemConHanLucTai={false} />);
     await waitFor(() =>
       expect(screen.getByText("Xác thực OTP để xem giao dịch gần đây")).toBeInTheDocument()
     );
@@ -86,7 +86,7 @@ describe("ChatClient — rail giao dịch gần đây", () => {
 
   it("rail rỗng: vẫn che trước khi xác thực (không lộ 'Chưa có giao dịch')", async () => {
     vi.mocked(getCustomerHistory).mockResolvedValue({ ...mockHistory, recent_transactions: [] });
-    render(<ChatClient userId="USR-A" phone="0901000001" />);
+    render(<ChatClient userId="USR-A" phone="0901000001" otpXemConHanLucTai={false} />);
     await waitFor(() =>
       expect(screen.getByText("Xác thực OTP để xem giao dịch gần đây")).toBeInTheDocument()
     );
@@ -97,7 +97,7 @@ describe("ChatClient — rail giao dịch gần đây", () => {
 describe("ChatClient — chip chọn loại khiếu nại", () => {
   it("bấm 'Báo lỗi giao dịch này' hiện đủ 4 chip loại khiếu nại", async () => {
     const user = userEvent.setup();
-    render(<ChatClient userId="USR-A" phone="0901000001" />);
+    render(<ChatClient userId="USR-A" phone="0901000001" otpXemConHanLucTai={false} />);
     // V6: nút "Báo lỗi giao dịch này" nằm trong rail, mà rail bị che tới khi
     // xác thực xong — nên phải qua OTP trước.
     await xacThucOtpTrongPhien(user);
@@ -112,7 +112,7 @@ describe("ChatClient — chip chọn loại khiếu nại", () => {
 
   it("đã xác thực trong phiên -> chọn chip gửi thẳng agent, không hỏi OTP lần hai", async () => {
     const user = userEvent.setup();
-    render(<ChatClient userId="USR-A" phone="0901000001" />);
+    render(<ChatClient userId="USR-A" phone="0901000001" otpXemConHanLucTai={false} />);
     await xacThucOtpTrongPhien(user);
     await waitFor(() => expect(screen.getByText(/92\.000đ/)).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "Báo lỗi giao dịch này" }));
