@@ -86,13 +86,46 @@ phải rò rỉ tên model thật).
 **KẾT LUẬN ①: KHÔNG có đường rò tên model tới khách, ở CẢ HAI nhánh (lỗi cố định + hội thoại thường).
 Đóng, không cần điều kiện gì thêm.**
 
-### ② Xác nhận bằng số đo thật của Lead — CÀNG củng cố kết luận 30 ca, không đổi
+### ② Xác nhận bằng số đo thật — 🔴 NIÊM: con số tôi trích ở lần viết đầu SAI MẪU SỐ, đã tự đo lại độc lập
 
-Số Lead đưa (5M token bể ÷ ~20-36K/lượt ⟹ ~176 lượt tổng ⟹ ~1,2 lượt/khách cho 150 khách) xác nhận
-đúng điều tôi giả định bằng lý lẽ chứ chưa có số: **xoay là điều SẼ XẢY RA THẬT trong buổi test đầu
-tiên, không phải một nhánh hiếm/lý thuyết.** Model thứ 2..5 trong bể không phải "dự phòng xa" — chúng
-là thứ một phần đáng kể trong 150 khách sẽ THẬT SỰ trò chuyện cùng. **Xác nhận: cổng 30 ca phải áp
-cho CẢ NĂM model, không có model nào được miễn vì "ít khả năng bị chạm tới".**
+**Con số cũ trong bản trước của mục này (176 lượt / 1,2 lượt-khách) SAI — không xoá, niêm tại đây
+theo Luật P.** Đó là số Lead tính trên MẪU HẸP (ba ca AUTH nặng nhất của một đợt kiểm thẩm quyền —
+phần ĐUÔI của phân phối, không phải đại diện), và tôi đã chép lại mà không tự kiểm mẫu số trước khi
+ghi vào hồ sơ — đúng lỗi Luật M cảnh báo (*"xác nhận không phải bằng chứng"* — con số khớp đúng hướng
+lập luận của tôi nên tôi không soi lại).
+
+**[ĐO] tự chạy — ĐỘC LẬP, đọc thẳng `usage.jsonl` trong container qua `docker exec` (chỉ đọc, không
+sửa gì):**
+```
+n = 163 dòng thật (khớp Lead + PO-agent)
+tổng token (input+output) = 1.665.638 · trung bình = 10.218,6 · trung vị = 13.210 · max = 45.208
+61/163 lượt = 0 token (đường nhẹ) = 37,4%
+102 lượt CÓ tiêu: trung bình 16.329,8
+input tổng 1.626.724 · cached 824.960 · tỉ lệ cached = 50,7%
+```
+**Cả ba con số (n, trung bình, tỉ lệ cached) khớp TUYỆT ĐỐI với cả Lead lẫn PO-agent — xác nhận số
+đúng, không phải một bên đo sai còn tôi đoán mò theo phe đông hơn.**
+
+**Sức chứa là MỘT DẢI, phụ thuộc cách đếm, không phải một số:**
+```
+theo trung bình TOÀN BỘ lượt (gồm cả lượt nhẹ 0 token)  ⟹ ~489 lượt/bể ⟹ ~3,3 lượt/khách (150 khách)
+theo trung bình CHỈ lượt CÓ tiêu (lượt nhẹ không ăn quota nên không tính vào "sức chứa xoay")
+                                                          ⟹ ~306 lượt/bể ⟹ ~2,0 lượt/khách
+ba ca AUTH nặng nhất (số CŨ, SAI vì mẫu hẹp)             ⟹ ~176 lượt/bể ⟹ ~1,2 lượt/khách (ĐUÔI)
+```
+
+**Hai giới hạn Lead khai, tôi đồng ý cả hai, không tự nới thêm:**
+- 37% lượt nhẹ có khả năng là tạo tác của cách team TEST (nhiều câu chào) — khách khiếu nại thật có
+  thể đi đường nặng nhiều hơn ⟹ số thật nhiều khả năng gần **2,0** hơn **3,3**.
+- 50,7% cached KHÔNG được cộng vào "tiết kiệm quota" khi CHƯA xác nhận DashScope tính token cached
+  vào 1M free theo giá nào — đó là một giả định chưa kiểm, không phải một sự thật.
+
+**KẾT LUẬN: KHÔNG ĐỔI dù mẫu số đổi — và với mẫu số đúng, kết luận CÀNG vững, không yếu đi.** Dù
+dùng đầu dải (3,3) hay cuối dải bảo thủ (~2,0), xoay vẫn là điều **SẼ XẢY RA THẬT** trong buổi test
+đầu (150 khách × ≥2 lượt/khách ⟫ 1 model), không phải nhánh hiếm. Toán kinh tế của gate (30 ca ≈ 30
+lượt trên sức chứa ~98 lượt/model = 1M ÷ ~10.2K trung bình) không phụ thuộc con số 176/1,2 — vẫn
+đúng: **mỗi model vào bể lời ròng ~68 lượt, cổng là phí vào cửa chứ không phải khoản lỗ.** Xác nhận:
+30 ca áp cho CẢ NĂM model, không model nào được miễn.
 
 ## KHÔNG kết luận
 
