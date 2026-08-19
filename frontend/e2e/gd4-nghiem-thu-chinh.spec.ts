@@ -96,12 +96,21 @@ test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO th�
     }
 
     // ── Vế ②: SAU OTP, agent phải TỰ ĐI TIẾP — KHÔNG được bắt khách gõ lại
-    // câu hỏi. Bằng chứng: một bubble bot MỚI xuất hiện có nội dung liên
-    // quan tới giao dịch, KHÔNG cần input thêm gì từ phía test.
+    // câu hỏi. Bằng chứng CÓ CHỦ ĐÍCH tách rời khỏi vế ③/④: test này KHÔNG
+    // BAO GIỜ gọi input.fill(CAU_MO) lần thứ hai — nếu lỗi 1 còn tồn tại
+    // (agent im lặng chờ khách gõ lại), assertion NGAY DƯỚI ĐÂY sẽ timeout
+    // và FAIL RÕ RÀNG ở đúng vế ②, tách biệt hoàn toàn khỏi vế ③/④ (đúng
+    // nội dung câu trả lời) — quan trọng vì ca này có thể phải gánh vai trò
+    // xác nhận DUY NHẤT cho lỗi 1 trên frontend (PO-agon 19/08). Hai
+    // `expect()` tách riêng bên dưới (② rồi mới ③) đảm bảo báo cáo lỗi chỉ
+    // vào ĐÚNG MỘT vế, không lẫn "agent im lặng" với "agent trả lời sai".
     const bubbleTraLoi = page.locator(".bubble-bot").nth(soBubbleTruoc);
-    await expect(bubbleTraLoi).toBeVisible({ timeout: 40_000 });
+    await expect(
+      bubbleTraLoi,
+      "Vế ② FAIL — không có bubble bot mới nào xuất hiện sau OTP trong 40s, KHÔNG có lần gọi input.fill() nào khác được test thực hiện. Đây LÀ lỗi 1 (agent im lặng, bắt khách gõ lại) — không phải timeout ngẫu nhiên."
+    ).toBeVisible({ timeout: 40_000 });
     const noiDungTraLoi = (await bubbleTraLoi.textContent())?.trim() ?? "";
-    expect(noiDungTraLoi.length, "Vế ② FAIL — không có phản hồi tự động sau OTP (agent im lặng, đúng lỗi 1)").toBeGreaterThan(0);
+    expect(noiDungTraLoi.length, "Vế ② FAIL — bubble bot xuất hiện nhưng RỖNG (khác hẳn không xuất hiện — có thể là lỗi hiển thị, không phải lỗi 1 gốc).").toBeGreaterThan(0);
 
     // ── Vế ③: tự tìm đúng giao dịch từ mô tả, không đòi mã.
     if (!noiDungTraLoi.includes(MA_GD_DUNG)) {
