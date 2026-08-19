@@ -219,3 +219,12 @@ Luật W đã viết lại theo đúng phân biệt đó (STATE §7, có ghi v�
 🔴 Bài học giữ lại (chữ của Lead, PO-agent chuẩn y): **"Một nhãn không kèm CÁCH ĐỌC thì người
 đọc sẽ tự cấp cho nó một loại — và loại họ cấp là loại họ hay gặp nhất."** `cach_bam` tồn tại
 trong từng dòng sổ chính là để chống ca này; nó chỉ chống được người CÓ ĐỌC nó.
+
+---
+
+## KẾT CỤC — 19/08: PO THẬT QUYẾT **HOÃN MERGE**
+
+Hồ sơ nghiệm thu ĐẠT, đã trình. PO thật chọn: **giữ nguyên `dev/learning-loop`, đội chuyển sang
+GĐ3 (đổi model + tự xoay) TRƯỚC, merge GỘP sau.** Không phải bác hồ sơ — hồ sơ giữ nguyên giá trị
+tại `docs/nhat-ky/2026-08-19-ho-so-nghiem-thu-gd2-gd25.md`; chỉ dời thời điểm merge.
+Hệ quả: các nợ "đi cùng chuyến GĐ3" (mục 8 hồ sơ) kích hoạt NGAY.

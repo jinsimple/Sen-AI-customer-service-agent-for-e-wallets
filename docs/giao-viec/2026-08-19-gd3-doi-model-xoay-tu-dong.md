@@ -102,3 +102,18 @@ mỗi model: 1M token free · consumed 0 · hết hạn 15/11/2026 (88 ngày) ·
   nguyên văn trong sổ hội thoại một phiên (Luật S, ca thứ hai). Coder thi hành (tầng `.env`,
   khuôn ADR-035): khai trước + hỏi-và-chờ (Luật U) vì xoay vô hiệu mọi phiên đăng nhập đang mở;
   recreate có kế hoạch; chạy SAU khi hồ sơ GĐ2.5 chốt, TRƯỚC khách test GĐ3.
+
+## BỔ SUNG 19/08 (chiều) — GĐ3 KHỞI ĐỘNG, kèm nợ GĐ2.5 lên chuyến
+
+- PO thật quyết **HOÃN merge** GĐ2/GĐ2.5 — làm GĐ3 trước, merge gộp sau. Hồ sơ nghiệm thu đã ĐẠT
+  và nằm tại `docs/nhat-ky/2026-08-19-ho-so-nghiem-thu-gd2-gd25.md` — KHÔNG mở lại.
+- Nợ lên chuyến này (từ mục 8 hồ sơ, cộng với hai mục đã ghi ở BỔ SUNG trước):
+  1. 🔴 **Nối `requirements.lock.txt` vào Dockerfile** (đang không nơi nào dùng nó — 6/168 gói đã
+     trôi thật, xem hồ sơ 7e). Coder, cùng đợt gỡ băng backend.
+  2. Ghim base image theo **digest** thay tag `python:3.12-slim` (Dockerfile:5, :33). Coder.
+  3. **Playwright chạy TRONG mạng Docker** (gỡ AUTH-008×2 · AUTH-007 ca 2 · lỗ auth-multirole). Coder.
+  4. `"loai":"otp_het_tuoi"` + client đọc `loai` + tháo cổng ghim + siết 403-role (đã ghi ở BỔ SUNG trước).
+  5. **Mỗi lần dựng ảnh trong GĐ3 = một dòng `docs/nhat-ky/so-giam-ho-anh.md` TRƯỚC khi báo kết
+     quả đo trên ảnh ấy** (Luật W) — sổ đã mở, GĐ3 là chuyến đầu tiên nó có hiệu lực.
+- Thứ tự không đổi: **BƯỚC 0 (xoay JWT_SECRET_KEY) đi đầu** — hồ sơ GĐ2.5 đã chốt nên điều kiện
+  "sau khi hồ sơ chốt" ĐÃ THOẢ; Coder thi hành với hỏi-và-chờ (Luật U).
