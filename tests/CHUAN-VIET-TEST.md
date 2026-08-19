@@ -1802,3 +1802,29 @@ trước — và chính chi tiết ấy gỡ mất cái commit vô tình.
    N-1 ca kia KHÔNG lộ.** Câu trả lời gần như luôn là một điều kiện ngẫu nhiên
    mà không ai khai, và nó sẽ hết hiệu lực lặng lẽ.
 
+---
+
+## LUẬT 20 — Smoke RÚT GỌN vẫn phải có ÍT NHẤT MỘT hành trình NHIỀU LƯỢT
+
+*(Đo được 19/08, GĐ4 — PO thật tự chạy kịch bản A trên UI thật, tự bắt 5 lỗi
+mà bốn ô nghiệm thu GĐ3, kể cả ô ④ smoke UI vừa xanh, không ai bắt được.)*
+
+Ô ④ smoke UI (chào nhẹ + một câu nặng) chạy **mỗi bước MỘT lượt độc lập** —
+đăng nhập, chào, một câu tra cứu, hết. Xanh sạch. Và xanh sạch đó **không nói
+được gì** về bốn trong năm lỗi PO thật vừa gặp: OTP xen giữa làm mất câu hỏi
+cũ, hai mã trong một câu chỉ tra được một, ngữ cảnh tích luỹ qua nhiều lượt —
+**tất cả chỉ hiện ra từ lượt thứ hai của một hành trình liên tục trở đi.**
+
+> Một smoke một-lượt-mỗi-bước đo được *"từng bước có chạy không"*, không đo
+> được *"cuộc hội thoại có sống sót được không"*. Hai câu hỏi khác nhau, và
+> câu sau mới là câu khách thật sẽ hỏi — không ai chỉ gõ đúng một câu rồi
+> dừng.
+
+**Quy tắc:** dù smoke bị rút gọn tới đâu vì thời gian/ngân sách (đúng tình
+huống GĐ4 — PO thật sắp tự vào UI, cần kết quả trong vài phút), **vẫn phải
+giữ lại ít nhất MỘT ca hành trình nhiều lượt** — cùng một phiên, cùng một
+luồng hội thoại, ≥2 lượt gửi liên tiếp có phụ thuộc lẫn nhau (lượt sau cần
+ngữ cảnh/trạng thái của lượt trước: OTP xen giữa, nhiều mã trong một câu,
+hỏi tiếp dựa trên câu trả lời trước). Cắt số ca, cắt số lượt còn lại — nhưng
+đừng cắt tới mức không còn ca nào có TRỤC NHIỀU LƯỢT, vì đó chính là trục nơi
+lỗi thật đang sống.
