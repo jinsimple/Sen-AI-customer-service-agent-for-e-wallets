@@ -210,3 +210,53 @@ CÙNG tài khoản DashScope với LLM_BASE_URL hiện tại ⟹ cùng key, cùn
   cho **cùng một hành vi ở phía ta** (xoay, rồi hết bể thì dừng tử tế) — không được phụ thuộc
   công tắc console.
 - Bể free hết hạn **15/11/2026** ⟹ nhắc lại ràng buộc đã có: **bản live KHÔNG được phụ thuộc bể này.**
+
+## 🔴🔴 PO THẬT QUYẾT LẠI 19/08 (tối, muộn) — **THU HẸP PHẠM VI: XOAY DƯỚI HẠ TẦNG, KHÔNG CÓ UI CHỌN MODEL**
+
+**Nguyên văn PO thật:** *"Chúng ta tự đổi model ở dưới hạ tầng — đảm bảo không có lúc nào hết token
+— vì hiện tại đang là bản test thôi."*
+
+Câu này trả lời Q1–Q4 của nháp ADR-043 bằng cách **làm cả bốn câu biến mất**. Mục tiêu thật của
+tính năng KHÔNG phải "cho khách so sánh model" mà là **"dịch vụ không bao giờ chết vì cạn token"**.
+
+### BỎ khỏi phạm vi GĐ3 — dừng ngay, đừng xây
+- ❌ **Hai route `GET /model-pool` · `POST /model-pool/chon`** ⟹ **KHÔNG có route mới** ⟹
+  **KHÔNG đụng `authority-matrix.yaml`** ⟹ **KHÔNG cần §10, KHÔNG cần ADR-043 cho route.**
+  33 route giữ nguyên, `CONTRACT_VERSION` giữ nguyên.
+- ❌ Dropdown/chip chọn model trên UI khách · nhãn "đang trả lời bởi X" trên bong bóng chat ·
+  dòng hệ thống báo khi tự xoay.
+- ❌ E2E UI ≥3 good case cho "tính năng đổi model" (QA/QC ⑤) — **tính năng ấy không còn tồn tại**.
+  Chuẩn ≥3-good-case của PO thật vẫn áp cho MỌI tính năng CÓ UI; xoay model nay không có UI.
+- ❌ Câu hỏi "khách có thấy tên model không" (Q4) — không có chỗ nào hiển thị.
+
+### GIỮ nguyên — và một mục nay QUAN TRỌNG HƠN TRƯỚC
+- ✅ Bể model qua env · trigger chỉ lớp quota · trạng thái cạn ở Redis có TTL · quyết định model tại
+  đầu lượt · trần chi tiêu tối giản · cầu dao (≥N model cạn/60s ⟹ ngừng xoay) · ping khai bể.
+- ✅ `usage.jsonl` ghi model per-lượt — nay là **cách DUY NHẤT** biết model nào đã trả lời khách.
+- 🔴 **CỔNG NHẬP BỂ (3 good + 3 đối kháng cho TỪNG model deepseek) — nâng lên MỨC CHẶN.**
+  Lý do nay mạnh hơn hẳn: xoay diễn ra **im lặng, dưới hạ tầng**, khách **không biết** mình đang
+  được model nào phục vụ và **không có cách nào từ chối**. Bộ an toàn 30/30 chưa từng hiệu chuẩn
+  trên deepseek. ⟹ **Cổng nhập bể là thứ DUY NHẤT đứng giữa khách và một model chưa ai kiểm.**
+  Model chưa qua cổng **KHÔNG được có tên trong `LLM_MODEL_POOL`**. Không có ngoại lệ "tạm để đó".
+- ✅ Nguyên tắc chống-đánh-lừa cũ (khách đang test model A không được nhận câu của model B mà không
+  biết) **KHÔNG mất hiệu lực — nó chỉ hết đối tượng**: khách không còn chọn model nên không còn
+  phép thử nào của khách để đánh lừa. Nếu sau này mở lại UI chọn model, nguyên tắc ấy sống lại.
+
+### ADR vẫn PHẢI viết — nhưng là ADR khác, nhỏ hơn
+Không phải ADR route. Là **ADR-043: xoay model tự động dưới hạ tầng** — vì nó **đảo `a3fb125`**
+(ghim model theo NGÀY, "đổi model = đổi VẬT"). Nội dung tối thiểu: đảo cái gì · vì sao (bản test,
+mục tiêu là không đứt dịch vụ) · hệ quả (mọi phép đo eval nghiêm túc phải GHIM một model; `usage.jsonl`
+per-lượt là thứ cứu ta khi đọc số sau này) · phạm vi (chế độ DEMO/TEST, không phải mặc định vĩnh viễn).
+Lead soạn, PO-agent land vào `docs/DECISIONS.md`. **Không cần PO thật duyệt lại** — quyết định đảo
+đã là của PO thật, ADR chỉ ghi lại.
+
+### Q "key production" — PO thật ĐÃ CHỐT
+**Key production KHÔNG BAO GIỜ đi qua phiên agent nào.** Nhận điều khoản (B) của Bảo Mật (bản chốt
+`378828c` §2) làm chính sách đứng. PO thật tự điền key trên VPS lúc deploy. Câu "công cụ có tải
+transcript lên nhà cung cấp không" ⟹ **đóng bằng thiết kế, không cần trả lời**: agent không có key
+production thì câu ấy hết hậu quả.
+
+### Định hạng "Free quota only" — CHUẨN Y bản của Bảo Mật
+**Điều kiện BÊN NGOÀI, KHÔNG được ghi là lớp phòng vệ** (Luật R, dạng nặng nhất: có thể biến mất
+đúng lúc ta thao tác trên chính console đó). Lớp phòng vệ THẬT ta sở hữu = limiter + `cong_ra_ngoai`
++ trần chi tiêu + cầu dao. Ghi nguyên văn câu Bảo Mật đề nghị vào hồ sơ.
