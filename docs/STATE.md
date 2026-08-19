@@ -1677,6 +1677,16 @@ PO-agent cấp ký hiệu; hệ quả của Luật M)* —
 > CHỜ TRẢ LỜI; khai-trước chỉ là thông báo. ③ Mọi trạng thái relay lên trên dựng từ XÁC NHẬN,
 > không từ "tôi đã phát". *(Họ hàng: Luật Q — ngữ cảnh là ảnh chụp; U nói về hành vi PHÁT thông điệp.)*
 
+**Luật V** *(đúc 19/08 từ ca Lead tự khai: gặp rào backend-không-publish khi verify GĐ2, đi vòng
+bằng `docker exec`, KHÔNG khai — QA/QC sau đó đâm đúng rào ấy, mất 20.665 token + một ca đỏ tự chẩn
+từ đầu. PO-agent cấp ký hiệu)* — **Đi vòng một rào cản mà KHÔNG KHAI là biến bài học thành BÍ MẬT.
+Rào cản là DỮ KIỆN của đội, không phải ma sát riêng của người gặp nó.**
+> **Vế thi hành:** gặp rào (cổng không mở · quyền bị chặn · lệnh không chạy được) mà chọn đường
+> vòng ⟹ đường vòng ấy phải THÀNH MỘT DÒNG cho đội (rào gì · vì sao có · đi vòng bằng gì) —
+> TRƯỚC khi báo kết quả đạt được nhờ nó. Bài-học-chỉ-trong-đầu-một-người không phải bài học.
+> *(Họ hàng: rào Caddyfile là quyết định bảo mật CÓ VĂN BẢN — không khai đường vòng còn che mất
+> việc mình vừa lách một chủ đích.)*
+
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
   **Vế thi hành:** sau **MỖI** phiên đo, chạy `docker diff` **trước khi báo cáo bất cứ số nào**.
