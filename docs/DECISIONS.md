@@ -2457,3 +2457,36 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   chặn phiên Claude sau "tối ưu" ngược lại)
 - **Hệ quả:** file/test/contract nào bị ảnh hưởng
 ```
+
+## ADR-042 — `tool_calls` trên dây là MẢNG ở mọi đường; ba-trạng-thái sống ở `ly_do_fallback`
+
+- **Ngày:** 2026-08-19 · **Người quyết:** PO-agent (thẩm quyền hợp đồng envelope; PO thật đặt mục
+  tiêu "chatbot phải chạy cho khách test") · **Trạng thái:** Đang hiệu lực
+- **Bối cảnh:** GĐ2 vá `tool_calls: None` làm vỡ UI (client `.length` trên null → khách thấy
+  "Có lỗi khi kết nối trợ lý"). Coder vá 3/4 đường; đường thứ tư (vòng-lặp-tool, GraphRecursionError)
+  CỐ Ý giữ `None` để tôn trọng thiết kế 15/08
+  (`tests/test_security/test_fallback_khong_goi_bo_loc.py::test_tool_calls_la_none_chu_khong_phai_rong`):
+  *"None = không khôi phục được ≠ [] = đo được là không gọi tool"* — kèm số đo thật (4/5 bản ghi
+  tool_calls rỗng không đi qua fallback ⟹ [] không suy ngược ra fallback).
+- **Quyết định:** Hợp đồng DÂY (envelope trả client) — `tool_calls` là MẢNG trên MỌI đường, kể cả
+  vòng-lặp-tool. Ngữ nghĩa ba-trạng-thái KHÔNG bị bỏ: nó sống ở `ly_do_fallback` — trường đã tồn
+  tại, đã khác `None` trên đúng cả ba đường fallback ([ĐO] 19/08: `:811 "qua_tai"` · `:930` ·
+  `:1036 _ly_do_fallback(e)`), và đã được `_ghi_so` chép vào sổ usage (`:220`). Bộ chấm downstream
+  phân biệt "không gọi tool" với "không khôi phục được" bằng `ly_do_fallback`, không bằng KIỂU của
+  `tool_calls`.
+- **Lý do:** (1) Đường giữ-None là đường livelock — fallback ở đó là CÂU BÀN GIAO KÈM MÃ VÉ, đúng
+  thứ test hàng xóm (`…ticket_id in reply`) chứng minh khách PHẢI đọc được; giữ None nghĩa là client
+  vỡ và khách không bao giờ thấy mã vé — "ngõ cụt lịch sự" tái sinh ở tầng client. (2) Nhồi ngữ
+  nghĩa vào KIỂU của một trường hợp đồng dây là dùng type làm kênh tín hiệu — client không đọc được
+  tín hiệu ấy, chỉ vỡ vì nó.
+- **Lý do BÁC BỎ phương án khác:** *"Giữ None + client phòng thủ `?? []`"* — client phòng thủ là che
+  triệu chứng ở một client; mọi client tương lai (mobile, đối tác) vỡ lại từ đầu; và `?? []` chính
+  là hình dạng `or []` vừa nuốt mất lỗi này trong script verify 19/08. *"Thêm trường mới
+  `tool_calls_unknown`"* — `ly_do_fallback` đã là trường đó.
+- **Hệ quả:** `src/agents/graph.py` literal thứ tư `None → []` (Coder) ·
+  `tests/test_security/test_fallback_khong_goi_bo_loc.py::test_tool_calls_la_none_chu_khong_phai_rong`
+  viết lại: assert `tool_calls == []` VÀ `ly_do_fallback is not None` trên fallback, đổi TÊN khớp
+  assertion mới (tester — giữ nguyên phần số đo 15/08 trong docstring làm sử liệu) ·
+  `tests/test_api/test_gd2_tool_calls_khong_null.py::test_trong_vong_lap_tool_van_giu_none_co_chu_dich`
+  đảo chiều thành đối chứng dương của ADR này (QA/QC) · sổ nợ ③ của Lead (`:219 or []`) tự đóng —
+  sau ADR này `or []` ở đó hết mơ hồ vì không còn None nào để nuốt.
