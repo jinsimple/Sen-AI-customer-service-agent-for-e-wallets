@@ -293,15 +293,12 @@ export default function ChatClient({
       // lý AI" ngay trong chính tin nhắn chào, không chỉ ở tiêu đề trang/
       // nhãn cố định bên ngoài khung chat (2 chỗ đó có sẵn nhưng không đủ
       // theo đúng nghĩa "banner/câu mở đầu" mà chuẩn minh bạch yêu cầu).
-      // Câu chào 19/08 (PO thật yêu cầu đổi, PO-agent soạn — docs/giao-viec/
-      // 2026-08-19-gd4-po-test-4-loi-ui.md mục 11): đặt phạm vi bằng giọng
-      // tự tin ("chỉ làm một việc, nhưng làm kỹ" — chặn so sánh nhầm loại
-      // với ChatGPT/Claude), tách rõ tra-được/không-quyết, và biến HITL
-      // (ràng buộc cứng 1) thành cam kết bảo vệ thay vì điểm yếu ("quy định
-      // về tiền của bạn, không phải giới hạn của máy"). `\n\n` giữ đúng cấu
-      // trúc 4 đoạn của bản gốc — bubble chưa có `white-space: pre-line`
-      // nên hiện xuống dòng gộp thành khoảng trắng đơn, không phải lỗi.
-      text: "Chào bạn, mình là Sen — trợ lý AI của ví. Mình chỉ làm một việc, nhưng làm kỹ: điều tra khiếu nại giao dịch của chính bạn.\n\nMình tra được — giao dịch cụ thể (số tiền · trạng thái · thời điểm), lịch sử ví, và quy định áp dụng cho trường hợp của bạn. Mọi con số mình nói đều lấy từ hệ thống và có ghi nguồn ngay dưới câu trả lời.\n\nMình không quyết — hoàn tiền hay điều chỉnh số dư phải do chuyên viên CSKH xác minh rồi người có thẩm quyền phê duyệt. Đây là quy định về tiền của bạn, không phải giới hạn của máy.\n\nBạn cứ kể bằng lời thường, không cần nhớ mã giao dịch. Hoặc bấm \"Báo lỗi giao dịch này\" ở một giao dịch cụ thể bên trái.",
+      // Câu chào 19/08 (bản 19/08 sáng do PO-agent soạn theo brief 4 đoạn —
+      // docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md mục 11 — RÚT NGẮN
+      // theo yêu cầu trực tiếp của PO thật cùng ngày, muộn hơn: giữ đúng
+      // "trợ lý AI" bắt buộc + đường vào nhanh, bỏ phần diễn giải tra-được/
+      // không-quyết dài dòng).
+      text: "Chào bạn, mình là Sen — trợ lý AI của ví. Mình có thể hỗ trợ bạn những thông tin về ví điện tử, truy vấn các giao dịch và những vấn đề liên quan đến chuyển tiền. Bạn có thể gõ trực tiếp câu hỏi, hoặc bấm \"Báo lỗi giao dịch này\" ở một giao dịch cụ thể bên trái.",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
