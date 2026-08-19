@@ -608,3 +608,52 @@ KHÔNG ĐẠT nếu content rỗng — kể cả khi HTTP 200 và không lỗi n
 🔴 Nếu tiêu chí chỉ là "không lỗi", một model có reasoning **không tắt được** sẽ **ĐẠT cổng với câu
 trả lời rỗng** — đúng thất bại vừa quan sát được, nay vô hình vì cổng không nhìn vào chỗ đó. Cổng
 phải khẳng định **có câu trả lời**, không phải **không có lỗi**.
+
+## 🔴🔴 CHƯA CÓ VẬT NÀO MANG CODE GĐ3 — và code GĐ3 CHƯA ĐƯỢC COMMIT
+
+**[ĐO PO-agent, độc lập, khớp Lead]:**
+```
+docker run --rm --entrypoint python3 fin05-backend:latest -c "import src.agents.llm_pool"
+  → ModuleNotFoundError                      ⟹ ảnh KHÔNG có một dòng code GĐ3 nào
+docker images fin05-backend → 631212bc7bdd, dựng 12:45:37 (TRƯỚC GĐ3)
+```
+🔴 **VÀ MỘT DỮ KIỆN LEAD CHƯA NÊU, nặng ngang phần còn lại:**
+```
+git status --porcelain
+ M src/agents/graph.py · M src/agents/output_filter.py · M src/config.py
+ M src/cong_ra_ngoai.py · ?? src/agents/llm_pool.py       ⟹ TOÀN BỘ CHƯA COMMIT
+HEAD = 4957b50  (một commit DOCS)
+```
+
+**Vì sao hai điều này phải đọc cùng nhau:** dựng ảnh NGAY BÂY GIỜ sẽ tạo ra một ảnh mang
+`BUILD_COMMIT=4957b50` — **một commit chỉ chạm `docs/`** — trong khi ruột ảnh là code chưa ai commit.
+Đó **tái tạo CHÍNH XÁC** sự cố sinh ra `src/dau_ma_nguon.py` ngày 17/08:
+> *"nhãn DỊCH, mã ĐỨNG YÊN: `fin05ttl-backend-1` khai `36d6a1a` — một commit chỉ đổi `docs/`, ảnh
+> không chứa gì của nó"* — nay là chiều ngược lại, cùng một bệnh.
+
+**Vì sao hai lối đo hôm nay đều KHÔNG thấy:** ping của Coder **bypass** `graph.py` (gọi completion
+thẳng); pytest chạy **từ host, đọc working tree**. Cả hai đúng cho mục đích của chúng, nhưng **cả hai
+đều không đi qua vật deploy** — nên không lối nào có thể phát hiện vật deploy đang rỗng. Bài học:
+**một ngày làm việc có thể trôi qua mà không có phép đo nào chạm tới thứ sẽ được đem đi chạy thật.**
+
+### QUYẾT — THỨ TỰ BẮT BUỘC, không đảo
+```
+① Coder COMMIT code backend GĐ3 (pathspec, chỉ tệp của mình) — TRƯỚC khi dựng
+② Coder dựng ảnh MỘT LẦN, sau khi tự khai "backend GĐ3 ổn định"
+③ Ghi dòng SỔ GIÁM HỘ (docs/nhat-ky/so-giam-ho-anh.md) NGAY, TRƯỚC khi báo bất kỳ số nào
+④ Ba phép kiểm đã là quy trình dự án: băm nguồn host↔nhãn-trong-ảnh · BUILD_COMMIT · grep bản vá
+   trong container ĐANG CHẠY (không grep working tree)
+⑤ QA/QC chạy 6 lượt cổng A trên ảnh đó
+```
+🔴 **①TRƯỚC②** vì `BUILD_COMMIT` chỉ có nghĩa khi commit thật sự mô tả ruột ảnh. Dựng trước commit =
+đóng một cái nhãn nói dối vào vật nghiệm thu, ngay trong giai đoạn ta vừa mint luật về chuyện đó.
+
+**Đánh đổi "dựng sớm cho QA/QC đỡ chặn": BÁC.** Dựng nhiều lần trong lúc code còn động là **đúng
+nguyên nhân** sự cố dựng-đè 12:45:37 sáng nay. Thay vì dựng sớm, ta **thu hẹp điều kiện ②**:
+🔴 **Bản vá O4 (finding thì-quá-khứ) KHÔNG được giữ chân ảnh GĐ3.** Nó là finding riêng, lịch riêng,
+Bảo Mật định hạng. Ảnh GĐ3 dựng khi phần **xoay + trần + model-trong-sổ** ổn định — O4 đi chuyến sau.
+Ai gộp hai lịch làm một là biến một finding độc lập thành vật giữ chân cả giai đoạn.
+
+**Chẩn đoán nhanh bằng mount `src/` đè ảnh cũ (Lead đã cho phép): GIỮ, đúng.** Kèm đúng điều kiện
+Lead đã đặt — **kết quả từ đó KHÔNG BAO GIỜ tính là cổng ĐẠT**. Ghi nhãn `[CHẨN ĐOÁN, không phải cổng]`
+lên mọi con số ra từ đường đó, ngay lúc ghi, không phải lúc báo cáo.
