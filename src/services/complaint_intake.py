@@ -73,6 +73,10 @@ def create_ticket_with_fraud_check(
     trans_id: str | None = None,
     otp_disclosed: bool = False,
     now: dt.datetime | None = None,
+    # ADR-044 — thread_id HIỆU LỰC của lượt sinh ra complaint này, ghi vào
+    # Complaint.thread_id lúc TẠO (NULLABLE VĨNH VIỄN nếu None — caller cũ/
+    # REST không có phiên chat). Luồn tới _create_ticket, KHÔNG tự suy đoán.
+    thread_id: str | None = None,
 ) -> dict[str, Any]:
     """Tính tín hiệu gian lận từ dữ liệu DB rồi tạo ticket — thay vì để agent
     tự truyền `fraud_signals` tay (rủi ro agent quên/bịa tín hiệu). Đây là
@@ -125,6 +129,7 @@ def create_ticket_with_fraud_check(
         otp_disclosed=otp_disclosed,
         fraud_signals=fired,
         now=now,
+        thread_id=thread_id,
     )
 
 
@@ -135,6 +140,12 @@ def flag_human_handoff(
     reason: str,
     ticket_id: str | None = None,
     now: dt.datetime | None = None,
+    # ADR-044 — CHỈ dùng khi tạo ticket MỚI (nhánh ticket_id=None dưới), luồn
+    # xuống create_ticket_with_fraud_check. PO-agent 19/08: đường tạo vé
+    # KHÔNG chỉ có tool create_ticket — flag_human_handoff cũng tự tạo vé khi
+    # khách xin gặp người mà chưa có ticket, thiếu thread_id ở ĐÂY thì đúng
+    # loại vé CẦN transcript nhất (bàn giao) lại KHÔNG có transcript.
+    thread_id: str | None = None,
 ) -> dict[str, Any]:
     """CTRL-001 (FIN05_QA_TestCases.jsonl, 2026-08-11) — khách chủ động yêu
     cầu gặp người thật (ISO/IEC 25059 'user controllability'). Kiến trúc
@@ -188,6 +199,7 @@ def flag_human_handoff(
         description_raw=reason,
         trans_id=None,
         now=now,
+        thread_id=thread_id,
     )
     ticket = session.get(Ticket, created["ticket_id"])
     ticket.human_handoff_requested = True

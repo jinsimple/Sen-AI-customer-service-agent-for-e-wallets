@@ -560,6 +560,12 @@ def _build_agent(
     customer_name: str,
     otp_verified_at: float | None,
     guard: TurnGuard | None = None,
+    # ADR-044 — thread_id HIỆU LỰC của lượt này (đã áp `or user_id` ở caller,
+    # xem run_agent_turn), luồn xuống build_customer_tools để tool
+    # create_ticket ghi vào Complaint.thread_id lúc TẠO. None = caller cũ
+    # (test/eval) không truyền — Complaint.thread_id NULL, đúng thiết kế
+    # "NULLABLE VĨNH VIỄN" của migration a8b9c0d1e2f3, không phải lỗi.
+    thread_id: str | None = None,
     # GĐ3 (876a240) — tên MODEL cho lượt này, KHÔNG phải hằng số toàn cục.
     # Mặc định `LLM_MODEL` giữ NGUYÊN hành vi cũ cho mọi caller không truyền
     # (test/eval hiện có). Vòng xoay nằm INLINE trong `run_agent_turn` (không
@@ -607,7 +613,7 @@ def _build_agent(
     global _SUY_LUAN_GUI
     _SUY_LUAN_GUI = not bool((getattr(chat_model, "extra_body", None) or {}).get("enable_thinking") is False)
     tools = build_customer_tools(
-        session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard
+        session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard, thread_id=thread_id
     )
     # Số lược đồ tool THẬT SỰ bind vào lời gọi. Lấy từ chính danh sách vừa
     # dựng, KHÔNG gõ tay — `_CHARS_TOOL_SCHEMA = 6773` phía trên là hằng số
@@ -735,7 +741,8 @@ def run_agent_turn(
     # chính và luồng nền khi lượt bị bỏ rơi vì timeout, xem TurnGuard (QA-12).
     guard = TurnGuard()
     agent = _build_agent(
-        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at, guard=guard  # PII-OK: cố ý truyền None, không đưa họ tên lên LLM
+        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at, guard=guard,  # PII-OK: cố ý truyền None, không đưa họ tên lên LLM
+        thread_id=thread_id or user_id,
     )
     # thread_id mặc định = user_id (hành vi thật, không đổi). eval/_harness.py
     # truyền thread_id riêng biệt mỗi case để cô lập bộ nhớ hội thoại
@@ -779,6 +786,7 @@ def run_agent_turn(
                 agent = _build_agent(
                     session, user_id=user_id, customer_name=None,  # PII-OK: luôn None, họ tên không rời hệ thống (ADR-010)
                     otp_verified_at=otp_verified_at, guard=guard, model=model_dang_thu,
+                    thread_id=thread_id or user_id,
                 )
                 models_da_thu.append(model_dang_thu)
 
@@ -1112,6 +1120,7 @@ def run_agent_turn(
                     session,
                     user_id=user_id,
                     reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
+                    thread_id=thread_id or user_id,
                 )
                 # Commit tường minh: khách vừa được báo mã ticket này, nên nó
                 # PHẢI tồn tại thật, không phụ thuộc caller có commit hay
