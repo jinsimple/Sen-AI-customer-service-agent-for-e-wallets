@@ -157,3 +157,55 @@ rộng chưa từng được cân nhắc riêng).
 ⚠️ **Bảo Mật giữ quyền phủ quyết theo NĐ 13/2023** — nếu họ định hạng "tên bên thứ ba do khách gõ
 rời hạ tầng" là không chấp nhận được, B bị loại và ta quay lại tối ưu NER. Trình PO thật kèm ý kiến
 Bảo Mật, không trình trước.
+
+---
+
+## 7. 🟢 PHƯƠNG ÁN D' — THỐNG TRỊ CẢ A LẪN B, không phải đánh đổi
+
+Bảo Mật chấp thuận B kèm điều kiện ③: **đo điểm giữa CHƯA AI ĐO** (regex + underthesea, bỏ Spacy)
+trước khi chốt. Họ đúng — tôi và Lead đã nhảy thẳng từ A sang B. Phép đo rẻ nên tôi làm ngay.
+
+**[ĐO PO-agent — cùng 124 câu khách thật, cùng corpus, chỉ đổi registry recognizer]:**
+```
+A  regex + Spacy + underthesea  (ĐANG DÙNG)      62/124 = 50,0% bóp méo
+D  regex + underthesea (bỏ Spacy)                16/124 = 12,9%
+B  regex-only                                      6/124 =  4,8%   ← mất che tên người
+D' regex + underthesea, bỏ Spacy+Date+Phone-chung  7/124 =  5,6%   ← GIỮ TRỌN che tên người
+```
+
+🔴 **Ba nhóm trong 12,9% của D — phân loại xong mới thấy hai nhóm là THIỆT HẠI THUẦN:**
+| nhóm | ví dụ | phán |
+|---|---|---|
+| `DateRecognizer` | `"Ngày 07/07"` → `"Ngày [DATE_TIME]"` | **thiệt hại thuần** — ngày không phải PII ở đây, và agent CẦN nó để tra |
+| `PhoneRecognizer` (chung) | `"chuyển 18.000.000"` → `"chuyển [PHONE_NUMBER]"` · `"1.647.000"` → `[PHONE_NUMBER]` | 🔴 **NẶNG NHẤT TRONG NGÀY** — recognizer SĐT nuốt **SỐ TIỀN** |
+| `VN_PHONE_NUMBER` | `"cho so 0884000085"` → `[VN_PHONE_NUMBER]` | **ĐÚNG** — dương tính thật, giữ nguyên |
+
+🔴 **Số tiền bị thay bằng `[PHONE_NUMBER]` tệ hơn mất mã giao dịch.** Trong một khiếu nại tài chính,
+**số tiền là dữ kiện lõi**; mất nó thì agent không thể đối chiếu, không thể phân loại, và mọi con số
+nó nói sau đó đều không có gốc. Định dạng tiền VN (`18.000.000`) trùng hình dạng SĐT quốc tế —
+recognizer chung của Presidio không biết bối cảnh ví điện tử Việt.
+
+**ĐỐI CHỨNG D' — giữ trọn MỌI thuộc tính bảo mật của A:**
+```
+'Tôi tên Lê Hoàng Nam'              → 'Tôi tên [PERSON_VN]'                    ✅ che
+'tôi chuyển cho chị Nguyễn Thị Lan' → 'tôi chuyển cho chị [PERSON_VN]'         ✅ che BÊN THỨ BA
+'toi chuyen cho so 0884000085'      → '[VN_PHONE_NUMBER/VN_ID_NUMBER]'         ✅ che
+'email nam.le@gmail.com'            → '[EMAIL_ADDRESS/URL]'                    ✅ che
+'CCCD 001199012345'                 → '[VN_ID_NUMBER]'                         ✅ che
+'TXN20260731000352'                 → nguyên vẹn                               ✅ giữ
+'chuyen 18.000.000'                 → nguyên vẹn                               ✅ giữ
+'Ngày 07/07 rút 1.524.000đ'         → nguyên vẹn                               ✅ giữ
+```
+
+🟢 **D' sạch ngang B (5,6% vs 4,8%) và giữ TRỌN thuộc tính bảo mật của A** ⟹ **THỐNG TRỊ cả hai.**
+**Rủi ro tồn dư của B — "tên bên thứ ba khách tự gõ rời hạ tầng" — TAN BIẾN.** Không còn đánh đổi
+nào để PO thật phải quyết. Câu hỏi chính sách biên-dữ-liệu **tự đóng bằng một phép đo**.
+
+**Vì sao câu hỏi ấy từng tồn tại:** cả tôi lẫn Lead đều đóng khung *"NER hay không NER"* — một lựa
+chọn nhị phân giữa hai gói. Sự thật là **gói NER gồm nhiều recognizer độc lập**, và **hai trong số
+đó (Date, Phone-chung) gây gần hết thiệt hại mà không che thêm PII nào**. Hỏi "bỏ NER không" là hỏi
+sai đơn vị. Bảo Mật ép đo điểm giữa chính là thứ làm đơn vị đúng hiện ra.
+
+**⟹ ĐỀ XUẤT CHỐT: D'**, và ba điều kiện của Bảo Mật giữ nguyên hiệu lực (ADR có khai · không đụng
+log/trace · mốc xem lại). Nợ sửa docstring `pii.py:78-80` vẫn đứng. `MEDICAL_LICENSE` đã loại thống
+nhất — không đổi.
