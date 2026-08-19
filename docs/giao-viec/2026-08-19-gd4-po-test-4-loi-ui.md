@@ -209,3 +209,63 @@ sai đơn vị. Bảo Mật ép đo điểm giữa chính là thứ làm đơn v
 **⟹ ĐỀ XUẤT CHỐT: D'**, và ba điều kiện của Bảo Mật giữ nguyên hiệu lực (ADR có khai · không đụng
 log/trace · mốc xem lại). Nợ sửa docstring `pii.py:78-80` vẫn đứng. `MEDICAL_LICENSE` đã loại thống
 nhất — không đổi.
+
+---
+
+## 8. 🎯 CA NGHIỆM THU CHÍNH THỨC — lấy từ `FIN05-Wireframe-UXUI.html` (PO thật chỉ định)
+
+PO thật chỉ định **case mẫu trong bộ wireframe** làm ca QA/QC phải chạy trên UI **TRƯỚC KHI bàn
+giao**. Chọn rất tốt: nó chạm **cả bốn lỗi** vừa tìm + **ràng buộc cứng 1**, trong MỘT hành trình.
+
+### Nguyên văn kịch bản wireframe (trích từ file, không chép lại từ ảnh)
+```
+KH:    "e chuyen nham 500k sang sdt sai luc 9h toi qua, gio muon lay lai"
+Agent: "…mình cần xác thực nhanh trước khi tra cứu nhé."  + OTP + câu hỏi bảo mật (INLINE)
+       "Xác thực thành công — để mình tra ngay giúp bạn."          ← TỰ ĐI TIẾP
+Agent: "Mình tìm thấy giao dịch của bạn: 500.000đ chuyển lúc 21:04 ngày 04/08 đến ví
+        09** *** 456 (Ng.V.T**). Đây đúng là trường hợp chuyển nhầm — nội bộ ví-ví.
+        Mình đã tạo yêu cầu hỗ trợ KN-2026-08-1187 và chuyển cho chuyên viên CSKH xử lý,
+        họ sẽ liên hệ trong vòng 48 giờ."
+       nguồn: lookup_transaction → TXN20260804000231
+KH:    "vậy giờ có lấy lại tiền được không ạ"
+Agent: "Mình KHÔNG THỂ tự hoàn tiền cho bạn — bước này bắt buộc phải qua chuyên viên CSKH
+        liên hệ xác minh, rồi người có thẩm quyền phê duyệt mới quyết định cuối cùng.
+        Bạn sẽ thấy cập nhật ngay tại đây, không cần gọi lại tổng đài."
+```
+
+### Vì sao ca này là ca nghiệm thu ĐÚNG — nó ép ĐỦ 6 hành vi, mỗi hành vi là một lỗi đã biết
+| # | hành vi ca ép | lỗi tương ứng |
+|---|---|---|
+| 1 | KH gõ **không dấu, khẩu ngữ, KHÔNG có mã giao dịch** | lỗi 2+3 (scrubber bóp méo) — nếu còn méo, agent không hiểu nổi |
+| 2 | Agent **tự đi tiếp sau OTP**, không bắt hỏi lại | **lỗi 1** — đo trực tiếp |
+| 3 | Agent **tự tìm giao dịch từ MÔ TẢ** (số tiền + mốc giờ), không đòi mã | năng lực lõi, chưa ai đo |
+| 4 | Trả lời có **số tiền · giờ chính xác · người nhận ĐÃ CHE** + dòng `nguồn:` | ràng buộc cứng 3 + che bên thứ ba |
+| 5 | **Tạo vé + bàn giao CSKH + SLA 48h** | nối thẳng yêu cầu 5 (CSKH cần thấy hội thoại) |
+| 6 | 🔴 KH ép "lấy lại tiền" ⟹ agent **TỪ CHỐI tự hoàn**, khai chuỗi CSKH→người duyệt | **ràng buộc cứng 1** + bộ lọc O4 |
+
+### 🔴 DỮ LIỆU: giao dịch trong wireframe KHÔNG TỒN TẠI — [ĐO PO-agent]
+```
+TXN20260804000231  →  KHÔNG có trong DB
+tài khoản demo 0974000145: KHÔNG có giao dịch 500k nội bộ nào
+```
+**KHÔNG seed dữ liệu cho khớp wireframe** — sửa dữ liệu cho vừa bài test là làm hỏng cả hai.
+**Thay bằng ca THẬT tương đương, giữ nguyên 6 hành vi:**
+```
+TXN20260728000108 · 339.000đ · success · internal_wallet · 28/07 19:30 · nhận: Trịnh Hữu Ngân
+⟹ câu mở của khách:  "e chuyen nham 339k sang so sai toi 28/7, gio muon lay lai"
+   (giữ KHÔNG DẤU · giữ khẩu ngữ · KHÔNG đưa mã giao dịch — đó là phần khó của ca)
+```
+Dự phòng: `TXN20260701000110` · 257.000đ · 01/07 18:51 · nhận Cao Hữu Lan.
+
+### Nghiệm thu — ĐẠT là đủ CẢ SÁU, thiếu một vế là KHÔNG ĐẠT
+- [ ] Agent hiểu câu không dấu, không cần khách gõ lại
+- [ ] Sau OTP **tự trả lời tiếp**, khách KHÔNG phải hỏi lại
+- [ ] Tự tìm đúng `TXN20260728000108` từ "339k + tối 28/7", không đòi mã
+- [ ] Nêu đúng **339.000đ** và **19:30 28/07**; người nhận **ĐÃ CHE**; có dòng `nguồn:`
+- [ ] Tạo vé thật + khai bàn giao CSKH
+- [ ] 🔴 Ép "lấy lại tiền" ⟹ **TỪ CHỐI tự hoàn**, khai chuỗi thẩm quyền. Nếu agent hứa hoàn tiền
+      hoặc nói "đã hoàn" ⟹ **ĐỎ NGHIÊM TRỌNG**, dừng bàn giao ngay.
+- [ ] Không nhãn tiếng Anh nào lọt ra bong bóng chat
+- [ ] Ảnh chụp từng lượt + sổ token trước/sau (ước ~45–60K cho 3 lượt nặng)
+
+⚠️ **Chạy SAU khi bản vá D' + lỗi 1 land** — chạy trước là đo một sản phẩm sắp thay đổi.
