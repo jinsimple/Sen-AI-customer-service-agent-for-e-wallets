@@ -124,3 +124,35 @@ lại) và giá trị vẫn lọt.** ⟹ **quy tắc dựa trên "cẩn thận h
   dữ liệu quản lý bởi chính công cụ Claude Code), không phải việc tôi tự làm.
 - Đưa (B) vào brief GĐ3 trước khi Coder chạm bất cứ thứ gì có key product thật — theo đúng đề nghị
   Lead đã nêu, tôi đã viết xong điều khoản, Lead thi hành.
+
+---
+
+## NIÊM 19/08 (chiều) — Lead đo nốt câu [PHẢI KIỂM], quyết KHÔNG purge, chặn một near-miss của QA/QC
+
+**Câu đồng bộ cục bộ: ĐÓNG được một nửa, đúng cách đóng.** [ĐO] Lead: `readlink -f` ra đường thật
+(không symlink), `$HOME` không nằm dưới bất kỳ thư mục đồng bộ cloud nào (iCloud/Dropbox/GDrive/
+OneDrive), `~/.claude/settings.json` không có khoá telemetry/sync/upload. iCloud Drive CÓ bật trên
+máy nhưng phạm vi của nó (`~/Library/Mobile Documents` + Desktop/Documents nếu bật) **không phủ**
+`~/.claude`. **Nửa còn lại — công cụ có tự tải transcript lên phía nhà cung cấp hay không — Lead
+ĐÚNG khi từ chối trả lời**: đó là hành vi phía nhà cung cấp, không quan sát được từ hệ thống tệp,
+mọi câu trả lời sẽ là suy đoán đội lốt phép đo — đúng thứ cả ngày hôm nay đã dạy phải tránh. Lead đã
+chuyển câu này lên PO thật thay vì đoán. **Đúng cách xử lý một câu không đo được: khoanh vùng rồi
+dừng, không lấp bằng suy luận** (cùng nguyên tắc tôi đã áp cho câu hợp đồng ToS Alibaba 17/08).
+
+**Đồng ý KHÔNG purge 7 giá trị — ba lý do của Lead đủ, không cần thêm.** ① không đóng được gì đáng
+kể (một giá trị đang sống) ② nhắm sai kênh (kênh (1) là kênh NHẸ hơn trong hai kênh tôi nêu — purge
+không chạm được kênh (2)) ③ tự tạo rủi ro mới bằng cách sửa chính vật đang ghi lại lịch sử — đúng
+tinh thần "đọc trước, dọn sau" và "niêm tại chỗ, đừng sửa thân" đã dùng nhiều lần trong dự án, áp
+đúng cho một loại vật mới (transcript của chính harness, không phải file trong repo). **Một điều
+kiện nhỏ, không đổi kết luận:** một khi kênh gốc đã đóng bằng (B) (agent hết đường chạm key
+production, và kỷ luật dev-key cũ vẫn giữ), một đợt dọn RẤT LÂU về sau — khi không còn giá trị nào
+trong 7 giá trị đó còn "sống" — sẽ là thao tác rủi ro THẤP hơn hẳn (không còn bí mật hoạt động nào
+để lỡ tay làm hỏng theo hướng nguy hiểm). Không phải việc hôm nay.
+
+**QA/QC near-miss — Lead bắt đúng, và đáng thành một nguyên tắc đứng, không chỉ một lần sửa.**
+Dùng CHÍNH khoá thật làm vật thử "khoá không rời máy" là tự tạo ra đúng sự kiện đang được đo — kiểm
+tra ăn chính đối tượng nó bảo vệ. Đổi sang sentinel không chỉ an toàn hơn, còn **mạnh hơn về mặt
+kiểm được**: sentinel `grep` được thoải mái để xác nhận (có hay không), khoá thật thì không ai dám
+chạy đúng lệnh cần chạy để xác nhận — nghịch lý tự trói tay chính phép kiểm. **Nguyên tắc chung cho
+mọi ca tương lai cùng hình dạng:** muốn CHỨNG MINH một bí mật không rò, đừng bao giờ dùng CHÍNH bí
+mật đó làm dữ liệu thử — dùng một giá trị vô hại nhưng ĐỘC NHẤT (sentinel) đóng vai trò của nó.
