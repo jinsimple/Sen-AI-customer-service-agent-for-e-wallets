@@ -24,8 +24,46 @@ const COMPLAINT_CHIPS: { value: ComplaintType; label: string; starter: string }[
 ];
 
 // OTP chỉ cần xác thực khi agent THỰC SỰ chạm dữ liệu giao dịch/tài khoản
-// (2 tool này) hoặc tạo ticket — hỏi chính sách/phí chung chung không cần.
-const SENSITIVE_TOOLS = new Set(["lookup_transaction", "get_customer_history"]);
+// hoặc tạo ticket — hỏi chính sách/phí chung chung không cần.
+//
+// Finding B2 (GĐ2.5) — `create_ticket` THIẾU ở đây là MỘT trong hai nguyên
+// nhân độc lập của Finding B (phép AND, vá một cái không đủ — xem
+// otpStaleCall bên dưới cho nửa còn lại): khi tool này hỏng vì OTP hết tươi,
+// nó không tạo `ticket_id` (tạo thất bại) VÀ trước bản vá này không có mặt
+// trong tập "nhạy cảm" ⟹ touchedSensitiveData=false ⟹ không hỏi lại OTP.
+const SENSITIVE_TOOLS = new Set(["lookup_transaction", "get_customer_history", "create_ticket"]);
+
+// Finding B1 (GĐ2.5, QUYẾT ĐỊNH B — docs/giao-viec/2026-08-19-gd25-va-finding-ab-otp.md,
+// commit 32751c2, PO thật chốt 19/08) — OTP hết tươi KHÔNG BAO GIỜ tới client
+// dưới dạng HTTP 403 trên đường agent thật (chỉ route HTTP /tools/create_ticket
+// TRỰC TIẾP mới 403, và ChatClient không gọi route đó — xem
+// customer_tools.py:632-635: tool trả `{"status":"error",...}` TRONG một
+// response 200 bình thường, KHÔNG raise). Cách nhận diện DUY NHẤT trong ràng
+// buộc backend ĐÓNG BĂNG đợt này: khớp CHÍNH XÁC chuỗi hằng số backend tự
+// viết ra (KHÁC hẳn khớp thân lỗi NHÀ CUNG CẤP — thứ đã cấm ở GĐ3: đây là
+// literal TA SỞ HỮU, dưới quản lý phiên bản, ghim được bằng cổng).
+//
+// 🔴 CHỈ khớp `_OTP_EXPIRED_ERROR` (customer_tools.py:600-603) — KHÔNG khớp
+// `_OTP_REQUIRED_ERROR` (trả ở :814·:863·:905, điều kiện `otp_verified_at is
+// None` — khách CHƯA TỪNG xác thực). Không phải thiếu sót, có lý do đo được:
+// ca REQUIRED chỉ xảy ra khi `otp_verified_at is None`, tức `otpVerifiedRef.
+// current` đang là FALSE (chưa từng xác thực trong phiên) ⟹ điều kiện
+// `touchedSensitiveData && !otpVerifiedRef.current` bên dưới TỰ BẮN, không
+// cần tín hiệu gì thêm. Ca EXPIRED thì NGƯỢC LẠI: đã xác thực một lần nên
+// `ref` là TRUE ⟹ điều kiện đó KHÔNG bắn — đây là ca DUY NHẤT cần otpStaleCall.
+// Sau khi B2 (SENSITIVE_TOOLS thêm create_ticket) land, ca REQUIRED được phủ
+// MIỄN PHÍ qua đúng con đường đó, kể cả cho create_ticket.
+// ⟹ Khớp thêm REQUIRED không thừa MỘT CHÚT — nó THỪA HOÀN TOÀN, và trả giá
+// bằng một chuỗi cổng ghim không phủ (cổng ② chỉ so đúng EXPIRED — xem
+// ChatClient.pin.test.ts). Khớp SAI (kể cả REQUIRED) rơi qua nhánh
+// touchedSensitiveData bên dưới như bình thường — KHÔNG RÕ không bị gộp
+// ngầm vào OTP (điều khoản ba-trạng-thái của Bảo Mật).
+//
+// Nợ có hạn, có chuyến (khai trong Quyết định B): giải pháp (ii) này đi cùng
+// đợt backend GĐ3 (đằng nào cũng gỡ băng cho bể model xoay) sẽ đổi sang field
+// `loai` có cấu trúc, cổng ghim tháo bỏ khi đó — KHÔNG phải "tạm thời vĩnh viễn".
+const OTP_EXPIRED_MESSAGE =
+  "Lần xác thực OTP gần nhất đã quá hạn cho thao tác này — yêu cầu khách xác thực OTP lại trước khi tiếp tục.";
 
 type Msg =
   | { id: string; from: "bot"; text: string; chips?: { label: string; onClick: () => void }[]; cite?: string }
@@ -431,6 +469,25 @@ export default function ChatClient({
       // liệu thật thay vì chỉ nghe agent kể lại bằng lời.
       if (result.tool_calls.length > 0) {
         getCustomerHistory({}).then(setHistory).catch(() => {});
+      }
+
+      // Finding B1 (GĐ2.5, Quyết định B) — tool vừa hỏng vì OTP ĐÃ hết tươi
+      // GIỮA phiên (`otpVerifiedRef.current` vẫn `true` từ lần xác thực
+      // trước, backend mới là nguồn sự thật). Khớp CHÍNH XÁC message — không
+      // lọc thêm theo tool_name: message này chỉ 3 tool (lookup_transaction/
+      // get_customer_history/create_ticket) có thể sinh ra nên đã đủ hẹp.
+      const otpStaleCall = result.tool_calls.find(
+        (c) => c.result.status === "error" && c.result.message === OTP_EXPIRED_MESSAGE
+      );
+      if (otpStaleCall) {
+        push({
+          id: nid(),
+          from: "bot",
+          text: "Để tiếp tục thao tác này, mình cần bạn xác thực lại OTP phiên làm việc nhé.",
+        });
+        pendingStarterRef.current = text;
+        void beginOtpFlow();
+        return;
       }
 
       // Chỉ chạm dữ liệu giao dịch/tài khoản thật (SENSITIVE_TOOLS) hoặc vừa
