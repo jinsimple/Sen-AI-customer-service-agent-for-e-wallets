@@ -2588,3 +2588,68 @@ không-cache thì sức chứa cao gần gấp đôi. Phép thử một bước 
 
 🔴 **Cầu dao khi cả bể cạn phải là một trải nghiệm ĐÃ THIẾT KẾ, không phải một lỗi** — ở sức chứa
 này nó không phải trạng thái hiếm, nó là trạng thái **sẽ gặp**.
+
+---
+
+## ADR-044 — CSKH đọc được hội thoại bot↔khách của vé mình xử lý
+
+**Trạng thái:** chấp nhận · 19/08/2026 · **PO thật duyệt trực tiếp** (§10 bước 4)
+*(Lead soạn nháp; Bảo Mật soi BOLA + phụ thuộc chéo, `docs/security/2026-08-19-adr044-soi-bola-va-phu-thuoc-cheo.md`; PO-agent trình và land.)*
+
+### Bối cảnh
+PO thật 19/08: *"khi khách yêu cầu gặp người thật thì bên khung chat của CSKH cũng phải có lịch sử
+chat giữa bot và khách hàng — như thế họ mới đủ thông tin để hỗ trợ."*
+[ĐO] `flag_human_handoff()` chỉ lưu **một chuỗi `reason`** do AI tóm tắt; `TicketDetailClient.tsx`
+chỉ hiện `investigation_logs`/`resolutions`/`tool_result`. Toàn bộ lời khách tự nói **không tới được
+người sắp hỗ trợ họ** — khách phải kể lại từ đầu.
+
+### 🔴 Phát hiện chặn thiết kế — tìm TRƯỚC khi viết contract
+[ĐO] `main.py:645` `thread_id = f"{user_id}:{iat}"` — thread gắn theo **PHIÊN ĐĂNG NHẬP**, không phải
+user. `Complaint` **không có** `thread_id`; `create_ticket` không nhận nó ở tầng nào.
+⟹ **Không có đường xác định chắc chắn thread nào sinh ra vé nào.** Một khách đăng nhập 3 lần = 3
+thread cho cùng `user_id`. Đoán theo mốc thời gian gần nhất là **heuristic đội lốt sự thật**, và
+đoán sai = CSKH đọc **nhầm đoạn hội thoại** của cùng khách (có thể lộ một khiếu nại KHÁC, hoặc tư
+vấn dựa trên ngữ cảnh sai).
+
+### Quyết định
+1. **`Complaint.thread_id`** (nullable), ghi tại thời điểm TẠO. Luồn qua **BỐN tầng**:
+   `run_agent_turn` → `build_customer_tools` → tool `create_ticket` → `complaint_intake` → `INSERT`.
+2. **Vé cũ (trước migration) trả `transcript: null` kèm lý do — TUYỆT ĐỐI KHÔNG đoán theo thời gian.**
+   "Không biết" hiện ra là an toàn; "đoán" hiện ra là nguy hiểm vì **không ai phân biệt được nó với
+   sự thật**.
+3. **Route mới `GET /tickets/{ticket_id}/transcript`**, `roles: [cskh, supervisor]`.
+   🔴 **GUARD CHÍNH (Bảo Mật sửa lời):** route **KHÔNG BAO GIỜ nhận `thread_id` làm tham số request**
+   (query/body/header) dưới bất kỳ hình thức nào — **chỉ nhận `ticket_id`**, `thread_id` suy DUY NHẤT
+   từ `ticket.complaint.thread_id` đọc từ DB. Ranh giới cần chặn: route không được âm thầm trở thành
+   *"đọc thread_id trần"* trá hình dưới lốt *"đọc theo ticket"*.
+   *"user_id khớp"* hạ xuống **404-handler phụ**, KHÔNG phải ranh giới thẩm quyền — vì mọi
+   `cskh`/`supervisor` vốn đã đọc được mọi ticket, guard đó không chặn được gì thật.
+4. **`Ticket.handoff_at`** (nullable), ghi lúc `flag_human_handoff()` chạy ([ĐO] hàm hiện chỉ set
+   boolean + `updated_at`, **chưa** ghi mốc bàn giao). Đặt ở `Ticket` chứ không `Complaint`: một
+   complaint có thể sinh nhiều ticket, bàn giao gắn với MỘT ticket.
+5. Đọc qua LangGraph `checkpointer.get_tuple()` — **KHÔNG** parse thẳng bảng `checkpoint_*` (chi tiết
+   triển khai của LangGraph, đổi giữa các phiên bản).
+6. Rate limit tái dùng `@limiter.limit` có ở `/agent/chat`; audit tự động qua `_access_logger` —
+   **không hạ tầng mới**.
+7. 🔴 **`agent-tools.yaml` KHÔNG đổi, CÓ CHỦ ĐÍCH.** Cho AI một tool đọc transcript bàn giao là để nó
+   tự đọc hồ sơ *"nó bị đá ra"* — cùng họ **ràng buộc cứng số 2** (AI không vượt cấp). Khai ra để
+   người sau không đọc "không đổi" thành "chưa ai nghĩ tới".
+
+### Trục bằng chứng — transcript TRÔI sau bàn giao
+Đọc LIVE nghĩa là khách xin gặp người rồi **vẫn chat tiếp**, nên thứ CSKH đọc **khác** thứ đã gây ra
+bàn giao. Trong khiếu nại tài chính, hội thoại tại thời điểm bàn giao là **bằng chứng**, không được
+đổi sau lưng người đọc. **MVP:** vẫn đọc live, nhưng trả kèm `handoff_at` và **UI vẽ vạch phân cách**
+*"— khách yêu cầu gặp người thật tại đây —"*. Trên vạch là thứ gây ra bàn giao; dưới vạch là thứ xảy
+ra sau.
+
+### PII — GIẢI XONG bằng phép đo, không phụ thuộc bản vá lỗi 2+3
+[ĐO] đọc checkpoint thật qua `PostgresSaver.get_tuple()`: **checkpoint lưu bản ĐÃ SCRUB** (`graph.py:787`
+scrub *trước khi* tạo `HumanMessage`). Route không cần scrub lại ⟹ hai việc chạy song song thật.
+🔴 **Nghĩa vụ khai trên UI:** checkpoint ghi TRƯỚC bản vá D' giữ **nhãn che sai vĩnh viễn**
+(`[PERSON_VN]`/`[LOCATION]` thay cho từ khách gõ thật — [ĐO] ~12% câu tiếng Việt đời thường bị bóp
+méo, không riêng mã giao dịch). **KHÔNG vá ngược kho lịch sử — sửa bằng chứng là việc không được làm.**
+UI phải hiện dòng khai để CSKH không tưởng khách gõ như vậy.
+
+### Hệ quả
+`authority-matrix.yaml` **2.0.0 → 2.1.0**, **33 → 34 route**. Migration Alembic + code đi SAU khi
+contract land + baseline cập nhật + `CONTRACT_VERSION` sửa (§10 bước 5–7).
