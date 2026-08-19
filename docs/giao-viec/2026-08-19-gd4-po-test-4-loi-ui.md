@@ -108,3 +108,52 @@ che PII; UI thêm một khối "Hội thoại với trợ lý" trong `TicketDeta
 
 ⚠️ **Đây KHÔNG phải live-chat real-time** (thiết kế WebSocket đã hoãn có ghi sổ). Đây là **bàn giao
 ngữ cảnh MỘT CHIỀU**, đúng mức MVP: CSKH đọc được những gì đã xảy ra trước khi họ vào.
+
+---
+
+## 6. 🔴 SỐ ĐO ĐỔI KHUNG QUYẾT ĐỊNH — NER mua gì, với giá bao nhiêu
+
+Bản vá `dec5335` kéo tỉ lệ bóp méo **62,1% → 49,2%** (QA/QC đo trên `golden_set.jsonl`). Cải thiện
+thật, **vẫn hỏng**: gần một nửa câu khách gõ bị chèn nhãn sai. Lead + Bảo Mật đang bàn trong khung
+*"làm NER chính xác hơn"* (vá `MEDICAL_LICENSE`, loại Spacy…). **PO-agent bước ra khỏi khung đó và đo
+câu gốc hơn: NER có nên nằm trên đường này không.**
+
+**[ĐO PO-agent — 124 câu khách THẬT từ `golden_set.jsonl`, hai hàm đã có sẵn trong `pii.py`]:**
+```
+scrub_pii   (regex + NER — ĐANG DÙNG ở graph.py:787): 63/124 câu bị chèn nhãn = 50,8%
+scrub_regex (CHỈ regex, đã có sẵn, pii.py:77)       :  6/124 câu bị chèn nhãn =  4,8%
+
+ĐỐI CHỨNG regex-only vẫn che được gì:
+  'SĐT tôi 0912345678'            → 'SĐT tôi [PHONE]'        ✅
+  'email toi la nam.le@gmail.com' → 'email toi la [EMAIL]'   ✅
+  'CCCD 001199012345'             → 'CCCD [ID_NUMBER]'       ✅
+  'Tôi tên Lê Hoàng Nam'          → KHÔNG che                ❌ (tên người lọt)
+```
+
+🔴 **Đánh đổi hiện nguyên hình: NER mua ĐÚNG MỘT THỨ — che TÊN NGƯỜI khách tự gõ — với giá là bóp
+méo thêm 46% số câu khách.** Mọi định danh gây hại thật (SĐT · email · CCCD/CMND · số tài khoản) đều
+do **regex** bắt, tất định, gần như không dương tính giả.
+
+**Thu hẹp phạm vi rủi ro tồn dư — đọc kỹ, nó nhỏ hơn vẻ ngoài:**
+- Tên bên thứ ba trong **kết quả tool** đã được che bởi `_scrub_pii_cho_llm` (che theo TRƯỜNG, chính
+  xác) — [ĐO ảnh chụp UI: người nhận hiện `C. H. Lan`). NER **không** đóng góp gì ở đó.
+- Tên **của chính khách** thì nhà cung cấp nhận cũng không thêm rủi ro mới: ta đã gửi dữ liệu giao
+  dịch gắn với khách đó rồi.
+- Phần NER thật sự đóng: **tên bên thứ ba do KHÁCH TỰ GÕ** (vd *"tôi chuyển cho chị Nguyễn Thị Lan"*).
+  Có thật, nhưng hẹp — và đang được mua bằng việc agent hiểu sai một nửa số câu.
+
+**KHUNG QUYẾT ĐỊNH cho PO thật (PO-agent trình, không tự quyết — đây là chính sách BIÊN DỮ LIỆU):**
+| | phương án | agent hiểu đúng | tên bên-thứ-ba khách gõ |
+|---|---|---|---|
+| A | giữ regex+NER (nay đã vá) | ~49% câu bị méo | được che |
+| B | **regex-only trên ĐƯỜNG GỬI MODEL**, giữ regex+NER cho LOG/TRACE | ~95% câu sạch | lọt tới nhà cung cấp |
+| C | bỏ scrub hẳn trên đường gửi model | 100% sạch | lọt, kèm SĐT/CCCD |
+
+**PO-agent khuyến nghị B**, và nêu rõ vì sao B khác C: C bỏ luôn regex — mất phần che **có hiệu quả
+thật và gần như không dương tính giả**. B chỉ gỡ đúng lớp đang gây hại. Và B **không đụng** chính
+sách log/trace (checklist observability Giai đoạn 3 nói về log/trace — đường model-input là phần mở
+rộng chưa từng được cân nhắc riêng).
+
+⚠️ **Bảo Mật giữ quyền phủ quyết theo NĐ 13/2023** — nếu họ định hạng "tên bên thứ ba do khách gõ
+rời hạ tầng" là không chấp nhận được, B bị loại và ta quay lại tối ưu NER. Trình PO thật kèm ý kiến
+Bảo Mật, không trình trước.
