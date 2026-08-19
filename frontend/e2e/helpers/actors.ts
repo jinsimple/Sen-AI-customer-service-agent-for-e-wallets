@@ -100,6 +100,14 @@ export async function completeOtpIfPrompted(page: Page, timeoutMs = 40_000): Pro
  *
  * Cố ý KHÔNG bọc try/catch nuốt lỗi: nếu sau khi xác thực mà rail vẫn không
  * hiện thì đó là lỗi sản phẩm thật và phải đỏ.
+ *
+ * [ĐO] GĐ2 (19/08) — lời tiên đoán 14/08 ở trên ĐÚNG, trên chính hai call-site
+ * cũ chưa được vá: `auth.spec.ts::triggerSensitiveAction` (8 ca) và
+ * `auth-multirole.spec.ts:78` chờ thẳng `.txn-item` không gọi hàm này —
+ * xanh suốt từ 14/08 chỉ vì máy chạy luôn còn OTP <12h sót lại, đỏ ngay trên
+ * máy nguội thật. Cả hai đã vá 19/08 (gọi `unlockTxnRail` trước khi chờ
+ * `.txn-item`; ở `auth-multirole.spec.ts` phải gọi TRƯỚC bước giả mạo
+ * access_token hết hạn, không phải sau — xem ghi chú tại call-site đó).
  */
 export async function unlockTxnRail(page: Page): Promise<boolean> {
   const nutXacThuc = page.getByRole("button", { name: "Xác thực ngay" });

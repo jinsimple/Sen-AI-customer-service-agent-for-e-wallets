@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext } from "@playwright/test";
-import { loginAs } from "./helpers/actors";
+import { loginAs, unlockTxnRail } from "./helpers/actors";
 import { forgeAccessTokenExpiry, setForgedSessionCookie } from "./helpers/otp-forge";
 import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session";
 
@@ -71,6 +71,16 @@ test.describe("AUTH5-HARD-01 — luồng đăng nhập, cả 4 role cùng lúc (
       // trang render, khách không thấy gì bất thường (không rơi về /login,
       // rail giao dịch vẫn load được — chứng minh access_token MỚI đã hoạt
       // động thật, không chỉ "không lỗi").
+      //
+      // 🔴 [ĐO] GĐ2 (19/08, Lead): unlockTxnRail() PHẢI chạy TRƯỚC bước giả
+      // mạo hết hạn bên dưới, KHÔNG được chèn sau reload. Ca này khẳng định
+      // "rail vẫn load được = access_token MỚI đã hoạt động thật" — nếu mở
+      // rail SAU KHI đã giả hết hạn+reload, chính thao tác mở rail sẽ tự sửa
+      // trạng thái đang được quan sát, biến bằng chứng thành hằng-đúng (xanh
+      // dù refresh có chạy hay không). Mở TRƯỚC, bằng phiên còn hợp lệ, để
+      // .txn-item ở dòng dưới chỉ còn MỘT lời giải thích: refresh đã chạy.
+      await unlockTxnRail(customerPage);
+
       const customerSession = await readSessionCookie(contexts[0]);
       const expiredCustomer = forgeAccessTokenExpiry(customerSession, -30); // hết hạn 30s trước
       await setForgedSessionCookie(contexts[0], expiredCustomer);

@@ -1,5 +1,6 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
-import { DEMO_PASSWORD } from "./helpers/actors";
+import jwt from "jsonwebtoken";
+import { DEMO_PASSWORD, unlockTxnRail } from "./helpers/actors";
 import { forgeOtpVerifiedAt, setForgedSessionCookie } from "./helpers/otp-forge";
 import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session";
 
@@ -64,6 +65,22 @@ async function triggerSensitiveAction(page: Page) {
   // cách retry tường minh ở tầng test (reload trang — hành vi người dùng
   // thật khi trang không load được, không phải giả lập ẩn) thay vì chỉ tăng
   // timeout đơn thuần.
+  //
+  // [ĐO] GĐ2 (19/08, máy nguội thật lần đầu): 8 ca dùng hàm này đều đỏ ở
+  // đúng dòng chờ .txn-item bên dưới — DOM lúc lỗi cho thấy rail còn khoá
+  // ("Xác thực OTP để xem giao dịch gần đây" + nút "Xác thực ngay"), không
+  // phải lỗi 500 mô tả ở trên. Đúng KHUYẾT TẬT đã tự khai trong docstring
+  // unlockTxnRail() (helpers/actors.ts, 14/08): hàm này trước giờ chỉ xanh
+  // nhờ VÔ TÌNH còn OTP hợp lệ <12h từ một lượt chạy trước — "đọc được nhờ
+  // MAY, không nhờ thiết kế" (Luật 19). Suốt từ 14/08 tới nay, 8 ca này
+  // chưa từng là bằng chứng gì cả trên một máy THẬT SỰ nguội. Vá: gọi
+  // unlockTxnRail() trước khi chờ .txn-item — không đổi gì khác.
+  await unlockTxnRail(page);
+  await waitForTxnItemWithRetry(page);
+  await clickReportTransactionAndSelectChip(page);
+}
+
+async function waitForTxnItemWithRetry(page: Page) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       await page.locator(".txn-item").first().waitFor({ state: "visible", timeout: 15_000 });
@@ -73,8 +90,62 @@ async function triggerSensitiveAction(page: Page) {
       await page.reload();
     }
   }
+}
+
+async function clickReportTransactionAndSelectChip(page: Page) {
   await page.getByRole("button", { name: "Báo lỗi giao dịch này" }).first().click();
   await page.getByText("Tiền chưa về", { exact: true }).click();
+}
+
+// [ĐO] GĐ2 (19/08, Lead) — thứ hai vá: `unlockTxnRail()` trong
+// `triggerSensitiveAction` TỰ hoàn tất một lượt OTP THẬT để mở rail (ngưỡng
+// XEM, 12h). Với 5 ca coi CHÍNH form OTP là đối tượng kiểm (AUTH-001-tiếp/
+// 003/006/007/008), lượt OTP ấy làm hỏng tiền đề: độ tươi mang sang cho
+// create_ticket (ngưỡng STEP-UP, 15 phút) luôn thoả NGAY LẬP TỨC (0 giây
+// trước), nên thao tác nhạy cảm sau đó KHÔNG hỏi lại OTP (đúng thiết kế
+// AUTH-006) — không có form MỚI nào xuất hiện, và các ca này lại cố điền
+// vào form CŨ đã `disabled` ("Xác thực thành công" vẫn còn trong DOM,
+// không unmount — ChatClient.tsx render OTP theo từng tin nhắn, đúng thiết
+// kế cho giao diện dạng chat, KHÔNG PHẢI bug).
+//
+// Sửa: sau khi mở rail (OTP thật, "0 giây trước"), FORGE `otp_verified_at`
+// lùi về một mốc nằm GIỮA hai ngưỡng (>15 phút, <12 giờ) rồi reload — lúc
+// đó rail vẫn mở (view chưa hết hạn) NHƯNG step-up đã hết tươi, nên
+// `clickReportTransactionAndSelectChip` phía sau sẽ tự sinh ra một thử
+// thách OTP MỚI, thật, không phải bản disabled còn sót từ unlockTxnRail.
+const STALE_STEPUP_SECONDS_AGO = 30 * 60; // 30 phút: >15 phút (step-up hết tươi), <12 giờ (view còn hiệu lực)
+
+async function triggerFreshStepupChallenge(page: Page, context: BrowserContext) {
+  await unlockTxnRail(page);
+  await waitForTxnItemWithRetry(page);
+
+  const realSession = await readSessionCookie(context);
+  const staleStepup = forgeOtpVerifiedAt(realSession, STALE_STEPUP_SECONDS_AGO);
+  await setForgedSessionCookie(context, staleStepup);
+  await page.reload();
+
+  // [ĐO] GĐ2 (19/08, Lead) — phép đo phân định TRƯỚC khi kết luận gì thêm:
+  // đọc lại cookie NGAY SAU reload, so với giá trị forge đã đặt. Khớp ⟹
+  // forge lành, vấn đề nằm phía server/render (finding sản phẩm). Không
+  // khớp ⟹ có thứ gì đó (nghi proxy.ts) thay token sau reload (lỗ hạ tầng
+  // test). Một dòng log tách hai thế giới — đừng đoán thêm trước khi có nó.
+  const sauReload = await readSessionCookie(context);
+  const claimSauReload = jwt.decode(sauReload.access_token) as {
+    otp_verified_at: number | null;
+    iat: number;
+    exp: number;
+  };
+  const claimKyVong = jwt.decode(staleStepup.access_token) as { otp_verified_at: number | null };
+  console.log(
+    "[ĐO] otp_verified_at sau reload =", claimSauReload.otp_verified_at,
+    "| kỳ vọng =", claimKyVong.otp_verified_at,
+    "| iat =", claimSauReload.iat,
+    "| exp =", claimSauReload.exp
+  );
+
+  await waitForTxnItemWithRetry(page); // rail vẫn phải mở sau reload (view <12h)
+
+  await clickReportTransactionAndSelectChip(page);
 }
 
 // Đi hết 1 lượt xác thực OTP THẬT qua UI — dùng làm bước chuẩn bị cho
@@ -122,8 +193,10 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
     await expect(page.locator(".otp-row")).toBeVisible({ timeout: 20_000 });
   });
 
-  test("AUTH-001 tiếp: nhập đúng OTP -> xác thực thành công, agent tra tiếp", async ({ page }) => {
-    await triggerSensitiveAction(page);
+  test("AUTH-001 tiếp: nhập đúng OTP -> xác thực thành công, agent tra tiếp", async ({ page, context }) => {
+    // Ca này coi CHÍNH form OTP là đối tượng kiểm — cần một thử thách MỚI,
+    // không phải bản đã "Xác thực thành công" còn sót từ unlockTxnRail().
+    await triggerFreshStepupChallenge(page, context);
     await expect(page.locator(".otp-row")).toBeVisible({ timeout: 20_000 });
 
     const demoCodeText = await page.locator(".otp-meta").first().locator("strong").textContent();
@@ -141,6 +214,7 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
 
   test("AUTH-006: đã xác thực 1 lần trong phiên -> không hỏi lại OTP cho thao tác nhạy cảm tiếp theo", async ({
     page,
+    context,
   }) => {
     // Test này làm 2 lượt gọi LLM THẬT tuần tự: (1) auto-continuation agent
     // tự gọi ngay sau "Xác thực thành công" (resolveOtp() trong
@@ -155,8 +229,9 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
     // timeout thay vì giảm assertion.
     test.setTimeout(60_000);
 
-    // Lượt 1 — xác thực.
-    await triggerSensitiveAction(page);
+    // Lượt 1 — xác thực. Cần thử thách MỚI (không phải bản còn sót từ
+    // unlockTxnRail) vì lượt 2 dưới đây đếm SỐ .otp-row tuyệt đối.
+    await triggerFreshStepupChallenge(page, context);
     await expect(page.locator(".otp-row")).toBeVisible({ timeout: 20_000 });
     const otpCode = ((await page.locator(".otp-meta").first().locator("strong").textContent()) ?? "").trim();
     const boxes = page.locator(".otp-box");
@@ -180,8 +255,8 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
     await expect(page.getByText("Sen không bao giờ hỏi mật khẩu")).toBeVisible();
   });
 
-  test("AUTH-003: sai OTP -> báo lỗi rõ ràng, KHÔNG cho qua", async ({ page }) => {
-    await triggerSensitiveAction(page);
+  test("AUTH-003: sai OTP -> báo lỗi rõ ràng, KHÔNG cho qua", async ({ page, context }) => {
+    await triggerFreshStepupChallenge(page, context);
     await expect(page.locator(".otp-row")).toBeVisible({ timeout: 20_000 });
 
     const boxes = page.locator(".otp-box");
@@ -267,7 +342,7 @@ test.describe("AUTH-007 — ngưỡng 12h tuyệt đối cho thao tác chỉ xem
   });
 
   test("OTP xác thực 12h-1 phút trước -> vẫn còn hiệu lực, trả dữ liệu thật", async ({ page, context }) => {
-    await triggerSensitiveAction(page);
+    await triggerFreshStepupChallenge(page, context);
     await completeOtpVerification(page);
 
     const realSession = await readSessionCookie(context);
@@ -279,7 +354,7 @@ test.describe("AUTH-007 — ngưỡng 12h tuyệt đối cho thao tác chỉ xem
   });
 
   test("OTP xác thực 12h+1 phút trước -> hết hiệu lực, tool trả lỗi cần xác thực lại", async ({ page, context }) => {
-    await triggerSensitiveAction(page);
+    await triggerFreshStepupChallenge(page, context);
     await completeOtpVerification(page);
 
     const realSession = await readSessionCookie(context);
@@ -316,7 +391,7 @@ test.describe("AUTH-008 — step-up 15 phút cho create_ticket (hậu quả tài
   });
 
   test("OTP xác thực 15 phút+1 giây trước -> KHÔNG đủ tươi cho create_ticket, 403", async ({ page, context }) => {
-    await triggerSensitiveAction(page);
+    await triggerFreshStepupChallenge(page, context);
     await completeOtpVerification(page);
 
     const realSession = await readSessionCookie(context);
@@ -330,7 +405,7 @@ test.describe("AUTH-008 — step-up 15 phút cho create_ticket (hậu quả tài
   });
 
   test("OTP xác thực 5 phút trước -> đủ tươi cho create_ticket, không bị chặn OTP", async ({ page, context }) => {
-    await triggerSensitiveAction(page);
+    await triggerFreshStepupChallenge(page, context);
     await completeOtpVerification(page);
 
     const realSession = await readSessionCookie(context);
