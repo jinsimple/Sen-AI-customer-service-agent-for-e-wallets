@@ -1,13 +1,19 @@
-"""GĐ3 — cổng xoay 0-token, phần vòng lặp xoay thật (`run_agent_turn` +
-`_chay_luot_voi_xoay`, `src/agents/graph.py`). Viết TỪ HỢP ĐỒNG Coder khai
-qua tin nhắn 19/08 (chữ ký `_chay_luot_voi_xoay`, cách giả lập lỗi quota,
-2 trường mới `model`/`models_da_thu` trong dict trả về của `run_agent_turn`)
-— KHÔNG đọc `src/`.
+"""GĐ3 — cổng xoay 0-token, phần vòng lặp xoay thật (`run_agent_turn`,
+`src/agents/graph.py`). Viết TỪ HỢP ĐỒNG Coder khai qua tin nhắn 19/08 (cách
+giả lập lỗi quota, 2 trường mới `model`/`models_da_thu` trong dict trả về
+của `run_agent_turn`) — KHÔNG đọc `src/`.
 
-🔴 ĐỎ CÓ LÝ DO — "bộ phận đang được nối" (Coder: "Đang implement phần này
-ngay"), KHÔNG phải "rào mạng" (AUTH-008) và KHÔNG phải "chưa tồn tại"
-(llm_pool.py lúc `34a6363`, nay đã xanh). CHƯA CHẠY file này — chỉ
-syntax-check. Chờ Coder báo xong.
+✅ XÁC NHẬN XANH 5/5 (chạy thật, không suy luận từ code tĩnh). Cố ý CHỈ bám
+hợp đồng bên ngoài (`ket_qua.get("model")`/`ket_qua.get("models_da_thu")`
+từ `run_agent_turn`, monkeypatch `_build_agent` theo `model` kwarg) — KHÔNG
+import/gọi tên hàm/exception nội bộ nào. Đây chính là lý do 5 ca này SỐNG SÓT
+qua một lần Coder khai sai chữ ký (bản đầu tôi được báo có hàm `_chay_luot_voi_xoay`
+tách riêng + exception `_BeCanToanPhanError` — Coder xác nhận lại 19/08:
+KHÔNG có, vòng xoay nằm INLINE trong `run_agent_turn` bằng `while True` +
+nested try/except, và ca "bể cạn" re-raise vào nhánh `except APIError` sẵn
+có, không phải exception mới). Nếu tôi đã patch thẳng theo 2 tên sai đó, cả
+5 ca sẽ đỏ vì AttributeError dù code không hỏng — đúng nguyên tắc "seam
+không cần thì đừng xin" (Lead, cùng ngày, ca "hàm kiểm khoá" của cổng ①).
 
 Seam tái dùng (đã có tiền lệ, KHÔNG tự chế):
     `_build_agent` giờ nhận thêm kwarg `model` — patch theo `model` được
@@ -190,8 +196,9 @@ def test_khong_xoay_thi_models_da_thu_dung_mot_phan_tu(sample_db, monkeypatch):
 
 
 def test_be_can_toan_phan_moi_model_deu_loi_quota(sample_db, monkeypatch):
-    """CẢ BA model đều lỗi quota ⟹ bể cạn toàn phần. Theo Coder: rơi vào
-    `_BeCanToanPhanError`, `run_agent_turn` bắt riêng, KHÔNG để lộ ra ngoài
+    """CẢ BA model đều lỗi quota ⟹ bể cạn toàn phần. Theo Coder (đính chính
+    19/08): re-raise vào nhánh `except APIError` sẵn có bên trong
+    `run_agent_turn` (không phải exception mới) — KHÔNG để lộ ra ngoài
     (không crash 500) — cùng dạng "cần can thiệp" đã có tiền lệ ở đường
     vòng-lặp-tool/timeout (GĐ2: tool_calls=None, KHÔNG phải mảng rỗng).
 
