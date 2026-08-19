@@ -86,3 +86,63 @@ hình dạng (tên người thật không thoả điều kiện loại trừ).
 **Ca đối chứng bắt buộc trước khi land (đúng §4 brief đã có, xác nhận lại):** tên người thật, SĐT,
 CCCD trong tin nhắn khách VẪN phải bị che sau bản vá — chạy cả hai chiều (dương: TXN/Mã không còn bị
 che; âm: PII thật vẫn bị che) trước khi merge.
+
+---
+
+## 🔴 NIÊM 19/08 (sau) — dữ kiện MỚI làm bản vá đề xuất ở trên KHÔNG ĐỦ. Không rút phần đã đúng, thêm phần còn thiếu.
+
+**[ĐO] PO-agent, tôi không tự kiểm lại được số (không chạm được `scrub_pii()` thật từ đây), nhưng
+LOGIC của ca này tự nó đủ để đổi kết luận, không cần tôi verify lại con số:**
+```
+scrub_pii('Giao dịch bị treo mấy ngày rồi')  →  'Giao dịch bị treo mấy [LOCATION] rồi'
+```
+**"ngày" KHÔNG có chữ số, KHÔNG viết hoa toàn phần, KHÔNG phải đại từ trong danh sách đóng.** Ba
+điều kiện của `_plausible_person_span` — thứ tôi vừa đề nghị mở rộng cho Spacy ở phần trên — **KHÔNG
+LOẠI ĐƯỢC CASE NÀY.** Bản vá tôi đề nghị (mở rộng digit/hoa-toàn-phần filter) vẫn ĐÚNG cho đúng phạm
+vi nó giải quyết (mã giao dịch, viết tắt toàn hoa) — **nhưng phạm vi đó hẹp hơn thứ đang thật sự xảy
+ra.** Đây không phải lỗi hiếm gặp ở dữ liệu có cấu trúc (mã/số) — đây là `SpacyRecognizer`
+(`xx_ent_wiki_sm`, mô hình ĐA NGÔN NGỮ, KHÔNG chuyên tiếng Việt — chính docstring `pii.py:30-32` đã
+tự khai điều này) gán nhãn sai trên TỪ TIẾNG VIỆT THÔNG THƯỜNG, tần suất cao (~12% mẫu nhỏ ban đầu,
+chờ corpus lớn hơn).
+
+### Sửa định hạng mức độ — nâng lên, đúng như Lead cảnh báo
+
+Không phải "phá mã giao dịch" (ca hiếm, đã có bản vá đúng) mà là **"agent nhận đầu vào bị bóp méo
+trên một phần đáng kể MỌI cuộc hội thoại"** — đây là mức ảnh hưởng THÔNG LƯỢNG (chạm phần lớn tương
+tác), không phải mức TẦN SUẤT THẤP-HẬU QUẢ CAO như finding O4 trước đó. Đúng loại severity khác, cần
+xử lý khác — vá cục bộ (thêm từng từ vào stoplist) sẽ không đuổi kịp một tỉ lệ nền cao thế này.
+
+### Đề nghị sửa hướng — từ "mở rộng bộ lọc" sang "cân nhắc GIỚI HẠN VAI TRÒ của Spacy cho đường model-input"
+
+**Đây LÀ một trường hợp đáng tách chính sách theo bối cảnh** — đúng điều tôi viết ở trên là "nếu có
+nhu cầu THẬT SỰ... cần một trang riêng." Dữ kiện mới chính là nhu cầu thật đó.
+
+- **Log/trace:** giữ nguyên Spacy + toàn bộ pipeline như cũ — over-redaction chấp nhận được, đúng
+  chính sách gốc.
+- **Model-input (`graph.py:787`):** cân nhắc KHÔNG dùng nhãn PERSON/LOCATION/ORGANIZATION từ
+  `SpacyRecognizer` cho đường này — dựa vào `_VietnameseNameRecognizer` (underthesea, chuyên tiếng
+  Việt) + hai `PatternRecognizer` định dạng (SĐT/CCCD, không phụ thuộc NER nên không có noise này) là
+  đủ cho đường model-input, tránh đúng nguồn nhiễu (mô hình đa ngôn ngữ không chuyên Việt).
+
+**Đánh đổi phải nói thẳng, không giấu:** docstring `pii.py:51-53` tự ghi nhận MỘT case cụ thể
+("Trần Thị Bích") mà Spacy bắt được còn underthesea bỏ sót. Loại Spacy khỏi đường model-input ⟹ case
+dạng đó (nếu tái diễn) sẽ KHÔNG bị che khi vào model — mất một lớp bảo vệ hiếm nhưng có thật, để đổi
+lấy việc không bóp méo ~12% hội thoại thường ngày. **Tôi cho rằng đánh đổi này ĐÁNG làm** (một lớp
+bảo vệ hiếm, có lớp regex SĐT/CCCD định dạng đứng độc lập phía sau nó, đổi lấy việc không phá hỏng
+một phần lớn tương tác hằng ngày) — nhưng đây là NHẬN ĐỊNH, cần corpus lớn hơn của QA/QC xác nhận quy
+mô thật trước khi chốt, không phải quyết định dựa trên 8 câu mẫu.
+
+**Một hướng thứ ba đáng thử trước khi loại hẳn Spacy (rẻ hơn, chưa xác nhận được):** Presidio trả
+`score` cho mỗi kết quả nhận diện — nếu các lần Spacy gán nhầm ("ngày"→LOCATION) có điểm tin cậy THẤP
+hơn rõ rệt so với lần nhận diện đúng, đặt một ngưỡng `score` tối thiểu cho riêng đường model-input có
+thể giữ được phần lớn giá trị của Spacy mà lọc bớt nhiễu — **tôi KHÔNG xác nhận được điều này từ đọc
+code, cần Coder đo thật trên chính corpus QA/QC đang dựng trước khi chọn hướng.**
+
+### Trả lời câu hỏi của Lead — thêm gì vào tiêu chí đối chứng
+
+**Bắt buộc thêm MỘT ca cụ thể, không phải chung chung "PII vẫn bị che":** một câu chứa đúng dạng tên
+người mà **CHỈ Spacy bắt được, underthesea bỏ sót** (mẫu gần nhất với case "Trần Thị Bích" đã ghi
+trong docstring — nếu corpus không có case y hệt, QA/QC cần một câu tương tự cấu trúc). Đây là ca
+**hồi quy** — bất kỳ hướng vá nào chọn (giới hạn Spacy / thêm ngưỡng score / mở rộng stoplist) đều
+PHẢI chạy qua ca này và biết rõ nó ĐẠT hay TRƯỢT, không được bỏ qua vì "hiếm gặp". Nếu hướng vá cuối
+cùng làm ca này TRƯỢT — đó là đánh đổi có Ý THỨC cần ghi vào hồ sơ, không phải một hồi quy im lặng.

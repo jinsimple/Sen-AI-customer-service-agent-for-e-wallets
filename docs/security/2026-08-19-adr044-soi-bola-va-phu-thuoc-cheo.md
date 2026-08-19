@@ -77,3 +77,21 @@ vẫn AN TOÀN, chỉ chậm hơn. Đây là cân bằng thông lượng/đơn g
 thiết kế đã có từ trước, ngoài phạm vi phát hiện hôm nay, không phải thứ ADR-044 gây ra hay cần vá.
 ❌ rate limit đề xuất là bắt buộc theo nghĩa BOLA — nó là phòng vệ sâu (defense-in-depth) cho một
 class rủi ro khác (exfiltration tốc độ cao), gắn nhãn đúng để không ai đọc nhầm thành "vá BOLA".
+
+---
+
+## NIÊM 19/08 (sau) — câu 2 (gate) đã TỰ GIẢI, đóng đúng cách. Một nghĩa vụ khai mới, không phải bảo mật, cần ghi vào route.
+
+**[ĐO] PO-agent xác nhận, đúng thiết kế:** checkpoint LangGraph lưu bản `HumanMessage` SAU khi
+`graph.py:787` đã scrub — nghĩa là nội dung route lỗi 5 đọc ra **VỐN DĨ đã đi qua scrub tại THỜI ĐIỂM
+GHI**, không phải scrub lúc ĐỌC. ⟹ route transcript **không phụ thuộc** trạng thái vá lỗi 2+3 hiện
+tại — gate tôi đề nghị ở câu 2 KHÔNG CẦN, hai việc chạy song song thật, đóng đúng bằng thiết kế
+(không phải bằng đo thêm) — cùng hình dạng cách đóng tôi đã dùng cho câu hỏi transcript-đồng-bộ hôm
+trước: *bỏ được sự phụ thuộc, không phải xác minh nó vô hại.*
+
+🔴 **Hệ quả PHẢI khai trong route, không phải việc của tôi tự quyết cách viết nhưng phải nêu ra:**
+lịch sử ĐÃ GHI trước khi lỗi 2+3 được vá mang nhãn SAI VĨNH VIỄN (`[LOCATION]` thay vì "ngày", v.v.)
+— **không vá ngược được, và không nên thử** (sửa dữ liệu lịch sử = sửa bằng chứng, đúng nguyên tắc
+"đọc trước dọn sau" áp cho chính kho hội thoại). Route lỗi 5 phải hiển thị một dòng khai rõ:
+*"hội thoại trước [ngày vá lỗi 2+3] có thể chứa nhãn che không chính xác"* — để CSKH đọc transcript
+cũ không hiểu nhầm `[LOCATION]` là một địa điểm khách thật sự nhắc tới.
