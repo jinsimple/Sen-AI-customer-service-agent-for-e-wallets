@@ -123,3 +123,50 @@ describe("ChatClient — chip chọn loại khiếu nại", () => {
     expect(requestOtp).toHaveBeenCalledTimes(1);
   });
 });
+
+// Lỗi 1 (PO thật tự bắt 19/08, docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md
+// mục 2) — câu hỏi TỰ DO (không qua chip/rail) chạm dữ liệu nhạy cảm lần đầu
+// trong phiên bị đòi OTP xen giữa; trước bản vá, `pendingStarterRef` không
+// được set ở nhánh này (khác 2 nhánh kia đã có sẵn từ Finding B GĐ2.5) nên
+// câu khách vừa hỏi bị MẤT sau khi xác thực xong — khách phải gõ lại.
+describe("ChatClient — OTP xen giữa câu hỏi tự do (Lỗi 1)", () => {
+  it("câu tự do chạm dữ liệu nhạy cảm -> đòi OTP -> sau khi xác thực TỰ GỬI LẠI đúng câu cũ", async () => {
+    const user = userEvent.setup();
+    const CAU = "cho tôi kiểm tra giao dịch TXN20260810000001";
+    vi.mocked(agentChat)
+      .mockResolvedValueOnce({
+        reply: "Để tra được, mình cần xác thực OTP trước.",
+        tool_calls: [
+          { tool_name: "lookup_transaction", args: {}, result: { status: "error" } },
+        ],
+        ticket_id: null,
+        should_escalate: false,
+      })
+      .mockResolvedValueOnce({
+        reply: "Giao dịch TXN20260810000001 đã xử lý thành công.",
+        tool_calls: [
+          { tool_name: "lookup_transaction", args: {}, result: { status: "found" } },
+        ],
+        ticket_id: null,
+        should_escalate: false,
+      });
+
+    render(<ChatClient userId="USR-A" phone="0901000001" otpXemConHanLucTai={false} />);
+
+    await user.type(screen.getByPlaceholderText("Nhập tin nhắn..."), CAU);
+    await user.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
+
+    await waitFor(() => expect(document.querySelectorAll("input.otp-box").length).toBe(6));
+    const o = Array.from(document.querySelectorAll("input.otp-box")) as HTMLInputElement[];
+    for (let i = 0; i < 6; i++) await user.type(o[i], "123456"[i]);
+    await user.click(screen.getByRole("button", { name: "Xác nhận" }));
+
+    // Sau khi OTP xanh, agentChat phải được gọi LẦN HAI với ĐÚNG câu cũ —
+    // KHÔNG cần khách gõ lại (đây là điều bản vá đảm bảo).
+    await waitFor(() => expect(agentChat).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(agentChat).mock.calls[1][0]).toEqual({ message: CAU });
+    // Câu cũ chỉ hiện MỘT LẦN trong khung chat (không hiện lại như tin nhắn
+    // mới của khách) — sendToAgent gọi với echoAsUser:false cho lượt tự gửi.
+    expect(screen.getAllByText(CAU)).toHaveLength(1);
+  });
+});

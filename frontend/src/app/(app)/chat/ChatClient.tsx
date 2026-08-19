@@ -501,6 +501,12 @@ export default function ChatClient({
           from: "bot",
           text: "Mình vừa cần tra thông tin liên quan tới giao dịch/tài khoản của bạn — xác thực nhanh OTP phiên làm việc để tiếp tục nhé.",
         });
+        // Lỗi 1 (PO thật 19/08): thiếu dòng này làm câu khách vừa hỏi bị MẤT
+        // sau khi xác thực xong — bắt gõ lại đúng lúc khách đang bực. Cùng
+        // khuôn `pendingStarterRef` đã dùng ở startComplaint() (:392) và
+        // otpStaleCall (:488) — submitOtp() tự gửi lại `text` sau khi OTP
+        // xanh (giờ otpVerifiedRef=true nên tool sẽ chạy được).
+        pendingStarterRef.current = text;
         void beginOtpFlow();
         return;
       }
