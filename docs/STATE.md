@@ -1687,15 +1687,21 @@ Rào cản là DỮ KIỆN của đội, không phải ma sát riêng của ngư
 > *(Họ hàng: rào Caddyfile là quyết định bảo mật CÓ VĂN BẢN — không khai đường vòng còn che mất
 > việc mình vừa lách một chủ đích.)*
 
-**Luật W** *(đúc 19/08 từ finding của Lead khi gom hồ sơ GĐ2.5: ảnh nghiệm thu `38e65466e3ce` bị
-dựng đè 12:45:37 không dấu vết — không truy được ai/lệnh gì; Docker không lưu, zsh_history không mốc
-thời gian. PO-agent cấp ký hiệu)* — **Vật nghiệm thu không có SỔ GIÁM HỘ thì không giữ được danh
-tính — BĂM chỉ có nghĩa khi có SỔ.**
-> **Vế thi hành:** ① mọi lần dựng ảnh ghi MỘT DÒNG vào `docs/nhat-ky/so-giam-ho-anh.md`
-> (thời điểm · vai · lệnh nguyên văn · băm ra) — TRƯỚC khi báo bất kỳ kết quả nào đo trên ảnh ấy.
-> ② Hồ sơ nghiệm thu ghim băm + trỏ dòng sổ. ③ Ảnh không có dòng sổ = vật VÔ DANH — phép kiểm
-> đồng nhất với nó không chạy được nữa, chỉ còn phép tương đương phải khai giới hạn (đúng ca này).
-> *(Họ hàng: Luật I — đo không được ghi vào vật; W nói về DANH TÍNH của chính vật.)*
+**Luật W** *(đúc 19/08; PHÁT BIỂU ĐẦU tại `82c9c90` SAI — đúc trên tiền đề "mất ảnh nghiệm thu"
+trong khi `38e65466e3ce` là BĂM NỘI DUNG `src/` (dau_ma_nguon.py), không phải image ID, và phép
+đồng nhất vẫn xanh. Viết lại CÙNG NGÀY sau khi Lead rút finding và PO-agent đo lại độc lập)* —
+**HAI LOẠI ĐỊNH DANH, đừng bắt cái này làm việc của cái kia: BĂM NỘI DUNG là hàm của vật — tự
+tái lập bất cứ lúc nào, KHÔNG cần sổ, trả lời "VẬT LÀ GÌ". SỔ GIÁM HỘ trả lời "AI dựng · LÚC
+NÀO · bằng LỆNH GÌ" — những câu không hàm nào của vật trả lời được.**
+> **Vế thi hành:** ① kiểm danh tính vật nghiệm thu bằng BĂM NỘI DUNG (`dau_ma_nguon`, khớp
+> host↔nhãn-trong-ảnh), KHÔNG bằng image ID — image ID đổi theo mọi lần build kể cả khi vật
+> không đổi. ② Sự kiện DỰNG ảnh vẫn ghi một dòng `docs/nhat-ky/so-giam-ho-anh.md` (thời điểm ·
+> vai · lệnh · image ID · nhãn băm ra) — vi phạm 12:45 19/08 (dựng không khai, không truy được
+> ai) là ca sổ này sinh ra để chống. ③ **Nhãn 12-hex không kèm CÁCH ĐỌC thì người đọc tự cấp
+> cho nó loại họ hay gặp nhất** — mọi nơi ghi băm phải ghi kèm loại (`cach_bam` đã có sẵn trong
+> usage.jsonl; tên file mốc nền phải mang tiền tố loại). *(Họ hàng: Luật I — đo không ghi vào
+> vật; Luật T — PO-agent phạm đúng T khi đúc phát biểu đầu: relay tiền đề của người vừa sai mà
+> không kiểm.)*
 
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.

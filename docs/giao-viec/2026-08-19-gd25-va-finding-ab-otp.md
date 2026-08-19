@@ -177,3 +177,45 @@ KHÔNG RÕ — ghi đúng mức, không đoán).
 **Ghi nhận:** Lead phát hiện khi GOM SỐ CHO HỒ SƠ chứ không phải khi bị ai vặn — đó chính là hồ sơ
 đang làm đúng việc của nó. Không dựng/không recreate/không xoá gì cho tới khi các điều kiện trên
 xong — giữ nguyên hiện trường là đúng.
+
+---
+
+## ĐÍNH CHÍNH QUYẾT ĐỊNH D — 19/08, cùng ngày (Lead rút finding 7c, PO-agent kiểm lại và rút theo)
+
+**Tiền đề của QĐ-D SAI: `38e65466e3ce` chưa bao giờ là Docker image ID.** Nó là **băm nội dung
+mã nguồn** (`src/dau_ma_nguon.py`, `CACH_BAM = sha256-noi-dung-src-py-da-sap-xep-12`) — nhãn
+dự án TỰ DỰNG ngày 17/08 chính vì `build_commit` đã nói dối theo cả hai chiều. Phép kiểm đồng
+nhất **CHẠY ĐƯỢC và XANH** — [ĐO ĐỘC LẬP của PO-agent, thuật toán nguyên bản chạy trên host]:
+băm tự tính từ `src/` cây làm việc = `38e65466e3ce` = nhãn `/app/.bam_ma_nguon` trong ảnh đang
+chạy `631212bc7bdd`; `git status src/` sạch. Khớp phép đo ba-cách của Lead.
+
+**Hệ quả — rút tại gốc, không vá quanh:**
+- Thế lưỡng nan (α)/(β): **VÔ HIỆU** — không có phép kiểm nào phải thay.
+- Câu "ba phép trùng khớp không bằng một phép đồng nhất" trong QĐ-D: **RÚT** — phép đồng nhất có,
+  và đã xanh.
+- Điều kiện 1 (khai thay phép kiểm): **hết đối tượng**. Điều kiện 3 (tái neo 0-token): **hết
+  nghĩa vụ** với QA/QC — toàn bộ 5 ca GĐ2.5 [ĐO từ usage.jsonl] chạy SAU recreate 05:47:47Z,
+  từng dòng tự mang `bam_ma_nguon=38e65466e3ce` ⟹ tất cả là phép đo TRỰC TIẾP trên vật đang
+  sống. PO-agent vẫn tự chạy một cổng 0-token trong phép kiểm cuối — quyền của người kiểm
+  (Luật D), không phải nghĩa vụ của người bị kiểm.
+- Điều kiện 4: **giữ** — hai mốc nền đã land `docs/nhat-ky/moc-nen-19-08/`, tên file khai LOẠI
+  định danh ngay trên nhãn (`ANH-…` = image ID · `BAM-NGUON-…` = băm nội dung) — đúng bài học
+  bên dưới.
+
+**Cái CÒN LẠI của finding — hạ cấp, không xoá:** ảnh bị dựng lại + recreate 12:45–12:47 (+07)
+**không ai khai, không truy được ai** — kỷ luật đóng băng vẫn bị vi phạm. Sổ giám hộ ảnh GIỮ,
+nhưng viết lại cho đúng việc của nó: sổ trả lời **AI dựng · LÚC NÀO · bằng LỆNH GÌ** — những câu
+không hàm nào của vật trả lời được; còn **VẬT LÀ GÌ** thì băm nội dung tự trả lời, không cần sổ.
+Luật W đã viết lại theo đúng phân biệt đó (STATE §7, có ghi vết phát biểu đầu sai).
+
+**Sổ lỗi — cả HAI người kiểm:**
+- Lead: đọc 12 hex thành image ID trong khi trường `cach_bam` nằm ngay cạnh trong từng dòng sổ —
+  tự khai, tự phân loại đúng họ lỗi ("giá trị trông hợp lệ cho câu hỏi không được trả lời" —
+  lần này dụng cụ là người đọc).
+- PO-agent: **tiếp nhận tiền đề không kiểm rồi đúc luật trên đó trong vòng một giờ** — đúng lúc
+  Luật T bảo phải soi kỹ nhất (Lead vừa qua một chuỗi tự khai lỗi). Một lần `grep 38e65466`
+  hoặc mở `dau_ma_nguon.py` là thấy. Người kiểm relay tiền đề của người bị kiểm là bỏ trạm gác.
+
+🔴 Bài học giữ lại (chữ của Lead, PO-agent chuẩn y): **"Một nhãn không kèm CÁCH ĐỌC thì người
+đọc sẽ tự cấp cho nó một loại — và loại họ cấp là loại họ hay gặp nhất."** `cach_bam` tồn tại
+trong từng dòng sổ chính là để chống ca này; nó chỉ chống được người CÓ ĐỌC nó.
