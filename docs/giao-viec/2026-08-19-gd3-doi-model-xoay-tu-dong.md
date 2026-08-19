@@ -260,3 +260,42 @@ production thì câu ấy hết hậu quả.
 **Điều kiện BÊN NGOÀI, KHÔNG được ghi là lớp phòng vệ** (Luật R, dạng nặng nhất: có thể biến mất
 đúng lúc ta thao tác trên chính console đó). Lớp phòng vệ THẬT ta sở hữu = limiter + `cong_ra_ngoai`
 + trần chi tiêu + cầu dao. Ghi nguyên văn câu Bảo Mật đề nghị vào hồ sơ.
+
+## 🔴 LUẬT CHẶN THÊM 19/08 — **BỂ CHỈ NHẬN TÊN GHIM, KHÔNG NHẬN BÍ DANH TRÔI** (Review tìm, PO-agent chuẩn y)
+
+[ĐO Review] Bể đề xuất có **2/5 tên là bí danh trôi**: `deepseek-v4-flash` · `deepseek-v4-pro`
+(không mốc ngày). Ba tên kia đã ghim: `-0813` · `-0731` · `v3.2`.
+
+**Vì sao đây là lỗ THẬT, không phải sạch sẽ hình thức:** cổng nhập bể ký "ĐẠT" cho một bí danh hôm
+nay; nhà cung cấp đổi model đứng sau bí danh đó (họ làm thường xuyên — chính lý do `a3fb125` ghim
+qwen theo ngày); **chuỗi trong `LLM_MODEL_POOL` không đổi, cổng vẫn hiện "đã ký", nhưng model thật
+đang trả lời khách đã KHÁC con được hiệu chuẩn 30/30.** Không cần ai trong đội thao tác sai.
+Cùng họ với ca `.env` ghi `qwen3.7-plus` trong khi container chạy `qwen3.7-plus-2026-05-26`.
+
+**LUẬT:** `LLM_MODEL_POOL` **chỉ nhận tên có mốc/ngày/phiên bản cố định.** Bí danh trôi ⟹ **từ chối
+lúc khởi động** (fail-fast, cùng chiều với luật secret). Hai model không ghim phải đổi sang bản ghim
+tương đương; **nhà cung cấp không có bản ghim ⟹ LOẠI khỏi bể GĐ3**, không phải "để sau".
+Lý do loại phải ghi vào hồ sơ — người sau đọc "bể chỉ có 3 model" không được hiểu là bỏ sót.
+
+**Hệ quả cho cổng nhập bể:** chữ ký của QA/QC gắn vào **tên ghim**, không gắn vào bí danh — nhờ vậy
+câu "chữ ký còn hiệu lực không" mới có thứ để bám vào khi kiểm lại.
+
+## HẠ TẦNG CHẠY CỔNG NHẬP BỂ — PO-agent chốt cách, Coder cung cấp lệnh
+
+Câu chặn của QA/QC: kiểm từng model TRƯỚC khi nó vào bể bằng cách nào, khi không còn route/UI?
+Suy đoán của họ (recreate 5 lần với `LLM_MODEL` override) **BÁC** — 5 chu kỳ đóng băng + Luật U,
+đụng compose/.env ngoài vùng ghi tester.
+
+[ĐO PO-agent] `.dockerignore:11` loại `eval/` ⟹ **eval KHÔNG có trong ảnh**, `docker exec` chạy
+harness là bất khả. Và venv host `langchain-core 1.5.3` ≠ ảnh `1.5.4` ⟹ **cấm dùng venv host để đo
+kích thích gửi model** (luật cũ, vẫn đúng, nay có số).
+
+**CÁCH ĐÚNG — container DÙNG MỘT LẦN từ CHÍNH ảnh đang chạy:**
+```
+docker run --rm --network <mạng của stack> -v $(pwd)/eval:/app/eval \
+  -e LLM_MODEL=<tên-ghim-của-model-đang-kiểm> --env-file .env <ảnh hiện hành> python eval/...
+```
+- Không recreate stack ⟹ **không đóng băng ai, không cần Luật U**, không đụng vật đang nghiệm thu.
+- Đúng `langchain-core` + đúng `src/` của ảnh ⟹ kích thích gửi model **giống hệt** đường khách thật.
+- Cùng một mạnh hạ tầng với việc "Playwright chạy TRONG mạng Docker" — **một việc gỡ hai chỗ**.
+**Coder** viết lệnh chính xác (đủ tên mạng/ảnh/biến) và giao QA/QC; QA/QC không tự chế lệnh docker.
