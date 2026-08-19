@@ -174,7 +174,13 @@ _TU_NOI_THUONG_GAP = {"bị", "trừ", "là", "cho", "của", "đã", "được"
 # thầm bỏ qua (đúng cam kết đã viết cho _DAI_TU_KHONG_PHAI_TEN ở trên, Bảo
 # Mật 19/08 nhắc lại rõ trong docs/security/2026-08-19-gd4-dinh-hang-scrub-
 # pii-model-input.md).
-_TU_THUONG_BI_NHAN_NHAM_LA_TEN = {"mã"}
+# CẬP NHẬT 19/08 (chiều): PO-agent [ĐO] "Giao dịch bị treo mấy ngày rồi" ->
+# "ngày" gán LOCATION — câu KHÔNG mã, KHÔNG số, KHÔNG tên, chứng minh đây
+# không phải phạm vi hẹp "mã giao dịch" mà là NER bóp méo từ tiếng Việt đời
+# thường nói chung. Coder tự đo thêm, thấy "tuần" (viết hoa đầu câu) cũng gán
+# PERSON — thêm CẢ HAI, đúng cam kết ở trên. QA/QC đang dựng corpus đo tỉ lệ
+# trước/sau trên golden_set.jsonl — case mới từ đó sẽ vào đây tiếp.
+_TU_THUONG_BI_NHAN_NHAM_LA_TEN = {"mã", "ngày", "tuần"}
 
 
 def _plausible_person_span(span: str) -> bool:
