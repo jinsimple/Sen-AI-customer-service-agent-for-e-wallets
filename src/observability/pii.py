@@ -97,6 +97,15 @@ def scrub_regex(text: str) -> str:
 _VN_PHONE_REGEX = r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)"
 _VN_ID_REGEX = r"(?<![\w-])\d{9,19}(?!\d)"
 
+# Nhãn NER "tự do" — đoán loại thực thể từ NGỮ CẢNH (SpacyRecognizer/
+# underthesea), khác nhãn PHI-NER khớp theo REGEX có cấu trúc (VN_PHONE_
+# NUMBER/VN_ID_NUMBER/EMAIL_ADDRESS/IBAN_CODE/...). Chỉ nhóm NÀY mới được áp
+# `_plausible_person_span` (Bảo Mật 19/08) — "MISC" là nhãn spaCy chưa map
+# được của Presidio (log cảnh báo "Entity MISC is not mapped..." đã thấy
+# trong sổ), vẫn là một dự đoán NER, không phải khớp cấu trúc, nên vẫn thuộc
+# nhóm này.
+_NHAN_NER_TU_DO = {"PERSON", "LOCATION", "ORGANIZATION", "PERSON_VN", "MISC"}
+
 
 # Đại từ nhân xưng + xưng hô tiếng Việt — KHÔNG phải tên người, dù NER hay
 # gán nhãn B-PER. Phát hiện thật 2026-08-13 lúc đo scrub trên tin nhắn khách:
@@ -156,18 +165,42 @@ def _cat_gon_dai_tu(text: str, start: int, end: int, label: str) -> tuple[int, i
 _TU_NOI_THUONG_GAP = {"bị", "trừ", "là", "cho", "của", "đã", "được", "vừa", "chuyển", "nhận"}
 
 
+# Từ tiếng Việt THÔNG THƯỜNG (không phải đại từ) từng bị NER gán nhầm nhãn
+# người/tổ chức — phát hiện thật 19/08 (PO thật test kịch bản A): "Mã giao
+# dịch..." bị gán B-PER, agent nhận "[PERSON_VN] giao dịch..." mất luôn chủ
+# ngữ. 🔴 DANH SÁCH MỞ — khác `_DAI_TU_KHONG_PHAI_TEN` (đại từ là tập HỮU HẠN,
+# liệt kê hết được): "từ thường bị NER nhận nhầm" thì KHÔNG hữu hạn, sẽ còn
+# phát sinh case mới ngoài "mã". Phát hiện case mới -> THÊM VÀO ĐÂY, không âm
+# thầm bỏ qua (đúng cam kết đã viết cho _DAI_TU_KHONG_PHAI_TEN ở trên, Bảo
+# Mật 19/08 nhắc lại rõ trong docs/security/2026-08-19-gd4-dinh-hang-scrub-
+# pii-model-input.md).
+_TU_THUONG_BI_NHAN_NHAM_LA_TEN = {"mã"}
+
+
 def _plausible_person_span(span: str) -> bool:
     """Lọc false-positive THẬT phát hiện lúc verify underthesea.ner() trên dữ
     liệu của dự án: mã giao dịch/ticket nội bộ (vd `TXN20260810000123`, tiền
     tố new_id() + số, xem src/tools/base.py::new_id) và viết tắt toàn hoa (vd
     `CCCD`) đôi lúc bị gán nhãn B-PER sai. Tên người tiếng Việt thật KHÔNG
     chứa chữ số và KHÔNG viết toàn hoa — quy tắc chung, không phải danh sách
-    tiền tố ID cứng (không cần cập nhật khi có prefix ID mới)."""
+    tiền tố ID cứng (không cần cập nhật khi có prefix ID mới).
+
+    Bảo Mật 19/08 (df186c0): trước đây hàm này CHỈ áp cho `underthesea.ner()`
+    (`_underthesea_person_spans` dưới) — `SpacyRecognizer` của Presidio chạy
+    KHÔNG lọc, nên "TXN...352" gán LOCATION/MISC lọt nguyên vẹn thành
+    `[LOCATION]`. `scrub_pii()` giờ áp hàm này cho MỌI recognizer trả nhãn NER
+    TỰ DO (xem `_NHAN_NER_TU_DO`), không riêng underthesea — ĐÂY LÀ SỬA MỘT MÔ
+    TẢ SAI BẢN CHẤT, không phải nới lỏng: quy tắc chỉ loại span CHƯA TỪNG LÀ
+    PII (có số/toàn hoa/đại từ/từ thường gặp), không đụng quyết định "che
+    theo đúng loại Presidio trả về dù có thể sai LOẠI" cho PII THẬT."""
     if any(ch.isdigit() for ch in span):
         return False
     if span.isupper():
         return False
-    if span.strip().lower() in _DAI_TU_KHONG_PHAI_TEN:
+    sach = span.strip().lower()
+    if sach in _DAI_TU_KHONG_PHAI_TEN:
+        return False
+    if sach in _TU_THUONG_BI_NHAN_NHAM_LA_TEN:
         return False
     return True
 
@@ -296,6 +329,19 @@ def scrub_pii(text: str | None) -> str | None:
         return text
 
     raw_spans = [(r.start, r.end, r.entity_type) for r in results]
+    # Bảo Mật 19/08 (df186c0): áp `_plausible_person_span` cho MỌI recognizer
+    # trả nhãn NER TỰ DO (đoán theo ngữ cảnh — PERSON/LOCATION/ORGANIZATION/
+    # MISC của SpacyRecognizer, PERSON_VN của underthesea), KHÔNG riêng
+    # underthesea như trước. CỐ Ý KHÔNG áp cho nhãn PHI-NER (VN_PHONE_NUMBER/
+    # VN_ID_NUMBER/EMAIL_ADDRESS/IBAN_CODE/...): các recognizer đó match theo
+    # REGEX có cấu trúc — số/chữ hoa là TÍN HIỆU ĐÚNG của chúng, không phải
+    # nhiễu như với NER. Áp nhầm sang nhóm này sẽ tự vô hiệu hoá chính
+    # recognizer đang bảo vệ PII thật (số điện thoại/CCCD toàn chữ số).
+    raw_spans = [
+        (start, end, label)
+        for start, end, label in raw_spans
+        if label not in _NHAN_NER_TU_DO or _plausible_person_span(text[start:end])
+    ]
     raw_spans = [s for s in (_cat_gon_dai_tu(text, *s) for s in raw_spans) if s]
     if not raw_spans:
         return text
