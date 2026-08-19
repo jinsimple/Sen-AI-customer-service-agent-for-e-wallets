@@ -4,6 +4,31 @@
 > nhanh nhưng có kiểm — không suy đoán trên mô tả, đã kiểm 2 điểm được ngay từ trong repo trước khi
 > trả lời (không chạm phép đo QA/QC đang giữ).
 
+## 🔴 NIÊM 19/08 (ngay sau) — TIỀN ĐỀ "2/2" SAI. TẠM ĐÓNG, chờ đo lại sạch. KHÔNG xoá thân dưới — đọc kèm phần này trước khi trích bất cứ câu nào ở dưới.
+
+**[ĐO] Lead + QA/QC báo, tôi tự kiểm lại cơ chế (không nhận suông):** `grep -n "thread_id or
+user_id" src/agents/graph.py` → khớp tại `:222,685,732,744,766` — xác nhận đúng: thiếu `thread_id`
+truyền vào thì **mặc định = `user_id`**. Script chẩn đoán của QA/QC dùng `user_id="USR-A"` HARDCODE ở
+MỌI lượt, không truyền `thread_id` riêng ⟹ **cả 4 lượt (nhẹ · nặng deepseek ×2 · qwen chẩn đoán) rơi
+vào CÙNG MỘT thread LangGraph**, checkpointer Postgres sống ngoài process. Lượt ĐẦU TIÊN **THẬT SỰ có
+gọi tool** (`so_tool_call=1`) và nhận kết quả thật "chưa thấy giao dịch nào" — mọi lượt sau **NHỚ
+ĐÚNG** kết quả đó từ lịch sử hội thoại, đúng hành vi của một hệ thống CÓ TRẠNG THÁI, không phải bịa.
+
+**Không phải "2/2 độc lập" — là MỘT phép đo, lặp lại ba lần trên cùng một câu trả lời đã cache trong
+state hội thoại.** Câu hỏi gốc ("model có gọi tool đúng khi cần, trong một hội thoại SẠCH, cô lập
+thread") **vẫn CHƯA có câu trả lời** — không phải đã trả lời NO, chỉ là chưa đo được vì lỗi thiết kế
+script, không phải lỗi sản phẩm.
+
+**PHẦN GIỮ NGUYÊN GIÁ TRỊ, không phụ thuộc vụ thread:** lập luận *"O3 không bắt được câu này"* và
+*"cổng nhập bể là cơ chế duy nhất hiện có đủ khả năng bắt loại lỗi này (nếu nó có thật)"* — cả hai
+đúng bất kể kết quả đo lại. Khung ③ (ngắn hạn: nếu tái diễn thì loại model / dài hạn: ghi sổ nợ O5)
+**vẫn giá trị dưới dạng CHUẨN BỊ SẴN**, nhưng KHÔNG có căn cứ để thi hành "loại model" cho tới khi có
+kết quả đo sạch — thân bài dưới đây viết trên tiền đề đã đổ, đọc như MỘT PHÂN TÍCH GIẢ ĐỊNH ("nếu
+điều này là thật thì..."), không phải một kết luận đã xác nhận.
+
+QA/QC đang sửa script (mỗi lượt `user_id` riêng, có cả một tài khoản CÓ giao dịch thật để phân biệt
+"không gọi tool" khỏi "gọi tool nhưng đọc sai kết quả" ngay trong lần đo đầu) và chạy lại cả 6 ca.
+
 ## Xác nhận khung của Lead: ĐÚNG, đây là ràng buộc cứng, không phải "lỗi gate thông thường"
 
 CLAUDE.md §2, ràng buộc cứng 3 dùng nguyên văn cả ba loại đại lượng: *"số tiền/TRẠNG THÁI/thời
