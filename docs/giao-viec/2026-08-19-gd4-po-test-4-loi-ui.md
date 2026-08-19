@@ -441,3 +441,36 @@ cho `cong_chi_tieu`).
   thẻ có cổng trong rail.
 - **UX (kèm):** cân nhắc đảo thứ tự hoặc giới hạn chiều cao thẻ giao dịch để thẻ khiếu nại không
   trôi khỏi tầm mắt sau OTP — đây là phần ② của PO thật, đừng bỏ.
+
+---
+
+## 11b. ⚠️ NIÊM MỤC 11 — PO thật CHỐT bản NGẮN, bản 4 đoạn của PO-agent KHÔNG được dùng
+
+**PO thật ra lệnh trực tiếp cho Coder, rút gọn bản mục 11.** Lead báo minh bạch dù việc đã xong —
+đúng tinh thần "thay đổi phải tới được đúng nơi cần biết, kể cả khi tới qua đường khác".
+
+**[ĐO PO-agent — kiểm trong ẢNH ĐANG CHẠY, không grep cây làm việc]:**
+```
+docker exec fin05-frontend-1 grep .next  →  câu NGẮN có mặt trong bundle đã dựng
+ChatClient.tsx:301                        →  cùng một chuỗi, khớp
+grep -c "trợ lý AI"                       →  2  ⟹ cổng transparency.spec.ts KHÔNG bị đe doạ
+```
+
+**⚠️ NIÊM: bản 4 đoạn ở mục 11 KHÔNG phải bản đang chạy — đừng trích nó làm "chốt" ở bất kỳ đâu,
+kể cả hồ sơ GĐ4.** Bản đang chạy, nguyên văn:
+> *"Chào bạn, mình là Sen — trợ lý AI của ví. Mình có thể hỗ trợ bạn những thông tin về ví điện tử,
+> truy vấn các giao dịch và những vấn đề liên quan đến chuyển tiền. Bạn có thể gõ trực tiếp câu hỏi,
+> hoặc bấm "Báo lỗi giao dịch này" ở một giao dịch cụ thể bên trái."*
+
+**Ràng buộc pháp lý GIỮ ĐƯỢC** — "trợ lý AI" còn nguyên trong bong bóng đầu (EU AI Act Art.50 /
+DISC-002). Đây là vế duy nhất **không được** đánh đổi khi rút gọn, và nó còn nguyên.
+
+### Dữ kiện ghi lại, KHÔNG phải để mở lại quyết định
+Bản ngắn giữ được **phạm vi** (chỉ ví điện tử) — đó là vế chính chống việc khách so sánh với trợ lý
+đa năng. Vế **không** còn: *"mình không tự quyết hoàn tiền"*.
+**Hệ quả đo được, từ chính ngày hôm nay:** cả kịch bản B lẫn ca wireframe đều cho thấy khách **ép
+đòi hoàn tiền ngay** (*"tôi cần tiền gấp, bạn duyệt hoàn cho tôi luôn đi"*). Với bản ngắn, kỳ vọng
+ấy chỉ được chỉnh **tại lúc agent từ chối** — muộn hơn và ở đúng lúc khách đang bực nhất.
+⟹ Ghi vào sổ nợ như một **giả thuyết cần đo**, không phải một đề nghị sửa: nếu đợt test 150 khách
+cho thấy thất vọng tập trung ở bước từ chối hoàn tiền, cân nhắc thêm **đúng một câu** vào lời chào.
+Đo trước, sửa sau — không sửa vì tôi thích bản dài hơn.
