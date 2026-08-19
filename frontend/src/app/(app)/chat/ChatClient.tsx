@@ -175,6 +175,39 @@ function OtpForm({
   );
 }
 
+// Lỗi 12 (PO thật 19/08, docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md
+// mục 12): cổng OTP V6 áp cho thẻ "Giao dịch gần đây" nhưng SÓT thẻ "Lịch
+// sử khiếu nại" — cùng lớp lỗi "chính sách đúng, áp thiếu một nhánh" đã vá
+// 3 lần khác trong ngày (scrub_pii/cong_chi_tieu/_ghi_so). Bảo Mật + Lead
+// chốt: MỘT nơi định nghĩa cổng, không phải mỗi thẻ tự viết `!otpVerified ?`
+// riêng — thẻ thứ ba sau này thừa hưởng cổng tự động, không cần ai nhớ copy
+// đúng pattern.
+function RailCardGatedByOtp({
+  otpVerified,
+  onXacThuc,
+  thongDiepChuaXacThuc,
+  children,
+}: {
+  otpVerified: boolean;
+  onXacThuc: () => void;
+  thongDiepChuaXacThuc: string;
+  children: React.ReactNode;
+}) {
+  if (!otpVerified) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="dim" style={{ fontSize: 12 }}>
+          {thongDiepChuaXacThuc}
+        </div>
+        <button className="btn btn-outline btn-sm" type="button" onClick={onXacThuc}>
+          Xác thực ngay
+        </button>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
 export default function ChatClient({
   userId,
   phone,
@@ -260,7 +293,15 @@ export default function ChatClient({
       // lý AI" ngay trong chính tin nhắn chào, không chỉ ở tiêu đề trang/
       // nhãn cố định bên ngoài khung chat (2 chỗ đó có sẵn nhưng không đủ
       // theo đúng nghĩa "banner/câu mở đầu" mà chuẩn minh bạch yêu cầu).
-      text: "Chào bạn, mình là Sen — trợ lý AI của ví, có thể giúp gì cho bạn hôm nay? Bạn có thể gõ trực tiếp câu hỏi, hoặc bấm \"Báo lỗi giao dịch này\" ở một giao dịch cụ thể bên trái.",
+      // Câu chào 19/08 (PO thật yêu cầu đổi, PO-agent soạn — docs/giao-viec/
+      // 2026-08-19-gd4-po-test-4-loi-ui.md mục 11): đặt phạm vi bằng giọng
+      // tự tin ("chỉ làm một việc, nhưng làm kỹ" — chặn so sánh nhầm loại
+      // với ChatGPT/Claude), tách rõ tra-được/không-quyết, và biến HITL
+      // (ràng buộc cứng 1) thành cam kết bảo vệ thay vì điểm yếu ("quy định
+      // về tiền của bạn, không phải giới hạn của máy"). `\n\n` giữ đúng cấu
+      // trúc 4 đoạn của bản gốc — bubble chưa có `white-space: pre-line`
+      // nên hiện xuống dòng gộp thành khoảng trắng đơn, không phải lỗi.
+      text: "Chào bạn, mình là Sen — trợ lý AI của ví. Mình chỉ làm một việc, nhưng làm kỹ: điều tra khiếu nại giao dịch của chính bạn.\n\nMình tra được — giao dịch cụ thể (số tiền · trạng thái · thời điểm), lịch sử ví, và quy định áp dụng cho trường hợp của bạn. Mọi con số mình nói đều lấy từ hệ thống và có ghi nguồn ngay dưới câu trả lời.\n\nMình không quyết — hoàn tiền hay điều chỉnh số dư phải do chuyên viên CSKH xác minh rồi người có thẩm quyền phê duyệt. Đây là quy định về tiền của bạn, không phải giới hạn của máy.\n\nBạn cứ kể bằng lời thường, không cần nhớ mã giao dịch. Hoặc bấm \"Báo lỗi giao dịch này\" ở một giao dịch cụ thể bên trái.",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -606,48 +647,61 @@ export default function ChatClient({
                 (authority-matrix.yaml), OTP vẫn được ép thật trên đường agent
                 (INV-10). Muốn ép ở backend thì phải đổi contract → ADR + PO
                 duyệt (nợ đã ghi cho đợt sau demo). */}
-            {!otpVerified ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div className="dim" style={{ fontSize: 12 }}>
-                  Xác thực OTP để xem giao dịch gần đây
-                </div>
-                <button className="btn btn-outline btn-sm" type="button" onClick={() => void beginOtpFlow()}>
-                  Xác thực ngay
-                </button>
+            <RailCardGatedByOtp
+              otpVerified={otpVerified}
+              onXacThuc={() => void beginOtpFlow()}
+              thongDiepChuaXacThuc="Xác thực OTP để xem giao dịch gần đây"
+            >
+              {history?.recent_transactions.length === 0 && <div className="dim" style={{ fontSize: 12 }}>Chưa có giao dịch.</div>}
+              {/* PO thật 19/08 (mục 12): rail là MỘT cột — danh sách giao dịch
+                  nở đầy sau OTP đẩy thẻ "Lịch sử khiếu nại" trôi khỏi màn
+                  hình. Cuộn nội bộ thay vì đảo thứ tự 2 thẻ (đơn giản hơn, ít
+                  rủi ro phá layout khác — Lead chốt sau khi xác nhận không có
+                  phiên ux-ui nào đang hoạt động để hỏi). 280px là ước lượng
+                  đầu — đủ ~3-4 giao dịch, CHƯA đo/tinh chỉnh trên màn hình
+                  thật, chỉnh lại nếu QA/QC thấy cụt/thừa. */}
+              <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                {history?.recent_transactions.map((tx) => (
+                  <div className="txn-item" key={tx.trans_id}>
+                    <div className="txn-top">
+                      <span>{tx.direction === "out" ? "Chuyển đi" : "Nhận vào"}</span>
+                      <span className="txn-amount">{formatMoney(tx.amount)}</span>
+                    </div>
+                    <div className="txn-meta">{formatDateTime(tx.created_at)} · {tx.trans_id}</div>
+                    <button className="txn-report" onClick={() => reportFromRail(tx)} type="button">
+                      <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M4 4v16l4-4h12V4H4z" /></svg>
+                      Báo lỗi giao dịch này
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : (
-            <>
-            {history?.recent_transactions.length === 0 && <div className="dim" style={{ fontSize: 12 }}>Chưa có giao dịch.</div>}
-            {history?.recent_transactions.map((tx) => (
-              <div className="txn-item" key={tx.trans_id}>
-                <div className="txn-top">
-                  <span>{tx.direction === "out" ? "Chuyển đi" : "Nhận vào"}</span>
-                  <span className="txn-amount">{formatMoney(tx.amount)}</span>
-                </div>
-                <div className="txn-meta">{formatDateTime(tx.created_at)} · {tx.trans_id}</div>
-                <button className="txn-report" onClick={() => reportFromRail(tx)} type="button">
-                  <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M4 4v16l4-4h12V4H4z" /></svg>
-                  Báo lỗi giao dịch này
-                </button>
-              </div>
-            ))}
-            </>
-            )}
+            </RailCardGatedByOtp>
           </div>
           <div className="card">
             <div className="rail-title">Lịch sử khiếu nại của bạn</div>
-            {history?.complaints.length === 0 && <div className="dim" style={{ fontSize: 12 }}>Chưa có khiếu nại nào.</div>}
-            {history?.complaints.map((c) => (
-              <div className="hist-item" key={c.complaint_id} style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-                <div className="flex between center-y" style={{ width: "100%" }}>
-                  <span className="id">{c.complaint_id}</span>
-                  <span className="badge badge-neutral">{COMPLAINT_STATUS_LABEL[c.status] ?? c.status}</span>
+            {/* Lỗi 12 (PO thật 19/08, Lead [ĐO]): CÙNG lớp lỗi "chính sách
+                đúng, áp thiếu một nhánh" đã vá 3 lần khác trong ngày — cổng
+                OTP V6 áp cho thẻ giao dịch nhưng SÓT thẻ này. Dùng CHUNG
+                `RailCardGatedByOtp` với thẻ trên, không tự viết `!otpVerified
+                ?` riêng — thẻ thứ ba sau này thừa hưởng cổng tự động. */}
+            <RailCardGatedByOtp
+              otpVerified={otpVerified}
+              onXacThuc={() => void beginOtpFlow()}
+              thongDiepChuaXacThuc="Xác thực OTP để xem lịch sử khiếu nại"
+            >
+              {history?.complaints.length === 0 && <div className="dim" style={{ fontSize: 12 }}>Chưa có khiếu nại nào.</div>}
+              {history?.complaints.map((c) => (
+                <div className="hist-item" key={c.complaint_id} style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                  <div className="flex between center-y" style={{ width: "100%" }}>
+                    <span className="id">{c.complaint_id}</span>
+                    <span className="badge badge-neutral">{COMPLAINT_STATUS_LABEL[c.status] ?? c.status}</span>
+                  </div>
+                  <div className="dim" style={{ fontSize: 11 }}>
+                    {COMPLAINT_TYPE_LABEL[c.type]} · {formatDateTime(c.created_at)}
+                  </div>
                 </div>
-                <div className="dim" style={{ fontSize: 11 }}>
-                  {COMPLAINT_TYPE_LABEL[c.type]} · {formatDateTime(c.created_at)}
-                </div>
-              </div>
-            ))}
+              ))}
+            </RailCardGatedByOtp>
           </div>
         </div>
 

@@ -64,9 +64,13 @@ afterEach(() => {
 // hiện ngay khi vào trang — giả định đó nay sai, nên chúng được viết lại quanh
 // hành vi mới thay vì nới lỏng assert.
 /** Đi trọn luồng OTP trong phiên: bấm "Xác thực ngay" -> điền 6 ô mã.
- *  Sau bước này rail "Giao dịch gần đây" mới hiện (V6). */
+ *  Sau bước này rail "Giao dịch gần đây" mới hiện (V6). Lỗi 12 (PO thật
+ *  19/08): thẻ "Lịch sử khiếu nại" giờ CŨNG có nút "Xác thực ngay" riêng
+ *  (cùng khuôn thẻ giao dịch) -> `findAllByRole`, bấm nút ĐẦU vẫn đủ vì cả
+ *  hai thẻ dùng CHUNG state `otpVerified`, một lần xác thực mở cả hai. */
 async function xacThucOtpTrongPhien(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: "Xác thực ngay" }));
+  const nutXacThuc = await screen.findAllByRole("button", { name: "Xác thực ngay" });
+  await user.click(nutXacThuc[0]);
   await waitFor(() => expect(document.querySelectorAll("input.otp-box").length).toBe(6));
   const o = Array.from(document.querySelectorAll("input.otp-box")) as HTMLInputElement[];
   for (let i = 0; i < 6; i++) await user.type(o[i], "123456"[i]);
@@ -81,7 +85,10 @@ describe("ChatClient — rail giao dịch gần đây", () => {
       expect(screen.getByText("Xác thực OTP để xem giao dịch gần đây")).toBeInTheDocument()
     );
     expect(screen.queryByText(/92\.000đ/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Xác thực ngay" })).toBeInTheDocument();
+    // Lỗi 12 (PO thật 19/08): thẻ "Lịch sử khiếu nại" giờ CŨNG có nút riêng
+    // cùng tên — getAllByRole thay vì getByRole (uniqueness không phải thứ
+    // test này kiểm, chỉ kiểm "nút xác thực CÓ mặt").
+    expect(screen.getAllByRole("button", { name: "Xác thực ngay" }).length).toBeGreaterThan(0);
   });
 
   it("rail rỗng: vẫn che trước khi xác thực (không lộ 'Chưa có giao dịch')", async () => {
@@ -91,6 +98,39 @@ describe("ChatClient — rail giao dịch gần đây", () => {
       expect(screen.getByText("Xác thực OTP để xem giao dịch gần đây")).toBeInTheDocument()
     );
     expect(screen.queryByText("Chưa có giao dịch.")).not.toBeInTheDocument();
+  });
+});
+
+// Lỗi 12 (PO thật 19/08, docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md
+// mục 12) — thẻ "Lịch sử khiếu nại" từng KHÔNG có cổng OTP dù thẻ "Giao
+// dịch gần đây" cạnh nó có, dù CÙNG mức nhạy cảm dữ liệu (loại/trạng thái
+// khiếu nại). Hai ca dưới khoá lại hành vi ĐÃ VÁ bằng `RailCardGatedByOtp`.
+describe("ChatClient — rail lịch sử khiếu nại (Lỗi 12)", () => {
+  const mockHistoryCoKhieuNai = {
+    ...mockHistory,
+    complaints: [
+      { complaint_id: "CMP-mock-001", type: "double_charge" as const, status: "investigating", created_at: "2026-08-11T09:00:00Z" },
+    ],
+  };
+
+  it("CHƯA xác thực OTP thì che lịch sử khiếu nại, hiện lời mời xác thực", async () => {
+    vi.mocked(getCustomerHistory).mockResolvedValue(mockHistoryCoKhieuNai);
+    render(<ChatClient userId="USR-A" phone="0901000001" otpXemConHanLucTai={false} />);
+    await waitFor(() =>
+      expect(screen.getByText("Xác thực OTP để xem lịch sử khiếu nại")).toBeInTheDocument()
+    );
+    expect(screen.queryByText("CMP-mock-001")).not.toBeInTheDocument();
+  });
+
+  it("đã xác thực OTP -> lịch sử khiếu nại hiện đúng dữ liệu", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getCustomerHistory).mockResolvedValue(mockHistoryCoKhieuNai);
+    render(<ChatClient userId="USR-A" phone="0901000001" otpXemConHanLucTai={false} />);
+    await xacThucOtpTrongPhien(user);
+    await waitFor(() => expect(screen.getByText("CMP-mock-001")).toBeInTheDocument());
+    // Nhãn loại khiếu nại nằm chung 1 div với dấu "·"+ngày (nhiều text node
+    // con) — badge trạng thái ở span riêng, node đơn, an toàn để so khớp.
+    expect(screen.getByText("Đang xử lý")).toBeInTheDocument();
   });
 });
 
