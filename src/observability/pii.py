@@ -277,6 +277,15 @@ def _load_analyzer():
         # người/tổ chức/địa danh) — đây chính là phần "tương lai có thêm
         # nhiều loại PII khác" không cần tự viết regex riêng cho từng loại.
         registry.load_predefined_recognizers(languages=["vi"], nlp_engine=nlp_engine)
+        # Bảo Mật 19/08 (QA/QC đo corpus golden_set.jsonl: 49,2% lượt bị bóp
+        # méo): `MEDICAL_LICENSE` định nghĩa BẰNG CHỮ SỐ — filter shape hiện
+        # có ("có số ⟹ không phải PII") áp lên nó là TỰ TRIỆT TIÊU chính nó,
+        # không có cách vá bằng shape-filter. Bối cảnh CSKH ví Việt, khách
+        # nhắc số giấy phép y tế Mỹ ≈ 0 — recognizer chỉ còn sinh dương tính
+        # giả trên mã giao dịch/số tài khoản. Loại THỐNG NHẤT cả log/trace lẫn
+        # model-input (khác quyết định giữ nguyên với Spacy PERSON/LOCATION —
+        # ở đây KHÔNG có PII thật phía sau để đánh đổi khi loại bỏ).
+        registry.remove_recognizer("MedicalLicenseRecognizer")
         registry.add_recognizer(
             PatternRecognizer(
                 supported_entity="VN_PHONE_NUMBER",
