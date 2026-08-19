@@ -448,7 +448,7 @@ _CHECKPOINT_POOL = None  # gán trong _build_checkpointer(), đóng ở close_ch
 _CHECKPOINTER = _build_checkpointer()
 
 
-def doc_transcript_bang_giao(thread_id: str) -> list[dict[str, object]] | None:
+def doc_transcript_bang_giao(thread_id: str) -> dict[str, object] | None:
     """ADR-044 — đọc hội thoại bot↔khách của MỘT thread cho route
     `GET /tickets/{ticket_id}/transcript` (src/api/main.py). Đọc qua
     `checkpointer.get_tuple()` — KHÔNG parse thẳng bảng `checkpoint_*`
@@ -466,9 +466,19 @@ def doc_transcript_bang_giao(thread_id: str) -> list[dict[str, object]] | None:
     trong checkpoint CŨ — route/UI phải tự khai điều này, hàm này không
     sửa ngược bằng chứng.
 
-    Mỗi lượt trả `vai` ("khach"/"bot") + `noi_dung` + `co_goi_tool` (bot đã
-    gọi tool ngay trước khi sinh câu trả lời này hay chỉ là lời thoại suông
-    — CSKH cần phân biệt câu nào dựa trên dữ liệu thật tra được)."""
+    Trả `{"luot": [...], "chi_so_bang_giao": int | None}`.
+      - `luot`: mỗi lượt là `vai` ("khach"/"bot") + `noi_dung` + `co_goi_tool`
+        (bot đã gọi tool ngay trước khi sinh câu trả lời này hay chỉ là lời
+        thoại suông — CSKH cần phân biệt câu nào dựa trên dữ liệu thật).
+      - `chi_so_bang_giao`: chỉ số (0-based) của LƯỢT CUỐI CÙNG "phía trên
+        vạch" — tức lượt bot xác nhận NGAY SAU khi tool `request_human_
+        handoff` chạy. UI vẽ vạch phân cách ngay sau lượt này. `None` nếu
+        hội thoại KHÔNG có lần gọi `request_human_handoff` nào (transcript
+        đọc được nhưng chưa từng bàn giao — vd CSKH tự mở vé, không qua
+        yêu cầu của khách). KHÔNG dùng `handoff_at` (mốc DB) để suy ra vị
+        trí này — không có timestamp per-message để so khớp, dùng đúng SỰ
+        KIỆN sinh ra bàn giao (lời gọi tool) chính xác hơn một phép so mốc
+        thời gian gián tiếp."""
     tuple_ = _CHECKPOINTER.get_tuple({"configurable": {"thread_id": thread_id}})
     if tuple_ is None:
         return None
@@ -476,9 +486,13 @@ def doc_transcript_bang_giao(thread_id: str) -> list[dict[str, object]] | None:
 
     luot: list[dict[str, object]] = []
     co_tool_tu_luot_truoc = False
+    vua_goi_handoff = False
+    chi_so_bang_giao: int | None = None
     for m in messages:
         if isinstance(m, ToolMessage):
             co_tool_tu_luot_truoc = True
+            if m.name == "request_human_handoff":
+                vua_goi_handoff = True
             continue
         if isinstance(m, HumanMessage):
             luot.append({"vai": "khach", "noi_dung": str(m.content), "co_goi_tool": False})
@@ -493,7 +507,10 @@ def doc_transcript_bang_giao(thread_id: str) -> list[dict[str, object]] | None:
                 continue
             luot.append({"vai": "bot", "noi_dung": noi_dung, "co_goi_tool": co_tool_tu_luot_truoc})
             co_tool_tu_luot_truoc = False
-    return luot
+            if vua_goi_handoff:
+                chi_so_bang_giao = len(luot) - 1
+                vua_goi_handoff = False
+    return {"luot": luot, "chi_so_bang_giao": chi_so_bang_giao}
 
 # Sentinel — phân biệt "không truyền otp_verified_at" (backward-compat: coi như
 # vừa xác thực XONG, dùng bởi eval harness/test hiện có vốn giả định "khách đã

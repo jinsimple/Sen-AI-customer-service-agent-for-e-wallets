@@ -853,8 +853,8 @@ def get_ticket_transcript(
             "handoff_at": handoff_at,
         }
 
-    luot = doc_transcript_bang_giao(complaint.thread_id)
-    if luot is None:
+    ket_qua = doc_transcript_bang_giao(complaint.thread_id)
+    if ket_qua is None:
         return {
             "transcript": None,
             "ly_do": (
@@ -863,8 +863,17 @@ def get_ticket_transcript(
                 "hoặc lỗi ghi lúc tạo vé."
             ),
             "handoff_at": handoff_at,
+            "chi_so_bang_giao": None,
         }
-    return {"transcript": luot, "ly_do": None, "handoff_at": handoff_at}
+    return {
+        "transcript": ket_qua["luot"],
+        "ly_do": None,
+        "handoff_at": handoff_at,
+        # ADR-044 — vị trí (0-based) lượt CUỐI "phía trên vạch", suy từ lời
+        # gọi tool request_human_handoff thật trong hội thoại (KHÔNG so
+        # timestamp — không có mốc per-message để so với handoff_at).
+        "chi_so_bang_giao": ket_qua["chi_so_bang_giao"],
+    }
 
 
 # ---------------------------------------------------------------------------
