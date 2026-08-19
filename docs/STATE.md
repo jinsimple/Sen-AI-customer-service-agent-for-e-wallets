@@ -1402,6 +1402,19 @@ KHUÔN VẪN XANH.**
 
 **Luật A** — cổng phải **IM** lúc bình thường **VÀ KÊU** lúc bất thường; nửa sau **chỉ chứng minh
 được bằng ca đối chứng**.
+> ⭐ **MỞ RỘNG 19/08 (Lead đúc sau khi tự bắt mình, PO-agent nối vào A thay vì cấp ký hiệu mới —
+> §7b: cùng mệnh đề, áp cho DỤNG CỤ CHẨN ĐOÁN TUỲ ỨNG thay vì cổng thường trực):**
+> **Một dụng cụ cho CÙNG kết quả dù giả thuyết đúng hay sai thì không kiểm được giả thuyết nào —
+> kể cả khi kết luận nó dẫn tới tình cờ đúng.** Hỏi trước khi tin một phép kiểm: *"nếu điều tôi
+> đang bác BỎ mà lại ĐÚNG, dụng cụ này có cho ra kết quả khác không?"* Không ⟹ nó chưa KÊU bao giờ.
+> [ĐO 19/08] Lead bác giả thuyết "ca đỏ là hồi quy của GĐ3" bằng `grep` phụ thuộc. Nhưng nếu nó
+> **thật sự** là hồi quy, cùng lệnh `grep` vẫn cho cùng kết quả ⟹ không phân biệt được. Phép thử
+> phân biệt được: **chạy ca đó trên bản TRƯỚC thay đổi** (PO-agent dựng worktree tại `8785da4`
+> ⟹ đỏ y hệt ⟹ đỏ sẵn từ trước). Lời Lead: *"tôi kết luận đúng bằng một dụng cụ không đủ sức
+> chứng minh điều tôi nói. May mắn không phải bằng chứng, dù kết quả trùng nhau."*
+> *(Họ hàng: Luật N — số đếm phải kèm phép đếm; A-mở-rộng nói về PHÉP KIỂM phải kèm khả năng
+> phân biệt.)*
+
 **Luật B** — làm tròn một phát biểu lên đúng **MỘT nấc** là lớp sai đắt nhất.
 > ⭐ **MỞ RỘNG (security):** kiểm tra cuối trước khi một phát biểu **RỜI KHỎI ĐỘI** là hỏi nó **ĐẨY
 > NGƯỜI NHẬN VÀO CHẾ ĐỘ NÀO**, không chỉ hỏi nó có đúng không. *(vd: "quá hạn" → chế độ khắc phục
