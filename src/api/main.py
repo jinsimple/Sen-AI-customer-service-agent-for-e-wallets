@@ -637,7 +637,7 @@ def agent_chat(
         # vòng đời process, nếu chỉ khoá theo user_id thì đăng xuất rồi đăng nhập
         # lại (cùng process chưa restart) sẽ vẫn nối tiếp hội thoại phiên cũ, trái
         # PRD US-010 ("không giữ ngữ cảnh xuyên phiên đăng nhập khác nhau").
-        return _handle_tool_error(
+        result = _handle_tool_error(
             run_agent_turn,
             session,
             user_id=current_user.user_id,
@@ -645,6 +645,19 @@ def agent_chat(
             thread_id=f"{current_user.user_id}:{current_user.iat}",
             otp_verified_at=current_user.otp_verified_at,
         )
+        # Chặn `null` Ở BIÊN client, KHÔNG đổi nghĩa BÊN TRONG: `None` nội bộ
+        # (vd graph.py, đường vòng lặp tool/timeout) mang nghĩa "mất kết quả",
+        # khác `[]` = "thật sự không gọi tool nào" — phân biệt đó có giá trị
+        # cho log/checkpoint, KHÔNG có giá trị cho client (client không làm gì
+        # khác được với "không biết", và đã có `ly_do_fallback` để biết đây là
+        # lượt hỏng). `ChatClient.tsx` gọi `.length` trên field này — thiếu
+        # dòng dưới thì `null` đi thẳng ra JSON và vỡ ở đó.
+        # CỐ Ý sửa TẠI ĐÂY (route agent_chat), KHÔNG sửa trong
+        # `_handle_tool_error` — hàm đó dùng chung cho hơn chục route khác,
+        # phần lớn không có khoá `tool_calls`; chèn ở đó sẽ thêm nhầm field
+        # vào response của những route không liên quan.
+        result["tool_calls"] = result.get("tool_calls") or []
+        return result
     finally:
         # finally BẮT BUỘC: thoát bằng exception (timeout, ToolError, 500) mà
         # không trả slot thì hệ thống tự bóp cổ mình sau vài lỗi.

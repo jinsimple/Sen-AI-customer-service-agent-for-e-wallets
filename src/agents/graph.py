@@ -636,7 +636,7 @@ def run_agent_turn(
             )
             _kq_nhe = {
                 "reply": TRA_LOI_NHE,
-                "tool_calls": None,
+                "tool_calls": [],
                 "ticket_id": None,
                 "should_escalate": False,
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
@@ -786,7 +786,7 @@ def run_agent_turn(
                     f"Bạn nhắn lại giúp mình{khuyen} nhé — tin nhắn của bạn "
                     "chưa bị mất gì cả."
                 ),
-                "tool_calls": None,
+                "tool_calls": [],
                 "ticket_id": None,
                 "should_escalate": False,
                 "usage": {
@@ -903,7 +903,7 @@ def run_agent_turn(
             )
             _kq = {
                 "reply": reply,
-                "tool_calls": None,
+                "tool_calls": [],
                 "ticket_id": None,          # CỐ Ý: xem chú thích ở _LOI_CAN_CAN_THIEP
                 "should_escalate": False,
                 "usage": {
