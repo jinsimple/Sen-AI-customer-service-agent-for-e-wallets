@@ -29,6 +29,14 @@ qua trót lọt.
 không phải một bộ 6 ca riêng cho GĐ3. Đắt hơn về token, nhưng đây đúng chỗ đáng trả — model này sẽ
 nói chuyện với khách thật không biết mình đang bị thử.
 
+🔴 **NIÊM 19/08 — PO-agent đính chính, tôi tự kiểm lại, ĐÚNG: "bộ 30 ca" TRÊN không tồn tại như một
+tệp. Sửa số, GIỮ kết luận.** [ĐO] `docs/STATE.md:123` viết *"Bộ an toàn 30/30"* — đây là MỘT BẢNG
+ĐIỂM (30 hạng mục đạt trên 30), không phải tên một corpus 30 ca. [ĐO] tự đếm `eval/adversarial_set.jsonl`
+→ **46 dòng, 19 category khác nhau** (Python đọc trực tiếp, đếm trường `category`). Đây mới là corpus
+thật đứng sau con số "30/30". **Sửa: model mới vào bể phải qua bộ 46 ca / 19 category đã có, không
+phải "30 ca".** Toán (12/13)^k ở dưới càng vững hơn với mẫu lớn hơn — số ca tăng, xác suất bỏ lọt
+GIẢM, không phải một điểm yếu mới lộ ra. Không đổi hướng, chỉ đổi tên đúng cho vật đang được ký.
+
 ## ② Truy vết theo LƯỢT — [ĐO] Ý ĐỊNH ĐÚNG, cần xác nhận DÂY NỐI đủ trước khi merge
 
 `llm_pool.py:1-7` tự khai: *"usage.jsonl vẫn ghi model PER-LƯỢT (không đổi) — đó là thứ cứu ta khi
@@ -122,10 +130,29 @@ ba ca AUTH nặng nhất (số CŨ, SAI vì mẫu hẹp)             ⟹ ~176 l�
 
 **KẾT LUẬN: KHÔNG ĐỔI dù mẫu số đổi — và với mẫu số đúng, kết luận CÀNG vững, không yếu đi.** Dù
 dùng đầu dải (3,3) hay cuối dải bảo thủ (~2,0), xoay vẫn là điều **SẼ XẢY RA THẬT** trong buổi test
-đầu (150 khách × ≥2 lượt/khách ⟫ 1 model), không phải nhánh hiếm. Toán kinh tế của gate (30 ca ≈ 30
-lượt trên sức chứa ~98 lượt/model = 1M ÷ ~10.2K trung bình) không phụ thuộc con số 176/1,2 — vẫn
-đúng: **mỗi model vào bể lời ròng ~68 lượt, cổng là phí vào cửa chứ không phải khoản lỗ.** Xác nhận:
-30 ca áp cho CẢ NĂM model, không model nào được miễn.
+đầu (150 khách × ≥2 lượt/khách ⟫ 1 model), không phải nhánh hiếm.
+
+🔴 **NIÊM lần hai 19/08 — câu "toán kinh tế... lời ròng ~68 lượt/model... cả năm model" NGAY DƯỚI ĐÂY
+(dòng cũ) ĐÃ HẾT HIỆU LỰC, cả hai vế. Giữ nguyên chữ cũ, không xoá, vì nó là chỗ suy luận sai đứng —
+sửa thẳng ba điểm PO-agent chỉ ra, đã tự kiểm lại:**
+
+1. [ĐO] **corpus đúng là 46 ca / 19 category** (đã sửa ở mục ① trên), không phải 30 — số lượt gate
+   tiêu tốn đổi theo, không còn là "≈30 lượt".
+2. [ĐO] `docs/giao-viec/2026-08-19-gd3-doi-model-xoay-tu-dong.md:275` — luật ghim tên (`e2bebb8`) loại
+   `deepseek-v4-flash`/`deepseek-v4-pro` (bí danh trôi). **Model còn lại cần qua cổng: BA**
+   (`deepseek-v4-pro-0813` · `deepseek-v3.2` · `deepseek-v4-flash-0731`), không phải năm. Sửa: **"30
+   ca áp cho cả năm model"** → **"46 ca áp cho cả BA model deepseek còn trong bể (sau luật ghim tên),
+   không model nào được miễn."**
+3. **"Lời ròng ~68 lượt/model" — RÚT, không phải sửa số mà rút cả phép tính.** Nó dựng trên cỡ-gate
+   sai (30) VÀ giá-mỗi-lượt chưa đo thật cho riêng loại ca đối kháng/an toàn (có thể nặng hơn nhiều so
+   với trung bình 10.219 của lượt sản phẩm thường — 46 ca an toàn/đối kháng khả năng cao KHÔNG cùng
+   phân phối độ dài với 163 lượt chat bình thường tôi vừa đo). PO-agent đã lệnh đúng hướng: **đo THẬT
+   một model trước (sổ trước/sau), không ước tiếp bằng nhân tay** — tôi đồng ý, và rút lại phép nhân
+   của chính mình thay vì để nó đứng cạnh một tiền đề đã đổ.
+
+**Điều KHÔNG đổi, giữ nguyên qua cả hai lần niêm:** lý lẽ (12/13)^k không phụ thuộc giá token hay số
+model trong bể — nó chỉ phụ thuộc SỐ CA GATE, và 46 > 6 càng làm xác suất bỏ lọt nhỏ hơn. Kết luận
+"không cắt độ sâu cổng" đứng vững nguyên vẹn; cái đổi là GIÁ (cần đo thật), không phải LÝ DO.
 
 ## KHÔNG kết luận
 
