@@ -90,3 +90,9 @@ mỗi model: 1M token free · consumed 0 · hết hạn 15/11/2026 (88 ngày) ·
 - [ ] Cổng xoay 0-token xanh · E2E UI ≥3 good case tính năng đổi model
 - [ ] Khách thấy model đang trả lời + được báo khi tự xoay
 - [ ] Sổ token khớp: mỗi lượt ghi đúng model thật đã trả lời
+
+## BỔ SUNG 19/08 — việc đi nhờ chuyến gỡ băng backend (từ QUYẾT ĐỊNH B của GĐ2.5)
+- Coder: thêm `"loai": "otp_het_tuoi"` vào `_OTP_EXPIRED_ERROR` / tương ứng `_OTP_REQUIRED_ERROR`
+  (`customer_tools.py:600-603`) — field thuần cộng thêm, không đụng route/contract.
+- Client chuyển nhận diện OTP-hết-tươi từ khớp-chuỗi sang đọc `loai`; tháo cổng ghim chuỗi của GĐ2.5.
+- Nhân tiện xử nhánh 403-role `ChatClient.tsx:431` theo khuôn ba-trạng-thái.

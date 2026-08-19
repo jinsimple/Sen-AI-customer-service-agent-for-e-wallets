@@ -62,3 +62,32 @@
 - [ ] 5 ca đỏ dựng sẵn → XANH nguyên trạng (không sửa assertion không khai)
 - [ ] Smoke 0-token xanh trên frontend mới · backend KHÔNG bị chạm (băm giữ nguyên 38e65466e3ce)
 - [ ] Chữ ký Bảo Mật + Review · sổ token GĐ2.5 khai đủ
+
+---
+
+## QUYẾT ĐỊNH B — 19/08, sau finding của Bảo Mật (Lead kiểm, PO-agent quyết)
+
+**Tiền đề 403 của Finding B SAI ở luồng thật:** khách đi qua agent, tool gọi trong-tiến-trình,
+OTP hết tươi trả `{"status":"error","message":…}` TRONG HTTP 200 — không bao giờ 403 (route
+`/tools/create_ticket` có guard 403 nhưng client không bao giờ gọi nó). Brief phần B viết theo
+ngôn ngữ 403 — catch viết theo chữ ấy không bao giờ bắn.
+
+**QUYẾT: phương án (ii) — khớp chuỗi hằng số TA SỞ HỮU, kèm CỔNG GHIM.**
+- Client nhận diện OTP-hết-tươi qua `tool_name` + `result.status=="error"` + khớp chuỗi
+  `_OTP_EXPIRED_ERROR.message` — chuỗi nằm trong repo ta, dưới quản lý phiên bản (KHÁC hẳn khớp
+  chuỗi lỗi nhà cung cấp — thứ đã cấm ở GĐ3).
+- Chuỗi trông đợi phía client khai ở ĐÚNG MỘT chỗ; QA/QC dựng **cổng ghim**: hằng số backend ==
+  chuỗi client trông đợi. Ai đổi câu chữ ⟹ cổng ĐỎ, không hỏng im lặng.
+- **BA TRẠNG THÁI bắt buộc** (điều khoản Bảo Mật, nguyên văn): role · OTP · **KHÔNG RÕ** — "không
+  rõ" TUYỆT ĐỐI không ngầm gộp vào loại có tên. Sai hướng "không nhận ra ⟹ coi như OTP" là rò
+  thẩm quyền; sai hướng ngược lại chỉ mất UX.
+
+**Vì sao không (i) ngay:** thêm field `loai` = sửa backend đang đóng băng ⟹ ảnh nghiệm thu GĐ2 mất
+hiệu lực, trả giá một chu kỳ dựng + cổng lại — để đổi lấy thứ (ii)+cổng-ghim đã cho hôm nay.
+**Vì sao (i) không bị bỏ:** 🔴 **SỔ NỢ CÓ HẠN KÈM CHUYẾN**: GĐ3 đằng nào cũng gỡ băng backend
+(tầng xoay model) ⟹ việc thêm `"loai":"otp_het_tuoi"` vào `_OTP_EXPIRED_ERROR`/`_OTP_REQUIRED_ERROR`
+**ĐI CÙNG đợt backend GĐ3** — client chuyển sang đọc `loai`, cổng ghim tháo. Không có "tạm thời
+vĩnh viễn": cổng ghim tồn tại là lời nhắc tự động.
+
+**Ngoài phạm vi, ghi sổ:** nhánh 403-role `ChatClient.tsx:431` (`/role/i`) lỏng hơn cần — xử cùng
+đợt client chuyển sang đọc `loai`.
