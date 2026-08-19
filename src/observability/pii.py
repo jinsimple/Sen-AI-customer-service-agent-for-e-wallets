@@ -3,6 +3,41 @@ backend trace (Jaeger) — Giai đoạn 3 checklist observability. Áp dụng ch
 văn bản tự do có thể chứa PII trước khi đưa vào JSON log hay span attribute:
 tin nhắn khách hàng, reply agent, args/kết quả tool.
 
+🔴 HAI REGISTRY TƯỜNG MINH, không phải một registry lọc-sau (Bảo Mật GĐ4
+19/08, mốc xem lại: đọc kèm docs/security/2026-08-19-gd4-dinh-hang-scrub-
+pii-model-input.md + docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md).
+`scrub_pii()` nhận tham số `muc_dich` BẮT BUỘC (không mặc định):
+
+  - `"model_input"` — dữ liệu ĐI RA nhà cung cấp LLM (`graph.py:787`).
+    Registry HẸP: KHÔNG nạp SpacyRecognizer/DateRecognizer/PhoneRecognizer
+    (generic)/MedicalLicenseRecognizer — chỉ giữ VN_PHONE_NUMBER/VN_ID_NUMBER
+    (regex tự viết) + underthesea PERSON_VN + catalog Presidio còn lại
+    (Email/Iban/Crypto/Ip/Url/MacAddress). QA/QC đo corpus 124 câu
+    (golden_set.jsonl, 19/08): tỉ lệ bóp méo 50,0% → 5,6% sau khi bỏ ba
+    recognizer trên — PhoneRecognizer chung khớp CHUỖI SỐ BẤT KỲ giống điện
+    thoại (khác VN_PHONE_NUMBER hẹp), DateRecognizer khớp YYYYMMDD trùng
+    khuôn mã giao dịch nội bộ (`TXN20260810...`), Spacy đoán PERSON/LOCATION/
+    ORGANIZATION theo ngữ cảnh — cả ba là nguồn bóp méo chính, không phải
+    edge-case hiếm.
+  - `"log"` — MỌI nơi khác (trace/span attribute, `resolutions.note` CSKH
+    gõ). Registry ĐẦY ĐỦ, giữ NGUYÊN như thiết kế gốc — over-redact ở đây là
+    CHÍNH SÁCH ĐÃ CHỐT (xem "PHÁT HIỆN THẬT" bên dưới), KHÔNG bị nới bởi
+    quyết định trên.
+
+VÌ SAO HAI REGISTRY TÁCH BIỆT (dựng riêng, không nạp-hết-rồi-lọc-kết-quả):
+hai lỗ đã vá cùng ngày (Spacy quên áp `_plausible_person_span`, MEDICAL_
+LICENSE lẫn vào registry) đều cùng hình dạng "quên lọc cho một nhánh cụ
+thể". Registry KHÔNG NẠP recognizer thừa ngay từ lúc dựng thì không có gì
+để quên lọc ở bước sau — loại rủi ro đó tận gốc thay vì thêm một lớp kiểm
+tra runtime nữa (dễ quên y hệt hai lần trước).
+
+"Tuần" (quyết (b), Bảo Mật + Lead 19/08): VẪN giữ trong stoplist chặn NER
+dù đây LÀ tên người Việt thật hợp lệ — tần suất dùng làm từ-chỉ-thời-gian
+("tuần sau", "tuần trước") cao hơn nhiều tần suất dùng làm tên riêng trong
+văn cảnh CSKH ví điện tử. Đây là ĐÁNH ĐỔI CÓ KHAI, không phải bug: khách tên
+"Tuần" nói "Mình là Tuần" sẽ KHÔNG được che (xem `_TU_THUONG_BI_NHAN_NHAM_
+LA_TEN` để biết rào cần tự hỏi trước khi thêm từ mới vào danh sách này).
+
 Dùng **Microsoft Presidio** (`presidio-analyzer`) làm engine chính — quyết
 định 2026-08-10, thay cho quyết định trước đó (spaCy gọi thẳng): sản phẩm
 nhận diện khách hàng sẽ mở rộng thêm nhiều loại PII theo thời gian (số thẻ,
@@ -64,8 +99,13 @@ from __future__ import annotations
 import functools
 import logging
 import re
+from typing import Literal
 
 _logger = logging.getLogger("fin05.observability.pii")
+
+# "model_input" = registry HẸP (D'), dữ liệu đi ra nhà cung cấp LLM.
+# "log" = registry ĐẦY ĐỦ, mọi nơi khác (trace/span, resolutions.note).
+MucDichScrub = Literal["model_input", "log"]
 
 # --- Regex fallback (KHÔNG cần Presidio) — dùng khi presidio-analyzer chưa
 # cài/lỗi load, giữ tối thiểu 3 loại PII cấu trúc rõ nhất. -------------------
@@ -180,6 +220,15 @@ _TU_NOI_THUONG_GAP = {"bị", "trừ", "là", "cho", "của", "đã", "được"
 # thường nói chung. Coder tự đo thêm, thấy "tuần" (viết hoa đầu câu) cũng gán
 # PERSON — thêm CẢ HAI, đúng cam kết ở trên. QA/QC đang dựng corpus đo tỉ lệ
 # trước/sau trên golden_set.jsonl — case mới từ đó sẽ vào đây tiếp.
+#
+# 🔴 RÀO trước khi thêm từ MỚI vào danh sách này (Bảo Mật + Lead 19/08, sau
+# khi phát hiện "tuần" CŨNG là một tên người Việt hợp lệ, không chỉ từ chỉ
+# thời gian): tự hỏi "từ này có khả dĩ là tên người Việt thật không?" — nếu
+# CÓ, đây là một ĐÁNH ĐỔI (đánh mất khả năng che một cái tên hiếm để đổi lấy
+# không bóp méo một từ thông dụng), KHÔNG PHẢI miễn phí. Thêm từ vẫn ĐÚNG nếu
+# tần suất dùng-làm-từ-thường >> tần suất dùng-làm-tên-riêng trong văn cảnh
+# CSKH ví điện tử (đúng trường hợp "mã"/"ngày"/"tuần") — nhưng PHẢI khai rõ
+# đánh đổi đó ngay tại dòng thêm từ, không âm thầm thêm như một fix vô hại.
 _TU_THUONG_BI_NHAN_NHAM_LA_TEN = {"mã", "ngày", "tuần"}
 
 
@@ -255,58 +304,109 @@ class _VietnameseNameRecognizer:
         return _Impl(supported_entities=["PERSON_VN"], supported_language="vi", name="VietnameseNameRecognizer")
 
 
-@functools.lru_cache(maxsize=1)
-def _load_analyzer():
-    """Lazy singleton — chỉ dựng AnalyzerEngine lúc thật sự cần (nạp model
-    NER tốn vài trăm ms). Trả None nếu presidio-analyzer/spaCy/model chưa
-    sẵn sàng — PHẢI graceful-degrade về regex fallback, không crash app."""
+# Recognizer chỉ loại KHỎI ĐƯỜNG model_input — đoán PII từ NGỮ CẢNH (Spacy)
+# hoặc khớp CHUỖI SỐ CHUNG dễ trùng mã giao dịch nội bộ (Date: YYYYMMDD ~
+# TXN20260810...; Phone: chuỗi số bất kỳ giống điện thoại, KHÁC VN_PHONE_
+# NUMBER hẹp tự viết bên dưới). Đường log/trace KHÔNG loại các recognizer
+# này — over-redact ở log là CHÍNH SÁCH ĐÃ CHỐT (xem docstring đầu file),
+# không phải sơ suất quên áp cùng một danh sách.
+_LOAI_KHOI_MODEL_INPUT = ("SpacyRecognizer", "DateRecognizer", "PhoneRecognizer")
+
+
+def _dung_registry(nlp_engine, *, la_model_input: bool):
+    """MỘT nguồn cấu hình cho CẢ HAI registry (model_input/log) — tham số
+    `la_model_input` điều khiển recognizer nào KHÔNG được nạp, không phải
+    hai hàm chép lại cùng danh sách recognizer hai lần (Bảo Mật 19/08: nạp-
+    hết-rồi-lọc-kết-quả từng là chỗ quên lọc, một nguồn cấu hình duy nhất
+    thì không có bản sao nào để lệch nhau)."""
+    from presidio_analyzer import Pattern, PatternRecognizer, RecognizerRegistry
+
+    registry = RecognizerRegistry(supported_languages=["vi"])
+    # Catalog có sẵn của Presidio cho "vi" — Email/Phone/Iban/Crypto/Ip/
+    # Url/Date/MedicalLicense/MacAddress + SpacyRecognizer (NER tên
+    # người/tổ chức/địa danh) — đây chính là phần "tương lai có thêm
+    # nhiều loại PII khác" không cần tự viết regex riêng cho từng loại.
+    registry.load_predefined_recognizers(languages=["vi"], nlp_engine=nlp_engine)
+    # Bảo Mật 19/08 (QA/QC đo corpus golden_set.jsonl: 49,2% lượt bị bóp
+    # méo): `MEDICAL_LICENSE` định nghĩa BẰNG CHỮ SỐ — filter shape hiện
+    # có ("có số ⟹ không phải PII") áp lên nó là TỰ TRIỆT TIÊU chính nó,
+    # không có cách vá bằng shape-filter. Bối cảnh CSKH ví Việt, khách
+    # nhắc số giấy phép y tế Mỹ ≈ 0 — recognizer chỉ còn sinh dương tính
+    # giả trên mã giao dịch/số tài khoản. Loại THỐNG NHẤT cả log/trace lẫn
+    # model-input (khác quyết định giữ nguyên với Spacy PERSON/LOCATION —
+    # ở đây KHÔNG có PII thật phía sau để đánh đổi khi loại bỏ).
+    registry.remove_recognizer("MedicalLicenseRecognizer")
+    if la_model_input:
+        for ten in _LOAI_KHOI_MODEL_INPUT:
+            registry.remove_recognizer(ten)
+    registry.add_recognizer(
+        PatternRecognizer(
+            supported_entity="VN_PHONE_NUMBER",
+            supported_language="vi",
+            patterns=[Pattern(name="vn_phone", regex=_VN_PHONE_REGEX, score=0.9)],
+        )
+    )
+    registry.add_recognizer(
+        PatternRecognizer(
+            supported_entity="VN_ID_NUMBER",
+            supported_language="vi",
+            patterns=[Pattern(name="vn_id", regex=_VN_ID_REGEX, score=0.6)],
+        )
+    )
     try:
-        from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer, RecognizerRegistry
-        from presidio_analyzer.nlp_engine import NlpEngineProvider
-
-        nlp_engine = NlpEngineProvider(
-            nlp_configuration={
-                "nlp_engine_name": "spacy",
-                "models": [{"lang_code": "vi", "model_name": "xx_ent_wiki_sm"}],
-            }
-        ).create_engine()
-
-        registry = RecognizerRegistry(supported_languages=["vi"])
-        # Catalog có sẵn của Presidio cho "vi" — Email/Phone/Iban/Crypto/Ip/
-        # Url/Date/MedicalLicense/MacAddress + SpacyRecognizer (NER tên
-        # người/tổ chức/địa danh) — đây chính là phần "tương lai có thêm
-        # nhiều loại PII khác" không cần tự viết regex riêng cho từng loại.
-        registry.load_predefined_recognizers(languages=["vi"], nlp_engine=nlp_engine)
-        # Bảo Mật 19/08 (QA/QC đo corpus golden_set.jsonl: 49,2% lượt bị bóp
-        # méo): `MEDICAL_LICENSE` định nghĩa BẰNG CHỮ SỐ — filter shape hiện
-        # có ("có số ⟹ không phải PII") áp lên nó là TỰ TRIỆT TIÊU chính nó,
-        # không có cách vá bằng shape-filter. Bối cảnh CSKH ví Việt, khách
-        # nhắc số giấy phép y tế Mỹ ≈ 0 — recognizer chỉ còn sinh dương tính
-        # giả trên mã giao dịch/số tài khoản. Loại THỐNG NHẤT cả log/trace lẫn
-        # model-input (khác quyết định giữ nguyên với Spacy PERSON/LOCATION —
-        # ở đây KHÔNG có PII thật phía sau để đánh đổi khi loại bỏ).
-        registry.remove_recognizer("MedicalLicenseRecognizer")
-        registry.add_recognizer(
-            PatternRecognizer(
-                supported_entity="VN_PHONE_NUMBER",
-                supported_language="vi",
-                patterns=[Pattern(name="vn_phone", regex=_VN_PHONE_REGEX, score=0.9)],
-            )
+        registry.add_recognizer(_VietnameseNameRecognizer())
+    except Exception as e:  # thiếu underthesea — KHÔNG kéo sập cả analyzer
+        _logger.warning(
+            "pii_underthesea_unavailable_spacy_only",
+            extra={"error": repr(e), "la_model_input": la_model_input},
         )
-        registry.add_recognizer(
-            PatternRecognizer(
-                supported_entity="VN_ID_NUMBER",
-                supported_language="vi",
-                patterns=[Pattern(name="vn_id", regex=_VN_ID_REGEX, score=0.6)],
-            )
-        )
-        try:
-            registry.add_recognizer(_VietnameseNameRecognizer())
-        except Exception as e:  # thiếu underthesea — KHÔNG kéo sập cả analyzer
-            _logger.warning("pii_underthesea_unavailable_spacy_only", extra={"error": repr(e)})
+    return registry
+
+
+def _dung_nlp_engine():
+    from presidio_analyzer.nlp_engine import NlpEngineProvider
+
+    return NlpEngineProvider(
+        nlp_configuration={
+            "nlp_engine_name": "spacy",
+            "models": [{"lang_code": "vi", "model_name": "xx_ent_wiki_sm"}],
+        }
+    ).create_engine()
+
+
+@functools.lru_cache(maxsize=1)
+def _load_analyzer_model_input():
+    """Lazy singleton — registry HẸP cho đường GỬI MODEL (`graph.py:787`).
+    KHÔNG nạp `_LOAI_KHOI_MODEL_INPUT` (xem hằng số) ngay từ lúc dựng, không
+    phải nạp-rồi-lọc-mỗi-lần-gọi. Trả None nếu presidio-analyzer/spaCy/model
+    chưa sẵn sàng — PHẢI graceful-degrade về regex fallback, không crash app.
+    """
+    try:
+        nlp_engine = _dung_nlp_engine()
+        registry = _dung_registry(nlp_engine, la_model_input=True)
+        from presidio_analyzer import AnalyzerEngine
+
         return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["vi"])
     except Exception as e:  # thiếu presidio-analyzer, thiếu spaCy, hoặc thiếu model
-        _logger.warning("pii_presidio_unavailable_fallback_regex_only", extra={"error": repr(e)})
+        _logger.warning("pii_presidio_unavailable_fallback_regex_only", extra={"error": repr(e), "muc_dich": "model_input"})
+        return None
+
+
+@functools.lru_cache(maxsize=1)
+def _load_analyzer_log():
+    """Lazy singleton — registry ĐẦY ĐỦ cho đường LOG/TRACE (mọi call site
+    khác `graph.py:787`) — giữ NGUYÊN mọi recognizer kể cả Spacy/Date/Phone
+    (trừ MedicalLicense, loại thống nhất cả hai đường — xem `_dung_registry`).
+    Trả None nếu presidio-analyzer/spaCy/model chưa sẵn sàng — graceful-
+    degrade về regex fallback."""
+    try:
+        nlp_engine = _dung_nlp_engine()
+        registry = _dung_registry(nlp_engine, la_model_input=False)
+        from presidio_analyzer import AnalyzerEngine
+
+        return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["vi"])
+    except Exception as e:
+        _logger.warning("pii_presidio_unavailable_fallback_regex_only", extra={"error": repr(e), "muc_dich": "log"})
         return None
 
 
@@ -328,14 +428,23 @@ def _merge_overlapping(spans: list[tuple[int, int, str]]) -> list[tuple[int, int
     return merged
 
 
-def scrub_pii(text: str | None) -> str | None:
-    """DÙNG HÀM NÀY cho mọi log/span attribute có khả năng chứa văn bản tự do
-    của khách/agent. Presidio (đủ khả dụng) hoặc regex fallback (xem
-    docstring module)."""
+def scrub_pii(text: str | None, *, muc_dich: MucDichScrub) -> str | None:
+    """DÙNG HÀM NÀY cho mọi log/span attribute HOẶC văn bản gửi ra ngoài có
+    khả năng chứa PII của khách/agent. Presidio (đủ khả dụng) hoặc regex
+    fallback (xem docstring module).
+
+    `muc_dich` BẮT BUỘC, KHÔNG mặc định — hai lỗ đã vá 19/08 (Spacy quên áp
+    filter, MEDICAL_LICENSE lẫn vào registry) đều là "quên chọn đúng nhánh";
+    một tham số bắt buộc buộc mọi call site MỚI phải tự hỏi câu đó, không
+    thể vô tình rơi vào nhánh sai vì quên truyền.
+      - `"model_input"`: dữ liệu ĐI RA nhà cung cấp LLM — registry HẸP (D',
+        xem docstring module).
+      - `"log"`: mọi nơi khác (trace/span, `resolutions.note`) — registry
+        ĐẦY ĐỦ, hành vi KHÔNG đổi so với trước GĐ4."""
     if not text:
         return text
 
-    analyzer = _load_analyzer()
+    analyzer = _load_analyzer_model_input() if muc_dich == "model_input" else _load_analyzer_log()
     if analyzer is None:
         return scrub_regex(text)
 

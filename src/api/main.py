@@ -1083,7 +1083,10 @@ def reject_resolution(
     note_flagged = False
     if req.note is not None:
         try:
-            note_da_scrub = scrub_pii(req.note)
+            # GĐ4 (Bảo Mật 19/08): muc_dich="log" — resolution.note nhân viên
+            # gõ, KHÔNG BAO GIỜ gửi LLM, fail-closed hiện có (ADR-024) là
+            # thiết kế gốc đã chọn cẩn trọng tối đa, giữ nguyên hướng đó.
+            note_da_scrub = scrub_pii(req.note, muc_dich="log")
         except Exception as exc:  # noqa: BLE001 — fail-closed, không phân biệt loại lỗi
             _logger.error("reject_note_scrub_that_bai", extra={"resolution_id": resolution_id})
             raise HTTPException(

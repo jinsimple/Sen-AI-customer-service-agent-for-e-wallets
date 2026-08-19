@@ -784,7 +784,10 @@ def run_agent_turn(
 
                 def _invoke():
                     return agent.invoke(
-                        {"messages": [HumanMessage(content=scrub_pii(message) or message)]},
+                        # GĐ4 (Bảo Mật 19/08): muc_dich="model_input" — registry
+                        # HẸP (D'), không nạp Spacy/Date/Phone-generic. Xem
+                        # docstring src/observability/pii.py.
+                        {"messages": [HumanMessage(content=scrub_pii(message, muc_dich="model_input") or message)]},
                         config={
                             **config,
                             "callbacks": [OTelTracingCallbackHandler()],

@@ -62,7 +62,9 @@ def _scrub_and_truncate(text: str) -> str:
     ADR-010, chỉ bỏ phần tính toán vô ích.
     """
     da_cat = len(text) > _SCRUB_WINDOW
-    scrubbed = scrub_pii(text[:_SCRUB_WINDOW]) or ""
+    # GĐ4 (Bảo Mật 19/08): muc_dich="log" — trace/span, registry ĐẦY ĐỦ,
+    # hành vi KHÔNG đổi so với trước. Xem docstring src/observability/pii.py.
+    scrubbed = scrub_pii(text[:_SCRUB_WINDOW], muc_dich="log") or ""
     if len(scrubbed) > _MAX_ATTR_LEN:
         return scrubbed[:_MAX_ATTR_LEN] + "…(cắt bớt)"
     return scrubbed + "…(cắt bớt)" if da_cat else scrubbed
