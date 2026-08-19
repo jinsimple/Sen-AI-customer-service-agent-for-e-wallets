@@ -316,7 +316,38 @@ def _khop_o3(reply: str, tin_nhan_khach: str, nguon: str, loi_khach: str = "") -
 # "du dieu kien duoc hoan" la CAM KET MAC AO DIEU KIEN: no khong hua thang
 # nhung khach doc ra la "toi se duoc hoan". Ranh buoc cung 1 cam agent ket luan
 # ve ket qua, ke ca gian tiep.
-_O4_DONG_TU = ["se ", "chac chan", "dam bao", "cam ket", "du dieu kien", "duoc duyet"]
+_O4_DONG_TU = ["se ", "chac chan", "dam bao", "cam ket", "du dieu kien", "duoc duyet",
+    # Bảo Mật 19/08 (030e4b2) + PO-agent [ĐO] thật (3d14d30): thì HOÀN TẤT
+    # ("đã", "vừa") lọt hoàn toàn trước bản vá này — "đã được hoàn tiền" là
+    # khẳng định KẾT QUẢ, không phải lời hứa, nhưng khách đọc ra hệt nhau và
+    # hậu quả nặng hơn (khách NGỪNG THEO DÕI một giao dịch chưa ai duyệt).
+    #
+    # 🔴 KHÔNG dùng "da"/"vua" TRẦN TRỤI (khác "se " — chỉ "sẽ" strip dấu ra
+    # "se", nhưng "đã" VÀ "dạ" (tiểu từ mở câu cực phổ biến trong văn phong
+    # CSKH — "Dạ anh...") CÙNG strip ra "da"). [ĐO] tự tái tạo: bare "da" bắt
+    # NHẦM "Dạ anh khoản hoàn tiền đang được xử lý ạ" (không hề có thì hoàn
+    # tất) — đúng bẫy "ca âm tính số 1" Bảo Mật cảnh báo, chỉ đổi từ "sẽ"
+    # sang "đã"/"dạ".
+    #
+    # 🔴 VÀ KHÔNG ghép "da"/"vua" với "hoan" TRẦN TRỤI — [ĐO] tự tái tạo LẦN
+    # HAI, lần này bắt nhầm CHÍNH bộ test hiện có: "Giao dịch ngày 01.08.2026
+    # của bạn đã hoàn tất." bị chặn oan (test_o3_cong_hanh_vi... đỏ). "Hoàn"
+    # đơn lẻ mơ hồ giữa "hoàn TIỀN" (trả tiền) và "hoàn TẤT/THÀNH" (xong việc)
+    # — bare `hoan` trong `_O4_TIEN` sống được với "sẽ/chắc chắn" (hiếm ai nói
+    # "chắc chắn đã hoàn tất") nhưng KHÔNG sống được với "đã/vừa" (rất tự
+    # nhiên đi với "hoàn tất" — câu mô tả tiến độ thường ngày, không phải
+    # cam kết tiền). ⟹ chỉ ghép với các cụm ĐÃ SẴN CÓ trong `_O4_TIEN` mà tự
+    # thân không mơ hồ (hoàn TIỀN, hoàn LẠI, trả lại, bồi hoàn, nhận...tiền,
+    # về/vào ví/tài khoản — không cụm nào đọc được là "xong việc"), KHÔNG
+    # ghép với bare "hoan". Kèm biến thể "da duoc "/"vua duoc " — thể bị
+    # động ("đã ĐƯỢC hoàn tiền") tự nhiên hơn thể chủ động trong văn CSKH.
+    "da hoan tien", "da duoc hoan tien", "vua hoan tien", "vua duoc hoan tien",
+    "da hoan lai", "da duoc hoan lai", "vua hoan lai", "vua duoc hoan lai",
+    "da tra lai", "da duoc tra lai", "vua tra lai", "vua duoc tra lai",
+    "da boi hoan", "da duoc boi hoan", "vua boi hoan", "vua duoc boi hoan",
+    "da nhan lai tien", "da nhan duoc tien", "vua nhan lai tien", "vua nhan duoc tien",
+    "da ve vi", "da vao vi", "da vao tai khoan",
+    "vua ve vi", "vua vao vi", "vua vao tai khoan"]
 _O4_TIEN = ["hoan tien", "hoan lai", "hoan", "tra lai", "boi hoan", "nhan lai tien", "nhan duoc tien", "ve vi", "vao vi", "vao tai khoan"]
 _O4_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
 
