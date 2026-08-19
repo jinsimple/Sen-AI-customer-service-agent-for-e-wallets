@@ -576,3 +576,31 @@ duy nhất ta không dựng lại được** (mục "xoay thật khi cạn thậ
 phí hợp lý" — hồ sơ GĐ3).
 **Việc:** khi nó xảy ra, **đọc `usage.jsonl` xác nhận dòng đầu tiên mang tên deepseek**, và kiểm
 khách có nhận câu trả lời bình thường không. Đó là bằng chứng end-to-end **miễn phí** — đừng bỏ lỡ.
+
+---
+
+## 17. ADR-044 THI HÀNH XONG (①→⑤) — hai khai báo thuộc vùng `docs/`, PO-agent ghi
+
+**§10 đủ 7 bước + code ①→⑤:** contract 2.1.0 · 34 route · baseline commit kèm · migration
+`a8b9c0d1e2f3` · `thread_id` luồn 4 tầng qua **CẢ BA** call site · `handoff_at` ghi ở cả hai nhánh ·
+route với guard chính · UI card "Hội thoại với trợ lý".
+
+### ⚠️ Khai 1 — UI HẸP HƠN contract, có chủ đích (MVP)
+> **UI ADR-044 (MVP) chỉ hiện card "Hội thoại với trợ lý" ở vé có `human_handoff_requested=true`;
+> route `GET /tickets/{id}/transcript` đúng contract, phục vụ MỌI vé mà cskh/supervisor có quyền đọc.
+> Mở rộng UI ra mọi vé khi có nhu cầu thật — KHÔNG phải rò thẩm quyền, chỉ là thu hẹp hiển thị.**
+
+PO thật duyệt phương án *"đọc được hội thoại của MỌI vé đang xử lý"* (19/08). UI thi hành hẹp hơn.
+Chiều lệch là **chiều an toàn** (hiển thị ít hơn quyền), nên không chặn. Nhưng phải khai: người sau
+đọc contract rồi mở UI sẽ tưởng UI hỏng — đây là chỗ **"contract nói A, sản phẩm làm A−"** mà nếu
+không ghi thì đợt sau tốn một vòng điều tra.
+
+### ⚠️ Khai 2 — vé sinh từ nhánh TIMEOUT: có `handoff_at`, KHÔNG có vạch phân cách
+[ĐO] `chi_so_bang_giao` suy từ **lời gọi tool `request_human_handoff` THẬT** trong hội thoại
+(`graph.py:494`). Nhánh timeout (`graph.py:1119`) gọi **thẳng** `flag_human_handoff()`, **không qua
+tool** ⟹ vé loại đó có `handoff_at` nhưng `chi_so_bang_giao = None`.
+**ĐÚNG, không phải bug** — transcript vẫn đủ, chỉ không vẽ được vạch. Coder đã xử: docstring khai rõ
+route/UI phải so **hai trường riêng**, và UI hiện **một dòng giải thích** thay vì im lặng.
+🔴 **Đây là nhánh thứ BA mà Coder tự tìm ra ở bước ② quay lại ở một TẦNG KHÁC** — cùng một nhánh, hai
+lần gây hệ quả khác nhau. Ghi vào hồ sơ như bằng chứng cho vế thi hành đã đúc: *khi cảnh báo "còn
+nhánh khác", đưa CÁCH ĐẾM chứ đừng đưa DANH SÁCH — danh sách tự nó là một mẫu số chưa kiểm.*
