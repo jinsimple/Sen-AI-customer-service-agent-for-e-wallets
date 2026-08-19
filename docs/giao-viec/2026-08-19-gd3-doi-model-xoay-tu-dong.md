@@ -117,3 +117,45 @@ mỗi model: 1M token free · consumed 0 · hết hạn 15/11/2026 (88 ngày) ·
      quả đo trên ảnh ấy** (Luật W) — sổ đã mở, GĐ3 là chuyến đầu tiên nó có hiệu lực.
 - Thứ tự không đổi: **BƯỚC 0 (xoay JWT_SECRET_KEY) đi đầu** — hồ sơ GĐ2.5 đã chốt nên điều kiện
   "sau khi hồ sơ chốt" ĐÃ THOẢ; Coder thi hành với hỏi-và-chờ (Luật U).
+
+## BỔ SUNG 19/08 (tối) — PO THẬT YÊU CẦU: xoay model phải chạy tốt trên BẢN LIVE (VPS + API key product)
+
+Nguyên tắc xuyên suốt: **cùng MỘT code, khác MỖI config.** Không nhánh code nào hỏi "đang ở prod à?" —
+mọi khác biệt dev/live nằm trong biến môi trường (12-factor, checklist đóng gói toàn cục).
+
+### Ràng buộc thiết kế thêm — Coder
+1. **Bể model là CONFIG THEO MÔI TRƯỜNG**, không phải hằng trong code: dev dùng
+   `LLM_MODEL_POOL` với 5 deepseek free; live dùng bể RIÊNG khai trên VPS với những model mà
+   **API key product thật sự có quyền gọi**. Code không được biết tên model nào cả.
+   🔴 **Bản live KHÔNG được phụ thuộc model quota-free** — quota free hết hạn 15/11/2026 và thuộc
+   key dev; bể live phải sống độc lập với danh sách ấy.
+2. **API key + base_url đọc theo môi trường, fail-fast nếu thiếu** (không default, không fallback
+   sang key dev — thiếu là chết lúc khởi động, đúng luật secret của checklist đóng gói).
+3. **Xoay trên key TRẢ TIỀN = quyết định CHI TIÊU**: trước khi xoay sang model khác, đi qua ĐÚNG
+   thứ tự đã là luật — xác thực → rate limit → **cost guard** → rồi mới gọi. Xoay không được thành
+   đường vòng qua cost guard. Bể cạn hoặc chạm trần chi phí ⟹ trả lời "hệ thống bận, thử lại sau"
+   TỬ TẾ + log sự kiện, KHÔNG xoay vòng vô hạn, KHÔNG im lặng.
+4. **Trạng thái cạn ở Redis theo stack** (đã là ràng buộc) — trên VPS là Redis của stack live;
+   TTL + keepalive/health_check_interval theo checklist (NAT cloud giết connection nhàn rỗi).
+5. **Ping khai trương bể**: trên dev ping từng model lúc khai bể (đã ghi). Trên live, ping là
+   TIỀN THẬT ⟹ cho phép chế độ lười qua env (`MODEL_POOL_PING=eager|lazy`): lazy = model được
+   đánh dấu "chưa kiểm chứng" và chỉ ping lần đầu được chọn. Mặc định dev=eager, live tự chọn.
+6. **Sổ usage.jsonl ghi model per-lượt** (đã có) — trên live đây là chứng từ đối soát hoá đơn
+   nhà cung cấp; không được tắt.
+
+### QA/QC — thêm vào cổng xoay 0-token (chạy bằng transport giả, không tốn token thật)
+- Ca "bể theo môi trường": đổi `LLM_MODEL_POOL` ⟹ bể đổi theo, KHÔNG cần đổi code/ảnh.
+- Ca "thiếu biến" = hành vi cũ một-model (đã ghi) + ca "key thiếu" = chết lúc khởi động, không chạy ngầm.
+- Ca "bể cạn toàn phần" ⟹ thông điệp tử tế + không vòng lặp vô hạn (đếm số lần thử có trần).
+- Ca "xoay không vượt cost guard": giả lập chạm trần chi phí ⟹ lượt bị chặn TRƯỚC khi gọi model,
+  kể cả khi bể còn model sống.
+
+### Bảo Mật
+- Key product: xác nhận không bao giờ xuất hiện trong log/trace/sổ (chỉ tên model + trạng thái).
+- Cập nhật hồ sơ tuân thủ: dữ liệu khách trên live đi tới model nào của nhà cung cấp — bể live
+  phải nằm trong phạm vi đã khai với đối tác (mở rộng đoạn deepseek đã yêu cầu ở brief chính).
+
+### Định nghĩa xong (thêm ô)
+- [ ] Bộ config mẫu cho live: `.env.production.example` cập nhật đủ biến mới (POOL, PING mode…),
+  có chú thích từng biến — để bước deploy tay của PO thật chỉ là điền giá trị.
+- [ ] Cổng xoay 0-token phủ 4 ca live-readiness ở trên.
