@@ -269,3 +269,40 @@ Dự phòng: `TXN20260701000110` · 257.000đ · 01/07 18:51 · nhận Cao Hữu
 - [ ] Ảnh chụp từng lượt + sổ token trước/sau (ước ~45–60K cho 3 lượt nặng)
 
 ⚠️ **Chạy SAU khi bản vá D' + lỗi 1 land** — chạy trước là đo một sản phẩm sắp thay đổi.
+
+---
+
+## 9. ✅ QUYẾT: XÁC NHẬN HÀNH VI cho lỗi 1 (frontend) — ĐÈN XANH cho ca wireframe
+
+**Bối cảnh:** không grep được tên biến trong bundle Next.js đã minify. Coder khai thật giới hạn này.
+
+🔴 **Grep bundle minify là dụng cụ KHÔNG PHÂN BIỆT ĐƯỢC — nên nó chưa bao giờ là phép kiểm.**
+[ĐO Coder] grep `touchedSensitiveData` — một biến **CŨ, bản vá KHÔNG đụng tới** — cũng ra **0 hit**.
+⟹ Dụng cụ cho **cùng kết quả dù bản vá có trong ảnh hay không**. Áp câu hỏi thi hành của **Luật A
+(mở rộng)**: *"nếu điều tôi đang bác bỏ mà lại đúng, dụng cụ này có cho ra kết quả khác không?"* —
+**KHÔNG.** Nó chưa bao giờ KÊU được. Bỏ nó không phải hạ chuẩn; **giữ nó mới là tự lừa**.
+
+**Kịch bản OTP-xen-giữa thì PHÂN BIỆT ĐƯỢC:** ảnh cũ đang chạy ⟹ khách buộc gõ lại ⟹ ca **ĐỎ**.
+Hai giả thuyết, hai kết quả. Đó là phép kiểm thật.
+
+**Chuỗi bằng chứng kín — điều kiện CẦN + điều kiện ĐỦ:**
+```
+[ĐO PO-agent] commit 13b0446 (lỗi 1)   2026-08-19T18:18:21+07
+              ảnh fin05-frontend 95ac70d4ad3f dựng 18:59:05  ⟹ SAU commit 41 phút   ✅ CẦN
+              container frontend-1 chạy ĐÚNG 95ac70d4ad3f, tạo 18:59:18              ✅ CẦN
+              ca hành vi 6 vế (QA/QC sắp chạy)                                        ← ĐỦ
+```
+⟹ Nếu ca vẫn ĐỎ **thì chắc chắn là logic sai, KHÔNG phải ảnh cũ** — khỏi mất một vòng tìm nhầm chỗ.
+
+**Backend đã đủ 3/3 + phép đặc thù D', PO-agent đối chiếu độc lập [ĐO]:**
+```
+băm nguồn ad4a9f27aa01 host == container · BUILD_COMMIT=bc52a32
+scrub_pii('toi vua chuyen 18.000.000', 'model_input') → NGUYÊN VẸN
+scrub_pii('Ngày 07/07 rút 1.524.000đ', 'log')         → CÓ [DATE_TIME]  ← log KHÔNG bị nới (đk ② Bảo Mật)
+```
+
+🟢 **ĐÈN XANH: QA/QC bấm ca wireframe 6 vế.** Nhắc: thread mới (Luật 4e) · khai ước ~45–60K với Lead
+trước · **vế ⑥ đỏ ⟹ DỪNG BÀN GIAO, báo nguyên văn**.
+
+**Nợ ghi sổ:** frontend chưa có cơ chế băm-nguồn như backend. Hôm nay phải dựng một chuỗi suy luận
+(mốc giờ + ca hành vi) để trả lời câu mà backend trả lời bằng MỘT lệnh — giá đó lặp lại mỗi lần dựng.
