@@ -137,3 +137,43 @@ cặp nhân quả AUTH-003 · chuỗi ngân sách với cả 3 lần lệch đã
 khối sự cố đi-vòng (trên) · hai dòng chưa-chạy nguyên văn · dữ kiện BFF-không-có-route · ghi nhận
 QA/QC (curl chứng minh 2 đường, đọc Caddyfile tìm chủ đích, cộng sổ cả token của ca hỏng).
 → PO-agent kiểm vật lý độc lập → trình PO thật quyết merge.
+
+---
+
+## QUYẾT ĐỊNH D — 19/08, ảnh nghiệm thu 38e65466e3ce đã mất (Lead trình, PO-agent quyết)
+
+**Sự kiện [ĐO của Lead]:** ảnh backend bị dựng lại 12:45:37 + container recreate 12:47:47
+(chữ ký: `build` không lọc service + `up -d` thiếu `--no-deps`). Ảnh cũ `38e65466e3ce` KHÔNG truy
+hồi được. Không xác định được ai dựng — **và chính khoảng trống đó là finding: ta chưa có sổ giám
+hộ cho việc dựng ảnh.** BUILD_COMMIT vẫn `1b916f1`; băng SOURCE giữ nguyên vẹn
+(git diff 06132a9..a98754f -- src/ RỖNG · md5 55/55 host↔container · langchain-core 1.5.4 ·
+Σ mô tả tool = 4862 khớp mốc 17/08).
+
+**QUYẾT: (α) — thay phép kiểm ĐỒNG NHẤT bằng phép kiểm TƯƠNG ĐƯƠNG, kèm BỐN điều kiện:**
+
+1. **Hồ sơ khai rõ nguyên văn** việc thay phép kiểm + vì sao + giới hạn Lead đã trình
+   ("ba phép trùng khớp không bằng một phép đồng nhất" — giữ đúng chữ, không nới kết luận).
+2. **Lead xác định mốc giờ TỪNG ca nghiệm thu GĐ2.5** (AUTH-003/001-tiếp/006/007-ca1 · smoke)
+   so với 12:47:47. Ca chạy SAU recreate ⟹ bằng chứng của nó GẮN VÀO `631212bc7bdd` — vật đang
+   sống — và với các ca ấy ta không cần "tương đương", ta có phép đo TRỰC TIẾP. Ghi từng ca một.
+3. **Tái neo hành vi 0-token trên ảnh hiện hành:** QA/QC chạy lại từ host bộ cổng 0-token đã dùng
+   trong đợt (invariants 23 · check_contracts · cổng envelope · cổng lọc O3 · smoke 0-token) trên
+   `631212bc7bdd`, sổ trước/sau chứng minh 0. Biến "tương đương suy ra" thành "hành vi đo lại"
+   cho mọi thứ không tốn tiền. Cổng NẶNG không chạy lại — source không đổi + kích thích-gửi-model
+   (4862) trùng khít, và ngân sách đợt đã chốt.
+4. **Hai file mốc nền RỜI scratchpad** (`pipfreeze-631212bc7bdd.txt` · `src-md5-631212bc7bdd.txt`)
+   — scratchpad chết theo phiên, mốc nền mà chết theo phiên thì lần sau lại đứng đúng chỗ này.
+   Lead chuyển nội dung cho PO-agent land vào `docs/nhat-ky/` cùng hồ sơ.
+
+**Vì sao không (β):** vật đem MERGE là source (`1b916f1` + các commit docs/tests sau nó), không
+phải ảnh local; ảnh production dựng riêng từ source. (β) tốn một chu kỳ dựng + cổng để mua sổ giám
+hộ cho một vật cũng sẽ không lên production. Sổ giám hộ mua bằng LUẬT (dưới) — rẻ hơn và giữ được mãi.
+
+**Đúc luật từ finding của Lead:** 🪙 **Luật W** (STATE §7) — *vật nghiệm thu không có sổ giám hộ
+thì không giữ được danh tính; băm chỉ có nghĩa khi có sổ.* Sổ giám hộ ảnh mở tại
+`docs/nhat-ky/so-giam-ho-anh.md`, hai dòng đầu ghi hồi tố (ảnh mất + ảnh hiện hành, người dựng:
+KHÔNG RÕ — ghi đúng mức, không đoán).
+
+**Ghi nhận:** Lead phát hiện khi GOM SỐ CHO HỒ SƠ chứ không phải khi bị ai vặn — đó chính là hồ sơ
+đang làm đúng việc của nó. Không dựng/không recreate/không xoá gì cho tới khi các điều kiện trên
+xong — giữ nguyên hiện trường là đúng.

@@ -1687,6 +1687,16 @@ Rào cản là DỮ KIỆN của đội, không phải ma sát riêng của ngư
 > *(Họ hàng: rào Caddyfile là quyết định bảo mật CÓ VĂN BẢN — không khai đường vòng còn che mất
 > việc mình vừa lách một chủ đích.)*
 
+**Luật W** *(đúc 19/08 từ finding của Lead khi gom hồ sơ GĐ2.5: ảnh nghiệm thu `38e65466e3ce` bị
+dựng đè 12:45:37 không dấu vết — không truy được ai/lệnh gì; Docker không lưu, zsh_history không mốc
+thời gian. PO-agent cấp ký hiệu)* — **Vật nghiệm thu không có SỔ GIÁM HỘ thì không giữ được danh
+tính — BĂM chỉ có nghĩa khi có SỔ.**
+> **Vế thi hành:** ① mọi lần dựng ảnh ghi MỘT DÒNG vào `docs/nhat-ky/so-giam-ho-anh.md`
+> (thời điểm · vai · lệnh nguyên văn · băm ra) — TRƯỚC khi báo bất kỳ kết quả nào đo trên ảnh ấy.
+> ② Hồ sơ nghiệm thu ghim băm + trỏ dòng sổ. ③ Ảnh không có dòng sổ = vật VÔ DANH — phép kiểm
+> đồng nhất với nó không chạy được nữa, chỉ còn phép tương đương phải khai giới hạn (đúng ca này).
+> *(Họ hàng: Luật I — đo không được ghi vào vật; W nói về DANH TÍNH của chính vật.)*
+
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
   **Vế thi hành:** sau **MỖI** phiên đo, chạy `docker diff` **trước khi báo cáo bất cứ số nào**.
