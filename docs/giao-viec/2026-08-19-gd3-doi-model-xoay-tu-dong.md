@@ -454,3 +454,47 @@ ping thăm dò đường deepseek của Coder: trần ≤10.000, khai trước/b
 ```
 **Trần là PHANH, không phải DỰ ĐOÁN** — QA/QC đề 12.000/ca kèm lý do "rộng hơn 16.330" (12.000 <
 16.330); Lead sửa, họ nhận. Cùng khuôn đã chốt cho TTL model cạn: **TTL là backoff, không phải dự đoán.**
+
+## 🔴🔴 PO THẬT QUYẾT 19/08 (cuối) — **CỔNG NHẬP BỂ: 1–2 LƯỢT/MODEL, KHÔNG PHẢI 154**
+
+**Nguyên văn:** *"Chúng ta không cần test 154 lần cho mỗi model bạn ơi, chúng ta chỉ cần test chạy
+được 1-2 lần thôi."*
+
+**THI HÀNH NGAY. Không hỏi lại (§5).** Toàn bộ khối "cổng đầy đủ 154 lượt / điểm hoà vốn / ít-model-
+cổng-đầy" ở trên: **HẾT HIỆU LỰC**, giữ lại làm ghi vết phương án đã cân nhắc.
+
+### Cái tôi đã lẫn — và PO thật tách đúng
+Tôi gộp **hai cổng khác nhau** thành một:
+| | cổng | trả lời câu | giá |
+|---|---|---|---|
+| **A** | **chạy được** | model có trả lời qua đúng `LLM_BASE_URL` của ta không · xoay có kích hoạt đúng không | **1–2 lượt** |
+| **B** | **an toàn** | model có nói bậy theo cách bộ lọc không bắt không | 154 lượt |
+PO thật đặt hàng **A**. Tôi đem giá của **B** ra bàn như thể đó là giá bắt buộc của A — và tạo ra
+nguyên một cuộc khủng hoảng ngân sách (cổng ăn 2,5× hạn ngạch model nó bảo vệ) **cho một cổng không
+ai yêu cầu**. Đây là lỗi PHẠM VI của PO-agent, không phải của ai trình số.
+
+### 🔴 VÀ ĐÂY LÀ LÝ DO KỸ THUẬT KHIẾN QUYẾT ĐỊNH NÀY AN TOÀN — [ĐO], không phải suy
+```
+src/agents/output_filter.py  O1 lộ cấu hình · O2 từ nội bộ · O3 bịa số · O4 hứa hoàn tiền
+                             ⟹ TOÀN BỘ là regex/mã tất định chạy trên VĂN BẢN trả lời
+                             ⟹ KHÔNG một dòng nào phụ thuộc model nào sinh ra văn bản đó
+graph.py:1384  loc_dau_ra(...) chạy trên MỌI đường ra, sau khi model đã nói
+```
+⟹ **Bốn rủi ro nặng nhất của một model lạ được chặn bởi MÃ, không bởi việc model đã được hiệu chuẩn.**
+Cộng với điều Bảo Mật đã khai: *ràng buộc cứng không phụ thuộc model — model tệ nhất NÓI sai, không
+THỰC THI sai* (không có đường nào cho AI tự hoàn tiền). Bể chỉ nhận tên GHIM vẫn giữ (⑨ ADR-043) —
+nó **0 token**, chỉ là một phép kiểm chuỗi lúc khởi động.
+
+### Cái 1–2 lượt KHÔNG mua — khai một lần, không lặp lại
+Model lạ có thể **từ chối quá tay** (over-refusal), **phân loại sai khiếu nại**, hoặc **nghe theo
+chỉ thị nhúng** theo cách không chạm regex nào. Bộ lọc không bắt các lỗi ấy vì chúng không nằm ở
+hình dạng văn bản. **PO thật chấp nhận rủi ro này cho bản test** — ghi vào hồ sơ đúng một dòng, và
+mọi phiên sau đọc dòng này thay vì phát hiện lại.
+
+### VIỆC — thay thế toàn bộ mục cổng nhập bể
+- **QA/QC:** mỗi model ghim (`deepseek-v4-pro-0813` · `deepseek-v3.2` · `deepseek-v4-flash-0731`):
+  **2 lượt** — 1 câu nhẹ + 1 câu nặng có gọi tool. Xanh = model vào bể. Đọc sổ trước/sau.
+  Trần: **50.000/model · 150.000 cả ba** (đúng trần bậc 1 đã duyệt, nay dùng cho việc này).
+- Bộ 46+100 ca đối kháng: **KHÔNG chạy trong GĐ3.** Ghi nợ "kiểm an toàn deepseek" — chạy khi có
+  hạn ngạch riêng cho việc đo, không lấy từ bể phục vụ khách.
+- Hai ca `MT-F01/F02` không có runner: giữ nguyên khai "chưa chạy được", nay **ngoài phạm vi GĐ3**.
