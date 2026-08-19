@@ -348,3 +348,46 @@ gọi tool** — chúng sống trong response, không sống trong chỉ số bu
 - Lần 2 xác nhận **graceful-degrade dưới tải đúng thiết kế** — một ca đối chứng miễn phí không ai đặt hàng.
 **Còn thiếu: vế ⑤ (tạo vé + bàn giao) và ⑥ (từ chối tự hoàn tiền)** — ⑥ là vế quan trọng nhất
 (ràng buộc cứng 1), và nó là vế **duy nhất chưa từng chạm tới** trong cả ba lần.
+
+---
+
+## 11. ✍️ ĐỔI CÂU CHÀO ĐẦU PHIÊN — PO thật yêu cầu, PO-agent soạn
+
+**Yêu cầu nguyên văn:** *"một câu nói đúng trọng tâm chuyên ngành, giúp khách hiểu nghiệp vụ tốt hơn
+và không đặt kỳ vọng quá cao vào chatbot hay so sánh chất lượng với ChatGPT/Claude."*
+
+### 🔴 RÀNG BUỘC BẮT BUỘC GIỮ — hai chỗ, đừng phá khi viết lại
+```
+[ĐO] frontend/e2e/transparency.spec.ts:24  expect(firstBotBubble).toContainText("AI")
+     DISC-002 · EU AI Act Article 50 — tín hiệu nhận biết AI phải nằm NGAY trong
+     bong bóng chat đầu tiên, không đủ nếu chỉ có ở tiêu đề trang / nhãn ngoài khung
+[ĐO] ChatClient.tsx:259-262  chú thích tại chỗ đã khai đúng lý do này
+```
+⟹ Câu chào mới **phải chứa chuỗi "AI"** trong chính bong bóng đầu. Đây là **tuân thủ pháp lý**,
+không phải sở thích — mất nó là cổng `transparency.spec.ts` ĐỎ và mất một hạng mục PLO 6.
+
+### Bản đề xuất (Coder land vào `ChatClient.tsx:263`)
+> Chào bạn, mình là Sen — **trợ lý AI** của ví. Mình chỉ làm một việc, nhưng làm kỹ: **điều tra
+> khiếu nại giao dịch** của chính bạn.
+>
+> **Mình tra được** — giao dịch cụ thể (số tiền · trạng thái · thời điểm), lịch sử ví, và quy định
+> áp dụng cho trường hợp của bạn. Mọi con số mình nói đều lấy từ hệ thống và có ghi nguồn ngay dưới
+> câu trả lời.
+>
+> **Mình không quyết** — hoàn tiền hay điều chỉnh số dư phải do chuyên viên CSKH xác minh rồi người
+> có thẩm quyền phê duyệt. Đây là quy định về tiền của bạn, không phải giới hạn của máy.
+>
+> Bạn cứ kể bằng lời thường, không cần nhớ mã giao dịch.
+
+### Bốn việc câu này làm, và vì sao từng câu tồn tại
+| dòng | làm gì |
+|---|---|
+| *"chỉ làm một việc, nhưng làm kỹ"* | đặt **phạm vi** bằng giọng tự tin, không phải giọng xin lỗi. Người đọc hiểu ngay đây là **công cụ chuyên dụng**, nên so nó với trợ lý đa năng là **so nhầm loại** — đúng thứ PO thật muốn chặn |
+| *"có ghi nguồn ngay dưới câu trả lời"* | dạy khách **cách đọc** sản phẩm, và biến ràng buộc truy vết thành thứ khách **nhìn thấy được** |
+| *"Mình không quyết…"* | chặn trước **nguồn thất vọng số một**: khách vào với kỳ vọng được hoàn tiền ngay |
+| *"quy định về tiền của bạn, không phải giới hạn của máy"* | 🔴 câu quan trọng nhất — biến HITL từ **điểm yếu** thành **cam kết bảo vệ**. Khách fintech MUỐN có người quyết chuyện tiền của họ |
+
+### Việc kèm theo (Coder)
+- Giữ gợi ý *"Báo lỗi giao dịch này"* ở đâu đó — đừng mất đường vào nhanh (nay đã có chip gợi ý sẵn).
+- **Chạy lại `transparency.spec.ts`** sau khi đổi — cổng ghim chuỗi `"AI"`, phải xanh nguyên trạng.
+- Đây là **frontend** ⟹ chỉ có hiệu lực sau khi **dựng lại ảnh frontend**, không phải sau commit.
