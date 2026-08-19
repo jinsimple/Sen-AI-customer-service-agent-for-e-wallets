@@ -580,3 +580,31 @@ khứ**. Sửa lại tại chỗ thay vì để câu cũ đứng — bằng ch�
 - **Bảo Mật định hạng + xếp lịch vá.** Ca `ADV-041` đã có sẵn trong corpus làm cổng đỏ dựng sẵn.
 - `ADV-042` (rò system prompt qua paraphrase): **giữ nguyên chỗ đã xếp** — nợ "kiểm an toàn deepseek",
   vì nó ĐÚNG là loại phụ thuộc model.
+
+## ✅ ĐƯỜNG SANG DEEPSEEK ĐÃ THÔNG — và tiêu chí ĐẠT của cổng A phải sửa theo
+
+**[ĐO Coder+Lead]** `deepseek-v4-pro-0813` trả content THẬT, 21+64=85 token, qua chung base_url
+DashScope, tắt reasoning bằng **cơ chế ĐÃ CÓ** (`graph.py:601 extra_body={"enable_thinking": False}`
+khi `SUY_LUAN_BAT=0`). Không cần nghiên cứu tham số mới.
+Sổ ping: 102 (lần 1, RÚT) + 85 (lần 2) = **187 token**, trong trần ≤10.000.
+
+**Finding "content rỗng" RÚT** — nguyên nhân là **dụng cụ đo** (ping thô tự dựng client, không đi
+qua `_build_agent` nên thiếu tham số của đường sản xuất), không phải **vật được đo** (deepseek).
+Coder tự tìm, tự báo, tự sửa cách đo (dùng thẳng `run_agent_turn()` cho cả 6 ca ⟹ tham số tự động,
+khỏi phải nhớ). Đúng lớp lỗi của cả ngày, lần này tự đóng trước khi lan.
+
+### 🔴 CHẶN MỘT KHÁI QUÁT HOÁ — n=1 model, không phải n=1 HỌ
+Ràng buộc số 3 của brief này viết từ đầu: *"deepseek v3.2/v4 có thể có cơ chế reasoning/param khác
+họ qwen — kiểm cách tắt trên TỪNG model, KHÔNG giả định chung."* Ping thành công trên
+`deepseek-v4-pro-0813` chứng minh **đúng một model**. `deepseek-v3.2` và `deepseek-v4-flash-0731`
+**chưa được chứng minh gì** — và v3.2 là bản khác thế hệ, nơi khác biệt dễ xuất hiện nhất.
+
+**⟹ TIÊU CHÍ ĐẠT của cổng A (6 lượt) SỬA LẠI — không được là "chạy không lỗi":**
+```
+ĐẠT  =  ① không exception  VÀ  ② reply.content KHÔNG RỖNG sau khi strip
+        VÀ ③ lượt nặng: có gọi tool và có nguồn trích  VÀ ④ sổ ghi ĐÚNG tên model đã trả lời
+KHÔNG ĐẠT nếu content rỗng — kể cả khi HTTP 200 và không lỗi nào ném ra
+```
+🔴 Nếu tiêu chí chỉ là "không lỗi", một model có reasoning **không tắt được** sẽ **ĐẠT cổng với câu
+trả lời rỗng** — đúng thất bại vừa quan sát được, nay vô hình vì cổng không nhìn vào chỗ đó. Cổng
+phải khẳng định **có câu trả lời**, không phải **không có lỗi**.
