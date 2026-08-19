@@ -407,3 +407,50 @@ cho ước** — đúng, không làm.
 hạn ngạch bị tiêu là 1M của deepseek. Chưa thông đường sang deepseek ⟹ **CHỜ, có khai** — cấm chạy
 tạm trên qwen rồi ghi "xấp xỉ". (Cùng lớp lỗi đã trả giá: đo `len(tool.description)` trên venv 1.5.3
 để nói về container 1.5.4, lệch 12%, phải rút số đã công bố.)
+
+## 🔴 SỬA SỐ CỔNG: 154 lượt, KHÔNG phải 156 — và hai ca KHÔNG THỂ ĐỎ (Lead tìm)
+
+**[ĐO Lead, PO-agent kiểm lại và XÁC NHẬN Lead đúng]:** `adversarial_multiturn_set.jsonl` có
+**100** lượt gửi, không phải 102. Phân bố: `{0: 2 ca · 4: 2 · 5: 5 · 6: 10 · 7: 1}`.
+
+🔴 **HAI ca `MT-F01` · `MT-F02` có `utterances = []`** — dùng lược đồ KHÁC 18 ca còn lại
+(`kich_ban_leo_thang` + `so_luot_leo_thang` + `invariants` + `ky_thuat`, và `forbidden_reply_patterns`
+cũng rỗng). Runner đọc `utterances` sẽ gửi **0 lượt, không kiểm gì, và BÁO XANH** ⟹ bảng kết quả ghi
+**20/20 ca chạy** trong khi **2 ca chưa từng chạm model**. **Một cổng an toàn có hai ca không thể ĐỎ.**
+Đắng nhất: `MT-F01` đo **over-refusal** — đúng nửa mà Luật A nói chỉ chứng minh được bằng ca đối
+chứng; ca canh "cổng có im khi bình thường không" lại chính là ca không chạy.
+
+**QUYẾT (PO-agent): (c) trước mắt + (a) sau** — khai **"CHƯA CHẠY ĐƯỢC: thiếu runner cho lược đồ
+`kich_ban_leo_thang`"**, **KHÔNG gộp vào "đã chạy"**, không đếm vào mẫu số. Viết runner riêng là việc
+của tester, xếp sau bậc 1. **KHÔNG chọn (b)** (viết lại theo `utterances`): lược đồ leo thang tồn tại
+vì kịch bản ấy **không biểu diễn được** bằng danh sách câu cố định — ép nó vào khuôn cũ là làm hỏng
+chính phép thử để bảng kết quả trông đều.
+
+### ⚠️ VÀ LỖI CỦA PO-AGENT TRONG CHÍNH PHÉP ĐẾM NÀY — tự khai
+Tôi đếm ra 102 vì viết `len(r.get("utterances") or [1])` — biểu thức ấy **âm thầm biến "không có
+lượt nào" thành "một lượt"**. Tức **dụng cụ đếm của tôi tái tạo đúng khuyết tật mà Lead vừa tìm thấy
+trong corpus**: một giá trị trông hợp lệ cho câu hỏi nó không trả lời. `or [1]` là một mặc-định-tiện-tay
+đặt ở đúng chỗ cần một trạng thái thứ ba (KHÔNG ĐO ĐƯỢC). Ghi vào hồ sơ cạnh hai lỗi trước của tôi
+trong ngày.
+
+## 📐 ĐIỂM HOÀ VỐN CỔNG — biết ngưỡng TRƯỚC khi số về (Lead dựng, PO-agent chuẩn y)
+```
+adversarial_set    54 lượt ⟹ vừa 1M nếu giá/lượt < 18.519
+multiturn         100 lượt ⟹ vừa 1M nếu giá/lượt < 10.000
+CỔNG ĐẦY ĐỦ       154 lượt ⟹ vừa 1M nếu giá/lượt <  6.494
+mốc duy nhất đang có: 16.330/lượt (lượt CÓ tiêu) ⟹ 154 × 16.330 ≈ 2,5M = 2,5× hạn ngạch 1M
+```
+⟹ **Cổng đầy đủ chỉ vừa nếu lượt đối kháng rẻ hơn ~40% một lượt CSKH thường.** Có thể đúng (phần lớn
+là một câu bị từ chối, không gọi tool) — **không ai biết**, đó là lý do bậc 1 tồn tại.
+🔴 **Hệ quả Lead nêu trước, PO-agent ghi nhận:** nếu cổng ≈ 2,5×1M thì **một model không đủ hạn ngạch
+để tự kiểm chính nó** — lúc đó câu hỏi không còn là "bể mấy model" mà là **"lấy hạn ngạch ở đâu để
+kiểm"**, và đó là câu cho PO thật.
+
+## ✅ DUYỆT NGÂN SÁCH BẬC 1
+```
+5 ca · 5 category khác nhau · 1-utterance · deepseek-v4-pro-0813 (tên GHIM)
+trần MỖI CA 50.000 · trần CẢ ĐỢT 150.000 · kỳ vọng 25.000–60.000 (ghi RIÊNG, không gộp trần)
+ping thăm dò đường deepseek của Coder: trần ≤10.000, khai trước/báo sau
+```
+**Trần là PHANH, không phải DỰ ĐOÁN** — QA/QC đề 12.000/ca kèm lý do "rộng hơn 16.330" (12.000 <
+16.330); Lead sửa, họ nhận. Cùng khuôn đã chốt cho TTL model cạn: **TTL là backoff, không phải dự đoán.**
