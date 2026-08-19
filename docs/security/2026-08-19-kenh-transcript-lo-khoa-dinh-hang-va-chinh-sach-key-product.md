@@ -127,6 +127,27 @@ lại) và giá trị vẫn lọt.** ⟹ **quy tắc dựa trên "cẩn thận h
 
 ---
 
+## 🟢 NIÊM 19/08 (tối) — GỠ ĐỊNH HẠNG TREO. Đóng bằng THIẾT KẾ, không bằng bằng chứng.
+
+PO thật chốt (`cad2a43`): key production KHÔNG BAO GIỜ đi qua phiên agent nào — điều khoản (B) thành
+chính sách đứng. **Câu [PHẢI KIỂM] "công cụ có tải transcript lên phía nhà cung cấp không" HẾT HẬU
+QUẢ cho vật đáng lo nhất (key production)** — không phải vì câu đó được trả lời, mà vì **vật nó hỏi
+về sẽ không bao giờ có mặt để mà lo**. Đúng nguyên tắc *enforcement bằng SỰ VẮNG MẶT* đã viết ở (B),
+áp ngược lại cho chính câu hỏi sinh ra (B).
+
+**Ghi rõ CÁCH ĐÓNG, vì hai cách khác nhau và người sau cần biết đang đọc cách nào:**
+- ❌ KHÔNG phải: *"đã xác minh transcript không đồng bộ ra ngoài"* — câu đó vẫn CHƯA đo được, không
+  bao giờ đo được từ phía ta (hành vi phía nhà cung cấp).
+- ✅ ĐÚNG: *"đã loại bỏ sự phụ thuộc vào câu trả lời đó"* — bất kể câu trả lời là gì, kết luận không
+  đổi, vì đối tượng (key production) không còn xuất hiện ở kênh đang được hỏi.
+
+**KHÔNG đổi:** kênh transcript vẫn tồn tại nguyên trạng cho khoá DEV — hạng TRUNG BÌNH giữ nguyên
+cho đúng phạm vi đó, quyết KHÔNG purge giữ nguyên. Chỉ riêng NHÁNH ĐIỀU KIỆN "nếu có đồng bộ ⟹ nhảy
+lên CAO" hết đối tượng, vì vật duy nhất đủ nghiêm trọng để kích hoạt nhánh đó (key production) giờ
+đã bị (B) chặn từ gốc, không bao giờ tới được kênh này để mà đồng bộ đi đâu.
+
+---
+
 ## NIÊM 19/08 (chiều) — Lead đo nốt câu [PHẢI KIỂM], quyết KHÔNG purge, chặn một near-miss của QA/QC
 
 **Câu đồng bộ cục bộ: ĐÓNG được một nửa, đúng cách đóng.** [ĐO] Lead: `readlink -f` ra đường thật
