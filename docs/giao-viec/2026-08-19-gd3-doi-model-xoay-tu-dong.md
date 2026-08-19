@@ -96,3 +96,9 @@ mỗi model: 1M token free · consumed 0 · hết hạn 15/11/2026 (88 ngày) ·
   (`customer_tools.py:600-603`) — field thuần cộng thêm, không đụng route/contract.
 - Client chuyển nhận diện OTP-hết-tươi từ khớp-chuỗi sang đọc `loai`; tháo cổng ghim chuỗi của GĐ2.5.
 - Nhân tiện xử nhánh 403-role `ChatClient.tsx:431` theo khuôn ba-trạng-thái.
+
+## BƯỚC 0 BỔ SUNG (PO-agent quyết 19/08, sau sự cố lộ khoá trong phiên Lead)
+- 🔴 **XOAY `JWT_SECRET_KEY` của ngăn xếp dev TRƯỚC lượt khách test đầu tiên** — khoá đã hiện
+  nguyên văn trong sổ hội thoại một phiên (Luật S, ca thứ hai). Coder thi hành (tầng `.env`,
+  khuôn ADR-035): khai trước + hỏi-và-chờ (Luật U) vì xoay vô hiệu mọi phiên đăng nhập đang mở;
+  recreate có kế hoạch; chạy SAU khi hồ sơ GĐ2.5 chốt, TRƯỚC khách test GĐ3.
