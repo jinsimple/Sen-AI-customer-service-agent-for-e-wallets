@@ -2512,3 +2512,79 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 - **Việc ③ giữ nguyên** (đối chứng dương ở tầng biên — phần lớn đã có). Câu cuối của Hệ quả cũ
   ("sổ nợ ③ tự đóng vì không còn None") **RÚT theo** — None nội bộ còn, caveat `so_tool_call` của
   Lead vẫn hiệu lực.
+
+---
+
+## ADR-043 — Model KHÔNG còn ghim; hạ tầng TỰ XOAY trong một bể đã kiểm
+
+**Trạng thái:** chấp nhận · 19/08/2026 · **ĐẢO `a3fb125`** (18/08 — "ghim `LLM_MODEL` theo NGÀY")
+*(Lead soạn theo yêu cầu PO-agent; PO-agent land + sửa số theo mốc đo mới. Phương án route+UI đã
+cân nhắc và bị bỏ — xem `DA-DONG-phuong-an-route-chon-model.md`.)*
+
+### Bối cảnh
+`a3fb125` ghim model vì một lý do **vẫn còn đúng**: alias trôi làm mọi phép đo A/B vô nghĩa — đổi
+model là **đổi VẬT**, không phải đổi tham số. Nay PO thật đặt một yêu cầu khác hẳn, nguyên văn:
+> *"Chúng ta tự đổi model ở dưới hạ tầng — đảm bảo không có lúc nào hết token — vì hiện tại đang là
+> bản test thôi."*
+
+Mục tiêu **không** phải cho khách so sánh model, mà là **dịch vụ không đứt vì cạn quota** trong giai
+đoạn demo/test.
+
+### Quyết định
+1. **Bể model khai qua env** (`LLM_MODEL_POOL`). Code **không biết tên model nào**.
+2. **Xoay tự động, im lặng, dưới hạ tầng.** Không route, không UI, không nhãn "trả lời bởi X".
+   `authority-matrix` **KHÔNG đổi** — 33 route giữ nguyên, `CONTRACT_VERSION` giữ nguyên.
+3. **Trigger CHỈ là lớp lỗi quota**, kèm ba ràng buộc: ưu tiên `status_code` khi nhà cung cấp có ·
+   trần số lần xoay/lượt = `len(LLM_MODEL_POOL)` · nhà cung cấp **đổi câu chữ** ⟹ rơi về nhánh lỗi
+   thường, **không xoay loạn**. 429 KHÔNG BAO GIỜ xoay (nghẽn thoáng qua ≠ hết token).
+4. **Model đã cạn đánh dấu ở Redis kèm TTL** — TTL là **backoff**, KHÔNG phải dự đoán lúc quota hồi.
+5. **`usage.jsonl` ghi model THẬT đã phục vụ** (không phải hằng số cấu hình), và ghi **mọi model đã
+   thử** trong lượt — nhà cung cấp có thể tính cả lần thất bại.
+6. 🔴 **AI KHÔNG được có tool đổi model.** `agent-tools.yaml` không đổi, **và đó là CÓ CHỦ ĐÍCH**:
+   cho AI tự chọn model là cho nó chọn cái gì đánh giá chính nó — cùng họ **ràng buộc cứng số 2**
+   (*AI không vượt cấp*). Khai ra để người sau không đọc "không đổi" thành "chưa ai nghĩ tới".
+7. **Embedding KHÔNG xoay** — đổi embedding = đổi VẬT của kho RAG (phải nạp lại 378 chunk).
+8. **Cổng nhập bể là điều kiện CHẶN.** Model chưa qua cổng **không được có tên trong
+   `LLM_MODEL_POOL`**. Không ngoại lệ "tạm để đó".
+9. **Bể chỉ nhận TÊN GHIM** (có mốc/ngày/phiên bản). Bí danh trôi ⟹ **từ chối lúc khởi động**.
+   Chữ ký cổng nhập bể gắn vào tên ghim — nếu không, câu "chữ ký còn hiệu lực không" không có gì để
+   bám. *(Loại 2/5 model PO thật gửi: `deepseek-v4-flash`, `deepseek-v4-pro` — không có mốc.)*
+
+### Vì sao ⑧⑨ mạnh hơn hẳn khi xoay diễn ra IM LẶNG
+Khi có UI, khách **thấy** model nào phục vụ mình và có thể từ chối. Xoay dưới hạ tầng thì khách
+**không biết** và **không có cách từ chối**. Bộ an toàn của dự án **chưa từng hiệu chuẩn trên
+deepseek**. ⟹ **Cổng nhập bể là thứ DUY NHẤT đứng giữa khách và một model chưa ai kiểm.**
+
+### Hệ quả — phải khai, nếu không sẽ có người đọc số sai
+🔴 **Mọi phép đo nghiêm túc phải GHIM model.** Lý do sinh ra `a3fb125` không mất đi — nó chỉ thôi áp
+cho **đường phục vụ demo/test**. Eval · so sánh prompt · đo hồi quy chất lượng: **ghim `LLM_MODEL`,
+tắt xoay**, nếu không mẫu là **dân số pha tạp** và không ai tách lại được.
+
+**Phạm vi:** chế độ **DEMO/TEST**. Bản live có bể riêng, và bể live **không được phụ thuộc model
+quota-free** (hết hạn 15/11/2026, thuộc key dev).
+
+### 🔴 PHỤ LỤC BẮT BUỘC ĐỌC KÈM — xoay KHÔNG đạt được điều đặt hàng
+Yêu cầu là *"đảm bảo không có lúc nào hết token"*. **Xoay HOÃN lúc cạn, không XOÁ nó.** Cả bể cạn
+thì dịch vụ vẫn dừng — chỉ dừng muộn hơn. [ĐO 19/08, toàn bộ `usage.jsonl`, 163 lượt thật]:
+```
+trung bình 10.219 token/lượt · trung vị 13.210 · max 45.208 · 61/163 lượt = 0 token (đường nhẹ)
+lượt CÓ tiêu (n=102): 16.330/lượt          50,7% input là CACHED
+bể 3 model ghim × 1M = 3M   ⟹ sức chứa ~2,0–3,3 lượt/khách với 150 khách
+```
+⚠️ **Đây là DẢI, kèm hướng lệch — không phải một điểm.** 37% lượt 0-token là **tạo tác của cách ta
+test** (sổ sinh từ các đợt verify, đầy câu chào); khách khiếu nại thật đi đường nặng nhiều hơn ⟹ số
+thật nằm ở **nửa dưới** dải. ⚠️ **NIÊM:** con số *"~176 lượt · 1,2 lượt/khách"* (trình 19/08) đã
+chết — mẫu số hẹp (chia bể cho 3 ca AUTH nặng nhất), bi quan gấp ~3.
+⚠️ **Ẩn số chưa đo:** DashScope tính token **cached** vào quota free theo giá nào. Nếu quota đếm
+không-cache thì sức chứa cao gần gấp đôi. Phép thử một bước đã giao PO thật (đối chiếu console với
+`qwen3.7-max`: 944.920 raw vs 476.056 không-cache).
+
+**Ba việc thực sự dịch được con số đó — không việc nào là xoay:**
+1. **Giảm token/lượt** — Σ mô tả tool = **4.862 ký tự** gửi **mỗi lời gọi**, một lượt 3–5 lời gọi.
+   Đòn bẩy lớn nhất, **chưa ai chạm**.
+2. **Trần chi tiêu theo KHÁCH**, không chỉ theo ngày — trần hiện tại là **toàn cục**, một khách nói
+   nhiều tiêu hết phần cả nhóm. Ngưỡng đặt theo **max 45.208**, không theo trung bình.
+3. **Chốt số khách của đợt test theo con số này**, không theo kỳ vọng.
+
+🔴 **Cầu dao khi cả bể cạn phải là một trải nghiệm ĐÃ THIẾT KẾ, không phải một lỗi** — ở sức chứa
+này nó không phải trạng thái hiếm, nó là trạng thái **sẽ gặp**.
