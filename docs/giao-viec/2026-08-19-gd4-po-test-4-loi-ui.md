@@ -391,3 +391,53 @@ không phải sở thích — mất nó là cổng `transparency.spec.ts` ĐỎ 
 - Giữ gợi ý *"Báo lỗi giao dịch này"* ở đâu đó — đừng mất đường vào nhanh (nay đã có chip gợi ý sẵn).
 - **Chạy lại `transparency.spec.ts`** sau khi đổi — cổng ghim chuỗi `"AI"`, phải xanh nguyên trạng.
 - Đây là **frontend** ⟹ chỉ có hiệu lực sau khi **dựng lại ảnh frontend**, không phải sau commit.
+
+---
+
+## 12. 🔴 LỖI 6 (PO thật bắt) — LỊCH SỬ KHIẾU NẠI hiện TRƯỚC khi xác thực OTP
+
+**PO thật báo:** *"phần lịch sử khiếu nại sau khi có OTP thì lại bị ẩn đi — đáng nhẽ trước khi điền
+OTP thì không hiện, điền xong hiện mới đúng."*
+
+### [ĐO PO-agent] — thiếu hẳn CỔNG, không phải ẩn nhầm
+```
+ChatClient.tsx:600  card "Giao dịch gần đây"
+  :609   {!otpVerified ? ( "Xác thực OTP để xem giao dịch gần đây" + nút ) : ( danh sách ) }
+         ✅ CÓ CỔNG — chú thích tại chỗ: "V6 (hotfix 14/08, PO thật quyết đổi chính sách)"
+
+ChatClient.tsx:636  card "Lịch sử khiếu nại của bạn"
+  :638-650  render thẳng history?.complaints — 🔴 KHÔNG CÓ ĐIỀU KIỆN NÀO
+```
+⟹ **Lịch sử khiếu nại hiển thị ở MỌI trạng thái, kể cả trước OTP.** Đó là dữ liệu nhạy cảm: nó lộ
+**khách này từng gặp vấn đề gì, loại nào, ngày nào** — vẽ ra chân dung rủi ro của chủ ví cho bất kỳ
+ai mở được phiên mà chưa qua step-up.
+
+### Vì sao PO thật thấy nó "bị ẩn sau OTP" — hiện tượng, không phải cơ chế
+Rail là **một cột dọc**: thẻ giao dịch đứng trên, thẻ khiếu nại đứng dưới. **Trước OTP** thẻ giao
+dịch chỉ cao một dòng ("Xác thực OTP để xem") ⟹ thẻ khiếu nại nằm ngay tầm mắt. **Sau OTP** thẻ giao
+dịch nở ra đầy danh sách ⟹ thẻ khiếu nại **bị đẩy xuống dưới màn hình**. Nó không bị ẩn, nó bị trôi.
+⟹ **Hai việc, không phải một:** ① thiếu cổng (bảo mật) · ② thứ tự/độ dài rail (bố cục).
+
+### 🔴 Lần thứ TƯ trong ngày cùng một hình dạng — đáng ghi thành dòng riêng
+```
+scrub_pii     bộ lọc "có chữ số ⟹ không phải tên" áp cho underthesea, SÓT SpacyRecognizer
+cong_chi_tieu chặn TRƯỚC khi gọi model, SÓT đường ping khai bể
+_ghi_so       ghi model per-lượt, SÓT _mo_ta_loi_nha_cung_cap (vẫn hằng số toàn cục)
+cổng OTP rail áp cho thẻ giao dịch, SÓT thẻ khiếu nại                    ← hôm nay
+```
+**Một chính sách được quyết ĐÚNG rồi áp THIẾU một nhánh.** Cả bốn ca: quyết định đúng, thi hành sót,
+và **không cổng nào kêu** vì cổng canh nhánh đã làm, không canh nhánh bị quên.
+**Vế thi hành đề xuất:** khi một chính sách áp lên nhiều điểm, **liệt kê ĐỦ điểm áp trước khi vá**,
+và dựng một ca canh **đếm số điểm áp** (đúng khuôn "danh sách tên, không phải kích thước tập" đã dùng
+cho `cong_chi_tieu`).
+
+### VIỆC
+- **Coder:** thêm cổng `!otpVerified` cho thẻ "Lịch sử khiếu nại" **cùng khuôn** thẻ giao dịch
+  (kèm dòng gợi ý + nút "Xác thực ngay", đừng chỉ ẩn trống). Rà **toàn bộ rail** xem còn thẻ nào
+  chưa có cổng — **đừng vá đúng một thẻ rồi dừng**, đó là lặp lại chính lỗi này.
+- **Bảo Mật:** định hạng mức lộ (lịch sử khiếu nại trước step-up) + xác nhận cổng tầng hiển thị là
+  đủ hay cần ép ở route đọc (chú thích :604-608 đã ghi nợ "ép ở backend cần ADR + PO duyệt").
+- **QA/QC:** ca canh **hai chiều** — trước OTP KHÔNG thấy `CMP-`, sau OTP THẤY. Và một ca đếm số
+  thẻ có cổng trong rail.
+- **UX (kèm):** cân nhắc đảo thứ tự hoặc giới hạn chiều cao thẻ giao dịch để thẻ khiếu nại không
+  trôi khỏi tầm mắt sau OTP — đây là phần ② của PO thật, đừng bỏ.
