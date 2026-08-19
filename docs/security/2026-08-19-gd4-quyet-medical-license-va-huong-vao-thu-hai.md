@@ -71,3 +71,71 @@ kể. Tôi tin bước 3 sẽ cho một con số rõ ràng để quyết dứt �
 
 Xác nhận đây là mốc nền đúng cách QA/QC đã dựng — không cần thêm gì, giữ nguyên trong bộ ca chạy lại
 ở bước 3 để biết ngay nếu hướng vá cuối cùng (dù chọn gì) vô tình làm nó trượt.
+
+---
+
+## NIÊM 19/08 (sau) — breakdown thật đã về. Dự đoán "Phone/Date đáng nghi" ĐÚNG MỘT NỬA, SAI MỘT NỬA — khai cả hai, không chỉ khai phần đúng.
+
+**[ĐO] Lead, breakdown entity_type trên corpus sau `dec5335+45618f3`:**
+```
+PERSON 43 câu · LOCATION 27 · ORGANIZATION 12 · PHONE_NUMBER 8 · VN_ID_NUMBER 6
+DATE_TIME 6 (Lead ghi rõ: "ngày thật, hợp lý") · VN_PHONE_NUMBER 5 · PERSON_VN 1
+```
+
+**Dự đoán của tôi về `DateRecognizer` SAI — khai thẳng, không giấu phần trật.** 6 lần `DATE_TIME`
+đều là ngày THẬT, không phải dương tính giả — tôi đoán sai vì suy luận tĩnh (mã giao dịch nhúng
+YYYYMMDD) mà chưa đo, đúng lớp lỗi Luật M của dự án: *suy luận không thay được số đo.* Không cần vá
+gì cho DateRecognizer.
+
+**Dự đoán về `PhoneRecognizer` ĐÚNG, và tệ hơn hình dung ban đầu — [ĐO] Lead xác nhận, tôi không tự
+đo lại được (không có quyền chạm phép đo QA/QC), nhưng LOGIC của ca này đủ để quyết ngay:**
+```
+scrub_pii('chuyen ra VPB 393.000 ma sai stk nguoi nhan, nho kiem tra')
+  → '[PERSON] VPB [PHONE_NUMBER] ma sai stk nguoi nhan, nho kiem tra'
+```
+**SỐ TIỀN bị nhận nhầm thành SĐT.** Đây là dữ liệu TRUNG TÂM của mọi khiếu nại giao dịch — nặng hơn
+hẳn `MEDICAL_LICENSE` (gần như 0 xác suất xuất hiện thật ở domain này).
+
+### QUYẾT: loại bỏ `PhoneRecognizer` (built-in, generic) khỏi registry — CÙNG LÝ LUẬN đã áp cho `MEDICAL_LICENSE`, không phải một quyết định mới
+
+**[ĐO] `_FALLBACK_PHONE_RE` (`pii.py:73`) và `_VN_PHONE_REGEX` (`pii.py:97`) LÀ CÙNG MỘT PATTERN**
+(`(?<![\w-])(?:\+84|0)\d{9}(?!\d)`) — dự án ĐÃ CÓ recognizer chuyên SĐT Việt Nam, tách biệt hoàn toàn
+khỏi `PhoneRecognizer` (built-in, đa quốc gia, dùng thư viện định dạng quốc tế) đang gây lỗi. Loại bỏ
+`PhoneRecognizer` KHÔNG mất khả năng phát hiện SĐT Việt Nam thật — `VN_PHONE_NUMBER` vẫn đứng nguyên,
+độc lập, không đổi.
+
+**Một điểm cần Coder kiểm nhanh trước khi loại hẳn (không phải điều kiện chặn, chỉ một câu hỏi rẻ):**
+`VN_PHONE_NUMBER` đòi khớp CHÍNH XÁC `\d{9}` liền mạch, không dấu cách/gạch ngang. Nếu khách gõ SĐT
+có định dạng rời (`091 234 5678` / `091-234-5678`) — liệu `PhoneRecognizer` built-in có đang bắt được
+những ca ĐÓ mà `VN_PHONE_NUMBER` bỏ lỡ? Nếu QA/QC xác nhận KHÔNG có ca nào trong corpus thuộc dạng
+này, loại bỏ ngay, không cần chờ. Nếu CÓ, cân nhắc nới `_VN_PHONE_REGEX` chấp nhận dấu cách/gạch
+ngang tuỳ chọn, THAY VÌ giữ lại `PhoneRecognizer` đa quốc gia để đổi lấy noise trên số tiền.
+
+### 🔴 ĐIỂM CẦN LÀM RÕ NGAY — "Phương án B" của tôi và "phương án đang có PhoneRecognizer" của Lead CÓ THỂ là HAI THỨ KHÁC NHAU
+
+**[ĐO]** `scrub_regex()` (`pii.py:77-84`) — hàm tôi đã duyệt cho Phương án B trong quyết định biên dữ
+liệu — chỉ gọi BA regex tự viết (`_FALLBACK_EMAIL_RE/_FALLBACK_PHONE_RE/_FALLBACK_ID_RE`), **KHÔNG hề
+chạm registry Presidio, KHÔNG hề gọi `PhoneRecognizer`/`MEDICAL_LICENSE`/bất kỳ recognizer built-in
+nào.** Nếu B được triển khai ĐÚNG BẰNG hàm này (như PO-agent đã đo và tôi đã duyệt), lỗi
+`PhoneRecognizer`-nhận-nhầm-số-tiền **KHÔNG chạm đường model-input** — nó chỉ tồn tại ở đường log/
+trace (nơi vẫn dùng `scrub_pii()` đầy đủ).
+
+Lead viết *"ngay cả phương án B vẫn dùng PhoneRecognizer"* — nếu điều này đúng, nghĩa là bản triển
+khai THẬT của B đang đi qua một đường KHÁC với `scrub_regex()` tôi đã duyệt (có thể là lọc registry
+Presidio chỉ bỏ nhãn NER, giữ lại mọi pattern recognizer built-in). **Đề nghị Lead xác nhận: B đang
+triển khai bằng `scrub_regex()` thuần, hay bằng một đường khác?** Nếu là đường khác — đó là một
+QUYẾT ĐỊNH TRIỂN KHAI chưa được tôi duyệt, cần xác nhận lại (không nhất thiết sai, nhưng cần khai rõ
+nó khác gì với B tôi đã ký).
+
+**Dù câu trả lời là gì, quyết định loại `PhoneRecognizer` ở trên VẪN ĐÚNG và VẪN CẦN LÀM** — nó luôn
+đúng cho log/trace, và nếu B triển khai qua đường Presidio-registry thì nó cũng cần cho model-input.
+
+## ORGANIZATION (VTB/VPB) — KHÔNG cần quyết riêng, đã có chỗ đứng: gộp vào câu hỏi Spacy đang chờ (Phương án D)
+
+Đúng như Lead nói, đây không phải PII cá nhân — nhưng tôi KHÔNG tách nó ra quyết riêng, vì gốc của nó
+là CÙNG một nguồn với PERSON/LOCATION (Spacy gán nhãn sai trên văn bản tiếng Việt, đa ngôn ngữ không
+chuyên) — tách lẻ từng nhãn của Spacy ra quyết từng cái là vá triệu chứng, không phải vá gốc. Câu này
+đã có chỗ đứng: nằm trong phạm vi đo của Phương án D (regex+underthesea, không Spacy) đã yêu cầu ở
+quyết định trước — nếu D được chọn, ORGANIZATION-sai của Spacy tự động biến mất cùng PERSON/LOCATION.
+Nếu B (loại hẳn NER) được giữ, câu hỏi này cũng tự động đóng theo cách khác — không NER nào chạy nên
+không có ORGANIZATION nào để bàn. Không cần một quyết định thứ ba song song.
