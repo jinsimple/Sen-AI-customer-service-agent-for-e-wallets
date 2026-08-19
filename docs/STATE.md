@@ -1702,6 +1702,11 @@ NÀO · bằng LỆNH GÌ" — những câu không hàm nào của vật trả l
 > usage.jsonl; tên file mốc nền phải mang tiền tố loại). *(Họ hàng: Luật I — đo không ghi vào
 > vật; Luật T — PO-agent phạm đúng T khi đúc phát biểu đầu: relay tiền đề của người vừa sai mà
 > không kiểm.)*
+> **Gốc của vế ③ — theo §7b, giữ nguồn CŨ HƠN, không mint luật mới:** vế ③ là phép tổng quát hoá
+> của câu đã có từ 17/08 trong docstring `src/dau_ma_nguon.py`: *"một con số băm không kèm CÁCH
+> BĂM thì không phải bằng chứng."* Ví dụ mới nhất: sự cố 7c hồ sơ 19/08 (đọc 12-hex-băm-nguồn
+> thành image ID). Hình dạng "ba người một ngày cùng lớp lỗi" KHÔNG được cấp luật riêng —
+> nó đã có tên ở đây. (Review đề nghị, PO-agent chuẩn y 19/08.)
 
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
