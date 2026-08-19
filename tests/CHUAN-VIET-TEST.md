@@ -323,6 +323,42 @@ ra gốc trong vài phút. Im chờ đủ ba lần thì hoặc vẫn ra ba số,
 đợi tới lúc coder vá xong, thấy 0/96, rồi kết luận "không có vấn đề gì" và chôn
 luôn một bug thật.
 
+### 4e — Ca đo hành vi MỘT LƯỢT phải chạy trên `thread_id`/`user_id` MỚI, không tái dùng
+
+Sự cố (19/08, GĐ3): 4 lượt "cổng nhập bể" chạy chung `user_id="USR-A"`, không
+truyền `thread_id`. `run_agent_turn` mặc định `thread_id = user_id`, và
+checkpointer (`PostgresSaver`) sống **ngoài tiến trình**, khoá theo
+`thread_id` — bốn `docker run --rm` tách biệt vẫn là **MỘT hội thoại
+LangGraph liên tục** trong mắt hệ thống, không phải bốn phép đo độc lập.
+
+Lượt đầu gọi tool thật (`so_tool_call=1`, kết quả thật). Ba lượt sau
+`so_tool_call=0` — vì agent **NHỚ ĐÚNG** kết quả đã tra ở lượt trước trong
+cùng thread, không phải bịa — nhưng câu trả lời trông **y hệt** "model không
+gọi tool và tự bịa đã kiểm tra". Suýt leo thang thành nghi vi phạm ràng buộc
+cứng số 3 trước khi bị chặn lại bằng cách đối chiếu ngược lượt đầu tiên.
+
+**Vì sao đây không chỉ là "nhiễu":** nó đổi CÂU HỎI mà cổng trả lời. Cổng viết
+để đo *"model này có gọi tool khi cần không"*; chạy chung một thread thì cổng
+đo *"agent có nhớ ngữ cảnh cũ không"* — và trả về một giá trị **trông hợp lệ**
+cho câu hỏi đầu. Lỗi nằm ở tầng **bố trí phép đo** (thiết kế ca), không nằm
+ở mã sản phẩm — cùng họ với Luật 4 nói chung (thước/vật đứng yên), nhưng lệch
+sang trục **danh tính của cuộc hội thoại**, một trục Luật 4 gốc chưa nêu tên.
+
+**Vế thi hành:**
+1. Mỗi ca đo hành vi một lượt phải sinh `user_id`/`thread_id` **MỚI**, không
+   hardcode một giá trị dùng lại qua nhiều lượt — kể cả khi các lượt đó chạy
+   ở container/tiến trình khác nhau (trạng thái sống trong DB dùng chung, không
+   phải trong tiến trình).
+2. Khi đọc sổ (`usage.jsonl`) để chẩn đoán, đọc kèm cột định danh hội thoại
+   (`thread_id` nếu sổ có ghi) — đây là thứ phân biệt được "bốn phép đo" với
+   "một hội thoại bốn lượt".
+3. **Tín hiệu cảnh báo:** nhiều lần chạy cho kết quả **giống hệt nhau** (không
+   chỉ cùng kết luận, mà gần như cùng câu chữ) là dấu hiệu nghi **CÙNG MỘT
+   NGUỒN** (state rò rỉ giữa các lượt) — kiểm điều đó TRƯỚC khi mừng vì "tái
+   lập được". Đối lập có chủ đích với 4d: 4d nói khi nào ĐƯỢC TIN sự lặp lại
+   (lỗi ngắt quãng, cùng vật); 4e nói khi nào chính sự lặp lại là dấu hiệu
+   **phép đo hỏng** (không phải cùng vật — cùng NGỮ CẢNH bị rò).
+
 ---
 
 ## LUẬT 6 — Một `skip` phải TỰ CHỨNG MINH lý do skip là THẬT
