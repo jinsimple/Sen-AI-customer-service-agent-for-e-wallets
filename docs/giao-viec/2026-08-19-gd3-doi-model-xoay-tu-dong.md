@@ -371,3 +371,39 @@ model nào đã trả lời khách.
 `_chay_luot_voi_xoay`.** Tách hai bước sẽ tạo đúng trạng thái "xoay chạy được, sổ ghi sai" mà
 **không cổng nào bắt được** (mọi test hiện có gọi `_build_agent` không truyền model ⟹ không phủ
 đường này). Điều kiện nghiệm thu giữ nguyên: ép 2 lượt qua 2 model, đọc sổ, **2 dòng khác `model`**.
+
+## 🔒 CỔNG NHẬP BỂ — CHỐT BẰNG TÊN TỆP, và QUY TẮC QUYẾT ĐỊNH CHỐT TRƯỚC KHI CÓ SỐ
+
+[ĐO PO-agent, đếm `utterances` thật — khớp Lead]:
+```
+eval/adversarial_set.jsonl            46 ca · 54 LƯỢT GỬI   (42×1 + 4×3)
+eval/adversarial_multiturn_set.jsonl  20 ca · 102 LƯỢT GỬI  (20×~5)
+                                            ⟹ CỔNG ĐẦY ĐỦ = 156 lượt/model
+```
+🔴 **Ai nhân "46 × giá-một-lượt" thiếu 8 lượt; ai quên tệp multiturn thiếu 102.** Chữ "bộ 30 ca"
+che mất cả một tệp — đây đúng lý do Lead đòi chốt bằng TÊN TỆP, và tôi chuẩn y cách chốt ấy.
+
+**CHỐT PHẠM VI: cổng nhập bể gồm CẢ HAI tệp.** Lý do không phải "cho đủ": bộ multiturn là nơi một
+model yếu **dễ gãy nhất** (tấn công dựng dần qua nhiều lượt, trôi ngữ cảnh, quên ràng buộc giữa
+chừng). Bỏ nó vì đắt là bỏ đúng nửa nguy hiểm hơn — và va thẳng lệnh đứng của PO thật về không cắt
+độ sâu kiểm thử.
+
+### 🔴 QUY TẮC QUYẾT ĐỊNH — chốt NGAY BÂY GIỜ, trước khi bậc 1 trả số về
+Vì cổng ăn vào **chính hạn ngạch 1M của model đang kiểm**, có một khả năng thật: **cổng đầy đủ
+KHÔNG VỪA trong 1M.** Nếu điều đó xảy ra, kết luận đúng là:
+
+> **ÍT MODEL VỚI CỔNG ĐẦY ĐỦ > NHIỀU MODEL VỚI CỔNG CẮT DỞ.**
+> Bể co lại (2 model, thậm chí 1) — **không** phải cổng co lại. Số model là thứ điều chỉnh được;
+> độ sâu cổng thì không, vì nó là thứ duy nhất đứng giữa khách và một model chưa ai kiểm.
+
+Chốt quy tắc TRƯỚC khi có số là để con số **không bị bẻ theo ý muốn** khi nó về. Nếu bậc 1 cho thấy
+cổng đầy đủ không vừa, đó là **dữ kiện tôi trình PO thật để họ quyết bể mấy model** — tuyệt đối
+không phải giấy phép cho ai cắt cổng.
+
+**Bậc 1 (Lead thiết kế, PO-agent duyệt hướng):** k=5 ca, 1-utterance, 5 category KHÁC NHAU, đo sổ
+trước/sau ⟹ giá đơn vị + **phương sai**. Chạy 46 ca để biết 46 ca giá bao nhiêu là **trả tiền thay
+cho ước** — đúng, không làm.
+🔴 **Bậc 1 PHẢI chạy trên chính model deepseek đang xét**, không phải qwen: token do MODEL đếm, và
+hạn ngạch bị tiêu là 1M của deepseek. Chưa thông đường sang deepseek ⟹ **CHỜ, có khai** — cấm chạy
+tạm trên qwen rồi ghi "xấp xỉ". (Cùng lớp lỗi đã trả giá: đo `len(tool.description)` trên venv 1.5.3
+để nói về container 1.5.4, lệch 12%, phải rút số đã công bố.)
