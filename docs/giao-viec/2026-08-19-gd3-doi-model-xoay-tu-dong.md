@@ -328,3 +328,46 @@ của PO-agent) ⟹ niêm tại chỗ. **Kết luận rút ra từ nó KHÔNG đ
 *"`commit` KHÔNG phải một hàm của `src/`, theo cả hai chiều ⟹ dùng nó làm nhãn ảnh là dùng SAI LOẠI
 ĐỊNH DANH"*. Ba ca trên là **cùng mệnh đề ấy áp cho ba loại vật khác** (ảnh nền · gói phụ thuộc ·
 model nhà cung cấp). Ghi thành CHÙM để một đợt dọn nợ sau đi cùng một sổ, không phải để cấp ký hiệu mới.
+
+## ⚠️ ĐÍNH CHÍNH của PO-agent — **"bộ 30 ca an toàn" KHÔNG phải một bộ 30 ca** (QA/QC bắt)
+
+Tôi chuyền chữ "bộ 30 ca an toàn ĐÃ CÓ (STATE §4)" cho cả Bảo Mật, QA/QC và Review **mà không kiểm
+nó trỏ tới tệp nào**. QA/QC lần theo và thấy không khớp. [ĐO tôi]:
+```
+STATE:123        "Bộ an toàn 30/30"  ← BẢNG ĐIỂM (30 hạng mục đạt/30), KHÔNG phải một corpus
+nhật ký 17/08:1752  "An toàn 30/30 (cổng-96 · adversarial 45 ca …)"  ← tự khai 30/30 là tổng hợp
+eval/adversarial_set.jsonl           46 ca · 19 category (B1–B10, PDPA, RAG_injection,
+                                     SEC-001/007, AUTH-002/003, A2/A6, ATLAS-002)
+eval/adversarial_multiturn_set.jsonl 20 ca
+```
+🔴 **"30" là một BẢNG ĐIỂM, không phải một BỘ.** Đây đúng lớp lỗi đã có tên (dùng một giá trị mà
+không hỏi nó ĐO CÁI GÌ) — lần này người phạm là **PO-agent**, và tôi phạm khi đang đi thi hành
+chính luật ấy. QA/QC hỏi trước khi khai ước thay vì đoán tệp — đúng, và nó chặn được một đợt chạy sai.
+
+**CHỐT corpus cổng nhập bể (thay cho chữ "30 ca"):** `eval/adversarial_set.jsonl` (46 ca) là bộ đối
+kháng chính thức cho **từng** model vào bể. Bộ multiturn (20 ca) xét sau khi có số đo giá thật.
+
+🔴 **VÀ MỘT DỮ KIỆN LÀM ĐỔI PHÉP TÍNH KINH TẾ TÔI ĐÃ ĐƯA:** với 46 ca (không phải 30), toán
+"lời ròng ~68 lượt/model" của tôi **hết hiệu lực** — nó dựng trên cổng-30 và trung bình 10.219.
+Ước lại theo dải của Lead (lượt CÓ tiêu = 16.330): cổng 46 ca ≈ 46 lượt ≈ **0,5–0,75 triệu token**
+= **50–75% hạn ngạch 1M của chính model đó.** ⟹ **Lead phải ĐO giá thật của một lượt cổng trên một
+model trước khi đội cam kết chạy cả bể** — không ai được ước tiếp bằng phép nhân trong đầu.
+Con số ấy quyết định thẳng việc bể nên có mấy model, và tôi sẽ trình PO thật khi có nó.
+
+## 🔴 CHẶN MERGE — `_ghi_so` đọc hằng số toàn cục, sổ sẽ nói dối từ lượt xoay ĐẦU TIÊN (Review tìm)
+
+```
+[ĐO Review] def _ghi_so(kq, thread_id, user_id)          ← KHÔNG có tham số model
+            thân hàm ghi_usage({... "model": LLM_MODEL})  ← HẰNG SỐ TOÀN CỤC
+            4/4 điểm ghi "model" (graph.py:170·207·1083·1197) đều dùng LLM_MODEL tĩnh
+            _build_agent ĐÃ nhận model= (đúng) nhưng lời gọi duy nhất (graph.py:699) KHÔNG truyền
+            _chay_luot_voi_xoay: được nhắc trong comment :534 nhưng CHƯA TỒN TẠI
+```
+⟹ Ngay cả khi xoay chạy đúng, **`usage.jsonl` vẫn ghi `qwen3.7-plus-2026-05-26` cho MỌI lượt.**
+Không phải ca hiếm — sai từ lượt xoay đầu tiên. Và sau khi bỏ UI, **sổ là con mắt DUY NHẤT** biết
+model nào đã trả lời khách.
+
+**LỆNH: sửa `_ghi_so` (thêm tham số `model`, bỏ đọc hằng số) CÙNG MỘT BƯỚC với việc viết
+`_chay_luot_voi_xoay`.** Tách hai bước sẽ tạo đúng trạng thái "xoay chạy được, sổ ghi sai" mà
+**không cổng nào bắt được** (mọi test hiện có gọi `_build_agent` không truyền model ⟹ không phủ
+đường này). Điều kiện nghiệm thu giữ nguyên: ép 2 lượt qua 2 model, đọc sổ, **2 dòng khác `model`**.
