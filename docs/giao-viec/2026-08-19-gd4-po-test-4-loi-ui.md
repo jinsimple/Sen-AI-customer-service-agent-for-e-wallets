@@ -529,3 +529,50 @@ lỗi không tái diễn được — đúng đối trọng cho chuỗi "áp thi
 | 4 | 🔴 **MERGE lên `main` + deploy production** — [ĐO] đang lệch **897 commit** | **rủi ro lớn nhất trong bài chấm**: hội đồng bấm link thấy bản không có gì của hai ngày qua |
 | 5 | **Lỗi 5** (CSKH đọc hội thoại) — §10 đủ 7 bước, ADR-044 | việc lớn nhất còn lại, cần PO thật duyệt contract |
 | 6 | Chạy lại benchmark trên bản đã vá, **ghim một model** | số hiện hành cho hồ sơ nộp |
+
+---
+
+## 15. 📊 BENCHMARK — PO thật QUYẾT: **KHÔNG chạy lại, NIÊM số cũ**
+
+**[ĐO — chi phí vs hạn ngạch, đây là dữ kiện quyết định]:**
+```
+scorecard ĐỦ TRỤC cần        4.611.600 token  (golden 2,04tr · adversarial 889k
+                                               · benchmark 1,55tr · latency 132k)
+hạn ngạch CÒN của cả 4 model 2.733.325
+⟹ THIẾU                      1.878.275   ← KHÔNG chạy đủ được dù muốn chi hết
+```
+🔴 **Không phải "đắt", mà là "bất khả thi".** Mọi phương án cắt phạm vi đều cho **bảng điểm pha tạp
+mốc thời gian** (1 trục mới, 4 trục cũ) — thứ ADR-043 cấm.
+
+**QUYẾT: không chạy. NIÊM `74,57/85` kèm nguyên văn:**
+> *"Đo 16/08 trên model của thời điểm đó. Từ đó tới nay ĐÃ ĐỔI: model ghim (18/08) · kho RAG
+> (5 commit) · bộ lọc an toàn O4 (2 commit) · bộ che PII quyết định đầu vào agent (4 commit) ·
+> prompt (1 commit). **Đây là mốc lịch sử, KHÔNG phải điểm của bản đang chạy.**"*
+
+**Vì sao đủ cho bài chấm — đọc lại chính tiêu chí:** PLO 7 đòi *"có eval pipeline/benchmark, tiêu chí
+đánh giá, kết quả đo và **chuyển failure case thành hành động cải tiến**"*. **Không đòi một điểm số
+mới.** Và phần nặng nhất của tiêu chí ấy — *failure case → hành động* — chính là **ngày 19/08**:
+```
+5 lỗi PO thật bắt trên UI  →  chẩn đoán gốc từng lỗi  →  3 bản vá + 2 luật mới
+bọt bóp méo tiếng Việt      50,8%  →  5,6%   (đo trên 124 câu khách thật, cùng corpus)
+bộ lọc O4                   vá thì-quá-khứ, đối chứng HAI CHIỀU (chặn bịa · cho qua từ chối hợp lệ)
+ca nghiệm thu wireframe     6/6 vế trên đường sản phẩm thật, gồm ràng buộc cứng 1
+```
+Đây là **số đo mới, cùng mốc thời gian với bản đang chạy** — chỉ không phải một điểm tổng hợp. Hồ sơ
+nộp trình **cả hai**: điểm 16/08 có niêm, và chuỗi đo 19/08 làm bằng chứng PLO 7.
+
+**Nợ giữ nguyên:** cờ `--che-do moc` chết (QA/QC đang vá + ca đối chứng dương) · trục Trải nghiệm
+15 điểm chờ 30 nhãn PO thật · benchmark đủ trục chờ hạn ngạch mới.
+
+## 16. 🔴 HẠN NGẠCH MODEL ĐANG PHỤC VỤ SẮP CẠN — dữ kiện vận hành, không phải nợ
+
+```
+[ĐO] qwen3.7-plus-2026-05-26 (LLM_MODEL hiện hành):  đã tiêu 951.463 / 1M  →  CÒN 48.537
+     deepseek-v4-pro-0813   còn 777.692 · v3.2 còn 944.084 · v4-flash-0731 còn 963.012
+```
+⟹ **~3 lượt nặng nữa là model chính cạn**, và **tính năng xoay tự động của GĐ3 sẽ tự kích hoạt lần
+đầu trong đời thật** — không phải trên transport giả. Đây vừa là rủi ro vừa là **phép thử end-to-end
+duy nhất ta không dựng lại được** (mục "xoay thật khi cạn thật: CHƯA ĐO, không dựng lại được với chi
+phí hợp lý" — hồ sơ GĐ3).
+**Việc:** khi nó xảy ra, **đọc `usage.jsonl` xác nhận dòng đầu tiên mang tên deepseek**, và kiểm
+khách có nhận câu trả lời bình thường không. Đó là bằng chứng end-to-end **miễn phí** — đừng bỏ lỡ.
