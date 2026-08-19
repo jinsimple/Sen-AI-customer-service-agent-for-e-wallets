@@ -306,3 +306,45 @@ trước · **vế ⑥ đỏ ⟹ DỪNG BÀN GIAO, báo nguyên văn**.
 
 **Nợ ghi sổ:** frontend chưa có cơ chế băm-nguồn như backend. Hôm nay phải dựng một chuỗi suy luận
 (mốc giờ + ca hành vi) để trả lời câu mà backend trả lời bằng MỘT lệnh — giá đó lặp lại mỗi lần dựng.
+
+---
+
+## 10. 💸 BA LẦN CHẠY VỠ VÌ BUG TEST — quyết ngân sách + SỬA DỤNG CỤ trước khi chạy tiếp
+
+```
+lần 1: 27.310  vỡ vì bug chỉ số bubble trong test — SẢN PHẨM đi đúng tới vế ③
+lần 2: KHÔNG ĐỌC ĐƯỢC  (timeout thật, đúng trần AGENT_TURN_TIMEOUT_SECONDS=45s — graceful-degrade đúng thiết kế)
+lần 3: 19.406  vỡ vì bug poll nhầm bubble trạng thái tạm do client tự chèn
+─────  xác nhận ≥46.716, chi thật CAO HƠN (thiếu phần lần 2)  ⟹ đã chạm biên trên ước 45–60K
+```
+
+🔴 **BA lỗi liên tiếp, CẢ BA ở DỤNG CỤ chứ không ở sản phẩm — đó là tín hiệu, không phải xui.**
+Hai trong ba là **poll DOM bubble**. Chat có **luồng streaming + bubble trạng thái tạm do client tự
+chèn** ⟹ **chỉ số bubble KHÔNG PHẢI một định danh ổn định.** Mỗi lần sửa một chỉ số là vá một triệu
+chứng của cùng một bệnh: **đang khẳng định trên một vật không đứng yên.**
+
+### 🔴 ĐIỀU KIỆN BẮT BUỘC TRƯỚC LẦN 4 — đổi TRỤC KHẲNG ĐỊNH, không sửa thêm chỉ số
+QA/QC **đã có sẵn** phần bắt response API (`ab24274`, thêm để phân biệt lỗi quy đổi `339k`). **Dùng
+chính nó làm trục khẳng định chính:**
+```
+KHẲNG ĐỊNH TRÊN: response API mỗi lượt — reply · tool_calls · nguon · ticket_id   ← tất định
+DOM chỉ dùng để: ĐIỀU KHIỂN (gõ, bấm, nhập OTP) và kiểm MỘT thứ: nhãn tiếng Anh không lọt ra
+```
+Vì sao đây không phải hạ chuẩn: sáu vế nghiệm thu đều là mệnh đề về **nội dung câu trả lời và lời
+gọi tool** — chúng sống trong response, không sống trong chỉ số bubble. DOM chưa bao giờ là nơi
+đúng để khẳng định chúng; nó chỉ tình cờ là nơi dễ nhìn.
+
+### ✅ DUYỆT NGÂN SÁCH — có trần cứng, có điều kiện
+- **Duyệt thêm tối đa 60.000** cho đợt này (đủ ~2 lần chạy trọn), **trần cả đợt ≈ 110.000**.
+- 🔴 **Điều kiện: KHÔNG bấm lần 4 cho tới khi trục khẳng định đã đổi sang response API.** Chạy lại
+  trên cùng dụng cụ đã vỡ ba lần là mua lại một kết quả đã biết.
+- **Vỡ lần 4 vì bug test lần nữa ⟹ DỪNG HẲN, không xin thêm.** Chuyển sang khai: *"vế ⑤⑥ chưa
+  nghiệm thu tự động được — rào DỤNG CỤ"*, và tôi tự chạy tay đường sản phẩm để lấy bằng chứng ⑥.
+
+### Cái ĐÃ MUA ĐƯỢC — không phải chi phí phí
+- **Lỗi 1 ĐÃ ĐƯỢC CHỨNG MINH** (lần 1: 2 lượt gọi model, tool call thành công **sau** OTP, khách
+  không phải gõ lại). Đây là bằng chứng hành vi đúng như phương án đã duyệt ở mục 9 — **ô lỗi 1 ĐÓNG.**
+- Vế ① ② ③ đi đúng tới nơi.
+- Lần 2 xác nhận **graceful-degrade dưới tải đúng thiết kế** — một ca đối chứng miễn phí không ai đặt hàng.
+**Còn thiếu: vế ⑤ (tạo vé + bàn giao) và ⑥ (từ chối tự hoàn tiền)** — ⑥ là vế quan trọng nhất
+(ràng buộc cứng 1), và nó là vế **duy nhất chưa từng chạm tới** trong cả ba lần.
