@@ -2490,3 +2490,25 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
   `tests/test_api/test_gd2_tool_calls_khong_null.py::test_trong_vong_lap_tool_van_giu_none_co_chu_dich`
   đảo chiều thành đối chứng dương của ADR này (QA/QC) · sổ nợ ③ của Lead (`:219 or []`) tự đóng —
   sau ADR này `or []` ở đó hết mơ hồ vì không còn None nào để nuốt.
+
+### ADR-042 · ĐÍNH CHÍNH THI HÀNH — cùng ngày 19/08, sau phản biện có số đo của Lead
+
+- **Tiền đề "khách không thấy mã vé" SAI trên cây hiện tại — lỗi dụng cụ của chính PO-agent:**
+  phép đo dựng ADR là `git show 641b68c -- src/agents/graph.py` — **tự lọc còn MỘT file trong một
+  commit HAI file**, nên thấy "3/4 literal" mà không thấy nửa còn lại: **chuẩn hoá tại BIÊN**
+  (`main.py:659` `result["tool_calls"] = result.get("tool_calls") or []`, kèm lý do đặt tại route).
+  [ĐO] kiểm lại độc lập 19/08: biên trả MẢNG qua HTTP thật trên chính nhánh vòng-lặp (test
+  `…bien_vong_lap_tool_khong_de_null_vuot_bien` ép nhánh chạy thật, đọc RAW JSON) — khách VẪN thấy
+  mã vé. *(Ca thứ sáu trong ngày của cùng một hình dạng: dụng cụ trả về câu trả lời trông hợp lệ
+  cho một câu hỏi đã bị chính lệnh đo cắt hẹp.)*
+- **RÚT việc ① (đổi literal thứ tư) và việc ② (viết lại test 15/08).** Lý do rút: mục tiêu của
+  chúng đã đạt bằng đường khác đang có cổng canh; thi hành thêm là trả giá thật (mất phân biệt
+  ba-trạng-thái NỘI BỘ có tài liệu + vô hiệu một ca canh đang đúng) để mua một lợi ích đã có.
+- **QUYẾT ĐỊNH KIẾN TRÚC CHỐT LẠI (phần sống lâu nhất — đề xuất của Lead):** ranh giới TRONG/BIÊN:
+  **BÊN TRONG** (`run_agent_turn`, checkpoint, sổ usage, eval đọc thẳng graph) — `tool_calls` giữ đủ
+  BA trạng thái (`None` = không khôi phục được · `[]` = đo được không gọi tool · `[...]`).
+  **TRÊN DÂY** (mọi response HTTP trả client) — `tool_calls` LUÔN là MẢNG; ba-trạng-thái cho client
+  đọc qua `ly_do_fallback`. Điểm chuẩn hoá là TẠI ROUTE trả envelope agent, có chú thích trỏ ADR này.
+- **Việc ③ giữ nguyên** (đối chứng dương ở tầng biên — phần lớn đã có). Câu cuối của Hệ quả cũ
+  ("sổ nợ ③ tự đóng vì không còn None") **RÚT theo** — None nội bộ còn, caveat `so_tool_call` của
+  Lead vẫn hiệu lực.
