@@ -276,6 +276,14 @@ class Complaint(Base):
     fraud_signals: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     otp_disclosed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+    # ADR-044 — phiên LangGraph checkpointer sinh ra complaint này (`f"{user_id}:
+    # {iat}"`, xem src/api/main.py). NULLABLE VĨNH VIỄN, KHÔNG backfill — complaint
+    # tạo TRƯỚC cột này không có cách nào suy ngược đúng thread (một user đăng
+    # nhập nhiều lần = nhiều thread cho cùng user_id, đoán theo mốc thời gian là
+    # heuristic đội lốt sự thật). KHÔNG FK — định danh phiên checkpointer, không
+    # phải khoá ngoại DB. Ghi TẠI THỜI ĐIỂM TẠO complaint, luồn qua bốn tầng:
+    # run_agent_turn → build_customer_tools → tool create_ticket → complaint_intake.
+    thread_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class Ticket(Base):
@@ -304,6 +312,13 @@ class Ticket(Base):
     human_handoff_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
+    # ADR-044 — mốc `flag_human_handoff()` chạy thật (KHÔNG phải lúc ticket được
+    # tạo). Đặt ở Ticket chứ không Complaint: một complaint có thể sinh nhiều
+    # ticket, bàn giao gắn với MỘT ticket cụ thể. NULLABLE: ticket không qua
+    # đường bàn giao (đa số) không có mốc này. UI vẽ vạch phân cách hội thoại
+    # tại mốc này — trên vạch là thứ gây ra bàn giao, dưới vạch là thứ xảy ra
+    # sau (transcript đọc LIVE, có thể trôi tiếp sau khi khách đã xin gặp người).
+    handoff_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ToolResult(Base):
