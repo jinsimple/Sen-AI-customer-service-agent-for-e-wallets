@@ -195,7 +195,7 @@ from src.observability.pii import scrub_pii  # noqa: E402
 def test_dau_vao_che_ho_ten_va_sdt_khach_tu_go():
     """Khách tự khai PII trong tin nhắn -> phải bị che trước khi rời hệ thống."""
     goc = "mình là Bách, sđt 0987654321, bị trừ tiền 2 lần"
-    sach = scrub_pii(goc)
+    sach = scrub_pii(goc, muc_dich="model_input")
     assert "0987654321" not in sach, f"SĐT lọt lên LLM: {sach}"
     assert "Bách" not in sach, f"Họ tên lọt lên LLM: {sach}"
 
@@ -214,7 +214,7 @@ def test_dau_vao_giu_nguyen_du_lieu_nghiep_vu():
         ("chuyển nhầm 270k cho bạn", "270k"),
     ]
     for goc, phai_con in truong_hop:
-        sach = scrub_pii(goc)
+        sach = scrub_pii(goc, muc_dich="model_input")
         assert phai_con in sach, (
             f"Che quá tay — mất dữ liệu nghiệp vụ {phai_con!r}\n  gốc:  {goc}\n  sau: {sach}"
         )
@@ -228,7 +228,7 @@ def test_dai_tu_nhan_xung_khong_bi_coi_la_ten_nguoi():
     """
     for dai_tu in ("tôi", "mình", "em", "anh", "chị"):
         cau = f"{dai_tu} bị trừ tiền 2 lần"
-        sach = scrub_pii(cau)
+        sach = scrub_pii(cau, muc_dich="model_input")
         assert sach.startswith(dai_tu), f"Đại từ {dai_tu!r} bị che nhầm: {sach}"
 
 
@@ -243,7 +243,7 @@ def test_duong_gui_llm_that_su_di_qua_scrub():
 
     goc = Path(__file__).resolve().parent.parent.parent
     src = (goc / "src" / "agents" / "graph.py").read_text(encoding="utf-8")
-    assert "scrub_pii(message)" in src, (
+    assert "scrub_pii(message, muc_dich=" in src, (
         "Tin nhắn khách KHÔNG còn đi qua scrub_pii trước khi vào HumanMessage — "
         "PII khách tự gõ sẽ rời hệ thống nguyên văn."
     )
