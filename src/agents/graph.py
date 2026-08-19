@@ -447,6 +447,54 @@ _CHECKPOINT_POOL = None  # gán trong _build_checkpointer(), đóng ở close_ch
 # thoại nối tiếp được qua nhiều request cùng thread_id.
 _CHECKPOINTER = _build_checkpointer()
 
+
+def doc_transcript_bang_giao(thread_id: str) -> list[dict[str, object]] | None:
+    """ADR-044 — đọc hội thoại bot↔khách của MỘT thread cho route
+    `GET /tickets/{ticket_id}/transcript` (src/api/main.py). Đọc qua
+    `checkpointer.get_tuple()` — KHÔNG parse thẳng bảng `checkpoint_*`
+    (chi tiết triển khai của LangGraph, đổi giữa các phiên bản, ADR-044
+    mục 5).
+
+    Trả `None` khi thread_id KHÔNG có checkpoint nào — route phía trên tự
+    diễn giải thành "không tra được" kèm lý do, hàm này KHÔNG tự bịa lý do
+    (tách rõ trách nhiệm: hàm này chỉ đọc, route quyết định thông điệp).
+
+    PII: checkpoint lưu bản ĐÃ SCRUB (`HumanMessage` dựng từ `scrub_pii(...,
+    muc_dich="model_input")` tại :790) — hàm này KHÔNG scrub lại, đúng
+    ADR-044 mục "PII — GIẢI XONG bằng phép đo". Nhãn che SAI (vd
+    `[PERSON_VN]` thay từ khách gõ thật, trước bản vá D') vẫn còn nguyên
+    trong checkpoint CŨ — route/UI phải tự khai điều này, hàm này không
+    sửa ngược bằng chứng.
+
+    Mỗi lượt trả `vai` ("khach"/"bot") + `noi_dung` + `co_goi_tool` (bot đã
+    gọi tool ngay trước khi sinh câu trả lời này hay chỉ là lời thoại suông
+    — CSKH cần phân biệt câu nào dựa trên dữ liệu thật tra được)."""
+    tuple_ = _CHECKPOINTER.get_tuple({"configurable": {"thread_id": thread_id}})
+    if tuple_ is None:
+        return None
+    messages = (tuple_.checkpoint.get("channel_values") or {}).get("messages") or []
+
+    luot: list[dict[str, object]] = []
+    co_tool_tu_luot_truoc = False
+    for m in messages:
+        if isinstance(m, ToolMessage):
+            co_tool_tu_luot_truoc = True
+            continue
+        if isinstance(m, HumanMessage):
+            luot.append({"vai": "khach", "noi_dung": str(m.content), "co_goi_tool": False})
+            co_tool_tu_luot_truoc = False
+        elif isinstance(m, AIMessage):
+            noi_dung = str(m.content or "")
+            if not noi_dung.strip():
+                # AIMessage rỗng nội dung (chỉ mang tool_calls, chưa có lời
+                # thoại) — không phải một LƯỢT hội thoại, bỏ qua. Cờ
+                # co_tool_tu_luot_truoc đã lên True ở nhánh ToolMessage phía
+                # trên khi tool đó thực thi xong.
+                continue
+            luot.append({"vai": "bot", "noi_dung": noi_dung, "co_goi_tool": co_tool_tu_luot_truoc})
+            co_tool_tu_luot_truoc = False
+    return luot
+
 # Sentinel — phân biệt "không truyền otp_verified_at" (backward-compat: coi như
 # vừa xác thực XONG, dùng bởi eval harness/test hiện có vốn giả định "khách đã
 # xác thực OTP trước khi vào chat") với "truyền None thật" (current_user thật
