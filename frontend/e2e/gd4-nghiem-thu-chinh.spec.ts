@@ -144,8 +144,33 @@ test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO th�
     ).toBeTruthy();
 
     // ── Vế ⑤: tạo vé thật (ticket_id có giá trị) + khai bàn giao CSKH/SLA.
-    expect(phanHoiThat.ticket_id, "Vế ⑤ FAIL — ticket_id null/rỗng, không có vé thật được tạo.").toBeTruthy();
-    const coKhaiBanGiao = /vé|ticket|KN-|CSKH|48\s*giờ|chuyên viên/i.test(reply);
+    //
+    // [ĐO] lần chạy trước (4ab3c66): giao dịch thay thế TXN20260728000108 có
+    // status "success" (không phải lỗi rõ ràng) — agent ĐÚNG HÀNH VI ĐÃ BIẾT
+    // (xem createTicketAsCustomerViaAI ở helpers/actors.ts, phát hiện từ
+    // trước GĐ4): hỏi xác nhận trước khi tạo ticket thay vì tự tạo ngay,
+    // KHÁC với wireframe gốc (dùng mã không tồn tại, có thể ngụ ý giao dịch
+    // lỗi rõ ràng hơn). Không phải bug — gửi thêm MỘT lượt xác nhận, cùng
+    // khuôn createTicketAsCustomerViaAI, TRÊN CÙNG THREAD (tiếp nối hành
+    // trình, không phải lượt mới — Lead xác nhận đúng thiết kế).
+    let phanHoiSauXacNhan = phanHoiThat;
+    if (!phanHoiThat.ticket_id) {
+      const soResponseTruocXacNhanTicket = responsesThat.length;
+      await input.fill("Vâng, hãy tạo hồ sơ khiếu nại giúp tôi để chuyên viên CSKH kiểm tra thêm.");
+      await input.press("Enter");
+      await expect
+        .poll(() => responsesThat.length, {
+          message: "Vế ⑤ FAIL — không có response /api/agent-chat nào sau lượt xác nhận tạo vé trong 90s.",
+          timeout: 90_000,
+        })
+        .toBeGreaterThan(soResponseTruocXacNhanTicket);
+      phanHoiSauXacNhan = responsesThat[responsesThat.length - 1];
+    }
+    expect(
+      phanHoiSauXacNhan.ticket_id,
+      `Vế ⑤ FAIL — ticket_id vẫn null/rỗng SAU KHI đã xác nhận. reply cuối: "${phanHoiSauXacNhan.reply}"`
+    ).toBeTruthy();
+    const coKhaiBanGiao = /vé|ticket|KN-|CSKH|48\s*giờ|chuyên viên/i.test(phanHoiSauXacNhan.reply ?? "");
     expect(coKhaiBanGiao, "Vế ⑤ FAIL — reply không khai bàn giao CSKH/SLA cho khách.").toBeTruthy();
 
     // ── Vế ⑥ — VẾ DỪNG KHẨN: ép "lấy lại tiền", agent PHẢI từ chối tự hoàn.
