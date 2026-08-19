@@ -159,3 +159,54 @@ mọi khác biệt dev/live nằm trong biến môi trường (12-factor, checkl
 - [ ] Bộ config mẫu cho live: `.env.production.example` cập nhật đủ biến mới (POOL, PING mode…),
   có chú thích từng biến — để bước deploy tay của PO thật chỉ là điền giá trị.
 - [ ] Cổng xoay 0-token phủ 4 ca live-readiness ở trên.
+
+## 🔴 PO THẬT QUYẾT 19/08 (tối) — PHẠM VI GĐ3: **XOAY + TRẦN CHI TIÊU TỐI GIẢN**
+
+Lead trình đúng và trình sớm: **repo KHÔNG có cost guard.** [ĐO độc lập của PO-agent, khớp Lead]
+`grep -rniE "cost_guard|budget|tran_chi|han_muc|chi_phi|spend|usd" src/` → chỉ ra
+`graph.py:155 _DAU_HIEU_HET_HAN_MUC` (nhận diện thân lỗi, chạy SAU khi đã gọi và bị từ chối) và
+hai dòng chú thích ở `config.py`. `so_usage.py` chỉ có `ghi_usage()` — **GHI, không CHẶN**.
+`main.py` có slowapi + sliding-window + concurrency — **đều là RATE LIMIT**. `.env.production.example`
+**chưa tồn tại** (ô định-nghĩa-xong phải đọc là **TẠO MỚI**, không phải "cập nhật" — Lead sửa đúng).
+
+**PO thật chọn: KHÔNG phải (a)/(b)/(c) của Lead mà là đường giữa** — xây xoay model đầy đủ,
+**CỘNG một trần chi tiêu TỐI GIẢN**: hạn mức token/ngày (hoặc /giờ) đọc từ env, **chặn TRƯỚC khi
+gọi model**, dùng chung Redis theo stack. KHÔNG dựng hệ cost guard đầy đủ (theo USD · theo model ·
+theo khách) — cái đó là dự án riêng, ghi nợ.
+
+**Phân biệt bắt buộc, đừng gộp hai thứ (chính là lớp lỗi đã có tên — hỏi một giá trị ĐO CÁI GÌ):**
+| cơ chế | trả lời câu | chạy lúc nào | trạng thái |
+|---|---|---|---|
+| `_DAU_HIEU_HET_HAN_MUC` | "nhà cung cấp vừa từ chối vì cạn quota?" | **SAU** khi đã gọi | có, nhưng mới dùng làm NHÃN LOG |
+| trần chi tiêu tối giản (MỚI) | "ta đã tiêu quá hạn mức TỰ ĐẶT chưa?" | **TRƯỚC** khi gọi | **CHƯA CÓ — dựng ở GĐ3** |
+| rate limit (đã có) | "gọi quá dày chưa?" | trước | có |
+🔴 Ba cơ chế, ba câu hỏi khác nhau. Không cái nào thay được cái nào. Dựng vòng xoay lên trên
+`_DAU_HIEU_HET_HAN_MUC` rồi gọi đó là "có cổng chi tiêu" là đúng cái bẫy Lead cảnh báo.
+
+**Trigger xoay vẫn là `_DAU_HIEU_HET_HAN_MUC`** — và điều đó ĐÚNG cho ca "hết token free":
+quota free cạn là sự kiện chỉ nhà cung cấp biết, ta không thể biết trước bằng sổ của mình.
+Nhưng nâng nó từ NHÃN LOG lên ĐIỀU KHIỂN HÀNH VI là nâng hậu quả của một phép khớp-chuỗi mong
+manh (chú thích `graph.py:151-154` đã tự cảnh báo đúng điều này) ⟹ **bắt buộc**: giữ khớp chuỗi
+làm tín hiệu, nhưng ① ưu tiên mã lỗi/`status_code` khi nhà cung cấp có · ② xoay tối đa N lần/lượt
+(N = kích thước bể), hết bể ⟹ thông điệp tử tế · ③ ca QA giả lập "chuỗi lỗi đổi câu chữ" ⟹ KHÔNG
+được xoay loạn, phải rơi về nhánh lỗi thường.
+
+## BỂ MODEL — CHỐT theo ảnh console PO thật gửi 19/08 (tối)
+
+```
+deepseek-v4-pro-0813 · deepseek-v4-flash · deepseek-v4-pro · deepseek-v3.2 · deepseek-v4-flash-0731
+mỗi model: 1M free · consumed 0 · Active · hết hạn 2026-11-15 (88 ngày)
+CÙNG tài khoản DashScope với LLM_BASE_URL hiện tại ⟹ cùng key, cùng base_url, KHÔNG đổi biên dữ liệu
+```
+
+🔴 **Chi tiết trong ảnh có tính thiết kế, đừng bỏ qua: cả 5 model đang bật "Free quota only".**
+- **Hệ quả TỐT:** cạn quota ⟹ nhà cung cấp trả LỖI (đúng trigger ta cần), **không** âm thầm
+  chuyển sang tính tiền. Đây là một hàng rào chi tiêu **nằm ở phía nhà cung cấp**.
+- 🔴 **Hệ quả phải khai:** hàng rào ấy là **một cái công tắc trên console**, không phải thuộc tính
+  của hệ ta. Ai tắt nó (hoặc bể live dùng model không có nó) thì cạn quota = **bắt đầu tính tiền
+  im lặng** — và lúc đó trần chi tiêu tối giản của ta là thứ DUY NHẤT còn chặn. Đây chính là lý do
+  PO thật chọn làm trần ngay, không hoãn.
+- QA/QC: ca "cạn quota trên model có Free-quota-only" và ca "cạn quota trên model KHÔNG có" phải
+  cho **cùng một hành vi ở phía ta** (xoay, rồi hết bể thì dừng tử tế) — không được phụ thuộc
+  công tắc console.
+- Bể free hết hạn **15/11/2026** ⟹ nhắc lại ràng buộc đã có: **bản live KHÔNG được phụ thuộc bể này.**
