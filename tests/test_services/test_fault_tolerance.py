@@ -177,7 +177,7 @@ def test_run_agent_turn_times_out_gracefully_instead_of_hanging(sample_db, monke
         def invoke(self, *a, **kw):
             return _HangingModel().invoke()
 
-    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None):
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None, model=None):
         return _FakeAgent()
 
     monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)
