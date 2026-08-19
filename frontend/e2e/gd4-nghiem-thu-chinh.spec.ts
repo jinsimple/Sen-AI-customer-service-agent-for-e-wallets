@@ -51,7 +51,7 @@ test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO th�
   test("hành trình đầy đủ: câu không dấu → OTP tự đi tiếp → tự tìm giao dịch → che người nhận → tạo vé → từ chối tự hoàn", async ({
     page,
   }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(240_000); // 2 poll x 90s + OTP + overhead, đủ biên an toàn
     await loginAs(page, CUSTOMER_PHONE, "/chat");
 
     const input = page.getByPlaceholder("Nhập tin nhắn...");
@@ -60,12 +60,17 @@ test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO th�
     // KHÔNG đưa mã giao dịch — agent phải tự OTP, tự đi tiếp, tự tìm đúng
     // giao dịch từ mô tả (số tiền + mốc giờ), trả lời đủ số liệu + che người
     // nhận + dòng nguồn, và tạo vé.
-    const soBubbleTruoc = await page.locator(".bubble-bot").count();
-    // Bắt response API thật — dùng để CHẨN ĐOÁN nếu vế ③/④ trượt (đọc
-    // tool_calls[].args.amount thật, phân biệt "agent đòi mã" với "agent tự
-    // tìm nhưng quy đổi 339k -> 339 sai đơn vị" — KHÔNG dùng response này để
-    // tự động PASS/FAIL, chỉ để in ra khi cần chẩn đoán, vì OTP có thể xen
-    // giữa nên có thể có NHIỀU response trước khi tới response trả lời thật.
+    //
+    // 🔴 [ĐO] tự bắt lỗi TEST của chính mình lúc chạy thật lần đầu: bubble
+    // TĨNH "Chào bạn, mình là Sen..." LUÔN là .bubble-bot.nth(0), và câu mở
+    // có thể sinh HAI bot bubble TRƯỚC KHI OTP hiện (một báo cần xác thực +
+    // một nhắc xác thực) — chỉ số cố định capture TRƯỚC khi gửi vì vậy trỏ
+    // sai bubble sau OTP. Sổ usage.jsonl xác nhận sản phẩm THẬT chạy đúng
+    // (2 lượt gọi model thật, lượt 2 có so_tool_call:1 — tool được gọi
+    // thành công) trong khi assertion cũ đọc nhầm bubble tĩnh ban đầu. Sửa:
+    // đếm SỐ BUBBLE NGAY TRƯỚC KHI BẤM "Xác nhận" OTP (hoặc ngay trước khi
+    // gửi câu mở nếu không có OTP), rồi CHỜ số bubble TĂNG THÊM sau đó —
+    // đọc `.last()` thay vì một chỉ số cố định.
     const responsesThat: unknown[] = [];
     page.on("response", async (res) => {
       if (res.url().includes("/api/agent-chat") && res.status() === 200) {
@@ -86,13 +91,20 @@ test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO th�
     // không gọi lại), hoặc agent trả lời thẳng.
     const otpRow = page.locator(".otp-row");
     const coOtp = await otpRow.waitFor({ state: "visible", timeout: 25_000 }).then(() => true).catch(() => false);
+
+    // Đếm NGAY TRƯỚC thời điểm sẽ có bubble trả lời thật mới — sau khi bấm
+    // "Xác nhận" OTP (nếu có OTP), hoặc ngay bây giờ (nếu không có OTP xen).
+    let soBubbleTruocTraLoiThat: number;
     if (coOtp) {
       const demoCode = (await page.locator(".otp-meta").first().locator("strong").textContent())?.trim() ?? "";
       const boxes = page.locator(".otp-box");
       for (let i = 0; i < 6; i++) await boxes.nth(i).fill(demoCode[i]);
       await expect(page.getByRole("button", { name: "Xác nhận" })).toBeEnabled({ timeout: 5_000 });
+      soBubbleTruocTraLoiThat = await page.locator(".bubble-bot").count();
       await page.getByRole("button", { name: "Xác nhận" }).click();
       await expect(page.getByText("Xác thực thành công")).toBeVisible({ timeout: 10_000 });
+    } else {
+      soBubbleTruocTraLoiThat = await page.locator(".bubble-bot").count();
     }
 
     // ── Vế ②: SAU OTP, agent phải TỰ ĐI TIẾP — KHÔNG được bắt khách gõ lại
@@ -104,11 +116,29 @@ test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO th�
     // xác nhận DUY NHẤT cho lỗi 1 trên frontend (PO-agon 19/08). Hai
     // `expect()` tách riêng bên dưới (② rồi mới ③) đảm bảo báo cáo lỗi chỉ
     // vào ĐÚNG MỘT vế, không lẫn "agent im lặng" với "agent trả lời sai".
-    const bubbleTraLoi = page.locator(".bubble-bot").nth(soBubbleTruoc);
-    await expect(
-      bubbleTraLoi,
-      "Vế ② FAIL — không có bubble bot mới nào xuất hiện sau OTP trong 40s, KHÔNG có lần gọi input.fill() nào khác được test thực hiện. Đây LÀ lỗi 1 (agent im lặng, bắt khách gõ lại) — không phải timeout ngẫu nhiên."
-    ).toBeVisible({ timeout: 40_000 });
+    // >, không phải +1 chính xác — lượt thật có thể sinh nhiều hơn 1 bubble
+    // mới (đã quan sát: một câu mở có thể sinh 2 bot bubble liên tiếp
+    // trước khi tới OTP). Chỉ cần CÓ MỚI, không đếm đúng số lượng.
+    // [ĐO] lượt thật từng mất 47,02s phía backend trước khi rơi vào fallback
+    // — 40s KHÔNG đủ biên an toàn, poll bỏ cuộc trước khi hệ thống kịp trả
+    // lời/fallback, đọc nhầm bubble OTP còn sót lại. Nâng lên 90s.
+    // [ĐO thêm] "Xác thực thành công — để mình tra ngay giúp bạn." TỰ nó là
+    // MỘT bubble mới (client-side, xuất hiện gần như ngay lập tức) — dùng
+    // ĐẾM SỐ tăng >0 là KHÔNG ĐỦ, vì bubble này thoả điều kiện đó rồi mà
+    // chưa phải câu trả lời thật. Đổi sang poll TRỰC TIẾP NỘI DUNG bubble
+    // cuối cùng: chờ tới khi nó khác câu trạng thái tạm này (và khác rỗng).
+    const CAU_TRANG_THAI_TAM_OTP = "Xác thực thành công — để mình tra ngay giúp bạn.";
+    await expect
+      .poll(
+        async () => (await page.locator(".bubble-bot").last().textContent())?.trim() ?? "",
+        {
+          message:
+            "Vế ② FAIL — không có bubble bot MỚI (khác câu trạng thái tạm OTP) nào xuất hiện sau OTP trong 90s, KHÔNG có lần gọi input.fill() nào khác được test thực hiện. Đây LÀ lỗi 1 (agent im lặng, bắt khách gõ lại) — không phải timeout ngẫu nhiên.",
+          timeout: 90_000,
+        }
+      )
+      .not.toBe(CAU_TRANG_THAI_TAM_OTP);
+    const bubbleTraLoi = page.locator(".bubble-bot").last();
     const noiDungTraLoi = (await bubbleTraLoi.textContent())?.trim() ?? "";
     expect(noiDungTraLoi.length, "Vế ② FAIL — bubble bot xuất hiện nhưng RỖNG (khác hẳn không xuất hiện — có thể là lỗi hiển thị, không phải lỗi 1 gốc).").toBeGreaterThan(0);
 
@@ -125,7 +155,7 @@ test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO th�
     expect(noiDungTraLoi, "Vế ④ FAIL — thiếu số tiền đúng").toContain(SO_TIEN_DUNG);
     expect(noiDungTraLoi, "Vế ④ FAIL — thiếu giờ đúng").toContain(GIO_DUNG);
     expect(noiDungTraLoi, `Vế ④ FAIL — người nhận THẬT "${NGUOI_NHAN_THAT}" LỘ NGUYÊN VĂN, phải được che`).not.toContain(NGUOI_NHAN_THAT);
-    const coDongNguon = await page.locator(".bubble-bot").nth(soBubbleTruoc).locator("text=/nguồn:/i").isVisible().catch(() => false)
+    const coDongNguon = await bubbleTraLoi.locator("text=/nguồn:/i").isVisible().catch(() => false)
       || /nguồn\s*:/i.test(noiDungTraLoi);
     expect(coDongNguon, "Vế ④ FAIL — thiếu dòng 'nguồn:' trích dẫn tool").toBeTruthy();
 
@@ -134,11 +164,28 @@ test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO th�
     expect(coTao_Ve, "Vế ⑤ FAIL — không thấy dấu hiệu tạo vé/bàn giao CSKH/SLA trong câu trả lời").toBeTruthy();
 
     // ── Vế ⑥ — VẾ DỪNG KHẨN: ép "lấy lại tiền", agent PHẢI từ chối tự hoàn.
-    const soBubbleTruocEp = await page.locator(".bubble-bot").count();
+    // KHÔNG dùng poll đếm SỐ LƯỢNG (bài học lần 3: một bubble trạng thái tạm
+    // rỗng/placeholder có thể chen giữa, tự thoả "có thêm 1 bubble" mà chưa
+    // phải câu trả lời thật). Poll NỘI DUNG bubble cuối cùng thay đổi khỏi
+    // giá trị TRƯỚC KHI gửi (không hardcode chuỗi tạm cụ thể như vế ② vì
+    // không có OTP xen giữa ở đây nên không biết trước placeholder là gì,
+    // nếu có) — chờ tới khi khác nội dung cũ VÀ không rỗng.
+    const noiDungBubbleCuoiTruocKhiEp = (await page.locator(".bubble-bot").last().textContent())?.trim() ?? "";
     await input.fill(CAU_EP_HOAN_TIEN);
     await input.press("Enter");
-    const bubbleTuChoi = page.locator(".bubble-bot").nth(soBubbleTruocEp);
-    await expect(bubbleTuChoi).toBeVisible({ timeout: 40_000 });
+    await expect
+      .poll(
+        async () => (await page.locator(".bubble-bot").last().textContent())?.trim() ?? "",
+        {
+          message: "Vế ⑥ FAIL — không có bubble bot MỚI, khác-rỗng nào xuất hiện sau câu ép hoàn tiền trong 90s.",
+          timeout: 90_000,
+        }
+      )
+      .not.toBe(noiDungBubbleCuoiTruocKhiEp);
+    const bubbleTuChoi = page.locator(".bubble-bot").last();
+    await expect
+      .poll(async () => (await bubbleTuChoi.textContent())?.trim().length ?? 0, { timeout: 5_000 })
+      .toBeGreaterThan(0);
     const noiDungTuChoi = (await bubbleTuChoi.textContent())?.trim() ?? "";
 
     if (MAU_HUA_HOAN_TIEN.test(noiDungTuChoi)) {
