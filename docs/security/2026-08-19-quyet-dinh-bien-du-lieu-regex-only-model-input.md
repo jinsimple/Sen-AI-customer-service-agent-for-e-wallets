@@ -72,4 +72,40 @@ dự án đã áp nhiều lần trong đợt này.
 Quyết định này CHỈ áp cho đường `graph.py:787` (tin nhắn khách gửi trực tiếp cho model). KHÔNG áp
 cho: log/trace (giữ nguyên), kết quả tool (đã có cơ chế riêng, không đổi), transcript CSKH đọc lại
 (ADR-044, đọc bản đã ghi tại thời điểm gửi — kế thừa quyết định này một cách tự nhiên, không cần
+
+---
+
+## 🟢 NIÊM 19/08 (sau) — PHƯƠNG ÁN D' THAY B. Điều kiện ③ tự giải quyết ngay, không cần đợi tuần sau.
+
+**[ĐO] PO-agent đo ngay, cùng corpus 124 câu, chỉ đổi registry:**
+```
+A  regex+Spacy+underthesea (đang dùng)     50,0%
+D  regex+underthesea (bỏ Spacy)            12,9%
+B  regex-only                               4,8%   ← mất che tên bên thứ ba
+D' bỏ Spacy + Date + Phone-chung            5,6%   ← GIỮ TRỌN che tên
+```
+**Đối chứng D' đạt đủ:** SĐT/email/CCCD vẫn che; `Lê Hoàng Nam` VÀ **`chị Nguyễn Thị Lan` (bên thứ
+ba — đúng rủi ro tồn dư tôi lo)** đều vẫn che; `TXN...`/số tiền/ngày tháng giữ nguyên.
+
+**QUYẾT: D' THAY THẾ B — sạch ngang B (5,6% vs 4,8%, chênh không đáng kể) mà giữ TRỌN thuộc tính bảo
+vệ bên thứ ba của A. Đây không còn là một đánh đổi — D' THỐNG TRỊ B trên mọi trục cùng lúc, không cần
+cân nhắc gì thêm.** Rủi ro tồn dư "tên bên thứ ba khách tự gõ rời hạ tầng" mà BA ĐIỀU KIỆN của tôi
+xoay quanh — KHÔNG CÒN TỒN TẠI với D'.
+
+**Ba điều kiện tôi đặt cho B GIỮ NGUYÊN HIỆU LỰC cho D'** (ADR có khai + mốc xem lại · không đụng
+log/trace · docstring `scrub_regex` — dù D' không dùng hàm này, tinh thần "tài liệu khớp hành vi
+thật" vẫn áp cho bất kỳ hàm mới nào implement D'). **Điều kiện ③ (đo trước khi chốt) đã tự hoàn thành
+— không phải bị bỏ qua, mà được thực hiện NGAY thay vì để sang tuần, đúng tinh thần "rẻ, làm ngay
+được hôm nay" tôi viết lúc đặt điều kiện.**
+
+## Trả lời câu hỏi PhoneRecognizer cho log/trace: CÓ, loại thống nhất — cùng quyết định đã đăng ở
+`2026-08-19-gd4-quyet-medical-license-va-huong-vao-thu-hai.md` (niêm `c9cedd6`), viết trước khi thấy
+tin nhắn này, cùng kết luận độc lập. `VN_PHONE_NUMBER` (regex tự viết, cùng pattern với fallback) đã
+đủ cho SĐT Việt Nam thật — `PhoneRecognizer` built-in chỉ còn giá trị âm (nuốt số tiền, dữ liệu LÕI
+của khiếu nại). Loại bỏ khỏi registry một lần, áp cho CẢ HAI đường (model-input qua D' không dùng
+registry đầy đủ nên không chạm nó trực tiếp, nhưng log/trace vẫn dùng registry đầy đủ nên vẫn cần).
+
+**KHÔNG kết luận:** ❌ khung "NER hay không NER" là sai ngay từ đầu — nó là khung ĐÚNG lúc chưa có dữ
+liệu để tách nguồn; đo xong mới thấy đơn vị đúng là "từng recognizer", không phải "cả gói". Đúng quy
+trình khoa học bình thường, không phải một sai lầm cần xin lỗi.
 quyết lại). Không kết luận thay cho D — D là khuyến nghị đo, chưa phải quyết định.
