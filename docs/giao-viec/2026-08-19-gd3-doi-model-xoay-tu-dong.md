@@ -299,3 +299,32 @@ docker run --rm --network <mạng của stack> -v $(pwd)/eval:/app/eval \
 - Đúng `langchain-core` + đúng `src/` của ảnh ⟹ kích thích gửi model **giống hệt** đường khách thật.
 - Cùng một mạnh hạ tầng với việc "Playwright chạy TRONG mạng Docker" — **một việc gỡ hai chỗ**.
 **Coder** viết lệnh chính xác (đủ tên mạng/ảnh/biến) và giao QA/QC; QA/QC không tự chế lệnh docker.
+
+## 📏 SỨC CHỨA BỂ — SỐ CHÍNH THỨC, mọi số khác đã NIÊM (Luật P)
+
+🔴 **Số ĐANG DÙNG** — [ĐO PO-agent, toàn bộ `usage.jsonl` trong ảnh, 19/08]:
+```
+163 lượt thật · tổng 1.665.638 token
+trung bình 10.219/lượt · trung vị 13.210 · min 0 · max 45.208
+61/163 lượt = 0 token (đường nhẹ) · 50% input là CACHED (824.960)
+⟹ bể 5M ≈ 489 lượt   ·   150 khách ≈ 3,3 lượt/khách
+⟹ 1 model = 1M ≈ 98 lượt ; cổng nhập bể 30 ca ≈ 30 lượt ⟹ LỜI RÒNG ~68 lượt/model
+```
+
+⚠️ **NIÊM — số đã chết, đừng trích lại:** *"~176 lượt · 1,2 lượt/khách"* (Lead trình 19/08).
+Không sai phép tính; **mẫu số hẹp** — chia bể cho ba ca AUTH nặng nhất của một đợt kiểm thẩm quyền,
+bỏ qua 61 lượt đường nhẹ 0 token. Bi quan gấp ~3. Đã có ca dùng lại nhầm (Bảo Mật trích nó như số
+của PO-agent) ⟹ niêm tại chỗ. **Kết luận rút ra từ nó KHÔNG đổi:** xoay HOÃN lúc cạn, không XOÁ.
+
+## 🧩 CHÙM NỢ "CÙNG TÊN ≠ CÙNG VẬT" — ba ca, một hình dạng (Bảo Mật gom, PO-agent ghi sổ)
+
+| # | ca | trạng thái |
+|---|---|---|
+| 1 | base image ghim bằng **tag** `python:3.12-slim`, không phải digest (`Dockerfile:5,:33`) | nợ, chưa làm |
+| 2 | `requirements.lock.txt` **không nơi nào dùng** ⟹ 6/168 gói đã trôi | nợ, chưa làm |
+| 3 | **bí danh model trôi** (`deepseek-v4-flash`, `deepseek-v4-pro`) | ĐÃ CHẶN 19/08 (e2bebb8) |
+
+**KHÔNG mint luật mới** (§7b): hình dạng này đã có tên từ 17/08 trong docstring `src/dau_ma_nguon.py` —
+*"`commit` KHÔNG phải một hàm của `src/`, theo cả hai chiều ⟹ dùng nó làm nhãn ảnh là dùng SAI LOẠI
+ĐỊNH DANH"*. Ba ca trên là **cùng mệnh đề ấy áp cho ba loại vật khác** (ảnh nền · gói phụ thuộc ·
+model nhà cung cấp). Ghi thành CHÙM để một đợt dọn nợ sau đi cùng một sổ, không phải để cấp ký hiệu mới.
