@@ -1664,6 +1664,19 @@ PO-agent cấp ký hiệu; hệ quả của Luật M)* —
 > kế tiếp của mình phải được **người KHÁC kiểm trước khi relay** — tự kiểm kỹ hơn không thay được
 > kiểm chéo, vì bộ lọc nằm ở khâu CHỌN CA, không ở khâu chạy ca.
 
+**Luật U** *(đúc 19/08 từ HAI ca đo được cùng ngày, cùng hình dạng — PO-agent "gửi chuông thành công
+≠ được nghe" · Lead "khai đóng-băng ≠ khoá được tiến trình đang chạy". PO-agent cấp ký hiệu)* —
+**PHÁT ĐI không phải HIỆU LỰC. Thông điệp MỘT CHIỀU (chuông giao việc · lời khai trạng thái · lệnh
+đóng băng) chỉ thành KHOÁ khi có xác nhận HAI CHIỀU.**
+> [ĐO] ca ①: chuông GĐ2 transport báo success, người nhận chưa đọc — PO-agent báo PO thật "đang
+> chạy" trên bằng chứng GỬI. [ĐO] ca ②: Lead khai *"không ai đo, không ai chạm ngăn xếp"* rồi dựng
+> ảnh — lời khai chặn việc CHƯA bắt đầu, không dừng được đợt E2E nền ĐANG chạy phút thứ 1,5 ⟹
+> 10/15 ca nhiễm hạ tầng, vứt cả đợt.
+> **Vế thi hành:** ① GIAO việc — chưa có ACK người nhận thì việc CHƯA TỒN TẠI trong mọi báo cáo.
+> ② DỪNG/đóng băng/dựng ảnh — phải HỎI TỪNG BÊN *"có tiến trình đang chạy chạm vật không?"* và
+> CHỜ TRẢ LỜI; khai-trước chỉ là thông báo. ③ Mọi trạng thái relay lên trên dựng từ XÁC NHẬN,
+> không từ "tôi đã phát". *(Họ hàng: Luật Q — ngữ cảnh là ảnh chụp; U nói về hành vi PHÁT thông điệp.)*
+
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.
   **Vế thi hành:** sau **MỖI** phiên đo, chạy `docker diff` **trước khi báo cáo bất cứ số nào**.
