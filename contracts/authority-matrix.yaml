@@ -16,7 +16,7 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.0.0"
+version: "2.1.0"
 source: "Sinh ngược từ src/api/main.py @ 2026-08-13 · thay thế bản 1.0.0 viết từ PRD"
 
 # ---------------------------------------------------------------------------
@@ -136,6 +136,19 @@ routes:
     roles: [cskh, supervisor]
   - route: "GET /tickets/{ticket_id}"
     roles: [cskh, supervisor]
+  - route: "GET /tickets/{ticket_id}/transcript"
+    roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-044 — CSKH đọc hội thoại bot↔khách của vé mình xử lý khi khách bàn
+      giao gặp người thật. GUARD CHÍNH: route CHỈ nhận `ticket_id`, KHÔNG BAO
+      GIỜ nhận `thread_id` làm tham số request (query/body/header) dưới bất
+      kỳ hình thức nào — `thread_id` suy DUY NHẤT từ `ticket.complaint.
+      thread_id` đọc từ DB. "user_id khớp" chỉ là 404-handler phụ, KHÔNG phải
+      ranh giới thẩm quyền (mọi cskh/supervisor vốn đã đọc được mọi ticket).
+      Vé cũ (trước migration, thread_id null) trả transcript:null kèm lý do
+      — không đoán theo mốc thời gian. `agent-tools.yaml` CỐ Ý KHÔNG đổi:
+      cho AI tool đọc transcript bàn giao là để nó tự đọc hồ sơ "nó bị đá
+      ra", cùng họ ràng buộc cứng số 2 (AI không vượt cấp).
   - route: "POST /tickets/{ticket_id}/request-more-info"
     roles: [cskh, supervisor]
   - route: "GET /resolutions"
