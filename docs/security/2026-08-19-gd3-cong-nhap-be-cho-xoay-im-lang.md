@@ -62,6 +62,38 @@ như tôi đã ghi nhận lúc chuẩn bị GĐ3 (`2026-08-19-gd3-chuan-bi-truoc
 nghị siết CỔNG VÀO BỂ + tốc độ rút ra, chứ không đề nghị chặn cả tính năng — rủi ro có trần, không
 phải không đáy.
 
+## NIÊM 19/08 (tối) — trả lời ① của Lead + xác nhận ② bằng số đo mới
+
+### ① Tên model lộ qua thân lỗi nhà cung cấp — [ĐO] KHÔNG, đã đọc code, không suy đoán
+
+**[ĐO] `graph.py:825-914`** (nhánh `except APIError`, đường "cần can thiệp" — đúng chỗ
+`_DAU_HIEU_HET_HAN_MUC` được dùng): thân lỗi thô (`mo_ta`, chứa `lop_loi`/`ma_trang_thai`/
+`co_dau_hieu_het_han_muc`) **CHỈ đi vào ba nơi: log (`_logger.error/warning`), Jaeger span
+(`root_span.set_attribute`), và biến `mo_ta` cục bộ — KHÔNG BAO GIỜ vào biến `reply`.**
+
+Câu trả lời khách (`reply`, dòng 901-909) là **HẰNG SỐ VIẾT SẴN trong code**, đúng hai chuỗi cố định
+tuỳ `can_thiep`, và bản thân comment tại chỗ (`:886-887`) đã tự khai lý do: *"không mã lỗi, không
+tên nhà cung cấp — vô ích với khách, và lộ hạ tầng."* Model **KHÔNG** sinh câu xin lỗi (`:889-891`:
+*"model vừa hỏng mới rơi vào đây, nhờ nó viết câu xin lỗi là phụ thuộc đúng thứ vừa gãy"*) — nên
+không có đường nào cho tên model rò qua văn bản do LLM viết trong nhánh lỗi.
+
+**[ĐO] bổ sung — model có tự XƯNG danh được không?** `grep -in "qwen|deepseek|LLM_MODEL"
+src/agents/prompt.py` → **0 hit**. System prompt không hề nói cho model biết nó là model gì — agent
+chỉ tự xưng "Sen" (tên sản phẩm). Dù khách hỏi thẳng "bạn là AI nào", model không có thông tin thật
+để trả lời sai hướng đó (có thể bịa tên khác, nhưng đó là hạng O3/bịa số liệu đã có cổng riêng, không
+phải rò rỉ tên model thật).
+
+**KẾT LUẬN ①: KHÔNG có đường rò tên model tới khách, ở CẢ HAI nhánh (lỗi cố định + hội thoại thường).
+Đóng, không cần điều kiện gì thêm.**
+
+### ② Xác nhận bằng số đo thật của Lead — CÀNG củng cố kết luận 30 ca, không đổi
+
+Số Lead đưa (5M token bể ÷ ~20-36K/lượt ⟹ ~176 lượt tổng ⟹ ~1,2 lượt/khách cho 150 khách) xác nhận
+đúng điều tôi giả định bằng lý lẽ chứ chưa có số: **xoay là điều SẼ XẢY RA THẬT trong buổi test đầu
+tiên, không phải một nhánh hiếm/lý thuyết.** Model thứ 2..5 trong bể không phải "dự phòng xa" — chúng
+là thứ một phần đáng kể trong 150 khách sẽ THẬT SỰ trò chuyện cùng. **Xác nhận: cổng 30 ca phải áp
+cho CẢ NĂM model, không có model nào được miễn vì "ít khả năng bị chạm tới".**
+
 ## KHÔNG kết luận
 
 ❌ tính năng xoay nên dừng lại — hướng và hạ tầng (Redis TTL, log sạch, fail-open có lý lẽ) đều đúng.
