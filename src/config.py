@@ -299,6 +299,41 @@ KENH_HO_TRO_KHAC = (
 LLM_MODEL = os.environ.get("LLM_MODEL") or OPENAI_MODEL
 LLM_API_KEY = _khoa_cho_nha_cung_cap("LLM_API_KEY", LLM_BASE_URL)
 
+# GĐ3 — bể model cho tính năng đổi/xoay (PO thật chốt 19/08, `876a240`).
+# Danh sách phân cách dấu phẩy, THỨ TỰ = ưu tiên xoay. Phần tử đầu PHẢI là
+# `LLM_MODEL` — không tự thêm/sắp lại: một bể không bắt đầu bằng model đang
+# ghim là đổi hành vi mặc định ÂM THẦM ngay cả khi không ai gọi tính năng xoay.
+# THIẾU biến ⟹ bể chỉ có đúng `LLM_MODEL` — hành vi cũ, một model, không xoay.
+_raw_pool = os.environ.get("LLM_MODEL_POOL", "").strip()
+LLM_MODEL_POOL: list[str] = (
+    [m.strip() for m in _raw_pool.split(",") if m.strip()] if _raw_pool else [LLM_MODEL]
+)
+# RÚT một guard "phần tử đầu phải == LLM_MODEL" đã viết ở đây rồi tự bác:
+# [ĐO] test_llm_pool_gd3.py (QA/QC, viết từ đặc tả) đòi đổi ĐƯỢC toàn bộ bể
+# qua env mà KHÔNG cần đổi `LLM_MODEL` theo — đúng ràng buộc gốc "đổi
+# LLM_MODEL_POOL, bể đổi theo, KHÔNG CẦN đổi code/ảnh". Một guard ép đồng bộ
+# hai biến sẽ CHẶN chính kịch bản đó. `LLM_MODEL` và `LLM_MODEL_POOL` là hai
+# biến ĐỘC LẬP có chủ đích; vòng xoay đọc `LLM_MODEL_POOL`, không đọc
+# `LLM_MODEL` trực tiếp — không cần chúng khớp nhau để đúng.
+
+# Trần chi tiêu tối giản (PO thật chốt 19/08) — CHỈ token model CHAT (LLM), 🔴
+# KHÔNG bao gồm embedding: embedding đi CÙNG transport (cong_ra_ngoai.py) nhưng
+# KHÁC nhà cung cấp (EMBEDDING_BASE_URL != LLM_BASE_URL, xem dưới) — cộng token
+# hai nhà cung cấp vào một trần là cộng hai đơn vị khác nhau, ra một con số
+# trông hợp lệ mà không có nghĩa gì. Tên biến khai rõ giới hạn này để không ai
+# đọc nhầm thành "mọi chi tiêu" — xem cong_ra_ngoai._duoi_tran_chi_tieu_hom_nay().
+# RỖNG/THIẾU ⟹ KHÔNG giới hạn (hành vi cũ, không chặn gì thêm).
+_raw_tran = os.environ.get("TRAN_TOKEN_LLM_MOI_NGAY", "").strip()
+TRAN_TOKEN_LLM_MOI_NGAY: int | None = int(_raw_tran) if _raw_tran else None
+
+# Chế độ ping khai bể — "eager" gọi thử MỖI model lúc khai bể sẵn sàng (dev,
+# 0 đồng); "lazy" chỉ đánh dấu "chưa kiểm chứng", ping lần đầu model đó được
+# CHỌN (live, ping tốn tiền thật). Mặc định "eager" — đúng hành vi kiểm tra kỹ
+# hơn khi không ai khai gì, an toàn hơn nếu lỡ quên đặt trên môi trường trả tiền.
+MODEL_POOL_PING = os.environ.get("MODEL_POOL_PING", "eager").strip().lower()
+if MODEL_POOL_PING not in ("eager", "lazy"):
+    raise RuntimeError(f"MODEL_POOL_PING phải là 'eager' hoặc 'lazy', nhận được {MODEL_POOL_PING!r}.")
+
 # Trần token sinh ra. MẶC ĐỊNH None = KHÔNG truyền tham số -> y hệt hành vi
 # hôm nay (dựa vào mặc định nhà cung cấp). CỐ Ý không đặt một con số:
 # thêm trần ở đây sẽ CẮT NGẮN câu trả lời dài đang chạy tốt, tức sửa một bug

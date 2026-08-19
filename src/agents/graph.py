@@ -32,6 +32,7 @@ from openai import (
 from opentelemetry.trace import Status, StatusCode
 from sqlalchemy.orm import Session
 
+from src.agents import llm_pool
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
 from src.agents.output_filter import loc_dau_ra, tin_hieu_lo_chi_thi
 from src.agents.phan_luong import BAM_LUAT, DUONG_DAY_DU, DUONG_NHE, TRA_LOI_NHE, phan_luong
@@ -51,7 +52,7 @@ from src.config import (
     PHAN_LUONG_BAT,
     SUY_LUAN_BAT,
 )
-from src.cong_ra_ngoai import http_client_dung_chung
+from src.cong_ra_ngoai import cong_chi_tieu, ghi_nhan_chi_tieu_khong_doc_duoc, http_client_dung_chung
 from src.dau_ma_nguon import CACH_BAM, nhan_luc_dung
 from src.db.models import Complaint, Ticket, User
 from src.observability.langchain_callback import OTelTracingCallbackHandler
@@ -155,19 +156,28 @@ _LOI_CAN_CAN_THIEP = (
 _DAU_HIEU_HET_HAN_MUC = ("quota", "exhaust", "insufficient", "balance", "arrear", "unpurchased")
 
 
-def _mo_ta_loi_nha_cung_cap(loi: APIError) -> dict[str, object]:
+def _mo_ta_loi_nha_cung_cap(loi: APIError, *, model: str = LLM_MODEL) -> dict[str, object]:
     """Trường để hồi cứu sự cố. KHÔNG chứa thân thông báo thô.
 
     Thân thô có thể mang khoá hoặc định danh nội bộ; ta chỉ rút ra một cờ
     boolean từ nó. Đủ để người vận hành biết "hết tiền hay sai khoá", không đủ
     để rò thứ gì ra log.
+
+    `model`: model ĐANG ĐƯỢC THỬ khi lỗi này xảy ra (GĐ3 — vòng xoay truyền
+    tường minh). Mặc định `LLM_MODEL` chỉ để không vỡ caller cũ không xoay.
     """
     than = (str(getattr(loi, "message", "") or str(loi))).lower()
     return {
         "lop_loi": type(loi).__name__,
         "ma_trang_thai": getattr(loi, "status_code", None),
+        # GĐ3 — GIẢ ĐỊNH, không phải bất biến: mọi model trong LLM_MODEL_POOL
+        # dùng CHUNG `LLM_BASE_URL` (đúng cho bể deepseek hôm nay, cùng tài
+        # khoản DashScope). Nếu sau này bể có model KHÁC base_url, trường này
+        # sẽ sai theo đúng kiểu lỗi vừa vá cho `model` — hồi cứu ĐÚNG model
+        # NHƯNG SAI nhà cung cấp. Ghi ra để người thêm model-khác-base_url
+        # biết phải sửa CHỖ NÀY, không phát hiện lại từ đầu.
         "nha_cung_cap": LLM_BASE_URL or "openai",
-        "model": LLM_MODEL,
+        "model": model,
         "can_can_thiep": isinstance(loi, _LOI_CAN_CAN_THIEP),
         "co_dau_hieu_het_han_muc": any(d in than for d in _DAU_HIEU_HET_HAN_MUC),
         # `request_id` của nhà cung cấp: CHÍNH thứ bộ phận hỗ trợ của họ hỏi khi
@@ -195,10 +205,29 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
     lệch nhau, và lệch trong im lặng.
     """
     u = kq.get("usage") or {}
+    # GĐ3 — trần chi tiêu tối giản (876a240). Gọi VÔ ĐIỀU KIỆN — hàm tự bỏ
+    # qua khi `total_tokens is None` (đường fallback "không đọc được"), nên
+    # đặt Ở ĐÂY (chạy trên CẢ 5 đường ra) đúng bằng thiết kế của chính hàm
+    # này, không phải một lựa chọn riêng cho GĐ3. KHÔNG cộng lượt embedding —
+    # xem docstring cong_chi_tieu().
+    cong_chi_tieu(u.get("total_tokens"))
+    # Lead đo 19/08: cờ `token_khong_doc_duoc` được GHI vào sổ usage.jsonl
+    # nhưng không ai ĐỌC nó — trạng thái ghi-mà-không-ai-theo-dõi có cùng tác
+    # dụng với không ghi. Đếm riêng (LƯỢT, không phải token — token đúng là
+    # thứ không đọc được) để điểm mù của trần trở thành một con số đọc được.
+    if u.get("token_khong_doc_duoc"):
+        ghi_nhan_chi_tieu_khong_doc_duoc()
     ghi_usage({
         "ts": dt.datetime.utcnow().isoformat() + "Z",
         "thread_id": thread_id or user_id,
-        "model": LLM_MODEL,
+        # GĐ3 (876a240) — model THẬT đã trả lời/đang thử lượt này, ĐỌC TỪ
+        # `kq` (mỗi đường trả về của run_agent_turn tự khai field này), KHÔNG
+        # phải hằng số toàn cục `LLM_MODEL`. Sau khi xoay, model trả lời có
+        # thể KHÁC model đã ghim — một hằng số ở đây sẽ ghi sai NGAY LƯỢT
+        # XOAY ĐẦU TIÊN, và sổ này là "chứng từ đối soát hoá đơn" (PO
+        # 876a240) — sai ở đây là mù hoàn toàn khi cần đối soát.
+        "model": kq.get("model"),
+        "models_da_thu": kq.get("models_da_thu"),
         # ĐO Ở ĐÂU. tester phải loại trừ ngăn xếp ttl bằng đường gián tiếp vì
         # "không bản ghi nào ghi URL của lượt đo" — cùng họ với mốc-thời-gian
         # của security. Một con số không tự khai NÓ ĐO Ở ĐÂU thì lần sau lại
@@ -213,6 +242,14 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "so_luot_goi_model": u.get("so_luot_goi_model"),
         "input_tokens": u.get("input_tokens"),
         "output_tokens": u.get("output_tokens"),
+        # Review đo 19/08: field này TỪNG KHÔNG BAO GIỜ ra được `usage.jsonl`
+        # — có mặt trong `kq["usage"]["total_tokens"]` (dùng cho `cong_chi_tieu`)
+        # nhưng chưa từng được liệt vào dict truyền cho `ghi_usage`, ở BẤT KỲ
+        # phiên bản nào (không phải chuyện schema cũ/mới — claim ban đầu của
+        # tôi SAI, Review sửa). Không có dòng này thì sổ "chứng từ đối soát"
+        # không cách nào lộ ra một lượt đã bị guard None-vs-0 (:1318) chạm tới.
+        "total_tokens": u.get("total_tokens"),
+        "token_khong_doc_duoc": u.get("token_khong_doc_duoc"),
         "cached_input_tokens": u.get("cached_input_tokens"),
         "reasoning_tokens": u.get("reasoning_tokens"),
         "input_chars": u.get("input_chars"),
@@ -523,8 +560,18 @@ def _build_agent(
     customer_name: str,
     otp_verified_at: float | None,
     guard: TurnGuard | None = None,
+    # GĐ3 (876a240) — tên MODEL cho lượt này, KHÔNG phải hằng số toàn cục.
+    # Mặc định `LLM_MODEL` giữ NGUYÊN hành vi cũ cho mọi caller không truyền
+    # (test/eval hiện có). Vòng xoay nằm INLINE trong `run_agent_turn` (không
+    # phải một hàm riêng `_chay_luot_voi_xoay` — tên đó từng khai cho QA/QC
+    # qua tin nhắn 19/08 rồi KHÔNG triển khai đúng như vậy, xem sửa sai đã báo
+    # Lead/QA/QC cùng ngày), truyền tường minh từng phần tử của
+    # `LLM_MODEL_POOL` — đây là ĐIỂM SPY QA/QC dùng để giả lập lỗi quota mà
+    # không tốn token thật (patch theo giá trị `model` nhận được để phân biệt
+    # lần gọi thứ mấy).
+    model: str = LLM_MODEL,
 ):
-    model = ChatOpenAI(
+    chat_model = ChatOpenAI(
         # LLM_* fallback ve OPENAI_* (src/config.py) -> khong dat gi thi hanh vi
         # y het truoc. `base_url=None` la mac dinh cua SDK, khong phai mot gia
         # tri dac biet can xu ly rieng.
@@ -535,9 +582,13 @@ def _build_agent(
         # tang nay con thay ca luot SDK TU RETRY (max_retries duoi day): dem o
         # tang tren SDK ghi 1 cho 3 lan ban ra day.
         http_client=http_client_dung_chung(),
-        model=LLM_MODEL,
+        model=model,
         temperature=0.2,
         api_key=LLM_API_KEY,
+        # GĐ3: mọi model trong LLM_MODEL_POOL dùng CHUNG base_url/api_key —
+        # cùng tài khoản DashScope, không đổi biên dữ-liệu-rời-hạ-tầng (Bảo
+        # Mật đã xác nhận cho bể deepseek). Đổi nhà cung cấp GIỮA các model
+        # trong MỘT bể ngoài phạm vi GĐ3.
         base_url=LLM_BASE_URL,
         # Chỉ truyền khi CÓ đặt — `max_tokens=None` và "không truyền" khác nhau
         # ở một số client. Xem LLM_MAX_TOKENS trong config.py.
@@ -554,7 +605,7 @@ def _build_agent(
     # nói "đã tắt". Quan sát hiện vật, đừng tin lời khai — cùng nguyên tắc dấu
     # `duong` và `so_tool_schema_gui`.
     global _SUY_LUAN_GUI
-    _SUY_LUAN_GUI = not bool((getattr(model, "extra_body", None) or {}).get("enable_thinking") is False)
+    _SUY_LUAN_GUI = not bool((getattr(chat_model, "extra_body", None) or {}).get("enable_thinking") is False)
     tools = build_customer_tools(
         session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard
     )
@@ -581,7 +632,7 @@ def _build_agent(
     # KHÔNG truyền customer_name — họ tên thật không được rời hệ thống lên LLM
     # (ADR-010). Giữ tham số ở chữ ký hàm để không vỡ caller cũ.
     system_prompt = build_system_prompt(current_time=dt.datetime.utcnow())
-    return create_agent(model, tools, system_prompt=system_prompt, checkpointer=_CHECKPOINTER)
+    return create_agent(chat_model, tools, system_prompt=system_prompt, checkpointer=_CHECKPOINTER)
 
 
 def run_agent_turn(
@@ -639,6 +690,10 @@ def run_agent_turn(
                 "tool_calls": [],
                 "ticket_id": None,
                 "should_escalate": False,
+                # GĐ3 — đường nhẹ KHÔNG gọi model nào (định tuyến trước khi
+                # chạm LLM) ⟹ None/rỗng là SỰ THẬT, không phải "không đọc được".
+                "model": None,
+                "models_da_thu": [],
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
                           "cached_input_tokens": 0, "reasoning_tokens": 0,
                           "input_chars": 0, "so_luot_goi_model": 0,
@@ -688,8 +743,18 @@ def run_agent_turn(
     # cùng user_id trong 1 lần chạy eval sẽ nối tiếp hội thoại của nhau).
     config = {"configurable": {"thread_id": thread_id or user_id}}
 
+    # `agent` ở trên CHỈ để đọc state trước lượt — KHÔNG phụ thuộc model nào
+    # (checkpoint là lịch sử hội thoại, không phải hiện vật của một model cụ
+    # thể) nên KHÔNG cần rebuild theo từng lần xoay bên dưới.
     state_before = agent.get_state(config)
     prev_len = len(state_before.values.get("messages", [])) if state_before.values else 0
+
+    # GĐ3 (876a240) — BỂ MODEL + XOAY. `models_da_thu` liệt kê MỌI model đã
+    # thử trong lượt này theo thứ tự (kể cả lần bị từ chối) — nhà cung cấp
+    # tính tiền CẢ LẦN THẤT BẠI, "chứng từ đối soát hoá đơn" (876a240) phải
+    # ghi đủ, không chỉ ghi model cuối cùng trả lời.
+    models_da_thu: list[str] = []
+    model_dang_thu = llm_pool.model_dau_luot()
 
     # Span gốc "agent_turn" — 1 lượt chat là 1 vòng lặp ReAct nhiều bước (LLM
     # generation + tool call xen kẽ), KHÔNG PHẢI 1 khối duy nhất (Giai đoạn 1
@@ -700,36 +765,93 @@ def run_agent_turn(
         root_span.set_attribute("fin05.user_id", user_id)
         root_span.set_attribute("fin05.thread_id", thread_id or user_id)
         root_span.set_attribute("fin05.otp_verified", otp_verified_at is not None)
-        def _invoke():
-            return agent.invoke(
-                {"messages": [HumanMessage(content=scrub_pii(message) or message)]},
-                config={
-                    **config,
-                    "callbacks": [OTelTracingCallbackHandler()],
-                    "recursion_limit": _AGENT_RECURSION_LIMIT,
-                },
-            )
 
-        # AGENT_TURN_TIMEOUT_SECONDS — OPENAI_TIMEOUT_SECONDS chỉ chặn TỪNG
-        # lượt gọi OpenAI riêng lẻ; 1 lượt /agent/chat có thể cần NHIỀU lượt
-        # gọi xen kẽ với tool (ReAct), nên tổng thời gian vẫn có thể vượt xa
-        # (đo thật: 70s cho 1 request) nếu không chặn RIÊNG ở đây. Chạy trong
-        # thread riêng để `.result(timeout=...)` trả lỗi có kiểm soát cho
-        # client kịp lúc. CỐ Ý KHÔNG dùng `with ThreadPoolExecutor(...) as
-        # executor:` — `__exit__` mặc định gọi `shutdown(wait=True)`, tức
-        # BLOCK tới khi thread dở xong mới thoát `with`, xoá sạch tác dụng
-        # của timeout. `shutdown(wait=False)` khi timeout: không huỷ được
-        # lượt gọi OpenAI đang chạy dở bên dưới (Python không kill thread
-        # được), nhưng trả quyền điều khiển lại cho client NGAY, không đợi.
-        executor = ThreadPoolExecutor(max_workers=1)
-        # Mốc để sổ trả lời được "lượt này CHẠY BAO LÂU rồi mới hỏng".
-        # Thiếu nó thì nhãn `timeout` là một lời khẳng định KHÔNG KIỂM ĐƯỢC:
-        # một lượt bỏ cuộc tức thì và một lượt chạy trọn 45 giây trông y hệt
-        # nhau trong sổ. Có nó thì `giay_da_troi ≈ AGENT_TURN_TIMEOUT_SECONDS`
-        # là bằng chứng nhãn ĐÚNG, còn `0,4 giây` là bằng chứng nhãn SAI.
-        _bat_dau = time.monotonic()
+        # GĐ3 — VÒNG XOAY. Bọc quanh build-agent + invoke, KHÔNG bọc quanh ba
+        # nhánh except hiện có bên dưới: nhánh rotatable (APIError mang tín
+        # hiệu hết hạn ngạch, CÒN model khác trong bể) được xử lý Ở ĐÂY rồi
+        # `continue`; mọi nhánh KHÔNG rotatable (429 · lỗi không-phải-quota ·
+        # bể đã cạn · timeout/recursion) `raise` NGUYÊN VẸN ra ngoài vòng lặp
+        # để BA except hiện có xử lý Y HỆT trước GĐ3 — không đổi hành vi cho
+        # các ca đó, chỉ THÊM một đường rẽ mới trước khi tới chúng.
+        model_da_tra_loi: str | None = None
         try:
-            result = executor.submit(_invoke).result(timeout=AGENT_TURN_TIMEOUT_SECONDS)
+            while True:
+                agent = _build_agent(
+                    session, user_id=user_id, customer_name=None,  # PII-OK: luôn None, họ tên không rời hệ thống (ADR-010)
+                    otp_verified_at=otp_verified_at, guard=guard, model=model_dang_thu,
+                )
+                models_da_thu.append(model_dang_thu)
+
+                def _invoke():
+                    return agent.invoke(
+                        {"messages": [HumanMessage(content=scrub_pii(message) or message)]},
+                        config={
+                            **config,
+                            "callbacks": [OTelTracingCallbackHandler()],
+                            "recursion_limit": _AGENT_RECURSION_LIMIT,
+                        },
+                    )
+
+                # AGENT_TURN_TIMEOUT_SECONDS — OPENAI_TIMEOUT_SECONDS chỉ chặn
+                # TỪNG lượt gọi OpenAI riêng lẻ; 1 lượt /agent/chat có thể cần
+                # NHIỀU lượt gọi xen kẽ với tool (ReAct), nên tổng thời gian
+                # vẫn có thể vượt xa (đo thật: 70s cho 1 request) nếu không
+                # chặn RIÊNG ở đây. Chạy trong thread riêng để
+                # `.result(timeout=...)` trả lỗi có kiểm soát cho client kịp
+                # lúc. CỐ Ý KHÔNG dùng `with ThreadPoolExecutor(...) as
+                # executor:` — `__exit__` mặc định gọi `shutdown(wait=True)`,
+                # tức BLOCK tới khi thread dở xong mới thoát `with`, xoá sạch
+                # tác dụng của timeout. `shutdown(wait=False)` khi timeout:
+                # không huỷ được lượt gọi OpenAI đang chạy dở bên dưới (Python
+                # không kill thread được), nhưng trả quyền điều khiển lại cho
+                # client NGAY, không đợi. Một executor MỚI mỗi lần thử — dùng
+                # lại executor cũ sau khi nó đã `shutdown` là lỗi.
+                executor = ThreadPoolExecutor(max_workers=1)
+                # Mốc để sổ trả lời được "lượt này CHẠY BAO LÂU rồi mới hỏng".
+                # Thiếu nó thì nhãn `timeout` là một lời khẳng định KHÔNG KIỂM
+                # ĐƯỢC: một lượt bỏ cuộc tức thì và một lượt chạy trọn 45 giây
+                # trông y hệt nhau trong sổ. Có nó thì
+                # `giay_da_troi ≈ AGENT_TURN_TIMEOUT_SECONDS` là bằng chứng
+                # nhãn ĐÚNG, còn `0,4 giây` là bằng chứng nhãn SAI.
+                _bat_dau = time.monotonic()
+                try:
+                    result = executor.submit(_invoke).result(timeout=AGENT_TURN_TIMEOUT_SECONDS)
+                    model_da_tra_loi = model_dang_thu
+                    break
+                except RateLimitError:
+                    # 429 KHÔNG BAO GIỜ xoay — nghẽn thoáng qua, không phải
+                    # "hết token" (ràng buộc PO 876a240). Ném nguyên vẹn cho
+                    # except RateLimitError bên ngoài xử lý y hệt trước GĐ3.
+                    raise
+                except APIError as e:
+                    executor.shutdown(wait=False)
+                    mo_ta = _mo_ta_loi_nha_cung_cap(e, model=model_dang_thu)
+                    # Ràng buộc PO 876a240: ưu tiên `status_code` khi nhà
+                    # cung cấp CÓ trả — 403 luôn coi là quota bất kể câu chữ,
+                    # KHÔNG phụ thuộc thuần vào khớp chuỗi mong manh
+                    # (`co_dau_hieu_het_han_muc`, xem cảnh báo tại chỗ khai
+                    # nó). Chỉ dựa vào chuỗi khi KHÔNG có status_code — một số
+                    # lỗi transport không mang mã trạng thái.
+                    la_quota = mo_ta["ma_trang_thai"] == 403 or (
+                        mo_ta["ma_trang_thai"] is None and bool(mo_ta["co_dau_hieu_het_han_muc"])
+                    )
+                    if not la_quota:
+                        raise  # lỗi không-phải-quota — KHÔNG xoay, đường cũ
+                    llm_pool.danh_dau_can(model_dang_thu)
+                    model_ke = llm_pool.model_dau_luot(da_thu=set(models_da_thu))
+                    if model_ke is None:
+                        # BỂ CẠN TOÀN PHẦN — ném NGUYÊN VẸN lỗi quota cuối
+                        # cùng cho except APIError bên ngoài. Đây CHÍNH LÀ
+                        # thông điệp "cần can thiệp" đã có (không hứa mốc thời
+                        # gian, chỉ đường sang kênh khác) — bể cạn toàn phần
+                        # về bản chất LÀ "nhà cung cấp từ chối liên tục",
+                        # không cần một thông điệp/cơ chế thứ hai.
+                        raise
+                    model_dang_thu = model_ke
+                    continue
+                # GraphRecursionError/FutureTimeoutError: không có except nào
+                # ở TẦNG NÀY bắt chúng — chúng propagate thẳng ra try bên
+                # ngoài, đúng hành vi cũ (không xoay trên timeout/recursion).
         except RateLimitError as e:
             # 429 quá tải nhà cung cấp. TRƯỚC BẢN NÀY nó không nằm trong tuple
             # `except` dưới -> rơi thẳng ra ngoài thành HTTP 500, khách nhận
@@ -787,6 +909,10 @@ def run_agent_turn(
                     "chưa bị mất gì cả."
                 ),
                 "tool_calls": [],
+                # GĐ3 — 429 KHÔNG xoay (ràng buộc PO), nên model_dang_thu ở
+                # đây LUÔN là model DUY NHẤT đã thử cho lượt này.
+                "model": model_dang_thu,
+                "models_da_thu": list(models_da_thu),
                 "ticket_id": None,
                 "should_escalate": False,
                 "usage": {
@@ -831,7 +957,7 @@ def run_agent_turn(
             # Ghép hai trục làm một sinh ra CẢ HAI lỗi sai: nổ to thì khách
             # nhận 500 (đúng ca hôm nay), êm thì vận hành không biết khoá sai.
             executor.shutdown(wait=False)
-            mo_ta = _mo_ta_loi_nha_cung_cap(e)
+            mo_ta = _mo_ta_loi_nha_cung_cap(e, model=model_dang_thu)
             can_thiep = bool(mo_ta["can_can_thiep"])
             # HAI TÊN SỰ KIỆN RIÊNG, không phải một tên với một trường phân
             # loại. Lý do (security ①): có tên riêng thì `grep` ra được ngay hôm
@@ -904,6 +1030,12 @@ def run_agent_turn(
             _kq = {
                 "reply": reply,
                 "tool_calls": [],
+                # GĐ3 — nhánh này CŨNG là đích của "bể cạn toàn phần" (mọi
+                # model trong LLM_MODEL_POOL đều bị đánh dấu cạn trong lượt
+                # này). `models_da_thu` khi đó có ĐỦ mọi model đã thử, không
+                # chỉ model cuối — đúng yêu cầu "chứng từ đối soát" (876a240).
+                "model": None,  # KHÔNG model nào trả lời thành công ở nhánh này
+                "models_da_thu": list(models_da_thu),
                 "ticket_id": None,          # CỐ Ý: xem chú thích ở _LOI_CAN_CAN_THIEP
                 "should_escalate": False,
                 "usage": {
@@ -987,6 +1119,10 @@ def run_agent_turn(
                 "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là "
                 + handoff["ticket_id"]
                 + ".",
+                # GĐ3 — timeout/recursion KHÔNG xoay (ràng buộc PO), nên chỉ
+                # có ĐÚNG MỘT model bị thử cho lượt này.
+                "model": model_dang_thu,
+                "models_da_thu": list(models_da_thu),
                 # `None`, KHÔNG phải `[]`. Đây là bản vá cho một lời nói dối của
                 # dữ liệu: `[]` nghĩa là "không tool nào được gọi", mà ở nhánh
                 # này ta KHÔNG BIẾT — `_invoke` đã ném lỗi nên không có
@@ -1063,7 +1199,7 @@ def run_agent_turn(
             extra={
                 "user_id": user_id,
                 "thread_id": thread_id or user_id,
-                "model": LLM_MODEL,
+                "model": model_da_tra_loi,
                 "so_message_luot_nay": len(turn_messages),
                 "finish_reason": ly_do_dung,
                 "ghi_chu": "Content rỗng nhưng KHÔNG phải do hết trần — chưa rõ nguyên nhân.",
@@ -1131,6 +1267,12 @@ def run_agent_turn(
         # Khai ở đây vì tên trường không nói ra điều đó, và một trường không
         # khai nó đếm gì thì MỌI giá trị của nó đều mơ hồ, kể cả giá trị đúng.
         "so_luot_goi_model": 0,
+        # BA trạng thái của token, KHÔNG hai (Lead đo 19/08: 4 lượt CÓ gọi
+        # model mà tokens vẫn ghi 0 — "đã gọi, nhà cung cấp không báo số",
+        # KHÔNG PHẢI "0 đồng"). `False` = mọi lượt gọi trong turn này đều có
+        # số hợp lệ; `True` = ÍT NHẤT một lượt model đã đáp nhưng không có
+        # total_tokens — cong_chi_tieu() đọc cờ này để KHÔNG cộng 0 im lặng.
+        "token_khong_doc_duoc": False,
         "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
         "so_tool_schema_gui": _SO_TOOL_GUI,
         "suy_luan_gui": _SUY_LUAN_GUI,
@@ -1155,6 +1297,12 @@ def run_agent_turn(
             )
             for k in ("input_tokens", "output_tokens", "total_tokens"):
                 usage[k] += meta.get(k, 0) or 0
+            # Model ĐÃ đáp (ta đang trong nhánh `meta` truthy) nhưng không báo
+            # total_tokens -> "không đọc được", không phải "0 đồng" thật. Cờ
+            # NÀY giữ trạng thái thứ ba lại, phép cộng `or 0` ở trên vẫn giữ
+            # nguyên (Lead: đừng đổi vòng lặp, sẽ hỏng lượt vì lỗi ghi sổ).
+            if not meta.get("total_tokens"):
+                usage["token_khong_doc_duoc"] = True
             # LangChain gom chi tiết provider vào `input_token_details`; OpenAI
             # đặt phần đã cache ở khoá `cache_read`. Đọc phòng thủ vì tên khoá
             # là hợp đồng của provider, không phải của ta.
@@ -1165,6 +1313,41 @@ def run_agent_turn(
             usage["reasoning_tokens"] += (meta.get("output_token_details") or {}).get("reasoning", 0) or 0
             chi_tiet = meta.get("input_token_details") or {}
             usage["cached_input_tokens"] += chi_tiet.get("cache_read", 0) or 0
+
+    # Lead đo 19/08: `meta.get(k, 0) or 0` ở trên bóp "không đọc được" thành 0
+    # NGAY TRONG vòng lặp — nhưng `cong_chi_tieu()` (graph._ghi_so) vốn đã
+    # đúng cho ca này, chỉ là đường `None` của nó không bao giờ tới được vì
+    # usage khởi tạo bằng 0, không phải None (graph.py:1242). Vá Ở ĐÂY, sau
+    # vòng lặp, KHÔNG sửa `cong_chi_tieu`: nếu model ĐÃ đáp (so_luot_goi_model
+    # > 0) mà tổng token vẫn 0 sau khi cộng hết mọi lượt — nghĩa là KHÔNG một
+    # lượt nào báo số, không phải "0 đồng" — trả `None` để rơi đúng nhánh
+    # `cong_chi_tieu_bo_qua_khong_biet` đã có sẵn thay vì bị nuốt ở nhánh
+    # `tokens <= 0` câm lặng của `cong_chi_tieu`.
+    if usage["so_luot_goi_model"] > 0 and usage["total_tokens"] == 0:
+        usage["input_tokens"] = None
+        usage["output_tokens"] = None
+        usage["total_tokens"] = None
+
+    # 🔴 Hai GIỚI HẠN Lead khai 19/08 — cả hai là LỰA CHỌN, không phải sót:
+    #
+    # ① Ca "biết MỘT PHẦN" (nhiều lượt gọi/turn — hình dạng vòng xoay tạo ra):
+    #    model A báo 20.000 token, model B (đã xoay sang) không báo gì. Guard
+    #    trên chỉ bắn khi TỔNG = 0 — ở đây tổng = 20.000 ≠ 0, guard im, phần
+    #    của B KHÔNG BAO GIỜ vào trần. Đánh đổi CÓ Ý: đếm phần biết còn hơn bỏ
+    #    cả lượt. Cờ `token_khong_doc_duoc` (per-call, xem trên) vẫn lên `True`
+    #    nên vẫn TRUY ĐƯỢC qua bộ đếm `so_luot_khong_doc_duoc_hom_nay()` — chỉ
+    #    là phần thiếu không cộng dồn được vào số tiền, vì không có số để cộng.
+    #
+    # ② Ca "không biết CHÚT NÀO nhưng có MỘT PHẦN field đã biết": test thật đo
+    #    được — `{"input_tokens":120,"output_tokens":0,"total_tokens":0}` — cả
+    #    BA field về `None`, kể cả `input_tokens=120` nhà cung cấp ĐÃ báo. Đây
+    #    là CHIỀU NGƯỢC của lỗi vừa vá (biến ĐÃ BIẾT thành KHÔNG BIẾT), chấp
+    #    nhận CÓ Ý: một khối usage_metadata báo dở thì tin cả khối cũng khó,
+    #    và giữ input_tokens riêng lẻ không giúp `cong_chi_tieu()` (nó cần
+    #    total_tokens) — không phải bỏ sót.
+    #
+    # Cả hai đủ để "trần tối giản" (PO 876a240) chấp nhận sai số nhỏ, có KHAI,
+    # có TRUY ĐƯỢC (bộ đếm `khong_doc_duoc`) — không phải để dựng thêm cơ chế.
 
     # HAI ca rỗng KHÁC HẲN NHAU, cố ý không gộp:
     #   rỗng + finish_reason="length" -> model tiêu hết trần token vào phần suy
@@ -1177,7 +1360,7 @@ def run_agent_turn(
             "agent_reply_rong_het_tran",
             extra={
                 "user_id": user_id,
-                "model": LLM_MODEL,
+                "model": model_da_tra_loi,
                 "finish_reason": ly_do_dung,
                 "reasoning_tokens": usage["reasoning_tokens"],
                 "output_tokens": usage["output_tokens"],
@@ -1185,7 +1368,7 @@ def run_agent_turn(
             },
         )
         raise TraLoiRongError(
-            f"Model {LLM_MODEL} tra noi dung RONG voi finish_reason=length — "
+            f"Model {model_da_tra_loi} tra noi dung RONG voi finish_reason=length — "
             f"tran token bi phan suy nghi an het ({usage['reasoning_tokens']}/"
             f"{usage['output_tokens']} token dau ra la reasoning). "
             f"Nang LLM_MAX_TOKENS (hien {LLM_MAX_TOKENS})."
@@ -1228,6 +1411,12 @@ def run_agent_turn(
     _kq_cuoi = {
         "reply": reply_da_loc,
         "tool_calls": tool_calls_out,
+        # GĐ3 (876a240) — model ĐÃ TRẢ LỜI thật (không phải LLM_MODEL hằng
+        # số) + MỌI model đã thử trong lượt này theo thứ tự, kể cả lần bị
+        # nhà cung cấp từ chối (nhà cung cấp tính tiền CẢ lần thất bại —
+        # "chứng từ đối soát hoá đơn" phải ghi đủ, không chỉ model cuối).
+        "model": model_da_tra_loi,
+        "models_da_thu": list(models_da_thu),
         "ticket_id": ticket_id,
         "should_escalate": should_escalate,
         "usage": usage,

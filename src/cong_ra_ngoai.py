@@ -67,8 +67,10 @@ from pathlib import Path
 
 import httpx
 
+from src.config import TRAN_TOKEN_LLM_MOI_NGAY
 from src.dau_ma_nguon import bam_ma_nguon
 from src.observability.so_usage import ghi_usage
+from src.redis_client import get_default_client
 
 _logger = logging.getLogger("fin05.cong_ra_ngoai")
 
@@ -134,6 +136,147 @@ def _khai_tuong_minh() -> bool | None:
     return v.strip().lower() not in _TAT
 
 
+# ---------------------------------------------------------------------------
+# TRẦN CHI TIÊU TỐI GIẢN (GĐ3, PO thật chốt 19/08 — `876a240`)
+#
+# 🔴 CHỈ token model CHAT (LLM), KHÔNG bao gồm chi tiêu embedding — dù cả hai
+# đi CÙNG transport này (`http_client_dung_chung()` dùng chung cho `ChatOpenAI`
+# lẫn `OpenAIEmbeddings`). Lý do KHÔNG gộp: embedding KHÁC nhà cung cấp
+# (`EMBEDDING_BASE_URL` != `LLM_BASE_URL`, xem config.py) — cộng token của hai
+# nhà cung cấp vào một trần là cộng hai đơn vị khác nhau rồi so với một ngưỡng,
+# ra một con số TRÔNG hợp lệ mà không có nghĩa gì. Tên biến `TRAN_TOKEN_LLM_
+# MOI_NGAY` tự khai giới hạn này — ĐÚNG BẰNG CẤU TRÚC, không chỉ bằng tên:
+# `cong_chi_tieu()` HIỆN TẠI có ĐÚNG MỘT điểm gọi trong repo, tại
+# `src/agents/graph.py::_ghi_so` (đường LLM) — `src/rag/store.py` (đường
+# embedding) không gọi hàm này ở đâu cả.
+#
+# 🔴 SẼ THÀNH HAI, có chủ đích (PO-agent chốt 19/08, sau ping thăm dò deepseek
+# thật): hàm ping khai bể (`MODEL_POOL_PING`, CHƯA VIẾT — chờ QA/QC đổi cổng
+# đếm-điểm-gọi từ ĐẾM SỐ sang DANH SÁCH TÊN trước) SẼ là điểm gọi thứ hai —
+# ping cũng tiêu tiền thật, không đi qua trần thì trần nói dối đúng lúc
+# `MODEL_POOL_PING=eager` đốt hạn ngạch nhanh nhất (crashloop = ping dồn dập).
+# Khi hàm ping tồn tại, danh sách hợp lệ là { `_ghi_so`, <tên hàm ping cố
+# định> } — KHÔNG phải "đếm == 2", đúng bài học "chốt bằng TÊN, không bằng
+# SỐ" đã dùng cho cổng nhập bể.
+#
+# FAIL-CLOSED khi Redis lỗi — NGƯỢC với `llm_pool.py` (fail-open) và
+# `thread_signals.py` (fail-open) một cách CÓ CHỦ ĐÍCH: đây là cơ chế BẢO VỆ
+# TIỀN, không phải tiện ích né lỗi. Không đọc được trạng thái chi tiêu ⟹
+# KHÔNG BIẾT có đang vượt trần không ⟹ coi như CÓ vượt, chặn. Đọc sai theo
+# hướng ngược lại (coi như chưa vượt) biến một sự cố hạ tầng thành chi tiêu
+# KHÔNG GIỚI HẠN — đúng thất bại một trần chi tiêu tồn tại để ngăn.
+#
+# CỬA SỔ ĐUA — khai, không phải sửa: `cho_phep_goi_ra_ngoai()` đọc tổng TRƯỚC
+# khi gọi, `cong_chi_tieu()` cộng vào SAU khi lượt xong. Nhiều lượt đồng thời
+# có thể cùng đọc "chưa vượt" rồi cùng gọi, tổng thật vượt trần một quãng.
+# Chấp nhận được cho trần THEO NGÀY (sai số nhỏ so với quy mô một ngày) — ghi
+# ra để người sau không tưởng nhầm là bug khi phát hiện lại.
+_KHOA_CHI_TIEU_PREFIX = "fin05:chi_tieu_llm_token:"
+# TTL rộng hơn 1 ngày để không xoá nhầm giữa lúc đọc/ghi lệch múi giờ nhẹ —
+# khoá đã mang NGÀY trong tên nên không tái dùng, TTL chỉ để tự dọn rác.
+_TTL_CHI_TIEU_GIAY = 3 * 24 * 3600
+
+# Đếm LƯỢT (không phải token — token chính là thứ không đọc được), song song
+# với bộ đếm chi tiêu. Lead đo 19/08: `graph.py` đã ghi cờ `token_khong_doc_
+# duoc` vào sổ usage.jsonl từ bản vá None-vs-0, nhưng KHÔNG NƠI NÀO ĐỌC nó —
+# một trạng thái được ghi mà không ai theo dõi có cùng tác dụng với không ghi.
+# Bộ đếm này biến nó thành MỘT CON SỐ đọc được cùng chỗ với trần chi tiêu,
+# không phải một cờ nằm chờ ai đó tình cờ mở log lên đọc.
+_KHOA_KHONG_DOC_DUOC_PREFIX = "fin05:chi_tieu_llm_khong_doc_duoc:"
+
+
+def _khoa_chi_tieu_hom_nay() -> str:
+    return f"{_KHOA_CHI_TIEU_PREFIX}{datetime.now(UTC).strftime('%Y%m%d')}"
+
+
+def _khoa_khong_doc_duoc_hom_nay() -> str:
+    return f"{_KHOA_KHONG_DOC_DUOC_PREFIX}{datetime.now(UTC).strftime('%Y%m%d')}"
+
+
+def ghi_nhan_chi_tieu_khong_doc_duoc() -> None:
+    """+1 vào bộ đếm LƯỢT "gọi model rồi, không đọc được token" HÔM NAY.
+
+    KHÔNG cộng vào trần chi tiêu (không có số để cộng) — đây là dụng cụ QUAN
+    SÁT, không phải một cơ chế chặn thứ hai. Đọc `so_luot_khong_doc_duoc_
+    hom_nay()` để biết điểm mù của trần đang nở tới đâu trong ngày.
+
+    Redis lỗi -> log cảnh báo, KHÔNG raise — cùng triết lý `cong_chi_tieu()`.
+    """
+    try:
+        client = get_default_client()
+        khoa = _khoa_khong_doc_duoc_hom_nay()
+        client.incrby(khoa, 1)
+        client.expire(khoa, _TTL_CHI_TIEU_GIAY)
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("ghi_nhan_khong_doc_duoc_that_bai", extra={"loi": repr(e)})
+
+
+def so_luot_khong_doc_duoc_hom_nay() -> int | None:
+    """Bao nhiêu lượt HÔM NAY đã gọi model mà không đọc được token.
+
+    `None` = không đọc được (Redis lỗi) — KHÁC `0` = đọc được và đúng là
+    chưa có lượt nào, cùng quy ước "None khác 0" xuyên suốt file này.
+    """
+    try:
+        raw = get_default_client().get(_khoa_khong_doc_duoc_hom_nay())
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("doc_khong_doc_duoc_that_bai", extra={"loi": repr(e)})
+        return None
+    return int(raw) if raw else 0
+
+
+def cong_chi_tieu(tokens: int | None) -> None:
+    """Cộng `tokens` vào tổng chi tiêu LLM HÔM NAY (UTC). Gọi cho MỌI lượt
+    LLM (kể cả lượt hỏng), KHÔNG gọi cho lượt embedding (xem khối comment
+    phía trên) — thiết kế để gọi vô điều kiện từ `graph._ghi_so`, hàm ĐÃ chạy
+    trên cả 5 đường trả về (nhẹ · 3 fallback · nặng).
+
+    🔴 `tokens=None` (không phải `0`) nghĩa KHÔNG ĐỌC ĐƯỢC — cùng quy ước
+    "None khác 0" đã dùng xuyên `graph.py`/`so_usage.py`. Bỏ qua CÓ Ý, không
+    phải lỗi: một lượt hỏng-không-biết-tốn-bao-nhiêu (timeout/đứt mạng) không
+    thể cộng một con số không tồn tại vào trần mà không tự bịa số — đây là
+    GIỚI HẠN ĐÃ KHAI của bản "trần tối giản" (PO `876a240` cố ý không dựng hệ
+    cost-guard đầy đủ), không phải khoảng trống bị bỏ sót.
+
+    Redis lỗi -> log cảnh báo, KHÔNG raise: một lượt đã tính tiền RỒI không
+    được phép hỏng vì ghi sổ thất bại (đúng hợp đồng của `ghi_usage`, cùng
+    file này gọi ngay bên dưới) — mất một dòng cộng dồn không mất tiền đã tiêu.
+    """
+    if tokens is None:
+        _logger.info("cong_chi_tieu_bo_qua_khong_biet")
+        return
+    if tokens <= 0:
+        return
+    try:
+        client = get_default_client()
+        khoa = _khoa_chi_tieu_hom_nay()
+        client.incrby(khoa, tokens)
+        client.expire(khoa, _TTL_CHI_TIEU_GIAY)
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("cong_chi_tieu_that_bai", extra={"tokens": tokens, "loi": repr(e)})
+
+
+def _duoi_tran_chi_tieu_hom_nay() -> bool:
+    """Tổng chi tiêu LLM hôm nay còn DƯỚI trần không?
+
+    `TRAN_TOKEN_LLM_MOI_NGAY is None` (biến rỗng/thiếu) ⟹ luôn `True` — KHÔNG
+    giới hạn, đúng hành vi trước khi có trần này.
+
+    FAIL-CLOSED: Redis lỗi ⟹ `False` (coi như ĐÃ vượt) — xem lý do ở khối
+    comment đầu mục "TRẦN CHI TIÊU" phía trên. Đây là hàm DUY NHẤT trong file
+    này đảo ngược triết lý fail-open của các cơ chế phụ trợ khác — cố ý.
+    """
+    if TRAN_TOKEN_LLM_MOI_NGAY is None:
+        return True
+    try:
+        raw = get_default_client().get(_khoa_chi_tieu_hom_nay())
+        da_tieu = int(raw) if raw else 0
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("doc_chi_tieu_that_bai_coi_nhu_vuot_tran", extra={"loi": repr(e)})
+        return False
+    return da_tieu < TRAN_TOKEN_LLM_MOI_NGAY
+
+
 def cho_phep_goi_ra_ngoai() -> tuple[bool, str]:
     """Có được phép gọi ra nhà cung cấp không, VÀ vì sao — trả cả hai.
 
@@ -177,6 +320,12 @@ def cho_phep_goi_ra_ngoai() -> tuple[bool, str]:
     """
     khai = _khai_tuong_minh()
     if khai is not None:
+        # Trần chi tiêu là chốt ĐỘC LẬP, đứng SAU lời khai cho phép — một lời
+        # khai `=1` mở đường CHO PHÉP về nguyên tắc, nhưng KHÔNG mua quyền
+        # vượt trần đã tự đặt. Chỉ hỏi Redis khi nhánh này CÓ THỂ trả True —
+        # nhánh False (khai=0) không cần biết trần, kết quả đã là chặn.
+        if khai and not _duoi_tran_chi_tieu_hom_nay():
+            return False, "tran_chi_tieu"
         return khai, "khai_tuong_minh"
     # `pytest` trong `sys.modules` = đang chạy dưới bộ test. Đây là SUY ĐOÁN,
     # không phải lời khai — nên nó được ghi nhãn khác, và nó đứng SAU lời khai
