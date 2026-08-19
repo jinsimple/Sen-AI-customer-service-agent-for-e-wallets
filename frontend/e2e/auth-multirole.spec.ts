@@ -20,6 +20,21 @@ import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session"
  * đúng, đúng lúc, và cookie trình duyệt thật sự được cập nhật.
  */
 
+// 🔴 ĐIỀU KIỆN CHẠY ĐƯỢC (GĐ2.5, 19/08 — cùng lỗ với auth.spec.ts:272+,
+// khai đủ ở đây vì file này dùng BACKEND_URL độc lập, không import chung):
+// bước 4 (:95, đóng vai kẻ tấn công rotate refresh_token) và bước 5 (:117,
+// kiểm reuse-sau-logout) gọi THẲNG `${BACKEND_URL}/auth/refresh`, bỏ qua BFF
+// có chủ đích (mô phỏng kẻ tấn công không đi qua trình duyệt hợp pháp — xem
+// comment tại 2 bước đó). Backend CHỦ ĐÍCH không có `ports:` trong
+// docker-compose.yml, chỉ EXPOSE trong mạng Docker nội bộ (Caddyfile:11-26)
+// — chạy Playwright TỪ HOST luôn ECONNREFUSED ::1:8010 ở 2 bước này, BẤT KỂ
+// logic refresh/rotate/reuse-detect có đúng hay không. Trước GĐ2.5 lỗ này
+// CHƯA từng bị khai riêng cho file này (chỉ khai cho AUTH-008 ở auth.spec.ts)
+// — dễ lẫn với thất bại do OTP/rail freshness thật, PHẢI tách 2 nguyên nhân
+// trước khi kết luận ca này đỏ vì đâu.
+// CÁCH GỠ: giống hệt auth.spec.ts — chạy Playwright TRONG mạng Docker, đi
+// cùng chuyến GĐ3 (Coder), không phải điều kiện merge GĐ2.5. Không tự publish
+// cổng backend (PO đã BÁC).
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8010";
 
 const CUSTOMER = { phone: "0387000001", home: "/chat" };

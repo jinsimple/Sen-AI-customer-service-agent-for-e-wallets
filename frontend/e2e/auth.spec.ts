@@ -277,6 +277,27 @@ test.describe("AUTH-* — OTP phiên làm việc + câu hỏi bảo mật", () =
 // — 2026-08-11: hạ tầng browser-level time-travel đã dựng xong
 // (helpers/otp-forge.ts, ký lại JWT thật bằng jsonwebtoken cùng
 // JWT_SECRET_KEY backend đang dùng), un-skip AUTH-007/008 bên dưới.
+//
+// 🔴 ĐIỀU KIỆN CHẠY ĐƯỢC — cần ĐỦ HAI, thiếu 1 là ECONNREFUSED chứ không
+// phải fail thật (GĐ2.5, 19/08, sau khi AUTH-008 đỏ vì lý do KHÁC assertion):
+//   1. JWT_SECRET_KEY khớp — điều kiện trên, đã có từ 2026-08-11.
+//   2. runner-với-tới-được-backend — AUTH-008 (2 case dưới) gọi THẲNG
+//      `${BACKEND_URL}/tools/create_ticket` (bỏ qua BFF, xem comment tại
+//      test.describe của nó), tức phải resolve/connect được backend:8010.
+//      Backend CHỦ ĐÍCH không có `ports:` trong docker-compose.yml (chỉ
+//      EXPOSE trong mạng Docker nội bộ — xem Caddyfile:11-26, một ngoại lệ
+//      DUY NHẤT đã mở cho /ws/live-chat, không mở cho route này) — chạy
+//      Playwright TỪ HOST (bên ngoài mạng Docker) luôn là ECONNREFUSED
+//      ::1:8010, bất kể OTP/forge đúng hay sai. Không tự publish cổng backend
+//      để né (PO đã BÁC — đổi kiến trúc bảo mật để tiện 1 bài test).
+//      CÁCH GỠ (giao Coder, đi cùng chuyến GĐ3 — không phải điều kiện merge
+//      GĐ2.5): chạy Playwright TRONG mạng Docker (container riêng hoặc
+//      `docker compose run` join network hiện có) thay vì từ host. Một việc
+//      này gỡ cùng lúc BA chỗ: AUTH-008 (2 case) · AUTH-007 case "12h+1 phút"
+//      nếu vẫn cần gọi thẳng backend · lỗ CÙNG DẠNG ở auth-multirole.spec.ts
+//      (xem chú thích tại đó, KHÔNG khai trùng nội dung ở đây).
+//   Không nhận diện được rào này TRƯỚC khi chạy ⟹ dễ đọc nhầm ECONNREFUSED
+//   thành "bản vá hỏng" — chẩn nhầm gốc rễ, tốn 1 vòng điều tra oan.
 test.describe("AUTH-005 — ma trận hành động đã phủ qua các test khác", () => {
   test.skip(
     true,
