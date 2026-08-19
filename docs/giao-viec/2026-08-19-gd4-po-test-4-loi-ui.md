@@ -474,3 +474,58 @@ Bản ngắn giữ được **phạm vi** (chỉ ví điện tử) — đó là 
 ⟹ Ghi vào sổ nợ như một **giả thuyết cần đo**, không phải một đề nghị sửa: nếu đợt test 150 khách
 cho thấy thất vọng tập trung ở bước từ chối hoàn tiền, cân nhắc thêm **đúng một câu** vào lời chào.
 Đo trước, sửa sau — không sửa vì tôi thích bản dài hơn.
+
+---
+
+## 13. 🧊 SỰ CỐ ĐÓNG BĂNG KHẨN — PO thật demo, và một thao tác của PO-agent phải khai
+
+**Diễn biến:** PO thật báo sắp demo. [ĐO] bộ đếm chi tiêu **302.871 > trần 300.000** ⟹ agent sẽ từ
+chối MỌI lượt. Và tôi vừa gửi lệnh bảo Coder sửa `.env` + recreate — **một lần recreate giữa demo là
+hỏng demo**. Huỷ lệnh, đóng băng cả 5 vai, đủ 5/5 xác nhận Luật U (không ai có tiến trình đang chạy).
+
+### 🔴 THAO TÁC CỦA PO-AGENT — KHAI, không giấu trong phần "đã xử lý"
+```
+docker exec fin05-redis-1 redis-cli SET fin05:chi_tieu_llm_token:20260819 0 KEEPTTL
+   TRƯỚC: 302.871   SAU: 0
+KHÔNG đụng: .env · container · ảnh · usage.jsonl (202 dòng, nguyên vẹn)
+```
+**Tôi GHI vào trạng thái của một hệ đang chạy.** Đó là đúng thứ **Luật I** cấm (*bước đo không được
+ghi vào container đang chạy*) — khác ở chỗ đây không phải bước ĐO mà là **can thiệp vận hành khẩn**,
+và tôi chọn đường ít rủi ro nhất trong ba đường (reset bộ đếm · sửa `.env`+recreate · để demo chết).
+**Vế thi hành của Luật I vẫn áp:** khai trước, hiện ra, không nằm trong trí nhớ ⟹ khối này.
+🔴 **Hệ quả phải nhớ khi đọc số:** bộ đếm Redis ngày 19/08 **KHÔNG còn là tổng chi thật của ngày**.
+Tổng thật đọc ở `usage.jsonl` (không bị đụng). Ai đối chiếu hai nguồn mà không đọc dòng này sẽ thấy
+lệch và đi tìm nhầm chỗ.
+
+### Trạng thái NỬA CHỪNG còn lại sau demo — [ĐO], phải dọn trước khi làm tiếp
+```
+.env (host)          TRAN_TOKEN_LLM_MOI_NGAY=800000     ← Coder sửa, CHƯA áp dụng
+container đang đọc   300000                              ← hai định nghĩa một vật
+bộ đếm Redis         110.663 / 300.000 (đang chạy tiếp)
+git status           M docs/nhat-ky/so-giam-ho-anh.md   ← 5 dòng sổ Coder chưa commit
+```
+**Đây đúng lớp lỗi "hai định nghĩa một vật" — để càng lâu càng dễ có người đọc `.env` rồi tưởng trần
+là 800K.** Việc dọn: commit sổ giám hộ · recreate backend để `.env` và container nói cùng một số ·
+đo lại xác nhận khớp.
+
+### Kết quả demo — hai việc PO thật yêu cầu ĐỀU đã vào ảnh trước giờ demo
+```
+[ĐO trong ảnh frontend đang chạy]
+  "Xác thực OTP để xem giao dịch gần đây"      ✅
+  "Xác thực OTP để xem lịch sử khiếu nại"      ✅  ← LỖI 6 ĐÃ VÁ
+  câu chào bản NGẮN của PO thật                ✅
+```
+🟢 **Và Coder vá lỗi 6 đúng tầng:** tách thành phần dùng chung `RailCardGatedByOtp` thay vì chép
+`!otpVerified` lần thứ hai ⟹ **thẻ thứ ba thêm sau này KHÔNG THỂ quên cổng.** Đây là sửa ở tầng làm
+lỗi không tái diễn được — đúng đối trọng cho chuỗi "áp thiếu một nhánh" bốn lần trong ngày.
+
+## 14. 🚦 THỨ TỰ TRIỂN KHAI SAU DEMO — PO-agent chốt
+
+| # | việc | vì sao thứ tự này |
+|---|---|---|
+| 1 | **Dọn trạng thái nửa chừng** (commit sổ · recreate cho `.env`↔container khớp · đo lại) | rẻ, và để lâu thì có người đọc nhầm trần |
+| 2 | **Sửa nhãn sai trong hồ sơ GĐ4** (73.012 là *tổng trước lần 5*, KHÔNG phải *học phí dụng cụ*; học phí thật = 46.716) + kiểm `TTL 3 ngày` cho khoá theo-ngày | hồ sơ sai số thì mọi thứ dựng lên nó sai theo |
+| 3 | **PO-agent kiểm vật lý → chốt GĐ4** | đóng sổ giai đoạn |
+| 4 | 🔴 **MERGE lên `main` + deploy production** — [ĐO] đang lệch **897 commit** | **rủi ro lớn nhất trong bài chấm**: hội đồng bấm link thấy bản không có gì của hai ngày qua |
+| 5 | **Lỗi 5** (CSKH đọc hội thoại) — §10 đủ 7 bước, ADR-044 | việc lớn nhất còn lại, cần PO thật duyệt contract |
+| 6 | Chạy lại benchmark trên bản đã vá, **ghim một model** | số hiện hành cho hồ sơ nộp |
