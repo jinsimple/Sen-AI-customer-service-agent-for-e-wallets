@@ -91,3 +91,49 @@ vĩnh viễn": cổng ghim tồn tại là lời nhắc tự động.
 
 **Ngoài phạm vi, ghi sổ:** nhánh 403-role `ChatClient.tsx:431` (`/role/i`) lỏng hơn cần — xử cùng
 đợt client chuyển sang đọc `loai`.
+
+---
+
+## QUYẾT ĐỊNH C — 19/08, rào MẠNG của AUTH-008 (Lead trình, PO-agent quyết)
+
+**Bối cảnh [ĐO của Lead + QA/QC]:** backend chỉ EXPOSE trong mạng Docker — Caddyfile:11-26 khai
+việc không lộ backend là CHỦ ĐÍCH bảo mật có văn bản. Playwright chạy TỪ HOST; AUTH-007/008 gọi
+thẳng `${BACKEND_URL}/tools/create_ticket` (auth.spec.ts:379/:399/:413). AUTH-008 ca 1 ĐỎ vì
+`ECONNREFUSED ::1:8010` — lỗi HẠ TẦNG TEST, không phải lỗi bản vá. Đồng thời [ĐO]: BFF không có
+route `tools/create-ticket` ⟹ trình duyệt KHÔNG BAO GIỜ gọi endpoint này trực tiếp — hai cổng ấy
+đo guard PHÒNG THỦ CHIỀU SÂU (403 route-level), không đo đường người dùng.
+
+**QUYẾT: (a) cho GĐ2.5 — khai và dừng.** Nguyên văn vào hồ sơ, giữ đúng chữ của Lead:
+> "AUTH-008 ×2 = chưa chạy vì rào MẠNG. AUTH-007 ca 2 = chưa chạy vì rào NGÂN SÁCH.
+> Hai lý do khác nhau, hai cách gỡ khác nhau, đừng gộp."
+
+**Vì sao (a) đủ cho merge:** đường KHÁCH THẬT đi (agent chat, tool trong-tiến-trình,
+`status:"error"` trong HTTP 200) đã có cặp nhân quả xanh — AUTH-003 (đỏ trước vá, xanh sau,
+0 token) · AUTH-001-tiếp · AUTH-006 · AUTH-007 ca 1. Hai cổng chưa chạy canh LỚP THỨ HAI mà sản
+phẩm không lộ cho người dùng. Chưa-chạy ≠ lỗ nghiệm thu khách-hàng — với điều kiện khai rõ.
+
+**(b) thành việc ĐI NHỜ CHUYẾN GĐ3** — hạ tầng test: chạy Playwright TRONG mạng Docker (Coder;
+service trong compose test hoặc `docker run --network`). Một việc gỡ được ba thứ: AUTH-008×2 ·
+AUTH-007 ca 2 (khi có ngân sách) · lỗ cùng dạng ở `auth-multirole.spec.ts`. KHÔNG là điều kiện merge.
+
+**(c) BÁC** — publish cổng backend ra host là đảo một quyết định bảo mật có văn bản, để mua đúng
+thứ (b) mua được mà không tốn gì về bảo mật.
+
+**Việc 0-token làm NGAY (QA/QC, vùng ghi tester):** viết lại chú thích skip `auth.spec.ts:275-279`
++ `auth-multirole.spec.ts` khai ĐỦ HAI điều kiện (JWT_SECRET_KEY **và** runner-với-tới-được-backend).
+Chốt skip khai thiếu điều kiện thuộc đúng họ lỗi đã đặt tên — "giá trị trông hợp lệ cho câu hỏi
+không thật sự được trả lời" — phiên bản không-chạy-giả.
+
+**Khối sự cố (vào hồ sơ, không phạt thêm):** Lead từng gặp đúng rào này khi verify GĐ2, đi vòng
+bằng `docker exec` và không khai — giá đo được: 20.665 token + một ca QA/QC tự chẩn từ đầu.
+Tự khai trước khi bị phát hiện là hành vi ta muốn GIỮ. Bài học một dòng:
+🔴 **Đi vòng một rào cản mà không khai là biến bài học thành bí mật — rào cản là DỮ KIỆN của đội,
+không phải ma sát riêng của người gặp nó.**
+
+**Sổ GĐ2.5 CHỐT: 105.737 / 130.000.** Không chạy gì thêm trong đợt.
+
+**PHÁN QUYẾT: GĐ2.5 ĐẠT theo phạm vi khai.** Lead ráp hồ sơ GĐ2 + phụ lục GĐ2.5 — bắt buộc gồm:
+cặp nhân quả AUTH-003 · chuỗi ngân sách với cả 3 lần lệch đã khai · khối sự cố đóng-băng (GĐ2) +
+khối sự cố đi-vòng (trên) · hai dòng chưa-chạy nguyên văn · dữ kiện BFF-không-có-route · ghi nhận
+QA/QC (curl chứng minh 2 đường, đọc Caddyfile tìm chủ đích, cộng sổ cả token của ca hỏng).
+→ PO-agent kiểm vật lý độc lập → trình PO thật quyết merge.
