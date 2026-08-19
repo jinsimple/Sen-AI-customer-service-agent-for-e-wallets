@@ -64,3 +64,47 @@ dung trả về khi chat, VÀ nội dung gửi lên LLM, phải là tiếng Vi�
 - [ ] OTP xen giữa ⟹ trả lời tiếp câu cũ, khách không phải gõ lại
 - [ ] Không nhãn tiếng Anh nào lọt ra bong bóng chat
 - [ ] Smoke từ nay có ≥1 hành trình NHIỀU LƯỢT
+
+---
+
+## 5. 🔴 LỖI THỨ NĂM (PO thật bổ sung) — CSKH nhận vé mà KHÔNG có hội thoại bot↔khách
+
+**Nguyên văn PO thật:** *"khi khách yêu cầu gặp người thật — thì bên khung chat của CSKH cũng phải
+có lịch sử chat giữa bot và khách hàng — như thế họ mới có đủ thông tin để hỗ trợ khách."*
+
+**[ĐO PO-agent — xác nhận đúng là đang thiếu, không phải đã có mà chưa hiện]:**
+```
+request_human_handoff() → flag_human_handoff()  (complaint_intake.py:131)
+   lưu: human_handoff_requested=True · reason (MỘT CHUỖI) · ticket_id
+   KHÔNG lưu: hội thoại
+màn CSKH `tickets/[id]/TicketDetailClient.tsx` hiển thị:
+   investigation_logs · resolutions · tool_result     ← KHÔNG có khối hội thoại nào
+grep transcript|lich_su_chat|hoi_thoai|conversation trong frontend/src/  →  0 KẾT QUẢ
+```
+⟹ CSKH mở vé chỉ thấy **một câu `reason` do AI tóm tắt** + log điều tra. Toàn bộ lời khách tự nói —
+ngữ cảnh, cảm xúc, thứ họ đã kể — **không tới được người sắp hỗ trợ họ.** Khách phải kể lại từ đầu,
+đúng thứ họ vừa mất công kể cho bot.
+
+**Tin tốt: DỮ LIỆU ĐÃ CÓ, chỉ chưa ai nối.** [ĐO] Postgres có `checkpoints` · `checkpoint_blobs` ·
+`checkpoint_writes` · `messages` — LangGraph checkpointer đã lưu toàn bộ hội thoại theo `thread_id`,
+sống ngoài tiến trình. **Không phải xây kho mới, là nối một đường đọc.**
+
+**RÀNG BUỘC — đọc kỹ trước khi thiết kế, đây là chỗ dễ vi phạm nhất:**
+1. 🔴 **Thẩm quyền: route mới ⟹ `authority-matrix.yaml` ⟹ §10 ĐỦ 7 BƯỚC.** Lần này KHÔNG có đường
+   tắt như GĐ3 (GĐ3 bỏ route nên không đụng contract; việc này thì đụng thật). Lead soạn contract +
+   ADR, PO-agent trình PO thật duyệt MỘT LẦN.
+2. 🔴 **CSKH chỉ được đọc hội thoại của ĐÚNG vé họ đang xử lý** — không phải mọi hội thoại của mọi
+   khách. Đây là bề mặt BOLA điển hình (dự án đã có một finding BOLA treo). Bảo Mật soi trước khi code.
+3. **Che PII bên thứ ba giữ nguyên** — hội thoại có thể nhắc tên/SĐT người nhận. CSKH thấy hội
+   thoại **không** đồng nghĩa thấy dữ liệu người ngoài cuộc. Dùng lại `mask_full_name`/scrub theo
+   trường đã có, **KHÔNG** dùng `scrub_pii` NER (chính thứ đang phá mã giao dịch — mục 1).
+4. **Chỉ đọc, không sửa.** CSKH không được sửa/xoá lời khách — hội thoại là bằng chứng.
+5. **Ghi rõ ai là ai** trong khung hiển thị (khách / bot), và **đánh dấu lượt nào có gọi tool** —
+   CSKH cần biết câu nào của bot dựa trên dữ liệu thật, câu nào chỉ là lời thoại.
+
+**Phạm vi đề xuất (Lead chốt sau khi Bảo Mật soi):** GET một route đọc hội thoại theo `ticket_id`
+(không theo `thread_id` trần — buộc đi qua vé để có chỗ kiểm thẩm quyền), trả về danh sách lượt đã
+che PII; UI thêm một khối "Hội thoại với trợ lý" trong `TicketDetailClient.tsx`.
+
+⚠️ **Đây KHÔNG phải live-chat real-time** (thiết kế WebSocket đã hoãn có ghi sổ). Đây là **bàn giao
+ngữ cảnh MỘT CHIỀU**, đúng mức MVP: CSKH đọc được những gì đã xảy ra trước khi họ vào.
