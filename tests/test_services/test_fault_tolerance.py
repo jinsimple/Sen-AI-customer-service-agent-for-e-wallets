@@ -81,7 +81,7 @@ def test_run_agent_turn_propagates_openai_error_without_partial_ticket(sample_db
         def invoke(self, *a, **kw):
             raise RuntimeError("giả lập OpenAI API lỗi 500")
 
-    def _boom_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None):
+    def _boom_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None, thread_id=None):
         raise RuntimeError("giả lập OpenAI API lỗi 500")
 
     monkeypatch.setattr(graph_module, "_build_agent", _boom_build_agent)
@@ -177,7 +177,7 @@ def test_run_agent_turn_times_out_gracefully_instead_of_hanging(sample_db, monke
         def invoke(self, *a, **kw):
             return _HangingModel().invoke()
 
-    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None, model=None):
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None, model=None, thread_id=None):
         return _FakeAgent()
 
     monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)

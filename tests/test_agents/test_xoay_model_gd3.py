@@ -91,7 +91,7 @@ def _fake_build_agent(*, loi_theo_model: dict[str, Exception]):
     guard=None, model=...)` — patch dựa trên GIÁ TRỊ `model` kwarg nhận
     được, không dựa trên thứ tự gọi."""
 
-    def _ham(session, *, user_id, customer_name, otp_verified_at, guard=None, model=None):
+    def _ham(session, *, user_id, customer_name, otp_verified_at, guard=None, model=None, thread_id=None):
         if model in loi_theo_model:
             return _AgentNemLoi(loi_theo_model[model])
         return _AgentTraLoiBinhThuong()

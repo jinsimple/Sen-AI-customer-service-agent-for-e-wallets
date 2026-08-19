@@ -55,7 +55,7 @@ class _AgentNoTungRecursion:
 def envelope_fallback(sample_db, monkeypatch):
     import src.agents.graph as graph_module
 
-    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None, model=None):
+    def _fake_build_agent(session, *, user_id, customer_name, otp_verified_at, guard=None, model=None, thread_id=None):
         return _AgentNoTungRecursion()
 
     monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent)
