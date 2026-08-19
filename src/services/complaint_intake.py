@@ -170,6 +170,12 @@ def flag_human_handoff(
         if complaint is None or complaint.user_id != user_id:
             raise ValueError(f"ticket_id không thuộc user_id đang chat: {ticket_id}")
         ticket.human_handoff_requested = True
+        # ADR-044 mục 4 — mốc BÀN GIAO thật, KHÔNG PHẢI lúc ticket được tạo
+        # (ticket.created_at đã có, khác hẳn ý nghĩa). UI vẽ vạch phân cách
+        # hội thoại tại mốc này. `updated_at` cũng đổi theo quy ước có sẵn
+        # của cột đó (mọi lần sửa ticket), hai cột phục vụ hai câu hỏi khác
+        # nhau ("sửa lần cuối khi nào" vs "bàn giao khi nào") — không gộp.
+        ticket.handoff_at = now
         ticket.updated_at = now
         session.flush()
         return {"ticket_id": ticket.ticket_id, "human_handoff_requested": True, "created_new_ticket": False}
@@ -203,5 +209,10 @@ def flag_human_handoff(
     )
     ticket = session.get(Ticket, created["ticket_id"])
     ticket.human_handoff_requested = True
+    # ADR-044 mục 4 — vé MỚI sinh ra TỪ chính lượt bàn giao này (không có
+    # ticket_id cũ để gắn cờ lên), nên handoff_at == created_at CÙNG giá trị
+    # `now` — đúng, không phải trùng hợp: bàn giao và tạo vé xảy ra "đồng
+    # thời" về mặt nghiệp vụ trong nhánh này.
+    ticket.handoff_at = now
     session.flush()
     return {**created, "human_handoff_requested": True, "created_new_ticket": True}
