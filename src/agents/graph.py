@@ -380,6 +380,19 @@ def _build_checkpointer():
     rõ ràng, không lặp lại bài học DATABASE_URL (ADR-013): một fallback im lặng
     từng làm hệ thống âm thầm tách đôi database.
 
+    🔴 RACE dưới multi-worker trên DB RỖNG [ĐO DevOps 20/08]: hàm này chạy lại
+    ở MỖI process import `graph` — tức MỖI uvicorn worker (module-level
+    singleton, không phải chạy một lần cho cả app). `saver.setup()` bên dưới
+    CHỈ idempotent khi tuần tự; N worker cùng gọi CREATE TABLE lần đầu (chưa
+    ai thấy bảng tồn tại) đụng `UniqueViolation` trên `pg_type` (Postgres tự
+    đăng ký row type cho mỗi bảng mới). Bắt buộc: entrypoint phải "hâm nóng"
+    lược đồ MỘT LẦN, TUẦN TỰ, TRƯỚC khi spawn worker nào — vd
+    `python -c "import src.agents.graph as g; g.close_checkpointer()"` ngay
+    sau `alembic upgrade head`. Sau bước đó, `saver.setup()` ở mỗi worker mới
+    thật sự là no-op (lược đồ đã có, không còn CREATE nào để đua) — ĐÚNG như
+    chú thích "idempotent" ở dòng gọi `saver.setup()` bên dưới, nhưng chỉ khi
+    có bước hâm nóng này đi trước, không phải tính chất tự thân của nó.
+
     Xem ADR-014.
     """
     if DB_KIND != "postgresql":
@@ -407,7 +420,7 @@ def _build_checkpointer():
         open=True,
     )
     saver = PostgresSaver(pool)
-    saver.setup()  # idempotent — tự tạo bảng checkpoint nếu chưa có
+    saver.setup()  # idempotent CHỈ khi entrypoint đã hâm nóng lược đồ trước — xem docstring hàm này
     global _CHECKPOINT_POOL
     _CHECKPOINT_POOL = pool  # giữ tham chiếu để đóng sạch lúc shutdown
     _logger.info("checkpointer_postgres", extra={"pool_max": _CHECKPOINT_POOL_MAX})
