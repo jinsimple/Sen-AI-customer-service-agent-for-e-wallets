@@ -6,16 +6,13 @@ import { loginAs } from "./helpers/actors";
  * không được ngầm gộp (điều khoản Bảo Mật, QUYẾT ĐỊNH B): "không nhận ra ⟹
  * coi như X" là giấu mất một lỗi thật.
  *
- * 🔴 [ĐO 20/08] ① và ④ (chuỗi) XANH thật. ②③ ĐỎ lúc chạy đầu — Coder tự tay
- * xác nhận (grep thẳng ảnh đang chạy) đây là ẢNH FRONTEND CŨ HƠN CẢ hai
- * commit liên quan (`db0b064`/`b22782c`), KHÔNG PHẢI mock sai hay bug thật.
- * ② khớp đúng: ảnh cũ không biết `loai`, so message với bản CŨ (câu đầy đủ
- * khác câu rút gọn tôi mock) → không khớp → rơi vào nhánh chung, đúng y hệt
- * DOM quan sát được. ③ CHƯA giải thích trọn vẹn ngay cả khi đọc code cũ —
- * Coder chủ động dừng, không đoán tiếp trên ảnh sai, vì bất kể lý do gì thì
- * kết luận không đổi: ảnh này không phải thứ đang được kiểm.
- * CHƯA CHẠY LẠI — chờ DevOps dựng ảnh mới rồi chạy lại NGUYÊN FILE. Nếu ③
- * vẫn im lặng SAU KHI ảnh đúng, đó mới là finding thật cần theo tiếp.
+ * 🔴 [ĐO 20/08, lần 1] ① và ④ (chuỗi) XANH thật. ②③ ĐỎ — Coder tự tay xác
+ * nhận (grep thẳng ảnh đang chạy) đây là ẢNH FRONTEND CŨ HƠN CẢ hai commit
+ * liên quan (`db0b064`/`b22782c`), KHÔNG PHẢI mock sai hay bug thật.
+ *
+ * 🟢 [ĐO 20/08, lần 2 — ẢNH MỚI `cbeb02c`, PO-agent kiểm độc lập băm nguồn
+ * khớp host==container] CẢ 4/4 XANH, kể cả ③ — ca DUY NHẤT phân biệt được
+ * "siết" (b22782c) với "nới" (bản cũ). Đóng hồ sơ ADR-044.
  *
  *   ① 403 + message chứa "Cần role thuộc"  ⟹ banner LỆCH VAI (BannerLechVai)
  *   ② KHÔNG phải lỗi HTTP — response 200 OK, tool_calls[].result có
