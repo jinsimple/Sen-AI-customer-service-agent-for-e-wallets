@@ -1,13 +1,13 @@
 # MANIFEST — bản sao này lấy từ đâu
 
-Sinh lúc: `2026-08-20 12:33` · HEAD: `7652765`
+Sinh lúc: `2026-08-20 14:12` · HEAD: `03480d9`
 
 Băm dưới đây là băm của **bản gốc trong repo** tại thời điểm sao chép.
 Băm khác đi ⟹ bản gốc đã đổi, bản sao trong `gate/` đã cũ ⟹ chạy lại `bash gate/lam-moi.sh`.
 
 | bản sao trong gate/ | nguồn gốc trong repo | sha256 (12) |
 |---|---|---|
-| `01-tong-quan/README.md` | `README.md` | `271568728326` |
+| `01-tong-quan/README.md` | `README.md` | `5f7c5f4edca0` |
 | `02-kien-truc/so-do-kien-truc.md` | `docs/architecture_diagram.md` | `ffc92776de45` |
 | `03-dac-ta-thiet-ke/PRD.md` | `FIN05-PRD.md` | `1af3c834ae2b` |
 | `03-dac-ta-thiet-ke/Brief.md` | `FIN05-Brief.md` | `5b681f0675c7` |
