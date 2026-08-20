@@ -1,63 +1,71 @@
-# Gate G2 — Hồ sơ nộp MVP · Đội T226 (FIN-05)
+# Hồ sơ nộp — FIN-05 · Đội T226
 
-> **Hạn:** 23:59 ngày 16/08/2026 · **Nộp bằng:** `/gate submit gate_key:G2 link:<link repo hoặc file này>`
-> **PO & thực hiện:** Đào Ngọc Bích (MSV 2A202601745) · AI 20K Build Phase, Cohort 3 (Vingroup × VinUni)
-> **Sản phẩm:** AI Agent CSKH ví điện tử — điều tra khiếu nại giao dịch qua tool, **không bao giờ tự quyết định**.
-> **Live:** https://app.adaptivealgo.uk *(home-server + Cloudflare Tunnel — hiện mở cho đội & mentor)*
-
-Thư mục này là **mục lục hồ sơ nộp**. Mỗi mục trỏ tới file gốc trong repo — cố ý **không sao chép nội dung**
-để hồ sơ không bao giờ lệch với sản phẩm thật.
+> **Thư mục này để PO lấy file đi nộp.** Cập nhật 20/08/2026.
+>
+> 🔴 **`gate/` LÀ BẢN SAO, KHÔNG PHẢI NGUỒN.** Sửa tài liệu thì sửa ở nguồn (`docs/`, `contracts/`,
+> gốc repo) rồi chạy `bash gate/lam-moi.sh`. Sửa thẳng trong đây sẽ bị ghi đè — và tệ hơn, tạo ra
+> một nguồn sự thật thứ hai.
+>
+> 🔴 **XOÁ CẢ THƯ MỤC NÀY KHÔNG ẢNH HƯỞNG GÌ TỚI ĐỘI.** [ĐO 20/08] `scripts/check_contracts.py` chỉ
+> quét `tests · docs · src · eval · frontend/e2e` — không có `gate/`. Không test nào, không job CI
+> nào, không script nào của đội đọc thư mục này. `gate/` chứa **0 file `.py`**.
+>
+> Ba file **không có bản gốc nơi khác** — viết riêng cho hồ sơ nộp, sống ngay trong đây:
+> `05-nhat-ky-tuan.md`, `06-pitch-deck.md` và `07-project-knowledge.md`. Script sao chép không đụng tới chúng.
 
 ---
 
-## 1. MVP Demo — video 3 phút, user flow end-to-end
+## Mười mục cần nộp
 
-- **Trạng thái:** ⏳ PO tự quay
-- **Kịch bản quay sẵn (8 màn, có cả bẫy hay gặp):** [`docs/giao-viec/2026-08-15-kich-ban-demo-mvp.md`](../docs/giao-viec/2026-08-15-kich-ban-demo-mvp.md)
-- **Bản đọc dễ (HTML):** https://claude.ai/code/artifact/53c01e06-6f9a-4f10-87ae-b642c6538ce1
-- **Tài khoản demo** (mật khẩu chung `Demo@123`): khách `0974000145` · CSKH `0353000201` ·
-  Sếp duyệt `0905000205` · Đối tác ví `0900000001`
-  → Hai vai cùng máy: vai khách cửa sổ thường, vai nhân viên **cửa sổ ẩn danh**.
+| # | mục | trạng thái | ở đâu |
+|---|---|---|---|
+| 1 | **Source code** | ✅ | chính repo — 56 file Python · 67 file TS/TSX |
+| 2 | **README.md** | ✅ | [`01-tong-quan/README.md`](01-tong-quan/README.md) |
+| 3 | **Sơ đồ kiến trúc** | ✅ | [`02-kien-truc/so-do-kien-truc.md`](02-kien-truc/so-do-kien-truc.md) · bản đầy đủ: `ARCHITECTURE.md` ở gốc repo |
+| 4 | **Đặc tả & thiết kế** | ✅ | [`03-dac-ta-thiet-ke/`](03-dac-ta-thiet-ke/) — PRD · Brief · 46 ADR · 3 contract |
+| 5 | **Tài liệu kiểm thử** | ✅ | [`04-kiem-thu/`](04-kiem-thu/) — cách chạy · chuẩn viết test (21 luật) |
+| 6 | **Nhật ký tuần** | ✅ | [`05-nhat-ky-tuan.md`](05-nhat-ky-tuan.md) — dựng từ 982 commit thật |
+| 7 | **Live URL** | 🔴 **CHƯA CÓ** | xem mục "Việc chỉ PO làm được" |
+| 8 | **Video demo** | ⬜ **PO tự quay** | kịch bản 8 màn: `docs/giao-viec/2026-08-15-kich-ban-demo-mvp.md` |
+| 9 | **Pitch deck** | ✅ nội dung | [`06-pitch-deck.md`](06-pitch-deck.md) — 14 slide, PO đổ vào slide + trình bày |
+| — | **Gói kiến thức dự án** | ✅ | [`07-project-knowledge.md`](07-project-knowledge.md) — **tự chứa**, đưa vào Claude Desktop cùng mục 9 để dựng slide |
+| 10 | **AI Log** | ⬜ **PO xác nhận** | ngoài repo, đội không kiểm được từ đây |
 
-**Luồng end-to-end nên quay:** khách chat khiếu nại → agent gọi tool điều tra, tìm đúng giao dịch giữa
-nhiều giao dịch cùng số tiền → tạo ticket → CSKH tiếp nhận, xem timeline điều tra (**không có nút duyệt**)
-→ Sếp mở hồ sơ, đọc căn cứ, duyệt bằng OTP step-up → khách nhận kết quả.
+---
 
-## 2. Architecture diagram — components + data flow
+## 🔴 Việc chỉ PO làm được — và mục 7 đang chặn
 
-- ✅ **Sơ đồ rút gọn (deliverable):** [`docs/architecture_diagram.md`](../docs/architecture_diagram.md)
-- ✅ **Bản đầy đủ + data flow + bảng quyết định kiến trúc:** [`ARCHITECTURE.md`](../ARCHITECTURE.md)
+### ① Live URL — vấn đề lớn nhất của hồ sơ
 
-Mermaid render thẳng trên GitHub. Một câu tóm tắt: khách gõ → che PII → agent (LangGraph + GPT-4o-mini,
-5 tool, gọi **dưới danh nghĩa customer**) → guardrails tất định (spotlighting · O1-O4 · origin-rule) →
-khách; **tiền chỉ đi khi Sếp duyệt** — ràng buộc người-tạo-≠-người-duyệt nằm ở tầng database.
+**`README.md` hiện ghi `https://app.adaptivealgo.uk`. Bản chạy ở đó là repo `P-121-new`, KHÔNG phải
+P-226.** Người review bấm link trong repo này sẽ trải nghiệm **một sản phẩm khác với mã nguồn họ đang đọc.**
 
-## 3. Repo có ≥ 10 PR merged
+P-226 **chưa từng được deploy lần nào**. Ba bước:
 
-- ✅ **10 PR đã merge (#1–#10) — đạt yêu cầu ≥10.** Ba PR mới nhất là đợt release có chủ đề:
-  [#8 RAG đòn 4](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/8) ·
-  [#9 observability + token](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/9) ·
-  [#10 ADR-026 + benchmark](https://github.com/AI20K-Build-Phase-Cohort-3/P-226/pull/10)
-- `main` là nhánh production đang deploy; nhánh phát triển đi trước vài commit (công việc trong
-  ngày, sẽ vào PR sau).
+```bash
+git push origin dev/learning-loop:main     # main đang thiếu 77 commit
+# rồi deploy theo: docs/devops/2026-08-20-checklist-deploy-lan-dau.md
+# khoá API production PO tự điền trên VPS — không đi qua phiên agent nào
+```
 
-## 4. README.md — setup, env vars, sample queries
+Sổ tay deploy đọc dễ: **https://claude.ai/code/artifact/cac93278-37d9-4e87-8ab3-83bd6f8c26b1**
+— 6 bước đã có người đi hết trên bản clone sạch, 6 chỗ đứt đã tìm ra và vá.
 
-- ✅ [`README.md`](../README.md) — gồm: chạy bằng Docker (đủ stack) hoặc dev hot-reload · bảng **biến môi
-  trường** kèm cách sinh secret và cảnh báo mất `FIELD_ENCRYPTION_KEY` = mất dữ liệu vĩnh viễn · **câu hỏi
-  mẫu đã kiểm bằng chạy thật** · tài khoản demo · lệnh kiểm thử · cấu trúc repo.
+### ② Bấm tay trên dashboard
 
-## 5. Eval evidences — ≥ 5 test case manual, output thực tế
+- **Bật billing GitHub Actions** — 4 job CI hiện **chưa từng chạy một giây nào** (`runner_name` rỗng),
+  nhưng hiện màu đỏ y hệt một bài kiểm trượt.
+- **Lưu `GITLEAKS_LICENSE` thành GitHub Secret** — miễn phí tại gitleaks.io.
 
-- ✅ [`eval/EVAL-EVIDENCE.md`](../eval/EVAL-EVIDENCE.md) — **7 ca** (vượt yêu cầu 5), output **nguyên văn từ
-  hệ thống chạy thật**, có dán nhãn môi trường đo (commit, hạ tầng, dữ liệu, tài khoản).
-  Trong đó **2 ca âm bản** — cố tình hỏi thứ hệ thống *không* có: agent nói "không tìm thấy" thay vì
-  bịa số. *(Giới hạn: đây là 2 ca cụ thể, không phải bảo đảm toàn cục — 2 finding đang mở về
-  từ-chối/diễn-giải được liệt kê ở mục benchmark.)*
-- Bổ sung, không bắt buộc nhưng nên xem:
-  [`docs/giao-viec/2026-08-16-benchmark-spec-va-v0.md`](../docs/giao-viec/2026-08-16-benchmark-spec-va-v0.md)
-  — bộ benchmark tự dựng (5 trục, trọng số), **v0.4 = 87,7% điểm đo được**, ghi kèm 2 finding còn mở
-  thay vì làm tròn thành điểm đẹp.
+### ③ Ba câu nghiệp vụ đang chờ *(chi tiết trong ADR-045)*
+
+- ~~Che số điện thoại trong live-chat tới mức nào?~~ ⛔ **CÂU NÀY PO ĐÃ CHỐT RỒI — ADR-025, ký
+  15/08.** Cơ chế đã quyết: mã hoá at-rest + trần độ dài + đọc need-to-know + retention + che **lúc
+  XUẤT**; **BÁC che-lúc-ghi bằng tên** (hệ thống tự sửa chữ trong lời khai thì bản ghi mất giá trị
+  chứng cứ trước NHNN/toà). Câu còn lại hẹp hơn nhiều: **thi hành 2 vế còn thiếu (trần độ dài · che
+  lúc xuất) NHANH tới đâu**, và **có xếp dữ liệu checkpoint vào cùng Nhóm A không** (ADR-045).
+- Giữ hội thoại khách bao lâu rồi xoá? *(hiện **không có gì xoá nó bao giờ**)*
+- VPS đặt ở đâu · ARM hay x86 · có mở cổng Postgres ra ngoài không?
 
 ---
 
@@ -65,7 +73,23 @@ khách; **tiền chỉ đi khi Sếp duyệt** — ràng buộc người-tạo-�
 
 | | |
 |---|---|
-| **Ràng buộc cứng ép bằng test** | 5 ràng buộc (HITL tuyệt đối · AI không vượt cấp · cấm bịa số · OTP phiên · gắn cờ ≠ khoá ví) mã hoá thành `tests/test_invariants.py` — **23 test introspect app đang chạy thật** (đọc route, moi guard từ closure, đọc CHECK constraint qua AST). Đỏ = build hỏng. |
-| **Contracts là nguồn sự thật** | Cấu trúc hệ thống sống trong `contracts/`, không sống trong code. Thêm route/đổi guard/đổi tên tool mà quên cập nhật contract → đỏ ngay. |
-| **26 ADR có lý do bác phương án khác** | [`docs/DECISIONS.md`](../docs/DECISIONS.md) — mới nhất **ADR-026**: kho chính sách chỉ phục vụ tài liệu **đã duyệt**, sinh ra từ một sự cố thật trong ngày. |
-| **Kỷ luật đo lường** | Mỗi con số kèm nhãn hệ thống; thước đo bị bắt lỗi **7 lần trong một ngày** — phần lớn do chính người dùng thước tự bắt, **hai lần do vai khác bắt chéo** (kiến trúc đối kháng hoạt động, cả hai chiều đều được ghi lại); bản vá không có số lợi ích thì **revert dù vô hại**. |
+| **Ràng buộc cứng ép bằng test** | 5 ràng buộc → **23 test introspect app đang chạy thật** (đọc route, moi guard từ closure, đọc CHECK constraint qua AST). Đỏ = build hỏng. |
+| **Contract là nguồn sự thật** | Cấu trúc hệ thống sống trong `contracts/`, không sống trong code. Thêm route · đổi guard · đổi tên tool mà quên cập nhật contract → **đỏ ngay**. |
+| **Guardrail độc lập với model** | O1–O4 là regex tất định. Đổi model không làm lưới cuối yếu đi — đó là lý do dám xoay 4 model tự động. |
+| **46 ADR có lý do BÁC phương án khác** | Không chỉ ghi "đã chọn gì", mà ghi "vì sao không chọn cái kia". |
+| **Kỷ luật đo lường** | Ngày 20/08 bắt được **9 khẳng định sống lâu hơn sự thật của nó** — cả 9 **niêm tại chỗ kèm bằng chứng, không xoá**. Trong đó có lỗi của chính người điều phối, ghi tên. |
+
+🔴 **Và mang theo slide 9** — *"Điều chúng tôi CHƯA chứng minh được"*. Điểm 87,7% là mốc **16/08**,
+không phải điểm bản đang chạy, và nó **loại trục Trải nghiệm khỏi mẫu số**. Nói ra trước khi bị hỏi.
+
+---
+
+## Sao chép lại khi tài liệu nguồn đổi
+
+```bash
+bash gate/lam-moi.sh     # rồi xem gate/MANIFEST.md
+```
+
+`MANIFEST.md` ghi **băm sha256 của bản gốc** tại thời điểm sao chép. Băm khác đi ⟹ bản sao đã cũ.
+
+📁 [`lich-su/`](lich-su/) — hồ sơ các đợt nộp trước, đã niêm số cũ, giữ làm bản ghi.

@@ -381,33 +381,60 @@ def _tra_agent(c, q: str) -> tuple[list[str], bool]:
     return doan[:K], co_goi
 
 
-def do_truy_hoi(ca: list[dict]) -> dict:
+def do_truy_hoi(ca: list[dict], che_do: str = "lap") -> dict:
+    """`che_do="moc"` — TOÀN BỘ ca dương đi qua đường AGENT THẬT (`_tra_agent`,
+    `/api/agent-chat`), không phải `_tra` (`/api/policy-search` trực tiếp).
+
+    🔴 Bug đã vá 19/08 (PO-agent đo): trước đây `che_do` (tham số CLI, hai giá
+    trị "lap"/"moc") không hề được hàm này đọc — cờ tồn tại đúng hình thức ở
+    argparse nhưng KHÔNG có tác dụng thật, `--che-do moc` ra CÙNG SỐ với mặc
+    định. `_tra_agent` được định nghĩa nhưng không nơi nào gọi tới.
+
+    GIỚI HẠN đã biết, không giấu: `_tra_agent` chỉ trả tối đa K đoạn (không có
+    tham số `k` như `_tra`, không soi được tới K_SOI=8) — `hang` tính ở chế độ
+    `moc` vì vậy chỉ phân biệt được "trong top-K" với "không trong top-K",
+    KHÔNG phân biệt được "hạng 5" với "hạng 8" như chế độ `lap`. MRR/NDCG@K_SOI
+    ở chế độ `moc` sẽ kém chính xác hơn — chấp nhận được vì mục đích `moc` là
+    đo Recall/hành vi agent thật, không phải xếp hạng chi tiết.
+
+    `che_do="lap"` (mặc định) giữ NGUYÊN hành vi cũ (`_tra`, đường index-thô)
+    — brief mô tả một thiết kế hybrid phức tạp hơn (đường agent CHỈ cho "ca
+    âm-bản-gần"/"ca mồi neo") CHƯA được cài đặt ở đây; KHÔNG tự đoán case nào
+    thuộc hai nhóm đó (thiếu đặc tả), ghi lại như một khoảng trống riêng,
+    KHÔNG phải phần bug 19/08 đang vá.
+    """
     httpx = __import__("httpx")
     duong = [x for x in ca if x["ky_vong"] == "co_trong_kho"]
     am = [x for x in ca if x["ky_vong"] != "co_trong_kho"]
     c = _dang_nhap(httpx)
     canary_kho(c)
     ket = {"co_dau": [], "khong_dau": []}
+    khong_goi_tool: list[str] = []  # ca id — chỉ có ý nghĩa khi che_do == "moc"
     for x in duong:
-        for che_do, khoa in (("co_dau", "query_co_dau"), ("khong_dau", "query_khong_dau")):
-            doan = _tra(c, x[khoa], K_SOI)
+        for kieu_dau, khoa in (("co_dau", "query_co_dau"), ("khong_dau", "query_khong_dau")):
+            if che_do == "moc":
+                doan, co_goi = _tra_agent(c, x[khoa])
+                if not co_goi:
+                    khong_goi_tool.append(x["id"])
+            else:
+                doan = _tra(c, x[khoa], K_SOI)
             gop = bo_dau(" ".join(doan[:K]))
             # LUẬT ĐẶC TRƯNG (PO duyệt 16/08): chỉ `tu_khoa_dac_trung` mới cho ĐẠT.
             # `tu_khoa_phu` in ra để đọc, KHÔNG có quyền chấm — vì ca đạt nhờ từ
             # chung ("hạn mức", "ngân hàng") khớp được cả chunk BÊN CẠNH lẫn dòng
             # mục lục, tạo PASS GIẢ im lặng (xem RAG-04, và 9 ca rà ngày 16/08).
             hang = next(
-                (i + 1 for i, d in enumerate(doan)   # hạng soi tới K_SOI=8
+                (i + 1 for i, d in enumerate(doan)   # hạng soi tới K_SOI=8 (chỉ tới K nếu che_do=moc, xem docstring)
                  if any(bo_dau(tk) in bo_dau(d) for tk in x["tu_khoa_dac_trung"])), 0
             )
             dat = any(bo_dau(tk) in gop for tk in x["tu_khoa_dac_trung"])
             phu = [tk for tk in x["tu_khoa_phu"] if bo_dau(tk) in gop]
-            ket[che_do].append(
+            ket[kieu_dau].append(
                 {"id": x["id"], "dat": dat, "so_doan": len(doan), "phu_khop": phu,
                  "hang": hang, "tai_lieu": (x.get("nguon") or {}).get("tai_lieu", "?")}
             )
     c.close()
-    return {"duong": ket, "so_am_ban": len(am), "so_duong": len(duong)}
+    return {"duong": ket, "so_am_ban": len(am), "so_duong": len(duong), "khong_goi_tool": khong_goi_tool}
 
 
 def mrr_ndcg(r: list[dict], k: int) -> tuple[float, float]:
@@ -589,8 +616,18 @@ def main() -> int:
     print()
     kiem_kho()
 
-    kq = do_truy_hoi(ca)
+    if a.che_do == "moc":
+        print(f"\n  🔴 che_do=moc — TOÀN BỘ ca dương đi qua đường AGENT THẬT (/api/agent-chat).")
+        # KHÔNG gọi cong_dong_bang() ở đây — _tra_agent() đã tự gọi nó cho
+        # MỖI lượt bên trong do_truy_hoi(), gọi thêm ở đây là trùng lặp vô ích.
+
+    kq = do_truy_hoi(ca, che_do=a.che_do)
     diem = in_truy_hoi(kq)
+
+    if kq.get("khong_goi_tool"):
+        print(f"\n  🔴 {len(kq['khong_goi_tool'])} lượt agent KHÔNG gọi tool policy-search "
+              f"(chế độ hỏng khác hẳn 'gọi tool nhưng truy hồi trượt'): {kq['khong_goi_tool'][:10]}"
+              + (" …" if len(kq["khong_goi_tool"]) > 10 else ""))
 
     truoc = GOC / "eval" / "results" / "benchmark_lan_truoc.json"
     if truoc.exists():

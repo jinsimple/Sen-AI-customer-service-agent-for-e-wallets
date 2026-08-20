@@ -37,6 +37,10 @@ def create_ticket(
     otp_disclosed: bool = False,
     fraud_signals: list[str] | None = None,
     now: dt.datetime | None = None,
+    # ADR-044 — ghi thẳng vào Complaint.thread_id lúc INSERT. None hợp lệ
+    # (NULLABLE VĨNH VIỄN) — caller không có phiên chat (REST trực tiếp,
+    # test cũ) không truyền được giá trị này, không phải lỗi.
+    thread_id: str | None = None,
 ) -> dict[str, Any]:
     if complaint_type not in VALID_COMPLAINT_TYPES:
         raise ToolError(f"complaint_type không hợp lệ: {complaint_type}")
@@ -85,6 +89,7 @@ def create_ticket(
         fraud_signals=fraud_signals,
         otp_disclosed=otp_disclosed,
         created_at=now,
+        thread_id=thread_id,
     )
     session.add(complaint)
     session.flush()

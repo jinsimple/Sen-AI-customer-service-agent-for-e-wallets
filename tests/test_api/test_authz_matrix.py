@@ -62,6 +62,12 @@ ROUTES: list[RouteCheck] = [
     RouteCheck("POST", "/agent/chat", "/agent/chat", {"customer"}, body={"message": "test"}),
     RouteCheck("GET", "/tickets", "/tickets", {"cskh", "supervisor"}, safe_success_check=True),
     RouteCheck("GET", "/tickets/{ticket_id}", "/tickets/TCK-NOPE", {"cskh", "supervisor"}, safe_success_check=True),
+    # ADR-044 (docs/DECISIONS.md, land 427ebe6/e1db3af) — CSKH đọc hội thoại
+    # bot↔khách của vé mình xử lý. GET thuần đọc, không side-effect.
+    RouteCheck(
+        "GET", "/tickets/{ticket_id}/transcript", "/tickets/TCK-NOPE/transcript",
+        {"cskh", "supervisor"}, safe_success_check=True,
+    ),
     RouteCheck(
         "POST", "/resolutions/{resolution_id}/request-approval-otp",
         "/resolutions/RES-NOPE/request-approval-otp", {"supervisor"},

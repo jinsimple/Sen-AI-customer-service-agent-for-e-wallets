@@ -6,6 +6,7 @@ import {
   ApiError,
   escalateTicket,
   getTicketDetail,
+  getTicketTranscript,
   lookupTransaction,
   proposeResolution,
   requestMoreInfo,
@@ -21,6 +22,7 @@ import {
   type ActionType,
   type LookupTransactionResult,
   type TicketDetail,
+  type TicketTranscript,
   type TransactionStatus,
 } from "@/lib/types";
 import BuocDieuTra from "@/components/BuocDieuTra";
@@ -49,6 +51,7 @@ export default function TicketDetailClient({
   const router = useRouter();
   const backHref = viewerRole === "supervisor" ? "/approve" : "/dashboard";
   const [detail, setDetail] = useState<TicketDetail | null>(null);
+  const [transcript, setTranscript] = useState<TicketTranscript | null>(null);
   const [tx, setTx] = useState<LookupTransactionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -65,6 +68,15 @@ export default function TicketDetailClient({
     try {
       const d = await getTicketDetail(ticketId);
       setDetail(d);
+      // ADR-044 — chỉ gọi khi vé ĐÃ bàn giao (cùng điều kiện LiveChatPanel
+      // bên dưới): tính năng ra đời từ đúng nhu cầu "khách xin gặp người
+      // thật", vé chưa bao giờ bàn giao không có gì để CSKH cần đọc thêm ở
+      // đây — tránh gọi route thừa cho phần lớn vé không liên quan.
+      if (d.ticket.human_handoff_requested) {
+        getTicketTranscript(ticketId)
+          .then(setTranscript)
+          .catch(() => setTranscript(null));
+      }
       if (d.complaint?.trans_id) {
         const t = await lookupTransaction({ trans_id: d.complaint.trans_id });
         setTx(t);
@@ -247,6 +259,71 @@ export default function TicketDetailClient({
           {detail.ticket.human_handoff_requested && (viewerRole === "cskh" || viewerRole === "supervisor") && (
             <LiveChatPanel ticketId={detail.ticket.ticket_id} viewerRole={viewerRole} viewerUserId={viewerUserId} />
           )}
+
+          {/* ADR-044 — hội thoại bot↔khách trước khi bàn giao, để CSKH không
+              bắt khách kể lại từ đầu thứ họ đã nói với bot. */}
+          {detail.ticket.human_handoff_requested && transcript && (
+            <div className="card">
+              <div className="card-title">Hội thoại với trợ lý</div>
+              {transcript.transcript === null ? (
+                <div className="dim" style={{ fontSize: 13 }}>{transcript.ly_do}</div>
+              ) : (
+                <>
+                  {/* Nghĩa vụ khai (ADR-044, "PII — GIẢI XONG bằng phép đo"):
+                      hội thoại ghi TRƯỚC bản vá D' còn giữ nhãn che SAI vĩnh
+                      viễn ([PERSON_VN]/[LOCATION] thay từ khách gõ thật, ~12%
+                      câu tiếng Việt đời thường bị bóp méo) — KHÔNG vá ngược
+                      kho lịch sử, sửa bằng chứng là việc không được làm. */}
+                  <div className="note" style={{ fontSize: 11, marginBottom: 10 }}>
+                    Bản ghi tự động từ hệ thống lọc thông tin cá nhân — một số câu khách gõ có thể hiện
+                    thành nhãn dạng <span className="mono">[TÊN_NGƯỜI]</span>/<span className="mono">[ĐỊA_ĐIỂM]</span> thay
+                    vì nguyên văn nếu bộ lọc nhận nhầm, kể cả với các câu nói chuyện thông thường
+                    (không riêng dữ liệu nhạy cảm). Đây là giới hạn đã biết của bộ lọc tại thời điểm
+                    ghi, không phải khách thực sự gõ như vậy.
+                  </div>
+                  {transcript.handoff_at !== null && transcript.chi_so_bang_giao === null && (
+                    <div className="note" style={{ fontSize: 11, marginBottom: 10 }}>
+                      Vé này có bàn giao (lúc {new Date(transcript.handoff_at).toLocaleString("vi-VN")}) nhưng hội
+                      thoại không ghi lại đúng thời điểm khách yêu cầu gặp người thật — thường do vé được mở qua
+                      nhánh chờ quá lâu chứ không phải khách bấm yêu cầu. Không vẽ được vạch phân cách, nhưng toàn
+                      bộ hội thoại dưới đây vẫn đầy đủ.
+                    </div>
+                  )}
+                  <div className="flex-col gap-sm">
+                    {transcript.transcript.map((luot, i) => (
+                      <div key={i}>
+                        <div
+                          className="kv-row"
+                          style={{ alignItems: "flex-start", opacity: luot.vai === "khach" ? 1 : 0.9 }}
+                        >
+                          <span className="k" style={{ minWidth: 56 }}>
+                            {luot.vai === "khach" ? "Khách" : "Bot"}
+                          </span>
+                          <span className="v">
+                            {luot.noi_dung}
+                            {luot.co_goi_tool && (
+                              <span className="badge badge-info mono" style={{ marginLeft: 8, fontSize: 10 }}>
+                                dựa trên dữ liệu tra được
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        {transcript.chi_so_bang_giao !== null && i === transcript.chi_so_bang_giao && (
+                          <div
+                            className="dim"
+                            style={{ textAlign: "center", fontSize: 11, margin: "10px 0", borderTop: "1px dashed var(--border-strong)", paddingTop: 8 }}
+                          >
+                            — khách yêu cầu gặp người thật tại đây —
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="card">
             <div className="card-title">Thông tin giao dịch</div>
             {!c?.trans_id && <div className="dim" style={{ fontSize: 13 }}>Khách không tra ra được giao dịch (case not_found).</div>}

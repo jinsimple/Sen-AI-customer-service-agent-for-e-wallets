@@ -6,7 +6,7 @@
 > dữ liệu thật, và các ràng buộc đó được ép ở tầng database + 19 test bất biến.
 
 **Đội:** T226 (AI 20K Build Phase, Cohort 3 — Vingroup × VinUni) · **PO & Thực hiện:** Đào Ngọc Bích
-· **Mentor:** Lê Anh Tiến · **Đối tác nghiệp vụ:** ZaloPay
+· **Mentor:** Đặng Hải Lộc · **Đối tác nghiệp vụ:** ZaloPay
 
 **Live:** https://app.adaptivealgo.uk *(home-server + Cloudflare Tunnel — xem
 [hướng dẫn triển khai](docs/giao-viec/2026-08-15-chay-that-tai-nha-windows-tunnel.md))*
@@ -15,7 +15,7 @@
 
 ## Kiến trúc 30 giây
 
-LLM **GPT-4o-mini** điều phối bằng **LangGraph** (ReAct, 5 tool tra cứu DB thật) · RAG chính sách
+LLM **bể 4 model tự xoay** (`qwen3.7-plus` · 3 bản `deepseek`, qua DashScope — ADR-043) điều phối bằng **LangGraph** (ReAct, 5 tool tra cứu DB thật) · RAG chính sách
 trên **ChromaDB** (trích nguyên văn kèm nguồn, không tổng hợp AI) · **mọi lớp an toàn là luật tất
 định ngoài model**: che PII trước khi lên LLM (Presidio + spaCy NER), chặn bịa số (origin-rule —
 số phải truy về tool result), chống prompt-injection (spotlighting + phân tier), maker-checker ép
@@ -56,7 +56,10 @@ App **fail-fast khi thiếu secret bắt buộc** — không có default kiểu 
 | `REDIS_URL` | ✅ | `redis://localhost:6379/0` · test/CI dùng `fake://ci` (fakeredis, không cần Redis thật) |
 | `OPENAI_API_KEY` | ✅ (khi chạy agent) | |
 | `DATABASE_URL` | — | Mặc định SQLite dev; Docker dùng Postgres (compose set sẵn) |
-| `OPENAI_MODEL` | — | Mặc định `gpt-4o-mini` |
+| `LLM_MODEL_POOL` | — | **Bể model để hạ tầng tự xoay** khi cạn hạn mức (ADR-043). Danh sách phân tách bằng dấu phẩy. Thiếu ⟹ chỉ dùng `LLM_MODEL`, không xoay |
+| `LLM_MODEL` | — | Model chat đang dùng. **Đây mới là biến vận hành thật** |
+| `APP_ENV` | `production` | 🔴 Mặc định **fail-safe**: thiếu biến ⟹ TẮT `/docs`, `/openapi.json`, `/redoc`. Đặt `development` để bật lại khi làm việc cục bộ |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Chỉ còn là **fallback cuối** của `LLM_MODEL` |
 | `JWT_ACCESS_EXPIRE_MINUTES` | — | Mặc định 15 |
 | `CLOUDFLARE_TUNNEL_TOKEN` | chỉ profile `home` | Deploy home-server; fail-fast ở `scripts/deploy_home.*` |
 | `AI_LOG_SERVER` / `AI_LOG_API_KEY` | — | Nộp AI-usage log về server chấm điểm BTC (pre-push hook) |
@@ -98,14 +101,23 @@ cho tôi gặp người thật
 ```bash
 pytest tests/test_invariants.py -v        # 5 ràng buộc cứng, 23 test — introspect app THẬT
 python scripts/check_contracts.py         # phát hiện artifact lệch contracts/
-pytest tests/ -m "not security_finding"   # toàn bộ backend (~540 test)
+pytest tests/ -m "not security_finding"   # toàn bộ backend (**593 test** [ĐO 20/08, `pytest --collect-only -m "not security_finding"`])
 python eval/run_golden_set.py             # 120 case nghiệp vụ (gọi OpenAI thật)
 python eval/run_adversarial_set.py        # 45+ case tấn công
 ```
 
-CI (GitHub Actions, `.github/workflows/ci.yml`): invariants · contract-drift · lint+test ·
-appsec · security-findings-gate. *(Ghi chú trung thực: runner của org đang bị chặn billing phía
-BTC — toàn bộ job đã được chạy tương đương trên máy dev, 540 passed / 0 failed.)*
+CI (GitHub Actions, `.github/workflows/ci.yml`) — **14 job**: invariants · contract-drift ·
+lint+test · appsec · security-findings-gate · migration-chain · …
+
+🔴 **Đọc bảng CI đỏ — bốn nguyên nhân khác nhau, đừng gộp** *(đo 20/08)*:
+- **8 job chạy THẬT** trên runner self-hosted (ADR-037).
+- **6 job `ubuntu-latest` KHÔNG chạy** — billing của org bị chặn. Dấu nhận biết: `runner_name`
+  **rỗng**, `steps = 0`, thất bại trong **0 giây**. Chúng hiện màu đỏ y hệt một bài kiểm trượt.
+- **`security-findings-gate` ĐỎ ĐÚNG THIẾT KẾ** — giữ đỏ chừng nào còn finding P0 chưa vá.
+- Lỗi hạ tầng thoáng qua (đứt mạng lúc `pip install`, cổng bị chiếm trên runner dùng chung).
+
+*(Ghi chú cũ ở đây viết "toàn bộ job chạy tương đương trên máy dev" — **đúng lúc viết, nay SAI**:
+CI đã chuyển sang self-hosted và 8 job chạy thật.)*
 
 ## Cấu trúc & tài liệu
 
@@ -114,9 +126,9 @@ contracts/        ← NGUỒN SỰ THẬT: 33 route × role · state machine HIT
 src/agents/       ← LangGraph agent + 5 tool + guardrails (spotlighting, O1-O4, origin-rule)
 src/api/          ← FastAPI (BFF-first, rate-limit, OTP step-up)
 frontend/         ← Next.js (BFF pattern — browser không bao giờ cầm JWT backend)
-tests/            ← 42 file test + tests/test_invariants.py (đỏ = build hỏng)
+tests/            ← 90 file test + tests/test_invariants.py (đỏ = build hỏng)
 eval/             ← golden/adversarial/heldout set + bằng chứng chạy thật
-docs/DECISIONS.md ← 25 ADR — mọi quyết định kèm lý do và lý-do-bác-phương-án-khác
+docs/DECISIONS.md ← 46 ADR — mọi quyết định kèm lý do và lý-do-bác-phương-án-khác
 docs/STATE.md     ← trạng thái sống của dự án, cập nhật mỗi phiên làm việc
 ```
 
@@ -127,7 +139,7 @@ docs/STATE.md     ← trạng thái sống của dự án, cập nhật mỗi ph
 
 | Member | Role | Student ID |
 |--------|------|-----------|
-| Đào Ngọc Bích | PO & Thực hiện toàn bộ (điều phối đội 4 phiên Claude Code: tech-lead · tester · security · PO-agent) | 2A202601745 |
+| Đào Ngọc Bích | PO & Thực hiện toàn bộ (điều phối đội **6 phiên** Claude Code: tech-lead · tester · security · DevOps · critic · PO-agent) | 2A202601745 |
 
 ## License
 

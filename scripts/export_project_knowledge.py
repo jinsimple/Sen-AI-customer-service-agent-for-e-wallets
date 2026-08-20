@@ -100,6 +100,22 @@ def main() -> int:
         (OUT / ten_ra).write_text(dau + noi_dung, encoding="utf-8")
         print(f"  {ten_ra:<45} ← {nguon}  @{h}")
 
+    # ---- File giới thiệu dự án cho mục đích KHÁC (dựng slide, không phải làm
+    # việc phát triển) — tự chứa, KHÔNG đi qua vòng lặp BUNDLE ở trên vì CỐ Ý
+    # không mang dấu phiên bản/không vào bảng hash 00-SYNC-VERSION.md: bảng đó
+    # canh NGUỒN SỰ THẬT (contract/ADR/STATE), lệch ở đó là nguy hiểm; file này
+    # là tài liệu trình bày, lệch thì viết lại, không ai làm việc trên nó.
+    #
+    # `gate/` là thư mục PO thật có thể xoá bất cứ lúc nào (dùng-rồi-bỏ) — bắt
+    # buộc `if exists()`, không được để thiếu file này làm cả script chết.
+    gioi_thieu = ROOT / "gate" / "07-project-knowledge.md"
+    co_gioi_thieu = gioi_thieu.exists()
+    if co_gioi_thieu:
+        shutil.copy(gioi_thieu, OUT / "07-GIOI-THIEU-DU-AN.md")
+        print(f"  {'07-GIOI-THIEU-DU-AN.md':<45} ← gate/07-project-knowledge.md")
+    else:
+        print("  BỎ QUA 07 — không có gate/ (thư mục dùng-rồi-bỏ, không bắt buộc)")
+
     # ---- File đồng bộ: thứ dùng để phát hiện kho kiến thức đã cũ ----
     bang = "\n".join(f"| `{k}` | `{v}` |" for k, v in sorted(hashes.items()))
     (OUT / "00-SYNC-VERSION.md").write_text(
@@ -207,6 +223,7 @@ Kèm theo: nêu **commit và thời điểm xuất** ghi trong `00-SYNC-VERSION.
         shutil.copy(harvest, thu_muc_vai / "00-THU-HOACH-CHAT-CU.md")
         print(f"  {'loi-mo-dau-cho-tung-chat/00-THU-HOACH-CHAT-CU.md':<45} ← scripts/harvest_prompt.md")
 
+    so_file_goc = len(BUNDLE) + 1 + (1 if co_gioi_thieu else 0)  # BUNDLE + 00-SYNC-VERSION + [07 nếu có]
     print(f"""
 {'=' * 74}
 XONG. Thư mục: {OUT}
@@ -217,7 +234,8 @@ CÁCH DÙNG TRÊN CLAUDE DESKTOP
 1. Mở Project "fin05" → mục Project knowledge.
 2. XOÁ HẾT file cũ (quan trọng — để lẫn bản cũ còn tệ hơn không có, vì các
    vai sẽ đọc phải contract đã chết mà không biết).
-3. Kéo thả 7 file ở gốc thư mục `project-knowledge/` vào.
+3. Kéo thả {so_file_goc} file ở gốc thư mục `project-knowledge/` vào
+   ({'có' if co_gioi_thieu else 'không có'} `07-GIOI-THIEU-DU-AN.md` lần xuất này).
    KHÔNG upload thư mục `loi-mo-dau-cho-tung-chat/` — nội dung đó dành để dán
    vào từng chat, không phải kiến thức chung.
 4. Với MỖI chat vai: dán nội dung file tương ứng trong

@@ -47,7 +47,7 @@ if _MOC.exists() or os.environ.get("FIN05_DONG_BANG_LLM", "").strip() not in (""
         f"   Bỏ: unset FIN05_DONG_BANG_LLM · rm {_MOC.name}"
     )
 
-from locust import HttpUser, LoadTestShape, between, task
+from locust import HttpUser, LoadTestShape, between, task  # noqa: E402 — CỐ Ý sau cổng đóng băng ở trên
 
 TARGET_TICKET_ID = os.environ.get("TARGET_TICKET_ID")
 TARGET_RESOLUTION_ID = os.environ.get("TARGET_RESOLUTION_ID")

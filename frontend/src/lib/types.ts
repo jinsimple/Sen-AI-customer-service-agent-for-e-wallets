@@ -130,6 +130,17 @@ export interface TicketDetail {
   }[];
 }
 
+// ADR-044 — GET /tickets/{ticket_id}/transcript. `transcript`/`chi_so_bang_giao`
+// đi CÙNG NHAU: null khi không tra được (kèm `ly_do`), mảng khi có. UI dùng
+// `chi_so_bang_giao` để vẽ vạch phân cách NGAY SAU lượt đó (0-based, null =
+// hội thoại chưa từng gọi request_human_handoff — không có vạch).
+export interface TicketTranscript {
+  transcript: { vai: "khach" | "bot"; noi_dung: string; co_goi_tool: boolean }[] | null;
+  ly_do: string | null;
+  handoff_at: string | null;
+  chi_so_bang_giao: number | null;
+}
+
 export interface ResolutionListItem {
   resolution_id: string;
   ticket_id: string;

@@ -1,5 +1,23 @@
 # Deploy live — Oracle Cloud Always Free + Docker Compose
 
+> 🔴 **[ĐO DevOps 20/08] `app.adaptivealgo.uk` hiện chạy repo `jinsimple/P-121-new`,
+> KHÔNG PHẢI repo này (P-226). P-226 CHƯA TỪNG lên site thật** — file này mô tả
+> quy trình cho lần deploy ĐẦU TIÊN của P-226, nhưng bản thân nó được viết lúc
+> repo tiền nhiệm còn dùng chung domain đó, nên vài chi tiết bên dưới **CHƯA
+> XÁC MINH lại trên P-226**:
+> - Production trả header `server: cloudflare` và `docker-compose.yml` của
+>   P-226 có sẵn service `cloudflared` — nghi đường thật là **Cloudflare
+>   Tunnel**, không phải "expose thẳng port 80/443 của Oracle VPS" như mục 1-2
+>   dưới đây mô tả. **CHƯA XÁC MINH** — đừng làm theo mục 1-2 như sự thật tuyệt
+>   đối, kiểm lại cấu hình DNS/tunnel thật trước.
+> - Muốn checklist đã được **CHỨNG MINH bằng lần dựng-từ-clone-sạch thật**
+>   (không phải chép lại tài liệu cũ), xem
+>   [`docs/devops/2026-08-20-checklist-deploy-lan-dau.md`](devops/2026-08-20-checklist-deploy-lan-dau.md).
+>
+> Phần dưới đây giữ nguyên làm tham khảo kỹ thuật (Docker/Caddy/CI) — đã verify
+> đúng cho luồng "VPS lộ thẳng port", chỉ chưa chắc đó là luồng THẬT của
+> `app.adaptivealgo.uk` hôm nay.
+
 Hướng dẫn đưa FIN-05 lên chạy thật, tester từ xa vào được qua
 `https://app.adaptivealgo.uk`, tự deploy lại mỗi khi push code lên `main`.
 
@@ -72,8 +90,14 @@ hoặc `ping app.adaptivealgo.uk` từ máy bạn, thấy đúng IP là được
 ```bash
 sudo mkdir -p /opt/fin05 && sudo chown $USER:$USER /opt/fin05
 cd /opt/fin05
-git clone https://github.com/jinsimple/P-121-new.git .
-nano .env   # tạo file mới, điền các biến bên dưới
+git clone https://github.com/AI20K-Build-Phase-Cohort-3/P-226.git .
+# 🔴 [SỬA 20/08] dòng trên TRƯỚC ghi `jinsimple/P-121-new.git` — SAI REPO
+# (repo tiền nhiệm, không phải P-226). Nếu bạn thấy tài liệu/script nào khác
+# còn ghi P-121-new, đó cũng là lỗi thời cùng nguồn, báo DevOps sửa.
+cp .env.example .env   # mẫu compose cần — KHÔNG dùng .env.production.example
+                        # cho DATABASE_URL (sai định dạng, bị compose ghi đè,
+                        # xem chú thích trong .env.example)
+nano .env   # điền các biến bên dưới
 ```
 
 Điền vào `.env` (mỗi dòng 1 biến, xem `.env` trên máy dev để biết đủ danh
@@ -103,6 +127,29 @@ cd /opt/fin05
 docker compose up -d --build
 docker compose logs -f backend   # xem alembic migrate + uvicorn khởi động, Ctrl+C để thoát log (container vẫn chạy)
 ```
+
+🔴 **[ĐO DevOps 20/08] Trên DB HOÀN TOÀN RỖNG (đúng trường hợp lần đầu này),
+log sẽ có một dòng lệnh Python chạy TUẦN TỰ giữa `alembic upgrade head` và
+lúc `Uvicorn running` xuất hiện — đây là BÌNH THƯỜNG, ĐỪNG Ctrl+C giữa
+chừng.** `docker-entrypoint.sh` cố ý hâm nóng lược đồ checkpointer một lần
+trước khi mở 4 worker song song (né race `UniqueViolation` khi nhiều worker
+cùng tạo bảng lần đầu — xem chú thích trong `docker-entrypoint.sh` và
+`src/agents/graph.py::_build_checkpointer`). Nếu bạn thấy dòng
+`UniqueViolation` / `Child process ... died` trong log dù đã có bước hâm
+nóng này, đó LÀ bug thật, báo ngay — không phải điều đã biết.
+
+**Dựng kho RAG chính sách — DỄ QUÊN, thiếu thì agent trả lời chung chung mà
+KHÔNG báo lỗi nào** (kho vector `chroma_data` là volume, KHÔNG nằm trong git,
+không tự có sau `docker compose up`):
+```bash
+docker compose exec backend su appuser -c "python3 scripts/kho_rag.py nap-lai"
+docker compose exec backend su appuser -c "python3 scripts/kho_rag.py kiem"   # xác nhận không lệch chuẩn-hoá
+```
+⚠️ **`nap-lai` gọi API embedding THẬT (tốn tiền/hạn mức)** — [ĐO DevOps 20/08,
+đọc source, KHÔNG tự chạy] `scripts/kho_rag.py` docstring. Không chạy lặp
+nhiều lần, và không chạy song song với việc khác đang đo chi phí. Xem
+`python scripts/kho_rag.py nhan` (chỉ ĐỌC, miễn phí) để kiểm nhãn kho hiện có
+trước khi quyết có cần nạp lại không.
 
 Nạp dữ liệu mẫu lần đầu (danh sách khách hàng/giao dịch demo cho tester dùng
 thử — bỏ qua nếu bạn muốn DB trống hoàn toàn):

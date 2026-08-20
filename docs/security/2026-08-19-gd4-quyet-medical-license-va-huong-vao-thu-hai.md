@@ -44,6 +44,24 @@ kết quả `analyzer.analyze()` (không chỉ đọc chuỗi kết quả cuối
 recognizer trên — biết CHÍNH XÁC recognizer nào đang góp vào 49,2%, thay vì đoán.** Đây rẻ (đọc lại
 dữ liệu đã có, không cần lượt LLM mới) và đúng thứ tự phải làm TRƯỚC khi quyết định hướng thứ hai.
 
+## 🔴 NIÊM 20/08 — bước 3 dưới đây ĐÃ LỖI THỜI, KHÔNG PHẢI vì sai mà vì SỰ KIỆN đi nhanh hơn kế hoạch. HOÃN đã được GIẢI, không phải bằng đo tiếp bước 3, mà bằng quyết định D' (file khác, sau đó cùng ngày).
+
+**Bước 3 ("đo lại 62,1%→?,?% trên CHÍNH corpus 124 câu, sau bước 1+2") giả định kiến trúc VẪN LÀ "một
+registry đầy đủ rồi lọc" — kiến trúc đó không còn tồn tại.** Cùng ngày 19/08, quyết định chuyển hẳn
+sang HAI REGISTRY TÁCH BIỆT (ghi trong
+`2026-08-19-scrub-ba-duong-va-kien-truc-tham-so.md`), rồi PO-agent đo trực tiếp bốn phương án A/D/B/D'
+trên chính sự tách biệt đó (`2026-08-19-quyet-dinh-bien-du-lieu-regex-only-model-input.md`) — **KHÔNG
+đi qua "bước 3" như tôi vạch ở đây.** Con đường thật đi TẮT qua đúng câu hỏi "giữ hay loại Spacy" mà
+không cần đo riêng phần dư sau khi trừ Date/Phone/MedicalLicense — vì D (bỏ hẳn Spacy) và D' (bỏ Spacy
++ Date + Phone-chung) được đo TRỰC TIẾP, không cần suy ra từ phép trừ.
+
+**HOÃN đã đóng — quyết định là D'.** File này KHÔNG có dòng nào tự khai điều đó (đúng Review chỉ ra)
+— niêm tại đây để người đọc SAU không dừng lại ở "đang chờ đo bước 3" mà đi tìm quyết định thật ở
+file kế tiếp. Không xoá kế hoạch cũ bên dưới — nó là dấu vết LẬP LUẬN đúng đắn tại THỜI ĐIỂM viết, chỉ
+là thực tế diễn ra nhanh hơn, đi đường khác tới cùng đích.
+
+---
+
 ## Quyết (2): HOÃN quyết "giữ/loại Spacy" — chưa đủ căn cứ để quyết BÂY GIỜ, không phải từ chối quyết
 
 **Không né tránh câu hỏi — hoãn có lý do cụ thể, có điều kiện để hết hoãn:** 49,2% là con số ĐO

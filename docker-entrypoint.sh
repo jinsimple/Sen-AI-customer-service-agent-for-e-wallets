@@ -14,4 +14,19 @@ chown -R appuser:appuser /app/data /app/logs
 # Redis/Caddy cùng chạy. Tổng kết nối DB = workers x (pool ORM + pool
 # checkpointer) phải nhỏ hơn max_connections của Postgres (mặc định 100).
 : "${UVICORN_WORKERS:=4}"
-exec su appuser -c "alembic upgrade head && uvicorn src.api.main:app --host 0.0.0.0 --port 8010 --workers ${UVICORN_WORKERS}"
+
+# 🔴 HÂM NÓNG lược đồ checkpointer MỘT LẦN, TUẦN TỰ, TRƯỚC khi spawn worker
+# nào — KHÔNG được bỏ dòng này. [ĐO DevOps 20/08, tái hiện+xác nhận Coder]:
+# `src/agents/graph.py::_build_checkpointer()` chạy lại ở MỖI worker (module-
+# level, không phải một lần cho cả app) và gọi `PostgresSaver.setup()`. Trên
+# DB RỖNG (lần đầu deploy, hoặc sau `docker compose down -v`), N worker cùng
+# CREATE TABLE lần đầu ⟹ UniqueViolation trên pg_type — Postgres tự đăng ký
+# type cho mỗi bảng mới, và chỉ WORKER ĐẦU TIÊN thắng cuộc đua. uvicorn tự
+# respawn worker chết nên KHÔNG chặn container lên "healthy", nhưng log khởi
+# động có traceback trông như chết hẳn và có cửa sổ vài giây chỉ 1/N worker
+# phục vụ. Dòng dưới import `graph` một lần NGOÀI uvicorn (tuần tự, không đua
+# với ai) để `setup()` chạy đúng MỘT lần, rồi đóng pool đã mở ra — sau đó
+# `setup()` ở mỗi worker thật là no-op (lược đồ đã có), đúng như chú thích
+# "idempotent" tại chỗ gọi nó. Xem docstring `_build_checkpointer()` — Coder
+# đã ghi chi tiết ở đó, dòng này chỉ THI HÀNH điều docstring mô tả.
+exec su appuser -c "alembic upgrade head && python3 -c 'import src.agents.graph as g; g.close_checkpointer()' && uvicorn src.api.main:app --host 0.0.0.0 --port 8010 --workers ${UVICORN_WORKERS}"

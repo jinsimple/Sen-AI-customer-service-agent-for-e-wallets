@@ -136,7 +136,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       - name: 5 ràng buộc cứng (CLAUDE.md §2)
         run: pytest tests/test_invariants.py -v
         env:
@@ -159,7 +159,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       - name: Lint với ruff
         run: ruff check src/ tests/ eval/
       - name: Chạy toàn bộ pytest (unit + integration, không gọi LLM thật)
@@ -202,7 +202,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       - name: Migration chain test trên Postgres thật
         run: pytest tests/test_migrations/ -v --tb=short
         env:
@@ -256,7 +256,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       - name: Test finding bảo mật P0 chưa vá (kỳ vọng ĐỎ cho tới khi vá/chấp nhận rủi ro)
         run: pytest tests/ -v --tb=short -m security_finding
         env:
@@ -275,7 +275,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt pip-audit
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt pip-audit
       - name: Quét CVE gói Python (C7)
         # --ignore-vuln PYSEC-2026-311 (chromadb, CVE-2026-45829,
         # GHSA-f4j7-r4q5-qw2c): code injection pre-auth qua endpoint HTTP
@@ -324,7 +324,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       - name: Phép 1+2 — upgrade head trên DB trắng, rồi hai chiều
         env:
           DATABASE_URL: sqlite:///ci-migration.db
@@ -356,7 +356,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       - name: Chạy test API (phân quyền + injection)
         # -m "not security_finding": CÙNG bộ lọc với job lint-and-test (:103).
         # Thiếu nó, job này bắt luôn ST2-P0-3 (finding P0 live-chat PII còn
@@ -386,7 +386,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       # data/generated/ nằm trong .gitignore (đúng — 60k giao dịch không thuộc
       # về git). Runner sạch không có nó, nên eval chết ở FileNotFoundError
       # TRƯỚC KHI kịp gọi LLM: job đỏ vì thiếu dữ liệu chứ không phải vì agent
@@ -432,7 +432,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       # Cùng lý do như job business-rules-golden-set ở trên.
       # `--eval-out` BẮT BUỘC, không được dùng `make data` trần: eval_dir của
       # gen_dataset.py mặc định là ROOT/eval, nên nó GHI ĐÈ eval/golden_set.jsonl
@@ -473,7 +473,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt locust
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt locust
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -521,7 +521,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -607,7 +607,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
         if: steps.xet.outputs.chay == 'co'
       - name: Tạo .env cho docker compose (giá trị CI ephemeral)
         if: steps.xet.outputs.chay == 'co'

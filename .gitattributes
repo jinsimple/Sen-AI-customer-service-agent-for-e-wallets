@@ -1,0 +1,17 @@
+# Ép LF cho mọi file chạy TRONG container hoặc bị Docker/Caddy đọc trực
+# tiếp — [ĐO 20/08] git checkout trên Windows (core.autocrlf=true, mặc định
+# Git for Windows) đổi LF -> CRLF. docker-entrypoint.sh với CRLF làm kernel
+# không tìm thấy interpreter `/bin/sh\r` (không tồn tại) -> Docker báo
+#   exec /docker-entrypoint.sh: no such file or directory
+# — TRỎ VÀO FILE dù file có thật, dẫn người chẩn đoán sai hướng (kiểm
+# COPY/.dockerignore thay vì line ending). Xác nhận bằng cặp nhân quả:
+# CRLF (giữ nguyên +x, cô lập đúng biến) -> đúng lỗi trên; LF gốc -> chạy
+# qua entrypoint bình thường (thất bại ở bước khác, không phải "no such
+# file"). Vá bằng .gitattributes, không bằng lời dặn người dùng nhớ
+# `git config core.autocrlf false` — vá bằng trí nhớ người khác không phải
+# vá.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+Caddyfile text eol=lf
+Dockerfile text eol=lf
+*.dockerignore text eol=lf

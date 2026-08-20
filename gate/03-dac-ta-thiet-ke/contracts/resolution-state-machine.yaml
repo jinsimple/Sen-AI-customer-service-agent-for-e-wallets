@@ -1,0 +1,364 @@
+# contracts/resolution-state-machine.yaml
+#
+# NGUỒN SỰ THẬT về vòng đời HITL (đề xuất → duyệt → thực thi).
+#
+# ĐỔI TÊN CÓ CHỦ ĐÍCH so với bản contract cũ (`ticket-state-machine.yaml`):
+# hệ thống thật KHÔNG có một máy trạng thái ticket 10 bước nối tiếp
+# (draft → cskh_received → ... → executed → closed) như bản cũ mô tả.
+# Thực tế mô hình hoá bằng BA trường TRỰC GIAO trên hai bảng khác nhau —
+# ép chúng vào một FSM tuyến tính là mô tả sai sản phẩm:
+#
+#   Resolution.status        ← nơi HITL thật sự diễn ra (file này)
+#   Ticket.hitl_status       ← trạng thái ticket dưới góc nhìn CSKH
+#   Ticket.partner_wait_status ← trạng thái chờ ngân hàng đối tác, ĐỘC LẬP
+#
+# Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
+
+version: "2.5.0"
+source: >
+  Sinh ngược từ src/db/models.py @ 2026-08-13 · thay thế ticket-state-machine.yaml
+  v1.0.0. v2.1.0 (2026-08-14): thêm taxonomy reject_reason + INV-14 + quy tắc
+  dẫn xuất hitl_status — ADR-019, PO duyệt. v2.5.0 (2026-08-15): thêm
+  resolutions.note + note_flagged + INV-17 — ADR-024, PO thật duyệt.
+
+# ===========================================================================
+# 1. Resolution — nơi ràng buộc HITL được ép ở TẦNG DATABASE
+# ===========================================================================
+#
+# Điểm mạnh nhất của thiết kế hiện tại, và là thứ bản contract cũ không nắm
+# được: HITL không chỉ nằm trong if/else của route, nó nằm trong CHECK
+# constraint của Postgres/SQLite. Kể cả có ai viết thẳng SQL UPDATE bỏ qua toàn
+# bộ tầng application, DB vẫn từ chối.
+
+resolution:
+  bang: "resolutions"
+
+  action_type:
+    rang_buoc_db: "ck_resolutions_action_type"
+    values:
+      refund_to_wallet:  {mo_ta: "Hoàn tiền về ví", cham_tien: true}
+      refund_to_bank:    {mo_ta: "Hoàn tiền về tài khoản ngân hàng", cham_tien: true}
+      ledger_adjustment: {mo_ta: "Điều chỉnh sổ cái", cham_tien: true}
+      no_action:         {mo_ta: "Không hành động (khiếu nại không có cơ sở)", cham_tien: false}
+      manual_review:     {mo_ta: "Cần người xem xét thủ công thêm", cham_tien: false}
+
+  status:
+    rang_buoc_db: "ck_resolutions_status"
+    values:
+      draft:
+        mo_ta: "CSKH đang soạn, chưa gửi duyệt"
+        ai_co_the_tao: false
+      pending_approval:
+        mo_ta: "Đã gửi, chờ sếp duyệt. CỔNG BẮT BUỘC trước mọi hành động tiền."
+        ai_co_the_tao: false
+      approved:
+        mo_ta: "Sếp đã duyệt"
+        yeu_cau_role: supervisor
+        cham_tien: true
+      rejected:
+        mo_ta: "Sếp từ chối"
+        yeu_cau_role: supervisor
+
+  # ---- Ràng buộc BR-10, ép ở tầng DB, không ở tầng code ----
+  invariant_db:
+    ten: "ck_resolutions_approved_requires_approver_br10"
+    bieu_thuc: "(status != 'approved') OR (approved_by IS NOT NULL AND approved_at IS NOT NULL)"
+    y_nghia: >
+      Không tồn tại resolution 'approved' mà không có người duyệt + thời điểm
+      duyệt. Đây là HITL ở dạng mạnh nhất: một INSERT/UPDATE lách qua mọi tầng
+      application vẫn bị chính database từ chối.
+
+  transitions:
+    - from: draft
+      to: pending_approval
+      boi: [cskh, supervisor]
+      qua_route: "POST /tools/propose_resolution"
+    - from: pending_approval
+      to: approved
+      boi: [supervisor]
+      qua_route: "POST /resolutions/{resolution_id}/approve"
+      cham_tien: true
+      yeu_cau_them:
+        - "OTP step-up khớp ĐÚNG resolution_id (không dùng OTP của case khác)"
+        - "amount_snapshot lúc xin OTP == amount hiện tại (PSD2 dynamic linking)"
+        - "OTP còn hạn ≤ RESOLUTION_APPROVAL_OTP_FRESH_MINUTES (10 phút)"
+      ghi_chu: "CỬA DUY NHẤT tới approved. Áp dụng cho MỌI scope, kể cả noi_bo_vi — ADR-002."
+    - from: pending_approval
+      to: rejected
+      boi: [supervisor]
+      qua_route: "POST /resolutions/{resolution_id}/reject"
+      ghi_chu: "KHÔNG cần OTP — từ chối không phải hành động tài chính."
+      yeu_cau_them:
+        - "reject_reason BẮT BUỘC, thuộc enum reject_reason bên dưới"
+        - "rejected_by = supervisor thực hiện · rejected_at = thời điểm từ chối"
+        - "Ép ở tầng DB: ck_resolutions_rejected_requires_reason_br11 (INV-14)"
+        - "note BẮT BUỘC có nội dung khi reject_reason='khac' — ADR-024, INV-17"
+        - "Ép ở tầng DB: ck_resolutions_note_bat_buoc_khi_khac (INV-17)"
+
+  # ---- Ràng buộc BR-12 maker-checker (ADR-020), ép ở tầng DB ----
+  invariant_db_maker_checker:
+    ten: "ck_resolutions_maker_checker_br12"
+    bieu_thuc: >-
+      (created_by IS NULL) OR ((approved_by IS NULL OR approved_by != created_by)
+      AND (rejected_by IS NULL OR rejected_by != created_by))
+    y_nghia: >
+      Người ĐỀ XUẤT một resolution không được là người DUYỆT — và cũng không
+      được là người TỪ CHỐI — chính nó. HITL mà
+      một người vừa đề xuất vừa tự duyệt thì chỉ còn là một thao tác hai bước
+      của cùng một người — mất trọn ý nghĩa "có người thứ hai xem lại". Cửa mở
+      là có thật, không giả định: route đề xuất cho phép cả `cskh` LẪN
+      `supervisor`, còn route duyệt yêu cầu `supervisor`, nên một supervisor
+      hoàn toàn có thể đi trọn hai đầu.
+    vi_sao_co_dieu_kien_null: >
+      `created_by` nullable VĨNH VIỄN (migration b2c3d4e5f6a7): resolution tạo
+      trước khi có cột này không có cách nào biết ai đề xuất, và đoán một cái
+      tên vào sổ kiểm toán còn tệ hơn để trống. CHECK vô điều kiện sẽ vỡ trên
+      chính các dòng đó.
+    canh_bao_hieu_luc: >
+      Ràng buộc này CHƯA có hiệu lực hồi tố: 10/10 resolution hiện có đều
+      `created_by IS NULL` nên không dòng nào bị nó ràng. Nó chỉ bắt đầu bảo vệ
+      từ các resolution tạo qua route mới (route đã truyền created_by từ JWT).
+      Ghi ra đây để không ai đọc sự TỒN TẠI của constraint thành bằng chứng
+      rằng dữ liệu cũ đã sạch.
+
+  # ---- Taxonomy lý do từ chối (ADR-019) ----
+  reject_reason:
+    rang_buoc_db: "ck_resolutions_reject_reason"
+    ghi_chu: >
+      `la_tin_hieu_hoc` quyết định case có được kết xuất thành ứng viên cho bộ
+      eval ở Phase 2 hay không. Trộn hai nhóm vào một enum phẳng sẽ bơm vào bộ
+      đo những case mà đề xuất KHÔNG hề sai — làm hỏng chính cái thước dùng để
+      chấm cải tiến.
+    values:
+      sai_so_lieu:
+        mo_ta: "Số tiền/mã giao dịch/thời điểm không khớp dữ liệu đã tra"
+        la_tin_hieu_hoc: true
+      sai_phan_loai:
+        mo_ta: "Sai loại khiếu nại hoặc sai phạm vi giao dịch"
+        la_tin_hieu_hoc: true
+      thieu_can_cu:
+        mo_ta: "Không trích dẫn được tool result chống đỡ kết luận"
+        la_tin_hieu_hoc: true
+        ranh_gioi: >
+          CHỈ dùng khi thiếu căn cứ tới mức KHÔNG THỂ bổ sung. Thiếu tạm thời
+          (CSKH tra thêm là đủ) thì đi đường `POST /tickets/{id}/request-more-info`
+          -> hitl_status='need_more_info', KHÔNG phải từ chối. Lẫn hai đường này
+          sẽ mất khả năng phân biệt "sửa được" với "sai hẳn". UI màn từ chối
+          PHẢI gợi ý đường need_more_info khi sếp chọn giá trị này.
+      sai_chinh_sach:
+        mo_ta: "Trái quy định/chính sách hiện hành"
+        la_tin_hieu_hoc: true
+      trung_case:
+        mo_ta: "Đã xử lý ở ticket khác"
+        la_tin_hieu_hoc: false
+      khach_rut:
+        mo_ta: "Khách rút khiếu nại"
+        la_tin_hieu_hoc: false
+      khac:
+        mo_ta: "Lý do khác — BẮT BUỘC kèm ghi chú tự do"
+        la_tin_hieu_hoc: false
+
+  # ---- Ghi chú tự do khi từ chối (ADR-024, TM-03 sign-off của security) ----
+  note:
+    cot: "resolutions.note"
+    kieu: "Text NULLABLE — bắt buộc CÓ NỘI DUNG (sau strip) khi reject_reason='khac'"
+    gioi_han_do_dai: 500
+    rang_buoc_db: "ck_resolutions_note_bat_buoc_khi_khac"
+    xu_ly_truoc_khi_ghi: >
+      Scrub PII TẠI ĐIỂM GHI (pipeline hybrid regex+NER dùng chung với
+      ADR-010/011 — không viết mẫu mới). FAIL-CLOSED: scrub lỗi -> route trả
+      500, KHÔNG BAO GIỜ ghi bản thô rồi định che sau. Đây là NGOẠI LỆ so với
+      cột `agent_note` của InvestigationLog (ghi chú AGENT, không qua scrub vì
+      không phải văn bản tự do của nhân viên) — hai cột trông giống tên nhưng
+      khác bảng, khác rủi ro, khác xử lý; đừng đọc nhầm cái này thành cái kia
+      (chính lỗi đã xảy ra một lần khi chuẩn bị ADR này).
+    ranh_gioi_doc: >
+      CHỈ route đã gated `cskh,supervisor` (vd GET /tickets/{id}) được thấy
+      note nguyên văn. KHÔNG route nào khách gọi được được thấy. KHÔNG lọt vào
+      bất kỳ tool nào AI/LLM đọc được (ràng buộc cứng 2 — AI gọi tool dưới danh
+      nghĩa customer, nên bất cứ gì tool thấy là thứ mô hình thấy).
+  note_flagged:
+    cot: "resolutions.note_flagged"
+    kieu: "Boolean NOT NULL DEFAULT false"
+    dat_boi: >
+      Route reject, tái dùng `_phan_loai_tier`/Luật 18 (ADR-023) đã có trong
+      src/agents/tools/customer_tools.py — KHÔNG viết mẫu injection mới.
+      true khi note khớp tier-1 HOẶC tier-2 của bộ phân loại đó.
+    muc_dich: >
+      Đánh dấu cho người duyệt ứng viên (eval/CANDIDATE-REVIEW.md mục 3) thấy
+      NGAY dấu hiệu injection trong ghi chú nội bộ, thay vì phải tự đọc ra ý đồ
+      trong 500 ký tự — note do NHÂN VIÊN gõ nên qua được mọi phòng tuyến dựng
+      cho input của khách (TM-01 ở dạng nguy hiểm nhất).
+
+# ===========================================================================
+# 2. Ticket.hitl_status — góc nhìn CSKH, TRỰC GIAO với resolution.status
+# ===========================================================================
+ticket_hitl_status:
+  bang: "tickets"
+  cot: "hitl_status"
+  rang_buoc_db: "ck_tickets_hitl_status"
+  values: [pending, approved, rejected, need_more_info]
+  dan_xuat:
+    quy_tac: >
+      hitl_status theo resolution MỚI NHẤT của ticket, cập nhật trong CÙNG
+      transaction với lần đổi trạng thái resolution (không job nền) — vá QA-02,
+      trước đó cột này kẹt 'pending' vĩnh viễn nên mọi thống kê duyệt/từ chối
+      đều chưa tin được.
+    ghi_chu: >
+      VẪN là trục RIÊNG chứ không phải bản sao của resolution.status:
+      `need_more_info` không có tương ứng bên resolution, và ticket chưa có
+      resolution nào vẫn là 'pending'. Hiện mỗi ticket tối đa 1 resolution
+      (đã kiểm DB 14/08) nên quy tắc "mới nhất" chưa có tranh chấp — ghi ra
+      TRƯỚC khi nó xuất hiện.
+  ghi_chu: >
+    `need_more_info` KHÔNG có tương ứng bên resolution.status — sếp trả case
+    ngược lại cho CSKH bổ sung mà không từ chối hẳn
+    (route POST /tickets/{ticket_id}/request-more-info).
+
+# ===========================================================================
+# 3. Ticket.partner_wait_status — chờ ngân hàng, ĐỘC LẬP HOÀN TOÀN
+# ===========================================================================
+ticket_partner_wait_status:
+  bang: "tickets"
+  cot: "partner_wait_status"
+  rang_buoc_db: "ck_tickets_partner_wait_status"
+  values: [n/a, waiting, overdue, responded]
+  ghi_chu: >
+    Trực giao với hitl_status: một ticket có thể vừa `waiting` ngân hàng vừa
+    `pending` sếp duyệt. Bản contract cũ gộp thành state `pending_bank` nối
+    tiếp trong cùng một FSM — mô tả SAI, vì thực tế hai trục chạy song song.
+
+# ===========================================================================
+# 4. Cờ gian lận ≠ khoá ví (RÀNG BUỘC CỨNG 5)
+# ===========================================================================
+fraud:
+  luu_o: "complaints.fraud_signals (JSON list)"
+  tinh_boi: "src/services/complaint_intake.py — tầng service, KHÔNG do agent tự điền"
+  chinh_sach_escalate:
+    file: "src/tools/fraud_policy.py"
+    tin_hieu_kich_hoat: ["FS-06"]
+    ghi_chu: >
+      PHẠM VI MVP: CHỈ FS-06 (rút sạch sau bất thường xác thực) kích hoạt
+      escalate. Đã BỎ HẲN khái niệm Tầng A/Tầng B của thiết kế gốc — bản
+      contract cũ vẫn còn `tier: [none, A, B]`, đó là mô tả của một thiết kế
+      không còn tồn tại.
+  invariant:
+    - "Gắn cờ gian lận là hành động ĐỊNH TUYẾN (có escalate không), KHÔNG phải phán quyết."
+    - "Không tồn tại route/hàm nào khoá ví. Tính năng khoá ví CHƯA được xây."
+    - "Module fraud không được import module khoá ví (nếu sau này có)."
+
+# ===========================================================================
+# 4b. Tín hiệu CẢM XÚC (ES-xx) — ĐỊNH TUYẾN, không phải phán quyết (ADR-022)
+# ===========================================================================
+# CỐ Ý TÁCH KHỎI khối `fraud:` ở trên. Hai họ tín hiệu KHÔNG được trộn: chỉ cần
+# một lần ai đó thêm ES vào fraud_signals/tier_a là bức xúc TỰ ĐỘNG escalate lên
+# supervisor — đúng thứ ràng buộc cứng 2 cấm.
+tin_hieu_cam_xuc:
+  luu_o: "KHÔNG lưu vào DB. Bộ đếm ở Redis, TTL 2h, giá trị là SỐ, không phải nhãn."
+  tinh_boi: "src/services/emotion_signals.py — tầng service, KHÔNG do agent/LLM sinh"
+  don_vi_dem: "thread_id (user_id:iat) — KHÔNG phải user_id"
+  vi_sao_khong_luu_nhan: >
+    Suy luận cảm xúc gắn với một người xác định là DỮ LIỆU CÁ NHÂN (NĐ 13/2023).
+    Lưu nhãn theo từng lượt là dựng HỒ SƠ CẢM XÚC của khách — không có mục đích
+    xử lý chính đáng, không có cơ chế cho khách xem/xoá, và phải giải trình khi
+    audit. Bộ đếm hết hạn sau hội thoại thì không tồn tại hồ sơ nào để rò rỉ.
+  tin_hieu:
+    ES-01:
+      ten: buc_xuc_leo_thang
+      dieu_kien: ">= 3 lượt LIÊN TIẾP mang nhãn tiêu cực mạnh"
+      ghi_chu: >
+        N=3 do PO thật chốt 2026-08-15 làm GIÁ TRỊ LÀM VIỆC, canh lại sau khi bộ
+        đa-lượt của tester có đủ số. Trước khi có bộ đó thì không có gì đo được
+        N nào là đúng — nên đây là con số để bắt đầu, không phải kết luận.
+    ES-02:
+      ten: khung_hoang_nghiep_vu
+      dieu_kien: "1 lượt: doạ rời dịch vụ / doạ kiện / doạ đăng công khai"
+      khong_bao_gom: >
+        Dấu hiệu TỔN THƯƠNG TÂM LÝ. PO thật chốt 2026-08-15: KHÔNG phủ. Đó là
+        phạm trù an toàn con người, không phải rủi ro kinh doanh — xếp vào cùng
+        hàng đợi CSKH ví điện tử và xử lý như một ca churn là phản ứng SAI. Muốn
+        phủ thì phải là quyết định riêng kèm quy trình người thật (ai trực,
+        chuyển đi đâu), KHÔNG phải một nhãn thêm vào enum này.
+  hieu_luc:
+    - "Bật -> envelope /agent/chat trả goi_y_handoff=true; FRONTEND render nút."
+    - "Bật -> nâng complaints.priority lên tối đa 'high'. KHÔNG bao giờ 'critical'
+       (dành riêng cho FS-06) và KHÔNG bao giờ hạ."
+    - "KHÔNG đi vào prompt. KHÔNG thêm lượt gọi LLM nào."
+    - "KHÔNG tự gọi request_human_handoff — khách bấm (CTRL-001)."
+  khi_redis_loi: "FAIL-OPEN — coi như không có tín hiệu. ES chỉ gợi ý, không được chặn đường chính."
+  chua_lam:
+    dau_cho_cskh: >
+      "CSKH thấy dấu khách-đang-căng" — PO thật quyết CÓ nhưng KÈM ĐIỀU KIỆN phải
+      nghiên cứu thang đo cảm xúc trong ngành CSKH thực tế trước, tránh dán nhãn
+      sai lên khách. KHÔNG nằm trong phạm vi mục này; nếu cần thêm trường thì đó
+      là một vòng CLAUDE.md §3 RIÊNG.
+
+# ===========================================================================
+invariants:
+  - id: INV-05
+    mo_ta: >
+      Không tồn tại đường đi tới resolution.status='approved' mà không đi qua
+      'pending_approval' và không do supervisor thực hiện.
+    nguon: "CLAUDE.md §2.1 + §2.2"
+  - id: INV-06
+    mo_ta: "Mọi transition cham_tien=true chỉ do supervisor thực hiện"
+    nguon: "CLAUDE.md §2.1"
+  - id: INV-07
+    mo_ta: >
+      CHECK constraint ck_resolutions_approved_requires_approver_br10 phải tồn
+      tại trong models.py — đây là lớp phòng thủ cuối cùng của HITL.
+    nguon: "BR-10"
+  - id: INV-14
+    mo_ta: >
+      CHECK constraint ck_resolutions_rejected_requires_reason_br11 phải tồn tại
+      trong models.py — đối xứng với INV-07 của nhánh approve. Không tồn tại
+      resolution 'rejected' mà thiếu reject_reason/rejected_by/rejected_at.
+    nguon: "BR-11 (ADR-019). Đánh số 14 vì INV-13 đã thuộc agent-tools.yaml."
+  - id: INV-15
+    mo_ta: >
+      CHECK constraint ck_resolutions_maker_checker_br12 phải tồn tại trong
+      models.py, VÀ biểu thức của nó phải khớp `bieu_thuc` khai ở trên — tức
+      phủ CẢ HAI nhánh approve lẫn reject. Hoàn tất bộ ba cùng INV-07 (approve)
+      và INV-14 (reject). Kiểm tên KHÔNG ĐỦ: constraint vẫn mang đúng tên cũ
+      sau khi biểu thức bị thu hẹp lại chỉ còn nhánh approve, và test chỉ nhìn
+      tên sẽ xanh trong khi ràng buộc đã mất một nửa (chính là F-18).
+    nguon: >
+      BR-12 (ADR-020). Vì sao cần vế "hiện diện" riêng dù đã có test hành vi:
+      test hành vi của QA chứng minh ràng buộc ĐANG chạy hôm nay; INV này
+      chứng minh nó vẫn CÒN ĐÓ ngày mai. Gỡ constraint đi thì test hành vi đỏ
+      — nhưng một phiên sau có thể đọc cái đỏ đó thành "test hỏng" và sửa test.
+      Ràng buộc hiện-diện làm chính bộ bất biến đỏ, tức là đỏ ở chỗ không ai
+      sửa bằng cách viết lại kỳ vọng.
+  - id: INV-16
+    mo_ta: >
+      Tín hiệu ES-xx KHÔNG được xuất hiện trong complaints.fraud_signals, KHÔNG
+      được là đầu vào của evaluate_escalation(), và KHÔNG được trích dẫn trong
+      resolutions.cited_tool_result_ids. Cảm xúc ĐỊNH TUYẾN, không bao giờ tham
+      gia vào KẾT LUẬN nghiệp vụ.
+    nguon: >
+      BR-13 (ADR-022) — giữ ràng buộc cứng 2 (AI không vượt cấp) và 3 (cấm bịa
+      số liệu). Cảm xúc suy đoán không truy được về một kết quả tool có thật,
+      nên nó không đủ tư cách làm căn cứ cho bất kỳ kết luận nào.
+  - id: INV-12
+    mo_ta: >
+      Mọi giá trị status/action_type dùng trong contract này phải khớp CHÍNH XÁC
+      với CheckConstraint trong src/db/models.py.
+    nguon: "Chống contract drift"
+  - id: INV-17
+    mo_ta: >
+      CHECK constraint ck_resolutions_note_bat_buoc_khi_khac phải tồn tại trong
+      models.py — đối xứng với INV-14 (br11) và INV-07 (br10): một ràng buộc
+      nghiệp vụ trên nhánh reject phải ép ở TẦNG DB, không chỉ ở route. Không
+      tồn tại resolution có reject_reason='khac' mà note là NULL hoặc chuỗi
+      rỗng/toàn khoảng trắng.
+    nguon: >
+      ADR-024 (TM-03 sign-off của security). Đánh số 17 vì INV-13/14/15/16 đã
+      dùng. Bài học lặp lại từ INV-15 (F-18): kiểm biểu thức, không chỉ tên
+      constraint — một bản vá sau này có thể giữ tên nhưng thu hẹp biểu thức.
+
+open_questions:
+  - "Sau khi sếp duyệt (status='approved'), ai/cái gì THỰC THI lệnh chuyển tiền thật?
+     Hiện chưa có state 'executed' — hệ thống dừng ở 'approved'. Ví thật cần thêm
+     tầng đối soát sau thực thi không?"
+  - "Ngân hàng đối tác trả lời MÂU THUẪN với ledger nội bộ thì ghi nhận ở đâu?
+     partner_wait_status hiện chỉ có 'responded', không phân biệt khớp/lệch."

@@ -1,5 +1,31 @@
 # FINDING NÓNG — tuyên bố kết quả điều tra KHÔNG kèm tool call (deepseek-v4-pro-0813, ca D1, 2/2)
 
+🔴 **NIÊM 20/08 (lần hai) — dòng "3/3 ca đạt" ở niêm CŨ NGAY DƯỚI ĐÂY KHÔNG TRUY ĐƯỢC VỀ VẬT CHỨNG
+NÀO. Đọc mục MỚI NHẤT bên dưới trước, đừng dừng ở niêm cũ.**
+
+> **CÒN MỞ tính tới 20/08.** [ĐO] QA/QC rà hết `eval/results/` + `docs/security/`: khẳng định "3/3
+> đạt" **không nằm trong bất kỳ file nào** — không trong kết quả eval, không trong chính file này
+> (đọc trọn tới cuối, dừng ở "QA/QC đang sửa script và chạy lại cả 6 ca", không có dòng ghi kết quả).
+> Nó tồn tại CHỈ DƯỚI DẠNG TIN NHẮN. Ba ca còn lại CHƯA CHẠY. **Không chạy lại lúc này** — hạn ngạch
+> đang khan, ưu tiên phục vụ khách. [ĐO] thêm: `mtime` trong `eval/results/` KHÔNG dùng làm mốc thời
+> gian được — cả thư mục mang chung dấu do một lần rebuild reset, ai lấy mtime ở đó sẽ đọc ra một
+> dòng thời gian không có thật.
+
+🔴 **BÀI HỌC, ghi tại đây vì nó lớn hơn finding này:** một kết quả chỉ sống trong tin nhắn KHÔNG PHẢI
+một kết quả — không mẫu số, không thời điểm, không ai chạy lại được, nhưng LAN ĐI y hệt một kết quả
+thật (chính niêm 20/08 lần một ngay dưới đây đã chuyển tiếp con số "3/3" như thể nó là dữ kiện).
+**Luật: kết quả đo phải rơi vào một FILE trước khi được phép đi vào một CÂU.** Khác sáu lần trôi-hạn
+trong ngày (trạng thái từng đúng rồi hết hạn) — lần này là trạng thái CHƯA TỪNG tồn tại ở dạng tra
+được, không chữa được bằng thu dọn sổ, chỉ chữa được bằng luật trên.
+
+---
+
+🟡 **NIÊM 20/08 (lần một, ĐÃ BỊ VƯỢT QUA bởi mục trên — giữ lại làm bằng chứng cho chính bài học vừa
+ghi, đừng đọc như hiện trạng):** Trạng thái cuối là "TẠM ĐÓNG, chờ đo lại sạch" (niêm dưới đây). QA/QC
+báo 3/3 ca đạt với script sửa (mỗi lượt `user_id` riêng), đang chờ ngân sách cho 3 ca còn lại — kết
+quả 6/6 cuối cùng CHƯA XÁC NHẬN được ở đây. PO-agent đang hỏi QA/QC trực tiếp (vùng của họ, không
+đoán). Khi có câu trả lời, niêm ĐÓNG THẬT sẽ vào đúng chỗ này.
+
 > 19/08/2026, giữa lúc cổng nhập bể GĐ3 đang chạy. QA/QC đã dừng, Lead chuyển định hạng. Trả lời
 > nhanh nhưng có kiểm — không suy đoán trên mô tả, đã kiểm 2 điểm được ngay từ trong repo trước khi
 > trả lời (không chạm phép đo QA/QC đang giữ).

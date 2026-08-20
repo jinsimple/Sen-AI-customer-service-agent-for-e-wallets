@@ -609,11 +609,11 @@ def _goi_tool_va_quan_sat(tools: dict, ten: str, dau_vao: dict):
 
 
 def test_ca10_moi_nhanh_loi_that_khong_lam_lot_gia_tri_tot_vao_nguon(sample_db):
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
     from src.agents.tools.customer_tools import build_customer_tools
 
-    now = datetime.now(timezone.utc).timestamp()
+    now = datetime.now(UTC).timestamp()
     tools_a = {t.name: t for t in build_customer_tools(sample_db, user_id="USR-A", otp_verified_at=now)}
 
     # Trigger lỗi cho tool contract khai KHỚP code, KHÔNG cần mạng — đòi đúng

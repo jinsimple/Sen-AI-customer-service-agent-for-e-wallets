@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import pathlib
 
 from tests._eval_co_mat import doi_hoi_tep
 

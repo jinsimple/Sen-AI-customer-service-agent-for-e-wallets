@@ -75,6 +75,37 @@ cho: log/trace (giữ nguyên), kết quả tool (đã có cơ chế riêng, kh�
 
 ---
 
+## 🔴 NIÊM 20/08 — bốn con số dưới đây đo trên CHỮ KÝ HÀM ĐÃ CHẾT. Niêm PHÉP SO SÁNH, KHÔNG niêm KẾT LUẬN — hai việc khác nhau.
+
+**[ĐO] tự kiểm 20/08:** `scrub_pii(cau)` (không `muc_dich`) hôm nay → `TypeError: missing 1 required
+keyword-only argument: 'muc_dich'`. Bốn số A/D/B/D' bên dưới đều gọi hàm theo chữ ký CŨ (một tham
+số) — **không còn chạy lại được nguyên trạng** trên `pii.py` hiện tại (đã tách hai registry tường
+minh theo `muc_dich`, không phải "một registry rồi lọc theo tham số" như lúc đo bốn số này).
+
+**[ĐO] tự chạy lại RIÊNG con số D' trên kiến trúc mới** (`muc_dich="model_input"`, corpus
+`eval/golden_set.jsonl`, dùng ĐÚNG regex `\[[A-Z_]+\]` của cổng `eval/do_bop_meo_pii.py` để không tự
+tạo sai lệch phương pháp — lần đầu tôi thử một phép đo lỏng hơn (`'[' in ra`) ra 5,65%, suýt báo nhầm
+một khác biệt không có thật; sửa lại đúng regex gate mới khớp):
+
+```
+n = 124 · bị chèn ≥1 nhãn = 2 · tỉ lệ = 1,61%   ← KHỚP đúng cổng ab920a2, KHÔNG PHẢI số của tôi tự bịa
+```
+
+**D' hôm nay (1,6%) TỐT HƠN con số cũ trong bảng dưới (5,6%), không tệ hơn.** Kiến trúc hai-registry
+(tự hoàn thành điều kiện ③ tôi từng đặt) đã cải thiện thêm, không làm hỏng gì.
+
+**Điều CHƯA đo lại: cột B (regex-only, 4,8% cũ).** Tôi KHÔNG tự đo lại B trên kiến trúc mới — không
+có trong phạm vi việc hôm nay, và B không còn là lựa chọn đang dùng nên độ ưu tiên đo lại thấp. ⟹
+**Phép so sánh "D' sạch ngang B (5,6% vs 4,8%)" ở dòng KẾT LUẬN bên dưới KHÔNG còn xác nhận được** —
+không phải vì nó sai, mà vì một nửa phép so sánh (B) chưa ai đo lại trên hệ chữ ký mới.
+
+**KẾT LUẬN "D' THAY B" — GIỮ NGUYÊN, KHÔNG NIÊM.** Con số D' tự thân (1,6%, đo lại độc lập, xác nhận
+qua cổng chạy-lại-được) đã đủ mạnh để đứng một mình, không cần phép so sánh với B mới đứng vững. Ai
+đọc phần dưới đây: coi BỐN CON SỐ trong bảng là DỮ KIỆN LỊCH SỬ (giữ nguyên, đúng nếp "chỉ ghi thêm"
+của dự án) đã dẫn tới quyết định D' — không phải căn cứ hiện hành cho bất kỳ so sánh mới nào.
+
+---
+
 ## 🟢 NIÊM 19/08 (sau) — PHƯƠNG ÁN D' THAY B. Điều kiện ③ tự giải quyết ngay, không cần đợi tuần sau.
 
 **[ĐO] PO-agent đo ngay, cùng corpus 124 câu, chỉ đổi registry:**

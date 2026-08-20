@@ -599,6 +599,16 @@ _OTP_REQUIRED_ERROR = {
 }
 _OTP_EXPIRED_ERROR = {
     "status": "error",
+    # GĐ2.5 Quyết định B — nợ có hạn tới đây: client trước bản vá này CHỈ nhận
+    # diện được ca này bằng cách khớp CHÍNH XÁC chuỗi `message` (bản sao ghim
+    # ở ChatClient.tsx, cổng canh ChatClient.pin.test.ts). Field có cấu trúc
+    # này cho client một đường đọc KHÔNG phụ thuộc câu chữ tiếng Việt — đổi
+    # `message` sau này (vd sửa văn phong) không còn làm client "mù" lại.
+    # KHÔNG thêm field này vào `_OTP_REQUIRED_ERROR` (ngay trên): ca đó đã
+    # được client nhận diện bằng tín hiệu ĐỘC LẬP khác (otpVerifiedRef.current
+    # local — khách chưa từng xác thực trong phiên), không dựa vào `loai`/
+    # `message` — thêm vào đó là thừa, không đổi hành vi nào.
+    "loai": "otp_het_tuoi",
     "message": "Lần xác thực OTP gần nhất đã quá hạn cho thao tác này — yêu cầu khách xác thực OTP lại trước khi tiếp tục.",
 }
 
@@ -699,6 +709,12 @@ def build_customer_tools(
     user_id: str,
     otp_verified_at: float | None = None,
     guard: TurnGuard | None = None,
+    # ADR-044 — thread_id HIỆU LỰC của lượt chat hiện tại (đã áp `or user_id`
+    # ở graph.py), luồn xuống tool create_ticket để ghi vào Complaint.thread_id
+    # lúc TẠO — CSKH đọc lại đúng hội thoại đã sinh ra vé. None = caller cũ
+    # (test bất biến gọi thẳng hàm này) không truyền, Complaint.thread_id NULL
+    # — đúng thiết kế NULLABLE VĨNH VIỄN, không phải lỗi.
+    thread_id: str | None = None,
 ) -> list:
     """Danh sách tool gắn sẵn với đúng 1 khách (user_id) và 1 DB session của
     request hiện tại — gọi lại cho mỗi lượt chat, không tái sử dụng qua các
@@ -914,6 +930,7 @@ def build_customer_tools(
                 description_raw=description_raw,
                 trans_id=trans_id,
                 otp_disclosed=otp_disclosed,
+                thread_id=thread_id,
             )
         except ToolError as e:
             return {"status": "error", "message": str(e)}
@@ -942,7 +959,9 @@ def build_customer_tools(
         sẽ phản hồi sớm nhất", TUYỆT ĐỐI KHÔNG ngụ ý khách đang chat với
         người thật ngay lúc này."""
         try:
-            return flag_human_handoff(session, user_id=user_id, reason=reason, ticket_id=ticket_id)
+            return flag_human_handoff(
+                session, user_id=user_id, reason=reason, ticket_id=ticket_id, thread_id=thread_id
+            )
         except (ToolError, ValueError) as e:
             return {"status": "error", "message": str(e)}
 

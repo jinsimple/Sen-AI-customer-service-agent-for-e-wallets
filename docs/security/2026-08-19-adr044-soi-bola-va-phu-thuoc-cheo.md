@@ -3,6 +3,11 @@
 > 19/08/2026. Đọc trọn nháp `nhap-adr-044-CSKH-doc-hoi-thoai.md` + đối chiếu `authority-matrix.yaml`
 > + `main.py` trước khi trả lời.
 
+🟢 **NIÊM 20/08 — file này là ĐẶC TẢ (guard PHẢI như thế nào). Bản THI HÀNH được xác minh riêng, đọc
+sau file này:** `2026-08-20-xac-minh-thi-hanh-adr044.md` — kiểm code thật khớp đặc tả tới đâu (kết
+quả: khớp, một chỗ còn tốt hơn đặc tả gốc, một khoản nợ rate-limit — xem file đó, ĐỪNG dừng ở đây mà
+tưởng guard chỉ mới ở mức lý thuyết).
+
 ## Câu 1 — BOLA guard: hướng ĐÚNG, nhưng mô tả "user_id khớp" CHƯA phải guard thật sự. Sửa lại mô tả trước khi Coder code.
 
 **[ĐO] `contracts/authority-matrix.yaml`:** `GET /tickets` và `GET /tickets/{ticket_id}` đều

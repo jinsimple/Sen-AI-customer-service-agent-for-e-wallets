@@ -59,9 +59,15 @@ const SENSITIVE_TOOLS = new Set(["lookup_transaction", "get_customer_history", "
 // touchedSensitiveData bên dưới như bình thường — KHÔNG RÕ không bị gộp
 // ngầm vào OTP (điều khoản ba-trạng-thái của Bảo Mật).
 //
-// Nợ có hạn, có chuyến (khai trong Quyết định B): giải pháp (ii) này đi cùng
-// đợt backend GĐ3 (đằng nào cũng gỡ băng cho bể model xoay) sẽ đổi sang field
-// `loai` có cấu trúc, cổng ghim tháo bỏ khi đó — KHÔNG phải "tạm thời vĩnh viễn".
+// 🔴 CHUYẾN TRẢ NỢ (20/08) — backend nay CÓ field `loai:"otp_het_tuoi"` có cấu
+// trúc trong `_OTP_EXPIRED_ERROR` (customer_tools.py:600-611). Đọc `loai`
+// TRƯỚC, fallback về khớp chuỗi CHỈ khi `loai` vắng mặt — KHÔNG thay thế
+// thẳng: backend/frontend là HAI ẢNH DỰNG RIÊNG, một khung dựng-ảnh-lệch (ảnh
+// backend cũ chưa mang `loai`, ảnh frontend mới đã bỏ fallback) sẽ làm nhận
+// diện OTP-hết-tươi hỏng IM LẶNG — đúng lớp lỗi Finding B mà GĐ2.5 vừa vá,
+// chỉ khác là hợp đồng GIỮA HAI ẢNH thay vì giữa DB và ảnh. Gỡ nhánh fallback
+// + `OTP_EXPIRED_MESSAGE` ở một đợt SAU, khi đã chắc mọi ảnh đều mang `loai`.
+const OTP_EXPIRED_LOAI = "otp_het_tuoi";
 const OTP_EXPIRED_MESSAGE =
   "Lần xác thực OTP gần nhất đã quá hạn cho thao tác này — yêu cầu khách xác thực OTP lại trước khi tiếp tục.";
 
@@ -511,11 +517,16 @@ export default function ChatClient({
 
       // Finding B1 (GĐ2.5, Quyết định B) — tool vừa hỏng vì OTP ĐÃ hết tươi
       // GIỮA phiên (`otpVerifiedRef.current` vẫn `true` từ lần xác thực
-      // trước, backend mới là nguồn sự thật). Khớp CHÍNH XÁC message — không
-      // lọc thêm theo tool_name: message này chỉ 3 tool (lookup_transaction/
-      // get_customer_history/create_ticket) có thể sinh ra nên đã đủ hẹp.
+      // trước, backend mới là nguồn sự thật). Đọc `loai` TRƯỚC (ảnh backend
+      // mới), fallback khớp CHÍNH XÁC `message` (ảnh backend cũ chưa mang
+      // `loai` — xem chú thích tại khai báo OTP_EXPIRED_LOAI/_MESSAGE phía
+      // trên). Không lọc thêm theo tool_name: cả hai tín hiệu chỉ 3 tool
+      // (lookup_transaction/get_customer_history/create_ticket) có thể sinh
+      // ra nên đã đủ hẹp.
       const otpStaleCall = result.tool_calls.find(
-        (c) => c.result.status === "error" && c.result.message === OTP_EXPIRED_MESSAGE
+        (c) =>
+          c.result.status === "error" &&
+          (c.result.loai === OTP_EXPIRED_LOAI || c.result.message === OTP_EXPIRED_MESSAGE)
       );
       if (otpStaleCall) {
         push({
@@ -550,11 +561,18 @@ export default function ChatClient({
       }
       setStage("chat");
     } catch (e) {
-      // 403 kèm chữ "role" = lệch vai, KHÔNG phải lỗi trợ lý. Đổ nguyên văn
-      // `"Cần role thuộc ['customer'], tài khoản hiện tại là cskh"` vào khung
-      // chat là thứ PO đọc thấy giữa buổi demo — vô nghĩa với người dùng và
-      // trông như sản phẩm hỏng.
-      if (e instanceof ApiError && e.status === 403 && /role/i.test(e.message)) {
+      // Lệch vai = 403 KÈM chuỗi ta sở hữu (auth.py:306 require_role) —
+      // KHÔNG chỉ /role/i, thứ khớp bất kỳ lỗi nào lỡ chứa chữ "role". Ưu
+      // tiên `status` (tín hiệu MẠNH, thuộc hợp đồng HTTP, ApiError đã mang
+      // sẵn) hơn khớp câu chữ (tín hiệu YẾU) — cùng nguyên tắc đã chốt cho
+      // `_DAU_HIEU_HET_HAN_MUC`: ưu tiên status_code khi có, chỉ dựa chuỗi
+      // khi KHÔNG có. status===403 mà KHÔNG khớp chuỗi ⟹ BA TRẠNG THÁI vẫn
+      // giữ: rơi qua nhánh KHÔNG RÕ bên dưới (push lỗi chung), TUYỆT ĐỐI
+      // không ngầm gộp vào "lệch vai" — giấu một lỗi thật đắt hơn mất một
+      // câu thông báo đẹp. Đổ nguyên văn `"Cần role thuộc ['customer'], tài
+      // khoản hiện tại là cskh"` vào khung chat là thứ PO đọc thấy giữa buổi
+      // demo — vô nghĩa với người dùng và trông như sản phẩm hỏng.
+      if (e instanceof ApiError && e.status === 403 && e.message.includes("Cần role thuộc")) {
         const m = /hiện tại là (\w+)/.exec(e.message);
         setVaiLech(m?.[1] ?? "khác");
         setStage("chat");

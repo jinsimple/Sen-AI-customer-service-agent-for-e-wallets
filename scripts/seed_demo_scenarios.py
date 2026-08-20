@@ -214,6 +214,19 @@ def main() -> None:
     )
     res4 = session.get(Resolution, p4["resolution_id"])
     res4.status = "rejected"
+    # BR-11 (ADR-019, migrations/a1b2c3d4e5f6): status='rejected' ép CHECK đòi
+    # đủ 3 cột — thiếu là CheckViolation, script CHẾT ngay đây (đã xảy ra thật,
+    # DevOps bắt lúc diễn tập deploy trên clone sạch — script viết TRƯỚC BR-11,
+    # chưa từng cập nhật theo). `rejected_by` PHẢI là supervisor (ràng buộc
+    # cứng 1 — chỉ supervisor quyết định) và PHẢI khác `created_by` của đề xuất
+    # (BR-12 maker-checker, created_by=cskh.user_id ở p4 phía trên) — dùng
+    # `supervisor.user_id` thoả cả hai cùng lúc. `thieu_can_cu` khớp đúng lý do
+    # nghiệp vụ thật đã ghi trong rationale của p4 ("Không đủ bằng chứng đối
+    # tác đã hoàn"), không phải placeholder — dữ liệu demo PO thật sẽ mở trước
+    # hội đồng.
+    res4.reject_reason = "thieu_can_cu"
+    res4.rejected_by = supervisor.user_id
+    res4.rejected_at = dt.datetime.utcnow()
     session.commit()
     print(f"Đã từ chối sẵn (audit log): ticket={r4['ticket_id']} resolution={p4['resolution_id']}")
 

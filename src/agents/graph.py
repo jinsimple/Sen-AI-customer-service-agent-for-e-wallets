@@ -380,6 +380,19 @@ def _build_checkpointer():
     rõ ràng, không lặp lại bài học DATABASE_URL (ADR-013): một fallback im lặng
     từng làm hệ thống âm thầm tách đôi database.
 
+    🔴 RACE dưới multi-worker trên DB RỖNG [ĐO DevOps 20/08]: hàm này chạy lại
+    ở MỖI process import `graph` — tức MỖI uvicorn worker (module-level
+    singleton, không phải chạy một lần cho cả app). `saver.setup()` bên dưới
+    CHỈ idempotent khi tuần tự; N worker cùng gọi CREATE TABLE lần đầu (chưa
+    ai thấy bảng tồn tại) đụng `UniqueViolation` trên `pg_type` (Postgres tự
+    đăng ký row type cho mỗi bảng mới). Bắt buộc: entrypoint phải "hâm nóng"
+    lược đồ MỘT LẦN, TUẦN TỰ, TRƯỚC khi spawn worker nào — vd
+    `python -c "import src.agents.graph as g; g.close_checkpointer()"` ngay
+    sau `alembic upgrade head`. Sau bước đó, `saver.setup()` ở mỗi worker mới
+    thật sự là no-op (lược đồ đã có, không còn CREATE nào để đua) — ĐÚNG như
+    chú thích "idempotent" ở dòng gọi `saver.setup()` bên dưới, nhưng chỉ khi
+    có bước hâm nóng này đi trước, không phải tính chất tự thân của nó.
+
     Xem ADR-014.
     """
     if DB_KIND != "postgresql":
@@ -407,7 +420,7 @@ def _build_checkpointer():
         open=True,
     )
     saver = PostgresSaver(pool)
-    saver.setup()  # idempotent — tự tạo bảng checkpoint nếu chưa có
+    saver.setup()  # idempotent CHỈ khi entrypoint đã hâm nóng lược đồ trước — xem docstring hàm này
     global _CHECKPOINT_POOL
     _CHECKPOINT_POOL = pool  # giữ tham chiếu để đóng sạch lúc shutdown
     _logger.info("checkpointer_postgres", extra={"pool_max": _CHECKPOINT_POOL_MAX})
@@ -446,6 +459,96 @@ _CHECKPOINT_POOL = None  # gán trong _build_checkpointer(), đóng ở close_ch
 # với request đó), nhưng checkpointer dùng chung 1 instance nên lịch sử hội
 # thoại nối tiếp được qua nhiều request cùng thread_id.
 _CHECKPOINTER = _build_checkpointer()
+
+
+def doc_transcript_bang_giao(thread_id: str) -> dict[str, object] | None:
+    """ADR-044 — đọc hội thoại bot↔khách của MỘT thread cho route
+    `GET /tickets/{ticket_id}/transcript` (src/api/main.py). Đọc qua
+    `checkpointer.get_tuple()` — KHÔNG parse thẳng bảng `checkpoint_*`
+    (chi tiết triển khai của LangGraph, đổi giữa các phiên bản, ADR-044
+    mục 5).
+
+    Trả `None` khi thread_id KHÔNG có checkpoint nào — route phía trên tự
+    diễn giải thành "không tra được" kèm lý do, hàm này KHÔNG tự bịa lý do
+    (tách rõ trách nhiệm: hàm này chỉ đọc, route quyết định thông điệp).
+
+    PII: checkpoint lưu bản ĐÃ SCRUB (`HumanMessage` dựng từ `scrub_pii(...,
+    muc_dich="model_input")` tại :790) — hàm này KHÔNG scrub lại, đúng
+    ADR-044 mục "PII — GIẢI XONG bằng phép đo". Nhãn che SAI (vd
+    `[PERSON_VN]` thay từ khách gõ thật, trước bản vá D') vẫn còn nguyên
+    trong checkpoint CŨ — route/UI phải tự khai điều này, hàm này không
+    sửa ngược bằng chứng.
+
+    Trả `{"luot": [...], "chi_so_bang_giao": int | None}`.
+      - `luot`: mỗi lượt là `vai` ("khach"/"bot") + `noi_dung` + `co_goi_tool`
+        (bot đã gọi tool ngay trước khi sinh câu trả lời này hay chỉ là lời
+        thoại suông — CSKH cần phân biệt câu nào dựa trên dữ liệu thật).
+      - `chi_so_bang_giao`: chỉ số (0-based) của LƯỢT CUỐI CÙNG "phía trên
+        vạch" — tức lượt bot xác nhận NGAY SAU khi tool `request_human_
+        handoff` chạy. UI vẽ vạch phân cách ngay sau lượt này. `None` nếu
+        hội thoại KHÔNG có lần gọi `request_human_handoff` nào (transcript
+        đọc được nhưng chưa từng bàn giao — vd CSKH tự mở vé, không qua
+        yêu cầu của khách). KHÔNG dùng `handoff_at` (mốc DB) để suy ra vị
+        trí này — không có timestamp per-message để so khớp, dùng đúng SỰ
+        KIỆN sinh ra bàn giao (lời gọi tool) chính xác hơn một phép so mốc
+        thời gian gián tiếp.
+
+        HAI ca đặc biệt cùng cho `chi_so_bang_giao=None` dù `handoff_at` (DB)
+        có giá trị — route/UI xử lý GIỐNG NHAU (hiện note thay vì vạch), nhưng
+        NGUYÊN NHÂN khác nhau, đừng gộp khi đọc/giải thích lại:
+
+        (a) ĐÃ KHAI 19/08 (PO-agent phát hiện, không phải bug): vé sinh từ
+            nhánh timeout/bỏ lượt — `flag_human_handoff(...)` gọi THẲNG,
+            KHÔNG qua tool `request_human_handoff` mà LLM gọi. Transcript
+            KHÔNG có `ToolMessage` tên đó ở đâu cả — tự nhất quán, không một
+            dấu vết nào của bàn giao trong hội thoại.
+
+        (b) ĐÃ KHAI 20/08 (Review phát hiện khi soát toàn chuỗi): tool
+            `request_human_handoff` ĐƯỢC LLM gọi THẬT (`ToolMessage` có mặt
+            trong checkpoint), nhưng nó là message CUỐI CÙNG — lượt bị cắt
+            (timeout/lỗi) ngay sau khi tool chạy xong, TRƯỚC khi model kịp
+            sinh `AIMessage` xác nhận có nội dung. Vòng lặp dưới đây kết thúc
+            với cờ `vua_goi_handoff=True` còn treo, chưa từng được gán vào
+            `chi_so_bang_giao` vì không có lượt bot nào đứng sau để nhận nó.
+            KHÁC ca (a) ở chỗ: có BẰNG CHỨNG THẬT tool đã chạy, nhưng bằng
+            chứng đó không bao giờ gắn được vào một lượt hiển thị (`co_goi_
+            tool` chỉ gắn cho AIMessage kế tiếp — ở đây không có) — CSKH
+            không thấy badge nào cho đúng lần gọi này, kể cả khi các lượt
+            TRƯỚC đó trong cùng hội thoại có badge cho tool khác. Không vá
+            bằng cách đoán vị trí vạch — sẽ thay một khoảng trống trung thực
+            bằng một phỏng đoán."""
+    tuple_ = _CHECKPOINTER.get_tuple({"configurable": {"thread_id": thread_id}})
+    if tuple_ is None:
+        return None
+    messages = (tuple_.checkpoint.get("channel_values") or {}).get("messages") or []
+
+    luot: list[dict[str, object]] = []
+    co_tool_tu_luot_truoc = False
+    vua_goi_handoff = False
+    chi_so_bang_giao: int | None = None
+    for m in messages:
+        if isinstance(m, ToolMessage):
+            co_tool_tu_luot_truoc = True
+            if m.name == "request_human_handoff":
+                vua_goi_handoff = True
+            continue
+        if isinstance(m, HumanMessage):
+            luot.append({"vai": "khach", "noi_dung": str(m.content), "co_goi_tool": False})
+            co_tool_tu_luot_truoc = False
+        elif isinstance(m, AIMessage):
+            noi_dung = str(m.content or "")
+            if not noi_dung.strip():
+                # AIMessage rỗng nội dung (chỉ mang tool_calls, chưa có lời
+                # thoại) — không phải một LƯỢT hội thoại, bỏ qua. Cờ
+                # co_tool_tu_luot_truoc đã lên True ở nhánh ToolMessage phía
+                # trên khi tool đó thực thi xong.
+                continue
+            luot.append({"vai": "bot", "noi_dung": noi_dung, "co_goi_tool": co_tool_tu_luot_truoc})
+            co_tool_tu_luot_truoc = False
+            if vua_goi_handoff:
+                chi_so_bang_giao = len(luot) - 1
+                vua_goi_handoff = False
+    return {"luot": luot, "chi_so_bang_giao": chi_so_bang_giao}
 
 # Sentinel — phân biệt "không truyền otp_verified_at" (backward-compat: coi như
 # vừa xác thực XONG, dùng bởi eval harness/test hiện có vốn giả định "khách đã
@@ -560,6 +663,12 @@ def _build_agent(
     customer_name: str,
     otp_verified_at: float | None,
     guard: TurnGuard | None = None,
+    # ADR-044 — thread_id HIỆU LỰC của lượt này (đã áp `or user_id` ở caller,
+    # xem run_agent_turn), luồn xuống build_customer_tools để tool
+    # create_ticket ghi vào Complaint.thread_id lúc TẠO. None = caller cũ
+    # (test/eval) không truyền — Complaint.thread_id NULL, đúng thiết kế
+    # "NULLABLE VĨNH VIỄN" của migration a8b9c0d1e2f3, không phải lỗi.
+    thread_id: str | None = None,
     # GĐ3 (876a240) — tên MODEL cho lượt này, KHÔNG phải hằng số toàn cục.
     # Mặc định `LLM_MODEL` giữ NGUYÊN hành vi cũ cho mọi caller không truyền
     # (test/eval hiện có). Vòng xoay nằm INLINE trong `run_agent_turn` (không
@@ -607,7 +716,7 @@ def _build_agent(
     global _SUY_LUAN_GUI
     _SUY_LUAN_GUI = not bool((getattr(chat_model, "extra_body", None) or {}).get("enable_thinking") is False)
     tools = build_customer_tools(
-        session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard
+        session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard, thread_id=thread_id
     )
     # Số lược đồ tool THẬT SỰ bind vào lời gọi. Lấy từ chính danh sách vừa
     # dựng, KHÔNG gõ tay — `_CHARS_TOOL_SCHEMA = 6773` phía trên là hằng số
@@ -735,7 +844,8 @@ def run_agent_turn(
     # chính và luồng nền khi lượt bị bỏ rơi vì timeout, xem TurnGuard (QA-12).
     guard = TurnGuard()
     agent = _build_agent(
-        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at, guard=guard  # PII-OK: cố ý truyền None, không đưa họ tên lên LLM
+        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at, guard=guard,  # PII-OK: cố ý truyền None, không đưa họ tên lên LLM
+        thread_id=thread_id or user_id,
     )
     # thread_id mặc định = user_id (hành vi thật, không đổi). eval/_harness.py
     # truyền thread_id riêng biệt mỗi case để cô lập bộ nhớ hội thoại
@@ -779,6 +889,7 @@ def run_agent_turn(
                 agent = _build_agent(
                     session, user_id=user_id, customer_name=None,  # PII-OK: luôn None, họ tên không rời hệ thống (ADR-010)
                     otp_verified_at=otp_verified_at, guard=guard, model=model_dang_thu,
+                    thread_id=thread_id or user_id,
                 )
                 models_da_thu.append(model_dang_thu)
 
@@ -1112,6 +1223,7 @@ def run_agent_turn(
                     session,
                     user_id=user_id,
                     reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
+                    thread_id=thread_id or user_id,
                 )
                 # Commit tường minh: khách vừa được báo mã ticket này, nên nó
                 # PHẢI tồn tại thật, không phụ thuộc caller có commit hay

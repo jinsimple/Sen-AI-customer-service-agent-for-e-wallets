@@ -11,6 +11,7 @@ import type {
   ResolutionListItem,
   TicketDetail,
   TicketSummary,
+  TicketTranscript,
 } from "@/lib/types";
 import type { LiveChatContext } from "@/lib/useLiveChatSocket";
 
@@ -195,6 +196,11 @@ export function listTickets(params?: { hitl_status?: string; limit?: number }) {
 
 export function getTicketDetail(ticketId: string) {
   return get<TicketDetail>(`/api/tickets/${ticketId}`);
+}
+
+// ADR-044 — CSKH đọc hội thoại bot↔khách của vé mình xử lý.
+export function getTicketTranscript(ticketId: string) {
+  return get<TicketTranscript>(`/api/tickets/${ticketId}/transcript`);
 }
 
 export function requestMoreInfo(ticketId: string, params: { note?: string }) {

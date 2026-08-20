@@ -1,9 +1,25 @@
-target-version = "py311"
+# Khớp Dockerfile (FROM python:3.12-slim, cả 2 stage) — "py311" cũ hơn bản
+# thật đang chạy production, làm ruff báo SAI cú pháp f-string hợp lệ trên
+# 3.12 (backslash trong biểu thức f-string, PEP 701) là "invalid-syntax" cho
+# một phiên bản không ai dùng. Phát hiện lúc rà CI đỏ 20/08 — không phải lỗi
+# trong code, là cấu hình ruff lệch với runtime thật.
+target-version = "py312"
 line-length = 120
 
 [lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["E501"]
+
+[lint.per-file-ignores]
+# N802 (tên hàm phải chữ thường) là luật đặt tên cho code TIẾNG ANH — tên test
+# của dự án này là CÂU TIẾNG VIỆT, chữ HOA giữa tên là dấu nhấn ngữ nghĩa có
+# chủ đích (CHUAN-VIET-TEST.md:693), vd `test_thieu_llm_api_key_KHONG_roi_ve_
+# openai_api_key_thay_the` — chữ HOA giúp mắt lướt qua danh sách test đỏ nhận
+# ra ngay đâu là điều kiện đang bị kiểm. Đổi tên 26+ hàm để chiều một luật
+# viết cho ngôn ngữ khác là đánh đổi thứ ĐỌC ĐƯỢC lấy thứ HỢP LỆ. CHỈ miễn
+# N802, CHỈ trong tests/ — mọi luật `N` khác (vd N806 biến cục bộ) và mọi tên
+# hàm trong src/ vẫn phải theo luật, không có lý do tiếng Việt nào ở đó.
+"tests/**" = ["N802"]
 
 [format]
 quote-style = "double"

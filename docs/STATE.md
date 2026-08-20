@@ -96,6 +96,9 @@ chặn.** Nó đủ mạnh và là nguồn độc lập thật (biến môi trư
   tôi có khai mẫu số ấy ra, và **vẫn bước qua chính nó ở câu kế tiếp**. Đúng §8, do chính người
   viết nếp kiểm phạm.
 - **③ còn nguyên.** `PHAN_LUONG_BAT=1` trong `Config.Env` của **cả ba** container.
+- 🟢 **NIÊM 20/08:** dòng "② THẬT SỰ MẤT" ở trên và cảnh báo `pytest tests/` đẩy lượt nhúng ra
+  Internet đều đo **18/08**. §5.F (chốt chặn tầng transport) đã ĐÓNG 20/08 — xem `docs/STATE.md §5.F`
+  cho trạng thái hiện hành trước khi dựa vào con số ở đây.
 
 🔴 **Hạn mức: A3 của PO thật còn hiệu lực — "chưa nạp gì cho tới khi tối ưu xong chi tiêu token."**
 ~~Còn **~32K** token miễn phí trên `qwen3.7-max`~~ **[NIÊM 19/08 — số này đã chết, đừng lập kế hoạch
@@ -119,7 +122,10 @@ chiếu dashboard (A4) · bí danh/bản ghim chung xô là GIẢ ĐỊNH thận
   **−33,5% tất định**, câu `"alo"` = **0 token**.
 - **Sự cố lộ khoá OpenAI đã đóng**: `_khoa_cho_nha_cung_cap()` fail-fast — thiếu khoá + base_url
   khác ⟹ `RuntimeError` lúc khởi động, **không bao giờ âm thầm mượn `OPENAI_API_KEY`**.
-- **Benchmark 74,57/85 = 87,7%** — luôn kèm 3 caveat (xem nhật ký).
+- **Benchmark 74,57/85 = 87,7%** — luôn kèm 3 caveat (xem nhật ký). 🔴 **NIÊM 19/08** (PO thật quyết,
+  `6d05433`): số đo **16/08, TRƯỚC khi đổi model và trước 4 vùng thay đổi** (RAG 5 commit · O4 2 ·
+  PII 4 · prompt 1) — **mốc lịch sử, KHÔNG phải điểm của bản đang chạy**. Chạy lại bị huỷ (bất khả
+  thi, ước 4.611.600 token vs hạn ngạch 2.733.325); thay bằng chuỗi đo 19/08 làm bằng chứng PLO 7.
 - **Bộ an toàn 30/30** — ⚠️ **hiệu chuẩn trên `gpt-4o-mini`, CHƯA chạy lại trên Qwen.** Đây là
   tài sản lớn nhất dự án và nó đang **chưa được xác nhận trên model đang chạy**.
 
@@ -352,217 +358,29 @@ phải** `test_invariants.py` mà là một cổng mới: *"mọi ADR Đang-hi�
 file đó phải tồn tại"*. **Đề xuất — chưa ai làm, cần PO thật cho vào hàng đợi.**
 
 
-### 🔴🔴 E. PHÁT HIỆN NẶNG NHẤT 18/08 — cột Nhóm A **KHÔNG được mã hoá trên 97% số dòng**
+### ✅ E/M/O. Backfill `complaints.description_raw` — ĐÃ ĐÓNG 20/08, chuyển
+`docs/nhat-ky/2026-08-20-state-dep-E-M-O-backfill-pii.md`
 
-*(Bắt bởi **PO-agent**, trong lúc kiểm lại một phát biểu của **security** trước khi relay cho PO thật.
-Security báo `complaints.description_raw` **đã mã hoá**; số không khớp, và lệch về hướng **nặng hơn**.)*
-
-**Security phát biểu** (hồ sơ 18/08): *"`complaints.description_raw` → `gAAAAABq…` **MÃ HOÁ**"*, và
-dựng finding ① trên khung *"cột đã mã hoá đang có một BẢN SAO plaintext ở bảng khác."*
-
-**[ĐO] PO-agent, `psql` thẳng vào `fin05-postgres-1`, đếm ĐỦ dân số:**
-
-```
-complaints.description_raw     PLAINTEXT  738   tạo 05/05/2026 → 14/08/2026
-                               MÃ HOÁ      23   tạo 15/08/2026 → 17/08/2026
-                               ⟹ 738/761 = 97% NẰM PLAINTEXT TRÊN ĐĨA
-
-messages.content               MÃ HOÁ     467   tạo 11/08 → 16/08   (467/467 = 100%)
-```
-
-⟹ **Khung của finding ① SAI, và sai về phía trấn an.** Không phải *"lớp mã hoá bị đi vòng"* —
-**bản thân cột ấy chưa từng được mã hoá cho dữ liệu có sẵn.** `EncryptedText` được gắn vào
-`models.py:274` khoảng **15/08** và **738 dòng cũ chưa bao giờ được nạp lại**. `messages` không
-dính vì bảng ấy chỉ có dữ liệu từ 11/08 và mã hoá từ đầu.
-
-🔴 **VÌ SAO KHÔNG AI THẤY — `src/db/crypto_types.py:59-65`:**
-
-```python
-def process_result_value(self, value, dialect):
-    try:
-        return _fernet.decrypt(value.encode()).decode()
-    except InvalidToken:
-        return value          # ← nuốt IM LẶNG, trả nguyên văn
-```
-
-Nhánh lỗi **trả về thứ trông y hệt một lần đọc thành công**. Ứng dụng đọc 738 dòng plaintext ấy
-**không một lỗi nào**, không một dòng log nào. **Luật H ở dạng mạnh nhất từng gặp:** các ca trước
-nhánh lỗi *in ra kết luận*; ca này nhánh lỗi **không in gì cả** — nó **giả trang thành thành công**.
-Và **Luật G**: cơ chế đang làm **đúng việc của NÓ** (tương thích ngược lúc di trú), ta đọc nó thành
-một thứ rộng hơn (*"cột này được mã hoá"*).
-
-🔴 **HỆ QUẢ THỨ HAI, chưa ai nêu — nó làm cảnh báo §1 về `FIELD_ENCRYPTION_KEY` NGHIÊM TRỌNG HƠN.**
-§1 ghi *"KHÔNG xoay khoá nếu chưa có script mã hoá lại — xoay là mất vĩnh viễn"*. Với nhánh nuốt
-lỗi này, xoay khoá **không báo lỗi**: 23 dòng đã mã hoá sẽ `InvalidToken` → **trả về nguyên chuỗi
-`gAAAAA…`** như thể đó là nội dung khiếu nại. **Không mất dữ liệu ồn ào — mà hỏng dữ liệu IM LẶNG.**
-
-**[ĐO] 18/08 bổ sung — security kiểm CẢ HỌ cột, bước PO-agent đã bỏ sót. Tin TỐT:**
-
-```
-cột khai Encrypted*          MÃ HOÁ   PLAINTEXT
-messages.content               467        0     ✅
-policy_chunks.text             378        0     ✅
-bank_accounts.account_no       245        0     ✅
-complaints.description_raw      23      738     🔴  ← DUY NHẤT
-```
-⟹ **Nợ khu trú ở ĐÚNG MỘT cột. Hệ thống mã hoá KHÔNG hỏng.** `description_raw` là cột **mới nhất**
-được gắn kiểu, gắn lên một bảng **đã có 738 dòng**. Việc sửa gói trong **một script backfill**, không
-phải một cuộc rà soát toàn hệ thống.
-
-🔴 **[ĐO] PHÉP ĐO DỨT ĐIỂM — §5.E và finding ① là HAI LỖ KHÁC LOẠI, không phải một lỗ hai triệu chứng.**
-Ghép 27 dòng `create_ticket` với chính `complaint` của chúng:
-
-```
-13/08  gốc PLAINTEXT  6      15/08  gốc MÃ HOÁ  3
-14/08  gốc PLAINTEXT  5      16/08  gốc MÃ HOÁ  8
-                             17/08  gốc MÃ HOÁ  5
-⟹ 16/27 dòng có BẢN GỐC ĐÃ MÃ HOÁ ĐÚNG và một BẢN SAO PLAINTEXT NẰM CẠNH
-```
-Với 16 dòng ấy, cơ chế ADR-025 **đã chạy, đã đúng, và vẫn bị đi vòng trong cùng một giao dịch**.
-
-| | **§5.E** | **finding ① (`tool_input_json`)** |
-|---|---|---|
-| loại | **nợ MIGRATE** — cơ chế có, đúng, đang chạy | **thiếu CƠ CHẾ** — chưa từng có gì |
-| ghi mới hôm nay | ✅ được mã hoá | 🔴 **vẫn sinh plaintext, mỗi lượt** |
-| sửa bằng | script backfill, chạy MỘT LẦN | một **quyết định thiết kế** |
-| sau khi sửa lỗ kia | — | **vẫn nguyên** |
-
-> **§5.E là VŨNG NƯỚC — tát một lần là hết. Finding ① là VÒI ĐANG CHẢY — không script nào đóng được.**
-> ⟹ **Vá §5.E làm ① nặng thêm về mặt TƯƠNG ĐỐI:** backfill xong, `complaints` sạch 100% ⟹
-> `investigation_logs` thành **bản plaintext DUY NHẤT còn lại của lời khai khách**.
-
-🔴 **THỨ TỰ BẮT BUỘC — mục 1 đứng trước mục 2 KHÔNG phải vì nó rẻ hơn:**
-**nếu backfill chạy trước, phép nghiệm thu của chính nó đi qua đúng nhánh đang nói dối** — một dòng
-backfill hỏng sẽ đọc ra nguyên văn và **trông y hệt một dòng thành công**. **Sửa cái đèn trước khi soi.**
-Cơ chế phân biệt rẻ và tin được: `gAAAAA` là dấu hiệu của Fernet token (byte phiên bản `0x80` →
-base64url luôn mở đầu `gA`) ⟹ *bắt đầu bằng `gAAAAA` mà decrypt hỏng* = **SAI KHOÁ, ném lỗi, KHÔNG
-nuốt**; *ngược lại* = plaintext cũ, trả nguyên văn. **Phải land TRƯỚC mọi thao tác xoay khoá.**
-
-**Ba việc, KHÔNG gộp làm một:**
-1. `src/` — nhánh `except InvalidToken` phải **phân biệt ba trạng thái** (giải mã được · chưa mã hoá ·
-   mã hoá bằng khoá khác), không phải hai. Đúng Luật H: *luôn là BA trạng thái.*
-2. `migrations/` — script nạp lại 738 dòng. **Chưa tồn tại.**
-3. `docs/security/` — security phải **đánh giá lại finding ①** trên dân số đúng: bản sao plaintext ở
-   `investigation_logs` là **lỗ thứ hai**, không phải lỗ duy nhất, và **không phải lỗ lớn nhất**.
-
-> ⚠️ **NẾP KIỂM, ghi lại vì nó vừa hiệu quả lần thứ hai trong ngày:** security trích **3 dòng mẫu**
-> và đọc ra *"đã mã hoá"*. Ba dòng ấy tình cờ nằm trong **23 dòng mới**. PO-agent hỏi **MẪU SỐ**
-> (`GROUP BY` trên toàn bảng) thì bức tranh **lật ngược**. Đúng §8: *tập tự đến đã bị lọc rồi* — lần
-> này bộ lọc là **`LIMIT 3` mặc định trả về dòng mới nhất.**
+**Trạng thái cuối:** `fin05` 0/786 sạch (backfill 738→0, nghiệm thu độc lập ĐẠT) · `fin05do` 0/607
+sạch (chưa từng bẩn) · **`fin05ttl` 738/742 vẫn PLAINTEXT, CÓ CHỦ ĐÍCH** — ngăn dùng-một-lần, dữ
+liệu tổng hợp (`gen_dataset.py --seed 20260802`), không có khách thật ⟹ không phát sinh nghĩa vụ
+PDPA, cố ý không mã hoá. Rủi ro còn sống: đo nhầm ngăn `fin05ttl` sẽ trông như "backfill hỏng" — đọc
+kèm nhãn ngăn xếp trước khi trích số mã hoá. **Đừng nạp lại `fin05ttl`** — nó là ca đối chứng duy
+nhất chứng minh cổng plaintext còn biết kêu khi bất thường (Luật A, nửa "KÊU lúc bất thường").
 
 
-### 🔴🔴 F. HAI PHIÊN ĐỘC LẬP HỘI TỤ — chốt chặn chi phí đặt SAI TẦNG
+### ✅ F. Chốt chặn chi phí sai tầng — ĐÃ ĐÓNG, chuyển
+`docs/nhat-ky/2026-08-20-state-dep-F-G-IJ.md`
 
-*(tech-lead và tester tìm ra **cùng một lỗ từ hai hướng khác nhau**, không ai biết việc của ai.
-Hai NGUỒN độc lập — Luật D ở dạng mạnh nhất: không phải một biến viết hai lần.)*
+[ĐO 20/08] Đã vá đúng cả hai việc đề xuất: `src/cong_ra_ngoai.py:22` giải thích lý do cắm ở tầng
+transport (không phải `_khoa_cho_nha_cung_cap()`) · `src/cong_ra_ngoai.py:355` có `so_luot_da_phat()`.
 
-**Hướng 1 — tech-lead**, khi dựng ca nghiệm thu, tự khai một suýt-sai:
-~~`search_policy` là tool DUY NHẤT trong 5 tool không có cổng OTP~~ → **SAI, xem đính chính §5.G.**
-Phát biểu đúng: `search_policy` là **một trong HAI** tool không kiểm OTP (tool kia:
-`request_human_handoff`), và **cả năm tool đều mang `@_locked`**. Vế còn nguyên hiệu lực: một script
-gọi thẳng tool chạy tới `embed_query()` → **gọi thật ra OpenAI**.
-Lần này chặn bởi `OPENAI_API_KEY=gia` ⟹ 401, **0 đồng**. Khoá thật thì đó là lượt nhúng tính tiền.
+### ✅ G. Miễn trừ OTP `search_policy` — ĐÃ ĐÓNG một phần, chuyển
+`docs/nhat-ky/2026-08-20-state-dep-F-G-IJ.md`
 
-**Hướng 2 — tester**, phép dò *vô hiệu hoá hậu quả TRƯỚC* (khoá giả + base_url `127.0.0.1:9`), chạy
-**toàn bộ** `tests/`:
-
-```
-620/620 ca ĐÃ CHẠY qua phép dò        ← MẪU SỐ THẬT của cả suite, không phải "3 bộ đã khai"
-  1 lời gọi rời khỏi máy: POST api.openai.com/v1/embeddings → nguồn tests/test_api/test_injection.py
-[ĐO] PO-agent kiểm lại: test_injection.py có 0 hit `_ton_tien|dang_dong_bang|skipif` — KHÔNG cổng nào
-```
-**Đối chứng dương của chính phép dò** (thiếu nó thì "chỉ 1 kết quả" = chưa nhìn kỹ): 5 file ứng viên
-khác vẫn xanh với khoá giả ⟹ chúng thật sự không gọi.
-⚠️ **TRẠNG THÁI THỨ BA:** phép dò chỉ bắt lời gọi phía **HOST**. `test_thanh_phan_tai_lieu_kho.py`
-chạy `docker exec` vào container mang khoá RIÊNG ⟹ **NGOÀI tầm đo: KHÔNG ĐO ĐƯỢC**, không được đọc
-thành "đã sạch".
-
-🔴 **MỘT GỐC CHO CẢ HAI: chốt chặn chi phí đang nằm ở TẦNG `tests/`, còn cửa ra Internet nằm ở TẦNG
-CLIENT NHÀ CUNG CẤP.** Lớp ① là `skipif` **bên trong file test** ⟹ không phủ script nháp, không phủ
-file test quên khai, không phủ lượt chat. Lớp ② đã tắt vĩnh viễn. ⟹ **Đường đi tiền hiện không có
-lớp nào phủ, và sẽ không có lớp nào phủ cho người sau.**
-Và `CLAUDE.md §7` **in sẵn câu lệnh `pytest tests/`** ⟹ người mới **sẽ** gõ nó.
-
-**Bản vá đúng — MỘT CHỖ, BA VIỆC:** chốt chặn phải cắm ở `_khoa_cho_nha_cung_cap()` — **nơi MỌI
-đường ra ngoài đi qua**. Một cờ ở đó phủ **test + script nháp + lượt chat**. Và đó **đúng là chỗ**
-`so_luot_da_phat` (sổ nợ §5.B, *"nguồn ĐỘC LẬP thật duy nhất với envelope"*) cần cắm ⟹ vừa **chặn
-chi tiêu**, vừa **đo chi tiêu** — đúng trục ưu tiên PO đặt 18/08 (§5.A0).
-
-**Điều phối (PO-agent chốt 18/08) — HAI việc, KHÔNG phải chọn một:**
-1. **NGAY, tester:** cổng riêng cho **đúng 2 ca `/policy-docs`**, **KHÔNG** gắn `_ton_tien` cả file —
-   gắn cả file sẽ **skip luôn 10 ca appsec** (SQLi/XSS) không tốn tiền. Luật J: đừng làm im một cổng
-   đang canh đúng để bịt một cổng khác.
-2. **TIẾP THEO, tech-lead:** chốt chặn + `so_luot_da_phat` ở tầng client. Đây là việc **thay nửa (b)**
-   của bất biến — (b) đã có sẵn 12 ca mẫu và không chảy máu; cái này thì đang chảy.
-
-
-### 🔴 G. ĐÍNH CHÍNH — PO-AGENT ĐỌC MỘT OUTPUT BỊ CHÍNH MÌNH CẮT, LẦN THỨ HAI TRONG NGÀY
-
-*(Bắt bởi **security**. PO-agent phát biểu sai, đã kiểm lại và xác nhận security đúng cả hai điểm.)*
-
-**PO-agent viết** (§5.F, bản đầu): *"4 tool mang `@_locked` + kiểm `otp_verified_at`; `search_policy`
-dòng 949 mang `@tool` trần."* **Sai hai chỗ:**
-
-```
-[ĐO] customer_tools.py, liệt kê ĐỦ, không cắt cửa sổ:
-  791 @tool  792 @_locked   lookup_transaction       813 kiểm otp   OTP_VIEW_MAX_MINUTES
-  842 @tool  843 @_locked   get_customer_history     862 kiểm otp   OTP_VIEW_MAX_MINUTES
-  875 @tool  876 @_locked   create_ticket            904 kiểm otp   OTP_STEPUP_FRESH_MINUTES
-  921 @tool  922 @_locked   request_human_handoff     —  KHÔNG kiểm
-  949 @tool  950 @_locked   search_policy             —  KHÔNG kiểm
-[ĐO] thân _locked (735-790): `otp_verified_at` chỉ xuất hiện trong CHÚ THÍCH, 0 lần làm điều kiện
-```
-
-**Sai ①** — `search_policy` **KHÔNG** mang `@tool` trần: dòng 950 là `@_locked`. **Cả NĂM tool đều có.**
-**Sai ②** — **`@_locked` KHÔNG PHẢI cổng OTP.** Nó làm hai việc khác: chặn lượt đã bị bỏ
-(`TurnAbandonedError`) và **bất biến chống livelock**. Câu *"4 tool mang `@_locked` + kiểm OTP"*
-**gộp hai cơ chế không liên quan**, rồi đọc sự vắng mặt của cơ chế thứ hai như sự vắng mặt của cả hai.
-
-🔴 **CƠ CHẾ SINH LỖI — cùng lớp với đính chính ADR-031, lần thứ HAI trong ngày, cùng một người:**
-PO-agent chạy `grep … | head -40`. Output **bị cắt đúng ở dòng 949**. Dòng 950 tồn tại, nằm **ngay
-dòng sau chỗ bị cắt**. ⟹ **đọc một khung nhìn đã bị chính lệnh của mình lọc, rồi dùng như toàn cảnh.**
-Ca ADR-031: `grep` trúng dòng 143, câu trả lời ở dòng 150. Ca này: `head` cắt ở 949, câu trả lời ở 950.
-> ⚠️ **Và dấu hiệu đã nằm SẴN trong chính câu sai, bắt được MIỄN PHÍ lúc đọc, không cần chạy gì:**
-> câu viết **"4 tool"** nhưng chỉ kèm **BA số dòng**. **Mẫu số và danh sách lệch nhau trong một câu —
-> Luật F.** Không ai phải mở `psql` mới thấy.
-
-**FINDING THẬT — và nó không nằm ở chỗ ai cũng nhìn:**
-
-```
-request_human_handoff   docstring: "KHÔNG cần OTP (đây là routing request…)"   ← MIỄN TRỪ CÓ KHAI
-search_policy           docstring: không một chữ nào về OTP                     ← MIỄN TRỪ IM LẶNG
-```
-
-⟹ Vấn đề **không phải** *"thiếu một cổng"* mà **"một MIỄN TRỪ không phân biệt được với một CHỖ BỎ
-SÓT"**. Trên mã hai thứ ấy **trông y hệt nhau** — cùng là sự vắng mặt của mấy dòng. Người đọc sáu
-tháng sau biết ngay `request_human_handoff` là **quyết định**; với `search_policy` họ **không có cách
-nào biết**. **Luật H ở tầng mã nguồn:** một bên báo triệu chứng kèm chẩn đoán, một bên để lại **im
-lặng — và im lặng thì không bác được**.
-
-**Thẩm quyền: KHÔNG vi phạm** (security rà, không nâng hạng). Ràng buộc cứng 2 ✅ · ràng buộc cứng 4 ✅
-(OTP gác **truy cập dữ liệu KHÁCH**; `search_policy` đọc tài liệu công khai) · `authority-matrix` ✅ ·
-ADR-005 ✅. Miễn trừ **nhiều khả năng cố ý và trên trục "truy cập dữ liệu" là ĐÚNG**.
-
-**Nhưng có TRỤC THỨ HAI chưa ai cân:** `search_policy` là tool **duy nhất mà một khách CHƯA xác thực
-OTP làm cho văn bản mình gõ RỜI HẠ TẦNG** (`/agent/chat` → `search_policy` → `search_policy_text()` →
-`store.search()` → `embed_query()` → OpenAI/Hoa Kỳ). Bốn tool kia dừng ở cổng OTP trước khi chạm gì.
-Miễn trừ được cân trên trục *"có đọc dữ liệu khách không"* (đáp án đúng: KHÔNG) — nhưng đó **không
-phải trục có chi phí** của tool này. **Trục có chi phí là ĐƯỜNG RA, và chưa ai cân nó trên trục đó.**
-
-⚠️ **Security tự bác một khung của chính họ trước khi gửi** — [ĐO] `main.py:610`: `@limiter.limit(
-"20/minute")` **+** `RedisConcurrencyLimiter`. Có chặn, **hai lớp**. ⟹ tụt từ *"lỗ thủng ngân sách"*
-xuống *"một cái đuôi chi phí nhỏ trên một miễn trừ chưa khai"* — **hạ hai bậc, KHÔNG phải việc gấp.**
-
-**Đề nghị (security, PO-agent duyệt): HAI DÒNG CHỮ, KHÔNG phải một cổng.**
-🔴 **KHÔNG thêm OTP cho `search_policy`** — nó chặn đúng ca dùng hợp lệ (*"phí rút tiền bao nhiêu"*)
-để đổi lấy một rủi ro vừa bị hạ hai bậc. Đúng phản xạ *"thêm một cổng cho yên tâm"* mà **Luật A** gọi tên.
-1. **Viết miễn trừ vào docstring `search_policy`**, đúng khuôn `request_human_handoff` đã dùng, nêu
-   **CẢ HAI trục**. *Miễn trừ có khai thì lần sau sửa được; miễn trừ im lặng thì người ta xoá nhầm
-   hoặc nới nhầm.* (tech-lead, một dòng)
-2. **Đề xuất PO:** thêm vào `contracts/agent-tools.yaml` trường khai ***"tool này có ĐƯỜNG RA ngoài
-   hạ tầng không"***. Hôm nay contract khai tên + lược đồ, **không khai đường ra**. Có trường đó thì
-   `search_policy` là tool **duy nhất** bật cờ ⟹ **câu hỏi tự hiện ra** thay vì phải có người đi tìm.
-   Đụng contract ⟹ đủ §10.
+[ĐO 20/08] Docstring đã khai (`customer_tools.py:968`, *"MIỄN TRỪ OTP CHO `search_policy` — CÓ CHỦ
+ĐÍCH"*). **Còn treo, KHÔNG đủ để giữ mục này sống:** đề xuất thêm trường `contracts/agent-tools.yaml`
+khai "tool có đường ra ngoài hạ tầng không" — mở rộng contract, không phải nợ, đụng §10 nếu làm.
 
 
 ### 🔴🔴 H. "PREFIX CACHE HIT 0%" LÀ SAI — ĐO ĐƯỢC 50,8%, VÀ BẢN VÁ ĐỀ XUẤT ĐÃ TỪNG BỊ REVERT
@@ -668,149 +486,14 @@ phục vụ tài liệu **đã duyệt**; một tài liệu `supervisor` vừa d
 không quyết định nào còn treo trên ba con số này** sau khi 10.2 đã rút.
 
 
-### 🔴 I. MỞ RỘNG PHẠM VI (KHÔNG phải đính chính) — kho checkpoint nằm NGOÀI sơ đồ mã hoá
+### ✅ I+J. Kho checkpoint 0% mã hoá — ĐÃ THÀNH ADR-045, chuyển
+`docs/nhat-ky/2026-08-20-state-dep-F-G-IJ.md`
 
-*(Bắt bởi **tester**, khi soi tiếp **sau khi** cổng plaintext trúng dự báo 4/4 tới từng chữ số.
-PO-agent kiểm lại độc lập bằng `psql`, **chỉ đếm, không in một byte nội dung nào**.)*
-
-```
-[ĐO] phép dò của cổng quét KIỂU GÌ:
-     character varying 83 · text 30   → 113 cột, QUÉT ĐƯỢC
-     json 6 · jsonb 2 · bytea 2       →  10 cột, MÙ HOÀN TOÀN
-
-[ĐO] checkpoint_blobs — chỉ ĐẾM:
-     tổng                            6.213
-     mang hình dạng Fernet (gAAAAA)      0     ⟹ 0% mã hoá
-     CHỨA mã giao dịch "TXN2026…"    2.179
-```
-
-⟹ **`738` KHÔNG phải toàn cảnh.** Mẫu số của kho checkpoint (**6.213**) lớn gấp **8,4 lần** mẫu số
-ADR-032 đang bàn (**761**).
-
-✅ **KHÔNG AI SAI — đây là MỞ RỘNG PHẠM VI, không phải đính chính.** ADR-032 BỔ SUNG ① **đã khai đúng
-mẫu số của nó**: *"[ĐO] cả bốn cột khai `Encrypted*`"*. Kết luận *"hệ thống mã hoá KHÔNG hỏng"* **đúng
-BÊN TRONG mẫu số ấy**. Phân biệt này quan trọng: gọi nhầm nó là "đính chính" sẽ làm người đọc mất
-niềm tin vào một phát biểu vốn trung thực.
-
-🔴 **RANH GIỚI PHÁT BIỂU — giữ nguyên, đừng nới (Luật B mở rộng: phát biểu này đẩy người nhận vào
-CHẾ ĐỘ NÀO):**
-`2.179/6.213` là **số dòng chứa MÃ GIAO DỊCH**. **KHÔNG** phải *"2.179 dòng chứa PII khách hàng"*.
-SĐT tài khoản hạt giống: **0/6.213**. Khoảng cách giữa hai câu ấy là việc **định hạng của security**,
-không phải của tester và không phải của PO-agent.
-
-⚠️ **Nối thẳng vào cảnh báo xoay khoá ở §1, và nó ĐẢO DẤU tin tốt:** `checkpoint_blobs` và
-`investigation_logs.tool_input_json` **0% mã hoá** ⟹ chúng **KHÔNG bị ảnh hưởng** khi xoay
-`FIELD_ENCRYPTION_KEY`. Nghe như tin tốt. **Nó là tin xấu:** nghĩa là một phần dữ liệu hội thoại
-**chưa bao giờ được bảo vệ bởi khoá nào.**
-
-**PHẠM VI — PO-agent chốt: ADR RIÊNG, KHÔNG mở rộng ADR-032.** Ba lý do:
-1. **Khác LOẠI, đúng phân biệt đã dùng cho 032 vs 034:** ADR-032 là **nợ MIGRATE** trên một cột **đã
-   được khai là mã hoá**; `checkpoint_blobs` **chưa bao giờ nằm trong sơ đồ** — không có gì để migrate.
-2. **Ta KHÔNG sở hữu lược đồ ấy** — nó là bảng của LangGraph `PostgresSaver`. Bảo vệ nó là việc ở
-   **tầng serde**, không phải đổi kiểu cột ⟹ **cơ chế khác, chi phí khác, rủi ro khác**.
-3. **Gộp vào là khoá ADR-032 lại.** 032 đang gần đóng (① xong, ② chờ dựng ảnh, ③ cổng đã land); buộc
-   nó chờ một bài toán nặng hơn là **cách chắc chắn nhất để cả hai không xong** — cùng lý lẽ đã dùng
-   khi tách finding `tool_input_json` khỏi ADR-031.
-🔴 **Cổng CỐ Ý không assert trên 10 cột đó, và đó là quyết định ĐÚNG** — *quyết định cột nào phải mã
-hoá là việc của ADR, không phải của tester tự viết chính sách bằng một assertion.* Đúng thứ quy trình
-§10 sinh ra để chặn.
-
-**Chờ:** security **định hạng** (mã GD trần có phải finding mức nào) → PO thật duyệt ADR mới.
-
-
-### 🔴🔴🔴 J. KHO CHECKPOINT CHỨA TOÀN BỘ BẢN GHI HỘI THOẠI, KHÔNG MÃ HOÁ — mức CAO
-
-*(Security định hạng sau khi hỏi *"cái gì đã KHÔNG sinh ra dòng nào ở đây"*. PO-agent kiểm lại độc
-lập bằng **byte thật**, **chỉ đếm, 0 byte nội dung được in, không giải mã gì**.)*
-
-```
-[ĐO] checkpoint_blobs WHERE channel='messages'
-     tổng                       3.597
-     mang hình dạng Fernet          0      ⟹ 0% mã hoá
-     chứa "HumanMessage"        3.597      ⟹ TIN NHẮN KHÁCH, MỌI DÒNG
-     chứa "AIMessage"           3.220
-     kích thước bảng             37 MB     (security báo 105 MB — MẪU SỐ khác,
-                                            có thể là mọi channel / trước nén. Chưa truy,
-                                            KHÔNG ĐỔI kết luận)
-[ĐO] FK trên mọi bảng checkpoint*   0
-```
-
-⟹ **Kho checkpoint không chứa "một ít mã giao dịch". Nó chứa TOÀN BỘ BẢN GHI HỘI THOẠI — gồm văn bản
-KHÁCH TỰ GÕ — chưa mã hoá.** §5.I (2.179 dòng mã GD) là **phần vô hại nhất** của bức tranh này.
-
-🔴 **VÌ SAO CẢ SECURITY LẪN PO-AGENT ĐỀU MÙ Ở VÒNG TRƯỚC — bẫy này sẽ tái diễn, [ĐO] chứng minh:**
-
-```
-dò TIẾNG VIỆT bằng BYTE THẬT      position('\xe1babf'::bytea in blob)  →  2.738   (ế)
-                                   position('\xe1bb8b'::bytea in blob)  →  2.833   (ị)
-dò qua encode(blob,'escape') ~ '[àáảãạăâđ…]'                          →      0   🔴 MÙ HOÀN TOÀN
-```
-
-`encode(…,'escape')` biến **mọi byte ngoài ASCII** thành escape bát phân ⟹ **mọi ký tự tiếng Việt biến
-mất khỏi phép so khớp**, trong khi `TXN2026` (thuần ASCII) hiện ra bình thường.
-> **Một bộ dò PII chạy trên `bytea` mà so khớp bằng CHUỖI sẽ THẤY đúng phần ASCII và MÙ đúng phần
-> tiếng Việt** — tức **mù đúng phần chứa lời khai khách, thấy đúng phần vô hại nhất**. Kết quả nó trả
-> về **không phải *"ít PII"*** mà là ***"chỉ những PII viết bằng chữ không dấu"***.
-> **Luật L ở một mặt phẳng mới:** không phải ngưỡng lỏng/chặt, mà **bộ dò MÙ VỚI CHÍNH BẢNG MÃ của
-> dữ liệu nhạy cảm nhất**. **Sửa: dò trên BYTE THẬT** (`position(…::bytea in blob)`).
-
-**MỘT MITIGATION CÓ THẬT, [ĐO] chứ không giả định:** `ToolMessage` **đã được che** —
-`_scrub_pii_cho_llm` (`customer_tools.py:495`) che `full_name`/`phone`/`account_no` trước khi vào hội
-thoại LLM. **Đó chính là lý do SĐT ra `0/6.213` ở §5.I.**
-🔴 ⟹ **Con số `0` ấy là bằng chứng CƠ CHẾ CHE ĐANG CHẠY, KHÔNG phải bằng chứng KHO SẠCH. Đừng ai trích
-`0/6.213` như một lời trấn an.**
-Còn **`HumanMessage` KHÔNG được che, và đó là CỐ Ý, đúng thiết kế** — ADR-025 QĐ1 bác che-lúc-ghi cho
-Nhóm A. **Quyết định ấy đúng** — nó chỉ giả định lời khai được bảo vệ bằng **MÃ HOÁ** thay vì bằng che.
-**Ở kho checkpoint KHÔNG CÓ VẾ THỨ HAI.**
-
-🔴 **HỆ QUẢ NẶNG NHẤT — nó làm dấu ✅ ở §5.E thành GÂY HIỂU NHẦM:**
-
-| | cột được chỉ định | bản sao plaintext |
-|---|---|---|
-| lời khai | 23/761 — nợ migrate (ADR-032) | `investigation_logs` 27 |
-| **hội thoại** | **`messages.content` 467/467 — HOÀN HẢO** | **`checkpoint_blobs` 3.597 · 37 MB** |
-
-Con số `467/467` **vẫn đúng**. Nhưng kết luận người đọc rút ra — *"nội dung hội thoại được mã hoá
-at-rest"* — **SAI**. ⟹ **Người đọc không hỏi *"cột khai `Encrypted*` có sạch không"*; họ hỏi *"lời khai
-khách có được bảo vệ không"*.** Ta trả lời câu thứ nhất và **để họ tưởng đã có câu thứ hai.**
-
-**HẠNG: finding RIÊNG · mức CAO · hạng "HỆ SỐ NHÂN BÁN KÍNH", KHÔNG phải "cửa mới".**
-Security **cố ý không chọn hạng cao nhất**, và nói rõ cả hai vế:
-- **KHÔNG phải P0 gấp:** không kẻ tấn công mới · không đường ra ngoài hạ tầng · không vi phạm ràng
-  buộc cứng nào. Cùng CSDL, **cùng biên tin cậy** — ai đọc được cái này thì đã đọc được 738 dòng
-  `complaints`. **Không phải cửa mới; cùng một cửa, mở ra căn phòng lớn hơn nhiều.**
-- **LÀ mức cao vì BA tính chất CỘNG LẠI, không vì kích thước:** ① **8,4×** mẫu số ADR-032, **39×**
-  finding ① · ② **vô hình với job retention** ([ĐO] **0 FK**) trong khi `thread_id` = `"USR-0145:…"`
-  **CHỨA `user_id`** ⟹ **không tra ra được nhưng QUY TRÁCH NHIỆM ĐƯỢC — kết hợp tệ nhất** · ③ **0 cơ
-  chế prune/TTL/delete** trong `src/`, ~21 MB/ngày, **không trần**.
-  *Khác `investigation_logs`: ở đó `NO ACTION` ít nhất làm job **báo lỗi**. Ở đây **job chạy xong, báo
-  thành công, bản ghi hội thoại vẫn nguyên. Không cổng nào kêu.***
-- 🔴 **CHI PHÍ CỦA VIỆC KHÔNG LÀM, phát biểu chính xác:** ngày ADR-032 backfill xong, **sẽ có người
-  viết *"lời khai khách đã được mã hoá at-rest"*. Câu đó SAI chừng nào kho checkpoint còn như hôm nay**
-  — và sai theo kiểu **nghe rất đúng**, đi vào hồ sơ, rồi không ai kiểm lại. **Luật G ở tầng hồ sơ,
-  bán kính lớn nhất trong ngày.**
-
-**Sắc lại ca "đảo dấu" §5.I:** cách nói đúng **không phải** *"xoay khoá an toàn hơn ta tưởng"* mà
-**"xoay khoá KHÔNG BẢO VỆ GÌ ở đây, vì ở đây CHƯA TỪNG có gì được bảo vệ"** — hai câu khác nhau:
-ADR-032 nói về rủi ro **HỎNG** dữ liệu; mục này nói về **vùng khoá chưa bao giờ với tới**.
-
-**BỐN RÀNG BUỘC cho ADR mới** *(security nêu ràng buộc, KHÔNG thiết kế — thiết kế thuộc tech-lead)*:
-1. 🔴 **Bảo vệ ở tầng SERDE, KHÔNG đổi kiểu cột** — `PostgresSaver` sở hữu lược đồ; đổi cột là đánh
-   nhau với thư viện mỗi lần nâng phiên bản.
-2. **ĐỪNG che `HumanMessage`** — cùng lý lẽ ADR-025 QĐ1. **Mã hoá, không che.** Bản vá đi hướng scrub
-   là **đi ngược một quyết định đã ký**.
-3. 🔴 **Giải quyết RETENTION CÙNG LÚC, không để lần sau.** 0 FK ⟹ mục này **sẽ không tự lộ ra** khi ai
-   viết job xoá. ADR chỉ nói *"mã hoá kho checkpoint"* mà không nói *"và xoá theo cùng lịch với hồ sơ
-   khiếu nại"* ⟹ ta đổi **kho plaintext vĩnh viễn** lấy **kho ĐÃ MÃ HOÁ vĩnh viễn**.
-4. **Nghiệm thu phải dò trên BYTE, không dò trên chuỗi đã escape** — nếu không, cổng nghiệm thu **báo
-   xanh đúng theo cách nó đã mù hôm nay**.
-
-**THỨ TỰ:** **SAU** ADR-032 (rẻ, đóng khoảng trống **đã khai**), **TRƯỚC** phần còn lại. Không phải vì
-nhỏ hơn — vì **đắt hơn và ta không sở hữu lược đồ**, nên nó cần một **QUYẾT ĐỊNH**, không cần một script.
-
-**KHÔNG kết luận:** ❌ có PII **người thứ ba** trong kho (rất có thể có, **chưa đo** — cần NER, chưa
-chạy) · ❌ về `fin05ttl`/`fin05do` (số này của `fin05`) · ❌ không giải mã, không trích, không xem tin
-nhắn nào.
+[ĐO 20/08] ADR-045 (`docs/DECISIONS.md`, commit `b37218f`) 🟡 **chờ PO thật duyệt.** Bốn ràng buộc
+I+J từng nêu (serde không đổi cột · đừng che `HumanMessage` · giải quyết retention cùng lúc · nghiệm
+thu dò byte) vào ADR nguyên vẹn. Review tìm thêm bảng `checkpoint_writes` (7.015 dòng, chưa ai từng
+đếm) ⟹ **tổng 13.857 blob, 0% mã hoá — gấp đôi con số I+J giữ.** Đọc số mới trong ADR-045, không
+dùng số cũ trong file lưu trữ.
 
 
 ### 🔴 K. THIÊN LỆCH CỦA CHÍNH PO-AGENT — BA LẦN, MỘT HƯỚNG: thổi PHẠM VI lúc relay
@@ -850,6 +533,14 @@ có gì được ghi xuống.
 **GIAI ĐOẠN 2 — ba việc, cùng một câu *"làm cho cơ chế đủ tốt như cách nó đang được MÔ TẢ"*:**
 đổ `da_phat` vào `usage.jsonl` · đảo mặc định cờ thành **TỪ CHỐI** + compose khai `=1` (phủ **script
 nháp**) · một đường đọc bộ đếm từ ngoài tiến trình. **Sau khi ảnh mới chạy ổn, TRƯỚC ADR-033.**
+
+🔴 **[ĐO 20/08, PO-agent] 1/3 XONG — KHÔNG gộp vào §5.F dù cùng chủ đề, đó là hai VIỆC khác nhau
+(F = cắm chốt chặn đúng tầng, K giai đoạn 2 = làm bộ đếm đọc được từ ngoài):**
+```
+✅ src/cong_ra_ngoai.py:355  so_luot_da_phat()  — đường đọc bộ đếm ngoài tiến trình XONG
+⬜ src/cong_ra_ngoai.py:181  "…KHÔNG NƠI NÀO ĐỌC nó" — đổ da_phat vào usage.jsonl CHƯA xong
+⬜ đảo mặc định cờ compose thành TỪ CHỐI + khai =1 — chưa đo, chưa kết luận
+```
 
 
 ### ✅ L. DỰNG ẢNH 18/08 — nghiệm thu ĐỘC LẬP ĐẠT, kèm MỘT nhãn đang nói dối
@@ -891,67 +582,14 @@ lập**: file sửa lần cuối **12/08** (`553b9e8`, sáu ngày trước) · n
 chạy từ HOST**. Suýt báo động giả về chính lần dựng vừa nghiệm thu.
 
 
-### ✅ M. ADR-032 ② BACKFILL ĐÃ CHẠY — nghiệm thu độc lập ĐẠT. §5.E đóng MỘT PHẦN
-
-**PO-agent kiểm bằng phép của mình, sau khi tech-lead làm đủ ①→④:**
-```
-[ĐO] psql thẳng, GROUP BY toàn bảng   complaints.description_raw: MÃ HOÁ 761 · PLAINTEXT 0
-[ĐO] đọc qua ĐƯỜNG SẢN PHẨM (container py3.12, ORM, nhánh ba trạng thái):
-       tổng đọc được        761
-       rỗng                   0
-       CÒN dạng gAAAAA        0   ← >0 nghĩa là giải mã HỎNG, trả nguyên bản mã
-[ĐO] sửa-tay 0·0·0 · băm cây == băm ảnh d5b73a04d6ef · lệch× 0·0·0
-```
-**738 → 0.** Cột Nhóm A nặng nhất nay mã hoá 100% trên `fin05`.
-
-🔴 **PHÉP QUYẾT ĐỊNH KHÔNG PHẢI CON SỐ `761/0`** — nó là con số **ta muốn nghe**, và theo **Luật M**
-đó là lúc không gì kích hoạt phản xạ soi lại. Hai phép dưới mới phân định, và **cả hai được khai
-TRƯỚC khi chạy**, không nghĩ ra sau:
-- **① so TỪNG DÒNG với bản sao lưu:** `761/761 khớp · 0 lệch`. Chi tiết làm nó có nghĩa: **giải mã CẢ
-  HAI bên qua cùng `_giai_ma()` của sản phẩm**, không so chuỗi thô — bản gốc là *738 plaintext + 23 đã
-  mã hoá*, so thô sẽ cho 738 "lệch" và dẫn người ta đi chữa một thứ không hỏng.
-- **② đọc qua ORM trong container** *(phép PO-agent thêm)*: cảnh báo `doc_gia_tri_chua_ma_hoa`
-  **738 → 0**, lỗi `giai_ma_that_bai_nghi_xoay_khoa` **0**.
-  🔴 **Đây là số duy nhất chứng minh 738 dòng đổi trạng thái THEO CÁCH SẢN PHẨM NHÌN THẤY** — mọi số
-  khác đều đo bằng script của tech-lead, trên Python của tech-lead. Thiếu phép này thì toàn bộ báo cáo
-  là *"dụng cụ của tôi nói dụng cụ của tôi đúng"*.
-  ⭐ Và nó là **ca đối chứng TỰ NHIÊN** cho nhánh ba trạng thái land sáng nay: `738 → 0` là chuỗi thời
-  gian ngắn nhất chứng minh **cả cơ chế lẫn bản vá** cùng hoạt động.
-
-**Hai điều kiện PO-agent thêm đã bắt được HAI lỗi thật, trước khi ghi:**
-1. *"Sao lưu phải được KIỂM PHỤC HỒI, không chỉ được tạo"* → bản `pg_dump --data-only` đầu tiên có đủ
-   761 INSERT, kích thước đẹp, băm đẹp — **và không tự phục hồi được**.
-2. *"So BYTE khoá host với khoá container"* → [ĐO] host **KHÔNG có `FIELD_ENCRYPTION_KEY`**; phản xạ
-   mặc định cả buổi chiều là `Fernet.generate_key()`. Ở đây nó là **ghi đè 738 dòng bằng khoá không ai
-   giải được**.
-> 🔴 **Cả hai thuộc CÙNG MỘT LỚP, và tech-lead gọi đúng tên nó:**
-> ***"thứ tôi đã làm đúng 20 lần hôm nay ở một ngữ cảnh mà nó vô hại"***. Hai điều kiện ấy **không bắt
-> sự cẩu thả** — chúng bắt **một thói quen ĐÚNG bị mang sang chỗ nó SAI**. Đó là lý do chúng đáng tồn
-> tại kể cả khi người thao tác đang rất cẩn thận.
-
-**Quyết định thiết kế giữ lại — đừng ai đảo:** **KHÔNG làm alembic revision.** Entrypoint chạy
-`alembic upgrade head` **mỗi lần container khởi động, trên cả ba ngăn xếp VÀ production** ⟹ revision
-hoá nghĩa là **738 dòng lời khai khách bị viết đè tự động, không ai bấm nút**.
-> ***Di trú LƯỢC ĐỒ nên tự động; di trú NỘI DUNG thì không.***
-Và ba phép kiểm sau khi ghi nằm **trong cùng giao dịch, `raise` để rollback** — *một script ghi dữ
-liệu mà chỉ CẢNH BÁO khi phát hiện sai là script đã ghi rồi mới nói.*
-
-🔴 **CHƯA ĐÓNG — §5.E đóng ĐÚNG MỘT PHẦN:**
-- Backfill **chỉ chạy trên `fin05`**. **`fin05ttl` · `fin05do` · PRODUCTION là BA QUẦN THỂ RIÊNG**,
-  mỗi nơi **một quyết định, một lần sao lưu**. tech-lead **không tự mở rộng** — đúng.
-- **ADR-032 ③** (cổng trong `tests/`) thuộc tester.
-- **CSDL `vutdi_kiem_saoluu` GIỮ LẠI** — nó là bản phục hồi **đã kiểm**, và là **đường lùi duy nhất còn
-  lại**. Xoá khi PO thấy đủ an toàn.
-- **§5.J (kho checkpoint) KHÔNG bị đụng tới** — và nay nó thành **bản plaintext DUY NHẤT còn lại của
-  lời khai khách**, đúng như security dự đoán: *vá vũng nước làm vòi chảy lộ ra rõ hơn.*
-
-⚠️ **Dự báo 9/10 — dòng lệch tech-lead TRUY thay vì làm ngơ, và lệch về phía DỄ CHỊU:** `not
-security_finding` dự báo 569, thật **570** (tổng ca thu thập 628→630 vì **tester land song song**).
-`src/` đổi 0 file, backfill không đụng `tests/`. **Luật K:** lệch về phía nhiều-ca-xanh-hơn là loại
-lệch **không ai đi truy** — họ truy vì *"nếu nó lệch xuống 568 thì tôi đã truy ngay"*.
-
-
 ### 🔴🔴🔴 N. ADR-026 "Đang hiệu lực" — NHƯNG CƠ CHẾ TRUNG TÂM CỦA NÓ KHÔNG TỒN TẠI. Sự cố nó đóng VẪN ĐANG MỞ
+
+🔒 **[ĐO 20/08, PO-agent xác nhận claim còn đúng — `grep 'da_duyet' src/ migrations/ contracts/` = 0
+hit] NGĂN RIÊNG, CẤM DỌN, CẤM HỎI LẠI PO THẬT.** Mục này khác mọi mục khác trong §5: nó KHÔNG chờ
+VIỆC (chưa ai làm) — nó chờ NGƯỜI (PO thật đã chọn ⏸ **HOÃN** ở A0 vòng 2: *"PO cần nghiên cứu kỹ
+hơn"*, một quyết định ĐÃ CHỐT, có khai). Hỏi lại PO thật câu này là vi phạm §5 hiến pháp (*"quyết
+định đã chốt thì không bao giờ hỏi lại"*). Lỗ kỹ thuật (route/`CheckConstraint` thiếu `da_duyet`)
+vẫn nguyên trạng — chỉ trình DỮ KIỆN mới nếu có, không trình lại câu hỏi.
 
 *(Bắt bởi **security**, khi áp vế thi hành Luật M cho H3 — *mở sổ trước khi lập luận*: đi tìm trường
 nào đo thẳng *"kho RAG đổi lúc nào"*. **Không có trường nào**, và trên đường đi đụng thứ này.
@@ -1026,117 +664,10 @@ và câu thứ hai đẩy người đọc vào **chế độ xử lý sự cố*
 + `migrations/` + `src/`** ⟹ đủ §10. **Trình PO: thi hành ngay, hay chấp nhận rủi ro có khai?**
 
 
-### 🔴🔴 O. ĐÍNH CHÍNH §5.M — "738 → 0" ĐÚNG CHO MỘT NGĂN XẾP, KHÔNG ĐÚNG CHO HỆ THỐNG
-
-*(Ô `O` chỉ bỏ trống ở **SỔ LUẬT §7**, không ở đây — hai không gian tên khác nhau.)*
-*(Bắt ĐỘC LẬP bởi **security** và **tester**, cùng lúc, không ai biết việc của ai. PO-agent kiểm lại.)*
-
-```
-[ĐO] complaints.description_raw, cả ba ngăn xếp cục bộ:
-     fin05      mã hoá 761  ·  PLAINTEXT   0   ✅ đã backfill
-     fin05ttl   mã hoá   4  ·  PLAINTEXT 738   🔴 NGUYÊN VẸN
-     fin05do    mã hoá 607  ·  PLAINTEXT   0
-[ĐO] 738 dòng ở ttl: created_at 05/05/2026 → 14/08/2026  ⟹ ĐÚNG CÙNG TẬP đã có ở fin05
-```
-⟹ ***"738 → 0"* đúng cho `fin05`, và CHỈ cho `fin05`. Tính cả ba ngăn xếp cục bộ: VẪN 738.**
-
-🔴 **SẮC THÁI TESTER THÊM — `fin05do` sạch KHÔNG phải bằng chứng backfill tốt: NÓ CHƯA BAO GIỜ BẨN**
-(kho nạp **sau** khi `EncryptedText` đã có). Đọc *"hai ngăn xếp đã sạch"* là **dân số pha tạp** (§8):
-**BỐN quần thể, mỗi cái sạch/bẩn vì một LÝ DO KHÁC NHAU.**
-
-🔴 **CƠ CHẾ — VÀ NÓ NẰM Ở PHÉP NGHIỆM THU, KHÔNG Ở BẢN VÁ.**
-Bản vá **đúng**. Phép nghiệm thu của PO-agent cũng **chặt** (đọc lại qua ORM trong container, 761 đọc
-được, 0 dòng còn bản mã). **Không ai làm ẩu.**
-> **PHÉP NGHIỆM THU THỪA HƯỞNG MẪU SỐ CỦA BẢN VÁ.** Bản vá chạy trên `fin05` ⟹ người kiểm mở `fin05`
-> ⟹ kết luận mang tên *"backfill xong"* thay vì *"backfill xong TRÊN `fin05`"*.
-> **Tập tự đến bị lọc bởi CHÍNH THAO TÁC đang được kiểm.**
-Đây là §8 áp lên một **NGHIỆM THU** thay vì một **phép đo** — **hiểm hơn**, vì nghiệm thu là bước ta
-dựng ra **ĐỂ BẮT** thiếu sót. Ba ngăn xếp nằm ở **dòng thứ tư của §1**; không ai phải đi tìm. Nó chỉ
-**không có mặt trong CÂU HỎI**.
-⚠️ **Và security mắc đúng lỗi ấy cùng ngày, độc lập:** §11 định hạng kho checkpoint **chỉ trên
-`fin05`**. Họ **có tự khai** — nhưng **khai một khoảng trống không lấp nó**, y hệt ca §10.2.
-**Hai người, hai artefact, một bộ lọc, một ngày** ⟹ tính chất của **quy trình**, không phải lỗi của ai.
-
-**MẪU SỐ ĐẦY ĐỦ cho §5.J (kho checkpoint) — gấp 1,7× con số đã báo:**
-```
-             blob(messages)  HumanMessage  tiếng Việt   dung lượng
-fin05            3.597          3.597        3.413       105 MB
-fin05ttl         2.482          2.482        2.318        95 MB
-fin05do             62             62           59       127 kB
-TỔNG cục bộ      6.141          6.141        5.790      ~200 MB
-```
-**Hạng §5.J GIỮ NGUYÊN mức CAO — security KHÔNG nâng**, lý do họ nêu đúng: mẫu số lớn hơn **không đổi
-bản chất** (cùng biên tin cậy, không kẻ tấn công mới), nó đổi **độ chính xác của hồ sơ**. *Nhưng một
-định hạng đúng với mẫu số sai vẫn là một định hạng phải làm lại.*
-
-**🔴 CÂU CẦN MỘT QUYẾT ĐỊNH, KHÔNG CẦN THÊM PHÉP ĐO:**
-> **`fin05ttl` và `fin05do` là ngăn xếp DÙNG MỘT LẦN, hay dữ liệu ở đó phải được bảo vệ như `fin05`?**
-- **DÙNG MỘT LẦN** ⟹ khai ra, và **mọi phát biểu về mã hoá at-rest phải KÈM PHẠM VI** (*"trên ngăn xếp
-  phục vụ"*). 738 dòng ở `ttl` là **chấp nhận được CÓ Ý THỨC**.
-- **KHÔNG** ⟹ **backfill CHƯA XONG**; cả hai mục ADR-032 phải chạy trên `fin05ttl`.
-**Im lặng thì không nhận được** — hôm nay đội đang tin *"lời khai khách đã mã hoá at-rest"*, và **câu
-đó SAI với 738 dòng**.
-
-⭐ **VÀ `fin05ttl` NAY LÀ TÀI SẢN KIỂM THỬ, KHÔNG PHẢI RÁC** *(tester)*: cổng plaintext chuyển ĐỎ→XANH
-nhờ backfill, nhưng **không ai chứng minh nó CÒN BIẾT ĐỎ** — nửa *"KÊU lúc bất thường"* của **Luật A**
-bỏ trống. Cách rẻ nhất trông có vẻ là nhét một dòng plaintext giả vào CSDL — **tester TỪ CHỐI** (ghi
-vào ngăn xếp đang phục vụ, Luật I). **Không cần:** `fin05ttl` là **quần thể bẩn CÓ THẬT, sẵn có,
-không do ta tạo ra**. Ca đối chứng hai chiều đã dựng, và **chiều thứ hai mới quan trọng**: ngày
-`fin05ttl` được nạp lại, ca ấy **báo MẤT KHẢ NĂNG ĐỐI CHỨNG** thay vì lặng lẽ xanh.
-🔴 ⟹ **Ai định dọn `fin05ttl` phải biết: nạp lại nó sẽ TẮT ca đối chứng duy nhất chứng minh cổng
-plaintext còn sống.**
-
-**QUẦN THỂ THỨ TƯ — `app.adaptivealgo.uk` (production): CHƯA AI ĐO, KHÔNG AI CHẠM.** Mọi số ở §5.J và
-mục này là của **BA ngăn xếp CỤC BỘ**. Ai trích chúng như *"toàn hệ thống"* là **một mẫu số sai nữa**.
-Nếu một ADR có phạm vi production thì **quần thể quyết định nhất là quần thể duy nhất chưa ai đo** —
-đó là **câu xin phép PO thật**, chưa hỏi.
-
-**KHÔNG kết luận:** ❌ `fin05ttl` là **sự cố** — nó là **bản vá chạy chưa hết phạm vi, mà phạm vi đúng
-thì CHƯA AI ĐỊNH NGHĨA**. ❌ ai sai — **thiếu sót nằm ở CÂU HỎI, không ở THAO TÁC**.
-
-
-### 🟢 C. ĐÍNH CHÍNH 18/08 — hai phát biểu trong kho tài liệu là SAI, đã kiểm tận mắt
-
-**C1 · "khách đọc lý do từ chối SAI (*vượt 200.000 TPM*)" — SAI. Không có đường nào tới mắt khách.**
-Bắt bởi **tech-lead**; PO-agent kiểm lại độc lập trước khi ghi.
-
-```
-[ĐO] src/api/main.py:621   là CHÚ THÍCH
-[ĐO] src/api/main.py:629-630  chuỗi khách thật sự nhận:
-     "Hệ thống đang xử lý nhiều yêu cầu cùng lúc, bạn vui lòng thử lại
-      sau khoảng 30 giây giúp mình nhé."          ← KHÔNG số, KHÔNG chữ "TPM"
-[ĐO] grep -rn "TPM" src/        → 5 hit, 5/5 là chú thích/docstring
-     rate_limit.py:60,62,69 · main.py:379 · main.py:621
-[ĐO] grep -rnE "200\.000|200000|200_000" src/  → 3 hit, 3/3 chú thích
-     (rate_limit.py:60 viết "200K" — cách viết thứ tư, chỉ lọt lưới nếu grep theo dấu chấm)
-[ĐO] grep -rnE "TPM|200\.000" frontend/src/    → 0 hit
-```
-
-⟹ **Đổi HẠNG việc, không chỉ đổi chữ:** không phải *"khách đang đọc chữ sai"* (đối ngoại, gấp)
-mà là *"căn cứ chết nằm trong chú thích"* (đối nội, không gấp). Nó **là cùng một việc** với sổ nợ
-§6.⓸ `_AGENT_MAX_CONCURRENT` mất căn cứ — **không phải việc riêng**, và **không đi cùng đợt ①**
-nữa, vì lý do gom nó vào ① chính là cái vừa mất.
-
-> **Vì sao lỗi này sinh ra:** dòng 621 nằm đúng **5 dòng trên** một `detail=` khách-đọc-được. Ai
-> `grep "200.000"` sẽ thấy hit ở 621, liếc xuống thấy `HTTPException(detail=…)` ngay dưới, rồi
-> ghép hai thứ. **Cùng lớp lỗi với đính chính ADR-031** (grep trúng dòng 143, câu trả lời ở dòng
-> 150) và đúng nếp kiểm §8 — *một khung nhìn đã bị chính lệnh grep của mình lọc, rồi dùng như toàn
-> cảnh*. Lần này **bộ lọc là KHOẢNG CÁCH 5 DÒNG.**
-
-**C2 · "`test_f31_f32` chưa có cổng chi phí (tester biết, chưa sửa)" — SAI từ lúc viết.**
-`scripts/BAN-GIAO-coder-2026-08-17.md` §④ ghi câu đó và dặn *"ĐỪNG chạy `pytest tests/` toàn bộ"*.
-
-```
-[ĐO] cổng land ở 07ee30e  17/08 22:41  "cổng chi phí cho test_f31_f32 — lỗ CUỐI trong họ này"
-[ĐO] bàn giao viết ở      17/08 22:46  (4ac2162) và commit muộn hơn nữa (3734c2b)
-[ĐO] git merge-base --is-ancestor 07ee30e 4ac2162  → ĐÚNG
-[ĐO] tests/test_agents/test_f31_f32_duong_agent_that.py:133  skipif(not duoc_phep_ton_tien())
-```
-
-🔴 **ĐỪNG đọc thành "vậy chạy `pytest tests/` được rồi".** Cái chết là **LÝ DO**, không phải lệnh
-cấm: lệnh cấm còn hai chân khác chưa ai kiểm — bộ test thứ tư chưa khai cổng (§3, mẫu số "3/3 bộ
-ĐÃ BIẾT"), và **lớp ② đang mất**. Đây đúng ca Luật B: *một lời dặn KHÔNG hành động cạnh một dữ
-kiện ĐẨY hành động thì dữ kiện thắng* — nên nói rõ cả hai vế.
+### 🟢 C. ĐÍNH CHÍNH 18/08 — ĐÃ ĐÓNG, chuyển `docs/nhat-ky/2026-08-20-state-dep-dinh-chinh-18-08.md`
+(hai đính chính tự khép: C1 khách không đọc lý do từ chối TPM sai — căn cứ chết nằm trong chú
+thích, không phải lỗi đối ngoại · C2 `test_f31_f32` đã có cổng chi phí từ `07ee30e`, phát biểu
+"chưa vá" sai từ lúc viết).
 
 
 ---
@@ -1735,6 +1266,26 @@ NÀO · bằng LỆNH GÌ" — những câu không hàm nào của vật trả l
 > BĂM thì không phải bằng chứng."* Ví dụ mới nhất: sự cố 7c hồ sơ 19/08 (đọc 12-hex-băm-nguồn
 > thành image ID). Hình dạng "ba người một ngày cùng lớp lỗi" KHÔNG được cấp luật riêng —
 > nó đã có tên ở đây. (Review đề nghị, PO-agent chuẩn y 19/08.)
+
+**Luật X** *(PO-agent đúc 20/08, từ ca finding tool-calling — khẳng định "3/3 đạt, 3 ca chờ ngân
+sách" lưu hành trong đội như dữ kiện; QA/QC rà `eval/results/` + `docs/security/`, loại từng ứng viên
+có bằng chứng, **không thấy nó nằm trong file nào**. PO-agent tự nhận đã relay nó cho Bảo mật như một
+số đo thật, và Bảo mật đã viết nó vào `docs/security/`)* — 🔴 **KẾT QUẢ ĐO PHẢI RƠI VÀO MỘT FILE
+TRƯỚC KHI ĐƯỢC ĐI VÀO MỘT CÂU.** Không trích được **đường dẫn + cách dựng lại** ⟹ viết *"nghe báo,
+chưa có vật chứng"*, **đừng viết con số trần**.
+> **Vế thi hành:** ① Người **NHẬN** một con số qua tin nhắn chịu **cùng trách nhiệm** với người
+> **PHÁT** — nhận rồi phát tiếp là chỗ dữ kiện giả được hợp thức hoá. Với người điều phối thì nặng
+> hơn một bậc: vai đó **tồn tại để** chặn con số lại mà hỏi *"vật chứng đâu"*. ② **Khác Luật C:** C là
+> PHƯƠNG PHÁP so khi đã có vật đo; X là ĐIỀU KIỆN để một con số **được coi là** vật đo — X đứng
+> **trước** C. ③ **Khác Luật F:** F nói về HÌNH THỨC con số khi đã ở trong văn bản (có mẫu số không);
+> X nói về TƯ CÁCH ĐƯỢC TRÍCH ngay từ đầu. ④ Họ hàng gần nhất: §5.Q *"file làm bản ghi, tin nhắn làm
+> cái chuông"* — cùng tinh thần, khác miền (Q là kênh giao việc, X là dữ liệu đo). ⑤ **Phân biệt với
+> nhóm "hết hạn":** sáu ca khác cùng ngày là trạng thái TỪNG đúng rồi thực tế đi qua — chữa bằng dọn
+> sổ. X là trạng thái **chưa từng tồn tại ở dạng tra được** — không có gì để dọn, chỉ chặn được từ đầu.
+
+🔴 **`mtime` trong `eval/results/` KHÔNG dùng làm mốc thời gian được** — [ĐO QA/QC 20/08] cả thư mục
+mang chung dấu `Aug 18 14:33` do một lần rebuild reset. Ai dựng dòng thời gian từ mtime ở đó sẽ đọc
+ra một lịch sử **không có thật**. Mốc thời gian tin được nằm **trong nội dung file**, không ở siêu dữ liệu.
 
 **Luật I** — **Bước ĐO không được ghi vào container đang chạy.** Buộc phải ghi ⟹ **khai trước + hoàn nguyên
   ngay**, và trạng thái *"đã ghi"* phải **hiện ra**, không nằm trong trí nhớ.

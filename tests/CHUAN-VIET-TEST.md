@@ -613,6 +613,29 @@ không chỉ chặn test PHẢN CHIẾU code — nó còn chặn CHẨN ĐOÁN T
 ngược lên chuỗi.** Người đọc code ở cùng vị trí nhiều khả năng đã tự tin hơn
 mức dữ liệu cho phép.
 
+### 7h — Đếm ca mang một NHÃN thì phải hỏi bộ chọn nhãn, không hỏi văn bản
+
+*(20/08 — PO-agent vấp, tự khai và tự sửa. Ghi thẳng tên vì luật rút từ lỗi
+của người điều phối mà giấu tên thì lần sau người khác sẽ tưởng nó chỉ áp
+cho cấp dưới.)*
+
+`pytest -m X --collect-only -q` chứ không `grep -rl X`. `grep` khớp cả **văn
+xuôi bàn về nhãn** — kể cả một câu đang khai *"không còn nhãn X"* — nên nó có
+thể đếm **bằng chứng nhãn đã gỡ** thành **bằng chứng nhãn còn đó**, cho kết
+quả **ngược hẳn** sự thật, không chỉ lệch số.
+
+Ca thật: `grep -rl security_finding tests/` ra **9**; bộ chọn nhãn thật
+(`pytest -m security_finding --collect-only`) ra **1**. Ba trong chín "hit"
+sai là những dòng docstring viết nguyên văn *"Không còn
+`@pytest.mark.security_finding`"* — PO-agent đếm chính lời khai NHÃN ĐÃ GỠ
+thành bằng chứng NHÃN CÒN ĐÓ, một kết luận đảo ngược 180 độ dù công cụ "đọc
+được chữ" hoàn toàn chính xác.
+
+> Công cụ hiểu **CHUỖI KÝ TỰ** và công cụ hiểu **NHÃN** là hai công cụ khác
+> nhau, dù nhãn thường được viết bằng chuỗi ký tự trùng tên nó. Khi câu hỏi
+> là "cái gì đang mang nhãn X", chỉ công cụ thứ hai trả lời được — công cụ
+> thứ nhất trả lời một câu hỏi khác trông giống hệt.
+
 ---
 
 ## LUẬT 8 — Thứ phát hiện công cụ đo sai là MỘT ĐƯỜNG ĐO KHÁC, không phải sự cẩn thận
@@ -1828,3 +1851,28 @@ ngữ cảnh/trạng thái của lượt trước: OTP xen giữa, nhiều mã t
 hỏi tiếp dựa trên câu trả lời trước). Cắt số ca, cắt số lượt còn lại — nhưng
 đừng cắt tới mức không còn ca nào có TRỤC NHIỀU LƯỢT, vì đó chính là trục nơi
 lỗi thật đang sống.
+
+## Luật 21 — Cổng CỐ Ý ĐỎ: đừng nới, đừng xoá
+
+*(20/08 — PO-agent gặp một ca đỏ (`test_do_phu_nhan_du_lieu_demo.py`), không
+biết mới hay cũ, phải đi `git log` mới trả lời được. `grep -rl` xác nhận
+KHÔNG tài liệu nào khai nó tồn tại. Một vật chứng không có khẳng định đi kèm
+— họ hàng ngược của Luật X — làm người sau phát hiện lại từ đầu, và người
+không biết hỏi ai thường kết thúc bằng cách NỚI cổng cho xanh.)*
+
+Mỗi dòng dưới đây: **vì sao đỏ · vá bằng cách nào · vá thế nào là SAI.** Chỉ
+liệt kê thứ đã tra được (`git log`, chạy trực tiếp, đọc docstring/marker) —
+không liệt kê theo trí nhớ.
+
+| Cổng | Vì sao đỏ | Vá bằng | Vá SAI là |
+|---|---|---|---|
+| `tests/test_data/test_do_phu_nhan_du_lieu_demo.py` | Nợ độ phủ nhãn enum trong dữ liệu demo — 5 nhãn (`chat_sessions.status=waiting/active`, `policy_documents.status=processing/failed`, `wallets.status=closed`) không có dòng demo nào mang. `git log`: sinh ra ĐỎ 20 nhãn (`3684570`), nay còn 5 — nợ đang trả dần, không phải hồi quy. | **SINH THÊM dữ liệu demo** cho 5 nhãn trên (script `gen_dataset.py`/tương đương) | Sửa/nới assertion, hoặc thêm nhãn vào danh sách miễn trừ mà không thực sự sinh dữ liệu — assertion tự khai nguyên văn: *"Bản vá là SINH DỮ LIỆU DEMO, KHÔNG phải nới cổng này"* |
+| `tests/test_api/test_live_chat_pii_gap.py` | `@pytest.mark.security_finding`, P0 chưa vá — `live_chat.py::record_message` lưu nguyên văn SĐT/STK khách gõ tay vào live-chat, không qua scrub/mask nào trước khi lưu (khác luồng AI, đã có `scrub_pii`/`masking.py`). | Một **quyết định của PO** về mức che phù hợp (không được che tới mức CSKH mất khả năng gọi lại khách) — không phải việc kỹ thuật đơn thuần, xem `docs/FIN05-Feature-Inventory-Security-Review.md §6` | Tự chọn mức che rồi vá thẳng `record_message` mà chưa có quyết định PO — hoặc gỡ `security_finding` marker để job CI hết đỏ mà chưa vá thật |
+
+**Đã kiểm, KHÔNG đưa vào bảng trên (loại có chủ đích):**
+- `tests/test_security/test_jwt_revocation.py`, `tests/test_security/test_security_answer_hash.py` — cũng mang `@pytest.mark.security_finding`, nhưng chạy trực tiếp [ĐO 20/08] cả hai **ĐANG XANH** — finding đã vá, marker là dấu vết lịch sử, không phải cổng đang cố ý đỏ.
+- `tests/test_agents/test_f31_f32_duong_agent_that.py` — [ĐO 20/08] `5 skipped`, không phải đỏ — bị `skipif` bởi cổng chi phí (`FIN05_CHO_PHEP_TON_TIEN`), khác loại với "cố ý đỏ chờ vá".
+
+Gặp một cổng đỏ không rõ mới/cũ mà không có ở đây: tra `git log -- <file>` +
+`grep -rl <tên file> docs/` trước khi đoán, rồi **thêm một dòng vào bảng
+trên** — đừng chỉ trả lời riêng cho người hỏi rồi để kiến thức đó biến mất.

@@ -118,6 +118,12 @@ thật, **vẫn hỏng**: gần một nửa câu khách gõ bị chèn nhãn sai
 *"làm NER chính xác hơn"* (vá `MEDICAL_LICENSE`, loại Spacy…). **PO-agent bước ra khỏi khung đó và đo
 câu gốc hơn: NER có nên nằm trên đường này không.**
 
+> ⛔ **NIÊM 20/08 — MỌI SỐ TRONG KHỐI NÀY ĐO TRÊN MỘT CHỮ KÝ HÀM ĐÃ CHẾT.**
+> Chúng gọi `scrub_pii(cau)`; `muc_dich` nay **bắt buộc, không mặc định** ⟹ chạy lại ra `TypeError`.
+> Chữ **"ĐANG DÙNG"** ngay dưới đây **nay SAI** — đường model-input không còn đi qua pipeline này.
+> Số thật của bản đang chạy: **1,6% = 2/124** (`eval/do_bop_meo_pii.py`, có cổng, đỏ được).
+> Giữ lại vì nó là **căn cứ của quyết định D'** lúc đó, không phải vì nó còn mô tả hệ thống.
+
 **[ĐO PO-agent — 124 câu khách THẬT từ `golden_set.jsonl`, hai hàm đã có sẵn trong `pii.py`]:**
 ```
 scrub_pii   (regex + NER — ĐANG DÙNG ở graph.py:787): 63/124 câu bị chèn nhãn = 50,8%
@@ -529,3 +535,117 @@ lỗi không tái diễn được — đúng đối trọng cho chuỗi "áp thi
 | 4 | 🔴 **MERGE lên `main` + deploy production** — [ĐO] đang lệch **897 commit** | **rủi ro lớn nhất trong bài chấm**: hội đồng bấm link thấy bản không có gì của hai ngày qua |
 | 5 | **Lỗi 5** (CSKH đọc hội thoại) — §10 đủ 7 bước, ADR-044 | việc lớn nhất còn lại, cần PO thật duyệt contract |
 | 6 | Chạy lại benchmark trên bản đã vá, **ghim một model** | số hiện hành cho hồ sơ nộp |
+
+---
+
+## 15. 📊 BENCHMARK — PO thật QUYẾT: **KHÔNG chạy lại, NIÊM số cũ**
+
+**[ĐO — chi phí vs hạn ngạch, đây là dữ kiện quyết định]:**
+```
+scorecard ĐỦ TRỤC cần        4.611.600 token  (golden 2,04tr · adversarial 889k
+                                               · benchmark 1,55tr · latency 132k)
+hạn ngạch CÒN của cả 4 model 2.733.325
+⟹ THIẾU                      1.878.275   ← KHÔNG chạy đủ được dù muốn chi hết
+```
+🔴 **Không phải "đắt", mà là "bất khả thi".** Mọi phương án cắt phạm vi đều cho **bảng điểm pha tạp
+mốc thời gian** (1 trục mới, 4 trục cũ) — thứ ADR-043 cấm.
+
+**QUYẾT: không chạy. NIÊM `74,57/85` kèm nguyên văn:**
+> *"Đo 16/08 trên model của thời điểm đó. Từ đó tới nay ĐÃ ĐỔI: model ghim (18/08) · kho RAG
+> (5 commit) · bộ lọc an toàn O4 (2 commit) · bộ che PII quyết định đầu vào agent (4 commit) ·
+> prompt (1 commit). **Đây là mốc lịch sử, KHÔNG phải điểm của bản đang chạy.**"*
+
+**Vì sao đủ cho bài chấm — đọc lại chính tiêu chí:** PLO 7 đòi *"có eval pipeline/benchmark, tiêu chí
+đánh giá, kết quả đo và **chuyển failure case thành hành động cải tiến**"*. **Không đòi một điểm số
+mới.** Và phần nặng nhất của tiêu chí ấy — *failure case → hành động* — chính là **ngày 19/08**:
+```
+5 lỗi PO thật bắt trên UI  →  chẩn đoán gốc từng lỗi  →  3 bản vá + 2 luật mới
+bọt bóp méo tiếng Việt      50,8%  →  5,6%   ⛔ NIÊM 20/08: cả hai số đứng trên chữ ký ĐÃ CHẾT
+                                              số thật bản đang chạy = 1,6% (2/124), xem PRD §17
+bộ lọc O4                   vá thì-quá-khứ, đối chứng HAI CHIỀU (chặn bịa · cho qua từ chối hợp lệ)
+ca nghiệm thu wireframe     6/6 vế trên đường sản phẩm thật, gồm ràng buộc cứng 1
+```
+Đây là **số đo mới, cùng mốc thời gian với bản đang chạy** — chỉ không phải một điểm tổng hợp. Hồ sơ
+nộp trình **cả hai**: điểm 16/08 có niêm, và chuỗi đo 19/08 làm bằng chứng PLO 7.
+
+**Nợ giữ nguyên:** cờ `--che-do moc` chết (QA/QC đang vá + ca đối chứng dương) · trục Trải nghiệm
+15 điểm chờ 30 nhãn PO thật · benchmark đủ trục chờ hạn ngạch mới.
+
+## 16. 🔴 HẠN NGẠCH MODEL ĐANG PHỤC VỤ SẮP CẠN — dữ kiện vận hành, không phải nợ
+
+```
+[ĐO] qwen3.7-plus-2026-05-26 (LLM_MODEL hiện hành):  đã tiêu 951.463 / 1M  →  CÒN 48.537
+     deepseek-v4-pro-0813   còn 777.692 · v3.2 còn 944.084 · v4-flash-0731 còn 963.012
+```
+⟹ **~3 lượt nặng nữa là model chính cạn**, và **tính năng xoay tự động của GĐ3 sẽ tự kích hoạt lần
+đầu trong đời thật** — không phải trên transport giả. Đây vừa là rủi ro vừa là **phép thử end-to-end
+duy nhất ta không dựng lại được** (mục "xoay thật khi cạn thật: CHƯA ĐO, không dựng lại được với chi
+phí hợp lý" — hồ sơ GĐ3).
+**Việc:** khi nó xảy ra, **đọc `usage.jsonl` xác nhận dòng đầu tiên mang tên deepseek**, và kiểm
+khách có nhận câu trả lời bình thường không. Đó là bằng chứng end-to-end **miễn phí** — đừng bỏ lỡ.
+
+---
+
+## 17. ADR-044 THI HÀNH XONG (①→⑤) — hai khai báo thuộc vùng `docs/`, PO-agent ghi
+
+**§10 đủ 7 bước + code ①→⑤:** contract 2.1.0 · 34 route · baseline commit kèm · migration
+`a8b9c0d1e2f3` · `thread_id` luồn 4 tầng qua **CẢ BA** call site · `handoff_at` ghi ở cả hai nhánh ·
+route với guard chính · UI card "Hội thoại với trợ lý".
+
+### ⚠️ Khai 1 — UI HẸP HƠN contract, có chủ đích (MVP)
+> **UI ADR-044 (MVP) chỉ hiện card "Hội thoại với trợ lý" ở vé có `human_handoff_requested=true`;
+> route `GET /tickets/{id}/transcript` đúng contract, phục vụ MỌI vé mà cskh/supervisor có quyền đọc.
+> Mở rộng UI ra mọi vé khi có nhu cầu thật — KHÔNG phải rò thẩm quyền, chỉ là thu hẹp hiển thị.**
+
+PO thật duyệt phương án *"đọc được hội thoại của MỌI vé đang xử lý"* (19/08). UI thi hành hẹp hơn.
+Chiều lệch là **chiều an toàn** (hiển thị ít hơn quyền), nên không chặn. Nhưng phải khai: người sau
+đọc contract rồi mở UI sẽ tưởng UI hỏng — đây là chỗ **"contract nói A, sản phẩm làm A−"** mà nếu
+không ghi thì đợt sau tốn một vòng điều tra.
+
+### ⚠️ Khai 2 — vé sinh từ nhánh TIMEOUT: có `handoff_at`, KHÔNG có vạch phân cách
+[ĐO] `chi_so_bang_giao` suy từ **lời gọi tool `request_human_handoff` THẬT** trong hội thoại
+(`graph.py:494`). Nhánh timeout (`graph.py:1119`) gọi **thẳng** `flag_human_handoff()`, **không qua
+tool** ⟹ vé loại đó có `handoff_at` nhưng `chi_so_bang_giao = None`.
+**ĐÚNG, không phải bug** — transcript vẫn đủ, chỉ không vẽ được vạch. Coder đã xử: docstring khai rõ
+route/UI phải so **hai trường riêng**, và UI hiện **một dòng giải thích** thay vì im lặng.
+🔴 **Đây là nhánh thứ BA mà Coder tự tìm ra ở bước ② quay lại ở một TẦNG KHÁC** — cùng một nhánh, hai
+lần gây hệ quả khác nhau. Ghi vào hồ sơ như bằng chứng cho vế thi hành đã đúc: *khi cảnh báo "còn
+nhánh khác", đưa CÁCH ĐẾM chứ đừng đưa DANH SÁCH — danh sách tự nó là một mẫu số chưa kiểm.*
+
+---
+
+## 18. QUYẾT: siết rate-limit route transcript `20/minute` → `5/minute`
+
+**Finding (Bảo Mật `[f0bfb4]`, `0f03457`):** `main.py:816` chép `@limiter.limit("20/minute")` từ
+`/agent/chat` (`:610`). **SAI ĐƠN VỊ, không sai con số** — `20/minute` hiệu chuẩn cho **tốc độ GÕ của
+khách**; route transcript trả lời câu khác: **tốc độ CSKH ĐỌC+XỬ LÝ một hội thoại đầy đủ**. Đúng lớp
+lỗi *"tên giống nhau, vật khác nhau"*.
+Ước (khai rõ là ước): credential CSKH bị lộ ⟹ **~1.200 transcript/giờ** — lớp giới hạn **có tồn tại
+nhưng không đúng ngưỡng cho mục đích đã khai**.
+
+**Bảo Mật KHÔNG tự chốt số** (đúng — câu vận hành, không phải câu bảo mật thuần). **Lead tra tài
+liệu để trả lời bằng bằng chứng, không suy đoán thay CSKH:**
+```
+grep docs/*.md + contracts/*.yaml tìm "rà backlog đầu ca" / "duyệt hàng loạt"  →  KHÔNG có dòng nào
+```
+Cộng hai lý do thiết kế: ① duyệt resolution vốn là hành động **một-lần-một qua OTP step-up** (ràng
+buộc cứng 1) ⟹ **không tồn tại "duyệt hàng loạt"** trong mô hình hiện có ② "rà backlog" hợp lý ở
+tầng **liệt kê** (`GET /tickets`, route khác) — CSKH quét metadata để CHỌN vé, không mở transcript
+đầy đủ của mọi vé.
+
+**QUYẾT: `5/minute`.** Một hội thoại đọc để hiểu được mất tối thiểu ~30 giây ⟹ `20/minute`
+(3 giây/cái) cao hơn mọi nhịp đọc thật cả bậc; `5/minute` vẫn cho lướt nhanh, cắt tốc độ exfil 4 lần.
+**Nợ RẺ và ĐẢO NGƯỢC ĐƯỢC** — đổi một số trong decorator. Nếu đợt test 150 khách lộ ra nhịp dùng thật
+đụng ngưỡng, sửa lại; **không phải thiết kế lại**.
+⚠️ Giới hạn của quyết định này: dựa trên **tài liệu dự án**, không phải quan sát CSKH thật. Nếu PO
+thật biết một kịch bản chưa được khai ở đâu, số này nhường chỗ cho kịch bản đó.
+
+**Ba điểm Bảo Mật xác nhận sạch:** guard kín cả **đường GHI** `Complaint.thread_id` lẫn đường đọc
+(ba lớp độc lập) · `"user_id khớp"` bản thi hành **loại bỏ hoàn toàn** — Bảo Mật đánh giá **tốt hơn
+đề xuất gốc của chính họ**, vì giữ một check vô tác dụng tạo **cảm giác an toàn giả** · dòng khai
+nhãn-che-sai trên UI đủ nội dung, có câu kết luận *"không phải khách thực sự gõ như vậy"*.
+
+**Đính chính cơ chế (Bảo Mật sửa Review):** field lạ trong `CreateTicketRequest` **không** bị chặn
+bằng lỗi 422 — schema **không có** `extra="forbid"`, nên Pydantic v2 mặc định `ignore`: field lạ
+**rơi mất lặng lẽ**. **Kết luận an toàn KHÔNG đổi, nhưng cơ chế khác** — và chỉ khi biết đúng cơ chế
+mới biết nó còn đúng hay không lúc ai đó đổi schema.

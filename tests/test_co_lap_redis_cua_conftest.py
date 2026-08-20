@@ -36,8 +36,6 @@ from __future__ import annotations
 
 import os
 
-import pytest
-
 from tests.conftest import _redis_la_gia
 
 

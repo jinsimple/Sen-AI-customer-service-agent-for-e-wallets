@@ -39,7 +39,7 @@ from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.agents.graph import close_checkpointer, run_agent_turn
+from src.agents.graph import close_checkpointer, doc_transcript_bang_giao, run_agent_turn
 from src.agents.tools.customer_tools import _phan_loai_tier
 from src.api.deps import get_session
 from src.api.live_chat_ws import live_chat_websocket_endpoint
@@ -803,6 +803,85 @@ def get_ticket_detail(
             }
             for log in logs
         ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# ADR-044 (PO thật duyệt trực tiếp 19/08) — CSKH đọc hội thoại bot↔khách của
+# vé mình xử lý, khi khách đã bàn giao gặp người thật. Rate limit tái dùng
+# @limiter.limit đã có ở /agent/chat; audit tự động qua _access_logger
+# middleware — KHÔNG hạ tầng mới, đúng quyết định ADR-044 mục 6.
+# ---------------------------------------------------------------------------
+@app.get("/tickets/{ticket_id}/transcript")
+# 5/minute, KHÔNG PHẢI 20/minute như /agent/chat (Bảo Mật bắt 20/08 — sai ĐƠN
+# VỊ, không sai con số, khi copy ngưỡng lúc viết route). 20/minute hiệu chuẩn
+# cho TỐC ĐỘ GÕ của khách; route này trả lời câu khác: tốc độ CSKH ĐỌC+XỬ LÝ
+# một hội thoại đầy đủ. Đọc để hiểu một hội thoại mất tối thiểu ~30 giây ⟹
+# 5/minute vẫn đủ cho lướt nhanh. Mục đích là chống exfiltration tốc độ cao
+# qua credential CSKH bị lộ (ước ~1.200 transcript/giờ ở ngưỡng cũ), không
+# phải chống dò ID. Không có kịch bản hợp lệ nào cần mở nhiều transcript
+# liên tiếp tốc độ cao — duyệt resolution vốn một-lần-một qua OTP step-up,
+# rà backlog dùng GET /tickets (liệt kê), không phải mở transcript đầy đủ.
+@limiter.limit("5/minute")
+def get_ticket_transcript(
+    request: Request,
+    ticket_id: str,
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    session: Session = Depends(get_session),
+):
+    # 🔴 GUARD CHÍNH (ADR-044 mục 3, Bảo Mật sửa lời) — route CHỈ nhận
+    # `ticket_id` qua path. KHÔNG có tham số `thread_id` nào ở chữ ký hàm
+    # này dưới bất kỳ hình thức nào (query/body/header) — `thread_id` suy
+    # DUY NHẤT từ `complaint.thread_id` đọc từ DB ngay dưới đây. Đừng thêm
+    # tham số `thread_id` vào route này dù để "tiện debug" — đó chính là
+    # đường route âm thầm biến thành "đọc thread_id trần" mà ADR-044 cấm.
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    complaint = session.get(Complaint, ticket.complaint_id)
+    if complaint is None:
+        # Không nên xảy ra (FK complaint_id NOT NULL) — 404 để không lộ khác
+        # biệt hành vi với ca "ticket không tồn tại" phía trên (cùng lớp lỗi
+        # dò được-vé-nào-tồn-tại qua mã trạng thái).
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    # "user_id khớp" KHÔNG phải ranh giới thẩm quyền ở route này (ADR-044
+    # mục 3) — mọi cskh/supervisor vốn đã đọc được mọi ticket qua
+    # GET /tickets/{ticket_id} phía trên, guard đó không chặn được gì thật.
+
+    handoff_at = ticket.handoff_at.isoformat() if ticket.handoff_at else None
+
+    if complaint.thread_id is None:
+        return {
+            "transcript": None,
+            "ly_do": (
+                "Vé này được tạo TRƯỚC khi hệ thống ghi thread_id (ADR-044) — "
+                "không có cách nào xác định chắc chắn phiên hội thoại nào đã "
+                "sinh ra vé này, nên không hiện transcript thay vì đoán theo "
+                "mốc thời gian gần nhất."
+            ),
+            "handoff_at": handoff_at,
+        }
+
+    ket_qua = doc_transcript_bang_giao(complaint.thread_id)
+    if ket_qua is None:
+        return {
+            "transcript": None,
+            "ly_do": (
+                "Vé có thread_id nhưng không tìm thấy checkpoint hội thoại "
+                "tương ứng — có thể phiên chat đã bị dọn khỏi bộ nhớ checkpoint "
+                "hoặc lỗi ghi lúc tạo vé."
+            ),
+            "handoff_at": handoff_at,
+            "chi_so_bang_giao": None,
+        }
+    return {
+        "transcript": ket_qua["luot"],
+        "ly_do": None,
+        "handoff_at": handoff_at,
+        # ADR-044 — vị trí (0-based) lượt CUỐI "phía trên vạch", suy từ lời
+        # gọi tool request_human_handoff thật trong hội thoại (KHÔNG so
+        # timestamp — không có mốc per-message để so với handoff_at).
+        "chi_so_bang_giao": ket_qua["chi_so_bang_giao"],
     }
 
 

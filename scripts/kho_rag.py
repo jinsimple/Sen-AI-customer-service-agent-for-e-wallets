@@ -127,6 +127,8 @@ def _chan_tu_tao_kho() -> None:
         print("              docker exec fin05-backend-1 python scripts/kho_rag.py kiem")
         print("            (DỪNG ở đây thay vì mở — mở là Chroma tự đẻ một kho rỗng")
         print("             rồi công cụ báo 'kho trống', tự chế bằng chứng cho mình.)")
+        print("            Nếu bạn ĐÃ ở trong container mà vẫn thấy dòng này — kho")
+        print("            CHƯA TỪNG được nạp lần nào, chạy: kho_rag.py nap-lai")
         raise SystemExit(2)
 
 
