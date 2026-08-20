@@ -814,7 +814,13 @@ nguyên qua refresh **chính vì** `thread_id` phụ thuộc nó. **Không phả
 
 ```
 trần TPM 1.000.000 / 14.198 token/lượt =  70,4 lượt/phút   ← TRẦN THẬT
-trần RPM        600 /   2,39 gọi/lượt  = 251,0 lượt/phút   ← không bao giờ chạm trước
+trần RPM     10.000 /   2,39 gọi/lượt  = 4.184 lượt/phút  ← không bao giờ chạm trước
+                (⛔ NIÊM 20/08: dòng cũ ghi **600**, SAI, lệch ~17 lần. [ĐO BA 20/08,
+                 `qwencloud.com/models/<model>` mục Rate Limits] deepseek-v4-pro-0813
+                 RPM 10.000 · deepseek-v4-flash-0731 RPM 15.000. **Nguồn của số 600:
+                 KHÔNG TRUY ĐƯỢC** — không tài liệu nào trong repo ghi nó đến từ đâu.
+                 KẾT LUẬN của mục này KHÔNG đổi: TPM vẫn chặn trước, RPM cao hơn chỉ
+                 làm kết luận ấy đúng mạnh hơn.)
 
 150 người × 0,50 lượt/ph =  75 lượt/ph → TPM 🔴 106%
 150 người × 1,00 lượt/ph = 150 lượt/ph → TPM 🔴 213%
@@ -869,6 +875,18 @@ THỰC TẾ     177.000 – 243.000
 **A4** (đối chiếu dashboard).
 
 ### ⓸ `_AGENT_MAX_CONCURRENT = 20` MẤT CĂN CỨ
+
+> ⛔ **NIÊM 20/08 — cả BA mẫu số dùng để cỡ ra số 20 đều đã chết.**
+> Số 20 cỡ từ *"trần OpenAI 200.000 TPM ⟹ ~13 lượt/phút"*. Nay:
+> ① **không dùng OpenAI cho chat nữa** — chat đi qua DashScope (`dashscope-intl.aliyuncs.com`);
+> ② trần **không phải 200.000 mà 1.000.000** (gấp 5);
+> ③ **token/lượt dùng để chia cũng đã đổi** — `14.198` là số của `gpt-4o-mini`, model không còn dùng.
+>
+> 🔴 **KHÔNG ĐỔI GIÁ TRỊ. Chỉ niêm căn cứ.** Đổi một con số mà không biết vì sao nó là con số đó
+> chỉ tạo ra một con số mới cũng không ai biết vì sao. **Phải đo lại TRƯỚC khi ai chạm vào 20.**
+>
+> ⚠️ Và giữ nguyên cảnh báo cũ của chính mục này: **đừng đọc "20" thành "đang tự chặn ở 1/5 năng
+> lực"** — đó là ghép số của trục **TPM** vào trục **ĐỒNG THỜI**. Hai trục khác nhau.
 
 Nó được cỡ từ *"trần OpenAI 200.000 TPM ⟹ ~13 lượt/phút"*. Trần thật giờ là **1M**. Con số 200k
 còn sống ở **3 chỗ trong `src/`** (`rate_limit.py:62` · `main.py:379` · `main.py:621`).
