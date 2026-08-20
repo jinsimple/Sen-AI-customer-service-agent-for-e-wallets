@@ -407,8 +407,15 @@ AI/CSKH tự thực thi hoàn tiền = 0      (ràng buộc cứng 1 — mã ho�
 timeout một lượt            ≤ 45s      (AGENT_TURN_TIMEOUT_SECONDS)
 vòng ReAct một lượt         ≤ 20       (_AGENT_RECURSION_LIMIT)
 OTP xem dữ liệu             ≤ 12 giờ   ·  OTP hành động có hậu quả ≤ 15 phút
-bóp méo câu tiếng Việt      ≤ 6%       ([ĐO] 5,6% sau bản vá D'; trước là 50,8%)
+bóp méo câu tiếng Việt      ≤ 6%       ([ĐO 20/08] 1,6% = 2/124 — eval/do_bop_meo_pii.py)
 ```
+⚠️ **NIÊM số cũ 5,6%:** con số đó đo `scrub_pii(cau)` — **một chữ ký hàm không còn tồn tại**.
+`muc_dich` nay là tham số **bắt buộc, không mặc định**, nên phép đo cũ chạy lại hôm nay chỉ ra
+`TypeError`. Nó không sai lúc đo; nó đo **một vật khác** vật đang chạy. Số 1,6% đo đúng đường
+`model_input` — registry hẹp cố ý bỏ SpacyRecognizer/DateRecognizer/PhoneRecognizer chung, tức
+**thấp hơn là hệ quả đã thiết kế, không phải may mắn**. Nay có cổng tự chấm lại, không còn là
+phép đo một lần.
+
 **Điểm hiện hành: 74,57 / 85 = 87,7%.**
 ⚠️ **NIÊM:** đo **16/08**, TRƯỚC khi đổi model (18/08) và trước 4 vùng thay đổi (RAG · bộ lọc O4 ·
 che PII · prompt). **Là mốc lịch sử, KHÔNG phải điểm của bản đang chạy.** Mẫu số 85 vì trục Trải
