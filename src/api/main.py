@@ -813,7 +813,16 @@ def get_ticket_detail(
 # middleware — KHÔNG hạ tầng mới, đúng quyết định ADR-044 mục 6.
 # ---------------------------------------------------------------------------
 @app.get("/tickets/{ticket_id}/transcript")
-@limiter.limit("20/minute")
+# 5/minute, KHÔNG PHẢI 20/minute như /agent/chat (Bảo Mật bắt 20/08 — sai ĐƠN
+# VỊ, không sai con số, khi copy ngưỡng lúc viết route). 20/minute hiệu chuẩn
+# cho TỐC ĐỘ GÕ của khách; route này trả lời câu khác: tốc độ CSKH ĐỌC+XỬ LÝ
+# một hội thoại đầy đủ. Đọc để hiểu một hội thoại mất tối thiểu ~30 giây ⟹
+# 5/minute vẫn đủ cho lướt nhanh. Mục đích là chống exfiltration tốc độ cao
+# qua credential CSKH bị lộ (ước ~1.200 transcript/giờ ở ngưỡng cũ), không
+# phải chống dò ID. Không có kịch bản hợp lệ nào cần mở nhiều transcript
+# liên tiếp tốc độ cao — duyệt resolution vốn một-lần-một qua OTP step-up,
+# rà backlog dùng GET /tickets (liệt kê), không phải mở transcript đầy đủ.
+@limiter.limit("5/minute")
 def get_ticket_transcript(
     request: Request,
     ticket_id: str,
