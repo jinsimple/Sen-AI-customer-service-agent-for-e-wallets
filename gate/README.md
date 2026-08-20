@@ -59,7 +59,11 @@ Sổ tay deploy đọc dễ: **https://claude.ai/code/artifact/cac93278-37d9-4e8
 
 ### ③ Ba câu nghiệp vụ đang chờ *(chi tiết trong ADR-045)*
 
-- Che số điện thoại trong live-chat tới mức nào? *(đang giữ 1 job CI đỏ)*
+- ~~Che số điện thoại trong live-chat tới mức nào?~~ ⛔ **CÂU NÀY PO ĐÃ CHỐT RỒI — ADR-025, ký
+  15/08.** Cơ chế đã quyết: mã hoá at-rest + trần độ dài + đọc need-to-know + retention + che **lúc
+  XUẤT**; **BÁC che-lúc-ghi bằng tên** (hệ thống tự sửa chữ trong lời khai thì bản ghi mất giá trị
+  chứng cứ trước NHNN/toà). Câu còn lại hẹp hơn nhiều: **thi hành 2 vế còn thiếu (trần độ dài · che
+  lúc xuất) NHANH tới đâu**, và **có xếp dữ liệu checkpoint vào cùng Nhóm A không** (ADR-045).
 - Giữ hội thoại khách bao lâu rồi xoá? *(hiện **không có gì xoá nó bao giờ**)*
 - VPS đặt ở đâu · ARM hay x86 · có mở cổng Postgres ra ngoài không?
 
