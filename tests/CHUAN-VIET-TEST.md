@@ -613,6 +613,29 @@ không chỉ chặn test PHẢN CHIẾU code — nó còn chặn CHẨN ĐOÁN T
 ngược lên chuỗi.** Người đọc code ở cùng vị trí nhiều khả năng đã tự tin hơn
 mức dữ liệu cho phép.
 
+### 7h — Đếm ca mang một NHÃN thì phải hỏi bộ chọn nhãn, không hỏi văn bản
+
+*(20/08 — PO-agent vấp, tự khai và tự sửa. Ghi thẳng tên vì luật rút từ lỗi
+của người điều phối mà giấu tên thì lần sau người khác sẽ tưởng nó chỉ áp
+cho cấp dưới.)*
+
+`pytest -m X --collect-only -q` chứ không `grep -rl X`. `grep` khớp cả **văn
+xuôi bàn về nhãn** — kể cả một câu đang khai *"không còn nhãn X"* — nên nó có
+thể đếm **bằng chứng nhãn đã gỡ** thành **bằng chứng nhãn còn đó**, cho kết
+quả **ngược hẳn** sự thật, không chỉ lệch số.
+
+Ca thật: `grep -rl security_finding tests/` ra **9**; bộ chọn nhãn thật
+(`pytest -m security_finding --collect-only`) ra **1**. Ba trong chín "hit"
+sai là những dòng docstring viết nguyên văn *"Không còn
+`@pytest.mark.security_finding`"* — PO-agent đếm chính lời khai NHÃN ĐÃ GỠ
+thành bằng chứng NHÃN CÒN ĐÓ, một kết luận đảo ngược 180 độ dù công cụ "đọc
+được chữ" hoàn toàn chính xác.
+
+> Công cụ hiểu **CHUỖI KÝ TỰ** và công cụ hiểu **NHÃN** là hai công cụ khác
+> nhau, dù nhãn thường được viết bằng chuỗi ký tự trùng tên nó. Khi câu hỏi
+> là "cái gì đang mang nhãn X", chỉ công cụ thứ hai trả lời được — công cụ
+> thứ nhất trả lời một câu hỏi khác trông giống hệt.
+
 ---
 
 ## LUẬT 8 — Thứ phát hiện công cụ đo sai là MỘT ĐƯỜNG ĐO KHÁC, không phải sự cẩn thận
