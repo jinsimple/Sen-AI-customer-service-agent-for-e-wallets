@@ -155,7 +155,7 @@ graph LR
 
 Bể 4 model qua DashScope, **tên GHIM có mốc ngày**: `qwen3.7-plus-2026-05-26` · `deepseek-v4-pro-0813` · `deepseek-v4-flash-0731` · `deepseek-v3.2`.
 
-🔴 **Bể CHỈ nhận tên ghim; bí danh trôi bị từ chối lúc khởi động.** ADR-043 loại 2/5 model được đề xuất vì tên không mốc (`deepseek-v4-pro`, `deepseek-v4-flash`) — một cái tên không mốc có thể trỏ sang trọng số khác sau một đêm mà không ai biết, và guardrail thì không phát hiện được điều đó.
+🔴 **Bể CHỈ nhận tên ghim; bí danh trôi bị từ chối lúc khởi động.** ADR-043 loại 2/5 model được đề xuất vì tên không mốc (`deepseek-v4-pro`, `deepseek-v4-flash`) — một cái tên không mốc có thể trỏ sang PHIÊN BẢN MÔ HÌNH khác sau một đêm mà không ai biết, và guardrail thì không phát hiện được điều đó.
 Cạn hạn mức một model ⟹ hạ tầng tự chuyển, không ai phải sửa cấu hình lúc nửa đêm.
 
 🔴 Xoay **chỉ** khi lỗi thuộc hạng hết-hạn-mức (`quota`, `exhaust`, `insufficient`, `balance`,

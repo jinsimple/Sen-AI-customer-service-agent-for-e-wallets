@@ -102,7 +102,7 @@ Bể **4 model**, tên GHIM có mốc ngày:
 `qwen3.7-plus-2026-05-26` · `deepseek-v4-pro-0813` · `deepseek-v4-flash-0731` · `deepseek-v3.2`
 
 🔴 **Bí danh trôi bị TỪ CHỐI lúc khởi động.** ADR-043 loại 2/5 model PO gửi vì tên không mốc —
-`deepseek-v4-pro` (không `-0813`) có thể trỏ sang trọng số khác sau một đêm mà không ai biết.
+`deepseek-v4-pro` (không `-0813`) có thể trỏ sang PHIÊN BẢN MÔ HÌNH khác sau một đêm mà không ai biết.
 
 Cạn hạn mức một model ⟹ **hạ tầng tự chuyển**, không ai phải sửa cấu hình lúc nửa đêm.
 
