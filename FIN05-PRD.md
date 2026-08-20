@@ -416,6 +416,18 @@ bóp méo câu tiếng Việt      ≤ 6%       ([ĐO 20/08] 1,6% = 2/124 — ev
 **thấp hơn là hệ quả đã thiết kế, không phải may mắn**. Nay có cổng tự chấm lại, không còn là
 phép đo một lần.
 
+🔴 **NGƯỠNG 6% NAY QUÁ RỘNG — lỗi hiệu chuẩn của PO-agent, khai ra thay vì im.**
+Số 6% chọn hồi 19/08 để **số đo lúc đó (5,6%) vừa lọt qua** — ngưỡng bám sát phép đo, đúng cách làm.
+Nhưng phép đo đã dời về **1,6%** mà ngưỡng đứng yên:
+```
+đo 2/124 = 1,61%   ·   ngưỡng 6% = 7/124   ·   biên = 5 câu nữa mới ĐỎ
+⟹ scrubber có thể tụt lùi 3,7 LẦN mà không cổng nào kêu
+```
+**Một ngưỡng hiệu chuẩn theo một con số đã dời chỗ là ngưỡng chỉ còn hình thức.** Cùng họ với lỗi
+*"cổng canh CƠ CHẾ, không canh LỜI HỨA"* — khác ở chỗ đây canh đúng lời hứa, nhưng là **lời hứa cũ**.
+⟹ **Cần hiệu chuẩn lại**; giữ 6% tới khi PO thật chốt số mới, và **giữ kèm cảnh báo này** để không ai
+đọc "1,6% ≤ 6% ⟹ đạt" thành "cổng này đang bảo vệ điều gì đó".
+
 **Điểm hiện hành: 74,57 / 85 = 87,7%.**
 ⚠️ **NIÊM:** đo **16/08**, TRƯỚC khi đổi model (18/08) và trước 4 vùng thay đổi (RAG · bộ lọc O4 ·
 che PII · prompt). **Là mốc lịch sử, KHÔNG phải điểm của bản đang chạy.** Mẫu số 85 vì trục Trải
