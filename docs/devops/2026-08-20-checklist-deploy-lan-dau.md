@@ -128,15 +128,42 @@ Không có route đăng ký tài khoản nào trong API (`/auth/login`,
 — **tài khoản CHỈ tồn tại qua bước seed này.** Bỏ qua là lựa chọn hợp lệ
 (vd muốn DB trống hoàn toàn), nhưng có hệ quả trực tiếp ở bước 6.
 
-### 6. Smoke test — bổ sung, ĐÃ ĐO Ở LOCAL (chưa đo qua domain thật)
+### 6. Smoke test — SỬA 20/08: `curl /health` qua domain là BÁO ĐỘNG GIẢ, đừng dùng
 
+🔴🔴 **[ĐO 20/08] `curl -f https://<domain>/health` KHÔNG kiểm được backend —
+tự chứng minh bằng cách tắt hẳn backend rồi curl lại vẫn ra cùng kết quả
+"thành công":**
 ```bash
-curl -f https://<domain-hoặc-IP>/health || echo "LỖI — dừng, đừng báo deploy xong"
+docker stop fin05-backend-1 && curl -k -sS -o /dev/null -w "%{http_code}\n" https://localhost/health
+# → 307   (KHÔNG lỗi — curl -f coi 307 là thành công)
 ```
+Lý do: MỌI route qua Caddy — kể cả `/health` — đi vào `frontend` trước
+(`Caddyfile`, chỉ `/ws/live-chat*` nối thẳng `backend`). `frontend/src/proxy.ts`
+(Next.js 16 đổi tên từ `middleware.ts`) chặn TRƯỚC khi chạm route handler
+nào: path không nằm trong `PUBLIC_PATHS=["/login"]` và chưa đăng nhập ⟹
+redirect `307 → /login` **NGAY TẠI EDGE, KHÔNG BAO GIỜ gọi tới backend**.
+Backend sống hay chết, kết quả `curl` giống hệt nhau. Trước đây tài liệu
+(cả bản gốc DEPLOY.md lẫn checklist này) đều khuyên dùng lệnh này — **SAI**,
+đã sửa.
 
-🔴 **Phần đăng nhập bên dưới CHỈ làm được nếu đã chạy bước 5.** Bỏ qua bước 5
-⟹ smoke test dừng lại ở `curl /health` phía trên — **đừng thử đăng nhập**,
-chưa có tài khoản nào tồn tại. Gõ SĐT/mật khẩu đoán vào form lúc đó sẽ ra
+**Cách kiểm THẬT — hai lớp, không lớp nào thay được lớp kia:**
+```bash
+# Lớp 1 — backend healthy (chạy TRÊN VPS qua SSH, không qua domain công khai
+# vì backend cố ý không publish port ra ngoài — Caddyfile ghi rõ lý do):
+docker compose exec backend python3 -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8010/health').read())"
+docker inspect fin05-backend-1 --format '{{.State.Health.Status}}'   # phải "healthy"
+
+# Lớp 2 — đường khách THẬT hoạt động, từ ngoài, qua domain công khai:
+curl -k -sS -o /dev/null -w "%{http_code}\n" https://<domain>/login   # phải 200
+```
+Lớp 2 chỉ xác nhận Caddy+frontend sống, KHÔNG xác nhận backend — hai lớp
+BẮT BUỘC đi cùng nhau, đừng suy backend sống từ lớp 2.
+
+🔴 **Phần đăng nhập bên dưới CHỈ làm được nếu đã chạy bước 5** (và là phép
+kiểm MẠNH HƠN cả hai lớp trên — POST `/api/session` bắt buộc `frontend` gọi
+`backend` thật qua `/auth/login`, không đi qua `proxy.ts` redirect như GET).
+Bỏ qua bước 5 ⟹ dừng ở hai lớp phía trên — **đừng thử đăng nhập**, chưa có
+tài khoản nào tồn tại. Gõ SĐT/mật khẩu đoán vào form lúc đó sẽ ra
 "sai thông tin đăng nhập" — **trông y hệt một bug xác thực thật**, không có
 tín hiệu nào phân biệt được với lỗi thật ngoài việc tự nhớ đã bỏ bước 5.
 
