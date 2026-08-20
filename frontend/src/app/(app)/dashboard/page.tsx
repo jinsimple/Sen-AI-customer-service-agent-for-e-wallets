@@ -152,9 +152,17 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Lead đo 20/08: listTickets({limit:100}) là 100 vé MỚI NHẤT, không phải
+          tổng — 60/100 handoff trong cửa sổ này đọc nhầm thành 60% trong khi
+          thật (786 vé) là 113/786=14,4%. Một dòng khai chung cho mọi chip
+          dưới đây thay vì sửa từng nhãn — đúng vì mọi chip cùng đếm trên
+          CÙNG mảng `tickets` (cửa sổ 100), không riêng "Tất cả". */}
+      <p className="dim" style={{ fontSize: 12, marginBottom: 8 }}>
+        Số đếm dưới đây tính trên 100 vé MỚI NHẤT, không phải tổng toàn hệ thống.
+      </p>
       <div className="filter-bar">
         <span className={`filter-chip${filter === "all" ? " active" : ""}`} onClick={() => setFilter("all")}>
-          Tất cả ({counts.all})
+          Tất cả ({counts.all}/100 vé mới nhất)
         </span>
         <span
           className={`filter-chip${filter === "pending" ? " active" : ""}`}
@@ -180,7 +188,7 @@ export default function DashboardPage() {
           className={`filter-chip${filter === "handoff" ? " active" : ""}`}
           onClick={() => setFilter("handoff")}
         >
-          Khách yêu cầu người thật ({counts.handoff})
+          Khách yêu cầu người thật ({counts.handoff}/100 vé mới nhất)
         </span>
         <div className="search-box">
           <svg className="icon icon-sm" viewBox="0 0 24 24">
