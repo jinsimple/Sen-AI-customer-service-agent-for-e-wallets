@@ -58,7 +58,7 @@ cp tests/CHUAN-VIET-TEST.md               "$G/04-kiem-thu/chuan-viet-test.md"
 04-kiem-thu/chuan-viet-test.md|tests/CHUAN-VIET-TEST.md
 EOF
   echo
-  echo "> \`05-nhat-ky-tuan.md\` và \`06-pitch-deck.md\` **không có bản gốc nơi khác** —"
+  echo "> \`05-nhat-ky-tuan.md\`, \`06-pitch-deck.md\`, \`07-project-knowledge.md\` **không có bản gốc nơi khác** —"
   echo "> chúng được viết riêng cho hồ sơ nộp, sống ngay trong \`gate/\`. Script này không đụng tới."
 } > "$G/MANIFEST.md"
 

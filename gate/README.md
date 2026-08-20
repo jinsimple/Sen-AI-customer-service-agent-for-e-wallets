@@ -10,8 +10,8 @@
 > quét `tests · docs · src · eval · frontend/e2e` — không có `gate/`. Không test nào, không job CI
 > nào, không script nào của đội đọc thư mục này. `gate/` chứa **0 file `.py`**.
 >
-> Hai file **không có bản gốc nơi khác** — viết riêng cho hồ sơ nộp, sống ngay trong đây:
-> `05-nhat-ky-tuan.md` và `06-pitch-deck.md`. Script sao chép không đụng tới chúng.
+> Ba file **không có bản gốc nơi khác** — viết riêng cho hồ sơ nộp, sống ngay trong đây:
+> `05-nhat-ky-tuan.md`, `06-pitch-deck.md` và `07-project-knowledge.md`. Script sao chép không đụng tới chúng.
 
 ---
 
@@ -28,6 +28,7 @@
 | 7 | **Live URL** | 🔴 **CHƯA CÓ** | xem mục "Việc chỉ PO làm được" |
 | 8 | **Video demo** | ⬜ **PO tự quay** | kịch bản 8 màn: `docs/giao-viec/2026-08-15-kich-ban-demo-mvp.md` |
 | 9 | **Pitch deck** | ✅ nội dung | [`06-pitch-deck.md`](06-pitch-deck.md) — 14 slide, PO đổ vào slide + trình bày |
+| — | **Gói kiến thức dự án** | ✅ | [`07-project-knowledge.md`](07-project-knowledge.md) — **tự chứa**, đưa vào Claude Desktop cùng mục 9 để dựng slide |
 | 10 | **AI Log** | ⬜ **PO xác nhận** | ngoài repo, đội không kiểm được từ đây |
 
 ---

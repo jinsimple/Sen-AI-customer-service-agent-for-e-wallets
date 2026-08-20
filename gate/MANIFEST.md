@@ -1,6 +1,6 @@
 # MANIFEST — bản sao này lấy từ đâu
 
-Sinh lúc: `2026-08-20 12:27` · HEAD: `285e330`
+Sinh lúc: `2026-08-20 12:33` · HEAD: `7652765`
 
 Băm dưới đây là băm của **bản gốc trong repo** tại thời điểm sao chép.
 Băm khác đi ⟹ bản gốc đã đổi, bản sao trong `gate/` đã cũ ⟹ chạy lại `bash gate/lam-moi.sh`.
@@ -18,5 +18,5 @@ Băm khác đi ⟹ bản gốc đã đổi, bản sao trong `gate/` đã cũ ⟹
 | `04-kiem-thu/cach-chay-kiem-thu.md` | `docs/TESTING.md` | `11c829cdf6bd` |
 | `04-kiem-thu/chuan-viet-test.md` | `tests/CHUAN-VIET-TEST.md` | `5e2068ae49a4` |
 
-> `05-nhat-ky-tuan.md` và `06-pitch-deck.md` **không có bản gốc nơi khác** —
+> `05-nhat-ky-tuan.md`, `06-pitch-deck.md`, `07-project-knowledge.md` **không có bản gốc nơi khác** —
 > chúng được viết riêng cho hồ sơ nộp, sống ngay trong `gate/`. Script này không đụng tới.
