@@ -157,13 +157,25 @@ export interface ResolutionListItem {
   approved_at: string | null;
 }
 
+// B1-B3 (20/08) — mọi % PHẢI đi kèm mẫu số (n): "0,4%" trên mẫu số 3 không
+// phát biểu được gì, người xem không có cách nào biết trừ khi thấy n. AHT
+// (thời gian NGƯỜI thao tác) KHÁC avg_processing_hours (cycle time, gồm cả
+// thời gian nằm chờ) — DB chưa có mốc bắt đầu thao tác nên `aht_hours` luôn
+// null, kèm lý do tường minh thay vì để trống (trống bị đọc thành 0).
 export interface ReportSummary {
   date_from: string | null;
   date_to: string | null;
   total_tickets: number;
   avg_processing_hours: number | null;
+  avg_processing_hours_n: number;
+  aht_hours: number | null;
+  aht_khong_do_duoc_ly_do: string;
   pct_ai_proposal_approved: number | null;
+  pct_ai_proposal_approved_numerator: number;
+  pct_ai_proposal_approved_n: number;
   pct_escalated: number | null;
+  pct_escalated_numerator: number;
+  pct_escalated_n: number;
   by_complaint_type: Record<string, number>;
   by_scope: Record<string, number>;
 }
