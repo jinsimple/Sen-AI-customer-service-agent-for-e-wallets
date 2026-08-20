@@ -17,7 +17,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # user không phải root (appuser ở stage sau) không traverse vào được dù đã
 # chown nội dung bên trong, gây lỗi "Permission denied" khi chạy alembic/uvicorn.
 ENV PYTHONUSERBASE=/install
-COPY requirements.txt .
+# requirements.lock.txt, KHÔNG requirements.txt — [ĐO 20/08] hai ảnh build
+# CÙNG NGÀY, CÙNG MÁY, cách nhau vài phút, CÙNG mã nguồn (băm nguồn khớp
+# tuyệt đối) vẫn cho ra 6/168 gói KHÁC NHAU khi cài từ requirements.txt
+# (27/37 gói ở đó dùng >=/~=, không ghim) — cây phụ thuộc trôi ngay trong
+# một ngày, không phải rủi ro lý thuyết. requirements.txt là NGUỒN Ý ĐỊNH
+# (khoảng phiên bản chấp nhận được), requirements.lock.txt là VẬT ĐÃ ĐO
+# (đúng bộ đã kiểm) — xem đầu file lock để biết lý do sâu hơn (langchain-core
+# 1.5.3 vs 1.5.4 đổi mô tả tool ~12% trên CÙNG mã nguồn).
+#
+# 🔴 CÁI GIÁ, đừng giấu: ghim lock nghĩa là CŨNG ghim luôn bản vá bảo mật của
+# 168 gói đó — đổi "luôn mới nhất, không biết đang chạy gì" lấy "biết chính
+# xác đang chạy gì, phải TỰ đi cập nhật". Đây là NỢ CÓ LỊCH TRẢ, không phải
+# việc đã xong — ai cập nhật requirements.txt (thêm/nâng gói) PHẢI sinh lại
+# lock, không sinh lại thì file này hoá thạch và mất tác dụng.
+#
+# Sinh lại lock (chạy sau khi đổi requirements.txt, TRƯỚC khi commit):
+#   docker compose exec backend python3 -m pip freeze > requirements.lock.txt
+# rồi sửa 3 dòng đầu file: ngày + image build (`docker images fin05-backend --format '{{.ID}}'`).
+COPY requirements.lock.txt requirements.txt
 RUN pip install --no-cache-dir --user -r requirements.txt
 # Model NER cho PII scrubbing hybrid (src/observability/pii.py) — dùng thẳng
 # `pip install --user <wheel URL>` thay vì `spacy download` (lệnh tiện ích
