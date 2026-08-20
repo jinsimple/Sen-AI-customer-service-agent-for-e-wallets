@@ -148,6 +148,24 @@ def test_view_tools_allowed_within_12h_but_stepup_action_needs_fresher_otp(sampl
     assert "hạn" in ticket_result["message"] or "OTP" in ticket_result["message"]
 
 
+def test_nguong_otp_khop_loi_hua_prd_17():
+    """PRD §17 (FIN05-PRD.md) — ngưỡng cứng: OTP xem ≤12h · OTP hành động ≤15p.
+
+    Test biên bên dưới (`+1`/`-1` phút quanh hằng số) canh MÁY CÓ THI HÀNH hằng
+    số hiện tại không — chúng đỏ được nếu enforcement gãy, nhưng KHÔNG đỏ nếu
+    ai đổi chính hằng số (test biên khi đó chuyển sang canh SỐ MỚI một cách im
+    lặng). Ca này canh CON SỐ, độc lập với ca biên — đổi hằng số làm ĐÚNG ca
+    này đỏ, đúng chỗ hai loại gate bổ khuyết nhau."""
+    assert OTP_VIEW_MAX_MINUTES == 720, (
+        f"OTP_VIEW_MAX_MINUTES={OTP_VIEW_MAX_MINUTES} lệch ngưỡng PRD §17 "
+        "'OTP xem dữ liệu ≤ 12 giờ' (720 phút)."
+    )
+    assert OTP_STEPUP_FRESH_MINUTES == 15, (
+        f"OTP_STEPUP_FRESH_MINUTES={OTP_STEPUP_FRESH_MINUTES} lệch ngưỡng PRD §17 "
+        "'OTP hành động có hậu quả ≤ 15 phút'."
+    )
+
+
 def test_view_tools_blocked_after_12h_absolute_max(sample_db):
     """AUTH-007: quá OTP_VIEW_MAX_MINUTES (12h) — kể cả thao tác chỉ xem cũng
     phải xác thực OTP lại (NIST 800-63B AAL2 reauth mốc tuyệt đối)."""

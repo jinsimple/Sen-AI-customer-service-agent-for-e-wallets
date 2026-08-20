@@ -145,6 +145,22 @@ def test_create_ticket_db_error_mid_transaction_rolls_back_cleanly(sample_db, mo
 # ---------------------------------------------------------------------------
 
 
+def test_nguong_timeout_khop_loi_hua_prd_17():
+    """PRD §17 (FIN05-PRD.md) — ngưỡng cứng: timeout một lượt ≤ 45s.
+
+    Ca `test_run_agent_turn_times_out_gracefully_instead_of_hanging` ngay dưới
+    đây monkeypatch hằng số thành 0.3s để canh MÁY CÓ CẮT ĐÚNG LÚC không — nó
+    đỏ được nếu cơ chế gãy, nhưng KHÔNG đỏ nếu ai đổi chính giá trị 45 (ca đó
+    khi ấy chuyển sang canh một con số khác một cách im lặng). Ca này canh
+    CON SỐ, không đụng monkeypatch — đổi hằng số làm ĐÚNG ca này đỏ."""
+    import src.agents.graph as graph_module
+
+    assert graph_module.AGENT_TURN_TIMEOUT_SECONDS == 45, (
+        f"AGENT_TURN_TIMEOUT_SECONDS={graph_module.AGENT_TURN_TIMEOUT_SECONDS} lệch ngưỡng "
+        "PRD §17 'timeout một lượt ≤ 45s'."
+    )
+
+
 def test_run_agent_turn_times_out_gracefully_instead_of_hanging(sample_db, monkeypatch):
     """agent.invoke() "treo" lâu hơn AGENT_TURN_TIMEOUT_SECONDS -> run_agent_turn
     phải TRẢ VỀ (không đợi hết) với reply handoff người thật, không hang vô
