@@ -118,6 +118,12 @@ thật, **vẫn hỏng**: gần một nửa câu khách gõ bị chèn nhãn sai
 *"làm NER chính xác hơn"* (vá `MEDICAL_LICENSE`, loại Spacy…). **PO-agent bước ra khỏi khung đó và đo
 câu gốc hơn: NER có nên nằm trên đường này không.**
 
+> ⛔ **NIÊM 20/08 — MỌI SỐ TRONG KHỐI NÀY ĐO TRÊN MỘT CHỮ KÝ HÀM ĐÃ CHẾT.**
+> Chúng gọi `scrub_pii(cau)`; `muc_dich` nay **bắt buộc, không mặc định** ⟹ chạy lại ra `TypeError`.
+> Chữ **"ĐANG DÙNG"** ngay dưới đây **nay SAI** — đường model-input không còn đi qua pipeline này.
+> Số thật của bản đang chạy: **1,6% = 2/124** (`eval/do_bop_meo_pii.py`, có cổng, đỏ được).
+> Giữ lại vì nó là **căn cứ của quyết định D'** lúc đó, không phải vì nó còn mô tả hệ thống.
+
 **[ĐO PO-agent — 124 câu khách THẬT từ `golden_set.jsonl`, hai hàm đã có sẵn trong `pii.py`]:**
 ```
 scrub_pii   (regex + NER — ĐANG DÙNG ở graph.py:787): 63/124 câu bị chèn nhãn = 50,8%
@@ -554,7 +560,8 @@ mốc thời gian** (1 trục mới, 4 trục cũ) — thứ ADR-043 cấm.
 mới.** Và phần nặng nhất của tiêu chí ấy — *failure case → hành động* — chính là **ngày 19/08**:
 ```
 5 lỗi PO thật bắt trên UI  →  chẩn đoán gốc từng lỗi  →  3 bản vá + 2 luật mới
-bọt bóp méo tiếng Việt      50,8%  →  5,6%   (đo trên 124 câu khách thật, cùng corpus)
+bọt bóp méo tiếng Việt      50,8%  →  5,6%   ⛔ NIÊM 20/08: cả hai số đứng trên chữ ký ĐÃ CHẾT
+                                              số thật bản đang chạy = 1,6% (2/124), xem PRD §17
 bộ lọc O4                   vá thì-quá-khứ, đối chứng HAI CHIỀU (chặn bịa · cho qua từ chối hợp lệ)
 ca nghiệm thu wireframe     6/6 vế trên đường sản phẩm thật, gồm ràng buộc cứng 1
 ```
