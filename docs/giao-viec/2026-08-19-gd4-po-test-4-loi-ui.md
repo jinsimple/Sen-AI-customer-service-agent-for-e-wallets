@@ -604,3 +604,41 @@ route/UI phải so **hai trường riêng**, và UI hiện **một dòng giải 
 🔴 **Đây là nhánh thứ BA mà Coder tự tìm ra ở bước ② quay lại ở một TẦNG KHÁC** — cùng một nhánh, hai
 lần gây hệ quả khác nhau. Ghi vào hồ sơ như bằng chứng cho vế thi hành đã đúc: *khi cảnh báo "còn
 nhánh khác", đưa CÁCH ĐẾM chứ đừng đưa DANH SÁCH — danh sách tự nó là một mẫu số chưa kiểm.*
+
+---
+
+## 18. QUYẾT: siết rate-limit route transcript `20/minute` → `5/minute`
+
+**Finding (Bảo Mật `[f0bfb4]`, `0f03457`):** `main.py:816` chép `@limiter.limit("20/minute")` từ
+`/agent/chat` (`:610`). **SAI ĐƠN VỊ, không sai con số** — `20/minute` hiệu chuẩn cho **tốc độ GÕ của
+khách**; route transcript trả lời câu khác: **tốc độ CSKH ĐỌC+XỬ LÝ một hội thoại đầy đủ**. Đúng lớp
+lỗi *"tên giống nhau, vật khác nhau"*.
+Ước (khai rõ là ước): credential CSKH bị lộ ⟹ **~1.200 transcript/giờ** — lớp giới hạn **có tồn tại
+nhưng không đúng ngưỡng cho mục đích đã khai**.
+
+**Bảo Mật KHÔNG tự chốt số** (đúng — câu vận hành, không phải câu bảo mật thuần). **Lead tra tài
+liệu để trả lời bằng bằng chứng, không suy đoán thay CSKH:**
+```
+grep docs/*.md + contracts/*.yaml tìm "rà backlog đầu ca" / "duyệt hàng loạt"  →  KHÔNG có dòng nào
+```
+Cộng hai lý do thiết kế: ① duyệt resolution vốn là hành động **một-lần-một qua OTP step-up** (ràng
+buộc cứng 1) ⟹ **không tồn tại "duyệt hàng loạt"** trong mô hình hiện có ② "rà backlog" hợp lý ở
+tầng **liệt kê** (`GET /tickets`, route khác) — CSKH quét metadata để CHỌN vé, không mở transcript
+đầy đủ của mọi vé.
+
+**QUYẾT: `5/minute`.** Một hội thoại đọc để hiểu được mất tối thiểu ~30 giây ⟹ `20/minute`
+(3 giây/cái) cao hơn mọi nhịp đọc thật cả bậc; `5/minute` vẫn cho lướt nhanh, cắt tốc độ exfil 4 lần.
+**Nợ RẺ và ĐẢO NGƯỢC ĐƯỢC** — đổi một số trong decorator. Nếu đợt test 150 khách lộ ra nhịp dùng thật
+đụng ngưỡng, sửa lại; **không phải thiết kế lại**.
+⚠️ Giới hạn của quyết định này: dựa trên **tài liệu dự án**, không phải quan sát CSKH thật. Nếu PO
+thật biết một kịch bản chưa được khai ở đâu, số này nhường chỗ cho kịch bản đó.
+
+**Ba điểm Bảo Mật xác nhận sạch:** guard kín cả **đường GHI** `Complaint.thread_id` lẫn đường đọc
+(ba lớp độc lập) · `"user_id khớp"` bản thi hành **loại bỏ hoàn toàn** — Bảo Mật đánh giá **tốt hơn
+đề xuất gốc của chính họ**, vì giữ một check vô tác dụng tạo **cảm giác an toàn giả** · dòng khai
+nhãn-che-sai trên UI đủ nội dung, có câu kết luận *"không phải khách thực sự gõ như vậy"*.
+
+**Đính chính cơ chế (Bảo Mật sửa Review):** field lạ trong `CreateTicketRequest` **không** bị chặn
+bằng lỗi 422 — schema **không có** `extra="forbid"`, nên Pydantic v2 mặc định `ignore`: field lạ
+**rơi mất lặng lẽ**. **Kết luận an toàn KHÔNG đổi, nhưng cơ chế khác** — và chỉ khi biết đúng cơ chế
+mới biết nó còn đúng hay không lúc ai đó đổi schema.
