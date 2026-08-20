@@ -101,20 +101,34 @@ trả lời **chung chung, không trích được chính sách thật** — khô
 lỗi nào báo, tự kiểm bằng cách hỏi thử một câu chính sách cụ thể sau khi
 seed xong.
 
-### 5. Seed dữ liệu demo (tuỳ chọn, theo `docs/DEPLOY.md` mục 6)
+### 5. Seed dữ liệu demo (tuỳ chọn — nhưng ĐỌC CẢNH BÁO Ở BƯỚC 6 TRƯỚC KHI BỎ QUA)
 
 ```bash
 docker compose exec backend su appuser -c "python3 scripts/seed_db.py"
 docker compose exec backend su appuser -c "python3 scripts/seed_demo_scenarios.py"
 ```
+Không có route đăng ký tài khoản nào trong API (`/auth/login`,
+`/auth/refresh`, `/auth/logout`, `/auth/otp/*` — không có `/auth/register`)
+— **tài khoản CHỈ tồn tại qua bước seed này.** Bỏ qua là lựa chọn hợp lệ
+(vd muốn DB trống hoàn toàn), nhưng có hệ quả trực tiếp ở bước 6.
 
 ### 6. Smoke test — bổ sung, ĐÃ ĐO Ở LOCAL (chưa đo qua domain thật)
 
 ```bash
 curl -f https://<domain-hoặc-IP>/health || echo "LỖI — dừng, đừng báo deploy xong"
 ```
-Đăng nhập thử ít nhất 1 vai (khách hoặc CSKH), gửi 1 câu hỏi chính sách thật
-để xác nhận kho RAG bước 4 đã nạp đúng — không chỉ tin log "nạp thành công".
+
+🔴 **Phần đăng nhập bên dưới CHỈ làm được nếu đã chạy bước 5.** Bỏ qua bước 5
+⟹ smoke test dừng lại ở `curl /health` phía trên — **đừng thử đăng nhập**,
+chưa có tài khoản nào tồn tại. Gõ SĐT/mật khẩu đoán vào form lúc đó sẽ ra
+"sai thông tin đăng nhập" — **trông y hệt một bug xác thực thật**, không có
+tín hiệu nào phân biệt được với lỗi thật ngoài việc tự nhớ đã bỏ bước 5.
+
+Đã chạy bước 5: đăng nhập thử ít nhất 1 vai (số điện thoại mẫu xem trong
+`data/generated/users.jsonl` sau khi seed, hoặc dùng `0900000001` cho vai
+"Đối tác ví" nếu đã chạy `seed_demo_scenarios.py` — xem `docs/DEPLOY.md`
+mục 6 để biết đủ danh sách), gửi 1 câu hỏi chính sách thật để xác nhận kho
+RAG bước 4 đã nạp đúng — không chỉ tin log "nạp thành công".
 
 ## Ghi chú cho lần sau
 
