@@ -68,7 +68,16 @@ if not DATABASE_URL:
 # CHỈ suy ra từ scheme + tên database. TUYỆT ĐỐI không đưa user/password/host
 # vào đây: giá trị này được trả ra qua /health (endpoint công khai).
 # ---------------------------------------------------------------------------
-APP_ENV = os.environ.get("APP_ENV", "development")
+# Fail-CLOSED, không fail-open (Bảo Mật bắt 20/08): thiếu biến này trước đây
+# rơi vào "development" — nhánh RỘNG hơn, bật `/docs`/`/redoc`/`/openapi.json`
+# (34 route kèm schema) trên MỌI ảnh quên khai APP_ENV, kể cả deploy thật theo
+# đúng `.env.example`. Đảo mặc định sang "production" (nhánh CHẶT hơn) để
+# quên khai đẩy về phía an toàn — giá đúng người trả: máy dev phải tự khai
+# `APP_ENV=development` mới có `/docs`, thay vì máy deploy quên khai mà mở
+# toang bề mặt API. KHÔNG đổi thành fail-fast (như JWT_SECRET_KEY) — chi phí
+# một biến bắt buộc lan ra mọi test/CI/lần chạy local, trong khi mặc định an
+# toàn đã cho đúng thứ cần mà không cần ép khai ở mọi nơi.
+APP_ENV = os.environ.get("APP_ENV", "production")
 
 # Dấu vật, do Dockerfile ARG đặt lúc build. "khong-ro" = không truyền được —
 # tự tố cáo, không im lặng giả vờ hợp lệ.
