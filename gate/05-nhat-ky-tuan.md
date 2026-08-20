@@ -130,10 +130,19 @@ khác, nên nó KHÔNG nằm trong bảng băm đó** — không cơ chế nào 
 
 Ba thứ đối chiếu tay, mất một phút:
 ```bash
-grep LLM_MODEL_POOL .env                          # tên model — phải KHỚP, kể cả mốc ngày
-grep -c '^## ADR-' docs/DECISIONS.md              # số ADR
-git log --format='%ad' --date=format:'%Y-W%V' | sort | uniq -c   # số commit mỗi tuần
+grep LLM_MODEL_POOL .env                 # tên model — phải KHỚP, KỂ CẢ mốc ngày
+grep -c '^## ADR-' docs/DECISIONS.md     # số ADR
+git log --oneline | wc -l                # 🔴 TỔNG commit — so 1 số với 1 số
+gh pr list --state merged --limit 50 | wc -l                     # số PR đã merge
+find src -name '*.py' | wc -l ; find tests -name 'test_*.py' | wc -l   # số file
+git log --format='%ad' --date=format:'%Y-W%V' | sort | uniq -c   # commit mỗi TUẦN
 ```
+
+🔴 **Vì sao lệnh `wc -l` cho TỔNG là lệnh quan trọng nhất ở đây, không phải lệnh cuối:**
+lệnh cuối cho ra **bảng theo tuần** — người kiểm phải **tự cộng ba dòng** rồi mới so được với con số
+ở đầu file. **Đó chính xác là bước đã sai** (tiêu đề ghi `982`, bảng cộng ra `984`). Tái tạo đúng
+phép đo mà không bỏ được bước cộng tay thì cổng kiểm vẫn hở ở đúng chỗ nó từng hở.
+**So một số với một số, đừng bắt người kiểm làm phép tính.**
 🔴 **Ca thật 20/08:** ba file trong `gate/` từng ghi bể model là `deepseek-v4-pro` / `deepseek-v4-flash`
 — **đúng hai bí danh mà ADR-043, nằm chung hồ sơ, đã tường minh TỪ CHỐI vì không có mốc ngày.** Hồ sơ
 tự mâu thuẫn ngay trên chủ đề nó dùng làm điểm nhấn. Review bắt được; không cơ chế nào bắt được.
