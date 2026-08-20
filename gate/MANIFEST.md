@@ -1,6 +1,6 @@
 # MANIFEST — bản sao này lấy từ đâu
 
-Sinh lúc: `2026-08-20 14:14` · HEAD: `8afac47`
+Sinh lúc: `2026-08-20 14:19` · HEAD: `80a7436`
 
 Băm dưới đây là băm của **bản gốc trong repo** tại thời điểm sao chép.
 Băm khác đi ⟹ bản gốc đã đổi, bản sao trong `gate/` đã cũ ⟹ chạy lại `bash gate/lam-moi.sh`.
