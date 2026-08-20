@@ -6,7 +6,7 @@
 > dữ liệu thật, và các ràng buộc đó được ép ở tầng database + 19 test bất biến.
 
 **Đội:** T226 (AI 20K Build Phase, Cohort 3 — Vingroup × VinUni) · **PO & Thực hiện:** Đào Ngọc Bích
-· **Mentor:** Lê Anh Tiến · **Đối tác nghiệp vụ:** ZaloPay
+· **Mentor:** Đặng Hải Lộc · **Đối tác nghiệp vụ:** ZaloPay
 
 **Live:** https://app.adaptivealgo.uk *(home-server + Cloudflare Tunnel — xem
 [hướng dẫn triển khai](docs/giao-viec/2026-08-15-chay-that-tai-nha-windows-tunnel.md))*
