@@ -561,11 +561,18 @@ export default function ChatClient({
       }
       setStage("chat");
     } catch (e) {
-      // 403 kèm chữ "role" = lệch vai, KHÔNG phải lỗi trợ lý. Đổ nguyên văn
-      // `"Cần role thuộc ['customer'], tài khoản hiện tại là cskh"` vào khung
-      // chat là thứ PO đọc thấy giữa buổi demo — vô nghĩa với người dùng và
-      // trông như sản phẩm hỏng.
-      if (e instanceof ApiError && e.status === 403 && /role/i.test(e.message)) {
+      // Lệch vai = 403 KÈM chuỗi ta sở hữu (auth.py:306 require_role) —
+      // KHÔNG chỉ /role/i, thứ khớp bất kỳ lỗi nào lỡ chứa chữ "role". Ưu
+      // tiên `status` (tín hiệu MẠNH, thuộc hợp đồng HTTP, ApiError đã mang
+      // sẵn) hơn khớp câu chữ (tín hiệu YẾU) — cùng nguyên tắc đã chốt cho
+      // `_DAU_HIEU_HET_HAN_MUC`: ưu tiên status_code khi có, chỉ dựa chuỗi
+      // khi KHÔNG có. status===403 mà KHÔNG khớp chuỗi ⟹ BA TRẠNG THÁI vẫn
+      // giữ: rơi qua nhánh KHÔNG RÕ bên dưới (push lỗi chung), TUYỆT ĐỐI
+      // không ngầm gộp vào "lệch vai" — giấu một lỗi thật đắt hơn mất một
+      // câu thông báo đẹp. Đổ nguyên văn `"Cần role thuộc ['customer'], tài
+      // khoản hiện tại là cskh"` vào khung chat là thứ PO đọc thấy giữa buổi
+      // demo — vô nghĩa với người dùng và trông như sản phẩm hỏng.
+      if (e instanceof ApiError && e.status === 403 && e.message.includes("Cần role thuộc")) {
         const m = /hiện tại là (\w+)/.exec(e.message);
         setVaiLech(m?.[1] ?? "khác");
         setStage("chat");
