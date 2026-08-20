@@ -9,10 +9,11 @@
 
 ## 🔴 ĐỌC MỤC NÀY TRƯỚC KHI GÕ LỆNH ĐẦU TIÊN
 
-Năm chỗ đứt thật, tìm được bằng cách **chạy hết chuỗi trên clone sạch**
+Sáu chỗ đứt thật, tìm được bằng cách **chạy hết chuỗi trên clone sạch**
 (20/08) — không chỗ nào đọc lại tài liệu mà thấy ra được, vì người viết tài
-liệu luôn đứng trên một máy đã có sẵn thứ đang thiếu. Ba trong năm nằm ở
-bước cuối/bước xác nhận — đúng chỗ người deploy tin nhất là đã xong.
+liệu luôn đứng trên một máy đã có sẵn thứ đang thiếu. Ba trong sáu nằm ở
+bước cuối/bước xác nhận — đúng chỗ người deploy tin nhất là đã xong. Và
+⑥ khác hẳn năm chỗ kia: nó **không kêu** — mọi thứ chạy đúng, chỉ là hở.
 
 | # | triệu chứng bạn sẽ thấy | nguyên nhân thật | việc cần làm |
 |---|---|---|---|
@@ -21,6 +22,7 @@ bước cuối/bước xác nhận — đúng chỗ người deploy tin nhất l
 | ③ | `seed_db.py` báo `FileNotFoundError: Thiếu .../transactions.jsonl` | file 60K dòng CỐ Ý không nằm trong git (quá lớn để commit) — không phải thiếu sót, không tự ý commit nó | Chạy `scripts/gen_dataset.py --seed 20260802 --out data/generated/ --eval-out /tmp/eval_out/` TRƯỚC `seed_db.py` — xem bước 5 |
 | ④ | `seed_demo_scenarios.py` dừng giữa chừng với `CheckViolation: ck_resolutions_rejected_requires_reason_br11` | **ĐÃ VÁ** (`0f5bd34`) — nếu vẫn thấy lỗi này, bạn đang chạy trên ảnh/commit CŨ hơn, không phải lỗi mới | Xác nhận `BUILD_COMMIT` trong container ≥ `0f5bd34` trước khi báo bug |
 | ⑤ | `curl -f https://<domain>/health` trả về "thành công" (307) | 🔴 **BÁO ĐỘNG GIẢ TUYỆT ĐỐI — đã chứng minh bằng cách tắt hẳn backend rồi curl lại, VẪN ra cùng 307.** Mọi route qua Caddy (trừ `/ws/live-chat*`) vào `frontend` trước; `frontend/src/proxy.ts` chặn TẠI EDGE cho path chưa đăng nhập, redirect không bao giờ chạm backend | **Nếu bạn dùng `curl /health` qua domain và thấy xanh — BẠN CHƯA CHỨNG MINH ĐƯỢC GÌ về backend.** Kiểm backend thật qua SSH+docker (bước 6, lớp 1), không qua domain công khai |
+| ⑥ | 🔴 **KHÔNG CÓ TRIỆU CHỨNG NÀO CẢ** — mọi thứ chạy bình thường, đăng nhập được, chat được. Chỉ là `/docs`, `/openapi.json`, `/redoc` (34 route + schema API) mở công khai ra Internet | [ĐO Bảo Mật + DevOps 20/08] `.env.example` bản cũ KHÔNG có dòng `APP_ENV` ⟹ mặc định code `"development"` (`src/config.py:71`) ⟹ `main.py:151` không bật chặn docs. Nguy hiểm hơn cả 5 chỗ trên CỘNG LẠI vì 5 chỗ kia đều KÊU khi hỏng, chỗ này IM — **kể cả người viết checklist (tôi) suýt tự đọc nhầm `curl /openapi.json` qua domain ra 307 thành "đã chặn", đúng cùng bẫy ở ⑤, chỉ thoát vì nhớ phải hỏi thẳng backend** | **ĐÃ VÁ trong `.env.example`** — giờ có dòng `APP_ENV=development` kèm cảnh báo tường minh phải đổi `production` trên VPS. Kiểm sau deploy: `curl -k https://<domain đã login>/openapi.json` qua domain KHÔNG đủ (cùng bẫy proxy 307) — phải hỏi thẳng `docker compose exec backend curl localhost:8010/openapi.json`, kỳ vọng KHÔNG PHẢI 200 |
 
 ## Đã CHỨNG MINH bằng đo thật (20/08, DevOps)
 
