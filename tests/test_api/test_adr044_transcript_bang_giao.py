@@ -2,19 +2,16 @@
 CSKH đọc được hội thoại bot↔khách của vé mình xử lý, qua route MỚI
 `GET /tickets/{ticket_id}/transcript`.
 
-Viết TỪ CONTRACT (ADR-044 mục "Quyết định"), TRƯỚC KHI Coder code route +
-migration — đúng khuôn "cổng nghiệm thu dựng sẵn" đã dùng cho GĐ2.5/GĐ3.
-🔴 CHƯA CHẠY được cho tới khi route + migration land (route hiện KHÔNG tồn
-tại → mọi ca dưới đây sẽ trả 404, KHÔNG phải bằng chứng guard hoạt động —
-đọc kỹ assertion trước khi tin một lần chạy "xanh" nào trên route chưa tồn
-tại: 404 sẽ làm r1.json() == r2.json() ĐÚNG NHƯNG VÔ NGHĨA, status_code phải
-được kiểm 200 tường minh trước khi tin so sánh body).
+Bốn ca ①②③ viết TỪ CONTRACT (ADR-044 mục "Quyết định") TRƯỚC KHI Coder code
+route + migration — khuôn "cổng nghiệm thu dựng sẵn" (GĐ2.5/GĐ3). Route land
+`e1db3af`, xác nhận độc lập 4/4 xanh (host + trong container ảnh `c5a9eef`).
 
-🔴 GIẢ ĐỊNH SCHEMA response — CHƯA xác nhận với Coder, sửa lại khi có route
-thật: `{"transcript": [...] | null, ...}`, có một trường lý do dạng chuỗi
-khi `transcript` là null (tên trường CHƯA biết — ca ② viết ở mức "có MỘT
-trường lý do khác None/rỗng", không ghim tên trường cụ thể, để không phải
-sửa lại vì đoán sai tên)."""
+Schema response THẬT, xác nhận với Coder (không còn giả định):
+`{"transcript": [{"vai":..., "noi_dung":..., "co_goi_tool": bool}] | null,
+"ly_do": str | null, "handoff_at": iso | null, "chi_so_bang_giao": int | null}`.
+
+Ca ④ (thêm 20/08) — hồi quy cho phát hiện Review, viết SAU khi route land,
+seam do Coder khai trực tiếp (không đoán)."""
 from __future__ import annotations
 
 import datetime as dt
@@ -182,4 +179,61 @@ def test_handoff_at_ghi_dung_luc_bang_giao_khong_phai_luc_tao_ticket(sample_db):
         f"handoff_at={ticket_sau_bang_giao.handoff_at} nằm NGOÀI khoảng thời gian thực gọi "
         f"flag_human_handoff ({truoc_khi_goi} .. {sau_khi_goi}) — nghi ghi nhầm mốc (vd mốc tạo "
         f"ticket) thay vì mốc bàn giao thật."
+    )
+
+
+# ── ④ Ca hồi quy — checkpoint kết thúc NGAY SAU ToolMessage bàn giao ───────
+#
+# Phát hiện Review 20/08: `ToolMessage(name="request_human_handoff")` là
+# message CUỐI checkpoint (lượt bị cắt trước khi model sinh câu xác nhận)
+# ⟹ vạch phân cách "— khách yêu cầu gặp người thật tại đây —" không bao giờ
+# đặt được. Coder tái hiện thật (seed checkpoint), quyết định KHÔNG vá logic
+# (vá phải ĐOÁN vị trí vạch — đoán sai còn tệ hơn không có vạch), chỉ khai
+# vào docstring `src/agents/graph.py::doc_transcript_bang_giao`, đoạn
+# "(b) ĐÃ KHAI 20/08 (Review phát hiện...)". Ca này khoá đúng hành vi ĐÃ
+# QUYẾT — nếu sau này ai "tiện tay" vá bằng cách đoán vị trí vạch, ca phải
+# ĐỎ, buộc họ đọc lại vì sao đội cố ý không đoán.
+
+from types import SimpleNamespace  # noqa: E402
+
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage  # noqa: E402
+
+
+def test_checkpoint_ket_thuc_ngay_sau_toolmessage_bang_giao_khong_co_vach(client, sample_db, monkeypatch):
+    THREAD_ID = "THREAD-HOI-QUY-VACH-PHAN-CACH"
+    tao = create_ticket(
+        sample_db, user_id="USR-A", complaint_type="wrong_recipient", scope="to_bank",
+        description_raw="test hồi quy vạch phân cách", trans_id="TXN-0002",
+        thread_id=THREAD_ID,
+    )
+    ticket_id = tao["ticket_id"]
+    ticket = sample_db.get(Ticket, ticket_id)
+    ticket.handoff_at = dt.datetime.utcnow()  # mô phỏng ĐÃ bàn giao
+    sample_db.commit()
+
+    messages = [
+        HumanMessage(content="Toi muon gap nguoi that"),
+        AIMessage(content="", tool_calls=[{"name": "request_human_handoff", "args": {}, "id": "call_1"}]),
+        ToolMessage(content="{}", name="request_human_handoff", tool_call_id="call_1"),
+        # KHÔNG AIMessage nào sau — đúng ca Review: checkpoint kết thúc NGAY SAU tool.
+    ]
+    fake_tuple = SimpleNamespace(checkpoint={"channel_values": {"messages": messages}})
+    monkeypatch.setattr("src.agents.graph._CHECKPOINTER.get_tuple", lambda config: fake_tuple)
+
+    r = client.get(f"/tickets/{ticket_id}/transcript", headers=_cskh_headers())
+    assert r.status_code == 200, f"status {r.status_code}: {r.text[:300]}"
+    body = r.json()
+
+    assert body.get("chi_so_bang_giao") is None, (
+        f"chi_so_bang_giao phải là None khi checkpoint kết thúc ngay sau ToolMessage bàn giao "
+        f"(không có AIMessage xác nhận theo sau để đặt vạch) — đúng quyết định CÓ CHỦ ĐÍCH "
+        f"không đoán vị trí. Đo được: {body.get('chi_so_bang_giao')!r}"
+    )
+    transcript = body.get("transcript") or []
+    assert transcript, "transcript rỗng — ca này cần ÍT NHẤT có lượt để kiểm co_goi_tool, không chỉ kiểm chi_so_bang_giao."
+    assert all(luot.get("co_goi_tool") is False for luot in transcript), (
+        f"Vế Review NHẤN MẠNH (không phải chỉ trùng ca chi_so_bang_giao=None đã có): "
+        f"KHÔNG lượt nào được đánh dấu co_goi_tool=True dù tool request_human_handoff đã chạy "
+        f"THẬT trong checkpoint — CSKH đọc transcript sẽ không thấy dấu hiệu nào tool đã chạy. "
+        f"transcript: {transcript!r}"
     )
