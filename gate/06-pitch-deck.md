@@ -87,7 +87,8 @@ Test **introspect app đang chạy thật** — đọc `app.routes`, moi `allowe
 
 ```
 khách → Cloudflare Tunnel → Caddy → Next.js BFF (JWT không rời server) → FastAPI
-     → che PII → spotlighting → LLM (bể 4 model tự xoay) → 5 tool → lọc O1–O4 → khách
+     → che PII → LLM (bể 4 model tự xoay) → 5 tool → lọc O1–O4 → khách
+     search_policy → spotlighting: hạ tài liệu ĐỐI TÁC xuống hạng DỮ LIỆU (nhánh riêng)
      tiền chỉ đi khi Supervisor duyệt — ràng buộc người-tạo ≠ người-duyệt ở tầng DATABASE
 ```
 

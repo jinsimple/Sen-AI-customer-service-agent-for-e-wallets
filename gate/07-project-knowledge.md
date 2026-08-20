@@ -104,10 +104,11 @@ Chỉ `caddy` mở ra ngoài. `postgres` và `jaeger` ghim `127.0.0.1`.
 ```mermaid
 graph TD
     IN[Câu của khách] --> SC[che PII<br/>registry model_input]
-    SC --> SP[Spotlighting<br/>tách dữ liệu khỏi chỉ thị]
-    SP --> LLM{{"LLM — bể 4 model tự xoay"}}
+    SC --> LLM{{"LLM — bể 4 model tự xoay"}}
     LLM --> TOOL[5 tool · danh nghĩa customer]
+    TOOL --> SP[Spotlighting<br/>CHỈ áp kết quả search_policy<br/>hạ tài liệu đối tác xuống hạng DỮ LIỆU]
     TOOL --> TR[(tool_results<br/>mọi con số phải truy về đây)]
+    SP --> TR
     TR --> LLM
     LLM --> OUT[Lọc đầu ra O1–O4<br/>regex tất định]
     OUT --> ANS[Câu trả lời cho khách]
@@ -130,6 +131,11 @@ graph TD
 | **O2** | thuật ngữ nội bộ |
 | **O3** | số liệu không truy được về nguồn |
 | **O4** | hứa hoàn tiền — **cả thì quá khứ** (*"đã hoàn tiền"*, *"vừa hoàn tiền"*) |
+
+🔴 **Spotlighting không áp lên câu của khách.** [ĐO] nó được gọi **đúng một chỗ trong toàn `src/`**
+— trên kết quả `search_policy` — nên chạy **SAU** khi LLM đã gọi tool. Việc của nó là hạ **tài liệu
+của đối tác ví** xuống hạng DỮ LIỆU, để nội dung trong đó không bao giờ được đọc như chỉ thị. Thứ
+bảo vệ câu của khách là bước che PII, một cơ chế khác.
 
 🔴 **O1–O4 là regex tất định, ĐỘC LẬP VỚI MODEL.** Đổi model không làm lưới cuối yếu đi — đây chính
 là lý do hệ thống dám xoay model tự động.
