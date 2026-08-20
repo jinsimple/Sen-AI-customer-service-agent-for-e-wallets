@@ -198,3 +198,59 @@ cộng dồn danh sách port — bẫy đã gặp thật lúc làm vòng đầu)
 ba ngăn xếp thật đang chạy trên máy đội. Không sửa file tracked trong repo.
 Muốn lặp lại phép kiểm này (vd trước lần deploy tiếp theo), xem lịch sử
 trao đổi DevOps ↔ PO-agent 20/08 hoặc hỏi DevOps.
+
+## Lượt diễn tập CUỐI — đã chứng minh những gì
+
+**[ĐO 20/08, DevOps] Clone GitHub thật từ `origin/dev/learning-loop` =
+`a3d55f7` — không phải cây làm việc local, đúng thứ một người lạ `git clone`
+hôm nay sẽ nhận.** Đủ 6 bản vá của cả buổi cùng có mặt, cùng chạy, không
+đụng nhau: `Dockerfile` lock file · `APP_ENV` hai lớp (`.env.example` +
+`config.py`) · băm nguồn frontend · seed BR-11 · thông báo `kho_rag.py` ·
+`ruff.toml` N802.
+
+**Ba phép đo đặc biệt, PO-agent yêu cầu vì chúng đo đúng lớp rủi ro trước đó
+chưa ai kiểm — sáu bản vá tương tác với nhau lần đầu tiên trong lượt này:**
+
+| ① Băm nguồn — host vs container, hai phía đặt cạnh nhau |
+|---|
+| `backend`  host `29b0496a4946` == container `29b0496a4946` — KHỚP |
+| `frontend` host `6f9bbf28a90e` == container `6f9bbf28a90e` — KHỚP |
+
+| ② `APP_ENV` — cặp nhân quả trên ảnh THẬT, hỏi thẳng `backend:8010` (không qua domain — `curl` qua domain nói dối, xem chỗ đứt ⑤) |
+|---|
+| `.env` có `APP_ENV=development` (từ `.env.example`) → `GET /openapi.json` → `HTTP 200`, 29001 byte |
+| Xoá dòng `APP_ENV` khỏi `.env`, recreate container → biến rỗng → `GET /openapi.json` → `HTTP 404` — ĐÃ CHẶN |
+| ⟹ hai lớp phòng thủ độc lập xác nhận cùng hoạt động: khai tường minh (chống người không biết) + mặc định code an toàn (chống người quên) — vế sau tự cứu vế trước khi ai xoá nhầm dòng |
+
+| ③ `pip freeze` trong ảnh vs `requirements.lock.txt` |
+|---|
+| 168 dòng mỗi bên, `diff` **RỖNG** — 0 lệch. Lock file khoá đúng thứ nó hứa |
+
+Bước 2→6 còn lại (clone · `.env` · build+up · seed × 3 · health hai lớp ·
+`/login` · đăng nhập thật `0900000001`) — **ĐẠT hết, không vấp chỗ nào
+MỚI** trong lượt này.
+
+### 🔴 CHƯA CHỨNG MINH — đọc mục này CÙNG TRỌNG LƯỢNG với mục "ĐẠT" ở trên
+
+Một báo cáo toàn "ĐẠT" mà không có mục này sẽ được đọc RỘNG HƠN thứ nó thật
+sự đo — đúng lớp lỗi cả buổi hôm nay bắt đi bắt lại. Liệt kê đầy đủ, không
+giấu bớt:
+
+- **`scripts/kho_rag.py nap-lai`** — cần khoá embedding THẬT, chưa từng chạy
+  trong bất kỳ vòng kiểm nào hôm nay. Không biết bước này có vấp gì không.
+- **Cấu hình mạng/firewall THẬT trên VPS** (Oracle Security List, iptables,
+  hay Cloudflare Tunnel — xem mục 0, vẫn CHƯA XÁC MINH đường nào là thật) —
+  mọi phép đo hôm nay chạy qua `localhost` + cổng loopback đổi tay, không
+  qua Internet thật, không qua DNS thật, không qua Let's Encrypt thật.
+- **`.env` THẬT trên VPS có `APP_ENV=production` hay không** — checklist
+  này chứng minh CƠ CHẾ hoạt động đúng (② ở trên), KHÔNG chứng minh PO thật
+  sẽ điền đúng giá trị. Đây là việc người, không phải việc máy — nhắc lại
+  ngay trước khi họ điền `.env` thật.
+- **`docker-compose.override.yml` dùng trong mọi lượt kiểm hôm nay KHÔNG
+  tồn tại trên VPS thật** — VPS publish cổng 80/443 thật (hoặc qua tunnel),
+  không qua override cô lập. Chưa kiểm hành vi Caddy xin chứng chỉ Let's
+  Encrypt thật lần đầu (chỉ kiểm được chứng chỉ tự ký local).
+- **`jaeger`, `cloudflared`** — vẫn như ghi ở đầu file, chưa tự đo full
+  pipeline trong bất kỳ lượt kiểm nào.
+- **Tải thật, nhiều người dùng đồng thời** — mọi lượt kiểm hôm nay là một
+  người, tuần tự. Không nói được gì về hành vi dưới tải.
