@@ -493,14 +493,30 @@ def doc_transcript_bang_giao(thread_id: str) -> dict[str, object] | None:
         KIỆN sinh ra bàn giao (lời gọi tool) chính xác hơn một phép so mốc
         thời gian gián tiếp.
 
-        Ca đặc biệt ĐÃ KHAI (PO-agent phát hiện 19/08, không phải bug): vé
-        sinh từ nhánh timeout/bỏ lượt (graph.py, `flag_human_handoff(...)`
-        gọi THẲNG, không qua tool `request_human_handoff` mà LLM gọi) sẽ có
-        `ticket.handoff_at` (DB) nhưng KHÔNG có `ToolMessage` tương ứng
-        trong checkpoint ⟹ `chi_so_bang_giao=None` dù có bàn giao thật. Route/
-        UI phải tự phân biệt "chưa từng bàn giao" khỏi "bàn giao qua nhánh
-        timeout" bằng cách so `handoff_at is not None` với `chi_so_bang_giao
-        is None` — KHÔNG coi cả hai là cùng một trường hợp."""
+        HAI ca đặc biệt cùng cho `chi_so_bang_giao=None` dù `handoff_at` (DB)
+        có giá trị — route/UI xử lý GIỐNG NHAU (hiện note thay vì vạch), nhưng
+        NGUYÊN NHÂN khác nhau, đừng gộp khi đọc/giải thích lại:
+
+        (a) ĐÃ KHAI 19/08 (PO-agent phát hiện, không phải bug): vé sinh từ
+            nhánh timeout/bỏ lượt — `flag_human_handoff(...)` gọi THẲNG,
+            KHÔNG qua tool `request_human_handoff` mà LLM gọi. Transcript
+            KHÔNG có `ToolMessage` tên đó ở đâu cả — tự nhất quán, không một
+            dấu vết nào của bàn giao trong hội thoại.
+
+        (b) ĐÃ KHAI 20/08 (Review phát hiện khi soát toàn chuỗi): tool
+            `request_human_handoff` ĐƯỢC LLM gọi THẬT (`ToolMessage` có mặt
+            trong checkpoint), nhưng nó là message CUỐI CÙNG — lượt bị cắt
+            (timeout/lỗi) ngay sau khi tool chạy xong, TRƯỚC khi model kịp
+            sinh `AIMessage` xác nhận có nội dung. Vòng lặp dưới đây kết thúc
+            với cờ `vua_goi_handoff=True` còn treo, chưa từng được gán vào
+            `chi_so_bang_giao` vì không có lượt bot nào đứng sau để nhận nó.
+            KHÁC ca (a) ở chỗ: có BẰNG CHỨNG THẬT tool đã chạy, nhưng bằng
+            chứng đó không bao giờ gắn được vào một lượt hiển thị (`co_goi_
+            tool` chỉ gắn cho AIMessage kế tiếp — ở đây không có) — CSKH
+            không thấy badge nào cho đúng lần gọi này, kể cả khi các lượt
+            TRƯỚC đó trong cùng hội thoại có badge cho tool khác. Không vá
+            bằng cách đoán vị trí vạch — sẽ thay một khoảng trống trung thực
+            bằng một phỏng đoán."""
     tuple_ = _CHECKPOINTER.get_tuple({"configurable": {"thread_id": thread_id}})
     if tuple_ is None:
         return None
