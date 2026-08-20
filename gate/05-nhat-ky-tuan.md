@@ -3,7 +3,10 @@
 > **Dựng từ lịch sử git thật**, không viết lại từ trí nhớ. Mọi con số dưới đây lấy bằng
 > `git log`, tái tạo được bằng lệnh ghi ở cuối file.
 >
-> **982 commit · 3 tuần (W32–W34) · 46 ADR · 11 PR đã merge.**
+> **~985 commit · 3 tuần (W32–W34) · 46 ADR · 11 PR đã merge.**
+>
+> *Con số commit **còn tăng** — bảng ba tuần dưới đây cộng lại là **984**, đo lúc viết file; số mới
+> nhất lấy bằng lệnh ở cuối file. Nêu ra để người đọc cộng tay không thấy lệch mà nghi.*
 >
 > Đội: **1 người thật (PO) + nhiều phiên Claude chuyên trách** (tech-lead · tester · security ·
 > UX/UI · DevOps · critic). Mỗi vai có vùng ghi riêng, không vai nào ghi đè vùng vai khác.
@@ -116,3 +119,21 @@ git log --format='%s' | grep -cE '^feat'                          # đếm theo 
 grep -c '^## ADR-' docs/DECISIONS.md                              # số ADR
 gh pr list --state merged --limit 50 | wc -l                      # PR đã merge
 ```
+
+
+---
+
+## ⚠️ KIỂM TAY TRƯỚC KHI NỘP — file này nằm NGOÀI cơ chế tự canh
+
+`gate/MANIFEST.md` ghi băm sha256 để phát hiện bản sao đã trôi. **File này không có bản gốc nơi
+khác, nên nó KHÔNG nằm trong bảng băm đó** — không cơ chế nào báo khi nó nói sai.
+
+Ba thứ đối chiếu tay, mất một phút:
+```bash
+grep LLM_MODEL_POOL .env                          # tên model — phải KHỚP, kể cả mốc ngày
+grep -c '^## ADR-' docs/DECISIONS.md              # số ADR
+git log --format='%ad' --date=format:'%Y-W%V' | sort | uniq -c   # số commit mỗi tuần
+```
+🔴 **Ca thật 20/08:** ba file trong `gate/` từng ghi bể model là `deepseek-v4-pro` / `deepseek-v4-flash`
+— **đúng hai bí danh mà ADR-043, nằm chung hồ sơ, đã tường minh TỪ CHỐI vì không có mốc ngày.** Hồ sơ
+tự mâu thuẫn ngay trên chủ đề nó dùng làm điểm nhấn. Review bắt được; không cơ chế nào bắt được.

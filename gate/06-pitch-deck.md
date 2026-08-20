@@ -98,7 +98,11 @@ khách → Cloudflare Tunnel → Caddy → Next.js BFF (JWT không rời server)
 
 ## Slide 7 — Hạ tầng tự xoay model
 
-Bể **4 model**: `qwen3.7-plus` · `deepseek-v4-pro` · `deepseek-v4-flash` · `deepseek-v3.2`
+Bể **4 model**, tên GHIM có mốc ngày:
+`qwen3.7-plus-2026-05-26` · `deepseek-v4-pro-0813` · `deepseek-v4-flash-0731` · `deepseek-v3.2`
+
+🔴 **Bí danh trôi bị TỪ CHỐI lúc khởi động.** ADR-043 loại 2/5 model PO gửi vì tên không mốc —
+`deepseek-v4-pro` (không `-0813`) có thể trỏ sang trọng số khác sau một đêm mà không ai biết.
 
 Cạn hạn mức một model ⟹ **hạ tầng tự chuyển**, không ai phải sửa cấu hình lúc nửa đêm.
 
@@ -229,3 +233,21 @@ thay vì xoá**.
 
 **Nếu bị hỏi *"đã deploy thật chưa"*:** trả lời thẳng theo trạng thái tại thời điểm trình bày.
 Sổ tay deploy đã có, 6 bước đã có người đi hết trên bản clone sạch, 6 chỗ đứt đã vá.
+
+
+---
+
+## ⚠️ KIỂM TAY TRƯỚC KHI NỘP — file này nằm NGOÀI cơ chế tự canh
+
+`gate/MANIFEST.md` ghi băm sha256 để phát hiện bản sao đã trôi. **File này không có bản gốc nơi
+khác, nên nó KHÔNG nằm trong bảng băm đó** — không cơ chế nào báo khi nó nói sai.
+
+Ba thứ đối chiếu tay, mất một phút:
+```bash
+grep LLM_MODEL_POOL .env                          # tên model — phải KHỚP, kể cả mốc ngày
+grep -c '^## ADR-' docs/DECISIONS.md              # số ADR
+git log --format='%ad' --date=format:'%Y-W%V' | sort | uniq -c   # số commit mỗi tuần
+```
+🔴 **Ca thật 20/08:** ba file trong `gate/` từng ghi bể model là `deepseek-v4-pro` / `deepseek-v4-flash`
+— **đúng hai bí danh mà ADR-043, nằm chung hồ sơ, đã tường minh TỪ CHỐI vì không có mốc ngày.** Hồ sơ
+tự mâu thuẫn ngay trên chủ đề nó dùng làm điểm nhấn. Review bắt được; không cơ chế nào bắt được.

@@ -83,7 +83,7 @@ Agent/khách tạo ticket → hàng chờ CSKH (điều tra, KHÔNG duyệt đư
 
 | Layer | Công nghệ |
 |---|---|
-| LLM (chat) | **Bể 4 model, hạ tầng tự xoay** (ADR-043) — `qwen3.7-plus` · `deepseek-v4-pro` · `deepseek-v4-flash` · `deepseek-v3.2`, qua DashScope. `temperature=0.2`. Xoay CHỈ khi lỗi hạng hết-hạn-mức; `429` KHÔNG xoay. *(Bản 16/08 ghi `GPT-4o-mini` — sai từ 19/08, sửa 20/08.)* |
+| LLM (chat) | **Bể 4 model, hạ tầng tự xoay** (ADR-043) — `qwen3.7-plus-2026-05-26` · `deepseek-v4-pro-0813` · `deepseek-v4-flash-0731` · `deepseek-v3.2`, qua DashScope. 🔴 **Tên GHIM có mốc ngày — bí danh trôi bị TỪ CHỐI lúc khởi động** (ADR-043). `temperature=0.2`. Xoay CHỈ khi lỗi hạng hết-hạn-mức; `429` KHÔNG xoay. *(Bản 16/08 ghi `GPT-4o-mini` — sai từ 19/08, sửa 20/08.)* |
 | LLM (embedding) | `text-embedding-3-small` qua **OpenAI** — [ĐO] `EMBEDDING_BASE_URL=None`. **Hai nhà cung cấp khác nhau cho chat và embedding**, cố ý tách để một bên cạn hạn mức không kéo bên kia. |
 | Agent | LangGraph + LangChain (ReAct, 5 tool). Checkpoint: **`PostgresSaver`** với pool riêng (ADR-014) — state ra ngoài tiến trình để scale ngang được. `MemorySaver` **chỉ** là nhánh dự phòng khi `DB_KIND != postgresql` (test/SQLite); `graph.py` log cảnh báo *"thấy dòng này ở production là SAI"*. |
 | Backend | FastAPI + Uvicorn · SQLAlchemy · Alembic |

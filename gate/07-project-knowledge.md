@@ -153,7 +153,9 @@ graph LR
 
 ### 4.4 Hạ tầng tự xoay model
 
-Bể 4 model qua DashScope: `qwen3.7-plus` · `deepseek-v4-pro` · `deepseek-v4-flash` · `deepseek-v3.2`.
+Bể 4 model qua DashScope, **tên GHIM có mốc ngày**: `qwen3.7-plus-2026-05-26` · `deepseek-v4-pro-0813` · `deepseek-v4-flash-0731` · `deepseek-v3.2`.
+
+🔴 **Bể CHỈ nhận tên ghim; bí danh trôi bị từ chối lúc khởi động.** ADR-043 loại 2/5 model được đề xuất vì tên không mốc (`deepseek-v4-pro`, `deepseek-v4-flash`) — một cái tên không mốc có thể trỏ sang trọng số khác sau một đêm mà không ai biết, và guardrail thì không phát hiện được điều đó.
 Cạn hạn mức một model ⟹ hạ tầng tự chuyển, không ai phải sửa cấu hình lúc nửa đêm.
 
 🔴 Xoay **chỉ** khi lỗi thuộc hạng hết-hạn-mức (`quota`, `exhaust`, `insufficient`, `balance`,
@@ -330,3 +332,21 @@ không nằm ở việc tóm tắt.
 
 **Tông:** kỹ thuật, điềm tĩnh, không cường điệu. Điểm mạnh của dự án này là **sự trung thực có kỷ
 luật** — làm slide hoa mỹ sẽ phá đúng thứ đang thuyết phục nhất.
+
+
+---
+
+## ⚠️ KIỂM TAY TRƯỚC KHI NỘP — file này nằm NGOÀI cơ chế tự canh
+
+`gate/MANIFEST.md` ghi băm sha256 để phát hiện bản sao đã trôi. **File này không có bản gốc nơi
+khác, nên nó KHÔNG nằm trong bảng băm đó** — không cơ chế nào báo khi nó nói sai.
+
+Ba thứ đối chiếu tay, mất một phút:
+```bash
+grep LLM_MODEL_POOL .env                          # tên model — phải KHỚP, kể cả mốc ngày
+grep -c '^## ADR-' docs/DECISIONS.md              # số ADR
+git log --format='%ad' --date=format:'%Y-W%V' | sort | uniq -c   # số commit mỗi tuần
+```
+🔴 **Ca thật 20/08:** ba file trong `gate/` từng ghi bể model là `deepseek-v4-pro` / `deepseek-v4-flash`
+— **đúng hai bí danh mà ADR-043, nằm chung hồ sơ, đã tường minh TỪ CHỐI vì không có mốc ngày.** Hồ sơ
+tự mâu thuẫn ngay trên chủ đề nó dùng làm điểm nhấn. Review bắt được; không cơ chế nào bắt được.
