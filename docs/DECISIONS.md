@@ -2689,6 +2689,19 @@ khớp KHÔNG phải ranh giới thẩm quyền ở route này")*, nên đây **
 tồn tại **độc lập** với việc VPS có lộ cổng hay không, và **mã hoá at-rest không chạm tới nó**: CSKH
 đọc bản đã giải mã qua ứng dụng, đúng thiết kế. Ghi ra để không ai đọc "đã mã hoá" thành "đã an tâm".
 
+**Đe doạ TRONG không phải lời cảnh báo trừu tượng — nó có một mục còn mở, cụ thể, đo được:**
+```
+[ĐO 20/08] route transcript nay giới hạn  5/minute
+           (đã siết từ 20/minute — phát hiện Bảo mật, ĐÃ VÁ trong đợt ADR-044)
+           5/phút = 300 vé/giờ = 2.400 vé mỗi ca 8 tiếng
+```
+🔴 Ngưỡng đã siết 4 lần, nhưng **lớp lo ngại chưa đóng**: 2.400 vé một ca vẫn **lớn hơn nhiều lần**
+số vé một người thật đọc nổi. Ngưỡng này hiệu chuẩn cho **tốc độ gõ**, không cho **tốc độ đọc** — nó
+chặn được kịch bản tự động thô, không chặn được một tài khoản `cskh` bị chiếm rút dữ liệu đều tay.
+⟹ Việc còn mở, **không thuộc ADR này**: hiệu chuẩn ngưỡng theo *nhu cầu công việc thật* (bao nhiêu vé
+một CSKH mở trong một ca?), hoặc thêm ranh giới vé-được-giao. Cần số nghiệp vụ từ PO thật, cùng lý do
+mục (B) retention cần.
+
 ### Quyết định — bọc `serde`, KHÔNG đụng cột, KHÔNG vá theo từng channel
 
 [ĐO trên `langgraph-checkpoint-postgres==3.1.2` **đang chạy**, không phải tài liệu]:
