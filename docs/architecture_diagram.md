@@ -1,22 +1,123 @@
-# Architecture Diagram — FIN-05
+# Kiến trúc hệ thống FIN-05
 
-> Sơ đồ đầy đủ + data flow + bảng quyết định kiến trúc: **[ARCHITECTURE.md](../ARCHITECTURE.md)**
-> (nguồn duy nhất, không nhân bản để tránh trôi). File này giữ bản rút gọn cho deliverable #3.
+> **Đo lại 20/08/2026** từ `docker-compose.yml`, `contracts/`, `src/` và ngăn xếp đang chạy —
+> không vẽ từ trí nhớ. Bản trước (16/08) ghi model là `GPT-4o-mini`, **đã sai** kể từ ADR-043.
+>
+> Mọi tên tool · tên route · tên trạng thái dưới đây là **nguồn sự thật trong `contracts/`**,
+> và `tests/test_invariants.py` introspect app đang chạy để bắt lệch. Sơ đồ này mô tả, contract quyết định.
+
+---
+
+## 1. Thành phần hệ thống
 
 ```mermaid
 graph LR
-    U([Khách / CSKH / Sếp / Đối tác]) --> C[Caddy + Cloudflare Tunnel]
-    C --> FE[Next.js BFF<br/>JWT không rời server]
-    FE --> BE[FastAPI]
-    BE --> AG[LangGraph Agent<br/>GPT-4o-mini · 5 tool<br/>danh nghĩa customer]
-    AG --> GD[Guardrails tất định:<br/>scrub PII · spotlighting ·<br/>O1-O4 + origin-rule]
-    GD --> DB[(PostgreSQL<br/>EncryptedText ·<br/>CHECK maker-checker)]
-    AG --> RAG[(ChromaDB — RAG<br/>trích nguyên văn)]
-    BE --> RD[(Redis — vé WS ·<br/>rate limit · thread signals)]
-    BE -.-> JG[Jaeger — OTel đã scrub]
-    BE --> HITL[HITL: CSKH điều tra →<br/>Sếp duyệt + OTP step-up<br/>— AI không có mặt]
+    U([Khách · CSKH · Supervisor · Đối tác ví])
+    U --> CF[Cloudflare Tunnel]
+    CF --> CD[Caddy<br/>TLS · cổng duy nhất ra ngoài]
+    CD --> FE[Next.js BFF<br/>JWT không rời server]
+    CD -.WebSocket.-> BE
+    FE --> BE[FastAPI<br/>34 route · require_role]
+
+    BE --> AG[LangGraph Agent]
+    BE --> LC[Live-chat WebSocket<br/>CSKH ↔ khách]
+
+    AG --> RAG[(ChromaDB<br/>RAG · trích nguyên văn)]
+    AG --> CP[(LangGraph checkpoint<br/>PostgresSaver · pool riêng)]
+
+    BE --> DB[(PostgreSQL<br/>EncryptedText · CHECK maker-checker)]
+    BE --> RD[(Redis<br/>vé WS · rate limit · tín hiệu thread<br/>· bộ đếm chi tiêu token)]
+    BE -.trace đã scrub.-> JG[Jaeger · OpenTelemetry]
+
+    CP -.cùng cụm.- DB
 ```
 
-**Data flow một câu:** khách gõ → scrub PII → agent gọi tool thật → lọc đầu ra (số phải truy về
-tool result) → khách; tiền chỉ đi khi Sếp mở hồ sơ đọc căn cứ và duyệt bằng OTP gắn đúng đề xuất —
-ràng buộc người-tạo-≠-người-duyệt nằm ở tầng database.
+**Bảy container** — `caddy` · `cloudflared` · `frontend` · `backend` · `postgres` · `redis` · `jaeger`.
+Chỉ `caddy` publish ra ngoài; `postgres` và `jaeger` ghim `127.0.0.1`.
+
+---
+
+## 2. Một lượt của agent — nơi mọi ràng buộc được ép
+
+```mermaid
+graph TD
+    IN[Câu của khách] --> SC1[scrub PII<br/>registry model_input]
+    SC1 --> SP[Spotlighting<br/>tách dữ liệu khỏi chỉ thị]
+    SP --> LLM{{"LLM — bể 4 model xoay<br/>qwen3.7-plus · deepseek-v4-pro<br/>deepseek-v4-flash · deepseek-v3.2"}}
+
+    LLM --> TOOL[5 tool · gọi dưới danh nghĩa customer]
+    TOOL --> T1[lookup_transaction]
+    TOOL --> T2[get_customer_history]
+    TOOL --> T3[create_ticket]
+    TOOL --> T4[request_human_handoff]
+    TOOL --> T5[search_policy]
+    T1 & T2 & T3 & T4 & T5 --> TR[(tool_results<br/>mọi con số phải truy về đây)]
+    TR --> LLM
+
+    LLM --> OUT[Lọc đầu ra tất định O1–O4]
+    OUT --> O1[O1 rò cấu hình]
+    OUT --> O2[O2 thuật ngữ nội bộ]
+    OUT --> O3[O3 số liệu không truy được nguồn]
+    OUT --> O4[O4 hứa hoàn tiền — cả thì quá khứ]
+    O1 & O2 & O3 & O4 --> ANS[Câu trả lời cho khách]
+
+    LLM -.lỗi hết hạn mức.-> ROT[Xoay sang model kế tiếp<br/>trạng thái cạn lưu Redis có TTL]
+    ROT --> LLM
+```
+
+**Ba điều sơ đồ này khẳng định, và đều có test bắt được nếu lệch:**
+
+- **O1–O4 là regex tất định, độc lập với model.** Đổi model không làm lưới cuối yếu đi.
+- **Xoay model chỉ kích hoạt bởi lỗi hạng hết-hạn-mức** (`quota · exhaust · insufficient · balance · arrear · unpurchased`). **`429` không xoay** — nghẽn tạm thời không phải cạn hạn mức.
+- **Scrub PII dùng hai registry theo MỤC ĐÍCH.** Đường `model_input` cố ý bỏ SpacyRecognizer / DateRecognizer / PhoneRecognizer chung — chúng che nhầm mã giao dịch nội bộ. Đường `log` giữ nguyên over-redaction. Bóp méo câu tiếng Việt: **1,6% (2/124)**, có cổng `eval/do_bop_meo_pii.py` tự chấm lại.
+
+---
+
+## 3. HITL — nơi AI không có mặt
+
+```mermaid
+graph LR
+    KH([Khách]) --> AI[AI điều tra<br/>danh nghĩa customer]
+    AI --> VE[Vé khiếu nại]
+    VE --> CS[CSKH<br/>ĐIỀU TRA · KHÔNG duyệt]
+    CS --> DX[Đề xuất hướng xử lý<br/>cited_tool_result_ids]
+    DX --> SUP{{"Supervisor<br/>QUYẾT ĐỊNH CUỐI<br/>+ OTP step-up ≤ 15 phút"}}
+    SUP -->|duyệt| TH[Thực thi hoàn tiền / điều chỉnh]
+    SUP -->|từ chối| RJ[reject_reason + rejected_by + rejected_at<br/>ràng buộc BR-11]
+    SUP -->|cần thêm| CS
+
+    AI -.KHÔNG có đường nào.-x TH
+    CS -.KHÔNG có đường nào.-x TH
+```
+
+**Năm tool bị cấm tuyệt đối với AI** — `approve_resolution` · `execute_refund` · `adjust_balance` ·
+`lock_wallet` · `escalate_to_supervisor`. Không tồn tại trong `build_customer_tools()`, và
+`tests/test_invariants.py::test_inv08` gọi thẳng hàm đó để xác nhận.
+
+**Maker–checker (BR-12):** người đề xuất không được là người duyệt. Ép ở tầng `CheckConstraint`
+trong database, không chỉ ở tầng ứng dụng.
+
+**Gắn cờ nghi gian lận ≠ khoá ví** — hai hành động độc lập hoàn toàn, không code nào nối trực tiếp.
+
+---
+
+## 4. Cơ chế giữ sơ đồ này khỏi trôi
+
+Đây là phần khác biệt so với một sơ đồ kiến trúc thông thường: **cấu trúc hệ thống sống trong
+`contracts/`, không sống trong tài liệu.**
+
+| file | quy định |
+|---|---|
+| `contracts/authority-matrix.yaml` | 34 route × role nào được gọi |
+| `contracts/agent-tools.yaml` | 5 tool được phép · 5 tool bị cấm · cơ chế truy vết |
+| `contracts/resolution-state-machine.yaml` | vòng đời HITL · 3 trục trạng thái trực giao |
+
+`tests/test_invariants.py` **introspect app đang chạy thật** — đọc `app.routes`, moi `allowed_roles`
+từ closure của `require_role()`, đọc `CheckConstraint` qua AST, gọi thẳng `build_customer_tools()` —
+rồi so với `contracts/`. Thêm một route · đổi một guard · đổi tên một tool mà quên cập nhật contract
+⟹ **đỏ ngay**, không ai phải nhớ nhắc ai.
+
+**Danh tính của vật đã dựng:** `src/dau_ma_nguon.py` băm nội dung mã nguồn và đóng dấu vào ảnh tại
+`/app/.bam_ma_nguon`; `frontend/src/dau_ma_nguon.mjs` làm việc tương đương cho frontend. Đối chiếu
+băm host với băm trong container trả lời được câu *"ảnh đang chạy có đúng mã nguồn này không"* trong
+hai giây — `build_commit` **đã được chứng minh nói dối theo cả hai chiều**, nên không dùng.
