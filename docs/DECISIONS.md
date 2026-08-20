@@ -2653,3 +2653,85 @@ UI phải hiện dòng khai để CSKH không tưởng khách gõ như vậy.
 ### Hệ quả
 `authority-matrix.yaml` **2.0.0 → 2.1.0**, **33 → 34 route**. Migration Alembic + code đi SAU khi
 contract land + baseline cập nhật + `CONTRACT_VERSION` sửa (§10 bước 5–7).
+
+## ADR-045 — Kho checkpoint: mã hoá ở tầng **serde**, và ba câu chỉ PO chốt được
+
+**Ngày:** 2026-08-20 · **Trạng thái:** 🟡 **CHỜ PO THẬT DUYỆT** — chưa code một dòng nào (§3)
+**Nguồn:** đánh giá Bảo mật `bab739e` · soát xét độc lập Review · PO-agent tự đo lại toàn bộ
+
+### Bối cảnh — [ĐO 20/08, đo trên ngăn `fin05` đang chạy, không suy từ schema]
+
+**HAI bảng, không phải một.** Đánh giá gốc chỉ đếm bảng thứ nhất; Review tìm ra bảng thứ hai:
+```
+checkpoint_blobs    6.842 blob · 38 MB   · 3 channel (messages · __start__ · __pregel_tasks)
+checkpoint_writes   7.015 dòng · 4.765 kB· 4 channel (messages 3.986 · branch:to:model 2.053
+                                            · __pregel_tasks 893 · __error__ 83)
+                    ↑ cột `blob bytea` RIÊNG, không phải cùng bảng
+tỉ lệ mã hoá        0 / 13.857   (dò byte 'gAAAAA' = khuôn Fernet — dò TRÊN BYTE, không dò chuỗi escape)
+nội dung người thật 121 dòng khớp byte 'ă' ngay trên channel `messages` của bảng thứ hai
+cơ chế xoá          0 hit `retention|ttl|purge` — lưu VÔ THỜI HẠN
+đà tăng             6.213 (18/08) → 6.842 (20/08) ≈ 315 blob/ngày  [nội suy 2 điểm, không phải đo liên tục]
+```
+🔴 **`__pregel_tasks` mang THAM SỐ TOOL, không qua `scrub_pii` nào** — 116 blob khớp đồng thời
+`create_ticket` và `description_raw`. Đây là **bản sao thứ hai, không mã hoá, của đúng dữ liệu
+ADR-032 vừa mã hoá xong** ở bảng `complaints`. Vá vũng nước xong thì vòi chảy lộ ra.
+
+### 🔴 HAI mối đe doạ khác nhau — quyết định này chỉ đóng MỘT
+
+| | đe doạ | ADR này đóng? |
+|---|---|---|
+| **NGOÀI** | ai đó chiếm được ổ đĩa / bản sao lưu Postgres | ✅ **có** — đó là mục đích |
+| **TRONG** | một tài khoản `cskh` (hoặc phiên `cskh` bị chiếm) đọc hội thoại của khách **không thuộc ca mình** | ❌ **KHÔNG** |
+
+[ĐO] `get_ticket_transcript` dùng `require_role("cskh","supervisor")` + `session.get(Ticket, ticket_id)`
+— **không có kiểm tra vé-được-giao nào.** Chính chú thích trong ADR-044 đã khai điều này *("`user_id`
+khớp KHÔNG phải ranh giới thẩm quyền ở route này")*, nên đây **không phải chỗ bỏ sót** — nhưng nó
+tồn tại **độc lập** với việc VPS có lộ cổng hay không, và **mã hoá at-rest không chạm tới nó**: CSKH
+đọc bản đã giải mã qua ứng dụng, đúng thiết kế. Ghi ra để không ai đọc "đã mã hoá" thành "đã an tâm".
+
+### Quyết định — bọc `serde`, KHÔNG đụng cột, KHÔNG vá theo từng channel
+
+[ĐO trên `langgraph-checkpoint-postgres==3.1.2` **đang chạy**, không phải tài liệu]:
+```
+PostgresSaver.__init__     có tham số `serde`               → True
+SerializerProtocol         đúng 2 method: dumps_typed / loads_typed
+BasePostgresSaver._dump_writes  dùng `self.serde`           → True
+```
+⟹ Một `SerializerProtocol` bọc ngoài serde gốc (lấy `(type, bytes)` rồi Fernet hoá phần `bytes`,
+đảo chiều lúc load) **phủ CẢ HAI bảng bằng MỘT điểm sửa**, vì cả hai đều đi qua cùng `self.serde`.
+
+Ba lý do bác các hướng khác:
+1. **Không dùng `EncryptedText` như ADR-032** — schema `checkpoint_*` do LangGraph sở hữu, đổi cột là
+   tự nhận nợ mỗi lần nâng phiên bản (cùng lý lẽ ADR-041 đã dùng để bác "đọc thẳng bảng").
+2. **Không vá theo từng channel** — `branch:to:model` và `__error__` là hai channel **chưa ai từng
+   nhắc tới** cho tới hôm nay. Cách vá nào đòi liệt kê đủ channel sẽ hỏng ở channel thứ năm.
+3. **Không che `HumanMessage`** — che là hỏng chính agent. Bảo vệ ở tầng lưu trữ, không ở tầng nội dung.
+
+🔴 **Phạm vi nghiệm thu BẮT BUỘC nêu tên CẢ HAI bảng.** Nếu ADR chỉ nói "kho checkpoint", người
+nghiệm thu sau này sẽ kiểm đúng bảng mà đánh giá gốc đã đo rồi báo "sạch", trong khi `checkpoint_writes`
+**chưa từng bị hỏi**. Nghiệm thu = dò khuôn Fernet **trên byte** ở cả `checkpoint_blobs` **và**
+`checkpoint_writes`, cộng một ca đọc-lại chứng minh hội thoại cũ vẫn hiển thị được.
+
+### BA CÂU CHỜ PO THẬT — không ai chốt thay được
+
+**(A) 13.857 blob CŨ: mã hoá ngược hay chỉ bảo vệ dữ liệu mới từ nay?**
+Backfill ở đây **rủi ro hơn** backfill `complaints` đã làm: ta không sở hữu định dạng tuần tự hoá, làm
+hỏng thì mất **khả năng đọc lại hội thoại**, không chỉ mất bằng chứng. Đề xuất của tôi: **chỉ bảo vệ
+từ nay**, và giải quyết kho cũ bằng (B) thay vì bằng backfill.
+
+**(B) Giữ hội thoại khách bao lâu rồi xoá?** Hiện **không có gì xoá nó bao giờ**. Đây là nghĩa vụ
+NĐ 13/2023 **độc lập** với mã hoá — mã hoá xong mà lưu vĩnh viễn thì vẫn thiếu. Bảo mật **từ chối tự
+chốt số** vì cần SLA khiếu nại + nghĩa vụ lưu trữ ngành. Cùng lý do họ từ chối chốt ngưỡng rate-limit.
+
+**(C) Làm trọn trước khi deploy, hay bước đệm rẻ trước?** Cửa sổ sửa rẻ đóng vào **ngày deploy**: sau
+đó mọi thay đổi là migration trên dữ liệu đang phục vụ. Nhưng làm vội đúng chỗ nhạy cảm nhất cũng là
+rủi ro thật. Bước đệm rẻ = chặn đà tăng vô hạn ngay bằng retention, hoàn thiện serde sau.
+
+**(D) Câu Bảo mật hỏi mà tôi chưa trả lời được:** cấu hình VPS sắp deploy **có publish cổng Postgres
+ra ngoài không**, và **VPS đặt ở đâu** (trong hay ngoài Việt Nam — quyết định nghĩa vụ chuyển dữ liệu
+qua biên giới). [ĐO] `docker port fin05-postgres-1 → 127.0.0.1:5432` — nhưng đó là file **dev trong
+repo**, không phải cấu hình VPS thật. Toàn bộ định hạng ở trên **đổi mức** nếu câu trả lời là CÓ.
+
+### Hệ quả nếu duyệt
+`contracts/` **không đổi** (không route mới, không tool mới, không đổi role) ⟹ không cần §10. Code là
+việc của Coder, sau khi PO duyệt — **không phải bây giờ**.
