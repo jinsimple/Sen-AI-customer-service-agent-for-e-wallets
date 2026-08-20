@@ -1,5 +1,9 @@
 # GĐ3 — Cổng A (chạy được) vs Cổng B (an toàn): định hạng phạm vi tuân thủ + đề nghị hai ca tối thiểu
 
+🟢 **NIÊM 20/08 — GĐ3 ĐÃ XONG (ADR-043, chấp nhận 19/08).** Cổng A (chạy được, 1-2 lượt/model) là
+hướng PO thật chọn thi hành; bộ đối kháng đầy đủ ở file này chờ hạn ngạch đo riêng, có chủ đích, không
+bị quên. Chi tiết: `2026-08-19-gd3-chuan-bi-truoc-doi-model-xoay-tu-dong.md` (đầu file).
+
 > 19/08/2026. [ĐO] tự kiểm lại tuyên bố của Lead trước khi trả lời, không nhận nguyên văn.
 
 ## Xác nhận [ĐO] độc lập — Lead đúng cả hai điểm nền tảng

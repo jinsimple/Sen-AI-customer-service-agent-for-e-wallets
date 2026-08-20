@@ -1,5 +1,9 @@
 # GĐ3 tiếp tục — key production trong log/sổ · bản chốt (B) · free-quota-only
 
+🟢 **NIÊM 20/08 — GĐ3 ĐÃ XONG (ADR-043, chấp nhận 19/08).** Điều khoản (B) key-production ở file này
+đã thành chính sách đứng của dự án (xác nhận trong hồ sơ transcript-lộ-khoá cùng ngày). Chi tiết trạng
+thái GĐ3: `2026-08-19-gd3-chuan-bi-truoc-doi-model-xoay-tu-dong.md` (đầu file).
+
 > 19/08/2026 (đội bật lại). Theo yêu cầu PO-agent, brief `docs/giao-viec/2026-08-19-gd3-doi-model-xoay-tu-dong.md`
 > (`876a240`). Mục 3/4/tên-model/biên-dữ-liệu đã có đầy đủ trong
 > `docs/security/2026-08-19-gd3-chuan-bi-truoc-doi-model-xoay-tu-dong.md` — KHÔNG lặp lại ở đây, chỉ

@@ -1,5 +1,10 @@
 # FINDING NÓNG — tuyên bố kết quả điều tra KHÔNG kèm tool call (deepseek-v4-pro-0813, ca D1, 2/2)
 
+🟡 **CÒN TREO tính tới 20/08 — CHƯA QUÊN.** Trạng thái cuối là "TẠM ĐÓNG, chờ đo lại sạch" (niêm dưới
+đây). QA/QC báo 3/3 ca đạt với script sửa (mỗi lượt `user_id` riêng), đang chờ ngân sách cho 3 ca còn
+lại — kết quả 6/6 cuối cùng CHƯA XÁC NHẬN được ở đây. PO-agent đang hỏi QA/QC trực tiếp (vùng của họ,
+không đoán). Khi có câu trả lời, niêm ĐÓNG THẬT sẽ vào đúng chỗ này.
+
 > 19/08/2026, giữa lúc cổng nhập bể GĐ3 đang chạy. QA/QC đã dừng, Lead chuyển định hạng. Trả lời
 > nhanh nhưng có kiểm — không suy đoán trên mô tả, đã kiểm 2 điểm được ngay từ trong repo trước khi
 > trả lời (không chạm phép đo QA/QC đang giữ).

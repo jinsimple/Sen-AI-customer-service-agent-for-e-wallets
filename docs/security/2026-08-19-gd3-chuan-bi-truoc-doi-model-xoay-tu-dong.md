@@ -1,5 +1,11 @@
 # GĐ3 chuẩn bị trước — Bảo Mật: tên model lộ khách · biên dữ liệu deepseek · tuân thủ · O5 · 3 câu Lead
 
+🟢 **NIÊM 20/08 — GĐ3 ĐÃ XONG, không phải tạm dừng.** [ĐO] `docs/DECISIONS.md:2518-2522` — ADR-043
+"Model KHÔNG còn ghim; hạ tầng TỰ XOAY trong một bể đã kiểm", **Trạng thái: chấp nhận · 19/08/2026**.
+Còn nợ **duy nhất**: bộ kiểm an toàn đầy đủ 46+100 ca trên deepseek — **PO thật cắt có chủ đích**
+("không cần test 154 lần cho mỗi model, chỉ cần test chạy được 1-2 lần"), chờ hạn ngạch riêng cho
+việc đo, không phải việc bị quên. Đừng đi tìm ai đã bỏ rơi GĐ3.
+
 > 19/08/2026. Theo `docs/giao-viec/2026-08-19-gd3-doi-model-xoay-tu-dong.md` mục 3-Bảo Mật, PO-agent
 > giao chuẩn bị trước GĐ2 chưa đóng. **Không chạm container/ngăn xếp** — chỉ đọc mã + WebFetch tài
 > liệu công khai. Nhãn: **[ĐO]** = kiểm được, có nguồn · **[PHẢI KIỂM]** · **[PHÁN ĐOÁN]**.

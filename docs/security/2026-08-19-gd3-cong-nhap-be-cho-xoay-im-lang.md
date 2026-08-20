@@ -1,5 +1,10 @@
 # GĐ3 — cổng nhập bể có đủ cho xoay IM LẶNG không (PO-agent hỏi, đã bỏ UI chọn model)
 
+🟢 **NIÊM 20/08 — GĐ3 ĐÃ XONG (ADR-043, chấp nhận 19/08), không tạm dừng.** Cổng 46-ca × 3 model đề
+nghị trong file này còn nợ MỘT phần — PO thật cắt có chủ đích xuống 1-2 lượt chạy-được mỗi model, bộ
+đủ 46+100 ca chờ hạn ngạch đo riêng. Không phải việc bị quên. Chi tiết:
+`2026-08-19-gd3-chuan-bi-truoc-doi-model-xoay-tu-dong.md` (đầu file).
+
 > 19/08/2026. Đọc `src/agents/llm_pool.py` (Coder đang viết dở, chưa commit) + diff `src/config.py`
 > trước khi trả lời — không đoán trên mô tả brief. Chỉ ĐỌC, không sửa (vùng ghi Coder).
 
