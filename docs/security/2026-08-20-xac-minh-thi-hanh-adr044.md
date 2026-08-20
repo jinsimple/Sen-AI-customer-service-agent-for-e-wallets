@@ -65,6 +65,22 @@ khi tôi đề xuất số** — nhưng hướng SIẾT (không giữ nguyên 20
 của tôi. Không chặn merge hôm nay — route đã có MỘT lớp giới hạn (hơn không có), chỉ chưa đúng ngưỡng
 cho đúng mục đích đã khai. Ghi vào sổ nợ, ưu tiên cao (rẻ để sửa: đổi một con số trong decorator).
 
+---
+
+🔴 **NIÊM 20/08 (sau, cùng ngày) — con số `20/minute` Ở TRÊN ĐÃ LỖI THỜI ngay tại thời điểm viết,
+không phải sau này mới cũ.** PO-agent [ĐO] lại: route đã được siết `@limiter.limit("5/minute")` TRONG
+CHÍNH ĐỢT ADR-044 — bốn lần chặt hơn số tôi vừa báo cáo. Tôi không được thông báo, nên viết mục này
+trên dữ kiện đã chết mà không biết. [ĐO] tự kiểm lại: `grep -n "get_ticket_transcript" -B3 main.py` →
+đúng `5/minute`, khớp PO-agent.
+
+**Khuyến nghị KHÔNG đổi, và số mới làm nó VỮNG HƠN chứ không yếu đi:**
+```
+5/phút = 300 vé/giờ = 2.400 vé/ca 8 tiếng   — vẫn lớn hơn nhiều lần số vé một người ĐỌC nổi trong một ca
+```
+Siết từ 20→5 làm chậm một kịch bản rút dữ liệu **bốn lần** — không đổi BẢN CHẤT: ngưỡng vẫn hiệu chuẩn
+cho tốc độ GÕ (đã giảm), không phải tốc độ ĐỌC. Việc "hiệu chuẩn theo nhu cầu công việc thật hoặc thêm
+ranh giới vé-được-giao" **vẫn mở**, vẫn cần số nghiệp vụ từ PO thật — không đóng bởi lần siết này.
+
 ## Câu 4 — đoạn khai UI: [ĐO] đọc nguyên văn `TicketDetailClient.tsx:277-283` — ĐỦ về nội dung
 
 ```

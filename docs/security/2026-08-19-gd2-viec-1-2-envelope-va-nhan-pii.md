@@ -82,3 +82,19 @@ thuật, với nó đó chỉ là một phần của câu khách nói.
 
 **KHÔNG kết luận:** ❌ đây là lỗ bảo mật cấp cao — nó là lỗi trải nghiệm/toàn vẹn hiển thị. ❌ cần vá
 gấp trước demo — PO-agent định tuyến đúng, giữ nguyên (sổ nợ sau merge).
+
+---
+
+🔴 **NIÊM 20/08 — mức độ "sổ nợ, không gấp" ở trên ĐÃ LỖI THỜI, đọc kèm chuỗi sau trước khi tin nó.**
+Đây là phát hiện ĐẦU TIÊN trong ngày về nhãn scrub lọt ra — lúc đó phạm vi quan sát được là MỘT case
+UI (`[PERSON_VN]`), hợp lý để xếp mức thấp. Cùng ngày, phạm vi mở rộng gấp bội qua chuỗi phát hiện
+sau, đọc theo đúng thứ tự:
+1. `2026-08-19-gd4-dinh-hang-scrub-pii-model-input.md` — PO thật tự bắt lỗi UI, lộ ra đây không phải
+   một case mà là **~50% MỌI câu khách gõ** bị chèn nhãn sai (không riêng PII, cả từ thường).
+2. `2026-08-19-quyet-dinh-bien-du-lieu-regex-only-model-input.md` — quyết định biên dữ liệu, dựng lại
+   toàn bộ cơ chế scrub cho đường model-input (phương án D').
+3. `2026-08-19-scrub-ba-duong-va-kien-truc-tham-so.md` — kiến trúc hai-registry thay thế cơ chế cũ.
+
+**File NÀY vẫn đúng ở phần KỸ THUẬT** (tên `[PERSON_VN]` không rò cách bộ dò hoạt động, cơ chế che
+người thứ ba không bị đụng) — chỉ riêng CÂU MỨC ĐỘ ở trên là thứ đã bị vượt qua. Đừng dừng lại đọc
+"sổ nợ, không gấp" mà không đọc tiếp ba file trên.
