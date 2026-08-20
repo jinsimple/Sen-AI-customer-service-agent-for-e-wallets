@@ -2748,3 +2748,59 @@ repo**, không phải cấu hình VPS thật. Toàn bộ định hạng ở trê
 ### Hệ quả nếu duyệt
 `contracts/` **không đổi** (không route mới, không tool mới, không đổi role) ⟹ không cần §10. Code là
 việc của Coder, sau khi PO duyệt — **không phải bây giờ**.
+
+## ADR-046 — Bộ sinh dữ liệu: `money_not_received` KHÔNG được buộc cứng một trạng thái
+
+**Ngày:** 2026-08-20 · **Trạng thái:** 🟡 **CHỜ PO THẬT DUYỆT** — chưa sửa dòng nào (§3)
+**Nguồn:** phiếu BA (D1) · Coder truy đúng đường sinh · PO-agent kiểm lại và **tự đính chính một lần**
+
+### Bối cảnh — [ĐO]
+
+```
+scripts/gen_dataset.py:1534   build_background_complaints()   ← đường sinh complaints.jsonl
+  eligible_status = { "wrong_recipient": {"success"},
+                      "money_not_received": {"processing"},   ← TẬP MỘT PHẦN TỬ
+                      ... }
+
+[ĐO trên dữ liệu đã sinh] money_not_received: 90/90 = 100% processing
+```
+🔴 **Đây là buộc cứng, không phải phân phối.** Một tập hợp có đúng một phần tử thì không có
+ngẫu nhiên nào xảy ra được — `money_not_received` **không thể** mang trạng thái nào khác.
+
+⛔ **Tự đính chính (PO-agent):** tôi từng báo *"không phải buộc cứng, nó CÓ ĐIỀU KIỆN"*, trích
+`gen_dataset.py:584`. **Sai phạm vi** — dòng 584 thuộc `build_matrix_cases()`, đường sinh
+`eval/golden_set.jsonl`, **không ghi vào `complaints.jsonl`**. Tôi tìm thấy một dòng có điều kiện
+rồi kết luận mà không kiểm nó có nằm trên đường đang xét hay không. Coder tìm ra đường đúng.
+
+### 🔴 Quyết định — sửa thành PHÂN PHỐI CÓ ĐIỀU KIỆN, **KHÔNG** sinh độc lập
+
+Phiếu BA đề nghị *"sinh trạng thái giao dịch ĐỘC LẬP với loại khiếu nại"*. **BÁC.**
+
+Ngoài đời, khiếu nại *"chưa nhận được tiền"* **thật sự** tương quan mạnh với giao dịch đang treo —
+đó là **nguyên nhân** sinh ra khiếu nại, không phải trùng hợp thống kê. Ép tương quan về 0 làm bộ
+dữ liệu **kém thật hơn**, không thật hơn.
+
+Bệnh không phải *"có tương quan"*. Bệnh là **tương quan tuyệt đối, không ngoại lệ** — trong khi
+đời thật luôn có ca: **giao dịch báo `success` mà người nhận vẫn chưa thấy tiền.** Đó chính là
+**ca khó nhất và đáng có nhất** trong một bộ dữ liệu kiểm thử — và hiện nó **không tồn tại**.
+
+⟹ `money_not_received` nhận `{processing, success}` với `processing` chiếm đa số.
+
+### 🔴 DỰ BÁO — công bố TRƯỚC khi chạy lại, theo quy trình PO thật đặt ra
+
+Ghi ra đây để không ai (kể cả tôi) chọn lần chạy đẹp nhất:
+
+```
+M2 hiện tại                       101/600 = 16,8%
+nếu 20% money_not_received → success:  83/600 = 13,8%
+nếu 30% money_not_received → success:  74/600 = 12,3%
+```
+
+**Dự báo: con số M2 sẽ GIẢM, không tăng.** Vì thêm ca `success` là thêm vào nhóm *tiền đã rời*.
+
+⚠️ **Ai đó thấy M2 TĂNG sau khi sửa ⟹ bản sửa SAI**, dừng lại, đừng nhận số. Và nếu số mới xấu
+hơn cho câu chuyện muốn kể — **báo cáo nguyên trạng**. Đó là toàn bộ lý do dự báo được viết ra trước.
+
+### Hệ quả
+`contracts/` không đổi ⟹ không cần §10. Mọi số đo trên trục *"chưa mất tiền thật"* công bố trước
+20/08 phải **niêm**, vì chúng đo bộ sinh chứ không đo khiếu nại.
