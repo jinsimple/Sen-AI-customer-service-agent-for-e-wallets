@@ -383,13 +383,25 @@ Chạy riêng: `pytest tests/ -m security_finding -v` (job CI
 `lint-and-test` chạy `-m "not security_finding"` để không lẫn các test này
 vào hàng trăm test bình thường.
 
-🔴 **NIÊM 20/08 — con số "4" ở mục này ĐÃ TRÔI.** [ĐO] `grep -rl security_finding tests/`
-⟹ **9 file**, không phải 4. Và QA/QC chạy thật thì **ít nhất 2 file đã XANH**
-(`test_jwt_revocation.py`, `test_security_answer_hash.py`) — finding đã vá, **marker còn
-nguyên**. Hệ quả: chúng bị `-m "not security_finding"` loại khỏi lượt chạy mặc định dù
-không còn giữ nợ nào, và cổng `security-findings-gate` đỏ vì **một** finding thật trong
-khi 8 file khác đi cùng chuyến. **Marker sống lâu hơn lý do của nó** — đúng họ với Luật X.
-Đang rà đủ 9 file để tách "còn nợ thật" khỏi "vá xong quên gỡ". **Lưu ý:** job CI chạy được không đồng
+⚠️ **NIÊM 20/08 — con số "4" đã trôi thành "1", và trôi vì TIN TỐT.**
+[ĐO QA/QC, bằng bộ lọc marker THẬT] `pytest tests/ -m security_finding --collect-only`
+⟹ **1/699 collected**. `grep -rn "^@pytest\.mark\.security_finding" tests/` ⟹ cũng **đúng 1 file**
+(`test_api/test_live_chat_pii_gap.py:25`) — finding CHƯA vá, chờ PO quyết mức che SĐT.
+**3/4 finding gốc đã ĐÓNG** (ST2-P0-1 · P0-4 · P0-5), mỗi lần gỡ nhãn đều để lại một dòng
+*"🟢 GỠ NHÃN … "* kèm commit trong docstring. **Cơ chế gỡ-nhãn-khi-vá-xong đang chạy đúng
+thiết kế**, 0 ca "quên gỡ". `security-findings-gate` đỏ vì **đúng 1** finding thật.
+
+> ⛔ **NIÊM LỖI CỦA PO-agent tại `a75c664`, giữ làm bằng chứng, không xoá.**
+> Bản niêm đầu ở đúng chỗ này viết *"9 file, ít nhất 2 đã xanh mà marker còn nguyên"* —
+> **SAI TOÀN BỘ**. Tôi đếm bằng `grep -rl security_finding tests/`, và phép đó khớp **cả
+> văn xuôi BÀN VỀ marker**, không chỉ decorator thật. Cay nhất: ba trong số "9 hit" là
+> những câu ghi nguyên văn ***"Không còn `@pytest.mark.security_finding`"*** — **tôi đã đếm
+> chính những câu khai marker ĐÃ ĐƯỢC GỠ thành bằng chứng marker CÒN ĐÓ.**
+> **Bài học, và nó rẻ hơn hẳn một cơ chế mới:** đếm ca mang marker thì dùng **bộ lọc thật**
+> (`pytest -m X --collect-only -q`), **đừng dùng `grep` chuỗi**. Rủi ro có thật ở đây không
+> phải "quên gỡ nhãn" (0 ca đo được) mà là **đo nhãn bằng công cụ không hiểu nhãn**.
+> Đây là ca thứ chín trong ngày cùng một họ — và là ca đầu tiên nạn nhân là **công cụ đo
+> của chính người đang đi bắt lỗi công cụ đo của người khác** (Luật 7). **Lưu ý:** job CI chạy được không đồng
 nghĩa branch protection THẬT SỰ chặn merge — cần bật "required status
 check" cho `security-findings-gate` ở GitHub Settings → Branches (thao tác
 tay, ngoài phạm vi file trong repo).
