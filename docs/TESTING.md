@@ -1,7 +1,8 @@
 # Bộ kiểm thử tự động FIN-05
 
 Thích ứng từ `FIN05-StressTest-Plan.md` (bản gốc, viết cho bối cảnh dự án cũ) sang
-thực tế repo `P-121-new` hiện tại. **Nguyên tắc:** giữ nguyên tiêu chuẩn quốc tế —
+thực tế repo **`P-226`** hiện tại *(sửa 20/08 — dòng cũ ghi `P-121-new`, SAI; đo từ
+`git remote -v`, cùng ca đã sửa trong hiến pháp §8)*. **Nguyên tắc:** giữ nguyên tiêu chuẩn quốc tế —
 KHÔNG cắt giảm phạm vi/độ sâu để tiết kiệm thời gian/chi phí LLM. Toàn bộ golden_set
 (120 case) và adversarial_set (40 case) chạy full mỗi PR, không sample.
 
@@ -379,8 +380,16 @@ viết ra để buộc phải quyết định, không phải để pass ngầm �
 
 Chạy riêng: `pytest tests/ -m security_finding -v` (job CI
 `security-findings-gate`, `.github/workflows/ci.yml`, chạy mọi PR). Job
-`lint-and-test` chạy `-m "not security_finding"` để không lẫn 4 test này
-vào hàng trăm test bình thường. **Lưu ý:** job CI chạy được không đồng
+`lint-and-test` chạy `-m "not security_finding"` để không lẫn các test này
+vào hàng trăm test bình thường.
+
+🔴 **NIÊM 20/08 — con số "4" ở mục này ĐÃ TRÔI.** [ĐO] `grep -rl security_finding tests/`
+⟹ **9 file**, không phải 4. Và QA/QC chạy thật thì **ít nhất 2 file đã XANH**
+(`test_jwt_revocation.py`, `test_security_answer_hash.py`) — finding đã vá, **marker còn
+nguyên**. Hệ quả: chúng bị `-m "not security_finding"` loại khỏi lượt chạy mặc định dù
+không còn giữ nợ nào, và cổng `security-findings-gate` đỏ vì **một** finding thật trong
+khi 8 file khác đi cùng chuyến. **Marker sống lâu hơn lý do của nó** — đúng họ với Luật X.
+Đang rà đủ 9 file để tách "còn nợ thật" khỏi "vá xong quên gỡ". **Lưu ý:** job CI chạy được không đồng
 nghĩa branch protection THẬT SỰ chặn merge — cần bật "required status
 check" cho `security-findings-gate` ở GitHub Settings → Branches (thao tác
 tay, ngoài phạm vi file trong repo).
