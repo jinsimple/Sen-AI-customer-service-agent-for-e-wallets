@@ -42,8 +42,7 @@ Chỉ `caddy` publish ra ngoài; `postgres` và `jaeger` ghim `127.0.0.1`.
 ```mermaid
 graph TD
     IN[Câu của khách] --> SC1[scrub PII<br/>registry model_input]
-    SC1 --> SP[Spotlighting<br/>tách dữ liệu khỏi chỉ thị]
-    SP --> LLM{{"LLM — bể 4 model xoay<br/>tên GHIM có mốc ngày<br/>qwen3.7-plus-2026-05-26<br/>deepseek-v4-pro-0813<br/>deepseek-v4-flash-0731<br/>deepseek-v3.2"}}
+    SC1 --> LLM{{"LLM — bể 4 model xoay<br/>tên GHIM có mốc ngày<br/>qwen3.7-plus-2026-05-26<br/>deepseek-v4-pro-0813<br/>deepseek-v4-flash-0731<br/>deepseek-v3.2"}}
 
     LLM --> TOOL[5 tool · gọi dưới danh nghĩa customer]
     TOOL --> T1[lookup_transaction]
@@ -51,7 +50,8 @@ graph TD
     TOOL --> T3[create_ticket]
     TOOL --> T4[request_human_handoff]
     TOOL --> T5[search_policy]
-    T1 & T2 & T3 & T4 & T5 --> TR[(tool_results<br/>mọi con số phải truy về đây)]
+    T5 --> SP[Spotlighting<br/>CHỈ áp kết quả RAG<br/>hạ tài liệu đối tác<br/>xuống hạng DỮ LIỆU]
+    T1 & T2 & T3 & T4 & SP --> TR[(tool_results<br/>mọi con số phải truy về đây)]
     TR --> LLM
 
     LLM --> OUT[Lọc đầu ra tất định O1–O4]
@@ -67,6 +67,13 @@ graph TD
 
 **Ba điều sơ đồ này khẳng định, và đều có test bắt được nếu lệch:**
 
+- 🔴 **Spotlighting KHÔNG nằm trên trục chính, và không áp lên câu của khách.** [ĐO]
+  `danh_dau_du_lieu()` được gọi **đúng một chỗ trong toàn `src/`**: `customer_tools.py:409`, trên
+  **kết quả `search_policy`** — tức nó chạy **SAU** khi LLM đã gọi tool ít nhất một lần. Việc của nó
+  là **hạ tài liệu của đối tác ví xuống hạng DỮ LIỆU**, để nội dung trong đó không bao giờ được đọc
+  như chỉ thị. Thứ bảo vệ câu của khách là `scrub_pii` (`graph.py:901`), một cơ chế khác.
+  *(Bản sơ đồ 20/08 từng vẽ spotlighting trên trục chính giữa scrub-PII và LLM — **SAI**, vẽ theo
+  trực giác kiến trúc chứ không theo code. Lead bắt được.)*
 - **O1–O4 là regex tất định, độc lập với model.** Đổi model không làm lưới cuối yếu đi.
 - 🔴 **Bể chỉ nhận TÊN GHIM có mốc ngày. Bí danh trôi (`deepseek-v4-pro`, `deepseek-v4-flash`) bị
   TỪ CHỐI lúc khởi động** — ADR-043 loại 2/5 model vì lý do này. Một cái tên không mốc có thể trỏ
