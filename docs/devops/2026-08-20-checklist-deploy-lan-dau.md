@@ -103,10 +103,26 @@ seed xong.
 
 ### 5. Seed dữ liệu demo (tuỳ chọn — nhưng ĐỌC CẢNH BÁO Ở BƯỚC 6 TRƯỚC KHI BỎ QUA)
 
+🔴 **[ĐO 20/08, diễn tập clone sạch] `seed_db.py` KHÔNG chạy được ngay — thiếu
+dữ liệu nguồn.** `data/generated/transactions.jsonl` (60K dòng) không nằm
+trong git (7 file còn lại có, riêng file này không — quá lớn để commit).
+Phải sinh trước:
 ```bash
+docker compose exec backend su appuser -c "python3 scripts/gen_dataset.py --seed 20260802 --out data/generated/ --eval-out /tmp/eval_out/"
 docker compose exec backend su appuser -c "python3 scripts/seed_db.py"
 docker compose exec backend su appuser -c "python3 scripts/seed_demo_scenarios.py"
 ```
+⚠️ **`seed_demo_scenarios.py` [ĐO 20/08] dừng giữa chừng với lỗi CHECK
+constraint `ck_resolutions_rejected_requires_reason_br11`** (dòng 216 set
+`status="rejected"` nhưng không set `reject_reason`/`rejected_by`/
+`rejected_at` — script viết trước migration BR-11, chưa cập nhật theo).
+Các ca TRƯỚC dòng lỗi đã `commit()` thành công (không mất), nhưng các ca
+SAU (gồm cả kịch bản dashboard "Chờ đối tác NH") **chưa chạy được trên
+schema hiện tại** — bug tái lập được, đã báo Coder, KHÔNG phải lỗi riêng
+của lần dựng nào. Kiểm bằng `docker compose logs backend` hoặc output lệnh
+trên; nếu vẫn thấy lỗi này lúc bạn deploy, đó là bug đã biết, không phải
+bạn làm sai — báo Coder, đừng tự sửa script trên VPS.
+
 Không có route đăng ký tài khoản nào trong API (`/auth/login`,
 `/auth/refresh`, `/auth/logout`, `/auth/otp/*` — không có `/auth/register`)
 — **tài khoản CHỈ tồn tại qua bước seed này.** Bỏ qua là lựa chọn hợp lệ
