@@ -88,6 +88,11 @@ def test_multi_worker_chi_duoc_bat_khi_du_ca_hai_co_che_chia_se_state():
 
 def test_docker_compose_does_not_scale_backend_replicas():
     compose = (ROOT_DIR / "docker-compose.yml").read_text(encoding="utf-8")
+    # Khẳng định NEO trước khi tin `match is None` là "không khai replicas,
+    # an toàn" — nếu file đổi cấu trúc tới mức mất luôn service "backend:",
+    # regex bên dưới cũng cho None, và không có dòng này thì hai tình huống
+    # ("an toàn" và "mù") không phân biệt được, cùng cho xanh (PO-agent 20/08).
+    assert "backend:" in compose, "Không tìm thấy service 'backend' trong docker-compose.yml — file đã đổi cấu trúc?"
     match = re.search(r"backend:\s*\n(?:.*\n)*?(\s+deploy:\s*\n(?:.*\n)*?\s+replicas:\s*(\d+))", compose)
     if match is not None:
         replicas = int(match.group(2))
