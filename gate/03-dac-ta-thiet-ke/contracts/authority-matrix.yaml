@@ -1,0 +1,241 @@
+# contracts/authority-matrix.yaml
+#
+# NGUỒN SỰ THẬT về thẩm quyền. Tester/Security/UX đọc file này, KHÔNG đọc src/.
+#
+# File này được sinh NGƯỢC từ code đang chạy (2026-08-13), không phải chép từ
+# PRD — PRD §4 mô tả thiết kế ban đầu, code đã đi xa hơn (thêm role
+# partner_admin cho RAG chính sách, thêm live-chat, thêm OTP step-up riêng cho
+# duyệt resolution). Contract phải khớp thứ ĐANG CHẠY, nếu không thì mọi
+# artifact hạ nguồn đều dựa trên thông tin chết.
+#
+# CƠ CHẾ CHỐNG LỆCH (khác hẳn "tin vào lời dặn"):
+#   tests/test_invariants.py::test_authority_matrix_khop_app_dang_chay
+#   introspect `src.api.main.app` lúc runtime, lấy allowed_roles từ closure của
+#   require_role(), rồi so khớp TỪNG route với bảng dưới. Thêm/xoá/đổi guard 1
+#   route mà quên sửa file này  →  test ĐỎ ngay, không cần ai nhớ nhắc ai.
+#
+# Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
+
+version: "2.1.0"
+source: "Sinh ngược từ src/api/main.py @ 2026-08-13 · thay thế bản 1.0.0 viết từ PRD"
+
+# ---------------------------------------------------------------------------
+# 4 role THẬT (bản contract cũ thiếu partner_admin — lỗi thật, đã sửa)
+# ---------------------------------------------------------------------------
+roles:
+  customer:
+    ten: "Khách hàng"
+    mo_ta: "Người dùng cuối. Chat với AI, tra cứu giao dịch CỦA MÌNH, tạo ticket."
+  cskh:
+    ten: "Nhân viên CSKH"
+    mo_ta: >
+      Tiếp nhận, điều tra, đề xuất hướng xử lý. KHÔNG duyệt được bất cứ gì
+      chạm tiền — kể cả scope nội bộ ví–ví (xem ADR-002).
+  supervisor:
+    ten: "Sếp / Người phê duyệt"
+    mo_ta: >
+      Người DUY NHẤT duyệt được resolution, cho MỌI phạm vi giao dịch.
+      Kế thừa toàn bộ quyền của cskh (mọi route cskh đều mở cho supervisor).
+  partner_admin:
+    ten: "Quản trị đối tác ví"
+    mo_ta: >
+      CHỈ quản lý kho tài liệu chính sách (RAG). Không chạm ticket, không chạm
+      tiền, không xem dữ liệu khách hàng. Vai này KHÔNG có trong PRD §4 gốc —
+      phát sinh khi thêm tính năng RAG chính sách.
+
+# ADR-029 mục 4 (PO thật duyệt 17/08). TRƯỚC bản này mục `scopes` khai 3 giá
+# trị bằng chuỗi mô tả trần, KHÔNG khai `gia_tri_ma` — nên không phép kiểm nào
+# bắc được từ contract sang CHECK constraint thật, và giá trị thứ tư `unknown`
+# (thêm vào DB 11/08) sống sáu ngày ngoài mọi tài liệu.
+#
+# Hậu quả đã đo: `flag_human_handoff` ghi cứng `scope="internal_wallet"` cho cả
+# đường khách-xin-gặp-người — hệ thống làm đúng điều nó CẤM model làm — và
+# không cổng nào đỏ, vì contract không biết `unknown` tồn tại.
+#
+# `gia_tri_ma` là thứ cho phép `test_invariants` so contract ↔ CHECK constraint.
+# Thêm/bớt một giá trị ở một bên mà quên bên kia ⟹ ĐỎ.
+scopes:
+  noi_bo_vi:
+    mo_ta: "Giao dịch ví ↔ ví trong cùng hệ thống"
+    gia_tri_ma: internal_wallet
+  tu_ngan_hang:
+    mo_ta: "Nạp tiền từ ngân hàng vào ví"
+    gia_tri_ma: from_bank
+  ra_ngan_hang:
+    mo_ta: "Rút/chuyển tiền từ ví ra ngân hàng"
+    gia_tri_ma: to_bank
+  khong_ro:
+    mo_ta: >
+      KHÔNG tra ra được phạm vi, và khách cũng không xác định được. CSKH tự
+      xác định thủ công sau. Song song với `other` của complaint_type.
+      CHỈ hợp lệ trên `complaints` — `transactions` luôn biết phạm vi thật của
+      nó, nên CHECK của bảng đó CỐ Ý chỉ có 3 giá trị.
+    gia_tri_ma: unknown
+    rang_buoc_db: ck_complaints_scope
+
+# ---------------------------------------------------------------------------
+# BẢNG ROUTE — sinh bằng máy, so khớp bằng máy.
+#
+# roles: []                   → route công khai, không cần đăng nhập
+# roles: [any_authenticated]  → chỉ cần JWT hợp lệ, không ép role cụ thể
+# roles: [a, b]               → require_role("a","b")
+# extra:                      → dependency bổ sung (vd require_otp_verified)
+# cham_tien: true             → route có hậu quả tài chính. INV-01 áp ở đây.
+# ---------------------------------------------------------------------------
+routes:
+
+  # --- Công khai ---
+  - route: "GET /health"
+    roles: []
+    ghi_chu: "Liveness probe — KHÔNG được chạm DB/Redis."
+  - route: "POST /auth/login"
+    roles: []
+  - route: "POST /auth/refresh"
+    roles: []
+    ghi_chu: "Refresh token tự mang danh tính, rotation + reuse detection ở src/auth.py."
+  - route: "WS /ws/live-chat"
+    roles: []
+    ghi_chu: >
+      Xác thực bằng ws-ticket dùng-một-lần TTL ngắn, KHÔNG bằng JWT —
+      trình duyệt không gắn được header Authorization vào WebSocket handshake.
+      Ticket lấy qua POST /live-chat/ws-ticket (customer) hoặc
+      /live-chat/staff/ws-ticket (cskh, supervisor).
+
+  # --- Đã đăng nhập, không ép role ---
+  - route: "POST /auth/logout"
+    roles: [any_authenticated]
+    extra: [get_current_user]
+  - route: "POST /tools/lookup_transaction"
+    roles: [any_authenticated]
+    extra: [get_current_user]
+    ghi_chu: >
+      Không ép role vì cả customer lẫn cskh/supervisor đều tra cứu được.
+      Quyền xem dữ liệu ai ĐƯỢC ép ở tầng dưới (_enforce_requester_is_party),
+      không ở tầng role — xem INV-11.
+
+  # --- customer ---
+  - route: "POST /auth/otp/request"
+    roles: [customer]
+  - route: "POST /auth/otp/verify"
+    roles: [customer]
+  - route: "POST /agent/chat"
+    roles: [customer]
+  - route: "POST /tools/get_customer_history"
+    roles: [customer]
+  - route: "POST /tools/create_ticket"
+    roles: [customer]
+    extra: [require_otp_verified]
+    ghi_chu: "OTP step-up bắt buộc (fresh ≤ 15 phút) — hành động có hậu quả."
+  - route: "POST /live-chat/ws-ticket"
+    roles: [customer]
+  - route: "POST /live-chat/sessions/{chat_session_id}/csat"
+    roles: [customer]
+
+  # --- cskh + supervisor ---
+  - route: "GET /tickets"
+    roles: [cskh, supervisor]
+  - route: "GET /tickets/{ticket_id}"
+    roles: [cskh, supervisor]
+  - route: "GET /tickets/{ticket_id}/transcript"
+    roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-044 — CSKH đọc hội thoại bot↔khách của vé mình xử lý khi khách bàn
+      giao gặp người thật. GUARD CHÍNH: route CHỈ nhận `ticket_id`, KHÔNG BAO
+      GIỜ nhận `thread_id` làm tham số request (query/body/header) dưới bất
+      kỳ hình thức nào — `thread_id` suy DUY NHẤT từ `ticket.complaint.
+      thread_id` đọc từ DB. "user_id khớp" chỉ là 404-handler phụ, KHÔNG phải
+      ranh giới thẩm quyền (mọi cskh/supervisor vốn đã đọc được mọi ticket).
+      Vé cũ (trước migration, thread_id null) trả transcript:null kèm lý do
+      — không đoán theo mốc thời gian. `agent-tools.yaml` CỐ Ý KHÔNG đổi:
+      cho AI tool đọc transcript bàn giao là để nó tự đọc hồ sơ "nó bị đá
+      ra", cùng họ ràng buộc cứng số 2 (AI không vượt cấp).
+  - route: "POST /tickets/{ticket_id}/request-more-info"
+    roles: [cskh, supervisor]
+  - route: "GET /resolutions"
+    roles: [cskh, supervisor]
+  - route: "POST /tools/propose_resolution"
+    roles: [cskh, supervisor]
+    ghi_chu: >
+      ĐỀ XUẤT, không phải duyệt. Resolution sinh ra luôn ở status='draft'
+      hoặc 'pending_approval' — CHECK constraint ck_resolutions_status +
+      ck_resolutions_approved_requires_approver_br10 chặn ghi thẳng 'approved'.
+  - route: "POST /tools/escalate_ticket"
+    roles: [cskh, supervisor]
+  - route: "GET /reports/summary"
+    roles: [cskh, supervisor]
+  - route: "POST /policy-search"
+    roles: [cskh, supervisor]
+  - route: "POST /live-chat/staff/ws-ticket"
+    roles: [cskh, supervisor]
+  - route: "GET /live-chat/sessions/by-ticket/{ticket_id}"
+    roles: [cskh, supervisor]
+  - route: "GET /live-chat/sessions/waiting"
+    roles: [cskh, supervisor]
+  - route: "POST /live-chat/sessions/{chat_session_id}/claim"
+    roles: [cskh, supervisor]
+  - route: "POST /live-chat/sessions/{chat_session_id}/close"
+    roles: [cskh, supervisor]
+
+  # --- 3 role (khách xem lại hội thoại của chính mình) ---
+  - route: "GET /live-chat/sessions/{chat_session_id}/messages"
+    roles: [cskh, customer, supervisor]
+
+  # --- CHỈ supervisor — nhóm chạm tiền ---
+  - route: "POST /resolutions/{resolution_id}/request-approval-otp"
+    roles: [supervisor]
+    ghi_chu: "Xin OTP step-up RIÊNG cho đúng 1 resolution (PSD2 dynamic linking)."
+  - route: "POST /resolutions/{resolution_id}/approve"
+    roles: [supervisor]
+    cham_tien: true
+    ghi_chu: >
+      CỬA DUY NHẤT đưa resolution sang 'approved'. Yêu cầu OTP khớp
+      resolution_id + amount_snapshot khớp amount hiện tại (đổi số tiền sau khi
+      xin OTP ⟹ phải xin lại). Xem AUTH5-04/05/05B.
+  - route: "POST /resolutions/{resolution_id}/reject"
+    roles: [supervisor]
+    ghi_chu: "Từ chối KHÔNG cần OTP — không phải hành động tài chính."
+
+  # --- CHỈ partner_admin — kho chính sách RAG ---
+  - route: "POST /policy-docs"
+    roles: [partner_admin]
+  - route: "GET /policy-docs"
+    roles: [partner_admin]
+  - route: "DELETE /policy-docs/{doc_id}"
+    roles: [partner_admin]
+
+# ---------------------------------------------------------------------------
+# BẤT BIẾN — tests/test_invariants.py đọc phần này
+# ---------------------------------------------------------------------------
+invariants:
+  - id: INV-01
+    mo_ta: "Mọi route cham_tien=true chỉ cho phép đúng role supervisor"
+    nguon: "CLAUDE.md §2.1 — HITL tuyệt đối"
+  - id: INV-02
+    mo_ta: >
+      Không route nào mở cho customer/cskh mà có cham_tien=true.
+      AI agent không có role riêng — nó gọi tool DƯỚI DANH NGHĨA customer,
+      nên chặn được customer là chặn được AI.
+    nguon: "CLAUDE.md §2.1"
+  - id: INV-03
+    mo_ta: "Route duyệt/từ chối resolution không bao giờ mở cho cskh"
+    nguon: "CLAUDE.md §2.2 — CSKH điều tra, không quyết"
+  - id: INV-04
+    mo_ta: >
+      Thẩm quyền định nghĩa theo ROLE, không theo hạn mức tiền.
+      Không route nào được có điều kiện dạng max_amount/limit/threshold.
+    nguon: "PRD §4.6"
+  - id: INV-11
+    mo_ta: >
+      partner_admin không chạm được bất kỳ route nào liên quan ticket/
+      resolution/khách hàng — chỉ /policy-docs*.
+    nguon: "Nguyên tắc least-privilege, phát sinh cùng tính năng RAG"
+
+# ---------------------------------------------------------------------------
+# CÂU HỎI MỞ — chờ chuyên gia ví điện tử
+# ---------------------------------------------------------------------------
+open_questions:
+  - "Có tồn tại vai 'CSKH cấp 2' được duyệt case nội bộ nhỏ trong thực tế không?
+     Dự án CỐ Ý không mô hình hoá vai này — cần xác nhận đây là lựa chọn thiết kế
+     hợp lý, không phải thiếu sót."
+  - "supervisor hiện kế thừa toàn bộ quyền cskh. Ví thật có tách bạch tuyệt đối
+     (sếp KHÔNG được tự điều tra) để chống xung đột lợi ích không?"
