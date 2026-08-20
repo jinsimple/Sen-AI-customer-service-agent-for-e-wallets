@@ -24,7 +24,7 @@ graph TB
         FE -->|REST nội bộ| BE[FastAPI Backend :8010]
 
         BE --> AUTH[Auth<br/>OTP phiên · JWT ·<br/>refresh rotation AUTH5-03 ·<br/>OTP step-up theo đề xuất]
-        BE --> AGENT[LangGraph Agent<br/>GPT-4o-mini · ReAct · temp 0.2]
+        BE --> AGENT[LangGraph Agent<br/>bể 4 model xoay · ReAct · temp 0.2]
         BE --> HITL[HITL Routes<br/>ticket → đề xuất → duyệt]
 
         AGENT -->|"gọi tool DƯỚI DANH NGHĨA customer<br/>(ràng buộc cứng 2)"| TOOLS[5 tool:<br/>lookup_transaction · get_customer_history ·<br/>create_ticket · search_policy ·<br/>request_human_handoff]
@@ -83,7 +83,8 @@ Agent/khách tạo ticket → hàng chờ CSKH (điều tra, KHÔNG duyệt đư
 
 | Layer | Công nghệ |
 |---|---|
-| LLM | OpenAI GPT-4o-mini (temperature 0.2) · embeddings `text-embedding-3-small` |
+| LLM (chat) | **Bể 4 model, hạ tầng tự xoay** (ADR-043) — `qwen3.7-plus` · `deepseek-v4-pro` · `deepseek-v4-flash` · `deepseek-v3.2`, qua DashScope. `temperature=0.2`. Xoay CHỈ khi lỗi hạng hết-hạn-mức; `429` KHÔNG xoay. *(Bản 16/08 ghi `GPT-4o-mini` — sai từ 19/08, sửa 20/08.)* |
+| LLM (embedding) | `text-embedding-3-small` qua **OpenAI** — [ĐO] `EMBEDDING_BASE_URL=None`. **Hai nhà cung cấp khác nhau cho chat và embedding**, cố ý tách để một bên cạn hạn mức không kéo bên kia. |
 | Agent | LangGraph + LangChain (ReAct, 5 tool, MemorySaver theo thread) |
 | Backend | FastAPI + Uvicorn · SQLAlchemy · Alembic |
 | Frontend | Next.js 14 (App Router, BFF) · WebSocket live-chat |

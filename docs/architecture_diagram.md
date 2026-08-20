@@ -22,7 +22,7 @@ graph LR
     BE --> AG[LangGraph Agent]
     BE --> LC[Live-chat WebSocket<br/>CSKH ↔ khách]
 
-    AG --> RAG[(ChromaDB<br/>RAG · trích nguyên văn)]
+    AG --> RAG[(ChromaDB<br/>RAG · trích nguyên văn<br/>embedding: OpenAI<br/>text-embedding-3-small)]
     AG --> CP[(LangGraph checkpoint<br/>PostgresSaver · pool riêng)]
 
     BE --> DB[(PostgreSQL<br/>EncryptedText · CHECK maker-checker)]
@@ -69,6 +69,8 @@ graph TD
 
 - **O1–O4 là regex tất định, độc lập với model.** Đổi model không làm lưới cuối yếu đi.
 - **Xoay model chỉ kích hoạt bởi lỗi hạng hết-hạn-mức** (`quota · exhaust · insufficient · balance · arrear · unpurchased`). **`429` không xoay** — nghẽn tạm thời không phải cạn hạn mức.
+- **Chat và embedding chạy HAI nhà cung cấp khác nhau** — chat qua DashScope (bể 4 model), embedding
+  qua OpenAI ([ĐO] `EMBEDDING_BASE_URL=None`). Tách cố ý: một bên cạn hạn mức không kéo bên kia chết theo.
 - **Scrub PII dùng hai registry theo MỤC ĐÍCH.** Đường `model_input` cố ý bỏ SpacyRecognizer / DateRecognizer / PhoneRecognizer chung — chúng che nhầm mã giao dịch nội bộ. Đường `log` giữ nguyên over-redaction. Bóp méo câu tiếng Việt: **1,6% (2/124)**, có cổng `eval/do_bop_meo_pii.py` tự chấm lại.
 
 ---
