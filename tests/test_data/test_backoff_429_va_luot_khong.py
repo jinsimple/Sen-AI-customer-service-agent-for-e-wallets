@@ -27,7 +27,7 @@ from tests._eval_co_mat import doi_hoi_eval
 # là tập NIÊM PHONG, không được vào ảnh. Thiếu nó KHÔNG phải lỗi tệp test.
 doi_hoi_eval()
 
-from eval._harness import (
+from eval._harness import (  # noqa: E402 — CỐ Ý sau doi_hoi_eval() (SKIP module trước khi import eval/ thiếu)
     _CHO_TOI_DA_GIAY,
     _SO_LAN_THU_LAI,
     _cho_bao_lau,

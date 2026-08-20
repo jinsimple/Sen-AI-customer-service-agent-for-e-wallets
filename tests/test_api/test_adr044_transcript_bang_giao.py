@@ -200,11 +200,11 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage  # noqa
 
 
 def test_checkpoint_ket_thuc_ngay_sau_toolmessage_bang_giao_khong_co_vach(client, sample_db, monkeypatch):
-    THREAD_ID = "THREAD-HOI-QUY-VACH-PHAN-CACH"
+    thread_id = "THREAD-HOI-QUY-VACH-PHAN-CACH"
     tao = create_ticket(
         sample_db, user_id="USR-A", complaint_type="wrong_recipient", scope="to_bank",
         description_raw="test hồi quy vạch phân cách", trans_id="TXN-0002",
-        thread_id=THREAD_ID,
+        thread_id=thread_id,
     )
     ticket_id = tao["ticket_id"]
     ticket = sample_db.get(Ticket, ticket_id)

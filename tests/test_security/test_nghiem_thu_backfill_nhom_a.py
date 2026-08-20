@@ -244,7 +244,12 @@ def test_cot_nhom_a_da_duoc_nap_lai_het():
     trần, `fin05do` sạch vì hạt giống sinh sau (không do backfill),
     **`production` chưa ai đo**.
     """
-    nen = _nen()
+    # Không dùng giá trị `_nen()` trả về ở CA NÀY — nhưng lời gọi vẫn phải đứng
+    # đây làm CỔNG CANH tệp nền (`_nen()` tự pytest.fail nếu tệp biến mất).
+    # Vế DÙNG THẬT giá trị nền (`tong`/vân tay gộp) nằm ở ca anh em
+    # `test_backfill_khong_lam_mat_dong_hay_doi_noi_dung` — xoá lời gọi ở ĐÓ
+    # thì cổng canh tệp nền biến mất khỏi cả cụm nghiệm thu này.
+    _nen()
     nay = _do_lai(_nen_id())
 
     con_tran = {k: nay[f"{b}.{c}"]["chua_ma_hoa"]

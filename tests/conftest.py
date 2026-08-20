@@ -44,13 +44,16 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 _REDIS_URL_GOC = os.environ.get("REDIS_URL")
 os.environ["REDIS_URL"] = "fake://ci"
 
-import pytest
-from argon2 import PasswordHasher
-from sqlalchemy.orm import Session, sessionmaker
+# CỐ Ý sau khối os.environ ở trên, không phải quên sắp xếp — src.config đọc
+# biến môi trường LÚC IMPORT, nên các import chạm src/ phải đứng sau khi biến
+# đã được set. Đảo lên đầu file làm vỡ toàn bộ suite theo cách rất khó truy.
+import pytest  # noqa: E402
+from argon2 import PasswordHasher  # noqa: E402
+from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
-from src.db.models import BankAccount, Base, Transaction, User, Wallet
-from src.db.session import get_engine
-from src.redis_client import get_default_client
+from src.db.models import BankAccount, Base, Transaction, User, Wallet  # noqa: E402
+from src.db.session import get_engine  # noqa: E402
+from src.redis_client import get_default_client  # noqa: E402
 
 # Đăng nhập bằng mật khẩu (quyết định 2026-08-12) — mọi user fixture cần
 # password_hash hợp lệ, nếu không MỌI test gọi /auth/login qua sample_db sẽ
