@@ -7,6 +7,21 @@
 > xếp cô lập, KHÔNG đụng ba ngăn xếp `fin05`/`fin05ttl`/`fin05do` đang chạy.
 > Không phải chép lại tài liệu cũ rồi đoán là đúng.
 
+## 🔴 ĐỌC MỤC NÀY TRƯỚC KHI GÕ LỆNH ĐẦU TIÊN
+
+Năm chỗ đứt thật, tìm được bằng cách **chạy hết chuỗi trên clone sạch**
+(20/08) — không chỗ nào đọc lại tài liệu mà thấy ra được, vì người viết tài
+liệu luôn đứng trên một máy đã có sẵn thứ đang thiếu. Ba trong năm nằm ở
+bước cuối/bước xác nhận — đúng chỗ người deploy tin nhất là đã xong.
+
+| # | triệu chứng bạn sẽ thấy | nguyên nhân thật | việc cần làm |
+|---|---|---|---|
+| ① | `git clone` xong, thiếu `.env.example`, `docker-entrypoint.sh` không có bản vá mới nào | nhánh vừa clone **chưa được push đủ** lên GitHub — kiểm `git log -1` khớp commit kỳ vọng chưa | Xác nhận với DevOps/PO-agent commit HEAD đúng trước khi làm gì tiếp. Đừng tự đoán thiếu biến gì rồi tự chế `.env` |
+| ② | `kho_rag.py nhan`/`kiem` báo `[SAI CHỖ]` dù bạn ĐANG chạy trong container | thông báo cũ dùng chung cho hai nguyên nhân khác nhau (chạy nhầm trên host / kho thật sự chưa từng nạp) — đã vá, giờ có dòng phân biệt | Đọc hết cả 2 nhánh trong thông báo. Nếu bạn đã ở trong container: kho chưa từng nạp, chạy `kho_rag.py nap-lai` (tốn tiền embedding thật) |
+| ③ | `seed_db.py` báo `FileNotFoundError: Thiếu .../transactions.jsonl` | file 60K dòng CỐ Ý không nằm trong git (quá lớn để commit) — không phải thiếu sót, không tự ý commit nó | Chạy `scripts/gen_dataset.py --seed 20260802 --out data/generated/ --eval-out /tmp/eval_out/` TRƯỚC `seed_db.py` — xem bước 5 |
+| ④ | `seed_demo_scenarios.py` dừng giữa chừng với `CheckViolation: ck_resolutions_rejected_requires_reason_br11` | **ĐÃ VÁ** (`0f5bd34`) — nếu vẫn thấy lỗi này, bạn đang chạy trên ảnh/commit CŨ hơn, không phải lỗi mới | Xác nhận `BUILD_COMMIT` trong container ≥ `0f5bd34` trước khi báo bug |
+| ⑤ | `curl -f https://<domain>/health` trả về "thành công" (307) | 🔴 **BÁO ĐỘNG GIẢ TUYỆT ĐỐI — đã chứng minh bằng cách tắt hẳn backend rồi curl lại, VẪN ra cùng 307.** Mọi route qua Caddy (trừ `/ws/live-chat*`) vào `frontend` trước; `frontend/src/proxy.ts` chặn TẠI EDGE cho path chưa đăng nhập, redirect không bao giờ chạm backend | **Nếu bạn dùng `curl /health` qua domain và thấy xanh — BẠN CHƯA CHỨNG MINH ĐƯỢC GÌ về backend.** Kiểm backend thật qua SSH+docker (bước 6, lớp 1), không qua domain công khai |
+
 ## Đã CHỨNG MINH bằng đo thật (20/08, DevOps)
 
 | bước | lệnh | kết quả đo |
