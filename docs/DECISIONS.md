@@ -2900,3 +2900,54 @@ supervisor thật**, không phải kỹ thuật.
 
 **Đụng contract ⟹ phải đi đủ §3** trước khi code: sửa contract → ADR (file này) → PO duyệt (xong)
 → `check_contracts.py --update` → cập nhật `CONTRACT_VERSION` → mới code.
+
+## ADR-049 — Nhận diện TẤT ĐỊNH "khách yêu cầu tạo vé": đổi đòn bẩy, không đổi thêm chữ
+
+**Ngày:** 2026-08-24 · **Trạng thái:** 🟡 **ĐỀ XUẤT — chờ PO thật duyệt.** Chưa code dòng nào.
+
+### Dữ kiện: sáu vòng, sáu cơ chế bị loại trừ, một hành vi không đổi
+
+Test A2 vế 2 (*khách nói "Ừ tạo đi" ⟹ phải tạo vé*) đỏ **sáu lần liên tiếp** trong ngày 24/08.
+Mỗi vòng loại trừ một cơ chế khác nhau, [ĐO] trên ngăn `fin05do`:
+
+| vòng | cơ chế bị loại trừ | agent làm gì thay vì tạo vé |
+|---|---|---|
+| ① | tool bị cổng OTP chặn (harness test thiếu bước xác thực) | báo chưa xác thực |
+| ② | thread test đứt (login lại mỗi lượt ⟹ hai hội thoại rời) | — |
+| ③ | `multiple_matches` (bác bằng `tool_results`: thật ra `not_found`) | hỏi SĐT người nhận |
+| ④ | luật chốt-luồng thiếu điều kiện | hỏi thời điểm |
+| ⑤ | prompt hứa "bổ sung vào vé" (không có tool update) | hỏi mã giao dịch |
+| ⑥ | **trần năng lực model** — chạy lại trên model mạnh nhất bể | hỏi phạm vi giao dịch |
+
+**Vòng ⑥ là vòng quyết định.** Cùng ảnh, cùng kịch bản, chỉ đổi model
+(`deepseek-v4-pro-0813`, xác nhận bằng `model_dau_luot()` phía server): **vẫn đỏ**.
+🔴 *Niêm: "mạnh nhất" là suy từ quy ước đặt tên, không có benchmark nội bộ. Chiều ĐỎ vẫn cho
+kết luận chắc — hai model khác nhau cùng không làm được.*
+
+### Chẩn đoán
+
+**Chúng ta dành cả đợt 1A dạy agent hỏi cho kỹ, rồi ngạc nhiên khi nó hỏi kỹ.**
+R1–R5 + quy trình điều tra + luật cấm tạo vé khi chưa rõ loại — tất cả đẩy về **một** hướng:
+*hỏi thêm*. Trên nền đó, *"Ừ tạo đi"* là ba chữ, một tín hiệu **yếu** cạnh sáu luật **mạnh**.
+
+⟹ **Prompt là đòn bẩy sai cho hành vi này.** Bản vá thứ bảy là **luật thứ bảy cạnh tranh với sáu
+luật cũ**, không có cơ sở nào tin nó thắng. Sáu vòng vừa rồi là bằng chứng thực nghiệm cho điều đó.
+
+### Đề xuất
+
+Nhận diện **tất định** câu khách yêu cầu tạo vé, ép nhánh ở tầng code — **đúng cơ chế cổng
+`thu_slot` (1B) đã dựng hôm nay**, hạ tầng có sẵn (`phan_luong.py`).
+
+**Nguyên tắc bắt buộc kế thừa từ 1B — thà BỎ SÓT còn hơn BẮT OAN:**
+- Bỏ sót ⟹ agent hỏi thêm một lượt. Phiền, không hỏng.
+- Bắt oan ⟹ tạo vé khi khách **không** yêu cầu. **Hỏng thật** — vé rác vào hàng đợi CSKH, và
+  vi phạm chính A2 gốc.
+- Bài học đã trả giá hôm nay: từ đơn lẻ (`"sao"`, `"mất"`) khớp bừa; **cụm đủ dài** mới đứng được.
+
+**Ba thứ KHÔNG đổi:** HITL tuyệt đối (mở vé ≠ quyết định) · ràng buộc cứng 3 (vé ghi rõ phần chưa
+xác định, không bịa) · A2 gốc (agent **không tự ý** tạo vé khi khách mới chỉ hỏi).
+
+### Câu PO cần quyết
+
+Đây là **đổi kiến trúc quyết định**: chuyển một quyết định nghiệp vụ từ **model** sang **luật cứng**.
+Được lợi tính đoán trước được; mất đi khả năng model xử ca lạ mà luật không lường.
