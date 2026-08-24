@@ -205,8 +205,23 @@ _SO_TIEN = re.compile(
 )
 
 # Khuôn mốc thời gian (mục 3.2) — ngày tuyệt đối, neo tương đối rõ, thứ trong
-# tuần (giả định TUẦN GẦN NHẤT). Mốc mơ hồ ("mấy hôm trước", "dạo này") CỐ Ý
-# không khớp — slot coi như THIẾU, không suy diễn.
+# tuần (giả định TUẦN GẦN NHẤT). Mốc mơ hồ THẬT SỰ không neo được vào bất
+# kỳ cụm nào ở trên (vd "dạo này", "gần đây") CỐ Ý không khớp — slot coi
+# như THIẾU, không suy diễn.
+#
+# 🔴 SỬA 24/08 (PO-agent, sau khi tự phát hiện lúc verify một vá khác):
+# bản trước liệt "mấy hôm trước" làm ví dụ mốc-mơ-hồ-cố-ý-không-khớp — SAI.
+# Cụm đó chứa nguyên văn "hôm trước" (đã có trong regex) nên THỰC TẾ ĐÃ
+# khớp từ trước, không phải hồi quy của bản vá nào. Một dòng tài liệu nói
+# ngược hành vi thật — sửa CHỮ ở đây, GIỮ NGUYÊN hành vi (regex không đổi),
+# vì hành vi hiện tại AN TOÀN HƠN docstring cũ mô tả:
+#   khớp     ⟹ cổng KHÔNG hỏi, nhường LLM (LLM vẫn hỏi lại được, khéo hơn
+#              cổng vì có ngữ cảnh cả hội thoại) = bỏ sót một cơ hội hỏi, RẺ
+#   không khớp ⟹ cổng hỏi thêm dù khách ĐÃ nêu hướng thời gian = bắt oan,
+#              đúng thứ đã vá hai lần trong ngày (số tiền viết chữ, giờ
+#              trong ngày)
+# ĐỪNG "sửa lại cho khớp docstring cũ" (thêm điều kiện loại "hôm trước" ra
+# khi đứng sau "mấy") — làm vậy là tự bật lại một ca bắt oan đã đóng.
 #
 # 🔴 Review bắt 24/08 (soát a663583, cổng T0 sau OTP): chính GATE này (và
 # R5/1A) DẠY khách trả lời bằng "sáng/chiều/tối" ghép với "nay"/"qua" (câu
