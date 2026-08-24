@@ -12,7 +12,7 @@
 
 ### Đợt 1A — Luật hỏi trong prompt *(không đụng contract)*
 
-- [x] **1A.1** ✅ `d70763e` — 6 ca R1–R5, viết trước từ đặc tả, R2/R3 tự khai skip-có-lý-do
+- [ ] **1A.1** 🔴 **GỠ TICK 24/08 (Review soát hồi tố)** — `_chat()` tự login mỗi lượt ⟹ R3/R4-lượt-2 đo hai hội thoại RỜI NHAU (cùng bug thread A2 đã vá ở `e1bb3bd` nhưng không áp lại file này). PASS của R4 vòng 1 hạ xuống 'chưa chứng minh'. Tester vá theo khuôn `_login()` của A2
 - [x] **1A.2** ✅ `f6f70df` — R1–R5 vào prompt, 3 điểm chạm, land sau 1A.1 đúng trình tự
 - [x] **1A.3** ✅ render thật 4.587 → 4.790 = **+203 token (+4,4%)**, dưới trần 600 · băm mẫu 75a57a47705a → d3ff8c526895, khớp trong cây
 - [ ] **1A.4** Cổng: ca mới xanh + không hồi quy A2
