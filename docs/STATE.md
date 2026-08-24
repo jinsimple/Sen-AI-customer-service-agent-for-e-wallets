@@ -4,6 +4,10 @@
 > Đọc `CLAUDE.md` (hiến pháp) trước, rồi file này, rồi 5 ADR gần nhất trong `docs/DECISIONS.md`.
 >
 > Cập nhật: **18/08/2026**, ngay trước khi PO thật tắt toàn đội để khởi động lại sạch.
+>
+> 🔴 **NIÊM 24/08 — FILE NÀY CŨ 6 NGÀY.** Đội chạy rất nhanh trong 19–24/08 (đợt 1A/1B, ADR-043→048).
+> Mục nào ghi *"chờ PO"* mà không có dấu 24/08 thì **phải đối chiếu `docs/DECISIONS.md` trước khi tin** —
+> PO đã gỡ nhiều nút ngày 24/08. Dọn trọn file này là việc của `/wrapup` phiên hiện tại.
 > Nhật ký chi tiết ngày 17/08 (3.001 dòng, mọi lập luận và số đo):
 > `docs/nhat-ky/2026-08-17-nhat-ky-day-du.md`
 
@@ -489,7 +493,11 @@ không quyết định nào còn treo trên ba con số này** sau khi 10.2 đã
 ### ✅ I+J. Kho checkpoint 0% mã hoá — ĐÃ THÀNH ADR-045, chuyển
 `docs/nhat-ky/2026-08-20-state-dep-F-G-IJ.md`
 
-[ĐO 20/08] ADR-045 (`docs/DECISIONS.md`, commit `b37218f`) 🟡 **chờ PO thật duyệt.** Bốn ràng buộc
+✅ **PO THẬT DUYỆT 24/08** — bốn tham số vận hành đã chốt, xem **ADR-045b**: giữ **90 ngày** ·
+VPS **Việt Nam** · **20 vé/ca** (trung bình ngành quốc tế, NIÊM: không phải số đo đội VN nào) ·
+kiến trúc máy để DevOps tự xác định lúc dựng (không chặn ai). **Mục này KHÔNG còn chặn.**
+
+[ĐO 20/08] ADR-045 (`docs/DECISIONS.md`, commit `b37218f`) — bối cảnh gốc. Bốn ràng buộc
 I+J từng nêu (serde không đổi cột · đừng che `HumanMessage` · giải quyết retention cùng lúc · nghiệm
 thu dò byte) vào ADR nguyên vẹn. Review tìm thêm bảng `checkpoint_writes` (7.015 dòng, chưa ai từng
 đếm) ⟹ **tổng 13.857 blob, 0% mã hoá — gấp đôi con số I+J giữ.** Đọc số mới trong ADR-045, không
