@@ -58,14 +58,15 @@ services:
     # (không `--build`), Compose so digest thấy `latest` đã đổi có thể tự ý
     # recreate ngăn DEMO ngoài ý muốn. Ghim TAG RIÊNG cho từng lượt dựng đo —
     # đổi dòng dưới mỗi khi dựng lại, không bao giờ dùng `fin05-backend` trơn.
-    image: fin05-backend:do-1a33239   # HEAD lúc dựng: 1a33239 — CÓ BẢN VÁ CRASH REDIS (Redis chết
-                                       # KHÔNG được phép làm /agent/chat SẬP HẲN) + eb6096d (bộ dò
-                                       # đếm thiếu + kho reply chấm-lại-được). Chuyến ĐÓNG ĐỢT: 1A
-                                       # trọn bộ trên bộ dò đã sửa + kho reply mới, cộng S8 LIVE-FIRE
-                                       # (tắt Redis THẬT — Coder chỉ verify được ở tầng mock). 🔴 Ảnh
-                                       # này CỐ Ý bị tắt Redis lúc đo — crash-hay-không-crash là KẾT
-                                       # QUẢ ĐO, không phải sự cố hạ tầng. Chạy trên FLASH. S8 CUỐI
-                                       # CÙNG trong thứ tự Tester chạy.
+    image: fin05-backend:do-03fd9a6   # HEAD lúc dựng: 03fd9a6 (= 9328219 + 1 commit docs, không
+                                       # chạm src/). CÓ 9328219: lưới dự phòng in-process cho
+                                       # RedisConcurrencyLimiter khi Redis chết — Review xanh, không
+                                       # finding chặn, xác nhận rò rỉ slot KHÔNG xảy ra được về mặt
+                                       # CẤU TRÚC (token `fb:` không trùng token Redis thật, release()
+                                       # rẽ nhánh theo danh tính token). ẢNH CHẠY THẬT của chuyến
+                                       # ĐÓNG ĐỢT: 1A trọn bộ + S8 live-fire, S8 CUỐI CÙNG. Lượt S8
+                                       # lỡ chạy trên `do-1a33239` (dòng sổ trước) là DỮ LIỆU THAM
+                                       # KHẢO — KHÔNG gộp vào kết quả chuyến này.
     build: !reset null
     ports: !override []
     environment:
