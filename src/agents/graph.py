@@ -43,6 +43,7 @@ from src.agents.phan_luong import (
     HOI_THIEU_SO_TIEN,
     TEN_TIN_HIEU_1B,
     TRA_LOI_NHE,
+    co_ma_giao_dich_hoac_thoi_gian,
     phan_luong,
 )
 from src.agents.prompt import bam_mau_prompt, build_system_prompt
@@ -106,6 +107,39 @@ _SO_TOOL_GUI = 0
 # Suy luận có BẬT ở lần dựng model gần nhất không — đọc ngược từ đối tượng
 # model, không từ config. Xem chú thích tại chỗ gán.
 _SUY_LUAN_GUI = True
+
+# ═══ CỔNG THU SLOT SAU KHI XÁC THỰC OTP GIỮA HỘI THOẠI ═══════════════════
+# (scratchpad/nhap-cong-thu-slot-sau-otp.md, Lead 24/08, PO thật đề xuất,
+# PO-agent duyệt cả 4 mục)
+#
+# VẤN ĐỀ: sau khi khách xác thực OTP giữa hội thoại, frontend TỰ GỬI LẠI câu
+# đã bị chặn (ChatClient.tsx::submitOtp() -> pendingStarterRef). `5e8deb6`
+# dạy model GỌI LẠI tool thay vì lặp kết luận cũ từ trí nhớ — vá TRIỆU
+# CHỨNG, giữ nguyên làm LƯỚI ĐỠ (model không nghe luật thì vẫn có lưới này
+# nếu resend đã đủ slot). Cổng này BỎ HẲN tình huống phải trông cậy vào việc
+# model "nhớ đúng": hỏi thêm slot bằng cơ chế TẤT ĐỊNH trước, rồi gọi model
+# ĐÚNG MỘT lần với đủ dữ liệu.
+#
+# KHOÁ RIÊNG, TUYỆT ĐỐI KHÔNG dùng chung `TEN_TIN_HIEU_1B` — Lead phản biện
+# khung PO-agent nghiêng về ban đầu ("reset mốc S7 = điểm bắt đầu mới"):
+# reset ĐÚNG KHOÁ S7 sẽ cho 1B bắn LẦN THỨ HAI trong cùng hội thoại ở một
+# lượt sau KHÔNG liên quan gì cổng này — đúng thứ S7 (giới hạn 1 lần/hội
+# thoại của 1B) sinh ra để cấm. Khoá dưới đây ĐỘC LẬP hoàn toàn với 1B; đừng
+# "tối ưu" bằng cách gộp hai khoá dù tên nghe giống nhau.
+_TEN_TIN_HIEU_OTP_RESEND = "otp_resend_da_hoi"
+DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
+
+# Slot mục tiêu là MÃ GIAO DỊCH HOẶC MỐC THỜI GIAN — KHÁC 1B (số tiền là
+# slot bắt buộc của 1B). Lý do: 1B áp cho lượt ĐẦU TIÊN chưa biết gì; cổng
+# này áp cho điểm khách đã mô tả đủ để model quyết định gọi tool (đó là lý
+# do tool chạy và bị OTP chặn) — cái còn thiếu là thứ giúp tool THU HẸP
+# xuống một kết quả, đúng vai trò mã/ngày (số tiền nhiều khả năng ĐÃ có
+# trong câu, vì đó là chi tiết khách hay kể đầu tiên).
+_HOI_MA_HOAC_THOI_GIAN = (
+    "Dạ bạn cho mình xin mã giao dịch (vào mục Lịch sử giao dịch, bấm vào "
+    "đúng giao dịch là thấy mã) hoặc thời điểm giao dịch (hôm nay/hôm qua, "
+    "sáng/chiều/tối) giúp mình nhé."
+)
 
 # Kích thước lược đồ tool ĐO ĐƯỢC ở lần dựng gần nhất — thay hằng số gõ tay.
 _CHARS_TOOL_SCHEMA_THAT = _CHARS_TOOL_SCHEMA
@@ -762,6 +796,7 @@ def run_agent_turn(
     message: str,
     thread_id: str | None = None,
     otp_verified_at: float | None = _ALWAYS_FRESH,
+    vua_xac_thuc_de_gui_lai: bool = False,
 ) -> dict[str, Any]:
     """`otp_verified_at`: timestamp (epoch giây) lúc xác thực OTP+câu hỏi bảo
     mật gần nhất (src/auth.py) — truyền THẬT từ current_user.otp_verified_at ở
@@ -771,7 +806,13 @@ def run_agent_turn(
     hiện có: các case đó vốn giả định "khách đã xác thực OTP trước khi vào
     chat" (đúng câu mở đầu system prompt), không phải kiểm tra luồng OTP —
     luồng OTP thật được test riêng ở tests/test_api/test_otp.py +
-    frontend/e2e/auth.spec.ts."""
+    frontend/e2e/auth.spec.ts.
+
+    `vua_xac_thuc_de_gui_lai`: cờ TƯỜNG MINH từ frontend (KHÔNG suy từ mốc
+    giờ), báo lượt này là ChatClient.tsx::submitOtp() TỰ GỬI LẠI câu đã bị
+    chặn OTP trước đó (`pendingStarterRef`) — xem cổng thu-slot-sau-OTP ngay
+    dưới. `False` mặc định giữ hành vi cũ nguyên vẹn cho mọi caller khác
+    (eval/golden_set, test, mọi lượt chat bình thường)."""
     if otp_verified_at is _ALWAYS_FRESH:
         otp_verified_at = dt.datetime.utcnow().timestamp()
 
@@ -788,6 +829,49 @@ def run_agent_turn(
     _SO_TOOL_GUI = None
     _CHARS_TOOL_SCHEMA_THAT = None
 
+    # ── T0 · CỔNG THU SLOT SAU KHI XÁC THỰC OTP ─────────────────────────────
+    # Chạy TRƯỚC phan_luong() (1B), độc lập với `PHAN_LUONG_BAT` — quyết định
+    # "gọi model với gì" ở đây khác hẳn quyết định "lượt này cần bộ đồ nghề
+    # nào" của 1B. Khi cờ này bật, lượt này KHÔNG đi qua nhe/thu_slot/day_du
+    # của 1B — resend-sau-OTP luôn là một khiếu nại thật (đó là lý do tool bị
+    # OTP chặn), không bao giờ hợp lệ để đi DUONG_NHE hay bị 1B hỏi lại số
+    # tiền theo slot khác.
+    if vua_xac_thuc_de_gui_lai:
+        _tid_hieu_qua_otp = thread_id or user_id
+        if doc_tin_hieu(_TEN_TIN_HIEU_OTP_RESEND, _tid_hieu_qua_otp) == 0 and not co_ma_giao_dich_hoac_thoi_gian(message):
+            tang_tin_hieu(_TEN_TIN_HIEU_OTP_RESEND, _tid_hieu_qua_otp)
+            _logger.info(
+                "agent_turn_otp_resend_thu_slot",
+                extra={"user_id": user_id, "thread_id": _tid_hieu_qua_otp},
+            )
+            _kq_otp_resend = {
+                "reply": _HOI_MA_HOAC_THOI_GIAN,
+                "tool_calls": [],
+                "ticket_id": None,
+                "should_escalate": False,
+                # Cùng nguyên tắc DUONG_NHE/DUONG_THU_SLOT — không gọi model
+                # nào, None/0 là SỰ THẬT, không phải "không đọc được".
+                "model": None,
+                "models_da_thu": [],
+                "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                          "cached_input_tokens": 0, "reasoning_tokens": 0,
+                          "input_chars": 0, "so_luot_goi_model": 0,
+                          "so_tool_schema_gui": 0,
+                          "chars_tool_schema_moi_luot": 0,
+                          "suy_luan_gui": None},
+                "loc_dau_ra": [],
+                "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                "goi_y_handoff": False,
+                "ly_do_fallback": None,
+                "duong": DUONG_OTP_RESEND_THU_SLOT,
+            }
+            _ghi_so(_kq_otp_resend, thread_id, user_id)
+            return _kq_otp_resend
+        # Đủ điều kiện (có mã/thời gian) HOẶC đã hỏi rồi ở một lượt resend
+        # trước đó trong hội thoại này (khách xác thực OTP nhiều lần) — KHÔNG
+        # tăng tín hiệu (chỉ tăng ở nhánh hỏi phía trên), rơi thẳng xuống
+        # luồng model đầy đủ bên dưới với `message` NGUYÊN VĂN, bỏ qua 1B.
+
     # ── T1 · PHÂN LUỒNG ─────────────────────────────────────────────────────
     # Sau cờ, MẶC ĐỊNH TẮT. Tắt thì hàm này chạy y hệt trước khi có nhánh này.
     #
@@ -797,7 +881,7 @@ def run_agent_turn(
     #
     # Đặt SAU khi nạp `user` (cần user tồn tại thật) và TRƯỚC mọi thứ khác —
     # đặt muộn hơn là đã tiêu mất thứ ta định tiết kiệm.
-    if PHAN_LUONG_BAT:
+    if not vua_xac_thuc_de_gui_lai and PHAN_LUONG_BAT:
         _duong, _ly_do_duong = phan_luong(message)
         if _duong == DUONG_NHE:
             _logger.info(

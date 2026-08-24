@@ -660,6 +660,7 @@ def agent_chat(
             message=req.message,
             thread_id=f"{current_user.user_id}:{current_user.iat}",
             otp_verified_at=current_user.otp_verified_at,
+            vua_xac_thuc_de_gui_lai=req.vua_xac_thuc_de_gui_lai,
         )
         # Chặn `null` Ở BIÊN client, KHÔNG đổi nghĩa BÊN TRONG: `None` nội bộ
         # (vd graph.py, đường vòng lặp tool/timeout) mang nghĩa "mất kết quả",

@@ -264,6 +264,22 @@ def _chuan_hoa_nhe(s: str) -> str:
     return unicodedata.normalize("NFC", s).lower().strip()
 
 
+def co_ma_giao_dich_hoac_thoi_gian(cau: object) -> bool:
+    """Bóc mã giao dịch/vé (`_MA_GD`/`_MA_VE`) HOẶC mốc thời gian (`boc_slot`)
+    từ MỘT câu — dùng cho cổng thu-slot-SAU-KHI-xác-thực-OTP (graph.py,
+    docs Lead 24/08 "nhap-cong-thu-slot-sau-otp"), KHÔNG dùng cho routing 1B
+    (đó xét `so_tien`, khác slot mục tiêu). Tái dùng NGUYÊN regex đã có ở
+    trên, không viết bản bóc thứ hai — lý do khác slot: 1B áp cho lượt ĐẦU
+    TIÊN chưa biết gì (số tiền là neo mạnh nhất); cổng sau-OTP áp cho điểm
+    khách đã mô tả đủ để gọi tool (đó là lý do tool chạy và bị OTP chặn),
+    cái còn thiếu là thứ giúp tool THU HẸP xuống một kết quả — vai trò của
+    mã/ngày, không phải số tiền."""
+    if not isinstance(cau, str):
+        return False
+    s = _chuan_hoa_nhe(cau)
+    return bool(_MA_GD.search(s) or _MA_VE.search(s)) or boc_slot(cau)["thoi_gian"]
+
+
 def boc_slot(cau: object) -> dict[str, bool]:
     """Bóc slot BẮT BUỘC (số tiền, thời gian) từ MỘT câu — KHÔNG ghép ngữ
     cảnh liên-lượt (mục 5 — ghép là việc của model, tầng này chỉ đọc một câu

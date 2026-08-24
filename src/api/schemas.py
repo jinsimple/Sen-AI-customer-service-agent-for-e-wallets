@@ -168,6 +168,13 @@ class AgentChatRequest(BaseModel):
     # thoại CSKH thật (khiếu nại dài nhất trong dataset mẫu chưa tới 500 ký
     # tự), FastAPI/Pydantic tự trả 422 rõ ràng khi vượt — không cần code tay.
     message: str = Field(max_length=4000)
+    # Cờ TƯỜNG MINH từ frontend (scratchpad/nhap-cong-thu-slot-sau-otp.md
+    # mục 1) — báo lượt này là ChatClient.tsx::submitOtp() TỰ GỬI LẠI câu đã
+    # bị chặn OTP, KHÔNG suy từ khoảng cách thời gian giữa otp_verified_at
+    # và lúc tin nhắn tới (một câu KHÁC hẳn gõ ngay sau OTP sẽ bị áp nhầm
+    # nếu đo bằng mốc giờ). Mặc định False giữ nguyên hành vi cho mọi client
+    # cũ/test chưa gửi trường này.
+    vua_xac_thuc_de_gui_lai: bool = False
 
 
 class PolicySearchRequest(BaseModel):

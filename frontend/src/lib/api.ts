@@ -141,7 +141,7 @@ export function getCustomerHistory(params: { days?: number; limit_transactions?:
 // /agent/chat — AI agent thật (LangGraph), chỉ phục vụ role=customer
 // ---------------------------------------------------------------------------
 
-export function agentChat(params: { message: string }) {
+export function agentChat(params: { message: string; vua_xac_thuc_de_gui_lai?: boolean }) {
   return post<AgentChatResult>("/api/agent-chat", params);
 }
 

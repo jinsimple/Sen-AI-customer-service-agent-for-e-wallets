@@ -461,8 +461,15 @@ export default function ChatClient({
     if (starter) {
       // Lối vào đã biết chắc liên quan giao dịch (chip/rail) — giờ mới thật
       // sự gửi cho agent, SAU KHI đã xác thực xong.
+      //
+      // `vuaXacThucDeGuiLai: true` — cờ TƯỜNG MINH báo đây là lượt TỰ GỬI
+      // LẠI câu đã bị chặn OTP (scratchpad/nhap-cong-thu-slot-sau-otp.md
+      // mục 1). Đây là ĐÚNG MỘT lệnh gọi resend, dùng chung cho cả 3 nguồn
+      // đặt `pendingStarterRef` (chip startComplaint · otpStaleCall giữa
+      // hội thoại · touchedSensitiveData) — không phân biệt nguồn, cùng một
+      // ý nghĩa "khách vừa xác thực xong, đây là câu cần model xử lý lại".
       push({ id: nid(), from: "bot", text: "Xác thực thành công — để mình tra ngay giúp bạn." });
-      void sendToAgent(starter, { echoAsUser: false });
+      void sendToAgent(starter, { echoAsUser: false, vuaXacThucDeGuiLai: true });
     } else {
       // Phản ứng (gõ tự do, agent vừa lỡ chạm dữ liệu nhạy cảm) — không có
       // gì phải gửi lại, chỉ mở lại chat.
@@ -483,11 +490,14 @@ export default function ChatClient({
     });
   }
 
-  async function sendToAgent(text: string, opts?: { echoAsUser?: boolean }) {
+  async function sendToAgent(text: string, opts?: { echoAsUser?: boolean; vuaXacThucDeGuiLai?: boolean }) {
     if (opts?.echoAsUser !== false) push({ id: nid(), from: "user", text });
     setStage("busy");
     try {
-      const result = await agentChat({ message: text });
+      const result = await agentChat({
+        message: text,
+        vua_xac_thuc_de_gui_lai: opts?.vuaXacThucDeGuiLai,
+      });
       push({
         id: nid(),
         from: "bot",
