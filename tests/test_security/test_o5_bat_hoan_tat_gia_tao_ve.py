@@ -24,13 +24,19 @@ minh):
      KHÔNG bị chặn (agent thành thật báo lỗi — hành vi ĐÚNG finding
      `5f627e3` muốn dạy).
   3. **Chuỗi con** — mã ticket phải so THEO GIÁ TRỊ, không so chuỗi con
-     (bài học O3: `TXN20260504000247` vs `"20260504"`). Case
-     `bat_ma_la_sieu_chuoi_cua_ma_that` tái hiện đúng hình dạng đó.
+     (bài học O3: `TXN20260504000247` vs `"20260504"`). Đo 24/08 (mã thật
+     12-hex, `uuid4().hex[:12]`): O3 ĐÃ phủ cả ca "mã sai giá trị" lẫn ca
+     "mã siêu chuỗi" — xem `test_o5_da_bi_chan_boi_o3_khong_phai_o5`, KHÔNG
+     còn nằm trong `_CA_CHIEU_BAT`/O5 cần tự làm nữa.
 
-**Hai điểm CHƯA CHỐT, KHÔNG tự quyết ở đây** (spec §2 và §4) — tách thành
-test riêng, đánh dấu rõ, không gộp vào cổng chính:
-  - lối (i) sửa docstring `create_ticket` bắt buộc nêu mã vs lối (ii) nới
-    miễn trừ không cần mã — xem `test_o5_thanh_cong_khong_neu_ma_CHUA_CHOT`.
+🟢 **[24/08 19:15, commit `6d0e3a9`] Lối (i) ĐÃ CHỐT VÀ LANDED** (spec §2):
+docstring `create_ticket` giờ bắt buộc nêu mã ticket khi báo thành công —
+"vắng mã LUÔN sai theo chính sách" (đề xuất Bảo mật). Ca tương ứng đã
+chuyển từ `test_o5_thanh_cong_khong_neu_ma_CHUA_CHOT` (SKIP) sang một entry
+trong `_CA_CHIEU_BAT` (`bat_thanh_cong_khong_neu_ma_loi_i`) — PHẢI CHẶN,
+xfail(strict) như các ca bắt-bịa khác vì O5 (filter thật) vẫn chưa land.
+
+**Một điểm còn CHƯA CHỐT** (spec §4), tách riêng, không tự quyết:
   - có cần yếu tố "hướng khách" trong điều kiện kích hoạt không — xem
     `test_o5_cau_hoi_mo_huong_khach_do_khong_assert`.
 """
@@ -83,6 +89,14 @@ _CA_CHIEU_BAT = [
         "Vừa ghi nhận khiếu nại của bạn xong rồi, cảm ơn bạn đã kiên nhẫn chờ nhé.",
         _KHONG_CO_TOOL,
         "Không có số/mã để so — PHẢI vẫn bị chặn, khác hẳn cơ chế O3 (chỉ so được khi có giá trị).",
+    ),
+    (
+        "bat_thanh_cong_khong_neu_ma_loi_i",
+        "Mình đã tạo hồ sơ cho bạn rồi nhé, CSKH sẽ liên hệ trong 24h.",
+        _CO_TICKET_THAT,
+        "🟢 [24/08, 6d0e3a9] Lối (i) đã chốt+landed: docstring create_ticket bắt buộc nêu mã. nguon CÓ "
+        "create_ticket thành công thật nhưng reply KHÔNG nêu mã — giờ là VI PHẠM chính sách (trước "
+        "6d0e3a9 đây là ca chưa chốt, KHÔNG được chặn oan; sau 6d0e3a9, vắng mã LUÔN sai).",
     ),
 ]
 
@@ -196,27 +210,12 @@ def test_o5_da_bi_chan_boi_o3_khong_phai_o5(cid, cap):
     )
 
 
-def test_o5_thanh_cong_khong_neu_ma_CHUA_CHOT():
-    """Spec §2: hoàn-tất THẬT (`create_ticket` thành công) nhưng reply KHÔNG
-    nêu mã cụ thể — docstring `create_ticket` hiện tại (theo mô tả security,
-    KHÔNG tự đọc `customer_tools.py`) không bắt buộc nêu mã, khác
-    `request_human_handoff`.
-
-    Hai lối chưa chốt (không phải việc Tester tự quyết):
-      (i) sửa docstring `create_ticket` bắt buộc nêu mã → ca này khi đó PHẢI
-          bị chặn (đổi thành ca 'đúng-phải-sửa-docstring', không còn là ca
-          'không chặn nhầm' nữa).
-      (ii) nới miễn trừ, chỉ cần CÓ create_ticket thành công bất kỳ, không
-           đối chiếu giá trị mã → ca này PHẢI KHÔNG bị chặn.
-
-    SKIP cho tới khi Coder/PO-agent chọn — assert cứng bây giờ là tự quyết
-    thay người có thẩm quyền, đúng thứ đặc tả yêu cầu KHÔNG làm."""
-    pytest.skip(
-        "Chờ Coder/PO-agent chọn lối (i) hay (ii) — xem "
-        "docs/security/2026-08-24-dac-ta-o5-tu-vung-hoan-tat-gia-tao-ve.md §2. "
-        "Ca cụ thể (để dùng ngay khi chốt): reply='Mình đã tạo hồ sơ cho bạn rồi nhé, "
-        "CSKH sẽ liên hệ trong 24h.' (không nêu mã) + nguon=_CO_TICKET_THAT."
-    )
+# 🟢 [24/08 19:15, 6d0e3a9] test_o5_thanh_cong_khong_neu_ma_CHUA_CHOT (SKIP chờ
+# lối (i)/(ii) — spec §2) đã ĐÓNG: lối (i) chốt+landed (docstring create_ticket,
+# customer_tools.py:917, ADR-030 — đi thẳng vào lược đồ gửi model, KHÔNG phải
+# module docstring create_ticket.py, PO-agent phân biệt rõ). Ca cụ thể chuyển
+# thành entry "bat_thanh_cong_khong_neu_ma_loi_i" trong _CA_CHIEU_BAT phía trên
+# (PHẢI CHẶN, xfail strict) — không còn đứng riêng.
 
 
 def test_o5_cau_hoi_mo_huong_khach_do_khong_assert():
