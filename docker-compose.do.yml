@@ -58,10 +58,11 @@ services:
     # (không `--build`), Compose so digest thấy `latest` đã đổi có thể tự ý
     # recreate ngăn DEMO ngoài ý muốn. Ghim TAG RIÊNG cho từng lượt dựng đo —
     # đổi dòng dưới mỗi khi dựng lại, không bao giờ dùng `fin05-backend` trơn.
-    image: fin05-backend:do-1080762   # HEAD lúc dựng: 1080762 (1b80bf4 Review bắt oan NHÓM B(i)+S8
-                                       # + 1080762 ADR-047). Băm mẫu prompt kỳ vọng 33c7a1b57ea5.
-                                       # 🔴 Dựng SONG SONG Review đang soát — Tester CHỈ chạy sau
-                                       # khi Review xanh, không chạy ngay khi ảnh vừa xong.
+    image: fin05-backend:do-b7a7e16   # HEAD lúc dựng: b7a7e16 (4 commit đã land: 1b80bf4·1080762·
+                                       # 5f3a1ef·df5d175 + 2 commit docs sau đó, không chạm src/).
+                                       # Cổng đối chứng ĐC-1/3/4/5 đã xanh (PO-agent tự chạy trước
+                                       # khi ra lệnh dựng). 🔴 Tester CHỈ chạy sau khi Review soát
+                                       # xanh — chưa báo Tester ngay khi ảnh xong.
     build: !reset null
     ports: !override []
     environment:
