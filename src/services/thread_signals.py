@@ -84,6 +84,34 @@ def doc(ten_tin_hieu: str, thread_id: str) -> int:
         return 0
 
 
+def doc_hoac_khong_ro(ten_tin_hieu: str, thread_id: str) -> int | None:
+    """Đọc bộ đếm — GIỐNG `doc()` khi Redis sống, KHÁC ở lúc Redis lỗi: trả
+    `None` (KHÔNG ĐỌC ĐƯỢC) thay vì gộp chung với `0` (chưa có tín hiệu).
+
+    🔴 Review bắt 24/08 (1B, cổng thu slot): `doc()` trả `0` cho CẢ "chưa
+    hỏi" LẪN "Redis chết" — với ES-01/O1-O4/guardrail (ngưỡng-tích-luỹ),
+    hướng đó ĐÚNG (0 luôn dưới ngưỡng, "không có tín hiệu" là hướng an
+    toàn). Nhưng 1B dùng `doc()==0` để quyết "được phép bắn gate lần này
+    không" — gộp "chưa hỏi" với "không biết" làm Redis chết ⟹ gate coi MỌI
+    lượt là lần đầu ⟹ bắn LẶP LẠI thay vì tối đa một lần/hội thoại. Đúng
+    câu mở đầu module này bị chính 1B vi phạm: "Sai an toàn = nghi ngờ thì
+    đi ĐẦY ĐỦ" — không biết trạng thái phải đi `day_du`, không phải "chưa hỏi".
+
+    KHÔNG đổi `doc()` — ba nơi gọi cũ (ES-01/O1-O4/guardrail) vẫn nhận
+    đúng hợp đồng `int` cũ, không ai phải sửa theo. Hàm này CHỈ phục vụ
+    nơi gọi cần phân biệt hai trạng thái đó để tự chọn hướng an toàn theo
+    đúng tính năng của MÌNH — 1B là nơi đầu tiên cần, không phải nơi cuối."""
+    try:
+        raw = get_default_client().get(_khoa(ten_tin_hieu, thread_id))
+        return int(raw) if raw else 0
+    except Exception as e:  # noqa: BLE001
+        _logger.warning(
+            "thread_signal_doc_khong_ro",
+            extra={"ten_tin_hieu": ten_tin_hieu, "thread_id": thread_id, "loi": repr(e)},
+        )
+        return None
+
+
 def dat_lai(ten_tin_hieu: str, thread_id: str) -> None:
     """Xoá bộ đếm về 0.
 

@@ -72,7 +72,7 @@ from src.observability.so_usage import ghi_usage
 from src.observability.tracing import get_tracer
 from src.services.complaint_intake import flag_human_handoff
 from src.services.emotion_signals import danh_gia_luot
-from src.services.thread_signals import doc as doc_tin_hieu
+from src.services.thread_signals import doc_hoac_khong_ro as doc_tin_hieu
 from src.services.thread_signals import tang as tang_tin_hieu
 from src.tools.base import ToolError
 
@@ -849,6 +849,13 @@ def run_agent_turn(
             # kể gốc + câu trả lời của khách là việc của model đọc lịch sử
             # hội thoại, tầng tất định này không có khả năng ghép ngữ cảnh
             # liên-lượt (đúng bất biến "phân loại theo TỪNG LƯỢT").
+            #
+            # 🔴 Review bắt 24/08: dùng `doc_hoac_khong_ro()` (KHÔNG phải
+            # `doc()`) — `== 0` CHỈ đúng khi Redis xác nhận "chưa hỏi thật".
+            # Redis lỗi trả `None`, `None == 0` là `False` ⟹ KHÔNG bắn, rơi
+            # xuống day_du — đúng hướng an toàn của module này ("nghi ngờ
+            # thì đi ĐẦY ĐỦ"). Dùng `doc()` thường (gộp lỗi vào 0) sẽ làm
+            # Redis chết ⟹ gate coi mọi lượt là lần đầu ⟹ bắn lặp lại.
             _tid_hieu_qua = thread_id or user_id
             if doc_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua) == 0:
                 tang_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua)

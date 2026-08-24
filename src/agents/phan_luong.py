@@ -98,10 +98,12 @@ TRA_LOI_NHE = (
 
 # ═══ 1B — CỔNG THU SLOT TẤT ĐỊNH (docs/giao-viec/2026-08-24-luong-chatbot-1A-1B.md) ═══
 #
-# NHÓM B — dấu hiệu SỞ HỮU/CÁ NHÂN + ĐỘNG TỪ GIAO DỊCH (đã xảy ra), HOẶC
-# "mất"/"bị mất"/"bị trừ" đứng NGAY TRƯỚC một khuôn số tiền (một chiều — PO-
-# agent đính chính 24/08: hai chiều sẽ bắt oan "...20k thì mất phí gì?", vì
-# "20k" chỉ cách "mất" một từ theo chiều ngược).
+# NHÓM B — (i) SỞ HỮU/CÁ NHÂN + ĐỘNG TỪ GIAO DỊCH (đã xảy ra) + TÍN HIỆU
+# KHIẾU NẠI TỐI THIỂU (thêm 24/08, Review bắt oan "tôi chuyển khoản thì phí
+# bao nhiêu" — sở hữu+động từ không đủ, câu hỏi chính sách cũng khớp), HOẶC
+# (ii) "mất"/"bị mất"/"bị trừ" đứng NGAY TRƯỚC một khuôn số tiền (một chiều
+# — PO-agent đính chính 24/08: hai chiều sẽ bắt oan "...20k thì mất phí
+# gì?", vì "20k" chỉ cách "mất" một từ theo chiều ngược).
 _SO_HUU = ("tôi", "toi", "của tôi", "cua toi", "mình", "minh",
            "tài khoản tôi", "tk tôi", "bên tôi", "ben toi")
 _DONG_TU_GD = ("chuyển", "chuyen", "bị trừ", "bi tru", "trừ tiền", "tru tien",
@@ -109,9 +111,30 @@ _DONG_TU_GD = ("chuyển", "chuyen", "bị trừ", "bi tru", "trừ tiền", "tr
                "thanh toán", "thanh toan")
 _MAT_NEO = ("mất", "mat", "bị mất", "bi mat", "bị trừ", "bi tru")
 
+# 🔴 Review bắt oan 24/08 (chạy phan_luong() thật, không phải đọc tĩnh):
+# "tôi chuyển khoản thì phí bao nhiêu vậy" / "tôi cần rút tiền, thủ tục thế
+# nào" — CÓ sở hữu+động từ giao dịch nhưng là câu hỏi CHÍNH SÁCH/THỦ TỤC,
+# không phải khiếu nại. Đặc tả PO duyệt: "câu chính sách tuyệt đối không
+# kích cổng". Sửa bằng SIẾT ĐIỀU KIỆN VÀO (thêm tín hiệu khiếu nại tối
+# thiểu bắt buộc), KHÔNG liệt kê từ ngoại lệ (phí/thủ tục/quy định...) —
+# danh sách loại trừ luôn thiếu một chữ, điều kiện vào chặt thì bỏ sót
+# đúng hướng đã chốt (thà bỏ sót còn hơn bắt oan).
+# "sao"/"mất" CỐ Ý KHÔNG có mặt dù ví dụ NEO cũ ("sao mất tiền vậy") dùng
+# chúng — [ĐO] Tester thêm ca sau bản vá đầu: "...thì làm sao" (thủ tục,
+# không phải khiếu nại — "sao" khớp bừa trong "làm sao"/"thế nào", cụm hỏi
+# trung tính rất phổ biến) và "...thì mất bao lâu" (hỏi THỜI LƯỢNG, "mất"
+# nghĩa "tốn" chứ không phải "mất tiền") đều bị bắt oan khi hai từ này còn
+# trong danh sách. "mất tiền" thật vẫn được NHÓM B(ii) bắt riêng (mất kề
+# ngay một khuôn số tiền) — không mất khả năng nhận diện, chỉ bớt mơ hồ.
+_TIN_HIEU_KHIEU_NAI = ("bị", "bi", "nhầm", "nham", "lỗi", "loi",
+                       "chưa nhận", "chua nhan", "không nhận", "khong nhan",
+                       "chưa thấy", "chua thay", "không thấy", "khong thay",
+                       "chưa tới", "chua toi", "chưa về", "chua ve")
+
 _re_word = lambda tu: re.compile(r"\b" + re.escape(tu) + r"\b")  # noqa: E731
 _RE_SO_HUU = [_re_word(t) for t in _SO_HUU]
 _RE_DONG_TU_GD = [_re_word(t) for t in _DONG_TU_GD]
+_RE_TIN_HIEU_KHIEU_NAI = [_re_word(t) for t in _TIN_HIEU_KHIEU_NAI]
 
 # Khuôn số tiền (mục 3.1) — CHỈ số viết bằng chữ số + đơn vị tuỳ chọn. Số viết
 # CHỮ THUẦN ("năm trăm nghìn", "nửa triệu") CỐ Ý không bóc — khai rõ, không cố
@@ -147,7 +170,8 @@ _MA_VE = re.compile(r"\bTCK-(?:\d{5}|[0-9a-f]{12})\b", re.IGNORECASE)
 def _nhom_b(s: str) -> bool:
     co_so_huu = any(p.search(s) for p in _RE_SO_HUU)
     co_dong_tu = any(p.search(s) for p in _RE_DONG_TU_GD)
-    if co_so_huu and co_dong_tu:
+    co_khieu_nai = any(p.search(s) for p in _RE_TIN_HIEU_KHIEU_NAI)
+    if co_so_huu and co_dong_tu and co_khieu_nai:
         return True
     # (ii) một chiều: neo "mất/bị mất/bị trừ" rồi mới tới khuôn số tiền,
     # trong cửa sổ ≤2 từ NGAY SAU neo — không xét chiều ngược.
