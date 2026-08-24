@@ -40,12 +40,14 @@ from src.agents.phan_luong import (
     DUONG_DAY_DU,
     DUONG_NHE,
     DUONG_THU_SLOT,
+    HOI_SANG_LOC_LUA_DAO,
     HOI_THIEU_SO_TIEN,
     HOI_THOI_GIAN_VA_SO_TIEN,
     TEN_TIN_HIEU_1B,
     TRA_LOI_NHE,
     co_du_de_thu_hep,
     la_khieu_nai_ca_nhan,
+    la_tra_loi_khang_dinh,
     phan_luong,
 )
 from src.agents.prompt import bam_mau_prompt, build_system_prompt
@@ -74,8 +76,9 @@ from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.pii import scrub_pii
 from src.observability.so_usage import ghi_usage
 from src.observability.tracing import get_tracer
-from src.services.complaint_intake import flag_human_handoff
+from src.services.complaint_intake import flag_human_handoff, hop_nhat_tin_hieu_gian_lan
 from src.services.emotion_signals import danh_gia_luot
+from src.services.thread_signals import dat_lai as xoa_tin_hieu
 from src.services.thread_signals import doc_hoac_khong_ro as doc_tin_hieu
 from src.services.thread_signals import tang as tang_tin_hieu
 from src.tools.base import ToolError
@@ -137,6 +140,9 @@ _TEN_TIN_HIEU_OTP_RESEND = "otp_resend_da_hoi"
 # KHÁC hẳn `_TEN_TIN_HIEU_OTP_RESEND` ở trên (thứ đó ghi "T0 ĐÃ HỎI rồi"). Hai
 # khoá, hai câu hỏi khác nhau — đừng gộp dù tên nghe gần nhau.
 _TEN_TIN_HIEU_DA_BI_OTP_CHAN = "da_bi_otp_chan"
+
+# ⑨ — "đã hỏi câu sàng lọc lừa đảo cho thread này rồi". Một lần/hội thoại.
+_TEN_TIN_HIEU_DA_HOI_SANG_LOC = "da_hoi_sang_loc"
 DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
 DUONG_CAN_OTP = "can_otp"
 
@@ -956,6 +962,45 @@ def run_agent_turn(
         )
     vua_xac_thuc_de_gui_lai = vua_xac_thuc_de_gui_lai and _co_bang_chung_bi_chan
 
+    # ── ⑨ + MẢNH 4 · THU NHẬN CÂU TRẢ LỜI SÀNG LỌC ──────────────────────────
+    # Lượt TRƯỚC đã hỏi câu sàng lọc (tín hiệu thread). Lượt này là câu trả lời.
+    #
+    # Đây là mảnh KHÔNG AI TÍNH GIÁ trong phiếu gốc: trước bản này
+    # `engine.evaluate()` chỉ được gọi ĐÚNG MỘT LẦN, với `description_raw` lúc
+    # tạo vé. FS-13 dù tồn tại cũng chỉ bắt được ca khách tự khai ngay trong mô
+    # tả đầu — mà khách gọi việc của mình là "chuyển nhầm" thì không bao giờ
+    # chạm tới. Tức tín hiệu chỉ bật khi ta đã không cần nó.
+    #
+    # HAI nguồn, hợp nhất:
+    #   ① `la_tra_loi_khang_dinh` — khách nói CÓ. Đó CHÍNH LÀ ngữ nghĩa FS-13,
+    #      suy ra từ NGỮ CẢNH HỎI-ĐÁP, không cần câu trả lời chứa từ khoá nào.
+    #   ② `engine.evaluate()` trên chính câu ấy — bắt câu trả lời giàu hơn
+    #      ("có, người ta gọi điện bảo em chuyển") và cả FS-09.
+    #
+    # XOÁ tín hiệu sau khi xử: một lần hỏi, một lần thu. Không xoá thì mọi lượt
+    # sau đều chạy lại một truy vấn DB không đổi kết quả.
+    # KHÔNG chặn lượt: đây là GHI NHẬN, không phải cổng. Hỏng thì lượt vẫn chạy.
+    _tid_sl_thu = thread_id or user_id
+    if doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu) not in (None, 0):
+        xoa_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu)
+        try:
+            _gop = hop_nhat_tin_hieu_gian_lan(
+                session,
+                thread_id=_tid_sl_thu,
+                utterance_text=message,
+                them_ma=["FS-13"] if la_tra_loi_khang_dinh(message) else None,
+            )
+            _logger.info(
+                "agent_turn_thu_sang_loc_lua_dao",
+                extra={"user_id": user_id, "thread_id": _tid_sl_thu,
+                       "tin_hieu_sau_gop": _gop},
+            )
+        except Exception:  # noqa: BLE001 — ghi nhận KHÔNG được làm hỏng lượt chat
+            _logger.exception(
+                "agent_turn_thu_sang_loc_loi",
+                extra={"user_id": user_id, "thread_id": _tid_sl_thu},
+            )
+
     # ── T0 · CỔNG THU SLOT SAU KHI XÁC THỰC OTP ─────────────────────────────
     # Chạy TRƯỚC phan_luong() (1B), độc lập với `PHAN_LUONG_BAT` — quyết định
     # "gọi model với gì" ở đây khác hẳn quyết định "lượt này cần bộ đồ nghề
@@ -1674,6 +1719,7 @@ def run_agent_turn(
     ticket_id = None
     should_escalate = None
     co_loi_otp_trong_luot = False
+    loai_khieu_nai = None
 
     for m in turn_messages:
         if not (isinstance(m, AIMessage) and m.tool_calls):
@@ -1690,6 +1736,11 @@ def run_agent_turn(
             if call["name"] == "create_ticket" and "ticket_id" in payload:
                 ticket_id = payload["ticket_id"]
                 should_escalate = payload.get("should_escalate")
+                # ⑨ — loại khiếu nại đọc từ `args`, KHÔNG từ `result`: payload
+                # trả về của create_ticket (src/tools/create_ticket.py:110-118)
+                # CỐ Ý không mang `complaint_type`. Ai đọc `result` sẽ thấy
+                # None và tưởng cơ chế này bất khả thi.
+                loai_khieu_nai = (call.get("args") or {}).get("complaint_type")
             # ⑧ · điểm gắn "lượt 1" — lượt này có tool nào bị CỔNG OTP chặn
             # không. Đọc GIÁ TRỊ TRẢ VỀ, không bắt exception: hai lỗi OTP
             # `return` một dict, KHÔNG raise (customer_tools.py:596-613) —
@@ -1894,6 +1945,18 @@ def run_agent_turn(
     reply_da_loc = _them_canh_bao_mao_danh(
         reply_da_loc, co_loi_otp=co_loi_otp_trong_luot, ticket_id=ticket_id
     )
+
+    # ⑨ · K2 — CÂU SÀNG LỌC LỪA ĐẢO, tất định, 0 token.
+    # Điều kiện bắn ĐỌC TỪ TẦNG NÀY, không giao model quyết: vé vừa tạo có
+    # `complaint_type == "wrong_recipient"`, và thread chưa từng được hỏi.
+    # Chuyên gia đòi hỏi ở MỌI ca chuyển nhầm — kể cả ca trông rõ ràng, vì
+    # chính ca rõ ràng mới là ca hay bị bỏ qua.
+    # Chèn SAU bộ lọc, cùng lý do ⑧ (xem chú thích ở `_them_canh_bao_mao_danh`).
+    if ticket_id is not None and loai_khieu_nai == "wrong_recipient":
+        _tid_sl = thread_id or user_id
+        if doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl) == 0:
+            tang_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl)
+            reply_da_loc = (reply_da_loc.rstrip() + "\n\n" + HOI_SANG_LOC_LUA_DAO).strip()
     tin_hieu_lo_chi_thi_ket_qua = tin_hieu_lo_chi_thi(reply, thread_id=thread_id or user_id)
     _kq_cuoi = {
         "reply": reply_da_loc,

@@ -142,6 +142,12 @@ class FraudEngine:
         self.tier_b = set(config["policy"]["tier_b"])
         kw = config["signals"]["FS-09"]["params"]["keyword_groups"]
         self._keywords = [_strip_diacritics(k) for group in kw.values() for k in group]
+        # FS-13 (ADR-048) — hai TẬP RIÊNG, phải khớp CẢ HAI. Giữ tách bạch chứ
+        # không gộp thành một danh sách: gộp là mất chính ràng buộc "đồng thời"
+        # mà ADR dựng ra để chống bắt oan.
+        p13 = config["signals"].get("FS-13", {}).get("params", {})
+        self._fs13_nguon = [_strip_diacritics(k) for k in p13.get("nguon_chi_dan", [])]
+        self._fs13_kenh = [_strip_diacritics(k) for k in p13.get("kenh_xa_la", [])]
 
     def _params(self, sid: str) -> dict:
         return self.cfg["signals"][sid]["params"]
@@ -163,6 +169,14 @@ class FraudEngine:
             text += " " + _strip_diacritics(tx.get("des") or "")
         if any(k in text for k in self._keywords):
             fired.add("FS-09")
+
+        # FS-13 — ĐỒNG THỜI ① nguồn chỉ dẫn bên thứ ba VÀ ② kênh xa lạ.
+        # `and` chứ không `or`: thiếu ② thì "chồng tôi bảo chuyển" và "shop
+        # hướng dẫn chuyển khoản" đều bật, và cả hai đều KHÔNG phải lừa đảo.
+        if (self._fs13_nguon and self._fs13_kenh
+                and any(k in text for k in self._fs13_nguon)
+                and any(k in text for k in self._fs13_kenh)):
+            fired.add("FS-13")
 
         # FS-11 — lịch sử khiếu nại của chính khách
         p11 = self._params("FS-11")

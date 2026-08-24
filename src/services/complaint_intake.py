@@ -133,6 +133,64 @@ def create_ticket_with_fraud_check(
     )
 
 
+def hop_nhat_tin_hieu_gian_lan(
+    session: Session,
+    *,
+    thread_id: str,
+    utterance_text: str,
+    them_ma: list[str] | None = None,
+) -> list[str] | None:
+    """MẢNH 4 (⑨/FS-13) — chấm tín hiệu gian lận trên MỘT LƯỢT SAU và HỢP NHẤT
+    vào khiếu nại đã tạo của chính thread đó.
+
+    Trước bản này, `engine.evaluate()` chỉ được gọi ĐÚNG MỘT LẦN, với
+    `utterance_text=description_raw` lúc TẠO VÉ. Hệ quả đo được: FS-13 dù có
+    tồn tại cũng chỉ bắt được ca khách TỰ KHAI "có người hướng dẫn" ngay trong
+    mô tả đầu — mà khách gọi việc của mình là "chuyển nhầm" thì không bao giờ
+    chạm tới nó. Tức tín hiệu chỉ bật khi ta đã không cần nó.
+
+    Trả danh sách tín hiệu SAU hợp nhất, hoặc `None` nếu không tìm thấy khiếu
+    nại nào của thread (không phải lỗi — thread chưa tạo vé).
+
+    🔴 HỢP NHẤT, TUYỆT ĐỐI KHÔNG GHI ĐÈ. Lượt sau gọi `evaluate()` với
+    `tx=None`, nên FS-01…08/FS-12 KHÔNG tính lại được (chúng cần giao dịch).
+    Gán thẳng `complaint.fraud_signals = fired_moi` sẽ XOÁ SẠCH tín hiệu bắt
+    lúc tạo vé — **kể cả FS-06, tín hiệu DUY NHẤT đang escalate** — và xoá
+    không lỗi, không log, không ai biết. Union là idempotent: gọi lại bao
+    nhiêu lần cũng cho cùng kết quả.
+
+    Khoá theo `Complaint.thread_id` (ADR-044), KHÔNG đoán theo mốc thời gian.
+    ⚠️ KHAI GIỚI HẠN: một thread có thể mang nhiều khiếu nại; hàm này chọn cái
+    MỚI NHẤT theo `created_at`. Ở đường gọi hiện tại điều đó là chính xác theo
+    cấu trúc — cổng ⑨ bắn TỐI ĐA MỘT LẦN mỗi thread, ngay sau một `create_ticket`
+    — nên "mới nhất" chính là vé vừa tạo. Nếu sau này có đường gọi khác, phải
+    đọc lại câu này trước khi dùng.
+    """
+    complaint = session.scalar(
+        select(Complaint)
+        .where(Complaint.thread_id == thread_id)
+        .order_by(Complaint.created_at.desc())
+        .limit(1)
+    )
+    if complaint is None:
+        return None
+
+    engine = _build_engine(session)
+    fired = engine.evaluate(
+        user_id=complaint.user_id,
+        tx=None,  # lượt sau không gắn với một giao dịch cụ thể nào
+        complaint_at=complaint.created_at,
+        utterance_text=utterance_text,
+        otp_disclosed=False,  # đã tính lúc tạo vé; KHÔNG hạ cờ cũ ở đây
+    )
+    cu = list(complaint.fraud_signals or [])
+    gop = sorted(set(cu) | set(fired) | set(them_ma or []))
+    if gop != sorted(set(cu)):
+        complaint.fraud_signals = gop
+        session.flush()
+    return gop
+
+
 def flag_human_handoff(
     session: Session,
     *,

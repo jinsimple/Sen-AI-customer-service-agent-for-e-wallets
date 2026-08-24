@@ -515,6 +515,60 @@ HOI_THOI_GIAN_VA_SO_TIEN = (
     "sáng/chiều/tối) giúp mình nhé."
 )
 
+# ⑨ · K2 (25/08) — CÂU SÀNG LỌC LỪA ĐẢO. Hằng số, 0 token.
+#
+# Chuyên gia CSKH: phải hỏi ở MỌI ca chuyển nhầm, KỂ CẢ ca trông rõ ràng — vì
+# một phần đáng kể ca "chuyển nhầm" thật ra là ca BỊ LỪA, khách khai là nhầm vì
+# xấu hổ. Hai loại cần xử lý NGƯỢC nhau: nhầm thì liên hệ người nhận; bị lừa thì
+# TUYỆT ĐỐI không liên hệ, phải đi trình báo trong giờ vàng.
+#
+# 🔴 HỎI SỰ KIỆN KHÁCH QUAN, KHÔNG HỎI KẾT LUẬN. "bạn có bị lừa không" là hỏi
+# kết luận — khách thấy bị nghi ngờ sẽ đóng lại, và ta mất luôn dữ kiện. Câu này
+# hỏi một việc đã xảy ra hoặc không, khách trả lời được mà không phải tự nhận
+# mình bị lừa.
+#
+# Khung mở BẮT BUỘC ("hỏi thêm một ý để hỗ trợ đúng hướng") — không phải phép
+# lịch sự: nó nói cho khách biết VÌ SAO đang bị hỏi, nếu không câu hỏi này đứng
+# ngay sau lúc báo mã hồ sơ sẽ nghe như một cuộc thẩm vấn.
+HOI_SANG_LOC_LUA_DAO = (
+    "Mình hỏi thêm một ý để hỗ trợ bạn đúng hướng: lần này có ai nhắn tin hoặc "
+    "gọi điện hướng dẫn bạn chuyển khoản không ạ?"
+)
+
+# Bộ dò câu TRẢ LỜI KHẲNG ĐỊNH cho câu trên. CHỈ chạy khi tầng gọi biết chắc
+# vừa hỏi (tín hiệu thread) — ngoài ngữ cảnh ấy nó vô nghĩa.
+#
+# 🔴 PHỦ ĐỊNH XÉT TRƯỚC, và xét là ĐỦ để loại. "không có ai gọi cả" chứa "có" —
+# bắt nó thành khẳng định là gắn cờ nghi lừa đảo lên một khách vừa nói KHÔNG.
+# Thà BỎ SÓT: bỏ sót ⟹ mất một tín hiệu ghi nhận; bắt oan ⟹ hồ sơ khách mang
+# nhãn sai, và đó là nhãn về việc họ bị lừa.
+# 🔴 HAI DANH SÁCH NÀY CÓ HỒ SƠ RỦI RO NGƯỢC NHAU — đọc trước khi sửa bên nào.
+#   nới PHỦ ĐỊNH   ⟹ nhiều câu bị coi là "không" ⟹ BỎ SÓT tín hiệu. Phiền.
+#   nới KHẲNG ĐỊNH ⟹ gắn oan nhãn NGHI LỪA ĐẢO lên khách vừa nói KHÔNG. Hỏng thật.
+# ⟹ Phủ định được phép rộng tay. Khẳng định thì không. Bất đối xứng CÓ CHỦ ĐÍCH.
+#
+# [ĐO 25/08] bản đầu của tôi thiếu "đâu"/"làm gì có" ⟹ "có ai đâu" và "làm gì có
+# ai" — HAI CÂU PHỦ ĐỊNH — bị đọc thành KHẲNG ĐỊNH. Tự bắt bằng ca tự dựng, không
+# cổng nào của dự án thấy. Tiếng Việt phủ định bằng hậu tố ("...đâu") và bằng cụm
+# tách rời ("làm gì có"), không chỉ bằng tiền tố "không".
+_PHU_DINH_SANG_LOC = ("không", "khong", "chưa", "chua", "chả", "cha",
+                      "chẳng", "chang", "đâu có", "dau co", "đâu", "dau",
+                      "làm gì có", "lam gi co", "nào có", "nao co")
+_KHANG_DINH_SANG_LOC = ("có", "co", "đúng", "dung", "vâng", "vang", "ừ", "u",
+                        "phải", "phai", "đúng rồi", "dung roi")
+_RE_PHU_DINH_SANG_LOC = [_re_word(t) for t in _PHU_DINH_SANG_LOC]
+_RE_KHANG_DINH_SANG_LOC = [_re_word(t) for t in _KHANG_DINH_SANG_LOC]
+
+
+def la_tra_loi_khang_dinh(cau: object) -> bool:
+    """Câu này có phải lời KHẲNG ĐỊNH cho câu sàng lọc ⑨ không."""
+    if not isinstance(cau, str):
+        return False
+    s = _chuan_hoa(cau)
+    if any(p.search(s) for p in _RE_PHU_DINH_SANG_LOC):
+        return False
+    return any(p.search(s) for p in _RE_KHANG_DINH_SANG_LOC)
+
 # Băm của CHÍNH FILE NÀY, tính lúc import. KHÔNG gõ tay.
 #
 # Bản đầu tôi gõ cứng `"0885bab00a04"` — băm của một file NHÁP ở nơi khác. Đúng

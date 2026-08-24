@@ -135,6 +135,34 @@ signals:
         gia_danh_cskh: ["nhan vien vi goi", "tong dai goi", "nang cap tai khoan", "xac minh tai khoan"]
         qua_hai_quan: ["phi hai quan", "qua tang tu nuoc ngoai", "gui qua ve viet nam"]
 
+  FS-13:
+    name: co_nguoi_huong_dan_chuyen_khoan
+    # 🔴 KHÔNG có tier. CỐ Ý — PO thật chốt 25/08: FS-13 CHỈ GHI NHẬN, không
+    # escalate. FS-06 là tín hiệu về TÀI KHOẢN BỊ CHIẾM; FS-13 là tín hiệu về
+    # PHÂN LOẠI KHIẾU NẠI. Ghép hai thứ vào một danh sách escalate là nhập lại
+    # đúng hai trục dự án đã cố tách. Đường ưu tiên cho ca lừa đảo đi qua
+    # ADR-050 (priority + đường tư vấn), KHÔNG qua cổng escalate.
+    # ⟹ `policy.tier_a` / `policy.tier_b` GIỮ NGUYÊN, không thêm FS-13.
+    assumption: true
+    rule: >
+      ADR-048. Bật khi lời khách mang ĐỒNG THỜI hai thành phần:
+      ① BÊN THỨ BA là nguồn chỉ dẫn (ai đó hướng dẫn/yêu cầu/thúc giục chuyển)
+      VÀ ② KÊNH XA LẠ (điện thoại/tin nhắn/mạng xã hội/người lạ).
+      Thiếu một trong hai là KHÔNG bật — ranh giới chống bắt oan do Lead chốt:
+      "chồng tôi bảo chuyển" trượt ②; "shop hướng dẫn chuyển khoản" trượt ②.
+      Quan hệ với FS-09: CHỦ Ý CHỒNG NHAU, không trùng lặp. FS-09 là lưới HẸP
+      bắt TỪ KHOÁ của 5 kịch bản đã biết; FS-13 là lưới RỘNG bắt CẤU TRÚC
+      (bên-thứ-ba + kênh-xa-lạ). Hai tín hiệu cùng bật là ĐÚNG THIẾT KẾ.
+      So khớp trên văn bản đã bỏ dấu + lowercase, cụm ĐỦ DÀI.
+    params:
+      nguon_chi_dan: ["huong dan toi chuyen", "huong dan chuyen khoan",
+                      "bao toi chuyen", "keu toi chuyen", "yeu cau toi chuyen",
+                      "bat toi chuyen", "giuc toi chuyen", "nho toi chuyen",
+                      "chi toi chuyen", "duoc huong dan chuyen"]
+      kenh_xa_la: ["goi dien", "goi cho toi", "nhan tin", "tin nhan", "zalo",
+                   "facebook", "messenger", "telegram", "nguoi la", "so la",
+                   "so dien thoai la", "tong dai", "mang xa hoi"]
+
   FS-10:
     name: khach_khai_da_dua_otp
     tier: A
