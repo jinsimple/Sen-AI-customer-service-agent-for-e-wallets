@@ -95,6 +95,13 @@ Latency đo bằng bộ lệnh cố định v2 (`aa020d3`).
 | Trải nghiệm (15) | **KHÔNG ĐO ĐƯỢC** — judge chưa hiệu chuẩn (chờ 30 nhãn PO) | — | *(loại khỏi mẫu số)* |
 | Hiệu năng (10) | **bộ lệnh cố định v2 · chế độ `don` · lặp 3** (`aa020d3`): trung vị 5,9–9,9s, dải rộng nhất 7,3–18,3s, **0 ca vượt 30s**. Câu kết: *không có vấn đề latency; muốn tối ưu thì tối ưu SỐ VÒNG ReAct, không phải kích thước prompt* (N3 nặng token thứ nhì nhưng chậm nhất vì gọi 2 tool; D3 nặng token nhất lại nhanh hơn) | 100% | **10,0** |
 
+> 🔴 **NIÊM 24/08 — MỌI SỐ Recall@4 DƯỚI ĐÂY ĐÃ HẾT HẠN.**
+> `47,9%` và `48,9%` đo trên kho **378 chunk**, băm `11b11b494a6a`.
+> Ngày 24/08 nạp thêm tài liệu **thời hạn xử lý tra soát** (`DOC-234adbc3f66e`, 3 chunk) ⟹ kho
+> thành **381 chunk**, băm `e11ca51e5346`. **Số cũ KHÔNG được dùng làm neo cho bất kỳ phép đo nào
+> trên kho sau 24/08.** Chưa đo lại — cố ý, để dành chi phí. Ai cần số hiện hành **phải đo**,
+> không suy từ số cũ. *(Giữ nguyên số cũ tại chỗ theo Luật P — niêm, không xoá.)*
+
 ### ➡️ **FIN-05 Benchmark v0.4 (16/08 tối) = 74,57 / 85 điểm đo được = 87,7%** ⚠️ kèm 2 finding mở
 *(số trục Truy-hồi theo script tester `6eef7e1` — nguồn SỐ là script, spec chỉ là nguồn CÔNG
 THỨC: TB dấu/không-dấu Recall@4 = 47,9% → 9,57/20; mẫu số ghim ToS 2/10 · FAQ 21/37; script in
