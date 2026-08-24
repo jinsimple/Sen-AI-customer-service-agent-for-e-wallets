@@ -90,12 +90,42 @@ pytestmark = [
 ]
 
 
-def _chat(cau: str, thread: str) -> dict:
+def _login() -> str:
+    """Đăng nhập + xác thực OTP phiên MỘT LẦN, trả `access_token`.
+
+    🔴 [ĐO 24/08, cùng cơ chế đã vá ở A2] `main.py:645` suy `thread_id` TỪ
+    `user_id:iat` của JWT — trường `thread_id` trong body bị BỎ QUA LẶNG LẼ
+    (ADR-044). Đăng nhập lại giữa hai lượt CÙNG kịch bản (R3, R4) sinh `iat`
+    MỚI ⟹ hai lượt rơi vào HAI thread khác nhau dù truyền cùng `thread` —
+    R3/R4 khi đó không bao giờ quan sát được nhánh cần đo (lượt 2 luôn là
+    lượt ĐẦU của một hội thoại rỗng). Đồng thời thiếu OTP-xác-thực khiến các
+    tool tra dữ liệu bị `_OTP_REQUIRED_ERROR` — dùng lại NGUYÊN đường chính
+    danh của `test_a2_dong_y_truoc_khi_tao_ve.py::_login()`."""
     ma = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
-        "h={'Authorization':'Bearer '+r.json()['access_token']};"
+        "tok=r.json()['access_token'];"
+        "h={'Authorization':'Bearer '+tok};"
+        f"r=c.post('{API}/auth/otp/request',headers=h);"
+        "sid=r.json()['session_id'];code=r.json()['otp_code'];"
+        f"r=c.post('{API}/auth/otp/verify',headers=h,json={{'session_id':sid,'otp_code':code}});"
+        "assert r.json().get('otp_verified') is True, 'OTP verify thất bại: '+r.text;"
+        "print(r.json()['access_token'])"
+    )
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, f"đăng nhập/OTP hỏng: {(r.stderr or r.stdout)[-400:]}"
+    return r.stdout.strip().splitlines()[-1]
+
+
+def _chat(cau: str, token: str, thread: str) -> dict:
+    # `thread_id` vẫn gửi trong body — vô hại, nhưng nối lượt thật = dùng LẠI
+    # cùng `token` (xem `_login()`), không phải cùng biến `thread` truyền tay.
+    ma = (
+        "import httpx,json;"
+        "c=httpx.Client(timeout=300);"
+        f"h={{'Authorization':'Bearer '+{token!r}}};"
         f"r=c.post('{API}/agent/chat',json={{'message':{cau!r},'thread_id':{thread!r}}},headers=h);"
         "print(json.dumps({'http':r.status_code,'than':r.json()},ensure_ascii=False))"
     )
@@ -117,7 +147,7 @@ def _thread() -> str:
 
 def test_r1_thieu_hai_slot_chi_hoi_mot_thu():
     """Khách không cho số tiền lẫn thời gian — reply chỉ được hỏi ĐÚNG MỘT trục."""
-    o = _chat("Tôi bị mất tiền trong ví, giúp tôi với.", _thread())
+    o = _chat("Tôi bị mất tiền trong ví, giúp tôi với.", _login(), _thread())
     truc = _truc_hoi(o["reply"])
     assert len(truc) <= 1, (
         f"Thiếu số tiền VÀ thời gian mà reply hỏi {len(truc)} trục CÙNG LƯỢT: {truc}\n"
@@ -136,7 +166,7 @@ def test_r1_cau_hoi_chinh_sach_khong_bi_hoi_slot():
     Thiếu ca này, một bản vá 'luôn hỏi cho đủ slot' sẽ làm ca dương ở trên
     xanh VÀ làm agent tra-hỏi-slot ngay cả khi khách chỉ hỏi thông tin chung
     — đúng Luật 2 (đối chứng chiều ngược)."""
-    o = _chat("Phí chuyển tiền trong ví là bao nhiêu vậy?", _thread())
+    o = _chat("Phí chuyển tiền trong ví là bao nhiêu vậy?", _login(), _thread())
     truc = _truc_hoi(o["reply"])
     assert not truc, (
         f"Câu hỏi CHÍNH SÁCH CHUNG mà agent vẫn hỏi slot điều tra: {truc}\n"
@@ -154,7 +184,7 @@ def test_r2_hoi_ma_giao_dich_kem_duong_di():
     o = _chat(
         "Tôi có một giao dịch bị lỗi nhưng không nhớ số tiền hay ngày giờ gì cả, "
         "giúp tôi tra được không?",
-        _thread(),
+        _login(), _thread(),
     )
     n = o["reply"].lower()
     if not any(tk in n for tk in _TRUC["ma_gd"]):
@@ -176,11 +206,12 @@ def test_r2_hoi_ma_giao_dich_kem_duong_di():
 def test_r3_lan_hoi_lai_thu_hai_doi_truc():
     """Hai lượt hỏi-lại liên tiếp trong CÙNG hội thoại không được hỏi cùng trục."""
     th = _thread()
-    o1 = _chat("Tôi chuyển nhầm tiền cho người lạ.", th)
+    tok = _login()  # MỘT lần cho cả hai lượt — nối thật cùng thread (xem _login())
+    o1 = _chat("Tôi chuyển nhầm tiền cho người lạ.", tok, th)
     truc1 = _truc_hoi(o1["reply"])
     if not truc1:
         pytest.skip("Lượt 1 không hỏi trục nào (có thể đã tạo ticket/khác nhánh) — không quan sát được R3.")
-    o2 = _chat("Tôi không nhớ rõ, để tôi coi lại đã.", th)
+    o2 = _chat("Tôi không nhớ rõ, để tôi coi lại đã.", tok, th)
     truc2 = _truc_hoi(o2["reply"])
     if not truc2:
         pytest.skip(
@@ -205,10 +236,11 @@ def test_r4_tom_tat_slot_truoc_create_ticket():
     A2 (`test_a2_dong_y_truoc_khi_tao_ve.py`) canh 'có chờ đồng ý không' — vật
     khác. Ca này canh NỘI DUNG của chính câu chờ-đồng-ý/xác nhận đó."""
     th = _thread()
-    o1 = _chat("Tôi chuyển nhầm 500 nghìn cho người lạ hôm qua chiều, mở khiếu nại giúp tôi.", th)
+    tok = _login()  # MỘT lần cho cả hai lượt — nối thật cùng thread (xem _login())
+    o1 = _chat("Tôi chuyển nhầm 500 nghìn cho người lạ hôm qua chiều, mở khiếu nại giúp tôi.", tok, th)
     reply = o1["reply"]
     if "tickets" not in json.dumps(o1["tool"]) and "create_ticket" not in o1["tool"]:
-        o2 = _chat("Đúng rồi, tạo giúp tôi.", th)
+        o2 = _chat("Đúng rồi, tạo giúp tôi.", tok, th)
         reply = o2["reply"] if not o1["reply"] else o1["reply"] + "\n" + o2["reply"]
     n = (o1["reply"] + " " + reply).lower()
     co_tien = bool(re.search(r"\d[\d.,]*\s*(nghìn|k|đ|vnd|triệu)", n))
@@ -228,7 +260,7 @@ def test_r4_tom_tat_slot_truoc_create_ticket():
 
 def test_r5_hoi_thoi_gian_bang_moc_neo():
     """Câu hỏi thời gian không được đòi giờ chính xác ('mấy giờ') — phải cho mốc neo."""
-    o = _chat("Tôi chuyển tiền nhầm 300 nghìn, không nhớ chi tiết lắm.", _thread())
+    o = _chat("Tôi chuyển tiền nhầm 300 nghìn, không nhớ chi tiết lắm.", _login(), _thread())
     n = o["reply"].lower()
     if "thoi_gian" not in _truc_hoi(o["reply"]):
         pytest.skip("Reply không hỏi trục thời gian ở lượt này — không quan sát được R5.")

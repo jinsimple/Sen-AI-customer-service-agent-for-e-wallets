@@ -57,7 +57,7 @@
    "id": "S9",
    "cau": "mình bị trừ 300k hôm qua rồi",
    "ky_vong": "day_du",
-   "vi_sao": "ĐẠT ① ('bị trừ' cạnh '300k' ⟹ (ii)), ĐỦ hai slot bắt buộc (300k + hôm qua), KHÔNG có mã giao dịch — mã không bắt buộc, vẫn phải day_du, KHÔNG bị chặn lại hỏi mã"
+   "vi_sao": "Nhận diện ý định vẫn ĐẠT — KHÔNG có đại từ sở hữu nên TRƯỢT (i), nhưng 'bị trừ' đứng NGAY CẠNH '300k' (cửa sổ ≤2 từ) ⟹ ĐẠT (ii), khớp đúng khuôn S3b. Số tiền (slot bắt buộc DUY NHẤT) đã CÓ (300k) ⟹ day_du ngay. KHÔNG có mã giao dịch — mã không bắt buộc, không bị chặn lại hỏi mã."
   },
   {
    "id": "S11",
@@ -71,7 +71,7 @@
  "cach_dung": "python eval/cong_phan_luong.py --luat <path phan_luong.py> — tự nạp file này khi tồn tại.",
  "🔴_luu_y_kiem_dinh": "Mẫu S1/S2/S2b/S3/S9 kỳ vọng day_du — VẪN ĐÚNG hôm nay (24/08, TRƯỚC 1B.2) vì toàn bộ hệ thống hiện tại chỉ có nhe/day_du, chưa có thu_slot, nên chúng PASS TRÙNG với hành vi mặc định cũ, KHÔNG PHẢI bằng chứng nhánh mới hoạt động đúng. Mẫu S3b/S4/S5/S6 kỳ vọng thu_slot SẼ ĐỎ hôm nay (đúng, vì nhánh chưa tồn tại) — đỏ đúng lý do, không phải bug. Đối xử như A2: land trước, xanh sau khi 1B.2 vá.",
  "luat": "hàm phan_luong(cau) trả (duong: str, ly_do: str, ...) — chấp nhận tuple 2 hoặc 4 phần tử (nhánh thu_slot có thêm slot_hien_co/slot_thieu theo thiết kế Lead mục 1); cổng chỉ đọc hai phần tử đầu.",
- "bam_nhan": "c8c742fd7f19",
+ "bam_nhan": "936854122c1b",
  "thuat_toan_bam": "sha256[:12] của json.dumps(d, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ 'bam_nhan' và 'thuat_toan_bam'",
  "🔴_LUAT_SLOT_DOI_24_08": "PO-agent chốt lại sau khi cổng thật bác thiết kế gốc: 36/124 ca âm gốc vỡ dưới luật hai-slot (thời gian+số tiền), cả 36 đều so_tien=True — chuyên gia xếp SỐ TIỀN là neo mạnh nhất. Slot BẮT BUỘC DUY NHẤT nay là SỐ TIỀN. Mốc thời gian: bóc-nếu-có, KHÔNG BAO GIỜ là lý do hỏi. Mã giao dịch: có mã ⟹ ĐÈ TẤT CẢ, đi day_du ngay dù thiếu số tiền (thu-hẹp-theo-thời-gian đã có chủ là đường multiple_matches trong contract, không phải việc của 1B)."
 }

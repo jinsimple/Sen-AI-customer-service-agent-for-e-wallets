@@ -132,6 +132,15 @@ def write_report(results: list[dict], out_path: Path) -> None:
     lines = [
         f"# Báo cáo eval golden_set — {now_stamp()}",
         "",
+        "> ⚠️ **Đường eval dùng sentinel `_ALWAYS_FRESH`** (`run_agent_turn`, "
+        "`graph.py`) — OTP phiên LUÔN được coi là vừa xác thực xong. Không ca "
+        "nào ở đây đo được hành vi khi OTP thiếu/hết hạn; trục đó chỉ đo được "
+        "bằng chạy thật (`fin05do`/production) — xem finding A2 24/08.",
+        "> ⚠️ **Harness gọi thẳng `run_agent_turn()` trong tiến trình** — JWT/"
+        "rate-limit/audit-log KHÔNG nằm trên đường đo này. Kết luận về các "
+        "tầng đó từ kết quả eval là kết luận SAI CHỖ ĐO; xem "
+        "`tests/test_api/` cho bộ test có đi qua các tầng đó.",
+        "",
         f"**Tổng:** {passed}/{total} pass ({passed / total * 100:.1f}%)" if total else "Không có case nào.",
         f"**Cần mô phỏng thêm lượt hội thoại (Hướng 1 — xem eval/_harness.py::run_case_turns_adaptive):** "
         f"{len(extra_turn_cases)}/{total} case (trung bình "
