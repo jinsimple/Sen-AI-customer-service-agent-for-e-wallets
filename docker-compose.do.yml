@@ -58,12 +58,14 @@ services:
     # (không `--build`), Compose so digest thấy `latest` đã đổi có thể tự ý
     # recreate ngăn DEMO ngoài ý muốn. Ghim TAG RIÊNG cho từng lượt dựng đo —
     # đổi dòng dưới mỗi khi dựng lại, không bao giờ dùng `fin05-backend` trơn.
-    image: fin05-backend:do-394c7d5   # HEAD lúc dựng: 394c7d5 (cd5c057 + không chạm src/contracts
-                                       # sau đó). Ảnh cho 1B.4 — lượt đo CUỐI đợt: cổng thu_slot xoá
-                                       # mẫu câu hỏi-ba-thứ, giờ hỏi ĐÚNG MỘT thứ (số tiền), khớp R1.
-                                       # Contract lên v2.1.2. Chạy trên FLASH (deepseek-v4-flash-0731
-                                       # — cửa sổ ngoại lệ pro đã đóng ở 32e6a9e, ĐỪNG lẫn số 1B.4
-                                       # với 3 lượt A2 chạy trên pro).
+    image: fin05-backend:do-2dd5c3e   # HEAD lúc dựng: 2dd5c3e — ẢNH CUỐI CỦA CẢ HAI ĐỢT (1A+1B).
+                                       # Mang: prompt 1A (R1-R5 + ADR-047) + cổng 1B sau 5 vòng vá
+                                       # (bắt oan chính sách · S8 đổi hướng · cảm xúc mạnh · mẫu câu
+                                       # R1 · số viết chữ, chốt "nửa/rưỡi" 24/08). Contract v2.1.2.
+                                       # Chạy trên FLASH — cửa sổ ngoại lệ pro đã đóng ở 32e6a9e.
+                                       # Tester chạy 5 mục theo thứ tự đã hẹn, S8 CUỐI CÙNG (tắt
+                                       # Redis — chạy giữa chuyến làm ca sau đỏ vì hạ tầng, không
+                                       # vì sản phẩm). Chuyến chạy ĐÓNG ĐỢT.
     build: !reset null
     ports: !override []
     environment:
