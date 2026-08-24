@@ -41,9 +41,9 @@ from src.agents.phan_luong import (
     DUONG_NHE,
     DUONG_THU_SLOT,
     HOI_THIEU_SO_TIEN,
+    HOI_THOI_GIAN_VA_SO_TIEN,
     TEN_TIN_HIEU_1B,
     TRA_LOI_NHE,
-    HOI_THOI_GIAN_VA_SO_TIEN,
     co_du_de_thu_hep,
     la_khieu_nai_ca_nhan,
     phan_luong,
@@ -52,6 +52,8 @@ from src.agents.prompt import bam_mau_prompt, build_system_prompt
 from src.agents.tools.customer_tools import TurnGuard, _otp_fresh, build_customer_tools
 from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
+    CONG_OTP_NHOM_B_BAT,
+    CONG_T0_BAT,
     DATABASE_URL,
     DB_KIND,
     KENH_HO_TRO_KHAC,
@@ -61,9 +63,7 @@ from src.config import (
     LLM_MODEL,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
-    CONG_OTP_NHOM_B_BAT,
     OTP_VIEW_MAX_MINUTES,
-    CONG_T0_BAT,
     PHAN_LUONG_BAT,
     SUY_LUAN_BAT,
 )
