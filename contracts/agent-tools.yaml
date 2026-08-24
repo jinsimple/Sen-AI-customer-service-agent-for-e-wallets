@@ -15,8 +15,16 @@
 #   gọi thẳng build_customer_tools() rồi so tên tool với danh sách dưới.
 #   Thêm/xoá/đổi tên tool mà quên sửa file này  →  test ĐỎ.
 
-version: "2.1.0"
+version: "2.1.1"
 source: "Sinh ngược từ src/agents/tools/customer_tools.py @ 2026-08-13"
+# v2.1.1 (24/08) — Review đọc diff ADR-047 phát hiện ghi_chu của `scope` ở
+# create_ticket còn khai "1 trong 3", trong khi CHECK constraint DB và
+# contracts/authority-matrix.yaml (mục `scopes`) đã có giá trị thứ 4
+# `unknown` từ ADR-029 (PO thật duyệt 17/08, "contract phải khai đủ 4 giá
+# trị"). ADR-029 mục 4 khi land chỉ chạm authority-matrix.yaml — bỏ sót
+# đúng ghi_chu này ở agent-tools.yaml, sống sót 7 ngày không ai đọc thấy.
+# KHÔNG phải quyết định mới — thi hành nốt quyết định ĐÃ DUYỆT 17/08 cho
+# file còn lại của cùng một quyết định, không cần ADR mới/PO duyệt lại.
 
 # ---------------------------------------------------------------------------
 # Quy tắc chung áp cho MỌI tool
@@ -72,7 +80,7 @@ tools:
     mo_ta: "Tạo ticket khiếu nại chính thức"
     input:
       complaint_type: {type: string,  required: true,  ghi_chu: "1 trong 4 loại taxonomy"}
-      scope:          {type: string,  required: true,  ghi_chu: "1 trong 3 phạm vi giao dịch"}
+      scope:          {type: string,  required: true,  ghi_chu: "1 trong 3 phạm vi giao dịch thật (internal_wallet/from_bank/to_bank), hoặc \"unknown\" khi đã hỏi hết số lần cho phép mà khách vẫn không xác định được — KHÔNG tự đoán bừa 1 trong 3 giá trị thật (ADR-029)"}
       description_raw:
         type: string
         required: true

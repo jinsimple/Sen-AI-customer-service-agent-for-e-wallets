@@ -1,6 +1,6 @@
 {
   "contracts": {
-    "agent-tools.yaml": "cd3d15a5c90a",
+    "agent-tools.yaml": "58f71f0a1ada",
     "authority-matrix.yaml": "b185242c0d53",
     "resolution-state-machine.yaml": "a39f2b84ec5d"
   },
