@@ -240,6 +240,19 @@ _THOI_GIAN = re.compile(
     r"|hôm nay|hom nay|hôm qua|hom qua|hôm kia|hom kia|hôm trước|hom truoc"
     r"|sáng nay|sang nay|chiều nay|chieu nay|tối nay|toi nay"
     r"|sáng qua|sang qua|chiều qua|chieu qua|tối qua|toi qua"
+    # 🔴 Đ3 (phiếu "OTP trước token" ⑦, 24/08) — hai khuôn dưới đây THIẾU, đo
+    # được: T0 hỏi lại đúng thứ khách vừa nói 2/8 lần, và "tuần trước" /
+    # "khoảng 3 giờ chiều" là hai ca đó. Cùng họ lỗi với chính khối chú thích
+    # ngay trên (hệ thống DẠY khách một khuôn rồi không đọc được khuôn ấy).
+    #
+    # "tuần trước": cụm 2 từ, không có nghĩa nào khác trong tiếng Việt ⟹ an
+    # toàn. "2 tuần trước"/"mấy tuần trước" tự khớp vì CHỨA nguyên cụm này.
+    r"|tuần trước|tuan truoc"
+    # "<số> giờ|h + sáng/chiều/tối/trưa/đêm" — buổi trong ngày là BẮT BUỘC,
+    # không nhận "3 giờ" trần: "3 giờ" một mình còn là KHOẢNG THỜI LƯỢNG
+    # ("đợi 3 giờ đồng hồ"), không phải mốc. Đúng bài học "cụm đủ dài" mà
+    # "sao"/"mất" (1B) đã trả giá — thà BỎ SÓT còn hơn BẮT OAN.
+    r"|\d{1,2}\s*(giờ|gio|h)\s*(sáng|sang|chiều|chieu|tối|toi|trưa|trua|đêm|dem)\b"
     r"|thứ\s*[2-7]\b|thu\s*[2-7]\b|t[2-7]\b"
     r"|thứ\s*(hai|ba|tư|tu|năm|nam|sáu|sau|bảy|bay)\b|thu\s*(hai|ba|tu|nam|sau|bay)\b",
     re.IGNORECASE,

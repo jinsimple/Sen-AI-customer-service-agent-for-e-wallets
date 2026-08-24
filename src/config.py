@@ -85,6 +85,23 @@ APP_ENV = os.environ.get("APP_ENV", "production")
 # chưa có số nào về `f` (tỉ lệ lượt đơn thật) để biết nó đáng bao nhiêu.
 PHAN_LUONG_BAT = os.environ.get("PHAN_LUONG_BAT", "").strip().lower() in ("1", "true", "yes")
 
+# T0 · cổng thu-slot SAU KHI xác thực OTP (src/agents/graph.py). Cờ RIÊNG, KHÔNG
+# dùng chung `PHAN_LUONG_BAT` — hai cổng quyết định hai thứ khác nhau (T0: "lượt
+# resend-sau-OTP này có đủ thứ để thu hẹp tra cứu chưa"; T1: "lượt này cần bộ đồ
+# nghề nào"), nên phải tắt được độc lập.
+#
+# 🔴 Vì sao cờ này tồn tại (Đ4, Review nêu 24/08 · phiếu "OTP trước token" ⑦):
+# TRƯỚC bản vá, T0 chạy độc lập `PHAN_LUONG_BAT` và KHÔNG có công tắc nào của
+# riêng nó. Người trực sự cố tắt `PHAN_LUONG_BAT` để chữa cháy sẽ tin rằng mọi
+# đường tất định trước LLM đã tắt — trong khi T0 VẪN CHẠY, và không tín hiệu
+# nào báo điều đó. Một công tắc mà người dùng tin là tắt-hết trong khi nó tắt
+# một nửa thì nguy hiểm hơn không có công tắc nào.
+#
+# MẶC ĐỊNH BẬT — khác `PHAN_LUONG_BAT` (mặc định TẮT) CÓ CHỦ ĐÍCH: T0 hiện đang
+# chạy trên mọi ngăn, nên mặc định TẮT sẽ là một thay đổi hành vi sản phẩm lén
+# đi kèm một bản vá vận hành. Cờ này chỉ THÊM đường tắt, không đổi mặc định.
+CONG_T0_BAT = os.environ.get("CONG_T0_BAT", "1").strip().lower() in ("1", "true", "yes")
+
 # T3 · công tắc suy luận của model. MẶC ĐỊNH ĐỔI 1 -> 0 ngày 18/08: đây không
 # còn là cờ ĐO, nó là bản vá cho một sản phẩm ĐANG HỎNG.
 #

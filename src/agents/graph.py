@@ -59,6 +59,7 @@ from src.config import (
     LLM_MODEL,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
+    CONG_T0_BAT,
     PHAN_LUONG_BAT,
     SUY_LUAN_BAT,
 )
@@ -836,7 +837,11 @@ def run_agent_turn(
     # của 1B — resend-sau-OTP luôn là một khiếu nại thật (đó là lý do tool bị
     # OTP chặn), không bao giờ hợp lệ để đi DUONG_NHE hay bị 1B hỏi lại số
     # tiền theo slot khác.
-    if vua_xac_thuc_de_gui_lai:
+    # 🔴 Đ4 (phiếu "OTP trước token" ⑦) — cổng này nay có CÔNG TẮC RIÊNG
+    # `CONG_T0_BAT` (mặc định BẬT, xem src/config.py). Trước bản vá, tắt
+    # `PHAN_LUONG_BAT` để chữa cháy vẫn để T0 chạy, và KHÔNG tín hiệu nào báo.
+    # Nhận diện trong sổ: `duong=otp_resend_thu_slot` ⟹ T0 đã xử lý lượt này.
+    if CONG_T0_BAT and vua_xac_thuc_de_gui_lai:
         _tid_hieu_qua_otp = thread_id or user_id
         if doc_tin_hieu(_TEN_TIN_HIEU_OTP_RESEND, _tid_hieu_qua_otp) == 0 and not co_ma_giao_dich_hoac_thoi_gian(message):
             tang_tin_hieu(_TEN_TIN_HIEU_OTP_RESEND, _tid_hieu_qua_otp)
