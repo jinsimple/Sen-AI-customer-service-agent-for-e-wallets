@@ -210,7 +210,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     chỉ khớp bề mặt sở hữu+động từ CÙNG CÂU, thiếu **điều kiện loại trừ khung hỏi/
     interrogative** (điều kiện cấu trúc câu, không phải danh sách từ — không phạm luật cấm).
 
-- [ ] **④** Cổng OTP tất định cho NHÓM B — **Coder** · `src/agents/graph.py`
+- [x] **④** Cổng OTP tất định cho NHÓM B — **Coder** · `src/agents/graph.py`
   - `otp_verified_at` đã có sẵn ở `run_agent_turn:798`, không cần thêm đường dẫn dữ liệu
   - Câu hỏi chính sách **KHÔNG** bị chặn OTP *(Q1)*
   - 🟡 **[Lead 25/08] BA QUYẾT ĐỊNH TIỀN-LAND, trước khi Coder viết mã, kèm lý do:**
@@ -236,11 +236,36 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
        `customer_tools.py:918-921` (ràng buộc cứng 4). ④ dùng `OTP_VIEW_MAX_MINUTES`
        (12h), lỏng hơn/bằng tool, không bao giờ chặt hơn. Coder ghi câu này vào chú
        thích tại chỗ — đúng, tránh ai đọc ④ thành security rồi gỡ chốt ở tool.
+  - **VẬT CHỨNG:** commit `46b071a` — backend+client 1 commit, đúng hợp đồng đã duyệt.
+    `AgentChatResult.duong?: string|null` thêm (optional, tương thích ảnh cũ). [ĐO]
+    predicate 6/7 trục đúng, ca sai = đúng `AM-01` (ngoại lệ Q1 đã khai, đã duyệt).
+    `invariants` 23/23 · cổng chính 23/23 · 123/124 · ĐC xanh. Băm luật
+    `0952da634f87 → a3f461e4008f`.
+  - **Coder tự kiểm suite đầy đủ TỪ HOST:** 3 failed/656 passed/50 skipped (backend) +
+    2 failed/37 passed (frontend). Dựng **worktree riêng tại `12b9890`** (commit ngay
+    TRƯỚC việc của Coder) chạy lại đối chứng — **cả 5 ca đỏ trùng khít, có TRƯỚC ④**,
+    không phải hồi quy của ④. Worktree đã gỡ, `.env` copy vào đó đã xoá trước khi gỡ.
+  - 🔴 **PHÁT HIỆN PHỤ, ngoài phạm vi ④ nhưng đáng ghi (Luật X — đã có vật chứng):**
+    `tests/test_inv_ngan_sach_token.py` đỏ — cổng canh ngân sách token của chính
+    `prompt.py`. `test_bao_TRUOC_khi_cham_tran`: 7.186 token, vượt ngưỡng 90%
+    (6.795/7.550). `test_nen_ghi_trong_test_khop_thuc_te`: nền ghi trong test 4.587,
+    thực tế 5.208 (lệch 13,5%). **[Lead 25/08 tự kiểm]** file có
+    `pytestmark = skipif(not _stack_song())` (`tests/test_inv_ngan_sach_token.py:92`)
+    — đo trên PROMPT THẬT của app đang chạy, không dựng lại. ⟹ **theo thiết kế, cổng
+    này KHÔNG BAO GIỜ chạy trong CI** (CI không có ảnh `fin05` sống) — nó chỉ bắn khi
+    ai đó chạy từ host có stack thật, đúng như Coder vừa làm. Đây không phải "CI gãy",
+    là một cổng có thiết kế đúng nhưng **không có ai theo lịch chạy nó**. Đã báo PO.
 
 - [ ] **⑤** Cổng sau OTP hỏi **thời gian + số tiền một tin** — **Coder**
   - Bỏ mã GD khỏi câu hỏi *(vẫn nhận diện nếu khách tự nêu)*
   - Sửa cách thi hành R1: *"một YÊU CẦU mỗi tin"* → **"một Ý mỗi tin"**
   - ADR 24/08 **đứng nguyên**, không cần ADR thay thế *(xem phiếu §2b)*
+  - ⚠️ **[Coder 25/08, trước khi land] Cảnh báo ĐC-7:** ⑤ hỏi HAI trục/tin, nhưng
+    `ĐC-7` (`eval/`) hiện khẳng định "mọi hằng số `HOI_*` chỉ hỏi ĐÚNG MỘT trục/tin"
+    — mã hoá cách đọc CŨ của R1. ⑤ land đúng đặc tả sẽ làm ĐC-7 đỏ, **hoặc tệ hơn
+    KHÔNG đỏ** nếu hằng số nằm ở `graph.py` với tiền tố `_` (lọt khỏi quét tĩnh —
+    "cổng không thấy ≠ cổng đồng ý"). **Cần QA/QC quyết ĐC-7 nói gì sau khi R1 đổi
+    nghĩa (phiếu §2b) — TRƯỚC hoặc CÙNG lúc ⑤ land.** Đã chuyển QA/QC.
 
 - [ ] **⑥** Ca E2E trên UI cho bất biến *"0 token trước OTP"* — **QA/QC** · `frontend/e2e/`
   - Đo trên envelope `/agent/chat` *(mang `duong` + `usage.total_tokens`)*
