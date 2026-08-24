@@ -243,6 +243,13 @@ khiếu nại ⟹ mở NGAY, vì thời hạn tra soát đếm từ **ngày ti�
 3. **Redis là điểm chết đơn** — tắt Redis ⟹ `/agent/chat` **crash hẳn**, không response.
    Vá ở `1a33239`, **chưa live-fire xác nhận**.
 
+**🔴 VẬN HÀNH — người trực sự cố PHẢI biết:** `PHAN_LUONG_BAT` **KHÔNG** bao trọn mọi đường tất
+định trước LLM. Từ 24/08 có thêm **T0** (cổng thu-slot **sau khi xác thực OTP**, `graph.py`), kích
+hoạt bằng cờ tường minh `vua_xac_thuc_de_gui_lai` từ giao diện, **độc lập `PHAN_LUONG_BAT`**.
+⟹ Tắt `PHAN_LUONG_BAT` để chữa cháy **vẫn còn T0 chạy**, và **không có tín hiệu nào báo điều đó**.
+Nhận diện trong sổ đo: `duong=otp_resend_thu_slot` ⟹ T0 xử lý. *(Review nêu 24/08; đề xuất thêm
+kill-switch riêng cho T0 — chưa làm.)*
+
 **🟡 Bốn câu chờ PO thật:** hạn SLA cho vé `scope=unknown` (hiện 30 ngày, **không bao giờ tính
 lại**, ca chạm ngân hàng đáng lẽ 4 ngày làm việc) · trần số vé/phiên (~300 vé/cửa sổ OTP) ·
 FS-13 escalate hay chỉ ghi nhận · ADR-049.
