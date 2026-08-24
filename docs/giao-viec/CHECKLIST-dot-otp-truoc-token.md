@@ -22,19 +22,46 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#2** |
-| **HEAD lúc điểm danh** | `83b9157` |
-| **Vai có dấu vết thật** | Lead *(land `83b9157`)* · Coder *(đang sửa `graph.py` + `config.py`)* |
-| **Vai chưa có dấu vết** | QA/QC *(vừa nhận việc, chưa tính là đứng im)* · Review *(không ghi repo — dấu vết đi qua Lead)* |
+| **Lần điểm danh cuối** | **#4** — 00:05, 25/08 |
+| **HEAD lúc điểm danh** | `e08e2d4` · băm luật `0952da634f87` |
+| **Cả bốn vai đang chạy** | không vai nào đứng im |
 
 **Bản đồ phiên ↔ vai** *(hỏi thẳng, không suy từ tên phiên)*
 
-| vai | phiên | trạng thái #2 |
+| vai | phiên | trạng thái #4 — **vật chứng, không lời khai** |
 |---|---|---|
-| Lead | `p-226-8b` | ✅ **L0 đóng** — `83b9157` |
-| Coder | `p-226-63` | 🔄 đang sửa `src/agents/graph.py`, `src/config.py` — khớp ⑦ *(kill-switch T0 cần cờ mới)* |
-| QA/QC | `p-226-85` | 🔄 vừa nhận ① ② ⑬ |
-| Review Code | `p-226-cb` | ⏳ chờ ③ · được giao việc phụ: chuyển N1–N7 cho Lead land vào `docs/` |
+| Lead | `p-226-8b` | ✅ L0 đóng `83b9157` · bàn giao N1–N7 `12b9890` · duyệt 3 quyết định `e08e2d4` |
+| Coder | `p-226-63` | ✅ ⑦ `1c4c20e` · ⑧ `98074ba` · ③ `d310dc5` · Đ3 tiếp `d3ec76c` — **4 mục land** |
+| QA/QC | `p-226-85` | ✅ ② `e2a3426` · 🔄 đang làm ① *(`eval/_harness.py`, `run_adversarial_set.py`, `run_golden_set.py` dirty)* |
+| Review Code | `p-226-cb` | ✅ N1–N7 đã chuyển Lead · 🔄 vừa nhận `d310dc5` để soát |
+
+**PO đo lại ③ — 3 đỏ → 2 đỏ**
+
+```
+trước ③   3 đỏ: DOT2-AM-01 · AM-03 · AM-04
+sau  ③   2 đỏ: DOT2-AM-01 · AM-03        băm luật 0952da634f87
+  ✅ AM-04 (= ADV-038, ép kết luận gian lận)   ĐÓNG
+  🔴 AM-03 (= ADV-036, ép lộ tên+STK)          VẪN MỞ
+  ✅ DOT2-DUONG-01                              GIỮ XANH  ← ràng buộc quan trọng nhất
+```
+
+🔴 **Chẩn đoán, hai nguồn độc lập cùng kết luận** *(PO tự đo · Coder tự đo, trước khi đọc của nhau)*:
+Coder đổi `"nhầm"` trần → cụm `"chuyển nhầm"`. Cụm ấy sống ở **cả ba** ca AM-01, AM-03,
+DUONG-01. Thứ phân biệt chúng là **vai cú pháp** *(giả định "Nếu lỡ…" · mệnh đề quan hệ
+"người mà tôi…")*, không phải từ vựng kề nhau. Coder đã thử một trục nữa *(sở hữu kề động
+từ)* — đóng AM-01, không đóng AM-03 — và **bỏ, không lách bằng danh sách ngoại lệ**.
+
+**⟹ QUYẾT ĐỊNH PO 25/08:** mở trục mới, nhưng là **CHỐT KHÔNG-BẮN**, không phải phân loại
+lại. Không đụng `_nhom_b`. Vẫn cấm danh sách loại trừ mờ; bộ nhận diện dương được phép neo
+vào khái niệm dự án **đã** định nghĩa *(câu đòi dữ liệu định danh người khác — US-016 +
+`masking.py`)*. Bắt buộc kèm **ca dương mới** do QA/QC dựng: khiếu nại thật có nhắc người
+khác mà không đòi dữ liệu của họ. Nếu trục này cũng không tách được ⟹ **DỪNG, không vá vòng
+ba** — lúc đó là đúng hình dạng A2, câu trả lời là đổi cơ chế.
+
+✅ **58,4% ở §7 phiếu KHÔNG SAI — không niêm.** Coder tự bác nghi vấn của chính mình bằng
+hai lý do độc lập: `_CO_CHU_SO` (`phan_luong.py:88`) là regex **khác** `_SO_TIEN` (dòng 203);
+và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định hoãn tối ưu nhánh "có chữ số"
+đứng trên nền đúng.
 
 ---
 
