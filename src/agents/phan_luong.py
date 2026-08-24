@@ -298,7 +298,56 @@ _MA_GD = re.compile(r"\bTXN\s*\d{14}\b", re.IGNORECASE)
 _MA_VE = re.compile(r"\bTCK-(?:\d{5}|[0-9a-f]{12})\b", re.IGNORECASE)
 
 
+# ── ③ VÒNG 2 · KHUNG ĐIỀU KIỆN (trục THỂ CÂU) ───────────────────────────────
+# Đóng DOT2-AM-01 (câu hỏi chính sách "Nếu lỡ chuyển nhầm… thì…").
+#
+# 🔴 TẬP ĐÓNG, VÀ ĐÓNG THẬT. Chỉ liên từ điều kiện của ngữ pháp tiếng Việt —
+# lớp từ chức năng ĐẾM ĐƯỢC, khác hẳn danh sách chủ đề ("phí"/"thủ tục"/"quy
+# định"…) mà luật ở trên cấm vì "luôn thiếu một chữ".
+#
+# 🔴 "lỡ" CỐ Ý KHÔNG có mặt, dù AM-01 chứa nó. Tôi ĐÃ thêm nó ở bản thử vòng 1
+# và tự phá được ngay: "lỡ" là PHÓ TỪ ("vô tình"), không phải liên từ điều kiện
+# — thêm nó là NỚI tập đóng, và [ĐO] nó bắt oan hai câu khiếu nại THẬT:
+#     "tôi lỡ chuyển nhầm cho người lạ rồi thì làm sao lấy lại"
+#     "tôi lo là chuyển nhầm rồi thì mất luôn à"   (bản ASCII "lo " khớp "lo là")
+# AM-01 vẫn đóng được nhờ "nếu" đứng ngay trước. Đừng thêm lại.
+_DAU_DIEU_KIEN = ("nếu", "neu", "giả sử", "gia su", "trong trường hợp",
+                  "trong truong hop")
+
+
+def _la_khung_dieu_kien(s: str) -> bool:
+    """Tín hiệu khiếu nại có bị một KHUNG ĐIỀU KIỆN CHI PHỐI không.
+
+    Đòi ĐỦ BA điều, thiếu một là không tính:
+      ① một dấu điều kiện thuộc tập ĐÓNG `_DAU_DIEU_KIEN`
+      ② có " thì " ĐỨNG SAU dấu ấy — CẶP mới là cấu trúc; dấu đơn lẻ thì không
+      ③ dấu ấy đứng TRƯỚC tín hiệu khiếu nại
+
+    🔴 Điều ③ thêm ở vòng 3 sau khi tự phá được bản vòng 2. Thiếu nó thì mệnh đề
+    điều kiện đứng SAU lời khiếu nại cũng bị tính, và [ĐO] nó bắt oan:
+        "tôi chuyển nhầm rồi, NẾU không lấy lại được THÌ tôi phải làm sao"
+    — khách ĐÃ kể sự việc ở mệnh đề chính, điều kiện chỉ là lo lắng kèm theo.
+
+    ⚠️ GIỚI HẠN ĐÃ ĐO, KHÔNG VÁ: "nếu vậy thì tôi bị trừ tiền oan à" bị loại
+    (lệch về `day_du`). Câu này mơ hồ thật — một phản ứng giữa hội thoại, và
+    `thu_slot` vốn chỉ bắn một lần/hội thoại nên nó gần như không tới đây. Chiều
+    lệch là chiều AN TOÀN (LLM xử). Khai ra thay vì thêm luật thứ tư cho một ca.
+    """
+    vi_tri_kn = min(
+        (m.start() for p in _RE_TIN_HIEU_KHIEU_NAI if (m := p.search(s))), default=None
+    )
+    if vi_tri_kn is None:
+        return False
+    for d in _DAU_DIEU_KIEN:
+        i = s.find(d)
+        if 0 <= i < vi_tri_kn and " thì " in s[i:]:
+            return True
+    return False
+
+
 def _nhom_b(s: str) -> bool:
+    if _la_khung_dieu_kien(s):
+        return False
     co_so_huu = any(p.search(s) for p in _RE_SO_HUU)
     co_dong_tu = any(p.search(s) for p in _RE_DONG_TU_GD)
     co_khieu_nai = any(p.search(s) for p in _RE_TIN_HIEU_KHIEU_NAI)
