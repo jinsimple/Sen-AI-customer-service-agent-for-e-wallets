@@ -45,6 +45,13 @@
 
 ### Xếp hàng SAU khi 1A đóng (đội tự làm, không chặn ai)
 
+- [ ] **`pre-commit` cảnh báo commit chạm file NGOÀI vùng ghi của vai** (DevOps).
+      🔴 Lỗi cuốn-WIP-của-người-khác đã xảy ra **HAI lần trong một tuần** trên cây dùng chung:
+      PO-agent 15/08 (`git add -A`, 107 dòng của Coder), Tester 24/08 (tự phát hiện + tự sửa sạch).
+      Luật pathspec đã phê chuẩn 15/08 mà vẫn tái diễn ⟹ **thiếu CƠ CHẾ, không thiếu luật**.
+      §4 hiến pháp đã có bảng phân vùng — máy đọc được. **Cảnh báo, không chặn cứng**: mục tiêu là
+      bắt người commit NHÌN THẤY thứ mình sắp cuốn theo.
+
 - [ ] **Nạp tài liệu thời hạn xử lý vào kho RAG** — `b7a7e16` (Bảo mật soạn, TT 15/2024 Điều 6
       Khoản 3-4, đã phân tầng độ tin cậy tại chỗ). 🔴 **Nạp xong ⟹ băm kho ĐỔI ⟹ Recall@4 =
       47,9% [ĐO 17-20/08] HẾT HẠN NGAY.** Phải đo lại + niêm số cũ, không để nó sống tiếp
