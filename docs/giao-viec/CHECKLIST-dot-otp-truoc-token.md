@@ -650,3 +650,68 @@ Xác nhận (b) cần đọc **GitHub → Settings → Actions → Runners**. Ng
 Vế *(a)* một mình đã đủ để giữ nguyên câu cảnh báo: **các cổng chạy trên `ubuntu-latest`
 không cho kết quả, và mọi "đã land" trong đợt này đứng trên phép chạy CỤC BỘ.** Người trực
 sự cố vẫn phải biết điều đó — chỉ là biết vì **lý do đúng**.
+
+---
+
+## ✅ REVIEW ④ — ràng buộc cứng 4 KHÔNG thủng · một lỗ chi phí THẬT
+
+**Review lần trực tiếp trong mã cả ba nhánh PO giao. PO tái lập từng claim:**
+
+```
+(a) _otp_fresh(None, …)     customer_tools.py:700 → return False
+                            khách CHƯA TỪNG xác thực rơi ĐÚNG nhánh "chưa tươi"   ✅
+(b) _ALWAYS_FRESH rò?       grep toàn src/: ĐÚNG MỘT call site production
+                            main.py:662  otp_verified_at=current_user.otp_verified_at
+                            nguồn = JWT ĐÃ KÝ, không phải input client tự khai      ✅
+                            sentinel chỉ kích khi caller KHÔNG truyền — eval/test    ✅
+(c) cờ frontend             graph.py:928 (T0) · 986 (④) · 1035 (T1)
+                            cả BA dùng theo hướng "True ⟹ BỎ QUA cổng tất định"
+```
+
+### 🔴 Lỗ Review tìm ra — verify được bằng gọi thẳng API, không phải giả thuyết
+
+Client bất kỳ *(curl/Postman, không qua `ChatClient.tsx`)* với **JWT hợp lệ nhưng chưa OTP**,
+gửi `vua_xac_thuc_de_gui_lai=true` trên **mọi** request:
+⟹ **T0, ④ và T1 bị nhảy qua CÙNG LÚC bởi đúng một cờ** ⟹ request đi thẳng vào LLM.
+
+✅ **KHÔNG lộ dữ liệu.** Tool layer đọc `otp_verified_at` từ JWT, **không đọc cờ này** —
+`customer_tools.py:831/880/923` chặn như thường. Ràng buộc cứng 4 đứng vững.
+
+🔴 **NHƯNG đó đúng kịch bản tốn kém mà ④ sinh ra để triệt** — 8 tool call · 46 giây ·
+49.700–71.600 token/lượt. Một khách *(hoặc script)* chưa OTP tự bật cờ ⟹ buộc hệ thống
+luôn trả giá đắt nhất, **vô hiệu hoá mục đích tồn tại của cả ba cổng cùng lúc**.
+
+### PO nâng một bậc cách đóng khung — Review xếp "chỉ ảnh hưởng chi phí", chưa đủ
+
+Trong hệ này, **trần ràng buộc là TPM, không phải tiền** *(`STATE.md` §6.⓵ — và đội **đã
+vượt** ở cấu hình buổi 150 người)*. TPM là **hạn ngạch DÙNG CHUNG**. ⟹ một client lạm dụng
+không chỉ tiêu tiền của mình — nó **ăn vào hạn ngạch của mọi khách khác**.
+
+⟹ Đây là **cạn hạn ngạch dùng chung → ảnh hưởng KHẢ DỤNG**, không phải thuần chi phí.
+Vẫn không phải lỗ bảo mật dữ liệu — Review đúng vế đó. Nhưng nó nặng hơn một dòng nợ.
+`RedisConcurrencyLimiter` chặn được DoS vô hạn, **không** chặn được việc mỗi lượt hợp lệ
+đều đắt nhất có thể.
+
+- [ ] **⑭ · Không tin cờ client tuyệt đối** — **Coder** · *thêm vào đợt này*
+  - `vua_xac_thuc_de_gui_lai=true` chỉ hợp lệ khi có **bằng chứng phía server** rằng lượt
+    trước **thật sự** bị OTP chặn — tra `thread_signals`/Redis, hạ tầng **đã có sẵn**
+    *(`_TEN_TIN_HIEU_OTP_RESEND`)*
+  - **Vì sao vào đợt này, không ghi nợ:** nó bảo vệ **chính mục tiêu của đợt**; Coder có
+    khoảng trống sau ⑤ *(⑨ chờ QA/QC · ⑩⑪⑫ chờ ADR)*; bản vá nhỏ, dùng lại hạ tầng có sẵn
+  - **Nghi ngờ ⟹ hướng an toàn:** không tra được bằng chứng ⟹ coi cờ là `false` ⟹ cổng
+    tất định chạy bình thường. Sai về phía **rẻ**, không sai về phía đắt
+
+- [ ] **⑮ · Ba test đơn vị RẺ** — **QA/QC** · *Review đề xuất, PO duyệt*
+  - `la_khieu_nai_ca_nhan` · `_otp_fresh(None, …)` → `False` · và bất biến
+    **"mọi call site production của `run_agent_turn` phải truyền `otp_verified_at` tường minh"**
+  - 🔴 Mục thứ ba là mục đáng giá nhất: hôm nay chỉ có **một** call site và nó đúng — nhưng
+    **không cổng nào canh** việc ai đó thêm call site **thứ hai** mà quên truyền, và lúc ấy
+    sentinel `_ALWAYS_FRESH` sẽ coi như **đã xác thực**. Đúng idiom introspect của
+    `test_invariants.py`, không tốn LLM
+
+**Token delta của ④ = 0** *(điều khoản T2)* — ④ là early-return **trước** khi gọi LLM,
+không chạm `build_system_prompt`. Review kiểm, PO ghi nhận.
+
+⚠️ **Review khai việc chưa làm được:** không chạy lại `pytest` đầy đủ *(thiếu `argon2` trong
+môi trường của họ — không phải lỗi ④)*. Bù bằng **đọc trực tiếp từng dòng mã cả ba nhánh**
+thay vì tin số Coder báo. Khai ra thay vì im — đúng **Luật V**.
