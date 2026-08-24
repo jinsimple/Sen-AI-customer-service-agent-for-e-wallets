@@ -105,7 +105,10 @@ def cham(ten, cau_nhan, phan_luong, nhanh_co=None) -> tuple[bool, str]:
     dem = collections.Counter()
     sai = []
     for cau, mong in cau_nhan:
-        duong, ly_do = phan_luong(cau)
+        # `*_` chấp nhận cả tuple 2 phần tử (nhe/day_du hiện có) lẫn 4 phần tử
+        # (nhánh thu_slot theo thiết kế 1B — thêm slot_hien_co/slot_thieu) —
+        # cổng chỉ đọc hai phần tử đầu, không phá vỡ khi arity đổi.
+        duong, ly_do, *_ = phan_luong(cau)
         dem[_nhanh(ly_do)] += 1
         if duong != mong:
             sai.append((cau, mong, duong, ly_do))
@@ -175,6 +178,30 @@ def main() -> int:
         dat, bc = cham(ten, cn, luat.phan_luong, nhanh_co)
         print(bc)
         tat_ca_dat &= dat
+
+    # ── 1B.3 — S1-S9 (nhánh MỚI `thu_slot`, đặc tả Lead 24/08) ──
+    # Viết TRƯỚC khi 1B.2 land (cùng nếp A2/1A.1). Trước khi vá, mọi ca kỳ
+    # vọng thu_slot ĐÚNG ĐẮN sẽ đỏ (nhánh chưa tồn tại) — đỏ ĐÚNG LÝ DO, không
+    # phải bug ở đây. Không gộp vào `tat_ca_dat` cho tới khi Coder xác nhận
+    # 1B.2 đã land, để không biến một cổng "chờ vá" thành "cổng đỏ chưa rõ vì
+    # sao" trong con mắt người đọc log.
+    p_slot = GOC / "eval" / "bo_ca_thu_slot_1b.json"
+    if p_slot.exists():
+        d = json.loads(p_slot.read_text(encoding="utf-8"))
+        thuc, ghi = _bam_nhan(d), d.get("bam_nhan")
+        if thuc != ghi and not a.bo_qua_bam:
+            print(f"\n🔴 BỘ CA 1B.3 ĐÃ TRÔI: băm ghi {ghi} ≠ tính lại {thuc} — TỪ CHỐI CHẤM.")
+            return 2
+        print(f"\n  ── 1B.3 — S1-S9 (thu_slot) [{ghi}] ──")
+        cn = [(c["cau"], c["ky_vong"]) for c in d["ca"]]
+        _, bc = cham("S1-S9", cn, luat.phan_luong, None)
+        print(bc)
+        print("  ⚠️  KHÔNG gộp vào cổng chính — trước 1B.2, ca kỳ vọng `thu_slot` "
+              "ĐỎ ĐÚNG LÝ DO (nhánh chưa tồn tại). Đối xử như A2: land trước, xanh sau khi vá.")
+        print("  🔴 S7 (tối đa 1 lần/hội thoại) và S8 (Redis lỗi fail-open) — KHÔNG có ca ở "
+              "đây, có chủ đích: đòi trạng thái theo thread_id/Redis, ngoài khả năng của "
+              "phan_luong(cau) dạng hàm thuần. Cần cổng riêng ở tầng gọi (graph.py) khi "
+              "Coder xác nhận nơi state thực sự sống.")
 
     print("\n  ── ĐC-1..5 ── nguồn: docs/giao-viec/2026-08-17-dinh-nghia-cong-DC-phan-luong.md")
     print(f"     sha256[:12] = {_bam_tep(GOC / 'docs/giao-viec/2026-08-17-dinh-nghia-cong-DC-phan-luong.md')}")
