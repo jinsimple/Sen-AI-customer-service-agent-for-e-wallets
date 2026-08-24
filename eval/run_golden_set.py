@@ -154,7 +154,7 @@ def write_report(results: list[dict], out_path: Path) -> None:
         f"> 🚦 **{cau_hinh_dinh_tuyen_luc_chay()}.** Đóng Đ2 (24/08) — trước hạng "
         "mục này, không báo cáo eval nào từng in giá trị đang chạy, nên eval và "
         "sản phẩm có thể đã chạy hai cấu hình khác nhau mà không ai biết.",
-        f"> 🚦 **Phân bố đường định tuyến toàn corpus (đếm LƯỢT):** "
+        "> 🚦 **Phân bố đường định tuyến toàn corpus (đếm LƯỢT):** "
         + " · ".join(f"`{k}`={v}" for k, v in duong_dem.most_common()),
         "",
         f"**Tổng:** {passed}/{total} pass ({passed / total * 100:.1f}%)" if total else "Không có case nào.",

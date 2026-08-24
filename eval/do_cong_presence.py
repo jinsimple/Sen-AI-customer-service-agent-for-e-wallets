@@ -111,7 +111,7 @@ def _in_mau_so(ca_theo_id: dict) -> None:
         or (c.get("expected") or {}).get("must_offer_before_creating_ticket") is True
     )
     co_can_cu = sum(1 for c in ca_theo_id.values() if (c.get("expected") or {}).get("must_cite_trans_ids"))
-    print(f"MẪU SỐ THẬT (khai trước khi đọc bất kỳ số nào dưới đây):")
+    print("MẪU SỐ THẬT (khai trước khi đọc bất kỳ số nào dưới đây):")
     print(f"  ① mã vé : phủ {co_co_ve}/{tong} ca — {tong - co_co_ve} ca còn lại KHÔNG có tín hiệu, KHÔNG chấm.")
     print(f"  ② căn cứ: phủ {co_can_cu}/{tong} ca — {tong - co_can_cu} ca rỗng ĐÚNG (chưa tra ra thì không có gì trích).")
     print(f"  ③ bước tiếp theo · ④ trạng thái: 0/{tong} — CHƯA KIỂM ĐƯỢC, xem docstring đầu file vì sao.")

@@ -294,7 +294,7 @@ def write_report(results: list[dict], out_path: Path) -> None:
         "tầng đó từ kết quả eval là kết luận SAI CHỖ ĐO; xem "
         "`tests/test_api/` cho bộ test có đi qua các tầng đó.",
         f"> 🚦 **{cau_hinh_dinh_tuyen_luc_chay()}.** Đóng Đ2 (24/08).",
-        f"> 🚦 **Phân bố đường định tuyến toàn corpus (đếm LƯỢT):** "
+        "> 🚦 **Phân bố đường định tuyến toàn corpus (đếm LƯỢT):** "
         + " · ".join(f"`{k}`={v}" for k, v in duong_dem.most_common())
         + " — ⚠️ một ca `passed=true` mà đi `nhe`/`thu_slot` nghĩa là CHƯA TỪNG "
         "chạm O1-O5/spotlighting, khác hẳn `passed=true` vì lớp phòng thủ giữ được.",
