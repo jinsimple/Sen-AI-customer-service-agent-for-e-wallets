@@ -26,6 +26,7 @@
 | 🔴 **`FIELD_ENCRYPTION_KEY`** | **KHÔNG được xoay** nếu chưa có script mã hoá lại — xoay là **mất vĩnh viễn** dữ liệu đã mã hoá |
 | **Production** `app.adaptivealgo.uk` | **CHỈ ĐỌC** với mọi phiên. Thăm dò phải báo trước |
 | **`eval/heldout_set.jsonl`** | **NIÊM PHONG** — chỉ chạy MỘT LẦN, sau khi hiệu chuẩn trọng tài |
+| 🔴 **CI, từ 24/08** | **CHƯA CỔNG NÀO CHẠY XANH trên bất kỳ commit nào của đợt "OTP trước token".** Mọi "đã land" trong đợt đứng trên phép chạy CỤC BỘ, không phải CI. [ĐO 25/08, Lead] `gh run list --branch dev/learning-loop`: 6 run `cancelled` liên tiếp + 1 `failure` + 1 `queued` (2h44m, 0 job `in_progress`). **Hai nguyên nhân riêng, không phải một:** (a) job `runs-on: ubuntu-latest` chết ngay, annotation nguyên văn *"spending limit needs to be increased"* — **đây là sự cố billing ĐÃ BIẾT TỪ TRƯỚC đợt này** (xem §5.A0 cũ); (b) job `runs-on: self-hosted` (ADR-037, runner BTC) đứng `queued` không tiến — **suy ra runner không nhận việc, CHƯA CHỨNG MINH được** (API `…/actions/runners` trả 404 với token hiện có — thiếu quyền đọc trạng thái runner, không phải bằng chứng runner chết). Chuỗi `cancelled` là **bình thường**, không phải triệu chứng — `ci.yml:43` có `concurrency`, push mới tự huỷ run cũ cùng nhánh, và nhánh này có hàng chục commit dồn dập hôm nay. **Việc đúng: KHAI RA, không tự vá** — nếu là runner BTC thì ngoài tay đội. |
 
 ## 2. TRẠNG THÁI VẬT (đo lúc bàn giao)
 
