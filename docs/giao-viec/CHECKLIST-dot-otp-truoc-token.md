@@ -17,21 +17,24 @@
 
 ## Điểm danh gần nhất
 
+> ⏱️ **Vòng điểm danh tự động 15 phút đang chạy** *(cron `b573f563`, phiên PO `p-226-b9`)*.
+> Chết khi phiên PO đóng. Điểm danh bằng **git log + trạng thái tệp**, không bằng lời khai.
+
 | | |
 |---|---|
-| **Lần điểm danh cuối** | #1 — ngay sau khi phiếu land |
-| **HEAD lúc điểm danh** | `961fc24` |
-| **Vai đang chạy** | Lead *(L0)* · Coder *(⑦ ⑧)* |
-| **Vai chờ đầu vào** | QA/QC *(nhận ① ② ⑬ — không chặn gì)* · Review *(chờ ③ land)* |
+| **Lần điểm danh cuối** | **#2** |
+| **HEAD lúc điểm danh** | `83b9157` |
+| **Vai có dấu vết thật** | Lead *(land `83b9157`)* · Coder *(đang sửa `graph.py` + `config.py`)* |
+| **Vai chưa có dấu vết** | QA/QC *(vừa nhận việc, chưa tính là đứng im)* · Review *(không ghi repo — dấu vết đi qua Lead)* |
 
 **Bản đồ phiên ↔ vai** *(hỏi thẳng, không suy từ tên phiên)*
 
-| vai | phiên | trạng thái |
+| vai | phiên | trạng thái #2 |
 |---|---|---|
-| Lead | `p-226-8b` | ACK · bắt đầu L0 |
-| Coder | `p-226-63` | ACK · bắt đầu ⑦ ⑧ |
-| QA/QC | `p-226-85` | ACK · chưa nhận việc |
-| Review Code | `p-226-cb` | ACK · chờ ③ land |
+| Lead | `p-226-8b` | ✅ **L0 đóng** — `83b9157` |
+| Coder | `p-226-63` | 🔄 đang sửa `src/agents/graph.py`, `src/config.py` — khớp ⑦ *(kill-switch T0 cần cờ mới)* |
+| QA/QC | `p-226-85` | 🔄 vừa nhận ① ② ⑬ |
+| Review Code | `p-226-cb` | ⏳ chờ ③ · được giao việc phụ: chuyển N1–N7 cho Lead land vào `docs/` |
 
 ---
 
