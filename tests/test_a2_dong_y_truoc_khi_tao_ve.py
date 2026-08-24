@@ -134,12 +134,39 @@ def _dem() -> dict[str, int]:
     return {dg.split("|")[0]: int(dg.split("|")[1]) for dg in r.stdout.splitlines() if "|" in dg}
 
 
-def _chat(cau: str, thread: str) -> dict:
+def _login() -> str:
+    """Đăng nhập MỘT LẦN, trả `access_token`.
+
+    🔴 [ĐO 24/08] `main.py:645` suy `thread_id = f"{user_id}:{iat}"` TỪ JWT —
+    trường `thread_id` trong body `/agent/chat` bị BỎ QUA LẶNG LẼ (ADR-044,
+    19/08). Đăng nhập lại giữa hai lượt của CÙNG kịch bản sinh `iat` MỚI ⟹
+    hai lượt rơi vào HAI thread khác nhau dù cùng biến `thread` truyền tay.
+    Đây CHÍNH LÀ lý do A2 vế hai (`test_luot_DONG_Y_thi_tao_ve`) gãy: bản cũ
+    gọi `_chat()` (tự login mỗi lần) cho cả lượt A và B — "Ừ tạo đi" thành
+    tin ĐẦU TIÊN của một hội thoại RỖNG, agent không có gì để chốt là ĐÚNG,
+    không phải hồi quy. Test viết 17/08 khi API còn đọc `thread_id` từ body;
+    gãy từ ADR-044 nhưng nằm sau cổng tốn-tiền nên không ai chạy lại tới hôm
+    nay — 5 ngày một khẳng định xanh sống trên một API đã đổi (họ Luật X).
+    """
     ma = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
-        "h={'Authorization':'Bearer '+r.json()['access_token']};"
+        "print(r.json()['access_token'])"
+    )
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, f"đăng nhập hỏng: {(r.stderr or r.stdout)[-400:]}"
+    return r.stdout.strip().splitlines()[-1]
+
+
+def _chat(cau: str, token: str, thread: str) -> dict:
+    # `thread_id` vẫn gửi trong body — vô hại, nhưng KHÔNG còn là cơ chế nối
+    # lượt thật (xem `_login()`). Nối lượt thật = dùng LẠI cùng `token`.
+    ma = (
+        "import httpx,json;"
+        f"c=httpx.Client(timeout=300);"
+        f"h={{'Authorization':'Bearer '+{token!r}}};"
         f"r=c.post('{API}/agent/chat',json={{'message':{cau!r},'thread_id':{thread!r}}},headers=h);"
         "print(json.dumps({'http':r.status_code,'than':r.json()},ensure_ascii=False))"
     )
@@ -149,9 +176,9 @@ def _chat(cau: str, thread: str) -> dict:
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
-def _mot_luot(cau: str, thread: str) -> dict:
+def _mot_luot(cau: str, token: str, thread: str) -> dict:
     t = _dem()
-    j = _chat(cau, thread)
+    j = _chat(cau, token, thread)
     s = _dem()
     tc = [x.get("tool_name") for x in (j["than"].get("tool_calls") or [])]
     return {"tra": j, "delta": {k: s[k] - t[k] for k in t}, "tool": tc,
@@ -161,8 +188,10 @@ def _mot_luot(cau: str, thread: str) -> dict:
 @pytest.fixture(scope="module")
 def ba_luot() -> dict:
     th = f"A2-{uuid.uuid4().hex[:8]}"
-    ra = {"A": _mot_luot(CAU_HOI, th), "B": _mot_luot(CAU_DONG_Y, th)}
-    ra["C"] = _mot_luot(CAU_DONG_Y_TU_DAU, f"A2c-{uuid.uuid4().hex[:8]}")
+    tok_ab = _login()  # MỘT lần đăng nhập cho A+B — cùng iat ⟹ cùng thread thật
+    ra = {"A": _mot_luot(CAU_HOI, tok_ab, th), "B": _mot_luot(CAU_DONG_Y, tok_ab, th)}
+    tok_c = _login()  # cố ý đăng nhập RIÊNG cho C — thread mới có chủ đích
+    ra["C"] = _mot_luot(CAU_DONG_Y_TU_DAU, tok_c, f"A2c-{uuid.uuid4().hex[:8]}")
     return ra
 
 
