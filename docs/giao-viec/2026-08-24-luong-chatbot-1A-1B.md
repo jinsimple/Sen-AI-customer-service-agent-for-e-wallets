@@ -15,14 +15,22 @@
 
 ### Đợt 1A — Luật hỏi trong prompt
 
-- [ ] **1A.1** 🟡 vá xong `74546a5`, **chờ lượt chạy chứng minh** — R3/R4 chưa từng quan sát được
+- [x] ✅ **1A.1** — điều kiện niêm trước (*"lượt chạy chứng minh quan sát được trên hội thoại thật"*)
+      **ĐÃ ĐẠT 24/08**, cả hai chiều: R1 bắt được **vi phạm thật** · R3-cầu quan sát được **ca đạt thật**.
+      Tick vì **năng lực quan sát** đã chứng minh — KHÔNG phải vì sản phẩm sạch (R1 vẫn đỏ, xem 1A.6).
+- [ ] ~~(bản cũ)~~ **1A.1** vá xong `74546a5`, chờ lượt chạy chứng minh — R3/R4 chưa từng quan sát được
       trên hội thoại thật. Tick lại chỉ khi lượt chạy chứng minh, không phải vì bản vá đã land.
 - [x] **1A.2** ✅ `f6f70df` + `9418d1a` + `2b197d0` + `9dbbe4b` + `1080762` + `7bd87d5` — R1–R5 và
       ADR-047 vào prompt. Trần +621/600, **vượt 21 CÓ CHỦ Ý** (lý do trung thực). Mốc đợt sau tính từ 621.
 - [x] **1A.3** ✅ delta render thật, băm mẫu khớp trong cây
 - [x] **1A.4** ✅ **ĐÓNG — A2 không giải được bằng prompt.** 6 vòng, 6 cơ chế loại trừ kể cả trần
       model. Kết luận → **ADR-049** (chờ PO). Không vá thêm.
-- [ ] **1A.5** PO-agent kiểm độc lập → tick *(chờ chuyến chạy)*
+- [ ] **1A.5** PO-agent kiểm độc lập → tick
+- [ ] 🔴 **1A.6 (MỚI 24/08) — R1 VI PHẠM THẬT, chưa sửa.** Agent hỏi **3 trục cùng lượt**
+      (`thoi_gian`+`ma_gd`+`so_tien`) trong khi prompt cấm nguyên văn *"gộp dạng A hoặc B"*.
+      **Tái hiện 2 lượt độc lập.** Cùng họ với A2: **luật viết rõ, model không tuân**
+      ⟹ **bằng chứng thứ hai cho ADR-049**. KHÔNG vá bằng chữ — vá bằng chữ là quay lại
+      đúng vòng lặp đã thua 6 lần. *(chờ chuyến chạy)*
 
 ### Đợt 1B — Cổng thu thập tất định
 
@@ -30,7 +38,12 @@
 - [x] **1B.2** ✅ `350fd2f` — cổng land, đo thật: câu thiếu số tiền → `thu_slot`, **0 token**
 - [x] **1B.3** ✅ corpus **23 ca** (S1–S24) + **ĐC-1..7** — ba đối chứng sinh trong ngày vì công cụ
       đo hỏng ba kiểu: ĐC-5 lỗi thời · ĐC-6 (ĐC-5 sau sửa bị mù) · ĐC-7 (chưa ai kiểm NỘI DUNG reply)
-- [ ] **1B.4** chuyến chạy cuối, **5 mục, S8 xếp CUỐI**: ① eval đường-cho-qua ② R1–R5 trọn bộ
+- [~] 🟡 **1B.4 — 4/5 mục ĐẠT, mục ② CHƯA ĐỦ.** ① eval đường-cho-qua ✅ · ③ R3-cầu ✅ ·
+      ④ S7 ✅ · ⑤ S8 ✅ **live-fire thật** (`docker events` xác nhận Redis stop/start thật).
+      🔴 **② R1–R5 trọn bộ: R5 CHƯA ĐO ĐƯỢC** (dính `APIConnectionError` thoáng qua — 9,4%/53 lượt).
+      **CỐ Ý KHÔNG sửa định nghĩa 5 mục để tick cho trọn** — sửa tiêu chuẩn sau khi thấy kết quả là
+      đúng thứ tôi vẫn cấm người khác làm. Tick trọn khi R5 đo được.
+- [ ] ~~(định nghĩa gốc, GIỮ NGUYÊN)~~ **1B.4** chuyến chạy cuối, **5 mục, S8 xếp CUỐI**: ① eval đường-cho-qua ② R1–R5 trọn bộ
       ③ R3-cầu (cổng→LLM) ④ S7 ⑤ S8 *(chờ ảnh)*
 - [ ] **1B.5** PO-agent đo hiệu ứng cổng theo **phép đo đã niêm trước** *(chờ chuyến chạy)*
 
