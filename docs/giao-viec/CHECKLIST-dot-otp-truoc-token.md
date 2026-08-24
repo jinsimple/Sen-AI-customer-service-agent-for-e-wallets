@@ -51,12 +51,31 @@
 
 **L0b — Nền kiến thức** *(L0.1 chặn phần còn lại)*
 
-- [ ] **L0.1** Xuất lại `project-knowledge/` — **Lead**
-  - Cũ **131 commit** *(chụp `2a787bb`, HEAD nay `961fc24`)*, hash `agent-tools.yaml` đã đổi
-- [ ] **L0.2** ACK bản project-knowledge MỚI — **Coder** *(chờ L0.1)*
-- [ ] **L0.3** ACK bản project-knowledge MỚI — **QA/QC** *(chờ L0.1)*
-- [ ] **L0.4** ACK bản project-knowledge MỚI — **Review** *(chờ L0.1)*
-- [ ] **L0.5** Quyết định worktree riêng từng vai *(cây dùng chung đã gây 3 sự cố)* — **Lead**
+- [x] **L0.1** Xuất lại `project-knowledge/` — **Lead**
+  - `python3 scripts/export_project_knowledge.py` chạy tại HEAD `961fc24`
+  - `project-knowledge/00-SYNC-VERSION.md` → `Commit repo: 961fc24`, `Xuất lúc: 2026-08-24 23:51`,
+    `agent-tools.yaml @00239f9f0bfc` (khớp `check_contracts.py` hiện hành)
+  - Thư mục **gitignore** (`.gitignore:91`) — không có commit, tự đọc trực tiếp trên đĩa để kiểm
+  - ⚠️ Việc còn lại **ngoài quyền Lead**: xoá bản cũ + kéo-thả bản mới vào Claude Desktop
+    Project là thao tác tay của PO thật — Lead không có quyền đó
+- [x] **L0.2** ACK bản project-knowledge MỚI — **Coder**
+  - `p-226-63` xác nhận qua SendMessage 24/08: đọc trực tiếp
+    `project-knowledge/00-SYNC-VERSION.md` trên đĩa (không cần chờ Desktop) — khớp `961fc24`
+- [x] **L0.3** ACK bản project-knowledge MỚI — **QA/QC**
+  - `p-226-85` xác nhận qua SendMessage 24/08, cùng cách kiểm trên đĩa
+- [x] **L0.4** ACK bản project-knowledge MỚI — **Review**
+  - `p-226-cb` đã tự kiểm sớm nhất (trước cả khi Lead hỏi lại), SendMessage 24/08: đọc
+    `00-SYNC-VERSION.md` trực tiếp, khớp `961fc24`, xuất `23:51`
+- [x] **L0.5** Quyết định worktree riêng từng vai *(cây dùng chung đã gây 3 sự cố)* — **Lead**
+  - **Quyết định: KHÔNG tách worktree trong đợt này.** Giữ nguyên kỷ luật pathspec.
+  - **Vì sao:** (a) ba stack Docker (`fin05`/`fin05ttl`/`fin05do`) mount cố định đúng thư mục
+    làm việc này — tách worktree kéo theo phải dựng lại toàn bộ ánh xạ compose/CI cho từng
+    worktree, chi phí hạ tầng cao hơn lợi ích giữa một đợt đang chạy; (b) 3 sự cố cũ đều do
+    lệnh `git` **thiếu pathspec** (`stash`/`checkout`/`clean` toàn cây), không phải do va chạm
+    file hợp lệ giữa hai vai — sửa nguyên nhân gốc (pathspec) rẻ hơn đổi hạ tầng; (c) 4 vai
+    ghi vào 4 vùng gần như rời nhau (`src/` · `tests/+eval/+frontend/e2e/` · `docs/giao-viec+STATE`
+    · không ghi gì), bề mặt va chạm thật hẹp.
+  - **Sẽ xét lại nếu:** xảy ra sự cố pathspec thứ 4 trong đợt này dù đã nhắc kỷ luật.
 
 ---
 
