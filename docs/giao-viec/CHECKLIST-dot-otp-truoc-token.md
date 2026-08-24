@@ -545,13 +545,23 @@ trên nền sai là đúng thứ Luật F cấm.
   Coder đang DÙNG SỐNG để chấm ⑨/③ vòng 2. Đổi tên biến giữa lúc đo là "đổi vật giữa
   phép đo" — bài học đã trả giá nhiều lần trong đợt này. **QA/QC vá SAU khi Coder báo
   đã chấm xong ⑨ và ③ vòng 2**, không phải bây giờ.
-- [ ] **C3** [Lead 25/08] **DUYỆT**: sửa `ci.yml` để bước `pytest` chạy dù `ruff` đỏ
+- [~] **C3** [Lead 25/08] **DUYỆT**: sửa `ci.yml` để bước `pytest` chạy dù `ruff` đỏ
   (`if: always()` hoặc tách job riêng) — **Coder thực hiện** (vùng `.github/workflows/`,
   ADR-037 QĐ1), vì đây là quyết định Ý NGHĨA CỦA CỔNG nên Coder trình trước, không tự
   sửa. Lý do duyệt: lint (quy ước đặt tên) và test (đúng/sai hành vi) là hai trục khác
   nhau — để lint ẩn kết quả của 657 test là mất khả năng quan sát đúng lúc dự án cần nó
   nhất. Xác nhận xong khi có một run CI thật cho thấy pytest báo cáo dù ruff vẫn đỏ.
   *(3 job `ubuntu-latest` đỏ vì billing là sự cố KHÁC, chỉ PO thật gỡ — không đụng ở đây.)*
+  - **VẬT CHỨNG (mã):** commit `0e8c398`. YAML parse sạch, đọc mã đúng ý — nhưng
+    **CHƯA NGHIỆM THU ĐƯỢC**, giữ `[~]` không phải `[x]`.
+  - 🔴 **[Coder 25/08 phát hiện] `git rev-list --left-right --count
+    origin/dev/learning-loop...HEAD` → `0  47`** — nhánh đi trước origin 47 commit, lùi 0.
+    **Toàn bộ đợt này chưa từng push.** Mọi run CI đã mổ (kể cả bằng chứng "17 lỗi ruff")
+    chạy trên code CŨ HƠN, không phải code đợt này — "17" là DỰ BÁO, không phải phép đo
+    đã xác nhận trên CI thật. Nghiệm thu C3 cần: push → đọc job `lint-and-test` → log có
+    CẢ HAI (ruff ĐỎ **và** pytest có số báo cáo). Chi tiết: `docs/STATE.md` "CI, từ 24/08".
+  - **Coder đúng khi không tự push** (thao tác ra ngoài, kích CI hạ tầng BTC, hiển thị
+    ngoài đội) — đã chuyển PO thật qua PO agent, xem tin nhắn Lead→PO.
 
 ---
 
