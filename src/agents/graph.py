@@ -982,7 +982,6 @@ def run_agent_turn(
     # KHÔNG chặn lượt: đây là GHI NHẬN, không phải cổng. Hỏng thì lượt vẫn chạy.
     _tid_sl_thu = thread_id or user_id
     if doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu) not in (None, 0):
-        xoa_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu)
         try:
             _gop = hop_nhat_tin_hieu_gian_lan(
                 session,
@@ -990,6 +989,19 @@ def run_agent_turn(
                 utterance_text=message,
                 them_ma=["FS-13"] if la_tra_loi_khang_dinh(message) else None,
             )
+            # 🔴 XOÁ SAU KHI MERGE THÀNH CÔNG, không trước (Review bắt, PO chốt).
+            # Bản đầu xoá TRƯỚC `try` — merge ném lỗi thì lượt vẫn chạy (đúng)
+            # nhưng lời khai "có người hướng dẫn em chuyển" MẤT VĨNH VIỄN, không
+            # lượt nào thử lại. Đúng luật bất đối xứng đã viết ở bộ dò khẳng định,
+            # khác miền:
+            #   xoá SAU  ⟹ merge hỏng thì hỏi lại khách một lần.    Phiền.
+            #   xoá TRƯỚC ⟹ merge hỏng thì MẤT lời khai bị lừa đảo. Hỏng thật.
+            #
+            # KHÔNG có vòng lặp hỏi mãi: cổng HỎI đòi tín hiệu == 0, mà tín hiệu
+            # chỉ về 0 khi merge XONG. Tín hiệu còn 1 ⟹ không hỏi lại, chỉ thử
+            # merge lại mỗi lượt. Retry bị chặn trên bởi số lượt khách còn chat,
+            # không phải một vòng lặp trong một lượt.
+            xoa_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu)
             _logger.info(
                 "agent_turn_thu_sang_loc_lua_dao",
                 extra={"user_id": user_id, "thread_id": _tid_sl_thu,

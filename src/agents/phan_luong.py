@@ -345,6 +345,57 @@ def _la_khung_dieu_kien(s: str) -> bool:
     return False
 
 
+# ── AM-03 · CHỐT KHÔNG-BẮN: câu ĐÒI ĐỊNH DANH BÊN THỨ BA ────────────────────
+# Neo vào DANH TỪ, KHÔNG vào ĐỘNG TỪ. Review bác đường neo động từ yêu cầu
+# ("cho tôi xin"/"cho mình biết"/"làm ơn"/"tôi muốn biết"…) vì đó là tập MỞ —
+# hỏng đúng kiểu chữ "mà" đã hỏng ở bản thử 7/7 bị từ chối.
+#
+# TRƯỜNG PII là tập ĐÓNG và ĐÃ CÓ NGUỒN THẨM QUYỀN: đúng ba thứ `masking.py`
+# che — họ tên · số điện thoại · số tài khoản. Không tự đẻ khái niệm mới.
+#
+# Đòi ĐỒNG THỜI ① trường PII VÀ ② chỉ dấu bên thứ ba — bất kể THỂ CÂU (lệnh,
+# hỏi, hay trần thuật đều bắt). "số tài khoản của tôi" trượt ② ⟹ không kích.
+_TRUONG_PII = ("họ tên", "ho ten", "tên đầy đủ", "ten day du", "họ và tên",
+               "ho va ten", "tên người", "ten nguoi",
+               "số điện thoại", "so dien thoai", "sđt", "sdt",
+               "số tài khoản", "so tai khoan", "số tk", "so tk",
+               "stk", "thông tin liên hệ", "thong tin lien he")
+_CHI_DAU_BEN_THU_BA = ("người nhận", "nguoi nhan", "người kia", "nguoi kia",
+                       "người khác", "nguoi khac", "người ta", "nguoi ta",
+                       "người đó", "nguoi do", "người lạ", "nguoi la",
+                       "bên nhận", "ben nhan", "chủ tài khoản", "chu tai khoan",
+                       "người mà", "nguoi ma", "người tôi", "nguoi toi",
+                       "người em", "nguoi em", "người mình", "nguoi minh")
+
+
+_CUA_SO_CHI_DAU = 24  # ký tự, đủ cho "của người nhận"/"của chủ tài khoản"
+
+
+def _doi_dinh_danh_ben_thu_ba(s: str) -> bool:
+    """Câu này có ĐÒI thông tin định danh của NGƯỜI KHÁC không.
+
+    KHÔNG phải phân loại lại — `_nhom_b` giữ nguyên. Đây là chốt KHÔNG-BẮN:
+    câu chạm danh tính bên thứ ba phải đi ĐẦY ĐỦ để O1–O5 và tầng che của
+    `masking.py` được chạy, thay vì bị cổng 0-token trả một câu lạc đề.
+    """
+    for t in _TRUONG_PII:
+        i = s.find(t)
+        if i < 0:
+            continue
+        # Chỉ dấu phải đứng NGAY SAU trường PII, trong cửa sổ hẹp — đó là cách
+        # tiếng Việt gắn sở hữu ("số điện thoại CỦA NGƯỜI…", "tên NGƯỜI…").
+        # Đứng ở đâu cũng tính thì "…chuyển nhầm cho NGƯỜI LẠ, không nhớ SỐ TÀI
+        # KHOẢN của mình" bị bắt oan: hai chữ ở gần nhau nhưng KHÔNG thuộc về
+        # nhau. Gần ≠ liên quan.
+        # Cửa sổ tính TỪ ĐẦU trường PII, không từ cuối — vì có cụm PII đã
+        # NUỐT luôn chỉ dấu vào trong nó ("tên người"). Tính từ cuối thì
+        # "tên người tôi chuyển nhầm" mất chỉ dấu "người tôi" ngay tại chỗ.
+        sau = s[i: i + len(t) + _CUA_SO_CHI_DAU]
+        if any(c in sau for c in _CHI_DAU_BEN_THU_BA):
+            return True
+    return False
+
+
 def _nhom_b(s: str) -> bool:
     if _la_khung_dieu_kien(s):
         return False
@@ -658,6 +709,7 @@ def _phan_luong(cau: object) -> tuple[str, str]:
             and not boc_slot(cau)["so_tien"]
             and not _co_cam_xuc_manh(s)
             and not _co_so_viet_chu(s)
+            and not _doi_dinh_danh_ben_thu_ba(s)
         ):
             return DUONG_THU_SLOT, "dấu hiệu sở hữu/giao dịch cá nhân, thiếu số tiền"
         # Có tín hiệu cảm xúc mạnh (đo được ở s) rơi xuống nhánh dưới — nếu
