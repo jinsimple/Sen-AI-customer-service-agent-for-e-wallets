@@ -22,9 +22,21 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#7** — 00:35, 25/08 |
-| **HEAD lúc điểm danh** | `3368af2` |
-| **Cả bốn vai động** | không ai đứng im |
+| **Lần điểm danh cuối** | **#8** — 00:52, 25/08 |
+| **HEAD lúc điểm danh** | `3f5f979` · băm luật `862fa1505626` |
+| **🔇 15 phút KHÔNG ai ghi tệp nào** | lần đầu trong đợt — PO đã hỏi ba vai |
+
+**Vật chứng #8**
+
+| vai | dấu vết |
+|---|---|
+| Coder | ✅ ⑤ `d50bf9d`+`4b80f3e` · ⑭ `939d507` · ADR-050 bản sửa · 🔇 15′ im |
+| QA/QC | 🔇 15′ im — còn ⑮ ⑥ ⑬-A |
+| Lead | ✅ ACK dọn bảng lúc 00:45 |
+| Review | ⏳ chờ ③ vòng 2 · không có việc chạy được |
+
+⚠️ **Bảng theo dõi CŨ HƠN VẬT:** ⑤ land từ trước điểm danh #7 mà chưa ai tick. PO tự kiểm,
+tự tick. Nếp: **vai land xong tự tick + commit**, đừng để người điều phối đi truy.
 
 **Vật chứng #7**
 
@@ -282,7 +294,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     ai đó chạy từ host có stack thật, đúng như Coder vừa làm. Đây không phải "CI gãy",
     là một cổng có thiết kế đúng nhưng **không có ai theo lịch chạy nó**. Đã báo PO.
 
-- [ ] **⑤** Cổng sau OTP hỏi **thời gian + số tiền một tin** — **Coder**
+- [x] **⑤** Cổng sau OTP hỏi **thời gian + số tiền một tin** — **Coder**
   - Bỏ mã GD khỏi câu hỏi *(vẫn nhận diện nếu khách tự nêu)*
   - Sửa cách thi hành R1: *"một YÊU CẦU mỗi tin"* → **"một Ý mỗi tin"**
   - ADR 24/08 **đứng nguyên**, không cần ADR thay thế *(xem phiếu §2b)*
@@ -293,6 +305,12 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     "cổng không thấy ≠ cổng đồng ý"). **Cần QA/QC quyết ĐC-7 nói gì sau khi R1 đổi
     nghĩa (phiếu §2b) — TRƯỚC hoặc CÙNG lúc ⑤ land.** Đã chuyển QA/QC.
 
+  - **VẬT CHỨNG:** `d50bf9d` + `4b80f3e` · băm luật `862fa1505626`
+  - **PO kiểm độc lập 25/08** *(bảng theo dõi CŨ hơn vật — Coder land, chưa ai tick)*:
+    `HOI_THOI_GIAN_VA_SO_TIEN` = *"Dạ bạn cho mình xin số tiền và thời điểm giao dịch
+    (hôm nay/hôm qua, sáng/chiều/tối) giúp mình nhé."*
+    → hỏi **cả hai trong MỘT tin** ✅ · **KHÔNG** còn mã giao dịch ✅ — đúng Q2
+  - `4b80f3e` chuyển hằng số sang `phan_luong.py` — Coder tự khai *"ĐỔI TÊN KHÔNG ĐỦ"*
 - [ ] **⑥** Ca E2E trên UI cho bất biến *"0 token trước OTP"* — **QA/QC** · `frontend/e2e/`
   - Đo trên envelope `/agent/chat` *(mang `duong` + `usage.total_tokens`)*
   - **Ba trạng thái:** `0` ≠ `null` ≠ `>0`
