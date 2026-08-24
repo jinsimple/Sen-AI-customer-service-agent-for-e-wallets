@@ -35,7 +35,18 @@ from sqlalchemy.orm import Session
 from src.agents import llm_pool
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
 from src.agents.output_filter import loc_dau_ra, tin_hieu_lo_chi_thi
-from src.agents.phan_luong import BAM_LUAT, DUONG_DAY_DU, DUONG_NHE, TRA_LOI_NHE, phan_luong
+from src.agents.phan_luong import (
+    BAM_LUAT,
+    DUONG_DAY_DU,
+    DUONG_NHE,
+    DUONG_THU_SLOT,
+    HOI_THIEU_CA_HAI,
+    HOI_THIEU_SO_TIEN,
+    TEN_TIN_HIEU_1B,
+    TRA_LOI_NHE,
+    boc_slot,
+    phan_luong,
+)
 from src.agents.prompt import bam_mau_prompt, build_system_prompt
 from src.agents.tools.customer_tools import TurnGuard, build_customer_tools
 from src.config import (
@@ -61,6 +72,8 @@ from src.observability.so_usage import ghi_usage
 from src.observability.tracing import get_tracer
 from src.services.complaint_intake import flag_human_handoff
 from src.services.emotion_signals import danh_gia_luot
+from src.services.thread_signals import doc as doc_tin_hieu
+from src.services.thread_signals import tang as tang_tin_hieu
 from src.tools.base import ToolError
 
 _tracer = get_tracer("fin05.agent")
@@ -825,6 +838,54 @@ def run_agent_turn(
             }
             _ghi_so(_kq_nhe, thread_id, user_id)
             return _kq_nhe
+
+        elif _duong == DUONG_THU_SLOT:
+            # 1B — cổng thu slot tất định (docs/giao-viec/2026-08-24-luong-
+            # chatbot-1A-1B.md). Trạng thái "đã hỏi lần nào chưa" sống ở TẦNG
+            # GỌI này (Redis, thread_signals.py) — phan_luong.py là hàm THUẦN,
+            # không side-effect. Tối đa MỘT LẦN hỏi mỗi hội thoại (mục 5): đã
+            # hỏi rồi thì KHÔNG return sớm ở đây nữa, rơi thẳng xuống đường
+            # đầy đủ bên dưới như một lượt day_du bình thường — GHÉP lại lời
+            # kể gốc + câu trả lời của khách là việc của model đọc lịch sử
+            # hội thoại, tầng tất định này không có khả năng ghép ngữ cảnh
+            # liên-lượt (đúng bất biến "phân loại theo TỪNG LƯỢT").
+            _tid_hieu_qua = thread_id or user_id
+            if doc_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua) == 0:
+                tang_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua)
+                _slot = boc_slot(message)
+                _reply_slot = HOI_THIEU_CA_HAI if not _slot["thoi_gian"] else HOI_THIEU_SO_TIEN
+                _logger.info(
+                    "agent_turn_duong_thu_slot",
+                    extra={"user_id": user_id, "thread_id": _tid_hieu_qua,
+                           "ly_do": _ly_do_duong, "bam_luat": BAM_LUAT},
+                )
+                _kq_slot = {
+                    "reply": _reply_slot,
+                    "tool_calls": [],
+                    "ticket_id": None,
+                    "should_escalate": False,
+                    # Cùng nguyên tắc DUONG_NHE — không gọi model nào, None/0
+                    # là SỰ THẬT, không phải "không đọc được".
+                    "model": None,
+                    "models_da_thu": [],
+                    "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                              "cached_input_tokens": 0, "reasoning_tokens": 0,
+                              "input_chars": 0, "so_luot_goi_model": 0,
+                              "so_tool_schema_gui": 0,
+                              "chars_tool_schema_moi_luot": 0,
+                              "suy_luan_gui": None},
+                    "loc_dau_ra": [],
+                    "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                    "goi_y_handoff": False,
+                    "ly_do_fallback": None,
+                    # 🔴 Nhãn RIÊNG, KHÔNG dùng chung "nhe" — thiếu nhãn này
+                    # thì không đếm được tần suất cổng bắn/lượt trong
+                    # usage.jsonl, dự báo giảm token (1B.5) không kiểm chứng
+                    # được (yêu cầu PO-agent, mục 1 nháp 1B).
+                    "duong": DUONG_THU_SLOT,
+                }
+                _ghi_so(_kq_slot, thread_id, user_id)
+                return _kq_slot
 
     # ES-xx (ADR-022) — tính TRƯỚC khi gọi agent, trên tin nhắn khách, ở TẦNG
     # SERVICE. Không gọi LLM, không đi vào prompt, không thêm bước nào.

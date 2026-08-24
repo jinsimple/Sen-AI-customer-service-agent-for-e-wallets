@@ -64,6 +64,13 @@ DUONG_NHE = "nhe"
 DUONG_THU_SLOT = "thu_slot"
 DUONG_DAY_DU = "day_du"
 
+# Tên tín hiệu Redis (thread_signals.py) đánh dấu "đã hỏi slot lần nào chưa"
+# trong hội thoại này — mục 5+6 thiết kế 1B: cổng chỉ được bắn TỐI ĐA MỘT
+# LẦN mỗi hội thoại, đọc/ghi ở TẦNG GỌI (graph.py), không phải ở đây —
+# phan_luong.py là hàm THUẦN (không side-effect), đúng nguyên tắc "0 trạng
+# thái" xuyên suốt module này.
+TEN_TIN_HIEU_1B = "1b_da_hoi_slot"
+
 # Tập đóng token xã giao. CHỈ mở rộng khi có ca THẬT, không mở theo dự đoán —
 # mỗi token thêm vào là một chỗ khiếu nại thật có thể lọt qua.
 XA_GIAO = {
@@ -156,6 +163,22 @@ def _nhom_b(s: str) -> bool:
     return False
 
 
+def _chuan_hoa_nhe(s: str) -> str:
+    """Chuẩn hoá NHẸ cho bóc slot — CHỈ NFC + hạ chữ thường, KHÔNG chạy
+    `_DAU_CAU` (thứ `_chuan_hoa()` dùng cho khớp từ khoá NHÓM A/B).
+
+    🔴 BUG THẬT tự bắt trước khi báo cáo: `_chuan_hoa()` thay `/`, `.`, `,`
+    bằng khoảng trắng ("26/06" → "26 06", "340.000đ" → "340 000đ") — dùng nó
+    cho `boc_slot()` làm khuôn ngày `\\d{1,2}[/-]\\d{1,2}` KHÔNG BAO GIỜ khớp
+    được bất kỳ ngày dạng số nào, vì dấu `/` đã biến mất trước khi regex kịp
+    thấy. [ĐO] chạy cổng eval/cong_phan_luong.py thật trên golden_set.jsonl:
+    lỗi này một mình gây phần lớn trong 47/124 ca "âm gốc" báo sai `thu_slot`
+    (số tiền có nhưng ngày báo THIẾU dù câu ghi rõ "Ngày 26/06"). Tách hàm
+    nhẹ riêng cho bóc slot, giữ nguyên `_chuan_hoa()` cho khớp từ khoá (không
+    đổi hành vi NHÓM A/B, chỉ đổi hành vi bóc slot)."""
+    return unicodedata.normalize("NFC", s).lower().strip()
+
+
 def boc_slot(cau: object) -> dict[str, bool]:
     """Bóc slot BẮT BUỘC (số tiền, thời gian) từ MỘT câu — KHÔNG ghép ngữ
     cảnh liên-lượt (mục 5 — ghép là việc của model, tầng này chỉ đọc một câu
@@ -169,24 +192,30 @@ def boc_slot(cau: object) -> dict[str, bool]:
     hoặc đi day_du tuỳ nơi gọi, không đoán bừa)."""
     if not isinstance(cau, str):
         return {"so_tien": False, "thoi_gian": False}
-    s = _chuan_hoa(cau)
+    s = _chuan_hoa_nhe(cau)
     return {"so_tien": bool(_SO_TIEN.search(s)), "thoi_gian": bool(_THOI_GIAN.search(s))}
 
 
-# Bốn mẫu câu hỏi cố định (mục 4) — HẰNG SỐ, KHÔNG nhờ model sinh, cùng
-# nguyên tắc TRA_LOI_NHE. Một tin gộp khi thiếu ≥2 slot (không tách hai dòng
-# — cùng tinh thần R1). Câu "thiếu cả hai" kèm đường đi 3 bước tìm mã, khớp
-# R2 (1A), tái dùng một chỗ, không lặp logic.
+# 🔴 CHỐT 24/08 (PO-agent+Lead, sau khi chạy cổng thật lộ mâu thuẫn OR/AND —
+# xem lịch sử trao đổi): SLOT BẮT BUỘC DUY NHẤT là SỐ TIỀN, không phải cặp
+# (số tiền, thời gian). Căn cứ: L3 chuyên gia — "số tiền là neo tìm kiếm
+# MẠNH NHẤT"; có số tiền là get_customer_history(amount=...) tra được NGAY,
+# multiple_matches (nếu có) đã có đường xử lý riêng qua LLM (hỏi lại đúng
+# ngữ cảnh ứng viên) — hỏi thời gian TRƯỚC, tất định, là hỏi một thứ có thể
+# không cần. Thời gian vẫn BÓC nếu có (đi kèm reply cho model đọc), nhưng
+# KHÔNG BAO GIỜ một mình là lý do chặn/hỏi. Hệ quả: mẫu "chỉ thiếu thời
+# gian" bị XOÁ — không nhánh nào còn dùng tới.
+#
+# Hai mẫu câu hỏi cố định còn lại (mục 4, đã rút gọn) — HẰNG SỐ, KHÔNG nhờ
+# model sinh, cùng nguyên tắc TRA_LOI_NHE. Chọn theo CÓ/KHÔNG thời gian
+# trong câu gốc (không tách hai dòng — cùng tinh thần R1). Câu thiếu-cả-hai
+# kèm đường đi 3 bước tìm mã, khớp R2 (1A), tái dùng một chỗ, không lặp logic.
 HOI_THIEU_CA_HAI = (
     "Dạ bạn cho mình xin khoảng thời gian giao dịch (hôm nay, hôm qua, hay ngày cụ thể) và số "
     "tiền giúp mình nhé — nếu có mã giao dịch thì cho mình xin luôn, không có cũng không sao ạ, "
     "bạn có thể vào mục Lịch sử giao dịch, bấm vào đúng giao dịch đó là thấy mã ạ."
 )
 HOI_THIEU_SO_TIEN = "Dạ bạn cho mình xin thêm số tiền giao dịch giúp mình nhé."
-HOI_THIEU_THOI_GIAN = (
-    "Dạ bạn cho mình xin khoảng thời gian giao dịch giúp mình — hôm nay, hôm qua, hay ngày cụ thể "
-    "ạ."
-)
 
 # Băm của CHÍNH FILE NÀY, tính lúc import. KHÔNG gõ tay.
 #
@@ -240,14 +269,44 @@ def _phan_luong(cau: object) -> tuple[str, str]:
 
     s = _chuan_hoa(cau)
 
+    # 1B — 🔴 LỆCH SO VỚI NHÁP GỐC, ĐÃ BÁO PO-agent/Lead trước khi land: nháp
+    # đặt NHÓM B (dòng dưới) PHÍA SAU cổng "có chữ số" (_CO_CHU_SO), với lý do
+    # "câu không số đã đi day_du từ nhánh có sẵn, không cần luật mới". Nhưng
+    # chính ca mẫu PO-agent dùng làm kịch bản nghiệm thu — "tôi bị trừ tiền"
+    # — KHÔNG có chữ số nào cả (khách chưa nói số tiền, đúng lúc cần hỏi số
+    # tiền nhất). Đặt NHÓM B sau cổng số sẽ làm chính ca mẫu đó KHÔNG BAO GIỜ
+    # kích được cổng — mâu thuẫn với kịch bản nghiệm thu bằng chính ví dụ hộ
+    # tống nó. Kiểm NHÓM B TRƯỚC, không điều kiện theo có-số-hay-không; slot
+    # số tiền vẫn tự nhiên bắt được "chưa nói số nào" (boc_slot trả so_tien=
+    # False), nên vẫn hỏi lại đúng chỗ thiếu — không cần chữ số để BẮT ĐẦU
+    # hỏi, chỉ cần nó để BÓC được nếu khách đã lỡ nói.
+    if _nhom_b(s):
+        # 🔴 CHỐT 24/08 (PO-agent+Lead): SLOT BẮT BUỘC DUY NHẤT là SỐ TIỀN —
+        # không phải cặp (số tiền, thời gian). Căn cứ: L3 chuyên gia "số tiền
+        # là neo tìm kiếm MẠNH NHẤT"; có số tiền là get_customer_history
+        # (amount=...) tra được ngay, multiple_matches (nếu có) đã có đường
+        # xử lý riêng qua LLM đúng ngữ cảnh ứng viên — hỏi thời gian TRƯỚC,
+        # tất định, là hỏi một thứ có thể không cần, phiền khách miễn phí.
+        # [ĐO] 124 câu golden_set: cả 36 câu từng vỡ dưới luật "thiếu MỘT
+        # TRONG HAI" đều so_tien=True — chúng qua được nhờ ĐÚNG CÁI NEO này,
+        # không phải vì "giàu thông tin" (mệnh đề độ dài đội lốt, đã cân
+        # nhắc và BÁC — phan_luong.py cấm mệnh đề độ dài từ trước 1B).
+        #
+        # Mã giao dịch (TXN...) đã có ⟹ đè slot số tiền, luôn đi day_du — mã
+        # định danh CHÍNH XÁC một giao dịch, đặc hiệu hơn số tiền.
+        #
+        # Hệ quả: mọi câu kích NHÓM B(ii) ("mất"/"bị mất"/"bị trừ" kề số
+        # tiền) LUÔN có so_tien=True theo đúng định nghĩa của B(ii) ⟹ B(ii)
+        # KHÔNG BAO GIỜ tự sinh ra `thu_slot` — nó chỉ còn là tầng NHẬN DIỆN
+        # (vẫn ĐẠT, Tester canh riêng), không phải tầng QUYẾT ĐỊNH slot.
+        # B(i) (vd "tôi bị trừ tiền" — không có số tiền nào cả) mới là nguồn
+        # thu_slot thật sự.
+        if not _MA_GD.search(s) and not boc_slot(cau)["so_tien"]:
+            return DUONG_THU_SLOT, "dấu hiệu sở hữu/giao dịch cá nhân, thiếu số tiền"
+        # Có số tiền (hoặc có mã) ⟹ rơi xuống nhánh dưới, luôn khớp
+        # _CO_CHU_SO (số tiền/mã đều mang chữ số), đi day_du bình thường.
+
     if _CO_CHU_SO.search(s):
-        # 1B — NHÓM A (có số, ĐÃ khớp ở nhánh này) VÀ NHÓM B (mục docstring
-        # trên `_nhom_b`) ĐÒI ĐỒNG THỜI, không đòi một trong hai: danh từ
-        # giao dịch một mình ("phí chuyển tiền") khớp cả câu chính sách lẫn
-        # khiếu nại thật — tách hai loại là việc của sở-hữu-cá-nhân + động
-        # từ ĐÃ XẢY RA, không phải việc riêng của động từ.
-        if _nhom_b(s) and not all(boc_slot(cau).values()):
-            return DUONG_THU_SLOT, "có số + dấu hiệu sở hữu/giao dịch cá nhân, thiếu slot bắt buộc"
         return DUONG_DAY_DU, "có chữ số (tiền/mã GD/SĐT/ngày đều mang số)"
 
     con = s
