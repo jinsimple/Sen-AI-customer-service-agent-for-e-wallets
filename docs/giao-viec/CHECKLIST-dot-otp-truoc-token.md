@@ -462,3 +462,40 @@ phải KÊU lúc bất thường, và cách duy nhất biết là **tự dựng 
   tuần này, tôi không nhớ rõ mã giao dịch."* → mong `day_du`, được `thu_slot`.
   Ca ✗ **duy nhất** trong 124 âm gốc, có từ trước ③ *(Review đo bit-for-bit giống nhau
   trước/sau `d310dc5`)*. Chưa ai nhận.
+
+---
+
+## 🔀 PO SỬA CHỖ NEO CỦA "CHỐT KHÔNG-BẮN" — Review đúng (25/08)
+
+**PO đã chốt:** neo vào *"câu ĐÒI DỮ LIỆU định danh người khác"*. Cách diễn đạt ấy dẫn
+thẳng tới việc dò **ĐỘNG TỪ YÊU CẦU** *("cho tôi xin", "cho mình biết")*.
+
+🔴 **Review bác, và bác đúng:** động từ yêu cầu tiếng Việt là **tập MỞ** — *cho tôi xin ·
+cho mình biết · làm ơn · tôi muốn biết · gửi giúp tôi …*. Một token bỏ được, một từ thay
+đồng nghĩa được. **Đúng hình dạng lỗi `"mà"` mà Coder vừa tự bắt** — tức ta sắp dựng lại
+cùng một cái bẫy ở một tệp khác.
+
+**⟹ ĐỔI CHỖ NEO: từ ĐỘNG TỪ sang DANH TỪ + CHỈ DẤU.**
+
+| | |
+|---|---|
+| ~~dò động từ yêu cầu~~ | tập mở, hỏng theo cùng cách `"mà"` hỏng |
+| **dò trường PII đóng** | ba hàm **đã có** trong `masking.py`: họ tên · SĐT · số tài khoản |
+| **+ chỉ dấu bên thứ ba** | *người khác · người kia · người nhận …* |
+| **bất kể thể câu** | lệnh, hỏi, hay trần thuật đều bắt |
+
+Vẫn neo vào `masking.py` đúng như PO đã chốt — **chỉ đổi chỗ neo, không đổi nguyên tắc**.
+
+### ⚠️ Giới hạn đã biết trước, khai cho QA/QC TRƯỚC khi dựng ca
+
+Chỉ dấu bên thứ ba **né được bằng đại từ chiếu hồi**: *"cho tôi số đó"* — không lặp danh
+từ người nhận, nên chốt mù. **Ca đối chứng phải phủ biến thể này**, đừng đợi vỡ mới phát hiện.
+
+**PO ghi thêm một dữ kiện giảm nhẹ, QA/QC kiểm giúp chứ đừng tin:** đại từ chiếu hồi cần
+một lượt trước để chiếu tới. Mà cổng bắn **tối đa một lần mỗi hội thoại** — nếu nó đã bắn
+ở lượt 1 thì lượt 2 rơi thẳng xuống `day_du`. Còn nếu lượt 1 **chưa** bắn thì *"cho tôi số
+đó"* tự nó thiếu cả động từ giao dịch lẫn tín hiệu khiếu nại ⟹ cũng `day_du`.
+⟹ **Giả thuyết:** lỗ chiếu hồi có thể đã bị đóng bởi cấu trúc, không cần luật mới.
+**Chưa đo. Đây là giả thuyết, không phải kết luận** — dựng ca để bác nó, đừng để nó đứng.
+
+**Vật chứng bản vá 7/7 bị từ chối:** `docs/nhat-ky/2026-08-25-ban-va-7-tren-7-bi-tu-choi.md`
