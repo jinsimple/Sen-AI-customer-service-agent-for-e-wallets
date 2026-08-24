@@ -19,19 +19,43 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | *(PO cập nhật mỗi 15 phút)* |
-| **HEAD lúc điểm danh** | `a3bc860` |
-| **Vai đang chạy** | — |
-| **Vai đứng im** | — |
+| **Lần điểm danh cuối** | #1 — ngay sau khi phiếu land |
+| **HEAD lúc điểm danh** | `961fc24` |
+| **Vai đang chạy** | Lead *(L0)* · Coder *(⑦ ⑧)* |
+| **Vai chờ đầu vào** | QA/QC *(nhận ① ② ⑬ — không chặn gì)* · Review *(chờ ③ land)* |
+
+**Bản đồ phiên ↔ vai** *(hỏi thẳng, không suy từ tên phiên)*
+
+| vai | phiên | trạng thái |
+|---|---|---|
+| Lead | `p-226-8b` | ACK · bắt đầu L0 |
+| Coder | `p-226-63` | ACK · bắt đầu ⑦ ⑧ |
+| QA/QC | `p-226-85` | ACK · chưa nhận việc |
+| Review Code | `p-226-cb` | ACK · chờ ③ land |
 
 ---
 
 ## L0 — Nền, trước mọi việc
 
-- [ ] **L0.1** Xuất lại `project-knowledge/` *(cũ 130 commit, hash `agent-tools.yaml` đã đổi)* — **Lead**
-- [ ] **L0.2** ACK bằng chữ của **Coder** đã đọc bản mới
-- [ ] **L0.3** ACK bằng chữ của **QA/QC** đã đọc bản mới
-- [ ] **L0.4** ACK bằng chữ của **Review** đã đọc bản mới
+> 🔴 **ĐÍNH CHÍNH 24/08 — Coder (`p-226-63`) bắt lỗi trong chính bảng này, và bắt đúng.**
+> Bản đầu gộp **ACK phiếu** với **ACK bản project-knowledge mới** làm một. Hai thứ khác nhau:
+> ACK phiếu làm được ngay; ACK bản mới **không thể có** trước khi L0.1 chạy. Tách thành hai
+> dãy. Ai tick L0.2–L0.4 khi L0.1 còn `[ ]` là tick một thứ không tồn tại.
+
+**L0a — ACK phiếu giao việc** *(làm được ngay)*
+
+- [x] **L0a.1** **Coder** = `p-226-63` — ACK phiếu tại `961fc24`
+- [x] **L0a.2** **Lead** = `p-226-8b` — ACK phiếu tại `961fc24`
+- [x] **L0a.3** **QA/QC** = `p-226-85` — ACK phiếu tại `961fc24`
+- [x] **L0a.4** **Review Code** = `p-226-cb` — ACK phiếu tại `961fc24`
+
+**L0b — Nền kiến thức** *(L0.1 chặn phần còn lại)*
+
+- [ ] **L0.1** Xuất lại `project-knowledge/` — **Lead**
+  - Cũ **131 commit** *(chụp `2a787bb`, HEAD nay `961fc24`)*, hash `agent-tools.yaml` đã đổi
+- [ ] **L0.2** ACK bản project-knowledge MỚI — **Coder** *(chờ L0.1)*
+- [ ] **L0.3** ACK bản project-knowledge MỚI — **QA/QC** *(chờ L0.1)*
+- [ ] **L0.4** ACK bản project-knowledge MỚI — **Review** *(chờ L0.1)*
 - [ ] **L0.5** Quyết định worktree riêng từng vai *(cây dùng chung đã gây 3 sự cố)* — **Lead**
 
 ---
