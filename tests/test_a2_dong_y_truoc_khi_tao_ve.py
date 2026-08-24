@@ -135,23 +135,38 @@ def _dem() -> dict[str, int]:
 
 
 def _login() -> str:
-    """Đăng nhập MỘT LẦN, trả `access_token`.
+    """Đăng nhập MỘT LẦN + xác thực OTP PHIÊN, trả `access_token` ĐÃ otp_verified.
 
     🔴 [ĐO 24/08] `main.py:645` suy `thread_id = f"{user_id}:{iat}"` TỪ JWT —
     trường `thread_id` trong body `/agent/chat` bị BỎ QUA LẶNG LẼ (ADR-044,
     19/08). Đăng nhập lại giữa hai lượt của CÙNG kịch bản sinh `iat` MỚI ⟹
     hai lượt rơi vào HAI thread khác nhau dù cùng biến `thread` truyền tay.
-    Đây CHÍNH LÀ lý do A2 vế hai (`test_luot_DONG_Y_thi_tao_ve`) gãy: bản cũ
-    gọi `_chat()` (tự login mỗi lần) cho cả lượt A và B — "Ừ tạo đi" thành
-    tin ĐẦU TIÊN của một hội thoại RỖNG, agent không có gì để chốt là ĐÚNG,
-    không phải hồi quy. Test viết 17/08 khi API còn đọc `thread_id` từ body;
-    gãy từ ADR-044 nhưng nằm sau cổng tốn-tiền nên không ai chạy lại tới hôm
-    nay — 5 ngày một khẳng định xanh sống trên một API đã đổi (họ Luật X).
+    Đây CHÍNH LÀ lý do A2 vế hai (`test_luot_DONG_Y_thi_tao_ve`) gãy LẦN MỘT:
+    bản cũ gọi `_chat()` (tự login mỗi lần) cho cả lượt A và B — "Ừ tạo đi"
+    thành tin ĐẦU TIÊN của một hội thoại RỖNG. Vá 24/08 (`e1bb3bd`).
+
+    🔴 [ĐO Coder, đọc transcript thật, 24/08] LẦN HAI: sau khi thread đã nối
+    đúng, vế hai VẪN đỏ — vì token login KHÔNG mang `otp_verified_at` (luôn
+    `null`), và `get_customer_history`/`create_ticket` đòi OTP phiên còn tươi
+    (`818564b`, 2026-08-10 — **CÓ TỪ TRƯỚC** khi test này viết 17/08, không
+    phải finding "mục theo thời gian": test CHƯA TỪNG đi qua cổng OTP thật kể
+    từ ngày viết). Agent nhận `_OTP_REQUIRED_ERROR` ở tool, không có dữ liệu
+    để tra ⟹ không tạo vé là ĐÚNG theo ràng buộc cứng 3 (cấm bịa), không phải
+    hồi quy. Vá bằng cách xác thực OTP thật ngay sau login — đường CHÍNH DANH
+    đã có sẵn, dùng lại nguyên trong `tests/test_api/test_otp.py`: response
+    của `/auth/otp/request` trả thẳng `otp_code` (quy ước môi trường test/dev,
+    không phải đường vòng tôi tự chế).
     """
     ma = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
+        "tok=r.json()['access_token'];"
+        "h={'Authorization':'Bearer '+tok};"
+        f"r=c.post('{API}/auth/otp/request',headers=h);"
+        "sid=r.json()['session_id'];code=r.json()['otp_code'];"
+        f"r=c.post('{API}/auth/otp/verify',headers=h,json={{'session_id':sid,'otp_code':code}});"
+        "assert r.json().get('otp_verified') is True, 'OTP verify thất bại: '+r.text;"
         "print(r.json()['access_token'])"
     )
     r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
