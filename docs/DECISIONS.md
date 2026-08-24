@@ -2804,3 +2804,34 @@ hơn cho câu chuyện muốn kể — **báo cáo nguyên trạng**. Đó là t
 ### Hệ quả
 `contracts/` không đổi ⟹ không cần §10. Mọi số đo trên trục *"chưa mất tiền thật"* công bố trước
 20/08 phải **niêm**, vì chúng đo bộ sinh chứ không đo khiếu nại.
+
+## ADR-047 — Tiếp nhận TRƯỚC, bổ sung SAU: khách đòi mở khiếu nại thì mở ngay
+
+**Ngày:** 2026-08-24 · **Trạng thái:** PO duyệt (lệnh *"tiếp tục triển khai thôi"*, 24/08)
+**Bối cảnh:** PO hỏi *"theo luồng nghiệp vụ của một con người CSKH thật thì họ sẽ làm gì?"*
+sau khi test A2 vế 2 đỏ **bốn vòng liên tiếp**. Tra nghiệp vụ thật →
+`docs/nghiep-vu-tiep-nhan-truoc-bo-sung-sau.md`.
+
+**Dữ kiện quyết định:** thời hạn xử lý tra soát/khiếu nại đếm **từ NGÀY TIẾP NHẬN**, không phải
+từ ngày khách khai đủ thông tin (TT 15/2024/TT-NHNN). Tổ chức thanh toán **bắt buộc** tiếp nhận
+qua tổng đài, rồi **mới** yêu cầu bổ sung hồ sơ theo mẫu.
+
+**Quyết định:** khi khách **chủ động yêu cầu** mở khiếu nại (*"tạo đi"*, *"mở khiếu nại cho tôi"*),
+agent **tạo vé NGAY**, không đặt điều kiện phải tra cứu xong trước. Vé ghi rõ phần chưa xác định
+được. **Tạo vé KHÔNG kết thúc hội thoại** — agent tiếp tục hỏi các slot còn thiếu và cập nhật
+vào vé đã có.
+
+**Điều KHÔNG đổi:**
+- Ràng buộc cứng 3 giữ nguyên: vé ghi *"chưa xác định được giao dịch"*, **không bịa** số/mã/trạng thái.
+- A2 gốc giữ nguyên: agent **không tự ý** tạo vé khi khách mới chỉ hỏi — chỉ tạo khi khách **yêu cầu**
+  hoặc **đồng ý** với đề nghị của agent.
+- HITL giữ nguyên: mở vé ≠ quyết định. Không đồng gì được duyệt ở bước này.
+
+**Thay thế:** điều kiện *"chỉ được tạo vé SAU KHI đã tra cứu ít nhất một lần"* thêm ở `2b197d0`
+(24/08) — **bãi bỏ** với nhánh khách-chủ-động-yêu-cầu. Giữ với nhánh agent-tự-đề-nghị.
+
+**Vì sao điều kiện cũ sai:** nó bảo vệ chất lượng vé bằng cách **trì hoãn mốc pháp lý bảo vệ
+khách**. Với ca lừa đảo — tiền chạy theo phút — mỗi lượt hỏi thêm là một lượt chậm.
+
+**Hệ quả kiểm thử:** test A2 vế 2 kỳ vọng **ĐÚNG** từ đầu; đỏ 4 vòng là bug sản phẩm thật.
+Không sửa test.
