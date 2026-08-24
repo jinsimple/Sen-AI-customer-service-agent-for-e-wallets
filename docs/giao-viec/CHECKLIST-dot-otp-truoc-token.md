@@ -199,6 +199,29 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
 - [ ] **④** Cổng OTP tất định cho NHÓM B — **Coder** · `src/agents/graph.py`
   - `otp_verified_at` đã có sẵn ở `run_agent_turn:798`, không cần thêm đường dẫn dữ liệu
   - Câu hỏi chính sách **KHÔNG** bị chặn OTP *(Q1)*
+  - 🟡 **[Lead 25/08] BA QUYẾT ĐỊNH TIỀN-LAND, trước khi Coder viết mã, kèm lý do:**
+    1. **Land gộp `src/`+`frontend/src/` trong MỘT commit — DUYỆT.** [ĐO] Coder:
+       `ChatClient.tsx:537-570` mở hộp thoại OTP qua `tool_calls`/`ticket_id`; cổng ④
+       trả `tool_calls: []` ⟹ backend-only là ngõ cụt (khách thấy chữ, không có gì mở
+       ra). Đúng họ lỗi GĐ2.5 (client đọc thứ không phải hợp đồng). Land nửa vế mới là
+       cái để lại sản phẩm hỏng giữa hai commit, không phải land gộp.
+    2. **Hợp đồng envelope ĐÓNG BĂNG cho QA/QC dựng ⑥:** `duong="can_otp"` (tín hiệu
+       DUY NHẤT client đọc) · `tool_calls=[]` · `ticket_id=null` · `model=null` ·
+       `usage.total_tokens=0` · `reply`=hằng số kèm câu chống mạo danh ⑧. Client **không**
+       khớp chuỗi tiếng Việt của `reply`. QA/QC: dựng ⑥ theo đúng khoá `duong`, không
+       theo nội dung câu chữ.
+    3. **Land ④ NGAY dù mang một lớp vi phạm Q1 đã biết (KHÔNG reorder).** [ĐO] Coder:
+       ④ thừa hưởng NHÓM B, và `AM-01` (câu hỏi chính sách, khung "Nếu lỡ...") vẫn
+       `nhom_b=True` cho tới khi trục "thể câu" của ③ vòng 2 (PO duyệt 25/08) đóng —
+       AM-03 bị chặn là ĐÚNG (đòi dữ liệu người khác). **Lý do duyệt landing ngay:**
+       (a) đây KHÔNG phải hồi quy do ④ gây ra — cùng gốc với lỗ ③ đã tracked, tự khép
+       khi ③ vòng 2 land; (b) chặn ④ lại để chờ ③ vòng 2 trì hoãn giá trị thật (0-token
+       cho đa số NHÓM B) vì một biên đã có lịch sửa; (c) khai rõ, không giấu. **Đóng khi:**
+       ③ vòng 2 land — lúc đó AM-01 tự hết `nhom_b=True`, không cần vá lại ④.
+    4. **Ghi nhận, không cần quyết:** ④ **không phải lớp bảo mật** — lớp thật vẫn ở
+       `customer_tools.py:918-921` (ràng buộc cứng 4). ④ dùng `OTP_VIEW_MAX_MINUTES`
+       (12h), lỏng hơn/bằng tool, không bao giờ chặt hơn. Coder ghi câu này vào chú
+       thích tại chỗ — đúng, tránh ai đọc ④ thành security rồi gỡ chốt ở tool.
 
 - [ ] **⑤** Cổng sau OTP hỏi **thời gian + số tiền một tin** — **Coder**
   - Bỏ mã GD khỏi câu hỏi *(vẫn nhận diện nếu khách tự nêu)*
