@@ -227,6 +227,34 @@ lớn nhất đo được (~40K/lượt hỏng), không phải một việc khá
 > ⟹ phải kiểm kê xong TRƯỚC khi vá"*. Bỏ Đ.25 ⟹ **ràng buộc thứ tự ấy tan** ⟹ vá plaintext được
 > land **sớm hơn**, không phải muộn hơn.
 
+### 📅 24/08 — HAI ĐỢT LỚN, ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC
+
+> Phiếu chi tiết: `docs/giao-viec/2026-08-24-luong-chatbot-1A-1B.md` · ADR-045b·046·047·048·049
+
+**Đã ship:** luật hỏi R1–R5 vào prompt · **ADR-047** tiếp-nhận-trước-bổ-sung-sau (khách đòi mở
+khiếu nại ⟹ mở NGAY, vì thời hạn tra soát đếm từ **ngày tiếp nhận**) · cổng thu-slot tất định
+(0 token khi bắn) · tài liệu thời hạn xử lý vào kho RAG.
+
+**🔴 Ba việc CHƯA đóng, phiên sau phải biết:**
+1. **A2 vế 2 đỏ 6 vòng** — loại trừ cả trần model. Prompt **không phải** đòn bẩy đúng.
+   ⟹ **ADR-049** (đổi sang cơ chế tất định) **chờ PO duyệt**. Đừng vá thêm bằng chữ.
+2. **R1 vi phạm thật** — model đọc luật *"cấm gộp A hoặc B"* rồi trả lời bằng đúng chữ "Hoặc".
+   Bằng chứng thứ hai cho ADR-049.
+3. **Redis là điểm chết đơn** — tắt Redis ⟹ `/agent/chat` **crash hẳn**, không response.
+   Vá ở `1a33239`, **chưa live-fire xác nhận**.
+
+**🟡 Bốn câu chờ PO thật:** hạn SLA cho vé `scope=unknown` (hiện 30 ngày, **không bao giờ tính
+lại**, ca chạm ngân hàng đáng lẽ 4 ngày làm việc) · trần số vé/phiên (~300 vé/cửa sổ OTP) ·
+FS-13 escalate hay chỉ ghi nhận · ADR-049.
+
+**⚠️ Bài học đắt nhất trong ngày — CÔNG CỤ ĐO hỏng SÁU lần:** cổng báo đỏ mà báo cáo chỉ nêu số
+lẻ xanh · ĐC-5 lỗi thời · ĐC-5 sau sửa bị mù · corpus không kiểm nội dung · bộ dò trục đếm THIẾU
+(⟹ **xanh giả có hệ thống**) · **không lưu reply lúc test đỏ** nên mỗi lần truy là đọc một văn
+bản khác. Đã dựng: **ĐC-6, ĐC-7, kho reply `eval/results/1a_reply_log.jsonl`**.
+🔴 **Số nền `18.597 token/hội thoại` KHÔNG tái tạo được** — niêm trong phiếu, không dùng làm neo.
+
+---
+
 ### 🔴 A. CHẶN, chỉ PO thật gỡ được
 
 **A1 · ADR-031 — ✅ ĐÓNG 18/08 vòng 2. Không còn chặn.**
