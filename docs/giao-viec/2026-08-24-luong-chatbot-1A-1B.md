@@ -12,16 +12,15 @@
 
 ### Đợt 1A — Luật hỏi trong prompt *(không đụng contract)*
 
-- [x] **1A.1** ✅ `d70763e` 6 ca, R2/R3 tự khai skip-có-lý-do khi nhánh không quan sát được Tester: bộ ca eval viết **TRƯỚC** từ đặc tả (không đọc `src/`), ~6–8 ca
-- [ ] **1A.2** Coder: vá prompt 5 luật (nháp ngoài repo, land SAU khi 1A.1 vào cây)
-- [ ] **1A.3** Đo delta token prompt trước/sau (`bam_mau_prompt` đối chiếu)
+- [x] **1A.1** ✅ `d70763e` — 6 ca R1–R5, viết trước từ đặc tả, R2/R3 tự khai skip-có-lý-do
+- [x] **1A.2** ✅ `f6f70df` — R1–R5 vào prompt, 3 điểm chạm, land sau 1A.1 đúng trình tự
+- [x] **1A.3** ✅ render thật 4.587 → 4.790 = **+203 token (+4,4%)**, dưới trần 600 · băm mẫu 75a57a47705a → d3ff8c526895, khớp trong cây
 - [ ] **1A.4** Cổng: ca mới xanh + không hồi quy A2
 - [ ] **1A.5** PO-agent kiểm độc lập → tick
 
 ### Đợt 1B — Cổng thu thập tất định *(nối dài `phan_luong`, 0 token khi chạy)*
 
-- [x] **1B.1** ✅ duyệt kèm 2 điều chỉnh: NHÓM B chốt (i)∨(ii) · usage ghi duong=thu_slot Lead: thiết kế — luật nhận diện ý định (thà bỏ sót còn hơn bắt oan) · bóc slot
-      bằng regex (số tiền / mốc ngày / mã TXN) · mẫu hỏi gọn phần thiếu · điều kiện cho-qua
+- [x] **1B.1** ✅ duyệt kèm điều chỉnh: NHÓM B = (i) sở-hữu+động-từ ∨ (ii) mất-mát + số tiền ĐỨNG SAU ≤2 từ (MỘT CHIỀU — sửa lỗi số học ca S2b) · sổ ghi `duong=thu_slot`
 - [ ] **1B.2** Coder: thi hành theo thiết kế 1B.1
 - [ ] **1B.3** Tester: mở rộng cổng `cong_phan_luong` — ca dương + ca âm bắt-oan
       (câu chính sách có chữ "chuyển tiền" KHÔNG được kích cổng)
