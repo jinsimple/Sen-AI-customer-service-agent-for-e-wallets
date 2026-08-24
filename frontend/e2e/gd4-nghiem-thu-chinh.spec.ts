@@ -1,5 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type BrowserContext } from "@playwright/test";
 import { loginAs } from "./helpers/actors";
+import { forgeOtpVerifiedAt, setForgedSessionCookie } from "./helpers/otp-forge";
+import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session";
 
 /**
  * GĐ4 — CA NGHIỆM THU CHÍNH THỨC, PO thật chỉ định (nguồn:
@@ -33,6 +35,19 @@ import { loginAs } from "./helpers/actors";
  * 🟢 Lỗi 1 ĐÃ ĐÓNG (lần chạy 1, trước khi đổi trục): 2 lượt gọi model thật,
  * tool call thành công SAU OTP, khách không phải gõ lại — bằng chứng đã đủ,
  * không phụ thuộc kết quả lần chạy này.
+ *
+ * 🔴 [ĐO 24/08, Review] Vế ② (dòng ~96, "bằng chứng DUY NHẤT cho lỗi 1") nằm
+ * trong `if (coOtp)` — nếu phiên OTP của `CUSTOMER_PHONE` còn tươi sót lại từ
+ * MỘT FILE KHÁC chạy trước (cùng số điện thoại dùng ở auth.spec.ts và nhiều
+ * file khác), `coOtp=false`, vế ② KHÔNG BAO GIỜ chạy — nhưng vế ③-⑥ vẫn có
+ * thể xanh bình thường, cả bài "nghiệm thu" PASS mà chưa chắc từng đo lại
+ * đúng thứ nó tự khai là bằng chứng duy nhất. ÉP phiên về nguội (dòng ngay
+ * dưới `loginAs`) TRƯỚC khi vào trục khẳng định — đây KHÔNG phải dựng tình
+ * huống nhân tạo: khách THẬT bắt đầu một hành trình khiếu nại mới không có
+ * sẵn phiên OTP tươi; phiên tươi trong bộ test mới là rác sót lại từ ca chạy
+ * trước, không phải trạng thái của khách. KHÔNG đụng gì khác — cấu trúc
+ * `if (coOtp)`/6 vế giữ nguyên, giờ chỉ hết phụ thuộc may rủi thứ tự chạy.
+ * ĐỪNG xoá bước ép này vì tưởng thừa — thiếu nó là quay lại đúng lỗ này.
  */
 const CUSTOMER_PHONE = "0974000145";
 const CAU_MO = "e chuyen nham 339k sang so sai toi 28/7, gio muon lay lai";
@@ -55,12 +70,29 @@ interface PhanHoiAgentChat {
   [key: string]: unknown;
 }
 
+async function readSessionCookie(context: BrowserContext): Promise<Session> {
+  const cookies = await context.cookies();
+  const raw = cookies.find((c) => c.name === SESSION_COOKIE)?.value;
+  const session = parseSessionCookie(raw ? decodeURIComponent(raw) : raw);
+  if (!session) throw new Error(`Không đọc được cookie ${SESSION_COOKIE} — chưa đăng nhập?`);
+  return session;
+}
+
 test.describe("GĐ4 — ca nghiệm thu chính thức (6 vế, wireframe PO thật)", () => {
   test("hành trình đầy đủ: câu không dấu → OTP tự đi tiếp → tự tìm giao dịch → che người nhận → tạo vé → từ chối tự hoàn", async ({
     page,
+    context,
   }) => {
     test.setTimeout(240_000);
     await loginAs(page, CUSTOMER_PHONE, "/chat");
+
+    // Ép otp_verified_at=null — tái lập ĐÚNG điều kiện khách thật (không có
+    // sẵn phiên OTP tươi), bảo đảm vế ② (dòng ~96) không bị bỏ qua vì rác
+    // sót lại từ file khác. Xem ghi chú 🔴 [ĐO 24/08] ở đầu file.
+    const realSession = await readSessionCookie(context);
+    const nguoi = forgeOtpVerifiedAt(realSession, null);
+    await setForgedSessionCookie(context, nguoi);
+    await page.reload();
 
     const input = page.getByPlaceholder("Nhập tin nhắn...");
 
