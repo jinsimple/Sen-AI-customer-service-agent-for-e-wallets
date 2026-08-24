@@ -163,6 +163,27 @@ jobs:
       - name: Lint với ruff
         run: ruff check src/ tests/ eval/
       - name: Chạy toàn bộ pytest (unit + integration, không gọi LLM thật)
+        # 🔴 C3 (Lead duyệt 25/08) — `if: !cancelled()` KHÔNG phải nới lỏng cổng.
+        #
+        # [ĐO] job 97511034... run 32723255736: bước ruff ĐỎ ⟹ bước này bị
+        # SKIPPED ⟹ **toàn bộ suite backend chưa từng chạy trong CI một lần
+        # nào**. Và nguyên nhân là 17 lỗi ruff, TOÀN BỘ trong `eval/`, chủ yếu
+        # N802/N806 (tên biến viết hoa). Một quy ước đặt tên đang giấu kết quả
+        # của 657 test — lint và test là HAI TRỤC, trục này không được che trục
+        # kia.
+        #
+        # Job VẪN ĐỎ nếu ruff đỏ (bước ruff giữ nguyên, không `continue-on-
+        # error`). Thay đổi DUY NHẤT: pytest luôn báo cáo được kết quả của nó.
+        #
+        # Dùng `!cancelled()` chứ KHÔNG `always()`: `always()` còn chạy cả khi
+        # người ta bấm huỷ run, tức đốt 2 phút runner ephemeral cho một kết quả
+        # không ai đọc. Hàng chờ đang có 8 job.
+        #
+        # ⚠️ Đánh đổi đã khai: bước cài phụ thuộc hỏng thì pytest vẫn chạy và
+        # đỏ vì `ModuleNotFoundError` — một thông báo lỗi phục vụ hai nguyên
+        # nhân. Chấp nhận: đọc log thấy ngay bước cài đã đỏ trước đó. Rẻ hơn
+        # nhiều so với việc giấu mất cả suite.
+        if: ${{ !cancelled() }}
         # -m "not security_finding": loại test finding P0 CHƯA VÁ (xem job
         # security-findings-gate bên dưới) — tách riêng để 1 job đỏ có tên rõ
         # ràng, không lẫn vào hàng trăm test bình thường của job này (xem
