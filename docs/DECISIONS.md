@@ -2835,3 +2835,45 @@ khách**. Với ca lừa đảo — tiền chạy theo phút — mỗi lượt h
 
 **Hệ quả kiểm thử:** test A2 vế 2 kỳ vọng **ĐÚNG** từ đầu; đỏ 4 vòng là bug sản phẩm thật.
 Không sửa test.
+
+## ADR-045b — Chốt bốn tham số vận hành cho ADR-045 (PO quyết 24/08)
+
+**Ngày:** 2026-08-24 · **Trạng thái:** ✅ PO thật quyết trực tiếp
+
+| tham số | chốt | ghi chú |
+|---|---|---|
+| Giữ lịch sử hội thoại | **90 ngày** rồi xoá | PO quyết |
+| VPS đặt tại | **Việt Nam** | PO quyết |
+| Vé/CSKH/ca | **20** | PO: *"cứ cho một con số trung bình ngành"* — xem nguồn |
+| Kiến trúc máy | *chưa chốt* | **KHÔNG chặn ai** — DevOps xác định lúc dựng thật, không cần PO |
+
+**Nguồn con số 20 vé/ca** — [ĐO 24/08, tra web]: Zendesk Benchmark 2025 đặt trung bình ngành ở
+**17–25 vé/agent/ngày**, mức này **giữ nguyên từ 2022**. Ngành có ràng buộc quy định (y tế, tài
+chính) nằm ở **đầu thấp** của dải do thời gian xử lý mỗi ca dài hơn. FIN-05 là khiếu nại giao dịch
+có tra soát + HITL ⟹ chọn **20**, giữa dải, nghiêng nhẹ về phía thận trọng.
+🔴 **NIÊM:** đây là số **trung bình ngành quốc tế**, KHÔNG phải số đo của một đội CSKH thật nào ở
+Việt Nam. Dùng để **chỉnh hạn mức**, KHÔNG được trích ra ngoài như số liệu của dự án.
+
+**Hệ quả của "VPS tại Việt Nam":** dữ liệu không rời biên giới ⟹ nhánh thủ tục NĐ 13/2023 cho
+chuyển dữ liệu xuyên biên giới **không phát sinh**. Khớp với quyết định bỏ hồ sơ Đ.25 (PO, 18/08).
+
+## ADR-048 — Tín hiệu FS-13: "có người hướng dẫn chuyển khoản"
+
+**Ngày:** 2026-08-24 · **Trạng thái:** ✅ **PO DUYỆT 24/08** (*"gật"*) — chờ thi hành, thuộc Đợt 2
+*(Đánh số 048 vì 047 đã dùng cho tiếp-nhận-trước. Các tài liệu cũ ghi "ADR-047 = FS-13" là số dự
+kiến trước khi ghi, không phải ADR đã tồn tại.)*
+
+**Bối cảnh:** chuyên gia CSKH (PO chuyển 24/08) xếp đây là **rủi ro nghiệp vụ lớn nhất** hiện tại:
+ca **bị lừa đảo** đang bị hệ thống ép vào ô *"chuyển nhầm"*. Hai loại này cần xử lý khác hẳn —
+chuyển nhầm thì tra soát và liên hệ người nhận; bị lừa thì phải cảnh báo, giữ dấu vết, và **không**
+trấn an theo kiểu "sẽ lấy lại được".
+
+**Quyết định:** thêm tín hiệu gian lận **FS-13 — "có người hướng dẫn chuyển khoản"** vào bộ tín
+hiệu. Kích hoạt khi khách kể có người **hướng dẫn / yêu cầu / thúc giục** thực hiện giao dịch
+(qua điện thoại, tin nhắn, mạng xã hội), kể cả khi khách tự tay bấm.
+
+**Ràng buộc giữ nguyên (ràng buộc cứng 5):** gắn cờ FS-13 ≠ khoá ví. Hai hành động độc lập.
+FS-13 **không** cho AI escalate — nó là tín hiệu ở tầng service, đúng ràng buộc cứng 2.
+
+**Đụng contract ⟹ phải đi đủ §3** trước khi code: sửa contract → ADR (file này) → PO duyệt (xong)
+→ `check_contracts.py --update` → cập nhật `CONTRACT_VERSION` → mới code.
