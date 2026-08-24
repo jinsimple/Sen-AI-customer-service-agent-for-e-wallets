@@ -45,6 +45,13 @@
 
 ### Xếp hàng SAU khi 1A đóng (đội tự làm, không chặn ai)
 
+- [ ] **Nạp tài liệu thời hạn xử lý vào kho RAG** — `b7a7e16` (Bảo mật soạn, TT 15/2024 Điều 6
+      Khoản 3-4, đã phân tầng độ tin cậy tại chỗ). 🔴 **Nạp xong ⟹ băm kho ĐỔI ⟹ Recall@4 =
+      47,9% [ĐO 17-20/08] HẾT HẠN NGAY.** Phải đo lại + niêm số cũ, không để nó sống tiếp
+      dưới danh nghĩa số hiện hành.
+- [ ] **ADR-046** (PO duyệt 24/08) — `build_background_complaints()`, `eligible_status` đang là
+      set một phần tử.
+
 - [ ] **O5 / mở rộng O4** — từ vựng "tạo hồ sơ/vé/ticket" cho lớp hoàn-tất-giả
       (finding Bảo mật `5f627e3`: "đã tạo hồ sơ cho bạn rồi" lọt sạch O3+O4 vì không số,
       không từ tiền). **Tester viết ca đối chứng TRƯỚC, hai chiều** — bắt bịa-đã-tạo VÀ
