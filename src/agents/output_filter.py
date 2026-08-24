@@ -424,7 +424,7 @@ def _khop_o4(reply: str) -> bool:
 # chính sách, bất kể `nguon` có tool result thành công hay không. Đơn giản
 # hoá này do chính hai vòng ĐO quyết định, không phải suy đoán trước.
 #
-# Tái dùng NGUYÊN hai cơ chế O4 đã trả giá, không tái phát minh:
+# Tái dùng NGUYÊN cơ chế O4 đã trả giá, không tái phát minh:
 #   1. Fused-phrase, KHÔNG bare "da"/"vua" — bẫy "dạ" strip dấu trùng "da"
 #      (_bo_dau("Dạ") == _bo_dau("đã") == "da"). Mọi mục dưới đây LUÔN ghép
 #      tense với động từ thành CỤM liền, giống "da hoan tien" của O4.
@@ -432,12 +432,45 @@ def _khop_o4(reply: str) -> bool:
 #      này" là câu ĐÚNG (agent thành thật báo lỗi/OTP hết hạn, đúng finding
 #      5f627e3 đề nghị dạy agent nói) — PHẢI cho qua, không tự chế danh sách
 #      phủ định riêng cho O5.
+#
+# 🔴 Review bắt 24/08 (soát 491c91d) — HAI lỗ, cả hai ĐO trực tiếp bằng code
+# chạy, không suy diễn:
+#
+#   ① THIẾU yếu tố "hướng khách" (bản đầu chỉ 2 yếu tố: dong_tu + doi_tuong).
+#      [ĐO] "Vé loại này đã được mở rất nhiều lần trong quá khứ, không có gì
+#      bất thường." và "Hồ sơ tương tự đã ghi nhận cho nhiều khách khác
+#      trước đây rồi." — cả hai KHÔNG hề khẳng định đã xử lý CHO KHÁCH ĐANG
+#      CHAT, chỉ mô tả chuyện chung/quá khứ, nhưng khớp cả 2 yếu tố cũ ⟹
+#      CHẶN OAN. Đúng thứ nguyên tắc đầu file cảnh báo là hậu quả NẶNG NHẤT
+#      (dương tính giả > âm tính giả ở lớp lọc đầu ra).
+#
+#      Review đề xuất thêm kiểm THỨ TỰ (như O4: vt_dong_tu < vt_tien) — CÂN
+#      NHẮC nhưng KHÔNG dùng: ordering sẽ làm rớt chính ca bị-động hợp lệ
+#      "Hồ sơ khiếu nại của bạn đã được ghi nhận" (đối tượng đứng TRƯỚC động
+#      từ, đúng cấu trúc bị động tiếng Việt tự nhiên) — mất một catch THẬT để
+#      đóng 2 lỗ false-positive là đánh đổi tệ hơn. Chọn hướng KHÁC: thêm
+#      YẾU TỐ THỨ BA "hướng khách" (mirror `_O4_HUONG_KHACH` — đúng câu hỏi
+#      mở đặc tả gốc §4 để ngỏ: "Có cần yếu tố Hướng khách không?"). Cả hai
+#      câu Review đưa ra đều THIẾU hướng khách (không có bạn/anh/chị/mình/
+#      của bạn/quý khách) ⟹ yêu cầu thêm yếu tố này đóng cả hai lỗ MÀ KHÔNG
+#      cần ordering, giữ nguyên khả năng bắt câu bị động hợp lệ.
+#
+#   ② THIẾU từ vựng: "đã lập" (hồ sơ/vé — CSKH phổ biến) và ĐẶC BIỆT "đã
+#      tiếp nhận" — [ĐO] Review chỉ ra đây CHÍNH LÀ từ vựng ADR-047 (`1080762`,
+#      land CÙNG NGÀY) dùng để mô tả việc create_ticket làm ("tiếp nhận
+#      trước, bổ sung sau"). prompt.py bước 4 nhánh mới có khả năng cao khiến
+#      model dùng ĐÚNG từ "tiếp nhận" khi báo kết quả — đúng khung ngôn ngữ
+#      vừa cài cùng ngày. Thiếu từ này là mù với đúng ca có xác suất xảy ra
+#      CAO NHẤT trong các ca hoàn-tất-giả từ giờ trở đi. Thêm "lập"/"tiếp
+#      nhận" (chủ động + bị động) vào danh sách động từ.
 _O5_DONG_TU_HOAN_TAT = [
-    "da tao", "da mo", "da ghi nhan", "vua tao", "vua mo", "vua ghi nhan",
-    "da duoc tao", "da duoc mo", "da duoc ghi nhan",
-    "vua duoc tao", "vua duoc mo", "vua duoc ghi nhan",
+    "da tao", "da mo", "da ghi nhan", "da lap", "da tiep nhan",
+    "vua tao", "vua mo", "vua ghi nhan", "vua lap", "vua tiep nhan",
+    "da duoc tao", "da duoc mo", "da duoc ghi nhan", "da duoc lap", "da duoc tiep nhan",
+    "vua duoc tao", "vua duoc mo", "vua duoc ghi nhan", "vua duoc lap", "vua duoc tiep nhan",
 ]
 _O5_DOI_TUONG = ["ho so", "ve", "ticket", "don khieu nai", "khieu nai"]
+_O5_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
 
 
 def _khop_o5(reply: str) -> bool:
@@ -445,7 +478,10 @@ def _khop_o5(reply: str) -> bool:
     for md in _tach_menh_de(_bo_dau(reply)):
         if any(p in md for p in _O4_PHU_DINH):
             continue
-        if _vi_tri_dau(md, _O5_DONG_TU_HOAN_TAT) is not None and _vi_tri_dau(md, _O5_DOI_TUONG) is not None:
+        co_dong_tu = _vi_tri_dau(md, _O5_DONG_TU_HOAN_TAT) is not None
+        co_doi_tuong = _vi_tri_dau(md, _O5_DOI_TUONG) is not None
+        co_huong_khach = _vi_tri_dau(md, _O5_HUONG_KHACH) is not None
+        if co_dong_tu and co_doi_tuong and co_huong_khach:
             co_menh_de_hoan_tat = True
             break
     if not co_menh_de_hoan_tat:
