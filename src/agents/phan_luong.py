@@ -107,7 +107,13 @@ TRA_LOI_NHE = (
 _SO_HUU = ("tôi", "toi", "của tôi", "cua toi", "mình", "minh",
            "tài khoản tôi", "tk tôi", "bên tôi", "ben toi")
 _DONG_TU_GD = ("chuyển", "chuyen", "bị trừ", "bi tru", "trừ tiền", "tru tien",
-               "nhận", "nhan", "gửi", "gui", "rút", "rut", "nạp", "nap",
+               # ③ (24/08) — "nhận"/"nhan" GỠ khỏi đây: nó khớp bên trong
+               # "xác nhận" (ca DOT2-AM-04 = ADV-038 nguyên văn, "xác nhận
+               # cho tôi chắc chắn đi"), và mọi nghĩa KHIẾU NẠI thật của
+               # "nhận" đã có sẵn ở `_TIN_HIEU_KHIEU_NAI` dưới dạng cụm đủ
+               # dài ("chưa nhận"/"không nhận"). Gỡ ở đây không mất khả
+               # năng nhận diện nào — chỉ bớt một chỗ khớp bừa.
+               "gửi", "gui", "rút", "rut", "nạp", "nap",
                "thanh toán", "thanh toan")
 _MAT_NEO = ("mất", "mat", "bị mất", "bi mat", "bị trừ", "bi tru")
 
@@ -126,7 +132,21 @@ _MAT_NEO = ("mất", "mat", "bị mất", "bi mat", "bị trừ", "bi tru")
 # nghĩa "tốn" chứ không phải "mất tiền") đều bị bắt oan khi hai từ này còn
 # trong danh sách. "mất tiền" thật vẫn được NHÓM B(ii) bắt riêng (mất kề
 # ngay một khuôn số tiền) — không mất khả năng nhận diện, chỉ bớt mơ hồ.
-_TIN_HIEU_KHIEU_NAI = ("bị", "bi", "nhầm", "nham", "lỗi", "loi",
+# ③ (phiếu "OTP trước token", 24/08) — "bị"/"bi"/"nhầm"/"nham" TRẦN đã GỠ.
+# Cả bốn là CHUỖI CON của quá nhiều thứ không phải khiếu nại ("bị" trong "bị
+# lừa đảo đúng không" = câu hỏi; "nhầm" trong "Nếu lỡ chuyển nhầm... thì" =
+# câu hỏi chính sách). Thay bằng CỤM ĐỦ DÀI — SIẾT ĐIỀU KIỆN VÀO, KHÔNG thêm
+# danh sách loại trừ (luật cấm ngay trên: danh sách loại trừ luôn thiếu một chữ).
+#
+# [ĐO] cụm thêm vào được chọn bằng RÀNG BUỘC, không bằng cảm tính — đây là tập
+# nhỏ nhất giữ được cả ba ca dương đã biết:
+#   "tôi bị trừ tiền"                              cần "bị trừ"
+#   "mình chuyển nhầm cho người lạ, không nhớ gì cả"  cần "chuyển nhầm"
+#   "tôi chuyển nhầm tiền cho người lạ rồi..."        cần "chuyển nhầm"
+_TIN_HIEU_KHIEU_NAI = ("lỗi", "loi",
+                       "bị trừ", "bi tru", "bị mất", "bi mat",
+                       "chuyển nhầm", "chuyen nham", "gửi nhầm", "gui nham",
+                       "nhầm người", "nham nguoi", "chuyển sai", "chuyen sai",
                        "chưa nhận", "chua nhan", "không nhận", "khong nhan",
                        "chưa thấy", "chua thay", "không thấy", "khong thay",
                        "chưa tới", "chua toi", "chưa về", "chua ve")
