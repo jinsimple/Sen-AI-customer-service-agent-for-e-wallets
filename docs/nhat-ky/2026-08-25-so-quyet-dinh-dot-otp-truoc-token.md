@@ -377,3 +377,48 @@ PO viết ca này *"nằm trên đường chính"*, hàm ý nặng hơn các gi�
 ⟹ Nó **LÀ** ca đường chính *(PO đúng khi phân biệt với ca góc)* — nhưng vẫn đứng ở hạng
 **"tốn thêm một lượt / token"**, **không đổi hạng an toàn**. Hai vế đều phải nói cùng lúc,
 nếu không người đọc sẽ lấy một vế.
+
+---
+
+## ✅ PO TỰ KIỂM ĐƯỢC VẾ KÊU — và tìm ra một PHỤ THUỘC GIỮA HAI CỔNG không ai khai (06:55)
+
+**Bối cảnh:** PO khai không tự kiểm được vế KÊU của cổng N1 — dựng ca phá đòi sửa tệp
+trong vùng ghi QA/QC. QA/QC **thêm `--luat` ngay**, không để đợt sau. Nút gỡ được không
+phải bằng cách nới phân vùng, mà bằng cách **cho cổng nhận một vật từ bên ngoài**.
+
+### Ba phép thử đột biến, PO tự dựng ngoài repo
+
+```
+N1  đột biến LUÔN bắn thu_slot        → exit 1   ✅ KÊU đúng
+N1  bản thật                           → exit 0   ✅ IM đúng
+N1  đột biến KHÔNG BAO GIỜ bắn        → exit 0   ← đúng phạm vi, nhưng…
+```
+
+**Băm `eval/n1_bao_oan_da_biet.json` trước và sau: KHÔNG ĐỔI.** PO chứng minh được mình
+không chạm vùng ghi của QA/QC trong lúc kiểm — đó chính là thứ `--luat` mua được.
+
+### 🔴 Phát hiện: N1 và cổng ② BÙ NHAU, và sự phụ thuộc ấy không khai ở đâu cả
+
+Một bản vá **giết sạch cổng** *(không bao giờ bắn)* có **0 dương tính giả** ⟹ **N1 nói
+đạt**. Đúng theo định nghĩa của chính N1 — nó đo **DƯƠNG TÍNH GIẢ**, và bản vá ấy không
+có cái nào.
+
+Vế còn lại — **ÂM TÍNH GIẢ** — nằm ở ca dương của cổng ②. [ĐO] chạy cùng bản đột biến
+qua `cong_ca_am_thu_slot_dot2.py` → **`DOT2-DUONG-01` ĐỎ**, bắt đúng.
+
+```
+                      dương tính giả      âm tính giả
+  N1 corpus gốc            ✅ bắt              ✗ mù
+  cổng ② (ca dương)        ✗ không đo         ✅ bắt
+```
+
+⟹ **Hai cổng bù nhau. Không cổng nào một mình kết luận được "bản vá tốt".**
+Và **không tệp nào khai sự phụ thuộc ấy.** Ai chạy riêng N1 rồi kết luận sẽ sai — đúng
+**Luật R**: *một tính chất được dựa vào mà không nêu được nó khai ở đâu thì không phải
+bảo đảm, nó là thói quen của môi trường hiện tại.*
+
+**Phép thử một câu của Luật R áp vào đây:** *"nếu ngày mai ai đó xoá ca dương
+`DOT2-DUONG-01`, cái gì kêu?"* → **N1 vẫn xanh.** Không cái gì kêu.
+
+**Đề xuất — chưa làm, cần chủ:** mỗi cổng khai ở docstring **trục nó KHÔNG đo** và cổng
+nào bù cho nó. Rẻ, và nó biến một phụ thuộc ngầm thành một dòng đọc được.
