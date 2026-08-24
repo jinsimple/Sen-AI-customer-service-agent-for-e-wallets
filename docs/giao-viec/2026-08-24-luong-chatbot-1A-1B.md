@@ -10,38 +10,36 @@
 
 ## CHECKLIST
 
-### Đợt 1A — Luật hỏi trong prompt *(không đụng contract)*
+> **Đồng bộ 24/08 18:30** — bản trước lỗi thời (1B.2 và 3 việc vá gấp đã xong mà vẫn để trống).
+> Lỗi của PO-agent: cập nhật trang artifact mà quên cập nhật chính nguồn sự thật này.
 
-- [ ] **1A.1** 🔴 **GỠ TICK 24/08 (Review soát hồi tố)** — `_chat()` tự login mỗi lượt ⟹ R3/R4-lượt-2 đo hai hội thoại RỜI NHAU (cùng bug thread A2 đã vá ở `e1bb3bd` nhưng không áp lại file này). PASS của R4 vòng 1 hạ xuống 'chưa chứng minh'. Tester vá theo khuôn `_login()` của A2
-- [x] **1A.2** ✅ `f6f70df` — R1–R5 vào prompt, 3 điểm chạm, land sau 1A.1 đúng trình tự
-- [x] **1A.3** ✅ render thật 4.587 → 4.790 = **+203 token (+4,4%)**, dưới trần 600 · băm mẫu 75a57a47705a → d3ff8c526895, khớp trong cây
-- [ ] **1A.4** Cổng: ca mới xanh + không hồi quy A2.
-      **🔴 PHÁ ÁN 24/08 sau 4 vòng — xem ADR-047.** A2 vế 2 đỏ vì **luật ta viết sai**,
-      không phải bug ẩn: điều kiện "phải tra cứu xong mới được tạo vé" (`2b197d0`, do
-      PO-agent đặt) **trì hoãn mốc pháp lý bảo vệ khách** — thời hạn tra soát đếm từ
-      NGÀY TIẾP NHẬN. Test A2 kỳ vọng ĐÚNG từ đầu, **không sửa test**.
-- [ ] **1A.5** PO-agent kiểm độc lập → tick
+### Đợt 1A — Luật hỏi trong prompt
 
-### Đợt 1B — Cổng thu thập tất định *(nối dài `phan_luong`, 0 token khi chạy)*
+- [ ] **1A.1** 🟡 vá xong `74546a5`, **chờ lượt chạy chứng minh** — R3/R4 chưa từng quan sát được
+      trên hội thoại thật. Tick lại chỉ khi lượt chạy chứng minh, không phải vì bản vá đã land.
+- [x] **1A.2** ✅ `f6f70df` + `9418d1a` + `2b197d0` + `9dbbe4b` + `1080762` + `7bd87d5` — R1–R5 và
+      ADR-047 vào prompt. Trần +621/600, **vượt 21 CÓ CHỦ Ý** (lý do trung thực). Mốc đợt sau tính từ 621.
+- [x] **1A.3** ✅ delta render thật, băm mẫu khớp trong cây
+- [x] **1A.4** ✅ **ĐÓNG — A2 không giải được bằng prompt.** 6 vòng, 6 cơ chế loại trừ kể cả trần
+      model. Kết luận → **ADR-049** (chờ PO). Không vá thêm.
+- [ ] **1A.5** PO-agent kiểm độc lập → tick *(chờ chuyến chạy)*
 
-- [x] **1B.1** ✅ duyệt kèm điều chỉnh: NHÓM B = (i) sở-hữu+động-từ ∨ (ii) mất-mát + số tiền ĐỨNG SAU ≤2 từ (MỘT CHIỀU — sửa lỗi số học ca S2b) · sổ ghi `duong=thu_slot`
-- [ ] **1B.2** Coder: thi hành theo thiết kế 1B.1
-- [x] **1B.3** ✅ `80ee384` — 9/10 ca (S1–S6+S2b/S3b/S9) + vá arity 4-tuple cho `cham()`.
-      **S7/S8 khai trống có lý do**: `phan_luong` là hàm thuần, trạng thái sống ở tầng gọi
-      ⟹ chuyển sang 1B.4 đo ở tầng tích hợp (ngăn `fin05do`)
-- [ ] **1B.4** Ca eval đường-cho-qua trên flash (~60–90K) **+ S7 (một-lần-hỏi/thread) + S8 (Redis lỗi ⟹ fail-open)** — đo tầng tích hợp trên `fin05do`
-- [ ] **1B.5** Đo lại token/hội thoại, đối chiếu **dự báo đã công bố**
+### Đợt 1B — Cổng thu thập tất định
 
-### 🔴 Vá gấp trong 1B — Review bắt 24/08, chặn 1B.4
+- [x] **1B.1** ✅ thiết kế duyệt + sửa lỗi số học cửa sổ MỘT CHIỀU
+- [x] **1B.2** ✅ `350fd2f` — cổng land, đo thật: câu thiếu số tiền → `thu_slot`, **0 token**
+- [x] **1B.3** ✅ corpus **23 ca** (S1–S24) + **ĐC-1..7** — ba đối chứng sinh trong ngày vì công cụ
+      đo hỏng ba kiểu: ĐC-5 lỗi thời · ĐC-6 (ĐC-5 sau sửa bị mù) · ĐC-7 (chưa ai kiểm NỘI DUNG reply)
+- [ ] **1B.4** chuyến chạy cuối, **5 mục, S8 xếp CUỐI**: ① eval đường-cho-qua ② R1–R5 trọn bộ
+      ③ R3-cầu (cổng→LLM) ④ S7 ⑤ S8 *(chờ ảnh)*
+- [ ] **1B.5** PO-agent đo hiệu ứng cổng theo **phép đo đã niêm trước** *(chờ chuyến chạy)*
 
-- [ ] **Cổng BẮT OAN câu hỏi chính sách** — `'tôi chuyển khoản thì phí bao nhiêu vậy'` →
-      `thu_slot`. NHÓM B(i) không kiểm tín hiệu khiếu nại nào. Vi phạm thẳng đặc tả PO duyệt
-      (*"câu chính sách tuyệt đối không kích cổng"*). Vá bằng **siết điều kiện vào**, không
-      liệt kê ngoại lệ.
-- [ ] **S8 fail-open sai hướng** — Redis chết ⟹ cổng bắn lại mọi lượt (không phân biệt
-      "chưa hỏi" với "không đọc được"). Phải rơi về `day_du` theo đúng luật *"nghi ngờ thì
-      đi ĐẦY ĐỦ"* của chính module.
-- [ ] **Corpus thiếu trục tổ hợp** — chính-sách × có-"tôi" chưa từng cùng một ca (Tester)
+### ✅ Năm vòng vá cổng 1B — ĐÃ XONG HẾT
+
+- [x] bắt oan câu chính sách (`1b80bf4`) · [x] S8 đổi hướng về `day_du` (`1b80bf4`)
+- [x] đối xử máy móc với người đang hoảng (`5f3a1ef`) · [x] mẫu câu hỏi 3 thứ, vi phạm R1 (`cd5c057`)
+- [x] không đọc được số viết chữ — *cổng làm TỆ HƠN không có cổng* (`d9e53ae` + `2dd5c3e`)
+- [x] corpus trục tổ hợp + trục cảm xúc + số viết chữ (`c459e24`, `29eda41`, `8e087ab`)
 
 ### Xếp hàng SAU khi 1A đóng (đội tự làm, không chặn ai)
 
