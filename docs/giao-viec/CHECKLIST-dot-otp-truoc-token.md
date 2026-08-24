@@ -298,6 +298,9 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - **Ba trạng thái:** `0` ≠ `null` ≠ `>0`
   - 🔴 **Cạm bẫy:** cổng chỉ bắn **một lần mỗi hội thoại** — mỗi ca một chat mới
   - Ngăn gõ: `fin05-po-test` (`127.0.0.1:38443`) · **có tốn token, khai trước**
+  - 🔴 **[PO 25/08] BẮT BUỘC THÊM VÀO BUỔI NÀY:** chạy `tests/test_inv_ngan_sach_token.py`
+    (cần ngăn xếp sống — đây là điểm DUY NHẤT trong quy trình hiện tại có ngăn xếp sống,
+    không phải vì nó tốn LLM — nó KHÔNG tốn). Xem khối "Trần ngân sách token" cuối tệp.
 
 - [~] **⑦** Khuôn thời gian *(Đ3)* + kill-switch riêng T0 *(Đ4)* — **Coder**
   - Nhận `"tuần trước"`, `"<số> giờ sáng/chiều/tối"`
@@ -414,6 +417,30 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - [ ] Bước 7 — commit **KÈM file baseline**, rồi mới code + migration `CHECK constraint`
   - *ADR phải trả lời:* tên loại · vòng đời trạng thái · ai có thẩm quyền · ca đang là
     `wrong_recipient` mà hoá ra lừa đảo thì **chuyển loại thế nào**
+
+---
+
+## Trần ngân sách token — quyết định PO 25/08, vá cái ĐO không vá cái BỊ ĐO
+
+> Phát hiện lúc land ④ (checklist ở mục ④ phía trên). `tests/test_inv_ngan_sach_token.py`
+> đỏ: nền `NEN` ghi 4.587 token, thực tế 5.208 (lệch 13,5%) — phình từ R1-R5 + ADR-047
+> (đã khai CÓ CHỦ Ý ở `7bd87d5`, nhưng khai trong commit message là **nới im lặng đối
+> với người đọc cổng** — cổng không ai sửa theo).
+
+**Quyết định: KHÔNG cắt prompt đợt này.** Lý do: (a) phần phình là yêu cầu nghiệp vụ thật
+(kịch bản chuyên gia), không phải rác; (b) ⑨⑩⑪ CHƯA làm và cả ba đều THÊM chữ — cắt bây
+giờ là cắt một mục tiêu đang chạy; (c) nền `NEN` hiện tại đã CHẾT (lệch 13,5%) — tối ưu
+trên nền sai là đúng thứ Luật F cấm.
+
+- [ ] **T1** Cập nhật `NEN` về số đo thật; `NGUONG_TOKEN` giữ hay sửa thì **lý do PHẢI nằm
+  TRONG cổng** (comment tại chỗ trong `tests/test_inv_ngan_sach_token.py`), không phải
+  trong commit message — **QA/QC** thực hiện, **Coder cấp số đo thật**.
+- [ ] **T2** 🔴 **ĐIỀU KHOẢN MỚI, áp cho ⑨⑩⑪:** mỗi mục khi land phải BÁO DELTA TOKEN của
+  prompt trong commit message. **Không có số ⟹ Lead không nhận mục đó là xong**, dù mã
+  đã đúng — chi phí phải hiện ra ĐÚNG LÚC quyết định, không phải bị phát hiện sau bởi một
+  cổng không ai chạy.
+- [ ] **T3** Ghi nợ "cắt prompt" thành mục riêng cho **đợt SAU** — đo lại sau khi Nhóm C
+  (⑨⑩⑪) land xong, trên nền đã cập nhật ở T1.
 
 ---
 
