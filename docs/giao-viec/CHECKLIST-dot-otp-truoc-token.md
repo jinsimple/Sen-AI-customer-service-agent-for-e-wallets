@@ -132,6 +132,9 @@
   - 🔴 **CẤM thêm danh sách từ loại trừ** — danh sách loại trừ luôn thiếu một chữ
   - Land xong **khai băm luật mới**
   - *Đóng:* **Đ1** + **Q3**
+  - ✅ **[Lead 25/08] KHÔNG còn chặn.** ② đã đỏ, xác nhận **hai nguồn độc lập**: QA/QC
+    (`e2a3426`, 3/6 trục) + PO tự chạy lại (`47dbc8d`, tái lập đúng 3 ca, đúng tên). Coder
+    được khởi động ③ bất cứ lúc nào — không cần chờ thêm tín hiệu nào nữa.
 
 - [ ] **④** Cổng OTP tất định cho NHÓM B — **Coder** · `src/agents/graph.py`
   - `otp_verified_at` đã có sẵn ở `run_agent_turn:798`, không cần thêm đường dẫn dữ liệu
@@ -148,32 +151,64 @@
   - 🔴 **Cạm bẫy:** cổng chỉ bắn **một lần mỗi hội thoại** — mỗi ca một chat mới
   - Ngăn gõ: `fin05-po-test` (`127.0.0.1:38443`) · **có tốn token, khai trước**
 
-- [ ] **⑦** Khuôn thời gian *(Đ3)* + kill-switch riêng T0 *(Đ4)* — **Coder**
+- [~] **⑦** Khuôn thời gian *(Đ3)* + kill-switch riêng T0 *(Đ4)* — **Coder**
   - Nhận `"tuần trước"`, `"<số> giờ sáng/chiều/tối"`
   - *Xong khi:* tắt cả hai cờ ⟹ mọi lượt `duong=day_du` **trong sổ**, không đọc code
+  - **VẬT CHỨNG (nửa đầu):** commit `1c4c20e` (cục bộ, chưa push). [ĐO] trước vá: "tuần
+    trước"/"khoảng 3 giờ chiều"/"lúc 9 giờ sáng"/"2 tuần trước" = `False` cả 4. Sau vá:
+    14/14 ca dương OK, 9/9 ca âm OK (Luật A). Không đổi quyết định định tuyến nào — Coder
+    diff `eval/cong_phan_luong.py` trước/sau, rỗng.
+  - 🟡 **Nợ vế "trong sổ"** — cần 1 lượt thật (tốn hoá đơn), Coder không tự tiêu.
+    **[Lead 25/08] DUYỆT đề xuất gộp vào buổi gõ UI ⑥ của QA/QC** thay vì mở buổi riêng —
+    QA/QC ghi kèm khi chạy ⑥: tắt `PHAN_LUONG_BAT` + `CONG_T0_BAT`, xác nhận mọi lượt
+    `duong=day_du` trong `usage.jsonl`/envelope. ⑦ giữ `[~]` tới khi có số đo đó.
+  - **[Lead 25/08] DUYỆT mở rộng phạm vi 1 commit:** thêm 3 khuôn cùng họ lỗi Đ3 mà Coder
+    tự phát hiện (`"tháng trước"`, `"tuần rồi"`, `"tháng rồi"` — hiện `False`, cùng cụm 2
+    từ không nghĩa nào khác, không cần danh sách loại trừ). Lý do duyệt: cùng shape lỗi đã
+    có bằng chứng đo, rủi ro thấp như 2 khuôn gốc — không phải tối ưu sớm (Luật F ở phiếu
+    §7 nói về nhánh 58,4% chưa có mẫu số, khác hẳn việc đóng nốt một họ lỗi đã chứng minh).
 
 ---
 
 ## Nhóm C — Kịch bản chuyên gia *(giá trị cao nhất, rẻ nhất)*
 
-- [ ] **⑧** Hai câu chống mạo danh **K3** — **Coder** · hằng số, 0 token
+- [~] **⑧** Hai câu chống mạo danh **K3** — **Coder** · hằng số, 0 token
   - Lượt 1 → gắn cổng OTP: *"đây là mã xác thực phiên hỗ trợ, không phải OTP giao dịch — em
     không bao giờ hỏi OTP giao dịch hay mật khẩu"*
   - Lượt 8 → gắn lượt báo mã hồ sơ: *"sẽ không có ai từ ví gọi điện yêu cầu chị chuyển tiền,
     cung cấp mật khẩu hay mã OTP để lấy lại tiền"*
   - ⭐ **Nếu tuần này chỉ làm được một việc, làm mục này và ⑨**
+  - **VẬT CHỨNG:** commit `98074ba` (cục bộ, chưa push). Hàm thuần `_them_canh_bao_mao_danh`,
+    5/5 trục, 0 chữ số trong cả hai hằng số. Điểm gắn đọc GIÁ TRỊ TRẢ VỀ của tool (hai lỗi
+    OTP `return` dict, không `raise`) — đúng bẫy `_CHI_THI_DUNG_LAP` đã ghi trước.
+  - **Sai lệch so với phiếu, Coder tự quyết, khai ra:** đổi "chị" → "bạn"/"mình" (phiếu viết
+    nguyên văn "chị"). Lý do: hằng số bắn cho MỌI khách, hệ thống không biết giới tính
+    (`customer_name` cố ý không lên LLM), mọi hằng số khác của module đã dùng "bạn".
+    **[Lead 25/08] DUYỆT — giữ nguyên "bạn"/"mình".** Nhất quán với quy ước module, đúng vì
+    thiếu dữ kiện giới tính chứ không phải sở thích cá nhân.
+  - **Lỗi tự bắt (Luật T), đã vá trong đợt:** bản nháp ghi chú khẳng định sai câu 2 "sẽ tự
+    kích O4 nếu dời lên trước bộ lọc" — chạy `loc_dau_ra()` thật thì QUA được cả hai câu.
+    Đã sửa chú thích thành số đo thật. **Chưa tick `[x]` cho tới khi Review soát xong**
+    (đúng yêu cầu của Coder, giữ `[~]`).
 
-- [ ] **⑨** Bắt buộc hỏi câu sàng lọc lừa đảo **K2** — **Coder**
+- [!] **⑨** Bắt buộc hỏi câu sàng lọc lừa đảo **K2** — **Coder**
   - Hỏi **sự kiện khách quan** *("có ai nhắn tin hoặc gọi điện hướng dẫn chị chuyển khoản
     không")*, **KHÔNG** hỏi kết luận *("chị có bị lừa không")*
   - Khung mở bắt buộc: *"em hỏi thêm một ý để hỗ trợ chị đúng hướng"*
   - Hỏi ở **MỌI** ca chuyển nhầm, kể cả ca trông rõ ràng
+  - **Chặn — đúng theo phiếu §5.3 (⑨): "ca đối chứng QA/QC dựng trước".** Coder chờ QA/QC.
 
-- [ ] **⑩** Bản tóm tắt **6 trường tất định** trước `create_ticket` **K4** — **Coder**
+- [!] **⑩** Bản tóm tắt **6 trường tất định** trước `create_ticket` **K4** — **Coder**
   - loại · phạm vi · mã+giờ+tiền · người nhận nhầm · người nhận đúng · nội dung khách trình bày
   - Đây là **đòn bẩy cho A2** mà sáu vòng vá prompt không có · gắn ADR-049
+  - 🔴 **Chặn — Coder tự bắt, [Lead 25/08] xác nhận đúng.** [ĐO] `docs/DECISIONS.md:2906`:
+    ADR-049 trạng thái **🟡 ĐỀ XUẤT — chờ PO thật duyệt, chưa code dòng nào.** ⑩ CHÍNH LÀ cơ
+    chế ADR-049 đề xuất (chuyển quyết định nghiệp vụ từ model sang luật cứng) — viết trước
+    khi duyệt là thi hành một ADR chưa duyệt. Coder dừng đúng, không tự code. Chặn tại **PO
+    thật** — câu cần quyết: "chấp nhận mất khả năng model xử ca lạ mà luật không lường?"
 
-- [ ] **⑪** Ép cấu trúc lượt 5/6/3 — **Coder** · prompt
+- [!] **⑪** Ép cấu trúc lượt 5/6/3 — **Coder** · prompt
+  - Chặn — phiếu ghi "sau ⑨⑩", cả hai đang `[!]`.
   - Lượt 5: **ba vế** — không làm được gì → làm được gì → chị làm được gì
   - Lượt 6: đổi góc nhìn PDPA — *"quy định này bảo vệ cả chị nữa"*
   - Lượt 3: đọc lại **đủ 5 dữ kiện** để khách tự đối chiếu
@@ -189,7 +224,7 @@
 
 ## Nhóm D — Đổi contract 🔒
 
-- [ ] **⑫** Loại khiếu nại thứ năm cho ca lừa đảo **K1** *(Q4 = A)* — **Coder**
+- [!] **⑫** Loại khiếu nại thứ năm cho ca lừa đảo **K1** *(Q4 = A)* — **Coder** · chặn cứng, Coder chỉ tới bước 3 rồi DỪNG
   - [ ] Bước 1 — DỪNG, không sửa code trước
   - [ ] Bước 2 — sửa `contracts/resolution-state-machine.yaml`
   - [ ] Bước 3 — ghi ADR mới vào `docs/DECISIONS.md`
