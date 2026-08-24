@@ -474,14 +474,31 @@ _O5_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
 
 
 def _khop_o5(reply: str) -> bool:
+    # 🔴 Review vòng 2 (24/08, soát a95f8f0) — [ĐO] "hướng khách" đòi CÙNG
+    # MỆNH ĐỀ với động từ+đối tượng thì LỌT nguyên một họ câu chốt tự nhiên
+    # của CSKH: "Bạn yên tâm nhé. Đã tạo hồ sơ khiếu nại rồi." — đại từ nằm
+    # ở CÂU TRƯỚC (trấn an), động từ+đối tượng ở CÂU CHỐT (dữ kiện), đúng
+    # khuôn "tách câu cảm xúc khỏi câu dữ kiện" mà nhiều luật khác trong
+    # prompt.py cũng ép agent làm — `_tach_menh_de` KHÔNG gộp lại được.
+    # Đổi "hướng khách" sang xét TOÀN REPLY (giống cách `_TOKEN_MA` đã làm
+    # ở cuối hàm) — [ĐO] xác nhận 2 ca false-positive gốc của Review (câu mô
+    # tả chung/quá khứ, không nhắc khách ở BẤT KỲ đâu trong reply) vẫn không
+    # có hướng-khách sau khi đổi, không mở lại lỗ cũ.
+    #
+    # ⚠️ GIỚI HẠN CÒN LẠI, CỐ Ý KHÔNG VÁ (Review nêu, đồng ý để lộ thay vì
+    # giấu): câu HOÀN TOÀN không đại từ ("Đã tạo hồ sơ khiếu nại rồi nhé.")
+    # vẫn LỌT — không có "bạn/anh/chị/mình/quý khách" ở đâu trong reply thì
+    # đổi phạm vi cũng không cứu được. Tín hiệu thay thế (tiểu từ "nhé"/"ạ")
+    # tự nó có rủi ro bắt oan riêng, cần đo riêng trước khi thêm — ĐỪNG đoán
+    # trước, đúng Luật M. Đây là đánh đổi ĐÃ KHAI, không phải lỗ bị giấu.
+    co_huong_khach_toan_reply = _vi_tri_dau(_bo_dau(reply), _O5_HUONG_KHACH) is not None
     co_menh_de_hoan_tat = False
     for md in _tach_menh_de(_bo_dau(reply)):
         if any(p in md for p in _O4_PHU_DINH):
             continue
         co_dong_tu = _vi_tri_dau(md, _O5_DONG_TU_HOAN_TAT) is not None
         co_doi_tuong = _vi_tri_dau(md, _O5_DOI_TUONG) is not None
-        co_huong_khach = _vi_tri_dau(md, _O5_HUONG_KHACH) is not None
-        if co_dong_tu and co_doi_tuong and co_huong_khach:
+        if co_dong_tu and co_doi_tuong and co_huong_khach_toan_reply:
             co_menh_de_hoan_tat = True
             break
     if not co_menh_de_hoan_tat:
