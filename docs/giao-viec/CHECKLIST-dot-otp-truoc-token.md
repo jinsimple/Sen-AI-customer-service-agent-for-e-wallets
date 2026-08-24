@@ -462,7 +462,12 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     phía rẻ). [ĐO] 4/4 trục (kẻ tấn công · khách thật · lượt thường · Redis hỏng). Suite
     657 passed/2 failed (đều có trước). **Delta token = 0.**
 
-- [x] **⑮ · Ba test đơn vị RẺ** — **QA/QC** · *Review đề xuất, PO duyệt*
+- [x] **⑮ · Ba test đơn vị RẺ**
+  - **VẬT CHỨNG:** `289469d` · `tests/test_15_ba_test_don_vi_re.py` (138 dòng)
+  - ✅ **PO TỰ CHẠY 25/08 06:10** — `6 passed in 1.32s`, venv có đủ deps
+    *(dùng `P-121-new/.venv` hợp lệ: bộ test KHÔNG gọi model, đúng ngoại lệ `STATE.md` đã ghi —
+    lệnh cấm nói về lệch `langchain-core` khi đo kích thích, trục không tồn tại ở test thuần)*
+  - 🔴 **PO từng buộc tội ô này tick sai** — bằng một cửa sổ đo sai. Niêm ở sổ quyết định. — **QA/QC** · *Review đề xuất, PO duyệt*
   - `la_khieu_nai_ca_nhan` · `_otp_fresh(None, …)` → `False` · và bất biến
     **"mọi call site production của `run_agent_turn` phải truyền `otp_verified_at` tường minh"**
   - 🔴 Mục thứ ba là mục đáng giá nhất: hôm nay chỉ có **một** call site và nó đúng — nhưng
