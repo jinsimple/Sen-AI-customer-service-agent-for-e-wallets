@@ -131,7 +131,23 @@ configure_tracing()  # OTel -> Jaeger (OTEL_EXPORTER_OTLP_ENDPOINT, mặc địn
 # restart backend, nhất quán trạng thái bảo mật/rate-limit toàn hệ thống ở 1
 # nguồn duy nhất. `fake://` (CI/test) rơi về in-memory mặc định của slowapi —
 # không regression, không cần Redis thật để chạy test.
-limiter = Limiter(key_func=get_remote_address, storage_uri=None if REDIS_URL.startswith("fake://") else REDIS_URL)
+#
+# 🔴 `in_memory_fallback_enabled=True` (24/08 — Tester tắt Redis, `/agent/chat`
+# SẬP HẲN: `ConnectionError` bay ra từ EVALSHA của slowapi, KHÔNG một response
+# nào). Mặc định của slowapi khi storage Redis chết là RAISE (đọc thẳng
+# `slowapi/extension.py::_check_request_limit` — `except Exception: ... else:
+# raise`, vì `swallow_errors`/`in_memory_fallback_enabled` đều `False` khi
+# không truyền). Cờ này là cơ chế CHÍNH HÃNG, ĐÃ TEST của chính slowapi cho
+# đúng sự cố này — tự chuyển sang đếm in-memory (kế thừa NGUYÊN hạn mức đã
+# khai) khi Redis không đọc được, tự phục hồi khi Redis sống lại. Vá tại đây
+# là vá lớp `@limiter.limit(...)`, dùng CHUNG cho MỌI route có decorator này —
+# không chỉ `/agent/chat`. Lớp gọi Redis TRỰC TIẾP (RedisConcurrencyLimiter,
+# RedisSlidingWindowLimiter — src/rate_limit.py) vá riêng ở file đó.
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=None if REDIS_URL.startswith("fake://") else REDIS_URL,
+    in_memory_fallback_enabled=True,
+)
 
 # TẮT tài liệu tự sinh khi APP_ENV=production.
 #
