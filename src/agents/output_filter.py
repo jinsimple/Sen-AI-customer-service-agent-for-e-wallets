@@ -401,6 +401,62 @@ def _khop_o4(reply: str) -> bool:
     return False
 
 
+# ---------------------------------------------------------------- O5
+# Đặc tả gốc: docs/security/2026-08-24-dac-ta-o5-tu-vung-hoan-tat-gia-tao-ve.md
+# (Bảo mật, sau finding 5f627e3: "đã tạo hồ sơ cho bạn rồi" lọt sạch O3+O4 vì
+# không số, không từ tiền). Đặc tả gốc §2 đề xuất đối chiếu MÃ TICKET với
+# `nguon` (giống O3) — nhưng Tester đo LẠI bằng mã 12-hex THẬT (`new_id()`)
+# thay vì fixture 5-6 ký tự của lần đo đầu: O3 đã phủ 2/2 ca "nêu SAI mã"
+# (sai giá trị + siêu chuỗi), vì mã thật LUÔN nằm trong tầm `_TOKEN_MA`
+# (ngưỡng 7 ký tự). O5 chỉ còn cần cho ĐÚNG khe O3 không có gì để so: reply
+# KHÔNG nêu mã nào cả — dù hoàn-tất-giả (không tool result) hay hoàn-tất-
+# thật-nhưng-quên-nêu-mã (nay LUÔN sai theo chính sách, xem dưới).
+#
+# Luật (Bảo mật thu hẹp 24/08, PO thật duyệt qua PO-agent):
+#   từ vựng HOÀN TẤT (đã/vừa tạo/mở/ghi nhận, kèm biến thể bị động) khớp
+#   ĐỐI TƯỢNG (hồ sơ/vé/ticket/khiếu nại) trong CÙNG một mệnh đề
+#   VÀ reply KHÔNG chứa token mã nào (`_TOKEN_MA` — TÁI DÙNG nguyên định
+#   nghĩa O3, không tự chế thước mới).
+#
+# KHÔNG đối chiếu `nguon` theo giá trị (khác đề xuất §2 đặc tả gốc) — lý do
+# đủ, không phải bỏ qua: docstring `create_ticket` giờ BẮT BUỘC nêu mã
+# (customer_tools.py, `6d0e3a9`, cùng phiên này) nên VẮNG MÃ LUÔN SAI theo
+# chính sách, bất kể `nguon` có tool result thành công hay không. Đơn giản
+# hoá này do chính hai vòng ĐO quyết định, không phải suy đoán trước.
+#
+# Tái dùng NGUYÊN hai cơ chế O4 đã trả giá, không tái phát minh:
+#   1. Fused-phrase, KHÔNG bare "da"/"vua" — bẫy "dạ" strip dấu trùng "da"
+#      (_bo_dau("Dạ") == _bo_dau("đã") == "da"). Mọi mục dưới đây LUÔN ghép
+#      tense với động từ thành CỤM liền, giống "da hoan tien" của O4.
+#   2. `_O4_PHU_DINH` cho mệnh đề phủ định — "mình CHƯA tạo được hồ sơ lúc
+#      này" là câu ĐÚNG (agent thành thật báo lỗi/OTP hết hạn, đúng finding
+#      5f627e3 đề nghị dạy agent nói) — PHẢI cho qua, không tự chế danh sách
+#      phủ định riêng cho O5.
+_O5_DONG_TU_HOAN_TAT = [
+    "da tao", "da mo", "da ghi nhan", "vua tao", "vua mo", "vua ghi nhan",
+    "da duoc tao", "da duoc mo", "da duoc ghi nhan",
+    "vua duoc tao", "vua duoc mo", "vua duoc ghi nhan",
+]
+_O5_DOI_TUONG = ["ho so", "ve", "ticket", "don khieu nai", "khieu nai"]
+
+
+def _khop_o5(reply: str) -> bool:
+    co_menh_de_hoan_tat = False
+    for md in _tach_menh_de(_bo_dau(reply)):
+        if any(p in md for p in _O4_PHU_DINH):
+            continue
+        if _vi_tri_dau(md, _O5_DONG_TU_HOAN_TAT) is not None and _vi_tri_dau(md, _O5_DOI_TUONG) is not None:
+            co_menh_de_hoan_tat = True
+            break
+    if not co_menh_de_hoan_tat:
+        return False
+    # Toàn REPLY, không chỉ mệnh đề đang xét — mã có thể nằm ở câu khác
+    # trong cùng reply ("Mình đã tạo hồ sơ cho bạn. Mã của bạn là KN-...").
+    # `reply` gốc (chưa bo_dau) — _TOKEN_MA chỉ khớp [A-Za-z0-9], dấu tiếng
+    # Việt không rơi vào lớp ký tự này nên không cần chuẩn hoá trước.
+    return not _TOKEN_MA.search(reply)
+
+
 # ---------------------------------------------------------------- công khai
 def loc_dau_ra(
     reply: str,
@@ -429,6 +485,8 @@ def loc_dau_ra(
         khop.append("O3")
     if _khop_o4(reply):
         khop.append("O4")
+    if _khop_o5(reply):
+        khop.append("O5")
 
     if not khop:
         return reply, []

@@ -77,8 +77,8 @@ Mỗi phiên Claude chỉ được **ghi** trong vùng của mình. Cần đổi
 | Vai | Được ghi | Được đọc |
 |---|---|---|
 | `po` | `docs/`, `*.md` ở gốc | tất cả |
-| `tech-lead` | `src/`, `frontend/src/`, `migrations/`, `Dockerfile*`, `docker-entrypoint.sh`, `.dockerignore`, `docker-compose.yml`, `scripts/`, `.github/workflows/**`, `contracts/` (sau khi PO duyệt) | tất cả |
-| `devops` | `docker-compose.do.yml` (ngăn ĐO), `docs/devops/**`, sổ giám hộ ảnh | tất cả |
+| `tech-lead` | `src/`, `frontend/src/`, `migrations/`, `Dockerfile*`, `.dockerignore`, `docker-compose.yml`, `scripts/`, `.github/workflows/**`, `contracts/` (sau khi PO duyệt) | tất cả |
+| `devops` | `docker-compose.do.yml` (ngăn ĐO), `docker-entrypoint.sh`, `.env.example`, `docs/DEPLOY.md`, `docs/devops/**`, sổ giám hộ ảnh | tất cả |
 | `tester` | `tests/`, `frontend/e2e/`, `eval/` | `docs/`, `contracts/`, `eval/` — **KHÔNG đọc `src/`** |
 | `security` | `docs/security/` | tất cả |
 | `ux-ui` | `frontend/src/`, `*.html` wireframe | `docs/`, `contracts/` |
