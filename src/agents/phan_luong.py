@@ -355,20 +355,44 @@ def la_khieu_nai_ca_nhan(cau: object) -> bool:
     return _nhom_b(_chuan_hoa(cau))
 
 
-def co_ma_giao_dich_hoac_thoi_gian(cau: object) -> bool:
-    """Bóc mã giao dịch/vé (`_MA_GD`/`_MA_VE`) HOẶC mốc thời gian (`boc_slot`)
-    từ MỘT câu — dùng cho cổng thu-slot-SAU-KHI-xác-thực-OTP (graph.py,
-    docs Lead 24/08 "nhap-cong-thu-slot-sau-otp"), KHÔNG dùng cho routing 1B
-    (đó xét `so_tien`, khác slot mục tiêu). Tái dùng NGUYÊN regex đã có ở
-    trên, không viết bản bóc thứ hai — lý do khác slot: 1B áp cho lượt ĐẦU
-    TIÊN chưa biết gì (số tiền là neo mạnh nhất); cổng sau-OTP áp cho điểm
-    khách đã mô tả đủ để gọi tool (đó là lý do tool chạy và bị OTP chặn),
-    cái còn thiếu là thứ giúp tool THU HẸP xuống một kết quả — vai trò của
-    mã/ngày, không phải số tiền."""
+def co_du_de_thu_hep(cau: object) -> bool:
+    """Câu này đã mang đủ thứ để THU HẸP tra cứu xuống một giao dịch chưa —
+    cổng thu-slot SAU KHI xác thực OTP (T0, `graph.py`).
+
+    Đúng MỘT trong ba là đủ: mã giao dịch/vé · mốc thời gian · số tiền.
+
+    🔴 ĐỔI 25/08 (⑤, phiếu "OTP trước token", Q2 do PO chốt). Tên cũ
+    `co_ma_giao_dich_hoac_thoi_gian` nay SAI với hành vi — nó không còn chỉ
+    xét mã/thời gian. Đổi tên chứ không giữ tên cũ cho tiện: một tên nói
+    ngược hành vi là đúng họ lỗi vừa vá ở `9f4d291`.
+
+    HAI thay đổi, cùng chiều:
+    ① THÊM số tiền vào tập nhận diện. Câu hỏi của cổng nay hỏi thời gian +
+      số tiền (Q2), nên khách trả lời bằng SỐ TIỀN phải được tính là đã trả
+      lời. Trước bản này, khách đáp đúng thứ được hỏi vẫn bị hỏi lại — đúng
+      họ Đ3 (*hệ thống dạy một khuôn rồi không đọc được khuôn ấy*), chỉ khác
+      trục.
+    ② GIỮ nhận diện mã giao dịch dù câu hỏi KHÔNG còn nhắc tới nó (Q2: *bỏ mã
+      GD khỏi câu hỏi, vẫn nhận diện nếu khách tự nêu*). Không hỏi ≠ không đọc
+      được: khách dán mã vào thì đó là tín hiệu MẠNH NHẤT, bỏ qua nó để hỏi
+      lại là ngu ngốc thấy rõ.
+
+    Tập nhận diện RỘNG RA ⟹ cổng bắn ÍT hơn ⟹ lệch về `day_du`. Đúng chiều
+    "thà bỏ sót còn hơn bắt oan" mà module tự khai — nới ở đây KHÔNG tạo
+    thêm ca bắt oan, nó chỉ bớt ca hỏi lại thứ khách vừa nói.
+
+    `_co_so_viet_chu` đi kèm `boc_slot()["so_tien"]` cho khớp ĐÚNG định
+    nghĩa "khách đã nói số tiền" mà NHÓM B(i) đang dùng (dòng ~449) — thiếu
+    nó thì "nửa triệu" tính là chưa nói ở cổng này nhưng đã nói ở cổng kia,
+    tức HAI định nghĩa của cùng một vật.
+    """
     if not isinstance(cau, str):
         return False
     s = _chuan_hoa_nhe(cau)
-    return bool(_MA_GD.search(s) or _MA_VE.search(s)) or boc_slot(cau)["thoi_gian"]
+    if _MA_GD.search(s) or _MA_VE.search(s):
+        return True
+    slot = boc_slot(cau)
+    return slot["thoi_gian"] or slot["so_tien"] or _co_so_viet_chu(s)
 
 
 def boc_slot(cau: object) -> dict[str, bool]:
