@@ -1358,6 +1358,25 @@ ra một lịch sử **không có thật**. Mốc thời gian tin được nằm
 **Luật K** — **Nhiều ước lượng độc lập cùng lệch MỘT hướng = thiên lệch CHUNG, đi tìm bộ lọc chung.**
   *(Bằng chứng: `45K` → `0–21K` → thực tế `149–215K`. Bản "đính chính" đi XA HƠN khỏi sự thật.)*
 
+**Luật Y** *(security đúc L 18/08; PO-agent nhận ra áp lại ở miền mới 25/08 — đợt "OTP trước token",
+Coder đo cả hai; Lead cấp ký hiệu, tách khỏi L không ghép vế — L nói riêng về NGƯỠNG của một bộ dò,
+Y nói về CẶP cơ chế bất kỳ, kể cả không phải ngưỡng, quyết định cùng một thứ theo hai hướng)* —
+🔴 **MỘT CẶP CƠ CHẾ QUYẾT ĐỊNH CÙNG MỘT THỨ THEO HAI HƯỚNG PHẢI ĐƯỢC HIỆU CHỈNH NGƯỢC NHAU: xác
+định hướng nào hỏng ĐẮT hơn, nới hướng RẺ, siết hướng ĐẮT.** Đối xử hai hướng như nhau là chọn sai
+ở đúng một trong hai.
+> **Bằng chứng cùng ngày, hai miền độc lập, không phải một hàm:**
+> **Miền 1 — bộ dò trả lời câu sàng lọc lừa đảo** (`c88d431`): nới PHỦ ĐỊNH ⟹ bỏ sót tín hiệu
+> (phiền, hỏi lại được) · nới KHẲNG ĐỊNH ⟹ gắn oan nhãn nghi lừa đảo lên khách thật (hỏng — đây
+> không phải chi phí vận hành, là **gắn nhãn sai lên một con người**).
+> **Miền 2 — thứ tự xoá tín hiệu quanh một bước merge** (`3e9a9ee`, Review bắt): xoá SAU merge ⟹
+> hỏng thì hỏi lại khách một lần (phiền) · xoá TRƯỚC merge ⟹ hỏng thì MẤT VĨNH VIỄN lời khai bị
+> lừa đảo (hỏng — không phục hồi được).
+> **Vì sao tách khỏi L, không ghép vế hai** *(đúng tiền lệ M tách khỏi L 18/08)*: L nói cụ thể về
+> NGƯỠNG của một bộ dò regex/NER; Miền 2 ở trên **không phải ngưỡng** — nó là THỨ TỰ một thao tác
+> xoá dữ liệu quanh một điểm merge. Ghép Y vào L sẽ làm L mất tính sắc (chỉ còn đúng cho ngưỡng)
+> mà Y cũng không được phát biểu đủ rộng (chỉ còn đúng cho bộ dò). Y là **tổng quát hoá của tinh
+> thần L**, không phải một ví dụ mới của L.
+
 ---
 
 ## 8. 🔴 BÀI HỌC LỚN NHẤT 17/08 — đọc mục này rồi hãy tin bất kỳ con số nào
