@@ -49,7 +49,8 @@ API = "http://localhost:8010"
 # khớp một cụm từ cố định (đúng ranh giới cổng presence).
 _TRUC = {
     "so_tien": ("số tiền", "bao nhiêu tiền", "số dư", "giá trị giao dịch"),
-    "thoi_gian": ("khi nào", "lúc nào", "ngày nào", "giờ nào", "hôm nào", "thời gian nào", "thời điểm nào"),
+    "thoi_gian": ("khi nào", "lúc nào", "ngày nào", "giờ nào", "hôm nào", "thời gian nào",
+                  "thời điểm nào", "thời gian giao dịch", "khoảng thời gian"),
     "nguoi_nhan": ("chuyển cho ai", "người nhận", "tên người", "tài khoản nhận"),
     "ma_gd": ("mã giao dịch", "mã gd", "mã tham chiếu", "txn"),
 }
@@ -57,22 +58,35 @@ _HUONG_DAN_TIM_MA = ("lịch sử", "bấm vào", "vào mục", "vào phần", "
 _TU_GIO_CHINH_XAC = re.compile(r"\bmấy giờ\b|\bgiờ nào\b|\bphút nào\b|\bchính xác lúc\b")
 _MOC_NEO_TG = ("hôm nay", "hôm qua", "hôm trước", "sáng", "chiều", "tối", "gần đây", "tuần này", "tuần trước")
 
+# 🔴 [ĐO 24/08] Câu HỎI của LLM luôn có dấu `?`; câu YÊU CẦU tất định của
+# `thu_slot` (`phan_luong.py::HOI_THIEU_CA_HAI`/`HOI_THIEU_SO_TIEN`) là câu
+# ĐỀ NGHỊ, không có `?` — "Dạ bạn cho mình xin ... giúp mình nhé." R3 từng
+# SKIP oan vì bộ dò cũ chỉ nhận dạng `?`, mù hoàn toàn với phong cách này.
+# `thu_slot` là đường THẬT của sản phẩm (không phải giả định lý thuyết) nên
+# bộ dò PHẢI đọc được cả hai phong cách.
+_MAU_YEU_CAU = ("cho mình xin", "cho em xin", "cho mình biết", "cho biết", "vui lòng cho")
+
 
 def _truc_hoi(reply: str) -> set[str]:
-    """Trục nào được HỎI (câu chứa dấu `?` và một từ khoá nhóm đó)."""
-    cau_hoi = [c.strip() for c in re.split(r"(?<=[.!?])\s+", reply) if "?" in c]
+    """Trục nào được HỎI/ĐỀ NGHỊ CUNG CẤP — nhận cả câu hỏi (`?`) lẫn câu yêu
+    cầu tất định (`cho mình xin...`, không dấu `?`)."""
     n = reply.lower()
+    la_cau_hoi_hoac_yeu_cau = "?" in reply or any(m in n for m in _MAU_YEU_CAU)
+    if not la_cau_hoi_hoac_yeu_cau:
+        return set()
+
+    manh = [c.strip() for c in re.split(r"(?<=[.!?—-])\s+", reply)
+            if "?" in c or any(m in c.lower() for m in _MAU_YEU_CAU)]
     trung = set()
     for truc, tu_khoa in _TRUC.items():
-        for c in cau_hoi:
-            cl = c.lower()
-            if any(tk in cl for tk in tu_khoa):
+        for c in manh:
+            if any(tk in c.lower() for tk in tu_khoa):
                 trung.add(truc)
                 break
         else:
-            # phòng trường hợp câu hỏi không tách được (thiếu dấu câu chuẩn) —
-            # rơi về khớp trên TOÀN reply, chỉ khi reply có ít nhất một `?`.
-            if "?" in reply and any(tk in n for tk in tu_khoa):
+            # phòng trường hợp không tách mảnh được (thiếu dấu câu chuẩn) —
+            # rơi về khớp trên TOÀN reply, đã xác nhận CÓ hỏi/yêu cầu ở trên.
+            if any(tk in n for tk in tu_khoa):
                 trung.add(truc)
     return trung
 
