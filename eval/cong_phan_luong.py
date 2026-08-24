@@ -55,6 +55,7 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -224,15 +225,18 @@ def main() -> int:
     # 1B.2 đã land, để không biến một cổng "chờ vá" thành "cổng đỏ chưa rõ vì
     # sao" trong con mắt người đọc log.
     p_slot = GOC / "eval" / "bo_ca_thu_slot_1b.json"
+    d_slot = None  # dùng lại ở ĐC-6 bên dưới nếu nạp được
     if p_slot.exists():
-        d = json.loads(p_slot.read_text(encoding="utf-8"))
-        thuc, ghi = _bam_nhan(d), d.get("bam_nhan")
+        d_slot = json.loads(p_slot.read_text(encoding="utf-8"))
+        thuc, ghi = _bam_nhan(d_slot), d_slot.get("bam_nhan")
         if thuc != ghi and not a.bo_qua_bam:
             print(f"\n🔴 BỘ CA 1B.3 ĐÃ TRÔI: băm ghi {ghi} ≠ tính lại {thuc} — TỪ CHỐI CHẤM.")
             return 2
-        print(f"\n  ── 1B.3 — S1-S9 (thu_slot) [{ghi}] ──")
-        cn = [(c["cau"], c["ky_vong"]) for c in d["ca"]]
-        _, bc = cham("S1-S9", cn, luat.phan_luong, None)
+        # Nhãn ĐỘNG — "S1-S9" cứng đã lỗi thời khi bộ ca lớn thêm (tới S20 và
+        # còn tăng), tự nói sai số ca đang thật sự có. Đếm sống, không đoán.
+        print(f"\n  ── 1B.3 — {len(d_slot['ca'])} ca (thu_slot) [{ghi}] ──")
+        cn = [(c["cau"], c["ky_vong"]) for c in d_slot["ca"]]
+        _, bc = cham(f"{len(cn)} ca", cn, luat.phan_luong, None)
         print(bc)
         print("  ⚠️  KHÔNG gộp vào cổng chính — trước 1B.2, ca kỳ vọng `thu_slot` "
               "ĐỎ ĐÚNG LÝ DO (nhánh chưa tồn tại). Đối xử như A2: land trước, xanh sau khi vá.")
@@ -242,6 +246,8 @@ def main() -> int:
               "Coder xác nhận nơi state thực sự sống.")
 
     print("\n  ── ĐC-1..5 ── nguồn: docs/giao-viec/2026-08-17-dinh-nghia-cong-DC-phan-luong.md")
+    print("     ĐC-6 (24/08, đề xuất Review) không thuộc phiếu gốc — ràng buộc THUẬN, "
+          "cổng tự áp cho chính nó, xem chú thích tại chỗ định nghĩa.")
     print(f"     sha256[:12] = {_bam_tep(GOC / 'docs/giao-viec/2026-08-17-dinh-nghia-cong-DC-phan-luong.md')}")
     dc = {}
 
@@ -310,7 +316,46 @@ def main() -> int:
         mo_ta += f"\n         🔴 {len(di_nhe)} câu ÂM lọt qua đường NHẸ: {di_nhe[:5]}"
     dc["ĐC-5"] = (dat_am, mo_ta)
 
-    for k in ("ĐC-1", "ĐC-3", "ĐC-4", "ĐC-5"):
+    # ĐC-6 — 24/08, đề xuất Review sau khi ĐC-5 đổi mệnh đề. "Không câu ÂM nào
+    # đi nhe" bắt được router-suy-biến nhưng MÙ đúng lớp lỗi ĐC-5 CŨ tình cờ
+    # bắt được: câu lẽ ra phải day_du (có cảm xúc mạnh/có số tiền/có mã) mà bị
+    # đẩy NHẦM vào thu_slot — thu_slot vẫn ≠ nhe nên ĐC-5 mới không thấy. Đây
+    # ĐÚNG hình dạng S17-S20 (ca người mẹ hoảng loạn) sáng nay. Vá bằng một
+    # RÀNG BUỘC THUẬN: cổng tự áp cho CHÍNH NÓ — mọi câu ĐI thu_slot (bất kể
+    # nhãn kỳ vọng gì) phải KHÔNG cảm xúc mạnh VÀ KHÔNG số tiền VÀ KHÔNG mã —
+    # kiểm code có nhất quán với ĐẶC TẢ của chính nó, không chỉ "không rơi nhe".
+    #
+    # Từ khoá cảm xúc/mã KHÔNG đọc từ src/ — lấy nguyên từ chính đặc tả Lead
+    # (mục 3.3, khuôn TXN/TCK) + từ PO-agon liệt kê khi giao việc trục cảm xúc
+    # (lo/hoảng/sợ/gấp/"giúp...với"/"làm sao bây giờ"). Regex số tiền dùng lại
+    # ĐÚNG khuôn đã ghi trong `vi_sao` của S4 khi soạn 1B.3.
+    _TU_CAM_XUC = ("lo quá", "hoảng", "sợ ", "sợ,", "gấp", "giúp tôi với",
+                   "giúp mình với", "làm sao bây giờ", "cứu tôi", "cứu mình", "trời ơi")
+    _RE_SO_TIEN = re.compile(r"\d[\d.,]*\s*(k|nghìn|nghin|ngàn|ngan|tr|triệu|trieu|đ|d|vnd|vnđ)\b", re.IGNORECASE)
+    _RE_MA = re.compile(r"\bTXN\d{14}\b|\bTCK-\d{5}\b", re.IGNORECASE)
+
+    tat_ca_cau = [c for _, cn2 in bo for c, _ in cn2]
+    if d_slot:
+        tat_ca_cau += [c["cau"] for c in d_slot["ca"]]
+    vi_pham_dc6 = []
+    n_thu_slot = 0
+    for c in tat_ca_cau:
+        if luat.phan_luong(c)[0] != "thu_slot":
+            continue
+        n_thu_slot += 1
+        co_cam_xuc = any(tk in c.lower() for tk in _TU_CAM_XUC)
+        co_tien = bool(_RE_SO_TIEN.search(c))
+        co_ma = bool(_RE_MA.search(c))
+        if co_cam_xuc or co_tien or co_ma:
+            vi_pham_dc6.append((c, {"cảm_xúc": co_cam_xuc, "số_tiền": co_tien, "mã_GD": co_ma}))
+    dc["ĐC-6"] = (
+        not vi_pham_dc6,
+        f"mọi câu ĐI thu_slot ({n_thu_slot} câu, toàn corpus) đều KHÔNG cảm xúc mạnh · "
+        f"KHÔNG số tiền · KHÔNG mã GD"
+        + ("".join(f"\n         🔴 {c!r} đi thu_slot NHƯNG {flag}" for c, flag in vi_pham_dc6[:5]) if vi_pham_dc6 else "")
+    )
+
+    for k in ("ĐC-1", "ĐC-3", "ĐC-4", "ĐC-5", "ĐC-6"):
         ok, mo = dc[k]
         print(f"  {'✅' if ok else '🔴'} {k}  {mo}")
 
