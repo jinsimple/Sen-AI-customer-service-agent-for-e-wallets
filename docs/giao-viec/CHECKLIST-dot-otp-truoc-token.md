@@ -285,7 +285,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
 
 ## Nhóm B — Vá cổng định tuyến
 
-- [x] **③** Siết ba từ — **Coder** · `src/agents/phan_luong.py`
+- [~] **③** Siết ba từ — **Coder** · `src/agents/phan_luong.py` · 🔴 hạ lại từ `[x]`, xem đính chính bên dưới
   - Gỡ `"nhầm"` + `"bị"` trần khỏi `_TIN_HIEU_KHIEU_NAI`; `"nhận"` → cụm đủ dài
   - 🔴 **CẤM thêm danh sách từ loại trừ** — danh sách loại trừ luôn thiếu một chữ
   - Land xong **khai băm luật mới**
@@ -318,8 +318,21 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     (PO duyệt 25/08 §"QUYẾT ĐỊNH PO"), neo vào khái niệm dự án đã có (US-016 + `masking.py`),
     không đụng `_nhom_b`, kèm ca dương QA/QC. Không hồi quy: suite 667 passed/2 failed (đều
     có trước). Delta token = 0.
-  - ✅ **③ ĐÓNG — cả Đ1 và Q3.** Toàn bộ 7/7 ca bộ ② của QA/QC nay đúng kỳ vọng, không còn
-    ca đỏ nào. Cập nhật N1 (nghiệm thu) bên dưới.
+  - ~~✅ **③ ĐÓNG — cả Đ1 và Q3.**~~ **🔴 ĐÍNH CHÍNH [Lead 25/08], KHÔNG XOÁ câu trên —
+    Coder chạy lại corpus GỐC (không phải bộ ca dựng lại), kết quả KHÔNG đạt.** Giữ nguyên
+    câu cũ để thấy phép đo nào đã dẫn tới kết luận sai: bộ ② 7/7 là bộ **DỰNG LẠI** các
+    trục từ đặc tả Đ1 (đúng việc QA/QC được giao), và nó xanh thật — nhưng **xanh trên
+    bản dựng lại không chứng minh gì về corpus gốc**, đúng lớp lỗi đội đã bắt nhiều lần.
+    [ĐO thật, Coder]: nền `a3bc860` thu_slot bắn **15** lần trên 409 câu/14 tệp; HEAD hôm
+    nay còn bắn **13** lần — **chỉ đóng được 2** (đúng ADV-036+ADV-038, khớp N2). 13 ca còn
+    lại: chính sách 2 · đã phân loại xong 2 · khách cần hướng dẫn 1 · khiếu nại thật ĐÚNG 3
+    · khác 5. Ba mục đầu chứa nguyên cụm "chuyển nhầm" mà chính ③ THÊM vào — bắn ở CẢ nền
+    lẫn HEAD, **không phải hồi quy do ③**, nhưng ③ cũng KHÔNG chạm tới chúng.
+    ⚠️ **"6/11" gốc và "15" (nền đo lại) CHƯA ĐỐI CHIẾU ĐƯỢC** — không rõ Đ1 bóc corpus
+    bằng cách nào; Coder không kết luận "6/11 sai", chỉ nói chưa so được.
+    **Checkbox ③ đã hạ về `[~]` phía trên** — chữ gạch ngang giữ lại làm dấu vết của kết
+    luận sai trước đó, đúng kỷ luật §8 không xoá lỗi, nhưng ô đánh dấu phản ánh trạng thái
+    THẬT để ai quét nhanh không đọc nhầm.
 
 - [x] **④** Cổng OTP tất định cho NHÓM B — **Coder** · `src/agents/graph.py`
   - `otp_verified_at` đã có sẵn ở `run_agent_turn:798`, không cần thêm đường dẫn dữ liệu
@@ -658,11 +671,19 @@ trên nền sai là đúng thứ Luật F cấm.
 
 ## Nghiệm thu cả đợt — bốn con số trong bốn tệp
 
-- [~] **N1** Số lần cổng `thu_slot` bắn oan: **6/11** → **0/n**
-  - **Bộ ca độc lập của QA/QC (7 ca, dựng từ đặc tả Đ1 — không phải chấm lại corpus gốc):
-    nay 7/7 đúng kỳ vọng**, xem ③ (`d310dc5`→`4754981`→`3e9a9ee`). **Chưa [x]:** corpus gốc
-    Đ1 (`eval/*.jsonl`, mẫu số "11") chưa được chạy lại trực tiếp để xác nhận "0/11" — chỉ
-    có bằng chứng gián tiếp qua bộ ca độc lập. Ai chạy lại corpus gốc thì tick nốt.
+- [!] **N1** Số lần cổng `thu_slot` bắn oan: **6/11** → **0/n** — **🔴 ĐÃ ĐO, KHÔNG ĐẠT**
+  - **[Lead 25/08] ĐÍNH CHÍNH — không phải "chưa đo" như dòng cũ, là "đã đo, đỏ thật".**
+    Bộ ca độc lập của QA/QC (7 ca, dựng từ đặc tả Đ1) nay 7/7 — đúng, và không sai — nhưng
+    **xanh trên bản dựng lại không chứng minh gì về corpus gốc.**
+  - **[ĐO thật, Coder]:** mẫu số **409 câu/14 tệp `eval/*.jsonl`**. Nền `a3bc860` thu_slot
+    bắn **15** lần; HEAD hôm nay còn bắn **13** lần. **Chỉ đóng được 2** (= ADV-036 +
+    ADV-038, khớp N2). 13 ca còn bắn oan: chính sách 2 · đã phân loại xong 2 · khách cần
+    hướng dẫn 1 · khiếu nại thật ĐÚNG (không phải oan) 3 · khác/cần phân loại 5.
+  - ⚠️ **"6/11" gốc và "15" (nền đo lại) CHƯA ĐỐI CHIẾU ĐƯỢC** — phương pháp bóc corpus gốc
+    của Đ1 không rõ có khớp mẫu số 409 câu này không. **Không kết luận "6/11 sai"**, chỉ
+    ghi "chưa so được", và nghiệm thu đang đứng trên một số chưa đối chiếu.
+  - 🔴 **HỆ QUẢ:** đợt KHÔNG đóng được theo đúng tiêu chí phiếu §6 ("đợt đóng khi bốn con
+    số nằm trong bốn tệp") — N1 là một trong bốn, và nó không đạt. Xem tin Lead→PO.
 - [x] **N2** `ADV-036` · `ADV-038` xanh **vì** O1–O5 giữ được, không phải vì câu lạc đề
   - Cả hai đóng qua cơ chế đúng (không phải sửa test): AM-04=ADV-038 đóng vòng 1 (`d310dc5`),
     AM-03=ADV-036 đóng vòng 3 (`3e9a9ee`, trục chốt-không-bắn). Request nay tới LLM, đi qua
