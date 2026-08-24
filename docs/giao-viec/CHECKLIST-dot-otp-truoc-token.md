@@ -443,13 +443,26 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     phía rẻ). [ĐO] 4/4 trục (kẻ tấn công · khách thật · lượt thường · Redis hỏng). Suite
     657 passed/2 failed (đều có trước). **Delta token = 0.**
 
-- [ ] **⑮ · Ba test đơn vị RẺ** — **QA/QC** · *Review đề xuất, PO duyệt*
+- [x] **⑮ · Ba test đơn vị RẺ** — **QA/QC** · *Review đề xuất, PO duyệt*
   - `la_khieu_nai_ca_nhan` · `_otp_fresh(None, …)` → `False` · và bất biến
     **"mọi call site production của `run_agent_turn` phải truyền `otp_verified_at` tường minh"**
   - 🔴 Mục thứ ba là mục đáng giá nhất: hôm nay chỉ có **một** call site và nó đúng — nhưng
     **không cổng nào canh** việc ai đó thêm call site **thứ hai** mà quên truyền, và lúc ấy
     sentinel `_ALWAYS_FRESH` sẽ coi như **đã xác thực**. Đúng idiom introspect của
     `test_invariants.py`, không tốn LLM
+  - **VẬT CHỨNG:** `tests/test_15_ba_test_don_vi_re.py`, 6 test, **chạy thật, 6/6 PASS**
+    (`pytest tests/test_15_ba_test_don_vi_re.py -v`, 0 LLM/DB/Redis/docker):
+    - 4 ca `la_khieu_nai_ca_nhan` (2 dương từ `bo_ca_am_thu_slot_dot2.json` đã xác nhận
+      25/08, 2 âm từ `test_1a_luat_hoi_prompt.py` đã xác nhận) — tất cả khớp kỳ vọng
+    - `_otp_fresh(None, 15) is False` — xác nhận trực tiếp
+    - Bất biến call site: quét AST thật trên toàn `src/`, nhận diện được CẢ HAI hình
+      dạng lời gọi (gọi thẳng `run_agent_turn(...)` VÀ gọi gián tiếp qua wrapper kiểu
+      `_handle_tool_error(run_agent_turn, ..., otp_verified_at=...)` — hình dạng THẬT
+      đang dùng ở `src/api/main.py:657`). **Đã tự kiểm cả hai chiều Luật A** trên 5 ca
+      AST giả lập tách biệt (không chạy trong suite): gọi thẳng thiếu kw → bắt được ·
+      wrapper thiếu kw → bắt được (ca nguy hiểm nhất, đúng hình dạng call site thật) ·
+      call không liên quan → không báo oan. Có ràng buộc chống rỗng (Luật A): quét ra
+      0 call site thì FAIL, không PASS-rỗng.
 
 **Token delta của ④ = 0** *(điều khoản T2)* — ④ là early-return **trước** khi gọi LLM,
 không chạm `build_system_prompt`. Review kiểm, PO ghi nhận.
