@@ -22,9 +22,36 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#10** — 06:21, 25/08 |
-| **HEAD** | `3e9a9ee` · băm luật `4e7ed24b60c0` |
-| 🟢 **CỔNG ② NAY 7/7 XANH** | AM-03 đóng — ca đỏ cuối cùng của Đ1 |
+| **Lần điểm danh cuối** | **#11** — 06:35, 25/08 |
+| **HEAD** | `69fcd44` · băm luật `4e7ed24b60c0` |
+| 🔴 **N1 KHÔNG ĐẠT** | đo trên corpus GỐC: **15 → 13**, đóng đúng **2** |
+| ✅ **Nhưng đợt sinh ra một CỔNG THẬT** | `eval/do_n1_corpus_goc.py` — PO tự chạy, tái lập |
+
+**Vật chứng #11**
+
+| vai | dấu vết |
+|---|---|
+| Coder | ✅ đo N1 corpus gốc, **tự báo số làm đợt xấu đi trước khi PO kịp trình bản đẹp** |
+| Lead | ✅ `f77ae58` đính chính ③/N1 · `aeaca21` cấp **Luật Y** |
+| QA/QC | ✅ `69fcd44` — nhận script đo vào `eval/`, biến nó thành **cổng thường trực** |
+| Review | ✅ soát `3e9a9ee` · hai lần thử vá thất bại **có ghi lại** |
+
+**PO tự chạy cổng mới — tái lập đúng:**
+
+```
+MẪU SỐ 409 câu / 14 tệp   (heldout LOẠI — niêm phong)
+HEAD → thu_slot 13
+13 ca còn bắn, in ĐỦ tên + tệp nguồn, KHÔNG phải một con số trần
+```
+
+🟢 **Thứ đáng giá nhất đợt này sinh ra, và nó sinh ra TỪ một thất bại:** trước hôm nay
+N1 là **một con số trong đầu PO** — sai, không tái lập được, không ai đối chiếu được.
+Nay nó là **một lệnh chạy được**, in đủ mẫu số và từng ca. Cổng ấy chỉ tồn tại vì có
+người chịu đo lại một con số đã được cả đội dùng suốt đợt.
+
+⚠️ **Và cổng tự khai đúng giới hạn của nó:** *"không phải cổng pass/fail — đối chiếu TAY
+với danh sách 13 câu trong docstring; câu MỚI không có trong danh sách là regression"*.
+Nó không giả vờ là thứ nó chưa phải.
 
 **Vật chứng #10**
 
