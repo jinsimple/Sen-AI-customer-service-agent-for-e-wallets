@@ -712,19 +712,23 @@ trên nền sai là đúng thứ Luật F cấm.
   - 🔴 **HỆ QUẢ:** đợt KHÔNG đóng được theo đúng tiêu chí phiếu §6 ("đợt đóng khi bốn con
     số nằm trong bốn tệp") — N1 là một trong bốn, và nó không đạt. Xem tin Lead→PO.
   - **[QA/QC 25/08] QUYẾT ĐỊNH — nhận script đo của Coder vào `eval/`:** `eval/do_n1_corpus_goc.py`.
-    Tái lập ĐỘC LẬP, khớp tuyệt đối (409/15/13, cùng 13 câu). Đọc kỹ trước khi nhận: bộ
-    bóc câu đã hỏng HAI LẦN lúc Coder dựng (7/409 rồi 349/409, cả hai lệch theo hướng
-    TRẤN AN) — tự kiểm bằng dòng `if tong != 409`, giữ nguyên khi land.
-    **GIỮ NGUYÊN quyết định của Coder: KHÔNG biến thành cổng pass/fail, luôn `return 0`.**
-    Lý do (đồng thuận, không phải chỉ tin lời Coder): corpus sẽ lớn lên theo thời gian —
-    ghim ngưỡng "13" sẽ đỏ mỗi lần ai thêm một câu hợp lệ, và một ngưỡng bị nới theo phản
-    xạ thì thà không có (đúng bài học `XA_GIAO`/ngân sách token, đã lặp trong dự án này).
-    **Cái ghim được là MẪU SỐ (409) và DANH SÁCH 13 câu** (chép vào docstring script,
-    kèm phân loại Coder + QA/QC đối chiếu lại bằng mắt, khớp) — người chạy tự đối chiếu
-    output với danh sách, câu MỚI không có trong đó là regression đáng báo ngay.
-    **CHƯA làm** (ghi nợ, không phải chặn đợt): cơ chế DIFF tự động so với danh sách đã
-    ghim (hiện đối chiếu tay) — nếu về sau lặp lại đối chiếu tay sai, đây là việc nâng cấp
-    tiếp theo.
+    Tái lập ĐỘC LẬP, khớp tuyệt đối (409/15/13, cùng 13 câu). Bộ bóc câu đã hỏng HAI LẦN
+    lúc Coder dựng (7/409 rồi 349/409, cả hai lệch theo hướng TRẤN AN) — tự kiểm bằng
+    `MAU_SO_MOC`, giữ nguyên khi land.
+  - **🔴 ĐÍNH CHÍNH cùng ngày (Coder bắt, QA/QC tự sửa):** bản đầu ghi nhầm *"giữ nguyên
+    quyết định của Coder: không cổng hoá, luôn `return 0`"*. **Sai** — Coder chỉ nói
+    *"đừng ghim SỐ ĐẾM 13"*, và tự nhận xét thêm rằng **ghim DANH SÁCH rồi diff LÀ một
+    cổng pass/fail hợp lệ, đáng có** (*"return 0 vô điều kiện thì không ai bị đánh thức
+    khi điều đó xảy ra lần nữa"*). QA/QC tự diễn rộng thành "không cổng hoá" rồi gán
+    nhầm cho Coder — Coder chưa hề loại phương án này.
+  - **QUYẾT ĐỊNH SỬA — cổng hoá theo DANH SÁCH (của QA/QC, sau khi Coder chỉ ra chỗ sai):**
+    `eval/n1_bao_oan_da_biet.json` (13 câu, `bam_nhan` hash-gate, kèm tệp nguồn). Script
+    diff: câu bắn `thu_slot` KHÔNG có trong danh sách ⟹ REGRESSION MỚI, thoát mã 1. Câu
+    trong danh sách hết bắn ⟹ in ra để người chạy tự cập nhật (không tự động xoá — tránh
+    script tự sửa vật chứng của chính nó). Mẫu số khác 409 hoặc danh sách đã trôi (băm
+    lệch) ⟹ thoát mã 2. **Đã tự kiểm CẢ HAI chiều Luật A**: chạy trên trạng thái khớp →
+    exit 0; xoá thử 1 phần tử khỏi danh sách (mô phỏng regression) → bắt đúng, exit 1;
+    khôi phục file thật ngay sau kiểm.
 - [x] **N2** `ADV-036` · `ADV-038` xanh **vì** O1–O5 giữ được, không phải vì câu lạc đề
   - Cả hai đóng qua cơ chế đúng (không phải sửa test): AM-04=ADV-038 đóng vòng 1 (`d310dc5`),
     AM-03=ADV-036 đóng vòng 3 (`3e9a9ee`, trục chốt-không-bắn). Request nay tới LLM, đi qua

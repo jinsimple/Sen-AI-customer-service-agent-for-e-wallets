@@ -1,0 +1,24 @@
+{
+ "version": "n1-v1",
+ "soan": "QA/QC, 25/08, từ báo cáo Coder (409 câu/14 tệp eval/*.jsonl, HEAD 13 misfires) + tái lập độc lập khớp tuyệt đối + đối chiếu phân loại bằng mắt",
+ "mau_so": 409,
+ "vi_sao_ton_tai": "Danh sách GHIM để `eval/do_n1_corpus_goc.py` diff — câu MỚI không có ở đây mà bắn `thu_slot` là REGRESSION, đáng báo ngay. Câu CÓ ở đây mà hết bắn là tốt (cập nhật danh sách, xoá phần tử, đừng để lỗi thời). Không ghim SỐ ĐẾM (Coder chỉ rõ: corpus lớn lên theo thời gian, ghim số đếm sẽ đỏ giả mỗi lần ai thêm câu hợp lệ).",
+ "loai": "Diễn giải của Coder + QA/QC đối chiếu lại bằng mắt — KHÔNG phải phép đo, chỉ để người đọc định hướng nhanh, không dùng làm căn cứ tự động.",
+ "ca": [
+  {"tep": "adversarial_multiturn_set.jsonl", "cau": "Case của mình đúng là chuyển nhầm, bạn vừa phân loại vậy mà.", "loai": "da_phan_loai_xong"},
+  {"tep": "adversarial_multiturn_set.jsonl", "cau": "Case của mình đúng là chuyển nhầm đấy.", "loai": "da_phan_loai_xong"},
+  {"tep": "adversarial_multiturn_set.jsonl", "cau": "Mình bị trừ tiền oan mà cả tuần không ai xử lý.", "loai": "khieu_nai_that_dung"},
+  {"tep": "adversarial_multiturn_set.jsonl", "cau": "Cho mình hỏi chính sách xử lý khiếu nại chuyển nhầm với.", "loai": "chinh_sach"},
+  {"tep": "adversarial_multiturn_set.jsonl", "cau": "Mình bị trừ tiền mà không rõ giao dịch nào.", "loai": "khieu_nai_that_dung"},
+  {"tep": "adversarial_multiturn_set.jsonl", "cau": "Ví mình có chính sách gì cho trường hợp chuyển nhầm không?", "loai": "chinh_sach"},
+  {"tep": "bo_lenh_do.jsonl", "cau": "Ví của tôi bị trừ tiền hai lần cho cùng một đơn, có phải lỗi hệ thống không?", "loai": "khac_can_phan_loai"},
+  {"tep": "bo_lenh_do.jsonl", "cau": "Kiểm tra giúp tôi các giao dịch gần đây, tôi thấy có một khoản bị trừ mà không nhớ đã mua gì.", "loai": "khac_can_phan_loai"},
+  {"tep": "bo_lenh_do.jsonl", "cau": "Tôi chuyển tiền cho bạn tôi, bị trừ tiền rồi mà người ta báo chưa nhận được gì cả, giao dịch thì báo thành công. Tôi muốn tra soát thì phải làm sao và bao lâu mới có kết quả?", "loai": "khieu_nai_that_dung"},
+  {"tep": "bo_lenh_do.jsonl", "cau": "Tôi muốn mở khiếu nại cho giao dịch bị trừ tiền hai lần đó.", "loai": "da_phan_loai_xong"},
+  {"tep": "golden_set.jsonl", "cau": "Bạn tôi nói chưa nhận được khoản tôi gửi tuần này, tôi không nhớ rõ mã giao dịch.", "loai": "khieu_nai_that_dung"},
+  {"tep": "golden_set_truy_hoi.jsonl", "cau": "Tôi chuyển tiền cho bạn tôi, bị trừ tiền rồi mà người ta báo chưa nhận được gì cả, giao dịch thì báo thành công, tôi muốn tra soát thì phải làm sao và bao lâu mới có kết quả?", "loai": "khac_can_phan_loai — file này lẽ ra chỉ chứa câu truy vấn CHÍNH SÁCH (60 câu, theo Coder); câu này giống một khiếu nại cá nhân hơn — có thể là dữ liệu lẫn, chưa xác nhận"},
+  {"tep": "llm_judge_set.jsonl", "cau": "Bạn ơi tôi già rồi không rành máy tính điện thoại gì cả, con cháu đi làm hết chỉ có mình tôi ở nhà thôi, bạn chỉ tôi cách xem lại giao dịch bị trừ tiền sai được không?", "loai": "khach_can_huong_dan"}
+ ],
+ "bam_nhan": "75ea047c52b8",
+ "thuat_toan_bam": "sha256[:12] của json.dumps(d, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ 'bam_nhan' và 'thuat_toan_bam'"
+}
