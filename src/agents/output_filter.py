@@ -503,6 +503,22 @@ def _khop_o5(reply: str) -> bool:
     # đổi phạm vi cũng không cứu được. Tín hiệu thay thế (tiểu từ "nhé"/"ạ")
     # tự nó có rủi ro bắt oan riêng, cần đo riêng trước khi thêm — ĐỪNG đoán
     # trước, đúng Luật M. Đây là đánh đổi ĐÃ KHAI, không phải lỗ bị giấu.
+    #
+    # ⚠️ GIỚI HẠN THỨ HAI, CỐ Ý DỪNG Ở ĐÂY (Review tự bắn ngược `_O5_MO_TA_
+    # CHUNG` sau khi vá, 24/08): một trong 4 từ mô-tả-chung dùng SAI nghĩa
+    # gốc (mốc thời gian trong hội thoại/tần suất CÁ NHÂN của khách, không
+    # phải "chuyện chung/nhiều khách khác") CÙNG mệnh đề với câu chốt cũng
+    # LỌT — "Mình đã tạo hồ sơ khiếu nại cho bạn như đã hứa trước đây rồi
+    # nhé.", "...thấy trường hợp này xảy ra thường xuyên với bạn." Khớp từ
+    # không phân biệt được NGỮ NGHĨA, chỉ khớp SỰ CÓ MẶT — ba vòng vá liên
+    # tiếp cùng dạng lỗi (hướng-khách cùng-mệnh-đề -> toàn-reply -> loại-trừ-
+    # theo-từ) chứng minh TRẦN của cách tiếp cận khớp-từ/vị-trí, không phải
+    # một lỗ đơn lẻ còn sót. DỪNG vá thêm ở đây — bề mặt đã hẹp tới mức cần
+    # đúng tổ hợp hiếm, O5 vốn chỉ là lưới cuối cho MỘT khe hẹp (O3 đã phủ
+    # mọi ca có mã sai/mã bịa), và nguyên tắc đầu file chấp nhận bỏ sót có
+    # kiểm soát. Muốn đóng dứt điểm cần tín hiệu NGỮ NGHĨA thật, không phải
+    # danh sách loại trừ thứ tư — để lại cho PO-agent/Bảo mật cân nhắc có
+    # đáng đầu tư hướng khác hay không.
     co_huong_khach_toan_reply = _vi_tri_dau(_bo_dau(reply), _O5_HUONG_KHACH) is not None
     co_menh_de_hoan_tat = False
     for md in _tach_menh_de(_bo_dau(reply)):
