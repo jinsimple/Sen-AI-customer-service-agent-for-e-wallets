@@ -241,7 +241,14 @@ def test_r1_cau_hoi_chinh_sach_khong_bi_hoi_slot():
 # ---------------------------------------------------------------------------
 
 def test_r2_hoi_ma_giao_dich_kem_duong_di():
-    """NẾU reply xin mã giao dịch THÌ phải kèm hướng dẫn tìm — không nói trống."""
+    """NẾU reply xin mã giao dịch THÌ phải kèm hướng dẫn tìm — không nói trống.
+
+    🔴 [ĐO 24/08] SKIP ở lượt đóng đợt 1A+S8 (03fd9a6) — lượt 1 nội dung THẬT
+    (không dính lỗi provider), agent chọn hỏi phân loại giao dịch thay vì mã
+    GD, đúng nghĩa gốc của điều kiện skip — KHÔNG PHẢI hệ quả của
+    APIConnectionError (đã đối chiếu `eval/results/1a_reply_log.jsonl`, field
+    `ca`, xem cùng có ghi chú ở R5 bên dưới cho ca THẬT SỰ dính lỗi provider).
+    R2 đã PASSED ở lượt 139K token 19/08 — không mua lại chỉ vì lượt này SKIP."""
     o = _chat(
         "Tôi có một giao dịch bị lỗi nhưng không nhớ số tiền hay ngày giờ gì cả, "
         "giúp tôi tra được không?",
@@ -265,7 +272,18 @@ def test_r2_hoi_ma_giao_dich_kem_duong_di():
 # ---------------------------------------------------------------------------
 
 def test_r3_lan_hoi_lai_thu_hai_doi_truc():
-    """Hai lượt hỏi-lại liên tiếp trong CÙNG hội thoại không được hỏi cùng trục."""
+    """Hai lượt hỏi-lại liên tiếp trong CÙNG hội thoại không được hỏi cùng trục.
+
+    🔴 [ĐO 24/08] CHƯA ĐO ĐƯỢC — SKIP nhiều lượt liên tiếp, MỖI LẦN một
+    nguyên nhân KHÁC NHAU (từng gặp: OTP chưa xác thực, lượt 1 không hỏi
+    trục, lượt 2 không hỏi trục). PO-agent 24/08: đây là finding về KHẢ NĂNG
+    QUAN SÁT của chính test (kịch bản hai-lượt-hỏi-liên-tiếp hiếm khi thật
+    sự xảy ra trong luồng agent hiện tại), KHÔNG PHẢI kết luận về sản phẩm —
+    khác hẳn R1 (đỏ THẬT, tái hiện được). Lượt 03fd9a6: cả hai lượt nội dung
+    THẬT (không dính APIConnectionError), skip vì lượt 2 không hỏi trục nào —
+    đối chiếu `eval/results/1a_reply_log.jsonl`. Không tự ý chạy lại chỉ để
+    đổi kết quả SKIP — xem ADR liên quan A2 nếu cần đổi cách canh (tất định
+    thay vì phụ thuộc hành vi LLM)."""
     th = _thread()
     tok = _login()  # MỘT lần cho cả hai lượt — nối thật cùng thread (xem _login())
     o1 = _chat("Tôi chuyển nhầm tiền cho người lạ.", tok, th)
@@ -354,7 +372,16 @@ def test_r4_tom_tat_slot_truoc_create_ticket():
 # ---------------------------------------------------------------------------
 
 def test_r5_hoi_thoi_gian_bang_moc_neo():
-    """Câu hỏi thời gian không được đòi giờ chính xác ('mấy giờ') — phải cho mốc neo."""
+    """Câu hỏi thời gian không được đòi giờ chính xác ('mấy giờ') — phải cho mốc neo.
+
+    🔴 [ĐO 24/08] CHƯA ĐO ĐƯỢC, LÝ DO CỤ THỂ (khác R2/R3-lần-2 — xem ghi chú
+    ở đó): lượt duy nhất dính `APIConnectionError` thoáng qua từ nhà cung cấp
+    (0 token, fail nhanh <1s, `ly_do_fallback: "nha_cung_cap_thoang_qua"`) —
+    reply trả về là câu fallback graceful ("hệ thống đang bận...") KHÔNG hỏi
+    trục nào, vô tình trùng điều kiện skip bên dưới. Không phải nhánh nghiệp
+    vụ thật. Đối chiếu `eval/results/1a_reply_log.jsonl`. PO-agent 24/08: tỉ
+    lệ lỗi provider cả ngày 24/08 là 9,4%/53 lượt gọi thật — KHÔNG bất thường,
+    không phải bug cần vá."""
     o = _chat("Tôi chuyển tiền nhầm 300 nghìn, không nhớ chi tiết lắm.", _login(), _thread())
     n = o["reply"].lower()
     if "thoi_gian" not in _truc_hoi(o["reply"]):
