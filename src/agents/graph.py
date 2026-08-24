@@ -43,6 +43,7 @@ from src.agents.phan_luong import (
     HOI_THIEU_SO_TIEN,
     TEN_TIN_HIEU_1B,
     TRA_LOI_NHE,
+    HOI_THOI_GIAN_VA_SO_TIEN,
     co_du_de_thu_hep,
     la_khieu_nai_ca_nhan,
     phan_luong,
@@ -140,23 +141,6 @@ DUONG_CAN_OTP = "can_otp"
 # do tool chạy và bị OTP chặn) — cái còn thiếu là thứ giúp tool THU HẸP
 # xuống một kết quả, đúng vai trò mã/ngày (số tiền nhiều khả năng ĐÃ có
 # trong câu, vì đó là chi tiết khách hay kể đầu tiên).
-# 🔴 ĐỔI 25/08 (⑤, Q2 do PO chốt). Bản cũ hỏi MÃ GIAO DỊCH kèm hướng dẫn tìm mã.
-# Bỏ mã khỏi CÂU HỎI: khách vừa mất tiền, bắt họ đi lục Lịch sử giao dịch để lấy
-# một chuỗi 14 số là đẩy công việc sang phía người đang hoảng. Thời gian + số tiền
-# là thứ họ TRẢ LỜI ĐƯỢC NGAY từ trí nhớ.
-# `co_du_de_thu_hep()` VẪN nhận diện mã nếu khách tự nêu — không hỏi ≠ không đọc.
-#
-# R1 sau khi đổi cách thi hành (⑤, phiếu §2b): "một Ý mỗi tin", KHÔNG phải "một
-# YÊU CẦU mỗi tin". Đây là MỘT ý — *"cho mình thông tin để tìm đúng giao dịch"* —
-# diễn đạt trong một câu. Cách đọc cũ ("một yêu cầu") đẻ ra cổng hỏi-số-tiền đứng
-# cô lập mà Đ1 đo được bắn oan 6/11 lần.
-# ⚠️ ĐC-7 (eval/) hiện khẳng định "mọi hằng số HOI_* chỉ hỏi ĐÚNG MỘT trục/tin" —
-# nó mã hoá cách đọc CŨ của R1. Xung đột này BIẾT TRƯỚC, đã báo Lead/QA/QC; ĐC-7
-# thuộc vùng ghi QA/QC, họ quyết nó nói gì sau khi R1 đổi nghĩa.
-_HOI_THOI_GIAN_VA_SO_TIEN = (
-    "Dạ bạn cho mình xin số tiền và thời điểm giao dịch (hôm nay/hôm qua, "
-    "sáng/chiều/tối) giúp mình nhé."
-)
 
 # ── ⑧ · K3 — HAI CÂU CHỐNG MẠO DANH CSKH ────────────────────────────────────
 # Phiếu "OTP trước token" ⑧. Hằng số, 0 token, KHÔNG giao model diễn đạt —
@@ -950,7 +934,7 @@ def run_agent_turn(
                 extra={"user_id": user_id, "thread_id": _tid_hieu_qua_otp},
             )
             _kq_otp_resend = {
-                "reply": _HOI_THOI_GIAN_VA_SO_TIEN,
+                "reply": HOI_THOI_GIAN_VA_SO_TIEN,
                 "tool_calls": [],
                 "ticket_id": None,
                 "should_escalate": False,

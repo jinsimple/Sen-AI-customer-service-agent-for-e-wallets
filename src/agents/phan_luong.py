@@ -441,6 +441,31 @@ def boc_slot(cau: object) -> dict[str, bool]:
 # với gộp ba — chấp nhận, vì R1 đến từ nghiệp vụ chuyên gia thật.
 HOI_THIEU_SO_TIEN = "Dạ bạn cho mình xin thêm số tiền giao dịch giúp mình nhé."
 
+# ⑤ (25/08, Q2 do PO chốt) — câu của cổng thu-slot SAU KHI xác thực OTP (T0,
+# `graph.py`). Bản cũ hỏi MÃ GIAO DỊCH kèm hướng dẫn đi lục Lịch sử giao dịch;
+# bỏ mã khỏi CÂU HỎI vì bắt khách vừa mất tiền đi tìm một chuỗi 14 số là đẩy
+# việc sang phía người đang hoảng. Thời gian + số tiền trả lời được ngay từ trí
+# nhớ. `co_du_de_thu_hep()` VẪN nhận diện mã nếu khách tự nêu — không hỏi ≠
+# không đọc được.
+#
+# R1 sau khi đổi cách thi hành (phiếu §2b): "một Ý mỗi tin", KHÔNG phải "một
+# YÊU CẦU mỗi tin". Đây là MỘT ý — *"cho mình thông tin để tìm đúng giao dịch"*
+# — nói trong một câu. Cách đọc cũ đẻ ra cổng hỏi-số-tiền đứng cô lập mà Đ1 đo
+# được bắn oan 6/11 lần.
+#
+# 🔴 VÌ SAO HẰNG SỐ NÀY SỐNG Ở ĐÂY CHỨ KHÔNG Ở `graph.py` — và vì sao tên KHÔNG
+# có tiền tố `_`: cổng ĐC-7 (`eval/cong_phan_luong.py:406`) tìm hằng số bằng
+# `getattr(luat, n)` với `n.startswith("HOI_")`, mà `luat` là ĐÚNG tệp truyền
+# qua `--luat` — tức CHỈ tệp này. Đặt ở graph.py, hoặc đặt tên `_HOI_...`, thì
+# ĐC-7 **mù hoàn toàn**: không đỏ, không cảnh báo, im lặng.
+# Bản land đầu của ⑤ (`d50bf9d`) đặt nó ở graph.py với tiền tố `_` — tôi đã tự
+# khai giới hạn ấy trong commit đó, rồi chuyển về đây. Ai thêm hằng số `HOI_*`
+# mới (vd ⑨) phải đặt ở tệp này, tên công khai. Cổng không thấy ≠ cổng đồng ý.
+HOI_THOI_GIAN_VA_SO_TIEN = (
+    "Dạ bạn cho mình xin số tiền và thời điểm giao dịch (hôm nay/hôm qua, "
+    "sáng/chiều/tối) giúp mình nhé."
+)
+
 # Băm của CHÍNH FILE NÀY, tính lúc import. KHÔNG gõ tay.
 #
 # Bản đầu tôi gõ cứng `"0885bab00a04"` — băm của một file NHÁP ở nơi khác. Đúng
