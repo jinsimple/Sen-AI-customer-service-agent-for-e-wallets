@@ -355,7 +355,50 @@ def main() -> int:
         + ("".join(f"\n         🔴 {c!r} đi thu_slot NHƯNG {flag}" for c, flag in vi_pham_dc6[:5]) if vi_pham_dc6 else "")
     )
 
-    for k in ("ĐC-1", "ĐC-3", "ĐC-4", "ĐC-5", "ĐC-6"):
+    # ĐC-7 — 24/08, PO-agon giao sau khi phát hiện ĐỢT 1A và ĐỢT 1B đặt hai
+    # luật NGƯỢC NHAU về cùng một hành vi: R1 (1A, đặc tả chuyên gia) đòi
+    # "reply khi thiếu slot chỉ chứa MỘT yêu cầu thông tin"; `phan_luong.py`
+    # (1B) LÚC PHÁT HIỆN có hằng số `HOI_THIEU_CA_HAI` hỏi BA thứ (thời gian +
+    # số tiền + mã) trong MỘT tin. Không ai thấy cả ngày vì R1 đo trên đường
+    # LLM (test 1A), còn cổng này đo trên đường tất định (1B) — hai bộ đo
+    # tách biệt. [ĐO 24/08, SAU] Coder xoá hẳn `HOI_THIEU_CA_HAI` (`cd5c057`)
+    # NGAY trong lúc ĐC-7 đang viết — chạy lại thấy đã sạch (chỉ còn
+    # `HOI_THIEU_SO_TIEN`, 1 trục). Giữ ĐC-7 làm HỒI QUY, không phải ca chờ
+    # vá — nếu ai thêm hằng số `HOI_*` mới hỏi nhiều hơn 1 trục, ĐC-7 bắt lại.
+    #
+    # Đây là ĐC ÁP LÊN ĐẦU RA (nội dung reply), khác ĐC-1..6 (áp lên ĐẦU VÀO/
+    # đường đi) — cùng tinh thần ĐC-6 (code tự nhất quán với đặc tả của chính
+    # nó), lần này cho phần THU SLOT SINH RA CÂU GÌ, không phải ĐI ĐƯỜNG NÀO.
+    #
+    # Đọc hằng số CÔNG KHAI dạng chuỗi bắt đầu `HOI_` — đọc GIÁ TRỊ, không đọc
+    # LOGIC chọn hằng số nào cho câu nào (đó vẫn là `src/`, không đụng). Dùng
+    # lại NGUYÊN bộ dò `_TRUC`/`_MAU_YEU_CAU` đã tự kiểm ở `tests/
+    # test_1a_luat_hoi_prompt.py::_truc_hoi()` — chép tối giản qua đây vì
+    # eval/ không import ngược được từ tests/ (cùng lý do `tests/_dong_bang.py`
+    # đã ghi).
+    _TRUC_RA = {
+        "so_tien": ("số tiền", "bao nhiêu tiền", "số dư"),
+        "thoi_gian": ("thời gian giao dịch", "khoảng thời gian", "hôm nay, hôm qua"),
+        "ma_gd": ("mã giao dịch", "mã gd"),
+    }
+    hang_so_hoi = {
+        n: v for n in dir(luat)
+        if n.startswith("HOI_") and isinstance((v := getattr(luat, n)), str) and len(v) > 10
+    }
+    vi_pham_dc7 = []
+    for ten, mau in hang_so_hoi.items():
+        ml = mau.lower()
+        truc_hoi = {truc for truc, tk in _TRUC_RA.items() if any(t in ml for t in tk)}
+        if len(truc_hoi) > 1:
+            vi_pham_dc7.append((ten, truc_hoi, mau))
+    dc["ĐC-7"] = (
+        not vi_pham_dc7,
+        f"mọi hằng số `HOI_*` ({len(hang_so_hoi)} cái: {sorted(hang_so_hoi)}) chỉ hỏi ĐÚNG MỘT trục/tin — khớp R1 (1A)"
+        + ("".join(f"\n         🔴 {ten} hỏi {len(truc)} trục CÙNG LƯỢT {sorted(truc)}: {mau!r}"
+                    for ten, truc, mau in vi_pham_dc7) if vi_pham_dc7 else "")
+    )
+
+    for k in ("ĐC-1", "ĐC-3", "ĐC-4", "ĐC-5", "ĐC-6", "ĐC-7"):
         ok, mo = dc[k]
         print(f"  {'✅' if ok else '🔴'} {k}  {mo}")
 
