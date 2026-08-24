@@ -71,6 +71,24 @@
 - [ ] **Ca eval "OTP hết hạn giữa hội thoại"** — trục chưa từng đo, ghép với ca đối chứng
       O5 ở trên (cùng gốc finding `5f627e3`).
 
+### 🟡 CHỜ PO THẬT — năm câu, gom một chỗ
+
+1. **Hạn SLA cho vé `scope=unknown`** — hiện **30 ngày** và `compute_sla_due_at()` chỉ chạy MỘT
+   lần lúc tạo, **không bao giờ tính lại**. Ca chạm ngân hàng đáng lẽ **4 ngày làm việc**
+   ⟹ vé trôi sai hạn vĩnh viễn, bảng theo dõi vẫn xanh, và agent **đọc mốc sai đó cho khách nghe**.
+   *Khuyến nghị: gán hạn CHẶT NHẤT. Đánh đổi: tải CSKH tăng.*
+2. **Trần số vé mỗi phiên** — ADR-047 bỏ điều kiện tra-cứu ⟹ một tin nhắn đủ tạo vé.
+   ~300 vé/cửa sổ OTP so với 20 vé/CSKH/ca. *Khuyến nghị: trần tất định.*
+   🔴 **Bảo mật cảnh báo: nếu duyệt ADR-049 thì đây thành ĐIỀU KIỆN TIÊN QUYẾT**, không phải
+   khuyến nghị song song — luật cứng thì **học thuộc được**, không cần thuyết phục model nữa.
+3. **FS-13 escalate hay chỉ ghi nhận** (ADR-048) — đổi tải hàng chờ supervisor thật.
+4. **ADR-049** — đổi đòn bẩy A2 sang cơ chế tất định. Chuyển một quyết định nghiệp vụ từ **model**
+   sang **luật cứng**: được sự đoán trước, mất khả năng model xử ca lạ.
+5. **Chạy lại `gen_dataset` thật cho ADR-046** — code xong (`27c2640`), verify ở scratchpad
+   (67/23 = 74,4%/25,6%, `processing` vẫn đa số). **Chưa regenerate** vì đổi 600 complaint +
+   60K transaction đang backing demo, và ADR-046 tự đặt nghi thức *"công bố DỰ BÁO trước khi
+   chạy lại"*. Cần PO quyết thời điểm.
+
 ### Chờ PO thật (không thuộc 1A/1B)
 
 - [ ] Đợt 2 — **ADR-048** (đổi số: 047 đã dùng cho tiếp-nhận-trước) tín hiệu FS-13 "có người hướng dẫn chuyển khoản"
