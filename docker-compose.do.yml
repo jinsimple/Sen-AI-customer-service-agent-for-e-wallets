@@ -58,10 +58,10 @@ services:
     # (không `--build`), Compose so digest thấy `latest` đã đổi có thể tự ý
     # recreate ngăn DEMO ngoài ý muốn. Ghim TAG RIÊNG cho từng lượt dựng đo —
     # đổi dòng dưới mỗi khi dựng lại, không bao giờ dùng `fin05-backend` trơn.
-    image: fin05-backend:do-e783a0d   # HEAD lúc dựng: e783a0d — Tester land đủ 3 fix 0-token +
-                                       # xác thực OTP phiên _login(). Prompt chốt 5 bản sửa
-                                       # (băm mẫu 36b61f34230d) — lượt A2 trọn bộ + R3 + R4 quyết
-                                       # cả đợt 1A. Build từ `git archive e783a0d`.
+    image: fin05-backend:do-1080762   # HEAD lúc dựng: 1080762 (1b80bf4 Review bắt oan NHÓM B(i)+S8
+                                       # + 1080762 ADR-047). Băm mẫu prompt kỳ vọng 33c7a1b57ea5.
+                                       # 🔴 Dựng SONG SONG Review đang soát — Tester CHỈ chạy sau
+                                       # khi Review xanh, không chạy ngay khi ảnh vừa xong.
     build: !reset null
     ports: !override []
     environment:
