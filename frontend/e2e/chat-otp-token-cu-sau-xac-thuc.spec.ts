@@ -25,7 +25,44 @@ import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session"
  * này ép otp_verified_at=null qua forgeOtpVerifiedAt (kỹ thuật time-travel
  * JWT đã có tiền lệ, KHÔNG phải bypass auth) để BẢO ĐẢM một lượt OTP THẬT
  * xảy ra trong chính lượt chạy, không phụ thuộc trạng thái sót lại.
+ *
+ * 🔴 [ĐO 24/08, RED-verify trên ngăn CHƯA vá — df65149] Bản đầu của ca này
+ * CHỈ assert "reply không chứa TEXT_MOI_OTP" + "reply không rỗng" — chạy
+ * trên ngăn CHƯA vá vẫn XANH (false green). Đọc `usage.jsonl` thật lúc đo:
+ * lượt gửi lại sau OTP có `so_tool_call: 0` — agent KHÔNG gọi lại tool nào,
+ * chỉ trả lời từ trí nhớ hội thoại cũ (một câu nghe hợp lý nhưng không tra
+ * lại) — đúng root cause Coder khai (`5e8deb6`, KHÁC giả thuyết token/cookie
+ * ban đầu). Hai assertion cũ không bắt được kiểu lỗi này vì câu trả lời từ
+ * trí nhớ vẫn không rỗng và không nói "cần xác thực lại". Vá bằng cách chặn
+ * response `/api/agent-chat` THẬT (đúng khuôn gd4-nghiem-thu-chinh.spec.ts)
+ * và assert trực tiếp `tool_calls` của lượt cuối — bằng chứng THẬT agent có
+ * tra lại hay không, không suy từ nội dung DOM.
+ *
+ * 🔴 [ĐO 24/08, Coder báo TRƯỚC khi tôi kịp chạy lại] `a663583` land THÊM một
+ * cơ chế mới, khác `5e8deb6`: field `vua_xac_thuc_de_gui_lai` (frontend tự
+ * đặt `true` ở đúng lượt gửi-lại-sau-OTP) → NẾU câu KHÔNG kèm mã giao dịch/
+ * mốc thời gian, agent trả lời TẤT ĐỊNH (`duong=otp_resend_thu_slot`, 0
+ * token, `tool_calls=[]`) hỏi lại mã/ngày.
+ *
+ * PO-agent chỉ ra: bug cũ và hành vi đúng MỚI **CÙNG HÌNH DẠNG NHÌN TỪ
+ * NGOÀI** (cả hai đều `tool_calls=[]`) — nhưng vì HAI LÝ DO NGƯỢC NHAU:
+ *
+ *     bug cũ (nhớ lượt trước)   tool_calls=[]   model CÓ chạy (usage>0)   duong=day_du
+ *     đúng mới (cổng bắn)       tool_calls=[]   model KHÔNG chạy (usage=0) duong=otp_resend_thu_slot
+ *
+ * ⟹ Khoá vào `duong`/`usage.total_tokens`, KHÔNG khoá vào riêng `tool_calls`
+ * — chấp nhận HAI đường đúng (cổng bắn tất định HOẶC model chịu gọi lại
+ * tool), chỉ chặn ĐÚNG một chữ ký hỏng: model đã chạy MÀ không gọi tool nào.
  */
+
+interface PhanHoiAgentChat {
+  reply?: string;
+  tool_calls?: { tool_name?: string; args?: Record<string, unknown>; result?: unknown }[];
+  ticket_id?: string | null;
+  duong?: string;
+  usage?: { total_tokens?: number };
+  [key: string]: unknown;
+}
 const CUSTOMER_PHONE = "0974000145"; // USR-0145, cùng tài khoản auth.spec.ts dùng
 
 // Đúng nguyên văn hằng số TEXT_MOI_OTP đã xác nhận ở chat-403-role-loai.spec.ts
@@ -56,6 +93,21 @@ test.describe("Token OTP mới phải được DÙNG THẬT sau khi xác thực 
     await setForgedSessionCookie(context, nguoi);
     await page.reload();
 
+    // Trục khẳng định chính cho tool_calls — response /api/agent-chat THẬT,
+    // theo đúng thứ tự tới (cùng khuôn gd4-nghiem-thu-chinh.spec.ts). DOM chỉ
+    // dùng để điều khiển (gõ/bấm/OTP) + kiểm câu chữ "không nói phiên chưa
+    // xác thực" — bằng chứng "có tra lại hay không" đọc từ ĐÂY, không đoán.
+    const responsesThat: PhanHoiAgentChat[] = [];
+    page.on("response", async (res) => {
+      if (res.url().includes("/api/agent-chat") && res.status() === 200) {
+        try {
+          responsesThat.push(await res.json());
+        } catch {
+          /* bỏ qua response không phải JSON */
+        }
+      }
+    });
+
     const input = page.getByPlaceholder("Nhập tin nhắn...");
     const question = "Cho mình xem lịch sử giao dịch gần đây của mình được không?";
 
@@ -74,7 +126,9 @@ test.describe("Token OTP mới phải được DÙNG THẬT sau khi xác thực 
     // Gõ TỰ DO trigger OTP giữa chừng KHÔNG tự gửi lại câu hỏi gốc (khác
     // luồng chip — xem docstring completeOtpIfPrompted) — khách phải tự gõ
     // tiếp. ĐÂY là đúng bước "gõ tiếp" PO-agent mô tả, và đúng chỗ bug sống:
-    // nếu frontend vứt access_token mới, LƯỢT NÀY sẽ mang token CŨ.
+    // nếu frontend vứt access_token mới HOẶC agent chỉ trả lời từ trí nhớ cũ
+    // (root cause thật, Coder), LƯỢT NÀY lộ ra ở đây.
+    const soResponseTruocGuiLai = responsesThat.length;
     await input.fill(question);
     await input.press("Enter");
 
@@ -83,10 +137,33 @@ test.describe("Token OTP mới phải được DÙNG THẬT sau khi xác thực 
       timeout: 20_000,
     });
 
-    // Đối chứng DƯƠNG — không chỉ "không nói phiên chưa xác thực", mà phải
-    // THỰC SỰ tra cứu được (nội dung giao dịch thật: số tiền định dạng "...đ"
-    // hoặc câu xác nhận không tìm thấy giao dịch — cả hai đều chứng minh tool
-    // đã CHẠY, khác hẳn câu mời xác thực lại).
-    await expect(lastBotBubble).not.toBeEmpty();
+    // Bằng chứng THẬT — chờ response /api/agent-chat MỚI của đúng lượt gõ
+    // lại này, rồi đọc duong/usage/tool_calls TRỰC TIẾP từ nó. KHÔNG suy từ
+    // nội dung DOM (một câu trả lời từ trí nhớ cũ vẫn đọc "hợp lý" và không
+    // rỗng — đúng false green đã đo được trên ngăn chưa vá, xem ghi chú đầu
+    // file). KHÔNG khoá riêng `tool_calls` (PO-agent chỉ ra bug cũ và cổng
+    // tất định mới CÙNG cho tool_calls=[]) — chấp nhận CẢ HAI đường đúng,
+    // chỉ chặn đúng chữ ký hỏng: model đã chạy mà không gọi tool nào.
+    await expect
+      .poll(() => responsesThat.length, {
+        message: "Không có response /api/agent-chat MỚI nào tự tới sau khi gõ lại câu hỏi.",
+        timeout: 20_000,
+      })
+      .toBeGreaterThan(soResponseTruocGuiLai);
+    const phanHoiLuotGoiLai = responsesThat[responsesThat.length - 1];
+    const laCongTatDinh = phanHoiLuotGoiLai.duong === "otp_resend_thu_slot";
+    const coToolTraCuu = (phanHoiLuotGoiLai.tool_calls?.length ?? 0) > 0;
+    const modelDaChay = (phanHoiLuotGoiLai.usage?.total_tokens ?? 0) > 0;
+    expect(
+      laCongTatDinh || coToolTraCuu,
+      `Không khớp đường ĐÚNG nào (cổng tất định otp_resend_thu_slot HOẶC model chịu gọi lại tool).\n` +
+        `  duong=${phanHoiLuotGoiLai.duong ?? "?"} tool_calls=${JSON.stringify(phanHoiLuotGoiLai.tool_calls)} ` +
+        `model_da_chay=${modelDaChay}\n` +
+        `  reply: ${(phanHoiLuotGoiLai.reply ?? "").slice(0, 300)}\n` +
+        (modelDaChay && !coToolTraCuu
+          ? "  ĐÚNG CHỮ KÝ BUG: model đã chạy (usage.total_tokens>0) mà KHÔNG gọi tool nào — " +
+            "agent trả lời từ trí nhớ cũ thay vì tra lại (5e8deb6 phải vá đúng chỗ này)."
+          : "")
+    ).toBe(true);
   });
 });
