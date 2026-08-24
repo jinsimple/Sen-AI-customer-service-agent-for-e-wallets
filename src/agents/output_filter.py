@@ -471,6 +471,18 @@ _O5_DONG_TU_HOAN_TAT = [
 ]
 _O5_DOI_TUONG = ["ho so", "ve", "ticket", "don khieu nai", "khieu nai"]
 _O5_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
+# 🔴 Review tự phản biện chính đề xuất "toàn reply" của mình (24/08, sau
+# d9885ca) — [ĐO] mở "hướng khách" ra toàn reply cho MƯỢN tư cách hướng-
+# khách cho một câu KHÔNG LIÊN QUAN: "Bạn hỏi hay đó. Loại vé này đã được mở
+# rất nhiều lần trong quá khứ cho nhiều khách khác..." — "Bạn" ở câu ĐẦU chỉ
+# ghi nhận câu hỏi, câu SAU vẫn là mô tả chung y hệt 2 ca false-positive
+# vòng 1 — tái xuất, cùng họ lỗi. "Lân cận" không giải được (Review tự thử):
+# "bạn" cũng nằm ở mệnh đề liền kề trong chính ca vừa dựng.
+#
+# Vá bằng NHÁNH KHÁC Review đề xuất: PHỦ ĐỊNH mô tả-chung, cùng khuôn
+# `_O4_PHU_DINH` — mệnh đề có dấu hiệu đang nói về chuyện CHUNG/QUÁ KHỨ (tần
+# suất, lịch sử, người khác) thì KHÔNG tính, dù có đủ động từ+đối tượng.
+_O5_MO_TA_CHUNG = ["nhieu lan", "truoc day", "thuong xuyen", "khach khac"]
 
 
 def _khop_o5(reply: str) -> bool:
@@ -495,6 +507,8 @@ def _khop_o5(reply: str) -> bool:
     co_menh_de_hoan_tat = False
     for md in _tach_menh_de(_bo_dau(reply)):
         if any(p in md for p in _O4_PHU_DINH):
+            continue
+        if any(p in md for p in _O5_MO_TA_CHUNG):
             continue
         co_dong_tu = _vi_tri_dau(md, _O5_DONG_TU_HOAN_TAT) is not None
         co_doi_tuong = _vi_tri_dau(md, _O5_DOI_TUONG) is not None
