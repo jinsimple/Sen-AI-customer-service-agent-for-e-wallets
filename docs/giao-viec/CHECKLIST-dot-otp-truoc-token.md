@@ -600,3 +600,53 @@ một lượt trước để chiếu tới. Mà cổng bắn **tối đa một l
 **Chưa đo. Đây là giả thuyết, không phải kết luận** — dựng ca để bác nó, đừng để nó đứng.
 
 **Vật chứng bản vá 7/7 bị từ chối:** `docs/nhat-ky/2026-08-25-ban-va-7-tren-7-bi-tu-choi.md`
+
+---
+
+## 🔴 NIÊM — PO kết luận ĐÚNG bằng một bằng chứng SAI (25/08)
+
+**PO đã viết** *(điểm danh #6, và relay lên PO thật)*:
+> *"SÁU lần cancelled LIÊN TIẾP … ⟹ chưa cổng CI nào chạy trên bất kỳ commit nào của đợt này."*
+
+**Lead bác vế bằng chứng, và bác đúng.** [ĐO] `.github/workflows/ci.yml` có khối
+`concurrency` — mỗi push mới **tự huỷ** run cũ cùng nhánh. Chú thích ngay tại đó khai rõ
+đây là **đánh đổi có chủ, dựa trên phép đo**: job chạy `4′04″` > khoảng cách giữa hai lần
+đẩy `≈2′30″–3′`, nên `cancel-in-progress` được bật **có lý do ghi lại**.
+
+[ĐO] số commit trên nhánh: **116** ngày 24/08, **23** tính tới 00:35 ngày 25/08.
+
+⟹ **Sáu run `cancelled` liên tiếp là HÀNH VI ĐÚNG THIẾT KẾ, không phải triệu chứng.**
+
+### Vì sao đây là lỗi đáng niêm chứ không phải một chi tiết
+
+**Kết luận của PO vẫn đúng** — cổng CI thật sự không cho kết quả. Nhưng **bằng chứng PO
+dùng để tới kết luận đó thì sai**, và nó "đúng" chỉ vì tình cờ trùng.
+
+Đây **đúng nguyên văn** ca đã có tên trong `docs/STATE.md` §7, phần mở rộng **Luật A**:
+> *"tôi kết luận đúng bằng một dụng cụ không đủ sức chứng minh điều tôi nói.
+> **May mắn không phải bằng chứng, dù kết quả trùng nhau.**"*
+
+Phép thử lẽ ra phải chạy trước khi phát biểu: *"nếu CI đang khoẻ mạnh hoàn toàn, sáu run
+cancelled ấy có xuất hiện không?"* — **CÓ**. ⟹ dụng cụ không phân biệt được, nên nó chưa
+bao giờ là bằng chứng.
+
+### Hai nguyên nhân THẬT — Lead tách, khai đúng hạng bằng chứng
+
+| | nguyên nhân | hạng bằng chứng |
+|---|---|---|
+| **(a)** | Job `ubuntu-latest` *(business-rules-golden-set · ai-safety-adversarial · route-guards-docker)* chết ngay, annotation nguyên văn **"spending limit needs to be increased"** | ✅ **CHỨNG MINH ĐƯỢC** — sự cố billing **đã biết từ TRƯỚC đợt này**, không mới |
+| **(b)** | Job `self-hosted` *(ADR-037, runner BTC)* đứng `queued` **2h44m**, 0 job `in_progress` toàn repo | ⚠️ **SUY RA, CHƯA CHỨNG MINH** — `GET /repos/…/actions/runners` trả **404** vì token thiếu quyền; **404 không phải bằng chứng runner chết** |
+
+🔴 **Lead dừng đúng chỗ.** Không đi xa hơn quyền mình có, không đoán để lấp chỗ trống —
+đúng **Luật C** ngoài vùng có vật đo: *khai HẠNG BẰNG CHỨNG rồi DỪNG*.
+
+### Việc tay còn lại — chỉ người có quyền admin làm được
+
+Xác nhận (b) cần đọc **GitHub → Settings → Actions → Runners**. Ngoài tay mọi phiên Claude.
+**Đã trình PO thật.**
+
+### Điều KHÔNG đổi sau đính chính này
+
+Vế *(a)* một mình đã đủ để giữ nguyên câu cảnh báo: **các cổng chạy trên `ubuntu-latest`
+không cho kết quả, và mọi "đã land" trong đợt này đứng trên phép chạy CỤC BỘ.** Người trực
+sự cố vẫn phải biết điều đó — chỉ là biết vì **lý do đúng**.
