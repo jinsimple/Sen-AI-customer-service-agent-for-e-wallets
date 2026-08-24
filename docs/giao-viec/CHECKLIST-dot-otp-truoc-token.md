@@ -22,9 +22,35 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#6** — 00:22, 25/08 |
-| **HEAD lúc điểm danh** | `82da946` |
-| **Cả bốn vai động trong 6 phút** | không ai đứng im |
+| **Lần điểm danh cuối** | **#7** — 00:35, 25/08 |
+| **HEAD lúc điểm danh** | `3368af2` |
+| **Cả bốn vai động** | không ai đứng im |
+
+**Vật chứng #7**
+
+| vai | dấu vết mới |
+|---|---|
+| Coder | ✅ **④ LAND `46b071a` 00:28** — mốc lớn nhất đợt · 🔄 `graph.py`+`phan_luong.py` đang sửa *(⑤)* |
+| QA/QC | ✅ `a4add5b` 00:24 *(⑨ đặc tả ca đối chứng)* · `3368af2` 00:34 *(ĐC-7 + R1 cho phép hỏi CHUNG một tin — thi hành Q2)* |
+| Lead | ✅ `95f9504` 00:31 *(tick ④, kèm phát hiện cổng ngân sách token)* |
+| Review | ⏳ chưa soát ④ — PO vừa nhắc |
+
+**PO kiểm ④ độc lập — đúng từng vế Q1**
+
+```
+duong = "can_otp"  ·  total_tokens = 0  ·  model = None     ⟹ thật sự 0 token
+điều kiện vào:  not vua_xac_thuc_de_gui_lai
+            AND not _otp_fresh(otp_verified_at, OTP_VIEW_MAX_MINUTES)
+            AND la_khieu_nai_ca_nhan(message)                ⟹ CHỈ NHÓM B, đúng Q1
+vị trí: dòng 980 — SAU T0 (933), TRƯỚC T1 (1042)             ⟹ đúng đồ thị phiếu
+```
+
+⟹ **Câu hỏi chính sách KHÔNG bị chặn OTP.** Đúng thứ Q1 bảo vệ.
+
+⟹ **Bất biến cốt lõi của đợt nay có đường đi:** khách chưa OTP báo khiếu nại cá nhân
+⟹ `can_otp`, **0 token**, đòi xác thực ngay — không còn lượt LLM thừa ở giữa.
+Còn chờ ⑥ đo trên UI thật để nói "đã đóng".
+
 
 **Vật chứng #6** *(giờ land, không phải lời khai)*
 
