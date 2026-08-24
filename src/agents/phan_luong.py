@@ -334,6 +334,27 @@ def _chuan_hoa_nhe(s: str) -> str:
     return unicodedata.normalize("NFC", s).lower().strip()
 
 
+def la_khieu_nai_ca_nhan(cau: object) -> bool:
+    """Câu này có phải KHIẾU NẠI CÁ NHÂN (NHÓM B) không — công khai `_nhom_b`
+    cho tầng gọi, KHÔNG kèm quyết định slot.
+
+    Sinh ra cho cổng OTP tất định (④, `graph.py`). Tách khỏi `phan_luong()` có
+    chủ đích: `phan_luong()` trả lời *"lượt này đi đường nào"*, câu hỏi này trả
+    lời *"lượt này có chạm dữ liệu cá nhân không"* — hai câu khác nhau, và gộp
+    chúng sẽ buộc cổng OTP phải suy ngược từ nhãn `thu_slot`/`day_du`, thứ đổi
+    theo slot chứ không theo tính cá nhân.
+
+    🔴 THỪA HƯỞNG NGUYÊN BỘ BẮT OAN CỦA `_nhom_b`, đo được, khai tại chỗ:
+    [ĐO 24/08] `bo_ca_am_thu_slot_dot2.json` 2/7 · `bo_ca_ranh_gioi_chinh_sach`
+    1/16 · `bo_ca_am_ngan_khong_so` 0/14. Ca DOT2-AM-01 (câu hỏi chính sách)
+    còn `True` ⟹ nó bị cổng OTP chặn, và đó là **vi phạm Q1 đã biết**, không
+    phải hồi quy của ④. Tự khép khi ③ vòng 2 (trục thể câu) land.
+    """
+    if not isinstance(cau, str):
+        return False
+    return _nhom_b(_chuan_hoa(cau))
+
+
 def co_ma_giao_dich_hoac_thoi_gian(cau: object) -> bool:
     """Bóc mã giao dịch/vé (`_MA_GD`/`_MA_VE`) HOẶC mốc thời gian (`boc_slot`)
     từ MỘT câu — dùng cho cổng thu-slot-SAU-KHI-xác-thực-OTP (graph.py,

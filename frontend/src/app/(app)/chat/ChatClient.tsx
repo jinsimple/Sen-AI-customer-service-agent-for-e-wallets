@@ -525,6 +525,23 @@ export default function ChatClient({
         getCustomerHistory({}).then(setHistory).catch(() => {});
       }
 
+      // ④ (25/08) — CỔNG OTP TẤT ĐỊNH đã chặn lượt này TRƯỚC khi chạm model
+      // (backend: src/agents/graph.py, DUONG_CAN_OTP). Phải kiểm TRƯỚC hai
+      // nhánh dưới: cả hai dò trong `tool_calls`, mà đường này không gọi tool
+      // nào nên `tool_calls` RỖNG — không nhánh nào bắn, khách sẽ đứng trước
+      // một câu "xác thực nhé" mà không có gì mở ra.
+      //
+      // Đọc KHOÁ `duong`, KHÔNG khớp câu chữ `reply` — sửa văn phong backend
+      // sau này không được làm client mù lại (đúng lý do OTP_EXPIRED_LOAI ra
+      // đời ở GĐ2.5). `reply` vẫn được hiển thị: nó đã mang sẵn câu chống mạo
+      // danh K3, và đó là câu khách cần đọc ĐÚNG lúc được hỏi mã.
+      if (result.duong === "can_otp") {
+        push({ id: nid(), from: "bot", text: result.reply });
+        pendingStarterRef.current = text;
+        void beginOtpFlow();
+        return;
+      }
+
       // Finding B1 (GĐ2.5, Quyết định B) — tool vừa hỏng vì OTP ĐÃ hết tươi
       // GIỮA phiên (`otpVerifiedRef.current` vẫn `true` từ lần xác thực
       // trước, backend mới là nguồn sự thật). Đọc `loai` TRƯỚC (ảnh backend

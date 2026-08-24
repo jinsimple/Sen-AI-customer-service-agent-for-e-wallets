@@ -44,10 +44,11 @@ from src.agents.phan_luong import (
     TEN_TIN_HIEU_1B,
     TRA_LOI_NHE,
     co_ma_giao_dich_hoac_thoi_gian,
+    la_khieu_nai_ca_nhan,
     phan_luong,
 )
 from src.agents.prompt import bam_mau_prompt, build_system_prompt
-from src.agents.tools.customer_tools import TurnGuard, build_customer_tools
+from src.agents.tools.customer_tools import TurnGuard, _otp_fresh, build_customer_tools
 from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
     DATABASE_URL,
@@ -59,6 +60,8 @@ from src.config import (
     LLM_MODEL,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
+    CONG_OTP_NHOM_B_BAT,
+    OTP_VIEW_MAX_MINUTES,
     CONG_T0_BAT,
     PHAN_LUONG_BAT,
     SUY_LUAN_BAT,
@@ -129,6 +132,7 @@ _SUY_LUAN_GUI = True
 # "tối ưu" bằng cách gộp hai khoá dù tên nghe giống nhau.
 _TEN_TIN_HIEU_OTP_RESEND = "otp_resend_da_hoi"
 DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
+DUONG_CAN_OTP = "can_otp"
 
 # Slot mục tiêu là MÃ GIAO DỊCH HOẶC MỐC THỜI GIAN — KHÁC 1B (số tiền là
 # slot bắt buộc của 1B). Lý do: 1B áp cho lượt ĐẦU TIÊN chưa biết gì; cổng
@@ -183,6 +187,15 @@ CANH_BAO_OTP_PHIEN = (
 CANH_BAO_KHONG_AI_GOI_DIEN = (
     "Một lưu ý để bạn giữ an toàn: sẽ không có ai từ ví gọi điện yêu cầu bạn "
     "chuyển tiền, cung cấp mật khẩu hay mã OTP để lấy lại tiền."
+)
+
+# ④ · câu của cổng OTP tất định. Ghép sẵn câu chống mạo danh ⑧ (K3) — ĐÂY mới là
+# "lượt 1" mà phiếu nói tới: điểm đầu tiên khách được yêu cầu xác thực. Ghép ngay
+# ở hằng số chứ không qua `_them_canh_bao_mao_danh()`: đường này KHÔNG đi qua bộ
+# lọc nên không có chỗ "chèn sau", và ghép cứng làm nó hiển nhiên khi đọc.
+_CAN_XAC_THUC_OTP = (
+    "Dạ để tra cứu giao dịch của bạn thì mình cần bạn xác thực OTP phiên làm "
+    "việc trước nhé.\n\n" + CANH_BAO_OTP_PHIEN
 )
 
 # Neo nhận diện "câu này đã có sẵn trong lời model" — tránh nói hai lần. Chọn
@@ -951,6 +964,68 @@ def run_agent_turn(
         # trước đó trong hội thoại này (khách xác thực OTP nhiều lần) — KHÔNG
         # tăng tín hiệu (chỉ tăng ở nhánh hỏi phía trên), rơi thẳng xuống
         # luồng model đầy đủ bên dưới với `message` NGUYÊN VĂN, bỏ qua 1B.
+
+    # ── ④ · CỔNG OTP TẤT ĐỊNH CHO NHÓM B ────────────────────────────────────
+    # Bất biến của đợt: KHÔNG lượt nào tốn token trước khi OTP xác thực xong.
+    # Lượt khiếu nại cá nhân mà OTP chưa tươi thì CHẮC CHẮN bị tầng tool chặn —
+    # gọi model cho nó là trả tiền để tự khám phá một sự thật tầng này đã biết.
+    # [ĐO, customer_tools.py:620-629 tự khai] lượt ấy tốn 8 tool call · 46 giây ·
+    # 49.700–71.600 token, và sổ ghi `total_tokens = 0`.
+    #
+    # Q1 (PO chốt): CHỈ áp cho NHÓM B. Câu hỏi chính sách KHÔNG bị chặn —
+    # `search_policy` vốn đã được miễn OTP.
+    #
+    # 🔴 KHÔNG PHẢI LỚP BẢO MẬT — xem chú thích `CONG_OTP_NHOM_B_BAT` ở
+    # src/config.py. Dùng ngưỡng XEM (12h), CỐ Ý lỏng bằng tầng tool chứ không
+    # chặt hơn. Gỡ chốt ở tool vì "đã có cổng này" là mở ràng buộc cứng 4.
+    #
+    # Đặt SAU T0 (lượt resend-sau-OTP đã xác thực rồi, không rơi vào đây) và
+    # TRƯỚC T1 — muộn hơn là đã tiêu mất thứ định tiết kiệm.
+    #
+    # 🔴 AM-01 tạm còn `nhom_b=True` ⟹ một lớp câu hỏi chính sách bị chặn. Đây
+    # là lỗ ĐÃ TRACKED của NHÓM B chảy xuống, KHÔNG phải hồi quy do ④ gây ra;
+    # tự đóng khi ③ vòng 2 (trục thể câu) land. Lead duyệt land trước, 25/08.
+    if (
+        CONG_OTP_NHOM_B_BAT
+        and not vua_xac_thuc_de_gui_lai
+        # TÁI DÙNG `_otp_fresh` của tầng tool — KHÔNG viết định nghĩa thứ hai
+        # về "còn tươi". Hai định nghĩa của cùng một vật sẽ lệch nhau, và lệch
+        # trong im lặng (cùng lý do `bam_ma_nguon` vs `BUILD_COMMIT` đã có).
+        # Cổng này chặn ⟹ tool cũng sẽ chặn: một nguồn, không thể lệch.
+        and not _otp_fresh(otp_verified_at, OTP_VIEW_MAX_MINUTES)
+        and la_khieu_nai_ca_nhan(message)
+    ):
+        _logger.info(
+            "agent_turn_can_otp",
+            extra={"user_id": user_id, "thread_id": thread_id or user_id,
+                   "bam_luat": BAM_LUAT},
+        )
+        _kq_can_otp = {
+            "reply": _CAN_XAC_THUC_OTP,
+            # 🔴 HỢP ĐỒNG VỚI CLIENT (Lead duyệt 25/08): client mở hộp thoại OTP
+            # bằng `duong === "can_otp"`, KHÔNG bằng câu chữ tiếng Việt của
+            # `reply`. Trước ④, hai đường kích OTP của ChatClient.tsx đều đọc
+            # `tool_calls`/`ticket_id` — mà mọi đường 0-token đều trả rỗng, nên
+            # thêm cổng này mà không thêm khoá là để khách vào ngõ cụt.
+            "tool_calls": [],
+            "ticket_id": None,
+            "should_escalate": False,
+            "model": None,
+            "models_da_thu": [],
+            "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                      "cached_input_tokens": 0, "reasoning_tokens": 0,
+                      "input_chars": 0, "so_luot_goi_model": 0,
+                      "so_tool_schema_gui": 0,
+                      "chars_tool_schema_moi_luot": 0,
+                      "suy_luan_gui": None},
+            "loc_dau_ra": [],
+            "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+            "goi_y_handoff": False,
+            "ly_do_fallback": None,
+            "duong": DUONG_CAN_OTP,
+        }
+        _ghi_so(_kq_can_otp, thread_id, user_id)
+        return _kq_can_otp
 
     # ── T1 · PHÂN LUỒNG ─────────────────────────────────────────────────────
     # Sau cờ, MẶC ĐỊNH TẮT. Tắt thì hàm này chạy y hệt trước khi có nhánh này.

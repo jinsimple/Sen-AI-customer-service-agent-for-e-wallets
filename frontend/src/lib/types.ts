@@ -303,6 +303,19 @@ export interface AgentChatResult {
   tool_calls: AgentToolCall[];
   ticket_id: string | null;
   should_escalate: boolean | null;
+  // ④ (25/08) — NHÃN đường đi của lượt, do backend ghi (src/agents/graph.py).
+  // Client CHỈ đọc giá trị "can_otp": cổng OTP tất định đã chặn lượt này trước
+  // khi chạm model.
+  //
+  // 🔴 VÌ SAO PHẢI CÓ KHOÁ NÀY, không đọc câu chữ `reply`: hai đường kích hộp
+  // thoại OTP sẵn có ở ChatClient.tsx đều dò trong `tool_calls`/`ticket_id` —
+  // mà MỌI đường 0-token của backend đều trả `tool_calls: []`, `ticket_id: null`.
+  // Thiếu khoá này thì khách đọc "xác thực nhé" rồi không có gì mở ra: ngõ cụt.
+  // Cùng lý do `loai:"otp_het_tuoi"` ra đời ở GĐ2.5 — client không được nhận
+  // diện trạng thái bằng chuỗi tiếng Việt có thể sửa văn phong.
+  //
+  // Optional: các ảnh backend cũ chưa gửi trường này.
+  duong?: string | null;
 }
 
 export type PolicyDocumentStatus = "processing" | "indexed" | "failed";
