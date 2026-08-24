@@ -50,7 +50,8 @@
       §4 hiến pháp đã có bảng phân vùng — máy đọc được. **Cảnh báo, không chặn cứng**: mục tiêu là
       bắt người commit NHÌN THẤY thứ mình sắp cuốn theo.
 
-- [ ] **Nạp tài liệu thời hạn xử lý vào kho RAG** — `b7a7e16` (Bảo mật soạn, TT 15/2024 Điều 6
+- [x] ✅ **Nạp tài liệu thời hạn xử lý vào kho RAG** — `DOC-234adbc3f66e`, **3 chunk, CHỈ §1** (khối tác giả tự gắn nhãn *"viết cho khách đọc"*; §2/§3 mang phân tầng độ tin cậy + giọng tác giả, `PolicyChunk` không có trường chở nổi metadata đó ⟹ nạp vào là mời agent đọc lại cho khách nghe). Ngăn `fin05`, không đụng ngăn đo. **Verify thật:** query *"bao lâu thì xử lý xong khiếu nại"* → chunk mới đứng **#1** (khoảng cách 0,64, cách #2 rõ rệt) — được TÌM THẤY, không chỉ được nạp. Băm kho `11b11b494a6a`(378c) → `e11ca51e5346`(381c)
+- [ ] ~~(mục cũ)~~ **Nạp tài liệu thời hạn xử lý vào kho RAG** — `b7a7e16` (Bảo mật soạn, TT 15/2024 Điều 6
       Khoản 3-4, đã phân tầng độ tin cậy tại chỗ). 🔴 **Nạp xong ⟹ băm kho ĐỔI ⟹ Recall@4 =
       47,9% [ĐO 17-20/08] HẾT HẠN NGAY.** Phải đo lại + niêm số cũ, không để nó sống tiếp
       dưới danh nghĩa số hiện hành.
