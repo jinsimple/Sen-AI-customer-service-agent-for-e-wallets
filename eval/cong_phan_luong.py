@@ -29,7 +29,8 @@ PO giao *"ĐC-1..5 thành bộ cổng chính thức"*. Tôi tìm trong `docs/` v
 **không thấy định nghĩa nào**. Tôi biết chắc hai cái qua tin nhắn:
 
     ĐC-2  phân loại theo TỪNG LƯỢT, không theo phiên
-    ĐC-5  toàn bộ bộ ca âm phải đi đường đầy đủ
+    ĐC-5  không câu âm nào lọt qua đường NHẸ (không còn "phải đi day_du" —
+          xem sửa 24/08, `thu_slot` là đường hợp lệ thứ ba)
 
 Ba cái còn lại tôi **không biết**, và **không đoán** — một cổng có ba mục tôi tự
 nghĩ ra là một cổng đo ý kiến của tôi, không đo điều kiện dự án đã chốt.
@@ -283,10 +284,31 @@ def main() -> int:
     # 🔴 DÂN SỐ: ĐC-5 nói "mọi câu của BỘ ÂM" — bản đầu tôi dùng `tat_ca_dat`
     # gộp CẢ bộ dương, nên 5 ca dương trượt (đúng theo thiết kế, chúng lệch phía
     # an toàn) kéo ĐC-5 xuống đỏ. Đo sai dân số lần thứ HAI trong cùng một hàm.
-    dat_am = all(luat.phan_luong(c)[0] == "day_du"
-                 for ten, cn in bo if "âm" in ten for c, _ in cn)
-    n_am = sum(len(cn) for ten, cn in bo if "âm" in ten)
-    dc["ĐC-5"] = (dat_am, f"mọi câu của {n_am} CÂU bộ ÂM đi day_du (KHÔNG gồm bộ dương)")
+    #
+    # 🔴 24/08 — MỆNH ĐỀ GỐC "mọi câu ÂM đi day_du" LỖI THỜI, sửa lần BA. Router
+    # giờ có BA đường (`nhe`/`thu_slot`/`day_du`), không phải hai — `thu_slot`
+    # là đường HỢP LỆ cho một câu ÂM mô tả một khiếu nại thật còn thiếu số tiền
+    # (vd "Bạn tôi nói chưa nhận được khoản tôi gửi..."). Cấm `thu_slot` tuyệt
+    # đối sẽ biến ĐC-5 thành cổng canh một thế giới hai-đường không còn tồn
+    # tại. NHƯNG ĐC-1/ĐC-5 phải giữ đúng tính chất gốc: không cái nào một mình
+    # đủ, bắt được router suy biến "cho-tất-qua" (mọi câu, kể cả câu KHÔNG
+    # nghiệp vụ gì, đều bị đẩy sang MỘT đường tốn kém indiscriminate). Mệnh đề
+    # mới: KHÔNG câu ÂM nào được đi `nhe` (đối xứng đúng ĐC-1: câu xã giao đi
+    # nhẹ, câu ÂM không phải xã giao thì không được đi nhẹ) — giữ nguyên khả
+    # năng bắt "router không làm gì" (mọi câu ÂM lọt qua nhẹ), bỏ giả định sai
+    # "chỉ có MỘT đường không-nhẹ".
+    ket_am = [(c, luat.phan_luong(c)[0]) for ten, cn in bo if "âm" in ten for c, _ in cn]
+    n_am = len(ket_am)
+    di_nhe = [c for c, d in ket_am if d == "nhe"]
+    dem_duong = collections.Counter(d for _, d in ket_am)
+    dat_am = not di_nhe
+    mo_ta = (
+        f"KHÔNG câu ÂM nào (trong {n_am} CÂU, KHÔNG gồm bộ dương) đi `nhe` — "
+        f"phân bố: {dict(dem_duong)}"
+    )
+    if di_nhe:
+        mo_ta += f"\n         🔴 {len(di_nhe)} câu ÂM lọt qua đường NHẸ: {di_nhe[:5]}"
+    dc["ĐC-5"] = (dat_am, mo_ta)
 
     for k in ("ĐC-1", "ĐC-3", "ĐC-4", "ĐC-5"):
         ok, mo = dc[k]
