@@ -207,10 +207,24 @@ _SO_TIEN = re.compile(
 # Khuôn mốc thời gian (mục 3.2) — ngày tuyệt đối, neo tương đối rõ, thứ trong
 # tuần (giả định TUẦN GẦN NHẤT). Mốc mơ hồ ("mấy hôm trước", "dạo này") CỐ Ý
 # không khớp — slot coi như THIẾU, không suy diễn.
+#
+# 🔴 Review bắt 24/08 (soát a663583, cổng T0 sau OTP): chính GATE này (và
+# R5/1A) DẠY khách trả lời bằng "sáng/chiều/tối" ghép với "nay"/"qua" (câu
+# hỏi tất định của T0: "...hoặc thời điểm giao dịch (hôm nay/hôm qua, sáng/
+# chiều/tối)..."), nhưng regex CHỈ có "hôm nay"/"hôm qua" — khách trả lời
+# ĐÚNG khuôn hệ thống dạy ("sáng nay", "tối qua") lại KHÔNG được nhận diện.
+# Cùng họ lỗi "1B dạy khách nói số tiền, khách nói 'nửa triệu', cổng không
+# nhận" (d9e53ae/2dd5c3e) — khác miền (thời gian thay vì số tiền).
+#
+# CỤM ĐỦ DÀI, không bare "nay"/"qua" — đúng bài học "sao"/"mất" (1B) đã trả
+# giá: "qua" là chuỗi con của "quá", "qua lại", "thông qua"; bare "nay" ít
+# rủi ro hơn nhưng vẫn giữ cùng khuôn cụm-ghép cho nhất quán và dễ đọc.
 _THOI_GIAN = re.compile(
     r"\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?"
     r"|ngày\s*\d{1,2}\s*tháng\s*\d{1,2}"
     r"|hôm nay|hom nay|hôm qua|hom qua|hôm kia|hom kia|hôm trước|hom truoc"
+    r"|sáng nay|sang nay|chiều nay|chieu nay|tối nay|toi nay"
+    r"|sáng qua|sang qua|chiều qua|chieu qua|tối qua|toi qua"
     r"|thứ\s*[2-7]\b|thu\s*[2-7]\b|t[2-7]\b"
     r"|thứ\s*(hai|ba|tư|tu|năm|nam|sáu|sau|bảy|bay)\b|thu\s*(hai|ba|tu|nam|sau|bay)\b",
     re.IGNORECASE,
@@ -224,7 +238,10 @@ _THOI_GIAN = re.compile(
 # đường sinh ID lệch hình dạng nhau (đã đối chiếu runtime thật trước khi
 # viết, không chỉ đọc gen_dataset.py như nháp gốc trích) — bỏ sót nhánh nào
 # thì mã vé tạo trong chính phiên chat sẽ không bao giờ được nhận diện lại.
-_MA_GD = re.compile(r"\bTXN\d{14}\b", re.IGNORECASE)
+#
+# `\s*` giữa tiền tố và dãy số (Review 24/08): "TXN 20260810000123" (lỗi gõ/
+# dán tách rời) trước đây lọt vì regex đòi liền nhau tuyệt đối.
+_MA_GD = re.compile(r"\bTXN\s*\d{14}\b", re.IGNORECASE)
 _MA_VE = re.compile(r"\bTCK-(?:\d{5}|[0-9a-f]{12})\b", re.IGNORECASE)
 
 
