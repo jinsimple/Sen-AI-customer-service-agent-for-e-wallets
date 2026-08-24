@@ -166,15 +166,14 @@ def ba_luot() -> dict:
     return ra
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="FINDING MỞ 17/08 — đo được 3/3 vòng R: agent tạo vé ở lượt HỎI, "
-    "trước khi khách đồng ý. PO thật đã chốt A2 (chờ đồng ý tường minh); prompt "
-    "chưa vá tại thời điểm viết test. Khi vá xong, test XANH và xfail(strict) đỏ "
-    "— tín hiệu gỡ dấu, không phải lỗi mới.",
-)
 def test_luot_HOI_khong_tao_ve(ba_luot):
-    """🔴 A2 vế một. CHỈ có nghĩa khi đứng cạnh vế hai bên dưới."""
+    """🔴 A2 vế một. CHỈ có nghĩa khi đứng cạnh vế hai bên dưới.
+
+    🟢 GỠ `xfail(strict=True)` 24/08 — [ĐO] lượt thật trên `fin05do`
+    (`deepseek-v4-flash-0731`, sau 1A.2) cho XPASS: agent KHÔNG còn tạo vé ở
+    lượt HỎI. FINDING MỞ 17/08 (agent tạo vé ở lượt hỏi, trước khi khách đồng
+    ý — 3/3 vòng R đo được lúc đó) nay LÀNH sau 7 ngày. Test trở thành hồi quy
+    thường, không còn xfail."""
     d = ba_luot["A"]["delta"]
     assert d == {k: 0 for k in BANG}, (
         f"lượt HỎI đã tạo bản ghi: {d} · tool={ba_luot['A']['tool']}\n"
