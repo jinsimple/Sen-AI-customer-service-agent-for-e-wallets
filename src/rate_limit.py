@@ -13,21 +13,30 @@ không được phép biến thành một sự cố toàn hệ thống. Khác `c
 mất bảo vệ-quá-tải tạm thời trong lúc Redis chết vẫn RẺ HƠN việc mọi khách
 nhận lỗi kết nối. slowapi (`src/api/main.py`, `Limiter(in_memory_fallback_
 enabled=True)`) vá lớp `@limiter.limit`; file này vá lớp gọi trực tiếp.
+
+🔴 "FAIL-OPEN" ở `RedisSlidingWindowLimiter` nghĩa là CHO QUA (không còn trần
+nào lúc Redis chết — chấp nhận được, đây là rate-limit theo TẦN SUẤT). Ở
+`RedisConcurrencyLimiter` (chặn ĐỒNG THỜI) nghĩa KHÁC — xem khối comment
+"LƯỚI DỰ PHÒNG IN-PROCESS" ngay trên lớp đó: Review 24/08 bắt bản vá đầu ở
+đây fail-open KHÔNG TRẦN, đúng lớp sinh ra để chặn "150 người cùng bấm gửi"
+lại là lớp mất hẳn khi Redis chết. Giờ fail-open CÓ TRẦN, cùng khuôn slowapi
+đã tự chọn (`in_memory_fallback_enabled` — suy yếu per-process, không mất trắng).
 """
 from __future__ import annotations
 
 import logging
 import secrets
+import threading
 import time
 
 from src.redis_client import get_default_client
 
 _logger = logging.getLogger("fin05.rate_limit")
 
-# Token sentinel cho lượt fail-open ở RedisConcurrencyLimiter.acquire() —
-# KHÔNG phải khoá Redis thật, `release()` nhận biết để bỏ qua thay vì zrem
-# một token chưa từng được ghi (sẽ chỉ ăn thêm một lỗi Redis giống hệt).
-_TOKEN_FAIL_OPEN = "fail_open_redis_loi"
+# Tiền tố token của lưới dự phòng IN-PROCESS (RedisConcurrencyLimiter, xem
+# lớp dưới) — `release()` nhận biết qua tiền tố này để trả slot vào bộ đếm
+# trong RAM thay vì `zrem` một token Redis chưa từng được ghi.
+_TIEN_TO_FALLBACK = "fb:"
 
 
 class RedisSlidingWindowLimiter:
@@ -107,12 +116,54 @@ class RedisConcurrencyLimiter:
     deploy) sẽ không trả slot, không có TTL thì hệ thống tự khoá vĩnh viễn
     với 0 request chạy. TTL nên đặt LỚN HƠN timeout tác vụ (45s) để slot
     không bị thu hồi khi tác vụ còn đang chạy hợp lệ.
+
+    🔴 LƯỚI DỰ PHÒNG IN-PROCESS khi Redis chết (24/08 — Review đọc `1a33239`,
+    thấy commit message làm PHẲNG một bất đối xứng: slowapi (`src/api/main.py`,
+    `in_memory_fallback_enabled=True`) khi Redis chết vẫn còn MỘT trần — rơi về
+    RAM mỗi worker, SUY YẾU chứ không mất; lớp này bản vá đầu chỉ trả sentinel
+    fail-open KHÔNG kèm trần nào — MẤT HẲN. Và đây đúng là lớp sinh ra để chặn
+    *"150 người cùng bấm gửi"* (đoạn docstring trên) — đúng kịch bản buổi test
+    150 người dùng thật PO thật đang chuẩn bị. Redis nấc một nhịp giữa buổi đó
+    thì lớp bảo vệ cho CHÍNH kịch bản ấy biến mất không còn gì thay thế.
+
+    Áp cùng khuôn slowapi đã tự chọn cho mình: một `threading.Lock` + dict
+    trong RAM (`_fallback_slots`, token -> deadline), CÙNG `max_concurrent`/
+    `ttl_seconds` đã khai — khi Redis sống lại, `acquire()` tự quay về ZSET,
+    không cần dọn gì (`_fallback_slots` không rò rỉ vì slot tự hết hạn qua TTL
+    giống hệt cơ chế Redis).
+
+    🔴 ĐÁNH ĐỔI PHẢI NÓI RÕ, không để trôi: bộ đếm này là PER-PROCESS (khác
+    ZSET Redis — dùng CHUNG cho mọi worker). Server chạy N worker
+    (`docker-entrypoint.sh` — `UVICORN_WORKERS=4`) ⟹ lúc Redis chết, trần THỰC
+    TẾ toàn hệ thống là **~N × max_concurrent**, không còn là **max_concurrent
+    dùng chung** như lúc Redis sống — đúng đánh đổi "VÌ SAO DÙNG REDIS, KHÔNG
+    DÙNG BIẾN TRONG PROCESS" ở trên đã cảnh báo, giờ CHỦ ĐỘNG chấp nhận nó
+    TRONG MỘT CỬA SỔ NGẮN (lúc hạ tầng phụ trợ chết) thay vì chấp nhận nó VĨNH
+    VIỄN. Đây là SUY YẾU CÓ KIỂM SOÁT (N× trần), không phải MẤT TRẮNG (0 trần)
+    — đúng bản chất đánh đổi slowapi đã chọn, không phải một khuôn mới.
     """
 
     def __init__(self, *, max_concurrent: int, ttl_seconds: float, name: str = "agent_turn"):
         self._max = max_concurrent
         self._ttl = ttl_seconds
         self._key = f"concurrency:{name}"
+        self._fallback_lock = threading.Lock()
+        self._fallback_slots: dict[str, float] = {}  # token(có tiền tố fb:) -> deadline
+
+    def _fallback_acquire(self) -> str | None:
+        now = time.time()
+        with self._fallback_lock:
+            for tok in [t for t, deadline in self._fallback_slots.items() if deadline <= now]:
+                del self._fallback_slots[tok]  # dọn slot quá hạn, cùng ý nghĩa TTL bên Redis
+            if len(self._fallback_slots) >= self._max:
+                return None
+            token = _TIEN_TO_FALLBACK + secrets.token_hex(8)
+            self._fallback_slots[token] = now + self._ttl
+            return token
+
+    def _fallback_release(self, token: str) -> None:
+        with self._fallback_lock:
+            self._fallback_slots.pop(token, None)
 
     def acquire(self) -> str | None:
         """Trả token giữ slot nếu còn chỗ, None nếu đã đầy. KHÔNG chờ, KHÔNG chặn.
@@ -121,10 +172,8 @@ class RedisConcurrencyLimiter:
         chính là thứ gây nghẽn dây chuyền. Trả lời "đang bận, thử lại" ngay
         lập tức tốt hơn cho người dùng lẫn hệ thống.
 
-        Redis lỗi -> fail-open: trả `_TOKEN_FAIL_OPEN` (lượt vẫn được xử lý),
-        KHÔNG raise. Đánh đổi có chủ đích, log rõ để không âm thầm: mất lớp
-        chặn-đồng-thời trong đúng lúc Redis chết vẫn RẺ HƠN `/agent/chat` sập
-        hẳn cho mọi khách vì một ConnectionError không được che.
+        Redis lỗi -> fail-open CÓ TRẦN: rơi về lưới dự phòng in-process (xem
+        khối comment trên lớp), KHÔNG raise, KHÔNG mất hẳn giới hạn.
         """
         try:
             client = get_default_client()
@@ -138,20 +187,24 @@ class RedisConcurrencyLimiter:
             return token
         except Exception as e:  # noqa: BLE001
             _logger.warning(
-                "concurrency_acquire_that_bai_fail_open",
+                "concurrency_acquire_redis_loi_roi_ve_fallback",
                 extra={"key": self._key, "loi": repr(e)},
             )
-            return _TOKEN_FAIL_OPEN
+            return self._fallback_acquire()
 
     def release(self, token: str | None) -> None:
         """Luôn gọi trong `finally` — quên trả slot thì hệ thống tự bóp cổ mình.
 
-        Token fail-open không ứng với khoá Redis thật nào — bỏ qua thay vì
-        `zrem` một token chưa từng ghi (chỉ ăn thêm một lỗi Redis giống hệt
-        lúc acquire). Redis lỗi Ở ĐÂY (khác lúc acquire) -> log, KHÔNG raise:
-        đang ở `finally`, raise tại đây sẽ NUỐT MẤT exception gốc đang bay lên.
+        Token fallback (tiền tố `fb:`) không ứng với khoá Redis nào — trả về
+        lưới in-process thay vì `zrem` một token Redis chưa từng ghi (chỉ ăn
+        thêm một lỗi Redis giống hệt lúc acquire). Redis lỗi Ở ĐÂY (khác lúc
+        acquire, với token Redis thật) -> log, KHÔNG raise: đang ở `finally`,
+        raise tại đây sẽ NUỐT MẤT exception gốc đang bay lên.
         """
-        if not token or token == _TOKEN_FAIL_OPEN:
+        if not token:
+            return
+        if token.startswith(_TIEN_TO_FALLBACK):
+            self._fallback_release(token)
             return
         try:
             get_default_client().zrem(self._key, token)
@@ -162,14 +215,19 @@ class RedisConcurrencyLimiter:
             )
 
     def in_flight(self) -> int:
-        """Redis lỗi -> `-1` (KHÔNG ĐỌC ĐƯỢC, phân biệt với `0` = thật sự rảnh)."""
+        """Redis lỗi -> đếm slot đang giữ ở lưới dự phòng in-process (CHỈ đúng
+        cho WORKER NÀY, không phải toàn hệ thống — xem đánh đổi per-process ở
+        khối comment trên lớp), KHÔNG còn trả `-1` mù — có số thật thì dùng
+        số thật, dù phạm vi hẹp hơn lúc Redis sống."""
         try:
             client = get_default_client()
             client.zremrangebyscore(self._key, 0, time.time())
             return int(client.zcard(self._key))
         except Exception as e:  # noqa: BLE001
             _logger.warning(
-                "concurrency_in_flight_that_bai",
+                "concurrency_in_flight_redis_loi_roi_ve_fallback",
                 extra={"key": self._key, "loi": repr(e)},
             )
-            return -1
+            now = time.time()
+            with self._fallback_lock:
+                return sum(1 for deadline in self._fallback_slots.values() if deadline > now)
