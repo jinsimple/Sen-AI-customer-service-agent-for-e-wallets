@@ -280,6 +280,8 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - Khung mở bắt buộc: *"em hỏi thêm một ý để hỗ trợ chị đúng hướng"*
   - Hỏi ở **MỌI** ca chuyển nhầm, kể cả ca trông rõ ràng
   - **Chặn — đúng theo phiếu §5.3 (⑨): "ca đối chứng QA/QC dựng trước".** Coder chờ QA/QC.
+  - **[PO 25/08, Lead chuyển] AI GỠ:** QA/QC, ngay sau ⑬-B1/C1. **KHÔNG tốn LLM** — bộ ca
+    kiểm tất định "bot CÓ HỎI câu sàng lọc lừa đảo không" ở ca chuyển nhầm TRÔNG RÕ RÀNG.
 
 - [!] **⑩** Bản tóm tắt **6 trường tất định** trước `create_ticket` **K4** — **Coder**
   - loại · phạm vi · mã+giờ+tiền · người nhận nhầm · người nhận đúng · nội dung khách trình bày
