@@ -132,6 +132,11 @@ _SUY_LUAN_GUI = True
 # thoại của 1B) sinh ra để cấm. Khoá dưới đây ĐỘC LẬP hoàn toàn với 1B; đừng
 # "tối ưu" bằng cách gộp hai khoá dù tên nghe giống nhau.
 _TEN_TIN_HIEU_OTP_RESEND = "otp_resend_da_hoi"
+
+# ⑭ (25/08) — BẰNG CHỨNG PHÍA SERVER rằng thread này TỪNG bị cổng OTP chặn.
+# KHÁC hẳn `_TEN_TIN_HIEU_OTP_RESEND` ở trên (thứ đó ghi "T0 ĐÃ HỎI rồi"). Hai
+# khoá, hai câu hỏi khác nhau — đừng gộp dù tên nghe gần nhau.
+_TEN_TIN_HIEU_DA_BI_OTP_CHAN = "da_bi_otp_chan"
 DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
 DUONG_CAN_OTP = "can_otp"
 
@@ -914,6 +919,43 @@ def run_agent_turn(
     _SO_TOOL_GUI = None
     _CHARS_TOOL_SCHEMA_THAT = None
 
+    # ── ⑭ · CỜ CLIENT PHẢI CÓ BẰNG CHỨNG PHÍA SERVER ────────────────────────
+    # 🔴 LỖ ĐÃ ĐO (Review tìm, PO tái lập bằng gọi thẳng API, Coder xác nhận lại
+    # bằng đọc mã): `vua_xac_thuc_de_gui_lai` là cờ do CLIENT tự khai, và cả BA
+    # cổng tất định đều dùng nó theo hướng "True ⟹ BỎ QUA".
+    #     :928  T0   True ⟹ vào T0, mà câu có bất kỳ chữ số nào là rơi thẳng xuống model
+    #     :986  ④    `and not vua_xac_thuc_de_gui_lai`  ⟹ bỏ qua
+    #     :1035 T1   `if not vua_xac_thuc_de_gui_lai`   ⟹ bỏ qua
+    # ⟹ MỘT cờ tắt được CẢ BA. Client bất kỳ (curl/Postman) với JWT hợp lệ nhưng
+    # CHƯA OTP, đặt cờ=true trên mọi request, đi thẳng vào lượt model đầy đủ.
+    #
+    # ✅ KHÔNG lộ dữ liệu — tầng tool đọc `otp_verified_at` từ JWT, không đọc cờ
+    #    này. Ràng buộc cứng 4 KHÔNG thủng.
+    # 🔴 NHƯNG đây đúng kịch bản 49.700–71.600 token mà ④ sinh ra để triệt. Và nó
+    #    KHÔNG chỉ là chi phí: trần thật của hệ là TPM (STATE §6.⓵), mà TPM là
+    #    hạn ngạch DÙNG CHUNG — một client lạm dụng ăn vào phần của MỌI khách
+    #    khác. Đó là KHẢ DỤNG, không phải hoá đơn.
+    #
+    # Bản vá: cờ chỉ có hiệu lực khi server TỰ BIẾT thread này từng bị chặn.
+    # Dùng lại `thread_signals` (không dựng cơ chế thứ hai).
+    #
+    # 🔴 HƯỚNG AN TOÀN: `doc_tin_hieu` là `doc_hoac_khong_ro` — Redis lỗi trả
+    # None. `None` và `0` ĐỀU coi là KHÔNG có bằng chứng ⟹ cờ bị bỏ qua ⟹ cổng
+    # tất định chạy bình thường. Sai về phía RẺ, không sai về phía đắt. Hỏng
+    # Redis làm khách bị hỏi lại một lượt (phiền), KHÔNG mở cổng cho ai.
+    #
+    # Vì sao khoá theo thread SỐNG SÓT qua bước xác thực: `/auth/otp/verify` cấp
+    # lại token GIỮ NGUYÊN `iat` gốc (src/auth.py::create_access_token) đúng để
+    # `thread_id = user_id:iat` không đổi giữa chừng hội thoại.
+    _tid_bang_chung = thread_id or user_id
+    _co_bang_chung_bi_chan = doc_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, _tid_bang_chung) not in (None, 0)
+    if vua_xac_thuc_de_gui_lai and not _co_bang_chung_bi_chan:
+        _logger.info(
+            "agent_turn_co_resend_khong_co_bang_chung",
+            extra={"user_id": user_id, "thread_id": _tid_bang_chung},
+        )
+    vua_xac_thuc_de_gui_lai = vua_xac_thuc_de_gui_lai and _co_bang_chung_bi_chan
+
     # ── T0 · CỔNG THU SLOT SAU KHI XÁC THỰC OTP ─────────────────────────────
     # Chạy TRƯỚC phan_luong() (1B), độc lập với `PHAN_LUONG_BAT` — quyết định
     # "gọi model với gì" ở đây khác hẳn quyết định "lượt này cần bộ đồ nghề
@@ -1020,6 +1062,9 @@ def run_agent_turn(
             "ly_do_fallback": None,
             "duong": DUONG_CAN_OTP,
         }
+        # ⑭ — ghi BẰNG CHỨNG: thread này vừa bị cổng OTP chặn thật. Lượt sau
+        # client mới được quyền đặt `vua_xac_thuc_de_gui_lai`.
+        tang_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, thread_id or user_id)
         _ghi_so(_kq_can_otp, thread_id, user_id)
         return _kq_can_otp
 
@@ -1837,6 +1882,13 @@ def run_agent_turn(
     # production. Trả qua ENVELOPE (không chỉ ghi Redis) vì cùng lý do ba trường
     # chẩn đoán bên dưới: eval gọi thẳng graph, Redis là fakeredis per-process,
     # nên bộ đếm vô hình với người đo nếu chỉ ghi Redis.
+    # ⑭ — đường THỨ HAI sinh bằng chứng: lượt này model đã chạy và TOOL bị cổng
+    # OTP chặn. Phủ ca ④ không bắn (vd câu không thuộc NHÓM B nhưng model vẫn
+    # quyết gọi tool) — thiếu nhánh này thì luồng resend hợp lệ của khách sẽ bị
+    # chính ⑭ chặn nhầm.
+    if co_loi_otp_trong_luot:
+        tang_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, thread_id or user_id)
+
     # ⑧ · K3 — chèn SAU bộ lọc. Xem chú thích tại `_them_canh_bao_mao_danh`
     # về lý do KHÔNG được dời lên trước.
     reply_da_loc = _them_canh_bao_mao_danh(
