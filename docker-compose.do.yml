@@ -72,14 +72,8 @@ services:
       # [THÊM 24/08] khớp cấu hình fin05 demo hiện tại (.env gốc, trừ
       # qwen3.7-plus-2026-05-26 đã cạn quota) — đo đúng vật sắp phục vụ khách,
       # không đo trên bể model khác. PO-agent chỉ định nguyên văn giá trị.
-      # [SỬA 24/08, tạm thời — NGOẠI LỆ cho đúng 1 phép thử phân biệt "prompt
-      # sai" hay "chạm trần năng lực model", A2 vế 2 đỏ lần thứ năm] Đổi sang
-      # model mạnh nhất trong bể — deepseek-v4-pro-0813 ("pro" > "flash" cùng
-      # thế hệ V4; V4 mới hơn v3.2). PHẢI trả về deepseek-v4-flash-0731 (lệnh
-      # PO thật: "tất cả chạy trên flash") ngay khi Tester báo xong — xem sổ
-      # giám hộ cho cả hai chiều đổi.
-      LLM_MODEL: deepseek-v4-pro-0813
-      LLM_MODEL_POOL: deepseek-v4-pro-0813,deepseek-v4-flash-0731,deepseek-v3.2
+      LLM_MODEL: deepseek-v4-flash-0731
+      LLM_MODEL_POOL: deepseek-v4-flash-0731,deepseek-v4-pro-0813,deepseek-v3.2
 
   jaeger:
     ports: !override []
