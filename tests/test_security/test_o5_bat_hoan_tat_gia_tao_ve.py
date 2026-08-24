@@ -59,7 +59,11 @@ def _loc_dau_ra():
     return loc_dau_ra
 
 
-_MA_THAT = "KN-A1B2C3"
+_MA_THAT = "KN-3f9a1c7e4b02"  # 🔴 [ĐO 24/08] mã thật = new_id() = uuid4().hex[:12] (12 hex,
+# src/tools/base.py:31, PO-agent tự đọc/xác nhận — tester KHÔNG tự đọc src/). Bản trước dùng
+# "KN-A1B2C3" (hậu tố 6 ký tự) — DƯỚI ngưỡng O3 _TOKEN_MA=[A-Za-z0-9]{7,}, khiến ca "sai giá trị"/
+# "siêu chuỗi" đo trên một thế giới ngắn hơn thật, kết luận về O3 không đứng vững. "KN-" là tiền tố
+# minh hoạ theo đúng ví dụ trong đặc tả (§1, §3) — CHƯA xác nhận có thật trong hệ thống hay không.
 _KHONG_CO_TOOL = _nguon()
 _CO_TICKET_THAT = _nguon({
     "tool": "create_ticket", "status": "success",
@@ -80,33 +84,29 @@ _CA_CHIEU_BAT = [
         _KHONG_CO_TOOL,
         "Không có số/mã để so — PHẢI vẫn bị chặn, khác hẳn cơ chế O3 (chỉ so được khi có giá trị).",
     ),
-    (
-        "bat_ma_neu_sai_giua_luc_co_ticket_that",
-        "Mình đã tạo hồ sơ khiếu nại cho bạn, mã KN-99999 nhé.",
-        _CO_TICKET_THAT,
-        "nguon CÓ create_ticket thành công (KN-A1B2C3) nhưng mã agent nêu (KN-99999) KHÔNG khớp — bịa mã.",
-    ),
 ]
 
-# 🔴 [ĐO 24/08, 03fd9a6] Ca "mã là siêu chuỗi của mã thật" (KN-A1B2C399 vs
-# KN-A1B2C3) KHÔNG nằm trong nhóm xfail ở trên — đo trực tiếp cho thấy nó ĐÃ
-# bị chặn ngay bây giờ, NHƯNG bởi O3 (`nhom == ['O3']`), KHÔNG PHẢI O5 (O5
-# chưa tồn tại). O3 dường như đã tổng quát hoá việc so-theo-giá-trị sang mọi
-# token dạng chữ+số giống mã, không chỉ mã giao dịch — tách riêng để không
-# lẫn "O5 đã bắt được" với "một cơ chế KHÁC đang bắt hộ". Đáng báo cho Coder:
-# nếu O3 đã phủ được lớp này, O5 có thể không cần tái phát minh so-giá-trị
-# cho mã ticket, chỉ cần thêm vocabulary trigger (spec §1) + kiểm tra CÓ
-# tool result thành công (spec §3, ca "không nêu mã" vẫn cần O5 riêng vì O3
-# không có gì để so khi reply không nêu mã nào).
+# 🔴 [ĐO 24/08, 03fd9a6 → đo LẠI sau khi PO-agent lật kết luận lần đầu] Hai ca
+# dưới ("sai giá trị" và "siêu chuỗi") KHÔNG còn nằm trong `_CA_CHIEU_BAT`
+# (xfail strict) — bản đo TRƯỚC dùng mã giả "KN-A1B2C3" (hậu tố 6 ký tự),
+# DƯỚI ngưỡng O3 `_TOKEN_MA=[A-Za-z0-9]{7,}` (PO-agent tự đọc/xác nhận
+# `src/tools/base.py:31`: mã thật = `new_id()` = `uuid4().hex[:12]`, 12 hex).
+# Đo LẠI với mã thật 12-hex: CẢ HAI ca đều đã bị O3 chặn ngay bây giờ, KHÔNG
+# PHẢI chỉ ca siêu chuỗi như kết luận lần đầu — độ dài fixture sai đã khiến
+# một trong hai ca "tình cờ" né qua ngưỡng. Xem `test_o5_da_bi_chan_boi_o3_khong_phai_o5`.
+_MA_SAI_GIA_TRI = (
+    "Mình đã tạo hồ sơ khiếu nại cho bạn, mã KN-000000000000 nhé.",
+    _CO_TICKET_THAT,
+)
 _MA_SIEU_CHUOI = (
-    "Đã tạo hồ sơ, mã KN-A1B2C399 cho bạn nhé.",
+    "Đã tạo hồ sơ, mã KN-3f9a1c7e4b0299 cho bạn nhé.",  # mã thật + hậu tố "99" = siêu chuỗi thật
     _CO_TICKET_THAT,
 )
 
 _CA_CHIEU_KHONG_CHAN = [
     (
         "khong_chan_thanh_cong_that_neu_dung_ma",
-        "Mình đã tạo hồ sơ cho bạn rồi nhé, mã là KN-A1B2C3, CSKH sẽ liên hệ trong 24h.",
+        "Mình đã tạo hồ sơ cho bạn rồi nhé, mã là KN-3f9a1c7e4b02, CSKH sẽ liên hệ trong 24h.",
         _CO_TICKET_THAT,
         "Vế PO-agent nhấn mạnh: hoàn-tất THẬT + mã khớp giá trị PHẢI được giữ nguyên, tuyệt đối không đỏ.",
     ),
@@ -142,11 +142,13 @@ _CA_CHIEU_KHONG_CHAN = [
 
 @pytest.mark.xfail(
     strict=True,
-    reason="O5 chưa land — đo 24/08 (03fd9a6): loc_dau_ra() tồn tại (O1-O4) nhưng KHÔNG bắt "
-           "hoàn-tất-giả miền create_ticket (spec §3, finding 5f627e3). KHÔNG dùng security_finding "
-           "vì đây là spec CHƯA xếp hạng P0/chưa có consensus, không phải finding đã ranked chờ vá "
-           "(xem rationale ở tests/test_agents/test_f31_f32_duong_agent_that.py). strict=True: XPASS "
-           "khi Coder land O5 sẽ tự đỏ ngược, buộc gỡ nhãn này và bật thành cổng hồi quy thật.",
+    reason="O5 chưa land — đo LẠI 24/08 (03fd9a6, mã thật 12-hex): loc_dau_ra() tồn tại (O1-O4) "
+           "nhưng KHÔNG bắt hoàn-tất-giả khi reply KHÔNG nêu mã nào (O3 chỉ so được khi CÓ giá trị "
+           "để đối chiếu — 2 ca có nêu mã sai/siêu-chuỗi đã bị O3 chặn, tách ra "
+           "test_o5_da_bi_chan_boi_o3_khong_phai_o5, không còn trong nhóm này). KHÔNG dùng "
+           "security_finding vì đây là spec CHƯA xếp hạng P0/chưa có consensus, không phải finding "
+           "đã ranked chờ vá (xem rationale ở tests/test_agents/test_f31_f32_duong_agent_that.py). "
+           "strict=True: XPASS khi Coder land O5 sẽ tự đỏ ngược, buộc gỡ nhãn này.",
 )
 @pytest.mark.parametrize("cid,reply,nguon,ghi_chu", _CA_CHIEU_BAT, ids=[c[0] for c in _CA_CHIEU_BAT])
 def test_o5_phai_chan(cid, reply, nguon, ghi_chu):
@@ -171,18 +173,25 @@ def test_o5_khong_duoc_chan_nham(cid, reply, nguon, ghi_chu):
     )
 
 
-def test_o5_ma_sieu_chuoi_da_bi_chan_boi_o3_khong_phai_o5():
-    """Ca 'mã siêu chuỗi của mã thật' (KN-A1B2C399 vs KN-A1B2C3 thật) — KHÔNG
-    xfail như nhóm trên, vì đo trực tiếp 24/08 (03fd9a6) cho thấy nó ĐÃ bị
-    chặn NGAY BÂY GIỜ, trước khi O5 tồn tại. Gán nhầm công cho O5 sẽ che mất
-    sự thật là cơ chế chặn đến từ O3 (`nhom == ['O3']`) — assert cả hai vế để
-    không lẫn 'bị chặn' với 'bị chặn bởi đúng cơ chế đang muốn đo'."""
+@pytest.mark.parametrize(
+    "cid,cap", [("ma_sai_gia_tri", _MA_SAI_GIA_TRI), ("ma_sieu_chuoi", _MA_SIEU_CHUOI)],
+)
+def test_o5_da_bi_chan_boi_o3_khong_phai_o5(cid, cap):
+    """Hai ca (mã SAI giá trị, mã SIÊU CHUỖI của mã thật) — KHÔNG xfail như
+    nhóm `_CA_CHIEU_BAT`, vì đo LẠI 24/08 (03fd9a6) với mã thật 12-hex
+    (`uuid4().hex[:12]`, đúng `new_id()`) cho thấy CẢ HAI đã bị chặn NGAY
+    BÂY GIỜ, trước khi O5 tồn tại. Lượt đo ĐẦU TIÊN (mã giả 6-9 ký tự, dưới
+    ngưỡng O3 `_TOKEN_MA≥7`) chỉ thấy 1/2 ca này bị chặn và kết luận sai
+    'O3 mới chỉ phủ ca siêu chuỗi' — PO-agent lật lại bằng cách đọc đúng độ
+    dài mã thật. Gán nhầm công cho O5 (chưa tồn tại) sẽ che mất sự thật cơ
+    chế chặn đến từ O3 (`nhom == ['O3']`) — assert cả hai vế để không lẫn
+    'bị chặn' với 'bị chặn bởi đúng cơ chế đang muốn đo'."""
     loc_dau_ra = _loc_dau_ra()
-    reply, nguon = _MA_SIEU_CHUOI
-    moi, nhom = loc_dau_ra(reply, tin_nhan_khach="", thread_id="O5-SIEUCHUOI", nguon=nguon)
-    assert moi != reply, f"Đã hết bị chặn (trước đo là CÓ chặn) — hồi quy ở O3? nhom={nhom!r}"
+    reply, nguon = cap
+    moi, nhom = loc_dau_ra(reply, tin_nhan_khach="", thread_id=f"O5-O3-{cid}", nguon=nguon)
+    assert moi != reply, f"[{cid}] Đã hết bị chặn (trước đo là CÓ chặn) — hồi quy ở O3? nhom={nhom!r}"
     assert nhom == ["O3"], (
-        f"Cơ chế chặn ĐỔI KHÁC trước đây (từng là O3 đơn độc) — nhom hiện tại: {nhom!r}. "
+        f"[{cid}] Cơ chế chặn ĐỔI KHÁC trước đây (từng là O3 đơn độc) — nhom hiện tại: {nhom!r}. "
         "Nếu O5 vừa land và giờ CŨNG khớp, cập nhật ghi chú này (không còn là 'O3 bắt hộ' nữa)."
     )
 
