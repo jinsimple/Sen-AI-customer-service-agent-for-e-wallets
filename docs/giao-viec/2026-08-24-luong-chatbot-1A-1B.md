@@ -12,7 +12,7 @@
 
 ### Đợt 1A — Luật hỏi trong prompt *(không đụng contract)*
 
-- [ ] **1A.1** Tester: bộ ca eval viết **TRƯỚC** từ đặc tả (không đọc `src/`), ~6–8 ca
+- [x] **1A.1** ✅ `d70763e` 6 ca, R2/R3 tự khai skip-có-lý-do khi nhánh không quan sát được Tester: bộ ca eval viết **TRƯỚC** từ đặc tả (không đọc `src/`), ~6–8 ca
 - [ ] **1A.2** Coder: vá prompt 5 luật (nháp ngoài repo, land SAU khi 1A.1 vào cây)
 - [ ] **1A.3** Đo delta token prompt trước/sau (`bam_mau_prompt` đối chiếu)
 - [ ] **1A.4** Cổng: ca mới xanh + không hồi quy A2
@@ -20,7 +20,7 @@
 
 ### Đợt 1B — Cổng thu thập tất định *(nối dài `phan_luong`, 0 token khi chạy)*
 
-- [ ] **1B.1** Lead: thiết kế — luật nhận diện ý định (thà bỏ sót còn hơn bắt oan) · bóc slot
+- [x] **1B.1** ✅ duyệt kèm 2 điều chỉnh: NHÓM B chốt (i)∨(ii) · usage ghi duong=thu_slot Lead: thiết kế — luật nhận diện ý định (thà bỏ sót còn hơn bắt oan) · bóc slot
       bằng regex (số tiền / mốc ngày / mã TXN) · mẫu hỏi gọn phần thiếu · điều kiện cho-qua
 - [ ] **1B.2** Coder: thi hành theo thiết kế 1B.1
 - [ ] **1B.3** Tester: mở rộng cổng `cong_phan_luong` — ca dương + ca âm bắt-oan
