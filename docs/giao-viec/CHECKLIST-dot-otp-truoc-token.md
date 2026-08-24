@@ -275,10 +275,31 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - 🟢 Bot **được phép** hứa *"bộ phận nghiệp vụ chủ động liên hệ người nhận"* — PO xác nhận
     quy trình CÓ THẬT 24/08
 
-- [ ] **⑬** Bộ ca đánh giá từ kịch bản chuyên gia — **QA/QC** · `eval/`
+- [~] **⑬** Bộ ca đánh giá từ kịch bản chuyên gia — **QA/QC** · `eval/`
   - Nhánh A *(có người hướng dẫn)* · Nhánh B *(nhiều GD khớp, phải đổi trục)* · Nhánh C
     *(hai trục vẫn không ra ⟹ "chưa tra được")*
   - 🔴 **Trục dễ trượt nhất:** ca chuyển nhầm **trông rõ ràng** — bot **có hỏi** câu sàng lọc không
+  - **VẬT CHỨNG (Nhánh B + C, ĐÃ XONG):** `eval/bo_ca_kich_ban_chuyen_gia.jsonl` (2 ca,
+    `CASE-KBCG-B1`/`CASE-KBCG-C1`), chạy được qua `python eval/run_golden_set.py --file
+    eval/bo_ca_kich_ban_chuyen_gia.jsonl`. Fixture THẬT, kiểm trực tiếp trên DB seed tạm
+    (`build_eval_session`, KHÔNG gọi LLM, [ĐO] 25/08):
+    - B1: `USR-0034` gửi 393.000đ hai lần cách 1 ngày, hai người nhận KHÁC nhau
+      (`TXN20260508000555`→`...122`, `TXN20260509000173`→`...124`) — cả hai `status=success
+      scope=internal_wallet`, xác nhận bằng SQL trực tiếp trên DB tạm đã seed.
+      ⚠️ Không tìm được cặp CÙNG NGÀY khác người nhận trong TOÀN BỘ 60.000 giao dịch seed
+      (đã quét hết) — dùng cặp gần nhất (lệch 1 ngày) thay vì đúng nghĩa đen "hôm nay".
+    - C1: `USR-0090` xác nhận **0** giao dịch nào mang số tiền 1.550.000đ trong lịch sử thật
+      (quét hết 330 mức tiền riêng biệt của user) — đảm bảo tra thật sẽ ra `not_found`.
+  - **Nhánh A: CHƯA LÀM, có lý do — chặn bởi ⑫.** `expected.complaint_type` cho ca lừa đảo
+    không có giá trị hợp lệ nào để gán (taxonomy 5 loại chưa tồn tại, `CHECK` DB chỉ có 4 loại
+    + `other` — K1). Viết case bây giờ sẽ đỏ SAI LÝ DO (thiếu taxonomy, không phải bug hành vi
+    đang muốn bắt). Utterances/fixture đã phác nhưng CHƯA commit — đợi ADR ⑫ được PO duyệt.
+  - **CHƯA kiểm bằng LLM thật** (cả B1/C1) — chỉ mới kiểm cấu trúc case (parse JSONL sạch) +
+    fixture DB (không tốn phí). "Đổi trục thật" (B1) và chữ "chưa tra được" nguyên văn (C1) là
+    yêu cầu ĐỊNH TÍNH mà `check_expected`/`check_forbidden` (`eval/_harness.py`) không tự động
+    bắt được — cần đọc TOÀN BỘ hội thoại (`run_golden_set.py` tự in khi `extra_turns_used>0`)
+    sau khi chạy thật, đã ghi chú ngay trong file `_can_doc_thu_cong`. Chạy thật tốn LLM — báo
+    Lead/PO trước theo A3, gộp vào cùng đợt với ⑥ nếu hợp lý.
 
 ---
 
