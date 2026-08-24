@@ -22,9 +22,23 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#4** — 00:05, 25/08 |
-| **HEAD lúc điểm danh** | `e08e2d4` · băm luật `0952da634f87` |
-| **Cả bốn vai đang chạy** | không vai nào đứng im |
+| **Lần điểm danh cuối** | **#6** — 00:22, 25/08 |
+| **HEAD lúc điểm danh** | `82da946` |
+| **Cả bốn vai động trong 6 phút** | không ai đứng im |
+
+**Vật chứng #6** *(giờ land, không phải lời khai)*
+
+| vai | dấu vết mới nhất |
+|---|---|
+| Coder | 🔄 `graph.py` 00:22 · `phan_luong.py` 00:20 · `config.py` 00:20 — **đang land ④** |
+| Lead | ✅ `db1de2f` 00:19 *(3 quyết định tiền-land ④)* · `72f5589` 00:20 *(⑨ ghi rõ ai gỡ)* |
+| QA/QC | ✅ `884a34b` 00:17 — **⑬ 2/3 nhánh**, fixture thật đã kiểm DB |
+| Review | ✅ sửa chỗ neo chốt không-bắn *(PO nhận, `82da946`)* |
+
+🔴 **Chặn duy nhất còn lại là hai ADR, cả hai ở bàn PO thật:**
+`ADR-049` *(`DECISIONS.md:2904`, vẫn 🟡 **ĐỀ XUẤT**)* chặn ⑩ ⑪ ·
+ADR loại khiếu nại thứ năm *(Coder viết sau ④/⑤)* chặn ⑫ → nhánh A của ⑬.
+
 
 **Bản đồ phiên ↔ vai** *(hỏi thẳng, không suy từ tên phiên)*
 
@@ -274,14 +288,23 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     Đã sửa chú thích thành số đo thật. **Chưa tick `[x]` cho tới khi Review soát xong**
     (đúng yêu cầu của Coder, giữ `[~]`).
 
-- [!] **⑨** Bắt buộc hỏi câu sàng lọc lừa đảo **K2** — **Coder**
+- [~] **⑨** Bắt buộc hỏi câu sàng lọc lừa đảo **K2** — **Coder** *(ca đối chứng: QA/QC, ĐÃ GỠ)*
   - Hỏi **sự kiện khách quan** *("có ai nhắn tin hoặc gọi điện hướng dẫn chị chuyển khoản
     không")*, **KHÔNG** hỏi kết luận *("chị có bị lừa không")*
   - Khung mở bắt buộc: *"em hỏi thêm một ý để hỗ trợ chị đúng hướng"*
   - Hỏi ở **MỌI** ca chuyển nhầm, kể cả ca trông rõ ràng
-  - **Chặn — đúng theo phiếu §5.3 (⑨): "ca đối chứng QA/QC dựng trước".** Coder chờ QA/QC.
-  - **[PO 25/08, Lead chuyển] AI GỠ:** QA/QC, ngay sau ⑬-B1/C1. **KHÔNG tốn LLM** — bộ ca
-    kiểm tất định "bot CÓ HỎI câu sàng lọc lừa đảo không" ở ca chuyển nhầm TRÔNG RÕ RÀNG.
+  - ~~Chặn — đúng theo phiếu §5.3 (⑨): "ca đối chứng QA/QC dựng trước".~~ **GỠ 25/08.**
+  - **VẬT CHỨNG (QA/QC):** `eval/dac_ta_cong_sang_loc_lua_dao_9.json` — ĐẶC TẢ (chưa có hàm
+    chạy được, K2 chưa tồn tại trong code tại thời điểm viết, cùng nếp `bo_ca_thu_slot_1b.json`
+    trước khi `thu_slot` tồn tại). 5 trục: `SL-01` (ca TRÔNG RÕ RÀNG — bẫy, PHẢI vẫn hỏi) ·
+    `SL-02` (đã hỏi, trả lời KHÔNG — không hỏi lại) · `SL-03` (đã hỏi, trả lời CÓ — không hỏi
+    lại, KHÔNG chịu trách nhiệm bước xử lý sau đó, đó là phạm vi ⑫) · `SL-04a`/`SL-04b` (2 ca
+    ÂM ngoài phạm vi "chuyển nhầm" — money_not_received/refund — KHÔNG được bắt oan, đúng Luật 2
+    `tests/CHUAN-VIET-TEST.md`). Kèm `bat_bien_noi_dung_hang_so` — 3 regex kiểm NGAY LÚC LAND
+    (không cần chạy hội thoại) nếu Coder cài hằng số cố định kiểu K3/⑧, cùng kỹ thuật ĐC-7 đã
+    dùng cho `HOI_*`. Kèm 3 câu hỏi cần Coder xác nhận điểm móc TRƯỚC khi QA/QC dựng được cổng
+    chạy-lại-được thật (hàm thuần hay logic nhúng graph.py, trạng thái "đã hỏi" lưu ở đâu, ranh
+    giới với ⑫). **[~] không phải [x]** vì đây là đặc tả chờ Coder, chưa phải cổng chạy được.
 
 - [!] **⑩** Bản tóm tắt **6 trường tất định** trước `create_ticket` **K4** — **Coder**
   - loại · phạm vi · mã+giờ+tiền · người nhận nhầm · người nhận đúng · nội dung khách trình bày
