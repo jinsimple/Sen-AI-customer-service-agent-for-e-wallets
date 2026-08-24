@@ -517,6 +517,27 @@ trên nền sai là đúng thứ Luật F cấm.
 
 ---
 
+## CI/lint — Coder đo 25/08: không phải runner chết, ruff chặn pytest chạy
+
+> Chi tiết đo trong `docs/STATE.md` (dòng "CI, từ 24/08"). Tóm tắt hành động:
+
+- [ ] **C1** QA/QC vá 17 lỗi ruff `eval/` — **4 file dễ, làm NGAY**: `benchmark.py` ·
+  `do_cong_presence.py` · `run_adversarial_set.py` · `run_golden_set.py` (đều F541,
+  `--fix` xử được).
+- [ ] **C2** 🔴 **`cong_phan_luong.py` + `do_cong_thu_tu.py` — CHỜ.** Đây là hai thước đo
+  Coder đang DÙNG SỐNG để chấm ⑨/③ vòng 2. Đổi tên biến giữa lúc đo là "đổi vật giữa
+  phép đo" — bài học đã trả giá nhiều lần trong đợt này. **QA/QC vá SAU khi Coder báo
+  đã chấm xong ⑨ và ③ vòng 2**, không phải bây giờ.
+- [ ] **C3** [Lead 25/08] **DUYỆT**: sửa `ci.yml` để bước `pytest` chạy dù `ruff` đỏ
+  (`if: always()` hoặc tách job riêng) — **Coder thực hiện** (vùng `.github/workflows/`,
+  ADR-037 QĐ1), vì đây là quyết định Ý NGHĨA CỦA CỔNG nên Coder trình trước, không tự
+  sửa. Lý do duyệt: lint (quy ước đặt tên) và test (đúng/sai hành vi) là hai trục khác
+  nhau — để lint ẩn kết quả của 657 test là mất khả năng quan sát đúng lúc dự án cần nó
+  nhất. Xác nhận xong khi có một run CI thật cho thấy pytest báo cáo dù ruff vẫn đỏ.
+  *(3 job `ubuntu-latest` đỏ vì billing là sự cố KHÁC, chỉ PO thật gỡ — không đụng ở đây.)*
+
+---
+
 ## Nghiệm thu cả đợt — bốn con số trong bốn tệp
 
 - [ ] **N1** Số lần cổng `thu_slot` bắn oan: **6/11** → **0/n**
