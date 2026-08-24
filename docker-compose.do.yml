@@ -58,7 +58,9 @@ services:
     # (không `--build`), Compose so digest thấy `latest` đã đổi có thể tự ý
     # recreate ngăn DEMO ngoài ý muốn. Ghim TAG RIÊNG cho từng lượt dựng đo —
     # đổi dòng dưới mỗi khi dựng lại, không bao giờ dùng `fin05-backend` trơn.
-    image: fin05-backend:do-80ee384   # HEAD lúc dựng: 80ee384 (1eb7512 + không đổi src/)
+    image: fin05-backend:do-9418d1a   # HEAD lúc dựng: 9418d1a (vá 2 finding thật 1A.4) — build
+                                       # từ `git archive 9418d1a`, KHÔNG từ working tree (cây
+                                       # đang có sửa dở 1B.2 của Coder trên chính src/agents/phan_luong.py)
     build: !reset null
     ports: !override []
     environment:
