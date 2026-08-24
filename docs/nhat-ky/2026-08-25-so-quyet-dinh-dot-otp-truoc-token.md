@@ -256,3 +256,66 @@ chứng đầy đủ; PO có một cửa sổ sai.
 
 Cùng rào Review đã gặp và đã khai. ⟹ Số 6/6 với PO hiện là **"nghe báo, chưa tự kiểm"**,
 không phải *"đã kiểm, đạt"*. Ghi đúng hạng bằng chứng, không nâng hạng cho tiện.
+
+---
+
+## 🔴 NIÊM — PO có phép thử phân biệt TỐT, và nó cho câu trả lời SAI (25/08, 06:20)
+
+**Review tìm ba nguyên nhân gốc mới ở ③ vòng 2**, đề nghị khai làm giới hạn, **không** mở
+vòng vá thứ tư. PO tái lập cả ba trên bản sạch `git show 4754981:` *(băm tự khai
+`dc9c5e3216c5`, khớp — không lẫn WIP của Coder)*:
+
+```
+🔴 "toi neu la toi bi tru tien thì phải làm sao"                 → day_du
+   ASCII "neu" (bỏ dấu của "nếu") trùng hệt "nêu" (động từ)
+🔴 "gia su cua toi bao la bi tru tien thì phải làm sao"           → day_du
+   "gia su" trùng hệt "gia sư"
+🔴 "con tôi hỏi nếu chuyển nhầm thì…, còn tôi thì bị trừ tiền…"   → day_du
+   tín hiệu LẶP: `min()` chỉ nhìn vị trí sớm nhất rồi gạt cả câu
+✅ ca dương giữ nguyên
+```
+
+### PO định tách ca thứ ba ra khỏi khuyến nghị — và hỏng
+
+PO đồng ý hai ca ASCII *(vá thì phải bỏ dạng không dấu, hoặc thêm danh sách loại trừ —
+cả hai đều tệ hơn)*. Nhưng xếp ca thứ ba **khác hạng**:
+
+> `min()` trả lời **sai câu** — nó hỏi *"tín hiệu SỚM NHẤT có bị rào không"*, trong khi
+> câu đúng là *"có tín hiệu NÀO không bị rào không"*. Đổi ∃-sớm-nhất → ∀-mọi-tín-hiệu là
+> **một dòng, 0 từ thêm bớt** ⟹ theo phép thử PO tự đặt *(«phải thêm từ vào danh sách
+> nào không»)* thì đó là sửa lỗi lượng từ, không phải epicycle.
+
+**PO dựng bản ∀ và chạy. Nó VẪN gạt ca của Review.**
+
+**Vì sao:** phép kiểm rào chỉ hỏi *"có dấu điều kiện nào đứng TRƯỚC tín hiệu này không"*.
+Một chữ `"nếu"` ở đầu câu đứng trước **mọi thứ phía sau** ⟹ nó rào cả câu, vĩnh viễn.
+Sửa đúng phải giới hạn **PHẠM VI** mệnh đề điều kiện — nó kết thúc ở đâu — tức phân tích
+cú pháp thật. **Đó mới là epicycle.**
+
+### 🔴 Bài học, và nó không phải "PO đoán sai"
+
+PO **có** một phép thử phân biệt tốt: *"bản vá này có phải thêm từ vào danh sách nào
+không?"* Phép thử ấy chạy, cho ra **"không phải epicycle"**, và câu trả lời ấy **SAI**.
+
+**Vì phép thử nhìn HÌNH DẠNG BẢN VÁ, không nhìn HÌNH DẠNG BÀI TOÁN.** Bài toán ở đây là
+**phạm vi mệnh đề**; mọi bản vá không giải được phạm vi đều là epicycle — bất kể nó dài
+một dòng hay một trăm dòng.
+
+⟹ **Vế thi hành:** một phép thử phân biệt phải hỏi về **bài toán**, không hỏi về **hình
+dạng lời giải**. Phép thử tốt vẫn sai được, và nó sai **im lặng** — vì nó vẫn trả lời.
+
+*Thứ cứu được lần này không phải sự cẩn thận: PO **dựng thử và chạy** trước khi giao
+Coder. Nếu chỉ lập luận rồi giao, Coder đã mất một vòng cho một hướng chết.*
+
+### Ranh giới Review đưa, PO lấy làm nếp
+
+> *"MỘT vòng là một lần **LAND**, không phải một lần **THỬ**. Vòng 1–2 chưa từng tồn tại
+> trong lịch sử git, không ai review chúng như sản phẩm."*
+
+⟹ **Quyền được đếm theo VẬT ĐÃ LAND, không theo số lần thử.** Sắc hơn ranh giới PO tự đưa.
+
+### Kết luận
+
+Ba giới hạn **khai, không vá**. Cả ba lệch về `day_du` — chiều an toàn: LLM vẫn xử lý,
+không rò gì, chỉ tốn thêm token cho một khiếu nại thật. Cùng họ với
+`"nếu vậy thì tôi bị trừ tiền oan à"` mà Coder đã chủ động không vá.
