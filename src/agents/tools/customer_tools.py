@@ -914,9 +914,10 @@ def build_customer_tools(
           KHÔNG bịa một mã giao dịch.
         - otp_disclosed: true CHỈ KHI khách tự kể đã đưa mã OTP/mã xác thực
           cho người khác (không phải chỉ nhắc tới từ "OTP").
-        Sau khi tạo xong, báo cho khách bằng lời tự nhiên: đã tạo hồ sơ,
-        CSKH sẽ tiếp nhận, KHÔNG tự hứa hoàn tiền hay mốc thời gian không có
-        trong kết quả tool."""
+        Sau khi tạo xong, báo cho khách bằng lời tự nhiên: đã tạo hồ sơ, BẮT
+        BUỘC nêu nguyên văn mã ticket ("ticket_id") — không nói mơ hồ "đã tạo
+        hồ sơ" mà thiếu mã. CSKH sẽ tiếp nhận, KHÔNG tự hứa hoàn tiền hay mốc
+        thời gian không có trong kết quả tool."""
         if otp_verified_at is None:
             return _OTP_REQUIRED_ERROR
         if not _otp_fresh(otp_verified_at, OTP_STEPUP_FRESH_MINUTES):
