@@ -330,7 +330,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     (hôm nay/hôm qua, sáng/chiều/tối) giúp mình nhé."*
     → hỏi **cả hai trong MỘT tin** ✅ · **KHÔNG** còn mã giao dịch ✅ — đúng Q2
   - `4b80f3e` chuyển hằng số sang `phan_luong.py` — Coder tự khai *"ĐỔI TÊN KHÔNG ĐỦ"*
-- [ ] **⑥** Ca E2E trên UI cho bất biến *"0 token trước OTP"* — **QA/QC** · `frontend/e2e/`
+- [~] **⑥** Ca E2E trên UI cho bất biến *"0 token trước OTP"* — **QA/QC** · `frontend/e2e/`
   - Đo trên envelope `/agent/chat` *(mang `duong` + `usage.total_tokens`)*
   - **Ba trạng thái:** `0` ≠ `null` ≠ `>0`
   - 🔴 **Cạm bẫy:** cổng chỉ bắn **một lần mỗi hội thoại** — mỗi ca một chat mới
@@ -338,6 +338,19 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - 🔴 **[PO 25/08] BẮT BUỘC THÊM VÀO BUỔI NÀY:** chạy `tests/test_inv_ngan_sach_token.py`
     (cần ngăn xếp sống — đây là điểm DUY NHẤT trong quy trình hiện tại có ngăn xếp sống,
     không phải vì nó tốn LLM — nó KHÔNG tốn). Xem khối "Trần ngân sách token" cuối tệp.
+  - **VẬT CHỨNG (đã SOẠN, CHƯA CHẠY — đúng "chỉ chưa chạy" PO cho phép):**
+    `frontend/e2e/token-truoc-otp.spec.ts`, 3 ca: **A** (khiếu nại cá nhân, chưa OTP →
+    `duong="can_otp"` + `usage.total_tokens` PHẢI là kiểu `number` VÀ `=0`, không chỉ
+    `??0`) · **B** ca ÂM Q1 (câu hỏi chính sách, chưa OTP → cổng ④ KHÔNG được bắn) ·
+    **C** (sau khi hoàn tất OTP thật qua UI, gửi lại đúng câu ở ca A → cổng ④ không còn
+    chặn, `usage.total_tokens>0` xác nhận model chạy thật). Mỗi `test()` tự `loginAs`
+    riêng (thread mới theo `user_id:iat`) — không tái dùng `page`/`context` giữa các ca,
+    đúng cạm bẫy "một chat mới mỗi ca". Dùng lại `forgeOtpVerifiedAt`/
+    `setForgedSessionCookie` (đã có tiền lệ, không phải bypass auth) để đảm bảo mỗi ca
+    THẬT SỰ khởi hành từ trạng thái chưa OTP, không phụ thuộc phiên cũ sót lại.
+    **Đã kiểm:** `tsc --noEmit` sạch cho file này (2 lỗi TS còn lại trong output thuộc
+    `src/app/(app)/tickets/[id]/page.tsx`/`layout.tsx`, có sẵn từ trước, không liên quan).
+    **CHƯA chạy Playwright thật** — chờ Lead mở buổi tốn phí (gộp cùng ⑬-B1/C1).
 
 - [~] **⑦** Khuôn thời gian *(Đ3)* + kill-switch riêng T0 *(Đ4)* — **Coder**
   - Nhận `"tuần trước"`, `"<số> giờ sáng/chiều/tối"`
