@@ -84,10 +84,27 @@
 
 ## Nhóm A — Đo lường (chặn mọi thứ sau nó)
 
-- [ ] **①** Ghim cờ định tuyến vào phép đo — **QA/QC** · `eval/`
+- [x] **①** Ghim cờ định tuyến vào phép đo — **QA/QC** · `eval/`
   - Báo cáo eval in `PHAN_LUONG_BAT` lúc chạy **và** cột `duong` mỗi ca
   - *Xong khi:* đọc được *"ca này đi `thu_slot`, không chạm model"* **mà không phải mở code**
   - *Đóng:* **Đ2**
+  - **VẬT CHỨNG:** commit `<xem log>`, 3 file sửa:
+    - `eval/_harness.py` — thêm `cau_hinh_dinh_tuyen_luc_chay()` (đọc `os.environ["PHAN_LUONG_BAT"]`
+      trực tiếp, KHÔNG qua `src/config.py`, để không che khoảng lệch Đ2 mô tả) + `duong_theo_luot`
+      (đọc `result.get("duong")` mỗi lượt, cùng quy ước với `loc_dau_ra_theo_luot`/`ly_do_fallback_theo_luot`
+      đã có) trong cả `run_case_adversary()` và `run_case_turns_adaptive()`
+    - `eval/run_golden_set.py` + `eval/run_adversarial_set.py` — mỗi report giờ in
+      (a) `PHAN_LUONG_BAT` lúc chạy ở header + stderr, (b) phân bố đường đi toàn corpus
+      (đếm lượt), (c) bảng ĐẦY ĐỦ mọi ca `case_id | đường đi từng lượt | có chạm model?`
+      — kể cả ca `passed=true`, đúng chỗ N2 cần (ADV-036/038 "xanh vì O1-O5" ≠ "xanh vì câu lạc đề")
+  - **Đã kiểm:** `python3 -m py_compile` sạch cả 3 file · khoá `duong_theo_luot` nhất quán
+    producer/consumer (grep đối chiếu) · logic `cau_hinh_dinh_tuyen_luc_chay()` chạy thật cô lập,
+    3 ca (chưa đặt / `"1"` / `"0"`) đúng cả ba · khoá `duong` trên envelope corroborate được bằng
+    test hộp đen ĐÃ CÓ (`tests/test_bat_bien_dinh_tuyen_duong_nhe.py` — `o["tra"]["than"]["duong"]`,
+    `tests/test_1b4_s7_s8_tich_hop.py` — `.get("duong")` phẳng), không đọc `src/agents/graph.py`.
+  - **CHƯA kiểm:** một lượt `run_golden_set.py --sample 1` thật (tốn LLM thật, thuộc lớp giữ hoá đơn
+    A3/`FIN05_CHO_PHEP_TON_TIEN`) — báo Lead/PO trước khi ai chạy để xác nhận báo cáo markdown in
+    đúng bảng/dòng như thiết kế trên dữ liệu thật, không chỉ trên kiểm tra cú pháp + đơn vị cô lập.
 
 - [x] **②** Bộ ca đối chứng **ÂM** cho cổng `thu_slot` — **QA/QC** · `tests/` hoặc `eval/`
   - Trục bắt buộc, mỗi trục ≥1 ca: câu chính sách · ép lộ thông tin bên thứ ba · ép kết luận
