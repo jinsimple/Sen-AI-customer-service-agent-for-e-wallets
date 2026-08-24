@@ -131,10 +131,30 @@ _TIN_HIEU_KHIEU_NAI = ("bị", "bi", "nhầm", "nham", "lỗi", "loi",
                        "chưa thấy", "chua thay", "không thấy", "khong thay",
                        "chưa tới", "chua toi", "chưa về", "chua ve")
 
+# PO-agent bắt 24/08, tự chạy cổng trên HEAD: "Tôi lo quá, chuyển nhầm tiền
+# học phí của con cho người lạ rồi, giúp tôi với." — ca nặng nhất cổng có
+# thể gặp. Cổng 0 token không có khả năng xoa dịu, trong khi prompt.py:21
+# BẮT BUỘC câu đầu tiên phải xoa dịu trước khi nêu kết quả tra — cổng tất
+# định đi VÒNG QUA đúng luật đó. Có tín hiệu cảm xúc mạnh ⟹ ĐI day_du, để
+# LLM xử lý (nó có khả năng xoa dịu, cổng tất định thì không) — cùng tinh
+# thần "thà bỏ sót còn hơn bắt oan", chỉ khác trục (cảm xúc thay vì chính
+# sách). Không đặt ngưỡng "gần đúng" (vd chỉ "lo"/"sợ" đơn lẻ, dễ khớp bừa
+# trong từ khác) — dùng cụm đủ dài để KHÔNG mơ hồ.
+_TIN_HIEU_CAM_XUC_MANH = ("lo quá", "lo qua", "hoảng", "hoang", "sợ quá", "so qua",
+                          "gấp lắm", "gap lam", "khẩn cấp", "khan cap",
+                          "giúp tôi với", "giup toi voi", "giúp em với", "giup em voi",
+                          "giúp mình với", "giup minh voi", "làm sao bây giờ", "lam sao bay gio",
+                          "cứu tôi", "cuu toi", "cứu với", "cuu voi")
+
 _re_word = lambda tu: re.compile(r"\b" + re.escape(tu) + r"\b")  # noqa: E731
 _RE_SO_HUU = [_re_word(t) for t in _SO_HUU]
 _RE_DONG_TU_GD = [_re_word(t) for t in _DONG_TU_GD]
 _RE_TIN_HIEU_KHIEU_NAI = [_re_word(t) for t in _TIN_HIEU_KHIEU_NAI]
+_RE_TIN_HIEU_CAM_XUC_MANH = [_re_word(t) for t in _TIN_HIEU_CAM_XUC_MANH]
+
+
+def _co_cam_xuc_manh(s: str) -> bool:
+    return any(p.search(s) for p in _RE_TIN_HIEU_CAM_XUC_MANH)
 
 # Khuôn số tiền (mục 3.1) — CHỈ số viết bằng chữ số + đơn vị tuỳ chọn. Số viết
 # CHỮ THUẦN ("năm trăm nghìn", "nửa triệu") CỐ Ý không bóc — khai rõ, không cố
@@ -325,8 +345,11 @@ def _phan_luong(cau: object) -> tuple[str, str]:
         # (vẫn ĐẠT, Tester canh riêng), không phải tầng QUYẾT ĐỊNH slot.
         # B(i) (vd "tôi bị trừ tiền" — không có số tiền nào cả) mới là nguồn
         # thu_slot thật sự.
-        if not _MA_GD.search(s) and not boc_slot(cau)["so_tien"]:
+        if not _MA_GD.search(s) and not boc_slot(cau)["so_tien"] and not _co_cam_xuc_manh(s):
             return DUONG_THU_SLOT, "dấu hiệu sở hữu/giao dịch cá nhân, thiếu số tiền"
+        # Có tín hiệu cảm xúc mạnh (đo được ở s) rơi xuống nhánh dưới — nếu
+        # không có chữ số thì đi tiếp qua nhánh xã-giao (vẫn day_du vì có
+        # token ngoài tập, không xã giao thuần), không quay lại thu_slot.
         # Có số tiền (hoặc có mã) ⟹ rơi xuống nhánh dưới, luôn khớp
         # _CO_CHU_SO (số tiền/mã đều mang chữ số), đi day_du bình thường.
 
