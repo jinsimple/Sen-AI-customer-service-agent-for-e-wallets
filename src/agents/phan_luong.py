@@ -169,8 +169,21 @@ def _co_cam_xuc_manh(s: str) -> bool:
 # oan"). Điều kiện: đơn vị (trăm/nghìn/ngàn/triệu/tỷ) đứng NGAY CẠNH một từ
 # số (một/hai/.../mười/mươi/lẻ) — cùng bài học "cụm đủ dài": đơn vị PHẢI kề
 # từ số, "nghìn" một mình trong "cảm ơn nghìn lần" không kích.
+#
+# 🔴 CHỐT 24/08, PO-agent — bản đầu CỐ Ý loại "nửa"/"rưỡi" để không lẫn với
+# ca S4 corpus ("tôi chuyển nửa triệu hôm qua..." → thu_slot). PO-agent đọc
+# lại S4 và lật: corpus TỰ KHAI đúng vấn đề trong `vi_sao` ("THIẾU dù khách
+# ĐÃ NÓI") rồi ghi nhận nó là kỳ vọng ĐÚNG — một ca test ghi hành vi SAI
+# thành chuẩn, sinh từ đặc tả 1B ("bóc bằng regex" không đọc được tiếng Việt
+# viết chữ), không phải lỗi đọc code. Với khách, "nửa triệu" là số tiền họ
+# VỪA NÓI RA — hỏi lại phiền y hệt "hai trăm bảy mươi nghìn". Nguyên tắc
+# chốt: cổng tất định KHÔNG có nhiệm vụ phán xét con số khách đưa có đủ
+# CHÍNH XÁC hay không (ước lượng/làm tròn/khoảng chừng là việc LLM làm tốt
+# hơn) — chỉ trả lời "câu này có dấu hiệu khách đã nói số tiền không?", có
+# thì NHƯỜNG. Tester đã sửa `ky_vong` của S4 + bổ sung ca cho corpus.
 _TU_SO_CHU = ("một", "mot", "hai", "ba", "bốn", "bon", "năm", "nam", "sáu", "sau",
-              "bảy", "bay", "tám", "tam", "chín", "chin", "mười", "mươi", "muoi", "lẻ", "le")
+              "bảy", "bay", "tám", "tam", "chín", "chin", "mười", "mươi", "muoi", "lẻ", "le",
+              "nửa", "nua", "rưỡi", "ruoi")
 _DON_VI_SO_CHU = ("trăm", "tram", "nghìn", "nghin", "ngàn", "ngan", "triệu", "trieu", "tỷ", "ty")
 
 
