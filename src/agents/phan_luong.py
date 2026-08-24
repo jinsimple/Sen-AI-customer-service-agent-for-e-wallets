@@ -156,6 +156,34 @@ _RE_TIN_HIEU_CAM_XUC_MANH = [_re_word(t) for t in _TIN_HIEU_CAM_XUC_MANH]
 def _co_cam_xuc_manh(s: str) -> bool:
     return any(p.search(s) for p in _RE_TIN_HIEU_CAM_XUC_MANH)
 
+
+# Review bắt 24/08: "tôi bị trừ hai trăm bảy mươi nghìn" → thu_slot, cổng hỏi
+# lại "cho mình xin số tiền" NGAY SAU KHI khách vừa nói số tiền — bằng CHỮ,
+# không phải chữ số. `boc_slot()` (mục 3.1) CỐ Ý không bóc số viết chữ (khai
+# rõ trong docstring, không phải lỗ mới) — nhưng hệ quả MỚI: cổng làm TỆ HƠN
+# không có cổng, vì nó CHẶN TRƯỚC LLM (thứ đọc được "hai trăm bảy mươi
+# nghìn") bằng một lớp lọc thô hơn.
+#
+# Vá RẺ — KHÔNG xây bộ bóc số viết chữ (không cần biết GIÁ TRỊ, chỉ cần biết
+# "có thể khách đã nói số tiền" rồi NHƯỜNG LLM, đúng "thà bỏ sót còn hơn bắt
+# oan"). Điều kiện: đơn vị (trăm/nghìn/ngàn/triệu/tỷ) đứng NGAY CẠNH một từ
+# số (một/hai/.../mười/mươi/lẻ) — cùng bài học "cụm đủ dài": đơn vị PHẢI kề
+# từ số, "nghìn" một mình trong "cảm ơn nghìn lần" không kích.
+_TU_SO_CHU = ("một", "mot", "hai", "ba", "bốn", "bon", "năm", "nam", "sáu", "sau",
+              "bảy", "bay", "tám", "tam", "chín", "chin", "mười", "mươi", "muoi", "lẻ", "le")
+_DON_VI_SO_CHU = ("trăm", "tram", "nghìn", "nghin", "ngàn", "ngan", "triệu", "trieu", "tỷ", "ty")
+
+
+def _co_so_viet_chu(s: str) -> bool:
+    tu = s.split()
+    for i, t in enumerate(tu):
+        if t not in _DON_VI_SO_CHU:
+            continue
+        if (i > 0 and tu[i - 1] in _TU_SO_CHU) or (i + 1 < len(tu) and tu[i + 1] in _TU_SO_CHU):
+            return True
+    return False
+
+
 # Khuôn số tiền (mục 3.1) — CHỈ số viết bằng chữ số + đơn vị tuỳ chọn. Số viết
 # CHỮ THUẦN ("năm trăm nghìn", "nửa triệu") CỐ Ý không bóc — khai rõ, không cố
 # đoán (phạm vi riêng nếu cần, không lẫn vào 1B).
@@ -353,7 +381,12 @@ def _phan_luong(cau: object) -> tuple[str, str]:
         # (vẫn ĐẠT, Tester canh riêng), không phải tầng QUYẾT ĐỊNH slot.
         # B(i) (vd "tôi bị trừ tiền" — không có số tiền nào cả) mới là nguồn
         # thu_slot thật sự.
-        if not _MA_GD.search(s) and not boc_slot(cau)["so_tien"] and not _co_cam_xuc_manh(s):
+        if (
+            not _MA_GD.search(s)
+            and not boc_slot(cau)["so_tien"]
+            and not _co_cam_xuc_manh(s)
+            and not _co_so_viet_chu(s)
+        ):
             return DUONG_THU_SLOT, "dấu hiệu sở hữu/giao dịch cá nhân, thiếu số tiền"
         # Có tín hiệu cảm xúc mạnh (đo được ở s) rơi xuống nhánh dưới — nếu
         # không có chữ số thì đi tiếp qua nhánh xã-giao (vẫn day_du vì có
