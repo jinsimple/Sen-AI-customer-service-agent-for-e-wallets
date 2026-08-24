@@ -15,7 +15,7 @@
 #   gọi thẳng build_customer_tools() rồi so tên tool với danh sách dưới.
 #   Thêm/xoá/đổi tên tool mà quên sửa file này  →  test ĐỎ.
 
-version: "2.1.1"
+version: "2.1.2"
 source: "Sinh ngược từ src/agents/tools/customer_tools.py @ 2026-08-13"
 # v2.1.1 (24/08) — Review đọc diff ADR-047 phát hiện ghi_chu của `scope` ở
 # create_ticket còn khai "1 trong 3", trong khi CHECK constraint DB và
@@ -25,6 +25,12 @@ source: "Sinh ngược từ src/agents/tools/customer_tools.py @ 2026-08-13"
 # đúng ghi_chu này ở agent-tools.yaml, sống sót 7 ngày không ai đọc thấy.
 # KHÔNG phải quyết định mới — thi hành nốt quyết định ĐÃ DUYỆT 17/08 cho
 # file còn lại của cùng một quyết định, không cần ADR mới/PO duyệt lại.
+#
+# v2.1.2 (24/08) — PO-agent: ghi_chu create_ticket thiếu yêu cầu "báo thành
+# công BẮT BUỘC nêu mã ticket" — prompt.py bước 5 đã ép luật này từ trước,
+# contract chỉ mô tả tool mà không phản ánh, để lộ khe hành vi PROMPT ĐÃ
+# CẤM nhưng CONTRACT không nói gì. Thuần mô tả — không đổi input/output/
+# hành vi thật của tool, không cần ADR.
 
 # ---------------------------------------------------------------------------
 # Quy tắc chung áp cho MỌI tool
@@ -103,7 +109,9 @@ tools:
     ghi_chu: >
       Hành động có hậu quả → OTP step-up NGẶT hơn (15 phút) so với tool chỉ đọc
       (12 giờ). fraud_signals do tầng service tính (complaint_intake.py),
-      KHÔNG do agent tự điền.
+      KHÔNG do agent tự điền. Báo THÀNH CÔNG với khách BẮT BUỘC nêu nguyên văn
+      mã ticket (trường `ticket_id`) — không được nói mơ hồ "đã tạo hồ sơ" mà
+      thiếu mã (prompt.py bước 5), cùng yêu cầu đã áp cho request_human_handoff.
 
   request_human_handoff:
     mo_ta: "Khách chủ động yêu cầu gặp người thật"

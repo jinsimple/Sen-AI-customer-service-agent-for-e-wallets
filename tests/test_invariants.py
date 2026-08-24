@@ -49,7 +49,7 @@ MODELS_PY = ROOT / "src" / "db" / "models.py"
 CONTRACT_VERSION = {
     "authority-matrix.yaml": "b185242c0d53",  # v2.1.0 — ADR-044 (GET /tickets/{ticket_id}/transcript)
     "resolution-state-machine.yaml": "a39f2b84ec5d",  # v2.5.0 — ADR-024 (resolutions.note + note_flagged + INV-17)
-    "agent-tools.yaml": "58f71f0a1ada",  # v2.1.1 — ADR-029 mục 4 thi hành nốt (scope ghi_chu khai đủ 4 giá trị)
+    "agent-tools.yaml": "00239f9f0bfc",  # v2.1.2 — create_ticket ghi_chu bắt buộc nêu mã ticket khi báo thành công
 }
 
 

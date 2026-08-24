@@ -229,9 +229,12 @@ def boc_slot(cau: object) -> dict[str, bool]:
     tại một thời điểm, đúng bất biến "phân loại theo TỪNG LƯỢT").
 
     Trả `{"so_tien": bool, "thoi_gian": bool}` — CHỈ presence, không trả giá
-    trị đã bóc: mục 4 chỉ cần biết THIẾU CÁI GÌ để chọn đúng 1 trong 3 mẫu câu
-    cố định, không cần điền lại giá trị (giá trị thật khách gõ vẫn nguyên vẹn
-    trong lịch sử hội thoại, model đọc lại được ở lượt sau). KHÔNG BAO GIỜ
+    trị đã bóc (giá trị thật khách gõ vẫn nguyên vẹn trong lịch sử hội thoại,
+    model đọc lại được ở lượt sau). `"so_tien"` là trường DUY NHẤT dùng để
+    gate/chọn mẫu câu (R1 chốt 24/08 — cổng chỉ hỏi ĐÚNG MỘT thứ, xem
+    HOI_THIEU_SO_TIEN); `"thoi_gian"` giữ lại vì vẫn là một slot có ý nghĩa
+    bóc được, dù hiện KHÔNG có nơi gọi nào tiêu thụ nó — không xoá để tránh
+    dựng lại đúng khuôn regex nếu một nhu cầu sau này cần lại. KHÔNG BAO GIỜ
     ném — input không phải chuỗi thì coi như thiếu cả hai (an toàn, đi hỏi
     hoặc đi day_du tuỳ nơi gọi, không đoán bừa)."""
     if not isinstance(cau, str):
@@ -250,15 +253,20 @@ def boc_slot(cau: object) -> dict[str, bool]:
 # KHÔNG BAO GIỜ một mình là lý do chặn/hỏi. Hệ quả: mẫu "chỉ thiếu thời
 # gian" bị XOÁ — không nhánh nào còn dùng tới.
 #
-# Hai mẫu câu hỏi cố định còn lại (mục 4, đã rút gọn) — HẰNG SỐ, KHÔNG nhờ
-# model sinh, cùng nguyên tắc TRA_LOI_NHE. Chọn theo CÓ/KHÔNG thời gian
-# trong câu gốc (không tách hai dòng — cùng tinh thần R1). Câu thiếu-cả-hai
-# kèm đường đi 3 bước tìm mã, khớp R2 (1A), tái dùng một chỗ, không lặp logic.
-HOI_THIEU_CA_HAI = (
-    "Dạ bạn cho mình xin khoảng thời gian giao dịch (hôm nay, hôm qua, hay ngày cụ thể) và số "
-    "tiền giúp mình nhé — nếu có mã giao dịch thì cho mình xin luôn, không có cũng không sao ạ, "
-    "bạn có thể vào mục Lịch sử giao dịch, bấm vào đúng giao dịch đó là thấy mã ạ."
-)
+# 🔴 CHỐT 24/08, PO-agent — R1 (1A, đặc tả chuyên gia CSKH, hành vi ĐO ĐƯỢC):
+# "reply khi thiếu ≥2 slot chỉ chứa MỘT yêu cầu thông tin". `HOI_THIEU_CA_HAI`
+# (bản trước) hỏi BA thứ trong một tin (thời gian + số tiền + mã giao dịch)
+# — đọc "không tách hai dòng, cùng tinh thần R1" là đọc SAI: R1 đo được viết
+# là "một tin MỘT yêu cầu", không phải "một tin, dù gộp mấy yêu cầu". Đặc tả
+# nghiệp vụ thắng mục tiêu tiết kiệm token khi hai thứ va nhau.
+#
+# Và luật slot đã chốt (số tiền là slot BẮT BUỘC DUY NHẤT, thời gian không
+# bao giờ một mình là lý do hỏi) làm mâu thuẫn tự giải: cổng CHỈ CÓ MỘT lý
+# do để hỏi — thiếu số tiền — nên chỉ cần MỘT mẫu câu, hỏi ĐÚNG MỘT thứ.
+# Mã giao dịch/thời gian để đường LLM hỏi tiếp theo R1 ở lượt sau nếu cần.
+#
+# Đánh đổi CÓ CHỦ, không phải sơ ý: hỏi một thứ có thể tốn thêm một lượt so
+# với gộp ba — chấp nhận, vì R1 đến từ nghiệp vụ chuyên gia thật.
 HOI_THIEU_SO_TIEN = "Dạ bạn cho mình xin thêm số tiền giao dịch giúp mình nhé."
 
 # Băm của CHÍNH FILE NÀY, tính lúc import. KHÔNG gõ tay.

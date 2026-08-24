@@ -40,11 +40,9 @@ from src.agents.phan_luong import (
     DUONG_DAY_DU,
     DUONG_NHE,
     DUONG_THU_SLOT,
-    HOI_THIEU_CA_HAI,
     HOI_THIEU_SO_TIEN,
     TEN_TIN_HIEU_1B,
     TRA_LOI_NHE,
-    boc_slot,
     phan_luong,
 )
 from src.agents.prompt import bam_mau_prompt, build_system_prompt
@@ -859,8 +857,10 @@ def run_agent_turn(
             _tid_hieu_qua = thread_id or user_id
             if doc_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua) == 0:
                 tang_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua)
-                _slot = boc_slot(message)
-                _reply_slot = HOI_THIEU_CA_HAI if not _slot["thoi_gian"] else HOI_THIEU_SO_TIEN
+                # R1 (1A) chốt 24/08: cổng CHỈ hỏi ĐÚNG MỘT thứ — số tiền là
+                # slot bắt buộc duy nhất (xem chú thích HOI_THIEU_SO_TIEN),
+                # nên không còn cần boc_slot(message) ở đây để chọn mẫu.
+                _reply_slot = HOI_THIEU_SO_TIEN
                 _logger.info(
                     "agent_turn_duong_thu_slot",
                     extra={"user_id": user_id, "thread_id": _tid_hieu_qua,
