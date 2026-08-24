@@ -78,8 +78,36 @@
 token/hội thoại (trung vị, deepseek, n=11):  18.597  [ĐO 20/08]
 dự báo sau 1B:                               12.000–14.000  (giảm 25–35%)
 ```
-Đo lại sau khi 1B chạy. **Không giảm ⟹ cổng không hoạt động như thiết kế — báo nguyên trạng,
-không giữ, không chọn lần đo đẹp.**
+
+### 🔴 NIÊM 24/08 — SỐ NỀN 18.597 KHÔNG TÁI TẠO ĐƯỢC. Lỗi của PO-agent.
+
+[ĐO 24/08] `usage.jsonl` trên ngăn đo `fin05do` chỉ có **17/08 (13 dòng)** và **24/08 (29 dòng)** —
+**không có dòng nào ngày 20/08**. Con số `18.597` xuất hiện **đúng một chỗ trong toàn repo: chính
+dòng trên**, do tôi viết. Không file đo, không định nghĩa "một hội thoại" là gì, không lệnh tái tạo.
+
+**Đây là vi phạm Luật X do chính tôi gây ra** — *kết quả đo phải rơi vào một file trước khi đi vào
+một câu* — và tôi đã để nó thành **neo của một dự báo công bố**. So số mới với nó rồi tuyên bố
+"giảm 30%" là so với một thứ không kiểm chứng được.
+
+**KHÔNG xoá dòng trên** (Luật P: niêm tại chỗ, đừng để người sau đi truy lại). Nhưng **không dùng
+nó làm căn cứ kết luận.**
+
+### Phép đo 1B.5 THAY THẾ — niêm TRƯỚC khi thấy số
+
+Bỏ so-sánh-lịch-sử, đo **hiệu ứng trực tiếp của cổng**, tái tạo được bằng một lệnh:
+
+```
+① tỉ lệ chặn   = số lượt duong=thu_slot ÷ tổng lượt   (đọc usage.jsonl)
+② token/lượt thu_slot  = 0            (khẳng định, phải verify chứ không giả định)
+③ token/lượt day_du    = trung vị thật của các lượt day_du CÙNG ĐỢT ĐO
+④ tiết kiệm    = ① × ③                 ← con số công bố được
+```
+
+Ưu điểm: **cùng một ngăn, cùng một đợt, cùng một model** — không phụ thuộc bất kỳ số lịch sử nào.
+Nếu ① = 0 (cổng không bắn lần nào trên dữ liệu thật) thì kết luận là **"cổng chưa chứng minh được
+giá trị trên lưu lượng thật"**, không phải "không đo được".
+
+🔴 **Niêm phương pháp TRƯỚC khi thấy dữ liệu — để không chọn cách tính cho ra số đẹp.**
 
 ---
 
