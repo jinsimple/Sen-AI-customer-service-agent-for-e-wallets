@@ -31,7 +31,10 @@ lượt hỏi thứ hai" thay vì ép một kết luận.
 """
 from __future__ import annotations
 
+import datetime as dt
+import inspect
 import json
+import pathlib
 import re
 import subprocess
 import uuid
@@ -47,11 +50,17 @@ API = "http://localhost:8010"
 
 # Nhóm ý nghĩa dùng chung cho R1 (đếm) và R3 (so trục) — khớp THEO NHÓM, không
 # khớp một cụm từ cố định (đúng ranh giới cổng presence).
+# 🔴 [ĐO 24/08, Review] Bộ dò từng ĐẾM THIẾU (không bắt "thời điểm gần đây"
+# vì chỉ khớp "thời điểm nào") — nguy hiểm hơn đếm thừa, vì nó tạo XANH GIẢ
+# có hệ thống trên MỌI ca (không riêng ca đang xét). Mở rộng biến thể tự
+# nhiên, không chỉ dạng câu hỏi chuẩn "X nào"/"khi nào".
 _TRUC = {
-    "so_tien": ("số tiền", "bao nhiêu tiền", "số dư", "giá trị giao dịch"),
+    "so_tien": ("số tiền", "bao nhiêu tiền", "số dư", "giá trị giao dịch",
+                "mất bao nhiêu", "trừ bao nhiêu", "bị mất bao nhiêu"),
     "thoi_gian": ("khi nào", "lúc nào", "ngày nào", "giờ nào", "hôm nào", "thời gian nào",
-                  "thời điểm nào", "thời gian giao dịch", "khoảng thời gian"),
-    "nguoi_nhan": ("chuyển cho ai", "người nhận", "tên người", "tài khoản nhận"),
+                  "thời điểm nào", "thời gian giao dịch", "khoảng thời gian",
+                  "thời điểm", "bao giờ", "ngày giờ"),
+    "nguoi_nhan": ("chuyển cho ai", "người nhận", "tên người", "tài khoản nhận", "ai nhận", "cho ai"),
     "ma_gd": ("mã giao dịch", "mã gd", "mã tham chiếu", "txn"),
 }
 _HUONG_DAN_TIM_MA = ("lịch sử", "bấm vào", "vào mục", "vào phần", "chọn giao dịch")
@@ -66,10 +75,23 @@ _MOC_NEO_TG = ("hôm nay", "hôm qua", "hôm trước", "sáng", "chiều", "t�
 # bộ dò PHẢI đọc được cả hai phong cách.
 _MAU_YEU_CAU = ("cho mình xin", "cho em xin", "cho mình biết", "cho biết", "vui lòng cho")
 
+# 🔴 [ĐO 24/08, Review duyệt] Ví dụ minh hoạ KHÔNG PHẢI yêu cầu — "Bạn thấy
+# tiền bị mất trong trường hợp nào vậy? Ví dụ như: Bạn chuyển..." chỉ hỏi
+# MỘT trục (loại khiếu nại), phần sau "Ví dụ như" là gợi ý cách trả lời, không
+# phải trục thứ hai. Cắt bỏ phần này TRƯỚC khi so khớp — rẻ, không cần NLP.
+# ⚠️ KHÔNG được áp để làm R1 xanh: vi phạm R1 nằm ở GẠCH ĐẦU DÒNG (câu hỏi
+# thật, không phải ví dụ) — sau khi cắt, R1 vẫn phải đỏ. Nếu áp xong R1 hoá
+# xanh, luật này cài sai.
+_MOC_VI_DU = re.compile(r"\b(ví dụ như|ví dụ|vd[:.]|chẳng hạn)\b", re.IGNORECASE)
+
 
 def _truc_hoi(reply: str) -> set[str]:
     """Trục nào được HỎI/ĐỀ NGHỊ CUNG CẤP — nhận cả câu hỏi (`?`) lẫn câu yêu
-    cầu tất định (`cho mình xin...`, không dấu `?`)."""
+    cầu tất định (`cho mình xin...`, không dấu `?`). Cắt bỏ phần SAU mốc ví
+    dụ minh hoạ trước khi so khớp."""
+    khop_vi_du = _MOC_VI_DU.search(reply)
+    if khop_vi_du:
+        reply = reply[: khop_vi_du.start()]
     n = reply.lower()
     la_cau_hoi_hoac_yeu_cau = "?" in reply or any(m in n for m in _MAU_YEU_CAU)
     if not la_cau_hoi_hoac_yeu_cau:
@@ -133,6 +155,25 @@ def _login() -> str:
     return r.stdout.strip().splitlines()[-1]
 
 
+# 🔴 [ĐO 24/08, Review] Chấm lại một ca đỏ = gọi lại model = có thể đọc một
+# văn bản KHÁC (LLM không xác định, đúng ca R3 vừa gặp). Không có kho reply
+# thật thì mỗi lần sửa bộ dò là một lần tốn tiền để biết bộ dò đúng hay sai.
+# Ghi MỌI lượt (không chỉ lúc fail) ra JSONL — 0 token thêm (chỉ I/O trên dữ
+# liệu đã có sẵn trong bộ nhớ), cho phép CHẤM LẠI toàn bộ bằng bộ dò mới sau
+# này mà không gọi model thêm lần nào.
+_LOG_REPLY = pathlib.Path(__file__).resolve().parent.parent / "eval" / "results" / "1a_reply_log.jsonl"
+
+
+def _ghi_log_reply(cau: str, reply: dict) -> None:
+    ten_ca = inspect.stack()[2].function  # 2 tầng lên: _chat() -> hàm test gọi nó
+    _LOG_REPLY.parent.mkdir(parents=True, exist_ok=True)
+    with open(_LOG_REPLY, "a", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "ts": dt.datetime.now(dt.UTC).isoformat(),
+            "ca": ten_ca, "cau": cau, "reply": reply["reply"], "tool": reply["tool"],
+        }, ensure_ascii=False) + "\n")
+
+
 def _chat(cau: str, token: str, thread: str) -> dict:
     # `thread_id` vẫn gửi trong body — vô hại, nhưng nối lượt thật = dùng LẠI
     # cùng `token` (xem `_login()`), không phải cùng biến `thread` truyền tay.
@@ -147,8 +188,10 @@ def _chat(cau: str, token: str, thread: str) -> dict:
                        capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, f"gọi chat hỏng: {(r.stderr or r.stdout)[-400:]}"
     j = json.loads(r.stdout.strip().splitlines()[-1])
-    return {"tra": j, "reply": j["than"].get("reply") or "",
-            "tool": [x.get("tool_name") for x in (j["than"].get("tool_calls") or [])]}
+    ket_qua = {"tra": j, "reply": j["than"].get("reply") or "",
+               "tool": [x.get("tool_name") for x in (j["than"].get("tool_calls") or [])]}
+    _ghi_log_reply(cau, ket_qua)
+    return ket_qua
 
 
 def _thread() -> str:
