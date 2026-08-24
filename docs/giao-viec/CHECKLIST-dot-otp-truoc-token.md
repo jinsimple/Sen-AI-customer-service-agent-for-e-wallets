@@ -22,10 +22,43 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#11** — 06:35, 25/08 |
-| **HEAD** | `69fcd44` · băm luật `4e7ed24b60c0` |
-| 🔴 **N1 KHÔNG ĐẠT** | đo trên corpus GỐC: **15 → 13**, đóng đúng **2** |
-| ✅ **Nhưng đợt sinh ra một CỔNG THẬT** | `eval/do_n1_corpus_goc.py` — PO tự chạy, tái lập |
+| **Lần điểm danh cuối** | **#12** — 06:50, 25/08 |
+| **HEAD** | `9b22849` · băm luật `4e7ed24b60c0` |
+| 🔇 **13 phút không ai ghi** | PO đã hỏi bốn vai |
+| ✅ **Cổng N1 nay PASS/FAIL thật** | không còn `return 0` vô điều kiện |
+
+**Vật chứng #12**
+
+| vai | dấu vết |
+|---|---|
+| QA/QC | ✅ `9b22849` — **tự bắt lỗi gán sai của chính mình** + cổng hoá N1 theo danh sách |
+| Coder · Lead · Review | 🔇 im từ 06:37 — hết việc mở, không phải đứng |
+
+**QA/QC tự sửa một đính chính họ gán nhầm cho người khác** *(nguyên văn commit)*:
+
+> *"Bản đầu ghi nhầm «giữ nguyên quyết định của Coder: không cổng hoá». **Sai** — Coder
+> chỉ nói «đừng ghim số đếm 13», và tự nhận xét ghim danh sách rồi diff LÀ một cổng
+> pass/fail hợp lệ. **QA/QC tự diễn rộng rồi gán nhầm cho Coder.**"*
+
+🟢 Đây là lớp lỗi khó thấy nhất trong đội nhiều vai: **diễn rộng lời người khác rồi ghi
+tên họ vào quyết định họ không đưa.** Không cổng nào bắt được. Chỉ người tự đọc lại
+mình mới bắt được — và họ tự bắt.
+
+**Cổng N1 nay có cả hai vế** *(PO tự chạy vế IM, `exit 0`)*:
+
+```
+eval/n1_bao_oan_da_biet.json   ghim 13 câu đã biết, hash-gate, kèm tệp nguồn
+câu bắn thu_slot KHÔNG có trong danh sách  → REGRESSION MỚI, exit 1
+câu trong danh sách hết bắn                → in ra để cập nhật TAY, không tự xoá
+mẫu số ≠ 409 hoặc danh sách trôi           → exit 2
+```
+
+⚠️ **PO khai hạng bằng chứng cho vế KÊU:** QA/QC tự khai đã chạy phép thử đột biến *(xoá
+một phần tử → bắt đúng, exit 1 → khôi phục ngay)*. PO **KHÔNG tự kiểm được** — cổng không
+nhận `--luat`, nên dựng ca phá đòi sửa tệp trong **vùng ghi của QA/QC**. PO không lấn.
+⟹ Vế KÊU hiện là **"nghe báo, có kèm mô tả cách làm"**, chưa phải *"PO đã tự kiểm"*.
+**Đề xuất:** thêm `--luat` cho cổng, để bất kỳ vai nào cũng dựng được ca phá mà không
+phải chạm vùng ghi của vai khác.
 
 **Vật chứng #11**
 
