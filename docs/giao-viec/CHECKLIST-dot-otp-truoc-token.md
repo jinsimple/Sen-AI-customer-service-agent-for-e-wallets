@@ -22,9 +22,52 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#9** — 06:02, 25/08 |
-| **HEAD** | `4754981` · băm luật `dc9c5e3216c5` |
-| ⏸️ **Khoảng lặng 4h40** | 01:20 → 06:02 · phiên PO ngủ, không phải đội đứng |
+| **Lần điểm danh cuối** | **#10** — 06:21, 25/08 |
+| **HEAD** | `3e9a9ee` · băm luật `4e7ed24b60c0` |
+| 🟢 **CỔNG ② NAY 7/7 XANH** | AM-03 đóng — ca đỏ cuối cùng của Đ1 |
+
+**Vật chứng #10**
+
+| vai | dấu vết |
+|---|---|
+| Coder | ✅ ⑨+FS-13 `c88d431` 06:11 · **AM-03 + ①xưng hô + ②thứ tự xoá `3e9a9ee` 06:20** |
+| QA/QC | ✅ ca đối chứng hợp nhất `e206614` · ⑥ soạn xong `7349948` — hết việc mở |
+| Review | ✅ soát ⑨/FS-13 · xác nhận **hợp nhất, không ghi đè** · 3 phát hiện mới |
+| Lead | điều phối |
+
+**PO kiểm ② độc lập — xanh vì ĐÚNG LÝ DO, không vì bộ ca dễ:**
+
+```
+7/7 khớp kỳ vọng · ca dương DOT2-DUONG-01 giữ
+ca PHÁ từng giết bản vá 7/7 giả (không có chữ "mà") — nay ĐÚNG:
+  "cho mình xin số điện thoại của người tôi chuyển nhầm"   → day_du ✅
+  "cho mình xin tên người tôi chuyển nhầm tiền"             → day_du ✅
+```
+
+🔴 **PO TÌM MỘT CA CHỐT MỚI BẮT OAN — và nó không phải ca hiếm**
+
+```
+🔴 "tôi chuyển nhầm số điện thoại người nhận"              → day_du
+🔴 "tôi gõ nhầm số điện thoại người nhận rồi"              → day_du
+🔴 "tôi nhập sai số tài khoản người nhận"                  → day_du
+🔴 "tôi chuyển nhầm vì gõ sai tên người nhận"              → day_du
+🔴 "tôi chuyển nhầm 2 số cuối số điện thoại người nhận"    → day_du
+✅ "tôi chuyển nhầm người rồi"  (không nhắc trường PII)     → thu_slot
+```
+
+**KHUÔN:** *"chuyển/gõ/nhập **nhầm/sai** + ‹trường PII› + người nhận"* — khách **KỂ mình
+sai ở đâu**, chốt đọc thành khách **ĐÒI dữ liệu người khác**.
+
+🔴 **Đây đúng cách kể chuẩn của kịch bản chuyên gia** *(chị Hằng gõ nhầm hai số cuối
+SĐT)*. Khác mọi giới hạn đã khai trước: những cái kia là **ca góc**; cái này nằm trên
+**đường chính của đúng use case đợt này phục vụ**.
+
+**Vẫn KHÔNG vá** — vá đòi phân biệt *động từ sai sót* với *động từ yêu cầu*, mà cả hai
+đều là **tập MỞ**. Đúng hình dạng Review đã bác và PO đã tự thất bại một lần sáng nay.
+
+⚠️ **Nhưng hệ quả phải khai:** lệch về `day_du` ⟹ **đúng về hành vi, sai về chi phí**.
+Khách vẫn được phục vụ đúng, chỉ tốn token. ⟹ **Ước tính tiết kiệm của đợt phải đo lại
+sau ⑥**, vì đường chính rơi vào `day_du` nhiều hơn dự tính.
 
 **Vật chứng #9**
 
