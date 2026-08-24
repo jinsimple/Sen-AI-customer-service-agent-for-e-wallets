@@ -142,6 +142,81 @@ _HOI_MA_HOAC_THOI_GIAN = (
     "sáng/chiều/tối) giúp mình nhé."
 )
 
+# ── ⑧ · K3 — HAI CÂU CHỐNG MẠO DANH CSKH ────────────────────────────────────
+# Phiếu "OTP trước token" ⑧. Hằng số, 0 token, KHÔNG giao model diễn đạt —
+# cùng lệ ADR-048 ("một dòng TẤT ĐỊNH chèn sau khi tool trả về; không đặt cược
+# an toàn vào việc model nghe lời").
+#
+# 🔴 K3 đo được: dự án ép rất chặt việc bot KHÔNG hỏi OTP giao dịch, nhưng
+# chưa chỗ nào bắt bot NÓI CHO KHÁCH BIẾT nó sẽ không bao giờ hỏi. Khách vừa
+# bị lừa một lần rồi thì lần thứ hai kẻ giả CSKH gọi tới, thứ duy nhất bảo vệ
+# họ là việc họ ĐÃ ĐƯỢC NGHE câu này từ CSKH thật.
+#
+# ⚠️ ĐỔI XƯNG HÔ so với nguyên văn phiếu — khai để không ai tưởng chép sót:
+# phiếu viết "chị" vì trích thẳng kịch bản chuyên gia (khách trong kịch bản là
+# nữ). Hằng số này bắn cho MỌI khách, và hệ thống KHÔNG biết giới tính khách
+# (`customer_name` cố ý không đưa lên LLM, PII-OK ở dưới). Dùng "bạn"/"mình"
+# — đúng xưng hô mọi hằng số khác của module này đã dùng. Nội dung, thứ tự vế
+# và điểm gắn giữ nguyên 100% theo phiếu.
+#
+# 🔴 CHÈN SAU `loc_dau_ra()`, CÓ CHỦ ĐÍCH — không phải tiện tay.
+#
+# [ĐO 24/08] chạy `loc_dau_ra()` thẳng trên CẢ HAI hằng số: **cả hai QUA
+# ĐƯỢC**, không nhóm O nào khớp. Nói cách khác, hôm nay dời điểm chèn lên
+# trước bộ lọc KHÔNG gây hỏng — tôi đã viết ngược điều này ở bản nháp, phép
+# đo bác lại, giữ lại số đo thay vì lập luận.
+#
+# Vẫn chèn SAU, vì lý do khác và bền hơn:
+#   ① Hai câu này là văn bản của TA, đã soát, KHÔNG chứa chữ số nào — cho bộ
+#     lọc kiểm chúng là tốn công kiểm thứ đã biết đúng.
+#   ② Biên an toàn MỎNG theo hướng có thật: câu thứ hai chứa "sẽ" (đã nằm
+#     trong `_O4_DONG_TU`) đứng cùng mệnh đề với "lấy lại tiền". Nó chưa khớp
+#     CHỈ vì `_O4_TIEN` hiện không có cụm "lấy lại tiền" (có "nhận lại tiền").
+#     Thêm đúng một cụm vào `_O4_TIEN` — việc O4 hoàn toàn có thể làm sau này
+#     — là bản vá an toàn tự xoá chính nó, IM LẶNG, không cổng nào đỏ.
+# ⟹ Chèn sau bộ lọc làm ② không thể xảy ra, thay vì canh chừng nó mãi.
+CANH_BAO_OTP_PHIEN = (
+    "Mình nói rõ để bạn yên tâm: đây là mã xác thực phiên hỗ trợ, không phải "
+    "mã OTP giao dịch — mình không bao giờ hỏi mã OTP giao dịch hay mật khẩu "
+    "ví của bạn."
+)
+CANH_BAO_KHONG_AI_GOI_DIEN = (
+    "Một lưu ý để bạn giữ an toàn: sẽ không có ai từ ví gọi điện yêu cầu bạn "
+    "chuyển tiền, cung cấp mật khẩu hay mã OTP để lấy lại tiền."
+)
+
+# Neo nhận diện "câu này đã có sẵn trong lời model" — tránh nói hai lần. Chọn
+# cụm ĐỦ DÀI và ĐẶC HIỆU (đúng bài học "sao"/"mất" của 1B): "OTP" trần khớp cả
+# câu model đang giải thích chuyện khác.
+_NEO_DA_CO_CANH_BAO = (
+    "không bao giờ hỏi mã otp giao dịch",
+    "không có ai từ ví gọi điện",
+)
+
+
+def _them_canh_bao_mao_danh(reply: str, *, co_loi_otp: bool, ticket_id: str | None) -> str:
+    """Chèn câu chống mạo danh vào CUỐI `reply` — hàm THUẦN, dễ kiểm.
+
+    `co_loi_otp`: lượt này có tool nào bị cổng OTP chặn không (khách đang ở
+    đúng thời điểm được yêu cầu xác thực — điểm gắn "lượt 1" của phiếu).
+    `ticket_id`: có mã hồ sơ để báo không (điểm gắn "lượt 8").
+
+    KHÔNG chèn nếu model đã tự nói ý đó — nói hai lần làm câu cảnh báo trông
+    như văn bản máy dán vào, và khách sẽ học cách bỏ qua nó.
+    """
+    if not isinstance(reply, str):
+        return reply
+    thap = reply.lower()
+    them: list[str] = []
+    if co_loi_otp and _NEO_DA_CO_CANH_BAO[0] not in thap:
+        them.append(CANH_BAO_OTP_PHIEN)
+    if ticket_id is not None and _NEO_DA_CO_CANH_BAO[1] not in thap:
+        them.append(CANH_BAO_KHONG_AI_GOI_DIEN)
+    if not them:
+        return reply
+    return (reply.rstrip() + "\n\n" + "\n\n".join(them)).strip()
+
+
 # Kích thước lược đồ tool ĐO ĐƯỢC ở lần dựng gần nhất — thay hằng số gõ tay.
 _CHARS_TOOL_SCHEMA_THAT = _CHARS_TOOL_SCHEMA
 
@@ -1482,6 +1557,7 @@ def run_agent_turn(
     tool_calls_out: list[dict] = []
     ticket_id = None
     should_escalate = None
+    co_loi_otp_trong_luot = False
 
     for m in turn_messages:
         if not (isinstance(m, AIMessage) and m.tool_calls):
@@ -1498,6 +1574,17 @@ def run_agent_turn(
             if call["name"] == "create_ticket" and "ticket_id" in payload:
                 ticket_id = payload["ticket_id"]
                 should_escalate = payload.get("should_escalate")
+            # ⑧ · điểm gắn "lượt 1" — lượt này có tool nào bị CỔNG OTP chặn
+            # không. Đọc GIÁ TRỊ TRẢ VỀ, không bắt exception: hai lỗi OTP
+            # `return` một dict, KHÔNG raise (customer_tools.py:596-613) —
+            # cùng cái bẫy `_CHI_THI_DUNG_LAP` đã ghi lại ở đó.
+            # Khớp theo `loai` TRƯỚC (có cấu trúc, GĐ2.5 dựng riêng để client
+            # khỏi phụ thuộc câu chữ), rồi mới tới neo tiếng Việt cho nhánh
+            # `_OTP_REQUIRED_ERROR` — nhánh CỐ Ý không có `loai` (xem chú
+            # thích tại chỗ), nên neo chuỗi là đường DUY NHẤT còn lại.
+            if isinstance(payload, dict) and payload.get("status") == "error":
+                if payload.get("loai") == "otp_het_tuoi" or "xác thực" in str(payload.get("message", "")):
+                    co_loi_otp_trong_luot = True
 
     if ticket_id is not None:
         write_investigation_logs_for_ticket(session, ticket_id=ticket_id, all_messages=all_messages)
@@ -1679,6 +1766,11 @@ def run_agent_turn(
     # production. Trả qua ENVELOPE (không chỉ ghi Redis) vì cùng lý do ba trường
     # chẩn đoán bên dưới: eval gọi thẳng graph, Redis là fakeredis per-process,
     # nên bộ đếm vô hình với người đo nếu chỉ ghi Redis.
+    # ⑧ · K3 — chèn SAU bộ lọc. Xem chú thích tại `_them_canh_bao_mao_danh`
+    # về lý do KHÔNG được dời lên trước.
+    reply_da_loc = _them_canh_bao_mao_danh(
+        reply_da_loc, co_loi_otp=co_loi_otp_trong_luot, ticket_id=ticket_id
+    )
     tin_hieu_lo_chi_thi_ket_qua = tin_hieu_lo_chi_thi(reply, thread_id=thread_id or user_id)
     _kq_cuoi = {
         "reply": reply_da_loc,
