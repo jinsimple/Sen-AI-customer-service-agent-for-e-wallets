@@ -128,9 +128,14 @@ class RedisConcurrencyLimiter:
 
     Áp cùng khuôn slowapi đã tự chọn cho mình: một `threading.Lock` + dict
     trong RAM (`_fallback_slots`, token -> deadline), CÙNG `max_concurrent`/
-    `ttl_seconds` đã khai — khi Redis sống lại, `acquire()` tự quay về ZSET,
-    không cần dọn gì (`_fallback_slots` không rò rỉ vì slot tự hết hạn qua TTL
-    giống hệt cơ chế Redis).
+    `ttl_seconds` đã khai — khi Redis sống lại, `acquire()` tự quay về ZSET.
+
+    ⚠️ Review đo được (24/08): dọn rác CHỈ xảy ra ở ĐẦU mỗi lần `_fallback_
+    acquire()` kế tiếp — THỤ ĐỘNG, không có bộ quét nền theo đồng hồ. Câu
+    đúng: TTL đảm bảo rác không SỐNG QUÁ LÂU khi bị dọn, KHÔNG đảm bảo dọn
+    NGAY lúc hết hạn. `len(_fallback_slots)` có thể tạm giữ token đã hết hạn
+    cho tới lượt `acquire()` kế — không tích luỹ qua nhiều cửa sổ và không phá
+    trần (Review chứng minh), nhưng KHÔNG PHẢI "tự hết hạn giống hệt Redis".
 
     🔴 ĐÁNH ĐỔI PHẢI NÓI RÕ, không để trôi: bộ đếm này là PER-PROCESS (khác
     ZSET Redis — dùng CHUNG cho mọi worker). Server chạy N worker
@@ -154,7 +159,7 @@ class RedisConcurrencyLimiter:
         now = time.time()
         with self._fallback_lock:
             for tok in [t for t, deadline in self._fallback_slots.items() if deadline <= now]:
-                del self._fallback_slots[tok]  # dọn slot quá hạn, cùng ý nghĩa TTL bên Redis
+                del self._fallback_slots[tok]  # dọn THỤ ĐỘNG — chỉ chạy khi có acquire() kế tiếp gọi tới đây
             if len(self._fallback_slots) >= self._max:
                 return None
             token = _TIEN_TO_FALLBACK + secrets.token_hex(8)
