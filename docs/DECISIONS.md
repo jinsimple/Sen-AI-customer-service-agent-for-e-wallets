@@ -2875,5 +2875,28 @@ hiệu. Kích hoạt khi khách kể có người **hướng dẫn / yêu cầu 
 **Ràng buộc giữ nguyên (ràng buộc cứng 5):** gắn cờ FS-13 ≠ khoá ví. Hai hành động độc lập.
 FS-13 **không** cho AI escalate — nó là tín hiệu ở tầng service, đúng ràng buộc cứng 2.
 
+**🔧 ĐÍNH CHÍNH 24/08 (Lead, [ĐO]):** bản đầu ADR này (và brief PO-agent gửi Lead) ghi *"đặt ở
+`fraud_policy.py`"* — **sai, gộp hai tầng làm một**. Đúng ra: **nhận diện** thuộc
+`fraud_engine.py` + `fraud_signals.yaml` (tái dùng đường ống `utterance_text` mà FS-09 đã có);
+`fraud_policy.py` chỉ **quyết escalate** từ danh sách tín hiệu đã tính xong.
+
+**Quan hệ với FS-09 — KHÔNG trùng lặp, chủ ý chồng nhau:** FS-09 (`fraud_engine.py:143-165`) là
+lưới **HẸP** bắt **TỪ KHOÁ** của 5 kịch bản lừa đảo đã biết (giả công an, việc nhẹ lương cao, đầu
+tư ảo, chiếm tài khoản, giả CSKH). FS-13 là lưới **RỘNG** bắt **CẤU TRÚC**: bên-thứ-ba + kênh xa
+lạ. Hai tín hiệu cùng bật trên nhiều ca là **đúng thiết kế**, không phải trùng cần dọn.
+
+**Ranh giới bắt oan (Lead chốt nguyên tắc, không liệt kê từ khoá):** đòi **ĐỒNG THỜI** ① bên thứ
+ba là nguồn chỉ dẫn **VÀ** ② kênh xa lạ (điện thoại/tin nhắn/MXH/người lạ).
+*"Chồng tôi bảo chuyển"* trượt ② ⟹ không bật. *"Shop hướng dẫn chuyển khoản"* trượt ② ⟹ không bật.
+
+**Cờ bật thì hành vi đổi thế nào — GIỮ lệ ADR-022:** model **không bao giờ** thấy mã tín hiệu
+(`create_ticket` chỉ trả `should_escalate`/`escalation_target`). Cảnh báo *"đừng trấn an"* phải là
+**một dòng TẤT ĐỊNH** chèn sau khi `create_ticket` trả về — **không** giao model tự diễn đạt dưới
+một chỉ thị prompt. Không đặt cược an toàn vào việc model nghe lời.
+
+**🟡 CÒN CHỜ PO THẬT — một câu:** FS-13 có **escalate** (đổi priority/target như FS-06, hiện là
+tín hiệu DUY NHẤT làm việc đó) hay **chỉ ghi nhận**? Đây là quyết định đổi **tải hàng chờ
+supervisor thật**, không phải kỹ thuật.
+
 **Đụng contract ⟹ phải đi đủ §3** trước khi code: sửa contract → ADR (file này) → PO duyệt (xong)
 → `check_contracts.py --update` → cập nhật `CONTRACT_VERSION` → mới code.
