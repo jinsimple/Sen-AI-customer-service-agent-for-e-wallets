@@ -319,3 +319,61 @@ Coder. Nếu chỉ lập luận rồi giao, Coder đã mất một vòng cho m�
 Ba giới hạn **khai, không vá**. Cả ba lệch về `day_du` — chiều an toàn: LLM vẫn xử lý,
 không rò gì, chỉ tốn thêm token cho một khiếu nại thật. Cùng họ với
 `"nếu vậy thì tôi bị trừ tiền oan à"` mà Coder đã chủ động không vá.
+
+---
+
+## ✅ REVIEW `3e9a9ee` — và HAI lần thử vá THẤT BẠI có ghi lại (25/08, 06:30)
+
+### Trần chống-vòng-lặp: có thật, nhưng KHÔNG phải trần ai cũng tưởng
+
+PO dặn Coder kiểm *"merge hỏng liên tục thì có vòng lặp hỏi mãi không"*. Review lần tới
+`thread_signals.py` và tìm ra trần thật — **không phải** thứ PO/Coder hình dung:
+
+```
+TTL_GIAY = 2 * 3600                    (thread_signals.py:44)
+client.expire(khoa, TTL_GIAY)          đặt lại MỖI LẦN `tang_tin_hieu()`  (dòng 64)
+```
+
+Retry chỉ **ĐỌC**, không `tang` ⟹ **TTL không được làm mới bởi các lần thử merge**.
+Khoá hết hạn ⟹ `doc_hoac_khong_ro()` trả `0` *(không phải `None`)* ⟹ điều kiện retry
+`not in (None, 0)` **tự tắt**.
+
+⟹ Trần thật là **tối đa 2 giờ kể từ lúc hỏi**, không phụ thuộc số lượt khách chat tiếp.
+
+🔴 **Đây là thuộc tính KẾ THỪA từ primitive dùng chung** *(thiết kế cho ES-01, không cố ý
+cho ca này)*. Nó đúng — nhưng nó đúng **do may**, và không ai đọc `graph.py` mà thấy được.
+**Review đề nghị một dòng chú thích tại chỗ gọi** — PO duyệt: một bảo đảm không nêu được
+nó khai ở đâu thì theo **Luật R** nó chưa phải bảo đảm, nó là thói quen của môi trường.
+
+### Ca thứ tư của PO: Review thử vá HAI hướng, cả hai hỏng
+
+PO tìm khuôn *"chuyển/gõ/nhập **nhầm/sai** + ‹trường PII› + người nhận"* bị chốt bắt oan,
+và giao Review tìm đường vá **không phải epicycle**. Review thử thật, không phán đoán:
+
+| cửa sổ | kết quả |
+|---|---|
+| **HẸP** *(12 ký tự trước trường PII)* | sửa 3/4 · **vỡ** ở `"…chuyển nhầm 2 số cuối số điện thoại người nhận"` — `"nhầm"` và trường PII cách nhau bởi `"2 số cuối"`, ngoài cửa sổ |
+| **RỘNG** *(`"nhầm"` bất kỳ đâu TRƯỚC trường PII)* | sửa 4/4 · **vỡ** ở ca Review tự dựng: `"Tôi chuyển nhầm tiền hôm qua rồi, giờ cho tôi xin số điện thoại của người nhận đi"` |
+
+🔴 **Ca vỡ của cửa sổ RỘNG là ca nguy hiểm nhất có thể vỡ:** câu ấy **CÓ đòi PII thật**
+(vế sau *"cho tôi xin"*), nhưng `"nhầm"` xuất hiện sớm hơn ở mệnh đề tự sự đầu câu ⟹ bản
+vá đọc thành *"đã tự sự, bỏ qua"* và **để lọt chính request thật**.
+
+⟹ **Cùng một nguyên nhân gốc với ca `"nếu vậy thì"`: PHẠM VI MỆNH ĐỀ.** Khác vị trí,
+cùng bài toán. Đây là lần thứ **ba** trong một buổi cùng một gốc lộ ra ở ba chỗ khác nhau.
+
+**KẾT: không có đường vá rẻ** — và đây là kết luận từ **hai lần thử thất bại có ghi lại**,
+không phải từ *"tôi nghĩ là không có"*.
+
+### Review sửa cách PO xếp hạng — và Review đúng
+
+PO viết ca này *"nằm trên đường chính"*, hàm ý nặng hơn các giới hạn khác. Review giữ vế
+ấy **đúng** nhưng thêm vế PO thiếu:
+
+> [ĐO] `thu_slot` **luôn** trả đúng một hằng số nội dung rỗng (`HOI_THIEU_SO_TIEN`), bất
+> kể câu khách viết gì. Khách bị gạt oan chỉ nhận một câu lạc đề, rồi *(nếu vẫn không có
+> số tiền)* rơi xuống `day_du` ở lượt sau. **Không có đường nào từ đây tới rò dữ liệu.**
+
+⟹ Nó **LÀ** ca đường chính *(PO đúng khi phân biệt với ca góc)* — nhưng vẫn đứng ở hạng
+**"tốn thêm một lượt / token"**, **không đổi hạng an toàn**. Hai vế đều phải nói cùng lúc,
+nếu không người đọc sẽ lấy một vế.
