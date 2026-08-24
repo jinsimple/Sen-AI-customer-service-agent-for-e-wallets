@@ -56,7 +56,16 @@
 
 ### Xếp hàng SAU khi 1A đóng (đội tự làm, không chặn ai)
 
-- [ ] **`pre-commit` cảnh báo commit chạm file NGOÀI vùng ghi của vai** (DevOps).
+- [~] 🟡 **`pre-commit` cảnh báo vùng ghi** — thiết kế duyệt, đang code (DevOps).
+      **Chốt 24/08: khai vai `devops` vào §4 `CLAUDE.md`** (172/200 dòng, không phải bớt gì) —
+      vai làm việc từ 20/08 nhưng vùng ghi chỉ có trong brief rời, không trong hiến pháp; hook
+      parse §4 làm nguồn sự thật DUY NHẤT nên sẽ không biết xếp file hạ tầng vào vai nào.
+      Vùng ghi theo **dấu vết git**, không hỏi ai: 8 commit gần nhất trên `docker-compose.do.yml`
+      đều `fix(devops)`.
+      **Thiết kế: KHÔNG đoán vai** — lớp 1 cảnh báo commit ĐA VÙNG, lớp 2 luôn in vùng của mọi
+      file staged để mắt người bắt. DevOps tự khai trần năng lực: ca một-vùng-sai-vai chỉ lớp 2
+      bắt được, và chỉ khi người ta đọc.
+- [ ] ~~(mục cũ)~~ **`pre-commit` cảnh báo commit chạm file NGOÀI vùng ghi của vai** (DevOps).
       🔴 Lỗi cuốn-WIP-của-người-khác đã xảy ra **HAI lần trong một tuần** trên cây dùng chung:
       PO-agent 15/08 (`git add -A`, 107 dòng của Coder), Tester 24/08 (tự phát hiện + tự sửa sạch).
       Luật pathspec đã phê chuẩn 15/08 mà vẫn tái diễn ⟹ **thiếu CƠ CHẾ, không thiếu luật**.
@@ -71,7 +80,16 @@
 - [ ] **ADR-046** (PO duyệt 24/08) — `build_background_complaints()`, `eligible_status` đang là
       set một phần tử.
 
-- [ ] **O5 / mở rộng O4** — từ vựng "tạo hồ sơ/vé/ticket" cho lớp hoàn-tất-giả
+- [~] 🟡 **O5 — PHẠM VI THU HẸP MẠNH sau hai vòng đo, chờ Coder land filter.**
+      [ĐO] với mã **12-hex thật** (`new_id()`), **O3 đã phủ 2/2 ca có nêu mã**. Vòng đo đầu ra
+      1/2 chỉ vì fixture dùng mã 5–6 ký tự, **dưới ngưỡng 7** của `_TOKEN_MA` — kết luận đầu
+      đo một thế giới không tồn tại.
+      ⟹ O5 chỉ còn cần cho **3 ca cùng một nguyên nhân: O3 không có gì để so** (không tool
+      result · không nêu mã · không nêu mã sau khi chính sách bắt buộc).
+      **Luật rút gọn:** *từ vựng hoàn tất* **VÀ** *không có token mã ≥7 ký tự* — bỏ hẳn phần
+      đối chiếu giá trị vì O3 đã lo.
+      Ca: `72f2789` — 8 passed · 3 xfail(strict) · 0 skip. Docstring bắt nêu mã: `6d0e3a9`.
+- [x] ✅ ~~(mục cũ)~~ **O5 / mở rộng O4** — từ vựng "tạo hồ sơ/vé/ticket" cho lớp hoàn-tất-giả
       (finding Bảo mật `5f627e3`: "đã tạo hồ sơ cho bạn rồi" lọt sạch O3+O4 vì không số,
       không từ tiền). **Tester viết ca đối chứng TRƯỚC, hai chiều** — bắt bịa-đã-tạo VÀ
       không-chặn-nhầm câu báo-đã-tạo-thật. Khuôn ADV-041 đã có, khác miền từ vựng.
