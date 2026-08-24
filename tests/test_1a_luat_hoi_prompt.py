@@ -203,17 +203,36 @@ def _thread() -> str:
 
 
 # ---------------------------------------------------------------------------
-# R1 — một câu hỏi một lượt, khi thiếu ≥2 slot
+# R1 — một Ý một lượt, khi thiếu ≥2 slot
 # ---------------------------------------------------------------------------
+# 🔴 ĐỔI NGHĨA 25/08 (đợt "OTP trước token", phiếu §2b — quyết QA/QC, "vùng
+# của bạn" theo Coder/Lead): R1 KHÔNG có nghĩa "một YÊU CẦU mỗi tin" như bản
+# đầu hàm này giả định (tên cũ `test_r1_thieu_hai_slot_chi_hoi_mot_thu`, đổi
+# tên tại đây) — chuyên gia CSKH xác nhận R1 thật là "một Ý mỗi tin", và
+# thời gian+số tiền là MỘT cặp neo tìm kiếm, khách trả lời trong cùng một
+# hơi thở (kịch bản chuyên gia, lượt 2). ADR/Q2 (24/08) CHỦ Ý cho cổng sau
+# OTP hỏi CẢ HAI trong một tin. Bản đầu của assertion này encode đúng cách
+# đọc SAI ("một YÊU CẦU") — sửa lại đây, KHÔNG xoá lịch sử: đây chính là
+# nguyên nhân Đ1 (đợt này) đo được cổng bắn oan 6/11 lần vì tách hỏi cô lập.
+#
+# Vẫn PHẢI giữ khả năng bắt "hỏi quá nhiều Ý cùng lúc" — cặp {so_tien,
+# thoi_gian} là NGOẠI LỆ DUY NHẤT được phép đi cùng nhau; bất kỳ trục thứ ba
+# nào (vd `ma_gd`, `nguoi_nhan`) xuất hiện CÙNG câu vẫn là vi phạm R1 thật.
 
-def test_r1_thieu_hai_slot_chi_hoi_mot_thu():
-    """Khách không cho số tiền lẫn thời gian — reply chỉ được hỏi ĐÚNG MỘT trục."""
+_CAP_DUOC_PHEP_HOI_CHUNG = frozenset({"so_tien", "thoi_gian"})
+
+
+def test_r1_thieu_hai_slot_hoi_gop_thoi_gian_va_so_tien():
+    """Khách không cho số tiền lẫn thời gian — reply được hỏi CẢ HAI trong
+    MỘT tin (đúng "một Ý"), nhưng KHÔNG được kéo thêm trục thứ ba (mã GD,
+    người nhận...) vào cùng lượt — đó mới là vi phạm R1 thật."""
     o = _chat("Tôi bị mất tiền trong ví, giúp tôi với.", _login(), _thread())
     truc = _truc_hoi(o["reply"])
-    assert len(truc) <= 1, (
-        f"Thiếu số tiền VÀ thời gian mà reply hỏi {len(truc)} trục CÙNG LƯỢT: {truc}\n"
+    assert truc.issubset(_CAP_DUOC_PHEP_HOI_CHUNG), (
+        f"Reply hỏi trục NGOÀI cặp được phép {sorted(_CAP_DUOC_PHEP_HOI_CHUNG)}: {truc}\n"
         f"  reply: {o['reply'][:300]}\n"
-        "R1 đòi mỗi lượt chỉ mở một nhánh quyết định."
+        "R1 đòi mỗi lượt chỉ mở MỘT Ý — thời gian+số tiền là một cặp neo được "
+        "phép đi cùng nhau (Q2, phiếu §2b), trục khác thì không."
     )
 
 

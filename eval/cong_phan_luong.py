@@ -366,6 +366,20 @@ def main() -> int:
     # `HOI_THIEU_SO_TIEN`, 1 trục). Giữ ĐC-7 làm HỒI QUY, không phải ca chờ
     # vá — nếu ai thêm hằng số `HOI_*` mới hỏi nhiều hơn 1 trục, ĐC-7 bắt lại.
     #
+    # 🔴 ĐỔI MỆNH ĐỀ 25/08 (đợt "OTP trước token", phiếu §2b — quyết QA/QC,
+    # "vùng của bạn" theo Coder khi báo ⑤ sắp land). "R1 = một YÊU CẦU mỗi
+    # tin" ở đoạn trên là cách đọc SAI mà chính Đ1 (đợt này) đo được hậu quả:
+    # cổng hỏi-số-tiền đứng CÔ LẬP với hỏi-thời-gian, bắn oan 6/11 lần. R1
+    # thật là "một Ý mỗi tin", và Q2 (24/08) CHỦ Ý cho ⑤ hỏi thời gian+số tiền
+    # TRONG MỘT TIN — đây KHÔNG còn là vi phạm, là hành vi ĐÚNG ĐẶC TẢ. Mù
+    # trục này thì ĐC-7 sẽ đỏ SAI LÝ DO ngay khi ⑤ land đúng.
+    # Đồng bộ CÙNG NGUYÊN TẮC với `tests/test_1a_luat_hoi_prompt.py::
+    # test_r1_thieu_hai_slot_hoi_gop_thoi_gian_va_so_tien` (đổi tên+mệnh đề
+    # cùng ngày, cùng lý do — hai bộ đo KHÔNG được lệch nhau lần thứ hai).
+    # Vẫn PHẢI giữ khả năng bắt trục thứ BA (`ma_gd`, hoặc bất kỳ trục nào
+    # ngoài cặp) — đó mới là vi phạm R1 thật, không được nới rộng quá cặp đã
+    # được PO/chuyên gia CHO PHÉP.
+    #
     # Đây là ĐC ÁP LÊN ĐẦU RA (nội dung reply), khác ĐC-1..6 (áp lên ĐẦU VÀO/
     # đường đi) — cùng tinh thần ĐC-6 (code tự nhất quán với đặc tả của chính
     # nó), lần này cho phần THU SLOT SINH RA CÂU GÌ, không phải ĐI ĐƯỜNG NÀO.
@@ -376,11 +390,17 @@ def main() -> int:
     # test_1a_luat_hoi_prompt.py::_truc_hoi()` — chép tối giản qua đây vì
     # eval/ không import ngược được từ tests/ (cùng lý do `tests/_dong_bang.py`
     # đã ghi).
+    # 🔴 GIỚI HẠN ĐÃ KHAI: chỉ quét tên bắt đầu đúng `HOI_` — hằng số đặt tên
+    # với tiền tố `_` (private-style) SẼ MÙ HOÀN TOÀN với ĐC-7, không đỏ,
+    # không cảnh báo, im lặng. Đã báo Coder giữ tiền tố `HOI_` công khai cho
+    # hằng số mới của ⑤/⑨ để ĐC-7 còn nhìn thấy — nếu đổi quy ước đặt tên,
+    # ĐC-7 phải cập nhật theo, đây KHÔNG phải cổng tự phát hiện quy ước đổi.
     _TRUC_RA = {
         "so_tien": ("số tiền", "bao nhiêu tiền", "số dư"),
         "thoi_gian": ("thời gian giao dịch", "khoảng thời gian", "hôm nay, hôm qua"),
         "ma_gd": ("mã giao dịch", "mã gd"),
     }
+    _CAP_DUOC_PHEP_HOI_CHUNG = frozenset({"so_tien", "thoi_gian"})
     hang_so_hoi = {
         n: v for n in dir(luat)
         if n.startswith("HOI_") and isinstance((v := getattr(luat, n)), str) and len(v) > 10
@@ -389,11 +409,13 @@ def main() -> int:
     for ten, mau in hang_so_hoi.items():
         ml = mau.lower()
         truc_hoi = {truc for truc, tk in _TRUC_RA.items() if any(t in ml for t in tk)}
-        if len(truc_hoi) > 1:
+        if len(truc_hoi) > 1 and truc_hoi != _CAP_DUOC_PHEP_HOI_CHUNG:
             vi_pham_dc7.append((ten, truc_hoi, mau))
     dc["ĐC-7"] = (
         not vi_pham_dc7,
-        f"mọi hằng số `HOI_*` ({len(hang_so_hoi)} cái: {sorted(hang_so_hoi)}) chỉ hỏi ĐÚNG MỘT trục/tin — khớp R1 (1A)"
+        f"mọi hằng số `HOI_*` ({len(hang_so_hoi)} cái: {sorted(hang_so_hoi)}) chỉ hỏi MỘT Ý/tin — "
+        f"cặp {sorted(_CAP_DUOC_PHEP_HOI_CHUNG)} được PHÉP đi cùng nhau (Q2, phiếu §2b 25/08), "
+        "trục khác thì không — khớp R1 thật (1A)"
         + ("".join(f"\n         🔴 {ten} hỏi {len(truc)} trục CÙNG LƯỢT {sorted(truc)}: {mau!r}"
                     for ten, truc, mau in vi_pham_dc7) if vi_pham_dc7 else "")
     )
