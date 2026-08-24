@@ -267,7 +267,12 @@ _THOI_GIAN = re.compile(
     #
     # "tuần trước": cụm 2 từ, không có nghĩa nào khác trong tiếng Việt ⟹ an
     # toàn. "2 tuần trước"/"mấy tuần trước" tự khớp vì CHỨA nguyên cụm này.
-    r"|tuần trước|tuan truoc"
+    # Lead duyệt 24/08 sau khi Coder trình số đo: ba cụm dưới cùng HỆT một
+    # hình dạng lỗi với "tuần trước" (đo được đều = False), cùng độ an toàn
+    # (cụm 2 từ, không nghĩa nào khác trong tiếng Việt). Thêm cùng đợt thay vì
+    # để đợt sau phát hiện lại từ đầu.
+    r"|tuần trước|tuan truoc|tuần rồi|tuan roi"
+    r"|tháng trước|thang truoc|tháng rồi|thang roi"
     # "<số> giờ|h + sáng/chiều/tối/trưa/đêm" — buổi trong ngày là BẮT BUỘC,
     # không nhận "3 giờ" trần: "3 giờ" một mình còn là KHOẢNG THỜI LƯỢNG
     # ("đợi 3 giờ đồng hồ"), không phải mốc. Đúng bài học "cụm đủ dài" mà
