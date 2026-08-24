@@ -36,6 +36,15 @@ nghĩ ra là một cổng đo ý kiến của tôi, không đo điều kiện d�
 
 Cổng dưới đây chạy phần định nghĩa được và **thoát mã 3** ở phần chưa có định
 nghĩa. Nó sẽ **không bao giờ báo ĐẠT** cho tới khi ĐC-1/3/4 được viết ra.
+
+## 🔴 Kết quả chỉ đủ tư cách báo cáo/tick khi `--luat` là bản ĐÃ COMMIT
+
+Chạy trên file đang sửa dở (`git status` dirty) là hợp lệ để tự dò lúc dev,
+nhưng con số đó KHÔNG có vật ổn định đứng sau — bản WIP có thể đổi trước khi
+commit. Cổng tự phát hiện và cảnh báo (không chặn) khi file dirty — xem
+`_dang_dirty()`. Báo cáo/tick chỉ dùng kết quả chạy trên bản sạch, và PHẢI kèm
+mã commit của `--luat` tại thời điểm chạy (`git rev-parse HEAD -- <file>` hoặc
+tương đương) để người đọc sau tra lại được đúng vật đã đo.
 """
 from __future__ import annotations
 
@@ -45,6 +54,7 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import subprocess
 import sys
 
 GOC = pathlib.Path(__file__).resolve().parent.parent
@@ -53,6 +63,30 @@ BAM = "sha256[:12] của nội dung tệp (bytes), hoặc của json.dumps(obj, 
 
 def _bam_tep(p: pathlib.Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()[:12]
+
+
+def _dang_dirty(p: pathlib.Path) -> bool:
+    """`git status --porcelain -- <p>` khác rỗng ⟹ file có sửa CHƯA COMMIT.
+
+    24/08 — vấp thật: chạy cổng trên `phan_luong.py` đang là WIP (chưa commit)
+    của Coder, ra 10/10 đẹp bất ngờ — con số đó không có vật nào đứng sau, vì
+    bản WIP có thể đổi trước khi commit. Cảnh báo, KHÔNG chặn: chạy thử trên
+    WIP là hợp lệ (chính người viết code cần thế lúc dev), chỉ là kết quả phải
+    tự khai thân phận để không ai tick/báo cáo nhầm một trạng thái trung gian.
+    """
+    try:
+        # cwd = GỐC repo, đường dẫn TUYỆT ĐỐI — cwd=thư mục của file + đường
+        # dẫn TƯƠNG ĐỐI sẽ bị git nối lệch (vd `src/agents/` + `src/agents/x.py`
+        # → tìm nhầm `src/agents/src/agents/x.py`, không khớp gì, LUÔN "sạch").
+        # Tự bắt được bug này bằng cách chạy thử trên chính file đang biết là
+        # dirty (`git status --short` báo `M`) trước khi tin hàm này.
+        r = subprocess.run(
+            ["git", "status", "--porcelain", "--", str(p.resolve())],
+            capture_output=True, text=True, cwd=GOC, timeout=10,
+        )
+    except Exception:  # noqa: BLE001 — cảnh báo là phụ, không được làm cổng chết vì git lỗi
+        return False
+    return bool(r.stdout.strip())
 
 
 def _bam_nhan(d: dict) -> str:
@@ -135,6 +169,9 @@ def main() -> int:
     if not p_luat.exists():
         print(f"🔴 không thấy luật: {p_luat}")
         return 2
+    if _dang_dirty(p_luat):
+        print(f"  ⚠️  ĐANG ĐO BẢN CHƯA CHỐT — {p_luat} có sửa đổi CHƯA COMMIT.")
+        print("      Kết quả KHÔNG dùng để tick/báo cáo — chỉ hợp lệ để tự dò lúc dev.")
     print(f"  LUẬT   {p_luat.name} · {p_luat.stat().st_size} byte")
     print(f"         sha256[:12] = {_bam_tep(p_luat)}   md5[:12] = "
           f"{hashlib.md5(p_luat.read_bytes()).hexdigest()[:12]}")
