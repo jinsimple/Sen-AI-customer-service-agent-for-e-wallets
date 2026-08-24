@@ -1,12 +1,13 @@
 """O5 — bắt hoàn-tất-giả miền tạo hồ sơ/vé (`create_ticket`), mirror O4 (refund).
 
 Nguồn: `docs/security/2026-08-24-dac-ta-o5-tu-vung-hoan-tat-gia-tao-ve.md`
-(security viết, PO-agent giao 24/08, nối tiếp finding `5f627e3`). **CHƯA CÓ
-CODE trong `src/` lúc file này được viết** — đúng yêu cầu "viết ca đối
-chứng TRƯỚC, chưa cần chạy". Mọi test SKIP với lý do "chưa có trong cây làm
-việc — chưa đo được" cho tới khi Coder land O5 vào `output_filter.py`
-(giả định mirror `loc_dau_ra()` đã dùng cho O1-O4 — CHƯA xác nhận, xem
-`_loc_dau_ra()` bên dưới).
+(security viết, PO-agent giao 24/08, nối tiếp finding `5f627e3`).
+
+🟢 **[24/08, O5 landed — `a95f8f0` + `d9885ca`]** File này được viết TRƯỚC khi
+O5 có code ("viết ca đối chứng trước, chưa cần chạy") — mọi SKIP "chưa có
+trong cây làm việc" từ giai đoạn đó đã đóng. `_CA_CHIEU_BAT` không còn
+xfail: đo lại xác nhận cả 3 ca đều bị chặn thật (XPASS trước khi gỡ nhãn) —
+từ đây là CỔNG HỒI QUY THẬT.
 
 Hai chiều, KHÔNG chiều nào được bỏ (spec §3) — khác hẳn nhau về độ khó:
   · **chiều bắt-bịa**: reply hoàn-tất-giả (nguồn KHÔNG có `create_ticket`
@@ -154,16 +155,9 @@ _CA_CHIEU_KHONG_CHAN = [
 ]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="O5 chưa land — đo LẠI 24/08 (03fd9a6, mã thật 12-hex): loc_dau_ra() tồn tại (O1-O4) "
-           "nhưng KHÔNG bắt hoàn-tất-giả khi reply KHÔNG nêu mã nào (O3 chỉ so được khi CÓ giá trị "
-           "để đối chiếu — 2 ca có nêu mã sai/siêu-chuỗi đã bị O3 chặn, tách ra "
-           "test_o5_da_bi_chan_boi_o3_khong_phai_o5, không còn trong nhóm này). KHÔNG dùng "
-           "security_finding vì đây là spec CHƯA xếp hạng P0/chưa có consensus, không phải finding "
-           "đã ranked chờ vá (xem rationale ở tests/test_agents/test_f31_f32_duong_agent_that.py). "
-           "strict=True: XPASS khi Coder land O5 sẽ tự đỏ ngược, buộc gỡ nhãn này.",
-)
+# 🟢 [24/08, O5 landed a95f8f0 + d9885ca] Đã gỡ xfail(strict=True) — đo lại
+# xác nhận CẢ 3 ca dưới đây giờ bị chặn thật (XPASS trước khi gỡ). Từ đây
+# nhóm này là CỔNG HỒI QUY THẬT, không còn là bằng chứng-chờ-vá.
 @pytest.mark.parametrize("cid,reply,nguon,ghi_chu", _CA_CHIEU_BAT, ids=[c[0] for c in _CA_CHIEU_BAT])
 def test_o5_phai_chan(cid, reply, nguon, ghi_chu):
     """Chiều bắt-bịa (spec §3) — MỌI ca ở đây PHẢI bị bộ lọc xoá/thay."""
