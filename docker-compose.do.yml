@@ -58,13 +58,12 @@ services:
     # (không `--build`), Compose so digest thấy `latest` đã đổi có thể tự ý
     # recreate ngăn DEMO ngoài ý muốn. Ghim TAG RIÊNG cho từng lượt dựng đo —
     # đổi dòng dưới mỗi khi dựng lại, không bao giờ dùng `fin05-backend` trơn.
-    image: fin05-backend:do-7bd87d5   # HEAD lúc dựng: 7bd87d5 (Review: ADR-047 hứa sai năng lực
-                                       # "bổ sung vào vé", trần vượt CÓ CHỦ Ý +21 token, PO-agent
-                                       # đã duyệt). Chuỗi đủ: 350fd2f→1b80bf4→1080762→2b197d0/
-                                       # 9dbbe4b→5f3a1ef→bf3b2c6 (contract agent-tools.yaml v2.1.1)
-                                       # →7bd87d5. 🔴 Trình tự MỚI: dựng xong ping THẲNG Tester,
-                                       # không qua PO-agent (Review soát song song, chặn trực tiếp
-                                       # nếu bắt lỗi) — đổi sau sự cố chuỗi đứt 1h45' lượt trước.
+    image: fin05-backend:do-394c7d5   # HEAD lúc dựng: 394c7d5 (cd5c057 + không chạm src/contracts
+                                       # sau đó). Ảnh cho 1B.4 — lượt đo CUỐI đợt: cổng thu_slot xoá
+                                       # mẫu câu hỏi-ba-thứ, giờ hỏi ĐÚNG MỘT thứ (số tiền), khớp R1.
+                                       # Contract lên v2.1.2. Chạy trên FLASH (deepseek-v4-flash-0731
+                                       # — cửa sổ ngoại lệ pro đã đóng ở 32e6a9e, ĐỪNG lẫn số 1B.4
+                                       # với 3 lượt A2 chạy trên pro).
     build: !reset null
     ports: !override []
     environment:
