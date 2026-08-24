@@ -165,12 +165,16 @@ _LOG_REPLY = pathlib.Path(__file__).resolve().parent.parent / "eval" / "results"
 
 
 def _ghi_log_reply(cau: str, reply: dict) -> None:
+    """Ghi TOÀN VĂN `reply["reply"]` — KHÔNG cắt. Thông điệp lỗi trong assertion
+    được phép cắt ngắn để đọc trên terminal (`[:200]`/`[:300]`...); kho lưu ở
+    đây là NGUỒN GỐC trước khi bất kỳ ai cắt gì — hai việc tách nhau, đừng gộp."""
     ten_ca = inspect.stack()[2].function  # 2 tầng lên: _chat() -> hàm test gọi nó
     _LOG_REPLY.parent.mkdir(parents=True, exist_ok=True)
     with open(_LOG_REPLY, "a", encoding="utf-8") as f:
         f.write(json.dumps({
             "ts": dt.datetime.now(dt.UTC).isoformat(),
             "ca": ten_ca, "cau": cau, "reply": reply["reply"], "tool": reply["tool"],
+            "chep_tay": False,  # True chỉ khi backfill thủ công từ hội thoại — xem README kho
         }, ensure_ascii=False) + "\n")
 
 
