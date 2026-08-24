@@ -1,5 +1,13 @@
 # ① Rà soát bảo mật ADR-047 (tiếp nhận trước, bổ sung sau) — 1 finding thật: không có trần số vé/phiên
 
+🔴 **NIÊM 24/08 — MỨC ƯU TIÊN TĂNG, dữ kiện mới.** Bug frontend "token cũ sống sau khi verify OTP"
+(`otp_verified_at` luôn null qua UI thật) nghĩa là toán ~300 vé/cửa sổ ở mục (b) dưới đây **trước
+đây chỉ khai thác được ở tầng API** (quần thể hẹp, cần hiểu API), **sau khi bản vá token land thì
+khai thác được qua UI thật** (mọi khách hàng, chỉ cần replay request từ devtools). Đề nghị nâng ưu
+tiên xử lý finding (b) lên NGANG bản vá token, không để tụt hàng đợi. Toàn văn lý lẽ:
+`2026-08-24-goc-bao-mat-bug-token-otp-va-tam-quan-trong-doi-cua-hai-finding.md`. Nội dung gốc dưới
+đây GIỮ NGUYÊN, đúng ở thời điểm viết (kết luận kỹ thuật không đổi, chỉ đổi MỨC ƯU TIÊN).
+
 > PO-agent giao 24/08, ưu tiên hơn ②. Ba câu hỏi cụ thể: (a) người không phải chủ ví có tạo vé rác
 > được không, (b) có trần số vé/phiên không — nếu không, đây là đường DoS rẻ, (c) `description_raw`
 > có thành đường nhét nội dung độc khi CSKH đọc không. Trả lời: **(a) không — vẫn cần OTP-fresh,

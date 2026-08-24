@@ -1,5 +1,15 @@
 # ① Soát an ninh luật hỏi mới (R1-R5 + finding-1 "tạo ngay") — 1 khe hở thật, cùng hình ADV-041, khác miền
 
+🔴 **NIÊM 24/08 — CA "HIẾM" TRONG FINDING GỐC THỰC RA LÀ CA THƯỜNG XUYÊN NHẤT.** Kịch bản §2 dưới
+đây mô tả "OTP hết hạn GIỮA hội thoại" như một ca biên. Dữ kiện mới: bug frontend khiến
+`otp_verified_at` **luôn null qua UI thật** (chưa từng tươi, không phải hết hạn giữa chừng) —
+nghĩa là **MỌI lượt `create_ticket` qua UI thật, từ trước tới nay, đều rơi đúng vào nhánh lỗi này**,
+không phải một ca hiếm. Đề nghị nâng ưu tiên Lớp 1 (đã giao Coder) + O5 (đang xếp hàng sau 1A/1B)
+lên TRƯỚC hoặc ĐI CÙNG bản vá token — nếu bản vá token land trước mà hai lớp phòng vệ này chưa
+xong, sẽ có cửa sổ nơi tạo vé lần đầu THẬT SỰ thành công qua UI đúng lúc phòng vệ hoàn-tất-giả chưa
+sẵn sàng. Toàn văn: `2026-08-24-goc-bao-mat-bug-token-otp-va-tam-quan-trong-doi-cua-hai-finding.md`.
+Nội dung gốc dưới đây GIỮ NGUYÊN — kết luận kỹ thuật không đổi, chỉ đổi MỨC ƯU TIÊN.
+
 > Việc PO-agent giao 24/08: có luật nào trong prompt mới đẩy agent VƯỢT/LÁCH rào xác thực không.
 > Trọng tâm nêu sẵn: luật "khách đồng ý ⟹ tạo vé NGAY" đứng cạnh cổng OTP step-up của
 > `create_ticket`. Kết luận: **cổng OTP không bị lách — nó vẫn tất định, agent không có đường vượt
