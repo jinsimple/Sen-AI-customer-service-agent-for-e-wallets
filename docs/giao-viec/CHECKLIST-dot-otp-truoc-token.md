@@ -432,15 +432,32 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
 giờ là cắt một mục tiêu đang chạy; (c) nền `NEN` hiện tại đã CHẾT (lệch 13,5%) — tối ưu
 trên nền sai là đúng thứ Luật F cấm.
 
-- [ ] **T1** Cập nhật `NEN` về số đo thật; `NGUONG_TOKEN` giữ hay sửa thì **lý do PHẢI nằm
+- [x] **T1** Cập nhật `NEN` về số đo thật; `NGUONG_TOKEN` giữ hay sửa thì **lý do PHẢI nằm
   TRONG cổng** (comment tại chỗ trong `tests/test_inv_ngan_sach_token.py`), không phải
   trong commit message — **QA/QC** thực hiện, **Coder cấp số đo thật**.
-- [ ] **T2** 🔴 **ĐIỀU KHOẢN MỚI, áp cho ⑨⑩⑪:** mỗi mục khi land phải BÁO DELTA TOKEN của
+  - **VẬT CHỨNG:** commit `91acc62`. `NEN` mới: `system=5.275 · tool=1.982 · tổng=7.257`
+    (96,1% trần 7.550). QA/QC tự đo độc lập, khớp tuyệt đối số Coder cấp. Nguyên nhân
+    phình truy được **ngoài phạm vi đợt này** (2 commit trước ⑦: `5e8deb6` +67 system ·
+    `6d0e3a9` +4 tool). **Quyết định ngưỡng (QA/QC): GIỮ NGUYÊN 7.550**, không tính lại
+    theo nền mới — lý do trong docstring file (trần chống trôi neo cố định; tính lại theo
+    nền mới là tự nới theo drift). Chạy thật: 2/3 pass, `test_bao_TRUOC_khi_cham_tran`
+    (cảnh báo 90%) **đỏ ĐÚNG lý do** (đã ở 96,1%), không phải bug.
+  - 🔴 **CHỈ CÒN 293 TOKEN (3,9%) DƯỚI TRẦN** — cảnh báo cho ⑨⑪ (còn lại của Nhóm C có khả
+    năng thêm chữ prompt). **[Lead 25/08] KHÔNG chèn việc cắt prompt trước ⑨/⑪** — đúng
+    tinh thần PO đã quyết (không tối ưu trên số chưa biết, Luật F). Thay vào đó: đã báo
+    Coder viết kiệm chữ ngay từ đầu khi soạn ⑨/⑪, và **T2 là cơ chế bắt** — nếu delta cộng
+    dồn chạm 293, đó là lúc quyết định thật (rút chữ hay nâng trần có lý do), với số thật
+    thay vì đoán trước.
+- [x] **T2** 🔴 **ĐIỀU KHOẢN MỚI, áp cho ⑨⑩⑪:** mỗi mục khi land phải BÁO DELTA TOKEN của
   prompt trong commit message. **Không có số ⟹ Lead không nhận mục đó là xong**, dù mã
   đã đúng — chi phí phải hiện ra ĐÚNG LÚC quyết định, không phải bị phát hiện sau bởi một
-  cổng không ai chạy.
+  cổng không ai chạy. *(Đã dispatch cho Coder — xem cảnh báo margin 293 token ở T1.)*
 - [ ] **T3** Ghi nợ "cắt prompt" thành mục riêng cho **đợt SAU** — đo lại sau khi Nhóm C
   (⑨⑩⑪) land xong, trên nền đã cập nhật ở T1.
+- **Việc phụ, ngoài vùng ai trong đợt này:** container `fin05do-backend-1` stale
+  (`BUILD_COMMIT` không khớp HEAD, không mount `src/` sống) — QA/QC phát hiện lúc chạy T1,
+  ghi trong docstring, không tự sửa (ngoài vùng `tests/`). Ghi nợ cho `devops`, không chặn
+  đợt này (không hạng mục nào đang dùng `fin05do`).
 
 ---
 
