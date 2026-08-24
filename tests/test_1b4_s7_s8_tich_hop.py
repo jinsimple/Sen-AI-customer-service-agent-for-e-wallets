@@ -126,11 +126,18 @@ def test_s7_toi_da_mot_lan_hoi_slot_moi_hoi_thoai():
 def test_s8_redis_loi_thi_ve_day_du_khong_hoi_lai():
     """Dừng Redis trên `fin05do` (CHỈ ngăn này) → gửi câu thiếu slot → kỳ vọng
     MỚI: rơi về `day_du` (KHÔNG hỏi lại tất định, không lỗi 5xx). Luôn khởi
-    động lại Redis ở `finally`, xác nhận healthy trước khi coi test xong."""
+    động lại Redis ở `finally`, xác nhận healthy trước khi coi test xong.
+
+    🔴 [ĐO 24/08] LẦN CHẠY ĐẦU: `_login()` GỌI SAU KHI Redis đã dừng ⟹ tự nó
+    hỏng (`/auth/login`/`/auth/otp/*` cũng cần Redis — refresh token/OTP
+    session lưu ở đó), che mất hoàn toàn thứ đang muốn đo. Sửa: đăng nhập +
+    OTP TRƯỚC khi dừng Redis, chỉ phần GỬI TIN mới chạy trong lúc Redis chết
+    — cô lập đúng BIẾN đang test (trạng thái 'đã hỏi slot chưa'), không lẫn
+    biến khác (đăng nhập có cần Redis không — câu hỏi KHÁC, không phải S8)."""
+    tok = _login()  # TRƯỚC khi dừng Redis — tránh nhầm "login cần Redis" với "S8"
     r = subprocess.run(["docker", "stop", REDIS_CT], capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, f"không dừng được {REDIS_CT}: {r.stderr}"
     try:
-        tok = _login()
         o = _chat("Tôi bị trừ tiền.", tok, _thread())
         d = _duong_gan_nhat()
         assert o["tra"]["http"] < 500, f"HTTP {o['tra']['http']} khi Redis chết — không được lỗi cứng: {o['reply'][:200]}"
