@@ -36,6 +36,12 @@
       không-chặn-nhầm câu báo-đã-tạo-thật. Khuôn ADV-041 đã có, khác miền từ vựng.
 - [ ] Sửa nhãn S9 trong `bo_ca_thu_slot_1b.json`: ghi "①" nhưng lý lẽ thuộc (ii) —
       lỗi nhãn nhẹ (Review), không đổi kỳ vọng ca.
+- [ ] **Disclaimer vào output harness eval** (kiểm kê Bảo mật `7e38a62`): ① `_ALWAYS_FRESH`
+      — OTP luôn tươi trên đường eval, trục "OTP thiếu/hết hạn" CHƯA TỪNG tồn tại trong
+      eval; ② harness gọi thẳng `run_agent_turn()` — JWT/rate-limit/audit KHÔNG nằm trên
+      đường đo. Hai dòng in đầu kết quả, không đổi logic.
+- [ ] **Ca eval "OTP hết hạn giữa hội thoại"** — trục chưa từng đo, ghép với ca đối chứng
+      O5 ở trên (cùng gốc finding `5f627e3`).
 
 ### Chờ PO thật (không thuộc 1A/1B)
 
