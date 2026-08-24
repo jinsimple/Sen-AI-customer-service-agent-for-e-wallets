@@ -241,6 +241,40 @@ def test_r3_lan_hoi_lai_thu_hai_doi_truc():
 
 
 # ---------------------------------------------------------------------------
+# R3-cầu — 24/08, PO-agent: từ khi 1B có đường `thu_slot` (tất định) + `day_du`
+# (LLM), R3 "không hỏi lại cùng trục" phải soi được CẢ hai bên cây cầu, không
+# chỉ hai lượt LLM liên tiếp như bản gốc. Cổng tất định hỏi X (0 token) rồi
+# khách TRẢ LỜI X — câu hỏi thật: LLM ở lượt sau có ĐỌC ĐƯỢC câu cổng đã hỏi
+# trong lịch sử hội thoại không, hay hỏi lại y hệt (với khách: "tôi vừa nói
+# rồi mà"). Chưa ai đo được trục này trước hôm nay vì trước đó chỉ có MỘT
+# đường (LLM), không có cầu nào để bắc.
+# ---------------------------------------------------------------------------
+
+def test_r3_cau_cong_hoi_gi_llm_khong_hoi_lai_cai_do():
+    """Cổng tất định hỏi số tiền (thu_slot) → khách cho số tiền → LLM lượt
+    sau KHÔNG được hỏi lại số tiền (đã có trong lịch sử hội thoại)."""
+    th = _thread()
+    tok = _login()
+    o1 = _chat("Tôi chuyển nhầm tiền cho người lạ.", tok, th)
+    truc1 = _truc_hoi(o1["reply"])
+    if "so_tien" not in truc1:
+        pytest.skip(
+            f"Lượt 1 không hỏi số tiền (trục thấy được: {truc1 or 'không trục nào'}) "
+            "— không đúng nhánh cần cho ca cầu này, không quan sát được."
+        )
+    o2 = _chat("Khoảng 500 nghìn.", tok, th)
+    truc2 = _truc_hoi(o2["reply"])
+    assert "so_tien" not in truc2, (
+        f"Cổng tất định VỪA hỏi số tiền, khách VỪA trả lời '500 nghìn' — "
+        f"mà lượt LLM sau vẫn hỏi lại số tiền:\n"
+        f"  lượt 1 (cổng): {o1['reply'][:200]}\n"
+        f"  lượt 2 (LLM):  {o2['reply'][:200]}\n"
+        "R3-cầu: câu cổng đã hỏi phải nằm trong lịch sử LLM đọc được — hỏi lại "
+        "là bắt khách lặp lại thứ vừa nói."
+    )
+
+
+# ---------------------------------------------------------------------------
 # R4 — tóm tắt đủ slot trước create_ticket (nâng A2, KHÔNG thay A2)
 # ---------------------------------------------------------------------------
 
