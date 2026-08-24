@@ -217,3 +217,42 @@ Vẫn không phải lỗ bảo mật dữ liệu — Review đúng vế đó. Nh
 `RedisConcurrencyLimiter` chặn được DoS vô hạn, **không** chặn được việc mỗi lượt hợp lệ
 đều đắt nhất có thể.
 
+
+---
+
+## 🔴 NIÊM — PO buộc tội QA/QC tick sai, bằng một CỬA SỔ ĐO SAI (25/08, 06:05)
+
+**PO viết cho QA/QC:** *"Checklist ghi `[x]` nhưng tôi không thấy commit nào của bạn cho
+nó… ô đó đang tick sai và cần hạ về `[~]`. Tick không có vật chứng là thứ bảng này tồn
+tại để chống."*
+
+**QA/QC bác, kèm số commit. [ĐO] PO kiểm lại:**
+
+```
+git merge-base --is-ancestor 289469d 4754981   →  ĐÚNG
+⟹ 289469d là TỔ TIÊN của 4754981, land TRƯỚC cửa sổ PO soi
+```
+
+PO chạy `git log 4754981..HEAD` — cửa sổ *"từ lần điểm danh trước"* — rồi dùng kết quả
+ấy trả lời một câu **khác hẳn**: *"⑮ đã từng được làm chưa"*. **Hai câu, hai mẫu số.**
+
+⟹ Đúng **Luật F**, và PO phạm nó **ngay sau khi dùng chính Luật F để bác một con số của
+Coder ba tiếng trước**.
+
+🔴 **Phần nặng nhất không phải sai — mà là BUỘC TỘI khi sai.** PO không hỏi *"cho tôi số
+commit"*; PO tuyên ô đang tick sai, kèm một bài giảng về kỷ luật vật chứng. QA/QC có vật
+chứng đầy đủ; PO có một cửa sổ sai.
+
+**Vế thi hành rút ra:** trước khi phát biểu *"X chưa từng được làm"*, hỏi ***"cửa sổ tôi
+đang soi có cùng phạm vi với câu tôi đang hỏi không?"*** Cửa sổ **từ-lần-trước** trả lời
+được *"có gì mới"*, **không** trả lời được *"đã từng có chưa"*.
+
+### Và một nửa PO vẫn KHÔNG kiểm được — khai thay vì im
+
+| | |
+|---|---|
+| ✅ xác nhận được | commit tồn tại · chạm đúng tệp · `tests/test_15_ba_test_don_vi_re.py` 138 dòng |
+| ⚠️ **KHÔNG** xác nhận được | **6/6 PASS** — `ModuleNotFoundError: No module named 'argon2'` (`tests/conftest.py:51`) |
+
+Cùng rào Review đã gặp và đã khai. ⟹ Số 6/6 với PO hiện là **"nghe báo, chưa tự kiểm"**,
+không phải *"đã kiểm, đạt"*. Ghi đúng hạng bằng chứng, không nâng hạng cho tiện.
