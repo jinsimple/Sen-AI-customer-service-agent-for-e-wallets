@@ -22,9 +22,10 @@
 
 - [x] **1B.1** ✅ duyệt kèm điều chỉnh: NHÓM B = (i) sở-hữu+động-từ ∨ (ii) mất-mát + số tiền ĐỨNG SAU ≤2 từ (MỘT CHIỀU — sửa lỗi số học ca S2b) · sổ ghi `duong=thu_slot`
 - [ ] **1B.2** Coder: thi hành theo thiết kế 1B.1
-- [ ] **1B.3** Tester: mở rộng cổng `cong_phan_luong` — ca dương + ca âm bắt-oan
-      (câu chính sách có chữ "chuyển tiền" KHÔNG được kích cổng)
-- [ ] **1B.4** Ca eval đường-cho-qua trên flash (~60–90K token)
+- [x] **1B.3** ✅ `80ee384` — 9/10 ca (S1–S6+S2b/S3b/S9) + vá arity 4-tuple cho `cham()`.
+      **S7/S8 khai trống có lý do**: `phan_luong` là hàm thuần, trạng thái sống ở tầng gọi
+      ⟹ chuyển sang 1B.4 đo ở tầng tích hợp (ngăn `fin05do`)
+- [ ] **1B.4** Ca eval đường-cho-qua trên flash (~60–90K) **+ S7 (một-lần-hỏi/thread) + S8 (Redis lỗi ⟹ fail-open)** — đo tầng tích hợp trên `fin05do`
 - [ ] **1B.5** Đo lại token/hội thoại, đối chiếu **dự báo đã công bố**
 
 ### Chờ PO thật (không thuộc 1A/1B)
