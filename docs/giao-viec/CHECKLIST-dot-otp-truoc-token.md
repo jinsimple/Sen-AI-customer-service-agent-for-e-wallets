@@ -144,7 +144,7 @@
 
 ## Nhóm B — Vá cổng định tuyến
 
-- [ ] **③** Siết ba từ — **Coder** · `src/agents/phan_luong.py`
+- [~] **③** Siết ba từ — **Coder** · `src/agents/phan_luong.py`
   - Gỡ `"nhầm"` + `"bị"` trần khỏi `_TIN_HIEU_KHIEU_NAI`; `"nhận"` → cụm đủ dài
   - 🔴 **CẤM thêm danh sách từ loại trừ** — danh sách loại trừ luôn thiếu một chữ
   - Land xong **khai băm luật mới**
@@ -152,6 +152,22 @@
   - ✅ **[Lead 25/08] KHÔNG còn chặn.** ② đã đỏ, xác nhận **hai nguồn độc lập**: QA/QC
     (`e2a3426`, 3/6 trục) + PO tự chạy lại (`47dbc8d`, tái lập đúng 3 ca, đúng tên). Coder
     được khởi động ③ bất cứ lúc nào — không cần chờ thêm tín hiệu nào nữa.
+  - **VẬT CHỨNG vòng 1:** commit `d310dc5`. Kết quả tự khai: **ĐÓNG 1/3, KHÔNG PHẢI 3/3.**
+    `DOT2-AM-04`(=ADV-038) ĐỎ→XANH. `DOT2-AM-01`(câu hỏi chính sách) và `DOT2-AM-03`
+    (=ADV-036) **VẪN ĐỎ** — phân biệt bằng VAI CÚ PHÁP (khung giả định "Nếu lỡ...", mệnh
+    đề quan hệ "người mà tôi..."), không nằm ở từ vựng kề nhau ⟹ không đóng được bằng
+    trục `_nhom_b` hiện tại mà không phá ca dương hoặc phạm luật cấm-danh-sách-loại-trừ.
+    Không hồi quy: 23/23 bộ thu_slot · 123/124 âm gốc · ĐC-1,3,4,5,6,7 xanh. Băm luật
+    `0153cbcaef55 → 8b7f28a692ec`.
+  - **QA/QC xác nhận độc lập** (`p-226-85`, ngoài checklist): chạy lại ② sau `d310dc5` →
+    **5/7 khớp kỳ vọng** (từ 4/7), cùng hai ca đỏ `AM-01`/`AM-03` — khớp đúng tự khai Coder.
+  - 🟡 **[Lead 25/08] QUYẾT ĐỊNH: ADV-036 + DOT2-AM-01 VẪN trong phạm vi ③, KHÔNG tách hạng
+    mục riêng.** Lý do: Đ1 gọi ADV-036 là *"hệ quả nặng nhất"*; N1 (nghiệm thu) đòi
+    `6/11 → 0/n`, không phải một phần. ③ ở lại `[~]` tới khi cả hai đóng.
+  - **Pointer cho vòng 2:** `eval/bo_ca_thu_slot_1b.json` khoá `🔴_LO_TO_HOP_24_08_sau` đã
+    tự ghi ĐÚNG họ lỗi này từ trước (ca S12-S16) — *"chính sách × có tôi/mình"*, NHÓM B(i)
+    chỉ khớp bề mặt sở hữu+động từ CÙNG CÂU, thiếu **điều kiện loại trừ khung hỏi/
+    interrogative** (điều kiện cấu trúc câu, không phải danh sách từ — không phạm luật cấm).
 
 - [ ] **④** Cổng OTP tất định cho NHÓM B — **Coder** · `src/agents/graph.py`
   - `otp_verified_at` đã có sẵn ở `run_agent_turn:798`, không cần thêm đường dẫn dữ liệu
