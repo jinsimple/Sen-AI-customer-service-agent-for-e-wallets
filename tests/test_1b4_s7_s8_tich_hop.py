@@ -8,14 +8,32 @@ thuần `phan_luong(cau)`, không có `thread_id`/Redis — đã tự khai khôn
 > S8 dừng/khởi động lại Redis — CHỈ trên `fin05do-redis-1` (ngăn ĐO riêng), KHÔNG BAO GIỜ
 > trên `fin05` (ngăn demo).
 
-## S8 — kỳ vọng ĐÃ ĐỔI, khai lại cho khỏi nhầm phiếu gốc
+## S8 — kỳ vọng đã đổi LẦN THỨ BA, ghi rõ để không lẫn với hai lần trước
 
-Phiếu gốc ghi "fail-open" (giữ nguyên hành vi hỏi). Coder đã đổi hướng theo
-finding Review: Redis không đọc được ⟹ **rơi về `day_du`** (KHÔNG hỏi lại, đi
-thẳng đường LLM đầy đủ) — coi trạng thái "đã hỏi" là KHÔNG XÁC ĐỊNH ⟹ AN TOÀN
-HƠN là đi LLM (tốn thêm token nhưng không risk hỏi vô hạn/sai) hơn là tự cho
-mình quyền hỏi lại vô căn cứ. Nếu cổng VẪN bắn `thu_slot` khi Redis chết ⟹
-finding thật, không phải test sai.
+```
+① kỳ vọng gốc (phiếu)   "fail-open, vẫn hỏi lại"          ← SAI, bỏ
+② sau finding Review    "rơi về day_du" (tầng phan_luong) ← ĐÚNG cho phan_luong,
+                                                              nhưng KHÔNG PHẢI thứ S8
+                                                              còn đo được — ② giả định
+                                                              request TỚI ĐƯỢC phan_luong
+③ [ĐO 24/08] THỰC TẾ    API CRASH — /agent/chat không trả response nào
+                        (redis.exceptions.ConnectionError không bắt, tại EVALSHA)
+④ kỳ vọng BÂY GIỜ       Coder vá 2 chỗ hở (Limiter thiếu in_memory_fallback +
+                        RedisSlidingWindowLimiter/RedisConcurrencyLimiter gọi Redis
+                        không try/except). Tầng ĐANG ĐO đổi từ "phan_luong chọn
+                        đường gì" sang "rate-limit có CHO QUA lượt khi không kiểm
+                        được không" — fail-open ở tầng NÀY nghĩa là HTTP < 500 +
+                        có reply thật, KHÔNG liên quan `duong=day_du` hay
+                        `thu_slot` (đó là khái niệm của phan_luong, tầng khác).
+```
+
+🔴 **Không chấm S8 bằng kỳ vọng ② nữa** — hai tầng, hai nghĩa, cùng một chữ
+"fail-open". Assertion `duong != thu_slot` đã GỠ khỏi ca dưới đây, có chủ đích.
+
+⚠️ Coder chỉ verify được ở TẦNG MOCK (không đụng `fin05do` — ngăn đo đang khoá
+cho tester). **Lượt chạy này là bằng chứng DUY NHẤT bản vá đứng được trong
+thực tế** — tái hiện ĐÚNG kịch bản từng crash: tắt Redis thật → gọi
+`/agent/chat` thật.
 """
 from __future__ import annotations
 
@@ -123,9 +141,11 @@ def test_s7_toi_da_mot_lan_hoi_slot_moi_hoi_thoai():
 # S8 — Redis lỗi ⟹ rơi về `day_du`, KHÔNG được bắn `thu_slot`
 # ---------------------------------------------------------------------------
 
-def test_s8_redis_loi_thi_ve_day_du_khong_hoi_lai():
+def test_s8_redis_loi_thi_van_tra_loi_khong_crash():
     """Dừng Redis trên `fin05do` (CHỈ ngăn này) → gửi câu thiếu slot → kỳ vọng
-    MỚI: rơi về `day_du` (KHÔNG hỏi lại tất định, không lỗi 5xx). Luôn khởi
+    ④ (bản vá `1a33239`): rate-limit/slot-state fail-open ở TẦNG HTTP — không
+    crash (HTTP < 500), có reply thật (không rỗng). KHÔNG chấm `duong` (đó là
+    khái niệm của `phan_luong`, tầng khác — xem docstring đầu file). Luôn khởi
     động lại Redis ở `finally`, xác nhận healthy trước khi coi test xong.
 
     🔴 [ĐO 24/08] LẦN CHẠY ĐẦU: `_login()` GỌI SAU KHI Redis đã dừng ⟹ tự nó
@@ -133,18 +153,23 @@ def test_s8_redis_loi_thi_ve_day_du_khong_hoi_lai():
     session lưu ở đó), che mất hoàn toàn thứ đang muốn đo. Sửa: đăng nhập +
     OTP TRƯỚC khi dừng Redis, chỉ phần GỬI TIN mới chạy trong lúc Redis chết
     — cô lập đúng BIẾN đang test (trạng thái 'đã hỏi slot chưa'), không lẫn
-    biến khác (đăng nhập có cần Redis không — câu hỏi KHÁC, không phải S8)."""
+    biến khác (đăng nhập có cần Redis không — câu hỏi KHÁC, không phải S8).
+
+    🔴 [ĐO 24/08, LẦN HAI] Với token hợp lệ có sẵn, `/agent/chat` CRASH hẳn
+    (không trả response nào — `redis.exceptions.ConnectionError` không bắt,
+    tại lời gọi EVALSHA). Coder vá bằng `1a33239`. Kỳ vọng ② cũ ("rơi về
+    day_du") giả định request TỚI ĐƯỢC `phan_luong` — sai giả định, vì crash
+    xảy ra ở tầng rate-limit, TRƯỚC khi tới `phan_luong`. Không còn chấm
+    `duong` nữa."""
     tok = _login()  # TRƯỚC khi dừng Redis — tránh nhầm "login cần Redis" với "S8"
     r = subprocess.run(["docker", "stop", REDIS_CT], capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, f"không dừng được {REDIS_CT}: {r.stderr}"
     try:
         o = _chat("Tôi bị trừ tiền.", tok, _thread())
-        d = _duong_gan_nhat()
         assert o["tra"]["http"] < 500, f"HTTP {o['tra']['http']} khi Redis chết — không được lỗi cứng: {o['reply'][:200]}"
-        assert d != "thu_slot", (
-            f"Redis chết mà cổng VẪN bắn thu_slot: duong={d!r}\n  reply: {o['reply'][:200]}\n"
-            "S8 (kỳ vọng MỚI): Redis không đọc được trạng thái 'đã hỏi chưa' ⟹ "
-            "phải rơi về day_du (an toàn hơn), không được tự cho mình quyền hỏi."
+        assert o["reply"].strip(), (
+            f"HTTP {o['tra']['http']} nhưng reply RỖNG khi Redis chết — không phải fail-open thật.\n"
+            f"  toàn bộ trả về: {o['tra']}"
         )
     finally:
         r2 = subprocess.run(["docker", "start", REDIS_CT], capture_output=True, text=True, timeout=30)
