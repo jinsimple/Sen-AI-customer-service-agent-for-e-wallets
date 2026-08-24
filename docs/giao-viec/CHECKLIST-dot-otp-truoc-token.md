@@ -376,6 +376,12 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - Lượt 3: đọc lại **đủ 5 dữ kiện** để khách tự đối chiếu
   - 🟢 Bot **được phép** hứa *"bộ phận nghiệp vụ chủ động liên hệ người nhận"* — PO xác nhận
     quy trình CÓ THẬT 24/08
+  - 🟡 **[PO 25/08] HOÃN sang đợt cắt prompt (T3) — KHÔNG xoá mục, chỉ đổi trạng thái.**
+    Lý do: margin token 293 chỉ đủ cho MỘT trong hai (⑨ hoặc ⑪). PO chọn ⑨: không có ⑨ thì
+    hệ thống không bao giờ phát hiện được ca lừa đảo, và ADR-050 (loại khiếu nại thứ năm)
+    thành một ô phân loại không ai điền được — ⑨ là **điều kiện tồn tại** của ADR-050. ⑪ là
+    chất lượng hội thoại, thật nhưng không phải điều kiện tồn tại. Đo lại + land ⑪ ở đợt
+    sau T3 (xem khối "Trần ngân sách token"), trên nền token đã ổn định.
 
 - [~] **⑬** Bộ ca đánh giá từ kịch bản chuyên gia — **QA/QC** · `eval/`
   - Nhánh A *(có người hướng dẫn)* · Nhánh B *(nhiều GD khớp, phải đổi trục)* · Nhánh C
@@ -454,6 +460,8 @@ trên nền sai là đúng thứ Luật F cấm.
   cổng không ai chạy. *(Đã dispatch cho Coder — xem cảnh báo margin 293 token ở T1.)*
 - [ ] **T3** Ghi nợ "cắt prompt" thành mục riêng cho **đợt SAU** — đo lại sau khi Nhóm C
   (⑨⑩⑪) land xong, trên nền đã cập nhật ở T1.
+  - **[PO 25/08] ⑪ chính thức thuộc đợt này** — không phải nợ mới, là hạng mục đã hoãn
+    (xem mục ⑪ phía trên).
 - **Việc phụ, ngoài vùng ai trong đợt này:** container `fin05do-backend-1` stale
   (`BUILD_COMMIT` không khớp HEAD, không mount `src/` sống) — QA/QC phát hiện lúc chạy T1,
   ghi trong docstring, không tự sửa (ngoài vùng `tests/`). Ghi nợ cho `devops`, không chặn
