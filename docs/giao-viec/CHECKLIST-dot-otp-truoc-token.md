@@ -534,9 +534,13 @@ trên nền sai là đúng thứ Luật F cấm.
 
 > Chi tiết đo trong `docs/STATE.md` (dòng "CI, từ 24/08"). Tóm tắt hành động:
 
-- [ ] **C1** QA/QC vá 17 lỗi ruff `eval/` — **4 file dễ, làm NGAY**: `benchmark.py` ·
+- [x] **C1** QA/QC vá 17 lỗi ruff `eval/` — **4 file dễ, làm NGAY**: `benchmark.py` ·
   `do_cong_presence.py` · `run_adversarial_set.py` · `run_golden_set.py` (đều F541,
   `--fix` xử được).
+  - **VẬT CHỨNG:** commit `94073cc`. `ruff check eval/{benchmark,do_cong_presence,
+    run_adversarial_set,run_golden_set}.py` sạch. 2/4 lỗi do chính QA/QC gây lúc làm
+    ① — Coder bắt ra, QA/QC tự nhận. `cong_phan_luong.py`/`do_cong_thu_tu.py` CHƯA đụng,
+    đúng C2.
 - [ ] **C2** 🔴 **`cong_phan_luong.py` + `do_cong_thu_tu.py` — CHỜ.** Đây là hai thước đo
   Coder đang DÙNG SỐNG để chấm ⑨/③ vòng 2. Đổi tên biến giữa lúc đo là "đổi vật giữa
   phép đo" — bài học đã trả giá nhiều lần trong đợt này. **QA/QC vá SAU khi Coder báo
