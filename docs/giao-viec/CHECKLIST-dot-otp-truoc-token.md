@@ -22,9 +22,28 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#8** — 00:52, 25/08 |
-| **HEAD lúc điểm danh** | `3f5f979` · băm luật `862fa1505626` |
-| **🔇 15 phút KHÔNG ai ghi tệp nào** | lần đầu trong đợt — PO đã hỏi ba vai |
+| **Lần điểm danh cuối** | **#9** — 06:02, 25/08 |
+| **HEAD** | `4754981` · băm luật `dc9c5e3216c5` |
+| ⏸️ **Khoảng lặng 4h40** | 01:20 → 06:02 · phiên PO ngủ, không phải đội đứng |
+
+**Vật chứng #9**
+
+| vai | dấu vết |
+|---|---|
+| Coder | 🔄 **ĐANG LÀM lúc đo** — `data/schema/fraud_signals.yaml` + `scripts/fraud_engine.py` sửa **06:01**, một phút trước phép đo. Đang thi hành **FS-13** |
+| Lead · QA/QC · Review | 🔇 không commit từ 01:20 — cả 4 phiên vẫn sống *(ListAgents)*, PO đã hỏi |
+
+**FS-13 đang được viết ĐÚNG quyết định PO thật** — trích nguyên văn việc dở:
+
+```yaml
+FS-13:
+  name: co_nguoi_huong_dan_chuyen_khoan
+  # 🔴 KHÔNG có tier. CỐ Ý — PO thật chốt 25/08: FS-13 CHỈ GHI NHẬN, không
+  # escalate. FS-06 là tín hiệu về TÀI KHOẢN BỊ CHIẾM; FS-13 là tín hiệu về
+  # PHÂN LOẠI KHIẾU NẠI. […] `policy.tier_a` / `policy.tier_b` GIỮ NGUYÊN.
+```
+
+⟹ Quyết định đi từ PO thật → PO-agent → Coder → **vào mã kèm lý do**, không rơi rớt.
 
 **Vật chứng #8**
 
