@@ -28,6 +28,15 @@
 - [ ] **1B.4** Ca eval đường-cho-qua trên flash (~60–90K) **+ S7 (một-lần-hỏi/thread) + S8 (Redis lỗi ⟹ fail-open)** — đo tầng tích hợp trên `fin05do`
 - [ ] **1B.5** Đo lại token/hội thoại, đối chiếu **dự báo đã công bố**
 
+### Xếp hàng SAU khi 1A đóng (đội tự làm, không chặn ai)
+
+- [ ] **O5 / mở rộng O4** — từ vựng "tạo hồ sơ/vé/ticket" cho lớp hoàn-tất-giả
+      (finding Bảo mật `5f627e3`: "đã tạo hồ sơ cho bạn rồi" lọt sạch O3+O4 vì không số,
+      không từ tiền). **Tester viết ca đối chứng TRƯỚC, hai chiều** — bắt bịa-đã-tạo VÀ
+      không-chặn-nhầm câu báo-đã-tạo-thật. Khuôn ADV-041 đã có, khác miền từ vựng.
+- [ ] Sửa nhãn S9 trong `bo_ca_thu_slot_1b.json`: ghi "①" nhưng lý lẽ thuộc (ii) —
+      lỗi nhãn nhẹ (Review), không đổi kỳ vọng ca.
+
 ### Chờ PO thật (không thuộc 1A/1B)
 
 - [ ] Đợt 2 — ADR-047 tín hiệu FS-13 "có người hướng dẫn chuyển khoản"
