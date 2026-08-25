@@ -1220,8 +1220,25 @@ Nếu "thì 1" là lời gọi tool bình thường ⟹ **~10.400 token mỗi l�
 khuôn ⑫b *(`model=None`, `so_luot_goi_model=0`)*. Đang chờ Review đánh, **chưa trình PO**.
 
 🔴 **SỰ CỐ: BACKEND BỊ OOM-KILLED GIỮA BUỔI ĐO TỐN TIỀN — gốc là PO treo quyết định gom ngăn xếp**
-QA/QC đối chiếu hai nguồn độc lập: **17 thread thật** *(checkpoint)* vs **~10 dòng sổ**
-*(`usage.jsonl`)* ⟹ **41% lượt không có bản ghi dù đã xảy ra thật và đã tốn tiền.**
+QA/QC đối chiếu hai nguồn độc lập: **17 thread thật** *(checkpoint)* vs **13 thread có dòng sổ**
+*(`usage.jsonl`)* ⟹ ~~41%~~ **lượt không có bản ghi dù đã xảy ra thật và đã tốn tiền.**
+
+🔴 **SỬA SỐ — ~~41%~~ → `4/17 = 24%`.** PO niêm 41% trước khi phân loại; đo lại **theo nội dung
+thật** của 7 thread thiếu:
+```
+4  CÓ AIMessage (agent đã trả lời, đã tốn tiền)  ⟹  🔴 MẤT THẬT      ← con số đi báo cáo
+2  blob rỗng / giải mã lỗi                        ⟹  CHƯA RÕ, báo riêng
+1  chỉ có câu khách, agent chưa từng chạy         ⟹  KHÔNG có dòng sổ MỚI LÀ ĐÚNG
+```
+⚠️ **Cổng `doi_soat_usage_log.py` bản đầu đếm THÔ ⟹ tự sinh báo động giả.** Cổng phải **phân
+loại**. Lý do không phải sự chính xác suông: **một cổng kêu 41% khi thật ra 24% sẽ bị người sau
+vặn nhỏ hoặc tắt** — và lúc ấy nó không canh gì nữa. Cổng hỏng vì kêu quá còn tệ hơn cổng không
+tồn tại, vì nó chiếm chỗ.
+
+⚠️ **"THƯỜNG TRỰC hay chỉ do OOM" — CHƯA PHÂN ĐỊNH ĐƯỢC, đừng ghi bên nào.** QA/QC đo `fin05do`
+*(ngăn ổn định 7 ngày)* ra 26% và nghi lỗ thường trực. [ĐO] **`fin05do` CŨNG `OOMKilled=true`** —
+**3/4 backend đều OOM, đều `Trần bộ nhớ = 0`**. Ca đối chứng sạch duy nhất *(`fin05-final`,
+`OOMKilled=false`)* **không có sổ để đối chiếu** ⟹ không có cách phân định.
 
 Loại trừ theo thứ tự, mỗi bước một phép đo:
 ```
