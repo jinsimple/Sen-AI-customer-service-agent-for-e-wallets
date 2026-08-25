@@ -590,6 +590,38 @@ vụ được không, phải xem **hạn mức phía DashScope** (dashboard nhà
 ⚠️ **KHÔNG đề xuất đổi `5.000.000`** — PO thật đã chốt (`CLAUDE.md §5`), và con số vẫn đúng việc
 nó được giao. Đây chỉ là niêm lại để tài liệu không hứa quá thứ cơ chế làm được.
 
+### 🔴🔴 [SẮC LẠI 26/08] Trần thật của HẠN MỨC còn thấp hơn nữa — tính theo BỂ, không theo TÀI KHOẢN
+
+**[Lead đo, đối chiếu ảnh hạn mức thật của PO thật — tôi tự kiểm lại phần tự kiểm được: đếm trực
+tiếp `LLM_MODEL_POOL` trong `.env`, khớp 7 model]:**
+```
+DashScope tính hạn mức THEO TỪNG MODEL, ghim ngày = 1.000.000 token/model. `LLM_MODEL_POOL`
+chỉ ghim 7 model (không phải toàn bộ ~20 model có trên tài khoản) ⟹ bể xoay chỉ VỚI TỚI ĐƯỢC
+7.000.000 token, KHÔNG PHẢI tổng quota cả tài khoản (~18,76 triệu — số đó gồm cả model NGOÀI
+pool mà bể không bao giờ gọi tới).
+
+Ở trần 5.000.000/ngày: 7.000.000 ÷ 5.000.000 = 1,4 NGÀY là hết sạch cả bể — trần đang CAO HƠN
+CẢ BỂ, hôm nay không phải giới hạn thật đang chặn.
+```
+
+🔴 **Bài học đắt: lần đo đầu đã suýt tính nhầm VẬT** — tổng quota TÀI KHOẢN (~19 triệu, ra ~3,75
+ngày) khác hẳn quota BỂ VỚI TỚI ĐƯỢC (7 triệu, ra 1,4 ngày) — lệch gần 3 lần, và **cả hai chiều
+đều bi quan hơn số đầu tưởng**. Xem đầy đủ bối cảnh + Luật AC ca thứ 7 tại `docs/STATE.md`
+(`9b14b39`).
+
+**Cách tính lại khi ai đổi `LLM_MODEL_POOL`:** đếm số model trong danh sách, nhân 1.000.000
+(giả định mỗi model GHIM NGÀY, chưa từng gọi lần nào trong ngày) — **không dùng con số "quota
+còn lại" tổng trên dashboard nhà cung cấp**, hai con số khác vật.
+
+**Ba mốc trần/ngày theo chân trời muốn kéo dài 7 triệu (PO thật CHƯA chốt mốc nào — niêm để có
+sẵn khi cần, không phải đề xuất thay `5.000.000`):**
+
+| Chân trời | Trần/ngày tương ứng |
+|---|---|
+| 7 ngày | 1.000.000 |
+| 14 ngày | 500.000 |
+| 81 ngày (tới hạn hạn mức 15/11) | ~86.420 |
+
 ### 🔴 Dấu hiệu ĐÃ CHẠM TRẦN — người trực buổi demo phải biết TRƯỚC, không phải tra cứu lúc đang cuống
 
 Với `5.000.000` và PO dự kiến chia sẻ công khai ("chắc sẽ đông đấy"), **~20 người mỗi người 2
