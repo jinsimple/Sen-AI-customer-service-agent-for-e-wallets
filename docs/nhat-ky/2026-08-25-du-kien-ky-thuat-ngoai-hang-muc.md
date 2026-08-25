@@ -105,6 +105,33 @@ mọi cổng, cho một con số **đúng định dạng, đúng đơn vị, đ�
 ```
 Một bộ kiểm chỉ canh chiều trấn an **không bao giờ bắt được ca ④**.
 
+**HAI BIẾN THỂ THÊM, tìm được cuối ngày — quan trọng vì chúng KHÁC cách phát hiện:**
+```
+sai VẬT             → con số trông LẠ          → bắt được bằng ĐO LẠI
+cắt mất phần dưới   → con số trông HỢP LÝ      → bắt được bằng IN MẪU SỐ
+   (`head -8` giấu 2 dòng ⟹ suýt kết luận "không có giao dịch nào đúng 393.000"
+    trong khi có đúng hai — và suýt báo rằng giả định của PO sai, trong khi nó đúng)
+sai ĐƠN VỊ          → con số ĐÚNG              → 🔴 KHÔNG bắt được bằng đo lại
+   (`so_tool_call` đếm theo LƯỢT; ba phiên cùng đọc nó như số theo HỘI THOẠI,
+    mất nhiều vòng cho một mâu thuẫn KHÔNG TỒN TẠI. Chỉ bắt được bằng câu hỏi
+    **"số này đơn vị gì"** — không phép đo nào tự trả lời câu ấy.)
+```
+
+🔴 **VÀ HỆ QUẢ NẶNG NHẤT — nó chạm vào chính cách đội dựng bất biến:**
+> **Một bất biến kiểm QUAN HỆ giữa hai số rút từ CÙNG một nguồn thì không phải bất
+> biến — nó là một phép lặp lại.**
+[ĐO] `so_tool_call` và `so_luot_goi_model` **đều** duyệt `turn_messages =
+all_messages[prev_len:]`. Bất biến `so_luot_goi_model == so_tool_call + 1` **khít
+100%** — nhưng nếu danh sách ấy thiếu một cụm `AIMessage(tool_calls) → ToolMessage →
+AIMessage`, **cả hai cùng tụt** và quan hệ **vẫn khít**.
+⟹ Nó **im lặng đúng ở ca nó đáng kêu nhất**, và tệ hơn: **trông như bằng chứng**.
+Cùng họ `if tm is None: continue` — cơ chế không sai, nó chỉ **không nhìn thấy thứ đã
+rơi khỏi tầm**.
+**Phép thử:** với mỗi bất biến, hỏi *"hai vế có rút từ hai NGUỒN ĐỘC LẬP không?"*
+Không ⟹ nó chỉ chứng minh **nội bộ nhất quán**, không chứng minh **đúng**.
+
+---
+
 **Phép thử rẻ nhất đã cứu cả bốn lần** — không cái nào cần công cụ mới:
 1. **In MẪU SỐ cạnh mọi tỉ lệ** (bắt ①③ ở dạng "quần thể sai").
 2. **Đo tách rời từng lệnh**, không nối `&&`/`cd` (bắt ②).
