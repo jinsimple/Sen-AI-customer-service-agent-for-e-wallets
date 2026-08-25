@@ -67,7 +67,7 @@ from pathlib import Path
 
 import httpx
 
-from src.config import TRAN_TOKEN_LLM_MOI_NGAY
+from src.config import LLM_BASE_URL, TRAN_TOKEN_LLM_MOI_NGAY
 from src.dau_ma_nguon import bam_ma_nguon
 from src.observability.so_usage import ghi_usage
 from src.redis_client import get_default_client
@@ -431,6 +431,30 @@ class _TransportCoChotChan(httpx.BaseTransport):
         self._that = that
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
+        # [ĐO 26/08] `LLM_BASE_URL` trống KHÔNG chặn gì ở `_khoa_cho_nha_cung_cap`
+        # (nó chỉ hỏi "ĐÍCH có đổi không", base_url=None ⟹ chưa đổi ⟹ không raise)
+        # — nhưng SDK vẫn tự chọn đích mặc định (api.openai.com thật) và
+        # `LLM_MODEL` rơi về `OPENAI_MODEL`. Ba cái rơi cùng hướng ⟹ lời gọi
+        # THÀNH CÔNG tới một nhà cung cấp khác, không một dòng lỗi. Chốt ở đây
+        # vì đây là nơi biết ĐÍCH THẬT (`request.url.path`), không phải suy từ
+        # cờ môi trường — CI và production đọc cờ giống hệt nhau, chỉ đích
+        # lúc sắp gửi mới khác. Loại trừ `/embeddings`: rơi về OpenAI ở đó là
+        # CÓ CHỦ Ý (EMBEDDING_BASE_URL trống mặc định), chặn cả cụm là gãy RAG.
+        if not LLM_BASE_URL and not request.url.path.endswith("/embeddings"):
+            _ghi_ro("bi_chan", host=request.url.host, duong=request.url.path,
+                    ly_do="llm_base_url_trong")
+            _logger.error(
+                "goi_ra_ngoai_dich_roi_mac_dinh",
+                extra={"host": request.url.host, "duong": request.url.path},
+            )
+            raise GoiRaNgoaiBiChanError(
+                f"Lời gọi chat tới {request.url.host}{request.url.path} bị "
+                f"CHẶN: LLM_BASE_URL trống. Không đặt LLM_BASE_URL, SDK rơi "
+                f"về đích mặc định (OpenAI thật) thay vì nhà cung cấp đã "
+                f"ghim — đúng loại rò tiền + đo nhầm model mà cơ chế này "
+                f"sinh ra để chặn. Đặt LLM_BASE_URL tường minh trước khi "
+                f"gọi chat thật."
+            )
         cho_phep, ly_do = cho_phep_goi_ra_ngoai()
         if not cho_phep:
             _ghi_ro("bi_chan", host=request.url.host, duong=request.url.path, ly_do=ly_do)
