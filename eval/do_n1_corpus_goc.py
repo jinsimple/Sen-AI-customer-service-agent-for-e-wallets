@@ -60,6 +60,25 @@ Coder chỉ ra chỗ sai.**
   sách (xoá phần tử, tính lại `bam_nhan`) — không tự động xoá, tránh một
   script tự sửa "vật chứng" của chính nó.
 - Mẫu số khác `MAU_SO_MOC` (409) ⟹ thoát mã khác 0, không tin số bắn.
+
+## 🔴 TRỤC KHÔNG ĐO — [PO 25/08, phát hiện qua `--luat` trên bản đột biến]
+
+Cổng này CHỈ bắt DƯƠNG TÍNH GIẢ (câu không nên bắn mà bắn). Nó **MÙ HOÀN
+TOÀN** với ÂM TÍNH GIẢ — một bản vá làm `phan_luong()` **không bao giờ**
+trả `thu_slot` cho câu nào (giết sạch cổng `thu_slot`) sẽ cho corpus gốc
+**0 dương tính giả**, và N1 báo `exit 0` — "đạt", trong khi cổng đã chết.
+Phép thử Luật R: *"nếu ai xoá `DOT2-DUONG-01` (ca dương duy nhất còn lại),
+cái gì kêu?"* → **N1 vẫn xanh.**
+
+**Cổng bù trục này:** `eval/bo_ca_am_thu_slot_dot2.json` (chạy qua
+`eval/cong_ca_am_thu_slot_dot2.py`) — case `DOT2-DUONG-01` là ca DƯƠNG duy
+nhất, kỳ vọng `thu_slot`. Cổng đó bắt đúng khi `phan_luong()` bị giết sạch
+(đã tự kiểm 25/08). Hai cổng BÙ NHAU theo hai chiều của Luật A — không cổng
+nào một mình đủ để nói "cổng `thu_slot` đang hoạt động đúng".
+
+Cũng KHÔNG phân biệt "bắn OAN" với "bắn ĐÚNG nhưng không phải oan" — xem
+field `bat_oan` trong `n1_bao_oan_da_biet.json` (phân loại thủ công, không
+phải phép đo tự động của chính script này).
 """
 from __future__ import annotations
 
@@ -168,14 +187,33 @@ def main() -> int:
         print(f"🔴 {FILE_DA_BIET.name} ĐÃ TRÔI: băm ghi {bam_ghi} ≠ tính lại {bam_thuc} — TỪ CHỐI SO.")
         return 2
     da_biet = {(c["tep"], c["cau"]) for c in da_biet_raw["ca"]}
+    # bat_oan: True = bắn OAN thật · False = bắn ĐÚNG (khớp ngoại lệ ĐC-5, vd
+    # NP-2/CASE-041) · None = chưa xác định. [PO 25/08] "13 câu bắn" KHÔNG
+    # đồng nghĩa "13 câu bắn OAN" — số này tự thân KHÔNG đo được sự khác biệt
+    # đó, đây là phân loại THỦ CÔNG đính kèm, không phải phép đo.
+    bat_oan = {(c["tep"], c["cau"]): c.get("bat_oan") for c in da_biet_raw["ca"]}
 
     hien_tai = set(con_ban)
     moi_regression = sorted(hien_tai - da_biet)
     da_dong = sorted(da_biet - hien_tai)
 
+    dem_oan = dem_dung = dem_chua_ro = dem_moi = 0
     for f, c in con_ban:
-        danh_dau = "🆕 MỚI" if (f, c) not in da_biet else "  (đã biết)"
+        key = (f, c)
+        if key not in da_biet:
+            danh_dau, dem_moi = "🆕 MỚI (chưa phân loại)", dem_moi + 1
+        else:
+            v = bat_oan.get(key)
+            if v is True:
+                danh_dau, dem_oan = "  (đã biết, OAN)", dem_oan + 1
+            elif v is False:
+                danh_dau, dem_dung = "  (đã biết, ĐÚNG — không phải oan)", dem_dung + 1
+            else:
+                danh_dau, dem_chua_ro = "  (đã biết, chưa rõ oan/đúng)", dem_chua_ro + 1
         print(f"  {danh_dau} [{f}] {c[:88]}")
+
+    print(f"\n  Trong {len(con_ban)} câu bắn `thu_slot`: {dem_oan} OAN thật · {dem_dung} ĐÚNG "
+          f"(không phải oan) · {dem_chua_ro} chưa phân loại · {dem_moi} mới ngoài danh sách.")
 
     if da_dong:
         print(f"\n  ✅ {len(da_dong)} câu trong danh sách đã ghim KHÔNG còn bắn — cập nhật "

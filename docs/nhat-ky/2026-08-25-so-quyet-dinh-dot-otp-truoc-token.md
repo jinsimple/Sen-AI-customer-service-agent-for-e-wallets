@@ -422,3 +422,56 @@ bảo đảm, nó là thói quen của môi trường hiện tại.*
 
 **Đề xuất — chưa làm, cần chủ:** mỗi cổng khai ở docstring **trục nó KHÔNG đo** và cổng
 nào bù cho nó. Rẻ, và nó biến một phụ thuộc ngầm thành một dòng đọc được.
+
+---
+
+## 🔴 BA CON SỐ N1 LƯU HÀNH TRONG ĐỘI — KHÔNG CÁI NÀO ĐÚNG HẲN (07:15)
+
+| ai | con số | phán xử |
+|---|---|---|
+| **PO** *(phiếu)* | `"6/11 → 0"` | **6 ĐÚNG** · **11 SAI** — mẫu số hẹp, mù `bo_lenh_do.jsonl` |
+| **Coder · Lead** | `"15 → 13"` | **ĐÚNG**, nhưng đo **raw fire-count**, không phải "bắn oan" |
+| **QA/QC** | `"12 ca bắn oan"` | **SAI** — trừ 1 ca *(CASE-041)*, thật ra phải trừ **4** |
+
+**Sự thật, đọc từ nhãn `loai` trong chính tệp ghim của cổng:**
+
+```
+raw fire-count      13    ← thứ cổng N1 ĐẾM
+bắn OAN              6    ← thứ tiêu chí N1 NÓI nó đo
+bắn ĐÚNG             4    ← khiếu nại thật thiếu số tiền, thu_slot hợp lệ (ĐC-5)
+chưa phân loại       3
+```
+
+### 🔴 Khiếm khuyết thật: TIÊU CHÍ và CỔNG đo hai đại lượng khác nhau, lệch 7 ca
+
+Tiêu chí N1 viết *"số lần cổng `thu_slot` **bắn oan**"*. Cổng `do_n1_corpus_goc.py` đếm
+**số lần bắn**. Hai đại lượng khác nhau, và chênh lệch hôm nay là **7 ca**.
+
+Điều này **không phải lỗi của cổng** — cổng làm đúng việc của nó và tự khai rõ. Nó là
+**Luật G**: một cơ chế đang làm đúng việc của NÓ không có nghĩa nó đang làm việc ta
+giả định. Ta đọc một cổng đếm-bắn thành một cổng đếm-oan suốt buổi sáng.
+
+### Và vì sao `6 → 6` KHÔNG phải "không tiến bộ"
+
+```
+ 6  ca oan ban đầu (đo trên mẫu số hẹp)
+−2  ADV-036 + ADV-038  ĐÃ ĐÓNG
+────
+ 4  còn lại
++2  ca oan MỚI LỘ RA khi mẫu số mở rộng — cả hai nằm trong
+    bo_lenh_do.jsonl, ĐÚNG tệp mà công cụ hẹp của PO đã mù
+────
+ 6  hôm nay
+```
+
+⟹ **Đợt đóng được 2/6, và làm lộ ra 2 ca chưa ai từng thấy.**
+Con số đứng yên vì **hai chuyển động ngược chiều**, không vì bất động.
+
+🔴 **Đây là lý do một con số trần không bao giờ đủ.** `6 → 6` đọc như *"không làm được
+gì"*. Cùng dữ liệu, đọc đúng, là *"đóng 2, phát hiện 2"* — hai câu chuyện khác hẳn về
+cùng một đợt, và câu thứ nhất là câu sẽ tới tai người ngoài nếu không ai bóc ra.
+
+**Việc cần làm — chưa có chủ:** tách tiêu chí N1 làm hai số, vì chúng là hai câu hỏi:
+`N1a` bắn oan *(mục tiêu → 0)* · `N1b` raw fire-count *(chỉ để phát hiện trôi mẫu số)*.
+Và **3 ca `khac_can_phan_loai` phải được phân loại** — chừng nào còn 3 ô chưa rõ thì
+con số 6 vẫn là **6 tới 9**.

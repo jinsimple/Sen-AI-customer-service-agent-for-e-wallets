@@ -14,6 +14,22 @@ lý do không phải của nó.
 Ba nguyên tắc mượn lại từ `cong_phan_luong.py` (đã đắt tiền, không phát
 minh lại): kiểm băm bộ ca trước khi chấm · cảnh báo khi `--luat` đang dirty
 (không chặn, chỉ tự khai thân phận) · in đủ TÊN TỪNG CA sai, không chỉ đếm.
+
+## 🔴 TRỤC KHÔNG ĐO — [PO 25/08, phát hiện qua `eval/do_n1_corpus_goc.py --luat`]
+
+Cổng này chỉ chạy trên **7 ca tự dựng** (`bo_ca_am_thu_slot_dot2.json`), KHÔNG
+phải corpus thật — nó KHÔNG biết được `thu_slot` đang bắn oan bao nhiêu lần
+trên 409 câu thật đang có trong `eval/*.jsonl`. Một câu oan mới xuất hiện
+trong corpus thật mà KHÔNG trùng 1 trong 7 ca ở đây sẽ đi qua lọt, không bị
+cổng này bắt.
+
+Ngược lại, đây là cổng DUY NHẤT còn giữ được ca `DOT2-DUONG-01` (ca DƯƠNG,
+kỳ vọng `thu_slot`) — nếu `phan_luong()` bị vá hỏng theo hướng "không bao
+giờ bắn `thu_slot` nữa", cổng này ĐỎ ngay (`DOT2-DUONG-01` trượt kỳ vọng),
+trong khi `do_n1_corpus_goc.py` (chỉ đếm dương tính giả trên corpus thật)
+sẽ báo "đạt" một cách sai — đã tự kiểm 25/08. **Cổng bù trục này:**
+`eval/do_n1_corpus_goc.py` (đo diện rộng corpus thật, nhưng mù âm tính giả).
+Hai cổng bù nhau theo hai chiều của Luật A, không cổng nào một mình đủ.
 """
 from __future__ import annotations
 
