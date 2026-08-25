@@ -382,12 +382,14 @@ Diễn tập TỆP THẬT của PO (`backup-truoc-25-08.sql`, 307MB, trên máy 
 **Vì sao đủ để tin quy trình đúng dù chưa chạm tệp thật:** `pg_dump`/`psql`/lược đồ/constraint
 là cùng một cơ chế cho MỌI dump từ cùng schema — chạy sạch với dump `fin05do` (206 user, 607
 ticket, 7 CHECK constraint) là bằng chứng cơ chế **không hỏng theo cách hệ thống**. Ba cách hỏng
-PO thật nêu (`pg_dump` cắt giữa chừng · lệch phiên bản Postgres · thiếu extension/role) là hỏng
-theo **VẬT CỤ THỂ** (file dump nào, máy nào) — thứ diễn tập trên `fin05do` không loại trừ được
-cho đúng tệp `backup-truoc-25-08.sql`. Hai lớp bằng chứng khác nhau, không thay thế nhau.
+điều phối (`p-226-f0`) nêu (`pg_dump` cắt giữa chừng · lệch phiên bản Postgres · thiếu
+extension/role) là hỏng theo **VẬT CỤ THỂ** (file dump nào, máy nào) — thứ diễn tập trên
+`fin05do` không loại trừ được cho đúng tệp `backup-truoc-25-08.sql`. Hai lớp bằng chứng khác
+nhau, không thay thế nhau.
 
-🟢 **[SỬA — PO thật chỉ ra] Hai trong ba cách hỏng KHÔNG cần restore để loại trừ.** Dump cắt giữa
-chừng và lệch phiên bản Postgres đều đọc được **thẳng từ chính tệp**, trong vài giây — xem BƯỚC 0
+🟢 **[SỬA — điều phối (`p-226-f0`) chỉ ra] Hai trong ba cách hỏng KHÔNG cần restore để loại trừ.**
+Dump cắt giữa chừng và lệch phiên bản Postgres đều đọc được **thẳng từ chính tệp**, trong vài
+giây — xem BƯỚC 0
 ngay dưới, đặt TRƯỚC 6 bước dựng container vì đúng thứ tự phải là RẺ TRƯỚC, ĐẮT SAU: nếu tệp bị
 cắt, sáu bước sau là công toi. Chỉ **thiếu extension/role** là thật sự PHẢI restore mới lộ ra —
 không đọc được từ nội dung tệp mà không chạy nó.
@@ -488,7 +490,9 @@ nhắn lại liên tục trong ngày mà lần nào cũng bị chặn.
 **Cách tính đề xuất — trình PO thật, PO quyết số cuối, KHÔNG tự đặt lên production:**
 
 ```
-Mốc đo: 1 hội thoại 8 lượt ≈ 141.000 token (PO thật cung cấp 25/08)
+Mốc đo: 1 hội thoại 8 lượt ≈ 141.000 token (đưa ra trong đợt trao đổi 25/08 qua điều phối
+`p-226-f0` — CHƯA XÁC NHẬN đây là số đo trực tiếp của PO thật hay ước tính của điều phối;
+dùng làm điểm khởi đầu có lý lẽ, không phải một hằng số chắc chắn)
 Giá qwen3.7-plus quốc tế [ĐO 17/08, CÓ THỂ ĐÃ ĐỔI — xác nhận lại trước khi
   dùng số tiền để quyết]: $0,40 / 1M token vào · $1,20 / 1M token ra
 Cận dưới/trên mỗi hội thoại (giả định 100% vào / 100% ra — chưa có tỉ lệ
