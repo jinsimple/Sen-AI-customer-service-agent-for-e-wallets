@@ -475,3 +475,52 @@ cùng một đợt, và câu thứ nhất là câu sẽ tới tai người ngoà
 `N1a` bắn oan *(mục tiêu → 0)* · `N1b` raw fire-count *(chỉ để phát hiện trôi mẫu số)*.
 Và **3 ca `khac_can_phan_loai` phải được phân loại** — chừng nào còn 3 ô chưa rõ thì
 con số 6 vẫn là **6 tới 9**.
+
+---
+
+## 🔴 SỰ CỐ CÂY-DÙNG-CHUNG THỨ TƯ — điều kiện xét lại L0.5 ĐÃ BẮN (07:15)
+
+**Chuyện đã xảy ra:** PO viết 53 dòng phân tích ba-con-số-N1 vào tệp này, chưa kịp
+commit. QA/QC chạy `git add` rộng tay và **cuốn nguyên 53 dòng ấy vào commit `5e16b66`**
+— một commit nói về *"khai TRỤC KHÔNG ĐO cho 2 gate"*.
+
+```
+5e16b66  docs(eval): khai TRỤC KHÔNG ĐO + cổng bù cho 2 gate của đợt này
+  docs/nhat-ky/2026-08-25-so-quyet-dinh…md   +53   🔴 VÙNG GHI CỦA PO
+  eval/cong_ca_am_thu_slot_dot2.py           +16       QA/QC
+  eval/do_n1_corpus_goc.py                   +40       QA/QC
+  eval/n1_bao_oan_da_biet.json               ±33       QA/QC
+```
+
+### Hai hệ quả, và hệ quả thứ hai mới là hệ quả thật
+
+**① Vi phạm vùng ghi** — QA/QC ghi vào `docs/`. Nhẹ: nội dung **không mất**, không ai
+sửa chữ nào của ai.
+
+**② 🔴 HỒ SƠ BỊ XẾP NHẦM NGĂN** — 53 dòng phân xử ba con số N1 nay nằm dưới một commit
+message nói về docstring cổng. Ai `git log --grep="N1"` hoặc đọc lướt log **sẽ không tìm
+thấy nó**. Nội dung còn, **đường tìm tới nội dung thì mất**.
+
+⟹ Đây đúng lớp lỗi dự án đã trả giá nhiều lần: *thứ còn tồn tại nhưng không tra được
+thì với phiên sau nó bằng không tồn tại*. Khác các lần trước ở chỗ **không ai mất gì** —
+nên nó **sẽ không bị phát hiện** nếu PO không tình cờ thấy commit của mình rỗng.
+
+### Hook đã cảnh báo, và cảnh báo không chặn
+
+`[vung-ghi]` in ra đúng dòng `docs/nhat-ky/… -> po` trong commit của QA/QC. Hook **cố ý
+không chặn** *(`666694f`: "cảnh báo vùng ghi — không chặn, không đoán vai")*. Đây là lần
+đầu lựa chọn thiết kế ấy **trả giá** — và cái giá không phải mất dữ liệu, mà là **một
+cảnh báo được in ra rồi đi qua**.
+
+### Điều kiện xét lại của Lead ĐÃ BẮN
+
+`L0.5` chốt *"KHÔNG tách worktree trong đợt này"*, kèm điều kiện tự khai:
+> **"Sẽ xét lại nếu: xảy ra sự cố pathspec thứ 4 trong đợt này dù đã nhắc kỷ luật."**
+
+Đây **là** sự cố thứ tư. Lập luận gốc của Lead vẫn đúng ở vế *"4 vai ghi vào 4 vùng gần
+như rời nhau"* — nhưng nó giả định mỗi vai **chỉ `git add` trong vùng mình**, và giả định
+ấy vừa hỏng bằng một lệnh `git add` rộng tay, không phải bằng va chạm nội dung.
+
+**PO KHÔNG tự lật quyết định của Lead** — đây là dữ kiện kích hoạt điều kiện họ tự đặt,
+trả lại cho họ xét. **Không xoá `5e16b66`**, không viết lại lịch sử: nhánh dùng chung,
+và bản sao lưu đã đẩy lên GitHub.
