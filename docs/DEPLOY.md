@@ -316,6 +316,35 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
 
 ## Việc vặt cần biết thêm
 
+### 🔴🔴 Bẫy khi tự sửa `.env`: `LLM_BASE_URL` có + `LLM_API_KEY` trống ⟹ backend CHẾT LÚC KHỞI ĐỘNG
+
+**Đọc mục này TRƯỚC khi thêm hoặc sửa bất kỳ dòng `LLM_*` nào trong `.env` thật** — kể cả khi chỉ
+định thêm một dòng trông vô hại.
+
+```
+[ĐO 26/08, docker exec vào container thật, đặt LLM_BASE_URL=dashscope-intl... + OPENAI_API_KEY
+ (KHÔNG đặt LLM_API_KEY), rồi import src.config]
+→ RuntimeError tại src/config.py:342 (_khoa_cho_nha_cung_cap), NGAY LÚC IMPORT —
+  TRƯỚC KHI uvicorn kịp mở cổng. Không phải một lượt chat bị chặn — CẢ CONTAINER
+  không khởi động được, /health cũng không sống để trả lời.
+```
+
+**Vì sao guard này tồn tại (đúng, không phải bug):** nó sinh ra sau sự cố lộ khoá OpenAI 17/08 —
+nếu thiếu `LLM_API_KEY` mà `LLM_BASE_URL` đã trỏ nhà cung cấp khác, code CŨ từng âm thầm dùng
+`OPENAI_API_KEY` gửi sang máy chủ bên thứ ba (rò khoá thật). Guard chặn đúng việc đó — cái giá là
+nó bắn sớm và bắn nặng: **fail-fast tại import, không phải fail-graceful tại từng lời gọi.**
+
+**Quy tắc một câu, áp dụng mọi nơi kể cả `docker-compose.yml`/CI:** **thêm `LLM_BASE_URL` ở đâu
+thì PHẢI thêm `LLM_API_KEY` cùng lượt, cùng chỗ.** Không có ngoại lệ — thiếu một trong hai là
+container chết, không phải chạy sai.
+
+⚠️ **Đây là lý luận từ đọc mã + một lần đo trên container test, KHÔNG PHẢI số đo lặp lại nhiều
+lần trên production** — giữ nguyên mức độ tin cậy này, đừng đọc thành "đã kiểm chứng đầy đủ mọi
+trường hợp". Cụ thể: hành vi khi URL đúng cú pháp nhưng SAI đích (domain thật nhưng không phải
+nhà cung cấp mong muốn) chưa được đo trên container thật — theo mã, sẽ KHÔNG raise (có cả
+`LLM_BASE_URL` lẫn `LLM_API_KEY`), gọi thành công tới nhầm nơi, im lặng — cùng lớp rủi ro guard
+này vốn sinh ra để chặn ở khoá, không phải ở đích.
+
 ### ⚠️ `docker compose down -v` ĐỔI NGHĨA từ 25/08 — và bản mô tả đầu tiên NÓI NHẸ ĐI
 
 🔴 **[SỬA 25/08, tự đính chính]** Bản đầu của mục này (viết sáng 25/08, ngay sau `02892bd`)
