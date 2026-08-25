@@ -18,6 +18,22 @@ git rev-parse --short HEAD
 
 ---
 
+## 0b. 🔴 MỘT DÒNG THÊM VÀO `.env` — làm MỘT LẦN, trước khi gõ lệnh nào
+
+Mở tệp `.env` trong thư mục dự án, **thêm đúng một dòng vào cuối**:
+```
+BAO_VE_CSDL=true
+```
+Lưu lại. **Không sửa dòng nào khác trong tệp ấy.**
+
+**Dòng này làm gì:** khoá CSDL lại để lệnh `docker compose down -v` **không xoá được nó nữa**.
+
+🔴 **Quên dòng này thì mất gì:** không mất gì **ngay** — hệ thống chạy y hệt. Nhưng
+**`down -v` vẫn xoá sạch CSDL như trước**, tức mọi ticket, khiếu nại và transcript chat của khách.
+**Thêm một lần, xong mãi mãi.**
+
+---
+
 ## 1. Lấy mã mới
 
 ```bash
@@ -109,8 +125,7 @@ Muốn **dừng** thì gõ **không có `-v`**:
 docker compose down
 ```
 
-**Nếu lỡ gõ `down -v` rồi:** CSDL **vẫn còn** *(đã khoá lại từ 25/08 — `postgres_data` khai
-`external`)*. Nhưng **chỉ mục RAG mất**. Dựng lại:
+**Nếu lỡ gõ `down -v` rồi:** CSDL **vẫn còn — NẾU đã làm mục 0b**. Chưa làm mục 0b thì CSDL **mất**. Nhưng **chỉ mục RAG mất**. Dựng lại:
 ```bash
 docker compose up -d
 docker compose exec backend su appuser -c "python3 scripts/kho_rag.py nap-lai"

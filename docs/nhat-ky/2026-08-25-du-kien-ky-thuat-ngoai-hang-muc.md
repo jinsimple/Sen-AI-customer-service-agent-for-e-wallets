@@ -236,6 +236,44 @@ Cả ba: **không câu nào sai. Chỗ hỏng nằm ở khoảng trống ngườ
 
 ---
 
+## ③f 🔴 VÌ SAO TỰ SOÁT KHÔNG THAY ĐƯỢC SOÁT CHÉO — kể cả khi người vá ĐÃ ĐO THẬT
+
+*(PO yêu cầu ghi thành mục riêng, 25/08. Mục này **không thuộc** họ ③c–③e — nó nói **VÌ SAO** họ ấy
+sinh ra, và vì sao **không ai tự thoát khỏi nó một mình**.)*
+
+> **Người vá đã ĐO một nửa đúng chỗ, và dừng lại vì nửa ấy trả lời XONG câu hỏi họ đang hỏi.**
+> **Không phải lười — là CÂU HỎI ĐÃ HẾT, trong khi CƠ CHẾ thì chưa.**
+> ⟹ **Người soát có giá trị không phải vì họ cẩn thận hơn, mà vì họ ĐẾN VỚI MỘT CÂU HỎI KHÁC.**
+
+**Ca sinh ra nó — `e5ee8cd`, và cả ba người đều làm đúng phần của mình:**
+```
+Coder  hỏi "external có chặn `down -v` không"    → ĐO, đúng: chặn được
+       hỏi "`name:` có bắt buộc không"            → ĐO, đúng: bắt buộc, thiếu là `up` chết
+       🔴 KHÔNG hỏi "tên CỨNG thì cái gì khác vỡ" ← câu hỏi đã hết ở đây
+PO     đọc "external chặn `down -v`"              → duyệt. Câu hỏi của họ cũng hết ở đây.
+DevOps đến với câu "nó làm gì với `-p`"           → bắt được NGAY VÒNG ĐẦU
+       [ĐO] `-p fin05-sach` vẫn trỏ `fin05_postgres_data` — tên cứng VÔ HIỆU HOÁ
+            tiền tố ngăn ⟹ MỌI ngăn dùng CHUNG một volume vật lý. Im lặng.
+```
+
+🔴 **Điểm đắt: không ai trong hai người đầu lười, và không phép đo nào của họ SAI.** Hai phép đo của
+Coder **đều đúng và đều cần thiết**. Thứ thiếu **không phải độ cẩn thận** — là **một câu hỏi thứ ba
+mà cấu trúc của công việc không sinh ra được**: người đang vá `down -v` **không có lý do gì** để nghĩ
+tới `-p`.
+
+**Vì sao "cẩn thận hơn" KHÔNG phải bản vá:** cẩn thận làm ta trả lời **kỹ hơn** những câu ta **đã
+hỏi**. Nó không sinh ra câu hỏi mới. Càng chuyên tâm vào một vấn đề, tập câu hỏi càng **hẹp lại** —
+đó là cách sự tập trung hoạt động, không phải khiếm khuyết cá nhân.
+
+**Phép thử dùng được, rẻ, không cần thêm người:** trước khi land một thay đổi chạm cơ chế dùng
+chung, viết ra **câu hỏi mình ĐÃ trả lời**, rồi hỏi *"ai KHÁC dùng cơ chế này, và họ sẽ hỏi gì?"*
+Với `docker-compose.yml` thì "ai khác" là **mọi ngăn của mọi phiên** — và câu của họ là `-p`.
+
+⟹ Hệ quả đã thành luật cùng ngày *(PO đặt)*: **mọi thay đổi chạm `docker-compose.yml` phải qua
+DevOps soát.** Luật ấy **trả công ngay lần đầu áp dụng**.
+
+---
+
 ## ④ `docker compose` GỘP danh sách `ports`, không thay — phải `!override`
 
 ```yaml
