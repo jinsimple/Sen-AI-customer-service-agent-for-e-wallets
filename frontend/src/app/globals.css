@@ -266,6 +266,21 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
    MODEL sinh, mà model đọc chữ khách gõ ⟹ render HTML thô là tự mở đường bơm
    script qua prompt injection. CSS không diễn giải ký tự nào — 0 bề mặt tấn công.
    `word-break` kèm theo: mã giao dịch/số tài khoản dài không đẩy vỡ khung 375px. */
+
+/* 🔴 ĐỌC TRƯỚC KHI ĐỊNH "SỬA NỐT" MARKDOWN THÔ TRONG BONG BÓNG (`**Số tiền**`)
+   Khách VẪN thấy dấu sao. Đó là QUYẾT ĐỊNH CÓ CÂN của PO thật (25/08), KHÔNG phải
+   bỏ sót — xem docs/nhat-ky/2026-08-25-ba-loi-ui-hien-thi.md, mục ②.
+   Lý do: chuỗi trong bong bóng do MODEL sinh, mà model ĐỌC CHỮ KHÁCH GÕ. Dựng
+   markdown thành HTML là mở đường prompt injection → XSS: khách gõ một chuỗi,
+   model nhắc lại, trình duyệt THI HÀNH. Đổi lấy được gì? Chữ in đậm.
+   Sau vá ③ ở trên, xuống dòng đã đúng ⟹ cấu trúc ĐÃ ĐỌC ĐƯỢC; phần còn lại thuần
+   thẩm mỹ. Cái giá không cân.
+   Nếu PO đổi ý — ĐƯỜNG ĐI DUY NHẤT được chấp nhận, đủ 4 bước, không rút gọn:
+     1. thoát HTML TOÀN BỘ chuỗi trước (escape), KHÔNG ngoại lệ
+     2. rồi dựng lại ĐÚNG một tập đóng, hẹp: xuống dòng · in đậm · gạch đầu dòng
+     3. TUYỆT ĐỐI KHÔNG dangerouslySetInnerHTML với chuỗi chưa lọc, KHÔNG thư viện
+        markdown đầy đủ
+     4. kèm test đối kháng: khách gõ <img onerror=...> → phải hiện NGUYÊN VĂN */
 .bubble{ padding:12px 15px; border-radius:16px; font-size:14px; line-height:1.55;
          white-space:pre-wrap; word-break:break-word; }
 .bubble-bot{ background:var(--surface-2); border:1px solid var(--border); border-bottom-left-radius:4px; }

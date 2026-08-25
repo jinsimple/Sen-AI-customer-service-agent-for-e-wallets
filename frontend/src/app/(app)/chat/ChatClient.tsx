@@ -533,10 +533,18 @@ export default function ChatClient({
       //
       // Đọc KHOÁ `duong`, KHÔNG khớp câu chữ `reply` — sửa văn phong backend
       // sau này không được làm client mù lại (đúng lý do OTP_EXPIRED_LOAI ra
-      // đời ở GĐ2.5). `reply` vẫn được hiển thị: nó đã mang sẵn câu chống mạo
-      // danh K3, và đó là câu khách cần đọc ĐÚNG lúc được hỏi mã.
+      // đời ở GĐ2.5).
+      //
+      // 🔴 KHÔNG `push(result.reply)` ở đây. Dòng :501 phía trên đã đẩy nó rồi,
+      // VÔ ĐIỀU KIỆN, cho MỌI đường — kể cả đường này. Bản gốc đẩy lần thứ hai
+      // và khách thấy ĐÚNG MỘT bong bóng ấy hiện hai lần, giống hệt từng chữ
+      // (PO đo 25/08: backend gửi 8 câu → màn hình hiện 12 bong bóng).
+      //
+      // Câu chống mạo danh K3 VẪN ĐẾN TAY KHÁCH — nó nằm trong `result.reply`,
+      // và :501 đã đẩy. Mối lo ấy đúng; chỉ là nó đã được lo xong ở trên rồi.
+      // (`cite` ở :501 là `undefined` trên đường này vì `tool_calls` rỗng, nên
+      // hai bong bóng vốn y hệt nhau — giữ cái đầu không mất chữ nào.)
       if (result.duong === "can_otp") {
-        push({ id: nid(), from: "bot", text: result.reply });
         pendingStarterRef.current = text;
         void beginOtpFlow();
         return;
