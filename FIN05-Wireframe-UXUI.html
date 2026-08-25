@@ -985,13 +985,13 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
     </div>
 
     <div class="section">
-      <div class="section-title">Hai sự kiện — và ai được nhận <span class="tag">chỉ hai, không hơn</span></div>
+      <div class="section-title">Ba sự kiện — và ai được nhận <span class="tag">chỉ ba, không hơn</span></div>
       <div class="grid-2">
         <div class="card">
           <div class="card-title">① Chatbot vừa lập hồ sơ mới</div>
           <div class="card-sub" style="margin-bottom:10px;">Khách chat với Sen → Sen tạo hồ sơ khiếu nại</div>
-          <div class="kv-row"><span class="k">Ai nhận</span><span class="v"><span class="badge badge-info">Mọi CSKH đang trực</span></span></div>
-          <div class="kv-row"><span class="k">Vì sao</span><span class="v">Hàng chờ là hàng chờ <b>chung</b> — chưa ai được phân công lúc hồ sơ vừa sinh ra</span></div>
+          <div class="kv-row"><span class="k">Ai nhận</span><span class="v"><span class="badge badge-info">Mọi CSKH</span></span></div>
+          <div class="kv-row"><span class="k">Vì sao</span><span class="v">Hàng chờ là hàng chờ <b>chung</b> — chưa ai được phân công lúc hồ sơ vừa sinh ra. 🔴 Phát theo <b>VAI</b>, KHÔNG theo “đang trực”: hệ thống <b>chưa có</b> khái niệm lịch trực. Ai đang mở tab thì nhận ngay; ai không, thấy khi tải lại trang.</span></div>
           <div class="kv-row"><span class="k">Sếp có nhận?</span><span class="v"><span class="badge badge-neutral">KHÔNG</span> — sếp chỉ vào cuộc khi có việc cần duyệt</span></div>
         </div>
         <div class="card">
@@ -1001,10 +1001,17 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
           <div class="kv-row"><span class="k">Vì sao</span><span class="v">Đây là <b>cổng bắt buộc trước mọi hành động chạm tiền</b> — chậm một giờ là khách chờ thêm một giờ</span></div>
           <div class="kv-row"><span class="k">CSKH có nhận?</span><span class="v"><span class="badge badge-neutral">Chỉ người TRÌNH</span> — để biết sếp đã duyệt hay từ chối</span></div>
         </div>
+        <div class="card">
+          <div class="card-title">③ Sếp đã duyệt / từ chối</div>
+          <div class="card-sub" style="margin-bottom:10px;">Trạng thái <span class="mono">pending_approval → approved | rejected</span></div>
+          <div class="kv-row"><span class="k">Ai nhận</span><span class="v"><span class="badge badge-success">CHỈ người đã TRÌNH</span></span></div>
+          <div class="kv-row"><span class="k">Vì sao</span><span class="v">Họ đang chờ để báo lại khách. Người khác nhận chỉ là <b>tiếng ồn</b></span></div>
+          <div class="kv-row"><span class="k">Lọc ở đâu</span><span class="v">Ở <b>tầng truy vấn</b> theo người trình — giống <span class="mono">lookup_transaction</span> lọc theo chủ ví. KHÔNG cần khái niệm mới trong ma trận thẩm quyền</span></div>
+        </div>
       </div>
       <div class="note" style="margin-top:14px;">
         <svg class="icon"><use href="#i-info"></use></svg>
-        <div><b>Cố ý CHỈ có hai sự kiện.</b> Không báo mỗi lần AI gọi tool, không báo khách gõ thêm tin, không báo hồ sơ đổi trạng thái lặt vặt. Chuông kêu nhiều thì người ta tắt chuông — và lúc đó nó không còn canh gì nữa.</div>
+        <div><b>Cố ý CHỈ có ba sự kiện.</b> Không báo mỗi lần AI gọi tool, không báo khách gõ thêm tin, không báo hồ sơ đổi trạng thái lặt vặt. Chuông kêu nhiều thì người ta tắt chuông — và lúc đó nó không còn canh gì nữa.</div>
       </div>
     </div>
 
@@ -1088,7 +1095,7 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
         </div>
         <div class="note">
           <svg class="icon"><use href="#i-lock"></use></svg>
-          <div><b>Không hiện tên khách, không hiện số tiền.</b> Chỉ mã hồ sơ + loại + phạm vi. Thông báo hiện trên màn hình có người đi ngang qua — và người nhận chưa chắc có thẩm quyền xem hồ sơ đó.</div>
+          <div><b>Không hiện tên khách, không hiện số tiền.</b> Chỉ mã hồ sơ + loại + phạm vi. Thông báo hiện trên màn hình có người đi ngang qua — và người nhận chưa chắc có thẩm quyền xem hồ sơ đó.<br><br>🔴 <b>Giảm lộ, KHÔNG che hết — rủi ro còn lại phải khai, không được nói là đã hết.</b> Tổ hợp <i>loại × phạm vi × mốc thời gian</i> vẫn là <b>chỉ dấu định danh gián tiếp</b>: ai đã biết một người quen vừa gặp sự cố quanh giờ đó, nhìn “chuyển nhầm · nội bộ ví · 1 phút trước” vẫn suy ra được. Bỏ mốc thời gian đi thì thông báo hết tác dụng ⟹ <b>chấp nhận có chủ đích</b>, ghi vào ADR.</div>
         </div>
       </div>
     </div>
@@ -1191,13 +1198,21 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
 
     <div class="section">
       <div class="section-title">Nguyên tắc nền — thứ quyết định tính năng này sống hay chết</div>
+      <div class="card" style="border-left:3px solid var(--danger); margin-bottom:16px;">
+        <div class="card-title" style="margin-bottom:8px;">🔴 Bốn thứ phải chốt TRƯỚC khi code — Review đánh ra, chưa cái nào xong</div>
+        <div class="kv-row"><span class="k">Vòng §3</span><span class="v">Kênh đẩy cần <b>route mới</b> — không route nào trong 34 route hiện có làm việc này. <b>BẮT BUỘC</b> sửa <span class="mono">authority-matrix.yaml</span> → ADR → <b>PO thật duyệt</b> → rồi mới code</span></div>
+        <div class="kv-row"><span class="k">Vé kết nối</span><span class="v">Trình duyệt <b>không gắn được</b> header xác thực cho kênh đẩy ⟹ <b>dùng lại vé một-lần của live-chat</b>, đừng dựng cơ chế thứ hai. Kết nối lại phải <b>xin vé MỚI</b></span></div>
+        <div class="kv-row"><span class="k">Chống trùng</span><span class="v">🔴 Bug bong bóng lặp hôm nay <b>không phải</b> do mạng — là <b>hai đoạn mã độc lập cùng vẽ một nội dung</b>. ⟹ <b>ĐÚNG MỘT chỗ</b> trong mã được thêm mục vào danh sách. Kênh đẩy chỉ là <b>gợi ý tải lại</b>, không phải nguồn dữ liệu</span></div>
+        <div class="kv-row"><span class="k">Mã hồ sơ</span><span class="v"><span class="mono">KN-2026-08-1204</span> trong hình là <b>minh hoạ</b>. Mã thật là <span class="mono">TCK-&lt;12 hex&gt;</span>. Nếu muốn mã thân thiện thì phải quyết tường minh — 🔴 mã <b>tuần tự</b> tự nó rò rỉ <i>số hồ sơ mỗi ngày</i></span></div>
+      </div>
+
       <div class="card" style="border-left:3px solid var(--navy-2);">
         <div class="card-title" style="margin-bottom:10px;">Thông báo KHÔNG BAO GIỜ là nguồn sự thật duy nhất</div>
         <p style="font-size:13.5px; line-height:1.6; margin:0 0 10px;">
           Kết nối thời gian thực <b>sẽ</b> đứt — mạng chập, tab ngủ, máy chủ khởi động lại. Nếu một hồ sơ chỉ được biết tới <i>qua thông báo</i>, thì một lần đứt kết nối là một khách hàng bị bỏ quên, và <b>không ai biết chuyện đó đã xảy ra</b>.
         </p>
         <div class="kv-row"><span class="k">Vì vậy</span><span class="v"><b>Hàng chờ</b> vẫn là nguồn sự thật. Thông báo chỉ <b>rút ngắn thời gian biết tin</b>.</span></div>
-        <div class="kv-row"><span class="k">Kiểm chứng</span><span class="v">Tắt hẳn thông báo đi — mọi việc vẫn làm được, chỉ chậm hơn. Nếu có việc <i>không làm được</i>, thiết kế sai.</span></div>
+        <div class="kv-row"><span class="k">Kiểm chứng</span><span class="v">Tắt hẳn thông báo đi — mọi việc vẫn làm được, chỉ chậm hơn. Nếu có việc <i>không làm được</i>, thiết kế sai.</span></div><div class="kv-row"><span class="k">🔴 Ca đối chứng</span><span class="v"><b>BẮT BUỘC vào tiêu chí nghiệm thu</b>, không phải tuỳ chọn. Tắt cờ → chạy TRỌN một vòng: chatbot lập hồ sơ → CSKH tìm thấy <b>qua hàng chờ</b> → trình → Sếp tìm thấy <b>qua danh sách duyệt</b> → duyệt.<br>[ĐO] hai màn hình ấy <b>đã tồn tại và đã build</b> (<span class="mono">/tickets</span> · <span class="mono">/approve</span>) ⟹ nền tảng có sẵn. Nhưng <b>chưa ai chạy thử</b> — và <i>một lời hứa không có ca đối chứng chỉ là một câu hay</i>.</span></div>
       </div>
     </div>
 
