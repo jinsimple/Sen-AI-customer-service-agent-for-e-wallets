@@ -160,7 +160,11 @@ trả lời được câu 2 và câu 3 sau này.
 - `contracts/resolution-state-machine.yaml` + `contracts/agent-tools.yaml` (`ghi_chu`
   `complaint_type` của `create_ticket` đang khai "1 trong 4")
 - `check_contracts.py --update` · `CONTRACT_VERSION` · commit **KÈM baseline**
-- migration: `ck_complaints_type` thêm giá trị + 3 cột QĐ4(a)
+- migration: `ck_complaints_type` thêm giá trị + cột JSON `lich_su_doi_loai` (QĐ4-a′)
+  *(🔴 [Lead 25/08, đúng chỗ Coder tự bắt] bản trước ghi nhầm "3 cột QĐ4(a)" — đã lỗi
+  thời từ khi QĐ4 đổi sang phương án (a′) một cột JSON chỉ-ghi-thêm. Mục "Hệ quả" là
+  chỗ NGƯỜI THI HÀNH đọc, không phải chỗ người duyệt đọc — một mâu thuẫn ở đó sống sót
+  qua vòng duyệt rồi mới cắn.)*
 - **Đơn hàng token: QĐ2 = 0.** [PO sửa 25/08, và sửa đúng] Tôi viết *"QĐ2 thêm chữ
   vào prompt, có thể không vừa"* — **mâu thuẫn với chính QĐ2**, nơi tôi đã ràng buộc
   câu cảnh báo phải là **dòng TẤT ĐỊNH chèn sau khi tool trả về** (cơ chế ⑧, đo được
