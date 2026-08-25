@@ -1205,6 +1205,36 @@ trên nền sai là đúng thứ Luật F cấm.
 | 11:40 **#16** | `655a112` | 🟢 3 commit | 🟢 ⑫b land 10:45 · ⑪ đang viết | 🟢 4 commit + giải mã checkpoint | 🟢 đang soát *(không ghi repo — xem Luật Đ)* | **cả 4 vai chạy** |
 | 11:55 **#17** | `ec0263d` | 🟢 | 🟢 ⑪ giữ chưa commit *(đúng)* | 🟢 chạy 20 mẫu · **tìm ra lỗ quan sát 41%** | 🟢 xong cả 3 việc soát | **cả 4 chạy · 0 commit mới** |
 | 12:10 **#18** | `88b0133` | ⏳ chưa có dấu vết mới | ⏳ ⑧⑨⑪ chưa động | 🟢 4 commit — cổng đối soát xong+vá | 🟢 rảnh sau khi đánh sập ⑩ | 🟢 **BUỔI TỐN PHÍ ĐÓNG** |
+| 12:30 **#19** | `18e2166` | 🔴 **im lặng 2 vòng** | 🟢 ⑨ soát xong · ⑪ đang làm | 🟢 vá SL-03 lỗi thời | 🟢 **soát xong ⑧ + giết đường thứ ba của PO** | ⑧⑨ thông · ⑪ là ô cuối |
+
+**#19 — ⑧ và ⑨ thông, đợt còn MỘT ô**
+
+✅ **⑧ TICK** *(Review soát: nội dung ĐÚNG và AN TOÀN, không chặn)* · ✅ **⑨ TICK** *(3/3 nhóm bất
+biến + 5/5 trục ca, chấm bằng chính regex QA/QC)* · **⑪ là ô cuối cùng của cả đợt.**
+
+🔴 **MỘT VIỆC 0 TOKEN THÊM VÀO ⑧ — PO xếp nặng hơn Review.** Review tìm ra K3 **thiếu hai dạng
+lừa phổ biến nhất ở ví điện tử VN**, xếp *"tốt hơn nữa được"*; PO xếp **làm ngay**:
+```
+① "phí xử lý"/"phí xác minh"  — nộp khoản NHỎ để "được hoàn tiền nhanh"
+② cài app hỗ trợ từ xa         — TeamViewer/AnyDesk "để chuyên viên vào máy"
+```
+**Lý do xếp nặng hơn:** ta **vừa tự tay dựng sân khấu** cho đúng hai chiêu này — bot vừa nói với
+người **nghi bị lừa** rằng *"sẽ có chuyên viên liên hệ lại"*, nên khách **đang chờ một cuộc gọi**
+và **không phân biệt được thật giả**.
+🔴 Ba chiêu **đã có** *(OTP · mật khẩu · chuyển tiền)* đều đòi khách làm việc **nghe đã đáng ngờ**.
+Hai chiêu **thiếu** thì **nghe hoàn toàn hợp lý** trong bối cảnh ta vừa tạo ra ⟹ **chỗ ta thiếu
+chính là chỗ khách dễ sập nhất.**
+⚠️ **KHÔNG phải nới phạm vi** *(PO thật đã thu hẹp ⑫b — không đụng)*: đây là làm cho câu cảnh báo
+**đã tồn tại** trở nên **đúng**, hai dòng chữ trong một hằng số.
+
+**Nợ, KHÔNG làm đợt này:** cảnh báo K3 **chưa neo vào lời hứa vừa đưa**, và [ĐO] đây là **vấn đề
+CHUNG của K3** — cùng mẫu câu *"chuyên viên sẽ liên hệ"* cũng có ở **luồng bình thường lượt 8**,
+không riêng ⑫b. ⟹ **sửa ở GỐC (hai hằng số), không vá từng điểm gắn.**
+
+⚠️ **Review soát ⑧ còn tự thêm một góc PO không hỏi:** *"cảnh báo có tự biến thành cẩm nang cho kẻ
+lừa không?"* → **không** — nó liệt kê chiêu **đã rất phổ biến**, không hé lộ **cơ chế nội bộ**
+*(vd "hệ thống chặn khi X" — thứ cho kẻ lừa cách né)*. **Báo khách biết trước CHÍNH LÀ thứ vô hiệu
+hoá chiêu đó.** Ranh giới này đáng nhớ cho mọi cảnh báo sau.
 
 **#18 — buổi đóng, đợt còn ba ô**
 Sổ đứng yên **20 dòng** qua hai vòng điểm danh ⟹ không ai tiêu thêm. **Gỡ đóng băng** *(Luật Đ′
