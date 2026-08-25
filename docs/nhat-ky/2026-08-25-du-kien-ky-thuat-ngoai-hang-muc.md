@@ -202,6 +202,40 @@ mục này **không phép đo nào bắt được** — `ruff` chỉ thấy bi�
 
 ---
 
+## ③d 🔴 "[ĐO]" LIỆT KÊ THỨ ĐÃ CHẠY, KHÔNG LIỆT KÊ THỨ **KHÔNG** CHẠY
+
+*(PO yêu cầu niêm, 25/08. Họ hàng gần của ③c "chú thích chết" — cùng là **người đọc suy
+rộng một câu đúng**, không ai nói dối.)*
+
+```
+[ĐO] 2755a9e (20/08), nguyên văn dòng cuối commit:
+     "[ĐO] eslint/tsc → sạch, chỉ 2 lỗi tiền tồn tại không do commit này."
+     ⟹ commit ấy ĐỔI NHÃN một chip giao diện. Vitest KHÔNG được chạy.
+     ⟹ dashboard/page.test.tsx ĐỎ SUỐT 5 NGÀY, tới 25/08 mới ai đó nhìn tới.
+```
+
+**Người viết không nói dối:** eslint và tsc **thật sự sạch**. **Người đọc suy rộng:** một
+dòng `[ĐO]` liệt kê hai công cụ ở cuối commit đọc ra như ***"đã kiểm xong"***, không đọc ra
+*"đã kiểm hai trong ba"*.
+
+🔴 **Vì sao nó nguy hơn quên chạy test bình thường:** commit **có** dòng `[ĐO]`, nên nó
+**vượt qua** mọi phản xạ soát của đội — ta dạy nhau *"phải có số đo"*, và **nó có số đo**.
+Một commit **không có** `[ĐO]` còn bị hỏi; commit này thì không.
+
+**Luật rút ra:** *một dòng `[ĐO]` đứng ở chỗ người ta sẽ đọc thành "đã kiểm đủ" thì **phải
+nói rõ những gì KHÔNG chạy**.* `"eslint/tsc sạch — CHƯA chạy vitest"` dài hơn đúng ba chữ
+và đóng trọn khoảng cách ấy.
+
+**Cùng hình dạng, ba ca trong một ngày:**
+```
+③c chú thích chết   → lời giải thích ĐÚNG cho một dòng KHÔNG còn làm điều nó nói
+③d "[ĐO]" thiếu vế  → phép đo ĐÚNG, nhưng im lặng về thứ KHÔNG đo
+④  `gh run list`    → lệnh ĐÚNG, không lọc nhánh ⟹ đọc CI của một CÂY KHÁC
+```
+Cả ba: **không câu nào sai. Chỗ hỏng nằm ở khoảng trống người đọc tự lấp.**
+
+---
+
 ## ④ `docker compose` GỘP danh sách `ports`, không thay — phải `!override`
 
 ```yaml
