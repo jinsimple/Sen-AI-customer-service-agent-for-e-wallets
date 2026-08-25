@@ -1191,6 +1191,43 @@ bản, mục Nhánh A: *"Bot sẽ ép nó vào 'chuyển nhầm' rồi tư vấn
 ⚠️ **Cả ba nằm SÁT ⑪ trong luồng** *(lượt 6→7 liền kề)* ⟹ nếu chạy mà không **ghi trước** ba rủi ro
 này, **lỗi của (a)(b)(c) sẽ bị quy nhầm cho ⑪.**
 
+### 🔴 #21 — HAI THỨ SUÝT LÀM CẢ BUỔI CHẠY VÔ NGHĨA
+
+**① ẢNH TỤT SAU REPO — và cổng canh việc đó MÙ.** [ĐO] `prompt.py`/`graph.py` trong ảnh **lệch** khỏi
+cây làm việc ⟹ **⑪ chưa hề có mặt trong hệ đang chạy**.
+🔴 **Hỏi `_khai_ma_nguon_lech_anh()` trước — NÓ BÁO BÌNH THƯỜNG:** `nhãn build 691dd9c40578` =
+`băm /app/src 691dd9c40578`. **Khớp, và vẫn sai** — cả hai vế đo **cùng một thứ** ⟹ chỉ trả lời được
+*"có ai sửa file BÊN TRONG container không"*. **Nó chưa bao giờ bắt được loại lệch duy nhất đã thật
+sự gây hại: ảnh tụt sau repo** — đã xảy ra **hai lần trong một ngày**.
+⟹ Phép đo đúng: **so băm tệp cây-làm-việc ↔ tệp trong container.** Ba dòng shell.
+
+**② 🔴🔴 NGĂN ĐANG CHẠY ĐÃ TẮT CẢ HAI CỔNG TẤT ĐỊNH** — `PHAN_LUONG_BAT=0`, `CONG_T0_BAT=0`, đặt
+trong override. **Cố ý**, dựng cho nghiệm thu ⑦ *(ép mọi lượt về `day_du` để đọc sổ)* — **không ai
+sai**. Nhưng chạy kịch bản trên đó = chạy với **toàn bộ cổng tắt**, rồi kết luận *"④ ⑤ không hoạt
+động"*. ⚠️ Nó cũng cho phân bố **`65% day_du`** một **lý do thứ hai** để không dùng được, **độc lập**
+với việc mất 24% bản ghi.
+
+**③ 🔴 CÁI BẪY CÒN NGUYÊN CHO MỌI BUỔI SAU:**
+```python
+config.py:86   PHAN_LUONG_BAT = os.environ.get("PHAN_LUONG_BAT", "")  → MẶC ĐỊNH **TẮT**
+config.py:103  CONG_T0_BAT    = os.environ.get("CONG_T0_BAT", "1")    → mặc định BẬT
+```
+**Cổng định tuyến — trung tâm cả đợt — MẶC ĐỊNH KHÔNG CHẠY.** Ngăn "sạch" không đặt biến gì thì nó
+**im lặng bằng TẮT**, không gì kêu lên. 🔴 **Mã có mặt, cờ tắt — trông Y HỆT mã hỏng.**
+*(KHÔNG đổi mặc định trong đợt này — đổi mặc định là đổi hành vi production, phải qua PO.)*
+
+⟹ 🔴 **MỘT BUỔI CHẠY PHẢI KIỂM HAI THỨ — chúng hỏng ĐỘC LẬP:**
+```
+① ẢNH có đúng mã không  → so băm tệp cây-làm-việc ↔ container
+② CỜ có đang bật không  → đọc env THẬT trong tiến trình đang phục vụ
+```
+
+**④ LUẬT Đ′ CHƯA ĐỦ — PO tự vấp ngay sau khi lập nó.** PO dựng lại ảnh trong lúc Coder **đang viết
+dở lượt 4** vào `phan_luong.py` ⟹ **ảnh chụp một cây đang chuyển động**, thiếu đúng phần đó. PO có
+báo QA/QC nhưng **không báo Coder** — vì lúc kiểm thì tệp **còn khớp**, nó đổi **sau đó**.
+⟹ **Dựng ảnh đòi cây làm việc ĐỨNG YÊN TRONG SUỐT lúc dựng**, không phải *"báo một tiếng rồi ai làm
+việc nấy"*.
+
 **#19 — ⑧ và ⑨ thông, đợt còn MỘT ô**
 
 ✅ **⑧ TICK** *(Review soát: nội dung ĐÚNG và AN TOÀN, không chặn)* · ✅ **⑨ TICK** *(3/3 nhóm bất
