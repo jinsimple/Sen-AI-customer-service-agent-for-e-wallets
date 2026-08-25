@@ -666,7 +666,9 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
 
 ## Nhóm C — Kịch bản chuyên gia *(giá trị cao nhất, rẻ nhất)*
 
-- [~] **⑧** Hai câu chống mạo danh **K3** — **Coder** · hằng số, 0 token
+- [x] **⑧** Hai câu chống mạo danh **K3** — **Coder** · hằng số, 0 token
+  - ✅ **[Lead sửa lệch #4] Đã land** `98074ba` + bổ sung `3ac7d90` (2 dạng lừa thêm:
+    "phí xử lý" · "app điều khiển từ xa"). Xác nhận đúng trên kịch bản CSKH thật (#23).
   - Lượt 1 → gắn cổng OTP: *"đây là mã xác thực phiên hỗ trợ, không phải OTP giao dịch — em
     không bao giờ hỏi OTP giao dịch hay mật khẩu"*
   - Lượt 8 → gắn lượt báo mã hồ sơ: *"sẽ không có ai từ ví gọi điện yêu cầu chị chuyển tiền,
@@ -685,7 +687,11 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     Đã sửa chú thích thành số đo thật. **Chưa tick `[x]` cho tới khi Review soát xong**
     (đúng yêu cầu của Coder, giữ `[~]`).
 
-- [~] **⑨** Bắt buộc hỏi câu sàng lọc lừa đảo **K2** — **Coder** *(ca đối chứng: QA/QC, ĐÃ GỠ)*
+- [x] **⑨** Bắt buộc hỏi câu sàng lọc lừa đảo **K2** — **Coder** *(ca đối chứng: QA/QC, ĐÃ GỠ)*
+  - ✅ **[Lead sửa lệch #4] Land** `c88d431` (câu hỏi + FS-13) → dời vị trí `7200144`
+    (từ lượt 8 về LƯỢT 4, bỏ hẳn vế lượt 8 trùng ⑧). ⚠️ **Chưa hoàn hảo:** kịch bản
+    CSKH thật (#23) đo ⑨ **bắn CHẬM, chỉ phủ ~53%** (lượt 4 vắng ở một nhánh) — rủi ro
+    đã niêm TRƯỚC khi chạy, không phải phát hiện mới, nhưng chưa vá.
   - Hỏi **sự kiện khách quan** *("có ai nhắn tin hoặc gọi điện hướng dẫn chị chuyển khoản
     không")*, **KHÔNG** hỏi kết luận *("chị có bị lừa không")*
   - Khung mở bắt buộc: *"em hỏi thêm một ý để hỗ trợ chị đúng hướng"*
@@ -765,7 +771,10 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     đủ sáu trường**. Tôi coi lời gọi tool là một điểm nguyên tử, nên không nhìn thấy
     khả năng tách nó làm hai thì. Tiền đề đúng, ranh giới sai, kết luận sai.
 
-- [ ] **⑪** Ép cấu trúc lượt 5/6/3 — **Coder** · prompt
+- [x] **⑪** Ép cấu trúc lượt 5/6/3 — **Coder** · prompt
+  - ✅ **[Lead sửa lệch #4] Land** `421396a` — VƯỢT trần token 56, PO quyết NỚI trần
+    (7.550→7.800), KHÔNG cắt vế (c) để giữ trọn nội dung. Xác nhận đúng trên kịch bản
+    CSKH thật (#23): lượt 5 (đủ ba vế) + lượt 6 (đổi góc nhìn PDPA) đạt/vượt kỳ vọng.
   - ~~Chặn — phiếu ghi "sau ⑨⑩"~~ ✅ **hết chặn** — ADR-049 duyệt (⑩ mở) và ⑨ đã landed.
   - Lượt 5: **ba vế** — không làm được gì → làm được gì → chị làm được gì
   - Lượt 6: đổi góc nhìn PDPA — *"quy định này bảo vệ cả chị nữa"*
@@ -852,6 +861,48 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     1 câu kiểm sổ trước khi chạy tiếp. Coder: việc còn lại là tìm **vì sao model chọn
     không gọi tool** ở ca dạng "thiếu số tiền" — không còn khẩn P0, nhưng vẫn là bug
     thật cần vá (ghi nợ, không chặn đợt). ⑦ tiếp tục như đang chạy.
+
+---
+
+## 🔴🔴 #23 — BLOCKER thật, phát hiện khi chạy kịch bản CSKH trọn vẹn trên UI thật
+
+> Chi tiết đầy đủ: commit `95df03b` + `88fa9d3`. Tóm tắt cho ai không mở commit:
+
+Bot báo *"đã tạo hồ sơ khiếu nại thành công với mã CMP-00003"* — **DB 0 dòng cho vé đó**
+(`so_tool_call=0` dù model CÓ đề xuất `create_ticket`, lời gọi biến mất giữa đường,
+KHÁC cơ chế ⑬ nơi model không đề xuất gì). **Nặng hơn:** `CMP-00003` là mã **CÓ THẬT**,
+thuộc **khách khác** (USR-0148) — bot đưa cho khách A mã hồ sơ thật của khách B, chạm
+ranh giới dữ liệu giữa hai khách hàng.
+
+**Gốc kỹ thuật (Coder tìm ra, PO xác nhận):** bộ lọc đầu ra chỉ chặn mã ngắn `<7 ký tự
+liền`; dấu `-` trong `CMP-00003` cắt chuỗi thành `CMP`(3)+`00003`(5), cả hai dưới ngưỡng
+⟹ **thêm mã giả làm câu nói AN TOÀN HƠN** trong mắt bộ lọc. Và **thiếu hẳn một cổng**
+thuộc ràng buộc cứng 3: *"model khai đã tạo vé ⟹ phải có `ticket_id` thật, không thì
+chặn"* — `so_tool_call`/`co_ticket` có sẵn lúc dựng câu trả lời, không ai đối chiếu.
+
+- [ ] **Vá B (ưu tiên 1, PO thật duyệt 25/08):** cổng ràng buộc cứng 3 — model khai đã
+  tạo vé phải có `ticket_id` thật, thiếu thì chặn. Bao gồm: sửa `if tm is None: continue`
+  bỏ im lặng lời gọi mồ côi (đội `so_tool_call=0` với "model không đề xuất gì" — hai
+  trạng thái khác nhau đang chung một vỏ).
+- [ ] **Vá A (ưu tiên 2):** khe khuôn mã ngắn giữa O3/O5 (dấu `-` cắt chuỗi dưới ngưỡng
+  7 ký tự). 🔴 Vá A mà bỏ B thì lần sau model bịa bằng khuôn khác lại lọt.
+- [ ] **ADR-051 (PO thật duyệt 25/08, "2 câu đầu làm nhé"):** đi đủ §3 — sửa
+  `contracts/agent-tools.yaml` (chữ ký `create_ticket`+`xac_nhan`) → chuyển
+  `docs/nhat-ky/2026-08-25-ADR-051-du-thao-cho-PO-duyet.md` sang `docs/DECISIONS.md`
+  ghi "PO thật duyệt 25/08" → `check_contracts.py --update` → `CONTRACT_VERSION` →
+  **commit KÈM baseline** → rồi Coder mới code. 🔴 6 ràng buộc trong ADR, thiếu ràng
+  buộc thứ 6 (đổi return type `dict`→chuỗi định dạng) thì khách nhận JSON thô.
+- [ ] **Vá Redis (PO thật duyệt 25/08):** land được ngay (DevOps `p-226-b8` nếu còn
+  chạy, không thì Coder). 🔴 Phải ghi đổi ý nghĩa `docker compose down -v` vào
+  `docs/DEPLOY.md` — người quen gõ lệnh cũ sẽ mất dữ liệu Redis mà không biết.
+- **Câu thứ ba (thời hạn lưu trữ dữ liệu)** — PO tự tra luật VN, CHƯA giao ai.
+
+**Hai bug phụ, ghi nợ:** `get_customer_history` khớp số tiền kiểu MỜ (339k khớp cả
+345k/335k) — nghi là GỐC của phát hiện ⑬/B1 cũ ("không thấy 393.000đ" dù có 2 giao dịch
+khớp tuyệt đối) · model gọi tool với `amount: "null"` chuỗi literal gây lỗi tool.
+
+**Phần chạy đúng, không để blocker nuốt mất:** lượt 1 (chống mạo danh) · 2 · 5 (⑪, ba
+vế) · 6 (⑪, góc nhìn PDPA) đạt/vượt kỳ vọng.
 
 ---
 
