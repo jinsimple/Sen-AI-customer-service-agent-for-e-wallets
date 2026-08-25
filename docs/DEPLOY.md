@@ -100,10 +100,23 @@ cp .env.example .env   # mẫu compose cần — KHÔNG dùng .env.production.ex
 nano .env   # điền các biến bên dưới
 ```
 
+🔴 **[SỬA 25/08] Vì sao dùng `.env.example` (mẫu DEV) chứ không phải
+`.env.production.example` (đã có sẵn `APP_ENV=production` đúng) làm nền cho
+VPS thật — không rõ lý do gốc, không tìm thấy ghi chú nào giải thích lựa
+chọn này. Giữ nguyên lời dặn cũ (đổi sang `.env.production.example` là một
+thay đổi rộng hơn, cần soát lại toàn bộ khác biệt giữa hai mẫu, không phải
+việc của bản vá một dòng này) — chỉ bổ sung dòng `APP_ENV` còn thiếu bên
+dưới, vì thiếu đúng dòng đó từng làm `/docs`/`/redoc`/`/openapi.json` (32
+route kèm schema) mở công khai trên một ngăn dựng đúng theo tài liệu này.
+
 Điền vào `.env` (mỗi dòng 1 biến, xem `.env` trên máy dev để biết đủ danh
 sách — **KHÔNG copy nguyên giá trị dev sang**, sinh key mới cho production):
 
 ```bash
+APP_ENV=production                       # 🔴 BẮT BUỘC đổi — .env.example nền
+                                          # để development, quên dòng này thì
+                                          # /docs · /redoc · /openapi.json mở
+                                          # công khai toàn bộ route + schema
 OPENAI_API_KEY=sk-...                    # key thật, có thể dùng chung key dev nếu muốn
 JWT_SECRET_KEY=...                       # sinh MỚI, xem lệnh dưới
 FIELD_ENCRYPTION_KEY=...                 # sinh MỚI, xem lệnh dưới
