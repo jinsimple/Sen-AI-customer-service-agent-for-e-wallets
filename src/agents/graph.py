@@ -46,6 +46,7 @@ from src.agents.phan_luong import (
     TEN_TIN_HIEU_1B,
     TRA_LOI_NHE,
     co_du_de_thu_hep,
+    la_ca_chuyen_nham,
     la_khieu_nai_ca_nhan,
     la_tra_loi_khang_dinh,
     phan_luong,
@@ -143,6 +144,11 @@ _TEN_TIN_HIEU_DA_BI_OTP_CHAN = "da_bi_otp_chan"
 
 # ⑨ — "đã hỏi câu sàng lọc lừa đảo cho thread này rồi". Một lần/hội thoại.
 _TEN_TIN_HIEU_DA_HOI_SANG_LOC = "da_hoi_sang_loc"
+# ⑨-lượt-4 — hai tín hiệu ĐỊNH VỊ LƯỢT. Tách riêng vì chúng trả lời hai câu
+# khác nhau: "thread này có phải ca chuyển nhầm không" và "đã tra được giao
+# dịch chưa". Gộp là mất khả năng bắn ĐÚNG LƯỢT.
+_TEN_TIN_HIEU_CA_CHUYEN_NHAM = "ca_chuyen_nham"
+_TEN_TIN_HIEU_DA_TRA_DUOC_GD = "da_tra_duoc_gd"
 DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
 DUONG_CAN_OTP = "can_otp"
 DUONG_FS13_BAN_GIAO = "fs13_ban_giao"
@@ -2035,11 +2041,44 @@ def run_agent_turn(
     # Chuyên gia đòi hỏi ở MỌI ca chuyển nhầm — kể cả ca trông rõ ràng, vì
     # chính ca rõ ràng mới là ca hay bị bỏ qua.
     # Chèn SAU bộ lọc, cùng lý do ⑧ (xem chú thích ở `_them_canh_bao_mao_danh`).
-    if ticket_id is not None and loai_khieu_nai == "wrong_recipient":
-        _tid_sl = thread_id or user_id
-        if doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl) == 0:
-            tang_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl)
-            reply_da_loc = (reply_da_loc.rstrip() + "\n\n" + HOI_SANG_LOC_LUA_DAO).strip()
+    # 🔴 ĐỔI ĐIỂM MÓC 25/08 — bản đầu bắn theo `ticket_id is not None`, tức chỉ
+    # bắn được SAU khi `create_ticket` trả về. Trong kịch bản chuyên gia, vé tạo
+    # giữa lượt 7 và 8 ⟹ câu sàng lọc xuất hiện ở LƯỢT 8, còn chuyên gia đặt nó
+    # ở LƯỢT 4. Chênh 4 lượt, và chênh đúng chiều nguy: khách đã nghe TRỌN lời
+    # khuyên chuyển-nhầm ở lượt 5-6 rồi mới bị hỏi có bị lừa không.
+    # Tôi chọn chỗ DỄ ĐO (`create_ticket` là nơi duy nhất tầng code biết chắc
+    # `complaint_type`), không chọn chỗ ĐÚNG LƯỢT. Phiếu ⑨ nói "hỏi ở MỌI ca
+    # chuyển nhầm" — nói CÓ HỎI KHÔNG, không nói HỎI Ở ĐÂU; 5 trục đặc tả cũng
+    # chấm "có hỏi", nên không cổng nào bắt được lỗi 4 lượt.
+    #
+    # 🔴 VẾ LƯỢT 8 ĐÃ BỎ HẲN, không để cả hai (điều kiện cứng của PO): hỏi khách
+    # HAI LẦN cùng một câu là hỏng theo cách khác, và nó SẼ LỌT mọi cổng hiện có
+    # vì tất cả đều chấm "có hỏi không".
+    #
+    # ĐỊNH VỊ LƯỢT 4: đọc tín hiệu của các lượt TRƯỚC, rồi mới ghi tín hiệu lượt
+    # NÀY (thứ tự quan trọng). Lượt tra được giao dịch chỉ GHI tín hiệu; lượt kế
+    # tiếp mới hỏi ⟹ đúng lượt 4, không phải lượt 3.
+    _tid_sl = thread_id or user_id
+    if la_ca_chuyen_nham(message):
+        tang_tin_hieu(_TEN_TIN_HIEU_CA_CHUYEN_NHAM, _tid_sl)
+    _da_tra_duoc = doc_tin_hieu(_TEN_TIN_HIEU_DA_TRA_DUOC_GD, _tid_sl) not in (None, 0)
+    if (
+        _da_tra_duoc
+        and doc_tin_hieu(_TEN_TIN_HIEU_CA_CHUYEN_NHAM, _tid_sl) not in (None, 0)
+        and doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl) == 0
+    ):
+        tang_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl)
+        reply_da_loc = (reply_da_loc.rstrip() + "\n\n" + HOI_SANG_LOC_LUA_DAO).strip()
+    # Ghi SAU khi đã xét ở trên — nếu ghi trước, lượt tra-được sẽ tự thoả điều
+    # kiện và câu hỏi rơi vào lượt 3 (chung tin với bản đọc lại 5 dữ kiện),
+    # phá luôn R1 "một Ý mỗi tin".
+    if not _da_tra_duoc and any(
+        c.get("tool_name") == "lookup_transaction"
+        and isinstance(c.get("result"), dict)
+        and c["result"].get("status") == "found"
+        for c in tool_calls_out
+    ):
+        tang_tin_hieu(_TEN_TIN_HIEU_DA_TRA_DUOC_GD, _tid_sl)
     tin_hieu_lo_chi_thi_ket_qua = tin_hieu_lo_chi_thi(reply, thread_id=thread_id or user_id)
     _kq_cuoi = {
         "reply": reply_da_loc,

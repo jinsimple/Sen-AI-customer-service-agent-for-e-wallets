@@ -143,10 +143,26 @@ _MAT_NEO = ("mất", "mat", "bị mất", "bi mat", "bị trừ", "bi tru")
 #   "tôi bị trừ tiền"                              cần "bị trừ"
 #   "mình chuyển nhầm cho người lạ, không nhớ gì cả"  cần "chuyển nhầm"
 #   "tôi chuyển nhầm tiền cho người lạ rồi..."        cần "chuyển nhầm"
+# ⑨-lượt-4 (25/08) — TÁCH RIÊNG tám cụm ĐẶC HIỆU cho ca chuyển nhầm. Trước bản
+# này chúng nằm lẫn trong `_TIN_HIEU_KHIEU_NAI`, và `_nhom_b()` khớp xong thì
+# VỨT thông tin cụm nào khớp, chỉ giữ `True`. Dữ kiện đi qua hàm rồi bị bỏ —
+# không phải không tồn tại. Tách ra để tầng gọi hỏi được "ca này có phải chuyển
+# nhầm không" mà KHÔNG cần model, KHÔNG tốn token.
+#
+# [ĐO 25/08, corpus eval, mẫu số = ca ĐÃ PHÂN LOẠI] tám cụm này TÁCH SẠCH:
+#   double_charge 0/26 · money_not_received 0/52 · refund 0/35
+#   ⟹ ngoài `wrong_recipient`: 0/113 = 0.00%   (ngưỡng PO chốt TRƯỚC khi đo: ≤5%)
+#   chiều thuận: wrong_recipient 19/36 = 52,8%
+# 🔴 KHAI GIỚI HẠN, đừng đọc 0.00% rộng hơn nó đáng: nó nói "tám cụm KHÔNG xuất
+# hiện ở loại khác", KHÔNG nói "hễ có cụm là chuyển nhầm". 17/36 ca chuyển nhầm
+# KHÔNG chứa cụm nào ⟹ phủ ~53%, phần còn lại rơi về hành vi cũ. CÓ CHỦ ĐÍCH,
+# không phải sót. Và corpus là DỮ LIỆU SINH — khách thật viết đa dạng hơn.
+_CUM_CHUYEN_NHAM = ("chuyển nhầm", "chuyen nham", "gửi nhầm", "gui nham",
+                    "nhầm người", "nham nguoi", "chuyển sai", "chuyen sai")
+
 _TIN_HIEU_KHIEU_NAI = ("lỗi", "loi",
                        "bị trừ", "bi tru", "bị mất", "bi mat",
-                       "chuyển nhầm", "chuyen nham", "gửi nhầm", "gui nham",
-                       "nhầm người", "nham nguoi", "chuyển sai", "chuyen sai",
+                       *_CUM_CHUYEN_NHAM,
                        "chưa nhận", "chua nhan", "không nhận", "khong nhan",
                        "chưa thấy", "chua thay", "không thấy", "khong thay",
                        "chưa tới", "chua toi", "chưa về", "chua ve")
@@ -432,6 +448,17 @@ def _chuan_hoa_nhe(s: str) -> str:
     nhẹ riêng cho bóc slot, giữ nguyên `_chuan_hoa()` cho khớp từ khoá (không
     đổi hành vi NHÓM A/B, chỉ đổi hành vi bóc slot)."""
     return unicodedata.normalize("NFC", s).lower().strip()
+
+
+def la_ca_chuyen_nham(cau: object) -> bool:
+    """Câu này có dấu hiệu ca CHUYỂN NHẦM không — tất định, 0 token.
+
+    Dùng cho cổng ⑨ (câu sàng lọc lừa đảo) để nó bắn ở ĐÚNG LƯỢT 4 của kịch bản
+    chuyên gia, thay vì lượt 8. Xem `_CUM_CHUYEN_NHAM` cho số đo và giới hạn.
+    """
+    if not isinstance(cau, str):
+        return False
+    return any(c in _chuan_hoa(cau) for c in _CUM_CHUYEN_NHAM)
 
 
 def la_khieu_nai_ca_nhan(cau: object) -> bool:
