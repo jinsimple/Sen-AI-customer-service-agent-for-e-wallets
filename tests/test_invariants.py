@@ -529,6 +529,24 @@ def test_inv05_chi_supervisor_dua_duoc_resolution_sang_approved(fsm):
         assert t["from"] == "pending_approval", (
             f"Có đường tắt tới 'approved' từ '{t['from']}' — mọi thứ phải qua pending_approval."
         )
+        # 🔴 ĐÍNH CHÍNH 26/08 — audit "cổng canh có thật đỏ khi ràng buộc hỏng
+        # không". INV-06 (ngay dưới) chỉ lọc transition CÓ `cham_tien=true`
+        # rồi kiểm `boi`; nếu ai lỡ xoá `cham_tien: true` khỏi ĐÚNG transition
+        # tiền-thật này (pending_approval→approved), vòng lọc của INV-06 còn
+        # 0 phần tử và nó xanh trơn — không có test nào khác trong file bắt
+        # được việc rớt cờ. ĐÃ ĐO bằng git worktree riêng (xoá ngay sau đo,
+        # không đụng contracts/ that): xoá `cham_tien: true` khỏi transition
+        # này trong contract, chạy lại CẢ INV-05 (bản trước dòng assert này)
+        # LẪN INV-06 -> cả hai PASS (sai). Vá tại đây, không phải INV-06, vì
+        # INV-05 đã có sẵn biến `t` trỏ đúng transition tiền-thật cần canh.
+        assert t.get("cham_tien") is True, (
+            f"Transition {t['from']}→approved KHÔNG khai `cham_tien: true` — đây "
+            "chính là hành động chạm tiền thật của cả hệ thống (duyệt hoàn tiền/"
+            "điều chỉnh sổ cái). Thiếu cờ này, INV-06 (transition chạm tiền chỉ "
+            "do supervisor) không còn thấy transition này để canh, và cổng "
+            "'chạm tiền chỉ do supervisor' mất tác dụng ngay trên chính giao "
+            "dịch tiền quan trọng nhất."
+        )
 
 
 def test_inv06_transition_cham_tien_chi_boi_supervisor(fsm):
