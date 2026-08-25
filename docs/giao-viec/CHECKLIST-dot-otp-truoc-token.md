@@ -690,10 +690,12 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - 🟢 Bot **được phép** hứa *"bộ phận nghiệp vụ chủ động liên hệ người nhận"* — PO xác nhận
     quy trình CÓ THẬT 24/08
   - ~~🟡 HOÃN sang đợt cắt prompt (T3)~~ — 🔴 **[PO THẬT 25/08, qua PO agent] GỠ HOÃN,
-    KHÔNG XOÁ chữ cũ.** Lý do gốc là margin 293 chỉ đủ MỘT trong ⑨/⑪ — nay ⑨ landed
-    với **delta = 0** (vế tất định), giải phóng toàn bộ 293 cho ⑪. **Vẫn bắt buộc T2:**
-    Coder tự đo delta thật, phải vừa trong 293 (đo lại nền NGAY TRƯỚC khi land, đừng
-    dùng số 293 hôm nay — cùng khuyến nghị Coder đã tự đề xuất cho ⑨).
+    KHÔNG XOÁ chữ cũ.** Lý do gốc là margin ~~293~~ **261** (niêm: số `293` đo bằng
+    venv cấm dùng, xem mục T1 "Trần ngân sách token" — quyết định không đổi, chỉ số
+    đổi) chỉ đủ MỘT trong ⑨/⑪ — nay ⑨ landed với **delta = 0** (vế tất định), giải
+    phóng toàn bộ 261 cho ⑪. **Vẫn bắt buộc T2:** Coder tự đo delta thật TRONG
+    CONTAINER (không dùng host/venv P-121-new), phải vừa trong 261, đo lại nền NGAY
+    TRƯỚC khi land.
 
 - [~] **⑬** Bộ ca đánh giá từ kịch bản chuyên gia — **QA/QC** · `eval/`
   - Nhánh A *(có người hướng dẫn)* · Nhánh B *(nhiều GD khớp, phải đổi trục)* · Nhánh C
@@ -899,12 +901,20 @@ trên nền sai là đúng thứ Luật F cấm.
     theo nền mới — lý do trong docstring file (trần chống trôi neo cố định; tính lại theo
     nền mới là tự nới theo drift). Chạy thật: 2/3 pass, `test_bao_TRUOC_khi_cham_tran`
     (cảnh báo 90%) **đỏ ĐÚNG lý do** (đã ở 96,1%), không phải bug.
-  - 🔴 **CHỈ CÒN 293 TOKEN (3,9%) DƯỚI TRẦN** — cảnh báo cho ⑨⑪ (còn lại của Nhóm C có khả
-    năng thêm chữ prompt). **[Lead 25/08] KHÔNG chèn việc cắt prompt trước ⑨/⑪** — đúng
-    tinh thần PO đã quyết (không tối ưu trên số chưa biết, Luật F). Thay vào đó: đã báo
-    Coder viết kiệm chữ ngay từ đầu khi soạn ⑨/⑪, và **T2 là cơ chế bắt** — nếu delta cộng
-    dồn chạm 293, đó là lúc quyết định thật (rút chữ hay nâng trần có lý do), với số thật
-    thay vì đoán trước.
+  - 🔴 **NIÊM [Coder tự bắt 25/08] — TOÀN BỘ số tuyệt đối phía trên (`7.257`,
+    `5.275/1.982`, `293`) ĐO BẰNG `P-121-new/.venv` — venv CẤM DÙNG cho việc này**
+    (`docs/STATE.md:24`, luật mở rộng phủ cả "đếm token kích thích", không chỉ "gọi
+    LLM thật" — Coder đọc đúng chữ, hiểu hẹp). `langchain-core` 1.5.3 (host) vs 1.5.4
+    (container) sinh lược đồ tool khác nhau ⟹ số TUYỆT ĐỐI lệch dù mã giống hệt (băm
+    src khớp). **KHÔNG XOÁ số cũ — niêm tại chỗ, vì cơ chế lệch venv sẽ cắn người sau
+    nếu không thấy nó từng cắn ở đây.** QA/QC "khớp tuyệt đối" ở trên là khớp giữa
+    hai lần chạy CÙNG venv sai, không phải xác nhận chéo môi trường. **Số đúng, đo
+    trong container `fin05-dot-otp`:** `tool=2.014 (+32) · tổng=7.289/7.550=96,5% ·
+    còn 261 token` (QA/QC, giữa buổi tốn phí).
+  - ~~**CHỈ CÒN 293 TOKEN (3,9%) DƯỚI TRẦN**~~ — 🔴 **SAI SỐ, xem niêm ngay trên. Trần
+    thật là 261, không phải 293.** Quyết định vẫn không đổi (không chèn cắt prompt
+    trước ⑨/⑪, đúng Luật F) — **may vì cả hai đều dương và ⑨ tốn 0**, không phải vì
+    phép đo đúng. T2 vẫn là cơ chế bắt, ngưỡng đúng là 261.
 - [x] **T2** 🔴 **ĐIỀU KHOẢN MỚI, áp cho ⑨⑩⑪:** mỗi mục khi land phải BÁO DELTA TOKEN của
   prompt trong commit message. **Không có số ⟹ Lead không nhận mục đó là xong**, dù mã
   đã đúng — chi phí phải hiện ra ĐÚNG LÚC quyết định, không phải bị phát hiện sau bởi một
