@@ -22,7 +22,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
       <RoleTabNav role={session.role} />
       <main>{children}</main>
-      <footer className="foot">FIN-05 · T121 — AI 20K Build Phase Cohort 3</footer>
+      {/* 🔴 "T121" -> "P-226" (25/08). Đây KHÔNG phải sửa chính tả: chuỗi này in
+          trên MỌI TRANG sản phẩm, tức thứ KHÁCH HÀNG nhìn thấy, và PO sắp chia sẻ
+          công khai. PO thật đã ra lệnh sửa mã dự án cùng ngày — cả đội đi sửa TÀI
+          LIỆU và không ai sửa chỗ này. Mã đúng: P-226 (khớp git remote, xem
+          CLAUDE.md §8: dòng ghi P-121 là SAI, đã đính chính 18/08). */}
+      <footer className="foot">FIN-05 · P-226 — AI 20K Build Phase Cohort 3</footer>
     </div>
   );
 }
