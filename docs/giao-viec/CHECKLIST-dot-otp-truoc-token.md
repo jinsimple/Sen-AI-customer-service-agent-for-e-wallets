@@ -759,6 +759,30 @@ thay vì tin số Coder báo. Khai ra thay vì im — đúng **Luật V**.
 
 ---
 
+## 🔴 `fin05-po-test` KHÔNG mang mã đợt này — phát hiện chặn buổi tốn phí
+
+**[ĐO Coder 25/08]** `docker inspect fin05-po-test-backend-1` → compose config file nằm
+trong **scratchpad của một phiên KHÁC** (`17d3f149-…`), `build: context: .` trỏ vào
+chính bản sao đó — **đông cứng lúc 24/08 22:04**, không phải `dev/learning-loop`. Băm
+src/ bản đó `7636400be9c4` — **0 dòng nào của đợt "OTP trước token"** (④⑤⑦⑨⑫b, mọi cờ
+`CONG_T0_BAT`/`CONG_OTP_NHOM_B_BAT`/`da_bi_otp_chan` đều KHÔNG có).
+
+- 🔴 **BUỔI TỐN PHÍ DỪNG** — QA/QC đã báo dừng hẳn, không chạm ngăn này dưới bất kỳ
+  hình thức nào cho tới khi có ngăn mới.
+- **Coder trình 3 đường, không tự chọn:** (1) dựng ngăn MỚI từ repo thật, project
+  name mới · (2) sửa `context:` của ngăn cũ trỏ về repo — **bị bác**, đó là file
+  trong scratchpad phiên khác, sẽ tự mất, không phải vật của ta để sửa · (3) đo riêng
+  ⑦ qua host (0 token) — chỉ đóng được ⑦, không đóng ⑥/⑬/⑨/⑫b.
+  **[Lead 25/08] QUYẾT ĐỊNH: đường (1).** Buổi tốn phí cần UI thật cho 4 hạng mục,
+  không chỉ ⑦.
+- 🔴 **Cần soát lại:** mọi lần "PO tự kiểm độc lập" trong đợt này (④, ②…) nếu có lần
+  nào gọi qua HTTP/UI sống của `fin05-po-test` (không phải git log/grep/script host)
+  — kết quả lần đó không phản ánh mã đợt này. Đã hỏi PO tự soát.
+- `fin05-final` cũng build từ cùng scratchpad phiên đó — **chưa kiểm, đừng dùng cho
+  tới khi có xác nhận**.
+
+---
+
 ## Trần ngân sách token — quyết định PO 25/08, vá cái ĐO không vá cái BỊ ĐO
 
 > Phát hiện lúc land ④ (checklist ở mục ④ phía trên). `tests/test_inv_ngan_sach_token.py`
