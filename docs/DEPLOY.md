@@ -310,3 +310,78 @@ không phục hồi được.
   xem docs/TESTING.md phần Observability), truy cập qua SSH tunnel:
   `ssh -L 16686:localhost:16686 <user>@<vps-ip>` rồi mở
   `http://localhost:16686` trên máy mình, chọn service `fin05-backend`.
+
+### 🔴 Trần chi tiêu LLM hằng ngày — chưa đặt, cần trước khi chia sẻ công khai
+
+**[ĐO 25/08, đọc mã, không suy từ trí nhớ]** `TRAN_TOKEN_LLM_MOI_NGAY` (`src/config.py:368`) —
+rỗng/thiếu ⟹ **không giới hạn**. Đơn vị: **token model CHAT nguyên**, KHÔNG gồm embedding
+(khác nhà cung cấp — `src/config.py` giải thích tại chỗ vì sao cộng chung vô nghĩa). Đọc lúc
+**IMPORT** ⟹ đổi giá trị bắt buộc **RECREATE container**, `docker exec -e` không đủ (cùng bẫy
+đã ghi ở `PHAN_LUONG_BAT`).
+
+**Điều gì xảy ra khi chạm trần — đã đọc hết đường đi, không đoán:** `cong_ra_ngoai.py` chặn ở
+tầng transport (`GoiRaNgoaiBiChanError`), SDK nhà cung cấp bọc thành `openai.APIConnectionError`
+(kế thừa `APIError`), `graph.py` bắt ở nhánh `except APIError` — khách **KHÔNG BAO GIỜ nhận
+500**, nhận câu mềm *"hệ thống đang bận nên mình chưa xử lý kịp, bạn nhắn lại giúp mình sau ít
+phút nhé"*. Ở tầng vận hành, log mức `warning` (không phải `error`), không tạo cảnh báo giả
+"nhà cung cấp cần can thiệp" — `APIConnectionError` không nằm trong `_LOI_CAN_CAN_THIEP`.
+
+🔴 **Một khoảng trống hành vi, khai ra chứ không giấu — thuộc `src/`, không tự sửa (vùng
+tech-lead):** câu trả lời mềm ở trên hứa *"sau ít phút"* — đúng cho lỗi nhà cung cấp thoáng
+qua, **SAI** cho ca chạm trần chi tiêu: trần reset lúc **00:00 UTC**, có thể còn hàng giờ, không
+phải "vài phút". Hàm `la_bi_chan()` (`cong_ra_ngoai.py:96`) được viết sẵn CHÍNH ĐỂ phân biệt ca
+này ("PHẢI DÙNG HÀM NÀY" — trích docstring) nhưng **0 lời gọi trong `src/`** — chưa được nối vào
+`graph.py`. Không chặn việc đặt trần (khách vẫn được trả lời mềm, không 500), nhưng đề xuất
+tech-lead nối `la_bi_chan()` vào nhánh `except APIError` để câu trả lời đúng lý do, tránh khách
+nhắn lại liên tục trong ngày mà lần nào cũng bị chặn.
+
+**Cách tính đề xuất — trình PO thật, PO quyết số cuối, KHÔNG tự đặt lên production:**
+
+```
+Mốc đo: 1 hội thoại 8 lượt ≈ 141.000 token (PO thật cung cấp 25/08)
+Giá qwen3.7-plus quốc tế [ĐO 17/08, CÓ THỂ ĐÃ ĐỔI — xác nhận lại trước khi
+  dùng số tiền để quyết]: $0,40 / 1M token vào · $1,20 / 1M token ra
+Cận dưới/trên mỗi hội thoại (giả định 100% vào / 100% ra — chưa có tỉ lệ
+  vào:ra thật để tính điểm chính xác hơn):
+  141.000 × 0,40/1.000.000 = $0,0564   …   141.000 × 1,20/1.000.000 = $0,169
+```
+
+| Hội thoại 8-lượt/ngày | Token/ngày | Chi phí ước tính (USD/ngày) |
+|---|---|---|
+| 50 | 7.050.000 | $2,82 – $8,46 |
+| 100 | 14.100.000 | $5,64 – $16,92 |
+| **150 (đề xuất)** | **21.150.000 → làm tròn 20.000.000** | **$8,00 – $24,00** |
+| 300 | 42.300.000 | $16,92 – $50,76 |
+| 500 | 70.500.000 | $28,20 – $84,60 |
+
+🟡 **Đề xuất: `TRAN_TOKEN_LLM_MOI_NGAY=20000000`.** Lý lẽ: 150 hội thoại 8-lượt/ngày là một
+ngày "share public" bận rộn thật (không phải viral quy mô lớn — máy cá nhân + Cloudflare Tunnel
+không nhắm phục vụ hàng nghìn người đồng thời), và hầu hết khách công khai sẽ không đi hết 8
+lượt sâu như mốc đo (nhiều lượt là câu chào 0 token qua T1, hoặc hỏi 1-2 câu rồi thôi) — nghĩa
+là 20 triệu token thực tế phủ được **nhiều hơn** 150 hội thoại nếu phần lớn ngắn hơn mốc đo.
+Trần **≤ chi phí một ngày tệ nhất chấp nhận được**, không phải trần lý tưởng — PO thật là người
+duy nhất biết ngưỡng đó, con số trên chỉ là điểm khởi đầu có lý lẽ để PO chỉnh lên/xuống.
+
+**Cách đặt trên máy Windows + xác nhận đã có hiệu lực:**
+
+```powershell
+# 1. Thêm dòng vào .env thật trên máy Windows (KHÔNG phải .env.example)
+#    TRAN_TOKEN_LLM_MOI_NGAY=20000000
+
+# 2. RECREATE — restart KHÔNG đủ, biến đọc lúc import
+docker compose up -d --force-recreate backend
+
+# 3. Xác nhận biến đã vào ĐÚNG container (không chỉ vào .env trên đĩa)
+docker compose exec backend printenv TRAN_TOKEN_LLM_MOI_NGAY
+#   phải in ra đúng số vừa đặt — rỗng nghĩa là chưa recreate đúng cách
+
+# 4. Xem chi tiêu HÔM NAY đang được đếm (không tốn tiền, chỉ đọc Redis) —
+#    khoá theo NGÀY UTC, không phải giờ VN (UTC+7) — sau 07:00 sáng giờ VN
+#    thì ngày UTC đã sang ngày mới, trước đó vẫn còn là ngày UTC hôm trước
+$ngay_utc = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
+docker compose exec redis redis-cli get "fin05:chi_tieu_llm_token:$ngay_utc"
+```
+
+⚠️ **Đừng "test cho chắc" bằng cách cố tình chạm trần trên production** — đó là tự đốt đúng số
+tiền đang muốn bảo vệ. Tin vào việc đọc mã (đã làm ở trên) thay vì gây sự cố thật để xem nó có
+kêu không.
