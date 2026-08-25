@@ -1204,6 +1204,24 @@ trên nền sai là đúng thứ Luật F cấm.
 | — | `a3bc860` | chưa nhận | chưa nhận | chưa nhận | chưa nhận | phiếu vừa land |
 | 11:40 **#16** | `655a112` | 🟢 3 commit | 🟢 ⑫b land 10:45 · ⑪ đang viết | 🟢 4 commit + giải mã checkpoint | 🟢 đang soát *(không ghi repo — xem Luật Đ)* | **cả 4 vai chạy** |
 | 11:55 **#17** | `ec0263d` | 🟢 | 🟢 ⑪ giữ chưa commit *(đúng)* | 🟢 chạy 20 mẫu · **tìm ra lỗ quan sát 41%** | 🟢 xong cả 3 việc soát | **cả 4 chạy · 0 commit mới** |
+| 12:10 **#18** | `88b0133` | ⏳ chưa có dấu vết mới | ⏳ ⑧⑨⑪ chưa động | 🟢 4 commit — cổng đối soát xong+vá | 🟢 rảnh sau khi đánh sập ⑩ | 🟢 **BUỔI TỐN PHÍ ĐÓNG** |
+
+**#18 — buổi đóng, đợt còn ba ô**
+Sổ đứng yên **20 dòng** qua hai vòng điểm danh ⟹ không ai tiêu thêm. **Gỡ đóng băng** *(Luật Đ′
+hết hiệu lực; ai định dựng lại ảnh thì báo trước để QA/QC không đo giữa chừng)*.
+
+**Đợt đóng hay không nằm ở ba ô, cả ba của Coder:** `⑧ [~]` · `⑨ [~]` · `⑪ [ ]`.
+Đề nghị thứ tự **⑧ → ⑨ → ⑪**: hai cái đầu là **hằng số, 0 token, không đụng trần** ⟹ đóng ngay
+không phải chờ đo; ⑪ là cái **duy nhất** phải cân trần **261**, để cuối.
+
+⏳ **Lead và Coder chưa có dấu vết mới từ #17.** Chưa kết luận gì — Coder vừa nhận ba ô, Lead có
+thể đang soạn. Nếu tới #19 vẫn trống thì mới hỏi.
+
+❓ **Ghi nợ một câu hỏi 0 token, ảnh hưởng RỘNG hơn ⑩:** `create_agent` *(LangChain bản đang dùng)*
+có hỗ trợ **dừng ngay sau một tool** không *(`return_direct=True`)*? 🔴 Nếu **không**, thì mọi
+thiết kế *"cổng tất định SAU KHI model đã chạy"* đều phải viết lại bằng `StateGraph` tuỳ biến —
+**đổi kiến trúc agent**, không phải thêm tham số. Dữ kiện này định hình **các đợt sau**, không
+riêng ⑩. Giao Coder, **sau** ba ô trên.
 
 **#17 — hai con số, và một sự cố hạ tầng do PO gây ra**
 
