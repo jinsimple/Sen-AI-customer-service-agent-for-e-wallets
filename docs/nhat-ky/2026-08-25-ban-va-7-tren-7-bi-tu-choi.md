@@ -32,7 +32,8 @@ python eval/cong_phan_luong.py          --luat <đường-dẫn-thu2.py> --bo-qu
 | | |
 |---|---|
 | `thu2.py` tự khai | `4ec1a4e9f087` |
-| nền repo lúc đo | `0952da634f87` *(commit `0eb1e01`)* |
+| nền repo lúc đo | `0952da634f87` *(commit ~~`0eb1e01`~~ → **`d3ec76c`**)* |
+| ⚠️ SHA cũ | ~~`0eb1e01`~~ **KHÔNG TỒN TẠI** — số bịa, Coder tự khai 25/08. Niêm, không xoá |
 
 ⚠️ **Hai số khác nhau là ĐÚNG, không phải mâu thuẫn.** `bam_ma_nguon` băm **nội dung tệp**,
 mà `thu2` = nền + bản vá. **Số dùng để neo là `0952da634f87`** *(nền)*.
@@ -152,6 +153,6 @@ def _nhom_b(s: str) -> bool:
 | Tác giả bản thử | Coder `p-226-63` |
 | Người từ chối land | chính tác giả, trước khi ai kịp soát |
 | Cất vào repo | PO `p-226-b9`, 25/08/2026 |
-| Nền đo | `0952da634f87` *(commit `0eb1e01`)* |
+| Nền đo | `0952da634f87` *(commit ~~`0eb1e01`~~ → **`d3ec76c`**)* |
 | Vì sao không ở `eval/` | tránh phiên sau đọc nhầm thành bản vá chờ land |
 | Vì sao không ở scratchpad | thư mục **theo phiên**, tự mất khi phiên đóng, **không ai được báo** — lệnh "giữ ở scratchpad" của PO **sai**, Coder chặn đúng |

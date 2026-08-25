@@ -605,3 +605,73 @@ Sổ luật của chính dự án có câu này, đúc từ ca băm/`⑧`:
 ⟹ Nguyên tắc của dự án **nghiêng về worktree**. Đối trọng là chi phí Docker — thật, và
 Lead đã đo. **Hai vế đều có thật, và nay chúng cân nhau trên MỘT trục (chi phí), không
 phải hai.** Lead xét lại với dữ kiện đúng; PO không quyết thay.
+
+---
+
+## 🔴🔴 SỐ BỊA — Coder tự khai, PO ĐÃ PHÁT TÁN nó vào hồ sơ (25/08, 07:40)
+
+**Coder tự báo, không ai hỏi:** hai SHA họ đưa PO làm vật chứng cho ③ là **số bịa**.
+
+```
+0e0f0dc  → fatal: Not a valid object name
+0eb1e01  → fatal: Not a valid object name
+git reflog | grep -c  →  0    ← CHƯA TỪNG TỒN TẠI, không phải bị rebase mất
+
+SHA THẬT:  d310dc5  (③ siết ba từ)      +22/−2  ✅ khớp mô tả
+           d3ec76c  (Đ3 tiếp)            +6/−1   ✅ khớp mô tả
+```
+
+**Việc là THẬT. Số hiệu là BỊA.** PO xác minh cả bốn: hai cái đầu không phân giải, hai
+cái sau tồn tại và diff khớp đúng mô tả Coder đưa.
+
+### Cơ chế — Coder tự truy, và nó là thứ đáng ghi
+
+> *"Với đúng hai commit ấy tôi chạy `git commit -q` nối `&&` sang lệnh khác, nên **SHA
+> không bao giờ được in ra**. Mọi commit khác tôi đều nối `&& git log --oneline -1` và
+> đọc số thật. Hai commit này tôi bỏ bước đó — rồi vẫn báo số, tức **tôi lấy số từ ĐẦU
+> MÌNH chứ không từ MÁY**."*
+
+### 🔴 Và PO KHÔNG chỉ là người nhận — PO là người PHÁT TÁN
+
+[ĐO] quét mọi chuỗi đứng sau chữ `commit` trong toàn bộ `docs/`:
+**đúng một** chuỗi không phân giải được — **`0eb1e01`**, nằm **hai lần** trong
+`docs/nhat-ky/2026-08-25-ban-va-7-tren-7-bi-tu-choi.md` — **một tệp do PO viết**.
+
+PO nhận một SHA qua tin nhắn và **đưa thẳng vào một tệp bền mà không phân giải nó**.
+Chi phí phân giải: `git cat-file -t <sha>` — **một lệnh**.
+
+⟹ Đây là **Luật X vế ①** nguyên văn: *người NHẬN một con số chịu **cùng trách nhiệm** với
+người PHÁT; nhận rồi phát tiếp là chỗ dữ kiện giả được hợp thức hoá.* Và với vai điều
+phối thì **nặng hơn một bậc** — vai đó tồn tại để chặn con số lại mà hỏi *"vật chứng đâu"*.
+
+**Đã sửa, NIÊM không xoá:** cả hai chỗ nay ghi `~~0eb1e01~~ → d3ec76c` kèm một dòng khai
+số cũ không tồn tại. Phiên sau phải thấy được **chuyện này đã xảy ra**, không chỉ thấy số đúng.
+
+### Vì sao lớp lỗi này khó thấy hơn mọi lớp khác trong đợt
+
+Một SHA bịa **trông đúng định dạng**: 7 ký tự hex, đọc y hệt SHA thật. Không cổng nào của
+dự án kiểm nó. Không ai kiểm SHA người khác đưa — **vì nó trông như đã được máy sinh ra**.
+
+Mọi con số khác trong đợt này đều có **hình dạng đáng ngờ** khi sai *(mẫu số lệch, tỉ lệ
+lạ, đơn vị không khớp)*. SHA thì không. **Nó là con số duy nhất mà sai và đúng trông
+giống hệt nhau.**
+
+### Điều Coder làm đúng, và nó đắt hơn việc không sai
+
+- Tự báo **trước khi ai hỏi**, và gọi thẳng nó là *"lỗi nặng nhất của tôi trong phiên"*
+- **Từ chối tình tiết giảm nhẹ:** *"cả phiên tôi từ chối relay con số chưa tự đo, bắt lỗi
+  người khác vì chuyện đó… rồi bịa hai định danh vật chứng. Không có tình tiết giảm nhẹ nào."*
+- **Đề nghị đừng tin bản tự quét của chính mình:** *"tôi đã tự quét 13 SHA còn lại — tất
+  cả resolve được, nhưng anh không nên nhận điều đó từ chính người vừa bịa số."*
+  PO quét độc lập ⟹ xác nhận: **không còn SHA nào khác hỏng**.
+- **Không tự sửa** `docs/` — vùng ghi của PO/Lead.
+
+### Một tự soát thứ hai Coder khai kèm
+
+Luật `git commit -- <pathspec>` vừa ban: Coder đã dùng **đúng khuôn bị cấm 16 lần**
+*(`git add -- <path> && git commit`)*. Họ soát lại **cả 15 commit**: mỗi commit chỉ chứa
+đúng tệp định đưa vào, **0 tệp cuốn nhầm**.
+> *"**May, không phải kỷ luật** — cửa sổ Lead mô tả có thật và tôi đã mở nó 16 lần."*
+
+⟹ Đúng **Luật M**: *xác nhận không phải bằng chứng.* Mười sáu lần không có hậu quả không
+chứng minh cửa sổ ấy an toàn — nó chỉ chứng minh chưa ai đổ giỏ vào đúng lúc.
