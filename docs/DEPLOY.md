@@ -1,5 +1,40 @@
 # Deploy live — Oracle Cloud Always Free + Docker Compose
 
+> 🔴🔴 **[PO THẬT, 25/08] SAI NỀN TẢNG TỪ TIÊU ĐỀ — production KHÔNG PHẢI Oracle Cloud.**
+> Nguyên văn: *"Đây là máy cá nhân **Windows** của tôi và tôi bật nó **24/7** để làm server."*
+>
+> **Đường THẬT — dùng file này, không phải các mục 1–7 bên dưới:**
+> [`docs/giao-viec/2026-08-15-chay-that-tai-nha-windows-tunnel.md`](giao-viec/2026-08-15-chay-that-tai-nha-windows-tunnel.md)
+> (viết ngày 15/08, tự khai ngay dòng 4: *"Thay thế `docs/DEPLOY.md` cho đường triển khai tại
+> nhà — `DEPLOY.md` là tài liệu đợt P-121 CHƯA AI THỰC THI"*). Deploy/cập nhật bằng script đã
+> có sẵn, đã idempotent: `scripts/deploy_home.ps1` (Windows) / `.sh` (Linux/Mac tham khảo) —
+> KHÔNG SSH tay, KHÔNG mục 1–4 bên dưới. Nghi ngờ "Cloudflare Tunnel" ở khối đính chính 20/08
+> ngay dưới đây nay **được xác nhận đúng bằng đúng cơ chế này**, không còn là nghi vấn.
+>
+> **Vì sao 10 ngày không ai sửa `DEPLOY.md`:** file thay thế đã tồn tại từ 15/08 nhưng chỉ
+> "thay thế" bằng lời tự khai trong chính nó — không có dòng nào ở ĐÂY trỏ ngược lại. Một tài
+> liệu tự nhận đã lỗi thời mà không ai đọc nó không khác gì tài liệu không tự nhận gì cả.
+>
+> **Hai dữ kiện đo được trên máy production thật, 25/08 — dùng làm nền cho mọi quyết định sau:**
+> ```
+> [PO thật, docker volume ls]
+>   fin05_postgres_data · fin05_chroma_data · fin05_logs_data
+>   · fin05_caddy_data · fin05_caddy_config
+>   🔴 fin05_redis_data KHÔNG CÓ ⟹ bản vá bền hoá Redis 25/08 (02892bd) CHƯA lên production —
+>      trần chi tiêu LLM/ngày và sổ thu hồi phiên trên máy đó vẫn mất khi container Redis bị
+>      gỡ, đúng cảnh báo ở mục "down -v" bên dưới.
+> [deploy.yml] CHƯA BAO GIỜ chạy thành công thật: 320 lượt — 319 skipped, 1 failure, 0 success.
+>   Deploy production tới nay là THỦ CÔNG: `git pull` + `docker compose` trên chính máy đó,
+>   qua `scripts/deploy_home.ps1`, không qua GitHub Actions. Mục 7 bên dưới ("Bật auto-deploy")
+>   mô tả một cơ chế chưa từng chạy thật cho ngăn production hiện có.
+> ```
+>
+> **Việc CHƯA làm, ghi lại để không rơi mất (đúng Luật X):** viết lại toàn bộ file này lấy
+> `scripts/deploy_home.ps1` làm trung tâm, chuyển mục 1–7 hiện tại xuống thành "đường thay thế
+> — Oracle Cloud VPS, chưa từng dùng cho production thật" thay vì xoá (Luật P — SSH/Docker/
+> Caddyfile/CI dưới đây vẫn đúng kỹ thuật, chỉ sai vai trò "đây là đường chính"). Việc lớn hơn
+> phạm vi một bản vá, cần một phiên riêng.
+
 > ✅ **[PO THẬT ĐÍNH CHÍNH 25/08/2026] `app.adaptivealgo.uk` ĐANG CHẠY `main` CỦA P-226.**
 > Nguyên văn PO thật: *"Domain này đang là P-226 nhánh main rồi bạn ơi — bạn đọc doc nào bảo là
 > P-121 thì sửa ngay lại cái doc đấy luôn cho mình nhé."*
@@ -154,6 +189,20 @@ docker compose up -d --build
 docker compose logs -f backend   # xem alembic migrate + uvicorn khởi động, Ctrl+C để thoát log (container vẫn chạy)
 ```
 
+⚠️ **Build chết giữa chừng với một lỗi lạ bên trong `pip`** (vd `JSONDecodeError`,
+`IncompleteRead`, `Connection broken`) ⟹ **CHẠY LẠI ĐÚNG LỆNH ẤY MỘT LẦN trước khi đi tìm bug.**
+
+**[ĐO 25/08]** một lần `docker compose build --no-cache` từ cây sạch đỏ tại bước
+`pip install` với `json.decoder.JSONDecodeError: Expecting ',' … char 5980170`. Chạy lại
+đúng bước ấy: **XANH, không sửa một dòng nào.**
+
+🔴 Vì sao đáng viết ra: lỗi tải gói nhất thời không đọc ra là lỗi mạng — nó hiện ra như một
+lỗi *phân tích dữ liệu* sâu trong `pip`, và người ta sẽ đi tìm lỗi trong mã. `Dockerfile` đã
+có `--retries 5 --timeout 60` ở cả hai lệnh `pip install` (`d504c40`), nhưng đó là cờ tầng
+*kết nối* — ca trên là phản hồi đã về đủ về mặt giao thức nhưng nội dung bị cắt, cờ retry
+không hứa cứu được đúng ca đó. Chạy lại vẫn là cách chắc nhất, vì nó không cần biết lỗi tên
+gì — phủ được cả kiểu hỏng chưa từng thấy.
+
 🔴 **[ĐO DevOps 20/08] Trên DB HOÀN TOÀN RỖNG (đúng trường hợp lần đầu này),
 log sẽ có một dòng lệnh Python chạy TUẦN TỰ giữa `alembic upgrade head` và
 lúc `Uvicorn running` xuất hiện — đây là BÌNH THƯỜNG, ĐỪNG Ctrl+C giữa
@@ -211,22 +260,34 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
 
 ## Việc vặt cần biết thêm
 
-### ⚠️ `docker compose down -v` ĐỔI NGHĨA từ 25/08
+### ⚠️ `docker compose down -v` ĐỔI NGHĨA từ 25/08 — và bản mô tả đầu tiên NÓI NHẸ ĐI
 
-Redis nay có volume `redis_data` + `appendonly yes` (bền hoá chi phí/phiên,
-`02892bd`) — trước bản đó Redis không có volume, mất sạch mỗi lần gỡ
-container. **`down -v` nay XOÁ LUÔN:**
+🔴 **[SỬA 25/08, tự đính chính]** Bản đầu của mục này (viết sáng 25/08, ngay sau `02892bd`)
+chỉ nói `down -v` xoá "bộ đếm chi tiêu LLM và phiên đăng nhập" — **nói nhẹ đi**. [ĐO]
+`docker compose config --volumes` liệt kê **SÁU kho**, gồm cả `postgres_data` — **TOÀN BỘ
+CSDL** (ticket, khiếu nại, resolution, transcript chat) và `chroma_data` (chỉ mục RAG). Trên
+máy production (máy Windows cá nhân của PO — xem đính chính đầu file), đó là **dữ liệu
+khách hàng thật**. Lý do sai: người viết mục này cùng lúc đang thêm `redis_data`, nên mô tả
+đúng thứ mình vừa thêm, và câu ấy bị đọc thành mô tả cho CẢ LỆNH.
 
-- **bộ đếm chi tiêu LLM theo ngày** (`fin05:chi_tieu_llm_token:*`) ⟹ trần
-  ngày về 0, **quên phần đã tiêu, và quên IM LẶNG** — không có gì báo. Với
-  dự án mà ràng buộc vận hành số một là ngân sách token, đây là cổng chi phí
-  tự mở lại sau mỗi lần khởi động lại.
-- **phiên đăng nhập** (`refresh:*`) ⟹ mọi người phải đăng nhập lại. Phiền,
-  **không phải lỗ bảo mật** — đây là hành vi fail-closed đúng thiết kế
-  (`auth.py:172-174`), không phải tác dụng phụ ngoài ý muốn.
+✅ **Nay đã có bảo vệ thật cho phần nặng nhất** (`e5ee8cd`) — `postgres_data` khai
+`external: true` trong `docker-compose.yml`, `down -v` **không xoá được nó nữa**: compose in
+`"volume ... is external, skipping"` rồi bỏ qua. Muốn xoá thật phải gõ tường minh
+`docker volume rm fin05_postgres_data` — một câu không ai gõ nhầm.
 
-Muốn hạ ngăn xếp mà **giữ** hai thứ trên: dùng `docker compose down` **KHÔNG
-có `-v`**. Chỉ dùng `-v` khi **CỐ Ý** muốn về trạng thái trắng.
+🔴 **Nhưng NĂM kho còn lại vẫn mất theo `down -v`:**
+
+| kho | mất gì | phục hồi được không |
+|---|---|---|
+| `redis_data` | **bộ đếm chi tiêu LLM/ngày** (`fin05:chi_tieu_llm_token:*`) — trần ngày về 0, quên phần đã tiêu, **quên IM LẶNG**; **phiên đăng nhập** (`refresh:*`) — fail-closed đúng thiết kế (`auth.py:172-174`), phiền chứ không phải lỗ | không — mất vĩnh viễn phần đã tiêu |
+| `chroma_data` | chỉ mục RAG chính sách | có — `scripts/kho_rag.py nap-lai` (tốn embedding thật) |
+| `logs_data` | `access.log` (audit log) | không |
+| `caddy_data`/`caddy_config` | chứng chỉ TLS | có — Caddy tự xin lại Let's Encrypt |
+
+Muốn hạ ngăn xếp mà **giữ** cả sáu: dùng `docker compose down` **KHÔNG có `-v`**. Chỉ dùng
+`-v` khi **CỐ Ý** muốn mất năm kho phụ ở trên — `postgres_data` giờ an toàn khỏi `-v`, nhưng
+đừng đọc điều đó thành "an toàn khi gõ `-v`", vì `redis_data`/`logs_data` vẫn mất thật và
+không phục hồi được.
 
 - **Xem log backend khi có lỗi**: `docker compose logs -f backend` (hoặc
   `frontend`/`caddy`/`postgres`).
@@ -236,9 +297,12 @@ có `-v`**. Chỉ dùng `-v` khi **CỐ Ý** muốn về trạng thái trắng.
   backup-$(date +%F).sql` — nên chạy định kỳ, đặc biệt trước khi đổi
   `FIELD_ENCRYPTION_KEY` (đổi key sẽ làm dữ liệu cũ đã mã hoá không đọc được
   nữa, không có cách khôi phục).
-- **Xoá sạch làm lại từ đầu**: `docker compose down -v` (xoá cả volume — MẤT
-  HẾT dữ liệu, **kể cả bộ đếm chi tiêu và mọi phiên đăng nhập từ 25/08**, chỉ
-  dùng khi chắc chắn muốn reset — xem cảnh báo phía trên).
+- **Xoá sạch làm lại từ đầu**: `docker compose down -v` (xoá **năm trong sáu**
+  volume — `postgres_data` giờ an toàn khỏi lệnh này (`external: true`,
+  `e5ee8cd`), nhưng bộ đếm chi tiêu/phiên đăng nhập/audit log/chỉ mục RAG/
+  chứng chỉ TLS vẫn mất, chỉ dùng khi chắc chắn — xem bảng đầy đủ phía trên).
+  Muốn xoá luôn CSDL: `docker volume rm fin05_postgres_data` tường minh, sau
+  khi `down -v`.
 - **Deploy lại thủ công** (không đợi push code): `cd /opt/fin05 && git pull
   && docker compose up -d --build`, hoặc vào tab Actions trên GitHub bấm "Run
   workflow" (đã bật `workflow_dispatch`).
