@@ -1189,6 +1189,7 @@ trên nền sai là đúng thứ Luật F cấm.
 | 12:10 **#18** | `88b0133` | ⏳ chưa có dấu vết mới | ⏳ ⑧⑨⑪ chưa động | 🟢 4 commit — cổng đối soát xong+vá | 🟢 rảnh sau khi đánh sập ⑩ | 🟢 **BUỔI TỐN PHÍ ĐÓNG** |
 | 12:30 **#19** | `18e2166` | 🔴 **im lặng 2 vòng** | 🟢 ⑨ soát xong · ⑪ đang làm | 🟢 vá SL-03 lỗi thời | 🟢 **soát xong ⑧ + giết đường thứ ba của PO** | ⑧⑨ thông · ⑪ là ô cuối |
 | 12:50 **#20** | `0b169de` | 🟢 5 commit — nghiệm thu + bàn giao + 3 luật lên STATE | 🟢 ⑧ land `3ac7d90` · đang ⑪ + đo lượt 4 | 🟢 soạn kịch bản chạy | 🟢 soát độ phủ | 🔴 **8/8 KHÔNG đạt hôm nay** |
+| 17:30 **#29** | `b9e89fa` | 🟢 | 🟢 đứng im chờ dựng *(xác nhận cây yên)* | 🟢 cổng meta land, verify hai chiều | 🟢 | ⏳ **chờ chạy nghiệm thu** |
 | 14:45 **#24** | `a241955` | 🟢 sửa lệch checklist + chuyển 4 việc | 🟢 **đang vá B** *(`khai_da_tao_ve`)* | ⏸ chờ vá | ⏸ chờ vá | 🟢 **PO thật duyệt ADR-051 + Redis** |
 
 ### 🔴🔴 #28 — ⑬ CÓ LỜI GIẢI DỨT ĐIỂM. NHÃN "BỊA SỐ LIỆU" **SAI**. AGENT KHÔNG BỊA.
