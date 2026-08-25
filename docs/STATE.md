@@ -1008,6 +1008,18 @@ KHUÔN VẪN XANH.**
 > *(Họ hàng: Luật N — số đếm phải kèm phép đếm; A-mở-rộng nói về PHÉP KIỂM phải kèm khả năng
 > phân biệt.)*
 
+> 🔴 **VẾ BA (đúc 25/08, đợt "OTP trước token" — PO tự nối vào A thay vì xin ký hiệu mới, đúng
+> §7b: trùng ý với A thì là MỘT luật):** Luật A gốc ngầm giả định **cổng có chạy** — chỉ phân
+> biệt IM (bình thường) với KÊU (bất thường). Có một trạng thái thứ ba A không đặt tên, và nó
+> **trông y hệt IM** trên mọi bảng kết quả: **`SKIP` — cổng KHÔNG CHẠY ĐƯỢC.**
+> **"Không chạy được" là một trạng thái RIÊNG, và nó PHẢI KÊU, không được IM.** Một cổng canh
+> ràng buộc cứng mà tự tắt tiếng khi thiếu hạ tầng không phải cổng — nó là một lời chúc may
+> mắn. Hạ tầng vắng là lý do để kêu, không phải lý do để im. Và khi kêu, phải nói **"KHÔNG
+> CHẠY ĐƯỢC vì thiếu X"** — đỏ chung chung đẩy người trực sự cố đi tìm bug trong code.
+> **Ca:** dọn hạ tầng Docker ⟹ `test_inv_ngan_sach_token` chuyển ĐỎ → SKIP, và một báo cáo
+> `2 failed → 1 failed` đọc thành cải thiện trong khi 37 ca đơn giản là không chạy. Cùng họ với
+> `docker exec … pytest` cho 0 ca chạy mà hiện ra như "0 failed" (§1 của tài liệu này).
+
 **Luật B** — làm tròn một phát biểu lên đúng **MỘT nấc** là lớp sai đắt nhất.
 > ⭐ **MỞ RỘNG (security):** kiểm tra cuối trước khi một phát biểu **RỜI KHỎI ĐỘI** là hỏi nó **ĐẨY
 > NGƯỜI NHẬN VÀO CHẾ ĐỘ NÀO**, không chỉ hỏi nó có đúng không. *(vd: "quá hạn" → chế độ khắc phục
