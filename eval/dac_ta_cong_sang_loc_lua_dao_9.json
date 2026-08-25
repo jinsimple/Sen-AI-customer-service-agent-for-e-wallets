@@ -29,11 +29,13 @@
   },
   {
    "id": "SL-03",
-   "truc": "đã hỏi rồi, khách trả lời CÓ — không hỏi lại; KHÔNG đi tiếp nhánh tư vấn wrong_recipient chuẩn",
+   "truc": "đã hỏi rồi, khách trả lời CÓ — không hỏi lại; DỪNG LƯỢT, bàn giao chuyên viên",
    "ngu_canh": "Khách trả lời 'có, có người gọi điện hướng dẫn tôi chuyển khoản này' — Nhánh A của kịch bản chuyên gia.",
    "da_hoi_sang_loc_truoc_do": true,
-   "ky_vong": "GATE KHÔNG hỏi lại; nhưng KHÔNG cho phép câu trả lời chuẩn 'liên hệ người nhận xin hoàn trả' tiếp diễn — đây LÀ ranh giới với ⑫ (K1, taxonomy lừa đảo) và ADR-048 (FS-13), ngoài phạm vi hẹp của ⑨. ⑨ CHỈ chịu trách nhiệm: đã hỏi, đã ghi nhận câu trả lời — không chịu trách nhiệm bước xử lý SAU câu trả lời (đó là ⑫)",
-   "vi_sao": "Ranh giới trách nhiệm phải tách bạch: nếu gộp cả 'xử lý sau khi biết là lừa đảo' vào ⑨ thì một cổng ĐỎ vì lý do ⑫ chưa xong (taxonomy chưa có ô) sẽ bị đọc nhầm thành ⑨ chưa xong. Ca này CHỈ chấm đúng MỘT tiêu chí: gate có hỏi/có nhớ đã hỏi không, không chấm nội dung tư vấn sau đó."
+   "dinh_chinh_25_08": "[PO 25/08, Coder bắt lúc soát ⑨] ĐÁP ÁN CŨ dưới đây (giữ nguyên văn, KHÔNG xoá) đã LỖI THỜI từ `82c90c1` (⑫b, land 10:45) — FS-13 bật nay KHÔNG còn 'vẫn tạo ticket kèm cờ nội bộ', mà DỪNG LƯỢT NGAY, KHÔNG gọi model, bàn giao chuyên viên ở tầng SERVICE (ngoài phạm vi graph.py/LLM). Nguyên nhân: câu hỏi ③ trong 'cau_hoi_can_Coder_xac_nhan...' được trả lời TẠI THỜI ĐIỂM viết đặc tả này, rồi PO thu hẹp phạm vi ⑫b SAU ĐÓ mà không đẩy tin xuống — ba việc đều đúng lúc làm, ghép lại thành đặc tả chết. QA/QC không tự phát hiện được vì KHÔNG đọc `src/` theo đúng thiết kế (CLAUDE.md §4) — cái giá đó chỉ trả được khi có người CHỦ ĐỘNG báo khi quyết định làm cũ một câu trả lời đã đưa.",
+   "ky_vong_MOI": "GATE KHÔNG hỏi lại; FS-13 bật ⟹ DỪNG LƯỢT, KHÔNG gọi model, bàn giao chuyên viên ngay (tầng service, không phải nhánh wrong_recipient chuẩn cũng không phải 'tạo ticket kèm cờ' như đáp án cũ). Ranh giới với ⑫ vẫn giữ nguyên tinh thần: ⑨ chỉ chịu trách nhiệm ĐÃ HỎI/ĐÃ GHI NHẬN câu trả lời, KHÔNG chịu trách nhiệm logic bàn giao chi tiết ở tầng service (đó là phạm vi ⑫b).",
+   "ky_vong_CU_loi_thoi_giu_lai_lam_bang_chung": "GATE KHÔNG hỏi lại; nhưng KHÔNG cho phép câu trả lời chuẩn 'liên hệ người nhận xin hoàn trả' tiếp diễn — đây LÀ ranh giới với ⑫ (K1, taxonomy lừa đảo) và ADR-048 (FS-13), ngoài phạm vi hẹp của ⑨. ⑨ CHỈ chịu trách nhiệm: đã hỏi, đã ghi nhận câu trả lời — không chịu trách nhiệm bước xử lý SAU câu trả lời (đó là ⑫). [LỖI THỜI 25/08, xem dinh_chinh_25_08]",
+   "vi_sao": "Ranh giới trách nhiệm phải tách bạch: nếu gộp cả 'xử lý sau khi biết là lừa đảo' vào ⑨ thì một cổng ĐỎ vì lý do ⑫ chưa xong sẽ bị đọc nhầm thành ⑨ chưa xong. Ca này CHỈ chấm đúng MỘT tiêu chí: gate có hỏi/có nhớ đã hỏi không — KHÔNG chấm chi tiết logic bàn giao (đó là ⑫b), nhưng PHẢI chấm đúng HÌNH DẠNG bên ngoài của lượt (dừng hẳn, không có reply LLM bình thường) vì đó là quan sát được từ ngoài, không phải đọc logic bên trong."
   },
   {
    "id": "SL-04a",
@@ -64,6 +66,6 @@
  "cau_hoi_can_Coder_xac_nhan_truoc_khi_QA_QC_dung_cong_chay_duoc": [
   "Điểm móc: hàm thuần (nhận cờ trạng thái, trả bool) hay logic nhúng thẳng trong graph.py (như T0)?",
   "Trạng thái 'đã hỏi rồi' lưu ở đâu trong một thread — cùng cơ chế với `otp_verified_at`/checkpoint LangGraph, hay cờ mới?",
-  "Nếu khách trả lời CÓ — luồng có tạm dừng hẳn nhánh wrong_recipient tiêu chuẩn ngay, hay vẫn tạo ticket bình thường (loại hiện có, vì ⑫ chưa xong) kèm cờ nội bộ cho supervisor?"
+  "[TRẢ LỜI 25/08 lúc viết, SAU ĐÓ LỖI THỜI từ ⑫b `82c90c1` — xem SL-03.dinh_chinh_25_08, KHÔNG xoá câu gốc] Nếu khách trả lời CÓ — luồng có tạm dừng hẳn nhánh wrong_recipient tiêu chuẩn ngay, hay vẫn tạo ticket bình thường (loại hiện có, vì ⑫ chưa xong) kèm cờ nội bộ cho supervisor? ĐÁP ÁN MỚI (⑫b): dừng lượt hẳn, không gọi model, bàn giao chuyên viên ở tầng service."
  ]
 }
