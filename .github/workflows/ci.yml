@@ -310,7 +310,56 @@ jobs:
         # mới nhất, vẫn trong khoảng ảnh hưởng) nên không thể nâng cấp —
         # xác nhận định kỳ bằng `pip-audit -r requirements.txt` KHÔNG kèm
         # --ignore-vuln, gỡ dòng ignore này ngay khi có bản vá.
-        run: pip-audit --strict --ignore-vuln PYSEC-2026-311
+        #
+        # 🔴 BỎ `--strict` (25/08, PO-agent duyệt) — VÀ VÌ SAO KHÔNG BỎ TRẦN.
+        #
+        # [ĐO] run 32846571488, bước này, dòng lỗi DUY NHẤT:
+        #   ERROR: xx_ent_wiki_sm: Dependency not found on PyPI and could not
+        #   be audited (3.8.0)          -> ##[error] exit code 1
+        # `xx_ent_wiki_sm` là model spaCy cho Presidio, cài từ URL GitHub THEO
+        # THIẾT KẾ (requirements.lock.txt:195, Dockerfile:48) — nó KHÔNG BAO
+        # GIỜ có trên PyPI. `--strict` nghĩa là "đỏ nếu THU THẬP phụ thuộc
+        # thất bại", nên job chết TRƯỚC KHI quét được gói nào.
+        #
+        # 🔴 HỆ QUẢ THẬT, nặng hơn chính bản vá: PHÉP QUÉT CVE CHƯA BAO GIỜ
+        # CHẠY TỚI ĐOẠN QUÉT — suốt cả thời gian job này tồn tại. Nó chết ở
+        # bước THU THẬP và báo ĐỎ, nên đọc ra như "CÓ CVE", trong khi sự thật
+        # là "CHƯA ĐO ĐƯỢC GÌ". Hai trạng thái khác hẳn nhau đội chung một vỏ.
+        #
+        # Bỏ `--strict` TRẦN thì cổng sẽ IM LẶNG với MỌI gói không quét được
+        # về sau — đúng tội đã liệt ở CHECKLIST #28 (che mất tín hiệu của
+        # chính cái đang hỏng). Nên kèm phép kiểm: dòng "could not be audited"
+        # phải xuất hiện ĐÚNG MỘT LẦN và ĐÚNG LÀ `xx_ent_wiki_sm`. Thêm một
+        # gói không quét được -> job ĐỎ, không im.
+        #
+        # `--strict` bỏ đi KHÔNG làm yếu khả năng bắt CVE: pip-audit vẫn thoát
+        # khác 0 khi TÌM THẤY lỗ hổng. Chỉ khác ở "không quét được" vs "quét
+        # xong, có lỗ".
+        #
+        # Dùng `set +e` + chuyển hướng ra tệp, KHÔNG dùng `cmd | tee` với
+        # PIPESTATUS: shell mặc định của GitHub Actions là `bash -e {0}`, một
+        # pipeline hỏng sẽ THOÁT NGAY trước khi kịp đọc mã trả về — mà đây là
+        # bước mà mã trả về CHÍNH LÀ thứ ta cần đọc.
+        run: |
+          set +e
+          pip-audit --ignore-vuln PYSEC-2026-311 > /tmp/pip-audit-c7.log 2>&1
+          KQ_AUDIT=$?
+          set -e
+          cat /tmp/pip-audit-c7.log
+
+          KHONG_QUET_DUOC=$(grep -c "could not be audited" /tmp/pip-audit-c7.log || true)
+          DUNG_GOI_DA_BIET=$(grep -c "xx_ent_wiki_sm.*could not be audited" /tmp/pip-audit-c7.log || true)
+          if [ "$KHONG_QUET_DUOC" -ne "$DUNG_GOI_DA_BIET" ] || [ "$KHONG_QUET_DUOC" -gt 1 ]; then
+            echo "::error::C7 — có gói KHÔNG QUÉT ĐƯỢC ngoài xx_ent_wiki_sm."
+            echo "::error::  dòng 'could not be audited': $KHONG_QUET_DUOC · khớp xx_ent_wiki_sm: $DUNG_GOI_DA_BIET"
+            echo "::error::  Đây KHÔNG phải lỗi vặt: mỗi gói không quét được là một gói CHƯA AI BIẾT có CVE hay không."
+            grep "could not be audited" /tmp/pip-audit-c7.log || true
+            exit 1
+          fi
+          if [ "$KHONG_QUET_DUOC" -eq 0 ]; then
+            echo "::notice::xx_ent_wiki_sm nay QUÉT ĐƯỢC — gỡ được phép kiểm này khỏi ci.yml."
+          fi
+          exit "$KQ_AUDIT"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
