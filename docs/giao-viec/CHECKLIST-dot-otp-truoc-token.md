@@ -627,28 +627,26 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     chạy-lại-được thật (hàm thuần hay logic nhúng graph.py, trạng thái "đã hỏi" lưu ở đâu, ranh
     giới với ⑫). **[~] không phải [x]** vì đây là đặc tả chờ Coder, chưa phải cổng chạy được.
 
-- [!] **⑩** Bản tóm tắt **6 trường tất định** trước `create_ticket` **K4** — **Coder**
+- [ ] **⑩** Bản tóm tắt **6 trường tất định** trước `create_ticket` **K4** — **Coder**
   - loại · phạm vi · mã+giờ+tiền · người nhận nhầm · người nhận đúng · nội dung khách trình bày
   - Đây là **đòn bẩy cho A2** mà sáu vòng vá prompt không có · gắn ADR-049
-  - 🔴 **Chặn — Coder tự bắt, [Lead 25/08] xác nhận đúng.** [ĐO] `docs/DECISIONS.md:2906`:
-    ADR-049 trạng thái **🟡 ĐỀ XUẤT — chờ PO thật duyệt, chưa code dòng nào.** ⑩ CHÍNH LÀ cơ
-    chế ADR-049 đề xuất (chuyển quyết định nghiệp vụ từ model sang luật cứng) — viết trước
-    khi duyệt là thi hành một ADR chưa duyệt. Coder dừng đúng, không tự code. Chặn tại **PO
-    thật** — câu cần quyết: "chấp nhận mất khả năng model xử ca lạ mà luật không lường?"
+  - ~~🔴 Chặn — Coder tự bắt, [Lead 25/08] xác nhận đúng...~~ ✅ **[PO THẬT 25/08, qua PO
+    agent] ADR-049 DUYỆT.** Cập nhật `docs/DECISIONS.md` ADR-049 từ 🟡 ĐỀ XUẤT sang
+    ✅ **PO DUYỆT 25/08** — **Coder thực hiện** cùng lúc land ⑩⑪. Không còn chặn.
+  - Nhắc T2: land xong phải báo delta token.
 
-- [!] **⑪** Ép cấu trúc lượt 5/6/3 — **Coder** · prompt
-  - Chặn — phiếu ghi "sau ⑨⑩", cả hai đang `[!]`.
+- [ ] **⑪** Ép cấu trúc lượt 5/6/3 — **Coder** · prompt
+  - ~~Chặn — phiếu ghi "sau ⑨⑩"~~ ✅ **hết chặn** — ADR-049 duyệt (⑩ mở) và ⑨ đã landed.
   - Lượt 5: **ba vế** — không làm được gì → làm được gì → chị làm được gì
   - Lượt 6: đổi góc nhìn PDPA — *"quy định này bảo vệ cả chị nữa"*
   - Lượt 3: đọc lại **đủ 5 dữ kiện** để khách tự đối chiếu
   - 🟢 Bot **được phép** hứa *"bộ phận nghiệp vụ chủ động liên hệ người nhận"* — PO xác nhận
     quy trình CÓ THẬT 24/08
-  - 🟡 **[PO 25/08] HOÃN sang đợt cắt prompt (T3) — KHÔNG xoá mục, chỉ đổi trạng thái.**
-    Lý do: margin token 293 chỉ đủ cho MỘT trong hai (⑨ hoặc ⑪). PO chọn ⑨: không có ⑨ thì
-    hệ thống không bao giờ phát hiện được ca lừa đảo, và ADR-050 (loại khiếu nại thứ năm)
-    thành một ô phân loại không ai điền được — ⑨ là **điều kiện tồn tại** của ADR-050. ⑪ là
-    chất lượng hội thoại, thật nhưng không phải điều kiện tồn tại. Đo lại + land ⑪ ở đợt
-    sau T3 (xem khối "Trần ngân sách token"), trên nền token đã ổn định.
+  - ~~🟡 HOÃN sang đợt cắt prompt (T3)~~ — 🔴 **[PO THẬT 25/08, qua PO agent] GỠ HOÃN,
+    KHÔNG XOÁ chữ cũ.** Lý do gốc là margin 293 chỉ đủ MỘT trong ⑨/⑪ — nay ⑨ landed
+    với **delta = 0** (vế tất định), giải phóng toàn bộ 293 cho ⑪. **Vẫn bắt buộc T2:**
+    Coder tự đo delta thật, phải vừa trong 293 (đo lại nền NGAY TRƯỚC khi land, đừng
+    dùng số 293 hôm nay — cùng khuyến nghị Coder đã tự đề xuất cho ⑨).
 
 - [~] **⑬** Bộ ca đánh giá từ kịch bản chuyên gia — **QA/QC** · `eval/`
   - Nhánh A *(có người hướng dẫn)* · Nhánh B *(nhiều GD khớp, phải đổi trục)* · Nhánh C
@@ -728,16 +726,36 @@ thay vì tin số Coder báo. Khai ra thay vì im — đúng **Luật V**.
 
 ## Nhóm D — Đổi contract 🔒
 
-- [!] **⑫** Loại khiếu nại thứ năm cho ca lừa đảo **K1** *(Q4 = A)* — **Coder** · chặn cứng, Coder chỉ tới bước 3 rồi DỪNG
-  - [ ] Bước 1 — DỪNG, không sửa code trước
-  - [ ] Bước 2 — sửa `contracts/resolution-state-machine.yaml`
-  - [ ] Bước 3 — ghi ADR mới vào `docs/DECISIONS.md`
-  - [ ] Bước 4 — ⛔ **TRÌNH PO, CHỜ TRẢ LỜI** *(Coder DỪNG ở đây)*
-  - [ ] Bước 5 — `python3 scripts/check_contracts.py --update`
-  - [ ] Bước 6 — cập nhật `CONTRACT_VERSION` ở đầu `tests/test_invariants.py`
-  - [ ] Bước 7 — commit **KÈM file baseline**, rồi mới code + migration `CHECK constraint`
-  - *ADR phải trả lời:* tên loại · vòng đời trạng thái · ai có thẩm quyền · ca đang là
-    `wrong_recipient` mà hoá ra lừa đảo thì **chuyển loại thế nào**
+- [!] ~~**⑫** Loại khiếu nại thứ năm cho ca lừa đảo~~ — 🔴 **[PO THẬT 25/08, qua PO
+  agent] THU HẸP RẤT LỚN — KHÔNG LÀM bản 7 bước dưới đây, giữ nguyên văn làm dấu vết.**
+  PO thật nguyên văn: *"không cần làm sâu, chỉ cần báo sẽ có chuyên gia liên hệ là đủ."*
+  KHÔNG đổi `contracts/`, KHÔNG migration, KHÔNG `CONTRACT_VERSION`, KHÔNG đi 7 bước.
+  Dự thảo ADR-050 (161 dòng) **KHÔNG thi hành**.
+  - [ ] Bước 1 — ~~DỪNG, không sửa code trước~~
+  - [ ] Bước 2 — ~~sửa `contracts/resolution-state-machine.yaml`~~
+  - [ ] Bước 3 — ~~ghi ADR mới vào `docs/DECISIONS.md`~~
+  - [ ] Bước 4 — ~~⛔ TRÌNH PO, CHỜ TRẢ LỜI~~
+  - [ ] Bước 5 — ~~`python3 scripts/check_contracts.py --update`~~
+  - [ ] Bước 6 — ~~cập nhật `CONTRACT_VERSION`~~
+  - [ ] Bước 7 — ~~commit KÈM file baseline~~
+  - *ADR phải trả lời (KHÔNG áp dụng nữa):* ~~tên loại · vòng đời trạng thái · ai có
+    thẩm quyền · chuyển loại thế nào~~
+
+- [ ] **⑫b · VIỆC THẬT, nhỏ hơn nhiều** — **Coder**. Khi FS-13 bắn (khách xác nhận "có
+  người hướng dẫn tôi chuyển"), bot phải: ① **NGỪNG** đưa lời khuyên chuyển-nhầm (cấm
+  khuyên "chờ liên hệ người nhận") · ② **báo sẽ có chuyên viên liên hệ** + gọi
+  `request_human_handoff` (đã có sẵn, `customer_tools.py:941`, không cần OTP, tự đánh
+  dấu ưu tiên) — **nối hai mảnh đã có sẵn, không dựng mới.** FS-13 đã bắn đúng
+  (`graph.py:990`).
+  - 🔴 **PHẢI GHI RÕ NGAY CẠNH MỤC NÀY, không phải trong tin nhắn:** bản này đóng vế
+    *"bot khuyên sai hướng"* (nguy hiểm nhất) — **KHÔNG** đóng vế *"giờ vàng trình báo"*:
+    chuyên viên gọi lại sau bao lâu là câu **vận hành**, không phải thứ bot kiểm soát.
+  - **Việc đi kèm, không phải bỏ:** dự thảo ADR-050 (161 dòng, có phân tích tốt về
+    đường tư vấn khác nhau/chuyển loại một chiều/SLA không tính lại mà đợt sau cần) —
+    Coder chuyển nguyên văn cho Lead land vào `docs/nhat-ky/`, nhãn **"DỰ THẢO — PO thu
+    hẹp phạm vi 25/08, chưa thi hành"**. Đừng để chết trong scratchpad phiên Coder.
+  - **Đi kèm:** cập nhật `docs/DECISIONS.md` — ADR-049 từ 🟡 ĐỀ XUẤT sang ✅ **PO DUYỆT
+    25/08** (Coder thực hiện, cùng lúc land ⑩⑪ mà ADR này mở khoá).
 
 ---
 
@@ -834,6 +852,13 @@ trên nền sai là đúng thứ Luật F cấm.
     ghi "chưa so được", và nghiệm thu đang đứng trên một số chưa đối chiếu.
   - 🔴 **HỆ QUẢ:** đợt KHÔNG đóng được theo đúng tiêu chí phiếu §6 ("đợt đóng khi bốn con
     số nằm trong bốn tệp") — N1 là một trong bốn, và nó không đạt. Xem tin Lead→PO.
+  - 🟢 **[PO THẬT 25/08, qua PO agent] ĐỂ LẠI — không mở vòng vá.** Nguyên văn: *"test
+    xong phần tính năng hiện tại ok đã rồi mới làm sau."* Ghi thành **giới hạn đã khai**
+    của đợt này, không phải nợ giấu. **QA/QC** phân loại nốt các ca `khác/cần phân loại`
+    (không tốn LLM — phân loại tĩnh, có thể làm con số oan thật NHỎ HƠN** con số hiện
+    ghi, vì một phần trong đó có thể là khiếu nại thật ĐÚNG như 3 ca đã xác nhận, không
+    phải oan). Việc này KHÔNG chặn đóng đợt — làm khi rảnh, chỉ để con số nghiệm thu
+    trong tệp chính xác hơn trước khi PO thật đọc bản cuối.
   - **[QA/QC 25/08] QUYẾT ĐỊNH — nhận script đo của Coder vào `eval/`:** `eval/do_n1_corpus_goc.py`.
     Tái lập ĐỘC LẬP, khớp tuyệt đối (409/15/13, cùng 13 câu). Bộ bóc câu đã hỏng HAI LẦN
     lúc Coder dựng (7/409 rồi 349/409, cả hai lệch theo hướng TRẤN AN) — tự kiểm bằng
