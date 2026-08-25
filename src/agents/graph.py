@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session
 
 from src.agents import llm_pool
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
-from src.agents.output_filter import loc_dau_ra, tin_hieu_lo_chi_thi
+from src.agents.output_filter import khai_da_tao_ve, loc_dau_ra, tin_hieu_lo_chi_thi
 from src.agents.phan_luong import (
     BAM_LUAT,
     DUONG_DAY_DU,
@@ -152,6 +152,16 @@ _TEN_TIN_HIEU_DA_TRA_DUOC_GD = "da_tra_duoc_gd"
 DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
 DUONG_CAN_OTP = "can_otp"
 DUONG_FS13_BAN_GIAO = "fs13_ban_giao"
+
+# Câu thay khi cổng ràng buộc cứng 3 bắt được lời khai không có vé thật.
+# 🔴 KHÔNG hứa gì, KHÔNG nêu mã nào, và nói THẬT là chưa tạo được — bịa một
+# lời trấn an ở đây là lặp lại đúng lỗi vừa chặn. Chỉ đường sang bước khách
+# LÀM ĐƯỢC, để họ không ngồi chờ một hồ sơ không tồn tại.
+_CHUA_TAO_DUOC_VE = (
+    "Mình xin lỗi — hồ sơ khiếu nại CHƯA được tạo, mình báo thật để bạn không "
+    "chờ nhầm. Bạn nhắn lại giúp mình để tạo lại, hoặc mình chuyển bạn sang "
+    "chuyên viên hỗ trợ trực tiếp nhé."
+)
 
 # Slot mục tiêu là MÃ GIAO DỊCH HOẶC MỐC THỜI GIAN — KHÁC 1B (số tiền là
 # slot bắt buộc của 1B). Lý do: 1B áp cho lượt ĐẦU TIÊN chưa biết gì; cổng
@@ -1809,6 +1819,7 @@ def run_agent_turn(
     should_escalate = None
     co_loi_otp_trong_luot = False
     loai_khieu_nai = None
+    so_goi_mo_coi = 0
 
     for m in turn_messages:
         if not (isinstance(m, AIMessage) and m.tool_calls):
@@ -1816,6 +1827,17 @@ def run_agent_turn(
         for call in m.tool_calls:
             tm = tool_msgs_by_id.get(call["id"])
             if tm is None:
+                # 🔴 LỜI GỌI MỒ CÔI — model phát ra `tool_call` mà KHÔNG có
+                # `ToolMessage` kết quả. Bản trước `continue` im lặng ⟹ nó
+                # KHÔNG để lại dấu nào, `so_tool_call=0`, **y hệt "model không
+                # đề xuất gì"**. Hai trạng thái khác hẳn nhau đội chung một vỏ —
+                # đúng họ lỗi dự án đã đặt tên nhiều lần.
+                so_goi_mo_coi += 1
+                _logger.warning(
+                    "agent_tool_call_mo_coi",
+                    extra={"user_id": user_id, "thread_id": thread_id or user_id,
+                           "tool_name": call["name"]},
+                )
                 continue
             try:
                 payload = json.loads(tm.content)
@@ -2028,6 +2050,34 @@ def run_agent_turn(
     # chính ⑭ chặn nhầm.
     if co_loi_otp_trong_luot:
         tang_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, thread_id or user_id)
+
+    # ── 🔴 CỔNG RÀNG BUỘC CỨNG 3 · KHAI-ĐÃ-TẠO-VÉ PHẢI CÓ VÉ THẬT ──────────
+    # Sự cố 25/08, buổi chạy kịch bản: bot nói *"Đã tạo hồ sơ khiếu nại thành
+    # công với mã CMP-00003"* trong khi **0 dòng** được tạo — và `CMP-00003` là
+    # mã CÓ THẬT của một khách KHÁC. Bot không đọc trộm gì; nó bịa một chuỗi
+    # ngắn tình cờ là khoá của người khác, nên mọi lớp che PII vô can.
+    #
+    # [ĐO] lượt ấy KHÔNG hỏng: so_luot_goi_model=1 · ly_do_fallback=null ·
+    # so_tool_call=0. Model chỉ KỂ CHUYỆN trong một lượt bình thường.
+    #
+    # [ĐO] vì sao lọt: O5 NHƯỜNG khi câu có kèm mã (chú thích của nó tự khai
+    # giả định *"O3 đã phủ mọi ca có mã bịa"*), mà O3 MÙ với `CMP-00003` (dấu
+    # `-` cắt dưới ngưỡng 7 ký tự liền). Khe hở nằm ĐÚNG GIỮA hai cổng — không
+    # cổng nào hỏng, sự PHÂN CÔNG giữa chúng hỏng.
+    # ⟹ **Thêm một mã giả vào câu làm nó AN TOÀN HƠN trong mắt bộ lọc.**
+    #
+    # 🔴 CỔNG NÀY KHÔNG KHỚP TỪ VỰNG ĐỂ ĐOÁN THẬT/GIẢ — nó đối chiếu lời khai
+    # với `ticket_id` THẬT của chính lượt này. Đó là lý do nó không thừa hưởng
+    # trần của cách khớp-từ mà `_khop_o5` đã tự khai sau ba vòng vá.
+    # Đặt TRƯỚC mọi chỗ chèn (⑧/⑨) để câu thay thế không mang theo lời khai sai.
+    if ticket_id is None and khai_da_tao_ve(reply_da_loc):
+        _logger.error(
+            "agent_khai_tao_ve_khong_co_ve",
+            extra={"user_id": user_id, "thread_id": thread_id or user_id,
+                   "so_goi_mo_coi": so_goi_mo_coi, "model": model_da_tra_loi},
+        )
+        nhom_khop = list(nhom_khop) + ["RB3"]
+        reply_da_loc = _CHUA_TAO_DUOC_VE
 
     # ⑧ · K3 — chèn SAU bộ lọc. Xem chú thích tại `_them_canh_bao_mao_danh`
     # về lý do KHÔNG được dời lên trước.

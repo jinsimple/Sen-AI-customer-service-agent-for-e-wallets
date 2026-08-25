@@ -485,6 +485,32 @@ _O5_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
 _O5_MO_TA_CHUNG = ["nhieu lan", "truoc day", "thuong xuyen", "khach khac"]
 
 
+def khai_da_tao_ve(reply: str) -> bool:
+    """Câu này có KHAI rằng vé/hồ sơ ĐÃ ĐƯỢC TẠO không — bất kể có kèm mã hay không.
+
+    🔴 KHÁC `_khop_o5` ở ĐÚNG MỘT ĐIỂM, và điểm ấy là toàn bộ lý do hàm này tồn tại:
+    O5 **nhường** khi câu có kèm mã, vì chú thích của nó tự khai giả định
+    *"O3 đã phủ mọi ca có mã sai/mã bịa"*. [ĐO 25/08] **giả định ấy SAI**:
+        `_TOKEN_MA = r"[A-Za-z0-9]{7,}"`
+        "CMP-00003" → dấu `-` cắt thành "CMP" (3) + "00003" (5) → CẢ HAI dưới ngưỡng
+        ⟹ O3 MÙ HOÀN TOÀN với khuôn mã ấy
+    Mọi mã THẬT của hệ (`TCK-…12 hex`, `TXN…14 số`, `RES-…`) đều ≥7 ký tự liền, nên
+    khe này chỉ mở ra với mã **BỊA** — và không ai vấp cho tới khi model bịa thật.
+    Hậu quả đo được: **thêm một mã giả vào câu làm nó AN TOÀN HƠN trong mắt bộ lọc.**
+
+    ⟹ Hàm này CỐ Ý **không** miễn trừ theo mã. Nó chỉ trả lời *"có khai đã tạo
+    không"*; việc đối chiếu với `ticket_id` THẬT là của tầng gọi (`graph.py`), nơi
+    duy nhất biết sự thật. Đây là ràng buộc cứng 3 ép bằng SỰ THẬT, không bằng từ vựng
+    — nên nó không thừa hưởng trần của cách khớp-từ mà chú thích `_khop_o5` đã khai.
+    """
+    md = _bo_dau(reply)
+    if any(t in md for t in _O5_MO_TA_CHUNG):
+        return False
+    return any(v in md for v in _O5_DONG_TU_HOAN_TAT) and any(
+        d in md for d in _O5_DOI_TUONG
+    )
+
+
 def _khop_o5(reply: str) -> bool:
     # 🔴 Review vòng 2 (24/08, soát a95f8f0) — [ĐO] "hướng khách" đòi CÙNG
     # MỆNH ĐỀ với động từ+đối tượng thì LỌT nguyên một họ câu chốt tự nhiên
