@@ -3005,3 +3005,59 @@ giá thật **một lời gọi tool ≈ 10.400 token** (0 tool → 10.381 · 1 
 đồ tool. ⟹ Hai thì = thêm MỘT vòng ⟹ **≈ +10.400 token mỗi ca tạo vé**.
 `return_direct=True` CÓ hỗ trợ (langchain 1.3.15, `create_agent` tự dựng `exit_node`)
 ⟹ thì 1 dừng được ngay sau tool, không cần đổi kiến trúc agent.
+
+---
+
+## ADR-052 — Bổ sung `bieu_thuc` cho BR-11 trong contract: đóng lỗ đối xứng
+
+**Ngày:** 2026-08-26 · **Trạng thái:** ⏳ **DỰ THẢO — CHỜ PO THẬT DUYỆT** (§3 bắt buộc: sửa
+`contracts/` phải qua ADR + PO gật, TRƯỚC khi code).
+
+### Dữ kiện — đo, không suy
+```
+[ĐO 26/08] grep "bieu_thuc:" contracts/resolution-state-machine.yaml → ĐÚNG 2 chỗ
+     dòng  65   BR-10  ck_resolutions_approved_requires_approver_br10   ✅ CÓ
+     dòng 101   BR-12  ck_resolutions_maker_checker_br12                ✅ CÓ
+     BR-11                                                              🔴 KHÔNG CÓ
+                (mục `invariants:` chỉ ghi `mo_ta`/`nguon` cho INV-14)
+```
+**Ba luật cùng lớp, cùng canh ràng buộc cứng #1 (HITL). Hai cái có nguồn để so, một cái không.**
+
+### Vì sao đây là lỗ, không phải chuyện hình thức
+`tests/test_invariants.py` moi `CheckConstraint` từ app đang chạy rồi so với `contracts/`.
+Không có `bieu_thuc` trong contract ⟹ cổng canh BR-11 **không còn gì để so** ⟹ buộc phải
+**chép cứng** biểu thức vào chính tệp test.
+
+🔴 Chép cứng làm cổng **lệch ÂM THẦM**: ngày ai đó sửa ràng buộc trong `models.py`, test vẫn
+xanh với chuỗi cũ — **và không ai biết contract, code, test đang nói ba chuyện khác nhau.**
+Đúng hình dạng lỗi QA/QC vừa tìm ra hôm nay: BR-10/BR-11 kiểm **substring**, đổi `AND` → `OR`
+*(duyệt hoàn tiền chỉ cần MỘT trong hai cột thay vì CẢ HAI)* mà test **vẫn xanh** — đã chứng
+minh bằng **đột biến thật** trên worktree, không phải đọc code *(`e804529`)*.
+
+### Quyết định đề xuất
+Thêm `bieu_thuc` cho BR-11 vào `contracts/resolution-state-machine.yaml`, **cùng khuôn BR-10
+và BR-12** — lấy nguyên văn từ `CheckConstraint` đang chạy, chuẩn hoá y cách hai cái kia.
+
+Rồi chuyển `INV-14` từ **chép cứng** sang **đọc động từ contract**, đúng khuôn `INV-15` đã dùng
+cho BR-12 *(hạ tầng `yaml.safe_load` đã có sẵn tại `tests/test_invariants.py:66`)*.
+
+### Hệ quả
+```
+· ba luật BR-10/11/12 cùng một cơ chế — không còn ngoại lệ phải nhớ
+· sửa ràng buộc mà quên contract  ⟹ ĐỎ NGAY, thay vì xanh im lặng
+· xoá một dòng chép cứng khỏi tệp test — chép cứng là nợ, không phải giải pháp
+```
+
+### Vế bất lợi — khai ra, không giấu
+Đổi contract kéo theo **bốn bước bắt buộc của §3**: `check_contracts.py --update` · cập nhật
+`CONTRACT_VERSION` · commit **kèm tệp baseline** *(quên là local xanh / CI đỏ)* · và mọi phiên
+đang mở phải đọc lại. **Không phải sửa một dòng YAML.**
+
+⚠️ Và biểu thức lấy **từ `CheckConstraint` đang chạy** — tức ta đang **niêm hiện trạng làm
+chuẩn**. Nếu hiện trạng ĐANG SAI thì ADR này **đóng băng cái sai**. 🔴 **PO/Review cần xác nhận
+BR-11 hiện tại đúng nghiệp vụ TRƯỚC khi niêm** — đây là câu hỏi nghiệp vụ, không phải kỹ thuật.
+
+### Trạng thái tạm cho tới khi duyệt
+`INV-14` **chép cứng CÓ NIÊM** *(`e804529`)* — docstring và thông điệp lỗi đều ghi rõ *"TẠM,
+chuyển đọc động ngay khi ADR-052 bổ sung `bieu_thuc` BR-11"*. **Cổng vẫn canh được** *(đột biến
+`AND`→`OR` làm nó đỏ đúng)*, chỉ là canh bằng một bản sao thay vì bằng nguồn.
