@@ -2903,7 +2903,14 @@ supervisor thật**, không phải kỹ thuật.
 
 ## ADR-049 — Nhận diện TẤT ĐỊNH "khách yêu cầu tạo vé": đổi đòn bẩy, không đổi thêm chữ
 
-**Ngày:** 2026-08-24 · **Trạng thái:** 🟡 **ĐỀ XUẤT — chờ PO thật duyệt.** Chưa code dòng nào.
+**Ngày:** 2026-08-24 · **Trạng thái:** ✅ **PO THẬT DUYỆT 25/08** (*"Duyệt nhé"*)
+*(Ghi bởi phiên PO — `docs/` là vùng ghi `po` theo §4. Coder **từ chối tự ghi** dòng này và
+từ chối nhận uỷ quyền đổi vùng ghi qua relay; đúng, và đáng ghi nhận.)*
+~~🟡 ĐỀ XUẤT — chờ PO thật duyệt. Chưa code dòng nào.~~ *(trạng thái tới 25/08)*
+
+**Hệ quả mở khoá:** ⑩ *(bản tóm tắt 6 trường tất định trước `create_ticket` — đúng lượt 7
+kịch bản chuyên gia CSKH)* và ⑪ *(cấu trúc ba vế · đổi góc nhìn PDPA · đọc lại 5 dữ kiện)*.
+Cả hai vẫn phải **tự đo delta token** và vừa trần 293 — điều khoản T2, đợt "OTP trước token".
 
 ### Dữ kiện: sáu vòng, sáu cơ chế bị loại trừ, một hành vi không đổi
 
