@@ -1421,6 +1421,37 @@ phải ĐÚNG QUẦN THỂ trước khi tính, không chỉ đúng hình thức 
 > 2-6 lần và **trông hoàn toàn hợp lý** — đây là bẫy "dân số pha tạp" dự án từng trả
 > giá trước đó (`4% = 13/370`, `so_luot_goi_model = 0`).
 
+**Luật AC** *(đúc 25/08, gốc "ĐO ĐÚNG CÁCH, SAI VẬT" — 6 ca, 6 người/thời điểm khác nhau,
+cùng một hình dạng; Lead cấp ký hiệu lúc nghiệm thu đợt "OTP trước token", PO tự từ chối
+cấp ký hiệu cho chính ý của mình để nhường Lead cân)* — 🔴 **MỌI CỔNG DỰ ÁN HIỆN CÓ KIỂM
+PHÉP ĐO CÓ ĐÚNG QUY TRÌNH KHÔNG, KHÔNG KIỂM PHÉP ĐO CÓ TRỎ VÀO ĐÚNG VẬT KHÔNG.** Một phép
+đo sai vật đi qua mọi cổng, cho một con số đúng định dạng, đúng đơn vị, đúng cách tính —
+và sai.
+> **Ba biến thể, ba cách phát hiện khác nhau — đây mới là phần dùng được:**
+> | biến thể | số trông thế nào | cách bắt |
+> |---|---|---|
+> | sai VẬT (venv/ảnh/lớp thay vì instance) | LẠ | đo lại trên vật khác, so kết quả |
+> | cắt mất phần dưới (`head -N` giấu dòng) | HỢP LÝ | in MẪU SỐ, đếm lại từ đầu |
+> | sai ĐƠN VỊ | ĐÚNG | 🔴 không bắt được bằng đo lại — chỉ bằng hỏi "số này đơn vị gì" |
+> **Chiều lệch quyết định mức nguy:** phần lớn ca lệch về phía TRẤN AN (số đẹp hơn thật),
+> nhưng có ca lệch BI QUAN (số xấu hơn thật) — bộ kiểm chỉ canh chiều trấn an sẽ không bao
+> giờ bắt được ca bi quan, hệ quả là bỏ một đường đúng chứ không phải tin nhầm một đường sai.
+> **Họ hàng:** khác Luật C (C nói về nơi KHÔNG CÓ vật đo; AC nói về đo NHẦM vật dù có vật
+> đúng ở nơi khác) và khác Luật G (G nói cơ chế làm đúng việc CỦA NÓ không phải việc TA GIẢ
+> ĐỊNH; AC hẹp hơn, riêng cho dụng cụ ĐO, kèm ba phép bắt cụ thể theo biến thể).
+
+> ⭐ **MỞ RỘNG cùng ngày, nối vào Luật D thay vì cấp ký hiệu riêng (Lead quyết, PO đề xuất
+> ban đầu cho vào AC nhưng nó đúng hình dạng D hơn — "cột phòng thủ cần NGUỒN ĐỘC LẬP"):**
+> **Một bất biến kiểm QUAN HỆ giữa hai số rút từ CÙNG một nguồn thì không phải bất biến —
+> nó là một phép LẶP LẠI.** [ĐO] `so_tool_call` và `so_luot_goi_model` đều duyệt cùng
+> `turn_messages`; bất biến `so_luot_goi_model == so_tool_call + 1` khít 100% — nhưng danh
+> sách nguồn thiếu dòng thì CẢ HAI CÙNG TỤT và quan hệ VẪN KHÍT. Im lặng đúng lúc đáng kêu
+> nhất, và trông như bằng chứng. **Phép thử:** với mỗi bất biến, hỏi "hai vế có rút từ hai
+> NGUỒN ĐỘC LẬP không?" Không ⟹ nó chứng minh NỘI BỘ NHẤT QUÁN, không chứng minh ĐÚNG.
+> *(Không cấp ký hiệu thứ tư trong ngày cho một ý đã có nhà — hai ca khác của cùng đợt
+> [SKIP thay ĐỎ · O3/O5 thưởng bịa cụ thể hơn] đã có nhà sẵn ở A-vế-ba và AC phía trên;
+> ghi ở đây làm điểm neo cho ai tìm "5 cơ chế cùng che tín hiệu của chính cái đang hỏng".)*
+
 ---
 
 ## 8. 🔴 BÀI HỌC LỚN NHẤT 17/08 — đọc mục này rồi hãy tin bất kỳ con số nào
