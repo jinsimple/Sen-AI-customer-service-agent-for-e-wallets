@@ -1191,6 +1191,61 @@ trên nền sai là đúng thứ Luật F cấm.
 | 12:50 **#20** | `0b169de` | 🟢 5 commit — nghiệm thu + bàn giao + 3 luật lên STATE | 🟢 ⑧ land `3ac7d90` · đang ⑪ + đo lượt 4 | 🟢 soạn kịch bản chạy | 🟢 soát độ phủ | 🔴 **8/8 KHÔNG đạt hôm nay** |
 | 14:45 **#24** | `a241955` | 🟢 sửa lệch checklist + chuyển 4 việc | 🟢 **đang vá B** *(`khai_da_tao_ve`)* | ⏸ chờ vá | ⏸ chờ vá | 🟢 **PO thật duyệt ADR-051 + Redis** |
 
+### 🔴🔴 #28 — ⑬ CÓ LỜI GIẢI DỨT ĐIỂM. NHÃN "BỊA SỐ LIỆU" **SAI**. AGENT KHÔNG BỊA.
+
+🔴 **ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC NÓI VỀ ⑬.** Nhãn ⑬ đã bị đổi **BỐN LẦN** trong ngày
+*(bịa → không bịa → bịa → **không bịa**)*. Bản này là bản **có BẰNG CHỨNG TRỰC TIẾP**, không phải
+suy luận — mọi phát biểu cũ về ⑬ ở các mục dưới đều **đứng SAU mục này**.
+
+**Bằng chứng — giải mã lịch sử hội thoại thật, thread `EVAL-CASE-KBCG-B1`, DB của ngăn `fin05`:**
+```
+[3]  AIMessage    🔴 GỌI TOOL: get_customer_history
+[4]  ToolMessage  ← KẾT QUẢ TOOL
+[5]  AIMessage
+…
+[11] AIMessage    ← CÂU BỊ TỐ "bịa số liệu"
+```
+**Tool ĐÃ chạy, ở message 3–4. Câu bị tố nằm ở message 11.**
+
+⟹ ✅ **7 số agent nêu khớp TUYỆT ĐỐI 10 ứng viên tool trả về, sau khi bỏ trùng.** Agent **THUẬT LẠI
+TRUNG THỰC** thứ tool đưa cho nó. **KHÔNG vi phạm ràng buộc cứng 3.**
+
+### 🔴 BA LỖI XẾP CHỒNG — không lỗi nào ở model
+```
+① hai giao dịch 393.000đ tuổi 108–109 ngày · cửa sổ `days` mặc định = 90
+      ⟹ tool CHƯA BAO GIỜ nhìn thấy chúng
+② khớp gần đúng ±2% (CÓ CHỦ ĐÍCH, có lý do ghi sẵn: bù làm tròn "270k") lấp chỗ trống
+   bằng 10 giao dịch gần giống ⟹ thay vì `not_found` (tín hiệu RÕ, model xử được),
+   model nhận `multiple_matches` với 10 số KHÔNG cái nào đúng
+③ `thread_id = f"EVAL-{case_id}"` CỐ ĐỊNH + checkpoint KHÔNG xoá giữa các lần chạy.
+   B1 chạy BỐN lần, hai lần đầu HỎNG (lần 2 tốn tiền thật, 0 dữ liệu) nhưng ĐỂ LẠI
+   kết quả tool trong lịch sử ⟹ lần 3 đọc lại và thuật, `so_tool_call` chỉ đếm LƯỢT
+   NÀY nên báo 0.
+```
+🔴 **Câu đắt nhất, Coder đúc:** ***"Khớp mờ không gây ra lỗi — nó XOÁ DẤU VẾT của lỗi."*** Không có
+nó, `not_found` sẽ **chỉ thẳng vào cửa sổ 90 ngày**.
+
+### 🔴🔴 VÀ ĐÂY LÀ THỨ ĐẮT HƠN CẢ ⑬ — MỘT BẤT BIẾN GIẢ
+Cả đội tin suốt ngày: `so_luot_goi_model = so_tool_call + 1`, khít **100% trên hai ngăn độc lập**.
+[ĐO, `graph.py:1788·1820·1923`] **cả hai số cùng duyệt MỘT danh sách `turn_messages`**
+*(lát cắt `all_messages[prev_len:]`)*.
+
+> **Một bất biến kiểm QUAN HỆ giữa hai số rút từ CÙNG một nguồn thì không phải bất biến — nó là một
+> phép LẶP LẠI.** Nguồn thiếu ⟹ **cả hai số cùng tụt** ⟹ `1 = 0 + 1` **vẫn khít**.
+> 🔴 **Nó im lặng và TRÔNG NHƯ BẰNG CHỨNG, ở đúng ca nó đáng phải kêu nhất.**
+
+⚠️ **Đội đang có nhiều bất biến dạng ấy.** Đây là món nợ lớn nhất ⑬ để lại, **lớn hơn chính ⑬**.
+
+### 🔴 VÀ NÓ LÀ CƠ CHẾ THỨ NĂM CÙNG MỘT TỘI, TRONG MỘT NGÀY
+```
+① cổng bất biến SKIP khi thiếu hạ tầng      →  im lặng đúng lúc đáng kêu
+② bộ lọc CHO QUA khi câu có mã bịa          →  thưởng cho việc bịa CỤ THỂ HƠN
+③ bộ đếm chi tiêu LLM reset khi restart     →  quên tiền đã tiêu, không báo ai
+④ khớp mờ ±2% lấp chỗ cửa sổ thiếu          →  xoá dấu vết của lỗi
+⑤ bất biến rút hai số từ một nguồn          →  khít khi nguồn thiếu, trông như bằng chứng
+```
+**Năm cơ chế, năm chỗ khác nhau, MỘT tội: che mất tín hiệu của chính cái đang hỏng.**
+
 ### ✅ #25 — BLOCKER ĐÓNG, PO nghiệm thu ĐỘC LẬP bằng chính câu đã lọt (0 token)
 
 PO chạy hai bản vá trên **cây làm việc**, không qua báo cáo của ai:
