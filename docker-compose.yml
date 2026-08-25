@@ -320,9 +320,39 @@ volumes:
   # An toàn để bật NGAY: [PO thật đọc `docker volume ls` trên máy production
   # 25/08] `fin05_postgres_data` ĐÃ TỒN TẠI ở đó ⟹ không cần tạo tay, `up`
   # dùng đúng volume đang chạy, dữ liệu không suy chuyển.
+  #
+  # 🔴 SỬA 25/08 SAU KHI DEVOPS SOÁT — ĐỌC TRƯỚC KHI ĐỔI THÀNH `external: true` TRẦN.
+  # Bản đầu ghi `external: true` + `name: fin05_postgres_data` CỨNG. Nó chặn được
+  # `down -v` thật, nhưng [ĐO] tên CỨNG VÔ HIỆU HOÁ tiền tố theo `-p`:
+  #     docker compose -p fin05-sach up  ->  trỏ vào `fin05_postgres_data`
+  # tức MỌI ngăn dựng từ tệp này, với BẤT KỲ `-p` nào, dùng CHUNG một volume vật
+  # lý — đúng thứ cả đội dựa vào để cách ly ngăn (STATE.md: "bắt buộc `-p`").
+  # Im lặng, không lỗi, không cảnh báo.
+  #
+  # Hai biến dưới đây trả lại cách ly VÀ giữ bảo vệ. [ĐO] `docker compose config`,
+  # đủ ba ca — đây là câu trả lời cho "vì sao không để thẳng `true`":
+  #   ① .env có `BAO_VE_CSDL=true`, KHÔNG cờ nào
+  #        -> external: true · fin05_postgres_data      = đường PO gõ, bảo vệ BẬT
+  #   ② cùng .env đó + `-p fin05-sach`
+  #        -> external: true · fin05-sach_postgres_data = TIỀN TỐ TRỞ LẠI
+  #   ③ KHÔNG có dòng ấy (CI, máy sạch, mọi clone)
+  #        -> volume THƯỜNG, y như trước = CI và clone không vỡ gì
+  #
+  # 🔴 CHIỀU HỎNG LÀ CHIỀU ĐÚNG: quên dòng `.env` ⟹ hành vi Y HỆT trước bản vá
+  # (không có bảo vệ), KHÔNG PHẢI một ngăn chết. Hỏng về phía CŨ, không về phía GÃY.
+  #
+  # Vế bất lợi, khai ra chứ không giấu: trên máy production, ai chạy `-p <tên khác>`
+  # sẽ gặp `external volume not found` vì volume ngăn ấy chưa tồn tại. ỒN ÀO, không
+  # im lặng — và "đừng dựng ngăn lạ trên máy production" vốn là hành vi đúng.
+  #
+  # Vì sao KHÔNG dùng override kèm `-f`: PO deploy bằng `docker compose up -d --build`
+  # KHÔNG cờ nào. Bảo vệ nằm sau một cờ người ta phải nhớ = production mất bảo vệ.
+  # `.env` thì compose đọc MẶC ĐỊNH, cùng thư mục, không cần nhớ gì.
+  # Vì sao KHÔNG bind-mount thư mục máy chủ: còn TỆ HƠN — mọi ngăn dựng từ CÙNG thư
+  # mục repo trỏ CÙNG một đường dẫn, và `-p` KHÔNG cứu nổi.
   postgres_data:
-    external: true
-    name: fin05_postgres_data
+    external: ${BAO_VE_CSDL:-false}
+    name: ${COMPOSE_PROJECT_NAME:-fin05}_postgres_data
 
   # 🔴 KHÔNG khai `external` cho redis_data. [PO thật đo 25/08] volume
   # `fin05_redis_data` CHƯA TỒN TẠI trên máy production (bản vá Redis 25/08
