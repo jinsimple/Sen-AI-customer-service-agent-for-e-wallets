@@ -490,9 +490,24 @@ nhắn lại liên tục trong ngày mà lần nào cũng bị chặn.
 **Cách tính đề xuất — trình PO thật, PO quyết số cuối, KHÔNG tự đặt lên production:**
 
 ```
-Mốc đo: 1 hội thoại 8 lượt ≈ 141.000 token (đưa ra trong đợt trao đổi 25/08 qua điều phối
-`p-226-f0` — CHƯA XÁC NHẬN đây là số đo trực tiếp của PO thật hay ước tính của điều phối;
-dùng làm điểm khởi đầu có lý lẽ, không phải một hằng số chắc chắn)
+Mốc đo — [ĐO, tra được] `docs/DECISIONS.md:3003-3005` · `docs/nhat-ky/2026-08-25-ADR-051-du-
+thao-cho-PO-duyet.md` · `docs/giao-viec/CHECKLIST-dot-otp-truoc-token.md:1570` (đo THẬT từ sổ
+sống, KHÔNG phải ước tính — **25/08, không phải 17/08** như trao đổi trước đó ghi, tự sửa khi
+tra nguồn):
+  0 tool → 10.381 token (n=8) · 1 tool → 20.811 (n=4) · 3 tool → 41.444 (n=1)
+  ⟹ mỗi lời gọi tool ≈ +10.400 token, TUYẾN TÍNH KHÍT (bất biến so_luot_goi_model =
+    so_tool_call + 1, khớp 100% trên hai ngăn độc lập)
+🔴 **Con số "141.000 token/hội thoại 8-lượt" cụ thể — KHÔNG tra ra được nguồn** dù đã tìm khắp
+`docs/DECISIONS.md`, `docs/STATE.md`, toàn bộ `docs/nhat-ky/2026-08-25-*.md` và
+`docs/giao-viec/*.md`. Có thể là số suy ra từ công thức trên (8 lượt × trung bình có tool call ≈
+cùng bậc độ lớn) nhưng KHÔNG tự suy diễn thay — hỏi lại nguồn trước khi dùng số này cho quyết
+định tiền cụ thể. Bảng USD dưới đây VẪN dùng 141.000 làm mốc (đã tính trước khi phát hiện gốc
+không tra ra được) — công thức đúng, chỉ cần THAY số nếu nguồn thật khác.
+⚠️ **[ĐÍNH CHÍNH 25/08, `docs/STATE.md:24`]** số TUYỆT ĐỐI (không phải delta) chỉ đúng khi đo
+TRONG container — `langchain-core` 1.5.3 (host/venv) vs 1.5.4 (container) sinh lược đồ tool khác
+nhau, số tuyệt đối lệch ~12% dù mã giống hệt. Ba con số trên đã ghi trong `CHECKLIST-dot-otp-
+truoc-token.md` là *"đo từ sổ sống"* (usage.jsonl thật, tức TRONG container) ⟹ đúng loại đo được
+phép dùng cho quyết định tiền; nếu sau này ai đối chiếu lại bằng venv host, đừng lấy số đó thay.
 Giá qwen3.7-plus quốc tế [ĐO 17/08, CÓ THỂ ĐÃ ĐỔI — xác nhận lại trước khi
   dùng số tiền để quyết]: $0,40 / 1M token vào · $1,20 / 1M token ra
 Cận dưới/trên mỗi hội thoại (giả định 100% vào / 100% ra — chưa có tỉ lệ
