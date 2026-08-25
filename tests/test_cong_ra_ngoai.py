@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import httpx
 import openai
+import pytest
 
-from src.cong_ra_ngoai import GoiRaNgoaiBiChanError, la_bi_chan
+from src.cong_ra_ngoai import GoiRaNgoaiBiChanError, _TransportCoChotChan, la_bi_chan
 
 
 def _boc_nhu_sdk(goc: BaseException) -> openai.APIConnectionError:
@@ -87,3 +88,62 @@ def test_ta_tu_chan_bi_boc_nhieu_lop_lien_tiep_van_nhan_dien_duoc():
             "la_bi_chan() chỉ lần được ĐÚNG MỘT tầng __cause__ — chuỗi lỗi thật "
             "qua nhiều lớp thư viện trung gian sẽ bị bỏ sót."
         )
+
+
+# ============================================================================
+# `_TransportCoChotChan.handle_request` — chốt 26/08 (`41aacd5`, Lead):
+# LLM_BASE_URL trống + đường CHAT -> raise, thay vì âm thầm rơi mặc định
+# OpenAI thật với model/khoá rơi mặc định (đúng lỗ đã sống 10 ngày, 16-26/08
+# — golden_set/adversarial_set/llm_judge_set chấm nhầm gpt-4o-mini vì ba giá
+# trị LLM_BASE_URL/LLM_MODEL/LLM_API_KEY rỗng RƠI CÙNG HƯỚNG, khớp nhau, gọi
+# thật THÀNH CÔNG, không một dòng lỗi). Loại trừ /embeddings vì rơi OpenAI ở
+# đó là CÓ CHỦ Ý (EMBEDDING_BASE_URL trống mặc định).
+#
+# Nguồn đặc tả: Lead (`p-226-0c`, 25/08) — đọc trực tiếp `handle_request`
+# trong container để xác nhận, không phải tôi tự đoán từ tên hàm.
+# ============================================================================
+
+
+def _handler_200(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(200, json={"ok": True})
+
+
+def test_base_url_trong_chan_duong_chat(monkeypatch):
+    """`_TransportCoChotChan` đọc `LLM_BASE_URL` LÚC IMPORT, cache lại trong
+    namespace riêng của `cong_ra_ngoai` — `monkeypatch.setenv` KHÔNG đổi
+    được gì sau khi module đã nạp. Phải `setattr` thẳng vào tên đã cache."""
+    monkeypatch.setattr("src.cong_ra_ngoai.LLM_BASE_URL", "")
+    transport = _TransportCoChotChan(httpx.MockTransport(_handler_200))
+    request = httpx.Request("POST", "https://bat-ky-host/chat/completions")
+    with pytest.raises(GoiRaNgoaiBiChanError):
+        transport.handle_request(request)
+
+
+def test_base_url_trong_khong_chan_duong_embeddings(monkeypatch):
+    """🔴 CA ĐỐI CHỨNG BẮT BUỘC — thiếu ca này, một bản vá chặn LUÔN CẢ
+    /embeddings sẽ khoá nhầm toàn bộ kho RAG (EMBEDDING_BASE_URL trống mặc
+    định là CÓ CHỦ Ý, không phải cùng lỗ với LLM_BASE_URL).
+
+    Cô lập khỏi cổng ngân sách riêng (`cho_phep_goi_ra_ngoai`, có thể tự
+    chặn vì lý do KHÁC hẳn) — ép nó luôn cho qua, để ca này CHỈ đo đúng một
+    biến: chốt LLM_BASE_URL có bỏ qua /embeddings hay không (theo đề nghị
+    Lead, tránh assert cứng "không raise gì cả")."""
+    monkeypatch.setattr("src.cong_ra_ngoai.cho_phep_goi_ra_ngoai", lambda *a, **k: (True, None))
+    transport = _TransportCoChotChan(httpx.MockTransport(_handler_200))
+    request = httpx.Request("POST", "https://bat-ky-host/embeddings")
+    resp = transport.handle_request(request)
+    assert resp.status_code == 200
+
+
+def test_base_url_co_dat_khong_chan_duong_chat(monkeypatch):
+    """🔴 Ca đối chứng chống DƯƠNG TÍNH GIẢ — LLM_BASE_URL đã đặt đàng
+    hoàng thì đường chat vẫn phải đi qua bình thường, không bị chặn oan.
+    Cùng lý do cô lập cổng ngân sách như ca /embeddings ở trên."""
+    monkeypatch.setattr(
+        "src.cong_ra_ngoai.LLM_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    )
+    monkeypatch.setattr("src.cong_ra_ngoai.cho_phep_goi_ra_ngoai", lambda *a, **k: (True, None))
+    transport = _TransportCoChotChan(httpx.MockTransport(_handler_200))
+    request = httpx.Request("POST", "https://bat-ky-host/chat/completions")
+    resp = transport.handle_request(request)
+    assert resp.status_code == 200
