@@ -101,6 +101,47 @@ Hai khả năng cho ra CÙNG một hệ quả bên ngoài (bất định số li
 được tool_result) nhưng khác nhau ở NƠI cần sửa — cần Coder xác nhận trước
 khi ai chọn một trong hai.
 
+## 🔴 ĐÍNH CHÍNH LẦN 2 [PO 25/08] — quét 149 file kết quả, phân định dứt điểm
+
+[ĐO, quét toàn `eval/results/`]:
+
+```
+quality_run_20260814_170312   40 ca | tool_calls có: 40/40 | usage có: 40/40
+tang_c_raw                      8 ca | tool_calls có:  0/8 | usage có:  8/8
+golden_run 25/08 (cả 4 lần)     2 ca | tool_calls có:  0/2 | usage có:  0/2 (trước vá) → 0/2 (sau vá, usage vẫn rỗng dù đã trả tiền thật)
+```
+
+`usage={}` trên một lượt ĐÃ TRẢ TIỀN THẬT (duong=day_du, có câu trả lời) là
+**bản ghi tự chứng minh nó mù** — không thể "gọi LLM thật mà usage rỗng".
+⟹ **`tool_calls: []` trên đường adaptive mang ĐÚNG BẰNG KHÔNG thông tin** —
+không phải "agent không gọi tool", mà "bộ ghi không ghi được".
+
+**QUAN TRỌNG — đã tự kiểm thêm (QA/QC 25/08):** `eval/measure_quality.py`
+(nguồn của `quality_run_20260814...`, đường CÓ ghi được) gọi **ĐÚNG CÙNG MỘT
+HÀM** `run_case_turns_adaptive` (`eval/_harness.py`) mà `run_golden_set.py`
+đang dùng — không phải hai cơ chế ghi khác nhau. Cùng code eval, một lần ghi
+được (14/08) một lần không (25/08) ⟹ **loại được khả năng lỗi nằm ở
+`eval/_harness.py`** — khiếm khuyết nằm ở phía TRẢ VỀ của `run_agent_turn`
+(`src/agents/graph.py`), lệch đi đâu đó **giữa 14/08 và 25/08** (đúng cửa sổ
+đợt "OTP trước token" — ④⑤⑦⑨⑫b đều land trong khoảng này). Việc xác định
+CHÍNH XÁC thay đổi nào thuộc Coder (đọc `src/`, ngoài phạm vi QA/QC).
+
+**② Rút lại "xác suất không đáng kể":** PO tính lại đàng hoàng — dải 380-400k
+có 13 mức thật/20 mức khả dĩ (trừ 393k), chọn bừa 7 mức: `C(12,7)/C(20,7) ≈
+1,0%`. Khó tin, **không phải bất khả** — và lần chạy lại (Lần 4) không lặp
+lại đúng 7 số đó (mẫu n=1). Sửa lại: bằng chứng ban đầu GỢI Ý mạnh nhưng
+KHÔNG CHỨNG MINH được nguồn gốc 7 số. Kết luận cuối cùng KHÔNG dựa vào phép
+đếm trùng khớp đó nữa mà dựa vào bằng chứng cấu trúc (usage={} tự mâu thuẫn +
+cùng hàm harness khi ghi được khi không).
+
+**③ Khung đúng cuối cùng — hai phát hiện TÁCH RỜI, không gộp:**
+
+| Phát hiện | Trạng thái |
+|---|---|
+| `CASE-KBCG-B1` khai `must_cite_trans_ids`+`edge_type: multiple_matches`, agent báo "không thấy 393k" khi có 2 giao dịch thật → **ca TRƯỢT đúng tiêu chí lõi nó sinh ra để đo** | ĐỨNG VỮNG, tái lập 2/2 |
+| "Agent bịa số liệu" (nghi vi phạm ràng buộc cứng 3) | **KHÔNG kết luận được** — bộ đo mù trên đường `adaptive`, không phải agent được minh oan hay kết tội |
+| Cơ chế gây mù `tool_calls`/`usage` trên đường adaptive, lệch giữa 14/08→25/08 | **CHƯA RÕ, việc của Coder** — đã loại trừ được lỗi `eval/_harness.py` |
+
 ## Bài học công cụ đo (Luật 7 style, ghi vào đây để không lặp lại)
 
 Nhánh xử lý lỗi (`except Exception as e: violations = [f"LỖI CHẠY CASE: {e!r}"]`,
