@@ -151,7 +151,16 @@ test.describe("⑥ Bất biến '0 token trước OTP' — cổng ④ (NHÓM B)"
     const responses = ganResponseHook(page);
 
     const input = page.getByPlaceholder("Nhập tin nhắn...");
-    const cauKhieuNai = "tôi chuyển nhầm tiền cho người lạ rồi, không nhớ chuyển bao nhiêu";
+    // 🔴 [ĐO 25/08, buổi tốn phí] Câu PHẢI có sẵn số tiền — khác Case A cố ý.
+    // Lần đầu viết câu này GIỐNG Case A (thiếu số tiền): sau OTP, cổng ⑤/T0
+    // (`otp_resend_thu_slot`, 0 token) đúng đắn bắn để hỏi số tiền còn thiếu
+    // — ĐÚNG hành vi sản phẩm, nhưng làm Case C thất bại SAI LÝ DO (assert
+    // cũ đòi usage>0 tuyệt đối, không chấp nhận nhánh tất định hợp lệ này,
+    // cùng họ lỗi `chat-otp-token-cu-sau-xac-thuc.spec.ts` đã cảnh báo: "chấp
+    // nhận CẢ HAI đường đúng"). Sửa: cho sẵn số tiền để sau OTP không còn
+    // slot nào thiếu ⟹ đi thẳng day_du (model chạy thật), tách bạch với
+    // hành vi của ⑤ (phạm vi ca khác, không phải ca này).
+    const cauKhieuNai = "tôi chuyển nhầm 500 nghìn cho người lạ rồi, không biết làm sao lấy lại";
 
     await input.fill(cauKhieuNai);
     await input.press("Enter");
