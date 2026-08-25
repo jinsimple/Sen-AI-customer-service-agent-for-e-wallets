@@ -1834,7 +1834,6 @@ def run_agent_turn(
     ticket_id = None
     should_escalate = None
     co_loi_otp_trong_luot = False
-    loai_khieu_nai = None
     so_goi_mo_coi = 0
 
     for m in turn_messages:
@@ -1863,11 +1862,15 @@ def run_agent_turn(
             if call["name"] == "create_ticket" and "ticket_id" in payload:
                 ticket_id = payload["ticket_id"]
                 should_escalate = payload.get("should_escalate")
-                # ⑨ — loại khiếu nại đọc từ `args`, KHÔNG từ `result`: payload
-                # trả về của create_ticket (src/tools/create_ticket.py:110-118)
-                # CỐ Ý không mang `complaint_type`. Ai đọc `result` sẽ thấy
-                # None và tưởng cơ chế này bất khả thi.
-                loai_khieu_nai = (call.get("args") or {}).get("complaint_type")
+                # 🔴 ĐỪNG DỰNG LẠI `loai_khieu_nai` Ở ĐÂY. Bản trước móc
+                # `complaint_type` từ `args` tại chỗ này để ⑨ dùng; ⑨ đã CHUYỂN
+                # ĐIỂM MÓC 25/08 sang hai tín hiệu thread (`la_ca_chuyen_nham` +
+                # `_TEN_TIN_HIEU_DA_TRA_DUOC_GD`, xem khối ⑨ · K2 phía dưới) để
+                # câu sàng lọc rơi đúng LƯỢT 4 thay vì lượt 8. Biến ở đây thành
+                # tử thi — không ai đọc, nhưng chú thích cũ vẫn mô tả một cơ chế
+                # đã dời đi, tức nó CHỦ ĐỘNG chỉ sai đường cho người đọc sau.
+                # (Nếu cần `complaint_type` cho việc KHÁC: nó nằm ở `args`,
+                # KHÔNG ở `result` — create_ticket.py:110-118 cố ý không trả.)
             # ⑧ · điểm gắn "lượt 1" — lượt này có tool nào bị CỔNG OTP chặn
             # không. Đọc GIÁ TRỊ TRẢ VỀ, không bắt exception: hai lỗi OTP
             # `return` một dict, KHÔNG raise (customer_tools.py:596-613) —
