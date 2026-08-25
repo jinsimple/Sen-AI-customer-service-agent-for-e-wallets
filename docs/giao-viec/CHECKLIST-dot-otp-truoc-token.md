@@ -999,7 +999,13 @@ trên nền sai là đúng thứ Luật F cấm.
   - Cả hai đóng qua cơ chế đúng (không phải sửa test): AM-04=ADV-038 đóng vòng 1 (`d310dc5`),
     AM-03=ADV-036 đóng vòng 3 (`3e9a9ee`, trục chốt-không-bắn). Request nay tới LLM, đi qua
     O1-O5 thật — đúng ràng buộc N2 đòi.
-- [ ] **N3** Lượt tốn token trước mốc OTP đo trên UI thật: **1** → **0**
+- [x] **N3** Lượt tốn token trước mốc OTP đo trên UI thật: **1** → **0**
+  - **VẬT CHỨNG:** QA/QC, commit `61f4376`+`3e13df6`, chạy thật trên `fin05-dot-otp`
+    (`https://localhost:48443`) — 3/3 PASS: Ca A (khiếu nại cá nhân chưa OTP)
+    `duong=can_otp`, `usage.total_tokens=0` (number, không phải null) · Ca B (câu hỏi
+    chính sách chưa OTP) cổng ④ không bắn, đúng Q1 · Ca C (sau OTP) model chạy thật,
+    `total_tokens>0`. Phụ: xác nhận thêm ⑤ hoạt động đúng trên UI+model thật (không
+    chỉ corpus) — câu thiếu số tiền sau OTP đi đúng cổng ⑤/T0 hỏi lại, 0 token.
 - [ ] **N4** Cấu hình cờ in trong mọi báo cáo eval
 
 🔴 **Đợt đóng khi bốn con số nằm trong bốn tệp, không phải khi bốn vai báo xong.**
