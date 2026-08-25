@@ -279,12 +279,58 @@ services:
     depends_on:
       - frontend
 
+# ═══════════════════════════════════════════════════════════════════════
+# 🔴 `docker compose down -v` XOÁ SÁU KHO DƯỚI ĐÂY, KHÔNG PHẢI "vài thứ vặt".
+#
+# [ĐO 25/08] `docker compose config --volumes` liệt kê đủ sáu:
+#   postgres_data  chroma_data  redis_data  logs_data  caddy_data  caddy_config
+#
+# ⚠️ ĐÍNH CHÍNH bản chú thích cũ ở chính chỗ này (Coder viết sáng 25/08, SAI
+# vì NÓI NHẸ ĐI): nó ghi `down -v` "xoá bộ đếm chi tiêu LLM và phiên đăng
+# nhập". Người viết đang thêm `redis_data` nên mô tả ĐÚNG THỨ MÌNH VỪA THÊM,
+# và câu ấy bị đọc thành mô tả CẢ LỆNH. Sự thật: nó xoá TOÀN BỘ CSDL — mọi
+# ticket, mọi khiếu nại, mọi resolution, mọi transcript chat — CỘNG chỉ mục RAG.
+#
+# 🔴 VÀ ĐÂY KHÔNG PHẢI RỦI RO GIẢ ĐỊNH. Hai dữ kiện, cùng ngày 25/08:
+#   · [PO thật] production LÀ máy Windows cá nhân bật 24/7, chạy ngăn Docker
+#     tên `fin05`, deploy THỦ CÔNG bằng `git pull` + `docker compose`.
+#   · [sự cố] một phiên Coder lỡ để `docker compose down -v` chạy trên ngăn
+#     `fin05` của máy dev — CÙNG TÊN NGĂN, CÙNG TÊN VOLUME, CÙNG LỆNH — và
+#     xoá sạch CSDL demo + chỉ mục RAG trong một giây, không hỏi lại câu nào.
+#   ⟹ Cùng một lệnh gõ trên máy production = mất dữ liệu KHÁCH HÀNG THẬT.
+#     Chưa có bản sao lưu nào từng được diễn tập phục hồi.
+#
+# `docker compose` KHÔNG có hook, không hỏi xác nhận, không `--dry-run` mặc
+# định ⟹ KHÔNG CÁCH NÀO cắm một cảnh báo vào lệnh. Chỉ BẢO VỆ là khả thi.
+# ═══════════════════════════════════════════════════════════════════════
 volumes:
+  # 🔴 `external: true` CÓ CHỦ ĐÍCH — ĐỪNG GỠ ĐỂ "cho gọn".
+  #
+  # Volume external KHÔNG bị `docker compose down -v` xoá: compose in
+  # "volume ... is external, skipping" rồi bỏ qua. Muốn xoá thật phải gõ
+  # `docker volume rm fin05_postgres_data` — một câu không ai gõ nhầm.
+  # Đây là kho DUY NHẤT mất đi thì KHÔNG dựng lại được: chroma_data dựng lại
+  # bằng `scripts/kho_rag.py nap-lai`, logs/caddy tự sinh.
+  #
+  # 🔴 `name:` LÀ BẮT BUỘC, KHÔNG PHẢI TRANG TRÍ. [ĐO 25/08] `external: true`
+  # mà KHÔNG có `name:` thì compose tìm volume tên trần `postgres_data`,
+  # KHÔNG phải `fin05_postgres_data` — external KHÔNG được gắn tiền tố tên
+  # ngăn. Thiếu dòng `name:` ⟹ `up` đi tìm một volume không tồn tại.
+  #
+  # An toàn để bật NGAY: [PO thật đọc `docker volume ls` trên máy production
+  # 25/08] `fin05_postgres_data` ĐÃ TỒN TẠI ở đó ⟹ không cần tạo tay, `up`
+  # dùng đúng volume đang chạy, dữ liệu không suy chuyển.
   postgres_data:
-  redis_data:   # 🔴 MỚI 25/08 — xem chú thích ở service `redis`. Thêm volume này
-                # ĐỔI Ý NGHĨA của `docker compose down -v`: lệnh ấy nay XOÁ LUÔN
-                # bộ đếm chi tiêu LLM và phiên đăng nhập. Đã gửi devops đoạn cần
-                # thêm vào `docs/DEPLOY.md` (vùng của họ, Coder không tự ghi).
+    external: true
+    name: fin05_postgres_data
+
+  # 🔴 KHÔNG khai `external` cho redis_data. [PO thật đo 25/08] volume
+  # `fin05_redis_data` CHƯA TỒN TẠI trên máy production (bản vá Redis 25/08
+  # chưa được deploy lên đó) ⟹ khai external sẽ làm `up` CHẾT ngay lần deploy
+  # kế tiếp. Bật được sau, khi máy ấy đã chạy qua một lần với volume này.
+  # Mất nó = mất bộ đếm chi tiêu LLM + phiên đăng nhập (dựng lại được, đau
+  # nhưng không mất dữ liệu khách).
+  redis_data:
   chroma_data:
   logs_data:
   caddy_data:
