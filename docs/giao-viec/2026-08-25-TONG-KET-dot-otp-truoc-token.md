@@ -4,6 +4,13 @@
 > File này KHÔNG lặp lại chi tiết — chỉ trả lời ba câu: xong gì, treo gì và vì sao,
 > nợ gì sang đợt sau.
 
+🔴 **[ĐÍNH CHÍNH 25/08, PO thật đảo lệnh] TIÊU CHÍ NGHIỆM THU ĐỔI — đọc trước phần dưới.**
+PO thật: *"hoàn thành phần đang làm để chạy được thật theo case study từ nhân viên CSKH
+thật thì mới dừng."* **KHÔNG phải "đóng ngang, cắt việc"** như bản đầu tài liệu này hiểu.
+**Tiêu chí mới: kịch bản chuyên gia CSKH chạy TRỌN VẸN trên UI thật, đúng như chuyên gia
+viết** — không phải "các ô đã tick", không phải "cổng xanh". ⑪ vẫn ĐANG LÀM, xem mục
+"Treo" bên dưới — chưa đóng đợt.
+
 ## Mục tiêu gốc, đo được
 
 **Bất biến:** không lượt nào tốn token trước khi khách xác thực OTP. **Đo trên UI thật,
@@ -38,11 +45,15 @@ cá nhân và câu hỏi chính sách chưa OTP; model chạy thật sau OTP).
 - **N1 (số lần bắn oan `thu_slot`) KHÔNG đạt trên corpus gốc:** nền 15 → còn 13 (chỉ đóng
   2). Bộ ca độc lập QA/QC 7/7 xanh, nhưng **không đại diện corpus thật** — bài học đo
   lường lớn nhất đợt. PO thật quyết: để lại làm giới hạn đã khai, không mở vòng vá 4.
-- **⑪ (cấu trúc lượt hội thoại, 3 vế + góc nhìn PDPA) — HOÃN, PO thật quyết 25/08.**
-  KHÔNG phải "chưa làm" — ba lý do: ① ô duy nhất còn lại phải đo token TRONG container
-  (tốn thời gian + tiền) · ② nó đổi hành vi prompt, mà bước kế tiếp là test luồng thật —
-  đổi prompt ngay trước buổi test đó là tự nhiễu chính buổi test · ③ không chặn mục
-  tiêu kế tiếp của PO thật (test luồng thật + notification vé mới).
+- **⑪ (cấu trúc lượt hội thoại, 3 vế + góc nhìn PDPA) — ĐANG LÀM, Ô CHẶN NGHIỆM THU.**
+  ~~HOÃN, PO thật quyết 25/08. Ba lý do: ① ô duy nhất còn lại phải đo token TRONG
+  container (tốn thời gian + tiền) · ② nó đổi hành vi prompt, mà bước kế tiếp là test
+  luồng thật — đổi prompt ngay trước buổi test đó là tự nhiễu chính buổi test · ③ không
+  chặn mục tiêu kế tiếp của PO thật~~ — 🔴 **PO thật hiểu sai lệnh, đảo lệnh 25/08.**
+  Lý do ② sai hẳn: lượt 5/6/3 mà ⑪ ép cấu trúc **CHÍNH LÀ** các lượt trong kịch bản
+  chuyên gia CSKH sắp chạy — ⑪ không làm nhiễu buổi test, nó LÀ một phần của thứ được
+  nghiệm thu. Giữ nguyên ba lý do cũ (gạch ngang) làm vật chứng cho một lập luận nghe
+  chặt mà lộn ngược — Luật P, không xoá. **⑪ tiếp tục chạy, chặn nghiệm thu đợt.**
 - **CI: chưa xanh commit nào của đợt.** PO thật quyết KHÔNG push, KHÔNG gỡ hạn mức
   billing — chấp nhận có khai, không phải sự cố bị bỏ sót.
 
