@@ -627,6 +627,18 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     **[Lead 25/08] DUYỆT đề xuất gộp vào buổi gõ UI ⑥ của QA/QC** thay vì mở buổi riêng —
     QA/QC ghi kèm khi chạy ⑥: tắt `PHAN_LUONG_BAT` + `CONG_T0_BAT`, xác nhận mọi lượt
     `duong=day_du` trong `usage.jsonl`/envelope. ⑦ giữ `[~]` tới khi có số đo đó.
+  - **[ĐO 25/08, QA/QC — TIÊU CHÍ ĐÃ ĐỔI, Lead+Coder duyệt]** Câu gốc "mọi lượt `day_du`"
+    SAI từ khi ④ ra đời (cổng riêng, cờ `CONG_OTP_NHOM_B_BAT` KHÔNG nằm trong 2 cờ đang tắt
+    — cố ý). Tiêu chí đúng: tắt `PHAN_LUONG_BAT`+`CONG_T0_BAT` ⟹ KHÔNG được có `duong=nhe`/
+    `thu_slot`/`otp_resend_thu_slot` trong sổ; `duong=can_otp` vẫn bình thường (④ sống).
+    `frontend/e2e/diag-7-kill-switch.spec.ts` (tạm, chẩn đoán một lần) — 3 probe qua UI
+    thật trên `fin05-dot-otp` (đã recreate, KHÔNG rebuild — Coder xác nhận băm src/ không
+    đổi): `alo`→`day_du` · khiếu nại thiếu tiền pre-OTP→`can_otp` · cùng câu sau OTP→
+    `day_du`. **Không có `nhe`/`thu_slot`/`otp_resend_thu_slot` nào — ⑦ ĐẠT** theo tiêu chí
+    mới. **Tick vẫn `[~]` chứ không `[x]`**: kết quả này đang đứng CẠNH một phát hiện P0
+    khác (xem mục riêng bên dưới) làm nghi vấn ý nghĩa của chính `duong=day_du` — cùng
+    probe 3 cho `so_tool_call=0` trong sổ dù là khiếu nại đáng lẽ cần tra cứu. ⑦ tự thân
+    (đúng cổng, đúng cờ) đã đạt; việc CÒN LẠI không thuộc phạm vi ⑦.
   - **[Lead 25/08] DUYỆT mở rộng phạm vi 1 commit:** thêm 3 khuôn cùng họ lỗi Đ3 mà Coder
     tự phát hiện (`"tháng trước"`, `"tuần rồi"`, `"tháng rồi"` — hiện `False`, cùng cụm 2
     từ không nghĩa nào khác, không cần danh sách loại trừ). Lý do duyệt: cùng shape lỗi đã
@@ -776,22 +788,56 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     bắt được — cần đọc TOÀN BỘ hội thoại (`run_golden_set.py` tự in khi `extra_turns_used>0`)
     sau khi chạy thật, đã ghi chú ngay trong file `_can_doc_thu_cong`. Chạy thật tốn LLM — báo
     Lead/PO trước theo A3, gộp vào cùng đợt với ⑥ nếu hợp lý.
-  - ✅ **B1/C1 ĐÃ CHẠY THẬT (buổi tốn phí 25/08).** [PO 25/08] **KHUNG ĐÚNG — đừng dùng
-    hai nhãn dứt khoát đã lỡ dùng trước đó, cả hai đều SAI:**
-    | | |
-    |---|---|
-    | ✅ **đứng vững, tái lập 2/2** | agent báo *"không thấy giao dịch 393.000đ"* dù có
-      **2 giao dịch thật** khớp — `CASE-KBCG-B1` khai `must_cite_trans_ids` đúng 2 mã
-      đó ⟹ **ca TRƯỢT chính tiêu chí lõi nó sinh ra để đo** |
-    | ✅ **phát hiện thứ hai, TÁCH RỜI** | **bộ đo MÙ trên đường `adaptive`**
-      (`run_case_turns_adaptive`) — cả `usage` lẫn `tool_calls` đều rỗng dù lời gọi
-      LLM có thật, có hoá đơn. `tool_calls: []` trên đường này mang **đúng bằng
-      không** thông tin — bản ghi tự chứng minh nó mù. |
-    | ❌ *"bịa số liệu" (ràng buộc cứng 3)* | **KHÔNG kết luận được** — và cũng KHÔNG
-      phải trắng án |
-    | ❌ *"lỗi im lặng tầng tra cứu"* | **CHƯA CHỨNG MINH** — vẫn là giả thuyết |
-    🔴 **Cơ chế THẬT chưa rõ, phải nói là chưa rõ.** Coder xác nhận bằng **đọc `src/`**,
-    KHÔNG bằng chạy thêm eval (chạy thêm chỉ tốn tiền, dữ liệu vẫn mù trên đường này).
+  - ✅ **B1/C1 ĐÃ CHẠY THẬT (buổi tốn phí 25/08).** ~~[PO 25/08 lần 1] KHUNG ĐÚNG —
+    đừng dùng hai nhãn dứt khoát đã lỡ dùng trước đó, cả hai đều SAI:~~
+    ~~✅ đứng vững · ✅ bộ đo MÙ trên đường adaptive (usage+tool_calls rỗng) · ❌ "bịa
+    số liệu" KHÔNG kết luận được · ❌ "lỗi im lặng tầng tra cứu" CHƯA CHỨNG MINH~~
+  - 🔴🔴 **[PO 25/08 LẦN 2] ĐÍNH CHÍNH CHÍNH LẦN 1 — Lần 1 SAI, và sai bằng đúng lỗi
+    nó vừa dạy tránh.** PO đọc lại: bản ghi 25/08 **KHÔNG CÓ KHOÁ `usage`** (harness
+    không ghi trường này) — PO lấy một `None` do THIẾU KHOÁ làm bằng chứng "ghi được
+    nhưng rỗng". `tool_calls: []` thì CÓ trong lược đồ và rỗng THẬT ⟹ **nó LÀ dữ
+    kiện**, không phải "bản ghi tự mù".
+    ⟹ **"bịa số liệu" (ràng buộc cứng 3) — ĐÚNG, không còn là giả thuyết.** Agent
+    khẳng định *"đã tra lịch sử giao dịch nhưng không thấy 393.000đ"* trong khi
+    `tool_calls=[]` (KHÔNG tra) và có 2 giao dịch 393k CÓ THẬT — khẳng định đã điều
+    tra việc không làm, rồi kết luận sai về dữ liệu có thật.
+  - ~~🔴🔴🔴 VIỆC PHẢI DỪNG MỌI THỨ LẠI: 14/08 ghi 40/40 · 25/08 ghi 0/4 ⟹ nghi
+    NGỪNG GỌI TOOL diện rộng, P0 gác mọi việc~~ — 🟢 **[PO 25/08 LẦN 3] HẠ P0 — báo
+    động giả LẦN HAI trong một giờ, PO tự nhận.** PO đọc sổ `usage.jsonl` PHÍA SERVER
+    (độc lập cả eval lẫn assumption): `schema_gui=5` mọi dòng (5 tool vẫn gắn đủ,
+    không hồi quy gắn tool) và `tool_call=1` xảy ra thật 2 lần cùng ngày trên đúng
+    bản dựng này ⟹ **agent vẫn gọi được tool — không hỏng diện rộng.** 40/40-vs-0/4
+    là tương quan bị PO đọc thành nhân quả.
+  - ✅ **[Coder 25/08, xác nhận độc lập lần 2, KHÔNG tốn token]** đọc `logs/usage.jsonl`
+    thật trên `fin05-dot-otp`: **6/6 lượt `day_du` đều CÓ tool call** (1-2 mỗi lượt,
+    token thật 10-21k), ba cổng tất định (`can_otp`/`otp_resend_thu_slot`/`thu_slot`)
+    đúng `tool=0/tok=0/model=None`. Loại trừ thêm nghi vấn ④ gây `tool=0` trong eval:
+    `eval/_harness.py:559` không truyền `otp_verified_at` ⟹ rơi sentinel
+    `_ALWAYS_FRESH` ⟹ ④ **không bao giờ bắn trong eval** — không liên quan `0/4`.
+  - 🔴 **PHÁT HIỆN THẬT CÒN LẠI, thu hẹp — không phải hạ tầng, là HÀNH VI MODEL trên
+    ca cụ thể, TÁI LẬP ĐƯỢC:** `CASE-KBCG-B1/C1` (2/2, PO) **và** QA/QC tái lập thêm
+    trên UI thật ngoài eval (`duong=day_du, tool_call=0` cho *"tôi bị trừ tiền"* —
+    khiếu nại thiếu số tiền, đáng lẽ cần tra lịch sử) — **cả hai đo qua `usage.jsonl`
+    thật/UI thật, không qua harness, nên KHÔNG bị ảnh hưởng bởi nghi vấn "0/4 đo sai
+    đường" bên dưới.** Ràng buộc cứng 3 vi phạm thật ở LỚP NÀY: model có tool trong
+    tay, không gọi, rồi nói với khách như đã tra. Dấu hiệu phụ: các lượt `tool_call=0`
+    tốn 10-11k token, `tool_call=1` tốn 20-21k — **ca rẻ hơn vì agent bỏ qua điều
+    tra, rẻ vì lười chứ không vì tối ưu.**
+  - 🟡 **Nghi vấn RIÊNG, chưa đóng — số "0/4" trong báo cáo eval có thể so sai quần
+    thể** (Coder nêu, giao QA/QC — vùng `eval/`, Coder không tự chạm): 3 nhánh khả dĩ
+    — (1) 4 ca đó có thể KHÔNG đi `day_du` (đi `thu_slot`/`can_otp`/`nhe`), lúc đó
+    `tool_calls=[]` là ĐÚNG, và so "40/40 (14/08, trước khi cổng nào tồn tại)" với
+    "0/4 (25/08)" là so hai quần thể khác đường — cùng họ lỗi với N1 (xanh trên bộ
+    dựng lại, đỏ trên corpus gốc, nay ngược: đỏ vì đo nhầm tập con); (2)
+    `_harness.py:408` tự khai chế độ "KHÔNG CHẤM ĐƯỢC: tool_calls không còn kết quả";
+    (3) `_harness.py:679` chỉ trả tool_calls của lượt CUỐI — ca nhiều lượt đọc lượt
+    cuối có thể ra 0 dù các lượt trước có gọi. **Việc: QA/QC đối chiếu cột `duong`
+    của 4 ca 0/4 trước khi dùng con số này cho bất kỳ kết luận nào khác.**
+  - **Giao lại (PO 25/08):** ⑪ **gỡ gác, chạy tiếp**. Mẫu số lưu lượng 20 hội thoại
+    **MỞ LẠI** (dụng cụ đo đã chứng minh lành qua sổ thật) — giữ nguyên điều kiện gõ
+    1 câu kiểm sổ trước khi chạy tiếp. Coder: việc còn lại là tìm **vì sao model chọn
+    không gọi tool** ở ca dạng "thiếu số tiền" — không còn khẩn P0, nhưng vẫn là bug
+    thật cần vá (ghi nợ, không chặn đợt). ⑦ tiếp tục như đang chạy.
 
 ---
 
