@@ -88,9 +88,62 @@ một đồng hồ khác nhau** *(Reg E 10 ngày làm việc · PSD2/EBA 15 ngà
 ## Ba câu chỉ PO thật trả lời được
 
 1. **Đồng hồ khiếu nại** — hạn có tính lại khi phạm vi được xác định không, và mốc lấy theo đâu?
-2. **Lịch lưu trữ** — transcript / checkpoint / `investigation_logs` **giữ bao lâu**?
+2. ~~**Lịch lưu trữ** — transcript / checkpoint / `investigation_logs` **giữ bao lâu**?~~
+   ✅ **ĐÃ TRA LUẬT 25/08 — câu hỏi này ĐẶT SAI, xem §"Sàn 5 năm" ngay dưới.**
 3. **Điểm 87,7%** — **đo lại** trên bản đang chạy, hay **rút** khỏi mọi tài liệu đối ngoại?
    *(Để nguyên kèm caveat là đường đang đi, và Luật B nói nó thua.)*
+
+---
+
+## 🔴 Sàn 5 năm — tra luật 25/08, PO thật yêu cầu
+
+**Câu *"giữ bao lâu"* đặt SAI.** Nó nghe như một quyết định kinh doanh; thật ra **luật đã chốt sàn.**
+
+### Sàn cứng — không thương lượng được
+
+**Luật Phòng, chống rửa tiền 2022 · Điều 38.** Tổ chức trung gian thanh toán *(ví điện tử là một)*
+là **"đối tượng báo cáo"**, buộc phải lưu:
+- thông tin, hồ sơ **nhận biết khách hàng**
+- kết quả **phân tích, đánh giá** khách hàng và giao dịch phải báo cáo
+- hồ sơ, tài liệu **liên quan tới khách hàng và giao dịch phải báo cáo**
+
+> **05 năm**, kể từ ngày **kết thúc giao dịch** · ngày **đóng tài khoản** · hoặc ngày **báo cáo**.
+
+⟹ 🔴 **Hồ sơ khiếu nại của FIN-05 rơi thẳng vào nhóm thứ ba** ⟹ **KHÔNG được xoá trước 5 năm, kể
+cả khi khách yêu cầu.**
+
+### Và nó KHÔNG mâu thuẫn với NĐ 13/2023
+
+**NĐ 13/2023 · Điều 16 khoản 2** liệt kê các trường hợp **không phải xoá** dù chủ thể yêu cầu —
+mục **đầu tiên** là *"pháp luật quy định không cho phép xóa dữ liệu"*.
+
+⟹ Nghĩa vụ 5 năm theo Luật PCRT **là căn cứ hợp pháp để từ chối yêu cầu xoá**. Hai luật **không
+đánh nhau**: **PCRT đặt SÀN, PDPA đặt TRẦN.**
+
+### Khung đúng để quyết
+
+| | |
+|---|---|
+| **Sàn** | **5 năm** — luật định |
+| **Trần** | *"chỉ giữ khi còn cần cho mục đích đã thông báo"* — quá 5 năm mà giữ tiếp thì **phải giải thích được vì sao** |
+| 🔴 **Câu THẬT cần PO quyết** | **sau 5 năm thì làm gì** — xoá hẳn · ẩn danh hoá · hay giữ tiếp có lý do |
+
+**Khuyến nghị:** giữ đúng **5 năm rồi xoá tự động**; riêng **nội dung chat** thì **ẩn danh hoá sớm
+hơn** — luật đòi giữ **hồ sơ giao dịch và định danh**, **không** đòi giữ **nguyên văn hội thoại**.
+
+### 🔴 Nhưng khoảng trống thật KHÔNG phải con số
+
+Hệ thống hiện **không có cơ chế xoá nào cả** — transcript · checkpoint · `investigation_logs` tích
+luỹ **vĩnh viễn**. ⟹ Vấn đề không phải *"5 năm hay 3 năm"* mà là:
+
+> **Không có đường nào để xoá bất cứ thứ gì — kể cả khi luật CHO PHÉP, kể cả khi luật BẮT BUỘC.**
+
+⚠️ **Giới hạn của phần tra cứu này:** đọc từ nguồn công khai, **người tra không có chuyên môn pháp
+lý**. Con số **5 năm** và cơ chế miễn-trừ-xoá thì rõ ràng trong văn bản; nhưng **"hồ sơ khiếu nại
+có thuộc Điều 38 hay không"** là **một bước DIỄN GIẢI**. 🔴 **Trước production phải có người có
+chuyên môn pháp lý xác nhận** — đừng chỉ dựa vào tệp này.
+
+**Nguồn:** Luật 14/2022/QH15 Điều 38 · NĐ 13/2023 Điều 16.2 · NĐ 52/2024.
 
 ---
 
