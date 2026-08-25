@@ -539,6 +539,28 @@ không hỏi lại (`CLAUDE.md §5`). Con số này rơi TRONG khoảng SÀN–T
 `5.000.000 ÷ 166.488 (TRẦN) ≈ 30` và `5.000.000 ÷ 83.048 (SÀN) ≈ 60` hội thoại 8-lượt/ngày ⟹
 **~30–60 hội thoại/ngày**, tệ nhất ~$2–6/ngày theo giá đã dẫn.
 
+### 🔴🔴 Trần này BẢO VỆ VÍ, KHÔNG BẢO VỆ TÍNH SẴN SÀNG — đọc trước khi tin nó giữ sản phẩm sống
+
+**[TỰ KIỂM ĐỘC LẬP 26/08]** đếm thẳng từ `/app/logs/usage.jsonl` trong container
+`fin05-dot-otp-backend-1` (không chép lại số của ai, tự `docker exec` + cộng bằng Python):
+```
+25/08   72 lượt · tổng 881.414 token · trung bình 12.242 token/lượt (khớp mốc dự án ~10.400)
+Cuối ngày: chuỗi `PermissionDeniedError` (HTTP 403) liên tiếp, `model=None` — TOÀN BỘ bể model
+đã cạn hạn mức phía DashScope, không riêng một model lẻ.
+```
+⟹ **Hạn mức nhà cung cấp cạn ở khoảng ~881.000 token/ngày trên MỘT ngăn** — thấp hơn trần
+`TRAN_TOKEN_LLM_MOI_NGAY=5.000.000` **tới 5,7 lần**. Kể cả trần này bật từ trước, **nó không kịp
+kêu** trước khi tài khoản DashScope tự chặn.
+
+🔴 **Đừng đọc thành "vậy đặt trần vô nghĩa" — SAI, nó vẫn đúng việc của nó:** chặn chi tiêu ngoài
+ý muốn (bug lặp vô hạn, tấn công script hỏi dồn dập) TRƯỚC KHI tốn tới hàng triệu token trong vài
+phút. Trần này là **giới hạn TIỀN**, không phải **giới hạn UPTIME**. Muốn biết sản phẩm còn phục
+vụ được không, phải xem **hạn mức phía DashScope** (dashboard nhà cung cấp), không phải trần này
+— hai câu hỏi khác nhau, một cơ chế không trả lời được cả hai.
+
+⚠️ **KHÔNG đề xuất đổi `5.000.000`** — PO thật đã chốt (`CLAUDE.md §5`), và con số vẫn đúng việc
+nó được giao. Đây chỉ là niêm lại để tài liệu không hứa quá thứ cơ chế làm được.
+
 ### 🔴 Dấu hiệu ĐÃ CHẠM TRẦN — người trực buổi demo phải biết TRƯỚC, không phải tra cứu lúc đang cuống
 
 Với `5.000.000` và PO dự kiến chia sẻ công khai ("chắc sẽ đông đấy"), **~20 người mỗi người 2
@@ -558,6 +580,14 @@ hôm sau, không phải "vài giờ" — gần 11 tiếng nếu chạm sớm bu�
 
 Nâng gấp giữa buổi (PO tự quyết, không phải quy trình tự động): sửa `.env` + RECREATE — KHÔNG
 phải restart, xem bước 2 dưới. Không có cách nâng "tạm thời" nhẹ hơn recreate.
+
+🔴 CÙNG MỘT CÂU cho HAI NGUYÊN NHÂN KHÁC NHAU — khách KHÔNG phân biệt được, người trực PHẢI:
+`PermissionDeniedError` (nhà cung cấp hết hạn mức — xem mục quota phía trên, xảy ra ở ~881K
+token/ngày, THẤP HƠN trần của ta) cũng nằm trong nhóm "cần can thiệp" ⟹ khách nhận ĐÚNG CÙNG
+câu như khi ta tự chặn ở 5.000.000. Phân biệt bằng cách đọc bộ đếm, KHÔNG đoán từ câu khách thấy:
+  ĐẾM GẦN 5.000.000  ⟹  trần của TA vừa chặn (xem bước 5, lệnh đọc Redis)
+  ĐẾM CÒN THẤP (vd dưới 1 triệu) mà vẫn lỗi  ⟹  NHÀ CUNG CẤP đã cạn hạn mức, không liên quan
+  trần 5.000.000 — RECREATE với số cao hơn KHÔNG cứu được ca này.
 ```
 
 **Cách đặt CẢ HAI biến trên máy Windows, cùng một lần gõ + xác nhận đã có hiệu lực** (gộp
