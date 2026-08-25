@@ -576,7 +576,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     (hôm nay/hôm qua, sáng/chiều/tối) giúp mình nhé."*
     → hỏi **cả hai trong MỘT tin** ✅ · **KHÔNG** còn mã giao dịch ✅ — đúng Q2
   - `4b80f3e` chuyển hằng số sang `phan_luong.py` — Coder tự khai *"ĐỔI TÊN KHÔNG ĐỦ"*
-- [~] **⑥** Ca E2E trên UI cho bất biến *"0 token trước OTP"* — **QA/QC** · `frontend/e2e/`
+- [x] **⑥** Ca E2E trên UI cho bất biến *"0 token trước OTP"* — **QA/QC** · `frontend/e2e/`
   - Đo trên envelope `/agent/chat` *(mang `duong` + `usage.total_tokens`)*
   - **Ba trạng thái:** `0` ≠ `null` ≠ `>0`
   - 🔴 **Cạm bẫy:** cổng chỉ bắn **một lần mỗi hội thoại** — mỗi ca một chat mới
@@ -603,7 +603,18 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     THẬT SỰ khởi hành từ trạng thái chưa OTP, không phụ thuộc phiên cũ sót lại.
     **Đã kiểm:** `tsc --noEmit` sạch cho file này (2 lỗi TS còn lại trong output thuộc
     `src/app/(app)/tickets/[id]/page.tsx`/`layout.tsx`, có sẵn từ trước, không liên quan).
-    **CHƯA chạy Playwright thật** — chờ Lead mở buổi tốn phí (gộp cùng ⑬-B1/C1).
+  - **[ĐO 25/08, buổi tốn phí, ngăn `fin05-dot-otp` — CHẠY THẬT, XONG]** `git show 61f4376`
+    ghi lại đúng một phát hiện thật giữa chừng: lần chạy ĐẦU, Ca C FAIL — nhưng SAI LÝ
+    DO. Câu khiếu nại của Ca C (giống Ca A, cố ý thiếu số tiền) sau khi OTP xong đi đúng
+    vào cổng ⑤/T0 (`duong=otp_resend_thu_slot`, 0 token) để hỏi số tiền còn thiếu — ĐÂY
+    LÀ HÀNH VI ĐÚNG của ⑤, không phải bug của ④. Assert cũ đòi `usage>0` tuyệt đối nên
+    đọc nhầm hành vi đúng thành lỗi — cùng họ cảnh báo `chat-otp-token-cu-sau-xac-thuc.
+    spec.ts` đã có: "chấp nhận CẢ HAI đường đúng". Sửa câu Ca C có sẵn số tiền để tách
+    bạch phạm vi (chỉ kiểm ④ unblock, không lẫn ⑤) — chạy lại: **3/3 PASS thật**
+    (A: `can_otp`+0 token · B: câu chính sách không bị chặn, Q1 xác nhận · C sau sửa:
+    `day_du`+`usage.total_tokens>0`, model chạy thật). Không đọc nhầm "bug ⑤" — chính
+    kết quả này CHỨNG MINH ⑤ đang hoạt động đúng trên sản phẩm thật, không chỉ trên
+    corpus đánh giá.
 
 - [~] **⑦** Khuôn thời gian *(Đ3)* + kill-switch riêng T0 *(Đ4)* — **Coder**
   - Nhận `"tuần trước"`, `"<số> giờ sáng/chiều/tối"`
