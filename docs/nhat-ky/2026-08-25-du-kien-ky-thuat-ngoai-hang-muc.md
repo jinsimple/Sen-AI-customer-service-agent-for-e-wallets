@@ -58,7 +58,7 @@ của cả đội trước khi QA/QC đo lại ra `261`. (Đã niêm ở `e72706
 
 ---
 
-## ③ Bốn lần dụng cụ đo hỏng trong MỘT phiên — và chiều lệch của từng lần
+## ③ SÁU lần dụng cụ đo hỏng trong MỘT phiên — và chiều lệch của từng lần
 
 Ghi cả **chiều** vì chiều mới quyết định mức nguy:
 
@@ -68,22 +68,25 @@ Ghi cả **chiều** vì chiều mới quyết định mức nguy:
 | 2 | `cd $D` rò sang lệnh sau ⟹ đo **bản sao hai lần**, in ra hai số giống nhau | **CHO PHÉP HÀNH ĐỘNG NGUY** | kết luận *"bản sao vẫn khớp repo, dựng thoải mái"* |
 | 3 | đo bằng venv `P-121-new` — thứ STATE cấm đúng cho việc này | **TRẤN AN** | `293` thay vì `261`, lan vào quyết định phân bổ |
 | 4 | `hasattr` trên lớp cho field pydantic (mục ①) | **BI QUAN** | bỏ một đường kiến trúc đúng |
+| 5 | `head -8` cắt mất 2 dòng cuối của kết quả tra giao dịch | **TRẤN AN** | báo *"không có giao dịch nào đúng 393.000"* — trong khi có đúng hai, và giả định của PO **đúng** |
+| 6 | `npx vitest run` chạy từ **gốc repo** thay vì `frontend/` → `29 failed` (thật: `2 failed \| 37 passed`) | **BI QUAN** | gỡ một **bản vá ĐÚNG** vì tưởng nó làm vỡ frontend |
 
-🔴 **Ba lần đầu lệch về phía trấn an, lần thứ tư lệch về phía bi quan.** Cả hai chiều
+🔴 **Bốn lần lệch về phía trấn an, hai lần lệch về phía bi quan.** Cả hai chiều
 đều đắt, nhưng **khác cách**: trấn an làm ta tin sai; bi quan làm ta **bỏ đường đúng**.
-Một bộ kiểm chỉ canh chiều trấn an sẽ **không bao giờ bắt được lần thứ tư**.
+Một bộ kiểm chỉ canh chiều trấn an sẽ **không bao giờ bắt được lần ④ và lần ⑥**.
 
-**Phép thử rẻ đã cứu cả bốn lần:** in **MẪU SỐ** cạnh mọi tỉ lệ, và **đo tách rời từng
+**Phép thử rẻ đã cứu cả sáu lần:** in **MẪU SỐ** cạnh mọi tỉ lệ, và **đo tách rời từng
 lệnh** thay vì nối `&&`/`cd`.
 
 ---
 
 ## ③b 🔴 MẪU HÌNH LỚN NHẤT CỦA NGÀY — "ĐO ĐÚNG CÁCH, SAI VẬT"
 
-*(PO yêu cầu ghi nguyên văn kèm đủ bốn ca, 25/08. Chưa cấp ký hiệu luật — Lead cân
-lúc nghiệm thu. **Có bằng chứng bốn ca thì cân được; chỉ có một câu hay thì không.**)*
+*(PO yêu cầu ghi nguyên văn kèm đủ bốn ca, 25/08; ca ⑤ bổ sung cùng ngày theo yêu cầu PO.
+Chưa cấp ký hiệu luật — Lead cân lúc nghiệm thu. **Có bằng chứng năm ca thì cân được; chỉ
+có một câu hay thì không.**)*
 
-> **Cả bốn lần dụng cụ đo hỏng trong ngày đều là "đo ĐÚNG CÁCH, sai VẬT" — không lần
+> **Cả năm lần dụng cụ đo hỏng trong ngày đều là "đo ĐÚNG CÁCH, sai VẬT" — không lần
 > nào là "đo sai cách". Bộ kiểm của đội đang canh CÁCH ĐO; chưa có gì canh ĐO CÁI GÌ.**
 
 ```
@@ -91,8 +94,9 @@ lúc nghiệm thu. **Có bằng chứng bốn ca thì cân được; chỉ có m
 ② đo băm ảnh vs CHÍNH NÓ       — do `cd` rò sang lệnh sau (vật cần: ảnh vs CÂY LÀM VIỆC)
 ③ đo trên `fin05-po-test`      — ngăn KHÔNG mang mã của đợt (build từ bản sao đông cứng)
 ④ dò `hasattr(BaseTool, …)`    — trên LỚP, trong khi field nằm trên INSTANCE
+⑤ chạy `vitest` từ GỐC REPO    — trong khi bộ test sống ở cây `frontend/`
 ```
-**Bốn lần · bốn người · bốn thời điểm khác nhau · CÙNG MỘT hình dạng.**
+**Năm lần · nhiều người · nhiều thời điểm khác nhau · CÙNG MỘT hình dạng.**
 
 🔴 **Mọi cổng dự án hiện có đều MÙ với nó**, vì chúng kiểm *phép đo có đúng quy trình
 không* — không kiểm *phép đo có trỏ vào đúng VẬT không*. Một phép đo sai vật đi qua
@@ -101,11 +105,11 @@ mọi cổng, cho một con số **đúng định dạng, đúng đơn vị, đ�
 **Chiều lệch không cố định — đó là chỗ nguy nhất:**
 ```
 ① và ② và ③  → TRẤN AN     (tin rằng ổn trong khi không ổn)
-④            → BI QUAN     (bỏ một đường đi ĐÚNG)
+④ và ⑤       → BI QUAN     (bỏ một đường đi ĐÚNG / gỡ một bản vá ĐÚNG)
 ```
-Một bộ kiểm chỉ canh chiều trấn an **không bao giờ bắt được ca ④**.
+Một bộ kiểm chỉ canh chiều trấn an **không bao giờ bắt được ca ④ và ca ⑤**.
 
-**HAI BIẾN THỂ THÊM, tìm được cuối ngày — quan trọng vì chúng KHÁC cách phát hiện:**
+**BA BIẾN THỂ THÊM, tìm được cuối ngày — quan trọng vì chúng KHÁC cách phát hiện:**
 ```
 sai VẬT             → con số trông LẠ          → bắt được bằng ĐO LẠI
 cắt mất phần dưới   → con số trông HỢP LÝ      → bắt được bằng IN MẪU SỐ
@@ -115,6 +119,12 @@ sai ĐƠN VỊ          → con số ĐÚNG              → 🔴 KHÔNG bắt �
    (`so_tool_call` đếm theo LƯỢT; ba phiên cùng đọc nó như số theo HỘI THOẠI,
     mất nhiều vòng cho một mâu thuẫn KHÔNG TỒN TẠI. Chỉ bắt được bằng câu hỏi
     **"số này đơn vị gì"** — không phép đo nào tự trả lời câu ấy.)
+sai THƯ MỤC LÀM VIỆC → KHÔNG con số nào SAI  → 🔴 KHÔNG bắt được bằng đo lại,
+                                              cũng KHÔNG bằng in mẫu số
+   (`npx vitest run` từ gốc repo → `29 failed`; từ `frontend/` → `2 failed | 37 passed`.
+    CÙNG một lệnh · CÙNG một công cụ · CÙNG một phiên bản — chỉ khác GỐC QUÉT.
+    Đo lại từ chính chỗ cũ cho đúng con số cũ, mãi mãi. Chỉ bắt được bằng câu hỏi
+    **"lệnh này đang đứng ở đâu"** — `pwd` cạnh mọi phép đo, không phép đo nào tự khai.)
 ```
 
 🔴 **VÀ HỆ QUẢ NẶNG NHẤT — nó chạm vào chính cách đội dựng bất biến:**
@@ -132,11 +142,19 @@ Không ⟹ nó chỉ chứng minh **nội bộ nhất quán**, không chứng mi
 
 ---
 
-**Phép thử rẻ nhất đã cứu cả bốn lần** — không cái nào cần công cụ mới:
+**Phép thử rẻ nhất đã cứu cả sáu lần** — không cái nào cần công cụ mới:
 1. **In MẪU SỐ cạnh mọi tỉ lệ** (bắt ①③ ở dạng "quần thể sai").
 2. **Đo tách rời từng lệnh**, không nối `&&`/`cd` (bắt ②).
 3. **Đọc diff TRƯỚC khi đo** — đừng đo cái mình ĐOÁN là đúng chỗ (bắt ①④).
 4. **Một phép dò mâu thuẫn với nguồn khác thì phải ĐÀO**, đừng chọn bên tiện hơn (④).
+5. **In `pwd` cạnh mọi phép đo chạy bằng lệnh** (bắt ⑤ — và **chỉ** cái này bắt được nó:
+   không con số nào sai, nên đo lại và in mẫu số đều **im lặng**).
+
+🔴 **Vì sao ⑥ đáng ghi hơn năm lần trước** *(PO nêu, 25/08)*: nó lệch về phía **bi quan**,
+tức **loại nguy hơn**. Một kết luận sai kiểu *"bản vá này làm vỡ frontend"* khiến ta **gỡ
+một bản vá ĐÚNG** — và **không ai đi kiểm lại**, vì không ai muốn đứng ra bảo vệ một bản
+vá đã bị tuyên là hỏng. Sai theo hướng trấn an còn có ngày bị thực tế cãi lại; sai theo
+hướng bi quan **tự xoá bằng chứng của chính nó**.
 
 ---
 
