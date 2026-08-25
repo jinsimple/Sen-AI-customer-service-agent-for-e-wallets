@@ -305,6 +305,25 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     ghi vào 4 vùng gần như rời nhau (`src/` · `tests/+eval/+frontend/e2e/` · `docs/giao-viec+STATE`
     · không ghi gì), bề mặt va chạm thật hẹp.
   - **Sẽ xét lại nếu:** xảy ra sự cố pathspec thứ 4 trong đợt này dù đã nhắc kỷ luật.
+  - 🔴 **[Lead 25/08] XÉT LẠI — sự cố #4 đã xảy ra (PO báo, tự đính chính chẩn đoán trước
+    khi tôi hỏi).** QA/QC chạy `git commit -m "…"` không pathspec, đổ theo tệp PO đã
+    `add` trước đó (`docs/nhat-ky/…`, 53 dòng phân xử N1) — nội dung KHÔNG mất (PO ghim
+    lại được), chỉ mất **đường tìm tới nó** (nằm dưới commit message không liên quan).
+  - **QUYẾT ĐỊNH: VẪN KHÔNG tách worktree — chọn nhánh (A) của PO, vá bằng kỷ luật lệnh.**
+    Lý do giữ nguyên hiệu lực: đây KHÔNG phải va chạm nội dung giữa hai vùng ghi (điều
+    L0.5 gốc đánh giá là hiếm) — nó là một cơ chế MỚI, hẹp hơn: **INDEX cũng là trạng
+    thái dùng chung, không chỉ cây làm việc.** `git add` để lại cửa sổ mà BẤT KỲ `git
+    commit` trần nào của phiên khác cũng đổ được, bất kể hai phiên đang sửa file khác
+    nhau đến đâu. Worktree tách được cây nhưng đợt vẫn chung một index THEO WORKTREE nếu
+    dùng chung `.git` — không tự động giải quyết được cơ chế này; và chi phí hạ tầng
+    (mount Docker cố định) không đổi so với lúc đánh giá lần đầu.
+  - **VÁ:** đã ghi vào `docs/STATE.md` (`92c39d3`) — luôn `git commit -m "…" -- <pathspec>`
+    (trailing pathspec), **KHÔNG BAO GIỜ** `git commit -m "…"` trần. Dạng có pathspec chỉ
+    commit đúng path nêu ra, bất kể index đang có gì khác — đóng cửa sổ hoàn toàn, không
+    cần nhớ tách `add`/`commit` cho đúng thời điểm.
+  - **Sẽ xét lại lần nữa nếu:** sự cố thứ 5 xảy ra SAU KHI đã có quy tắc trailing-pathspec-
+    trên-commit — lúc đó nguyên nhân không còn là "chưa ai nói" mà là "nói rồi vẫn không
+    theo được", và khi đó chi phí worktree đáng cân nhắc lại thật.
 
 ---
 
