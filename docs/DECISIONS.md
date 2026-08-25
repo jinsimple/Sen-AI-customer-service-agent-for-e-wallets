@@ -2958,3 +2958,50 @@ xác định, không bịa) · A2 gốc (agent **không tự ý** tạo vé khi 
 
 Đây là **đổi kiến trúc quyết định**: chuyển một quyết định nghiệp vụ từ **model** sang **luật cứng**.
 Được lợi tính đoán trước được; mất đi khả năng model xử ca lạ mà luật không lường.
+
+---
+
+## ADR-051 — `create_ticket` HAI THÌ: tóm tắt 6 trường trước, tạo vé sau
+
+**Ngày:** 2026-08-25 · **Trạng thái:** ✅ **PO THẬT DUYỆT 25/08** (nguyên văn *"2 câu đầu làm nhé"*, ghi trong `docs/giao-viec/CHECKLIST-dot-otp-truoc-token.md` mốc điểm danh #24 `a241955`).
+*(Toàn văn dự thảo + đánh đối kháng của Review giữ ở `docs/nhat-ky/2026-08-25-ADR-051-du-thao-cho-PO-duyet.md` — KHÔNG chép lại ở đây để `DECISIONS.md` không phình; mục này ghi QUYẾT ĐỊNH và HỆ QUẢ.)*
+
+### Quyết định
+`create_ticket` tách làm HAI THÌ qua tham số mới `xac_nhan: bool = false`.
+```
+thì 1  xac_nhan=false  → KHÔNG tạo gì. Trả bản tóm tắt 6 trường DỰNG TRONG MÃ từ
+                          chính tham số model vừa truyền. Phát thẳng cho khách.
+thì 2  xac_nhan=true   → tạo thật, CHỈ sau khi khách gật.
+```
+Tóm tắt do MÃ dựng ⟹ tất định, không bịa được, không trôi theo prompt. **Siết HITL
+chặt hơn hiện tại: không gì thành hình trước khi khách gật.**
+
+### Sáu ràng buộc — thiếu bất kỳ cái nào là hỏng
+**1–4** ghi tại `655a112` (Coder): ① `test_invariants` chỉ so TÊN tool, KHÔNG so
+CHỮ KÝ ⟹ §3 là lớp bảo vệ DUY NHẤT · ② thì 1 KHÔNG được đặt `ticket_id` (ba móc ⑧/⑨/
+investigation-logs đều khoá theo nó) · ③ cổng OTP cho thì 1 là câu BẢO MẬT, không tự
+quyết · ④ ⑨ chỉ được bắn ở thì 2, thiếu điều kiện `xac_nhan is True` thì câu sàng lọc
+lừa đảo hỏi HAI lần.
+
+**5** `xac_nhan=true` CHỈ nhận khi có tín hiệu *"đã gửi tóm tắt khớp đúng 6 trường
+này"* ở lượt TRƯỚC (khuôn `thread_signals`, **băm 6 trường** làm giá trị, tự xoá sau
+khi dùng). 🔴 Thiếu: model gọi thẳng `xac_nhan=true` ngay lượt đầu ⟹ **đi vòng qua
+toàn bộ giá trị HITL**. `TurnGuard` KHÔNG cứu được — [ĐO] nó tạo mới **mỗi lượt**, mà
+hai thì là **hai lượt chat**; nó không có khái niệm *"lượt trước"*. Cùng chốt này đóng
+luôn nhánh *"khách gật hai lần"*.
+
+**6** `create_ticket` đổi return type **`dict` → CHUỖI ĐÃ ĐỊNH DẠNG**, cho **cả hai
+thì**. 🔴 Thiếu: `return_direct` phát **thẳng** giá trị trả về làm câu trả lời ⟹
+**khách nhận JSON thô**. Hỏng ở PHÍA KHÁCH HÀNG, không ở test.
+
+### Hệ quả
+`contracts/agent-tools.yaml` **2.1.2 → 2.2.0** (thêm input `xac_nhan`, đổi kiểu
+output). `CONTRACT_VERSION` cập nhật, commit KÈM file baseline.
+🔴 **Chưa code một dòng nào** — bước 7 của §3 đi sau commit này.
+
+🔴 **Dữ kiện dùng được cho mọi thiết kế sau, không riêng ADR này** (đo sổ sống):
+giá thật **một lời gọi tool ≈ 10.400 token** (0 tool → 10.381 · 1 tool → 20.811 ·
+3 tool → 41.444, tuyến tính khít). Tiền nằm ở **vòng gửi lại ngữ cảnh**, KHÔNG ở lược
+đồ tool. ⟹ Hai thì = thêm MỘT vòng ⟹ **≈ +10.400 token mỗi ca tạo vé**.
+`return_direct=True` CÓ hỗ trợ (langchain 1.3.15, `create_agent` tự dựng `exit_node`)
+⟹ thì 1 dừng được ngay sau tool, không cần đổi kiến trúc agent.
