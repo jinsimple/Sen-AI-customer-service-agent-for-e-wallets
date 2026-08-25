@@ -10,6 +10,17 @@
 # đang tắc, và một máy ở nhà sau CGNAT thì runner cũng không SSH vào được.
 # Deploy tay có kiểm tra tự động vẫn tốt hơn deploy tay không có gì.
 
+param(
+    # GHIM, CO TRONG GIT ⟹ doi phai qua commit + Review. DOC LAP voi .env
+    # (khong git, khong lich su, khong ai soat — dung thu gay 403 hang loat
+    # 25/08: .env tro sai model, khong ai phat hien vi khong nam trong commit
+    # nao). Day la nguon THU HAI de SO, KHONG phai noi dat cau hinh that.
+    # KHONG Mandatory: PO go script khong tham so, ep nhap la treo vo han
+    # trong cua so khong co nguoi, va go sai chuoi ghim = bao dong gia ngay
+    # lan dau.
+    [string]$ModelDuKien = "qwen3.7-plus-2026-05-26"
+)
+
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
@@ -133,23 +144,69 @@ if ($LASTEXITCODE -ne 0) { Bad "Kho RAG van chua san sang sau buoc tren"; $loi++
 
 
 Say "  cho backend san sang..."
+# CONG NAY TUNG GIA: Invoke-WebRequest qua "http://localhost/health" di qua
+# Caddy. Backend chet han -> Caddy chuyen /health sang /login -> Next phuc vu
+# trang login KHONG CAN backend -> 200 -> cong van xanh trong khi backend da
+# chet. Hoi THANG backend qua docker compose exec, dung python3 + urllib
+# (anh slim khong dam bao co curl — cung ly do HEALTHCHECK trong Dockerfile
+# da chon urllib thay vi curl).
 $san = $false
 foreach ($i in 1..30) {
-    try {
-        $r = Invoke-WebRequest -Uri "http://localhost/health" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
-        if ($r.StatusCode -eq 200) { $san = $true; break }
-    } catch { Start-Sleep -Seconds 2 }
+    docker compose --profile home exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8010/health', timeout=5)" *> $null
+    if ($LASTEXITCODE -eq 0) { $san = $true; break }
+    Start-Sleep -Seconds 2
 }
-if ($san) { Ok "/health tra 200" } else { Bad "/health khong tra 200 sau 60s"; $loi++ }
+if ($san) { Ok "backend song (health noi bo qua docker exec)" } else { Bad "backend khong song sau 60s (health noi bo that bai)"; $loi++ }
 
+# --- CONG SO MODEL: .env doc lap voi git, khong ai soat -- dung nguyen nhan
+# gay 403 hang loat 25/08 (.env tro sai model, khong ai phat hien vi khong
+# nam trong lich su commit nao). $ModelDuKien la nguon THU HAI de SO, KHONG
+# phai noi dat cau hinh that -- .env/docker-compose.yml van la noi that. Doc
+# gia tri DA GIAI QUYET boi app (src.config.LLM_MODEL), khong doc text .env:
+# .env co the khong co dong nay va roi ve mac dinh cua docker-compose.yml,
+# doc text se bao "thieu" trong khi app van chay dung.
+if ($san) {
+    $modelThat = (docker compose --profile home exec -T backend python -c "from src.config import LLM_MODEL; print(LLM_MODEL)" 2>$null)
+    if ($LASTEXITCODE -ne 0 -or -not $modelThat) {
+        Bad "Khong doc duoc LLM_MODEL dang chay tu backend"; $loi++
+    } else {
+        $modelThat = $modelThat.Trim()
+        if ($modelThat -eq $ModelDuKien) {
+            Ok "LLM_MODEL dang chay khop ghim: $modelThat"
+        } else {
+            Bad "LLM_MODEL dang chay ($modelThat) LECH voi ghim ($ModelDuKien)"
+            Warn "        Doi model CO CHU DICH? Chay lai voi -ModelDuKien '$modelThat'."
+            Warn "        Khong chu dich? Sua LLM_MODEL trong .env roi chay lai script nay."
+            $loi++
+        }
+    }
+}
+
+# Truoc ban va /health o tren, cong nay va /health kiem TRUNG NHAU: ca hai
+# deu do FRONTEND phuc vu, khong cai nao cham backend. Sau ban va: /health (o
+# tren) = backend song, cong nay = frontend song -- hai cong THAT, khong phai
+# mot cong lap lai. DUNG xoa vi thay "thua".
 try {
     $r = Invoke-WebRequest -Uri "http://localhost/login" -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
     if ($r.StatusCode -eq 200) { Ok "Trang dang nhap tra 200" } else { Bad "Trang dang nhap tra $($r.StatusCode)"; $loi++ }
 } catch { Bad "Khong mo duoc trang dang nhap: $_"; $loi++ }
 
+# postgres/redis/backend co Docker HEALTHCHECK that (docker-compose.yml) -->
+# doc thang trang thai do, chinh xac hon "status=running" (co the trung
+# khoanh khac container vua restart trong crash-loop).
+foreach ($s in @("postgres","redis","backend")) {
+    $cid = (docker compose --profile home ps -q $s)
+    $health = $null
+    if ($cid) { $health = (docker inspect --format "{{.State.Health.Status}}" $cid 2>$null) }
+    if ($health -eq "healthy") { Ok "service $s healthy (Docker healthcheck that)" }
+    else { Bad "service $s KHONG healthy (trang thai: $health)"; $loi++ }
+}
+# frontend/caddy/cloudflared KHONG co Docker healthcheck rieng -> "running"
+# la tin hieu re nhat co, chua do tat dinh. NGHI VAN, chua nang thanh phat
+# hien: co the trung khoanh khac container vua restart trong crash-loop.
 $chay = (docker compose --profile home ps --services --filter "status=running")
-foreach ($s in @("postgres","redis","backend","frontend","caddy","cloudflared")) {
-    if ($chay -contains $s) { Ok "service $s dang chay" } else { Bad "service $s KHONG chay"; $loi++ }
+foreach ($s in @("frontend","caddy","cloudflared")) {
+    if ($chay -contains $s) { Ok "service $s dang chay (NGHI VAN: status=running, chua do tat dinh)" } else { Bad "service $s KHONG chay"; $loi++ }
 }
 
 # Tunnel da noi duoc Cloudflare chua — doc log that, khong doan.
