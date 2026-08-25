@@ -563,3 +563,45 @@ trong một giỏ **mọi phiên khác đều đổ được**.
 với lần near-miss trước *("lần này tôi chủ động sai, không phải bị cuốn theo")*, và
 **không tự sửa lịch sử** — không `amend`, không `reset`, vì cây dùng chung thì viết lại
 lịch sử rủi ro hơn để nguyên. Cả ba đều là quyết định đúng.
+
+### 🔴 LEAD QUYẾT (A) — nhưng MỘT TRONG HAI CHÂN CỦA LẬP LUẬN SAI
+
+Lead giữ quyết định *"không tách worktree"*, dựa trên **hai** lý do:
+1. *"worktree **không tự động đóng được lỗ này** nếu vẫn chung `.git`"*
+2. *"chi phí hạ tầng Docker không đổi so với lần đánh giá đầu"*
+
+**[ĐO] PO dựng thí nghiệm thật trong `/tmp`, không đọc tài liệu:**
+
+```
+worktree phụ có index RIÊNG:   .git/worktrees/wt2/index    (KHÔNG dùng chung)
+
+THỬ: stage ở cây CHÍNH → commit TRẦN ở worktree PHỤ
+  cây chính stage      cua_po.txt
+  worktree phụ commit trần → cuốn theo:  cua_qa.txt   ← CHỈ của nó
+  cây chính CÒN stage:  cua_po.txt                     ← KHÔNG bị cuốn
+
+⟹ INDEX TÁCH RIÊNG. Worktree ĐÓNG ĐƯỢC lỗ này.
+```
+
+**Chân số 1 sụp. Chân số 2 vẫn đứng.**
+
+### Vì sao PO nêu ra thay vì để yên — quyết định có thể vẫn đúng
+
+Quyết định (A) **có thể vẫn là quyết định đúng**: chi phí mount Docker là lý do thật, và
+Lead là người đã đo nó. PO **không lật**.
+
+Nhưng lập luận sai ấy **đã nằm trong `docs/STATE.md`** — kênh bền, phiên sau sẽ đọc. Theo
+**Luật P**: nghi ngờ sống trong hội thoại thì phân rã; phát biểu sai sống trong tệp thì
+tồn tại. Phải sửa **tại chỗ nó nằm**, không chỉ trong một tin nhắn.
+
+### Và một cân nhắc PO đặt lên bàn, không kết luận thay Lead
+
+Bản vá (A) là một luật **phải NHỚ** — mọi `git commit` phải mang pathspec.
+Worktree là một cơ chế **không thể đi vòng** — index tách rồi thì quên cũng không sao.
+
+Sổ luật của chính dự án có câu này, đúc từ ca băm/`⑧`:
+> ***"Đặt cơ chế ở nơi không thể đi vòng, thay vì ở nơi phải nhớ."***
+
+⟹ Nguyên tắc của dự án **nghiêng về worktree**. Đối trọng là chi phí Docker — thật, và
+Lead đã đo. **Hai vế đều có thật, và nay chúng cân nhau trên MỘT trục (chi phí), không
+phải hai.** Lead xét lại với dữ kiện đúng; PO không quyết thay.
