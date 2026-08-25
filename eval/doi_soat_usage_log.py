@@ -56,6 +56,29 @@ with eng.connect() as c:
     rows = c.execute(text("SELECT DISTINCT thread_id FROM checkpoints")).fetchall()
 threads_that = {r[0] for r in rows}
 
+
+def _co_ai_message(thread_id: str) -> str:
+    """Phân loại một thread KHÔNG có dòng usage.jsonl — [PO 25/08, đính chính]
+    "không có dòng sổ" KHÔNG đồng nghĩa "mất bản ghi": nếu agent CHƯA TỪNG
+    trả lời (chỉ có câu khách, chưa tốn tiền) thì việc không có dòng sổ là
+    ĐÚNG, không phải lỗ quan sát. Trả 'mat_that' / 'binh_thuong' / 'chua_ro'.
+    """
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+    with eng.connect() as c:
+        row = c.execute(
+            text("SELECT blob FROM checkpoint_blobs WHERE thread_id=:t AND channel='messages' "
+                 "ORDER BY version DESC LIMIT 1"),
+            {"t": thread_id},
+        ).fetchone()
+    if not row or not row[0]:
+        return "chua_ro"
+    try:
+        obj = JsonPlusSerializer().loads_typed(("msgpack", bytes(row[0])))
+        co_ai = any(type(m).__name__ == "AIMessage" for m in obj)
+        return "mat_that" if co_ai else "binh_thuong"
+    except Exception:
+        return "chua_ro"
+
 threads_so = set()
 dong_vi_pham_bat_bien = []
 tong_dong = 0
@@ -79,11 +102,18 @@ except FileNotFoundError:
     print(json.dumps({"loi": "khong_thay_usage_jsonl"}))
     raise SystemExit(0)
 
-mat = sorted(threads_that - threads_so)
+ung_vien = sorted(threads_that - threads_so)
+mat_that, binh_thuong, chua_ro = [], [], []
+for t in ung_vien:
+    loai = _co_ai_message(t)
+    {"mat_that": mat_that, "binh_thuong": binh_thuong, "chua_ro": chua_ro}[loai].append(t)
+
 print(json.dumps({
     "tong_thread_that": len(threads_that),
     "tong_thread_co_log": len(threads_so & threads_that),
-    "thread_mat": mat,
+    "thread_mat_that": mat_that,
+    "thread_binh_thuong_khong_tinh": binh_thuong,
+    "thread_chua_ro": chua_ro,
     "tong_dong_usage": tong_dong,
     "vi_pham_bat_bien": dong_vi_pham_bat_bien,
 }, ensure_ascii=False))
@@ -122,16 +152,29 @@ def main() -> int:
     print(f"Thread CÓ log (usage.jsonl): {ket_qua['tong_thread_co_log']}")
     print(f"Tổng dòng usage.jsonl: {ket_qua['tong_dong_usage']}")
 
-    mat = ket_qua["thread_mat"]
+    # [PO 25/08, đính chính] "không có dòng sổ" ≠ "mất bản ghi" — một thread
+    # mà agent CHƯA TỪNG trả lời (chỉ có câu khách) đúng đắn không có dòng
+    # sổ, đếm nó vào "mất" là báo động giả DO CHÍNH CỔNG SINH RA. Phân loại
+    # bằng cách giải mã checkpoint (có AIMessage hay không) trước khi báo.
+    mat = ket_qua["thread_mat_that"]
+    binh_thuong = ket_qua["thread_binh_thuong_khong_tinh"]
+    chua_ro = ket_qua["thread_chua_ro"]
     ok = True
     if mat:
         ok = False
         ti_le = len(mat) / ket_qua["tong_thread_that"] * 100 if ket_qua["tong_thread_that"] else 0
-        print(f"\n🔴 {len(mat)} LƯỢT ĐÃ TỐN TIỀN MÀ KHÔNG CÓ BẢN GHI ({ti_le:.0f}% tổng thread):")
+        print(f"\n🔴 {len(mat)} LƯỢT ĐÃ TỐN TIỀN MÀ KHÔNG CÓ BẢN GHI ({ti_le:.0f}% tổng thread"
+              f" — CHỈ tính thread CÓ AIMessage, đã loại thread agent chưa từng chạy):")
         for t in mat:
             print(f"   {t}")
     else:
-        print("\n✅ Không có thread nào bị mất — sổ đầy đủ so với checkpoint.")
+        print("\n✅ Không có thread nào MẤT THẬT (có AIMessage mà không có dòng sổ).")
+    if binh_thuong:
+        print(f"  ({len(binh_thuong)} thread không có dòng sổ NHƯNG agent chưa từng trả lời "
+              f"— BÌNH THƯỜNG, không tính là mất: {', '.join(binh_thuong)})")
+    if chua_ro:
+        print(f"  🟡 {len(chua_ro)} thread CHƯA RÕ (blob rỗng/giải mã lỗi, không gộp vào mất "
+              f"lẫn bình thường — cần xem tay): {', '.join(chua_ro)}")
 
     vp = ket_qua["vi_pham_bat_bien"]
     if vp:
