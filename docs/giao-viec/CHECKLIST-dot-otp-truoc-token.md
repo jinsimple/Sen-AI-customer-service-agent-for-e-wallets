@@ -780,6 +780,24 @@ src/ bản đó `7636400be9c4` — **0 dòng nào của đợt "OTP trước tok
   — kết quả lần đó không phản ánh mã đợt này. Đã hỏi PO tự soát.
 - `fin05-final` cũng build từ cùng scratchpad phiên đó — **chưa kiểm, đừng dùng cho
   tới khi có xác nhận**.
+- 🔴🔴 **[ĐO Coder 25/08, mở rộng hơn cả câu hỏi ban đầu] KHÔNG MỘT NGĂN NÀO ĐANG CHẠY
+  MANG MÃ ĐỢT NÀY** — kể cả BA ngăn CHÍNH THỨC của dự án:
+  ```
+  fin05-final-backend-1      6722ab874767
+  fin05-po-test-backend-1    7636400be9c4
+  fin05-backend-1            6722ab874767   ← ngăn DEMO
+  fin05do-backend-1          26b1bd3b1ff5   ← ngăn ĐO
+  fin05ttl-backend-1         22ad74bdfa81
+  cây làm việc THẬT          691dd9c40578
+  ```
+  Năm ngăn, bốn băm khác nhau, không cái nào khớp cây làm việc. **17 commit của đợt
+  "OTP trước token" chỉ tồn tại trong git + cây làm việc, không hệ thống chạy nào có.**
+  Vượt phạm vi buổi tốn phí — **đã báo PO riêng**, không phải việc Lead tự xử lý; có
+  thể ảnh hưởng demo/đo lường ngoài đợt này. Xem tin Lead→PO.
+- **Ngăn tạm cho buổi đo:** `fin05-dot-otp` (project mới, cổng 48443/48080/45432/46686,
+  override trong scratchpad Coder, `context: .` build từ repo thật) — **[Lead 25/08]
+  DUYỆT**, không cần compose thường trực trong repo cho một ngăn dùng một lần. Coder
+  tự verify băm ảnh = `691dd9c40578` trước khi báo Lead mở buổi.
 
 ---
 
