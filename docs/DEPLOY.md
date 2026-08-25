@@ -352,7 +352,74 @@ không phục hồi được.
 - **Backup DB**: `docker compose exec postgres pg_dump -U fin05 fin05 >
   backup-$(date +%F).sql` — nên chạy định kỳ, đặc biệt trước khi đổi
   `FIELD_ENCRYPTION_KEY` (đổi key sẽ làm dữ liệu cũ đã mã hoá không đọc được
-  nữa, không có cách khôi phục).
+  nữa, không có cách khôi phục). **Xem mục "Khôi phục — diễn tập" ngay dưới
+  trước khi tin file `.sql` này cứu được bạn.**
+
+### 🔴 Khôi phục từ backup — diễn tập, không phải suy luận
+
+> **Một bản sao lưu chưa từng khôi phục thử KHÔNG PHẢI là bản sao lưu — nó là một tệp và một
+> niềm tin.** Niềm tin đó chỉ bị kiểm chứng đúng vào lúc tệ nhất: sau khi đã mất dữ liệu thật,
+> khi không còn đường lui nào khác.
+
+**🔒 NIÊM — cập nhật MỖI LẦN diễn tập lại, để con số tự già đi cho người sau thấy:**
+```
+Diễn tập QUY TRÌNH (lệnh có chạy được không, dump có phục hồi sạch không)
+  [ĐO 25/08, DevOps] ĐÃ LÀM — trên dump THẬT của ngăn `fin05do` (không phải
+  backup của PO thật, xem lý do bên dưới), khôi phục vào container vứt đi,
+  0 dòng lỗi trong log restore, 5/5 bảng cốt lõi khớp CHÍNH XÁC số dòng
+  (users 206 · tickets 607 · complaints 607 · resolutions 0 · tool_results
+  29), alembic_version khớp, 7 CHECK constraint trên `resolutions` (gồm
+  BR-10/BR-11/BR-12 maker-checker) còn nguyên sau restore, extension
+  `plpgsql` khớp. Container/dump xoá sạch ngay sau khi đo, KHÔNG để lại gì.
+
+Diễn tập TỆP THẬT của PO (`backup-truoc-25-08.sql`, 307MB, trên máy Windows
+  production) — 🔴 CHƯA BAO GIỜ. File này KHÔNG tồn tại trên máy DevOps
+  đang thao tác — không đo được, và diễn tập bằng một dump khác rồi báo
+  "đã diễn tập" là ĐO SAI VẬT, nguy hơn không đo vì tạo niềm tin sai. Việc
+  còn treo, thuộc về PO thật (quy trình dưới đây, tự chạy trên máy họ).
+```
+
+**Vì sao đủ để tin quy trình đúng dù chưa chạm tệp thật:** `pg_dump`/`psql`/lược đồ/constraint
+là cùng một cơ chế cho MỌI dump từ cùng schema — chạy sạch với dump `fin05do` (206 user, 607
+ticket, 7 CHECK constraint) là bằng chứng cơ chế **không hỏng theo cách hệ thống**. Ba cách hỏng
+PO thật nêu (`pg_dump` cắt giữa chừng · lệch phiên bản Postgres · thiếu extension/role) là hỏng
+theo **VẬT CỤ THỂ** (file dump nào, máy nào) — thứ diễn tập trên `fin05do` KHÔNG loại trừ được
+cho đúng tệp `backup-truoc-25-08.sql`. Hai lớp bằng chứng khác nhau, không thay thế nhau.
+
+**Quy trình cho PO thật tự chạy trên máy Windows, với ĐÚNG tệp đó:**
+
+```powershell
+# 1. Container Postgres RỖNG, tên riêng, KHÔNG publish port ra host (không
+#    cần — mọi lệnh chạy qua `docker exec`, tránh luôn rủi ro đụng cổng)
+docker run -d --name fin05-restore-diendap `
+  -e POSTGRES_USER=fin05 -e POSTGRES_PASSWORD=diendap-tam-thoi -e POSTGRES_DB=fin05 `
+  postgres:16-alpine
+
+# 2. Đợi sẵn sàng (vài giây)
+docker exec fin05-restore-diendap pg_isready -U fin05 -d fin05
+
+# 3. Nạp ĐÚNG tệp backup-truoc-25-08.sql — sửa đường dẫn cho khớp máy bạn
+Get-Content "C:\đường\dẫn\backup-truoc-25-08.sql" -Raw | docker exec -i fin05-restore-diendap psql -U fin05 -d fin05
+#    Đọc kỹ output — 0 dòng "ERROR" là điều kiện ĐẦU, không phải điều kiện đủ
+
+# 4. Đếm 5 bảng cốt lõi trong container VỪA PHỤC HỒI
+docker exec fin05-restore-diendap psql -U fin05 -d fin05 -t -c "select 'users',count(*) from users union all select 'tickets',count(*) from tickets union all select 'complaints',count(*) from complaints union all select 'resolutions',count(*) from resolutions union all select 'tool_results',count(*) from tool_results;"
+
+# 5. Đếm CÙNG 5 bảng đó trên ngăn ĐANG SỐNG thật (production), SO SÁNH BẰNG MẮT
+docker compose --profile home exec postgres psql -U fin05 -d fin05 -t -c "select 'users',count(*) from users union all select 'tickets',count(*) from tickets union all select 'complaints',count(*) from complaints union all select 'resolutions',count(*) from resolutions union all select 'tool_results',count(*) from tool_results;"
+
+# 6. DỌN SẠCH — đây là container vứt đi, không phải một stack cần giữ
+docker rm -f fin05-restore-diendap
+```
+
+🔴 **Số ở bước 4 KHÔNG khớp số ở bước 5 là điều BÌNH THƯỜNG nếu backup cũ hơn hiện tại** —
+backup chụp tại một MỐC, production sống tiếp sau mốc đó. Điều cần đúng là: **số ở bước 4 phải
+là số THỰC TẾ có ý nghĩa** (không phải toàn 0, không phải lỗi), và **chênh lệch với bước 5 giải
+thích được bằng thời gian** (vd backup 3 ngày trước ít ticket hơn hôm nay là hợp lý; backup ít
+hơn một nửa số user hiện có mà chỉ cách 1 giờ thì đáng nghi).
+
+⚠️ Sau khi diễn tập xong — **cập nhật lại khối NIÊM ở trên** với ngày thật + kết quả thật. Đừng
+để nó đứng yên ở "CHƯA BAO GIỜ" nếu đã làm — và đừng xoá dòng cũ, ghi đè bằng ngày mới (Luật P).
 - **Xoá sạch làm lại từ đầu**: `docker compose down -v` (xoá **năm trong sáu**
   volume — `postgres_data` giờ an toàn khỏi lệnh này (`external: true`,
   `e5ee8cd`), nhưng bộ đếm chi tiêu/phiên đăng nhập/audit log/chỉ mục RAG/
