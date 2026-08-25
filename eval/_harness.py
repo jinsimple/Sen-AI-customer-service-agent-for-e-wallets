@@ -606,8 +606,16 @@ def run_case_adversary(
         ly_do_fallback_theo_luot.append(result.get("ly_do_fallback"))
         duong_theo_luot.append(result.get("duong"))
 
+        # [ĐO 25/08, buổi tốn phí ⑬] `result["usage"]` giờ có thể mang khoá
+        # KHÔNG PHẢI số (vd tên model đã dùng, chẩn đoán xoay model) — cộng
+        # dồn mù mọi khoá làm TypeError giữa một lượt ĐÃ tốn tiền thật, mất
+        # cả lượt. Chỉ CỘNG DỒN khoá số; khoá không phải số thì GIỮ giá trị
+        # MỚI NHẤT (đúng ngữ nghĩa "trạng thái hiện tại", không phải tổng).
         for k, v in (result.get("usage") or {}).items():
-            all_usage[k] = all_usage.get(k, 0) + v
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                all_usage[k] = all_usage.get(k, 0) + v
+            else:
+                all_usage[k] = v
 
     result["all_customer_texts"] = all_customer_texts
     result["all_agent_replies"] = all_agent_replies
@@ -691,8 +699,14 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
     result: dict[str, Any] = {}
 
     def _add_usage(r: dict[str, Any]) -> None:
+        # [ĐO 25/08, buổi tốn phí ⑬] cùng vá với run_case_adversary — `usage`
+        # có thể mang khoá không phải số (vd tên model), cộng dồn mù làm
+        # TypeError giữa một lượt đã tốn tiền thật.
         for k, v in (r.get("usage") or {}).items():
-            all_usage[k] = all_usage.get(k, 0) + v
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                all_usage[k] = all_usage.get(k, 0) + v
+            else:
+                all_usage[k] = v
 
     # Lượt (0-based) mà ticket LẦN ĐẦU xuất hiện — None nếu không lượt nào tạo.
     # Cần cho check `de_nghi_truoc_khi_tao_ticket` (phán quyết B2 14/08): chỉ
