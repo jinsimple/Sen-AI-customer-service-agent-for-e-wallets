@@ -22,10 +22,35 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#12** — 06:50, 25/08 |
-| **HEAD** | `9b22849` · băm luật `4e7ed24b60c0` |
-| 🔇 **13 phút không ai ghi** | PO đã hỏi bốn vai |
-| ✅ **Cổng N1 nay PASS/FAIL thật** | không còn `return 0` vô điều kiện |
+| **Lần điểm danh cuối** | **#13** — 07:05, 25/08 |
+| **HEAD** | `d29b8bf` · băm luật `4e7ed24b60c0` |
+| 🔇 **30 phút không ai ghi** | **KHÔNG phải đội đứng — đội bị CHẶN Ở TRÊN** |
+
+**Vật chứng #13**
+
+| vai | dấu vết |
+|---|---|
+| QA/QC | ✅ `2b39faa` — thêm `--luat`, gỡ nút PO không tự kiểm được vế KÊU |
+| PO | ✅ `d29b8bf` — tự kiểm ba đột biến, tìm phụ thuộc hai cổng |
+| Coder · Lead · Review | 🔇 im từ 06:37 — **hết việc mở, đã tự khai, không phải đứng vì vướng** |
+
+🔴 **VÒNG ĐIỂM DANH ĐÃ CHẠM GIỚI HẠN HỮU ÍCH CỦA NÓ**
+
+Vòng 15 phút sinh ra để bắt **vai đứng lại**. Nay cả bốn vai đứng vì **quyết định nằm ở
+PO thật**, không vì vướng kỹ thuật. Hỏi *"vướng gì"* khi đã biết câu trả lời là ma sát,
+không phải điều phối.
+
+⟹ PO đổi cách dùng vòng: **thay vì hỏi ai đứng, giao việc KHÔNG cần PO quyết.**
+Đã giao QA/QC hai việc *(khai trục-không-đo cho từng cổng · phân loại NP-2)*.
+
+**Bốn việc ở bàn PO thật — không ai trong đội gỡ được:**
+
+| | việc | vì sao gấp |
+|---|---|---|
+| ① | **ADR-050** | commit sáng nay làm bot **hỏi** khách có bị ai hướng dẫn chuyển tiền không, **ghi nhận** câu trả lời, nhưng **chưa làm gì với nó**. ADR-050 đóng cửa sổ đó |
+| ② | **ADR-049** | gỡ ⑩ ⑪ |
+| ③ | **Hạn mức CI** | chưa cổng tự động nào gác được gì trong cả đợt |
+| ④ | **12 ca `thu_slot` còn bắn** | đợt sau xử thế nào — N1 đỏ, có số thật |
 
 **Vật chứng #12**
 
