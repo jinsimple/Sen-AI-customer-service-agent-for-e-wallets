@@ -674,13 +674,41 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     chạy-lại-được thật (hàm thuần hay logic nhúng graph.py, trạng thái "đã hỏi" lưu ở đâu, ranh
     giới với ⑫). **[~] không phải [x]** vì đây là đặc tả chờ Coder, chưa phải cổng chạy được.
 
-- [ ] **⑩** Bản tóm tắt **6 trường tất định** trước `create_ticket` **K4** — **Coder**
+- [!] **⑩** Bản tóm tắt **6 trường tất định** trước `create_ticket` **K4** — **Coder**
   - loại · phạm vi · mã+giờ+tiền · người nhận nhầm · người nhận đúng · nội dung khách trình bày
   - Đây là **đòn bẩy cho A2** mà sáu vòng vá prompt không có · gắn ADR-049
   - ~~🔴 Chặn — Coder tự bắt, [Lead 25/08] xác nhận đúng...~~ ✅ **[PO THẬT 25/08, qua PO
     agent] ADR-049 DUYỆT.** Cập nhật `docs/DECISIONS.md` ADR-049 từ 🟡 ĐỀ XUẤT sang
-    ✅ **PO DUYỆT 25/08** — **Coder thực hiện** cùng lúc land ⑩⑪. Không còn chặn.
+    ✅ **PO DUYỆT 25/08** — **Coder thực hiện** cùng lúc land ⑩⑪.
   - Nhắc T2: land xong phải báo delta token.
+  - 🔴 **[PO 25/08] TREO — "ĐÃ THIẾT KẾ, CHỜ VÒNG CONTRACT", không phải "đang làm".**
+    Coder trình 2 cách đọc (A: sửa prompt · B: dựng trong mã, bị đánh giá bất khả thi).
+    PO **bác Đọc A dứt khoát, không cần PO thật**: chính Coder tự nhận A là *"vòng vá
+    prompt thứ 7"* — ADR-049 kết luận đòn bẩy đó SAI sau 6 vòng đo thất bại liên tiếp;
+    land A trong cùng repo chứa ADR-049 thì hoặc ADR-049 sai hoặc bản vá sai, không có
+    đường thứ ba. Muốn A phải LẬT ADR-049 trước, kèm dữ kiện mới — không có thì không
+    land. **Ghi nhận Coder:** dừng lại tự nêu mâu thuẫn thay vì lặng lẽ làm cho xong.
+  - ✅ **Đọc B "bất khả thi" — tiền đề đúng, kết luận sai. Có Đọc C:**
+    Coder chẩn đoán đúng *"trước `create_ticket`, tầng code không thấy 6 trường"* —
+    nhưng ranh giới đặt sai chỗ, không phải thiếu dữ liệu. **Đọc C — `create_ticket`
+    HAI THÌ:**
+    ```
+    thì 1  create_ticket(..., xac_nhan=False)
+           → KHÔNG tạo gì. Trả bản tóm tắt 6 trường DỰNG TRONG MÃ từ chính tham số
+             model vừa truyền vào lời gọi này. Phát thẳng cho khách, KHÔNG qua lượt
+             model. delta ≈ 0.
+    thì 2  create_ticket(..., xac_nhan=True)  ← chỉ sau khi khách đồng ý, tạo thật
+    ```
+    Tóm tắt do MÃ dựng ⟹ tất định, không bịa được, không trôi theo prompt. Siết HITL
+    chặt hơn hiện tại: không gì thành hình trước khi khách gật.
+  - 🔒 **Vì sao TREO dù đã có thiết kế đúng:** Đọc C đổi CHỮ KÝ TOOL ⟹ chạm
+    `contracts/agent-tools.yaml` ⟹ đi đủ §3 (sửa contract → ADR → PO thật duyệt →
+    `check_contracts --update` → commit kèm baseline → rồi mới code). Không nhét vừa
+    trong đợt này, và không được nhét — cộng thêm ngân sách 261 token đã dành cho ⑪.
+    Ép ⑩ hôm nay là phá cả §3 lẫn trần token cùng lúc.
+  - **Việc Coder làm:** chép NGUYÊN VĂN Đọc C vào đây (chỉ chép, đừng code) — để phiên
+    sau khỏi suy lại từ đầu, khỏi rơi lại vào cặp A/B giả. PO sẽ trình PO thật ADR cho
+    Đọc C — trình THIẾT KẾ ĐÃ CHỐT, không trình câu hỏi.
 
 - [ ] **⑪** Ép cấu trúc lượt 5/6/3 — **Coder** · prompt
   - ~~Chặn — phiếu ghi "sau ⑨⑩"~~ ✅ **hết chặn** — ADR-049 duyệt (⑩ mở) và ⑨ đã landed.
