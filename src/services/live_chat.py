@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from src.db.models import ChatSession, Complaint, InvestigationLog, Message, Ticket, User
 from src.tools.base import ToolError, new_id
+from src.tools.masking import che_pii_van_ban
 
 
 def open_chat_session(session: Session, *, ticket_id: str, customer_id: str, now: dt.datetime | None = None) -> dict[str, Any]:
@@ -123,11 +124,23 @@ def record_message(
     )
     session.add(message)
     session.flush()
+    # M3 (PO thật chốt 25/08) — LƯU ĐỦ, CHE Ở TẦNG ĐỌC.
+    # `Message.content` phía trên giữ NGUYÊN VĂN (đã mã hoá at-rest qua
+    # EncryptedText); chỉ giá trị TRẢ VỀ bị che. Giá trị trả về này là một
+    # đường ĐỌC thật, không phải thứ trang trí: api/live_chat_ws.py:583
+    # broadcast thẳng nó cho cả hai đầu phiên chat.
+    #
+    # 🔴 ĐỪNG ĐỔI SANG CHE TRƯỚC `session.add`. Xung đột giữa test P0 (mô tả
+    # "che trước khi lưu") và BR-07 (`src/tools/masking.py`, cấm lưu bản đã
+    # che) ĐÃ ĐƯỢC PO THẬT PHÂN XỬ: BR-07 THẮNG. Lý do: khung chat không có
+    # bản đầy đủ ở đâu khác, che lúc ghi là mất vĩnh viễn — kể cả khi sau này
+    # cần đúng câu ấy để phân xử một khiếu nại.
+    # Hồ sơ: docs/nhat-ky/2026-08-25-P0-live-chat-PII-ba-muc-che-cho-PO-chon.md
     return {
         "message_id": message.message_id,
         "chat_session_id": chat_session_id,
         "role": role,
-        "content": content,
+        "content": che_pii_van_ban(content),
         "created_at": message.created_at.isoformat(),
     }
 

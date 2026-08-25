@@ -117,6 +117,7 @@ from src.tools.base import ToolError, new_id
 from src.tools.escalate_ticket import escalate_ticket as _escalate_ticket
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
 from src.tools.lookup_transaction import lookup_transaction as _lookup_transaction
+from src.tools.masking import che_pii_van_ban
 from src.tools.propose_resolution import propose_resolution as _propose_resolution
 
 configure_logging()  # JSON stdout, gắn correlation_id/user_id tự động — xem
@@ -1508,7 +1509,13 @@ def live_chat_session_messages(
     ).all()
     return {
         "messages": [
-            {"message_id": m.message_id, "role": m.role, "content": m.content, "created_at": m.created_at.isoformat()}
+            # M3 — che ở tầng ĐỌC (PO thật chốt 25/08). `m.content` trong DB
+            # vẫn NGUYÊN VĂN; route này là một trong hai đường đọc, đường kia
+            # là giá trị trả về của live_chat.record_message (broadcast WS).
+            # Thêm một đường đọc mới cho `messages` thì PHẢI che ở đó nữa —
+            # che nằm ở tầng đọc nên nó KHÔNG tự lan theo.
+            {"message_id": m.message_id, "role": m.role,
+             "content": che_pii_van_ban(m.content), "created_at": m.created_at.isoformat()}
             for m in messages
         ]
     }
