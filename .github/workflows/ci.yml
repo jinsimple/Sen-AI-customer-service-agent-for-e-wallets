@@ -210,8 +210,15 @@ jobs:
           POSTGRES_USER: fin05_ci
           POSTGRES_PASSWORD: fin05-ci-ephemeral-password
           POSTGRES_DB: fin05_ci
+        # Cổng host KHÔNG ghim cứng (chỉ khai cổng container `5432`) — runner
+        # self-hosted là pool DÙNG CHUNG toàn cohort (ADR-037), không tự dọn
+        # sạch giữa các job. Ghim `5432:5432` từng đỏ thật vì job của team
+        # khác/lượt trước đã giữ đúng cổng đó trên cùng máy vật lý
+        # ("address already in use", không phải lỗi code — xem STATE.md).
+        # Để Docker tự cấp cổng host trống, đọc lại qua
+        # `job.services.postgres.ports['5432']` trong step.
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd "pg_isready -U fin05_ci -d fin05_ci"
           --health-interval 5s
@@ -225,9 +232,19 @@ jobs:
           cache: pip
       - run: scripts/ci_pip_install_retry.sh requirements.lock.txt
       - name: Migration chain test trên Postgres thật
-        run: pytest tests/test_migrations/ -v --tb=short
+        # `job.services.*.ports` chỉ chắc chắn có giá trị SAU khi service đã
+        # khởi động — dựng DATABASE_URL ngay TRONG step này (không phải
+        # `env:` cấp job, nơi biểu thức có thể được tính trước khi service
+        # lên, nội suy thành chuỗi rỗng ⟹ cổng rỗng ⟹ "could not connect"
+        # trông như một lỗi hạ tầng khác, không phải cổng-đã-bị-chiếm nữa).
+        # In cổng ra log (KHÔNG in mật khẩu) để lần đỏ sau phân biệt được
+        # "cổng rỗng vì đọc sai lúc" với "Postgres thật sự chưa sẵn sàng".
+        run: |
+          PG_PORT="${{ job.services.postgres.ports['5432'] }}"
+          echo "postgres host port (do Docker tự cấp): ${PG_PORT}"
+          export DATABASE_URL="postgresql+psycopg2://fin05_ci:fin05-ci-ephemeral-password@localhost:${PG_PORT}/fin05_ci"
+          pytest tests/test_migrations/ -v --tb=short
         env:
-          DATABASE_URL: postgresql+psycopg2://fin05_ci:fin05-ci-ephemeral-password@localhost:5432/fin05_ci
           OPENAI_API_KEY: test-key-not-used-by-migration-tests
 
   # ---------------------------------------------------------------------
