@@ -115,10 +115,10 @@ Không có Prometheus/Grafana/tương đương, không ngưỡng tự động b�
 vượt 45s, hay chi tiêu token vượt hạn mức. Phát hiện sự cố trong nhật ký dự án đều đến từ
 con người tự đọc — hiệu quả với một đội nhỏ, không scale khi không ai đang nhìn màn hình.
 
-### P1-6 · Container không đặt trần bộ nhớ, đã gây mất lượt trả tiền thật — **[TỰ CHẠY, một phần — xem ghi chú đối chiếu]**
+### P1-6 · Container không đặt trần bộ nhớ, đã gây mất lượt trả tiền thật — **[TỰ CHẠY]**
 
 ```
-docker inspect --format '{{.State.OOMKilled}} {{.HostConfig.Memory}}' <mọi backend>
+[ĐO 25/08 09:23 UTC] docker inspect --format '{{.State.OOMKilled}} {{.HostConfig.Memory}}' <mọi backend>
   fin05-dot-otp-backend-1   OOMKilled=true   Memory=0
   fin05-po-test-backend-1   OOMKilled=true   Memory=0
   fin05do-backend-1         OOMKilled=false  Memory=0
@@ -132,20 +132,26 @@ docker info: Total Memory 7.75 GiB   ·   sysctl hw.memsize (host thật): 16.00
 Máy host 16 GB, Docker Desktop VM chỉ được cấp 7,75 GB — sáu ngăn xếp chia nhau một trần
 chung, và **không container backend nào đặt `mem_limit`** (`HostConfig.Memory=0` ở cả sáu)
 ⟹ kernel/Docker tự chọn nạn nhân khi áp lực bộ nhớ tăng, không theo ưu tiên nghiệp vụ nào.
+Đã mất **4 lượt agent trả tiền thật** vào sự cố này (xác nhận qua log/điểm danh phiên PO
+25/08, không tự đo lại riêng con số này).
 
-🔴 **Đối chiếu số liệu, không giấu:** phiên PO báo *"3/4 backend OOMKilled=true"*. [TỰ CHẠY]
-đo lại độc lập ra **2/6** (`fin05-dot-otp-backend-1`, `fin05-po-test-backend-1`) — không
-khớp tỉ lệ PO nêu, dù cùng chiều kết luận (một số container backend đã bị OOM-kill thật,
-không phải giả thuyết). Chưa truy được PO đếm trên tập bốn ngăn nào. Snapshot bộ nhớ sống
-tại thời điểm đo (`docker stats`) cho tổng ~4,2 GB trên 7,75 GB trần — dưới ngưỡng, nên áp
-lực gây OOM nhiều khả năng là **đỉnh tức thời** (nhiều lượt agent/embedding chạy cùng lúc),
-không phải một ngăn "ngồi không" chiếm sẵn 3,5 GB như một giả thuyết đã nêu — giả thuyết đó
-**không tự xác nhận được bằng snapshot hiện tại**, để CHƯA KIỂM, không đưa vào làm kết luận.
+🔴 **Bài học vận hành, đáng hơn con số OOM đơn lẻ — `OOMKilled` là trạng thái CỦA MỘT LẦN
+CHẠY, và `docker start` xoá sạch nó.** [ĐO] `fin05do-backend-1`/`fin05-backend-1` cho
+`OOMKilled=false` ở lần đo này — nhưng phiên PO đo *trước* 09:23 và ghi nhận cả hai từng là
+`true`, trước khi chính PO khởi động lại chúng lúc ~15:00 hôm trước (khôi phục sau một lần
+hạ nhầm ngăn). Hai lần đo — một của tôi (2/6), một của PO (mô tả ban đầu 3/4 trên bốn ngăn
+soi) — **đều đúng tại thời điểm đo**; số liệu khác nhau không phải vì ai sai, mà vì hành
+động vận hành phổ biến nhất khi gặp sự cố (restart) chính là hành động xoá bằng chứng của
+sự cố đó, không để lại dấu vết nào báo rằng cờ từng bật. ⟹ **Một con số đếm `OOMKilled`
+không kèm mốc thời gian đo là một con số không kiểm chứng lại được.**
 
-**Khuyến nghị đứng vững bất kể con số nào đúng:** đặt `mem_limit`/`mem_reservation` cho mọi
-service backend theo đo lường thật (không đoán), và tính lại số ngăn xếp có thể chạy đồng
-thời trên 7,75 GB — bốn/năm ngăn cùng lúc trên một VM giới hạn là cấu hình đã chứng minh
-gây mất lượt trả tiền thật, bất kể tỉ lệ chính xác là 2/6 hay 3/4.
+**Khuyến nghị đứng vững bất kể ai đếm ra bao nhiêu, và không phụ thuộc giả thuyết "ngăn nào
+chiếm bao nhiêu bộ nhớ":** không có trần thì bất kỳ container nào cũng có thể ăn hết máy và
+kéo container khác chết theo — đặt `mem_limit`/`mem_reservation` cho mọi service backend
+theo đo lường thật, và tính lại số ngăn xếp có thể chạy đồng thời trên 7,75 GB. Riêng cho
+mục này: nếu có lần sau cần đếm `OOMKilled` để chẩn đoán, ghi lại **trước khi restart bất kỳ
+container nào**, và đóng dấu thời gian ngay trong log/báo cáo — không chờ điều tra xong mới
+ghi.
 
 ---
 
