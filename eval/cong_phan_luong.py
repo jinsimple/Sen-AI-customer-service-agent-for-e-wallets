@@ -118,7 +118,7 @@ def _nhanh(ly_do: str) -> str:
     return f"khác({ly_do[:24]})"
 
 
-def _nhanh_luat_CO(nguon: str) -> set[str]:
+def _nhanh_luat_co(nguon: str) -> set[str]:
     """Nhánh nào luật THỰC SỰ có — đọc từ nguồn, không từ danh sách tôi nhớ.
 
     🔴 Bản đầu dùng một danh sách CỨNG ba nhánh, nên sau khi `DAI_TOI_DA` bị
@@ -210,7 +210,7 @@ def main() -> int:
         print(f"\n  ⚠️  ĐƠN VỊ ĐẾM: golden_set.jsonl có 120 CA nhưng {len(cau)} CÂU. "
               "Cổng chấm theo CÂU.")
 
-    nhanh_co = _nhanh_luat_CO(p_luat.read_text(encoding="utf-8"))
+    nhanh_co = _nhanh_luat_co(p_luat.read_text(encoding="utf-8"))
     print(f"  nhánh luật CÓ: {sorted(nhanh_co)}")
     tat_ca_dat = True
     for ten, cn in bo:
@@ -329,10 +329,10 @@ def main() -> int:
     # (mục 3.3, khuôn TXN/TCK) + từ PO-agon liệt kê khi giao việc trục cảm xúc
     # (lo/hoảng/sợ/gấp/"giúp...với"/"làm sao bây giờ"). Regex số tiền dùng lại
     # ĐÚNG khuôn đã ghi trong `vi_sao` của S4 khi soạn 1B.3.
-    _TU_CAM_XUC = ("lo quá", "hoảng", "sợ ", "sợ,", "gấp", "giúp tôi với",
+    _tu_cam_xuc = ("lo quá", "hoảng", "sợ ", "sợ,", "gấp", "giúp tôi với",
                    "giúp mình với", "làm sao bây giờ", "cứu tôi", "cứu mình", "trời ơi")
-    _RE_SO_TIEN = re.compile(r"\d[\d.,]*\s*(k|nghìn|nghin|ngàn|ngan|tr|triệu|trieu|đ|d|vnd|vnđ)\b", re.IGNORECASE)
-    _RE_MA = re.compile(r"\bTXN\d{14}\b|\bTCK-\d{5}\b", re.IGNORECASE)
+    _re_so_tien = re.compile(r"\d[\d.,]*\s*(k|nghìn|nghin|ngàn|ngan|tr|triệu|trieu|đ|d|vnd|vnđ)\b", re.IGNORECASE)
+    _re_ma = re.compile(r"\bTXN\d{14}\b|\bTCK-\d{5}\b", re.IGNORECASE)
 
     tat_ca_cau = [c for _, cn2 in bo for c, _ in cn2]
     if d_slot:
@@ -343,9 +343,9 @@ def main() -> int:
         if luat.phan_luong(c)[0] != "thu_slot":
             continue
         n_thu_slot += 1
-        co_cam_xuc = any(tk in c.lower() for tk in _TU_CAM_XUC)
-        co_tien = bool(_RE_SO_TIEN.search(c))
-        co_ma = bool(_RE_MA.search(c))
+        co_cam_xuc = any(tk in c.lower() for tk in _tu_cam_xuc)
+        co_tien = bool(_re_so_tien.search(c))
+        co_ma = bool(_re_ma.search(c))
         if co_cam_xuc or co_tien or co_ma:
             vi_pham_dc6.append((c, {"cảm_xúc": co_cam_xuc, "số_tiền": co_tien, "mã_GD": co_ma}))
     dc["ĐC-6"] = (
@@ -395,12 +395,12 @@ def main() -> int:
     # không cảnh báo, im lặng. Đã báo Coder giữ tiền tố `HOI_` công khai cho
     # hằng số mới của ⑤/⑨ để ĐC-7 còn nhìn thấy — nếu đổi quy ước đặt tên,
     # ĐC-7 phải cập nhật theo, đây KHÔNG phải cổng tự phát hiện quy ước đổi.
-    _TRUC_RA = {
+    _truc_ra = {
         "so_tien": ("số tiền", "bao nhiêu tiền", "số dư"),
         "thoi_gian": ("thời gian giao dịch", "khoảng thời gian", "hôm nay, hôm qua"),
         "ma_gd": ("mã giao dịch", "mã gd"),
     }
-    _CAP_DUOC_PHEP_HOI_CHUNG = frozenset({"so_tien", "thoi_gian"})
+    _cap_duoc_phep_hoi_chung = frozenset({"so_tien", "thoi_gian"})
     hang_so_hoi = {
         n: v for n in dir(luat)
         if n.startswith("HOI_") and isinstance((v := getattr(luat, n)), str) and len(v) > 10
@@ -408,13 +408,13 @@ def main() -> int:
     vi_pham_dc7 = []
     for ten, mau in hang_so_hoi.items():
         ml = mau.lower()
-        truc_hoi = {truc for truc, tk in _TRUC_RA.items() if any(t in ml for t in tk)}
-        if len(truc_hoi) > 1 and truc_hoi != _CAP_DUOC_PHEP_HOI_CHUNG:
+        truc_hoi = {truc for truc, tk in _truc_ra.items() if any(t in ml for t in tk)}
+        if len(truc_hoi) > 1 and truc_hoi != _cap_duoc_phep_hoi_chung:
             vi_pham_dc7.append((ten, truc_hoi, mau))
     dc["ĐC-7"] = (
         not vi_pham_dc7,
         f"mọi hằng số `HOI_*` ({len(hang_so_hoi)} cái: {sorted(hang_so_hoi)}) chỉ hỏi MỘT Ý/tin — "
-        f"cặp {sorted(_CAP_DUOC_PHEP_HOI_CHUNG)} được PHÉP đi cùng nhau (Q2, phiếu §2b 25/08), "
+        f"cặp {sorted(_cap_duoc_phep_hoi_chung)} được PHÉP đi cùng nhau (Q2, phiếu §2b 25/08), "
         "trục khác thì không — khớp R1 thật (1A)"
         + ("".join(f"\n         🔴 {ten} hỏi {len(truc)} trục CÙNG LƯỢT {sorted(truc)}: {mau!r}"
                     for ten, truc, mau in vi_pham_dc7) if vi_pham_dc7 else "")

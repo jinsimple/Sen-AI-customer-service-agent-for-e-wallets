@@ -45,7 +45,6 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
-import sys
 
 _MA = r'''
 import json, os
@@ -133,7 +132,7 @@ def main() -> int:
         print(f"🔴 Không chạy được trong container {a.container!r}: {(r.stderr or r.stdout)[-1000:]}")
         return 2
 
-    dong_cuoi = [l for l in r.stdout.strip().splitlines() if l.strip()]
+    dong_cuoi = [dong for dong in r.stdout.strip().splitlines() if dong.strip()]
     if not dong_cuoi:
         print(f"🔴 Container {a.container!r} không trả về gì — kiểm tên container đúng chưa.")
         return 2
