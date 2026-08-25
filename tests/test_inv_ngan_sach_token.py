@@ -117,6 +117,12 @@ xác nhận băm khớp cây làm việc, rồi QA/QC tự đo lại lần hai q
 (không chỉ tin số Coder báo) trước khi sửa `NEN`. Cho tới lúc đó, xem `NEN`
 dưới đây là **stale có chủ đích, đã khai**, không phải bị bỏ quên.
 
+**⚠️ "Đã nới trần cho ⑪" ≠ "đã đo ⑪ và nó vừa trần".** `NGUONG_TOKEN=7.800` là
+một QUYẾT ĐỊNH CHÍNH SÁCH dựa trên ước tính tổng hợp ở trên — cổng CHẠY THẬT
+(qua `CT`) tại thời điểm sửa dòng này vẫn báo **7.186**, đo trên một ảnh
+**không có ⑪**. Chưa có một lần chạy nào của chính cổng này nhìn thấy prompt
+đã có ⑪. Đừng đọc việc nới trần thành bằng chứng ⑪ đã được đo và vẫn lọt.
+
 **⚠️ Trục `tool` lệch theo MÔI TRƯỜNG, không phải theo thời gian:** container
 đo `tool=2.014` vì ảnh ghim `langchain-core 1.5.4`; host/venv dev đo
 `tool=1.982` vì pin `1.5.3` — `convert_to_openai_tool` giữa hai bản khác
