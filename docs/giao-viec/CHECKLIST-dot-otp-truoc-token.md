@@ -1159,6 +1159,19 @@ trên nền sai là đúng thứ Luật F cấm.
 | 12:10 **#18** | `88b0133` | ⏳ chưa có dấu vết mới | ⏳ ⑧⑨⑪ chưa động | 🟢 4 commit — cổng đối soát xong+vá | 🟢 rảnh sau khi đánh sập ⑩ | 🟢 **BUỔI TỐN PHÍ ĐÓNG** |
 | 12:30 **#19** | `18e2166` | 🔴 **im lặng 2 vòng** | 🟢 ⑨ soát xong · ⑪ đang làm | 🟢 vá SL-03 lỗi thời | 🟢 **soát xong ⑧ + giết đường thứ ba của PO** | ⑧⑨ thông · ⑪ là ô cuối |
 | 12:50 **#20** | `0b169de` | 🟢 5 commit — nghiệm thu + bàn giao + 3 luật lên STATE | 🟢 ⑧ land `3ac7d90` · đang ⑪ + đo lượt 4 | 🟢 soạn kịch bản chạy | 🟢 soát độ phủ | 🔴 **8/8 KHÔNG đạt hôm nay** |
+| 14:45 **#24** | `a241955` | 🟢 sửa lệch checklist + chuyển 4 việc | 🟢 **đang vá B** *(`khai_da_tao_ve`)* | ⏸ chờ vá | ⏸ chờ vá | 🟢 **PO thật duyệt ADR-051 + Redis** |
+
+**#24 — PO thật duyệt hai việc, đội vào vá.** Sổ usage đứng yên **28 dòng** ⟹ không ai tiêu thêm.
+✅ **Coder đặt vá B KHÉO HƠN phiếu PO giao:** hàm `khai_da_tao_ve()` *(phát hiện "câu này có khai
+đã tạo vé không")* để ở `output_filter.py`, còn **phép đối chiếu với `ticket_id` THẬT** để ở
+`graph.py` — **tầng duy nhất biết sự thật**. 🔴 Và hàm **cố ý KHÔNG miễn trừ theo mã**, tức không
+thừa hưởng đúng cái giả định đã làm O5 nhường lưới. **Ràng buộc cứng 3 ép bằng SỰ THẬT, không bằng
+từ vựng.**
+
+✅ **Câu "giữ dữ liệu bao lâu" — ĐÃ TRA LUẬT** *(PO thật yêu cầu)*, kết quả trong
+`docs/2026-08-25-so-khoang-trong-fintech.md`: **sàn cứng 5 năm** *(Luật PCRT 2022 Đ.38)*, và
+**NĐ 13/2023 Đ.16.2 tự chừa ngoại lệ** cho đúng trường hợp này ⟹ **hai luật không đánh nhau, PCRT
+đặt SÀN còn PDPA đặt TRẦN**. 🔴 Câu PO hỏi **đặt sai**: câu thật là *"sau 5 năm thì làm gì"*.
 
 ### 🔴 #20 — BẢN ĐỒ PHỦ 8 LƯỢT: chỉ đạt 3/8, và một cổng BẮN SAI LƯỢT
 
