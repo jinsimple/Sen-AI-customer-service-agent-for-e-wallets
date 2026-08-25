@@ -106,7 +106,7 @@ test.describe("Render thật — kịch bản chuyên gia 8 lượt (0 token, mo
     console.log(`>>> Tổng bong bóng bot trong DOM: ${soLuong} (kỳ vọng tối thiểu 1 lời chào + 1 "xác thực thành công" + 8 reply = 10)`);
 
     fs.writeFileSync(
-      path.resolve(__dirname, "../../eval/results/render_that_so_sanh_25aug.json"),
+      path.resolve(__dirname, "../../eval/results/render_that_so_sanh_25aug_SAU_VA.json"),
       JSON.stringify({ repliesGoc, vanBanHienThi }, null, 2),
       "utf-8"
     );
@@ -157,7 +157,7 @@ test.describe("Render thật — kịch bản chuyên gia 8 lượt (0 token, mo
       }
     }
 
-    await page.screenshot({ path: path.resolve(__dirname, "../../eval/results/render_that_desktop_25aug.png"), fullPage: true });
+    await page.screenshot({ path: path.resolve(__dirname, "../../eval/results/render_that_desktop_25aug_SAU_VA.png"), fullPage: true });
   });
 
   test("mobile 375px — không vỡ khung, K3 vẫn đọc được", async ({ page }) => {
@@ -206,6 +206,6 @@ test.describe("Render thật — kịch bản chuyên gia 8 lượt (0 token, mo
     const coK3 = tatCaBongBong.some((t) => /mã xác thực phiên hỗ trợ|không phải.*OTP giao dịch|không bao giờ hỏi/i.test(t));
     expect(coK3, "K3 phải đọc được trên mobile 375px").toBe(true);
 
-    await page.screenshot({ path: path.resolve(__dirname, "../../eval/results/render_that_mobile_25aug.png"), fullPage: true });
+    await page.screenshot({ path: path.resolve(__dirname, "../../eval/results/render_that_mobile_25aug_SAU_VA.png"), fullPage: true });
   });
 });
