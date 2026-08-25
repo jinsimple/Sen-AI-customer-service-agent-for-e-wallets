@@ -383,12 +383,39 @@ Diễn tập TỆP THẬT của PO (`backup-truoc-25-08.sql`, 307MB, trên máy 
 là cùng một cơ chế cho MỌI dump từ cùng schema — chạy sạch với dump `fin05do` (206 user, 607
 ticket, 7 CHECK constraint) là bằng chứng cơ chế **không hỏng theo cách hệ thống**. Ba cách hỏng
 PO thật nêu (`pg_dump` cắt giữa chừng · lệch phiên bản Postgres · thiếu extension/role) là hỏng
-theo **VẬT CỤ THỂ** (file dump nào, máy nào) — thứ diễn tập trên `fin05do` KHÔNG loại trừ được
+theo **VẬT CỤ THỂ** (file dump nào, máy nào) — thứ diễn tập trên `fin05do` không loại trừ được
 cho đúng tệp `backup-truoc-25-08.sql`. Hai lớp bằng chứng khác nhau, không thay thế nhau.
 
-**Quy trình cho PO thật tự chạy trên máy Windows, với ĐÚNG tệp đó:**
+🟢 **[SỬA — PO thật chỉ ra] Hai trong ba cách hỏng KHÔNG cần restore để loại trừ.** Dump cắt giữa
+chừng và lệch phiên bản Postgres đều đọc được **thẳng từ chính tệp**, trong vài giây — xem BƯỚC 0
+ngay dưới, đặt TRƯỚC 6 bước dựng container vì đúng thứ tự phải là RẺ TRƯỚC, ĐẮT SAU: nếu tệp bị
+cắt, sáu bước sau là công toi. Chỉ **thiếu extension/role** là thật sự PHẢI restore mới lộ ra —
+không đọc được từ nội dung tệp mà không chạy nó.
+
+**Quy trình cho PO thật tự chạy trên máy Windows, với ĐÚNG tệp đó — RẺ TRƯỚC, ĐẮT SAU:**
 
 ```powershell
+# BƯỚC 0 — đọc TỆP, KHÔNG dựng gì cả. Vài giây, loại được 2/3 cách hỏng
+# TRƯỚC KHI tốn công dựng container ở bước 1. Nếu bước 0 đỏ, DỪNG — bước 1-6
+# phía dưới là công toi cho tới khi có một tệp backup khác.
+
+# 0a. Dump có CẮT GIỮA CHỪNG không — pg_dump kết ở dòng "... complete", nhưng
+#     bản psql 16.x còn ghi thêm 1-2 dòng \unrestrict SAU dòng đó, nên tìm
+#     TRONG vài dòng cuối, đừng đòi đúng dòng cuối cùng tuyệt đối.
+Get-Content "C:\đường\dẫn\backup-truoc-25-08.sql" -Tail 5
+#     KHÔNG thấy dòng "-- PostgreSQL database dump complete" ⟹ TỆP BỊ CẮT.
+#     DỪNG Ở ĐÂY — bước 1-6 vô nghĩa với tệp này, cần dump lại từ đầu.
+
+# 0b. Dump có LỆCH PHIÊN BẢN Postgres không — hai dòng này nằm sẵn gần đầu
+#     tệp (khoảng 10 dòng đầu, sau khối \restrict):
+Get-Content "C:\đường\dẫn\backup-truoc-25-08.sql" -TotalCount 10 | Select-String "Dumped from database version|Dumped by pg_dump version"
+#     So với phiên bản ĐANG CHẠY thật — đọc động, đừng chép một số cố định ở
+#     đây: tag ảnh `postgres:16-alpine` là tag DI ĐỘNG, bản đang chạy hôm nay
+#     và hôm PO tạo backup có thể không cùng patch version dù cùng "16-alpine":
+docker compose --profile home exec postgres postgres --version
+#     Lệch bản VÁ (16.13 vs 16.14) thường vô hại. Lệch bản LỚN (15 vs 16) là
+#     dấu hiệu backup này KHÔNG dump từ đúng stack — hỏi lại trước khi restore.
+
 # 1. Container Postgres RỖNG, tên riêng, KHÔNG publish port ra host (không
 #    cần — mọi lệnh chạy qua `docker exec`, tránh luôn rủi ro đụng cổng)
 docker run -d --name fin05-restore-diendap `
