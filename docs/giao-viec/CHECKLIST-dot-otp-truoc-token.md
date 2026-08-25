@@ -22,9 +22,43 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#13** — 07:05, 25/08 |
-| **HEAD** | `d29b8bf` · băm luật `4e7ed24b60c0` |
-| 🔇 **30 phút không ai ghi** | **KHÔNG phải đội đứng — đội bị CHẶN Ở TRÊN** |
+| **Lần điểm danh cuối** | **#14** — 07:21, 25/08 |
+| **HEAD** | `ab72793` · băm luật `4e7ed24b60c0` |
+| 🟢 **Đội hết việc mở** | 10 commit trong 11 phút, toàn bộ là **tự sửa chính mình** |
+
+**Mười một phút vừa rồi — không commit nào là tính năng mới**
+
+| giờ | ai | việc |
+|---|---|---|
+| 07:10 | QA/QC | khai TRỤC KHÔNG ĐO cho 2 cổng của đợt |
+| 07:11 | PO | ghi sự cố cây-dùng-chung **thứ tư** |
+| 07:12 | PO | **đính chính chính mình** — ghi sai cơ chế sự cố |
+| 07:12 | QA/QC | khảo sát 8 cổng còn lại, **3 lỗ chưa cross-reference** |
+| 07:13 | Lead | `STATE`: INDEX cũng là trạng thái dùng chung |
+| 07:14 | Lead | L0.5 xét lại, chọn vá bằng kỷ luật lệnh |
+| 07:15 | PO | **bác chân lập luận của Lead** — worktree CÓ index riêng |
+| 07:19 | PO | 🔴 **SỐ BỊA** — Coder tự khai, PO đã phát tán một cái |
+| 07:20 | Lead | **đính chính KÉP** — tự hạ nốt chân thứ hai của chính mình |
+| 07:21 | Lead | thêm mốc xét lại thứ hai *(PO đề nghị)* |
+
+🟢 **Không commit nào là tính năng mới. Cả mười là đội sửa chính mình.**
+Và ba trong số đó là **một vai tự hạ lập luận của chính họ** *(PO ×2, Lead ×1)*.
+
+---
+
+### 📋 ĐỢT NÀY CHỜ PO THẬT — bốn việc, không ai trong đội gỡ được
+
+| | việc | trạng thái |
+|---|---|---|
+| ① | **ADR-050** *(loại khiếu nại `authorized_scam`)* | bản sửa sẵn, Coder dừng đúng bước 4 |
+| ② | **ADR-049** | 🟡 ĐỀ XUẤT · chặn ⑩ ⑪ |
+| ③ | **Hạn mức GitHub Actions** | *"spending limit needs to be increased"* — có từ TRƯỚC đợt |
+| ④ | **6 ca `thu_slot` bắn oan** | đợt sau xử thế nào |
+
+⚠️ **①  gấp nhất và lý do đã đổi từ hôm qua:** commit `c88d431` làm bot **hỏi** khách có ai
+hướng dẫn chuyển tiền không và **ghi nhận** câu trả lời — nhưng **chưa làm gì với nó**.
+Khách khai *"có"* vẫn nhận lời khuyên chuyển-nhầm. ADR-050 **đóng cửa sổ mà chính đợt này
+vừa mở**.
 
 **Vật chứng #13**
 
