@@ -805,6 +805,19 @@ src/ bản đó `7636400be9c4` — **0 dòng nào của đợt "OTP trước tok
   override trong scratchpad Coder, `context: .` build từ repo thật) — **[Lead 25/08]
   DUYỆT**, không cần compose thường trực trong repo cho một ngăn dùng một lần. Coder
   tự verify băm ảnh = `691dd9c40578` trước khi báo Lead mở buổi.
+- ✅ **SẴN SÀNG, xác nhận bằng backend tự khai** (`GET /health` trong ngăn, không phải
+  lời khai): `build_src_hash=691dd9c40578` = cây làm việc, `build_commit=a74059c` xuất
+  thật (không rơi về "khong-ro"). 5/5 mã đợt này có mặt (`CONG_T0_BAT` ·
+  `CONG_OTP_NHOM_B_BAT` · `HOI_SANG_LOC_LUA_DAO` · `_FS13_BAN_GIAO` · `da_bi_otp_chan`).
+  6/6 container Up/healthy. Không ngăn nào khác bị khởi động lại (`StartedAt` kiểm).
+  **Đường vào:** `https://localhost:48443` (UI/API) — 🔴 **PHẢI dùng `localhost`, KHÔNG
+  `127.0.0.1`** (chứng chỉ Caddy cấp cho tên, IP làm TLS gãy, trông như ngăn chết) ·
+  backend nghe cổng **8010**, không phải 8000. Jaeger `46686` · Postgres `127.0.0.1:45432`.
+  ⚠️ **Giới hạn:** override sống trong scratchpad Coder — ngăn chạy được cả sau khi
+  Coder đóng phiên, nhưng KHÔNG ai dựng lại được nó. Chấp nhận vì dùng một lần cho
+  buổi hôm nay; đừng để nó sống quá buổi rồi ai đó tưởng dựng lại được.
+  **Chờ PO tự verify băm lần hai (đã tuyên bố không nhận qua relay nữa) trước khi báo
+  QA/QC chính thức mở.**
 
 ---
 
