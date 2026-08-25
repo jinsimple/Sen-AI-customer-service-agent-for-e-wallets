@@ -11,13 +11,13 @@
 # Deploy tay có kiểm tra tự động vẫn tốt hơn deploy tay không có gì.
 
 param(
-    # GHIM, CO TRONG GIT ⟹ doi phai qua commit + Review. DOC LAP voi .env
-    # (khong git, khong lich su, khong ai soat — dung thu gay 403 hang loat
-    # 25/08: .env tro sai model, khong ai phat hien vi khong nam trong commit
-    # nao). Day la nguon THU HAI de SO, KHONG phai noi dat cau hinh that.
-    # KHONG Mandatory: PO go script khong tham so, ep nhap la treo vo han
-    # trong cua so khong co nguoi, va go sai chuoi ghim = bao dong gia ngay
-    # lan dau.
+    # GHIM, CÓ TRONG GIT ⟹ đổi phải qua commit + Review. ĐỘC LẬP với .env
+    # (không git, không lịch sử, không ai soát — đúng thứ gây 403 hàng loạt
+    # 25/08: .env trỏ sai model, không ai phát hiện vì không nằm trong commit
+    # nào). Đây là nguồn THỨ HAI để SO, KHÔNG phải nơi đặt cấu hình thật.
+    # KHÔNG Mandatory: PO gõ script không tham số, ép nhập là treo vô hạn
+    # trong cửa sổ không có người, và gõ sai chuỗi ghim = báo động giả ngay
+    # lần đầu.
     [string]$ModelDuKien = "qwen3.7-plus-2026-05-26"
 )
 
@@ -144,12 +144,12 @@ if ($LASTEXITCODE -ne 0) { Bad "Kho RAG van chua san sang sau buoc tren"; $loi++
 
 
 Say "  cho backend san sang..."
-# CONG NAY TUNG GIA: Invoke-WebRequest qua "http://localhost/health" di qua
-# Caddy. Backend chet han -> Caddy chuyen /health sang /login -> Next phuc vu
-# trang login KHONG CAN backend -> 200 -> cong van xanh trong khi backend da
-# chet. Hoi THANG backend qua docker compose exec, dung python3 + urllib
-# (anh slim khong dam bao co curl — cung ly do HEALTHCHECK trong Dockerfile
-# da chon urllib thay vi curl).
+# CỔNG NÀY TỪNG GIẢ: Invoke-WebRequest qua "http://localhost/health" đi qua
+# Caddy. Backend chết hẳn -> Caddy chuyển /health sang /login -> Next phục vụ
+# trang login KHÔNG CẦN backend -> 200 -> cổng vẫn xanh trong khi backend đã
+# chết. Hỏi THẲNG backend qua docker compose exec, dùng python3 + urllib
+# (ảnh slim không đảm bảo có curl — cùng lý do HEALTHCHECK trong Dockerfile
+# đã chọn urllib thay vì curl).
 $san = $false
 foreach ($i in 1..30) {
     docker compose --profile home exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8010/health', timeout=5)" *> $null
@@ -158,13 +158,13 @@ foreach ($i in 1..30) {
 }
 if ($san) { Ok "backend song (health noi bo qua docker exec)" } else { Bad "backend khong song sau 60s (health noi bo that bai)"; $loi++ }
 
-# --- CONG SO MODEL: .env doc lap voi git, khong ai soat -- dung nguyen nhan
-# gay 403 hang loat 25/08 (.env tro sai model, khong ai phat hien vi khong
-# nam trong lich su commit nao). $ModelDuKien la nguon THU HAI de SO, KHONG
-# phai noi dat cau hinh that -- .env/docker-compose.yml van la noi that. Doc
-# gia tri DA GIAI QUYET boi app (src.config.LLM_MODEL), khong doc text .env:
-# .env co the khong co dong nay va roi ve mac dinh cua docker-compose.yml,
-# doc text se bao "thieu" trong khi app van chay dung.
+# --- CỔNG SO MODEL: .env độc lập với git, không ai soát -- đúng nguyên nhân
+# gây 403 hàng loạt 25/08 (.env trỏ sai model, không ai phát hiện vì không
+# nằm trong lịch sử commit nào). $ModelDuKien là nguồn THỨ HAI để SO, KHÔNG
+# phải nơi đặt cấu hình thật -- .env/docker-compose.yml vẫn là nơi thật. Đọc
+# giá trị ĐÃ GIẢI QUYẾT bởi app (src.config.LLM_MODEL), không đọc text .env:
+# .env có thể không có dòng này và rơi về mặc định của docker-compose.yml,
+# đọc text sẽ báo "thiếu" SAI trong khi app vẫn chạy đúng.
 if ($san) {
     $modelThat = (docker compose --profile home exec -T backend python -c "from src.config import LLM_MODEL; print(LLM_MODEL)" 2>$null)
     if ($LASTEXITCODE -ne 0 -or -not $modelThat) {
@@ -182,18 +182,18 @@ if ($san) {
     }
 }
 
-# Truoc ban va /health o tren, cong nay va /health kiem TRUNG NHAU: ca hai
-# deu do FRONTEND phuc vu, khong cai nao cham backend. Sau ban va: /health (o
-# tren) = backend song, cong nay = frontend song -- hai cong THAT, khong phai
-# mot cong lap lai. DUNG xoa vi thay "thua".
+# Trước bản vá /health ở trên, cổng này và /health kiểm TRÙNG NHAU: cả hai
+# đều do FRONTEND phục vụ, không cái nào chạm backend. Sau bản vá: /health (ở
+# trên) = backend sống, cổng này = frontend sống -- hai cổng THẬT, không phải
+# một cổng lặp lại. ĐỪNG xoá vì thấy "thừa".
 try {
     $r = Invoke-WebRequest -Uri "http://localhost/login" -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
     if ($r.StatusCode -eq 200) { Ok "Trang dang nhap tra 200" } else { Bad "Trang dang nhap tra $($r.StatusCode)"; $loi++ }
 } catch { Bad "Khong mo duoc trang dang nhap: $_"; $loi++ }
 
-# postgres/redis/backend co Docker HEALTHCHECK that (docker-compose.yml) -->
-# doc thang trang thai do, chinh xac hon "status=running" (co the trung
-# khoanh khac container vua restart trong crash-loop).
+# postgres/redis/backend có Docker HEALTHCHECK thật (docker-compose.yml) -->
+# đọc thẳng trạng thái đó, chính xác hơn "status=running" (có thể trúng
+# khoảnh khắc container vừa restart trong crash-loop).
 foreach ($s in @("postgres","redis","backend")) {
     $cid = (docker compose --profile home ps -q $s)
     $health = $null
@@ -201,9 +201,9 @@ foreach ($s in @("postgres","redis","backend")) {
     if ($health -eq "healthy") { Ok "service $s healthy (Docker healthcheck that)" }
     else { Bad "service $s KHONG healthy (trang thai: $health)"; $loi++ }
 }
-# frontend/caddy/cloudflared KHONG co Docker healthcheck rieng -> "running"
-# la tin hieu re nhat co, chua do tat dinh. NGHI VAN, chua nang thanh phat
-# hien: co the trung khoanh khac container vua restart trong crash-loop.
+# frontend/caddy/cloudflared KHÔNG có Docker healthcheck riêng -> "running"
+# là tín hiệu rẻ nhất có, chưa đo tất định. NGHI VẤN, chưa nâng thành phát
+# hiện: có thể trúng khoảnh khắc container vừa restart trong crash-loop.
 $chay = (docker compose --profile home ps --services --filter "status=running")
 foreach ($s in @("frontend","caddy","cloudflared")) {
     if ($chay -contains $s) { Ok "service $s dang chay (NGHI VAN: status=running, chua do tat dinh)" } else { Bad "service $s KHONG chay"; $loi++ }
