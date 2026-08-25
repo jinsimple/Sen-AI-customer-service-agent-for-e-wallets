@@ -214,6 +214,25 @@ _DAY_SO = re.compile(r"(?<!\d)\d{1,3}([.,\s])\d{3}(?:\1\d{3})*(?!\d)|(?<!\d)\d{7
 # >=7 vua chua chu so).
 _TOKEN_MA = re.compile(r"[A-Za-z0-9]{7,}")
 
+# 🔴 VÁ A (25/08) — KHUÔN MÃ CÓ GẠCH NGANG. `_TOKEN_MA` đòi ≥7 ký tự LIỀN, nên
+# dấu `-` cắt `CMP-00003` thành "CMP"(3) + "00003"(5) ⟹ **cả hai dưới ngưỡng**,
+# O3 MÙ HOÀN TOÀN. Sự cố 25/08: bot bịa `CMP-00003` — một mã CÓ THẬT của khách
+# KHÁC — và bộ lọc cho qua, trong khi CÙNG CÂU BỎ MÃ ĐI thì O5 chặn.
+# ⟹ Thêm một mã giả vào câu làm nó AN TOÀN HƠN trong mắt bộ lọc.
+#
+# Mọi mã THẬT của hệ đều ≥7 ký tự LIỀN sau tiền tố (TCK-…12hex · RES-…12hex ·
+# TXN…14số) nên khe này chỉ mở với mã BỊA — không ai vấp cho tới khi model bịa.
+#
+# Khuôn: 2–5 CHỮ CÁI + `-` + ≥3 ký tự chữ/số. CỐ Ý bắt đầu bằng CHỮ CÁI để
+# KHÔNG nuốt ngày tháng (`2026-08-27` bắt đầu bằng số ⟹ không khớp) — ngày là
+# thứ agent nói hợp lệ suốt, bắt oan nó là đóng luôn đường trả lời bình thường.
+# `{3,}` sau gạch: "COVID-19"/"check-in"/"e-mail" đều trượt.
+#
+# 🔴 ÁP CHO CẢ HAI PHÍA (reply VÀ nguồn) vì nằm trong `_cac_day_so` — mã THẬT
+# lấy từ kết quả tool cũng được bóc y hệt, nên nó vẫn TRUY VẾT ĐƯỢC và KHÔNG bị
+# chặn oan. Chỉ mã BỊA mới không có mặt ở nguồn.
+_MA_CO_GACH = re.compile(r"\b[A-Za-z]{2,5}-[A-Za-z0-9]{3,}\b")
+
 
 def _cac_day_so(text: str, *, cho_phep_phan_cach: bool = True) -> set[str]:
     """Mọi dãy số / mã trong text.
@@ -237,6 +256,10 @@ def _cac_day_so(text: str, *, cho_phep_phan_cach: bool = True) -> set[str]:
         if len(so) >= 7:
             ra.add(so)
     for m in _TOKEN_MA.finditer(text or ""):
+        tok = m.group()
+        if any(c.isdigit() for c in tok):
+            ra.add(tok.lower())
+    for m in _MA_CO_GACH.finditer(text or ""):
         tok = m.group()
         if any(c.isdigit() for c in tok):
             ra.add(tok.lower())
