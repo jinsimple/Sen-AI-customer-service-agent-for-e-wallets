@@ -142,6 +142,54 @@ cùng hàm harness khi ghi được khi không).
 | "Agent bịa số liệu" (nghi vi phạm ràng buộc cứng 3) | **KHÔNG kết luận được** — bộ đo mù trên đường `adaptive`, không phải agent được minh oan hay kết tội |
 | Cơ chế gây mù `tool_calls`/`usage` trên đường adaptive, lệch giữa 14/08→25/08 | **CHƯA RÕ, việc của Coder** — đã loại trừ được lỗi `eval/_harness.py` |
 
+## ⑦ + Mẫu số lưu lượng thật — 20 câu tự nhiên, và một lỗ quan sát khác hẳn
+
+Sau khi ⑦ đạt (xem tick `[x]` trong CHECKLIST), chạy 20 câu tự nhiên NGOÀI kịch bản qua UI thật
+(`frontend/e2e/diag-mau-so-luu-luong.spec.ts`, tạm, không commit) để đo phân bố `duong` trên lưu
+lượng thật thay vì corpus đánh giá.
+
+**🔴 Phát hiện: `usage.jsonl` mất bản ghi dưới tải — KHÔNG phải bug bộ ghi, là OOM hạ tầng.**
+
+Đối chiếu hai nguồn độc lập: checkpoint LangGraph (bằng chứng hội thoại THẬT xảy ra) đếm được
+**17 thread**; `usage.jsonl` chỉ có bản ghi cho **10 thread**. **7 thread (41%) tốn tiền thật mà
+0 dòng log.** Xác nhận cụ thể bằng giải mã checkpoint blob (0 token thêm): thread
+`USR-0145:1787633162` (mẫu "cho em hỏi chuyển tiền quốc tế được không ạ") có ĐẦY ĐỦ câu hỏi →
+agent trả lời → **gọi tool thật** (`ToolMessage`, `tool_result_id: TR-2d7aeb0894fe`) — một lượt
+hoàn chỉnh, tốn tiền thật — nhưng 0 dòng trong `usage.jsonl`.
+
+**[PO 25/08] Truy gốc, loại trừ theo thứ tự:**
+```
+① bộ ghi hỏng?          src/observability/so_usage.py: Lock + open("a") + 1 write
+                        ngắn (< PIPE_BUF, append nguyên tử theo POSIX)  →  LÀNH
+② đường ra quên ghi?    run_agent_turn: 10 return, 9/9 gọi _ghi_so ngay trước
+                        (cái thứ 10 nằm trong hàm con)                  →  LÀNH
+③ nhiều replica?        chỉ 1 container backend                        →  LOẠI
+④ /app/logs mất khi restart?  là volume riêng (fin05-dot-otp_logs_data) →  LOẠI
+🔴 GỐC: fin05-dot-otp-backend-1 bị KERNEL OOM-KILL lúc 04:32 (container
+  StartedAt mới hơn các container khác 37 phút, HostConfig.Memory=0 —
+  không đặt trần). Máy 7,75GiB đang chạy SÁU ngăn xếp fin05 cùng lúc,
+  ~3,5GiB nằm ở 5 ngăn KHÔNG AI DÙNG (po-test/fin05do/fin05/final/ttl) —
+  ngăn đang làm việc thật thiếu bộ nhớ lúc tải dồn, kernel giết đúng nó.
+  Lượt đang xử lý khi tiến trình chết: LLM ĐÃ TRẢ LỜI (tốn tiền) nhưng
+  chưa kịp ghi sổ.
+```
+
+**Phán quyết, BA MỨC — không gộp:**
+| | |
+|---|---|
+| ✅ Số TỪNG LƯỢT (bản ghi còn sống) | DÙNG ĐƯỢC — mất dòng ≠ sai dòng. `so_luot_goi_model = so_tool_call + 1` khít 13/13 trên dòng quan sát được |
+| 🔴 PHÂN BỐ `duong` trên 20 mẫu | **KHÔNG dùng để trích %** — mất CÓ CHỌN LỌC theo tải (lượt nặng/nhiều bước dễ bị giết giữa chừng hơn) ⟹ phân bố quan sát được LỆCH VỀ PHÍA NHẸ. Báo cáo kèm caveat này, coi là **cận dưới**, không phải số thật |
+| 🔴 Chi phí buổi | **7 lượt đã tốn tiền, 0 bản ghi** phải tính vào tổng chi — "tiền đã tiêu thì phải đếm, kể cả khi sổ không thấy" |
+
+**Phân bố quan sát được (20 mẫu, cận dưới, KHÔNG phải số thật — 13 dòng `day_du` sống sót):**
+`can_otp`=5 · `day_du`=13 (trong đó có tool call: 4/13) · `thu_slot`=1 · `otp_resend_thu_slot`=1.
+Tổng token các dòng sống sót: 207.741. Trung bình một lượt `day_du` CÓ gọi tool: ~10.430
+token/lời gọi tool (giữ nguyên số PO xác nhận, không tính lại vì mẫu đã biết lệch).
+
+**Việc:** dừng thu mẫu số ngay khi phát hiện (đã dừng). KHÔNG sửa `src/observability/so_usage.py`
+— bộ ghi lành, sửa nhầm bệnh. Việc gom/tắt 5 ngăn xếp không dùng để tránh OOM lần sau là quyết
+định hạ tầng, ngoài phạm vi ghi của QA/QC — đã có PO tự nhận và ghi nợ.
+
 ## Bài học công cụ đo (Luật 7 style, ghi vào đây để không lặp lại)
 
 Nhánh xử lý lỗi (`except Exception as e: violations = [f"LỖI CHẠY CASE: {e!r}"]`,
