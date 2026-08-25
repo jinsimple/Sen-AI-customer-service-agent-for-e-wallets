@@ -192,9 +192,27 @@ CANH_BAO_OTP_PHIEN = (
     "mã OTP giao dịch — mình không bao giờ hỏi mã OTP giao dịch hay mật khẩu "
     "ví của bạn."
 )
+# 🔴 THÊM HAI DẠNG 25/08 (Review tìm, PO xếp "làm ngay"). Bản đầu chỉ có BA lưới
+# (OTP · mật khẩu · chuyển tiền). Thiếu **phí xử lý/xác minh** và **cài app điều
+# khiển từ xa** — hai chiêu phổ biến nhất ở ví điện tử VN.
+#
+# Vì sao thiếu ĐÚNG hai cái đó lại nguy nhất: **chính ta vừa dựng sân khấu cho
+# chúng.** Bot vừa nói với một người NGHI BỊ LỪA rằng *"sẽ có chuyên viên liên hệ
+# lại"* — khách nay ĐANG CHỜ một cuộc gọi và không phân biệt được thật giả.
+#   · "nộp phí xác minh 50k là em đẩy lệnh hoàn tiền ngay"  ← khách ĐANG CHỜ hoàn
+#     tiền, số tiền NHỎ ⟹ hàng rào tâm lý thấp nhất
+#   · "anh cài app này để em vào máy hỗ trợ"                ← khách ĐANG MONG được hỗ trợ
+# Ba chiêu đã có đều đòi khách làm một việc NGHE ĐÃ ĐÁNG NGỜ. Hai chiêu này nghe
+# HOÀN TOÀN HỢP LÝ trong đúng bối cảnh ta vừa tạo ra.
+#
+# Gộp thành MỘT câu, không tách dòng: cảnh báo dài thì khách không đọc — và một
+# cảnh báo không được đọc hỏng y như không có.
+# Mệnh đề cuối ("kể cả khi họ nói là để lấy lại tiền cho bạn") vô hiệu hoá đúng
+# CÁI CỚ mà cả năm chiêu đều mượn, thay vì liệt kê thêm chiêu thứ sáu.
 CANH_BAO_KHONG_AI_GOI_DIEN = (
     "Một lưu ý để bạn giữ an toàn: sẽ không có ai từ ví gọi điện yêu cầu bạn "
-    "chuyển tiền, cung cấp mật khẩu hay mã OTP để lấy lại tiền."
+    "chuyển tiền, nộp phí xử lý, cài ứng dụng điều khiển từ xa, hay cung cấp "
+    "mật khẩu và mã OTP — kể cả khi họ nói là để lấy lại tiền cho bạn."
 )
 
 # ④ · câu của cổng OTP tất định. Ghép sẵn câu chống mạo danh ⑧ (K3) — ĐÂY mới là
