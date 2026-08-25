@@ -709,6 +709,32 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - **Việc Coder làm:** chép NGUYÊN VĂN Đọc C vào đây (chỉ chép, đừng code) — để phiên
     sau khỏi suy lại từ đầu, khỏi rơi lại vào cặp A/B giả. PO sẽ trình PO thật ADR cho
     Đọc C — trình THIẾT KẾ ĐÃ CHỐT, không trình câu hỏi.
+  - ✍️ **[Coder 25/08] Bốn ràng buộc kỹ thuật cho người thi hành Đọc C** — không phải
+    ý kiến, là thứ đọc mã mới biết; ghi để phiên sau khỏi tự vấp lại:
+    1. 🔴 **`test_invariants` KHÔNG bắt được thay đổi này.** Docstring dòng 18 tự khai:
+       *"Tool → gọi thẳng `build_customer_tools()`, so **TÊN TOOL** với contract."*
+       So TÊN, **không so CHỮ KÝ**. Thêm `xac_nhan` vào `create_ticket` ⟹ contract
+       `agent-tools.yaml:87-99` khai thiếu một input, mà **cổng vẫn XANH**.
+       ⟹ Với Đọc C, **§3 là lớp bảo vệ DUY NHẤT**. Không có cổng nào đỡ phía sau.
+       *(Đây cũng là một lỗ của chính cơ chế contract, ngoài phạm vi ⑩ — đáng ghi
+       riêng: cổng khai là "đổi tên 1 tool mà quên contract ⟹ ĐỎ NGAY", nhưng đổi
+       INPUT của tool thì không.)*
+    2. **Thì 1 KHÔNG được đặt `ticket_id`.** Ba móc đang chạy đều khoá theo nó:
+       ⑧ `_them_canh_bao_mao_danh(ticket_id=…)` · ⑨ cổng sàng lọc
+       (`ticket_id is not None and loai_khieu_nai == "wrong_recipient"`) ·
+       `write_investigation_logs_for_ticket`. Thì 1 trả `ticket_id` ⟹ cả ba bắn
+       **trước khi khách đồng ý**, tức bot báo mã vé cho một vé chưa tồn tại.
+    3. **Quyết cổng OTP cho thì 1 — câu bảo mật, không phải câu kỹ thuật.** Hiện
+       `create_ticket` đòi OTP step-up ≤15 phút (`customer_tools.py:922`). Thì 1
+       KHÔNG tạo gì ⟹ có cần step-up không? Bỏ thì rẻ hơn cho khách; giữ thì cổng ④
+       và ⑭ vẫn nhất quán. **Không tự quyết — hỏi Bảo Mật**, đây là ràng buộc cứng 4.
+    4. **⑨ chỉ được bắn ở THÌ 2.** Nó khoá theo `args["complaint_type"]`, mà **cả hai
+       thì đều mang tham số đó**. Thiếu điều kiện `xac_nhan is True` ⟹ câu sàng lọc
+       lừa đảo hỏi **hai lần**, và tín hiệu thread `da_hoi_sang_loc` bị tiêu ở thì 1.
+  - ✍️ **[Coder] Ghi nhận PO bác đúng chỗ tôi sai:** tôi kết luận Đọc B *"bất khả thi"*
+    vì đặt ranh giới ở *"trước lời gọi `create_ticket`"*. Sai — **chính lời gọi ấy mang
+    đủ sáu trường**. Tôi coi lời gọi tool là một điểm nguyên tử, nên không nhìn thấy
+    khả năng tách nó làm hai thì. Tiền đề đúng, ranh giới sai, kết luận sai.
 
 - [ ] **⑪** Ép cấu trúc lượt 5/6/3 — **Coder** · prompt
   - ~~Chặn — phiếu ghi "sau ⑨⑩"~~ ✅ **hết chặn** — ADR-049 duyệt (⑩ mở) và ⑨ đã landed.
