@@ -38,9 +38,11 @@ cá nhân và câu hỏi chính sách chưa OTP; model chạy thật sau OTP).
 - **N1 (số lần bắn oan `thu_slot`) KHÔNG đạt trên corpus gốc:** nền 15 → còn 13 (chỉ đóng
   2). Bộ ca độc lập QA/QC 7/7 xanh, nhưng **không đại diện corpus thật** — bài học đo
   lường lớn nhất đợt. PO thật quyết: để lại làm giới hạn đã khai, không mở vòng vá 4.
-- **⑪ (cấu trúc lượt hội thoại, 3 vế + góc nhìn PDPA):** đang chạy lúc file này viết,
-  phải cân trong ngân sách token còn lại (~261, đo trong container — số 293 ban đầu SAI
-  vì đo bằng công cụ bị cấm dùng cho việc này, xem `STATE.md`).
+- **⑪ (cấu trúc lượt hội thoại, 3 vế + góc nhìn PDPA) — HOÃN, PO thật quyết 25/08.**
+  KHÔNG phải "chưa làm" — ba lý do: ① ô duy nhất còn lại phải đo token TRONG container
+  (tốn thời gian + tiền) · ② nó đổi hành vi prompt, mà bước kế tiếp là test luồng thật —
+  đổi prompt ngay trước buổi test đó là tự nhiễu chính buổi test · ③ không chặn mục
+  tiêu kế tiếp của PO thật (test luồng thật + notification vé mới).
 - **CI: chưa xanh commit nào của đợt.** PO thật quyết KHÔNG push, KHÔNG gỡ hạn mức
   billing — chấp nhận có khai, không phải sự cố bị bỏ sót.
 
