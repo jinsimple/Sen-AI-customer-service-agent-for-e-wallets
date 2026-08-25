@@ -29,6 +29,27 @@
 | 🔴 **Phát hiện nặng nhất đợt** | ⑬-B1/C1 — **ràng buộc cứng 3**, tái lập 2/2, **cơ chế chưa rõ** |
 | 🔴 **LỖ TRONG CHÍNH PHÉP ĐIỂM DANH** | `git log` **mù cấu trúc** với vai `review` — xem ngay dưới |
 
+🔴 **PHÉP ĐIỂM DANH CỦA PO CÓ MỘT ĐIỂM MÙ CẤU TRÚC — ghi ra để lần sau không lặp.**
+Ở #16, PO kết luận *"Review 0 commit cả đợt ⟹ có thể đã dừng"*. **Sai phương pháp.**
+`CLAUDE.md §4` quy định vai `review`/`critic` **không ghi gì vào repo** — nên `git log`
+**không bao giờ** thấy họ, dù họ làm việc liên tục. *(Review trả lời ngay: đang chạy,
+vừa xong soát `3e9a9ee`.)*
+
+⟹ **Luật Đ: điểm danh bằng dấu vết chỉ áp cho vai CÓ VÙNG GHI.** Với vai không ghi repo,
+dấu vết duy nhất là **báo cáo của chính họ** ⟹ phải **hỏi theo lịch**, và **im lặng không
+phải bằng chứng của việc gì cả**. Áp nhầm "đo trước, hỏi sau" lên một vai không để lại
+dấu thì phép đo chỉ đo được **thiết kế phân vùng**, không đo được **người**.
+
+🔴 **LUẬT Đ′ — CẤM DỰNG LẠI ẢNH TRONG SUỐT BUỔI TỐN PHÍ** *(Coder bác luật cũ của PO, đúng)*
+PO ra luật *"đừng land `src/` trong buổi, sợ nhiễm phép đo"*. **[ĐO] Sai cơ chế:** ngăn
+`fin05-dot-otp` **không mount `src/` sống** — ảnh đông cứng lúc build *(`691dd9c40578`)*,
+commit vào git **không chạm một byte** của tiến trình đang phục vụ.
+⟹ Luật cũ **chặn nhầm** việc vô hại, và **để hở** việc thật sự nguy: **`docker compose build`
+trong lúc buổi mở sẽ nuốt trọn cây làm việc**, kể cả phần dở của người khác — **đó chính là
+cách `fin05-po-test` hỏng.** Luật đúng: **cấm DỰNG LẠI ẢNH**, land `src/` thì tự do.
+*(Coder vẫn tự giữ ⑪ chưa commit — vì lý do khác và đúng hơn: cây sạch là thứ giữ cho một
+lần dựng khẩn không nuốt việc dở.)*
+
 **Vật chứng #16 — buổi tốn phí đã có số thật, đo từ sổ server**
 
 ```
@@ -639,7 +660,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     kết quả này CHỨNG MINH ⑤ đang hoạt động đúng trên sản phẩm thật, không chỉ trên
     corpus đánh giá.
 
-- [~] **⑦** Khuôn thời gian *(Đ3)* + kill-switch riêng T0 *(Đ4)* — **Coder**
+- [x] **⑦** Khuôn thời gian *(Đ3)* + kill-switch riêng T0 *(Đ4)* — **Coder**
   - Nhận `"tuần trước"`, `"<số> giờ sáng/chiều/tối"`
   - *Xong khi:* tắt cả hai cờ ⟹ mọi lượt `duong=day_du` **trong sổ**, không đọc code
   - **VẬT CHỨNG (nửa đầu):** commit `1c4c20e` (cục bộ, chưa push). [ĐO] trước vá: "tuần
@@ -658,10 +679,13 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     thật trên `fin05-dot-otp` (đã recreate, KHÔNG rebuild — Coder xác nhận băm src/ không
     đổi): `alo`→`day_du` · khiếu nại thiếu tiền pre-OTP→`can_otp` · cùng câu sau OTP→
     `day_du`. **Không có `nhe`/`thu_slot`/`otp_resend_thu_slot` nào — ⑦ ĐẠT** theo tiêu chí
-    mới. **Tick vẫn `[~]` chứ không `[x]`**: kết quả này đang đứng CẠNH một phát hiện P0
-    khác (xem mục riêng bên dưới) làm nghi vấn ý nghĩa của chính `duong=day_du` — cùng
-    probe 3 cho `so_tool_call=0` trong sổ dù là khiếu nại đáng lẽ cần tra cứu. ⑦ tự thân
-    (đúng cổng, đúng cờ) đã đạt; việc CÒN LẠI không thuộc phạm vi ⑦.
+    mới. ~~Tick vẫn `[~]`: đứng cạnh một phát hiện P0 khác nghi vấn `so_tool_call=0` ở
+    probe 3~~ — **ĐÃ ĐÓNG nghi vấn đó** [ĐO 25/08]: giải mã trực tiếp `checkpoint_blobs`
+    (LangGraph PostgresSaver, `JsonPlusSerializer`, 0 token thêm) lấy được nguyên văn lượt
+    probe 3 — agent hỏi lại **"Bạn cho mình biết số tiền bị trừ là bao nhiêu được không
+    ạ?"** ("Để mình tra giúp bạn ngay nhé" = Ý ĐỊNH, không phải "đã tra") — **ĐÚNG hành vi**,
+    `so_tool_call=0` chính xác vì đang hỏi lại trước khi tra, khớp đặc tả. Không phải phát
+    hiện. ⑦ tick `[x]` dứt điểm.
   - **[Lead 25/08] DUYỆT mở rộng phạm vi 1 commit:** thêm 3 khuôn cùng họ lỗi Đ3 mà Coder
     tự phát hiện (`"tháng trước"`, `"tuần rồi"`, `"tháng rồi"` — hiện `False`, cùng cụm 2
     từ không nghĩa nào khác, không cần danh sách loại trừ). Lý do duyệt: cùng shape lỗi đã
@@ -926,7 +950,20 @@ thay vì tin số Coder báo. Khai ra thay vì im — đúng **Luật V**.
   - *ADR phải trả lời (KHÔNG áp dụng nữa):* ~~tên loại · vòng đời trạng thái · ai có
     thẩm quyền · chuyển loại thế nào~~
 
-- [ ] **⑫b · VIỆC THẬT, nhỏ hơn nhiều** — **Coder**. Khi FS-13 bắn (khách xác nhận "có
+- [x] **⑫b · VIỆC THẬT, nhỏ hơn nhiều** — **Coder** · ✅ **land `82c90c1`, 10:45 25/08**
+
+  **Delta token (điều khoản T2) — Coder ĐO, từ chối cửa "không áp dụng" PO mở cho:**
+  ```
+  ① KÍCH THÍCH (thứ T2 canh) = system prompt + lược đồ tool gửi MỖI lời gọi
+     [ĐO] git show 82c90c1 -- prompt.py customer_tools.py contracts/  →  0 dòng
+     ⟹ DELTA = 0, ĐO ĐƯỢC (không phải suy ra)
+  ② TIÊU THỤ LÚC CHẠY = nhánh này BỎ HẲN lượt gọi model ⟹ ÂM
+  ```
+  🔴 **Không trích ② ra ngoài như một khoản tiết kiệm:** chưa ai đo **bao nhiêu % lượt** rơi vào
+  nhánh FS-13 ⟹ **không có mẫu số** ⟹ con số âm ấy không quy ra tiền được. Và ② **không phải**
+  thứ T2 canh. *(PO đã định cho ghi "KHÔNG ÁP DỤNG"; Coder đo thay vì dùng cửa đó — đúng.)*
+
+  ⟨nội dung gốc của mục, giữ nguyên⟩ Khi FS-13 bắn (khách xác nhận "có
   người hướng dẫn tôi chuyển"), bot phải: ① **NGỪNG** đưa lời khuyên chuyển-nhầm (cấm
   khuyên "chờ liên hệ người nhận") · ② **báo sẽ có chuyên viên liên hệ** + gọi
   `request_human_handoff` (đã có sẵn, `customer_tools.py:941`, không cần OTP, tự đánh
@@ -1165,6 +1202,40 @@ trên nền sai là đúng thứ Luật F cấm.
 | giờ | HEAD | Lead | Coder | QA/QC | Review | ghi chú |
 |---|---|---|---|---|---|---|
 | — | `a3bc860` | chưa nhận | chưa nhận | chưa nhận | chưa nhận | phiếu vừa land |
+| 11:40 **#16** | `655a112` | 🟢 3 commit | 🟢 ⑫b land 10:45 · ⑪ đang viết | 🟢 4 commit + giải mã checkpoint | 🟢 đang soát *(không ghi repo — xem Luật Đ)* | **cả 4 vai chạy** |
+
+**#16 — ba phát hiện, và PO sai hai lần**
+
+🟢 **CÔNG CỤ MỚI, GIÁ TRỊ VƯỢT RA NGOÀI ĐỢT NÀY — QA/QC mở:** đọc được **nguyên văn mọi hội
+thoại đã lưu, 0 token**, không cần chạy lại, không cần model:
+```python
+# bảng Postgres `checkpoint_blobs`, cột `blob` (msgpack), channel "messages"
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+msgs = JsonPlusSerializer().loads_typed(("msgpack", blob))   # → HumanMessage/AIMessage thật
+```
+🔴 **Vì sao đây là chuyện lớn:** trước hôm nay, muốn biết agent **nói gì** ta phải **chạy lại và
+trả tiền** — nên mọi tranh luận về hành vi đều bị chặn bởi ngân sách. Từ giờ **mọi lượt đã xảy ra
+đều đọc lại được miễn phí.** Ca ⑬ suýt chết vì thiếu đúng thứ này.
+
+✅ **CA ĐỐI CHỨNG — đóng, không phải phát hiện.** Lượt UI thật `USR-0145`, `so_tool_call=0`:
+```
+Khách: "tôi bị trừ tiền"
+Agent: "…Để mình tra giúp bạn ngay nhé.  Bạn cho mình biết số tiền bị trừ là bao nhiêu được không ạ?"
+```
+Agent **hỏi lại**, dùng **thì ý định** *("sẽ tra")* — **không** tuyên bố đã tra. `tool_call=0` ở
+đây là **ĐÚNG đặc tả**.
+⟹ Ca này làm **nổi bật** B1/C1 chứ không làm nhẹ đi: agent **biết** cách hỏi lại khi thiếu thông
+tin. B1/C1 là **lệch khỏi hành vi chuẩn của chính nó**, không phải giới hạn chung của model.
+🔴 **Và nó xác lập ranh giới của phát hiện:** thứ vi phạm **không phải `tool_call=0`** — mà là
+**`tool_call=0` KÈM lời khẳng định ĐÃ tra**. Bỏ vế sau thì không còn phát hiện nào.
+
+🔴 **PO SAI HAI LẦN LIÊN TIẾP TRONG MỘT GIỜ — niêm, vì cả hai đều nghe rất chặt:**
+| # | PO lập luận | thứ bác nó | mất gì |
+|---|---|---|---|
+| 1 | *"bản ghi có `usage` rỗng ⟹ dụng cụ mù ⟹ `tool_calls: []` vô nghĩa"* | bản ghi **không hề có khoá `usage`** — thiếu khoá, không phải rỗng | bác nhầm một phát hiện **đúng**, bắt QA/QC sửa biên bản **2 lần** |
+| 2 | *"14/08 ghi 40/40, 25/08 ghi 0/4 ⟹ hồi quy ⟹ P0"* | sổ server: `tool_call=1` **hai lần hôm nay** | gác việc cả đội ~20 phút |
+⟹ **Luật Đ″: kết luận nào của PO không kèm SỐ THÔ thì đội được quyền đòi số trước khi làm theo.**
+Áp cho **mọi** vai, **kể cả PO** — nhất là PO, vì lời PO không ai chặn.
 
 ---
 
