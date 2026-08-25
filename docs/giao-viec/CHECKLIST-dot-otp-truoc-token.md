@@ -309,21 +309,33 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     khi tôi hỏi).** QA/QC chạy `git commit -m "…"` không pathspec, đổ theo tệp PO đã
     `add` trước đó (`docs/nhat-ky/…`, 53 dòng phân xử N1) — nội dung KHÔNG mất (PO ghim
     lại được), chỉ mất **đường tìm tới nó** (nằm dưới commit message không liên quan).
-  - **QUYẾT ĐỊNH: VẪN KHÔNG tách worktree — chọn nhánh (A) của PO, vá bằng kỷ luật lệnh.**
-    Lý do giữ nguyên hiệu lực: đây KHÔNG phải va chạm nội dung giữa hai vùng ghi (điều
-    L0.5 gốc đánh giá là hiếm) — nó là một cơ chế MỚI, hẹp hơn: **INDEX cũng là trạng
-    thái dùng chung, không chỉ cây làm việc.** `git add` để lại cửa sổ mà BẤT KỲ `git
-    commit` trần nào của phiên khác cũng đổ được, bất kể hai phiên đang sửa file khác
-    nhau đến đâu. Worktree tách được cây nhưng đợt vẫn chung một index THEO WORKTREE nếu
-    dùng chung `.git` — không tự động giải quyết được cơ chế này; và chi phí hạ tầng
-    (mount Docker cố định) không đổi so với lúc đánh giá lần đầu.
-  - **VÁ:** đã ghi vào `docs/STATE.md` (`92c39d3`) — luôn `git commit -m "…" -- <pathspec>`
-    (trailing pathspec), **KHÔNG BAO GIỜ** `git commit -m "…"` trần. Dạng có pathspec chỉ
-    commit đúng path nêu ra, bất kể index đang có gì khác — đóng cửa sổ hoàn toàn, không
-    cần nhớ tách `add`/`commit` cho đúng thời điểm.
-  - **Sẽ xét lại lần nữa nếu:** sự cố thứ 5 xảy ra SAU KHI đã có quy tắc trailing-pathspec-
-    trên-commit — lúc đó nguyên nhân không còn là "chưa ai nói" mà là "nói rồi vẫn không
-    theo được", và khi đó chi phí worktree đáng cân nhắc lại thật.
+  - ~~**QUYẾT ĐỊNH: VẪN KHÔNG tách worktree**~~ — 🔴 **ĐÍNH CHÍNH KÉP [Lead 25/08], giữ
+    nguyên chữ cũ làm dấu vết, không xoá.** Quyết định CUỐI vẫn là không tách worktree,
+    nhưng **cả hai chân lý luận gốc đều sai**, sửa lần lượt:
+    1. **PO đo thật trong `/tmp`, bác chân "index dùng chung":** mỗi `git worktree` có
+       **index RIÊNG** (`.git/worktrees/<tên>/index`) — stage ở cây chính rồi commit trần
+       ở worktree phụ **không** cuốn theo. **Lead tự dựng lại thí nghiệm độc lập, xác
+       nhận đúng** (không chỉ tin lời PO). Worktree **đóng được** lỗ index-dùng-chung.
+    2. **Lead tự kiểm chân "chi phí Docker", cũng SAI — không đợi ai bắt:** `docker-compose.yml`
+       backend/frontend **không bind-mount** `./src` hay working dir nào — `Dockerfile:93`
+       `COPY . .` **đóng cứng mã nguồn vào ảnh lúc build**, chỉ mount volume dữ liệu
+       (`chroma_data`, `logs_data`). Ba stack build **từ một commit cụ thể** (đúng nếp
+       "dựng lại ảnh ở HEAD X" đã làm cả chục lần), **không quan tâm session đang gõ ở
+       thư mục nào** — worktree không tốn thêm một lần remap compose nào cả.
+    3. 🔴 **Lý do THẬT, tìm ra khi cả hai chân cũ sụp — [ĐO] `git worktree add` trên
+       nhánh ĐANG CHECKOUT ở nơi khác:** `fatal: 'main' is already used by worktree at
+       …` — **git CẤM hai worktree cùng checkout một branch.** Cả 4 vai trong đợt này
+       **cùng commit trực tiếp vào MỘT branch `dev/learning-loop`**, xen kẽ liên tục
+       (nhìn `git log --oneline` cả đợt). Tách worktree ⟹ mỗi vai phải có branch RIÊNG +
+       nhịp merge/rebase liên tục vào `dev/learning-loop` — đây là **đổi quy trình làm
+       việc giữa một đợt đang chạy**, không phải chi phí hạ tầng Docker, và không phải
+       một luật-phải-nhớ. Đây mới là chân đứng vững.
+  - **VÁ (không đổi):** đã ghi vào `docs/STATE.md` (`92c39d3`) — luôn
+    `git commit -m "…" -- <pathspec>` (trailing pathspec), **KHÔNG BAO GIỜ**
+    `git commit -m "…"` trần. Đóng đúng lỗ index-dùng-chung mà không cần đổi quy trình.
+  - **Sẽ xét lại nếu:** đội chủ động muốn chuyển sang mô hình branch-per-vai (quyết định
+    lớn, nên bắt đầu **giữa hai đợt**, không phải giữa đợt đang chạy) — KHÔNG còn xét vì
+    sự cố thứ 5, vì cơ chế index đã đóng đúng chỗ rồi.
 
 ---
 
