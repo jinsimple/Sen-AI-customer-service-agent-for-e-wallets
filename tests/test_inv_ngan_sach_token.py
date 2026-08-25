@@ -99,13 +99,14 @@ của nhà cung cấp.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 
 import pytest
 
 from tests._docker_co_mat import co_docker
 
-CT = "fin05do-backend-1"
+CT = os.environ.get("FIN05_TOKEN_BUDGET_CT", "fin05do-backend-1")  # [25/08] override cho ngăn khác, vd buổi tốn phí trên fin05-dot-otp
 NGUONG_TOKEN = 7_550           # NEO CỐ ĐỊNH — không tính lại theo NEN, xem docstring 25/08
 NEN = {"system": 5_275, "tool": 1_982, "tong": 7_257}  # [ĐO 25/08, HEAD c02cbb1] xem docstring
 
