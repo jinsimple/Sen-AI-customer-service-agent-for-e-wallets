@@ -34,12 +34,29 @@ from sqlalchemy.orm import Session
 
 from src.agents import llm_pool
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
-from src.agents.output_filter import loc_dau_ra, tin_hieu_lo_chi_thi
-from src.agents.phan_luong import BAM_LUAT, DUONG_DAY_DU, DUONG_NHE, TRA_LOI_NHE, phan_luong
+from src.agents.output_filter import khai_da_tao_ve, loc_dau_ra, tin_hieu_lo_chi_thi
+from src.agents.phan_luong import (
+    BAM_LUAT,
+    DUONG_DAY_DU,
+    DUONG_NHE,
+    DUONG_THU_SLOT,
+    HOI_SANG_LOC_LUA_DAO,
+    HOI_THIEU_SO_TIEN,
+    HOI_THOI_GIAN_VA_SO_TIEN,
+    TEN_TIN_HIEU_1B,
+    TRA_LOI_NHE,
+    co_du_de_thu_hep,
+    la_ca_chuyen_nham,
+    la_khieu_nai_ca_nhan,
+    la_tra_loi_khang_dinh,
+    phan_luong,
+)
 from src.agents.prompt import bam_mau_prompt, build_system_prompt
-from src.agents.tools.customer_tools import TurnGuard, build_customer_tools
+from src.agents.tools.customer_tools import TurnGuard, _otp_fresh, build_customer_tools
 from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
+    CONG_OTP_NHOM_B_BAT,
+    CONG_T0_BAT,
     DATABASE_URL,
     DB_KIND,
     KENH_HO_TRO_KHAC,
@@ -49,6 +66,7 @@ from src.config import (
     LLM_MODEL,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
+    OTP_VIEW_MAX_MINUTES,
     PHAN_LUONG_BAT,
     SUY_LUAN_BAT,
 )
@@ -59,8 +77,11 @@ from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.pii import scrub_pii
 from src.observability.so_usage import ghi_usage
 from src.observability.tracing import get_tracer
-from src.services.complaint_intake import flag_human_handoff
+from src.services.complaint_intake import flag_human_handoff, hop_nhat_tin_hieu_gian_lan
 from src.services.emotion_signals import danh_gia_luot
+from src.services.thread_signals import dat_lai as xoa_tin_hieu
+from src.services.thread_signals import doc_hoac_khong_ro as doc_tin_hieu
+from src.services.thread_signals import tang as tang_tin_hieu
 from src.tools.base import ToolError
 
 _tracer = get_tracer("fin05.agent")
@@ -95,6 +116,179 @@ _SO_TOOL_GUI = 0
 # Suy luận có BẬT ở lần dựng model gần nhất không — đọc ngược từ đối tượng
 # model, không từ config. Xem chú thích tại chỗ gán.
 _SUY_LUAN_GUI = True
+
+# ═══ CỔNG THU SLOT SAU KHI XÁC THỰC OTP GIỮA HỘI THOẠI ═══════════════════
+# (scratchpad/nhap-cong-thu-slot-sau-otp.md, Lead 24/08, PO thật đề xuất,
+# PO-agent duyệt cả 4 mục)
+#
+# VẤN ĐỀ: sau khi khách xác thực OTP giữa hội thoại, frontend TỰ GỬI LẠI câu
+# đã bị chặn (ChatClient.tsx::submitOtp() -> pendingStarterRef). `5e8deb6`
+# dạy model GỌI LẠI tool thay vì lặp kết luận cũ từ trí nhớ — vá TRIỆU
+# CHỨNG, giữ nguyên làm LƯỚI ĐỠ (model không nghe luật thì vẫn có lưới này
+# nếu resend đã đủ slot). Cổng này BỎ HẲN tình huống phải trông cậy vào việc
+# model "nhớ đúng": hỏi thêm slot bằng cơ chế TẤT ĐỊNH trước, rồi gọi model
+# ĐÚNG MỘT lần với đủ dữ liệu.
+#
+# KHOÁ RIÊNG, TUYỆT ĐỐI KHÔNG dùng chung `TEN_TIN_HIEU_1B` — Lead phản biện
+# khung PO-agent nghiêng về ban đầu ("reset mốc S7 = điểm bắt đầu mới"):
+# reset ĐÚNG KHOÁ S7 sẽ cho 1B bắn LẦN THỨ HAI trong cùng hội thoại ở một
+# lượt sau KHÔNG liên quan gì cổng này — đúng thứ S7 (giới hạn 1 lần/hội
+# thoại của 1B) sinh ra để cấm. Khoá dưới đây ĐỘC LẬP hoàn toàn với 1B; đừng
+# "tối ưu" bằng cách gộp hai khoá dù tên nghe giống nhau.
+_TEN_TIN_HIEU_OTP_RESEND = "otp_resend_da_hoi"
+
+# ⑭ (25/08) — BẰNG CHỨNG PHÍA SERVER rằng thread này TỪNG bị cổng OTP chặn.
+# KHÁC hẳn `_TEN_TIN_HIEU_OTP_RESEND` ở trên (thứ đó ghi "T0 ĐÃ HỎI rồi"). Hai
+# khoá, hai câu hỏi khác nhau — đừng gộp dù tên nghe gần nhau.
+_TEN_TIN_HIEU_DA_BI_OTP_CHAN = "da_bi_otp_chan"
+
+# ⑨ — "đã hỏi câu sàng lọc lừa đảo cho thread này rồi". Một lần/hội thoại.
+_TEN_TIN_HIEU_DA_HOI_SANG_LOC = "da_hoi_sang_loc"
+# ⑨-lượt-4 — hai tín hiệu ĐỊNH VỊ LƯỢT. Tách riêng vì chúng trả lời hai câu
+# khác nhau: "thread này có phải ca chuyển nhầm không" và "đã tra được giao
+# dịch chưa". Gộp là mất khả năng bắn ĐÚNG LƯỢT.
+_TEN_TIN_HIEU_CA_CHUYEN_NHAM = "ca_chuyen_nham"
+_TEN_TIN_HIEU_DA_TRA_DUOC_GD = "da_tra_duoc_gd"
+DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
+DUONG_CAN_OTP = "can_otp"
+DUONG_FS13_BAN_GIAO = "fs13_ban_giao"
+
+# Câu thay khi cổng ràng buộc cứng 3 bắt được lời khai không có vé thật.
+# 🔴 KHÔNG hứa gì, KHÔNG nêu mã nào, và nói THẬT là chưa tạo được — bịa một
+# lời trấn an ở đây là lặp lại đúng lỗi vừa chặn. Chỉ đường sang bước khách
+# LÀM ĐƯỢC, để họ không ngồi chờ một hồ sơ không tồn tại.
+_CHUA_TAO_DUOC_VE = (
+    "Mình xin lỗi — hồ sơ khiếu nại CHƯA được tạo, mình báo thật để bạn không "
+    "chờ nhầm. Bạn nhắn lại giúp mình để tạo lại, hoặc mình chuyển bạn sang "
+    "chuyên viên hỗ trợ trực tiếp nhé."
+)
+
+# Slot mục tiêu là MÃ GIAO DỊCH HOẶC MỐC THỜI GIAN — KHÁC 1B (số tiền là
+# slot bắt buộc của 1B). Lý do: 1B áp cho lượt ĐẦU TIÊN chưa biết gì; cổng
+# này áp cho điểm khách đã mô tả đủ để model quyết định gọi tool (đó là lý
+# do tool chạy và bị OTP chặn) — cái còn thiếu là thứ giúp tool THU HẸP
+# xuống một kết quả, đúng vai trò mã/ngày (số tiền nhiều khả năng ĐÃ có
+# trong câu, vì đó là chi tiết khách hay kể đầu tiên).
+
+# ── ⑧ · K3 — HAI CÂU CHỐNG MẠO DANH CSKH ────────────────────────────────────
+# Phiếu "OTP trước token" ⑧. Hằng số, 0 token, KHÔNG giao model diễn đạt —
+# cùng lệ ADR-048 ("một dòng TẤT ĐỊNH chèn sau khi tool trả về; không đặt cược
+# an toàn vào việc model nghe lời").
+#
+# 🔴 K3 đo được: dự án ép rất chặt việc bot KHÔNG hỏi OTP giao dịch, nhưng
+# chưa chỗ nào bắt bot NÓI CHO KHÁCH BIẾT nó sẽ không bao giờ hỏi. Khách vừa
+# bị lừa một lần rồi thì lần thứ hai kẻ giả CSKH gọi tới, thứ duy nhất bảo vệ
+# họ là việc họ ĐÃ ĐƯỢC NGHE câu này từ CSKH thật.
+#
+# ⚠️ ĐỔI XƯNG HÔ so với nguyên văn phiếu — khai để không ai tưởng chép sót:
+# phiếu viết "chị" vì trích thẳng kịch bản chuyên gia (khách trong kịch bản là
+# nữ). Hằng số này bắn cho MỌI khách, và hệ thống KHÔNG biết giới tính khách
+# (`customer_name` cố ý không đưa lên LLM, PII-OK ở dưới). Dùng "bạn"/"mình"
+# — đúng xưng hô mọi hằng số khác của module này đã dùng. Nội dung, thứ tự vế
+# và điểm gắn giữ nguyên 100% theo phiếu.
+#
+# 🔴 CHÈN SAU `loc_dau_ra()`, CÓ CHỦ ĐÍCH — không phải tiện tay.
+#
+# [ĐO 24/08] chạy `loc_dau_ra()` thẳng trên CẢ HAI hằng số: **cả hai QUA
+# ĐƯỢC**, không nhóm O nào khớp. Nói cách khác, hôm nay dời điểm chèn lên
+# trước bộ lọc KHÔNG gây hỏng — tôi đã viết ngược điều này ở bản nháp, phép
+# đo bác lại, giữ lại số đo thay vì lập luận.
+#
+# Vẫn chèn SAU, vì lý do khác và bền hơn:
+#   ① Hai câu này là văn bản của TA, đã soát, KHÔNG chứa chữ số nào — cho bộ
+#     lọc kiểm chúng là tốn công kiểm thứ đã biết đúng.
+#   ② Biên an toàn MỎNG theo hướng có thật: câu thứ hai chứa "sẽ" (đã nằm
+#     trong `_O4_DONG_TU`) đứng cùng mệnh đề với "lấy lại tiền". Nó chưa khớp
+#     CHỈ vì `_O4_TIEN` hiện không có cụm "lấy lại tiền" (có "nhận lại tiền").
+#     Thêm đúng một cụm vào `_O4_TIEN` — việc O4 hoàn toàn có thể làm sau này
+#     — là bản vá an toàn tự xoá chính nó, IM LẶNG, không cổng nào đỏ.
+# ⟹ Chèn sau bộ lọc làm ② không thể xảy ra, thay vì canh chừng nó mãi.
+CANH_BAO_OTP_PHIEN = (
+    "Mình nói rõ để bạn yên tâm: đây là mã xác thực phiên hỗ trợ, không phải "
+    "mã OTP giao dịch — mình không bao giờ hỏi mã OTP giao dịch hay mật khẩu "
+    "ví của bạn."
+)
+# 🔴 THÊM HAI DẠNG 25/08 (Review tìm, PO xếp "làm ngay"). Bản đầu chỉ có BA lưới
+# (OTP · mật khẩu · chuyển tiền). Thiếu **phí xử lý/xác minh** và **cài app điều
+# khiển từ xa** — hai chiêu phổ biến nhất ở ví điện tử VN.
+#
+# Vì sao thiếu ĐÚNG hai cái đó lại nguy nhất: **chính ta vừa dựng sân khấu cho
+# chúng.** Bot vừa nói với một người NGHI BỊ LỪA rằng *"sẽ có chuyên viên liên hệ
+# lại"* — khách nay ĐANG CHỜ một cuộc gọi và không phân biệt được thật giả.
+#   · "nộp phí xác minh 50k là em đẩy lệnh hoàn tiền ngay"  ← khách ĐANG CHỜ hoàn
+#     tiền, số tiền NHỎ ⟹ hàng rào tâm lý thấp nhất
+#   · "anh cài app này để em vào máy hỗ trợ"                ← khách ĐANG MONG được hỗ trợ
+# Ba chiêu đã có đều đòi khách làm một việc NGHE ĐÃ ĐÁNG NGỜ. Hai chiêu này nghe
+# HOÀN TOÀN HỢP LÝ trong đúng bối cảnh ta vừa tạo ra.
+#
+# Gộp thành MỘT câu, không tách dòng: cảnh báo dài thì khách không đọc — và một
+# cảnh báo không được đọc hỏng y như không có.
+# Mệnh đề cuối ("kể cả khi họ nói là để lấy lại tiền cho bạn") vô hiệu hoá đúng
+# CÁI CỚ mà cả năm chiêu đều mượn, thay vì liệt kê thêm chiêu thứ sáu.
+CANH_BAO_KHONG_AI_GOI_DIEN = (
+    "Một lưu ý để bạn giữ an toàn: sẽ không có ai từ ví gọi điện yêu cầu bạn "
+    "chuyển tiền, nộp phí xử lý, cài ứng dụng điều khiển từ xa, hay cung cấp "
+    "mật khẩu và mã OTP — kể cả khi họ nói là để lấy lại tiền cho bạn."
+)
+
+# ④ · câu của cổng OTP tất định. Ghép sẵn câu chống mạo danh ⑧ (K3) — ĐÂY mới là
+# "lượt 1" mà phiếu nói tới: điểm đầu tiên khách được yêu cầu xác thực. Ghép ngay
+# ở hằng số chứ không qua `_them_canh_bao_mao_danh()`: đường này KHÔNG đi qua bộ
+# lọc nên không có chỗ "chèn sau", và ghép cứng làm nó hiển nhiên khi đọc.
+_CAN_XAC_THUC_OTP = (
+    "Dạ để tra cứu giao dịch của bạn thì mình cần bạn xác thực OTP phiên làm "
+    "việc trước nhé.\n\n" + CANH_BAO_OTP_PHIEN
+)
+
+# ① (PO thật thu hẹp 25/08) — khách XÁC NHẬN có người hướng dẫn chuyển khoản.
+# PO nguyên văn: *"không cần làm sâu, chỉ cần BÁO SẼ CÓ CHUYÊN GIA LIÊN HỆ là đủ."*
+#
+# Hai việc, không hơn:
+#   ① NGỪNG đường khuyên chuyển-nhầm — đạt bằng cách KHÔNG gọi model lượt này.
+#      Cấm bằng lời thì model vẫn có thể nói; không chạy thì nó không nói được.
+#   ② báo sẽ có chuyên viên liên hệ + bàn giao người thật.
+#
+# 🔴 CÂU K3 GHÉP VÀO ĐÂY LÀ BẮT BUỘC, KHÔNG PHẢI TRANG TRÍ. Ta vừa nói với một
+# người NGHI BỊ LỪA rằng "sẽ có người liên hệ lại" — đó chính là câu kẻ lừa đảo
+# cần để gọi lần hai ("em ở bộ phận xử lý khiếu nại đây"). Báo sẽ có người gọi
+# mà không kèm câu này là tự tay dọn đường cho vòng lừa thứ hai.
+_FS13_BAN_GIAO = (
+    "Cảm ơn bạn đã cho mình biết. Trường hợp này mình chuyển ngay cho chuyên "
+    "viên hỗ trợ xử lý trực tiếp, sẽ có người liên hệ lại với bạn.\n\n"
+    + CANH_BAO_KHONG_AI_GOI_DIEN
+)
+
+# Neo nhận diện "câu này đã có sẵn trong lời model" — tránh nói hai lần. Chọn
+# cụm ĐỦ DÀI và ĐẶC HIỆU (đúng bài học "sao"/"mất" của 1B): "OTP" trần khớp cả
+# câu model đang giải thích chuyện khác.
+_NEO_DA_CO_CANH_BAO = (
+    "không bao giờ hỏi mã otp giao dịch",
+    "không có ai từ ví gọi điện",
+)
+
+
+def _them_canh_bao_mao_danh(reply: str, *, co_loi_otp: bool, ticket_id: str | None) -> str:
+    """Chèn câu chống mạo danh vào CUỐI `reply` — hàm THUẦN, dễ kiểm.
+
+    `co_loi_otp`: lượt này có tool nào bị cổng OTP chặn không (khách đang ở
+    đúng thời điểm được yêu cầu xác thực — điểm gắn "lượt 1" của phiếu).
+    `ticket_id`: có mã hồ sơ để báo không (điểm gắn "lượt 8").
+
+    KHÔNG chèn nếu model đã tự nói ý đó — nói hai lần làm câu cảnh báo trông
+    như văn bản máy dán vào, và khách sẽ học cách bỏ qua nó.
+    """
+    if not isinstance(reply, str):
+        return reply
+    thap = reply.lower()
+    them: list[str] = []
+    if co_loi_otp and _NEO_DA_CO_CANH_BAO[0] not in thap:
+        them.append(CANH_BAO_OTP_PHIEN)
+    if ticket_id is not None and _NEO_DA_CO_CANH_BAO[1] not in thap:
+        them.append(CANH_BAO_KHONG_AI_GOI_DIEN)
+    if not them:
+        return reply
+    return (reply.rstrip() + "\n\n" + "\n\n".join(them)).strip()
+
 
 # Kích thước lược đồ tool ĐO ĐƯỢC ở lần dựng gần nhất — thay hằng số gõ tay.
 _CHARS_TOOL_SCHEMA_THAT = _CHARS_TOOL_SCHEMA
@@ -253,6 +447,22 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "cached_input_tokens": u.get("cached_input_tokens"),
         "reasoning_tokens": u.get("reasoning_tokens"),
         "input_chars": u.get("input_chars"),
+        # 🔴 ĐƠN VỊ: đếm theo **LƯỢT NÀY**, KHÔNG theo cả hội thoại. Nguồn là
+        # `tool_calls_out`, dựng từ `turn_messages = all_messages[prev_len:]`
+        # — chỉ phần SAU lát cắt checkpoint. Hội thoại "tra ở lượt N, thuật lại
+        # ở lượt N+1" cho `1` rồi `0`, và **cả hai đều ĐÚNG**.
+        # [ĐO 25/08] ba phiên cùng đọc trường này như số THEO HỘI THOẠI và mất
+        # nhiều vòng cho một mâu thuẫn không tồn tại. Trường không sai, không
+        # thiếu, không im lặng — nó chỉ **KHÔNG TỰ KHAI ĐƠN VỊ**.
+        #
+        # 🔴 ĐỌC KÈM — vì sao đừng dựng bất biến giữa hai trường này:
+        # `so_tool_call` và `so_luot_goi_model` rút từ **CÙNG một
+        # `turn_messages`**. Một bất biến buộc quan hệ giữa chúng (vd
+        # `so_luot_goi_model == so_tool_call + 1`) **KHÔNG kiểm hai nguồn** —
+        # nó kiểm hai cách suy từ MỘT danh sách. Danh sách thiếu ⟹ cả hai cùng
+        # tụt ⟹ quan hệ **VẪN KHÍT**, và bất biến im lặng đúng lúc đáng kêu
+        # nhất. Cùng họ `if tm is None: continue` (lời gọi mồ côi, đã vá
+        # `466c59a`): cơ chế không sai, nó chỉ KHÔNG NHÌN THẤY thứ đã rơi.
         "so_tool_call": len(kq.get("tool_calls") or []),
         "ly_do_fallback": kq.get("ly_do_fallback"),
         # Ba trường TRIỆU CHỨNG, luôn có mặt (None ở lượt thường) — khoá thiếu
@@ -751,6 +961,7 @@ def run_agent_turn(
     message: str,
     thread_id: str | None = None,
     otp_verified_at: float | None = _ALWAYS_FRESH,
+    vua_xac_thuc_de_gui_lai: bool = False,
 ) -> dict[str, Any]:
     """`otp_verified_at`: timestamp (epoch giây) lúc xác thực OTP+câu hỏi bảo
     mật gần nhất (src/auth.py) — truyền THẬT từ current_user.otp_verified_at ở
@@ -760,7 +971,13 @@ def run_agent_turn(
     hiện có: các case đó vốn giả định "khách đã xác thực OTP trước khi vào
     chat" (đúng câu mở đầu system prompt), không phải kiểm tra luồng OTP —
     luồng OTP thật được test riêng ở tests/test_api/test_otp.py +
-    frontend/e2e/auth.spec.ts."""
+    frontend/e2e/auth.spec.ts.
+
+    `vua_xac_thuc_de_gui_lai`: cờ TƯỜNG MINH từ frontend (KHÔNG suy từ mốc
+    giờ), báo lượt này là ChatClient.tsx::submitOtp() TỰ GỬI LẠI câu đã bị
+    chặn OTP trước đó (`pendingStarterRef`) — xem cổng thu-slot-sau-OTP ngay
+    dưới. `False` mặc định giữ hành vi cũ nguyên vẹn cho mọi caller khác
+    (eval/golden_set, test, mọi lượt chat bình thường)."""
     if otp_verified_at is _ALWAYS_FRESH:
         otp_verified_at = dt.datetime.utcnow().timestamp()
 
@@ -777,6 +994,240 @@ def run_agent_turn(
     _SO_TOOL_GUI = None
     _CHARS_TOOL_SCHEMA_THAT = None
 
+    # ── ⑭ · CỜ CLIENT PHẢI CÓ BẰNG CHỨNG PHÍA SERVER ────────────────────────
+    # 🔴 LỖ ĐÃ ĐO (Review tìm, PO tái lập bằng gọi thẳng API, Coder xác nhận lại
+    # bằng đọc mã): `vua_xac_thuc_de_gui_lai` là cờ do CLIENT tự khai, và cả BA
+    # cổng tất định đều dùng nó theo hướng "True ⟹ BỎ QUA".
+    #     :928  T0   True ⟹ vào T0, mà câu có bất kỳ chữ số nào là rơi thẳng xuống model
+    #     :986  ④    `and not vua_xac_thuc_de_gui_lai`  ⟹ bỏ qua
+    #     :1035 T1   `if not vua_xac_thuc_de_gui_lai`   ⟹ bỏ qua
+    # ⟹ MỘT cờ tắt được CẢ BA. Client bất kỳ (curl/Postman) với JWT hợp lệ nhưng
+    # CHƯA OTP, đặt cờ=true trên mọi request, đi thẳng vào lượt model đầy đủ.
+    #
+    # ✅ KHÔNG lộ dữ liệu — tầng tool đọc `otp_verified_at` từ JWT, không đọc cờ
+    #    này. Ràng buộc cứng 4 KHÔNG thủng.
+    # 🔴 NHƯNG đây đúng kịch bản 49.700–71.600 token mà ④ sinh ra để triệt. Và nó
+    #    KHÔNG chỉ là chi phí: trần thật của hệ là TPM (STATE §6.⓵), mà TPM là
+    #    hạn ngạch DÙNG CHUNG — một client lạm dụng ăn vào phần của MỌI khách
+    #    khác. Đó là KHẢ DỤNG, không phải hoá đơn.
+    #
+    # Bản vá: cờ chỉ có hiệu lực khi server TỰ BIẾT thread này từng bị chặn.
+    # Dùng lại `thread_signals` (không dựng cơ chế thứ hai).
+    #
+    # 🔴 HƯỚNG AN TOÀN: `doc_tin_hieu` là `doc_hoac_khong_ro` — Redis lỗi trả
+    # None. `None` và `0` ĐỀU coi là KHÔNG có bằng chứng ⟹ cờ bị bỏ qua ⟹ cổng
+    # tất định chạy bình thường. Sai về phía RẺ, không sai về phía đắt. Hỏng
+    # Redis làm khách bị hỏi lại một lượt (phiền), KHÔNG mở cổng cho ai.
+    #
+    # Vì sao khoá theo thread SỐNG SÓT qua bước xác thực: `/auth/otp/verify` cấp
+    # lại token GIỮ NGUYÊN `iat` gốc (src/auth.py::create_access_token) đúng để
+    # `thread_id = user_id:iat` không đổi giữa chừng hội thoại.
+    _tid_bang_chung = thread_id or user_id
+    _co_bang_chung_bi_chan = doc_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, _tid_bang_chung) not in (None, 0)
+    if vua_xac_thuc_de_gui_lai and not _co_bang_chung_bi_chan:
+        _logger.info(
+            "agent_turn_co_resend_khong_co_bang_chung",
+            extra={"user_id": user_id, "thread_id": _tid_bang_chung},
+        )
+    vua_xac_thuc_de_gui_lai = vua_xac_thuc_de_gui_lai and _co_bang_chung_bi_chan
+
+    # ── ⑨ + MẢNH 4 · THU NHẬN CÂU TRẢ LỜI SÀNG LỌC ──────────────────────────
+    # Lượt TRƯỚC đã hỏi câu sàng lọc (tín hiệu thread). Lượt này là câu trả lời.
+    #
+    # Đây là mảnh KHÔNG AI TÍNH GIÁ trong phiếu gốc: trước bản này
+    # `engine.evaluate()` chỉ được gọi ĐÚNG MỘT LẦN, với `description_raw` lúc
+    # tạo vé. FS-13 dù tồn tại cũng chỉ bắt được ca khách tự khai ngay trong mô
+    # tả đầu — mà khách gọi việc của mình là "chuyển nhầm" thì không bao giờ
+    # chạm tới. Tức tín hiệu chỉ bật khi ta đã không cần nó.
+    #
+    # HAI nguồn, hợp nhất:
+    #   ① `la_tra_loi_khang_dinh` — khách nói CÓ. Đó CHÍNH LÀ ngữ nghĩa FS-13,
+    #      suy ra từ NGỮ CẢNH HỎI-ĐÁP, không cần câu trả lời chứa từ khoá nào.
+    #   ② `engine.evaluate()` trên chính câu ấy — bắt câu trả lời giàu hơn
+    #      ("có, người ta gọi điện bảo em chuyển") và cả FS-09.
+    #
+    # XOÁ tín hiệu sau khi xử: một lần hỏi, một lần thu. Không xoá thì mọi lượt
+    # sau đều chạy lại một truy vấn DB không đổi kết quả.
+    # KHÔNG chặn lượt: đây là GHI NHẬN, không phải cổng. Hỏng thì lượt vẫn chạy.
+    _tid_sl_thu = thread_id or user_id
+    if doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu) not in (None, 0):
+        try:
+            _gop = hop_nhat_tin_hieu_gian_lan(
+                session,
+                thread_id=_tid_sl_thu,
+                utterance_text=message,
+                them_ma=["FS-13"] if la_tra_loi_khang_dinh(message) else None,
+            )
+            # 🔴 XOÁ SAU KHI MERGE THÀNH CÔNG, không trước (Review bắt, PO chốt).
+            # Bản đầu xoá TRƯỚC `try` — merge ném lỗi thì lượt vẫn chạy (đúng)
+            # nhưng lời khai "có người hướng dẫn em chuyển" MẤT VĨNH VIỄN, không
+            # lượt nào thử lại. Đúng luật bất đối xứng đã viết ở bộ dò khẳng định,
+            # khác miền:
+            #   xoá SAU  ⟹ merge hỏng thì hỏi lại khách một lần.    Phiền.
+            #   xoá TRƯỚC ⟹ merge hỏng thì MẤT lời khai bị lừa đảo. Hỏng thật.
+            #
+            # KHÔNG có vòng lặp hỏi mãi: cổng HỎI đòi tín hiệu == 0, mà tín hiệu
+            # chỉ về 0 khi merge XONG. Tín hiệu còn 1 ⟹ không hỏi lại, chỉ thử
+            # merge lại mỗi lượt. Retry bị chặn trên bởi số lượt khách còn chat,
+            # không phải một vòng lặp trong một lượt.
+            xoa_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu)
+            _logger.info(
+                "agent_turn_thu_sang_loc_lua_dao",
+                extra={"user_id": user_id, "thread_id": _tid_sl_thu,
+                       "tin_hieu_sau_gop": _gop},
+            )
+            # ① — FS-13 bật ⟹ DỪNG LƯỢT, không gọi model. Bàn giao ở TẦNG
+            # SERVICE (`flag_human_handoff`), KHÔNG qua tool của AI — đúng ràng
+            # buộc cứng 2: leo thang không bao giờ do AI tự gọi.
+            if _gop is not None and "FS-13" in _gop:
+                _tk = None
+                try:
+                    _tk = flag_human_handoff(
+                        session, user_id=user_id,
+                        reason="Khách xác nhận có người hướng dẫn chuyển khoản "
+                               "(FS-13) — cần chuyên viên liên hệ trực tiếp.",
+                        thread_id=_tid_sl_thu,
+                    ).get("ticket_id")
+                except Exception:  # noqa: BLE001
+                    _logger.exception(
+                        "agent_turn_fs13_ban_giao_loi",
+                        extra={"user_id": user_id, "thread_id": _tid_sl_thu},
+                    )
+                _kq_fs13 = {
+                    "reply": _FS13_BAN_GIAO,
+                    "tool_calls": [], "ticket_id": _tk, "should_escalate": False,
+                    "model": None, "models_da_thu": [],
+                    "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                              "cached_input_tokens": 0, "reasoning_tokens": 0,
+                              "input_chars": 0, "so_luot_goi_model": 0,
+                              "so_tool_schema_gui": 0, "chars_tool_schema_moi_luot": 0,
+                              "suy_luan_gui": None},
+                    "loc_dau_ra": [],
+                    "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                    "goi_y_handoff": True,
+                    "ly_do_fallback": None,
+                    "duong": DUONG_FS13_BAN_GIAO,
+                }
+                _ghi_so(_kq_fs13, thread_id, user_id)
+                return _kq_fs13
+        except Exception:  # noqa: BLE001 — ghi nhận KHÔNG được làm hỏng lượt chat
+            _logger.exception(
+                "agent_turn_thu_sang_loc_loi",
+                extra={"user_id": user_id, "thread_id": _tid_sl_thu},
+            )
+
+    # ── T0 · CỔNG THU SLOT SAU KHI XÁC THỰC OTP ─────────────────────────────
+    # Chạy TRƯỚC phan_luong() (1B), độc lập với `PHAN_LUONG_BAT` — quyết định
+    # "gọi model với gì" ở đây khác hẳn quyết định "lượt này cần bộ đồ nghề
+    # nào" của 1B. Khi cờ này bật, lượt này KHÔNG đi qua nhe/thu_slot/day_du
+    # của 1B — resend-sau-OTP luôn là một khiếu nại thật (đó là lý do tool bị
+    # OTP chặn), không bao giờ hợp lệ để đi DUONG_NHE hay bị 1B hỏi lại số
+    # tiền theo slot khác.
+    # 🔴 Đ4 (phiếu "OTP trước token" ⑦) — cổng này nay có CÔNG TẮC RIÊNG
+    # `CONG_T0_BAT` (mặc định BẬT, xem src/config.py). Trước bản vá, tắt
+    # `PHAN_LUONG_BAT` để chữa cháy vẫn để T0 chạy, và KHÔNG tín hiệu nào báo.
+    # Nhận diện trong sổ: `duong=otp_resend_thu_slot` ⟹ T0 đã xử lý lượt này.
+    if CONG_T0_BAT and vua_xac_thuc_de_gui_lai:
+        _tid_hieu_qua_otp = thread_id or user_id
+        if doc_tin_hieu(_TEN_TIN_HIEU_OTP_RESEND, _tid_hieu_qua_otp) == 0 and not co_du_de_thu_hep(message):
+            tang_tin_hieu(_TEN_TIN_HIEU_OTP_RESEND, _tid_hieu_qua_otp)
+            _logger.info(
+                "agent_turn_otp_resend_thu_slot",
+                extra={"user_id": user_id, "thread_id": _tid_hieu_qua_otp},
+            )
+            _kq_otp_resend = {
+                "reply": HOI_THOI_GIAN_VA_SO_TIEN,
+                "tool_calls": [],
+                "ticket_id": None,
+                "should_escalate": False,
+                # Cùng nguyên tắc DUONG_NHE/DUONG_THU_SLOT — không gọi model
+                # nào, None/0 là SỰ THẬT, không phải "không đọc được".
+                "model": None,
+                "models_da_thu": [],
+                "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                          "cached_input_tokens": 0, "reasoning_tokens": 0,
+                          "input_chars": 0, "so_luot_goi_model": 0,
+                          "so_tool_schema_gui": 0,
+                          "chars_tool_schema_moi_luot": 0,
+                          "suy_luan_gui": None},
+                "loc_dau_ra": [],
+                "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                "goi_y_handoff": False,
+                "ly_do_fallback": None,
+                "duong": DUONG_OTP_RESEND_THU_SLOT,
+            }
+            _ghi_so(_kq_otp_resend, thread_id, user_id)
+            return _kq_otp_resend
+        # Đủ điều kiện (có mã/thời gian) HOẶC đã hỏi rồi ở một lượt resend
+        # trước đó trong hội thoại này (khách xác thực OTP nhiều lần) — KHÔNG
+        # tăng tín hiệu (chỉ tăng ở nhánh hỏi phía trên), rơi thẳng xuống
+        # luồng model đầy đủ bên dưới với `message` NGUYÊN VĂN, bỏ qua 1B.
+
+    # ── ④ · CỔNG OTP TẤT ĐỊNH CHO NHÓM B ────────────────────────────────────
+    # Bất biến của đợt: KHÔNG lượt nào tốn token trước khi OTP xác thực xong.
+    # Lượt khiếu nại cá nhân mà OTP chưa tươi thì CHẮC CHẮN bị tầng tool chặn —
+    # gọi model cho nó là trả tiền để tự khám phá một sự thật tầng này đã biết.
+    # [ĐO, customer_tools.py:620-629 tự khai] lượt ấy tốn 8 tool call · 46 giây ·
+    # 49.700–71.600 token, và sổ ghi `total_tokens = 0`.
+    #
+    # Q1 (PO chốt): CHỈ áp cho NHÓM B. Câu hỏi chính sách KHÔNG bị chặn —
+    # `search_policy` vốn đã được miễn OTP.
+    #
+    # 🔴 KHÔNG PHẢI LỚP BẢO MẬT — xem chú thích `CONG_OTP_NHOM_B_BAT` ở
+    # src/config.py. Dùng ngưỡng XEM (12h), CỐ Ý lỏng bằng tầng tool chứ không
+    # chặt hơn. Gỡ chốt ở tool vì "đã có cổng này" là mở ràng buộc cứng 4.
+    #
+    # Đặt SAU T0 (lượt resend-sau-OTP đã xác thực rồi, không rơi vào đây) và
+    # TRƯỚC T1 — muộn hơn là đã tiêu mất thứ định tiết kiệm.
+    #
+    # 🔴 AM-01 tạm còn `nhom_b=True` ⟹ một lớp câu hỏi chính sách bị chặn. Đây
+    # là lỗ ĐÃ TRACKED của NHÓM B chảy xuống, KHÔNG phải hồi quy do ④ gây ra;
+    # tự đóng khi ③ vòng 2 (trục thể câu) land. Lead duyệt land trước, 25/08.
+    if (
+        CONG_OTP_NHOM_B_BAT
+        and not vua_xac_thuc_de_gui_lai
+        # TÁI DÙNG `_otp_fresh` của tầng tool — KHÔNG viết định nghĩa thứ hai
+        # về "còn tươi". Hai định nghĩa của cùng một vật sẽ lệch nhau, và lệch
+        # trong im lặng (cùng lý do `bam_ma_nguon` vs `BUILD_COMMIT` đã có).
+        # Cổng này chặn ⟹ tool cũng sẽ chặn: một nguồn, không thể lệch.
+        and not _otp_fresh(otp_verified_at, OTP_VIEW_MAX_MINUTES)
+        and la_khieu_nai_ca_nhan(message)
+    ):
+        _logger.info(
+            "agent_turn_can_otp",
+            extra={"user_id": user_id, "thread_id": thread_id or user_id,
+                   "bam_luat": BAM_LUAT},
+        )
+        _kq_can_otp = {
+            "reply": _CAN_XAC_THUC_OTP,
+            # 🔴 HỢP ĐỒNG VỚI CLIENT (Lead duyệt 25/08): client mở hộp thoại OTP
+            # bằng `duong === "can_otp"`, KHÔNG bằng câu chữ tiếng Việt của
+            # `reply`. Trước ④, hai đường kích OTP của ChatClient.tsx đều đọc
+            # `tool_calls`/`ticket_id` — mà mọi đường 0-token đều trả rỗng, nên
+            # thêm cổng này mà không thêm khoá là để khách vào ngõ cụt.
+            "tool_calls": [],
+            "ticket_id": None,
+            "should_escalate": False,
+            "model": None,
+            "models_da_thu": [],
+            "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                      "cached_input_tokens": 0, "reasoning_tokens": 0,
+                      "input_chars": 0, "so_luot_goi_model": 0,
+                      "so_tool_schema_gui": 0,
+                      "chars_tool_schema_moi_luot": 0,
+                      "suy_luan_gui": None},
+            "loc_dau_ra": [],
+            "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+            "goi_y_handoff": False,
+            "ly_do_fallback": None,
+            "duong": DUONG_CAN_OTP,
+        }
+        # ⑭ — ghi BẰNG CHỨNG: thread này vừa bị cổng OTP chặn thật. Lượt sau
+        # client mới được quyền đặt `vua_xac_thuc_de_gui_lai`.
+        tang_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, thread_id or user_id)
+        _ghi_so(_kq_can_otp, thread_id, user_id)
+        return _kq_can_otp
+
     # ── T1 · PHÂN LUỒNG ─────────────────────────────────────────────────────
     # Sau cờ, MẶC ĐỊNH TẮT. Tắt thì hàm này chạy y hệt trước khi có nhánh này.
     #
@@ -786,7 +1237,7 @@ def run_agent_turn(
     #
     # Đặt SAU khi nạp `user` (cần user tồn tại thật) và TRƯỚC mọi thứ khác —
     # đặt muộn hơn là đã tiêu mất thứ ta định tiết kiệm.
-    if PHAN_LUONG_BAT:
+    if not vua_xac_thuc_de_gui_lai and PHAN_LUONG_BAT:
         _duong, _ly_do_duong = phan_luong(message)
         if _duong == DUONG_NHE:
             _logger.info(
@@ -825,6 +1276,63 @@ def run_agent_turn(
             }
             _ghi_so(_kq_nhe, thread_id, user_id)
             return _kq_nhe
+
+        elif _duong == DUONG_THU_SLOT:
+            # 1B — cổng thu slot tất định (docs/giao-viec/2026-08-24-luong-
+            # chatbot-1A-1B.md). Trạng thái "đã hỏi lần nào chưa" sống ở TẦNG
+            # GỌI này (Redis, thread_signals.py) — phan_luong.py là hàm THUẦN,
+            # không side-effect. Tối đa MỘT LẦN hỏi mỗi hội thoại (mục 5): đã
+            # hỏi rồi thì KHÔNG return sớm ở đây nữa, rơi thẳng xuống đường
+            # đầy đủ bên dưới như một lượt day_du bình thường — GHÉP lại lời
+            # kể gốc + câu trả lời của khách là việc của model đọc lịch sử
+            # hội thoại, tầng tất định này không có khả năng ghép ngữ cảnh
+            # liên-lượt (đúng bất biến "phân loại theo TỪNG LƯỢT").
+            #
+            # 🔴 Review bắt 24/08: dùng `doc_hoac_khong_ro()` (KHÔNG phải
+            # `doc()`) — `== 0` CHỈ đúng khi Redis xác nhận "chưa hỏi thật".
+            # Redis lỗi trả `None`, `None == 0` là `False` ⟹ KHÔNG bắn, rơi
+            # xuống day_du — đúng hướng an toàn của module này ("nghi ngờ
+            # thì đi ĐẦY ĐỦ"). Dùng `doc()` thường (gộp lỗi vào 0) sẽ làm
+            # Redis chết ⟹ gate coi mọi lượt là lần đầu ⟹ bắn lặp lại.
+            _tid_hieu_qua = thread_id or user_id
+            if doc_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua) == 0:
+                tang_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua)
+                # R1 (1A) chốt 24/08: cổng CHỈ hỏi ĐÚNG MỘT thứ — số tiền là
+                # slot bắt buộc duy nhất (xem chú thích HOI_THIEU_SO_TIEN),
+                # nên không còn cần boc_slot(message) ở đây để chọn mẫu.
+                _reply_slot = HOI_THIEU_SO_TIEN
+                _logger.info(
+                    "agent_turn_duong_thu_slot",
+                    extra={"user_id": user_id, "thread_id": _tid_hieu_qua,
+                           "ly_do": _ly_do_duong, "bam_luat": BAM_LUAT},
+                )
+                _kq_slot = {
+                    "reply": _reply_slot,
+                    "tool_calls": [],
+                    "ticket_id": None,
+                    "should_escalate": False,
+                    # Cùng nguyên tắc DUONG_NHE — không gọi model nào, None/0
+                    # là SỰ THẬT, không phải "không đọc được".
+                    "model": None,
+                    "models_da_thu": [],
+                    "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                              "cached_input_tokens": 0, "reasoning_tokens": 0,
+                              "input_chars": 0, "so_luot_goi_model": 0,
+                              "so_tool_schema_gui": 0,
+                              "chars_tool_schema_moi_luot": 0,
+                              "suy_luan_gui": None},
+                    "loc_dau_ra": [],
+                    "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                    "goi_y_handoff": False,
+                    "ly_do_fallback": None,
+                    # 🔴 Nhãn RIÊNG, KHÔNG dùng chung "nhe" — thiếu nhãn này
+                    # thì không đếm được tần suất cổng bắn/lượt trong
+                    # usage.jsonl, dự báo giảm token (1B.5) không kiểm chứng
+                    # được (yêu cầu PO-agent, mục 1 nháp 1B).
+                    "duong": DUONG_THU_SLOT,
+                }
+                _ghi_so(_kq_slot, thread_id, user_id)
+                return _kq_slot
 
     # ES-xx (ADR-022) — tính TRƯỚC khi gọi agent, trên tin nhắn khách, ở TẦNG
     # SERVICE. Không gọi LLM, không đi vào prompt, không thêm bước nào.
@@ -1325,6 +1833,8 @@ def run_agent_turn(
     tool_calls_out: list[dict] = []
     ticket_id = None
     should_escalate = None
+    co_loi_otp_trong_luot = False
+    so_goi_mo_coi = 0
 
     for m in turn_messages:
         if not (isinstance(m, AIMessage) and m.tool_calls):
@@ -1332,6 +1842,17 @@ def run_agent_turn(
         for call in m.tool_calls:
             tm = tool_msgs_by_id.get(call["id"])
             if tm is None:
+                # 🔴 LỜI GỌI MỒ CÔI — model phát ra `tool_call` mà KHÔNG có
+                # `ToolMessage` kết quả. Bản trước `continue` im lặng ⟹ nó
+                # KHÔNG để lại dấu nào, `so_tool_call=0`, **y hệt "model không
+                # đề xuất gì"**. Hai trạng thái khác hẳn nhau đội chung một vỏ —
+                # đúng họ lỗi dự án đã đặt tên nhiều lần.
+                so_goi_mo_coi += 1
+                _logger.warning(
+                    "agent_tool_call_mo_coi",
+                    extra={"user_id": user_id, "thread_id": thread_id or user_id,
+                           "tool_name": call["name"]},
+                )
                 continue
             try:
                 payload = json.loads(tm.content)
@@ -1341,6 +1862,26 @@ def run_agent_turn(
             if call["name"] == "create_ticket" and "ticket_id" in payload:
                 ticket_id = payload["ticket_id"]
                 should_escalate = payload.get("should_escalate")
+                # 🔴 ĐỪNG DỰNG LẠI `loai_khieu_nai` Ở ĐÂY. Bản trước móc
+                # `complaint_type` từ `args` tại chỗ này để ⑨ dùng; ⑨ đã CHUYỂN
+                # ĐIỂM MÓC 25/08 sang hai tín hiệu thread (`la_ca_chuyen_nham` +
+                # `_TEN_TIN_HIEU_DA_TRA_DUOC_GD`, xem khối ⑨ · K2 phía dưới) để
+                # câu sàng lọc rơi đúng LƯỢT 4 thay vì lượt 8. Biến ở đây thành
+                # tử thi — không ai đọc, nhưng chú thích cũ vẫn mô tả một cơ chế
+                # đã dời đi, tức nó CHỦ ĐỘNG chỉ sai đường cho người đọc sau.
+                # (Nếu cần `complaint_type` cho việc KHÁC: nó nằm ở `args`,
+                # KHÔNG ở `result` — create_ticket.py:110-118 cố ý không trả.)
+            # ⑧ · điểm gắn "lượt 1" — lượt này có tool nào bị CỔNG OTP chặn
+            # không. Đọc GIÁ TRỊ TRẢ VỀ, không bắt exception: hai lỗi OTP
+            # `return` một dict, KHÔNG raise (customer_tools.py:596-613) —
+            # cùng cái bẫy `_CHI_THI_DUNG_LAP` đã ghi lại ở đó.
+            # Khớp theo `loai` TRƯỚC (có cấu trúc, GĐ2.5 dựng riêng để client
+            # khỏi phụ thuộc câu chữ), rồi mới tới neo tiếng Việt cho nhánh
+            # `_OTP_REQUIRED_ERROR` — nhánh CỐ Ý không có `loai` (xem chú
+            # thích tại chỗ), nên neo chuỗi là đường DUY NHẤT còn lại.
+            if isinstance(payload, dict) and payload.get("status") == "error":
+                if payload.get("loai") == "otp_het_tuoi" or "xác thực" in str(payload.get("message", "")):
+                    co_loi_otp_trong_luot = True
 
     if ticket_id is not None:
         write_investigation_logs_for_ticket(session, ticket_id=ticket_id, all_messages=all_messages)
@@ -1522,6 +2063,91 @@ def run_agent_turn(
     # production. Trả qua ENVELOPE (không chỉ ghi Redis) vì cùng lý do ba trường
     # chẩn đoán bên dưới: eval gọi thẳng graph, Redis là fakeredis per-process,
     # nên bộ đếm vô hình với người đo nếu chỉ ghi Redis.
+    # ⑭ — đường THỨ HAI sinh bằng chứng: lượt này model đã chạy và TOOL bị cổng
+    # OTP chặn. Phủ ca ④ không bắn (vd câu không thuộc NHÓM B nhưng model vẫn
+    # quyết gọi tool) — thiếu nhánh này thì luồng resend hợp lệ của khách sẽ bị
+    # chính ⑭ chặn nhầm.
+    if co_loi_otp_trong_luot:
+        tang_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, thread_id or user_id)
+
+    # ── 🔴 CỔNG RÀNG BUỘC CỨNG 3 · KHAI-ĐÃ-TẠO-VÉ PHẢI CÓ VÉ THẬT ──────────
+    # Sự cố 25/08, buổi chạy kịch bản: bot nói *"Đã tạo hồ sơ khiếu nại thành
+    # công với mã CMP-00003"* trong khi **0 dòng** được tạo — và `CMP-00003` là
+    # mã CÓ THẬT của một khách KHÁC. Bot không đọc trộm gì; nó bịa một chuỗi
+    # ngắn tình cờ là khoá của người khác, nên mọi lớp che PII vô can.
+    #
+    # [ĐO] lượt ấy KHÔNG hỏng: so_luot_goi_model=1 · ly_do_fallback=null ·
+    # so_tool_call=0. Model chỉ KỂ CHUYỆN trong một lượt bình thường.
+    #
+    # [ĐO] vì sao lọt: O5 NHƯỜNG khi câu có kèm mã (chú thích của nó tự khai
+    # giả định *"O3 đã phủ mọi ca có mã bịa"*), mà O3 MÙ với `CMP-00003` (dấu
+    # `-` cắt dưới ngưỡng 7 ký tự liền). Khe hở nằm ĐÚNG GIỮA hai cổng — không
+    # cổng nào hỏng, sự PHÂN CÔNG giữa chúng hỏng.
+    # ⟹ **Thêm một mã giả vào câu làm nó AN TOÀN HƠN trong mắt bộ lọc.**
+    #
+    # 🔴 CỔNG NÀY KHÔNG KHỚP TỪ VỰNG ĐỂ ĐOÁN THẬT/GIẢ — nó đối chiếu lời khai
+    # với `ticket_id` THẬT của chính lượt này. Đó là lý do nó không thừa hưởng
+    # trần của cách khớp-từ mà `_khop_o5` đã tự khai sau ba vòng vá.
+    # Đặt TRƯỚC mọi chỗ chèn (⑧/⑨) để câu thay thế không mang theo lời khai sai.
+    if ticket_id is None and khai_da_tao_ve(reply_da_loc):
+        _logger.error(
+            "agent_khai_tao_ve_khong_co_ve",
+            extra={"user_id": user_id, "thread_id": thread_id or user_id,
+                   "so_goi_mo_coi": so_goi_mo_coi, "model": model_da_tra_loi},
+        )
+        nhom_khop = list(nhom_khop) + ["RB3"]
+        reply_da_loc = _CHUA_TAO_DUOC_VE
+
+    # ⑧ · K3 — chèn SAU bộ lọc. Xem chú thích tại `_them_canh_bao_mao_danh`
+    # về lý do KHÔNG được dời lên trước.
+    reply_da_loc = _them_canh_bao_mao_danh(
+        reply_da_loc, co_loi_otp=co_loi_otp_trong_luot, ticket_id=ticket_id
+    )
+
+    # ⑨ · K2 — CÂU SÀNG LỌC LỪA ĐẢO, tất định, 0 token.
+    # Điều kiện bắn ĐỌC TỪ TẦNG NÀY, không giao model quyết: vé vừa tạo có
+    # `complaint_type == "wrong_recipient"`, và thread chưa từng được hỏi.
+    # Chuyên gia đòi hỏi ở MỌI ca chuyển nhầm — kể cả ca trông rõ ràng, vì
+    # chính ca rõ ràng mới là ca hay bị bỏ qua.
+    # Chèn SAU bộ lọc, cùng lý do ⑧ (xem chú thích ở `_them_canh_bao_mao_danh`).
+    # 🔴 ĐỔI ĐIỂM MÓC 25/08 — bản đầu bắn theo `ticket_id is not None`, tức chỉ
+    # bắn được SAU khi `create_ticket` trả về. Trong kịch bản chuyên gia, vé tạo
+    # giữa lượt 7 và 8 ⟹ câu sàng lọc xuất hiện ở LƯỢT 8, còn chuyên gia đặt nó
+    # ở LƯỢT 4. Chênh 4 lượt, và chênh đúng chiều nguy: khách đã nghe TRỌN lời
+    # khuyên chuyển-nhầm ở lượt 5-6 rồi mới bị hỏi có bị lừa không.
+    # Tôi chọn chỗ DỄ ĐO (`create_ticket` là nơi duy nhất tầng code biết chắc
+    # `complaint_type`), không chọn chỗ ĐÚNG LƯỢT. Phiếu ⑨ nói "hỏi ở MỌI ca
+    # chuyển nhầm" — nói CÓ HỎI KHÔNG, không nói HỎI Ở ĐÂU; 5 trục đặc tả cũng
+    # chấm "có hỏi", nên không cổng nào bắt được lỗi 4 lượt.
+    #
+    # 🔴 VẾ LƯỢT 8 ĐÃ BỎ HẲN, không để cả hai (điều kiện cứng của PO): hỏi khách
+    # HAI LẦN cùng một câu là hỏng theo cách khác, và nó SẼ LỌT mọi cổng hiện có
+    # vì tất cả đều chấm "có hỏi không".
+    #
+    # ĐỊNH VỊ LƯỢT 4: đọc tín hiệu của các lượt TRƯỚC, rồi mới ghi tín hiệu lượt
+    # NÀY (thứ tự quan trọng). Lượt tra được giao dịch chỉ GHI tín hiệu; lượt kế
+    # tiếp mới hỏi ⟹ đúng lượt 4, không phải lượt 3.
+    _tid_sl = thread_id or user_id
+    if la_ca_chuyen_nham(message):
+        tang_tin_hieu(_TEN_TIN_HIEU_CA_CHUYEN_NHAM, _tid_sl)
+    _da_tra_duoc = doc_tin_hieu(_TEN_TIN_HIEU_DA_TRA_DUOC_GD, _tid_sl) not in (None, 0)
+    if (
+        _da_tra_duoc
+        and doc_tin_hieu(_TEN_TIN_HIEU_CA_CHUYEN_NHAM, _tid_sl) not in (None, 0)
+        and doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl) == 0
+    ):
+        tang_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl)
+        reply_da_loc = (reply_da_loc.rstrip() + "\n\n" + HOI_SANG_LOC_LUA_DAO).strip()
+    # Ghi SAU khi đã xét ở trên — nếu ghi trước, lượt tra-được sẽ tự thoả điều
+    # kiện và câu hỏi rơi vào lượt 3 (chung tin với bản đọc lại 5 dữ kiện),
+    # phá luôn R1 "một Ý mỗi tin".
+    if not _da_tra_duoc and any(
+        c.get("tool_name") == "lookup_transaction"
+        and isinstance(c.get("result"), dict)
+        and c["result"].get("status") == "found"
+        for c in tool_calls_out
+    ):
+        tang_tin_hieu(_TEN_TIN_HIEU_DA_TRA_DUOC_GD, _tid_sl)
     tin_hieu_lo_chi_thi_ket_qua = tin_hieu_lo_chi_thi(reply, thread_id=thread_id or user_id)
     _kq_cuoi = {
         "reply": reply_da_loc,

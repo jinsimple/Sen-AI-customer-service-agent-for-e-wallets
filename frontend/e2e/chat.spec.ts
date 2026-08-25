@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { completeOtpIfPrompted, createTicketAsCustomerViaAI, loginAs } from "./helpers/actors";
+import { completeOtpIfPrompted, createTicketAsCustomerViaAI, loginAs, unlockTxnRail } from "./helpers/actors";
 
 /**
  * FIN05-StressTest-Plan-v4 GAP-FE-007 — `/chat` nhánh AI (chip chọn loại
@@ -18,6 +18,12 @@ test.describe("CHAT-* — chatbot AI khách hàng, rail & luồng tạo ticket",
   test("rail 'Giao dịch gần đây' hiện dữ liệu thật khi vào trang", async ({ page }) => {
     await loginAs(page, CUSTOMER_PHONE, "/chat");
 
+    // 🔴 [ĐO 24/08, Review] Trước đây chờ thẳng .txn-item không gọi
+    // unlockTxnRail() trước — CHỈ xanh nhờ phiên OTP còn tươi sót lại từ lượt
+    // chạy khác (cùng CUSTOMER_PHONE), đúng bẫy đã trả giá 19/08 ở
+    // auth.spec.ts/auth-multirole.spec.ts. Trên máy/CI chạy nguội (chỉ mỗi
+    // file này, hoặc chạy đầu tiên) ca này timeout — không phải lỗi sản phẩm.
+    await unlockTxnRail(page);
     const txnItems = page.locator(".txn-item");
     await expect(txnItems.first()).toBeVisible({ timeout: 15_000 });
     const count = await txnItems.count();

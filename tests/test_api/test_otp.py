@@ -316,3 +316,71 @@ def test_otp_verify_preserves_original_iat_for_thread_continuity(client):
     new_token = verify_resp.json()["access_token"]
     new_iat = jwt.decode(new_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])["iat"]
     assert new_iat == original_iat
+
+
+# ---------------------------------------------------------------------------
+# Đối chứng khoá hành vi — token CŨ (trước verify) vẫn PHẢI bị chặn sau khi
+# MỘT token khác (mới, cùng user) đã xác thực OTP thành công.
+#
+# Bối cảnh (24/08): PO thật tự tìm ra bug Ở FRONTEND — ChatClient.tsx gọi
+# `await verifyOtp(...)` rồi VỨT kết quả, không lưu access_token MỚI, khiến
+# mọi tin nhắn sau đó vẫn mang token CŨ (chưa xác thực) dù giao diện vừa báo
+# "Xác thực thành công". Ca này KHÔNG vá frontend (ngoài vùng ghi tests/) —
+# nó KHOÁ đúng hành vi backend đang có, để không ai "sửa" backend cho dễ
+# (vd chuyển otp_verified thành cờ dùng chung theo user_id, thay vì đọc riêng
+# từ CHÍNH token trình lên) mà vô tình mở toang cổng OTP cho MỌI token cũ của
+# user đó — sẽ che mất bug thật thay vì lộ ra, và biến bug frontend thành lỗ
+# hổng bảo mật thật (token cũ lộ ra ngoài vẫn dùng được sau khi chủ tài khoản
+# xác thực OTP một lần bằng thiết bị khác).
+#
+# 🔴 KHÔNG viết qua /agent/chat như PO-agent đề xuất ban đầu: lookup_transaction/
+# get_customer_history chỉ gác Ở TẦNG AGENT (build_customer_tools, xem docstring
+# đầu file), tức phải có một lượt LangGraph THẬT gọi tool đó mới quan sát được
+# — test_gd2_tool_calls_khong_null.py đã tự khai KHÔNG có tiền lệ dựng fake
+# agent trả về trạng thái tool-call thành công đầy đủ ("KHÔNG đoán hình dạng
+# state cần thiết — để SKIP kèm lý do"), và việc đó tốn LLM thật nếu không
+# fake. /tools/create_ticket là route DUY NHẤT gác OTP Ở TẦNG HTTP (cùng
+# docstring đầu file) — dùng route này để khoá đúng NGUYÊN TẮC (otp_verified_at
+# đọc từ CHÍNH token trình lên, không phải trạng thái dùng chung theo user_id)
+# bằng cơ chế THẬT, 0 token, đã có tiền lệ trực tiếp ở
+# test_otp_verify_correct_then_create_ticket_succeeds ngay phía trên.
+def test_token_cu_van_bi_chan_sau_khi_token_khac_cung_user_da_xac_thuc(client):
+    login_token = _login_token()  # "token cũ" — CHƯA từng qua otp/verify
+    otp_resp = client.post("/auth/otp/request", headers=_auth(login_token)).json()
+    verify_resp = client.post(
+        "/auth/otp/verify",
+        headers=_auth(login_token),
+        json={"session_id": otp_resp["session_id"], "otp_code": otp_resp["otp_code"]},
+    )
+    assert verify_resp.json()["otp_verified"] is True
+    new_token = verify_resp.json()["access_token"]  # "token mới" — cùng user, đã xác thực
+
+    # Đối chứng DƯƠNG trước — token MỚI phải dùng được (nếu vế này tự đỏ, ca
+    # dưới không chứng minh được gì, đúng khuôn test_otp_verify_correct_then_create_ticket_succeeds).
+    resp_new = client.post(
+        "/tools/create_ticket",
+        headers=_auth(new_token),
+        json={"complaint_type": "wrong_recipient", "scope": "internal_wallet", "description_raw": "test"},
+    )
+    assert resp_new.status_code != 403, (
+        f"Token MỚI (vừa otp/verify xong) vẫn bị 403 — vế đối chứng dương tự hỏng, "
+        f"không dùng được để khẳng định gì về token cũ: {resp_new.text[:200]}"
+    )
+
+    # Ca CHÍNH — token CŨ, dùng NGAY SAU KHI token mới (cùng user_id) vừa xác
+    # thực xong, PHẢI VẪN bị chặn. Nếu ca này đỏ (token cũ bỗng dùng được),
+    # nghĩa là otp_verified đã trở thành trạng thái DÙNG CHUNG theo user_id
+    # thay vì đọc riêng từ token — đúng lỗ PO-agent lo backend có thể vô tình
+    # mở ra nếu "sửa" sai chỗ.
+    resp_old = client.post(
+        "/tools/create_ticket",
+        headers=_auth(login_token),
+        json={"complaint_type": "wrong_recipient", "scope": "internal_wallet", "description_raw": "test"},
+    )
+    assert resp_old.status_code == 403, (
+        f"Token CŨ (chưa từng otp/verify) LẠI dùng được create_ticket ngay sau khi "
+        f"token KHÁC của CÙNG user vừa xác thực OTP — otp_verified_at có vẻ đã thành "
+        f"trạng thái dùng chung theo user_id thay vì đọc riêng từ từng token. "
+        f"HTTP {resp_old.status_code}: {resp_old.text[:200]}"
+    )
+    assert "OTP" in resp_old.json()["detail"]

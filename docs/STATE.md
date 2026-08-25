@@ -4,6 +4,10 @@
 > Đọc `CLAUDE.md` (hiến pháp) trước, rồi file này, rồi 5 ADR gần nhất trong `docs/DECISIONS.md`.
 >
 > Cập nhật: **18/08/2026**, ngay trước khi PO thật tắt toàn đội để khởi động lại sạch.
+>
+> 🔴 **NIÊM 24/08 — FILE NÀY CŨ 6 NGÀY.** Đội chạy rất nhanh trong 19–24/08 (đợt 1A/1B, ADR-043→048).
+> Mục nào ghi *"chờ PO"* mà không có dấu 24/08 thì **phải đối chiếu `docs/DECISIONS.md` trước khi tin** —
+> PO đã gỡ nhiều nút ngày 24/08. Dọn trọn file này là việc của `/wrapup` phiên hiện tại.
 > Nhật ký chi tiết ngày 17/08 (3.001 dòng, mọi lập luận và số đo):
 > `docs/nhat-ky/2026-08-17-nhat-ky-day-du.md`
 
@@ -14,14 +18,15 @@
 | | |
 |---|---|
 | **Nhánh** | `dev/learning-loop` (một nhánh, PR theo đợt) |
-| **Cây làm việc DÙNG CHUNG** giữa nhiều phiên | 🔴 **Mọi lệnh `git` phải có pathspec.** `stash`/`commit`/`checkout`/`clean` không pathspec sẽ đụng việc dở của phiên khác. Đã gây 3 sự cố. |
+| **Cây làm việc DÙNG CHUNG** giữa nhiều phiên | 🔴 **Mọi lệnh `git` phải có pathspec.** `stash`/`commit`/`checkout`/`clean` không pathspec sẽ đụng việc dở của phiên khác. Đã gây **4** sự cố. 🔴 **[ĐÍNH CHÍNH 25/08, sự cố #4]:** `commit` nguy hiểm không chỉ vì "đụng cây" — **INDEX cũng là trạng thái DÙNG CHUNG**, không chỉ cây làm việc. `git add <path>` để lại một CỬA SỔ: từ lúc stage tới lúc commit, thứ vừa `add` nằm trong một giỏ **mọi phiên khác đều đổ được** bằng một `git commit -m "…"` KHÔNG pathspec của chính họ (dù họ chỉ định sửa file của họ). **Cách đóng cửa sổ:** luôn `git commit -m "…" -- <pathspec>` (trailing pathspec), KHÔNG BAO GIỜ `git commit -m "…"` trần — dạng có pathspec chỉ commit đúng path nêu ra bằng nội dung hiện tại của nó, bất kể index đang có gì khác. 🔴 **[ĐÍNH CHÍNH LẦN 2, cùng ngày]:** luật trên CHƯA ĐỦ — PO tự chứng minh bằng chính lỗi của mình: chạy `git add -- <path>` rồi `git commit` RIÊNG (sai thứ tự cờ, lệnh hỏng), để file nằm lại trong index; vài giây sau QA/QC `git commit -m "…" -- <path khác>` và cuốn trọn nội dung của PO vào commit đó — **không mất nội dung, mất TRUY VẾT** (đọc `git log` không thấy dấu vết gì). **Luật đúng: `git commit -m "..." -- <pathspec>` PHẢI là MỘT lệnh duy nhất — không bao giờ tách `git add` ra một bước riêng, dù có định commit ngay sau đó.** `git commit -- <pathspec>` không cần index; thêm `git add` chỉ tạo lại đúng cửa sổ sống mà luật này sinh ra để đóng. 🔴 **Đã xét worktree riêng cho từng vai, ba chân lý luận đều đo thật (Lead + PO độc lập):** ① index riêng theo worktree → worktree ĐÓNG được lỗ cửa sổ trên; ② Docker KHÔNG bind-mount `./src` (`Dockerfile:93 COPY . .` đóng cứng lúc build) → không tốn chi phí remap; ③ **git CẤM hai worktree cùng checkout một branch**, cả đội đang commit thẳng vào MỘT branch ⟹ tách worktree = đổi quy trình (branch-per-vai + nhịp merge) giữa dòng, không phải hạ tầng hay luật-phải-nhớ — đây là chân đứng vững, quyết định KHÔNG tách worktree đứng trên nó. **Mốc xét lại — HAI mốc, không phải một:** (a) sự cố pathspec thứ 5 SAU khi luật trailing-pathspec đã có; (b) *(PO đề nghị 25/08)* **giữa hai đợt** — lúc "đổi quy trình giữa dòng" không còn là phản đối, ba chân xét lại trên bàn cân sạch. |
 | **Ba ngăn xếp Docker** | `fin05` (demo, kho RAG 378 chunk) · `fin05ttl` (đo) · `fin05do` (đo, kho RỖNG) |
 | **Bắt buộc `-p`** | `docker compose -p fin05 …` — thiếu `-p` là hạ ngăn xếp khác |
-| **Chạy test** | 🔴 **`docker exec … pytest` NAY KHÔNG CHẠY ĐƯỢC CẢ SUITE** — `.dockerignore:11` loại `eval/`, 3 tệp test đọc `eval/` ⟹ `Interrupted`, **0 ca chạy, hiện ra như "0 failed"**. **Chạy cổng từ HOST.** `docker exec` chỉ còn đúng cho tập con không đụng `eval/`. `P-121-new/.venv` **CẤM dùng để đo kích thích gửi model** (lệch `langchain-core`) |
+| **Chạy test** | 🔴 **`docker exec … pytest` NAY KHÔNG CHẠY ĐƯỢC CẢ SUITE** — `.dockerignore:11` loại `eval/`, 3 tệp test đọc `eval/` ⟹ `Interrupted`, **0 ca chạy, hiện ra như "0 failed"**. **Chạy cổng từ HOST.** `docker exec` chỉ còn đúng cho tập con không đụng `eval/`. `P-121-new/.venv` **CẤM dùng để đo kích thích gửi model** (lệch `langchain-core`) — 🔴 **[ĐÍNH CHÍNH 25/08, Coder tự bắt]:** luật này phủ CẢ hai nghĩa, không chỉ "gọi LLM thật" — **đếm token của kích thích cũng tính** (`convert_to_openai_tool()` sinh lược đồ khác nhau giữa `langchain-core` 1.5.3 host và 1.5.4 container ⟹ số token TUYỆT ĐỐI lệch dù mã giống hệt, băm src khớp). Coder đọc đúng câu chữ nhưng hiểu hẹp, đo ngân sách token bằng venv này cả phiên — mọi **delta** vẫn đúng (lệch cố định triệt tiêu trong hiệu số), mọi con số **tuyệt đối** (kể cả `293` từng dùng làm trần quyết định ⑨ vs ⑪) đều sai, số đúng đo trong container. Muốn số tuyệt đối: đo TRONG container đang chạy, không phải host. |
 | **Biến bắt buộc** | `JWT_SECRET_KEY` · `FIELD_ENCRYPTION_KEY` · `REDIS_URL` (`fake://ci` cho test) |
 | 🔴 **`FIELD_ENCRYPTION_KEY`** | **KHÔNG được xoay** nếu chưa có script mã hoá lại — xoay là **mất vĩnh viễn** dữ liệu đã mã hoá |
 | **Production** `app.adaptivealgo.uk` | **CHỈ ĐỌC** với mọi phiên. Thăm dò phải báo trước |
 | **`eval/heldout_set.jsonl`** | **NIÊM PHONG** — chỉ chạy MỘT LẦN, sau khi hiệu chuẩn trọng tài |
+| 🔴 **CI, từ 24/08** | **CHƯA CỔNG NÀO CHẠY XANH trên bất kỳ commit nào của đợt "OTP trước token".** Mọi "đã land" trong đợt đứng trên phép chạy CỤC BỘ, không phải CI. **[ĐÍNH CHÍNH 25/08, Coder đo sâu hơn — dòng dưới đây THAY dòng [ĐO 25/08, Lead] cũ:]** runner self-hosted (ADR-037) **CÓ THẬT, CÓ CHẠY** — tên `eph-vmrunner-*`/`eph-vmrunner2-*`, **ephemeral** (đóng câu hỏi mở §5.A0 *"tới lúc đó giả định PERSISTENT"* — nay đã ĐO, không còn là giả định). Nguyên nhân CI chưa xanh KHÔNG phải runner chết: `ci.yml:164-170` chạy `ruff check` **NGAY TRƯỚC** bước pytest, không `if: always()` ⟹ **ruff đỏ thì pytest bị SKIP hoàn toàn** — trông giống "chưa tới lượt", không giống "hỏng". [ĐO] `lint-and-test` job thật: ruff FAILURE, pytest SKIPPED. Gốc: 17 lỗi ruff, **toàn bộ trong `eval/`** (vùng QA/QC), nặng nhất ở `cong_phan_luong.py`/`do_cong_thu_tu.py` — hai cổng đo lường CHÍNH của đợt này tự chặn CI báo cáo phần còn lại. Nhóm billing (`ubuntu-latest`, 3 job, annotation *"spending limit"*) là sự cố KHÁC, đã biết từ trước, chỉ PO thật gỡ. Xử lý: xem `docs/giao-viec/CHECKLIST-dot-otp-truoc-token.md` mục CI/lint. **🔴 [ĐÍNH CHÍNH LẦN 2, 25/08, Coder đo]:** `git rev-list --left-right --count origin/dev/learning-loop...HEAD` → **`0  47`** — nhánh đi trước origin **47 commit, lùi 0**. **TOÀN BỘ đợt "OTP trước token" CHƯA TỪNG PUSH.** Mọi run CI vừa mổ ở trên chạy trên code **CŨ HƠN** — không phải "CI đỏ với đợt này", mà **CI chưa từng thấy đợt này**. Hệ quả: số "17 lỗi ruff" là DỰ BÁO trên cây làm việc hôm nay, không phải phép đo trên cái CI thật sự chạy; C3 (sửa `ci.yml`) chưa nghiệm thu được — cần một run CI thật sau khi push mới xác nhận. **Điểm danh bằng `git log` trong đợt này là điểm danh CỤC BỘ** — không chứng minh gì về trạng thái repo nhìn từ bên ngoài máy này (mentor/BTC/PO thật ở máy khác thấy con số 0). **Push cần người thật duyệt** — Coder đúng khi không tự push (thao tác ra ngoài, kích CI trên hạ tầng BTC, hiển thị cho người ngoài đội). 🟢 **[QUYẾT ĐỊNH PO THẬT 25/08, qua PO agent]: KHÔNG gỡ hạn mức, KHÔNG push `dev/learning-loop`.** Bản sao lưu đã có trên GitHub. **Đợt "OTP trước token" đóng với CI KHÔNG chạy — mọi "đã land" đứng trên phép chạy CỤC BỘ, PO thật biết và chấp nhận 25/08.** Đây là quyết định CÓ KHAI, không phải sót — người trực sự cố đọc dòng này để biết không có xác nhận CI cho đợt này, không phải để đi tìm nguyên nhân CI hỏng. |
 
 ## 2. TRẠNG THÁI VẬT (đo lúc bàn giao)
 
@@ -222,6 +227,41 @@ lớn nhất đo được (~40K/lượt hỏng), không phải một việc khá
 > ✅ **Và bỏ Đ.25 GỠ được một nút thắt:** security đã ghi *"vá finding ① sẽ xoá dụng cụ đo của Đ.25
 > ⟹ phải kiểm kê xong TRƯỚC khi vá"*. Bỏ Đ.25 ⟹ **ràng buộc thứ tự ấy tan** ⟹ vá plaintext được
 > land **sớm hơn**, không phải muộn hơn.
+
+### 📅 24/08 — HAI ĐỢT LỚN, ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC
+
+> Phiếu chi tiết: `docs/giao-viec/2026-08-24-luong-chatbot-1A-1B.md` · ADR-045b·046·047·048·049
+
+**Đã ship:** luật hỏi R1–R5 vào prompt · **ADR-047** tiếp-nhận-trước-bổ-sung-sau (khách đòi mở
+khiếu nại ⟹ mở NGAY, vì thời hạn tra soát đếm từ **ngày tiếp nhận**) · cổng thu-slot tất định
+(0 token khi bắn) · tài liệu thời hạn xử lý vào kho RAG.
+
+**🔴 Ba việc CHƯA đóng, phiên sau phải biết:**
+1. **A2 vế 2 đỏ 6 vòng** — loại trừ cả trần model. Prompt **không phải** đòn bẩy đúng.
+   ⟹ **ADR-049** (đổi sang cơ chế tất định) **chờ PO duyệt**. Đừng vá thêm bằng chữ.
+2. **R1 vi phạm thật** — model đọc luật *"cấm gộp A hoặc B"* rồi trả lời bằng đúng chữ "Hoặc".
+   Bằng chứng thứ hai cho ADR-049.
+3. **Redis là điểm chết đơn** — tắt Redis ⟹ `/agent/chat` **crash hẳn**, không response.
+   Vá ở `1a33239`, **chưa live-fire xác nhận**.
+
+**🔴 VẬN HÀNH — người trực sự cố PHẢI biết:** `PHAN_LUONG_BAT` **KHÔNG** bao trọn mọi đường tất
+định trước LLM. Từ 24/08 có thêm **T0** (cổng thu-slot **sau khi xác thực OTP**, `graph.py`), kích
+hoạt bằng cờ tường minh `vua_xac_thuc_de_gui_lai` từ giao diện, **độc lập `PHAN_LUONG_BAT`**.
+⟹ Tắt `PHAN_LUONG_BAT` để chữa cháy **vẫn còn T0 chạy**, và **không có tín hiệu nào báo điều đó**.
+Nhận diện trong sổ đo: `duong=otp_resend_thu_slot` ⟹ T0 xử lý. *(Review nêu 24/08; đề xuất thêm
+kill-switch riêng cho T0 — chưa làm.)*
+
+**🟡 Bốn câu chờ PO thật:** hạn SLA cho vé `scope=unknown` (hiện 30 ngày, **không bao giờ tính
+lại**, ca chạm ngân hàng đáng lẽ 4 ngày làm việc) · trần số vé/phiên (~300 vé/cửa sổ OTP) ·
+FS-13 escalate hay chỉ ghi nhận · ADR-049.
+
+**⚠️ Bài học đắt nhất trong ngày — CÔNG CỤ ĐO hỏng SÁU lần:** cổng báo đỏ mà báo cáo chỉ nêu số
+lẻ xanh · ĐC-5 lỗi thời · ĐC-5 sau sửa bị mù · corpus không kiểm nội dung · bộ dò trục đếm THIẾU
+(⟹ **xanh giả có hệ thống**) · **không lưu reply lúc test đỏ** nên mỗi lần truy là đọc một văn
+bản khác. Đã dựng: **ĐC-6, ĐC-7, kho reply `eval/results/1a_reply_log.jsonl`**.
+🔴 **Số nền `18.597 token/hội thoại` KHÔNG tái tạo được** — niêm trong phiếu, không dùng làm neo.
+
+---
 
 ### 🔴 A. CHẶN, chỉ PO thật gỡ được
 
@@ -489,7 +529,11 @@ không quyết định nào còn treo trên ba con số này** sau khi 10.2 đã
 ### ✅ I+J. Kho checkpoint 0% mã hoá — ĐÃ THÀNH ADR-045, chuyển
 `docs/nhat-ky/2026-08-20-state-dep-F-G-IJ.md`
 
-[ĐO 20/08] ADR-045 (`docs/DECISIONS.md`, commit `b37218f`) 🟡 **chờ PO thật duyệt.** Bốn ràng buộc
+✅ **PO THẬT DUYỆT 24/08** — bốn tham số vận hành đã chốt, xem **ADR-045b**: giữ **90 ngày** ·
+VPS **Việt Nam** · **20 vé/ca** (trung bình ngành quốc tế, NIÊM: không phải số đo đội VN nào) ·
+kiến trúc máy để DevOps tự xác định lúc dựng (không chặn ai). **Mục này KHÔNG còn chặn.**
+
+[ĐO 20/08] ADR-045 (`docs/DECISIONS.md`, commit `b37218f`) — bối cảnh gốc. Bốn ràng buộc
 I+J từng nêu (serde không đổi cột · đừng che `HumanMessage` · giải quyết retention cùng lúc · nghiệm
 thu dò byte) vào ADR nguyên vẹn. Review tìm thêm bảng `checkpoint_writes` (7.015 dòng, chưa ai từng
 đếm) ⟹ **tổng 13.857 blob, 0% mã hoá — gấp đôi con số I+J giữ.** Đọc số mới trong ADR-045, không
@@ -814,7 +858,13 @@ nguyên qua refresh **chính vì** `thread_id` phụ thuộc nó. **Không phả
 
 ```
 trần TPM 1.000.000 / 14.198 token/lượt =  70,4 lượt/phút   ← TRẦN THẬT
-trần RPM        600 /   2,39 gọi/lượt  = 251,0 lượt/phút   ← không bao giờ chạm trước
+trần RPM     10.000 /   2,39 gọi/lượt  = 4.184 lượt/phút  ← không bao giờ chạm trước
+                (⛔ NIÊM 20/08: dòng cũ ghi **600**, SAI, lệch ~17 lần. [ĐO BA 20/08,
+                 `qwencloud.com/models/<model>` mục Rate Limits] deepseek-v4-pro-0813
+                 RPM 10.000 · deepseek-v4-flash-0731 RPM 15.000. **Nguồn của số 600:
+                 KHÔNG TRUY ĐƯỢC** — không tài liệu nào trong repo ghi nó đến từ đâu.
+                 KẾT LUẬN của mục này KHÔNG đổi: TPM vẫn chặn trước, RPM cao hơn chỉ
+                 làm kết luận ấy đúng mạnh hơn.)
 
 150 người × 0,50 lượt/ph =  75 lượt/ph → TPM 🔴 106%
 150 người × 1,00 lượt/ph = 150 lượt/ph → TPM 🔴 213%
@@ -869,6 +919,18 @@ THỰC TẾ     177.000 – 243.000
 **A4** (đối chiếu dashboard).
 
 ### ⓸ `_AGENT_MAX_CONCURRENT = 20` MẤT CĂN CỨ
+
+> ⛔ **NIÊM 20/08 — cả BA mẫu số dùng để cỡ ra số 20 đều đã chết.**
+> Số 20 cỡ từ *"trần OpenAI 200.000 TPM ⟹ ~13 lượt/phút"*. Nay:
+> ① **không dùng OpenAI cho chat nữa** — chat đi qua DashScope (`dashscope-intl.aliyuncs.com`);
+> ② trần **không phải 200.000 mà 1.000.000** (gấp 5);
+> ③ **token/lượt dùng để chia cũng đã đổi** — `14.198` là số của `gpt-4o-mini`, model không còn dùng.
+>
+> 🔴 **KHÔNG ĐỔI GIÁ TRỊ. Chỉ niêm căn cứ.** Đổi một con số mà không biết vì sao nó là con số đó
+> chỉ tạo ra một con số mới cũng không ai biết vì sao. **Phải đo lại TRƯỚC khi ai chạm vào 20.**
+>
+> ⚠️ Và giữ nguyên cảnh báo cũ của chính mục này: **đừng đọc "20" thành "đang tự chặn ở 1/5 năng
+> lực"** — đó là ghép số của trục **TPM** vào trục **ĐỒNG THỜI**. Hai trục khác nhau.
 
 Nó được cỡ từ *"trần OpenAI 200.000 TPM ⟹ ~13 lượt/phút"*. Trần thật giờ là **1M**. Con số 200k
 còn sống ở **3 chỗ trong `src/`** (`rate_limit.py:62` · `main.py:379` · `main.py:621`).
@@ -945,6 +1007,18 @@ KHUÔN VẪN XANH.**
 > chứng minh điều tôi nói. May mắn không phải bằng chứng, dù kết quả trùng nhau."*
 > *(Họ hàng: Luật N — số đếm phải kèm phép đếm; A-mở-rộng nói về PHÉP KIỂM phải kèm khả năng
 > phân biệt.)*
+
+> 🔴 **VẾ BA (đúc 25/08, đợt "OTP trước token" — PO tự nối vào A thay vì xin ký hiệu mới, đúng
+> §7b: trùng ý với A thì là MỘT luật):** Luật A gốc ngầm giả định **cổng có chạy** — chỉ phân
+> biệt IM (bình thường) với KÊU (bất thường). Có một trạng thái thứ ba A không đặt tên, và nó
+> **trông y hệt IM** trên mọi bảng kết quả: **`SKIP` — cổng KHÔNG CHẠY ĐƯỢC.**
+> **"Không chạy được" là một trạng thái RIÊNG, và nó PHẢI KÊU, không được IM.** Một cổng canh
+> ràng buộc cứng mà tự tắt tiếng khi thiếu hạ tầng không phải cổng — nó là một lời chúc may
+> mắn. Hạ tầng vắng là lý do để kêu, không phải lý do để im. Và khi kêu, phải nói **"KHÔNG
+> CHẠY ĐƯỢC vì thiếu X"** — đỏ chung chung đẩy người trực sự cố đi tìm bug trong code.
+> **Ca:** dọn hạ tầng Docker ⟹ `test_inv_ngan_sach_token` chuyển ĐỎ → SKIP, và một báo cáo
+> `2 failed → 1 failed` đọc thành cải thiện trong khi 37 ca đơn giản là không chạy. Cùng họ với
+> `docker exec … pytest` cho 0 ca chạy mà hiện ra như "0 failed" (§1 của tài liệu này).
 
 **Luật B** — làm tròn một phát biểu lên đúng **MỘT nấc** là lớp sai đắt nhất.
 > ⭐ **MỞ RỘNG (security):** kiểm tra cuối trước khi một phát biểu **RỜI KHỎI ĐỘI** là hỏi nó **ĐẨY
@@ -1295,6 +1369,88 @@ ra một lịch sử **không có thật**. Mốc thời gian tin được nằm
   **ĐỎ → XANH**, phải **đọc xem cổng đó khẳng định CÁI GÌ**, không chỉ ghi nhận nó đã xanh.
 **Luật K** — **Nhiều ước lượng độc lập cùng lệch MỘT hướng = thiên lệch CHUNG, đi tìm bộ lọc chung.**
   *(Bằng chứng: `45K` → `0–21K` → thực tế `149–215K`. Bản "đính chính" đi XA HƠN khỏi sự thật.)*
+
+**Luật Y** *(security đúc L 18/08; PO-agent nhận ra áp lại ở miền mới 25/08 — đợt "OTP trước token",
+Coder đo cả hai; Lead cấp ký hiệu, tách khỏi L không ghép vế — L nói riêng về NGƯỠNG của một bộ dò,
+Y nói về CẶP cơ chế bất kỳ, kể cả không phải ngưỡng, quyết định cùng một thứ theo hai hướng)* —
+🔴 **MỘT CẶP CƠ CHẾ QUYẾT ĐỊNH CÙNG MỘT THỨ THEO HAI HƯỚNG PHẢI ĐƯỢC HIỆU CHỈNH NGƯỢC NHAU: xác
+định hướng nào hỏng ĐẮT hơn, nới hướng RẺ, siết hướng ĐẮT.** Đối xử hai hướng như nhau là chọn sai
+ở đúng một trong hai.
+> **Bằng chứng cùng ngày, hai miền độc lập, không phải một hàm:**
+> **Miền 1 — bộ dò trả lời câu sàng lọc lừa đảo** (`c88d431`): nới PHỦ ĐỊNH ⟹ bỏ sót tín hiệu
+> (phiền, hỏi lại được) · nới KHẲNG ĐỊNH ⟹ gắn oan nhãn nghi lừa đảo lên khách thật (hỏng — đây
+> không phải chi phí vận hành, là **gắn nhãn sai lên một con người**).
+> **Miền 2 — thứ tự xoá tín hiệu quanh một bước merge** (`3e9a9ee`, Review bắt): xoá SAU merge ⟹
+> hỏng thì hỏi lại khách một lần (phiền) · xoá TRƯỚC merge ⟹ hỏng thì MẤT VĨNH VIỄN lời khai bị
+> lừa đảo (hỏng — không phục hồi được).
+> **Vì sao tách khỏi L, không ghép vế hai** *(đúng tiền lệ M tách khỏi L 18/08)*: L nói cụ thể về
+> NGƯỠNG của một bộ dò regex/NER; Miền 2 ở trên **không phải ngưỡng** — nó là THỨ TỰ một thao tác
+> xoá dữ liệu quanh một điểm merge. Ghép Y vào L sẽ làm L mất tính sắc (chỉ còn đúng cho ngưỡng)
+> mà Y cũng không được phát biểu đủ rộng (chỉ còn đúng cho bộ dò). Y là **tổng quát hoá của tinh
+> thần L**, không phải một ví dụ mới của L.
+
+**Luật Z** *(đúc trong đợt "OTP trước token" 25/08, gốc tên sprint-local "Luật Đ" —
+Lead chọn lên STATE.md sau khi đợt đóng, vì bài học tái diễn mọi đợt có vai
+`review`/`critic`)* — **ĐIỂM DANH BẰNG DẤU VẾT GIT CHỈ ÁP ĐƯỢC CHO VAI CÓ VÙNG GHI.**
+`CLAUDE.md §4` quy định `review`/`critic` **không ghi gì vào repo** — `git log` không
+bao giờ thấy họ dù họ làm việc liên tục. Với vai không để lại dấu vết trong repo, dấu
+vết duy nhất là **báo cáo của chính họ** ⟹ phải hỏi theo lịch, và **im lặng trong git
+không phải bằng chứng của việc gì cả**. Áp nhầm "đo trước, hỏi sau" lên một vai không
+ghi repo là đo được thiết kế phân vùng, không đo được người.
+> **Bằng chứng:** PO kết luận *"Review 0 commit cả đợt ⟹ có thể đã dừng"* — sai; Review
+> trả lời ngay là đang chạy, vừa xong soát một commit khác.
+
+**Luật AA** *(đúc 25/08, gốc "Luật Đ″" — hai lần PO tự sai trong một giờ, cả hai đều
+nghe rất chặt)* — 🔴 **MỘT KẾT LUẬN KHÔNG KÈM SỐ THÔ THÌ NGƯỜI NGHE ĐƯỢC QUYỀN ĐÒI SỐ
+TRƯỚC KHI LÀM THEO.** Áp cho MỌI vai, **đặc biệt vai điều phối/thẩm quyền** — vì lời
+của vai đó thường không ai chặn lại để hỏi. Khác Luật X (X nói về ĐIỀU KIỆN một con số
+được coi là vật đo; AA nói về QUYỀN của người nghe một KẾT LUẬN, kể cả kết luận không
+mang hình dạng con số, được hoãn tuân theo tới khi thấy số thô).
+> **Bằng chứng, hai lần cùng một giờ:** ① *"bản ghi có `usage` rỗng ⟹ dụng cụ mù"* —
+> bản ghi **không hề có khoá `usage`** (thiếu khoá, không phải rỗng), bác nhầm một
+> phát hiện đúng. ② *"14/08 ghi 40/40, 25/08 ghi 0/4 ⟹ hồi quy diện rộng, P0"* — sổ
+> server cho thấy tool vẫn gọi được thật trong ngày, gác việc cả đội ~20 phút vô ích.
+
+**Luật AB** *(đúc 25/08, gốc "Luật E")* — 🔴 **ĐẾM THÔ TRÊN QUẦN THỂ PHA TẠP: trước khi
+công bố BẤT KỲ tỉ lệ nào, hỏi mẫu số ở TỬ SỐ và mẫu số ở MẪU SỐ có cùng một quần thể
+không.** Khác Luật F (F đòi mẫu số phải ĐI KÈM con số khi trích dẫn; AB đòi mẫu số đó
+phải ĐÚNG QUẦN THỂ trước khi tính, không chỉ đúng hình thức trình bày).
+> **Bằng chứng, hai lần cùng một giờ, cùng hình dạng:** 41% báo cáo thô → 24% thật
+> (mẫu số lẫn thread agent chưa từng chạy); 26% → 4% thật (mẫu số lẫn thread probe kỹ
+> thuật `dothoat-*`/`bat-*`, chưa từng có AI trả lời). Cả hai lần số thô lớn hơn thật
+> 2-6 lần và **trông hoàn toàn hợp lý** — đây là bẫy "dân số pha tạp" dự án từng trả
+> giá trước đó (`4% = 13/370`, `so_luot_goi_model = 0`).
+
+**Luật AC** *(đúc 25/08, gốc "ĐO ĐÚNG CÁCH, SAI VẬT" — 6 ca, 6 người/thời điểm khác nhau,
+cùng một hình dạng; Lead cấp ký hiệu lúc nghiệm thu đợt "OTP trước token", PO tự từ chối
+cấp ký hiệu cho chính ý của mình để nhường Lead cân)* — 🔴 **MỌI CỔNG DỰ ÁN HIỆN CÓ KIỂM
+PHÉP ĐO CÓ ĐÚNG QUY TRÌNH KHÔNG, KHÔNG KIỂM PHÉP ĐO CÓ TRỎ VÀO ĐÚNG VẬT KHÔNG.** Một phép
+đo sai vật đi qua mọi cổng, cho một con số đúng định dạng, đúng đơn vị, đúng cách tính —
+và sai.
+> **Ba biến thể, ba cách phát hiện khác nhau — đây mới là phần dùng được:**
+> | biến thể | số trông thế nào | cách bắt |
+> |---|---|---|
+> | sai VẬT (venv/ảnh/lớp thay vì instance) | LẠ | đo lại trên vật khác, so kết quả |
+> | cắt mất phần dưới (`head -N` giấu dòng) | HỢP LÝ | in MẪU SỐ, đếm lại từ đầu |
+> | sai ĐƠN VỊ | ĐÚNG | 🔴 không bắt được bằng đo lại — chỉ bằng hỏi "số này đơn vị gì" |
+> **Chiều lệch quyết định mức nguy:** phần lớn ca lệch về phía TRẤN AN (số đẹp hơn thật),
+> nhưng có ca lệch BI QUAN (số xấu hơn thật) — bộ kiểm chỉ canh chiều trấn an sẽ không bao
+> giờ bắt được ca bi quan, hệ quả là bỏ một đường đúng chứ không phải tin nhầm một đường sai.
+> **Họ hàng:** khác Luật C (C nói về nơi KHÔNG CÓ vật đo; AC nói về đo NHẦM vật dù có vật
+> đúng ở nơi khác) và khác Luật G (G nói cơ chế làm đúng việc CỦA NÓ không phải việc TA GIẢ
+> ĐỊNH; AC hẹp hơn, riêng cho dụng cụ ĐO, kèm ba phép bắt cụ thể theo biến thể).
+
+> ⭐ **MỞ RỘNG cùng ngày, nối vào Luật D thay vì cấp ký hiệu riêng (Lead quyết, PO đề xuất
+> ban đầu cho vào AC nhưng nó đúng hình dạng D hơn — "cột phòng thủ cần NGUỒN ĐỘC LẬP"):**
+> **Một bất biến kiểm QUAN HỆ giữa hai số rút từ CÙNG một nguồn thì không phải bất biến —
+> nó là một phép LẶP LẠI.** [ĐO] `so_tool_call` và `so_luot_goi_model` đều duyệt cùng
+> `turn_messages`; bất biến `so_luot_goi_model == so_tool_call + 1` khít 100% — nhưng danh
+> sách nguồn thiếu dòng thì CẢ HAI CÙNG TỤT và quan hệ VẪN KHÍT. Im lặng đúng lúc đáng kêu
+> nhất, và trông như bằng chứng. **Phép thử:** với mỗi bất biến, hỏi "hai vế có rút từ hai
+> NGUỒN ĐỘC LẬP không?" Không ⟹ nó chứng minh NỘI BỘ NHẤT QUÁN, không chứng minh ĐÚNG.
+> *(Không cấp ký hiệu thứ tư trong ngày cho một ý đã có nhà — hai ca khác của cùng đợt
+> [SKIP thay ĐỎ · O3/O5 thưởng bịa cụ thể hơn] đã có nhà sẵn ở A-vế-ba và AC phía trên;
+> ghi ở đây làm điểm neo cho ai tìm "5 cơ chế cùng che tín hiệu của chính cái đang hỏng".)*
 
 ---
 

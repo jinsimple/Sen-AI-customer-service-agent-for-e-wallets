@@ -15,8 +15,35 @@
 #   gọi thẳng build_customer_tools() rồi so tên tool với danh sách dưới.
 #   Thêm/xoá/đổi tên tool mà quên sửa file này  →  test ĐỎ.
 
-version: "2.1.0"
+version: "2.2.0"
 source: "Sinh ngược từ src/agents/tools/customer_tools.py @ 2026-08-13"
+# v2.1.1 (24/08) — Review đọc diff ADR-047 phát hiện ghi_chu của `scope` ở
+# create_ticket còn khai "1 trong 3", trong khi CHECK constraint DB và
+# contracts/authority-matrix.yaml (mục `scopes`) đã có giá trị thứ 4
+# `unknown` từ ADR-029 (PO thật duyệt 17/08, "contract phải khai đủ 4 giá
+# trị"). ADR-029 mục 4 khi land chỉ chạm authority-matrix.yaml — bỏ sót
+# đúng ghi_chu này ở agent-tools.yaml, sống sót 7 ngày không ai đọc thấy.
+# KHÔNG phải quyết định mới — thi hành nốt quyết định ĐÃ DUYỆT 17/08 cho
+# file còn lại của cùng một quyết định, không cần ADR mới/PO duyệt lại.
+#
+# v2.2.0 (25/08) — ADR-051, PO thật duyệt 25/08. `create_ticket` thành HAI THÌ:
+# thêm input `xac_nhan` (bool), và output đổi từ `dict` sang CHUỖI ĐÃ ĐỊNH DẠNG.
+# Đây là đổi CHỮ KÝ TOOL ⟹ minor bump, đi đủ §3 (contract → ADR → PO duyệt →
+# check_contracts --update → CONTRACT_VERSION → commit KÈM baseline → rồi code).
+#
+# 🔴 GHI LẠI MỘT LỖ CỦA CHÍNH CƠ CHẾ NÀY, phát hiện khi soạn ADR-051
+# (`655a112`): `tests/test_invariants.py` docstring dòng 18 tự khai *"Tool →
+# gọi thẳng build_customer_tools(), so TÊN TOOL với contract"* — so TÊN, KHÔNG
+# so CHỮ KÝ. ⟹ Thêm `xac_nhan` mà QUÊN sửa tệp này thì **cổng VẪN XANH**.
+# Cổng quảng cáo "đổi tên 1 tool mà quên contract ⟹ ĐỎ NGAY", nhưng đổi INPUT
+# thì không. Với thay đổi này, §3 là lớp bảo vệ DUY NHẤT — không có cổng nào
+# đỡ phía sau.
+#
+# v2.1.2 (24/08) — PO-agent: ghi_chu create_ticket thiếu yêu cầu "báo thành
+# công BẮT BUỘC nêu mã ticket" — prompt.py bước 5 đã ép luật này từ trước,
+# contract chỉ mô tả tool mà không phản ánh, để lộ khe hành vi PROMPT ĐÃ
+# CẤM nhưng CONTRACT không nói gì. Thuần mô tả — không đổi input/output/
+# hành vi thật của tool, không cần ADR.
 
 # ---------------------------------------------------------------------------
 # Quy tắc chung áp cho MỌI tool
@@ -72,7 +99,7 @@ tools:
     mo_ta: "Tạo ticket khiếu nại chính thức"
     input:
       complaint_type: {type: string,  required: true,  ghi_chu: "1 trong 4 loại taxonomy"}
-      scope:          {type: string,  required: true,  ghi_chu: "1 trong 3 phạm vi giao dịch"}
+      scope:          {type: string,  required: true,  ghi_chu: "1 trong 3 phạm vi giao dịch thật (internal_wallet/from_bank/to_bank), hoặc \"unknown\" khi đã hỏi hết số lần cho phép mà khách vẫn không xác định được — KHÔNG tự đoán bừa 1 trong 3 giá trị thật (ADR-029)"}
       description_raw:
         type: string
         required: true
@@ -81,6 +108,19 @@ tools:
           (A2/ADR-025 QĐ 5) — TỪ CHỐI khi vượt, KHÔNG cắt ngắn: cắt là sửa
           lời khai của khách.
       trans_id:       {type: string,  required: false, ghi_chu: "mã giao dịch nếu đã tra được"}
+      xac_nhan:
+        type: boolean
+        required: false
+        ghi_chu: >
+          ADR-051 — HAI THÌ. `false` (mặc định): KHÔNG tạo gì, chỉ trả bản tóm
+          tắt 6 trường dựng TRONG MÃ từ chính tham số của lời gọi này, phát
+          thẳng cho khách. `true`: tạo thật, CHỈ sau khi khách đã gật.
+          🔴 `true` chỉ được chấp nhận khi tầng service thấy tín hiệu "đã gửi
+          tóm tắt khớp ĐÚNG 6 trường này" ở lượt TRƯỚC (băm 6 trường làm giá
+          trị, tự xoá sau khi dùng). Thiếu chốt ấy thì model gọi thẳng
+          `xac_nhan=true` ngay lượt đầu là ĐI VÒNG QUA TOÀN BỘ giá trị HITL —
+          và `TurnGuard` KHÔNG cứu được vì nó tạo mới MỖI LƯỢT, còn hai thì là
+          HAI LƯỢT CHAT.
       otp_disclosed:
         type: boolean
         required: false
@@ -91,11 +131,19 @@ tools:
           và không hỏi mật khẩu ví; trường này chỉ mô tả điều khách đã lỡ nói.
     yeu_cau_otp: OTP_STEPUP_FRESH_MINUTES
     output:
+      kieu: "CHUỖI ĐÃ ĐỊNH DẠNG (ADR-051) — KHÔNG phải dict"
+      ghi_chu_kieu: >
+        🔴 ĐỔI 25/08. `return_direct` phát THẲNG giá trị trả về làm câu trả lời
+        cho khách ⟹ trả `dict` là khách nhận JSON THÔ. Hỏng ở PHÍA KHÁCH HÀNG,
+        không ở test — đây là thứ người thi hành sau đâm vào đầu tiên. Áp cho
+        CẢ HAI THÌ, không riêng thì 1.
       status: {type: enum, values: [found, not_found, error]}
     ghi_chu: >
       Hành động có hậu quả → OTP step-up NGẶT hơn (15 phút) so với tool chỉ đọc
       (12 giờ). fraud_signals do tầng service tính (complaint_intake.py),
-      KHÔNG do agent tự điền.
+      KHÔNG do agent tự điền. Báo THÀNH CÔNG với khách BẮT BUỘC nêu nguyên văn
+      mã ticket (trường `ticket_id`) — không được nói mơ hồ "đã tạo hồ sơ" mà
+      thiếu mã (prompt.py bước 5), cùng yêu cầu đã áp cho request_human_handoff.
 
   request_human_handoff:
     mo_ta: "Khách chủ động yêu cầu gặp người thật"

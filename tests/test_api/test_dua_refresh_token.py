@@ -90,6 +90,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from tests._dong_bang import LY_DO, dang_dong_bang
+from tests._suite_day_du import can_ha_tang
 
 BASE = os.environ.get("FIN05_TEST_BASE_URL", "").rstrip("/")
 KHACH = ("0974000145", "Demo@123")
@@ -106,10 +107,10 @@ def _giai_ma_exp(cookie_val: str) -> tuple[int, int]:
 
 def _yeu_cau_ha_tang():
     if not BASE:
-        pytest.skip(
-            "Chưa có instance TTL ngắn: đặt FIN05_TEST_BASE_URL trỏ tới stack có "
-            "JWT_ACCESS_EXPIRE_MINUTES=1. CHƯA ĐO ĐƯỢC, không phải 'đạt'. "
+        can_ha_tang(
+            "Chưa có instance TTL ngắn. CHƯA ĐO ĐƯỢC, không phải 'đạt'. "
             "Chạy trên stack thường sẽ tốn ~13 phút/ca — xem docstring đầu file.",
+            cach_dung="đặt FIN05_TEST_BASE_URL trỏ tới stack có JWT_ACCESS_EXPIRE_MINUTES=1",
             allow_module_level=True,
         )
 
@@ -128,7 +129,10 @@ def test_ly_do_skip_phai_that():
     im lặng suốt hai ngày vì đoán sai một cái tên.
     """
     if not BASE:
-        pytest.skip("FIN05_TEST_BASE_URL chưa đặt — chưa có hạ tầng đo. Đúng nghĩa skip.")
+        can_ha_tang(
+            "FIN05_TEST_BASE_URL chưa đặt — chưa có hạ tầng đo. Đúng nghĩa skip.",
+            cach_dung="đặt FIN05_TEST_BASE_URL trỏ tới stack có JWT_ACCESS_EXPIRE_MINUTES=1",
+        )
 
     httpx = pytest.importorskip("httpx")
     with httpx.Client(verify=False, timeout=30) as c:

@@ -248,8 +248,10 @@ export default function TicketDetailClient({
                 ))}
               </div>
               <div className="note" style={{ marginTop: 12 }}>
-                <b>FS-06</b> (rút sạch sau bất thường xác thực) kích hoạt escalate ngay khi bật — phạm vi
-                MVP chỉ dùng tín hiệu này (PRD §5). Gắn cờ <b>không</b> tự động khoá ví.
+                <b>FS-06</b> (rút sạch sau bất thường xác thực) là tín hiệu DUY NHẤT kích hoạt escalate
+                tự động trong phạm vi MVP (PRD §5) — dù badge phía trên hiện mã nào khác. Các mã khác được
+                ghi lại (kế thừa từ đặc tả gốc 12 tín hiệu) nhưng KHÔNG ảnh hưởng định tuyến hiện tại. Gắn cờ{" "}
+                <b>không</b> tự động khoá ví.
               </div>
             </div>
           )}

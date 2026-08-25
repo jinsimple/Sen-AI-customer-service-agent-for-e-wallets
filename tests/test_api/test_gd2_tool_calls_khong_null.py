@@ -229,12 +229,16 @@ def test_trong_ratelimiterror_di_dung_duong_789_khong_lot_vao_906():
 
 @pytest.mark.skip(
     reason=(
-        "Đường nặng (:1230, KHÔNG bị Coder chạm) đòi seam agent-giả-trả-về-"
-        "trạng-thái-THÀNH-CÔNG — chưa có tiền lệ trong tests/ (khác "
-        "GraphRecursionError đã có sẵn). Không đoán hình dạng state cần "
-        "thiết mà không đọc src/. Đường này được phủ bởi 3 case E2E 'câu "
-        "giao dịch đường nặng' tốn token (phần ②) — smoke thật cho ảnh mới, "
-        "đúng phân công Lead 19/08. KHÔNG ĐO ĐƯỢC ở đây, không phải bỏ sót."
+        "NHÓM B (`tests/_suite_day_du.py`) — NĂNG LỰC TEST chưa tồn tại, "
+        "KHÔNG PHẢI hạ tầng vắng: không dựng Docker/Postgres nào làm ca này "
+        "chạy được, cần MỘT SEAM chưa từng viết. VÌ SAO ĐƯỢC MIỄN mãi mãi ở "
+        "đây (không chịu FIN05_SUITE_DAY_DU): đường nặng (:1230, KHÔNG bị "
+        "Coder chạm) đòi seam agent-giả-trả-về-trạng-thái-THÀNH-CÔNG — chưa "
+        "có tiền lệ trong tests/ (khác GraphRecursionError đã có sẵn). "
+        "Không đoán hình dạng state cần thiết mà không đọc src/ (tester bị "
+        "chặn đọc src/ theo CLAUDE.md §4). Đường này được phủ bởi 3 case E2E "
+        "'câu giao dịch đường nặng' tốn token (phần ②) — smoke thật cho ảnh "
+        "mới, đúng phân công Lead 19/08. KHÔNG ĐO ĐƯỢC ở đây, không phải bỏ sót."
     )
 )
 def test_trong_duong_nang_tool_calls_la_mang():

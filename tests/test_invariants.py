@@ -49,7 +49,7 @@ MODELS_PY = ROOT / "src" / "db" / "models.py"
 CONTRACT_VERSION = {
     "authority-matrix.yaml": "b185242c0d53",  # v2.1.0 — ADR-044 (GET /tickets/{ticket_id}/transcript)
     "resolution-state-machine.yaml": "a39f2b84ec5d",  # v2.5.0 — ADR-024 (resolutions.note + note_flagged + INV-17)
-    "agent-tools.yaml": "cd3d15a5c90a",  # v2.1.0 — ADR-027 (lược đồ input đủ 5 tool)
+    "agent-tools.yaml": "df6e7c9353d3",  # v2.2.0 — ADR-051 create_ticket HAI THÌ (+input `xac_nhan`, output dict→chuỗi)
 }
 
 

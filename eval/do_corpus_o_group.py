@@ -20,6 +20,13 @@ O2 (câu 6-7) KHÔNG nằm trong mẫu số hiệu quả: v1 chỉ ĐẾM mỏ n
 xem `docs/security/quyet-dinh-O2-lo-chi-thi.md`. Đếm nó vào "bắt hụt" là chấm
 sai một quyết định đã ratify.
 
+[khảo sát QA/QC 25/08] Trục CHẶN NHẦM ở đây đo trên 8 câu đối chứng TỰ CHỌN
+(security soạn). `eval/do_loc_dau_ra_offline.py` đo LẠI cùng trục này trên
+NGUỒN KHÁC — 18 ca mốc nền lấy từ đầu ra THẬT của agent (`eval/results/`),
+không ai curate. Hai nguồn không thay thế nhau — mẫu tự chọn dễ thiên lệch
+theo trí tưởng tượng của người chọn, mẫu thật không đoán trước được hình
+dạng. Đọc CẢ HAI trước khi kết luận "bộ lọc không chặn nhầm".
+
 IN BĂM `output_filter.py` MỖI LẦN CHẠY: hai con số đo trên hai bản khác nhau
 không mâu thuẫn nhau, chúng chỉ đơn giản là hai phép đo khác nhau. Không in băm
 thì người đọc không phân biệt được — đúng cái đã làm tôi rút lại một finding

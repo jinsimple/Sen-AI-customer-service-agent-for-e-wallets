@@ -46,7 +46,7 @@ ngăn xếp chính: fin05  ·  6 service: backend · frontend · postgres · red
                               ⟹ CHẠY CỔNG TỪ HOST, không docker exec
 backend KHÔNG publish cổng ra host (chủ đích bảo mật, Caddyfile:11-26)
                               ⟹ test từ host không với tới backend; đó là DỮ KIỆN, không phải lỗi
-🔴 production app.adaptivealgo.uk đang chạy code repo KHÁC (jinsimple/P-121-new), KHÔNG phải P-226.
+~~🔴 production app.adaptivealgo.uk đang chạy code repo KHÁC (jinsimple/P-121-new)~~ — 🔴 LỖI THỜI, PO thật đính chính 25/08: domain ĐANG CHẠY main của P-226.
    P-226 CHƯA TỪNG lên site thật. docs/DEPLOY.md:75 vẫn ghi clone P-121-new — LỖI THỜI, cần sửa.
    docs/DEPLOY.md mô tả Oracle VPS + Caddy, nhưng production trả header `server: cloudflare`
    và compose có service `cloudflared` ⟹ nghi đường thật là Cloudflare Tunnel. CHƯA XÁC MINH.

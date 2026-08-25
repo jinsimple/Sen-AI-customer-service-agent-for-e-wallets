@@ -617,7 +617,7 @@ def main() -> int:
     kiem_kho()
 
     if a.che_do == "moc":
-        print(f"\n  🔴 che_do=moc — TOÀN BỘ ca dương đi qua đường AGENT THẬT (/api/agent-chat).")
+        print("\n  🔴 che_do=moc — TOÀN BỘ ca dương đi qua đường AGENT THẬT (/api/agent-chat).")
         # KHÔNG gọi cong_dong_bang() ở đây — _tra_agent() đã tự gọi nó cho
         # MỖI lượt bên trong do_truy_hoi(), gọi thêm ở đây là trùng lặp vô ích.
 

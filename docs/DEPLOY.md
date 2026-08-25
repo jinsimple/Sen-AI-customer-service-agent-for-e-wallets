@@ -1,6 +1,19 @@
 # Deploy live — Oracle Cloud Always Free + Docker Compose
 
-> 🔴 **[ĐO DevOps 20/08] `app.adaptivealgo.uk` hiện chạy repo `jinsimple/P-121-new`,
+> ✅ **[PO THẬT ĐÍNH CHÍNH 25/08/2026] `app.adaptivealgo.uk` ĐANG CHẠY `main` CỦA P-226.**
+> Nguyên văn PO thật: *"Domain này đang là P-226 nhánh main rồi bạn ơi — bạn đọc doc nào bảo là
+> P-121 thì sửa ngay lại cái doc đấy luôn cho mình nhé."*
+>
+> 🔴 **Mọi phát biểu «domain chạy repo `jinsimple/P-121-new`» trong repo này ĐÃ LỖI THỜI.** Chúng
+> đúng lúc DevOps đo *(20/08)*, và **sai từ lúc nào đó giữa 20/08 và 25/08** — không ai cập nhật.
+> Giữ nguyên văn cũ **gạch ngang** theo Luật P, **không xoá**: một phép đo đúng-lúc-đo mà **không
+> ai niêm hạn dùng** là cách một con số chết tiếp tục lái quyết định suốt năm ngày.
+>
+> ⚠️ **Hệ quả:** việc đưa P-226 lên production **KHÔNG phải "thay một dự án khác"** như tài liệu
+> này từng mô tả. Nó là **cập nhật chính sản phẩm đang chạy** — rủi ro khác hẳn, và **cần đúng
+> loại cẩn thận khác**.
+
+> ~~**[ĐO DevOps 20/08 — LỖI THỜI, xem đính chính ngay trên]** `app.adaptivealgo.uk` hiện chạy repo `jinsimple/P-121-new`,~~
 > KHÔNG PHẢI repo này (P-226). P-226 CHƯA TỪNG lên site thật** — file này mô tả
 > quy trình cho lần deploy ĐẦU TIÊN của P-226, nhưng bản thân nó được viết lúc
 > repo tiền nhiệm còn dùng chung domain đó, nên vài chi tiết bên dưới **CHƯA
@@ -100,10 +113,23 @@ cp .env.example .env   # mẫu compose cần — KHÔNG dùng .env.production.ex
 nano .env   # điền các biến bên dưới
 ```
 
+🔴 **[SỬA 25/08] Vì sao dùng `.env.example` (mẫu DEV) chứ không phải
+`.env.production.example` (đã có sẵn `APP_ENV=production` đúng) làm nền cho
+VPS thật — không rõ lý do gốc, không tìm thấy ghi chú nào giải thích lựa
+chọn này. Giữ nguyên lời dặn cũ (đổi sang `.env.production.example` là một
+thay đổi rộng hơn, cần soát lại toàn bộ khác biệt giữa hai mẫu, không phải
+việc của bản vá một dòng này) — chỉ bổ sung dòng `APP_ENV` còn thiếu bên
+dưới, vì thiếu đúng dòng đó từng làm `/docs`/`/redoc`/`/openapi.json` (32
+route kèm schema) mở công khai trên một ngăn dựng đúng theo tài liệu này.
+
 Điền vào `.env` (mỗi dòng 1 biến, xem `.env` trên máy dev để biết đủ danh
 sách — **KHÔNG copy nguyên giá trị dev sang**, sinh key mới cho production):
 
 ```bash
+APP_ENV=production                       # 🔴 BẮT BUỘC đổi — .env.example nền
+                                          # để development, quên dòng này thì
+                                          # /docs · /redoc · /openapi.json mở
+                                          # công khai toàn bộ route + schema
 OPENAI_API_KEY=sk-...                    # key thật, có thể dùng chung key dev nếu muốn
 JWT_SECRET_KEY=...                       # sinh MỚI, xem lệnh dưới
 FIELD_ENCRYPTION_KEY=...                 # sinh MỚI, xem lệnh dưới
@@ -185,6 +211,23 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
 
 ## Việc vặt cần biết thêm
 
+### ⚠️ `docker compose down -v` ĐỔI NGHĨA từ 25/08
+
+Redis nay có volume `redis_data` + `appendonly yes` (bền hoá chi phí/phiên,
+`02892bd`) — trước bản đó Redis không có volume, mất sạch mỗi lần gỡ
+container. **`down -v` nay XOÁ LUÔN:**
+
+- **bộ đếm chi tiêu LLM theo ngày** (`fin05:chi_tieu_llm_token:*`) ⟹ trần
+  ngày về 0, **quên phần đã tiêu, và quên IM LẶNG** — không có gì báo. Với
+  dự án mà ràng buộc vận hành số một là ngân sách token, đây là cổng chi phí
+  tự mở lại sau mỗi lần khởi động lại.
+- **phiên đăng nhập** (`refresh:*`) ⟹ mọi người phải đăng nhập lại. Phiền,
+  **không phải lỗ bảo mật** — đây là hành vi fail-closed đúng thiết kế
+  (`auth.py:172-174`), không phải tác dụng phụ ngoài ý muốn.
+
+Muốn hạ ngăn xếp mà **giữ** hai thứ trên: dùng `docker compose down` **KHÔNG
+có `-v`**. Chỉ dùng `-v` khi **CỐ Ý** muốn về trạng thái trắng.
+
 - **Xem log backend khi có lỗi**: `docker compose logs -f backend` (hoặc
   `frontend`/`caddy`/`postgres`).
 - **Audit log bảo mật** (`logs/access.log`) nằm trong volume `logs_data`, xem
@@ -194,7 +237,8 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
   `FIELD_ENCRYPTION_KEY` (đổi key sẽ làm dữ liệu cũ đã mã hoá không đọc được
   nữa, không có cách khôi phục).
 - **Xoá sạch làm lại từ đầu**: `docker compose down -v` (xoá cả volume — MẤT
-  HẾT dữ liệu, chỉ dùng khi chắc chắn muốn reset).
+  HẾT dữ liệu, **kể cả bộ đếm chi tiêu và mọi phiên đăng nhập từ 25/08**, chỉ
+  dùng khi chắc chắn muốn reset — xem cảnh báo phía trên).
 - **Deploy lại thủ công** (không đợi push code): `cd /opt/fin05 && git pull
   && docker compose up -d --build`, hoặc vào tab Actions trên GitHub bấm "Run
   workflow" (đã bật `workflow_dispatch`).

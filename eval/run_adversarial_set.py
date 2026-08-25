@@ -13,12 +13,14 @@ import argparse
 import datetime as dt
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from eval._harness import (
     build_eval_session,
+    cau_hinh_dinh_tuyen_luc_chay,
     cham_bo_da_luot,
     load_jsonl,
     now_stamp,
@@ -222,6 +224,11 @@ def run(cases: list[dict]) -> list[dict]:
                     # tests/test_security/test_o_group_khong_chan_nham.py
                     "loc_dau_ra_theo_luot": agent_result.get("loc_dau_ra_theo_luot") or [],
                     "ly_do_fallback_theo_luot": agent_result.get("ly_do_fallback_theo_luot") or [],
+                    # ĐƯỜNG ĐỊNH TUYẾN mỗi lượt (`nhe`/`thu_slot`/`day_du`) — ①
+                    # đợt "OTP trước token" 24/08. Phân biệt "xanh vì O1-O5 giữ
+                    # được" với "xanh vì câu lạc đề, chưa từng chạm LLM/O1-O5"
+                    # (N2 nghiệm thu cả đợt) mà KHÔNG PHẢI mở code.
+                    "duong_theo_luot": agent_result.get("duong_theo_luot") or [],
                     # Tách TIMEOUT khỏi TỪ CHỐI: cùng câu fallback, khác thời gian.
                     "thoi_gian_theo_luot": agent_result.get("thoi_gian_theo_luot") or [],
                     # Crescendo hay thắng ở lượt GIỮA rồi lượt cuối quay lại vô
@@ -271,8 +278,26 @@ def write_report(results: list[dict], out_path: Path) -> None:
     chua_hanh_vi = [r for r in results if r.get("trang_thai") == "chua_co_hanh_vi"]
     do_duoc = total - khong_do - len(chua_hanh_vi)
     truot = do_duoc - passed
+    # ① — phân bố ĐƯỜNG ĐỊNH TUYẾN toàn corpus (đếm LƯỢT).
+    duong_dem = Counter(
+        d for r in results for d in (r.get("duong_theo_luot") or [None])
+    )
     lines = [
         f"# Báo cáo eval adversarial_set — {now_stamp()}",
+        "",
+        "> ⚠️ **Đường eval dùng sentinel `_ALWAYS_FRESH`** (`run_agent_turn`, "
+        "`graph.py`) — OTP phiên LUÔN được coi là vừa xác thực xong. Không ca "
+        "nào ở đây đo được hành vi khi OTP thiếu/hết hạn; trục đó chỉ đo được "
+        "bằng chạy thật (`fin05do`/production) — xem finding A2 24/08.",
+        "> ⚠️ **Harness gọi thẳng `run_agent_turn()` trong tiến trình** — JWT/"
+        "rate-limit/audit-log KHÔNG nằm trên đường đo này. Kết luận về các "
+        "tầng đó từ kết quả eval là kết luận SAI CHỖ ĐO; xem "
+        "`tests/test_api/` cho bộ test có đi qua các tầng đó.",
+        f"> 🚦 **{cau_hinh_dinh_tuyen_luc_chay()}.** Đóng Đ2 (24/08).",
+        "> 🚦 **Phân bố đường định tuyến toàn corpus (đếm LƯỢT):** "
+        + " · ".join(f"`{k}`={v}" for k, v in duong_dem.most_common())
+        + " — ⚠️ một ca `passed=true` mà đi `nhe`/`thu_slot` nghĩa là CHƯA TỪNG "
+        "chạm O1-O5/spotlighting, khác hẳn `passed=true` vì lớp phòng thủ giữ được.",
         "",
         (f"**Tổng:** {passed}/{do_duoc} ĐẠT trên số ĐO ĐƯỢC ({passed / do_duoc * 100:.1f}%) "
          f"· TRƯỢT {truot} · **KHÔNG ĐO ĐƯỢC {khong_do}**/{total}") if do_duoc else
@@ -340,6 +365,20 @@ def write_report(results: list[dict], out_path: Path) -> None:
             lines.append(f"- {cid} lượt {luot} · {nhom}")
         lines.append("")
 
+    # ① — bảng ĐẦY ĐỦ mọi case ĐO ĐƯỢC, kể cả case passed=true. Đây chính là
+    # chỗ N2 (nghiệm thu cả đợt) cần: phân biệt ADV-036/ADV-038 "xanh vì O1-O5
+    # giữ được" với "xanh vì câu lạc đề, chưa từng chạm model" MÀ KHÔNG PHẢI
+    # mở code hay đọc raw JSON.
+    lines += ["## Đường định tuyến mỗi ca (`duong`, đọc được không cần mở code)", "",
+              "| Case | passed | Đường đi từng lượt | Có chạm model? |", "|---|---|---|---|"]
+    for r in sorted(results, key=lambda x: x["case_id"]):
+        if r.get("trang_thai") in ("khong_do_duoc", "chua_co_hanh_vi"):
+            continue
+        dtl = r.get("duong_theo_luot") or []
+        cham_model = "có" if any(d == "day_du" for d in dtl) else ("KHÔNG — toàn nhe/thu_slot" if dtl else "?")
+        lines.append(f"| {r['case_id']} | {r['passed']} | {', '.join(str(d) for d in dtl) or '(rỗng)'} | {cham_model} |")
+    lines.append("")
+
     # LOẠI case KHÔNG ĐO ĐƯỢC khỏi mục này — nếu để lẫn thì một case chết vì
     # rate limit sẽ nằm dưới tiêu đề "agent bị dụ thành công, cần fix ngay",
     # tức là đúng cái hiểu nhầm mà cả vòng phân loại này sinh ra để diệt.
@@ -382,6 +421,7 @@ def main() -> None:
     if args.sample:
         cases = cases[: args.sample]
 
+    print(f"🚦 {cau_hinh_dinh_tuyen_luc_chay()}", file=sys.stderr)
     print(f"Chạy {len(cases)} case adversarial từ {args.file} — gọi OpenAI thật.", file=sys.stderr)
     results = run(cases)
 

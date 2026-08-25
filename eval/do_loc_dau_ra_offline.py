@@ -210,6 +210,9 @@ def main() -> int:
     print("\nLƯU Ý ĐỌC SỐ: đây là tỉ lệ chặn nhầm trên đầu ra THẬT của agent — nó KHÔNG")
     print("nói bộ lọc có bắt được tấn công thật hay không. Hai câu hỏi khác nhau, cần")
     print("hai corpus khác nhau; corpus tấn công phải cũng đến từ nguồn độc lập.")
+    print("CỔNG BÙ trục HIỆU QUẢ (bắt tấn công thật): eval/do_corpus_o_group.py")
+    print("— [khảo sát QA/QC 25/08] hai cổng đo hai chiều khác nhau của CÙNG bộ lọc")
+    print("O1-O4, không cổng nào một mình đủ để nói bộ lọc đang hoạt động đúng.")
     print("\nQUY ƯỚC RÁP `nguon` (json.dumps từng kết quả, nối \\n) CHƯA ĐỐI CHIẾU VỚI")
     print("ĐƯỜNG SẢN XUẤT THẬT — coder cần xác nhận trước khi dùng con số này làm căn cứ.")
     return 0

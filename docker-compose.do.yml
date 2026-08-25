@@ -52,11 +52,30 @@ services:
     ports: !override []
 
   backend:
-    image: fin05-backend            # ① cùng sha với ngăn xếp chính
+    # [SỬA 24/08] `image: fin05-backend` (= `:latest`) TRÙNG TAG với ngăn xếp
+    # `fin05` demo chính — build đè lên sẽ làm `latest` lệch khỏi ảnh demo
+    # đang chạy thật, rủi ro: lần sau ai `docker compose -p fin05 up -d`
+    # (không `--build`), Compose so digest thấy `latest` đã đổi có thể tự ý
+    # recreate ngăn DEMO ngoài ý muốn. Ghim TAG RIÊNG cho từng lượt dựng đo —
+    # đổi dòng dưới mỗi khi dựng lại, không bao giờ dùng `fin05-backend` trơn.
+    image: fin05-backend:do-03fd9a6   # HEAD lúc dựng: 03fd9a6 (= 9328219 + 1 commit docs, không
+                                       # chạm src/). CÓ 9328219: lưới dự phòng in-process cho
+                                       # RedisConcurrencyLimiter khi Redis chết — Review xanh, không
+                                       # finding chặn, xác nhận rò rỉ slot KHÔNG xảy ra được về mặt
+                                       # CẤU TRÚC (token `fb:` không trùng token Redis thật, release()
+                                       # rẽ nhánh theo danh tính token). ẢNH CHẠY THẬT của chuyến
+                                       # ĐÓNG ĐỢT: 1A trọn bộ + S8 live-fire, S8 CUỐI CÙNG. Lượt S8
+                                       # lỡ chạy trên `do-1a33239` (dòng sổ trước) là DỮ LIỆU THAM
+                                       # KHẢO — KHÔNG gộp vào kết quả chuyến này.
     build: !reset null
     ports: !override []
     environment:
       APP_ENV: do-luong             # nhãn tự khai: nhìn /health là biết đây là stack đo
+      # [THÊM 24/08] khớp cấu hình fin05 demo hiện tại (.env gốc, trừ
+      # qwen3.7-plus-2026-05-26 đã cạn quota) — đo đúng vật sắp phục vụ khách,
+      # không đo trên bể model khác. PO-agent chỉ định nguyên văn giá trị.
+      LLM_MODEL: deepseek-v4-flash-0731
+      LLM_MODEL_POOL: deepseek-v4-flash-0731,deepseek-v4-pro-0813,deepseek-v3.2
 
   jaeger:
     ports: !override []

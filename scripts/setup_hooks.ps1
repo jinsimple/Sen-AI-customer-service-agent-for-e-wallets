@@ -21,3 +21,14 @@ if (-not (Test-Path .ai-log)) { New-Item -ItemType Directory -Path .ai-log | Out
 if (-not (Test-Path .ai-log/.gitkeep)) { New-Item -ItemType File -Path .ai-log/.gitkeep | Out-Null }
 
 Write-Host "[ai-log] Setup complete. Configure AI_LOG_SERVER in your .env file."
+
+# Pre-commit: cảnh báo (KHÔNG chặn) khi staging trải trên nhiều vùng §4
+# không chồng lấn — xem docstring scripts/pre_commit_vung_ghi.py.
+$PreCommitFile = '.git/hooks/pre-commit'
+$PreCommitBody = @'
+#!/usr/bin/env bash
+bash scripts/_pyrun.sh scripts/pre_commit_vung_ghi.py || true
+exit 0
+'@
+Set-Content -Path $PreCommitFile -Value $PreCommitBody -Encoding UTF8 -NoNewline
+Write-Host "[vung-ghi] Git pre-commit hook installed."

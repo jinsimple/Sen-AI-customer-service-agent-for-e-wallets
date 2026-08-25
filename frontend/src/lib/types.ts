@@ -157,13 +157,25 @@ export interface ResolutionListItem {
   approved_at: string | null;
 }
 
+// B1-B3 (20/08) — mọi % PHẢI đi kèm mẫu số (n): "0,4%" trên mẫu số 3 không
+// phát biểu được gì, người xem không có cách nào biết trừ khi thấy n. AHT
+// (thời gian NGƯỜI thao tác) KHÁC avg_processing_hours (cycle time, gồm cả
+// thời gian nằm chờ) — DB chưa có mốc bắt đầu thao tác nên `aht_hours` luôn
+// null, kèm lý do tường minh thay vì để trống (trống bị đọc thành 0).
 export interface ReportSummary {
   date_from: string | null;
   date_to: string | null;
   total_tickets: number;
   avg_processing_hours: number | null;
+  avg_processing_hours_n: number;
+  aht_hours: number | null;
+  aht_khong_do_duoc_ly_do: string;
   pct_ai_proposal_approved: number | null;
+  pct_ai_proposal_approved_numerator: number;
+  pct_ai_proposal_approved_n: number;
   pct_escalated: number | null;
+  pct_escalated_numerator: number;
+  pct_escalated_n: number;
   by_complaint_type: Record<string, number>;
   by_scope: Record<string, number>;
 }
@@ -291,6 +303,19 @@ export interface AgentChatResult {
   tool_calls: AgentToolCall[];
   ticket_id: string | null;
   should_escalate: boolean | null;
+  // ④ (25/08) — NHÃN đường đi của lượt, do backend ghi (src/agents/graph.py).
+  // Client CHỈ đọc giá trị "can_otp": cổng OTP tất định đã chặn lượt này trước
+  // khi chạm model.
+  //
+  // 🔴 VÌ SAO PHẢI CÓ KHOÁ NÀY, không đọc câu chữ `reply`: hai đường kích hộp
+  // thoại OTP sẵn có ở ChatClient.tsx đều dò trong `tool_calls`/`ticket_id` —
+  // mà MỌI đường 0-token của backend đều trả `tool_calls: []`, `ticket_id: null`.
+  // Thiếu khoá này thì khách đọc "xác thực nhé" rồi không có gì mở ra: ngõ cụt.
+  // Cùng lý do `loai:"otp_het_tuoi"` ra đời ở GĐ2.5 — client không được nhận
+  // diện trạng thái bằng chuỗi tiếng Việt có thể sửa văn phong.
+  //
+  // Optional: các ảnh backend cũ chưa gửi trường này.
+  duong?: string | null;
 }
 
 export type PolicyDocumentStatus = "processing" | "indexed" | "failed";

@@ -461,8 +461,15 @@ export default function ChatClient({
     if (starter) {
       // Lối vào đã biết chắc liên quan giao dịch (chip/rail) — giờ mới thật
       // sự gửi cho agent, SAU KHI đã xác thực xong.
+      //
+      // `vuaXacThucDeGuiLai: true` — cờ TƯỜNG MINH báo đây là lượt TỰ GỬI
+      // LẠI câu đã bị chặn OTP (scratchpad/nhap-cong-thu-slot-sau-otp.md
+      // mục 1). Đây là ĐÚNG MỘT lệnh gọi resend, dùng chung cho cả 3 nguồn
+      // đặt `pendingStarterRef` (chip startComplaint · otpStaleCall giữa
+      // hội thoại · touchedSensitiveData) — không phân biệt nguồn, cùng một
+      // ý nghĩa "khách vừa xác thực xong, đây là câu cần model xử lý lại".
       push({ id: nid(), from: "bot", text: "Xác thực thành công — để mình tra ngay giúp bạn." });
-      void sendToAgent(starter, { echoAsUser: false });
+      void sendToAgent(starter, { echoAsUser: false, vuaXacThucDeGuiLai: true });
     } else {
       // Phản ứng (gõ tự do, agent vừa lỡ chạm dữ liệu nhạy cảm) — không có
       // gì phải gửi lại, chỉ mở lại chat.
@@ -483,11 +490,14 @@ export default function ChatClient({
     });
   }
 
-  async function sendToAgent(text: string, opts?: { echoAsUser?: boolean }) {
+  async function sendToAgent(text: string, opts?: { echoAsUser?: boolean; vuaXacThucDeGuiLai?: boolean }) {
     if (opts?.echoAsUser !== false) push({ id: nid(), from: "user", text });
     setStage("busy");
     try {
-      const result = await agentChat({ message: text });
+      const result = await agentChat({
+        message: text,
+        vua_xac_thuc_de_gui_lai: opts?.vuaXacThucDeGuiLai,
+      });
       push({
         id: nid(),
         from: "bot",
@@ -513,6 +523,31 @@ export default function ChatClient({
       // liệu thật thay vì chỉ nghe agent kể lại bằng lời.
       if (result.tool_calls.length > 0) {
         getCustomerHistory({}).then(setHistory).catch(() => {});
+      }
+
+      // ④ (25/08) — CỔNG OTP TẤT ĐỊNH đã chặn lượt này TRƯỚC khi chạm model
+      // (backend: src/agents/graph.py, DUONG_CAN_OTP). Phải kiểm TRƯỚC hai
+      // nhánh dưới: cả hai dò trong `tool_calls`, mà đường này không gọi tool
+      // nào nên `tool_calls` RỖNG — không nhánh nào bắn, khách sẽ đứng trước
+      // một câu "xác thực nhé" mà không có gì mở ra.
+      //
+      // Đọc KHOÁ `duong`, KHÔNG khớp câu chữ `reply` — sửa văn phong backend
+      // sau này không được làm client mù lại (đúng lý do OTP_EXPIRED_LOAI ra
+      // đời ở GĐ2.5).
+      //
+      // 🔴 KHÔNG `push(result.reply)` ở đây. Dòng :501 phía trên đã đẩy nó rồi,
+      // VÔ ĐIỀU KIỆN, cho MỌI đường — kể cả đường này. Bản gốc đẩy lần thứ hai
+      // và khách thấy ĐÚNG MỘT bong bóng ấy hiện hai lần, giống hệt từng chữ
+      // (PO đo 25/08: backend gửi 8 câu → màn hình hiện 12 bong bóng).
+      //
+      // Câu chống mạo danh K3 VẪN ĐẾN TAY KHÁCH — nó nằm trong `result.reply`,
+      // và :501 đã đẩy. Mối lo ấy đúng; chỉ là nó đã được lo xong ở trên rồi.
+      // (`cite` ở :501 là `undefined` trên đường này vì `tool_calls` rỗng, nên
+      // hai bong bóng vốn y hệt nhau — giữ cái đầu không mất chữ nào.)
+      if (result.duong === "can_otp") {
+        pendingStarterRef.current = text;
+        void beginOtpFlow();
+        return;
       }
 
       // Finding B1 (GĐ2.5, Quyết định B) — tool vừa hỏng vì OTP ĐÃ hết tươi

@@ -107,6 +107,17 @@ AUX_REGULAR = {f"USR-{i:04d}" for i in range(21, 59)}  # diễn viên phụ củ
 # nhờ đó pattern đã trồng (chuỗi FS-03, fan-in FS-07...) không bị nhiễu phá.
 QUIET_POOL = {f"USR-{i:04d}" for i in range(59, 99)}
 
+# ADR-046 (PO thật duyệt 24/08) — money_not_received PHẢI là phân phối CÓ ĐIỀU
+# KIỆN, không buộc cứng 1 trạng thái (đo trước: 90/90 = 100% processing, một
+# tập một phần tử không có ngẫu nhiên nào xảy ra được) và KHÔNG sinh độc lập
+# với loại khiếu nại (phiếu BA đề nghị, ADR BÁC — ép tương quan về 0 làm dữ
+# liệu kém thật hơn, "chưa nhận được tiền" thật sự tương quan với giao dịch
+# đang treo). 0,30 là mức TRÊN của dải minh hoạ trong ADR (20%/30%) — đủ để
+# ca khó nhất ("giao dịch báo success mà người nhận vẫn chưa thấy tiền") có
+# khối lượng thật trong bộ dữ liệu, không phải vài ca tượng trưng; processing
+# vẫn chiếm đa số (0,70) như ADR yêu cầu.
+MONEY_NOT_RECEIVED_SUCCESS_RATIO = 0.30
+
 
 def fmt_amount(v: int) -> str:
     return f"{v:,}".replace(",", ".")
@@ -1531,10 +1542,15 @@ class Builder:
         rng = self.rng
         target = self.cfg["population"]["background_complaints"] - len(self.complaints)
         dist = self.cfg["distributions"]["complaint_type"]
-        eligible_status = {"wrong_recipient": {"success"}, "money_not_received": {"processing"},
+        eligible_status = {"wrong_recipient": {"success"}, "money_not_received": {"processing", "success"},
                            "double_charge": {"success"}, "refund": {"refunded", "failed", "success"}}
         rec_cap: dict[str, set] = {}
         buckets: dict[str, list] = {k: [] for k in dist}
+        # ADR-046 — money_not_received tách riêng theo status: quần thể nền tự
+        # nhiên có success >> processing (đa số giao dịch thành công), thả nổi
+        # cho shuffle tự nhiên quyết định sẽ ĐẢO NGƯỢC đúng thứ ADR yêu cầu
+        # ("processing chiếm đa số"). Trộn có kiểm soát tỉ lệ ngay dưới đây.
+        mnr_by_status: dict[str, list] = {"processing": [], "success": []}
         excluded = RESERVED | AUX_REGULAR | QUIET_POOL
         for t in self.transactions:
             sender = self.owner_of_wallet.get(t["send_wal_id"]) or self.owner_of_ba.get(t["send_bank_account_id"])
@@ -1545,7 +1561,21 @@ class Builder:
                 continue
             for ctype, statuses in eligible_status.items():
                 if t["status"] in statuses:
-                    buckets[ctype].append((t, sender))
+                    if ctype == "money_not_received":
+                        mnr_by_status[t["status"]].append((t, sender))
+                    else:
+                        buckets[ctype].append((t, sender))
+        rng.shuffle(mnr_by_status["processing"])
+        rng.shuffle(mnr_by_status["success"])
+        n_processing = len(mnr_by_status["processing"])
+        # số success MONG MUỐN theo tỉ lệ, giới hạn bởi số success THẬT có sẵn
+        # (không bịa ứng viên) — nếu processing khan hiếm, số success cũng khan
+        # theo, giữ đúng tỉ lệ tương đối thay vì áp một số tuyệt đối cố định.
+        n_success_muon = round(n_processing * MONEY_NOT_RECEIVED_SUCCESS_RATIO
+                                / (1 - MONEY_NOT_RECEIVED_SUCCESS_RATIO))
+        n_success = min(n_success_muon, len(mnr_by_status["success"]))
+        buckets["money_not_received"] = mnr_by_status["processing"] + mnr_by_status["success"][:n_success]
+        rng.shuffle(buckets["money_not_received"])
         quota = {k: round(target * w) for k, w in dist.items()}
         quota[max(quota)] += target - sum(quota.values())   # bù sai số làm tròn
         plan = []

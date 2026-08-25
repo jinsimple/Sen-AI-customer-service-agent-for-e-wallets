@@ -7,6 +7,8 @@ import pytest
 
 @pytest.mark.skip(
     reason=(
+        "NHÓM D (tests/_suite_day_du.py, không chịu FIN05_SUITE_DAY_DU — ngoài "
+        "phạm vi sản phẩm, không phải hạ tầng vắng). VÌ SAO ĐƯỢC MIỄN VĨNH VIỄN: "
         "COMP-002: ngưỡng xác thực sinh trắc học (QĐ 2345/QĐ-NHNN, 10tr/lần-"
         "20tr/ngày) không khớp bất kỳ cơ chế nào đang có trong sản phẩm — "
         "FS-06/FS-08 (src/tools/fraud_policy.py, scripts/fraud_engine.py) dùng "

@@ -34,6 +34,10 @@ def build_summary(
         if ticket_ids
         else []
     )
+    # Đề xuất trong bảng resolutions LUÔN do CSKH tạo (propose_resolution KHÔNG
+    # nằm trong 5 tool AI được gọi — contracts/agent-tools.yaml — ràng buộc
+    # cứng 2, AI không vượt cấp/không tự đề xuất). "% đề xuất AI được duyệt"
+    # từng gán nhầm hành động này cho AI; đổi nhãn ở tầng hiển thị, số không đổi.
     decided = [r for r in resolutions if r.status in ("approved", "rejected")]
     approved = [r for r in decided if r.status == "approved"]
     pct_ai_proposal_approved = round(100 * len(approved) / len(decided), 1) if decided else None
@@ -72,9 +76,27 @@ def build_summary(
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
         "total_tickets": total_tickets,
+        # "Thời gian xử lý TB" là CYCLE TIME (tạo vé → sếp duyệt), GỒM CẢ thời
+        # gian vé nằm chờ trong hàng đợi — không phải AHT (thời gian NGƯỜI thao
+        # tác thật). DB không có mốc "CSKH bắt đầu làm" (không claimed_at/
+        # work_started_at nào trên Ticket/Resolution — chỉ có created_at của vé
+        # và approved_at của quyết định), nên AHT KHÔNG đo được từ dữ liệu hiện
+        # có — trả None + lý do tường minh, KHÔNG suy diễn hay để trống (trống
+        # bị đọc thành 0, "chưa đo được" thì không).
         "avg_processing_hours": avg_processing_hours,
+        "avg_processing_hours_n": len(durations_hours),
+        "aht_hours": None,
+        "aht_khong_do_duoc_ly_do": (
+            "Chưa đo được — cần mốc thời điểm CSKH BẮT ĐẦU thao tác (vd "
+            "claimed_at/work_started_at), hiện DB chỉ có created_at (lúc tạo "
+            "vé, gồm cả thời gian nằm chờ) và approved_at (lúc sếp duyệt)."
+        ),
         "pct_ai_proposal_approved": pct_ai_proposal_approved,
+        "pct_ai_proposal_approved_numerator": len(approved),
+        "pct_ai_proposal_approved_n": len(decided),
         "pct_escalated": pct_escalated,
+        "pct_escalated_numerator": len(escalated_ticket_ids),
+        "pct_escalated_n": total_tickets,
         "by_complaint_type": by_type,
         "by_scope": by_scope,
     }

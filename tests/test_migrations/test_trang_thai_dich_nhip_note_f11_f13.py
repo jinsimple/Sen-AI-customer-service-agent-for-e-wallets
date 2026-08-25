@@ -9,7 +9,10 @@ lỗi của **dữ liệu đã nằm trong sổ**, không phải lỗi của log
 sạch dựng lại từ đầu sẽ luôn xanh và chứng minh đúng con số không.
 
 Không tới được DB thì `skip`, không đỏ giả — cùng cách `test_frontend_route_
-guards.py` xử lý khi thiếu stack Docker.
+guards.py` xử lý khi thiếu stack Docker. NHÓM A của cổng meta
+`tests/_suite_day_du.py`: `FIN05_SUITE_DAY_DU=1` biến hai skip "chưa có
+Postgres"/"không tới được DB" thành FAIL (không áp cho skip "DB rỗng chưa
+migrate" — đó là sai population, không phải hạ tầng vắng).
 
 CÁCH CHẠY (mặc định `pytest tests/` sẽ SKIP hết vì DATABASE_URL là SQLite —
 đừng nhìn "7 skipped" rồi tưởng đã xanh):
@@ -39,6 +42,8 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy import text
+
+from tests._suite_day_du import can_ha_tang
 
 # 5 ticket phải sang `approved` + 1 sang `rejected` (đặc tả §3).
 TICKET_SANG_APPROVED = {
@@ -83,13 +88,21 @@ def db():
     from src.db.session import get_engine
 
     if not DATABASE_URL or DATABASE_URL.startswith("sqlite"):
-        pytest.skip(f"Cần DB thật (Postgres), DATABASE_URL hiện là {DATABASE_URL!r}", allow_module_level=True)
+        can_ha_tang(
+            f"Cần DB thật (Postgres), DATABASE_URL hiện là {DATABASE_URL!r}",
+            cach_dung="trỏ DATABASE_URL vào Postgres thật của ngăn xếp — xem lệnh ở docstring đầu file",
+            allow_module_level=True,
+        )
     try:
         engine = get_engine(DATABASE_URL)
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
     except Exception as e:  # noqa: BLE001
-        pytest.skip(f"Không tới được DB thật ({e!r}) — cần `docker compose up -d`", allow_module_level=True)
+        can_ha_tang(
+            f"Không tới được DB thật ({e!r})",
+            cach_dung="`docker compose up -d`",
+            allow_module_level=True,
+        )
 
     # CHẶN ĐỎ SAI CHỖ (phát hiện khi rà C3, lỗi của chính file này): CI có job
     # `db-migration-test` chạy `pytest tests/test_migrations/` trên một Postgres

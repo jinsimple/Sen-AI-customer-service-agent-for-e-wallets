@@ -163,6 +163,27 @@ jobs:
       - name: Lint với ruff
         run: ruff check src/ tests/ eval/
       - name: Chạy toàn bộ pytest (unit + integration, không gọi LLM thật)
+        # 🔴 C3 (Lead duyệt 25/08) — `if: !cancelled()` KHÔNG phải nới lỏng cổng.
+        #
+        # [ĐO] job 97511034... run 32723255736: bước ruff ĐỎ ⟹ bước này bị
+        # SKIPPED ⟹ **toàn bộ suite backend chưa từng chạy trong CI một lần
+        # nào**. Và nguyên nhân là 17 lỗi ruff, TOÀN BỘ trong `eval/`, chủ yếu
+        # N802/N806 (tên biến viết hoa). Một quy ước đặt tên đang giấu kết quả
+        # của 657 test — lint và test là HAI TRỤC, trục này không được che trục
+        # kia.
+        #
+        # Job VẪN ĐỎ nếu ruff đỏ (bước ruff giữ nguyên, không `continue-on-
+        # error`). Thay đổi DUY NHẤT: pytest luôn báo cáo được kết quả của nó.
+        #
+        # Dùng `!cancelled()` chứ KHÔNG `always()`: `always()` còn chạy cả khi
+        # người ta bấm huỷ run, tức đốt 2 phút runner ephemeral cho một kết quả
+        # không ai đọc. Hàng chờ đang có 8 job.
+        #
+        # ⚠️ Đánh đổi đã khai: bước cài phụ thuộc hỏng thì pytest vẫn chạy và
+        # đỏ vì `ModuleNotFoundError` — một thông báo lỗi phục vụ hai nguyên
+        # nhân. Chấp nhận: đọc log thấy ngay bước cài đã đỏ trước đó. Rẻ hơn
+        # nhiều so với việc giấu mất cả suite.
+        if: ${{ !cancelled() }}
         # -m "not security_finding": loại test finding P0 CHƯA VÁ (xem job
         # security-findings-gate bên dưới) — tách riêng để 1 job đỏ có tên rõ
         # ràng, không lẫn vào hàng trăm test bình thường của job này (xem
@@ -289,7 +310,103 @@ jobs:
         # mới nhất, vẫn trong khoảng ảnh hưởng) nên không thể nâng cấp —
         # xác nhận định kỳ bằng `pip-audit -r requirements.txt` KHÔNG kèm
         # --ignore-vuln, gỡ dòng ignore này ngay khi có bản vá.
-        run: pip-audit --strict --ignore-vuln PYSEC-2026-311
+        #
+        # ─────────────────────────────────────────────────────────────────
+        # BA IGNORE THÊM 25/08 — PO THẬT KÝ CHẤP NHẬN RỦI RO (đường A), SAU
+        # KHI ĐƯỢC GIẢI THÍCH CẢ RỦI RO CỦA CHÍNH ĐƯỜNG A.
+        #   CVE-2026-45830  thiếu kiểm quyền -> đọc/ghi/xoá collection của
+        #                   TENANT KHÁC (chỉ qua API HTTP của chroma server)
+        #   CVE-2026-45831  SimpleRBACAuthorizationProvider không kiểm
+        #                   tenant/database/collection (chỉ ở chế độ server)
+        #   CVE-2026-45833  code injection qua trust_remote_code — CÙNG HỌ
+        #                   PYSEC-2026-311 ở trên
+        # Cả ba: chromadb 1.5.9, cột "Fix Versions" TRỐNG -> KHÔNG CÓ BẢN VÁ
+        # ĐỂ NÂNG. Không phải "lười nâng" — không có gì để nâng lên.
+        #
+        # LÝ DO AN TOÀN — MỘT TIỀN ĐỀ DUY NHẤT: dự án chạy chroma ở CHẾ ĐỘ
+        # NHÚNG, không mở cổng, không bật trust_remote_code. Cả ba lỗ chỉ với
+        # tới được qua API HTTP của một chroma SERVER.
+        #
+        # BẰNG CHỨNG ĐO ĐƯỢC (25/08, chạy lại thay vì tin chú thích cũ —
+        # chính chú thích PYSEC ở trên là thứ suýt làm tôi khỏi kiểm):
+        #   grep -rn trust_remote_code . --include=*.py *.yml *.yaml *.txt
+        #        -> 0  (hai kết quả duy nhất LÀ CHÍNH KHỐI CHÚ THÍCH NÀY)
+        #   src/rag/store.py:84 -> chromadb.PersistentClient(...)  KHÔNG HttpClient
+        #   docker-compose.yml  -> chỉ VOLUME `chroma_data`, KHÔNG service/port chroma
+        #   grep SimpleRBAC | CHROMA_SERVER  -> 0
+        #
+        # 🔴 TIỀN ĐỀ ẤY CÓ THỂ CHẾT, VÀ KHI NÓ CHẾT MẤY DÒNG IGNORE NÀY VẪN
+        # NẰM IM. Chú thích KHÔNG KÊU. Nên điều kiện huỷ hiệu lực được cắm
+        # thành MỘT CỔNG, không phải một dòng chữ:
+        #
+        #   tests/test_security/test_chromadb_embedded_premise.py
+        #
+        # Nó khẳng định đúng ba tiền đề trên, kèm 4 ca ĐỐI CHỨNG chứng minh
+        # từng hàm dò thật sự bắt được ca vi phạm và không bắt oan volume
+        # `chroma_data`. Ai chuyển sang HttpClient / thêm service chroma /
+        # bật trust_remote_code -> TEST ĐỎ -> mấy dòng ignore này TỰ LỘ là đã
+        # hết hiệu lực. [ĐO 25/08] 7 passed; PO-agent tự đổi PersistentClient
+        # thành HttpClient -> 1 failed, khôi phục -> xanh lại.
+        # 🔴 GỠ TEST ẤY = GỠ ĐIỀU KIỆN PO ĐÃ KÝ. Gỡ thì phải gỡ luôn 3 ignore.
+        #
+        # NGÀY RÀ LẠI: 2026-09-24 (hoặc SỚM HƠN, ngay khi chromadb ra bản vá).
+        # Rà bằng: pip-audit KHÔNG kèm --ignore-vuln, đối chiếu "Fix Versions".
+        # ─────────────────────────────────────────────────────────────────
+        #
+        # 🔴 BỎ `--strict` (25/08, PO-agent duyệt) — VÀ VÌ SAO KHÔNG BỎ TRẦN.
+        #
+        # [ĐO] run 32846571488, bước này, dòng lỗi DUY NHẤT:
+        #   ERROR: xx_ent_wiki_sm: Dependency not found on PyPI and could not
+        #   be audited (3.8.0)          -> ##[error] exit code 1
+        # `xx_ent_wiki_sm` là model spaCy cho Presidio, cài từ URL GitHub THEO
+        # THIẾT KẾ (requirements.lock.txt:195, Dockerfile:48) — nó KHÔNG BAO
+        # GIỜ có trên PyPI. `--strict` nghĩa là "đỏ nếu THU THẬP phụ thuộc
+        # thất bại", nên job chết TRƯỚC KHI quét được gói nào.
+        #
+        # 🔴 HỆ QUẢ THẬT, nặng hơn chính bản vá: PHÉP QUÉT CVE CHƯA BAO GIỜ
+        # CHẠY TỚI ĐOẠN QUÉT — suốt cả thời gian job này tồn tại. Nó chết ở
+        # bước THU THẬP và báo ĐỎ, nên đọc ra như "CÓ CVE", trong khi sự thật
+        # là "CHƯA ĐO ĐƯỢC GÌ". Hai trạng thái khác hẳn nhau đội chung một vỏ.
+        #
+        # Bỏ `--strict` TRẦN thì cổng sẽ IM LẶNG với MỌI gói không quét được
+        # về sau — đúng tội đã liệt ở CHECKLIST #28 (che mất tín hiệu của
+        # chính cái đang hỏng). Nên kèm phép kiểm: dòng "could not be audited"
+        # phải xuất hiện ĐÚNG MỘT LẦN và ĐÚNG LÀ `xx_ent_wiki_sm`. Thêm một
+        # gói không quét được -> job ĐỎ, không im.
+        #
+        # `--strict` bỏ đi KHÔNG làm yếu khả năng bắt CVE: pip-audit vẫn thoát
+        # khác 0 khi TÌM THẤY lỗ hổng. Chỉ khác ở "không quét được" vs "quét
+        # xong, có lỗ".
+        #
+        # Dùng `set +e` + chuyển hướng ra tệp, KHÔNG dùng `cmd | tee` với
+        # PIPESTATUS: shell mặc định của GitHub Actions là `bash -e {0}`, một
+        # pipeline hỏng sẽ THOÁT NGAY trước khi kịp đọc mã trả về — mà đây là
+        # bước mà mã trả về CHÍNH LÀ thứ ta cần đọc.
+        run: |
+          set +e
+          pip-audit \
+            --ignore-vuln PYSEC-2026-311 \
+            --ignore-vuln CVE-2026-45830 \
+            --ignore-vuln CVE-2026-45831 \
+            --ignore-vuln CVE-2026-45833 \
+            > /tmp/pip-audit-c7.log 2>&1
+          KQ_AUDIT=$?
+          set -e
+          cat /tmp/pip-audit-c7.log
+
+          KHONG_QUET_DUOC=$(grep -c "could not be audited" /tmp/pip-audit-c7.log || true)
+          DUNG_GOI_DA_BIET=$(grep -c "xx_ent_wiki_sm.*could not be audited" /tmp/pip-audit-c7.log || true)
+          if [ "$KHONG_QUET_DUOC" -ne "$DUNG_GOI_DA_BIET" ] || [ "$KHONG_QUET_DUOC" -gt 1 ]; then
+            echo "::error::C7 — có gói KHÔNG QUÉT ĐƯỢC ngoài xx_ent_wiki_sm."
+            echo "::error::  dòng 'could not be audited': $KHONG_QUET_DUOC · khớp xx_ent_wiki_sm: $DUNG_GOI_DA_BIET"
+            echo "::error::  Đây KHÔNG phải lỗi vặt: mỗi gói không quét được là một gói CHƯA AI BIẾT có CVE hay không."
+            grep "could not be audited" /tmp/pip-audit-c7.log || true
+            exit 1
+          fi
+          if [ "$KHONG_QUET_DUOC" -eq 0 ]; then
+            echo "::notice::xx_ent_wiki_sm nay QUÉT ĐƯỢC — gỡ được phép kiểm này khỏi ci.yml."
+          fi
+          exit "$KQ_AUDIT"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

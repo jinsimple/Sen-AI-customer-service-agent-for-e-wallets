@@ -35,6 +35,7 @@ import pytest
 
 from tests._docker_co_mat import container_song
 from tests._dong_bang import LY_DO, dang_dong_bang
+from tests._suite_day_du import can_ha_tang
 
 BASE = os.environ.get("FIN05_BASE_URL", "https://localhost")
 
@@ -92,11 +93,10 @@ def test_tran_thap_thi_no_dung_lop_loi_khong_tra_ve_rong(khach_ngan_sach_thap):
 @pytest.fixture
 def khach_ngan_sach_thap():
     if not os.environ.get("FIN05_STACK_MAX_TOKENS_THAP"):
-        pytest.skip(
+        can_ha_tang(
             "Cần một stack có LLM_MAX_TOKENS thấp (vd 64) để ép bẫy. Biến môi "
-            "trường của CONTAINER, không đặt được từ đây. Dựng rồi đặt "
-            "FIN05_STACK_MAX_TOKENS_THAP=1. Đây là thiếu NĂNG LỰC thật — xem "
-            "Luật 6."
+            "trường của CONTAINER, không đặt được từ đây.",
+            cach_dung="dựng stack Docker riêng có LLM_MAX_TOKENS thấp (vd 64), rồi đặt FIN05_STACK_MAX_TOKENS_THAP=1",
         )
     httpx = pytest.importorskip("httpx")
     c = httpx.Client(verify=False, timeout=300)

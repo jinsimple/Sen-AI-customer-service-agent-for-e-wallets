@@ -121,7 +121,7 @@ def _tu_kiem_khong_bao_oan_ca_dung_thu_tu() -> bool:
     return kq["cham_duoc"] is True and kq["vi_pham"] is None
 
 
-def _tu_kiem_khong_bao_oan_ca_goi_tool_va_tra_loi_CUNG_mot_luot() -> bool:
+def _tu_kiem_khong_bao_oan_ca_goi_tool_va_tra_loi_cung_mot_luot() -> bool:
     """0 token — bẫy tự bắt được khi validate trên MT-E01 thật: mẫu ReAct
     chuẩn (gọi tool RỒI trả lời, CÙNG một lượt) không được báo oan."""
     kq = cham_thu_tu_mot_ca(
@@ -132,7 +132,7 @@ def _tu_kiem_khong_bao_oan_ca_goi_tool_va_tra_loi_CUNG_mot_luot() -> bool:
     return kq["cham_duoc"] is True and kq["vi_pham"] is None
 
 
-def _tu_kiem_khong_chAM_duoc_khi_lech_do_dai() -> bool:
+def _tu_kiem_khong_cham_duoc_khi_lech_do_dai() -> bool:
     """0 token — bản ghi thiếu tool_calls_theo_luot đồng bộ phải báo KHÔNG CHẤM ĐƯỢC."""
     kq = cham_thu_tu_mot_ca("TU-KIEM-③", all_agent_replies=["a", "b"], tool_calls_theo_luot=[[]])
     return kq["cham_duoc"] is False
@@ -150,8 +150,8 @@ def main() -> int:
     print("── TỰ KIỂM (Luật A — cổng phải ĐỎ được, 0 token, transcript dựng sẵn) ──")
     d1 = _tu_kiem_bat_dung_vi_pham()
     d2 = _tu_kiem_khong_bao_oan_ca_dung_thu_tu()
-    d3 = _tu_kiem_khong_chAM_duoc_khi_lech_do_dai()
-    d4 = _tu_kiem_khong_bao_oan_ca_goi_tool_va_tra_loi_CUNG_mot_luot()
+    d3 = _tu_kiem_khong_cham_duoc_khi_lech_do_dai()
+    d4 = _tu_kiem_khong_bao_oan_ca_goi_tool_va_tra_loi_cung_mot_luot()
     print(f"  ① bắt đúng ca kết luận-trước-bằng-chứng: {'ĐẠT' if d1 else '🔴 KHÔNG BẮT ĐƯỢC — cổng hỏng'}")
     print(f"  ② KHÔNG báo oan ca gọi tool đúng thứ tự (khác lượt): {'ĐẠT' if d2 else '🔴 BÁO OAN — cổng hỏng'}")
     print(f"  ③ khai KHÔNG CHẤM ĐƯỢC khi dữ liệu lệch độ dài: {'ĐẠT' if d3 else '🔴 KHÔNG KHAI — cổng hỏng'}")
@@ -181,27 +181,27 @@ def main() -> int:
     with open(args.file, encoding="utf-8") as f:
         transcript = json.load(f)
 
-    chAM_duoc = 0
-    khong_chAM_duoc = 0
+    cham_duoc = 0
+    khong_cham_duoc = 0
     vi_pham_list = []
     for rec in transcript:
         case_id = rec.get("case_id", "?")
         agr = rec.get("all_agent_replies")
         tclt = rec.get("tool_calls_theo_luot")
         if agr is None or tclt is None:
-            khong_chAM_duoc += 1
+            khong_cham_duoc += 1
             continue
         kq = cham_thu_tu_mot_ca(case_id, agr, tclt)
         if not kq["cham_duoc"]:
-            khong_chAM_duoc += 1
+            khong_cham_duoc += 1
             continue
-        chAM_duoc += 1
+        cham_duoc += 1
         if kq["vi_pham"]:
             vi_pham_list.append((case_id, kq["vi_pham"]))
 
-    tong = chAM_duoc + khong_chAM_duoc
+    tong = cham_duoc + khong_cham_duoc
     print(f"\n── CHẤM TRÊN {args.file} ──")
-    print(f"MẪU SỐ THẬT: phủ {chAM_duoc}/{tong} bản ghi — {khong_chAM_duoc} bản ghi KHÔNG có "
+    print(f"MẪU SỐ THẬT: phủ {cham_duoc}/{tong} bản ghi — {khong_cham_duoc} bản ghi KHÔNG có "
           "tool_calls_theo_luot (hình dạng khác), KHÔNG chấm, KHÔNG tính vào mẫu số vi phạm.")
 
     if vi_pham_list:
@@ -210,7 +210,7 @@ def main() -> int:
             print(f"  [{case_id}] {vp['ly_do']}")
         return 1
 
-    print(f"\n✅ 0 vi phạm trên {chAM_duoc} bản ghi chấm được.")
+    print(f"\n✅ 0 vi phạm trên {cham_duoc} bản ghi chấm được.")
     return 0
 
 

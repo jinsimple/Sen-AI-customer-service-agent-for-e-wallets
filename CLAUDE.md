@@ -45,7 +45,7 @@ agent nào.**
 
 | File | Quy định |
 |---|---|
-| `contracts/authority-matrix.yaml` | 33 route × role nào được gọi |
+| `contracts/authority-matrix.yaml` | 34 route × role nào được gọi |
 | `contracts/resolution-state-machine.yaml` | Vòng đời HITL + 3 trục trạng thái trực giao |
 | `contracts/agent-tools.yaml` | 5 tool AI được gọi + tool bị cấm + cơ chế truy vết |
 
@@ -77,7 +77,8 @@ Mỗi phiên Claude chỉ được **ghi** trong vùng của mình. Cần đổi
 | Vai | Được ghi | Được đọc |
 |---|---|---|
 | `po` | `docs/`, `*.md` ở gốc | tất cả |
-| `tech-lead` | `src/`, `frontend/src/`, `migrations/`, `docker-compose*.yml`, `.github/workflows/**`, `contracts/` (sau khi PO duyệt) | tất cả |
+| `tech-lead` | `src/`, `frontend/src/`, `migrations/`, `Dockerfile*`, `.dockerignore`, `docker-compose.yml`, `scripts/`, `.github/workflows/**`, `contracts/` (sau khi PO duyệt) | tất cả |
+| `devops` | `docker-compose.do.yml` (ngăn ĐO), `docker-entrypoint.sh`, `.env.example`, `docs/DEPLOY.md`, `docs/devops/**`, sổ giám hộ ảnh | tất cả |
 | `tester` | `tests/`, `frontend/e2e/`, `eval/` | `docs/`, `contracts/`, `eval/` — **KHÔNG đọc `src/`** |
 | `security` | `docs/security/` | tất cả |
 | `ux-ui` | `frontend/src/`, `*.html` wireframe | `docs/`, `contracts/` |
@@ -111,8 +112,8 @@ docs/STATE.md                ← đang làm gì, ghi đè cuối mỗi phiên
 docs/TESTING.md              ← cách chạy từng nhóm test
 scripts/check_contracts.py   ← phát hiện artifact lỗi thời
 tests/test_invariants.py     ← 5 ràng buộc cứng, 23 test, introspect app thật
-tests/                       ← 42 file test backend
-frontend/e2e/                ← 13 file Playwright
+tests/                       ← 90 file test backend
+frontend/e2e/                ← 19 file Playwright
 eval/golden_set.jsonl        ← case dev · eval/heldout_set.jsonl CHỈ CHẠY MỘT LẦN, gần cuối
 .claude/agents/              ← định nghĩa vai
 .claude/commands/            ← /standup /gate /adr /impact /wrapup

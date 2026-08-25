@@ -214,6 +214,25 @@ _DAY_SO = re.compile(r"(?<!\d)\d{1,3}([.,\s])\d{3}(?:\1\d{3})*(?!\d)|(?<!\d)\d{7
 # >=7 vua chua chu so).
 _TOKEN_MA = re.compile(r"[A-Za-z0-9]{7,}")
 
+# 🔴 VÁ A (25/08) — KHUÔN MÃ CÓ GẠCH NGANG. `_TOKEN_MA` đòi ≥7 ký tự LIỀN, nên
+# dấu `-` cắt `CMP-00003` thành "CMP"(3) + "00003"(5) ⟹ **cả hai dưới ngưỡng**,
+# O3 MÙ HOÀN TOÀN. Sự cố 25/08: bot bịa `CMP-00003` — một mã CÓ THẬT của khách
+# KHÁC — và bộ lọc cho qua, trong khi CÙNG CÂU BỎ MÃ ĐI thì O5 chặn.
+# ⟹ Thêm một mã giả vào câu làm nó AN TOÀN HƠN trong mắt bộ lọc.
+#
+# Mọi mã THẬT của hệ đều ≥7 ký tự LIỀN sau tiền tố (TCK-…12hex · RES-…12hex ·
+# TXN…14số) nên khe này chỉ mở với mã BỊA — không ai vấp cho tới khi model bịa.
+#
+# Khuôn: 2–5 CHỮ CÁI + `-` + ≥3 ký tự chữ/số. CỐ Ý bắt đầu bằng CHỮ CÁI để
+# KHÔNG nuốt ngày tháng (`2026-08-27` bắt đầu bằng số ⟹ không khớp) — ngày là
+# thứ agent nói hợp lệ suốt, bắt oan nó là đóng luôn đường trả lời bình thường.
+# `{3,}` sau gạch: "COVID-19"/"check-in"/"e-mail" đều trượt.
+#
+# 🔴 ÁP CHO CẢ HAI PHÍA (reply VÀ nguồn) vì nằm trong `_cac_day_so` — mã THẬT
+# lấy từ kết quả tool cũng được bóc y hệt, nên nó vẫn TRUY VẾT ĐƯỢC và KHÔNG bị
+# chặn oan. Chỉ mã BỊA mới không có mặt ở nguồn.
+_MA_CO_GACH = re.compile(r"\b[A-Za-z]{2,5}-[A-Za-z0-9]{3,}\b")
+
 
 def _cac_day_so(text: str, *, cho_phep_phan_cach: bool = True) -> set[str]:
     """Mọi dãy số / mã trong text.
@@ -237,6 +256,10 @@ def _cac_day_so(text: str, *, cho_phep_phan_cach: bool = True) -> set[str]:
         if len(so) >= 7:
             ra.add(so)
     for m in _TOKEN_MA.finditer(text or ""):
+        tok = m.group()
+        if any(c.isdigit() for c in tok):
+            ra.add(tok.lower())
+    for m in _MA_CO_GACH.finditer(text or ""):
         tok = m.group()
         if any(c.isdigit() for c in tok):
             ra.add(tok.lower())
@@ -401,6 +424,171 @@ def _khop_o4(reply: str) -> bool:
     return False
 
 
+# ---------------------------------------------------------------- O5
+# Đặc tả gốc: docs/security/2026-08-24-dac-ta-o5-tu-vung-hoan-tat-gia-tao-ve.md
+# (Bảo mật, sau finding 5f627e3: "đã tạo hồ sơ cho bạn rồi" lọt sạch O3+O4 vì
+# không số, không từ tiền). Đặc tả gốc §2 đề xuất đối chiếu MÃ TICKET với
+# `nguon` (giống O3) — nhưng Tester đo LẠI bằng mã 12-hex THẬT (`new_id()`)
+# thay vì fixture 5-6 ký tự của lần đo đầu: O3 đã phủ 2/2 ca "nêu SAI mã"
+# (sai giá trị + siêu chuỗi), vì mã thật LUÔN nằm trong tầm `_TOKEN_MA`
+# (ngưỡng 7 ký tự). O5 chỉ còn cần cho ĐÚNG khe O3 không có gì để so: reply
+# KHÔNG nêu mã nào cả — dù hoàn-tất-giả (không tool result) hay hoàn-tất-
+# thật-nhưng-quên-nêu-mã (nay LUÔN sai theo chính sách, xem dưới).
+#
+# Luật (Bảo mật thu hẹp 24/08, PO thật duyệt qua PO-agent):
+#   từ vựng HOÀN TẤT (đã/vừa tạo/mở/ghi nhận, kèm biến thể bị động) khớp
+#   ĐỐI TƯỢNG (hồ sơ/vé/ticket/khiếu nại) trong CÙNG một mệnh đề
+#   VÀ reply KHÔNG chứa token mã nào (`_TOKEN_MA` — TÁI DÙNG nguyên định
+#   nghĩa O3, không tự chế thước mới).
+#
+# KHÔNG đối chiếu `nguon` theo giá trị (khác đề xuất §2 đặc tả gốc) — lý do
+# đủ, không phải bỏ qua: docstring `create_ticket` giờ BẮT BUỘC nêu mã
+# (customer_tools.py, `6d0e3a9`, cùng phiên này) nên VẮNG MÃ LUÔN SAI theo
+# chính sách, bất kể `nguon` có tool result thành công hay không. Đơn giản
+# hoá này do chính hai vòng ĐO quyết định, không phải suy đoán trước.
+#
+# Tái dùng NGUYÊN cơ chế O4 đã trả giá, không tái phát minh:
+#   1. Fused-phrase, KHÔNG bare "da"/"vua" — bẫy "dạ" strip dấu trùng "da"
+#      (_bo_dau("Dạ") == _bo_dau("đã") == "da"). Mọi mục dưới đây LUÔN ghép
+#      tense với động từ thành CỤM liền, giống "da hoan tien" của O4.
+#   2. `_O4_PHU_DINH` cho mệnh đề phủ định — "mình CHƯA tạo được hồ sơ lúc
+#      này" là câu ĐÚNG (agent thành thật báo lỗi/OTP hết hạn, đúng finding
+#      5f627e3 đề nghị dạy agent nói) — PHẢI cho qua, không tự chế danh sách
+#      phủ định riêng cho O5.
+#
+# 🔴 Review bắt 24/08 (soát 491c91d) — HAI lỗ, cả hai ĐO trực tiếp bằng code
+# chạy, không suy diễn:
+#
+#   ① THIẾU yếu tố "hướng khách" (bản đầu chỉ 2 yếu tố: dong_tu + doi_tuong).
+#      [ĐO] "Vé loại này đã được mở rất nhiều lần trong quá khứ, không có gì
+#      bất thường." và "Hồ sơ tương tự đã ghi nhận cho nhiều khách khác
+#      trước đây rồi." — cả hai KHÔNG hề khẳng định đã xử lý CHO KHÁCH ĐANG
+#      CHAT, chỉ mô tả chuyện chung/quá khứ, nhưng khớp cả 2 yếu tố cũ ⟹
+#      CHẶN OAN. Đúng thứ nguyên tắc đầu file cảnh báo là hậu quả NẶNG NHẤT
+#      (dương tính giả > âm tính giả ở lớp lọc đầu ra).
+#
+#      Review đề xuất thêm kiểm THỨ TỰ (như O4: vt_dong_tu < vt_tien) — CÂN
+#      NHẮC nhưng KHÔNG dùng: ordering sẽ làm rớt chính ca bị-động hợp lệ
+#      "Hồ sơ khiếu nại của bạn đã được ghi nhận" (đối tượng đứng TRƯỚC động
+#      từ, đúng cấu trúc bị động tiếng Việt tự nhiên) — mất một catch THẬT để
+#      đóng 2 lỗ false-positive là đánh đổi tệ hơn. Chọn hướng KHÁC: thêm
+#      YẾU TỐ THỨ BA "hướng khách" (mirror `_O4_HUONG_KHACH` — đúng câu hỏi
+#      mở đặc tả gốc §4 để ngỏ: "Có cần yếu tố Hướng khách không?"). Cả hai
+#      câu Review đưa ra đều THIẾU hướng khách (không có bạn/anh/chị/mình/
+#      của bạn/quý khách) ⟹ yêu cầu thêm yếu tố này đóng cả hai lỗ MÀ KHÔNG
+#      cần ordering, giữ nguyên khả năng bắt câu bị động hợp lệ.
+#
+#   ② THIẾU từ vựng: "đã lập" (hồ sơ/vé — CSKH phổ biến) và ĐẶC BIỆT "đã
+#      tiếp nhận" — [ĐO] Review chỉ ra đây CHÍNH LÀ từ vựng ADR-047 (`1080762`,
+#      land CÙNG NGÀY) dùng để mô tả việc create_ticket làm ("tiếp nhận
+#      trước, bổ sung sau"). prompt.py bước 4 nhánh mới có khả năng cao khiến
+#      model dùng ĐÚNG từ "tiếp nhận" khi báo kết quả — đúng khung ngôn ngữ
+#      vừa cài cùng ngày. Thiếu từ này là mù với đúng ca có xác suất xảy ra
+#      CAO NHẤT trong các ca hoàn-tất-giả từ giờ trở đi. Thêm "lập"/"tiếp
+#      nhận" (chủ động + bị động) vào danh sách động từ.
+_O5_DONG_TU_HOAN_TAT = [
+    "da tao", "da mo", "da ghi nhan", "da lap", "da tiep nhan",
+    "vua tao", "vua mo", "vua ghi nhan", "vua lap", "vua tiep nhan",
+    "da duoc tao", "da duoc mo", "da duoc ghi nhan", "da duoc lap", "da duoc tiep nhan",
+    "vua duoc tao", "vua duoc mo", "vua duoc ghi nhan", "vua duoc lap", "vua duoc tiep nhan",
+]
+_O5_DOI_TUONG = ["ho so", "ve", "ticket", "don khieu nai", "khieu nai"]
+_O5_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
+# 🔴 Review tự phản biện chính đề xuất "toàn reply" của mình (24/08, sau
+# d9885ca) — [ĐO] mở "hướng khách" ra toàn reply cho MƯỢN tư cách hướng-
+# khách cho một câu KHÔNG LIÊN QUAN: "Bạn hỏi hay đó. Loại vé này đã được mở
+# rất nhiều lần trong quá khứ cho nhiều khách khác..." — "Bạn" ở câu ĐẦU chỉ
+# ghi nhận câu hỏi, câu SAU vẫn là mô tả chung y hệt 2 ca false-positive
+# vòng 1 — tái xuất, cùng họ lỗi. "Lân cận" không giải được (Review tự thử):
+# "bạn" cũng nằm ở mệnh đề liền kề trong chính ca vừa dựng.
+#
+# Vá bằng NHÁNH KHÁC Review đề xuất: PHỦ ĐỊNH mô tả-chung, cùng khuôn
+# `_O4_PHU_DINH` — mệnh đề có dấu hiệu đang nói về chuyện CHUNG/QUÁ KHỨ (tần
+# suất, lịch sử, người khác) thì KHÔNG tính, dù có đủ động từ+đối tượng.
+_O5_MO_TA_CHUNG = ["nhieu lan", "truoc day", "thuong xuyen", "khach khac"]
+
+
+def khai_da_tao_ve(reply: str) -> bool:
+    """Câu này có KHAI rằng vé/hồ sơ ĐÃ ĐƯỢC TẠO không — bất kể có kèm mã hay không.
+
+    🔴 KHÁC `_khop_o5` ở ĐÚNG MỘT ĐIỂM, và điểm ấy là toàn bộ lý do hàm này tồn tại:
+    O5 **nhường** khi câu có kèm mã, vì chú thích của nó tự khai giả định
+    *"O3 đã phủ mọi ca có mã sai/mã bịa"*. [ĐO 25/08] **giả định ấy SAI**:
+        `_TOKEN_MA = r"[A-Za-z0-9]{7,}"`
+        "CMP-00003" → dấu `-` cắt thành "CMP" (3) + "00003" (5) → CẢ HAI dưới ngưỡng
+        ⟹ O3 MÙ HOÀN TOÀN với khuôn mã ấy
+    Mọi mã THẬT của hệ (`TCK-…12 hex`, `TXN…14 số`, `RES-…`) đều ≥7 ký tự liền, nên
+    khe này chỉ mở ra với mã **BỊA** — và không ai vấp cho tới khi model bịa thật.
+    Hậu quả đo được: **thêm một mã giả vào câu làm nó AN TOÀN HƠN trong mắt bộ lọc.**
+
+    ⟹ Hàm này CỐ Ý **không** miễn trừ theo mã. Nó chỉ trả lời *"có khai đã tạo
+    không"*; việc đối chiếu với `ticket_id` THẬT là của tầng gọi (`graph.py`), nơi
+    duy nhất biết sự thật. Đây là ràng buộc cứng 3 ép bằng SỰ THẬT, không bằng từ vựng
+    — nên nó không thừa hưởng trần của cách khớp-từ mà chú thích `_khop_o5` đã khai.
+    """
+    md = _bo_dau(reply)
+    if any(t in md for t in _O5_MO_TA_CHUNG):
+        return False
+    return any(v in md for v in _O5_DONG_TU_HOAN_TAT) and any(
+        d in md for d in _O5_DOI_TUONG
+    )
+
+
+def _khop_o5(reply: str) -> bool:
+    # 🔴 Review vòng 2 (24/08, soát a95f8f0) — [ĐO] "hướng khách" đòi CÙNG
+    # MỆNH ĐỀ với động từ+đối tượng thì LỌT nguyên một họ câu chốt tự nhiên
+    # của CSKH: "Bạn yên tâm nhé. Đã tạo hồ sơ khiếu nại rồi." — đại từ nằm
+    # ở CÂU TRƯỚC (trấn an), động từ+đối tượng ở CÂU CHỐT (dữ kiện), đúng
+    # khuôn "tách câu cảm xúc khỏi câu dữ kiện" mà nhiều luật khác trong
+    # prompt.py cũng ép agent làm — `_tach_menh_de` KHÔNG gộp lại được.
+    # Đổi "hướng khách" sang xét TOÀN REPLY (giống cách `_TOKEN_MA` đã làm
+    # ở cuối hàm) — [ĐO] xác nhận 2 ca false-positive gốc của Review (câu mô
+    # tả chung/quá khứ, không nhắc khách ở BẤT KỲ đâu trong reply) vẫn không
+    # có hướng-khách sau khi đổi, không mở lại lỗ cũ.
+    #
+    # ⚠️ GIỚI HẠN CÒN LẠI, CỐ Ý KHÔNG VÁ (Review nêu, đồng ý để lộ thay vì
+    # giấu): câu HOÀN TOÀN không đại từ ("Đã tạo hồ sơ khiếu nại rồi nhé.")
+    # vẫn LỌT — không có "bạn/anh/chị/mình/quý khách" ở đâu trong reply thì
+    # đổi phạm vi cũng không cứu được. Tín hiệu thay thế (tiểu từ "nhé"/"ạ")
+    # tự nó có rủi ro bắt oan riêng, cần đo riêng trước khi thêm — ĐỪNG đoán
+    # trước, đúng Luật M. Đây là đánh đổi ĐÃ KHAI, không phải lỗ bị giấu.
+    #
+    # ⚠️ GIỚI HẠN THỨ HAI, CỐ Ý DỪNG Ở ĐÂY (Review tự bắn ngược `_O5_MO_TA_
+    # CHUNG` sau khi vá, 24/08): một trong 4 từ mô-tả-chung dùng SAI nghĩa
+    # gốc (mốc thời gian trong hội thoại/tần suất CÁ NHÂN của khách, không
+    # phải "chuyện chung/nhiều khách khác") CÙNG mệnh đề với câu chốt cũng
+    # LỌT — "Mình đã tạo hồ sơ khiếu nại cho bạn như đã hứa trước đây rồi
+    # nhé.", "...thấy trường hợp này xảy ra thường xuyên với bạn." Khớp từ
+    # không phân biệt được NGỮ NGHĨA, chỉ khớp SỰ CÓ MẶT — ba vòng vá liên
+    # tiếp cùng dạng lỗi (hướng-khách cùng-mệnh-đề -> toàn-reply -> loại-trừ-
+    # theo-từ) chứng minh TRẦN của cách tiếp cận khớp-từ/vị-trí, không phải
+    # một lỗ đơn lẻ còn sót. DỪNG vá thêm ở đây — bề mặt đã hẹp tới mức cần
+    # đúng tổ hợp hiếm, O5 vốn chỉ là lưới cuối cho MỘT khe hẹp (O3 đã phủ
+    # mọi ca có mã sai/mã bịa), và nguyên tắc đầu file chấp nhận bỏ sót có
+    # kiểm soát. Muốn đóng dứt điểm cần tín hiệu NGỮ NGHĨA thật, không phải
+    # danh sách loại trừ thứ tư — để lại cho PO-agent/Bảo mật cân nhắc có
+    # đáng đầu tư hướng khác hay không.
+    co_huong_khach_toan_reply = _vi_tri_dau(_bo_dau(reply), _O5_HUONG_KHACH) is not None
+    co_menh_de_hoan_tat = False
+    for md in _tach_menh_de(_bo_dau(reply)):
+        if any(p in md for p in _O4_PHU_DINH):
+            continue
+        if any(p in md for p in _O5_MO_TA_CHUNG):
+            continue
+        co_dong_tu = _vi_tri_dau(md, _O5_DONG_TU_HOAN_TAT) is not None
+        co_doi_tuong = _vi_tri_dau(md, _O5_DOI_TUONG) is not None
+        if co_dong_tu and co_doi_tuong and co_huong_khach_toan_reply:
+            co_menh_de_hoan_tat = True
+            break
+    if not co_menh_de_hoan_tat:
+        return False
+    # Toàn REPLY, không chỉ mệnh đề đang xét — mã có thể nằm ở câu khác
+    # trong cùng reply ("Mình đã tạo hồ sơ cho bạn. Mã của bạn là KN-...").
+    # `reply` gốc (chưa bo_dau) — _TOKEN_MA chỉ khớp [A-Za-z0-9], dấu tiếng
+    # Việt không rơi vào lớp ký tự này nên không cần chuẩn hoá trước.
+    return not _TOKEN_MA.search(reply)
+
+
 # ---------------------------------------------------------------- công khai
 def loc_dau_ra(
     reply: str,
@@ -429,6 +617,8 @@ def loc_dau_ra(
         khop.append("O3")
     if _khop_o4(reply):
         khop.append("O4")
+    if _khop_o5(reply):
+        khop.append("O5")
 
     if not khop:
         return reply, []

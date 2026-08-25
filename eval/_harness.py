@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import re
 import sys
 import time
@@ -536,6 +537,9 @@ def run_case_adversary(
     loc_theo_luot: list[list[str] | None] = []
     ly_do_fallback_theo_luot: list[str | None] = []
     thoi_gian_theo_luot: list[float] = []
+    # ĐƯỜNG ĐỊNH TUYẾN mỗi lượt — cùng lý do/quy ước với run_case_turns_adaptive
+    # ở trên (hạng mục ① đợt "OTP trước token", 24/08).
+    duong_theo_luot: list[str | None] = []
     all_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
     result: dict[str, Any] = {}
 
@@ -600,9 +604,18 @@ def run_case_adversary(
         # chưa có trường này".
         loc_theo_luot.append(result.get("loc_dau_ra"))
         ly_do_fallback_theo_luot.append(result.get("ly_do_fallback"))
+        duong_theo_luot.append(result.get("duong"))
 
+        # [ĐO 25/08, buổi tốn phí ⑬] `result["usage"]` giờ có thể mang khoá
+        # KHÔNG PHẢI số (vd tên model đã dùng, chẩn đoán xoay model) — cộng
+        # dồn mù mọi khoá làm TypeError giữa một lượt ĐÃ tốn tiền thật, mất
+        # cả lượt. Chỉ CỘNG DỒN khoá số; khoá không phải số thì GIỮ giá trị
+        # MỚI NHẤT (đúng ngữ nghĩa "trạng thái hiện tại", không phải tổng).
         for k, v in (result.get("usage") or {}).items():
-            all_usage[k] = all_usage.get(k, 0) + v
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                all_usage[k] = all_usage.get(k, 0) + v
+            else:
+                all_usage[k] = v
 
     result["all_customer_texts"] = all_customer_texts
     result["all_agent_replies"] = all_agent_replies
@@ -612,6 +625,7 @@ def run_case_adversary(
     result["loc_dau_ra_theo_luot"] = loc_theo_luot
     result["ly_do_fallback_theo_luot"] = ly_do_fallback_theo_luot
     result["thoi_gian_theo_luot"] = thoi_gian_theo_luot
+    result["duong_theo_luot"] = duong_theo_luot
     result["so_luot_da_chay"] = len(all_agent_replies)
     return result
 
@@ -676,11 +690,23 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
     all_agent_replies: list[str] = []
     all_tool_calls: list[dict] = []
     all_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    # ĐƯỜNG ĐỊNH TUYẾN mỗi lượt (`nhe`/`thu_slot`/`day_du`, envelope `run_agent_turn`)
+    # — hạng mục ① đợt "OTP trước token" (24/08): báo cáo eval phải in được
+    # "ca này đi thu_slot, không chạm model" MÀ KHÔNG PHẢI MỞ CODE. `None` khi
+    # bản `run_agent_turn` đang chạy chưa trả khoá này (bản cũ) — giữ nguyên
+    # văn, không tự suy diễn thành "nhe"/"day_du".
+    duong_theo_luot: list[str | None] = []
     result: dict[str, Any] = {}
 
     def _add_usage(r: dict[str, Any]) -> None:
+        # [ĐO 25/08, buổi tốn phí ⑬] cùng vá với run_case_adversary — `usage`
+        # có thể mang khoá không phải số (vd tên model), cộng dồn mù làm
+        # TypeError giữa một lượt đã tốn tiền thật.
         for k, v in (r.get("usage") or {}).items():
-            all_usage[k] = all_usage.get(k, 0) + v
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                all_usage[k] = all_usage.get(k, 0) + v
+            else:
+                all_usage[k] = v
 
     # Lượt (0-based) mà ticket LẦN ĐẦU xuất hiện — None nếu không lượt nào tạo.
     # Cần cho check `de_nghi_truoc_khi_tao_ticket` (phán quyết B2 14/08): chỉ
@@ -695,6 +721,7 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
         )
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
+        duong_theo_luot.append(result.get("duong"))
         _add_usage(result)
         if luot_tao_ticket is None and result.get("ticket_id"):
             luot_tao_ticket = so_luot
@@ -714,6 +741,7 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
         )
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
+        duong_theo_luot.append(result.get("duong"))
         _add_usage(result)
         if luot_tao_ticket is None and result.get("ticket_id"):
             luot_tao_ticket = so_luot
@@ -727,6 +755,7 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
     result["all_customer_texts"] = all_customer_texts
     result["all_agent_replies"] = all_agent_replies
     result["extra_turns_used"] = extra_turns_used
+    result["duong_theo_luot"] = duong_theo_luot
     return result
 
 
@@ -935,3 +964,23 @@ def load_jsonl(path: Path) -> list[dict]:
 
 def now_stamp() -> str:
     return dt.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
+
+def cau_hinh_dinh_tuyen_luc_chay() -> str:
+    """Ghim cờ `PHAN_LUONG_BAT` vào phép đo — hạng mục ① đợt "OTP trước token"
+    (24/08, `docs/giao-viec/2026-08-24-dot-otp-truoc-token.md`, đóng Đ2).
+
+    Đ2 [ĐO 24/08]: 3/3 container sản phẩm có `PHAN_LUONG_BAT=1`; HOST — nơi
+    eval bắt buộc chạy (`docker exec` cho 0 ca vì `.dockerignore` loại `eval/`)
+    — không đặt biến này; không tệp eval nào khai cờ trước hạng mục này. Kết
+    quả: eval và sản phẩm có thể đã và đang chạy HAI cấu hình khác nhau mà
+    không ai biết, vì không báo cáo nào từng in ra giá trị đang chạy.
+
+    Đọc `os.environ` trực tiếp (không đọc `src/config.py`) — đây là NGUỒN ĐỘC
+    LẬP với bất cứ giá trị mặc định nào `src/` có thể đang dùng ngầm; đọc qua
+    `src/config.py` sẽ vô tình che đúng khoảng lệch Đ2 mô tả.
+    """
+    gt = os.environ.get("PHAN_LUONG_BAT")
+    if gt is None:
+        return "PHAN_LUONG_BAT KHÔNG đặt trên tiến trình đang chạy report này (os.environ, đọc trực tiếp)"
+    return f"PHAN_LUONG_BAT={gt!r} trên tiến trình đang chạy report này (os.environ, đọc trực tiếp)"

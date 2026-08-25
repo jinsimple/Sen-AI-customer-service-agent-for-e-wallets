@@ -36,7 +36,32 @@ ENV PYTHONUSERBASE=/install
 #   docker compose exec backend python3 -m pip freeze > requirements.lock.txt
 # rồi sửa 3 dòng đầu file: ngày + image build (`docker images fin05-backend --format '{{.ID}}'`).
 COPY requirements.lock.txt requirements.txt
-RUN pip install --no-cache-dir --user -r requirements.txt
+# `--retries 5 --timeout 60` — MỞ RỘNG che chắn lúc tải gói, KHÔNG PHẢI bản vá
+# cho một lỗi cụ thể. Đọc kỹ vế này trước khi tin nó:
+#
+# [ĐO 25/08] một lần `docker compose build --no-cache` từ cây SẠCH đỏ ngay tại
+# dòng dưới: `json.decoder.JSONDecodeError: Expecting ',' … char 5980170`.
+# Chạy lại đúng bước ấy: XANH, không sửa một dòng nào ⟹ lỗi tải gói NHẤT THỜI.
+#
+# 🔴 KHÔNG hứa rằng hai cờ này cứu được ĐÚNG ca đó. `--retries` bắt ở tầng KẾT
+# NỐI, còn `JSONDecodeError` xảy ra khi phản hồi đã về đủ về mặt giao thức
+# nhưng NỘI DUNG bị cắt — pip có thể không coi đó là lỗi đáng thử lại. Chúng
+# rẻ gần bằng 0 và phủ RỘNG hơn, thế thôi. Đừng viết "đã vá lỗi mạng lúc build".
+#
+# 🔴 VÌ SAO KHÔNG dùng `scripts/ci_pip_install_retry.sh` như CI — đã cân, và
+# bác, 25/08 (đừng đề xuất lại mà chưa đọc ba dòng này):
+#   ① script:44 gọi `pip install` KHÔNG kèm `--user` ⟹ gói rơi vào site-packages
+#     hệ thống thay vì `/install` (PYTHONUSERBASE, dòng 19) ⟹ `COPY --from=
+#     builder /install` ở stage 2 mang sang một thư mục RỖNG. Build XANH, ảnh
+#     CHẠY KHÔNG ĐƯỢC, và hỏng ở runtime — xa hẳn chỗ gây ra.
+#   ② script:49 chỉ thử lại khi khớp 8 chuỗi lỗi mạng ĐÃ TỪNG THẤY. [ĐO] grep
+#     đủ 8 chuỗi trên log lần đỏ trên → 0 kết quả ⟹ nó sẽ vào nhánh "LỖI KHÔNG
+#     PHẢI MẠNG — DỪNG" và exit 1. Tức nó KHÔNG vá được đúng ca ta đang nói tới.
+#   ③ script:32 từ chối mọi tệp không phải `*.lock.txt` (exit 2), nên nó cũng
+#     KHÔNG dùng được cho lệnh tải wheel spaCy ở dưới. Hai cờ này thì phủ cả hai.
+# Một bộ khớp theo DANH SÁCH TRẮNG các lỗi đã từng thấy luôn đi sau thực tế
+# đúng một sự cố; cờ của chính pip xử ở tầng không cần biết lỗi tên gì.
+RUN pip install --no-cache-dir --user --retries 5 --timeout 60 -r requirements.txt
 # Model NER cho PII scrubbing hybrid (src/observability/pii.py) — dùng thẳng
 # `pip install --user <wheel URL>` thay vì `spacy download` (lệnh tiện ích
 # của spaCy KHÔNG tôn trọng PYTHONUSERBASE/--user — phát hiện thật lúc build:
@@ -44,7 +69,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 # /install nên bị rớt mất khi COPY --from=builder /install sang stage 2,
 # runtime báo "Can't find model 'xx_ent_wiki_sm'"). pip install --user thì
 # tôn trọng PYTHONUSERBASE, model nằm chung chỗ với các gói khác, copy đúng.
-RUN pip install --no-cache-dir --user \
+RUN pip install --no-cache-dir --user --retries 5 --timeout 60 \
     https://github.com/explosion/spacy-models/releases/download/xx_ent_wiki_sm-3.8.0/xx_ent_wiki_sm-3.8.0-py3-none-any.whl
 
 # ---- Stage 2: Production ----

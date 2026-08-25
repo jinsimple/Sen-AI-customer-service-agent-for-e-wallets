@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install git pre-push hook for AI log submission (POSIX / Git Bash).
+# Install git hooks for AI log submission + vùng-ghi §4 (POSIX / Git Bash).
 # Run once after cloning: bash scripts/setup_hooks.sh
 set -e
 
@@ -18,6 +18,17 @@ EOF
 chmod +x "$HOOK_FILE"
 chmod +x scripts/_pyrun.sh 2>/dev/null || true
 echo "[ai-log] Git pre-push hook installed."
+
+# Pre-commit: cảnh báo (KHÔNG chặn) khi staging trải trên nhiều vùng §4
+# không chồng lấn — xem docstring scripts/pre_commit_vung_ghi.py.
+PRECOMMIT_FILE=".git/hooks/pre-commit"
+cat > "$PRECOMMIT_FILE" <<'EOF'
+#!/usr/bin/env bash
+bash scripts/_pyrun.sh scripts/pre_commit_vung_ghi.py || true
+exit 0  # LUÔN — cảnh báo, không bao giờ chặn commit
+EOF
+chmod +x "$PRECOMMIT_FILE"
+echo "[vung-ghi] Git pre-commit hook installed."
 
 mkdir -p .ai-log
 touch .ai-log/.gitkeep

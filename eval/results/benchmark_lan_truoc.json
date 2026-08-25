@@ -1,14 +1,14 @@
 {
-  "commit": "fc17f9d",
-  "he_thong": "b9352e1ddfa4",
+  "commit": "34c8c3a",
+  "he_thong": "29b0496a4946",
   "so_ca": 60,
-  "luc": "2026-08-17T10:05:49",
-  "stack": "fin05 (đặt qua FIN05_STACK)",
-  "backend_image": "c923f63e7b5e",
-  "backend_started": "2026-08-17T03:02:22",
-  "frontend_image": "f7f229c6b385",
-  "frontend_started": "2026-08-16T14:47:29",
-  "kho": "kho RAG: 378 chunk (Postgres) · 2 doc · băm-nội-dung 11b11b494a6a",
+  "luc": "2026-08-20T16:46:58",
+  "stack": "fin05 · build cbeb02c",
+  "backend_image": "32b2ea54c9d4",
+  "backend_started": "2026-08-20T03:22:17",
+  "frontend_image": "b8b9c2500690",
+  "frontend_started": "2026-08-20T03:22:47",
+  "kho": "kho RAG: 378 chunk (Postgres) · 2 doc · băm-chuẩn-hoá(md5,12) 11b11b494a6a",
   "embedding": "text-embedding-3-small · OK",
   "diem_truy_hoi": 9.574468085106382
 }

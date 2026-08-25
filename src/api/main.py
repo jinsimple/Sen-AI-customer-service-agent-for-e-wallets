@@ -117,6 +117,7 @@ from src.tools.base import ToolError, new_id
 from src.tools.escalate_ticket import escalate_ticket as _escalate_ticket
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
 from src.tools.lookup_transaction import lookup_transaction as _lookup_transaction
+from src.tools.masking import che_pii_van_ban
 from src.tools.propose_resolution import propose_resolution as _propose_resolution
 
 configure_logging()  # JSON stdout, gắn correlation_id/user_id tự động — xem
@@ -131,7 +132,23 @@ configure_tracing()  # OTel -> Jaeger (OTEL_EXPORTER_OTLP_ENDPOINT, mặc địn
 # restart backend, nhất quán trạng thái bảo mật/rate-limit toàn hệ thống ở 1
 # nguồn duy nhất. `fake://` (CI/test) rơi về in-memory mặc định của slowapi —
 # không regression, không cần Redis thật để chạy test.
-limiter = Limiter(key_func=get_remote_address, storage_uri=None if REDIS_URL.startswith("fake://") else REDIS_URL)
+#
+# 🔴 `in_memory_fallback_enabled=True` (24/08 — Tester tắt Redis, `/agent/chat`
+# SẬP HẲN: `ConnectionError` bay ra từ EVALSHA của slowapi, KHÔNG một response
+# nào). Mặc định của slowapi khi storage Redis chết là RAISE (đọc thẳng
+# `slowapi/extension.py::_check_request_limit` — `except Exception: ... else:
+# raise`, vì `swallow_errors`/`in_memory_fallback_enabled` đều `False` khi
+# không truyền). Cờ này là cơ chế CHÍNH HÃNG, ĐÃ TEST của chính slowapi cho
+# đúng sự cố này — tự chuyển sang đếm in-memory (kế thừa NGUYÊN hạn mức đã
+# khai) khi Redis không đọc được, tự phục hồi khi Redis sống lại. Vá tại đây
+# là vá lớp `@limiter.limit(...)`, dùng CHUNG cho MỌI route có decorator này —
+# không chỉ `/agent/chat`. Lớp gọi Redis TRỰC TIẾP (RedisConcurrencyLimiter,
+# RedisSlidingWindowLimiter — src/rate_limit.py) vá riêng ở file đó.
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=None if REDIS_URL.startswith("fake://") else REDIS_URL,
+    in_memory_fallback_enabled=True,
+)
 
 # TẮT tài liệu tự sinh khi APP_ENV=production.
 #
@@ -644,6 +661,7 @@ def agent_chat(
             message=req.message,
             thread_id=f"{current_user.user_id}:{current_user.iat}",
             otp_verified_at=current_user.otp_verified_at,
+            vua_xac_thuc_de_gui_lai=req.vua_xac_thuc_de_gui_lai,
         )
         # Chặn `null` Ở BIÊN client, KHÔNG đổi nghĩa BÊN TRONG: `None` nội bộ
         # (vd graph.py, đường vòng lặp tool/timeout) mang nghĩa "mất kết quả",
@@ -1491,7 +1509,13 @@ def live_chat_session_messages(
     ).all()
     return {
         "messages": [
-            {"message_id": m.message_id, "role": m.role, "content": m.content, "created_at": m.created_at.isoformat()}
+            # M3 — che ở tầng ĐỌC (PO thật chốt 25/08). `m.content` trong DB
+            # vẫn NGUYÊN VĂN; route này là một trong hai đường đọc, đường kia
+            # là giá trị trả về của live_chat.record_message (broadcast WS).
+            # Thêm một đường đọc mới cho `messages` thì PHẢI che ở đó nữa —
+            # che nằm ở tầng đọc nên nó KHÔNG tự lan theo.
+            {"message_id": m.message_id, "role": m.role,
+             "content": che_pii_van_ban(m.content), "created_at": m.created_at.isoformat()}
             for m in messages
         ]
     }

@@ -1,5 +1,5 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
-import { completeOtpIfPrompted, loginAs } from "./helpers/actors";
+import { completeOtpIfPrompted, loginAs, unlockTxnRail } from "./helpers/actors";
 
 /**
  * FIN05-StressTest-Plan-v4 L4-01/L4-02/L4-03/L4-05 — live-chat 2 người dùng
@@ -246,6 +246,14 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       // hỏi gốc (khác luồng chip, xem docstring completeOtpIfPrompted trong
       // helpers/actors.ts) — phải tự gửi lại nếu có OTP xảy ra.
       await loginAs(customerPage, CUSTOMER_PHONE, "/chat");
+      // 🔴 [ĐO 24/08, Review] Trước đây chờ .txn-item ngay sau loginAs, không
+      // ép unlockTxnRail() trước — chỉ xanh nhờ phiên OTP tươi sót lại từ
+      // lượt chạy khác (đúng bẫy đã trả giá 19/08). Thêm unlockTxnRail() để
+      // đọc firstTransId KHÔNG phụ thuộc trạng thái sót lại — nhánh OTP-giữa-
+      // chừng cho CÂU HỎI phía dưới (dòng 256) vẫn cố ý ở dạng best-effort
+      // (if/else), KHÔNG phải trọng tâm test này (test canh riêng cho việc đó
+      // là chat-otp-token-cu-sau-xac-thuc.spec.ts).
+      await unlockTxnRail(customerPage);
       const txnItems = customerPage.locator(".txn-item");
       await expect(txnItems.first()).toBeVisible({ timeout: 15_000 });
       const firstTransId = (await txnItems.first().locator(".txn-meta").textContent())?.split("·").pop()?.trim();

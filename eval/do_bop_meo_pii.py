@@ -11,6 +11,15 @@ PO-agent 19/08 (`do_bop_meo_pii.py`, đọc corpus giống hệt, phần "TOÀN 
 không nạp bản pii.py TRƯỚC vá qua importlib — đó là dữ kiện lịch sử một lần,
 không phải thứ cần tái lập mỗi lần chạy CI.
 
+🔴 TRỤC KHÔNG ĐO [khảo sát QA/QC 25/08, theo yêu cầu PO sau phát hiện N1/②]:
+cổng này CHỈ đo BÓP MÉO QUÁ TAY (scrub che nhầm chữ hợp lệ — dương tính giả
+của bộ nhận diện PII). Nó KHÔNG đo chiều ngược lại — RÒ RỈ (PII thật lọt qua,
+âm tính giả). **Cổng bù trục đó:** `tests/test_observability/test_pii.py`
+(`test_regex_only_lets_free_form_name_leak`,
+`test_hybrid_catches_name_that_regex_alone_missed`). Hai cổng đo hai chiều
+khác nhau của CÙNG một bộ scrub, không cổng nào một mình đủ để nói "PII đang
+được xử lý đúng".
+
 Corpus KHÔNG phải "của QA/QC riêng" (cách gọi trong docs/security đã trôi
 khỏi vật nó chỉ, PO-agent niêm lại 20/08) — nó CHÍNH LÀ `eval/golden_set.jsonl`,
 đếm theo CÂU (utterances trải phẳng, 124), không theo DÒNG (case, 120).

@@ -33,8 +33,52 @@ services:
     # Revocation store JWT refresh token + rate-limit dùng chung (login/OTP/
     # live-chat, đợt nâng cấp Auth Flow 2026-08-12) — src/redis_client.py.
     # KHÔNG có `ports:` — cùng nguyên tắc "chỉ caddy publish port" ở đầu file.
+    #
+    # 🔴🔴 ĐỌC TRƯỚC KHI THÊM `ports:` VÀO ĐÂY — REDIS NÀY KHÔNG CÓ MẬT KHẨU.
+    # [ĐO 25/08] `grep -r 'requirepass\|REDIS_PASSWORD'` trên `docker-compose*.yml`,
+    # `src/config.py`, `.env.example` → **0 kết quả, không ở đâu cả.**
+    #
+    # Hôm nay điều đó CHƯA phải lỗ đang mở: không `ports:` ⟹ chỉ với tới được từ
+    # trong mạng compose. Nó thành lỗ khi có BẤT KỲ điều nào sau:
+    #   · thêm `ports:` (kể cả `127.0.0.1:…`) — host dùng chung là host của người khác
+    #   · một container THỨ BA vào cùng mạng
+    #   · chạy trên máy dùng chung nhiều dự án
+    # 🔴 Trường hợp thứ nhất đáng lo nhất vì **nó không đòi ai làm gì sai** — chỉ cần
+    # MỘT người không biết dòng này tồn tại. Đó là lý do cảnh báo nằm ở ĐÂY, ngay chỗ
+    # người ấy sẽ gõ, chứ không nằm trong `docs/`.
+    #
+    # Redis nay có `appendonly yes` + volume ⟹ dữ liệu SỐNG QUA khởi động lại, nên
+    # cửa sổ phơi nhiễm cũng không còn tự dọn theo vòng đời container như trước.
+    #
+    # ⚠️ VÌ SAO CHƯA VÁ: phạm vi PO trình PO thật CÓ vế "thêm mật khẩu", nhưng vế ấy
+    # **chưa bao giờ được land vào repo** — nó sống trong tin nhắn, nên khi Coder
+    # dựng lại phạm vi từ nguồn tra được (CHECKLIST) thì **rơi mất im lặng**. PO tự
+    # khai 25/08. Ghi vào ĐÂY để nó không rơi lần thứ hai.
+    # Treo có chủ đích: đợt đang đóng, thêm một thay đổi hạ tầng nữa là mở mặt trận mới.
     image: redis:7-alpine
     restart: unless-stopped
+    # 🔴 BỀN HOÁ (PO thật duyệt 25/08). TRƯỚC bản này Redis KHÔNG có volume và
+    # `appendonly no` ⟹ mất sạch dữ liệu mỗi lần gỡ container.
+    #
+    # [ĐO 25/08 trên ngăn đang chạy] Redis đang giữ ba loại, và HỆ QUẢ MẤT KHÁC
+    # NHAU — đừng gộp làm một:
+    #   35 khoá `refresh:*`            → mất ⟹ FAIL-CLOSED. `rotate_refresh_token`
+    #     (`auth.py:172-174`) không tìm thấy bản ghi thì TỪ CHỐI token. Hậu quả là
+    #     mọi người phải ĐĂNG NHẬP LẠI — phiền, **KHÔNG phải lỗ bảo mật**. Nói rõ
+    #     vì rất dễ bán bản vá này thành "vá bảo mật"; nó không phải.
+    #   `fin05:chi_tieu_llm_token:*`   → 🔴 ĐÂY MỚI LÀ THỨ ĐÁNG VÁ. Trần chi tiêu
+    #     LLM tính THEO NGÀY (`cong_ra_ngoai.py::_khoa_chi_tieu_hom_nay`). Mất ⟹
+    #     bộ đếm về 0 ⟹ **trần ngày QUÊN phần đã tiêu**, và nó quên IM LẶNG. Với
+    #     một dự án mà ràng buộc vận hành số một là ngân sách token, đó là cổng
+    #     chi phí tự mở lại sau mỗi lần khởi động lại.
+    #   `fin05:thread_signal:*`        → mất ⟹ fail-safe (cổng tất định chạy lại
+    #     như lượt đầu). Khách có thể bị hỏi lại một lần. Phiền, không hỏng.
+    #
+    # `appendonly yes` chứ không dựa RDB: `save 3600 1 300 100 60 10000` có thể bỏ
+    # rơi tới một giờ ghi cuối, mà bộ đếm chi tiêu đúng là thứ đổi liên tục.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -235,8 +279,58 @@ services:
     depends_on:
       - frontend
 
+# ═══════════════════════════════════════════════════════════════════════
+# 🔴 `docker compose down -v` XOÁ SÁU KHO DƯỚI ĐÂY, KHÔNG PHẢI "vài thứ vặt".
+#
+# [ĐO 25/08] `docker compose config --volumes` liệt kê đủ sáu:
+#   postgres_data  chroma_data  redis_data  logs_data  caddy_data  caddy_config
+#
+# ⚠️ ĐÍNH CHÍNH bản chú thích cũ ở chính chỗ này (Coder viết sáng 25/08, SAI
+# vì NÓI NHẸ ĐI): nó ghi `down -v` "xoá bộ đếm chi tiêu LLM và phiên đăng
+# nhập". Người viết đang thêm `redis_data` nên mô tả ĐÚNG THỨ MÌNH VỪA THÊM,
+# và câu ấy bị đọc thành mô tả CẢ LỆNH. Sự thật: nó xoá TOÀN BỘ CSDL — mọi
+# ticket, mọi khiếu nại, mọi resolution, mọi transcript chat — CỘNG chỉ mục RAG.
+#
+# 🔴 VÀ ĐÂY KHÔNG PHẢI RỦI RO GIẢ ĐỊNH. Hai dữ kiện, cùng ngày 25/08:
+#   · [PO thật] production LÀ máy Windows cá nhân bật 24/7, chạy ngăn Docker
+#     tên `fin05`, deploy THỦ CÔNG bằng `git pull` + `docker compose`.
+#   · [sự cố] một phiên Coder lỡ để `docker compose down -v` chạy trên ngăn
+#     `fin05` của máy dev — CÙNG TÊN NGĂN, CÙNG TÊN VOLUME, CÙNG LỆNH — và
+#     xoá sạch CSDL demo + chỉ mục RAG trong một giây, không hỏi lại câu nào.
+#   ⟹ Cùng một lệnh gõ trên máy production = mất dữ liệu KHÁCH HÀNG THẬT.
+#     Chưa có bản sao lưu nào từng được diễn tập phục hồi.
+#
+# `docker compose` KHÔNG có hook, không hỏi xác nhận, không `--dry-run` mặc
+# định ⟹ KHÔNG CÁCH NÀO cắm một cảnh báo vào lệnh. Chỉ BẢO VỆ là khả thi.
+# ═══════════════════════════════════════════════════════════════════════
 volumes:
+  # 🔴 `external: true` CÓ CHỦ ĐÍCH — ĐỪNG GỠ ĐỂ "cho gọn".
+  #
+  # Volume external KHÔNG bị `docker compose down -v` xoá: compose in
+  # "volume ... is external, skipping" rồi bỏ qua. Muốn xoá thật phải gõ
+  # `docker volume rm fin05_postgres_data` — một câu không ai gõ nhầm.
+  # Đây là kho DUY NHẤT mất đi thì KHÔNG dựng lại được: chroma_data dựng lại
+  # bằng `scripts/kho_rag.py nap-lai`, logs/caddy tự sinh.
+  #
+  # 🔴 `name:` LÀ BẮT BUỘC, KHÔNG PHẢI TRANG TRÍ. [ĐO 25/08] `external: true`
+  # mà KHÔNG có `name:` thì compose tìm volume tên trần `postgres_data`,
+  # KHÔNG phải `fin05_postgres_data` — external KHÔNG được gắn tiền tố tên
+  # ngăn. Thiếu dòng `name:` ⟹ `up` đi tìm một volume không tồn tại.
+  #
+  # An toàn để bật NGAY: [PO thật đọc `docker volume ls` trên máy production
+  # 25/08] `fin05_postgres_data` ĐÃ TỒN TẠI ở đó ⟹ không cần tạo tay, `up`
+  # dùng đúng volume đang chạy, dữ liệu không suy chuyển.
   postgres_data:
+    external: true
+    name: fin05_postgres_data
+
+  # 🔴 KHÔNG khai `external` cho redis_data. [PO thật đo 25/08] volume
+  # `fin05_redis_data` CHƯA TỒN TẠI trên máy production (bản vá Redis 25/08
+  # chưa được deploy lên đó) ⟹ khai external sẽ làm `up` CHẾT ngay lần deploy
+  # kế tiếp. Bật được sau, khi máy ấy đã chạy qua một lần với volume này.
+  # Mất nó = mất bộ đếm chi tiêu LLM + phiên đăng nhập (dựng lại được, đau
+  # nhưng không mất dữ liệu khách).
+  redis_data:
   chroma_data:
   logs_data:
   caddy_data:

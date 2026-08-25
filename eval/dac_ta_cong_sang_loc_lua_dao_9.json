@@ -1,0 +1,71 @@
+{
+ "version": "9-v1",
+ "trang_thai": "ĐẶC TẢ — CHƯA CÓ HÀM CHẠY ĐƯỢC. Cơ chế K2 (⑨) chưa tồn tại trong code tại thời điểm viết (25/08, sau khi ⑧ K3 đã land ở `98074ba`). Land TRƯỚC để Coder cài theo, đúng thứ tự đã dùng cho `thu_slot` (S1-S9 trong `bo_ca_thu_slot_1b.json`, viết trước khi nhánh tồn tại).",
+ "soan": "QA/QC, 25/08, từ phiếu `docs/giao-viec/2026-08-24-dot-otp-truoc-token.md` mục ⑨ (K2) + `docs/kich-ban-chuyen-gia-cskh-chuyen-nham-tien.md` Lượt 4 + ADR-048 (ranh giới FS-13). KHÔNG đọc `src/` — không biết và KHÔNG đoán tên hàm/điểm móc Coder sẽ dùng.",
+ "vi_sao_khong_co_ham_de_goi": "PO xác nhận việc này KHÔNG tốn LLM ⟹ cơ chế phải là GATE TẤT ĐỊNH (cùng họ với `thu_slot`/T0), không phải chỉ thị prompt cho LLM tự hỏi. Nhưng gate đó CHƯA XÂY — không có `phan_luong()`-tương-đương nào để gọi hộp đen. Đây là hợp đồng ĐẶC TẢ: Coder cài hàm theo đúng bảng dưới, QA/QC dựng cổng chạy-lại-được SAU khi biết điểm móc thật (khuyến nghị: một hàm thuần nhận `(da_hoi_sang_loc: bool, tin_hieu_chuyen_nham: bool) -> bool` — kiểu \"còn cần hỏi không\" — để giữ được tính chất hàm thuần như `phan_luong()`, tránh phải mô phỏng cả graph.py như S7/S8 đã vướng).",
+
+ "yeu_cau_K2_nguyen_van": [
+  "Hỏi SỰ KIỆN KHÁCH QUAN (\"có ai nhắn tin hoặc gọi điện hướng dẫn chị chuyển khoản không\"), KHÔNG hỏi KẾT LUẬN (\"chị có bị lừa không\")",
+  "Khung mở BẮT BUỘC: \"em hỏi thêm một ý để hỗ trợ chị đúng hướng\"",
+  "Hỏi ở MỌI ca chuyển nhầm (wrong_recipient), KỂ CẢ ca trông rõ ràng — đây là trục dễ trượt nhất theo cả phiếu lẫn kịch bản chuyên gia"
+ ],
+
+ "truc_ca": [
+  {
+   "id": "SL-01",
+   "truc": "ca TRÔNG RÕ RÀNG — trục dễ trượt nhất, PHẢI vẫn hỏi",
+   "ngu_canh": "Khách mô tả đầy đủ, mạch lạc: gõ nhầm 2 số cuối SĐT người nhận, tự nhận lỗi ('tôi gõ vội nên nhầm'), không có dấu hiệu bất thường nào khác. Đúng nguyên văn kịch bản chuyên gia lượt 4 — chị Hằng.",
+   "da_hoi_sang_loc_truoc_do": false,
+   "ky_vong": "GATE PHẢI CHẶN — chưa cho phép tạo ticket / kết luận wrong_recipient tới khi câu sàng lọc đã được hỏi VÀ khách đã trả lời",
+   "vi_sao": "Đây chính là bẫy: một ca CÀNG rõ ràng càng dễ khiến người viết prompt/code nghĩ 'không cần hỏi thêm gì nữa'. K2 và kịch bản chuyên gia đều nói ngược lại — hỏi vì tỉ lệ nạn nhân lừa đảo tự khai là 'chuyển nhầm' (xấu hổ, hoặc tưởng nhầm được hoàn nhanh hơn) không thể phân biệt được CHỈ từ độ rõ ràng của câu chuyện."
+  },
+  {
+   "id": "SL-02",
+   "truc": "đã hỏi rồi, khách trả lời KHÔNG — không hỏi lại, không chặn thêm",
+   "ngu_canh": "Cùng ca SL-01, nhưng câu sàng lọc đã được hỏi và khách đã trả lời 'không, tôi tự gõ nhầm'.",
+   "da_hoi_sang_loc_truoc_do": true,
+   "ky_vong": "GATE PHẢI CHO ĐI TIẾP — không hỏi lại câu này lần hai trong cùng hội thoại, tiến hành nhánh wrong_recipient bình thường",
+   "vi_sao": "Đối xứng bắt buộc với SL-01 (Luật A: cổng phải IM lúc bình thường VÀ KÊU lúc bất thường) — nếu gate không nhớ đã hỏi, nó sẽ hỏi lặp lại mỗi lượt, làm phiền khách vô ích và có thể tự nó vi phạm R1 (một ý mỗi tin) nếu bị nhồi thêm vào câu khác."
+  },
+  {
+   "id": "SL-03",
+   "truc": "đã hỏi rồi, khách trả lời CÓ — không hỏi lại; DỪNG LƯỢT, bàn giao chuyên viên",
+   "ngu_canh": "Khách trả lời 'có, có người gọi điện hướng dẫn tôi chuyển khoản này' — Nhánh A của kịch bản chuyên gia.",
+   "da_hoi_sang_loc_truoc_do": true,
+   "dinh_chinh_25_08": "[PO 25/08, Coder bắt lúc soát ⑨] ĐÁP ÁN CŨ dưới đây (giữ nguyên văn, KHÔNG xoá) đã LỖI THỜI từ `82c90c1` (⑫b, land 10:45) — FS-13 bật nay KHÔNG còn 'vẫn tạo ticket kèm cờ nội bộ', mà DỪNG LƯỢT NGAY, KHÔNG gọi model, bàn giao chuyên viên ở tầng SERVICE (ngoài phạm vi graph.py/LLM). Nguyên nhân: câu hỏi ③ trong 'cau_hoi_can_Coder_xac_nhan...' được trả lời TẠI THỜI ĐIỂM viết đặc tả này, rồi PO thu hẹp phạm vi ⑫b SAU ĐÓ mà không đẩy tin xuống — ba việc đều đúng lúc làm, ghép lại thành đặc tả chết. QA/QC không tự phát hiện được vì KHÔNG đọc `src/` theo đúng thiết kế (CLAUDE.md §4) — cái giá đó chỉ trả được khi có người CHỦ ĐỘNG báo khi quyết định làm cũ một câu trả lời đã đưa.",
+   "ky_vong_MOI": "GATE KHÔNG hỏi lại; FS-13 bật ⟹ DỪNG LƯỢT, KHÔNG gọi model, bàn giao chuyên viên ngay (tầng service, không phải nhánh wrong_recipient chuẩn cũng không phải 'tạo ticket kèm cờ' như đáp án cũ). Ranh giới với ⑫ vẫn giữ nguyên tinh thần: ⑨ chỉ chịu trách nhiệm ĐÃ HỎI/ĐÃ GHI NHẬN câu trả lời, KHÔNG chịu trách nhiệm logic bàn giao chi tiết ở tầng service (đó là phạm vi ⑫b).",
+   "ky_vong_CU_loi_thoi_giu_lai_lam_bang_chung": "GATE KHÔNG hỏi lại; nhưng KHÔNG cho phép câu trả lời chuẩn 'liên hệ người nhận xin hoàn trả' tiếp diễn — đây LÀ ranh giới với ⑫ (K1, taxonomy lừa đảo) và ADR-048 (FS-13), ngoài phạm vi hẹp của ⑨. ⑨ CHỈ chịu trách nhiệm: đã hỏi, đã ghi nhận câu trả lời — không chịu trách nhiệm bước xử lý SAU câu trả lời (đó là ⑫). [LỖI THỜI 25/08, xem dinh_chinh_25_08]",
+   "vi_sao": "Ranh giới trách nhiệm phải tách bạch: nếu gộp cả 'xử lý sau khi biết là lừa đảo' vào ⑨ thì một cổng ĐỎ vì lý do ⑫ chưa xong sẽ bị đọc nhầm thành ⑨ chưa xong. Ca này CHỈ chấm đúng MỘT tiêu chí: gate có hỏi/có nhớ đã hỏi không — KHÔNG chấm chi tiết logic bàn giao (đó là ⑫b), nhưng PHẢI chấm đúng HÌNH DẠNG bên ngoài của lượt (dừng hẳn, không có reply LLM bình thường) vì đó là quan sát được từ ngoài, không phải đọc logic bên trong."
+  },
+  {
+   "id": "SL-04a",
+   "truc": "âm — NGOÀI phạm vi chuyển nhầm, KHÔNG được bắt oan",
+   "ngu_canh": "Khiếu nại 'chưa nhận được tiền' (money_not_received), không có yếu tố chuyển NHẦM người nào.",
+   "da_hoi_sang_loc_truoc_do": false,
+   "ky_vong": "GATE KHÔNG được chặn/bắt hỏi câu sàng lọc — K2 chỉ áp cho 'chuyển nhầm', không phải mọi khiếu nại",
+   "vi_sao": "Cùng nguyên tắc dự án đã trả giá nhiều lần (Đ1 của đợt này, S1-S24 của thu_slot): 'thà bỏ sót còn hơn bắt oan'. Bắt oan ở đây nghĩa là ép một câu hỏi lạc đề vào một khiếu nại không liên quan — phiền khách, tốn lượt, và không đúng K2."
+  },
+  {
+   "id": "SL-04b",
+   "truc": "âm — refund, KHÔNG được bắt oan",
+   "ngu_canh": "Khiếu nại 'yêu cầu hoàn tiền' (refund) cho một giao dịch khách TỰ THỰC HIỆN, không nhắc gì tới việc chuyển nhầm người.",
+   "da_hoi_sang_loc_truoc_do": false,
+   "ky_vong": "GATE KHÔNG được chặn/bắt hỏi câu sàng lọc",
+   "vi_sao": "Cùng lý do SL-04a, trục thứ hai để không chỉ có một ca âm (đúng Luật 2 của `tests/CHUAN-VIET-TEST.md`: mọi ràng buộc mới phải có ≥1 ca chứng minh nó KHÔNG chặn nhầm)."
+  }
+ ],
+
+ "bat_bien_noi_dung_hang_so": {
+  "mo_ta": "Bất kể Coder cài gate ở đâu, HẰNG SỐ câu hỏi (nếu là chuỗi cố định như K3/⑧) phải khớp cả hai điều kiện dưới — kiểm được NGAY LÚC LAND, không cần chạy hội thoại nào, đúng kiểu ⑧ đã kiểm.",
+  "PHAI_khop_mau_su_kien_khach_quan": ["có ai.{0,20}(nhắn tin|gọi điện|hướng dẫn|yêu cầu|thúc giục)"],
+  "CAM_khop_mau_ket_luan": ["có (bị|phải) lừa", "bị lừa đảo (không|đúng không)", "xác nhận.{0,10}lừa đảo"],
+  "PHAI_khop_khung_mo": ["hỏi thêm một ý.{0,15}(hỗ trợ|giúp).{0,10}đúng hướng"],
+  "cach_kiem": "Khi hằng số tồn tại (dạng biến `str` công khai, cùng quy ước ĐC-7 đã dùng cho `HOI_*` trong `phan_luong.py`), viết một cổng ~10 dòng đọc GIÁ TRỊ chuỗi (không đọc logic chọn khi nào bắn) và chạy 3 regex trên — đúng kỹ thuật `cong_phan_luong.py::ĐC-7` đã dùng, không cần phát minh lại."
+ },
+
+ "cau_hoi_can_Coder_xac_nhan_truoc_khi_QA_QC_dung_cong_chay_duoc": [
+  "Điểm móc: hàm thuần (nhận cờ trạng thái, trả bool) hay logic nhúng thẳng trong graph.py (như T0)?",
+  "Trạng thái 'đã hỏi rồi' lưu ở đâu trong một thread — cùng cơ chế với `otp_verified_at`/checkpoint LangGraph, hay cờ mới?",
+  "[TRẢ LỜI 25/08 lúc viết, SAU ĐÓ LỖI THỜI từ ⑫b `82c90c1` — xem SL-03.dinh_chinh_25_08, KHÔNG xoá câu gốc] Nếu khách trả lời CÓ — luồng có tạm dừng hẳn nhánh wrong_recipient tiêu chuẩn ngay, hay vẫn tạo ticket bình thường (loại hiện có, vì ⑫ chưa xong) kèm cờ nội bộ cho supervisor? ĐÁP ÁN MỚI (⑫b): dừng lượt hẳn, không gọi model, bàn giao chuyên viên ở tầng service."
+ ]
+}

@@ -19,11 +19,23 @@ function BarList({ data, labels }: { data: Record<string, number>; labels: Recor
             <div className="bartrack">
               <div className="barfill" style={{ width: `${pct}%`, background: BAR_COLORS[i % BAR_COLORS.length] }} />
             </div>
-            <span className="mono">{pct}%</span>
+            {/* B3 (20/08) — mẫu số đi cạnh mọi %, đừng để người xem tự đoán */}
+            <span className="mono">
+              {pct}% <span className="dim">({count}/{total})</span>
+            </span>
           </div>
         );
       })}
       {entries.length === 0 && <div className="dim" style={{ fontSize: 13 }}>Chưa có dữ liệu.</div>}
+    </div>
+  );
+}
+
+// B3 — mẫu số nhỏ dưới mỗi %, cùng khuôn cho mọi ô KPI phần trăm trong trang.
+function MauSo({ n, d }: { n: number; d: number }) {
+  return (
+    <div className="kpi-trend mono" style={{ marginTop: 2 }}>
+      ({n}/{d})
     </div>
   );
 }
@@ -83,21 +95,39 @@ export default function ReportPage() {
         <>
           <div className="kpi-grid" style={{ marginBottom: 26 }}>
             <div className="card kpi">
-              <div className="kpi-label">Thời gian xử lý TB</div>
+              {/* B1 — nhãn cũ "Thời gian xử lý TB" hứa AHT nhưng đo CYCLE TIME
+                  (tạo vé → sếp duyệt, GỒM CẢ thời gian nằm chờ). Đổi tên đúng
+                  thứ đang đo, không đổi số. */}
+              <div className="kpi-label">Thời gian từ tiếp nhận đến phê duyệt (cycle time)</div>
               <div className="kpi-value">
                 {summary.avg_processing_hours != null ? `${summary.avg_processing_hours} giờ` : "—"}
               </div>
-              <div className="kpi-trend">tính trên case đã duyệt</div>
+              {/* B3 — trung bình không có "mẫu số/tổng", chỉ có CỠ MẪU: bao
+                  nhiêu case góp vào con số trung bình này. */}
+              <div className="kpi-trend">tính trên {summary.avg_processing_hours_n} case đã duyệt</div>
             </div>
             <div className="card kpi">
-              <div className="kpi-label">% đề xuất AI được duyệt</div>
+              {/* B1 — AHT thật (thời gian NGƯỜI thao tác) chưa đo được: DB
+                  không có mốc CSKH bắt đầu làm. Hiện rõ "chưa đo được", đừng
+                  để trống — ô trống bị đọc thành 0. */}
+              <div className="kpi-label">AHT — thời gian người thao tác thật</div>
+              <div className="kpi-value dim">Chưa đo được</div>
+              <div className="kpi-trend">{summary.aht_khong_do_duoc_ly_do}</div>
+            </div>
+            <div className="card kpi">
+              {/* B2 — bảng resolutions luôn do CSKH tạo (propose_resolution
+                  KHÔNG nằm trong 5 tool AI được gọi, contracts/agent-tools.yaml
+                  — ràng buộc cứng 2). Nhãn cũ gán nhầm hành động này cho AI. */}
+              <div className="kpi-label">% đề xuất của CSKH được sếp duyệt</div>
               <div className="kpi-value">
                 {summary.pct_ai_proposal_approved != null ? `${summary.pct_ai_proposal_approved}%` : "—"}
               </div>
+              <MauSo n={summary.pct_ai_proposal_approved_numerator} d={summary.pct_ai_proposal_approved_n} />
             </div>
             <div className="card kpi">
               <div className="kpi-label">% escalate</div>
               <div className="kpi-value">{summary.pct_escalated != null ? `${summary.pct_escalated}%` : "—"}</div>
+              <MauSo n={summary.pct_escalated_numerator} d={summary.pct_escalated_n} />
             </div>
             <div className="card kpi">
               <div className="kpi-label">Tổng ticket trong kỳ</div>

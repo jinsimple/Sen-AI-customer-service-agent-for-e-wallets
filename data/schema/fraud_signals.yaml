@@ -135,6 +135,92 @@ signals:
         gia_danh_cskh: ["nhan vien vi goi", "tong dai goi", "nang cap tai khoan", "xac minh tai khoan"]
         qua_hai_quan: ["phi hai quan", "qua tang tu nuoc ngoai", "gui qua ve viet nam"]
 
+  FS-13:
+    name: co_nguoi_huong_dan_chuyen_khoan
+    # 🔴 KHÔNG có tier. CỐ Ý — PO thật chốt 25/08: FS-13 CHỈ GHI NHẬN, không
+    # escalate. FS-06 là tín hiệu về TÀI KHOẢN BỊ CHIẾM; FS-13 là tín hiệu về
+    # PHÂN LOẠI KHIẾU NẠI. Ghép hai thứ vào một danh sách escalate là nhập lại
+    # đúng hai trục dự án đã cố tách. Đường ưu tiên cho ca lừa đảo đi qua
+    # ADR-050 (priority + đường tư vấn), KHÔNG qua cổng escalate.
+    # ⟹ `policy.tier_a` / `policy.tier_b` GIỮ NGUYÊN, không thêm FS-13.
+    assumption: true
+    rule: >
+      ADR-048. Bật khi lời khách mang ĐỒNG THỜI hai thành phần:
+      ① BÊN THỨ BA là nguồn chỉ dẫn (ai đó hướng dẫn/yêu cầu/thúc giục chuyển)
+      VÀ ② KÊNH XA LẠ (điện thoại/tin nhắn/mạng xã hội/người lạ).
+      Thiếu một trong hai là KHÔNG bật — ranh giới chống bắt oan do Lead chốt:
+      "chồng tôi bảo chuyển" trượt ②; "shop hướng dẫn chuyển khoản" trượt ②.
+      Quan hệ với FS-09: CHỦ Ý CHỒNG NHAU, không trùng lặp. FS-09 là lưới HẸP
+      bắt TỪ KHOÁ của 5 kịch bản đã biết; FS-13 là lưới RỘNG bắt CẤU TRÚC
+      (bên-thứ-ba + kênh-xa-lạ). Hai tín hiệu cùng bật là ĐÚNG THIẾT KẾ.
+      So khớp trên văn bản đã bỏ dấu + lowercase, cụm ĐỦ DÀI.
+    params:
+      # 🔴 SỬA 25/08 — bản đầu 8/10 cụm gõ cứng "toi", 0/10 có em/con/cháu/mình.
+      # PO bắt: đây là cùng MỘT GIẢ ĐỊNH HỆ THỐNG với `_SO_HUU` (chỉ tôi/mình),
+      # lộ ra ở hai module ĐỘC LẬP — hệ thống phục vụ theo XƯNG HÔ chứ không
+      # theo NỘI DUNG. Trong ví có khách mọi lứa tuổi, khách trẻ xưng "em" và
+      # người lớn tuổi xưng "cô/con" không bao giờ kích được tín hiệu.
+      #
+      # Đây KHÔNG phải nới luật — tỉ lệ dương-tính-giả TRÊN MỖI ĐẠI TỪ không
+      # đổi. Nó chỉ thôi áp luật một cách thiên vị. Liệt kê tường minh thay vì
+      # ghép động, vì file này là DỮ LIỆU: người đọc phải thấy được đúng thứ
+      # engine so khớp, không phải suy ra từ một vòng lặp.
+      nguon_chi_dan:
+        - "huong dan toi chuyen"
+        - "huong dan em chuyen"
+        - "huong dan con chuyen"
+        - "huong dan chau chuyen"
+        - "huong dan minh chuyen"
+        - "huong dan tui chuyen"
+        - "bao toi chuyen"
+        - "bao em chuyen"
+        - "bao con chuyen"
+        - "bao chau chuyen"
+        - "bao minh chuyen"
+        - "bao tui chuyen"
+        - "keu toi chuyen"
+        - "keu em chuyen"
+        - "keu con chuyen"
+        - "keu chau chuyen"
+        - "keu minh chuyen"
+        - "keu tui chuyen"
+        - "yeu cau toi chuyen"
+        - "yeu cau em chuyen"
+        - "yeu cau con chuyen"
+        - "yeu cau chau chuyen"
+        - "yeu cau minh chuyen"
+        - "yeu cau tui chuyen"
+        - "bat toi chuyen"
+        - "bat em chuyen"
+        - "bat con chuyen"
+        - "bat chau chuyen"
+        - "bat minh chuyen"
+        - "bat tui chuyen"
+        - "giuc toi chuyen"
+        - "giuc em chuyen"
+        - "giuc con chuyen"
+        - "giuc chau chuyen"
+        - "giuc minh chuyen"
+        - "giuc tui chuyen"
+        - "nho toi chuyen"
+        - "nho em chuyen"
+        - "nho con chuyen"
+        - "nho chau chuyen"
+        - "nho minh chuyen"
+        - "nho tui chuyen"
+        - "chi toi chuyen"
+        - "chi em chuyen"
+        - "chi con chuyen"
+        - "chi chau chuyen"
+        - "chi minh chuyen"
+        - "chi tui chuyen"
+        - "huong dan chuyen khoan"
+        - "duoc huong dan chuyen"
+        - "duoc bao chuyen"
+      kenh_xa_la: ["goi dien", "goi cho toi", "nhan tin", "tin nhan", "zalo",
+                   "facebook", "messenger", "telegram", "nguoi la", "so la",
+                   "so dien thoai la", "tong dai", "mang xa hoi"]
+
   FS-10:
     name: khach_khai_da_dua_otp
     tier: A

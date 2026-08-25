@@ -134,12 +134,54 @@ def _dem() -> dict[str, int]:
     return {dg.split("|")[0]: int(dg.split("|")[1]) for dg in r.stdout.splitlines() if "|" in dg}
 
 
-def _chat(cau: str, thread: str) -> dict:
+def _login() -> str:
+    """Đăng nhập MỘT LẦN + xác thực OTP PHIÊN, trả `access_token` ĐÃ otp_verified.
+
+    🔴 [ĐO 24/08] `main.py:645` suy `thread_id = f"{user_id}:{iat}"` TỪ JWT —
+    trường `thread_id` trong body `/agent/chat` bị BỎ QUA LẶNG LẼ (ADR-044,
+    19/08). Đăng nhập lại giữa hai lượt của CÙNG kịch bản sinh `iat` MỚI ⟹
+    hai lượt rơi vào HAI thread khác nhau dù cùng biến `thread` truyền tay.
+    Đây CHÍNH LÀ lý do A2 vế hai (`test_luot_DONG_Y_thi_tao_ve`) gãy LẦN MỘT:
+    bản cũ gọi `_chat()` (tự login mỗi lần) cho cả lượt A và B — "Ừ tạo đi"
+    thành tin ĐẦU TIÊN của một hội thoại RỖNG. Vá 24/08 (`e1bb3bd`).
+
+    🔴 [ĐO Coder, đọc transcript thật, 24/08] LẦN HAI: sau khi thread đã nối
+    đúng, vế hai VẪN đỏ — vì token login KHÔNG mang `otp_verified_at` (luôn
+    `null`), và `get_customer_history`/`create_ticket` đòi OTP phiên còn tươi
+    (`818564b`, 2026-08-10 — **CÓ TỪ TRƯỚC** khi test này viết 17/08, không
+    phải finding "mục theo thời gian": test CHƯA TỪNG đi qua cổng OTP thật kể
+    từ ngày viết). Agent nhận `_OTP_REQUIRED_ERROR` ở tool, không có dữ liệu
+    để tra ⟹ không tạo vé là ĐÚNG theo ràng buộc cứng 3 (cấm bịa), không phải
+    hồi quy. Vá bằng cách xác thực OTP thật ngay sau login — đường CHÍNH DANH
+    đã có sẵn, dùng lại nguyên trong `tests/test_api/test_otp.py`: response
+    của `/auth/otp/request` trả thẳng `otp_code` (quy ước môi trường test/dev,
+    không phải đường vòng tôi tự chế).
+    """
     ma = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
-        "h={'Authorization':'Bearer '+r.json()['access_token']};"
+        "tok=r.json()['access_token'];"
+        "h={'Authorization':'Bearer '+tok};"
+        f"r=c.post('{API}/auth/otp/request',headers=h);"
+        "sid=r.json()['session_id'];code=r.json()['otp_code'];"
+        f"r=c.post('{API}/auth/otp/verify',headers=h,json={{'session_id':sid,'otp_code':code}});"
+        "assert r.json().get('otp_verified') is True, 'OTP verify thất bại: '+r.text;"
+        "print(r.json()['access_token'])"
+    )
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, f"đăng nhập hỏng: {(r.stderr or r.stdout)[-400:]}"
+    return r.stdout.strip().splitlines()[-1]
+
+
+def _chat(cau: str, token: str, thread: str) -> dict:
+    # `thread_id` vẫn gửi trong body — vô hại, nhưng KHÔNG còn là cơ chế nối
+    # lượt thật (xem `_login()`). Nối lượt thật = dùng LẠI cùng `token`.
+    ma = (
+        "import httpx,json;"
+        f"c=httpx.Client(timeout=300);"
+        f"h={{'Authorization':'Bearer '+{token!r}}};"
         f"r=c.post('{API}/agent/chat',json={{'message':{cau!r},'thread_id':{thread!r}}},headers=h);"
         "print(json.dumps({'http':r.status_code,'than':r.json()},ensure_ascii=False))"
     )
@@ -149,9 +191,9 @@ def _chat(cau: str, thread: str) -> dict:
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
-def _mot_luot(cau: str, thread: str) -> dict:
+def _mot_luot(cau: str, token: str, thread: str) -> dict:
     t = _dem()
-    j = _chat(cau, thread)
+    j = _chat(cau, token, thread)
     s = _dem()
     tc = [x.get("tool_name") for x in (j["than"].get("tool_calls") or [])]
     return {"tra": j, "delta": {k: s[k] - t[k] for k in t}, "tool": tc,
@@ -161,20 +203,21 @@ def _mot_luot(cau: str, thread: str) -> dict:
 @pytest.fixture(scope="module")
 def ba_luot() -> dict:
     th = f"A2-{uuid.uuid4().hex[:8]}"
-    ra = {"A": _mot_luot(CAU_HOI, th), "B": _mot_luot(CAU_DONG_Y, th)}
-    ra["C"] = _mot_luot(CAU_DONG_Y_TU_DAU, f"A2c-{uuid.uuid4().hex[:8]}")
+    tok_ab = _login()  # MỘT lần đăng nhập cho A+B — cùng iat ⟹ cùng thread thật
+    ra = {"A": _mot_luot(CAU_HOI, tok_ab, th), "B": _mot_luot(CAU_DONG_Y, tok_ab, th)}
+    tok_c = _login()  # cố ý đăng nhập RIÊNG cho C — thread mới có chủ đích
+    ra["C"] = _mot_luot(CAU_DONG_Y_TU_DAU, tok_c, f"A2c-{uuid.uuid4().hex[:8]}")
     return ra
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="FINDING MỞ 17/08 — đo được 3/3 vòng R: agent tạo vé ở lượt HỎI, "
-    "trước khi khách đồng ý. PO thật đã chốt A2 (chờ đồng ý tường minh); prompt "
-    "chưa vá tại thời điểm viết test. Khi vá xong, test XANH và xfail(strict) đỏ "
-    "— tín hiệu gỡ dấu, không phải lỗi mới.",
-)
 def test_luot_HOI_khong_tao_ve(ba_luot):
-    """🔴 A2 vế một. CHỈ có nghĩa khi đứng cạnh vế hai bên dưới."""
+    """🔴 A2 vế một. CHỈ có nghĩa khi đứng cạnh vế hai bên dưới.
+
+    🟢 GỠ `xfail(strict=True)` 24/08 — [ĐO] lượt thật trên `fin05do`
+    (`deepseek-v4-flash-0731`, sau 1A.2) cho XPASS: agent KHÔNG còn tạo vé ở
+    lượt HỎI. FINDING MỞ 17/08 (agent tạo vé ở lượt hỏi, trước khi khách đồng
+    ý — 3/3 vòng R đo được lúc đó) nay LÀNH sau 7 ngày. Test trở thành hồi quy
+    thường, không còn xfail."""
     d = ba_luot["A"]["delta"]
     assert d == {k: 0 for k in BANG}, (
         f"lượt HỎI đã tạo bản ghi: {d} · tool={ba_luot['A']['tool']}\n"

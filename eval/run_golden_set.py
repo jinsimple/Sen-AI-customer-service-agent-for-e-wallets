@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from eval._harness import (
     build_eval_session,
+    cau_hinh_dinh_tuyen_luc_chay,
     check_expected,
     check_forbidden,
     load_jsonl,
@@ -107,6 +108,10 @@ def run(cases: list[dict]) -> list[dict]:
                     "all_customer_texts": agent_result.get("all_customer_texts") or case.get("utterances"),
                     "tool_calls": [c.get("tool_name") for c in agent_result.get("tool_calls", [])],
                     "extra_turns_used": agent_result.get("extra_turns_used", 0),
+                    # ĐƯỜNG ĐỊNH TUYẾN mỗi lượt (`nhe`/`thu_slot`/`day_du`) — ①
+                    # đợt "OTP trước token" 24/08, đóng Đ2 cùng
+                    # `cau_hinh_dinh_tuyen_luc_chay()` ở header báo cáo.
+                    "duong_theo_luot": agent_result.get("duong_theo_luot") or [],
                 }
             )
         session.close()
@@ -119,6 +124,12 @@ def write_report(results: list[dict], out_path: Path) -> None:
     by_cell = defaultdict(lambda: [0, 0])
     by_difficulty = defaultdict(lambda: [0, 0])
     by_severity = Counter(r["severity"] for r in results)
+    # ① — phân bố ĐƯỜNG ĐỊNH TUYẾN toàn corpus (đếm LƯỢT, không đếm CA — một
+    # ca nhiều lượt có thể đổi đường giữa chừng). `None` = bản `run_agent_turn`
+    # đang chạy chưa trả khoá `duong` (bản cũ hơn hạng mục ①).
+    duong_dem = Counter(
+        d for r in results for d in (r.get("duong_theo_luot") or [None])
+    )
 
     for r in results:
         by_cell[r["cell"] or "(edge case, ngoài ma trận)"][1] += 1
@@ -131,6 +142,20 @@ def write_report(results: list[dict], out_path: Path) -> None:
 
     lines = [
         f"# Báo cáo eval golden_set — {now_stamp()}",
+        "",
+        "> ⚠️ **Đường eval dùng sentinel `_ALWAYS_FRESH`** (`run_agent_turn`, "
+        "`graph.py`) — OTP phiên LUÔN được coi là vừa xác thực xong. Không ca "
+        "nào ở đây đo được hành vi khi OTP thiếu/hết hạn; trục đó chỉ đo được "
+        "bằng chạy thật (`fin05do`/production) — xem finding A2 24/08.",
+        "> ⚠️ **Harness gọi thẳng `run_agent_turn()` trong tiến trình** — JWT/"
+        "rate-limit/audit-log KHÔNG nằm trên đường đo này. Kết luận về các "
+        "tầng đó từ kết quả eval là kết luận SAI CHỖ ĐO; xem "
+        "`tests/test_api/` cho bộ test có đi qua các tầng đó.",
+        f"> 🚦 **{cau_hinh_dinh_tuyen_luc_chay()}.** Đóng Đ2 (24/08) — trước hạng "
+        "mục này, không báo cáo eval nào từng in giá trị đang chạy, nên eval và "
+        "sản phẩm có thể đã chạy hai cấu hình khác nhau mà không ai biết.",
+        "> 🚦 **Phân bố đường định tuyến toàn corpus (đếm LƯỢT):** "
+        + " · ".join(f"`{k}`={v}" for k, v in duong_dem.most_common()),
         "",
         f"**Tổng:** {passed}/{total} pass ({passed / total * 100:.1f}%)" if total else "Không có case nào.",
         f"**Cần mô phỏng thêm lượt hội thoại (Hướng 1 — xem eval/_harness.py::run_case_turns_adaptive):** "
@@ -153,6 +178,17 @@ def write_report(results: list[dict], out_path: Path) -> None:
     lines += ["", "## Theo độ khó", "", "| Độ khó | Pass/Tổng |", "|---|---|"]
     for diff, (p, t) in sorted(by_difficulty.items()):
         lines.append(f"| {diff} | {p}/{t} |")
+
+    # ① — bảng ĐẦY ĐỦ mọi case, kể cả case PASS. Không có bảng này thì một ca
+    # "xanh vì đi thu_slot, chưa từng chạm model/O1-O5" trông giống hệt một ca
+    # xanh thật trên báo cáo — đúng lỗ Đ1 mô tả (2 ca adversarial ADV-036/
+    # ADV-038 "xanh" nhưng lớp phòng thủ chưa từng chạy).
+    lines += ["", "## Đường định tuyến mỗi ca (`duong`, đọc được không cần mở code)", "",
+              "| Case | Đường đi từng lượt | Có chạm model? |", "|---|---|---|"]
+    for r in results:
+        dtl = r.get("duong_theo_luot") or []
+        cham_model = "có" if any(d == "day_du" for d in dtl) else ("KHÔNG — toàn nhe/thu_slot" if dtl else "?")
+        lines.append(f"| {r['case_id']} | {', '.join(str(d) for d in dtl) or '(rỗng)'} | {cham_model} |")
 
     failing = [r for r in results if r["severity"] != "Pass"]
     if failing:
@@ -220,6 +256,7 @@ def main() -> None:
                 break
         cases = sampled
 
+    print(f"🚦 {cau_hinh_dinh_tuyen_luc_chay()}", file=sys.stderr)
     print(f"Chạy {len(cases)} case từ {args.file} — mỗi case gọi OpenAI thật.", file=sys.stderr)
     results = run(cases)
 

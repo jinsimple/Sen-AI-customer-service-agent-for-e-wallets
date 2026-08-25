@@ -2748,3 +2748,260 @@ repo**, không phải cấu hình VPS thật. Toàn bộ định hạng ở trê
 ### Hệ quả nếu duyệt
 `contracts/` **không đổi** (không route mới, không tool mới, không đổi role) ⟹ không cần §10. Code là
 việc của Coder, sau khi PO duyệt — **không phải bây giờ**.
+
+## ADR-046 — Bộ sinh dữ liệu: `money_not_received` KHÔNG được buộc cứng một trạng thái
+
+**Ngày:** 2026-08-20 · **Trạng thái:** 🟡 **CHỜ PO THẬT DUYỆT** — chưa sửa dòng nào (§3)
+**Nguồn:** phiếu BA (D1) · Coder truy đúng đường sinh · PO-agent kiểm lại và **tự đính chính một lần**
+
+### Bối cảnh — [ĐO]
+
+```
+scripts/gen_dataset.py:1534   build_background_complaints()   ← đường sinh complaints.jsonl
+  eligible_status = { "wrong_recipient": {"success"},
+                      "money_not_received": {"processing"},   ← TẬP MỘT PHẦN TỬ
+                      ... }
+
+[ĐO trên dữ liệu đã sinh] money_not_received: 90/90 = 100% processing
+```
+🔴 **Đây là buộc cứng, không phải phân phối.** Một tập hợp có đúng một phần tử thì không có
+ngẫu nhiên nào xảy ra được — `money_not_received` **không thể** mang trạng thái nào khác.
+
+⛔ **Tự đính chính (PO-agent):** tôi từng báo *"không phải buộc cứng, nó CÓ ĐIỀU KIỆN"*, trích
+`gen_dataset.py:584`. **Sai phạm vi** — dòng 584 thuộc `build_matrix_cases()`, đường sinh
+`eval/golden_set.jsonl`, **không ghi vào `complaints.jsonl`**. Tôi tìm thấy một dòng có điều kiện
+rồi kết luận mà không kiểm nó có nằm trên đường đang xét hay không. Coder tìm ra đường đúng.
+
+### 🔴 Quyết định — sửa thành PHÂN PHỐI CÓ ĐIỀU KIỆN, **KHÔNG** sinh độc lập
+
+Phiếu BA đề nghị *"sinh trạng thái giao dịch ĐỘC LẬP với loại khiếu nại"*. **BÁC.**
+
+Ngoài đời, khiếu nại *"chưa nhận được tiền"* **thật sự** tương quan mạnh với giao dịch đang treo —
+đó là **nguyên nhân** sinh ra khiếu nại, không phải trùng hợp thống kê. Ép tương quan về 0 làm bộ
+dữ liệu **kém thật hơn**, không thật hơn.
+
+Bệnh không phải *"có tương quan"*. Bệnh là **tương quan tuyệt đối, không ngoại lệ** — trong khi
+đời thật luôn có ca: **giao dịch báo `success` mà người nhận vẫn chưa thấy tiền.** Đó chính là
+**ca khó nhất và đáng có nhất** trong một bộ dữ liệu kiểm thử — và hiện nó **không tồn tại**.
+
+⟹ `money_not_received` nhận `{processing, success}` với `processing` chiếm đa số.
+
+### 🔴 DỰ BÁO — công bố TRƯỚC khi chạy lại, theo quy trình PO thật đặt ra
+
+Ghi ra đây để không ai (kể cả tôi) chọn lần chạy đẹp nhất:
+
+```
+M2 hiện tại                       101/600 = 16,8%
+nếu 20% money_not_received → success:  83/600 = 13,8%
+nếu 30% money_not_received → success:  74/600 = 12,3%
+```
+
+**Dự báo: con số M2 sẽ GIẢM, không tăng.** Vì thêm ca `success` là thêm vào nhóm *tiền đã rời*.
+
+⚠️ **Ai đó thấy M2 TĂNG sau khi sửa ⟹ bản sửa SAI**, dừng lại, đừng nhận số. Và nếu số mới xấu
+hơn cho câu chuyện muốn kể — **báo cáo nguyên trạng**. Đó là toàn bộ lý do dự báo được viết ra trước.
+
+### Hệ quả
+`contracts/` không đổi ⟹ không cần §10. Mọi số đo trên trục *"chưa mất tiền thật"* công bố trước
+20/08 phải **niêm**, vì chúng đo bộ sinh chứ không đo khiếu nại.
+
+## ADR-047 — Tiếp nhận TRƯỚC, bổ sung SAU: khách đòi mở khiếu nại thì mở ngay
+
+**Ngày:** 2026-08-24 · **Trạng thái:** PO duyệt (lệnh *"tiếp tục triển khai thôi"*, 24/08)
+**Bối cảnh:** PO hỏi *"theo luồng nghiệp vụ của một con người CSKH thật thì họ sẽ làm gì?"*
+sau khi test A2 vế 2 đỏ **bốn vòng liên tiếp**. Tra nghiệp vụ thật →
+`docs/nghiep-vu-tiep-nhan-truoc-bo-sung-sau.md`.
+
+**Dữ kiện quyết định:** thời hạn xử lý tra soát/khiếu nại đếm **từ NGÀY TIẾP NHẬN**, không phải
+từ ngày khách khai đủ thông tin (TT 15/2024/TT-NHNN). Tổ chức thanh toán **bắt buộc** tiếp nhận
+qua tổng đài, rồi **mới** yêu cầu bổ sung hồ sơ theo mẫu.
+
+**Quyết định:** khi khách **chủ động yêu cầu** mở khiếu nại (*"tạo đi"*, *"mở khiếu nại cho tôi"*),
+agent **tạo vé NGAY**, không đặt điều kiện phải tra cứu xong trước. Vé ghi rõ phần chưa xác định
+được. **Tạo vé KHÔNG kết thúc hội thoại** — agent tiếp tục hỏi các slot còn thiếu và cập nhật
+vào vé đã có.
+
+**Điều KHÔNG đổi:**
+- Ràng buộc cứng 3 giữ nguyên: vé ghi *"chưa xác định được giao dịch"*, **không bịa** số/mã/trạng thái.
+- A2 gốc giữ nguyên: agent **không tự ý** tạo vé khi khách mới chỉ hỏi — chỉ tạo khi khách **yêu cầu**
+  hoặc **đồng ý** với đề nghị của agent.
+- HITL giữ nguyên: mở vé ≠ quyết định. Không đồng gì được duyệt ở bước này.
+
+**Thay thế:** điều kiện *"chỉ được tạo vé SAU KHI đã tra cứu ít nhất một lần"* thêm ở `2b197d0`
+(24/08) — **bãi bỏ** với nhánh khách-chủ-động-yêu-cầu. Giữ với nhánh agent-tự-đề-nghị.
+
+**Vì sao điều kiện cũ sai:** nó bảo vệ chất lượng vé bằng cách **trì hoãn mốc pháp lý bảo vệ
+khách**. Với ca lừa đảo — tiền chạy theo phút — mỗi lượt hỏi thêm là một lượt chậm.
+
+**Hệ quả kiểm thử:** test A2 vế 2 kỳ vọng **ĐÚNG** từ đầu; đỏ 4 vòng là bug sản phẩm thật.
+Không sửa test.
+
+## ADR-045b — Chốt bốn tham số vận hành cho ADR-045 (PO quyết 24/08)
+
+**Ngày:** 2026-08-24 · **Trạng thái:** ✅ PO thật quyết trực tiếp
+
+| tham số | chốt | ghi chú |
+|---|---|---|
+| Giữ lịch sử hội thoại | **90 ngày** rồi xoá | PO quyết |
+| VPS đặt tại | **Việt Nam** | PO quyết |
+| Vé/CSKH/ca | **20** | PO: *"cứ cho một con số trung bình ngành"* — xem nguồn |
+| Kiến trúc máy | *chưa chốt* | **KHÔNG chặn ai** — DevOps xác định lúc dựng thật, không cần PO |
+
+**Nguồn con số 20 vé/ca** — [ĐO 24/08, tra web]: Zendesk Benchmark 2025 đặt trung bình ngành ở
+**17–25 vé/agent/ngày**, mức này **giữ nguyên từ 2022**. Ngành có ràng buộc quy định (y tế, tài
+chính) nằm ở **đầu thấp** của dải do thời gian xử lý mỗi ca dài hơn. FIN-05 là khiếu nại giao dịch
+có tra soát + HITL ⟹ chọn **20**, giữa dải, nghiêng nhẹ về phía thận trọng.
+🔴 **NIÊM:** đây là số **trung bình ngành quốc tế**, KHÔNG phải số đo của một đội CSKH thật nào ở
+Việt Nam. Dùng để **chỉnh hạn mức**, KHÔNG được trích ra ngoài như số liệu của dự án.
+
+**Hệ quả của "VPS tại Việt Nam":** dữ liệu không rời biên giới ⟹ nhánh thủ tục NĐ 13/2023 cho
+chuyển dữ liệu xuyên biên giới **không phát sinh**. Khớp với quyết định bỏ hồ sơ Đ.25 (PO, 18/08).
+
+## ADR-048 — Tín hiệu FS-13: "có người hướng dẫn chuyển khoản"
+
+**Ngày:** 2026-08-24 · **Trạng thái:** ✅ **PO DUYỆT 24/08** (*"gật"*) — chờ thi hành, thuộc Đợt 2
+*(Đánh số 048 vì 047 đã dùng cho tiếp-nhận-trước. Các tài liệu cũ ghi "ADR-047 = FS-13" là số dự
+kiến trước khi ghi, không phải ADR đã tồn tại.)*
+
+**Bối cảnh:** chuyên gia CSKH (PO chuyển 24/08) xếp đây là **rủi ro nghiệp vụ lớn nhất** hiện tại:
+ca **bị lừa đảo** đang bị hệ thống ép vào ô *"chuyển nhầm"*. Hai loại này cần xử lý khác hẳn —
+chuyển nhầm thì tra soát và liên hệ người nhận; bị lừa thì phải cảnh báo, giữ dấu vết, và **không**
+trấn an theo kiểu "sẽ lấy lại được".
+
+**Quyết định:** thêm tín hiệu gian lận **FS-13 — "có người hướng dẫn chuyển khoản"** vào bộ tín
+hiệu. Kích hoạt khi khách kể có người **hướng dẫn / yêu cầu / thúc giục** thực hiện giao dịch
+(qua điện thoại, tin nhắn, mạng xã hội), kể cả khi khách tự tay bấm.
+
+**Ràng buộc giữ nguyên (ràng buộc cứng 5):** gắn cờ FS-13 ≠ khoá ví. Hai hành động độc lập.
+FS-13 **không** cho AI escalate — nó là tín hiệu ở tầng service, đúng ràng buộc cứng 2.
+
+**🔧 ĐÍNH CHÍNH 24/08 (Lead, [ĐO]):** bản đầu ADR này (và brief PO-agent gửi Lead) ghi *"đặt ở
+`fraud_policy.py`"* — **sai, gộp hai tầng làm một**. Đúng ra: **nhận diện** thuộc
+`fraud_engine.py` + `fraud_signals.yaml` (tái dùng đường ống `utterance_text` mà FS-09 đã có);
+`fraud_policy.py` chỉ **quyết escalate** từ danh sách tín hiệu đã tính xong.
+
+**Quan hệ với FS-09 — KHÔNG trùng lặp, chủ ý chồng nhau:** FS-09 (`fraud_engine.py:143-165`) là
+lưới **HẸP** bắt **TỪ KHOÁ** của 5 kịch bản lừa đảo đã biết (giả công an, việc nhẹ lương cao, đầu
+tư ảo, chiếm tài khoản, giả CSKH). FS-13 là lưới **RỘNG** bắt **CẤU TRÚC**: bên-thứ-ba + kênh xa
+lạ. Hai tín hiệu cùng bật trên nhiều ca là **đúng thiết kế**, không phải trùng cần dọn.
+
+**Ranh giới bắt oan (Lead chốt nguyên tắc, không liệt kê từ khoá):** đòi **ĐỒNG THỜI** ① bên thứ
+ba là nguồn chỉ dẫn **VÀ** ② kênh xa lạ (điện thoại/tin nhắn/MXH/người lạ).
+*"Chồng tôi bảo chuyển"* trượt ② ⟹ không bật. *"Shop hướng dẫn chuyển khoản"* trượt ② ⟹ không bật.
+
+**Cờ bật thì hành vi đổi thế nào — GIỮ lệ ADR-022:** model **không bao giờ** thấy mã tín hiệu
+(`create_ticket` chỉ trả `should_escalate`/`escalation_target`). Cảnh báo *"đừng trấn an"* phải là
+**một dòng TẤT ĐỊNH** chèn sau khi `create_ticket` trả về — **không** giao model tự diễn đạt dưới
+một chỉ thị prompt. Không đặt cược an toàn vào việc model nghe lời.
+
+**🟡 CÒN CHỜ PO THẬT — một câu:** FS-13 có **escalate** (đổi priority/target như FS-06, hiện là
+tín hiệu DUY NHẤT làm việc đó) hay **chỉ ghi nhận**? Đây là quyết định đổi **tải hàng chờ
+supervisor thật**, không phải kỹ thuật.
+
+**Đụng contract ⟹ phải đi đủ §3** trước khi code: sửa contract → ADR (file này) → PO duyệt (xong)
+→ `check_contracts.py --update` → cập nhật `CONTRACT_VERSION` → mới code.
+
+## ADR-049 — Nhận diện TẤT ĐỊNH "khách yêu cầu tạo vé": đổi đòn bẩy, không đổi thêm chữ
+
+**Ngày:** 2026-08-24 · **Trạng thái:** ✅ **PO THẬT DUYỆT 25/08** (*"Duyệt nhé"*)
+*(Ghi bởi phiên PO — `docs/` là vùng ghi `po` theo §4. Coder **từ chối tự ghi** dòng này và
+từ chối nhận uỷ quyền đổi vùng ghi qua relay; đúng, và đáng ghi nhận.)*
+~~🟡 ĐỀ XUẤT — chờ PO thật duyệt. Chưa code dòng nào.~~ *(trạng thái tới 25/08)*
+
+**Hệ quả mở khoá:** ⑩ *(bản tóm tắt 6 trường tất định trước `create_ticket` — đúng lượt 7
+kịch bản chuyên gia CSKH)* và ⑪ *(cấu trúc ba vế · đổi góc nhìn PDPA · đọc lại 5 dữ kiện)*.
+Cả hai vẫn phải **tự đo delta token** và vừa trần 293 — điều khoản T2, đợt "OTP trước token".
+
+### Dữ kiện: sáu vòng, sáu cơ chế bị loại trừ, một hành vi không đổi
+
+Test A2 vế 2 (*khách nói "Ừ tạo đi" ⟹ phải tạo vé*) đỏ **sáu lần liên tiếp** trong ngày 24/08.
+Mỗi vòng loại trừ một cơ chế khác nhau, [ĐO] trên ngăn `fin05do`:
+
+| vòng | cơ chế bị loại trừ | agent làm gì thay vì tạo vé |
+|---|---|---|
+| ① | tool bị cổng OTP chặn (harness test thiếu bước xác thực) | báo chưa xác thực |
+| ② | thread test đứt (login lại mỗi lượt ⟹ hai hội thoại rời) | — |
+| ③ | `multiple_matches` (bác bằng `tool_results`: thật ra `not_found`) | hỏi SĐT người nhận |
+| ④ | luật chốt-luồng thiếu điều kiện | hỏi thời điểm |
+| ⑤ | prompt hứa "bổ sung vào vé" (không có tool update) | hỏi mã giao dịch |
+| ⑥ | **trần năng lực model** — chạy lại trên model mạnh nhất bể | hỏi phạm vi giao dịch |
+
+**Vòng ⑥ là vòng quyết định.** Cùng ảnh, cùng kịch bản, chỉ đổi model
+(`deepseek-v4-pro-0813`, xác nhận bằng `model_dau_luot()` phía server): **vẫn đỏ**.
+🔴 *Niêm: "mạnh nhất" là suy từ quy ước đặt tên, không có benchmark nội bộ. Chiều ĐỎ vẫn cho
+kết luận chắc — hai model khác nhau cùng không làm được.*
+
+### Chẩn đoán
+
+**Chúng ta dành cả đợt 1A dạy agent hỏi cho kỹ, rồi ngạc nhiên khi nó hỏi kỹ.**
+R1–R5 + quy trình điều tra + luật cấm tạo vé khi chưa rõ loại — tất cả đẩy về **một** hướng:
+*hỏi thêm*. Trên nền đó, *"Ừ tạo đi"* là ba chữ, một tín hiệu **yếu** cạnh sáu luật **mạnh**.
+
+⟹ **Prompt là đòn bẩy sai cho hành vi này.** Bản vá thứ bảy là **luật thứ bảy cạnh tranh với sáu
+luật cũ**, không có cơ sở nào tin nó thắng. Sáu vòng vừa rồi là bằng chứng thực nghiệm cho điều đó.
+
+### Đề xuất
+
+Nhận diện **tất định** câu khách yêu cầu tạo vé, ép nhánh ở tầng code — **đúng cơ chế cổng
+`thu_slot` (1B) đã dựng hôm nay**, hạ tầng có sẵn (`phan_luong.py`).
+
+**Nguyên tắc bắt buộc kế thừa từ 1B — thà BỎ SÓT còn hơn BẮT OAN:**
+- Bỏ sót ⟹ agent hỏi thêm một lượt. Phiền, không hỏng.
+- Bắt oan ⟹ tạo vé khi khách **không** yêu cầu. **Hỏng thật** — vé rác vào hàng đợi CSKH, và
+  vi phạm chính A2 gốc.
+- Bài học đã trả giá hôm nay: từ đơn lẻ (`"sao"`, `"mất"`) khớp bừa; **cụm đủ dài** mới đứng được.
+
+**Ba thứ KHÔNG đổi:** HITL tuyệt đối (mở vé ≠ quyết định) · ràng buộc cứng 3 (vé ghi rõ phần chưa
+xác định, không bịa) · A2 gốc (agent **không tự ý** tạo vé khi khách mới chỉ hỏi).
+
+### Câu PO cần quyết
+
+Đây là **đổi kiến trúc quyết định**: chuyển một quyết định nghiệp vụ từ **model** sang **luật cứng**.
+Được lợi tính đoán trước được; mất đi khả năng model xử ca lạ mà luật không lường.
+
+---
+
+## ADR-051 — `create_ticket` HAI THÌ: tóm tắt 6 trường trước, tạo vé sau
+
+**Ngày:** 2026-08-25 · **Trạng thái:** ✅ **PO THẬT DUYỆT 25/08** (nguyên văn *"2 câu đầu làm nhé"*, ghi trong `docs/giao-viec/CHECKLIST-dot-otp-truoc-token.md` mốc điểm danh #24 `a241955`).
+*(Toàn văn dự thảo + đánh đối kháng của Review giữ ở `docs/nhat-ky/2026-08-25-ADR-051-du-thao-cho-PO-duyet.md` — KHÔNG chép lại ở đây để `DECISIONS.md` không phình; mục này ghi QUYẾT ĐỊNH và HỆ QUẢ.)*
+
+### Quyết định
+`create_ticket` tách làm HAI THÌ qua tham số mới `xac_nhan: bool = false`.
+```
+thì 1  xac_nhan=false  → KHÔNG tạo gì. Trả bản tóm tắt 6 trường DỰNG TRONG MÃ từ
+                          chính tham số model vừa truyền. Phát thẳng cho khách.
+thì 2  xac_nhan=true   → tạo thật, CHỈ sau khi khách gật.
+```
+Tóm tắt do MÃ dựng ⟹ tất định, không bịa được, không trôi theo prompt. **Siết HITL
+chặt hơn hiện tại: không gì thành hình trước khi khách gật.**
+
+### Sáu ràng buộc — thiếu bất kỳ cái nào là hỏng
+**1–4** ghi tại `655a112` (Coder): ① `test_invariants` chỉ so TÊN tool, KHÔNG so
+CHỮ KÝ ⟹ §3 là lớp bảo vệ DUY NHẤT · ② thì 1 KHÔNG được đặt `ticket_id` (ba móc ⑧/⑨/
+investigation-logs đều khoá theo nó) · ③ cổng OTP cho thì 1 là câu BẢO MẬT, không tự
+quyết · ④ ⑨ chỉ được bắn ở thì 2, thiếu điều kiện `xac_nhan is True` thì câu sàng lọc
+lừa đảo hỏi HAI lần.
+
+**5** `xac_nhan=true` CHỈ nhận khi có tín hiệu *"đã gửi tóm tắt khớp đúng 6 trường
+này"* ở lượt TRƯỚC (khuôn `thread_signals`, **băm 6 trường** làm giá trị, tự xoá sau
+khi dùng). 🔴 Thiếu: model gọi thẳng `xac_nhan=true` ngay lượt đầu ⟹ **đi vòng qua
+toàn bộ giá trị HITL**. `TurnGuard` KHÔNG cứu được — [ĐO] nó tạo mới **mỗi lượt**, mà
+hai thì là **hai lượt chat**; nó không có khái niệm *"lượt trước"*. Cùng chốt này đóng
+luôn nhánh *"khách gật hai lần"*.
+
+**6** `create_ticket` đổi return type **`dict` → CHUỖI ĐÃ ĐỊNH DẠNG**, cho **cả hai
+thì**. 🔴 Thiếu: `return_direct` phát **thẳng** giá trị trả về làm câu trả lời ⟹
+**khách nhận JSON thô**. Hỏng ở PHÍA KHÁCH HÀNG, không ở test.
+
+### Hệ quả
+`contracts/agent-tools.yaml` **2.1.2 → 2.2.0** (thêm input `xac_nhan`, đổi kiểu
+output). `CONTRACT_VERSION` cập nhật, commit KÈM file baseline.
+🔴 **Chưa code một dòng nào** — bước 7 của §3 đi sau commit này.
+
+🔴 **Dữ kiện dùng được cho mọi thiết kế sau, không riêng ADR này** (đo sổ sống):
+giá thật **một lời gọi tool ≈ 10.400 token** (0 tool → 10.381 · 1 tool → 20.811 ·
+3 tool → 41.444, tuyến tính khít). Tiền nằm ở **vòng gửi lại ngữ cảnh**, KHÔNG ở lược
+đồ tool. ⟹ Hai thì = thêm MỘT vòng ⟹ **≈ +10.400 token mỗi ca tạo vé**.
+`return_direct=True` CÓ hỗ trợ (langchain 1.3.15, `create_agent` tự dựng `exit_node`)
+⟹ thì 1 dừng được ngay sau tool, không cần đổi kiến trúc agent.

@@ -1,0 +1,158 @@
+{
+ "version": "1B.3-v2",
+ "soan": "tester, 24/08, từ đặc tả Lead §2/§3/§4/§7 (nháp 1B-cổng-thu-slot, chưa đọc code Coder)",
+ "nguon": "docs/giao-viec/2026-08-24-luong-chatbot-1A-1B.md + nháp Lead (mục 7, bảng S1-S10 + S2b/S3b PO-agent duyệt 24/08)",
+ "vi_sao_ton_tai": "Cổng cho nhánh MỚI DUONG_THU_SLOT — chưa tồn tại trong phan_luong.py tại thời điểm viết bộ ca này (1B.2 chưa land). Land TRƯỚC để Coder vá theo, đúng thứ tự 1A.1 đã dùng cho R1-R5.",
+ "🔴_CHUA_CHAM_DUOC_o_tang_nay": "S7 (tối đa 1 lần/hội thoại) và S8 (Redis lỗi fail-open) đòi trạng thái theo thread_id + mô phỏng lỗi Redis — phan_luong(cau) là HÀM THUẦN nhận một câu, không có thread_id/Redis. Theo thiết kế Lead mục 6, trạng thái này có thể sống ở graph.py (nơi gọi phan_luong), KHÔNG NHẤT THIẾT trong chính hàm. KHÔNG đoán — hai ca này để TRỐNG ở đây, cần cổng khác (tầng graph.py/tích hợp) khi Coder xác nhận nơi state thực sự sống.",
+ "ca": [
+  {
+   "id": "S1",
+   "cau": "chuyển 20k thì bao lâu tới nơi vậy",
+   "ky_vong": "day_du",
+   "vi_sao": "NHÓM A đạt (20k) nhưng NHÓM B trượt cả hai: (i) không sở hữu cá nhân đi kèm 'chuyển'; (ii) không có mất/bị-mất trong cửa sổ ≤2 từ quanh số tiền — câu hỏi quy trình chung, không phải khiếu nại"
+  },
+  {
+   "id": "S2",
+   "cau": "chuyển tiền 20k thì mất phí gì?",
+   "ky_vong": "day_du",
+   "vi_sao": "câu hỏi CHÍNH SÁCH có số ví dụ — không được bắt oan thành khiếu nại"
+  },
+  {
+   "id": "S2b",
+   "cau": "chuyển tiền 20k thì mất phí gì vậy trời",
+   "ky_vong": "day_du",
+   "vi_sao": "CANH RIÊNG ranh giới cửa sổ ≤2 từ của NHÓM B(ii): chứa chữ 'mất' nhưng 'mất' đứng cạnh 'phí' (bổ nghĩa cho phí), cách khuôn số tiền '20k' quá 2 từ theo thứ tự câu — không được tính là (ii) dù có chữ 'mất'"
+  },
+  {
+   "id": "S3",
+   "cau": "tôi chuyển 500k hôm qua mà chưa tới",
+   "ky_vong": "day_du",
+   "vi_sao": "ĐẠT ① (sở hữu 'tôi' + động từ 'chuyển') nhưng ĐỦ CẢ HAI slot bắt buộc (500k + hôm qua) — không hỏi gì, giao thẳng day_du để agent tra thật"
+  },
+  {
+   "id": "S3b",
+   "cau": "tự nhiên bị trừ 200k",
+   "ky_vong": "day_du",
+   "vi_sao": "HAI TẦNG, đừng đọc thành ca bị nới: (1) nhận diện ý định vẫn ĐẠT — KHÔNG có đại từ sở hữu nên TRƯỢT (i), nhưng 'bị trừ' đứng NGAY CẠNH '200k' (cửa sổ ≤2 từ) ⟹ ĐẠT (ii). (2) SAU luật slot đổi 24/08 (số tiền là slot bắt buộc DUY NHẤT): số tiền đã CÓ (200k) ⟹ không còn gì bắt buộc để hỏi ⟹ day_du ngay, không hỏi mốc thời gian (thời gian nay chỉ bóc-nếu-có, không bao giờ là lý do hỏi)."
+  },
+  {
+   "id": "S4",
+   "cau": "tôi chuyển nửa triệu hôm qua mà không thấy vào",
+   "ky_vong": "day_du",
+   "vi_sao": "[Review, đính chính 24/08] ĐẠT ① ('tôi' + 'chuyển'), có mốc thời gian ('hôm qua'), VÀ khách ĐÃ NÓI số tiền — chỉ là viết CHỮ THUẦN ('nửa triệu') thay vì chữ số. Cổng không phán xét số có đủ chính xác/quy đổi được không, chỉ hỏi 'có dấu hiệu khách đã nói số tiền chưa' — CÓ rồi ⟹ nhường LLM, day_du. LÚC VIẾT CA NÀY (kỳ vọng cũ: thu_slot) — sai, tự phản chiếu một lỗ trong ĐẶC TẢ gốc ('bóc bằng regex' không đọc được số viết chữ), không phải lỗi code. Coder đang mở rộng _co_so_viet_chu() để vá — ca này ĐỎ ĐÚNG LÝ DO cho tới khi vá xong, land trước theo đúng nếp S1-S9."
+  },
+  {
+   "id": "S5",
+   "cau": "tôi bị trừ tiền",
+   "ky_vong": "thu_slot",
+   "vi_sao": "ĐẠT ①. Theo luật slot mới, chỉ SỐ TIỀN là bắt buộc — số tiền ở đây cũng THIẾU (không có con số nào) ⟹ vẫn kích thu_slot, nhưng reply giờ chỉ cần hỏi ĐÚNG MỘT thứ (số tiền), không phải 'cả hai' như thiết kế gốc — kiểm nội dung câu hỏi ở ca S5b nếu cần, ca này chỉ kiểm nhánh được kích đúng."
+  },
+  {
+   "id": "S6",
+   "cau": "mình chuyển nhầm cho người lạ, không nhớ gì cả",
+   "ky_vong": "thu_slot",
+   "vi_sao": "ĐẠT ① ('mình' + 'chuyển'). Số tiền THIẾU (không con số nào) ⟹ slot bắt buộc duy nhất còn trống ⟹ thu_slot, hỏi số tiền kèm hướng dẫn tìm mã (R2/1A) — không còn hỏi thêm mốc thời gian như thiết kế gốc."
+  },
+  {
+   "id": "S9",
+   "cau": "mình bị trừ 300k hôm qua rồi",
+   "ky_vong": "day_du",
+   "vi_sao": "Nhận diện ý định vẫn ĐẠT — KHÔNG có đại từ sở hữu nên TRƯỢT (i), nhưng 'bị trừ' đứng NGAY CẠNH '300k' (cửa sổ ≤2 từ) ⟹ ĐẠT (ii), khớp đúng khuôn S3b. Số tiền (slot bắt buộc DUY NHẤT) đã CÓ (300k) ⟹ day_du ngay. KHÔNG có mã giao dịch — mã không bắt buộc, không bị chặn lại hỏi mã."
+  },
+  {
+   "id": "S11",
+   "cau": "kiểm tra giúp em giao dịch TXN20260810000123 với",
+   "ky_vong": "day_du",
+   "vi_sao": "CA MỚI 24/08 — canh luật 'mã giao dịch ĐÈ TẤT CẢ'. Có mã TXN đúng khuôn, KHÔNG có số tiền nào trong câu — theo luật cũ (số tiền bắt buộc) sẽ sai thành thu_slot; theo luật MỚI, mã hợp lệ tự đủ để đi thẳng day_du, không hỏi số tiền dù nó thiếu."
+  },
+  {
+   "id": "S12",
+   "cau": "tôi chuyển khoản thì phí bao nhiêu vậy",
+   "ky_vong": "day_du",
+   "vi_sao": "[ĐO Review] Câu hỏi CHÍNH SÁCH (hỏi PHÍ chung, không nhắc giao dịch cụ thể nào) — CÓ sở hữu 'tôi' + động từ 'chuyển' khớp BỀ MẶT NHÓM B(i), nhưng đây là khung HỎI ('thì...bao nhiêu vậy'), không phải mô tả một giao dịch ĐÃ XẢY RA. Phải day_du."
+  },
+  {
+   "id": "S13",
+   "cau": "tôi cần rút tiền, thủ tục thế nào",
+   "ky_vong": "day_du",
+   "vi_sao": "[ĐO Review] Câu hỏi CHÍNH SÁCH (hỏi THỦ TỤC rút tiền nói chung) — CÓ 'tôi' + 'rút' khớp bề mặt (i), nhưng khung hỏi 'thế nào' + không nhắc số tiền/thời điểm cụ thể nào ⟹ không phải khiếu nại. Phải day_du."
+  },
+  {
+   "id": "S14",
+   "cau": "mình muốn nạp tiền vào ví thì làm sao",
+   "ky_vong": "day_du",
+   "vi_sao": "Cùng họ S12/S13, đổi đại từ ('mình') + động từ ('nạp') + khung hỏi ('thì...làm sao') — hỏi QUY TRÌNH nạp tiền nói chung, không phải khiếu nại một giao dịch cụ thể. Phải day_du."
+  },
+  {
+   "id": "S15",
+   "cau": "tôi chuyển tiền quốc tế thì mất bao lâu",
+   "ky_vong": "day_du",
+   "vi_sao": "Cùng họ, thêm bẫy chữ 'mất' (dấu hiệu NHÓM B(ii) ở ca khác) — nhưng 'mất' ở đây bổ nghĩa cho THỜI GIAN XỬ LÝ ('mất bao lâu'), không đứng cạnh khuôn số tiền nào ⟹ B(ii) KHÔNG đạt. Vẫn khớp bề mặt B(i) ('tôi'+'chuyển') nhưng là câu hỏi CHÍNH SÁCH (thời gian xử lý chuyển tiền quốc tế nói chung). Phải day_du."
+  },
+  {
+   "id": "S16",
+   "cau": "hạn mức chuyển khoản của tôi là bao nhiêu",
+   "ky_vong": "day_du",
+   "vi_sao": "Đại từ sở hữu đứng SAU danh từ ('của tôi', không phải 'tôi chuyển') + động từ 'chuyển khoản' — hỏi HẠN MỨC tài khoản nói chung, không mô tả giao dịch nào đã xảy ra. Phải day_du — canh biến thể VỊ TRÍ của đại từ sở hữu trong câu, khác cấu trúc S12-S15 (đại từ đứng TRƯỚC động từ)."
+  },
+  {
+   "id": "S17",
+   "cau": "Tôi lo quá, chuyển nhầm tiền học phí của con cho người lạ rồi, giúp tôi với.",
+   "ky_vong": "day_du",
+   "vi_sao": "[ĐO 24/08] Ca THẬT, có trong golden_set.jsonl — dấu hiệu cảm xúc ('lo quá', 'giúp tôi với') phải ĐÈ ①/slot, luôn day_du để agent LLM xoa dịu trước khi tra. LÚC VIẾT ca này đi thu_slot (khớp B(i), thiếu số tiền, sai theo đề nghị mới) — Coder vá NGAY trong lúc viết (`5f3a1ef`), nay ĐÚNG day_du thật, giữ làm hồi quy."
+  },
+  {
+   "id": "S18",
+   "cau": "Trời ơi tôi hoảng quá, bị trừ tiền mà không biết vì sao, làm sao bây giờ",
+   "ky_vong": "day_du",
+   "vi_sao": "Dấu hiệu cảm xúc 'hoảng quá' + cụm cầu cứu 'làm sao bây giờ' — dù 'bị trừ' khớp B(ii) bề mặt (không có số tiền cạnh nên thực ra B(ii) cũng trượt do thiếu khuôn số), cảm xúc mạnh phải đè mọi kết quả trung gian, luôn day_du."
+  },
+  {
+   "id": "S19",
+   "cau": "Tôi sợ bị lừa đảo mất tiền oan rồi, giúp tôi với",
+   "ky_vong": "day_du",
+   "vi_sao": "Dấu hiệu cảm xúc 'sợ' + 'giúp tôi với' + nghi ngờ lừa đảo — trục cảm xúc VÀ trục an toàn (nghi gian lận) cùng đòi day_du, không đường tất định nào đủ xử lý ca này."
+  },
+  {
+   "id": "S20",
+   "cau": "Gấp lắm, tôi chuyển nhầm cho người lạ, không biết phải làm sao",
+   "ky_vong": "day_du",
+   "vi_sao": "Dấu hiệu khẩn cấp 'gấp lắm' + 'không biết phải làm sao' đứng TRƯỚC phần mô tả giao dịch (khác S17-S19 đặt cảm xúc ở đầu/giữa) — canh biến thể VỊ TRÍ tín hiệu cảm xúc trong câu, luôn day_du bất kể vị trí."
+  },
+  {
+   "id": "S21",
+   "cau": "tôi chuyển hai trăm bảy mươi nghìn cho bạn hôm qua mà chưa thấy vào",
+   "ky_vong": "day_du",
+   "vi_sao": "Số viết chữ thuần, không chữ số nào — 'hai trăm bảy mươi nghìn' vẫn LÀ dấu hiệu khách đã nói số tiền. Cùng họ S4, biến thể số dài hơn (hàng trăm nghìn thay vì nửa/rưỡi)."
+  },
+  {
+   "id": "S22",
+   "cau": "mình chuyển nửa triệu cho người lạ rồi, không biết sao không thấy trừ",
+   "ky_vong": "day_du",
+   "vi_sao": "Số viết chữ 'nửa triệu' — cùng khuôn S4, đổi đại từ ('mình') + văn cảnh khác (chuyển NHẦM cho người lạ, không phải chưa nhận được)."
+  },
+  {
+   "id": "S23",
+   "cau": "tôi lỡ chuyển hai triệu rưỡi vào tài khoản sai rồi",
+   "ky_vong": "day_du",
+   "vi_sao": "Số viết chữ có 'rưỡi' (phân số dân gian, khác 'nửa') — canh biến thể CÁCH VIẾT số chữ thuần mà _co_so_viet_chu() phải nhận diện được."
+  },
+  {
+   "id": "S24",
+   "cau": "cảm ơn nghìn lần vì đã giúp mình tra cứu",
+   "ky_vong": "day_du",
+   "vi_sao": "[ĐO 24/08] Ca ÂM đối chứng — 'nghìn' đứng LẺ, không đi kèm số/chỉ số tiền nào ('nghìn lần' = thành ngữ cảm ơn, không phải giao dịch). [ĐO trên cổng thật] Hiện ĐÃ day_du, nhưng qua đường KHÁC hẳn 'phát hiện số tiền' — câu không khớp NHÓM B(i)/(ii) nào (không sở hữu+động từ giao dịch, không mất-mát cạnh số tiền) nên ① đã trượt từ đầu, chưa từng tới bước xét số viết-chữ. Giữ ca này để canh: nếu sau này mở rộng _co_so_viet_chu() bắt LỎNG quá (vd chỉ cần thấy chữ 'nghìn/triệu' là coi là số tiền), ca này sẽ lộ báo oan."
+  }
+ ],
+ "🔴_S7_S8_de_trong": "xem 🔴_CHUA_CHAM_DUOC_o_tang_nay — không có ca cho S7/S8 trong file này, có chủ đích.",
+ "🔴_S10_khong_lap_lai": "S10 (124 ca âm bản golden_set.jsonl phải xanh nguyên trạng) đã có sẵn trong cong_phan_luong.py::main() qua bộ 'âm gốc' — không nhân bản ở đây, chỉ khai lại để đối chiếu bảng.",
+ "cach_dung": "python eval/cong_phan_luong.py --luat <path phan_luong.py> — tự nạp file này khi tồn tại.",
+ "🔴_luu_y_kiem_dinh": "Mẫu S1/S2/S2b/S3/S9 kỳ vọng day_du — VẪN ĐÚNG hôm nay (24/08, TRƯỚC 1B.2) vì toàn bộ hệ thống hiện tại chỉ có nhe/day_du, chưa có thu_slot, nên chúng PASS TRÙNG với hành vi mặc định cũ, KHÔNG PHẢI bằng chứng nhánh mới hoạt động đúng. Mẫu S3b/S4/S5/S6 kỳ vọng thu_slot SẼ ĐỎ hôm nay (đúng, vì nhánh chưa tồn tại) — đỏ đúng lý do, không phải bug. Đối xử như A2: land trước, xanh sau khi 1B.2 vá.",
+ "luat": "hàm phan_luong(cau) trả (duong: str, ly_do: str, ...) — chấp nhận tuple 2 hoặc 4 phần tử (nhánh thu_slot có thêm slot_hien_co/slot_thieu theo thiết kế Lead mục 1); cổng chỉ đọc hai phần tử đầu.",
+ "bam_nhan": "991a890f1347",
+ "thuat_toan_bam": "sha256[:12] của json.dumps(d, ensure_ascii=False, indent=1, sort_keys=True) SAU KHI bỏ 'bam_nhan' và 'thuat_toan_bam'",
+ "🔴_LUAT_SLOT_DOI_24_08": "PO-agent chốt lại sau khi cổng thật bác thiết kế gốc: 36/124 ca âm gốc vỡ dưới luật hai-slot (thời gian+số tiền), cả 36 đều so_tien=True — chuyên gia xếp SỐ TIỀN là neo mạnh nhất. Slot BẮT BUỘC DUY NHẤT nay là SỐ TIỀN. Mốc thời gian: bóc-nếu-có, KHÔNG BAO GIỜ là lý do hỏi. Mã giao dịch: có mã ⟹ ĐÈ TẤT CẢ, đi day_du ngay dù thiếu số tiền (thu-hẹp-theo-thời-gian đã có chủ là đường multiple_matches trong contract, không phải việc của 1B).",
+ "🔴_LO_TO_HOP_24_08_sau": "[ĐO Review, chạy thật] Hai câu lọt: 'tôi chuyển khoản thì phí bao nhiêu vậy' và 'tôi cần rút tiền, thủ tục thế nào' — cả hai bị kích nhầm thu_slot. Nguyên nhân: S1/S2/S2b canh CÂU HỎI CHÍNH SÁCH nhưng đều THIẾU đại từ sở hữu — mù trước tổ hợp 'chính sách × có tôi/mình'. Vì NHÓM B(i) chỉ khớp BỀ MẶT (sở hữu + động từ giao dịch CÙNG CÂU), một câu hỏi chính sách có 'tôi' + 'chuyển'/'rút' vẫn khớp (i) dù không mô tả một giao dịch ĐÃ XẢY RA — đúng lỗ Coder đang vá (thêm điều kiện loại trừ khung hỏi/interrogative). Ca S12-S16 dưới đây bắt đúng tổ hợp này, land TRƯỚC/CÙNG bản vá để chấm đúng corpus đã biết lỗ.",
+ "🔴_TRUC_CAM_XUC_24_08": "[ĐO trực tiếp trên cổng, 24/08] 'Tôi lo quá, chuyển nhầm tiền học phí của con cho người lạ rồi, giúp tôi với.' — CÓ trong bộ âm gốc (golden_set.jsonl), LÚC VIẾT bộ ca này đi thu_slot (khớp B(i), thiếu số tiền, không một lời xoa dịu — luật xoa dịu chỉ chạy trên đường day_du/LLM). PO-agent đề nghị Coder siết: CÓ tín hiệu cảm xúc mạnh ⟹ luôn day_du. 🟢 [ĐO 24/08, SAU] Coder land `5f3a1ef` ngay trong lúc bộ ca này đang viết — S17-S20 nay XANH THẬT (kiểm lại trực tiếp trên `phan_luong.py` mới, không suy diễn), giữ làm CA HỒI QUY cho trục cảm xúc, không còn là ca chờ vá.",
+ "🔴_S4_DINH_CHINH_24_08": "[Review] S4 (ky_vong cũ: thu_slot) SAI — vi_sao tự viết 'slot số tiền = THIẾU DÙ KHÁCH ĐÃ NÓI' chính là mô tả một lỗi, không phải một kỳ vọng đúng. Nguyên tắc chốt với Coder: cổng KHÔNG phán xét số có đủ chính xác không — chỉ hỏi 'có dấu hiệu khách đã nói số tiền không?', có thì nhường LLM. Sửa ky_vong → day_du. Thêm S21-S23 (số viết CHỮ THUẦN, Coder đang mở rộng _co_so_viet_chu()) + S24 (ca âm: đơn vị đứng lẻ, không phải số tiền). GIỮ TÁCH BẠCH ba dạng: chữ-số (S3 '500k') · chữ-số-kèm-đơn-vị (R3-cầu '500 nghìn') · chữ thuần (S4/S21-S23 'nửa triệu')."
+}
