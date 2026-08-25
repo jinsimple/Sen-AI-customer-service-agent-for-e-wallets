@@ -524,3 +524,42 @@ như rời nhau"* — nhưng nó giả định mỗi vai **chỉ `git add` trong
 **PO KHÔNG tự lật quyết định của Lead** — đây là dữ kiện kích hoạt điều kiện họ tự đặt,
 trả lại cho họ xét. **Không xoá `5e16b66`**, không viết lại lịch sử: nhánh dùng chung,
 và bản sao lưu đã đẩy lên GitHub.
+
+### 🔴 ĐÍNH CHÍNH NGAY — PO ghi SAI CƠ CHẾ, QA/QC chẩn đoán đúng hơn
+
+PO viết ở trên: *"QA/QC chạy `git add` rộng tay"*. **SAI.** QA/QC tự báo trước khi PO
+kịp hỏi, và mô tả đúng hơn:
+
+> *"Vừa `git commit -m "..."` mà **KHÔNG có pathspec** ở cuối lệnh. Index lúc đó **đã có
+> sẵn file bạn stage trước đó** — `git commit` không pathspec đã **đổ cả giỏ**."*
+
+**Dựng lại đúng chuỗi:**
+```
+PO   git add docs/nhat-ky/…          ← PO tự tay stage
+QA/QC git commit -m "…"  (KHÔNG pathspec) ← đổ CẢ INDEX, gồm tệp của PO
+PO   git commit -q -m "…"             ← "no changes added" — index đã rỗng
+```
+
+⟹ **Tệp bị cuốn là tệp do CHÍNH PO stage.** QA/QC không `add` nó; họ commit một index
+mà PO đã bỏ thứ của mình vào.
+
+### Vì sao đính chính này quan trọng hơn nó có vẻ
+
+Mô tả sai cơ chế ⟹ **bản vá sai**. Nếu tin *"QA/QC add rộng tay"*, bài học rút ra là
+*"cẩn thận khi `git add`"* — và nó **không chạm** nguyên nhân thật.
+
+Nguyên nhân thật: 🔴 **INDEX là trạng thái DÙNG CHUNG, không chỉ cây làm việc.**
+Mọi phân tích trước nay của đội nói về *cây* dùng chung. Không ai nói *index* dùng
+chung. Mà `git add` **để lại một cửa sổ** — từ lúc stage tới lúc commit, thứ của bạn nằm
+trong một giỏ **mọi phiên khác đều đổ được**.
+
+**Vế thi hành, áp cho MỌI vai — và PO chịu một nửa lỗi này:**
+- `git commit -- <pathspec>` **thay cho** cặp `git add` + `git commit`. Nó commit đúng
+  đường dẫn nêu ra, **bất kể index có gì**, và **không để lại cửa sổ nào**.
+- Bắt buộc pathspec ở **`git commit`**, không chỉ ở `git add` — chỗ đội đã nhắc nhau
+  suốt là `add`/`stash`/`checkout`/`clean`; **`commit` chưa từng nằm trong danh sách ấy**.
+
+🟢 **Ghi nhận cách QA/QC xử lý:** họ tự báo **trước khi bị hỏi**, tự phân biệt lần này
+với lần near-miss trước *("lần này tôi chủ động sai, không phải bị cuốn theo")*, và
+**không tự sửa lịch sử** — không `amend`, không `reset`, vì cây dùng chung thì viết lại
+lịch sử rủi ro hơn để nguyên. Cả ba đều là quyết định đúng.
