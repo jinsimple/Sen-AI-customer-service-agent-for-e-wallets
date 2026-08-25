@@ -1237,6 +1237,20 @@ tin. B1/C1 là **lệch khỏi hành vi chuẩn của chính nó**, không phả
 ⟹ **Luật Đ″: kết luận nào của PO không kèm SỐ THÔ thì đội được quyền đòi số trước khi làm theo.**
 Áp cho **mọi** vai, **kể cả PO** — nhất là PO, vì lời PO không ai chặn.
 
+🔴 **LUẬT Đ‴ — TUYỆT ĐỐI KHÔNG `git add`. LẦN THỨ HAI CÙNG MỘT CÁI BẪY.**
+Luật cũ *"luôn `git commit -- <pathspec>`"* **chưa đủ**, và đây là chứng minh: PO chạy
+`git add -- <checklist>`, **lệnh commit ngay sau đó HỎNG** *(sai thứ tự cờ: `-m` phải đứng
+TRƯỚC `--`)*. Tệp nằm lại trong chỉ mục. Vài giây sau QA/QC commit ⟹ **83 dòng của PO bị cuốn
+trọn vào `97ebe31`**, một commit có thông điệp chỉ nói về ⑦.
+
+**Không mất nội dung — mất TRUY VẾT.** Ba luật Đ/Đ′/Đ″ ở trên nay nằm dưới một tiêu đề không hề
+nhắc tới chúng. Ai tra `git log` tìm nguồn của Luật Đ′ sẽ **không thấy gì**.
+
+⟹ **Luật đúng: `git commit -m "..." -- <pathspec>` là MỘT lệnh, KHÔNG bao giờ tách `git add` ra
+trước.** `git commit -- <pathspec>` **không cần** chỉ mục — thêm `git add` chỉ tạo ra một **cửa
+sổ sống** mà lệnh hỏng sẽ để mở vô thời hạn. 🔴 **Chỉ mục là TRẠNG THÁI DÙNG CHUNG của 5+ phiên:
+mọi thứ bạn `add` đều thuộc về người commit kế tiếp, bất kể đó là ai.**
+
 ---
 
 ## 📌 NGOÀI PHẠM VI ĐỢT NÀY — có chủ, không bỏ quên
