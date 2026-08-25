@@ -204,7 +204,16 @@ describe("ChatClient — OTP xen giữa câu hỏi tự do (Lỗi 1)", () => {
     // Sau khi OTP xanh, agentChat phải được gọi LẦN HAI với ĐÚNG câu cũ —
     // KHÔNG cần khách gõ lại (đây là điều bản vá đảm bảo).
     await waitFor(() => expect(agentChat).toHaveBeenCalledTimes(2));
-    expect(vi.mocked(agentChat).mock.calls[1][0]).toEqual({ message: CAU });
+    // 🔴 CHẶT HƠN bản cũ, không phải nới ra: bản cũ chờ đúng `{message}`, nên
+    // nó ĐỎ từ a663583 (24/08) — commit thêm cờ `vua_xac_thuc_de_gui_lai`.
+    // Cờ ấy PHẢI là `true` ở đây theo thiết kế: đây đúng là một trong ba nguồn
+    // đặt `pendingStarterRef` (touchedSensitiveData), tức lượt TỰ GỬI LẠI câu
+    // đã bị cổng OTP chặn. Khẳng định nó = ghim luôn ngữ nghĩa gửi-lại, thứ
+    // bản cũ không kiểm được.
+    expect(vi.mocked(agentChat).mock.calls[1][0]).toEqual({
+      message: CAU,
+      vua_xac_thuc_de_gui_lai: true,
+    });
     // Câu cũ chỉ hiện MỘT LẦN trong khung chat (không hiện lại như tin nhắn
     // mới của khách) — sendToAgent gọi với echoAsUser:false cho lượt tự gửi.
     expect(screen.getAllByText(CAU)).toHaveLength(1);

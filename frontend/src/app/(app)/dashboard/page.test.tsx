@@ -84,7 +84,12 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
     render(<DashboardPage />);
 
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText(/Khách yêu cầu người thật \(0\)/)).toBeTruthy();
+    // Neo vào `(0/` chứ KHÔNG `(0)`: nhãn chip mang cửa sổ đếm — "(0/100 vé mới
+    // nhất)" — từ 2755a9e (20/08), khi Lead phát hiện 60/100 bị đọc thành 60%
+    // trong khi thật là 113/786. Bản test cũ neo `\(0\)` nên ĐỎ từ hôm đó tới
+    // giờ. Neo `(0/` giữ nguyên sức phân biệt 0↔1 mà không vỡ lại nếu câu chữ
+    // "vé mới nhất" đổi lần nữa.
+    expect(await screen.findByText(/Khách yêu cầu người thật \(0\//)).toBeTruthy();
 
     // Khách bấm "gặp người thật" → backend broadcast queue_update.
     await waitFor(() => expect(capturedWsHandler).not.toBeNull());
@@ -92,7 +97,7 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
 
     // Đây là điểm TRƯỚC BẢN VÁ sẽ đỏ: listTickets không bao giờ được gọi lần 2.
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText(/Khách yêu cầu người thật \(1\)/)).toBeTruthy();
+    expect(await screen.findByText(/Khách yêu cầu người thật \(1\//)).toBeTruthy();
   });
 
   it("sự kiện session_claimed cũng nạp lại ticket (CSKH khác vừa nhận ca)", async () => {
