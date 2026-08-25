@@ -527,41 +527,65 @@ giả định:**
 |---|---|---|---|
 | 50 | 4.152.400 | 8.324.400 | $1,66 – $9,99 |
 | 100 | 8.304.800 | 16.648.800 | $3,32 – $19,98 |
-| **150 (đề xuất, xem dưới)** | **12.457.200** | **24.973.200** | **$4,98 – $29,97** |
+| 150 | 12.457.200 | 24.973.200 | $4,98 – $29,97 |
 | 300 | 24.914.400 | 49.946.400 | $9,97 – $59,94 |
 | 500 | 41.524.000 | 83.244.000 | $16,61 – $99,89 |
 
-🟡 **Đề xuất giữ nguyên: `TRAN_TOKEN_LLM_MOI_NGAY=20.000.000`.** 150 hội thoại 8-lượt/ngày ở giả
-định ~0,7 tool/lượt (141.000/hội thoại) cho ~21,15M token — làm tròn 20M, **nằm trong khoảng
-SÀN–TRẦN của đúng mức 150 hội thoại/ngày** (12,5M–25M) nên số này KHÔNG phụ thuộc việc giả định
-0,7 tool/lượt đúng chính xác hay không — nó là một điểm hợp lý bên trong dải, không phải một số
-đơn lẻ có thể sai lệch hoàn toàn nếu giả định sai. Logic chọn 150 hội thoại/ngày (ngày "share
-public" bận, không phải viral quy mô lớn) giữ nguyên như đã trình.
+🟢 **[PO THẬT CHỐT 26/08, nguyên văn "5 triệu thôi bạn ơi"] `TRAN_TOKEN_LLM_MOI_NGAY=5000000`.**
+Thấp hơn cả năm mức đề xuất ở bảng trên (bảng để nguyên làm bối cảnh, không bôi đậm hàng nào —
+PO không chọn một trong các mức, mà chọn thận trọng hơn toàn bộ dải) — quyết định đã chốt,
+không hỏi lại (`CLAUDE.md §5`). Con số này rơi TRONG khoảng SÀN–TRẦN của đúng hàng **50**
+(4.152.400–8.324.400), lệch về nửa dưới. Quy đổi ngược từ hai mốc SÀN/TRẦN:
+`5.000.000 ÷ 166.488 (TRẦN) ≈ 30` và `5.000.000 ÷ 83.048 (SÀN) ≈ 60` hội thoại 8-lượt/ngày ⟹
+**~30–60 hội thoại/ngày**, tệ nhất ~$2–6/ngày theo giá đã dẫn.
 
-🟡 **Đề xuất: `TRAN_TOKEN_LLM_MOI_NGAY=20000000`.** Lý lẽ: 150 hội thoại 8-lượt/ngày là một
-ngày "share public" bận rộn thật (không phải viral quy mô lớn — máy cá nhân + Cloudflare Tunnel
-không nhắm phục vụ hàng nghìn người đồng thời), và hầu hết khách công khai sẽ không đi hết 8
-lượt sâu như mốc đo (nhiều lượt là câu chào 0 token qua T1, hoặc hỏi 1-2 câu rồi thôi) — nghĩa
-là 20 triệu token thực tế phủ được **nhiều hơn** 150 hội thoại nếu phần lớn ngắn hơn mốc đo.
-Trần **≤ chi phí một ngày tệ nhất chấp nhận được**, không phải trần lý tưởng — PO thật là người
-duy nhất biết ngưỡng đó, con số trên chỉ là điểm khởi đầu có lý lẽ để PO chỉnh lên/xuống.
+### 🔴 Dấu hiệu ĐÃ CHẠM TRẦN — người trực buổi demo phải biết TRƯỚC, không phải tra cứu lúc đang cuống
 
-**Cách đặt trên máy Windows + xác nhận đã có hiệu lực:**
+Với `5.000.000` và PO dự kiến chia sẻ công khai ("chắc sẽ đông đấy"), **~20 người mỗi người 2
+lượt chat là đủ chạm trần** — không phải kịch bản hiếm.
+
+```
+Dấu hiệu: khách nhận câu "Xin lỗi bạn, hệ thống đang gặp sự cố kỹ thuật nên tạm thời chưa xử lý
+được yêu cầu này. Nếu việc của bạn cần xử lý ngay, bạn liên hệ <hotline> giúp mình nhé."
+KHÔNG phải câu "hệ thống đang bận, bạn nhắn lại sau ít phút" — hai câu khác NGHĨA, không chỉ
+khác chữ: câu sau hứa được, câu trên (đúng cho ca chạm trần) không hứa mốc thời gian.
+[SỬA 26/08, `d749691`] Trước bản vá đó, chạm trần cho câu "sau ít phút" — SAI, vì trần chỉ reset
+lúc 00:00 UTC (= 07:00 giờ VN), có thể còn hàng giờ, không phải "ít phút". Với trần 5 triệu —
+thấp, dễ chạm — bản vá này đổi từ "hữu ích" thành "thiết yếu".
+
+Mốc reset: 00:00 UTC = 07:00 giờ Việt Nam. Chạm trần lúc 20:00 VN thì phải chờ tới 07:00 sáng
+hôm sau, không phải "vài giờ" — gần 11 tiếng nếu chạm sớm buổi tối.
+
+Nâng gấp giữa buổi (PO tự quyết, không phải quy trình tự động): sửa `.env` + RECREATE — KHÔNG
+phải restart, xem bước 2 dưới. Không có cách nâng "tạm thời" nhẹ hơn recreate.
+```
+
+**Cách đặt CẢ HAI biến trên máy Windows, cùng một lần gõ + xác nhận đã có hiệu lực** (gộp
+`TRAN_TOKEN_LLM_MOI_NGAY` với `BAO_VE_CSDL` — cùng tệp `.env`, PO chỉ cần mở lên một lần):
 
 ```powershell
-# 1. Thêm dòng vào .env thật trên máy Windows (KHÔNG phải .env.example)
-#    TRAN_TOKEN_LLM_MOI_NGAY=20000000
+# 1. Thêm HAI dòng vào .env thật trên máy Windows (KHÔNG phải .env.example)
+#    TRAN_TOKEN_LLM_MOI_NGAY=5000000
+#    BAO_VE_CSDL=true
 
-# 2. RECREATE — restart KHÔNG đủ, biến đọc lúc import
+# 2. RECREATE backend — bắt buộc cho TRAN_TOKEN_LLM_MOI_NGAY (biến đọc lúc
+#    import, restart KHÔNG đủ). BAO_VE_CSDL không cần recreate container nào
+#    (chỉ đổi cách `docker compose` quản lý volume, có hiệu lực ngay ở lần
+#    `up` kế tiếp — vd lần chạy deploy_home.ps1 sau) nhưng gộp vào MỘT lệnh
+#    `up` cho gọn, không hại gì khi recreate cả hai cùng lúc:
 docker compose up -d --force-recreate backend
 
-# 3. Xác nhận biến đã vào ĐÚNG container (không chỉ vào .env trên đĩa)
+# 3. Xác nhận TRAN_TOKEN_LLM_MOI_NGAY đã vào ĐÚNG container
 docker compose exec backend printenv TRAN_TOKEN_LLM_MOI_NGAY
-#   phải in ra đúng số vừa đặt — rỗng nghĩa là chưa recreate đúng cách
+#   phải in ra 5000000 — rỗng nghĩa là chưa recreate đúng cách
 
-# 4. Xem chi tiêu HÔM NAY đang được đếm (không tốn tiền, chỉ đọc Redis) —
-#    khoá theo NGÀY UTC, không phải giờ VN (UTC+7) — sau 07:00 sáng giờ VN
-#    thì ngày UTC đã sang ngày mới, trước đó vẫn còn là ngày UTC hôm trước
+# 4. Xác nhận BAO_VE_CSDL đã có hiệu lực — tìm dòng `external: true`, KHÔNG
+#    so `true`/`false` (compose ẨN hẳn khoá `external` khi tắt, không in
+#    `false` — xem .env.example)
+docker compose config | Select-String -Context 0,2 "postgres_data:"
+
+# 5. Xem chi tiêu HÔM NAY đang được đếm (không tốn tiền, chỉ đọc Redis) —
+#    khoá theo NGÀY UTC, không phải giờ VN (UTC+7)
 $ngay_utc = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
 docker compose exec redis redis-cli get "fin05:chi_tieu_llm_token:$ngay_utc"
 ```
