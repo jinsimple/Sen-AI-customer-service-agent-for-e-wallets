@@ -22,27 +22,56 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#14** — 07:21, 25/08 |
-| **HEAD** | `ab72793` · băm luật `4e7ed24b60c0` |
-| 🟢 **Đội hết việc mở** | 10 commit trong 11 phút, toàn bộ là **tự sửa chính mình** |
+| **Lần điểm danh cuối** | **#15** — 10:59, 25/08 |
+| **HEAD** | `a5f59e3` |
+| 🟢 **PO thật quyết CẢ NĂM việc** | ① thu hẹp · ② duyệt buổi test · ③ dừng CI · ④ duyệt ADR-049 · ⑤ để lại |
+| 🔴 **Buổi test: ĐÃ MỞ, CHƯA CHẠY** | `usage.jsonl` chưa tồn tại · 0 lượt `/agent/chat` |
 
-**Mười một phút vừa rồi — không commit nào là tính năng mới**
+**Vật chứng #15 — ngăn đo, PO tự kiểm lần hai trước khi cho mở**
 
-| giờ | ai | việc |
-|---|---|---|
-| 07:10 | QA/QC | khai TRỤC KHÔNG ĐO cho 2 cổng của đợt |
-| 07:11 | PO | ghi sự cố cây-dùng-chung **thứ tư** |
-| 07:12 | PO | **đính chính chính mình** — ghi sai cơ chế sự cố |
-| 07:12 | QA/QC | khảo sát 8 cổng còn lại, **3 lỗ chưa cross-reference** |
-| 07:13 | Lead | `STATE`: INDEX cũng là trạng thái dùng chung |
-| 07:14 | Lead | L0.5 xét lại, chọn vá bằng kỷ luật lệnh |
-| 07:15 | PO | **bác chân lập luận của Lead** — worktree CÓ index riêng |
-| 07:19 | PO | 🔴 **SỐ BỊA** — Coder tự khai, PO đã phát tán một cái |
-| 07:20 | Lead | **đính chính KÉP** — tự hạ nốt chân thứ hai của chính mình |
-| 07:21 | Lead | thêm mốc xét lại thứ hai *(PO đề nghị)* |
+```
+băm src/ cây làm việc      691dd9c40578
+băm src/ fin05-dot-otp     691dd9c40578    ✅ KHỚP
+5/5 mã của đợt có mặt      DUONG_CAN_OTP · CONG_OTP_NHOM_B_BAT ·
+                           HOI_THOI_GIAN_VA_SO_TIEN · da_bi_otp_chan ·
+                           la_tra_loi_khang_dinh
+6 container riêng, không đụng 26 container của ngăn khác
+```
 
-🟢 **Không commit nào là tính năng mới. Cả mười là đội sửa chính mình.**
-Và ba trong số đó là **một vai tự hạ lập luận của chính họ** *(PO ×2, Lead ×1)*.
+🔴 **TRONG LÚC BUỔI ĐO CHẠY: KHÔNG AI LAND GÌ.** Một lượt land giữa phép đo là nhiễm cả
+buổi, và A3 chỉ gỡ cho **một** buổi. [ĐO 10:59] chưa ai ghi tệp nào — an toàn.
+
+---
+
+## 🔴 SỰ CỐ HẠ TẦNG — PO gây ra, Coder tình cờ cứu
+
+**Cả NĂM ngăn Docker đang chạy đều mang mã CŨ.** 12 commit chạm `src/` hôm nay chưa vào
+bất kỳ ảnh nào.
+
+```
+fin05-backend-1        6722ab874767   ← ngăn DEMO
+fin05do-backend-1      26b1bd3b1ff5   ← ngăn ĐO
+fin05ttl-backend-1     22ad74bdfa81   ← ngăn ĐO
+fin05-final-backend-1  6722ab874767
+fin05-po-test-backend-1 7636400be9c4  ← build từ scratchpad PHIÊN KHÁC
+cây làm việc THẬT      691dd9c40578
+```
+
+🔴 **Và PO đã dặn QA/QC gõ buổi test ở `fin05-po-test`** — nhiều lần, trong checklist, phiếu,
+và ba tin nhắn. Ngăn ấy **không chứa một dòng nào** của đợt. Nếu buổi chạy ở đó, **mọi kết
+quả xanh sẽ vô nghĩa mà không ai biết**, và A3 chỉ gỡ một lần.
+
+**Đây là lỗi nặng nhất của PO trong đợt — nặng hơn con số `11` sai.** Một con số sai thì có
+người bác. Một **lời dặn hạ tầng** thì không ai kiểm: QA/QC không có lý do gì nghi ngờ địa
+chỉ do PO đưa, và họ đã soạn trọn bộ ca cho đúng ngăn ấy.
+
+**Thứ cứu được KHÔNG phải PO:** Coder đi kiểm ảnh vì **lý do khác hẳn** *(thiếu hai cờ mới)*
+rồi tình cờ đụng vào nguồn build.
+
+**PO tự soát mọi lệnh của mình:** toàn bộ phép đo *(cổng ②, N1, ⑤, ⑨, ⑭, ⑮, ba đột biến)*
+đọc mã **trên đĩa**, không qua ngăn nào. Đúng **một** lệnh chạm container
+*(`printenv`, phát hiện Đ2)* — và Đ2 vẫn đứng vì hai ngăn kia build từ repo thật.
+⟹ **Phép đo sạch. Lời dặn sai.**
 
 ---
 
