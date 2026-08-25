@@ -447,6 +447,22 @@ def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
         "cached_input_tokens": u.get("cached_input_tokens"),
         "reasoning_tokens": u.get("reasoning_tokens"),
         "input_chars": u.get("input_chars"),
+        # 🔴 ĐƠN VỊ: đếm theo **LƯỢT NÀY**, KHÔNG theo cả hội thoại. Nguồn là
+        # `tool_calls_out`, dựng từ `turn_messages = all_messages[prev_len:]`
+        # — chỉ phần SAU lát cắt checkpoint. Hội thoại "tra ở lượt N, thuật lại
+        # ở lượt N+1" cho `1` rồi `0`, và **cả hai đều ĐÚNG**.
+        # [ĐO 25/08] ba phiên cùng đọc trường này như số THEO HỘI THOẠI và mất
+        # nhiều vòng cho một mâu thuẫn không tồn tại. Trường không sai, không
+        # thiếu, không im lặng — nó chỉ **KHÔNG TỰ KHAI ĐƠN VỊ**.
+        #
+        # 🔴 ĐỌC KÈM — vì sao đừng dựng bất biến giữa hai trường này:
+        # `so_tool_call` và `so_luot_goi_model` rút từ **CÙNG một
+        # `turn_messages`**. Một bất biến buộc quan hệ giữa chúng (vd
+        # `so_luot_goi_model == so_tool_call + 1`) **KHÔNG kiểm hai nguồn** —
+        # nó kiểm hai cách suy từ MỘT danh sách. Danh sách thiếu ⟹ cả hai cùng
+        # tụt ⟹ quan hệ **VẪN KHÍT**, và bất biến im lặng đúng lúc đáng kêu
+        # nhất. Cùng họ `if tm is None: continue` (lời gọi mồ côi, đã vá
+        # `466c59a`): cơ chế không sai, nó chỉ KHÔNG NHÌN THẤY thứ đã rơi.
         "so_tool_call": len(kq.get("tool_calls") or []),
         "ly_do_fallback": kq.get("ly_do_fallback"),
         # Ba trường TRIỆU CHỨNG, luôn có mặt (None ở lượt thường) — khoá thiếu
