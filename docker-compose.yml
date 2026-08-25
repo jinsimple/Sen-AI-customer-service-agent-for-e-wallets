@@ -33,6 +33,28 @@ services:
     # Revocation store JWT refresh token + rate-limit dùng chung (login/OTP/
     # live-chat, đợt nâng cấp Auth Flow 2026-08-12) — src/redis_client.py.
     # KHÔNG có `ports:` — cùng nguyên tắc "chỉ caddy publish port" ở đầu file.
+    #
+    # 🔴🔴 ĐỌC TRƯỚC KHI THÊM `ports:` VÀO ĐÂY — REDIS NÀY KHÔNG CÓ MẬT KHẨU.
+    # [ĐO 25/08] `grep -r 'requirepass\|REDIS_PASSWORD'` trên `docker-compose*.yml`,
+    # `src/config.py`, `.env.example` → **0 kết quả, không ở đâu cả.**
+    #
+    # Hôm nay điều đó CHƯA phải lỗ đang mở: không `ports:` ⟹ chỉ với tới được từ
+    # trong mạng compose. Nó thành lỗ khi có BẤT KỲ điều nào sau:
+    #   · thêm `ports:` (kể cả `127.0.0.1:…`) — host dùng chung là host của người khác
+    #   · một container THỨ BA vào cùng mạng
+    #   · chạy trên máy dùng chung nhiều dự án
+    # 🔴 Trường hợp thứ nhất đáng lo nhất vì **nó không đòi ai làm gì sai** — chỉ cần
+    # MỘT người không biết dòng này tồn tại. Đó là lý do cảnh báo nằm ở ĐÂY, ngay chỗ
+    # người ấy sẽ gõ, chứ không nằm trong `docs/`.
+    #
+    # Redis nay có `appendonly yes` + volume ⟹ dữ liệu SỐNG QUA khởi động lại, nên
+    # cửa sổ phơi nhiễm cũng không còn tự dọn theo vòng đời container như trước.
+    #
+    # ⚠️ VÌ SAO CHƯA VÁ: phạm vi PO trình PO thật CÓ vế "thêm mật khẩu", nhưng vế ấy
+    # **chưa bao giờ được land vào repo** — nó sống trong tin nhắn, nên khi Coder
+    # dựng lại phạm vi từ nguồn tra được (CHECKLIST) thì **rơi mất im lặng**. PO tự
+    # khai 25/08. Ghi vào ĐÂY để nó không rơi lần thứ hai.
+    # Treo có chủ đích: đợt đang đóng, thêm một thay đổi hạ tầng nữa là mở mặt trận mới.
     image: redis:7-alpine
     restart: unless-stopped
     # 🔴 BỀN HOÁ (PO thật duyệt 25/08). TRƯỚC bản này Redis KHÔNG có volume và

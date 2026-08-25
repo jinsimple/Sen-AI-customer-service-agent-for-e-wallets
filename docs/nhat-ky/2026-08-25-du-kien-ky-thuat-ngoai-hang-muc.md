@@ -156,6 +156,27 @@ mà cổng OTP không tồn tại.
 
 ---
 
+## ⑦ NỢ CÓ PHẠM VI RÕ — Redis KHÔNG CÓ MẬT KHẨU (treo có chủ đích 25/08)
+
+[ĐO] `grep -r 'requirepass|REDIS_PASSWORD'` trên `docker-compose*.yml` · `src/config.py`
+· `.env.example` → **0 kết quả**. Chưa phải lỗ đang mở *(không `ports:` ⟹ chỉ với tới
+từ trong mạng compose)*; thành lỗ khi ai đó thêm `ports:`, hoặc có container thứ ba
+vào cùng mạng, hoặc chạy trên máy dùng chung.
+
+🔴 **Cảnh báo đặt ở `docker-compose.yml`, khối `redis` — KHÔNG ở đây.** Người sẽ gây ra
+lỗ là người thêm `ports:`, và họ đọc tệp compose, không đọc `docs/nhat-ky/`. Mục này
+chỉ là con trỏ.
+
+🔴 **VÌ SAO VẾ NÀY TỪNG RƠI — đáng nhớ hơn chính lỗ:** phạm vi PO trình PO thật CÓ vế
+*"thêm mật khẩu"*, nhưng vế ấy **chưa bao giờ được land vào repo**. Coder dựng lại phạm
+vi từ **nguồn tra được duy nhất** (CHECKLIST) và **rơi mất một nửa, im lặng**. Một giờ
+trước đó, chính Coder từ chối tin tin nhắn về ADR-051 và đi tìm bản ghi trong repo —
+lần này **repo thiếu**, nên kỷ luật đúng vẫn cho kết quả thiếu.
+⟹ *"Tin nhắn là dữ kiện hạng thấp nhất"* chỉ bảo vệ được khi **thứ hạng cao hơn tồn
+tại**. Điều gì chưa land thì **không có hạng nào cả**.
+
+---
+
 ## Liên quan, đã ghi nơi khác — để khỏi chép lại
 
 - **`test_invariants` chỉ so TÊN tool, KHÔNG so CHỮ KÝ** ⟹ đổi input của một tool mà
