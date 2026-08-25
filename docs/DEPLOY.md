@@ -1,6 +1,19 @@
 # Deploy live — Oracle Cloud Always Free + Docker Compose
 
-> 🔴 **[ĐO DevOps 20/08] `app.adaptivealgo.uk` hiện chạy repo `jinsimple/P-121-new`,
+> ✅ **[PO THẬT ĐÍNH CHÍNH 25/08/2026] `app.adaptivealgo.uk` ĐANG CHẠY `main` CỦA P-226.**
+> Nguyên văn PO thật: *"Domain này đang là P-226 nhánh main rồi bạn ơi — bạn đọc doc nào bảo là
+> P-121 thì sửa ngay lại cái doc đấy luôn cho mình nhé."*
+>
+> 🔴 **Mọi phát biểu «domain chạy repo `jinsimple/P-121-new`» trong repo này ĐÃ LỖI THỜI.** Chúng
+> đúng lúc DevOps đo *(20/08)*, và **sai từ lúc nào đó giữa 20/08 và 25/08** — không ai cập nhật.
+> Giữ nguyên văn cũ **gạch ngang** theo Luật P, **không xoá**: một phép đo đúng-lúc-đo mà **không
+> ai niêm hạn dùng** là cách một con số chết tiếp tục lái quyết định suốt năm ngày.
+>
+> ⚠️ **Hệ quả:** việc đưa P-226 lên production **KHÔNG phải "thay một dự án khác"** như tài liệu
+> này từng mô tả. Nó là **cập nhật chính sản phẩm đang chạy** — rủi ro khác hẳn, và **cần đúng
+> loại cẩn thận khác**.
+
+> ~~**[ĐO DevOps 20/08 — LỖI THỜI, xem đính chính ngay trên]** `app.adaptivealgo.uk` hiện chạy repo `jinsimple/P-121-new`,~~
 > KHÔNG PHẢI repo này (P-226). P-226 CHƯA TỪNG lên site thật** — file này mô tả
 > quy trình cho lần deploy ĐẦU TIÊN của P-226, nhưng bản thân nó được viết lúc
 > repo tiền nhiệm còn dùng chung domain đó, nên vài chi tiết bên dưới **CHƯA

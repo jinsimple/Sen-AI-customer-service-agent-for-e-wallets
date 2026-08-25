@@ -44,20 +44,20 @@ Cổng CI `security-findings-gate` **đỏ ĐÚNG CHỨC NĂNG** — nó không 
 
 ```
 [ĐO Lead 25/08, xác nhận lại từ docs/DEPLOY.md:3]
-app.adaptivealgo.uk   →  đang chạy repo jinsimple/P-121-new, KHÔNG PHẢI P-226
+app.adaptivealgo.uk   →  ✅ ĐANG CHẠY main CỦA P-226  (PO thật đính chính 25/08)
 P-226                 →  CHƯA TỪNG lên site thật
 job Deploy            →  20/20 lần gần nhất đều SKIPPED, chưa từng chạy thật
 ```
 
 ⟹ Đây là **LẦN GO-LIVE ĐẦU TIÊN của P-226**, lên một domain **đang chạy dự án khác**.
-**PO thật phải quyết P-121-new đi đâu** — thay hẳn, hay P-226 dùng domain khác.
+~~**PO thật phải quyết P-121-new đi đâu**~~ ✅ **ĐÃ GỠ 25/08** — domain **đang chạy main của P-226**. 🔴 Nhưng vế *«Deploy 20/20 lần SKIPPED»* **vẫn đúng và vẫn là câu hỏi mở**: nếu CI chưa từng deploy, thì **bản đang chạy trên domain lên đó bằng cách nào** — deploy tay? **Chưa ai đo.** Đừng cho là đã hiểu.
 
 ## Bốn thứ CHẶN, chưa cái nào xong
 
 | # | chặn | ai gỡ được |
 |---|---|---|
-| 1 | **P-121-new đang chiếm domain** | 🔴 **chỉ PO thật** |
-| 2 | **finding P0 lộ số tài khoản khách** | 🔴 **chỉ PO thật** *(chốt mức che, hoặc ký nhận rủi ro)* |
+| ~~1~~ | ~~**P-121-new đang chiếm domain**~~ ✅ **GỠ 25/08** — PO thật đính chính: domain **ĐANG CHẠY main của P-226**. ⟹ đây là **cập nhật sản phẩm đang chạy**, KHÔNG phải thay dự án khác | — |
+| ~~2~~ | ~~**finding P0 lộ số tài khoản khách**~~ ✅ **PO THẬT CHỌN M3 (25/08)** — lưu đủ, che ở tầng ĐỌC. Kèm **điều kiện bắt buộc**: sửa test sang chấm đường đọc **VÀ** thêm test khẳng định **bản lưu vẫn đủ** | — |
 | 3 | **3 secret deploy KHÔNG TỒN TẠI** — chỉ có `OPENAI_API_KEY`; thiếu `DEPLOY_HOST` · `DEPLOY_USER` · `DEPLOY_SSH_KEY` | 🔴 **tay PO thật**, qua GitHub Settings |
 | 4 | **hạn mức chi tiêu GitHub Actions** — 6 job đỏ vì *"spending limit needs to be increased"* | 🔴 **chỉ PO thật** |
 
