@@ -622,6 +622,41 @@ sẵn khi cần, không phải đề xuất thay `5.000.000`):**
 | 14 ngày | 500.000 |
 | 81 ngày (tới hạn hạn mức 15/11) | ~86.420 |
 
+🟢 **[NIÊM 26/08 — PO thật đóng nhánh này] Không cần theo dõi ba mốc trên nữa.** Nguyên văn PO
+thật: *"không phải lo hết token, đang test thì dùng, người dùng thật sau này dùng token mua."*
+Bảng trên GIỮ NGUYÊN làm bản ghi (Luật P — kể đúng chuyện đã tính, không xoá), không phải việc
+còn mở.
+
+### 🔴🔴 Trước khi tắt "Free quota only" (chuyển sang token mua) — một điều kiện BẮT BUỘC
+
+🔴 **[PO thật phát hiện 26/08]** Mỗi model trong bảng hạn mức DashScope có công tắc **"Free quota
+only"** — hiện TẤT CẢ đang BẬT. Đây chính là lý do hết quota trả về `403` **im lặng, không mất
+tiền** (đúng thứ mục quota phía trên mô tả). Khi PO thật chuyển sang cho người dùng thật dùng
+token mua (đúng lộ trình vừa nói), công tắc đó sẽ bị gạt TẮT — và từ giây phút đó, **hết quota
+free = tính tiền thật**, không còn mốc dừng tự nhiên nào ngoài `TRAN_TOKEN_LLM_MOI_NGAY` của
+chính hệ thống.
+
+```
+TRƯỚC KHI GẠT "Free quota only" SANG TẮT, BẮT BUỘC:
+  1. TRAN_TOKEN_LLM_MOI_NGAY đã đặt THẬT trên máy production và ĐÃ VERIFY có hiệu lực
+     (RECREATE, không phải restart — xem lệnh ở mục "Trần chi tiêu LLM hằng ngày" phía trên).
+  2. Biết trước con số: 1 lượt chat ≈ 12.242 token [ĐO 25/08, tự kiểm độc lập qua
+     usage.jsonl thật, n=72 — xem mục quota phía trên].
+  3. Biết dấu hiệu chạm trần trông thế nào (mục "Dấu hiệu ĐÃ CHẠM TRẦN" ngay dưới), để
+     không nhầm với sản phẩm hỏng giữa buổi có khách thật.
+Thiếu bước 1 ⟹ gạt công tắc = mở ví ra Internet công cộng, KHÔNG CÓ ĐÁY.
+```
+
+🔴 **[CHƯA XÁC MINH được — tôi không có đường vào máy production của PO thật để tự đo]** Bước 1
+đang là giả định, chưa phải sự thật đã kiểm. Cách xác nhận (đã landed sẵn ở mục "Trần chi tiêu
+LLM hằng ngày" phía trên, PO thật tự chạy):
+```powershell
+docker compose exec backend printenv TRAN_TOKEN_LLM_MOI_NGAY
+```
+In ra `5000000` ⟹ bước 1 đã xong. Rỗng/không in gì ⟹ **CHƯA**, và tắt "Free quota only" lúc này
+là mở ví không đáy thật sự. Ai đọc mục này trên máy production: chạy lệnh trên, dán kết quả lại
+cho đội trước khi chạm công tắc DashScope.
+
 ### 🔴 Dấu hiệu ĐÃ CHẠM TRẦN — người trực buổi demo phải biết TRƯỚC, không phải tra cứu lúc đang cuống
 
 Với `5.000.000` và PO dự kiến chia sẻ công khai ("chắc sẽ đông đấy"), **~20 người mỗi người 2
