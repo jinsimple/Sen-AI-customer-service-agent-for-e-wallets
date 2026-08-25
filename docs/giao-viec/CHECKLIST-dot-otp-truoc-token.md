@@ -1191,6 +1191,13 @@ bản, mục Nhánh A: *"Bot sẽ ép nó vào 'chuyển nhầm' rồi tư vấn
 ⚠️ **Cả ba nằm SÁT ⑪ trong luồng** *(lượt 6→7 liền kề)* ⟹ nếu chạy mà không **ghi trước** ba rủi ro
 này, **lỗi của (a)(b)(c) sẽ bị quy nhầm cho ⑪.**
 
+**#22 — 13:40, không đổi trạng thái.** Coder đang viết lượt 4 *(nay chạm **cả** `phan_luong.py` lẫn
+`graph.py`, chưa commit)*. Cả đội **cố ý đứng yên**: QA/QC + Review chờ ảnh, PO chờ Coder. 🔴 **Cây
+làm việc phải đứng yên tới khi dựng xong** *(Luật Đ′ bản sửa)*.
+[ĐO] sau lần dựng lại: backend **749 MiB**, `OOMKilled=false`, máy **còn 2,70 GiB**. ⚠️ Lần OOM
+trước nó đang ở **1,48 GiB** ⟹ nó **có nở dưới tải**, và **cả 4 backend vẫn không đặt trần**. Biên
+an toàn cho 8 lượt là **mỏng, không phải không có**.
+
 ### 🔴 #21 — HAI THỨ SUÝT LÀM CẢ BUỔI CHẠY VÔ NGHĨA
 
 **① ẢNH TỤT SAU REPO — và cổng canh việc đó MÙ.** [ĐO] `prompt.py`/`graph.py` trong ảnh **lệch** khỏi
