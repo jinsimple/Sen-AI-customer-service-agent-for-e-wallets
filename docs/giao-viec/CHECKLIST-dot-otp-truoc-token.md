@@ -1203,6 +1203,98 @@ trên nền sai là đúng thứ Luật F cấm.
 |---|---|---|---|---|---|---|
 | — | `a3bc860` | chưa nhận | chưa nhận | chưa nhận | chưa nhận | phiếu vừa land |
 | 11:40 **#16** | `655a112` | 🟢 3 commit | 🟢 ⑫b land 10:45 · ⑪ đang viết | 🟢 4 commit + giải mã checkpoint | 🟢 đang soát *(không ghi repo — xem Luật Đ)* | **cả 4 vai chạy** |
+| 11:55 **#17** | `ec0263d` | 🟢 | 🟢 ⑪ giữ chưa commit *(đúng)* | 🟢 chạy 20 mẫu · **tìm ra lỗ quan sát 41%** | 🟢 xong cả 3 việc soát | **cả 4 chạy · 0 commit mới** |
+
+**#17 — hai con số, và một sự cố hạ tầng do PO gây ra**
+
+🔴 **GIÁ THẬT CỦA MỘT LỜI GỌI TOOL — đo từ sổ sống, n=13:**
+```
+0 tool → 10.381 token (n=8)   ·   1 tool → 20.811 (n=4)   ·   3 tool → 41.444 (n=1)
+                          ⟹  MỖI LỜI GỌI TOOL ≈ +10.400 TOKEN, tuyến tính khít
+```
+Tiền **không** nằm ở lược đồ tool — nó nằm ở **vòng gửi lại toàn bộ ngữ cảnh** *(bất biến
+`so_luot_goi_model = so_tool_call + 1`)*.
+🔴 **Hệ quả: PO tuyên bố Đọc C *(⑩, `create_ticket` hai thì)* có `delta ≈ 0` — SAI MỘT BẬC.**
+Nếu "thì 1" là lời gọi tool bình thường ⟹ **~10.400 token mỗi lần tạo ticket**, gấp đôi lượt đó.
+**Điều kiện sống-chết của thiết kế:** thì 1 **phải KẾT THÚC LƯỢT**, không quay lại model — đúng
+khuôn ⑫b *(`model=None`, `so_luot_goi_model=0`)*. Đang chờ Review đánh, **chưa trình PO**.
+
+🔴 **SỰ CỐ: BACKEND BỊ OOM-KILLED GIỮA BUỔI ĐO TỐN TIỀN — gốc là PO treo quyết định gom ngăn xếp**
+QA/QC đối chiếu hai nguồn độc lập: **17 thread thật** *(checkpoint)* vs **~10 dòng sổ**
+*(`usage.jsonl`)* ⟹ **41% lượt không có bản ghi dù đã xảy ra thật và đã tốn tiền.**
+
+Loại trừ theo thứ tự, mỗi bước một phép đo:
+```
+① bộ ghi hỏng?          → Lock + open("a") + MỘT write ngắn (POSIX nguyên tử).   LÀNH
+② đường ra quên ghi?    → 10 `return`, 9 gọi _ghi_so; cái thứ 10 ở HÀM CON.      ĐỦ
+③ nhiều replica?        → chỉ 1 container backend.                              LOẠI
+④ /app/logs bị xoá?     → là VOLUME.                                            LOẠI
+🔴 GỐC: OOMKilled=true · StartedAt 04:32 · HostConfig.Memory=0 (KHÔNG TRẦN)
+```
+**Máy 7,75 GiB đang chạy SÁU ngăn xếp fin05:** `dot-otp 1,48G · po-test 876M · fin05do 712M ·
+fin05 751M · final 734M · ttl 442M` ⟹ **≈3,5 GiB nằm ở NĂM ngăn không ai dùng.** Ngăn đang làm
+việc cần bộ nhớ lúc dồn tải, kernel giết đúng cái đang làm việc. Lượt bị giết **đã gọi LLM xong
+(mất tiền)** nhưng **chưa tới `_ghi_so`**.
+
+⟹ **Đây là cái giá của việc PO treo quyết định gom ngăn xếp suốt buổi.** Không phải rủi ro giả
+định — nó vừa xảy ra, giữa một buổi đo tốn tiền, và ăn mất 41% dữ liệu.
+
+**Ba mức, ĐỪNG GỘP:**
+| ✅ số TỪNG LƯỢT | **dùng được** — mất dòng ≠ sai dòng; 10.430/tool đứng vững |
+|---|---|
+| 🔴 **PHÂN BỐ `duong`** | **KHÔNG dùng được** — mất **có chọn lọc theo tải** ⟹ lượt mất là lượt **nặng nhất** ⟹ phân bố lệch về phía nhẹ. **Đừng trích % nào ra ngoài.** Chỉ dùng làm **cận dưới** cho tỉ lệ 0-token |
+| ✅ bất biến `+1` | khít **13/13 trên dòng quan sát được** — ghi kèm đúng chữ ấy |
+
+⚠️ **7 lượt đã TỐN TIỀN mà không có bản ghi phải vào tổng chi phí buổi.** Tiền đã tiêu thì phải
+đếm, kể cả khi sổ không thấy.
+
+🔴 **Và ghi lại điều làm nó phát hiện được:** chỉ vì QA/QC có **nguồn thứ hai độc lập**
+*(checkpoint)*. **Không có nguồn thứ hai thì một cuốn sổ thiếu 41% trông Y HỆT một cuốn sổ đầy
+đủ.** Mọi phép đo một-nguồn trong dự án này đều mang sẵn rủi ro đó.
+
+### 🔴 ⑩ Đọc C — Review đánh sập, **KHÔNG trình PO thật**
+
+PO tự đề xuất Đọc C, tự giao Review đánh đối kháng **trước** khi trình. Kết quả: **thiết kế chưa
+đủ chín, và cả cách PO đề xuất cứu nó cũng sai.** Năm chỗ, không chỗ nào là chi tiết vặt:
+
+1. 🔴 **PO ví thì 1 với khuôn ⑫b *(`model=None`)* — SAI KHUÔN.** ⑫b dừng **TRƯỚC KHI** gọi model
+   *(cổng tất định chặn từ đầu)*. Thì 1 **buộc phải** chạy ít nhất **một vòng model** — model phải
+   tự đọc câu khách và tự quyết gọi `create_ticket(xac_nhan=False, …)`. **Không thể `model=None`.**
+2. 🔴 **Tổng KHÔNG rẻ hơn — đắt hơn:**
+   ```
+   baseline (tạo vé 1 lượt)        ≈ 20.811
+   Đọc C: lượt 1 (thì 1)           ≈ 10.381   ← CỘNG THÊM, không thay thế vòng nào
+          lượt 2 (thì 2, tạo thật) ≈ 20.811+
+                              TỔNG ≈ 31.200+   ⟹ +10.400/vé so với baseline
+   ```
+   PO nghi *"chỉ dời tiền sang lượt kế"* — **còn tệ hơn thế**: không dời, mà **cộng thêm**.
+3. 🔴 **`TurnGuard` KHÔNG cứu được lỗ "model gọi thẳng `xac_nhan=True`".** [ĐO] TurnGuard tạo mới
+   **mỗi lượt**, mà Đọc C tách thì 1/thì 2 thành **hai lượt chat**. TurnGuard **không có khái niệm
+   "lượt trước"**. ⟹ cần **ràng buộc thứ NĂM** *(chưa có trong 4 cái Coder ghi)*: `xac_nhan=True`
+   chỉ nhận khi có tín hiệu **"đã gửi tóm tắt khớp đúng 6 trường này"** ở lượt trước — dùng lại
+   khuôn `thread_signals` của ⑨/T0, **băm 6 trường** làm giá trị, tự xoá sau khi dùng. Cùng một
+   sửa này đóng luôn nhánh **"khách gật hai lần"**.
+4. ⚠️ **"Thì 1 không để lại dấu vết" là phát biểu SAI.** Checkpointer LangGraph **vẫn** ghi tham số
+   6 trường vào lịch sử hội thoại *(không phải rò rỉ mới — mọi câu chat đều thế)*. Phải viết đúng:
+   *"không tạo **hồ sơ nghiệp vụ chính thức**, vẫn nằm trong lịch sử hội thoại như bình thường"*.
+5. ❓ **"Kết thúc lượt ngay" CHƯA KIỂM ĐƯỢC.** Phụ thuộc `create_agent` *(LangChain prebuilt)* có
+   hỗ trợ dừng ngay sau một tool hay không. Đường khả dĩ: cờ **`return_direct=True`** trên tool.
+   🔴 **Nếu KHÔNG hỗ trợ ⟹ phải viết lại bằng `StateGraph` tuỳ biến = ĐỔI KIẾN TRÚC AGENT**, một
+   hạng mục **khác hẳn độ lớn** so với những gì ⑩ đang mô tả. **Coder phải xác nhận trước.**
+
+🔴 **VÀ CHỖ THIẾU LỚN NHẤT — không phải lỗ thiết kế, là DỮ KIỆN VẮNG:** mục tiêu gốc của ⑩ là
+**giảm sai số liệu/tạo vé sai**, KHÔNG phải giảm token. Vậy phép so đúng **không** phải
+`31,2k vs 20,8k`, mà là `31,2k đảm bảo` **vs** `20,8k + (X% × chi phí sửa sai)`.
+**Không ai có X.** Chi phí sửa sai *(CSKH sửa tay, khách khiếu nại lần hai)* **có thật nhưng không
+nằm trong `usage.jsonl`.**
+
+⚠️ **Hai chữ "delta" KHÁC LOẠI — đừng lẫn khi viết ADR:** T2 *(⑨/⑫b)* đo **phình prompt** = chi
+phí **CỐ ĐỊNH mọi lượt**, trần **261**. Con số +10.4k ở đây là chi phí **BIÊN theo SỰ KIỆN** *(chỉ
+trả khi thật sự tạo vé)*. Người đọc sau sẽ tưởng 261 liên quan tới nó — **nó không.**
+
+**⟹ QUYẾT: ⑩ KHÔNG trình PO thật trong phiên này.** Chặn cứng: hỏi PO chọn giữa `31,2k` và
+`20,8k + X%` khi **không ai biết X** là đẩy một quyết định **không thể quyết** về phía PO.
+Thứ tự đúng: **Coder xác nhận `return_direct` (0 token)** → nếu khả thi thì **đo X** → rồi mới ADR.
 
 **#16 — ba phát hiện, và PO sai hai lần**
 
