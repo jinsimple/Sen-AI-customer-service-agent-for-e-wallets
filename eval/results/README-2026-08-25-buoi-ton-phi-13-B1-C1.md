@@ -79,6 +79,28 @@ lần này có nội dung không — nếu có, đọc được tham số gọi 
 sao 393k bị lọc mất; nếu vẫn rỗng mà `duong=day_du`, quay lại bàn "bịa" với
 bằng chứng mạnh hơn. Xem cập nhật ngay dưới đây sau khi chạy lại.
 
+## Lần 4 — `golden_run_20260825_042822.md` — TÁI LẬP, VẪN RỖNG, KHÔNG CÒN CRASH
+
+Chạy lại sạch, KHÔNG crash lần này (khác Lần 2). Kết quả: `tool_calls: []`
+**VẪN RỖNG cả hai ca**, `duong_theo_luot: ['day_du']` **VẪN NHƯ CŨ**. B1 lần
+này KHÔNG lặp lại đúng 7 số cũ — trả lời khác (do LLM không tất định), lần
+này chỉ nói "không thấy giao dịch nào khớp" rồi hỏi tên người nhận, không nêu
+số nào cả.
+
+🔴 **Đây là dữ kiện MỚI, làm yếu giả thuyết "harness làm mất bản ghi vì
+crash"** (Lần 2) — lần này KHÔNG có crash nào, chạy trọn vẹn, mà `tool_calls`
+vẫn rỗng. Hai khả năng còn lại, KHÔNG tự chọn giữa chúng (ngoài phạm vi đọc
+được của QA/QC — cần Coder đọc `src/agents/graph.py` mới phân định được):
+ (a) một lỗi ghi nhận `tool_calls` KHÁC, độc lập với bug `usage` vừa vá,
+     tồn tại xuyên suốt cả hai lần chạy `day_du` của bộ ca này;
+ (b) agent THẬT SỰ không gọi tool trong nhánh hội thoại này (khác giả thuyết
+     "đã gọi nhưng harness làm mất" của Lần 3) — nếu đúng vậy, cùng conclusion
+     "báo không thấy dù có thật" vẫn đứng, nhưng qua đường KHÁC (không tra
+     thật, không phải tra-thật-rồi-lọc-sai).
+Hai khả năng cho ra CÙNG một hệ quả bên ngoài (bất định số liệu không truy
+được tool_result) nhưng khác nhau ở NƠI cần sửa — cần Coder xác nhận trước
+khi ai chọn một trong hai.
+
 ## Bài học công cụ đo (Luật 7 style, ghi vào đây để không lặp lại)
 
 Nhánh xử lý lỗi (`except Exception as e: violations = [f"LỖI CHẠY CASE: {e!r}"]`,
