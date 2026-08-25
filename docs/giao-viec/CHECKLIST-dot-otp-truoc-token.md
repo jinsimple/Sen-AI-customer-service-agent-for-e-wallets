@@ -847,6 +847,22 @@ src/ bản đó `7636400be9c4` — **0 dòng nào của đợt "OTP trước tok
   buổi hôm nay; đừng để nó sống quá buổi rồi ai đó tưởng dựng lại được.
   **Chờ PO tự verify băm lần hai (đã tuyên bố không nhận qua relay nữa) trước khi báo
   QA/QC chính thức mở.**
+- 🔴 **Kho RAG rỗng — PO QUYẾT: KHÔNG nạp (không tốn tiền ⟹ không cần trình PO thật).**
+  PO tự đo: `grep -c search_policy` trên cả `bo_ca_kich_ban_chuyen_gia.jsonl` lẫn
+  `token-truoc-otp.spec.ts` = 0. Chỉ ⑥ Ca B là câu hỏi chính sách, nhưng assertion của
+  nó CHỈ kiểm `duong !== "can_otp"` (đường đi), không kiểm nội dung ⟹ **kho rỗng không
+  làm hỏng ca nào của buổi này.**
+  - **BẮT BUỘC QA/QC ghi ĐẦU báo cáo buổi, TRƯỚC khi chạy** (nguyên văn PO):
+    *"Kho RAG của ngăn này RỖNG (0 mục) — CÓ CHỦ ĐÍCH, không nạp vì 0/5 ca của buổi
+    cần `search_policy`. TRỤC KHÔNG ĐO: chất lượng trả lời chính sách. Ca ⑥-B kiểm
+    ĐƯỜNG ĐI, không kiểm nội dung. Câu trả lời chính sách trong transcript KHÔNG phải
+    bằng chứng về gì cả — đừng đọc nó thành phát hiện."*
+  - ⚠️ **Nếu Ca B đỏ:** phân biệt hai nguyên nhân TRƯỚC khi báo — ① cổng ④ bắn oan cho
+    câu chính sách (phát hiện thật) hay ② kho rỗng làm `search_policy` NÉM LỖI thay vì
+    trả rỗng (hỏng vì hạ tầng, không phải bug định tuyến). Đọc `ly_do_fallback` +
+    `tool_calls` trước khi kết luận cổng ④ bắn oan.
+  - **Sau buổi, không phải bây giờ:** kho rỗng ở ngăn mới là dữ kiện cho thiết kế dựng
+    ảnh — PO đang chuyển cho DevOps (`p-226-b8`, vừa nhận việc).
 
 ---
 
