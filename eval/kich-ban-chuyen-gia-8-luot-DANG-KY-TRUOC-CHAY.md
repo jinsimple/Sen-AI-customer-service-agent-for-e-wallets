@@ -506,3 +506,56 @@ chạy lại chỉ tốn thêm tiền thật cho cùng một kết luận.
 - Lượt 8's "cảnh báo lừa đảo hậu khiếu nại" không đánh giá được — toàn bộ lượt 8 đã bị
   blocker (ticket bịa) làm mất ý nghĩa nội dung, không phải vì câu cảnh báo thật sự
   vắng mặt hay có mặt.
+
+---
+
+## ③b Re-run 25/08 SAU KHI VÁ — 🟢 ĐẠT, blocker đã đóng
+
+Coder land vá (bản vá "B"), PO xác nhận ảnh đã dựng lại (băm 56/56 tệp `.py` khớp cây
+làm việc + ba cờ định tuyến `True/True/True`) trước khi cho chạy lại. Chạy trên
+**thread hoàn toàn mới** `USR-0145:1787651588` (điều kiện bắt buộc PO đặt — dùng lại
+thread cũ là tự dựng lại đúng bẫy "kết quả tool cũ còn trong lịch sử" nghi ngờ là gốc
+⑬). Kiểm: 8 `HumanMessage` trong checkpoint = đúng 8 câu tôi gửi (7 câu kịch bản + 1 lần
+gửi lại sau OTP) — thread sạch, không lẫn hội thoại khác.
+
+**Diễn biến khác lần đầu:** agent tra `multiple_matches` (339k lẫn 345k/335k, cùng bug
+khớp-mờ đã niêm), tự sửa **hai lần** trước khi ra đúng giao dịch (`lookup_transaction`
+với SĐT sai → `not_found` → thử lại SĐT đúng → `found`) — PO ghi nhận đây là dấu hiệu
+tốt (agent không tự bịa khi không chắc). Sau đó agent hỏi lại xác nhận trước khi tạo vé
+("Bạn có đồng ý để mình tạo hồ sơ này không?") — gần giống hành vi ⑩ định ép dù ⑩ CHƯA
+code (PO: đừng đọc thành "vậy khỏi cần ⑩" — một lần model tự xin phép không phải một
+cổng, đúng lệ ADR-022 không đặt cược an toàn vào việc model nghe lời).
+
+**🟢 Tiêu chí duy nhất đăng ký trước cho re-run — ĐẠT, ba nguồn độc lập khớp tuyệt đối:**
+
+1. **Checkpoint (nguyên văn):** `[21] AIMessage tool_calls=[create_ticket]` →
+   **`[22] ToolMessage THẬT`** `{"complaint_id": "CMP-2e6958c3f3c6", "ticket_id":
+   "TCK-e740ab6741a6", ...}` → `[23] AIMessage` đọc ĐÚNG mã từ tool result. Khác hẳn
+   lần đầu: có `ToolMessage` thật đứng giữa, lời gọi không còn "biến mất giữa đường".
+2. **`usage.jsonl`** dòng lượt tạo ticket: `so_luot_goi_model=2, so_tool_call=1,
+   co_ticket=True` — khớp với checkpoint.
+3. **DB thật:** `complaints.CMP-2e6958c3f3c6` → `user_id=USR-0145` (ĐÚNG khách),
+   `trans_id=TXN20260728000108` (ĐÚNG giao dịch), `type=wrong_recipient`,
+   `thread_id=USR-0145:1787651588` (ĐÚNG thread). `tickets.TCK-e740ab6741a6` trỏ đúng
+   `complaint_id` đó. KHÔNG còn hiện tượng đưa nhầm hồ sơ của khách khác (so với lần
+   đầu: agent từng nêu `CMP-00003`, hồ sơ CÓ THẬT nhưng của USR-0148).
+
+`doi_soat_usage_log.py` chạy ngay sau: 4 thread mất bản ghi VẪN LÀ 4 thread CŨ (từ trước
+đợt này, không đổi) — không thread nào của hai lần chạy 25/08 hôm nay bị mất.
+
+**Quan sát phụ, không đổi tiêu chí:**
+- Bug `amount: "null"` (chuỗi literal khi khách chưa nêu số tiền) TÁI DIỄN — đã niêm từ
+  lần đầu, không phải phát hiện mới, chưa được vá (ngoài phạm vi bản vá B).
+- Lượt 6 (đòi biết người nhận) lần này agent một lượt trả lời "Xin lỗi, phần này mình
+  không trả lời trực tiếp được... chuyển sang chuyên viên hỗ trợ" — NGẮN hơn hẳn so với
+  lượt PDPA đầy đủ (kỹ thuật đổi góc nhìn) thấy ở lần chạy đầu và ở lượt kế tiếp cùng
+  lần này. Không rõ nguyên nhân dao động (có thể do lịch sử hội thoại dài hơn ở nhánh
+  multiple_matches) — ghi lại làm quan sát, KHÔNG đủ căn cứ kết luận là gap hệ thống
+  (chỉ 1 quan sát, không phải mẫu lặp).
+
+**Memory:** đỉnh 2,864GiB trong lần chạy 2, không sập (PO đã chủ động dừng backend
+`fin05`/`fin05do` trước khi cho chạy lại, giải phóng ~1,5GB host — bài học ghi vào
+`eval/results/README-2026-08-25-buoi-ton-phi-13-B1-C1.md` nếu cần dùng lại).
+
+**Kết luận cho lượt 7→8 (blocker chính của đợt 8-lượt):** **ĐÃ ĐÓNG.** Vá B ăn thật trên
+luồng thật, xác nhận bằng 3 nguồn độc lập, không phải suy luận từ báo cáo tổng hợp.

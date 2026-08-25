@@ -58,6 +58,11 @@ const LUOT: { nhan: string; cau: string }[] = [
   },
 ];
 
+// [ĐO 25/08, lần chạy đầu] kịch bản có thể cần thêm 1-2 lượt xác nhận nếu
+// agent hỏi lại "bạn đồng ý không" thay vì tạo ticket ngay — KHÔNG hardcode
+// giả định trước, đo tại chỗ và tự nối thêm nếu cần (tối đa 2 lượt phụ).
+const CAU_DONG_Y_THEM = "đồng ý, chị tạo giúp em đi";
+
 test("Kịch bản chuyên gia 8 lượt — chạy thật trên fin05-dot-otp", async ({ page }) => {
   test.setTimeout(15 * 60_000);
 
@@ -120,6 +125,19 @@ test("Kịch bản chuyên gia 8 lượt — chạy thật trên fin05-dot-otp",
     r = await guiVaCho(LUOT[i].cau, LUOT[i].nhan);
     transcript.push({ nhan: LUOT[i].nhan, khach: LUOT[i].cau, response_json: r });
     console.log(`[${LUOT[i].nhan}] duong=${r.duong} usage=${JSON.stringify(r.usage)} tool_calls=${JSON.stringify(r.tool_calls)} reply="${(r.reply ?? "").slice(0, 300)}"`);
+  }
+
+  // Nếu lượt cuối chưa cho thấy dấu hiệu tạo ticket (thành công HAY thất
+  // bại) — vẫn đang ở dạng hỏi lại xác nhận — nối thêm tối đa 2 lượt đồng ý
+  // để thực sự chạm tới điểm quyết định create_ticket.
+  const coDauHieuQuyetDinh = (text: string) =>
+    /đã tạo|tạo hồ sơ thành công|CMP-|mã hồ sơ|không tạo được|lỗi|thất bại/i.test(text);
+  let soLanNoiThem = 0;
+  while (!coDauHieuQuyetDinh(r.reply ?? "") && soLanNoiThem < 2) {
+    soLanNoiThem++;
+    r = await guiVaCho(CAU_DONG_Y_THEM, `Lượt phụ ${soLanNoiThem} — đồng ý thêm (agent hỏi lại xác nhận)`);
+    transcript.push({ nhan: `Lượt phụ ${soLanNoiThem} — đồng ý thêm`, khach: CAU_DONG_Y_THEM, response_json: r });
+    console.log(`[Lượt phụ ${soLanNoiThem}] duong=${r.duong} usage=${JSON.stringify(r.usage)} tool_calls=${JSON.stringify(r.tool_calls)} reply="${(r.reply ?? "").slice(0, 300)}"`);
   }
 
   const outDir = path.resolve(__dirname, "../../eval/results");
