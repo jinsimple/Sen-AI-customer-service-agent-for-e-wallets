@@ -158,6 +158,50 @@ hướng bi quan **tự xoá bằng chứng của chính nó**.
 
 ---
 
+## ③c 🔴 HỌ THỨ HAI, CHƯA CÓ TÊN — "CHÚ THÍCH CHẾT" *(về ĐỌC, không phải về ĐO)*
+
+*(PO yêu cầu tách khỏi Luật AC, 25/08. **AC nói về ĐO; mục này nói về ĐỌC.** Cùng một ngày,
+hai họ khác nhau — và họ này chưa có ký hiệu.)*
+
+> **Một chú thích ĐÚNG-NGHE ngồi trên một dòng KHÔNG còn làm điều nó nói.**
+> **Chú thích chết nguy hơn code chết: code chết KHÔNG CHẠY, chú thích chết VẪN ĐƯỢC ĐỌC.**
+
+**Hai ca, cùng một ngày, hai người khác nhau, hai tệp khác nhau:**
+
+```
+① ChatClient.tsx:536  "reply vẫn được hiển thị: nó đã mang sẵn câu chống mạo danh K3"
+   ⟹ người viết LO ĐÚNG THỨ ĐÁNG LO, rồi tự bảo đảm bằng một `push` MỚI
+   ⟹ không biết :501 đã đẩy rồi ⟹ khách thấy bong bóng hiện HAI LẦN   (vá 8e2e72d)
+
+② graph.py:1866   "⑨ — loại khiếu nại đọc từ `args`, KHÔNG từ `result`…"
+   ⟹ ⑨ ĐÃ DỜI điểm móc sang hai tín hiệu thread (cùng ngày, cùng đợt)
+   ⟹ biến `loai_khieu_nai` thành tử thi, nhưng CHÚ THÍCH Ở LẠI
+   ⟹ người sửa ⑨ sau này sẽ đi tìm ở `create_ticket` — sai chỗ, ĐÚNG LÚC ⑨ hỏng  (vá 25e2731)
+```
+
+🔴 **Vì sao nó sống sót qua mọi lần đọc lại:** cả hai dòng đều có **lý do chính đáng ghi ngay
+bên trên**. Review đi tìm dòng *"trông sai"* **không bao giờ dừng lại ở đây** — dòng trông
+**rất đúng**, vì nó **từng đúng**.
+
+**Khác Luật AC ở tiền đề:** AC hỏi *"phép đo có trỏ đúng vật không"*. Mục này hỏi
+*"lời giải thích có còn mô tả đúng thứ nó đang ngồi trên không"*. AC bắt bằng phép đo;
+mục này **không phép đo nào bắt được** — `ruff` chỉ thấy biến chết, **không thấy chú thích chết**;
+ở ca ① thì không cổng nào thấy gì cả.
+
+**Ba chỗ sinh ra nó — đều là việc TỐT làm dở dang:**
+```
+· DỜI một cơ chế đi chỗ khác  → chú thích ở chỗ CŨ không ai gỡ
+· thêm một lớp bảo đảm mới    → lớp CŨ vẫn còn, cộng dồn tác dụng phụ
+· nhánh `return` sớm giữa hàm → ở ĐỦ XA đoạn dùng chung để không lọt vào cùng một màn hình
+```
+
+**Phép thử rẻ, dùng được ngay:** khi **dời** hoặc **thay** một cơ chế, `grep` tên cũ của nó
+*(biến · hằng · tên hàm)* và đọc **mọi chú thích** quanh mỗi kết quả — không chỉ mọi lệnh gọi.
+🔴 **Xoá code chết mà để lại chú thích chết là làm xong một nửa, và nửa còn lại mới là nửa
+được đọc.**
+
+---
+
 ## ④ `docker compose` GỘP danh sách `ports`, không thay — phải `!override`
 
 ```yaml
