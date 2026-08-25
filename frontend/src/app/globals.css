@@ -255,12 +255,24 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
 .bubble-row{ display:flex; flex-direction:column; max-width:76%; }
 .bubble-row.from-bot{ align-self:flex-start; align-items:flex-start; }
 .bubble-row.from-user{ align-self:flex-end; align-items:flex-end; }
-.bubble{ padding:12px 15px; border-radius:16px; font-size:14px; line-height:1.55; }
+/* 🔴 `white-space:pre-wrap` — VÁ ③ (25/08). Backend gửi 2 xuống dòng, màn hình
+   hiện 0: HTML gộp mọi khoảng trắng liền nhau thành một dấu cách.
+   Vì sao đây là lỗi NẶNG chứ không phải thẩm mỹ: chuyên gia CSKH thiết kế lượt 5
+   thành BA VẾ tách bạch, và PO thật đã cho NỚI TRẦN TOKEN (7.550→7.800) để giữ
+   trọn vế thứ ba. Ba vế ấy đang bị dồn thành một khối chữ liền ⟹ ta trả tiền để
+   sinh ra cấu trúc, backend gửi đúng cấu trúc, rồi giao diện XOÁ cấu trúc trước
+   khi khách kịp thấy. Lượt 8 ("ba bước tiếp theo") chịu chung số phận.
+   🔴 CỐ Ý dùng CSS chứ KHÔNG dựng HTML từ chuỗi của model: nội dung bong bóng do
+   MODEL sinh, mà model đọc chữ khách gõ ⟹ render HTML thô là tự mở đường bơm
+   script qua prompt injection. CSS không diễn giải ký tự nào — 0 bề mặt tấn công.
+   `word-break` kèm theo: mã giao dịch/số tài khoản dài không đẩy vỡ khung 375px. */
+.bubble{ padding:12px 15px; border-radius:16px; font-size:14px; line-height:1.55;
+         white-space:pre-wrap; word-break:break-word; }
 .bubble-bot{ background:var(--surface-2); border:1px solid var(--border); border-bottom-left-radius:4px; }
 .bubble-user{ background:var(--navy); color:#fff; border-bottom-right-radius:4px; }
 .bubble-cite{ margin-top:8px; padding-top:8px; border-top:1px solid var(--border-strong); font-size:11.5px; color:var(--text-dim); font-family:var(--font-ui); font-variant-numeric:tabular-nums; }
 .bubble .mono{ font-family:var(--font-ui); font-weight:800; font-variant-numeric:tabular-nums; }
-.bubble-system{ align-self:center; background:var(--surface-2); color:var(--text-dim); font-size:11.5px; padding:6px 14px; border-radius:999px; border:1px solid var(--border); }
+.bubble-system{ align-self:center; background:var(--surface-2); color:var(--text-dim); font-size:11.5px; padding:6px 14px; border-radius:999px; border:1px solid var(--border); white-space:pre-wrap; word-break:break-word; }
 .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
 .chip{ border:1.5px solid var(--border-strong); background:var(--surface); padding:7px 14px; border-radius:999px; font-size:12.5px; font-weight:600; cursor:pointer; transition:border-color .15s ease, color .15s ease; }
 .chip:hover{ border-color:var(--navy-2); color:var(--navy-2); }
