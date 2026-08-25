@@ -134,11 +134,13 @@ def test_cong_96_cau_hop_le():
     # LƯỢT mốc nền vẫn rỗng. Sửa: kiểm ngay trên `luot`.
     if not any(nguon for *_rest, nguon in luot):
         pytest.skip(
+            "NHÓM C (tests/_suite_day_du.py, không chịu FIN05_SUITE_DAY_DU — cổng "
+            "tắt CÓ CHỦ ĐÍCH, không phải hạ tầng vắng). VÌ SAO ĐƯỢC MIỄN VĨNH VIỄN: "
             "CỔNG-96 (mốc nền cũ) ĐANG TẮT: 18 ca mốc nền đông cứng ở "
             f"he_thong={HE_THONG_MOC_NEN}, sinh ra TRƯỚC khi harness lưu "
-            "tool_calls_day_du — sẽ KHÔNG BAO GIỜ có payload retroactive. "
-            "Câu trả lời thật cho 'siết nhầm có tăng không' đã có ở "
-            "eval/bao_cao_4_cau.py câu 2, đo trên lượt end-to-end MỚI bằng "
+            "tool_calls_day_du — sẽ KHÔNG BAO GIỜ có payload retroactive, kể cả "
+            "dựng lại hạ tầng. Câu trả lời thật cho 'siết nhầm có tăng không' đã "
+            "có ở eval/bao_cao_4_cau.py câu 2, đo trên lượt end-to-end MỚI bằng "
             "loc_dau_ra_theo_luot ghi lúc chạy thật."
         )
 

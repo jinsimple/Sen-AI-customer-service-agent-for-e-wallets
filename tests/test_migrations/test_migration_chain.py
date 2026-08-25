@@ -29,6 +29,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine import make_url
 
 from src.config import DATABASE_URL, ROOT_DIR
+from tests._suite_day_du import can_ha_tang
 
 _BASE_URL = make_url(DATABASE_URL)
 _IS_POSTGRES = _BASE_URL.get_backend_name().startswith("postgresql")
@@ -49,15 +50,21 @@ def _postgres_reachable() -> bool:
         return False
 
 
-pytestmark = pytest.mark.skipif(
-    not _postgres_reachable(),
-    reason=(
-        "Cần Postgres thật reachable qua DATABASE_URL (không phải SQLite mặc "
-        "định của pytest local) — chạy trong network Docker: `docker compose "
-        "exec backend su appuser -c \"python -m pytest tests/test_migrations/ -v\"`, "
-        "hoặc CI job có service postgres (xem ci.yml)."
-    ),
-)
+@pytest.fixture(scope="module", autouse=True)
+def _yeu_cau_postgres_that():
+    """NHÓM A (`tests/_suite_day_du.py`) — thay cho `pytestmark = skipif(...)`
+    cũ để `FIN05_SUITE_DAY_DU=1` biến skip thành FAIL rõ ràng."""
+    if not _postgres_reachable():
+        can_ha_tang(
+            "Cần Postgres thật reachable qua DATABASE_URL (không phải SQLite "
+            "mặc định của pytest local)",
+            cach_dung=(
+                'chạy trong network Docker: `docker compose exec backend su appuser -c '
+                '"python -m pytest tests/test_migrations/ -v"`, hoặc CI job có service '
+                "postgres (xem ci.yml)"
+            ),
+            allow_module_level=True,
+        )
 
 
 @pytest.fixture()

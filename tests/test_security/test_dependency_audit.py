@@ -14,17 +14,21 @@ import subprocess
 import pytest
 
 from src.config import ROOT_DIR
+from tests._suite_day_du import can_ha_tang
 
 _KNOWN_ACCEPTED_VULN_IDS = {"PYSEC-2026-311"}  # chromadb — xem docstring module
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("pip-audit") is None,
-    reason=(
-        "pip-audit chưa cài cục bộ — CI (ci.yml, job dependency-and-secret-scan) "
-        "luôn cài trước khi audit (`pip install ... pip-audit`), chạy được ở đây "
-        "nếu dev đã `pip install pip-audit` thủ công."
-    ),
-)
+
+@pytest.fixture(autouse=True)
+def _yeu_cau_pip_audit():
+    """NHÓM A (`tests/_suite_day_du.py`) — thay cho `pytestmark = skipif(...)`
+    cũ để `FIN05_SUITE_DAY_DU=1` biến skip thành FAIL rõ ràng."""
+    if shutil.which("pip-audit") is None:
+        can_ha_tang(
+            "pip-audit chưa cài cục bộ — CI (ci.yml, job dependency-and-secret-scan) "
+            "luôn cài trước khi audit",
+            cach_dung="`pip install pip-audit`",
+        )
 
 
 def _run_audit(*extra_args: str) -> subprocess.CompletedProcess:

@@ -259,10 +259,12 @@ def test_dac_ta_danh_muc_nguon_ton_tai():
 @pytest.mark.skipif(
     _tim_danh_muc() is None,
     reason=(
-        "chưa có ĐẶC TẢ danh mục nguồn ⟹ chưa có gì để đối chiếu. Đây là thiếu "
-        "NĂNG LỰC thật, không phải nối dây sai: test_dac_ta_danh_muc_nguon_ton_tai "
-        "đang giữ đúng thiếu sót đó ở trạng thái xfail(strict) và sẽ tự đỏ khi "
-        "danh mục xuất hiện. Skip này không bao giờ im lặng được."
+        "NHÓM B (tests/_suite_day_du.py, không chịu FIN05_SUITE_DAY_DU). VÌ SAO "
+        "ĐƯỢC MIỄN: chưa có ĐẶC TẢ danh mục nguồn ⟹ chưa có gì để đối chiếu. Đây "
+        "là thiếu NĂNG LỰC thật, không phải nối dây sai: "
+        "test_dac_ta_danh_muc_nguon_ton_tai đang giữ đúng thiếu sót đó ở trạng "
+        "thái xfail(strict) và sẽ tự đỏ khi danh mục xuất hiện. Skip này không "
+        "bao giờ im lặng được."
     ),
 )
 @pytest.mark.skipif(not _kho_dang_song(), reason=f"container {CONTAINER} không chạy — chưa có kho để soi")

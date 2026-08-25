@@ -334,11 +334,15 @@ def test_13_note_chua_payload_injection_bi_danh_co_canh_bao(client, sample_db):
 
 
 # ==========================================================================
-# NHÓM D — chờ exporter Phase 2
+# NHÓM B (tests/_suite_day_du.py) — chờ exporter Phase 2. Tên "NHÓM D" cũ ở
+# đây là đánh số cục bộ TRƯỚC khi có taxonomy A/B/C/D chung — đã lỗi thời,
+# giữ nguyên comment gốc bên dưới, không xoá (Luật P).
 # ==========================================================================
 
 
-@pytest.mark.skip(reason="Exporter Phase 2 chưa có mã (eval/candidates/ chưa tồn tại). "
+@pytest.mark.skip(reason="NHÓM B — NĂNG LỰC chưa tồn tại (không phải hạ tầng vắng, không "
+                         "chịu FIN05_SUITE_DAY_DU). VÌ SAO ĐƯỢC MIỄN: Exporter Phase 2 chưa "
+                         "có mã (eval/candidates/ chưa tồn tại). "
                          "Giữ test ở đây làm mốc: `note` KHÔNG được có mặt trong file ứng "
                          "viên KỂ CẢ đã scrub — ranh giới một chiều là điểm EXPORT, không "
                          "phải điểm hiển thị (sign-off TM-03).")

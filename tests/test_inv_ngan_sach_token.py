@@ -148,6 +148,7 @@ import subprocess
 import pytest
 
 from tests._docker_co_mat import co_docker
+from tests._suite_day_du import can_ha_tang
 
 CT = os.environ.get("FIN05_TOKEN_BUDGET_CT", "fin05do-backend-1")  # [25/08] override cho ngăn khác, vd buổi tốn phí trên fin05-dot-otp
 NGUONG_TOKEN = 7_800           # [25/08] nới từ 7_550, lý do ⑪ ba lượt kịch bản chuyên gia, delta đo được +317. Nới CÓ CHỦ ĐÍCH, KHÔNG phải trôi — xem docstring "NỚI 25/08"
@@ -179,11 +180,19 @@ def _stack_song() -> bool:
     return bool(r.stdout.strip())
 
 
-pytestmark = pytest.mark.skipif(
-    not _stack_song(),
-    reason=f"cần {CT} để lấy prompt+lược đồ THẬT. Đọc từ app đang chạy, KHÔNG "
-           "dựng lại — dựng lại là đo một vật gần giống (Luật 13).",
-)
+@pytest.fixture(scope="module", autouse=True)
+def _yeu_cau_stack_song():
+    """NHÓM A2 (`tests/_suite_day_du.py`) — CHÍNH FILE NÀY là nguồn gốc của cổng
+    meta này: nó từng chuyển từ ĐỎ sang SKIP im lặng khi Lead hạ ngăn Docker để
+    lấy RAM (25/08), và không ai được báo cho tới khi đi tìm hiểu vì sao suite
+    "tốt lên". `FIN05_SUITE_DAY_DU=1` biến skip này thành FAIL rõ ràng."""
+    if not _stack_song():
+        can_ha_tang(
+            f"cần {CT} để lấy prompt+lược đồ THẬT. Đọc từ app đang chạy, KHÔNG "
+            "dựng lại — dựng lại là đo một vật gần giống (Luật 13).",
+            cach_dung=f"`docker compose up -d` ngăn chứa container tên {CT} (hoặc trỏ FIN05_TOKEN_BUDGET_CT sang ngăn khác đang sống)",
+            allow_module_level=True,
+        )
 
 
 @pytest.fixture(scope="module")

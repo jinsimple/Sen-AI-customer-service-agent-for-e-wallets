@@ -25,6 +25,8 @@ from __future__ import annotations
 import pytest
 import yaml
 
+from tests._suite_day_du import can_ha_tang
+
 httpx = pytest.importorskip("httpx")
 
 BASE = "https://localhost"
@@ -78,7 +80,11 @@ def phien_theo_vai():
     try:
         httpx.get(f"{BASE}/login", verify=False, timeout=5)
     except Exception as e:  # noqa: BLE001
-        pytest.skip(f"Không tới được stack Docker ở {BASE} ({e!r}) — cần `docker compose up -d`", allow_module_level=True)
+        can_ha_tang(
+            f"Không tới được stack Docker ở {BASE} ({e!r})",
+            cach_dung="`docker compose up -d`",
+            allow_module_level=True,
+        )
 
     phien = {}
     for vai, sdt in SDT_THEO_VAI.items():

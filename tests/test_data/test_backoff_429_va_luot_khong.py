@@ -184,7 +184,13 @@ def test_khong_ban_ghi_moi_nao_truot_voi_khong_luot_nao_chay(ban_ghi_adversarial
     thuoc_nay = dau_thuoc()["cham_diem"]
     moi = [r for r in ban_ghi_adversarial if r.get("_thuoc", {}).get("cham_diem") == thuoc_nay]
     if not moi:
-        pytest.skip(f"Chưa có bản ghi nào sinh bởi thước hiện tại ({thuoc_nay}) — chưa đo được.")
+        pytest.skip(
+            "NHÓM D (tests/_suite_day_du.py, không chịu FIN05_SUITE_DAY_DU — "
+            "đây là DỮ LIỆU chưa có, không phải hạ tầng/năng lực chưa có: "
+            "không dựng Postgres/Docker nào tự sinh ra bản ghi mang đúng thước "
+            "hiện tại, chỉ một lượt đo mới mới làm được). VÌ SAO ĐƯỢC MIỄN: "
+            f"chưa có bản ghi nào sinh bởi thước hiện tại ({thuoc_nay}) — chưa đo được."
+        )
     xau = [
         (r["_ten_file"], r["case_id"])
         for r in moi
