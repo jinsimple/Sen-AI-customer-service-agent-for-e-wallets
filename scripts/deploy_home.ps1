@@ -24,6 +24,14 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
+# 🔴 CHUỖI IN RA CHO NGƯỜI DÙNG (Say/Ok/Bad/Warn): KHÔNG dùng dấu nguyên âm
+# tiếng Việt. Script không đặt mã trang console ⟹ phụ thuộc console của PO.
+# Không UTF-8 thì "tiếp nhận" thành rác ở MỌI nguyên âm — mất cả câu. `—` `·`
+# méo một ký tự, câu vẫn đọc được, nên chấp nhận được. [ĐO 26/08, PO]: 4 dòng
+# hiện có ký tự ngoài ASCII trong chuỗi in ra, cả 4 đều là `—`/`·`, KHÔNG
+# dòng nào có nguyên âm có dấu — luật này đã được tuân theo từ trước, ghi ra
+# đây để không còn là bí ẩn. CHÚ THÍCH (dòng bắt đầu bằng `#`) thì dùng dấu
+# bình thường — không in ra, không ảnh hưởng.
 function Say($m) { Write-Host $m }
 function Ok($m)  { Write-Host "  [OK]    $m" -ForegroundColor Green }
 function Bad($m) { Write-Host "  [LOI]   $m" -ForegroundColor Red }
