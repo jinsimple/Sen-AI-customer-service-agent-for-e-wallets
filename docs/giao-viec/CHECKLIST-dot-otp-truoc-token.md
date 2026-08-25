@@ -1191,6 +1191,35 @@ trên nền sai là đúng thứ Luật F cấm.
 | 12:50 **#20** | `0b169de` | 🟢 5 commit — nghiệm thu + bàn giao + 3 luật lên STATE | 🟢 ⑧ land `3ac7d90` · đang ⑪ + đo lượt 4 | 🟢 soạn kịch bản chạy | 🟢 soát độ phủ | 🔴 **8/8 KHÔNG đạt hôm nay** |
 | 14:45 **#24** | `a241955` | 🟢 sửa lệch checklist + chuyển 4 việc | 🟢 **đang vá B** *(`khai_da_tao_ve`)* | ⏸ chờ vá | ⏸ chờ vá | 🟢 **PO thật duyệt ADR-051 + Redis** |
 
+### ✅ #25 — BLOCKER ĐÓNG, PO nghiệm thu ĐỘC LẬP bằng chính câu đã lọt (0 token)
+
+PO chạy hai bản vá trên **cây làm việc**, không qua báo cáo của ai:
+```
+── VÁ B  (khai_da_tao_ve) ──
+🔴 BẮT ĐƯỢC   │ câu ĐÃ LỌT hôm nay:  "…đã tạo hồ sơ thành công với mã CMP-00003…"
+🔴 BẮT ĐƯỢC   │ CÙNG CÂU, BỎ MÃ ĐI
+   không khai │ câu lành: "Bạn cho mình biết số tiền bị trừ là bao nhiêu được không ạ?"
+
+── VÁ A  (_cac_day_so) ──
+câu đã lọt           → ['cmp-00003']            ✅ nay THẤY
+"trước 2026-08-27"   → không bắt                ✅ ngày tháng KHÔNG bị bắt oan
+"COVID-19"·"check-in"·"e-mail" → không bắt      ✅
+RES-… · TCK-… · TXN… → vẫn bóc được             ✅ mã THẬT vẫn truy vết, không chặn oan
+```
+🔴 **Điểm quyết định của vá B: nó bắt CẢ HAI biến thể.** Trước đây **thêm một mã giả vào là lách
+được**; nay có mã hay không đều chặn — vì cổng mới hỏi *"có vé THẬT không"*, không hỏi *"câu này
+nghe có giống bịa không"*. **Ràng buộc cứng ép bằng SỰ THẬT, không bằng TỪ VỰNG.**
+
+⚠️ **Và vá A không bắt oan ngày tháng** — thứ agent nói trong **mọi** câu trả lời hợp lệ. Khuôn cố
+ý bắt đầu bằng **CHỮ CÁI** nên `2026-08-27` trượt. Nếu bắt oan chỗ này thì bản vá sẽ **đóng luôn
+đường trả lời bình thường**, tệ hơn lỗ nó vá.
+
+🔴 **PO SUÝT BÁO SAI LẦN THỨ TƯ TRONG NGÀY.** Lần đo đầu tôi kiểm `_TOKEN_MA` — **hàm KHÔNG hề bị
+vá** — thấy `[]` và gần kết luận *"vá A hỏng"*. Vá A thêm khuôn **MỚI** (`_MA_CO_GACH`) gắn vào
+`_cac_day_so`, **không sửa `_TOKEN_MA`**.
+**Điểm chung cả bốn lần:** *đo cái mình ĐOÁN là đúng chỗ, thay vì đọc xem bản vá thật sự chạm vào
+đâu.* ⟹ **Đọc diff TRƯỚC khi đo, không đo trước rồi diễn giải.**
+
 **#24 — PO thật duyệt hai việc, đội vào vá.** Sổ usage đứng yên **28 dòng** ⟹ không ai tiêu thêm.
 ✅ **Coder đặt vá B KHÉO HƠN phiếu PO giao:** hàm `khai_da_tao_ve()` *(phát hiện "câu này có khai
 đã tạo vé không")* để ở `output_filter.py`, còn **phép đối chiếu với `ticket_id` THẬT** để ở
