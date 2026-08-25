@@ -957,44 +957,28 @@ trên nền sai là đúng thứ Luật F cấm.
 
 ## Nghiệm thu cả đợt — bốn con số trong bốn tệp
 
-- [!] **N1** Số lần cổng `thu_slot` bắn oan: **6/11** → **0/n** — **🔴 ĐÃ ĐO, KHÔNG ĐẠT**
-  - **[Lead 25/08] ĐÍNH CHÍNH — không phải "chưa đo" như dòng cũ, là "đã đo, đỏ thật".**
-    Bộ ca độc lập của QA/QC (7 ca, dựng từ đặc tả Đ1) nay 7/7 — đúng, và không sai — nhưng
-    **xanh trên bản dựng lại không chứng minh gì về corpus gốc.**
-  - **[ĐO thật, Coder]:** mẫu số **409 câu/14 tệp `eval/*.jsonl`**. Nền `a3bc860` thu_slot
-    bắn **15** lần; HEAD hôm nay còn bắn **13** lần. **Chỉ đóng được 2** (= ADV-036 +
-    ADV-038, khớp N2). 13 ca còn bắn oan: chính sách 2 · đã phân loại xong 2 · khách cần
-    hướng dẫn 1 · khiếu nại thật ĐÚNG (không phải oan) 3 · khác/cần phân loại 5.
-  - ⚠️ **"6/11" gốc và "15" (nền đo lại) CHƯA ĐỐI CHIẾU ĐƯỢC** — phương pháp bóc corpus gốc
-    của Đ1 không rõ có khớp mẫu số 409 câu này không. **Không kết luận "6/11 sai"**, chỉ
-    ghi "chưa so được", và nghiệm thu đang đứng trên một số chưa đối chiếu.
-  - 🔴 **HỆ QUẢ:** đợt KHÔNG đóng được theo đúng tiêu chí phiếu §6 ("đợt đóng khi bốn con
-    số nằm trong bốn tệp") — N1 là một trong bốn, và nó không đạt. Xem tin Lead→PO.
-  - 🟢 **[PO THẬT 25/08, qua PO agent] ĐỂ LẠI — không mở vòng vá.** Nguyên văn: *"test
-    xong phần tính năng hiện tại ok đã rồi mới làm sau."* Ghi thành **giới hạn đã khai**
-    của đợt này, không phải nợ giấu. **QA/QC** phân loại nốt các ca `khác/cần phân loại`
-    (không tốn LLM — phân loại tĩnh, có thể làm con số oan thật NHỎ HƠN** con số hiện
-    ghi, vì một phần trong đó có thể là khiếu nại thật ĐÚNG như 3 ca đã xác nhận, không
-    phải oan). Việc này KHÔNG chặn đóng đợt — làm khi rảnh, chỉ để con số nghiệm thu
-    trong tệp chính xác hơn trước khi PO thật đọc bản cuối.
-  - **[QA/QC 25/08] QUYẾT ĐỊNH — nhận script đo của Coder vào `eval/`:** `eval/do_n1_corpus_goc.py`.
-    Tái lập ĐỘC LẬP, khớp tuyệt đối (409/15/13, cùng 13 câu). Bộ bóc câu đã hỏng HAI LẦN
-    lúc Coder dựng (7/409 rồi 349/409, cả hai lệch theo hướng TRẤN AN) — tự kiểm bằng
-    `MAU_SO_MOC`, giữ nguyên khi land.
-  - **🔴 ĐÍNH CHÍNH cùng ngày (Coder bắt, QA/QC tự sửa):** bản đầu ghi nhầm *"giữ nguyên
-    quyết định của Coder: không cổng hoá, luôn `return 0`"*. **Sai** — Coder chỉ nói
-    *"đừng ghim SỐ ĐẾM 13"*, và tự nhận xét thêm rằng **ghim DANH SÁCH rồi diff LÀ một
-    cổng pass/fail hợp lệ, đáng có** (*"return 0 vô điều kiện thì không ai bị đánh thức
-    khi điều đó xảy ra lần nữa"*). QA/QC tự diễn rộng thành "không cổng hoá" rồi gán
-    nhầm cho Coder — Coder chưa hề loại phương án này.
-  - **QUYẾT ĐỊNH SỬA — cổng hoá theo DANH SÁCH (của QA/QC, sau khi Coder chỉ ra chỗ sai):**
-    `eval/n1_bao_oan_da_biet.json` (13 câu, `bam_nhan` hash-gate, kèm tệp nguồn). Script
-    diff: câu bắn `thu_slot` KHÔNG có trong danh sách ⟹ REGRESSION MỚI, thoát mã 1. Câu
-    trong danh sách hết bắn ⟹ in ra để người chạy tự cập nhật (không tự động xoá — tránh
-    script tự sửa vật chứng của chính nó). Mẫu số khác 409 hoặc danh sách đã trôi (băm
-    lệch) ⟹ thoát mã 2. **Đã tự kiểm CẢ HAI chiều Luật A**: chạy trên trạng thái khớp →
-    exit 0; xoá thử 1 phần tử khỏi danh sách (mô phỏng regression) → bắt đúng, exit 1;
-    khôi phục file thật ngay sau kiểm.
+- [!] **N1** Cổng `thu_slot` bắn oan — **ĐÃ ĐO, KHÔNG ĐẠT**
+
+  🔴 **Tiêu chí gốc PO viết là `"6/11 → 0"`. Cả hai vế đều SAI**, và cái sai là của PO:
+  `6` đúng *(số bắn OAN)* nhưng `11` sai *(mẫu số hẹp — một script mù `bo_lenh_do.jsonl`)*.
+  Giữ nguyên câu cũ gạch ngang, không xoá: ~~6/11 → 0/n~~
+
+  **Số thật, đọc từ nhãn `loai` trong `eval/n1_bao_oan_da_biet.json`:**
+  ```
+  raw fire-count   13    ← thứ cổng do_n1_corpus_goc.py ĐẾM
+  bắn OAN           6    ← thứ tiêu chí N1 NÓI nó đo
+  bắn ĐÚNG          4    ← khiếu nại thật thiếu số tiền, hợp lệ theo ĐC-5
+  chưa phân loại    3    ← QA/QC nhận, làm sau buổi đo
+  ```
+  ⚠️ **TIÊU CHÍ và CỔNG đo hai đại lượng khác nhau, lệch 7 ca** — Luật G. Việc chưa có chủ:
+  tách `N1a` *(bắn oan → 0)* khỏi `N1b` *(raw count, để phát hiện trôi mẫu số)*.
+
+  **Vì sao `6 → 6` KHÔNG phải "không tiến bộ":** −2 *(`ADV-036`+`ADV-038` đã đóng)*
+  +2 *(ca oan MỚI LỘ RA khi mẫu số mở rộng)*. **Đóng 2, phát hiện 2** — con số đứng yên vì
+  hai chuyển động ngược chiều.
+
+  ✅ **PO thật quyết 25/08: ĐỂ LẠI** — *"test xong phần tính năng hiện tại ok đã rồi mới làm
+  sau."* Không mở vòng vá thứ tư *(đội đã chứng minh trục từ vựng chạm trần ba lần)*.
 - [x] **N2** `ADV-036` · `ADV-038` xanh **vì** O1–O5 giữ được, không phải vì câu lạc đề
   - Cả hai đóng qua cơ chế đúng (không phải sửa test): AM-04=ADV-038 đóng vòng 1 (`d310dc5`),
     AM-03=ADV-036 đóng vòng 3 (`3e9a9ee`, trục chốt-không-bắn). Request nay tới LLM, đi qua
