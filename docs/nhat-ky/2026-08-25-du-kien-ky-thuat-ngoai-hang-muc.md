@@ -78,6 +78,41 @@ lệnh** thay vì nối `&&`/`cd`.
 
 ---
 
+## ③b 🔴 MẪU HÌNH LỚN NHẤT CỦA NGÀY — "ĐO ĐÚNG CÁCH, SAI VẬT"
+
+*(PO yêu cầu ghi nguyên văn kèm đủ bốn ca, 25/08. Chưa cấp ký hiệu luật — Lead cân
+lúc nghiệm thu. **Có bằng chứng bốn ca thì cân được; chỉ có một câu hay thì không.**)*
+
+> **Cả bốn lần dụng cụ đo hỏng trong ngày đều là "đo ĐÚNG CÁCH, sai VẬT" — không lần
+> nào là "đo sai cách". Bộ kiểm của đội đang canh CÁCH ĐO; chưa có gì canh ĐO CÁI GÌ.**
+
+```
+① đo `_TOKEN_MA`              — hàm KHÔNG bị vá   (vật cần đo: `_MA_CO_GACH`)
+② đo băm ảnh vs CHÍNH NÓ       — do `cd` rò sang lệnh sau (vật cần: ảnh vs CÂY LÀM VIỆC)
+③ đo trên `fin05-po-test`      — ngăn KHÔNG mang mã của đợt (build từ bản sao đông cứng)
+④ dò `hasattr(BaseTool, …)`    — trên LỚP, trong khi field nằm trên INSTANCE
+```
+**Bốn lần · bốn người · bốn thời điểm khác nhau · CÙNG MỘT hình dạng.**
+
+🔴 **Mọi cổng dự án hiện có đều MÙ với nó**, vì chúng kiểm *phép đo có đúng quy trình
+không* — không kiểm *phép đo có trỏ vào đúng VẬT không*. Một phép đo sai vật đi qua
+mọi cổng, cho một con số **đúng định dạng, đúng đơn vị, đúng cách tính**, và sai.
+
+**Chiều lệch không cố định — đó là chỗ nguy nhất:**
+```
+① và ② và ③  → TRẤN AN     (tin rằng ổn trong khi không ổn)
+④            → BI QUAN     (bỏ một đường đi ĐÚNG)
+```
+Một bộ kiểm chỉ canh chiều trấn an **không bao giờ bắt được ca ④**.
+
+**Phép thử rẻ nhất đã cứu cả bốn lần** — không cái nào cần công cụ mới:
+1. **In MẪU SỐ cạnh mọi tỉ lệ** (bắt ①③ ở dạng "quần thể sai").
+2. **Đo tách rời từng lệnh**, không nối `&&`/`cd` (bắt ②).
+3. **Đọc diff TRƯỚC khi đo** — đừng đo cái mình ĐOÁN là đúng chỗ (bắt ①④).
+4. **Một phép dò mâu thuẫn với nguồn khác thì phải ĐÀO**, đừng chọn bên tiện hơn (④).
+
+---
+
 ## ④ `docker compose` GỘP danh sách `ports`, không thay — phải `!override`
 
 ```yaml
