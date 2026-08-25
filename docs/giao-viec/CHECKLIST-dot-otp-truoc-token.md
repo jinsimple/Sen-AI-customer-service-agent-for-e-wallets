@@ -880,10 +880,15 @@ liền`; dấu `-` trong `CMP-00003` cắt chuỗi thành `CMP`(3)+`00003`(5), c
 thuộc ràng buộc cứng 3: *"model khai đã tạo vé ⟹ phải có `ticket_id` thật, không thì
 chặn"* — `so_tool_call`/`co_ticket` có sẵn lúc dựng câu trả lời, không ai đối chiếu.
 
-- [ ] **Vá B (ưu tiên 1, PO thật duyệt 25/08):** cổng ràng buộc cứng 3 — model khai đã
+- [x] **Vá B (ưu tiên 1, PO thật duyệt 25/08):** cổng ràng buộc cứng 3 — model khai đã
   tạo vé phải có `ticket_id` thật, thiếu thì chặn. Bao gồm: sửa `if tm is None: continue`
   bỏ im lặng lời gọi mồ côi (đội `so_tool_call=0` với "model không đề xuất gì" — hai
   trạng thái khác nhau đang chung một vỏ).
+  - **VẬT CHỨNG:** commit `466c59a`. Đối chiếu SỰ THẬT (`ticket_id` của lượt đó) chứ
+    không khớp-từ như O5 — cố ý bỏ miễn-trừ-theo-mã, không thừa hưởng trần của
+    `_khop_o5`. [ĐO] 9/9 hai chiều, gồm ca `_khop_o5` tự khai từng lọt. Lời gọi mồ côi
+    nay có dấu (`so_goi_mo_coi` + log WARNING). Câu thay nói THẬT chưa tạo được, 0 chữ
+    số, không hứa gì.
 - [ ] **Vá A (ưu tiên 2):** khe khuôn mã ngắn giữa O3/O5 (dấu `-` cắt chuỗi dưới ngưỡng
   7 ký tự). 🔴 Vá A mà bỏ B thì lần sau model bịa bằng khuôn khác lại lọt.
 - [ ] **ADR-051 (PO thật duyệt 25/08, "2 câu đầu làm nhé"):** đi đủ §3 — sửa
@@ -896,6 +901,16 @@ chặn"* — `so_tool_call`/`co_ticket` có sẵn lúc dựng câu trả lời, 
   chạy, không thì Coder). 🔴 Phải ghi đổi ý nghĩa `docker compose down -v` vào
   `docs/DEPLOY.md` — người quen gõ lệnh cũ sẽ mất dữ liệu Redis mà không biết.
 - **Câu thứ ba (thời hạn lưu trữ dữ liệu)** — PO tự tra luật VN, CHƯA giao ai.
+
+🔴 **CẢNH BÁO HẠ TẦNG, gấp hơn Vá A — [Coder phát hiện khi làm Vá B, 25/08]:** ai đó hạ
+`fin05`/`fin05do`/`fin05-final` giữa lúc Coder đang làm, chỉ còn `fin05-dot-otp`/`fin05ttl`.
+Suite: `667 passed·50 skipped·2 failed` → `630 passed·90 skipped·1 failed` — **"1 failed"
+KHÔNG phải cải thiện, 37 ca KHÔNG CHẠY** (mẫu số nhỏ đi, không phải chất lượng tăng).
+🔴 **Chỗ nguy nhất: `test_inv_ngan_sach_token` chuyển từ ĐỎ sang SKIP** — cổng ngân sách
+token vừa **VÔ HÌNH**, không ai được báo; đúng lớp lỗi dự án từng trả giá
+(`docker exec … pytest` từng 0 ca chạy mà hiện ra như "0 failed"). **Coder từ chối tự
+dựng lại `fin05do`** (vùng devops, ghim ảnh có chủ đích) — cần quyết: dựng lại hay khai
+rõ suite đang chạy trên mẫu số nhỏ trước khi ai so hai lần chạy khác mẫu số với nhau.
 
 **Hai bug phụ, ghi nợ:** `get_customer_history` khớp số tiền kiểu MỜ (339k khớp cả
 345k/335k) — nghi là GỐC của phát hiện ⑬/B1 cũ ("không thấy 393.000đ" dù có 2 giao dịch
