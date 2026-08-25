@@ -185,6 +185,23 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
 
 ## Việc vặt cần biết thêm
 
+### ⚠️ `docker compose down -v` ĐỔI NGHĨA từ 25/08
+
+Redis nay có volume `redis_data` + `appendonly yes` (bền hoá chi phí/phiên,
+`02892bd`) — trước bản đó Redis không có volume, mất sạch mỗi lần gỡ
+container. **`down -v` nay XOÁ LUÔN:**
+
+- **bộ đếm chi tiêu LLM theo ngày** (`fin05:chi_tieu_llm_token:*`) ⟹ trần
+  ngày về 0, **quên phần đã tiêu, và quên IM LẶNG** — không có gì báo. Với
+  dự án mà ràng buộc vận hành số một là ngân sách token, đây là cổng chi phí
+  tự mở lại sau mỗi lần khởi động lại.
+- **phiên đăng nhập** (`refresh:*`) ⟹ mọi người phải đăng nhập lại. Phiền,
+  **không phải lỗ bảo mật** — đây là hành vi fail-closed đúng thiết kế
+  (`auth.py:172-174`), không phải tác dụng phụ ngoài ý muốn.
+
+Muốn hạ ngăn xếp mà **giữ** hai thứ trên: dùng `docker compose down` **KHÔNG
+có `-v`**. Chỉ dùng `-v` khi **CỐ Ý** muốn về trạng thái trắng.
+
 - **Xem log backend khi có lỗi**: `docker compose logs -f backend` (hoặc
   `frontend`/`caddy`/`postgres`).
 - **Audit log bảo mật** (`logs/access.log`) nằm trong volume `logs_data`, xem
@@ -194,7 +211,8 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
   `FIELD_ENCRYPTION_KEY` (đổi key sẽ làm dữ liệu cũ đã mã hoá không đọc được
   nữa, không có cách khôi phục).
 - **Xoá sạch làm lại từ đầu**: `docker compose down -v` (xoá cả volume — MẤT
-  HẾT dữ liệu, chỉ dùng khi chắc chắn muốn reset).
+  HẾT dữ liệu, **kể cả bộ đếm chi tiêu và mọi phiên đăng nhập từ 25/08**, chỉ
+  dùng khi chắc chắn muốn reset — xem cảnh báo phía trên).
 - **Deploy lại thủ công** (không đợi push code): `cd /opt/fin05 && git pull
   && docker compose up -d --build`, hoặc vào tab Actions trên GitHub bấm "Run
   workflow" (đã bật `workflow_dispatch`).
