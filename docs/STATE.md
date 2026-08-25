@@ -18,7 +18,7 @@
 | | |
 |---|---|
 | **Nhánh** | `dev/learning-loop` (một nhánh, PR theo đợt) |
-| **Cây làm việc DÙNG CHUNG** giữa nhiều phiên | 🔴 **Mọi lệnh `git` phải có pathspec.** `stash`/`commit`/`checkout`/`clean` không pathspec sẽ đụng việc dở của phiên khác. Đã gây 3 sự cố. |
+| **Cây làm việc DÙNG CHUNG** giữa nhiều phiên | 🔴 **Mọi lệnh `git` phải có pathspec.** `stash`/`commit`/`checkout`/`clean` không pathspec sẽ đụng việc dở của phiên khác. Đã gây **4** sự cố. 🔴 **[ĐÍNH CHÍNH 25/08, sự cố #4]:** `commit` nguy hiểm không chỉ vì "đụng cây" — **INDEX cũng là trạng thái DÙNG CHUNG**, không chỉ cây làm việc. `git add <path>` để lại một CỬA SỔ: từ lúc stage tới lúc commit, thứ vừa `add` nằm trong một giỏ **mọi phiên khác đều đổ được** bằng một `git commit -m "…"` KHÔNG pathspec của chính họ (dù họ chỉ định sửa file của họ). **Cách đóng cửa sổ:** luôn `git commit -m "…" -- <pathspec>` (trailing pathspec), KHÔNG BAO GIỜ `git commit -m "…"` trần — dạng có pathspec chỉ commit đúng path nêu ra bằng nội dung hiện tại của nó, bất kể index đang có gì khác. |
 | **Ba ngăn xếp Docker** | `fin05` (demo, kho RAG 378 chunk) · `fin05ttl` (đo) · `fin05do` (đo, kho RỖNG) |
 | **Bắt buộc `-p`** | `docker compose -p fin05 …` — thiếu `-p` là hạ ngăn xếp khác |
 | **Chạy test** | 🔴 **`docker exec … pytest` NAY KHÔNG CHẠY ĐƯỢC CẢ SUITE** — `.dockerignore:11` loại `eval/`, 3 tệp test đọc `eval/` ⟹ `Interrupted`, **0 ca chạy, hiện ra như "0 failed"**. **Chạy cổng từ HOST.** `docker exec` chỉ còn đúng cho tập con không đụng `eval/`. `P-121-new/.venv` **CẤM dùng để đo kích thích gửi model** (lệch `langchain-core`) |
