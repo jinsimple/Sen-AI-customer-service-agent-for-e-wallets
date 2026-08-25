@@ -1192,6 +1192,45 @@ trên nền sai là đúng thứ Luật F cấm.
 | 17:30 **#29** | `b9e89fa` | 🟢 | 🟢 đứng im chờ dựng *(xác nhận cây yên)* | 🟢 cổng meta land, verify hai chiều | 🟢 | ⏳ **chờ chạy nghiệm thu** |
 | 14:45 **#24** | `a241955` | 🟢 sửa lệch checklist + chuyển 4 việc | 🟢 **đang vá B** *(`khai_da_tao_ve`)* | ⏸ chờ vá | ⏸ chờ vá | 🟢 **PO thật duyệt ADR-051 + Redis** |
 
+### ✅✅ #30 — NGHIỆM THU ĐẠT. TÍNH NĂNG CHẠY ĐƯỢC THẬT TRÊN LUỒNG THẬT.
+
+🔴 **Tiêu chí PO thật đặt** *(25/08, nguyên văn)*: *"hoàn thành phần đang làm để **chạy được thật
+theo case study từ nhân viên CSKH thật** thì mới dừng được"*. ⟹ **KHÔNG** phải *"ô đã tick"*,
+**KHÔNG** phải *"cổng xanh"*.
+
+**ĐẠT — ba nguồn ĐỘC LẬP, khớp tuyệt đối.** Thread `USR-0145:1787651588`, **sạch** *(8 câu khách
+gửi = đúng số QA/QC gõ, không lẫn hội thoại cũ)*.
+```
+① checkpoint  [21] AIMessage tool_calls=[create_ticket]
+              [22] ToolMessage THẬT  {"complaint_id":"CMP-2e6958c3f3c6","ticket_id":"TCK-e740…"}
+              [23] AIMessage đọc ĐÚNG mã từ kết quả tool
+② sổ usage    so_luot_goi_model=2 · so_tool_call=1 · co_ticket=True
+③ DB [PO đo]  khách USR-0145 ✅ · giao dịch TXN20260728000108 ✅ · thread khớp ✅ · 1 vé trỏ đúng ✅
+```
+
+**So với ca hỏng sáng nay:**
+| | 04:36 sáng nay | 17:5x nghiệm thu |
+|---|---|---|
+| bot nói | *"đã tạo… mã **CMP-00003**"* | *"đã tạo… mã **TCK-e740ab6741a6**"* |
+| hồ sơ trong DB | 🔴 **0 dòng** | ✅ **có thật** |
+| mã ấy của ai | 🔴 **của khách KHÁC** *(USR-0148)* | ✅ **của đúng khách** |
+
+**Chi phí:** nghiệm thu **9 lượt · 165.200 token** · cả đợt **46 lượt · 660.170 token**.
+**Hạ tầng:** đỉnh 2,86 GB, **không sập** — PO dừng tạm **backend** của `fin05`/`fin05do` *(giữ
+postgres ⟹ suite không teo)*, còn 4,62 GB, **đã bật lại**.
+
+✅ **DẤU HIỆU TỐT NGOÀI DỰ KIẾN:** agent **tự sửa hai lần** *(tra nhầm SĐT → `not_found` → thử lại
+đúng → `found`)* rồi **tự dừng xin phép** trước khi tạo hồ sơ — tức đang làm **gần đúng** thứ
+`ADR-051` định ép, **dù chưa code**.
+⚠️ 🔴 **ĐỪNG đọc thành "vậy khỏi cần ⑩".** Một lần model tự xin phép **KHÔNG phải một cổng**. Lệ
+`ADR-022`: **không đặt cược an toàn vào việc model nghe lời.**
+
+**Hai thứ CỐ Ý để lại, không phải bỏ sót:** **lượt 7** *(cần code `ADR-051` — PO đã duyệt, contract
+đã qua §3, chưa thi hành **có chủ đích** để giữ mốc "trước khi có ⑩")* · **lượt 4** *(cổng phủ
+~53%)*.
+
+---
+
 ### 🔴🔴 #28 — ⑬ CÓ LỜI GIẢI DỨT ĐIỂM. NHÃN "BỊA SỐ LIỆU" **SAI**. AGENT KHÔNG BỊA.
 
 🔴 **ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC NÓI VỀ ⑬.** Nhãn ⑬ đã bị đổi **BỐN LẦN** trong ngày
