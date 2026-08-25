@@ -911,6 +911,21 @@ token vừa **VÔ HÌNH**, không ai được báo; đúng lớp lỗi dự án 
 (`docker exec … pytest` từng 0 ca chạy mà hiện ra như "0 failed"). **Coder từ chối tự
 dựng lại `fin05do`** (vùng devops, ghim ảnh có chủ đích) — cần quyết: dựng lại hay khai
 rõ suite đang chạy trên mẫu số nhỏ trước khi ai so hai lần chạy khác mẫu số với nhau.
+- ✅ **[PO 25/08] Nhận trách nhiệm — chính PO hạ 3 ngăn** (duyệt dọn hạ tầng 14:10 sau
+  OOM, không lường hệ quả, không báo đội). **Đã bật lại `fin05do`+`fin05`**
+  (RAM 2,47→4,08/7,75 GB, còn 3,67 GB). `fin05-po-test`/`fin05-final` GIỮ DỪNG có chủ
+  đích (không đỡ test nào, giữ biên RAM cho buổi sau) — thiếu ca thì báo, PO bật nốt.
+- 🔴 **[PO 25/08] NÂNG CẤP PHÁT HIỆN — không phải hệ quả phụ của việc hạ ngăn, là MỘT LỖ
+  CÓ SẴN vừa bị chiếu đèn vào:** suite hiện KHÔNG phân biệt được "cổng xanh" với "cổng
+  không chạy". **Việc mới cho Coder, SAU khi xong Vá A+B, đừng chen vào giữa:** cổng
+  bất biến — nhất là `test_inv_ngan_sach_token` — phải **ĐỎ khi không chạy được**,
+  KHÔNG được SKIP. Điều kiện: thông điệp fail phải nói rõ **"KHÔNG CHẠY ĐƯỢC vì thiếu
+  X"**, không đỏ chung chung — để người trực sự cố không đi tìm bug trong code.
+- 🔴 **Hai luật mới, áp từ giờ (PO 25/08):** ① mọi báo cáo suite phải kèm `skipped`,
+  không chỉ nêu `passed/failed` — hai lần chạy khác `skipped` là hai quần thể khác
+  nhau, so thẳng là sai phương pháp kể cả khi cả hai đều xanh. ② PO tự áp luật cho
+  chính mình: dọn hạ tầng là thay đổi có hệ quả, không phải việc nhà — từ nay báo đội
+  TRƯỚC khi dừng bất kỳ ngăn nào, đúng luật PO đã bắt người khác theo.
 
 **Hai bug phụ, ghi nợ:** `get_customer_history` khớp số tiền kiểu MỜ (339k khớp cả
 345k/335k) — nghi là GỐC của phát hiện ⑬/B1 cũ ("không thấy 393.000đ" dù có 2 giao dịch
