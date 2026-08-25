@@ -428,6 +428,27 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
   .tabnav{ padding:10px 16px; }
   .topbar{ padding:12px 16px; }
 }
+/* ===== Thông báo live (tính năng mới, 25/08) ===== */
+.browser{ border:1px solid var(--border-strong); border-radius:var(--radius); overflow:hidden; background:var(--surface); }
+.browser-bar{ display:flex; align-items:center; gap:7px; padding:8px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); }
+.browser-bar .dot{ width:9px; height:9px; border-radius:50%; background:var(--border-strong); }
+.browser-bar .url{ margin-left:8px; font-size:11.5px; color:var(--text-dim); background:var(--surface); padding:3px 10px; border-radius:999px; border:1px solid var(--border); }
+.browser-body{ padding:16px; }
+.appbar{ display:flex; align-items:center; justify-content:space-between; padding:11px 16px; border-bottom:1px solid var(--border); background:var(--surface); }
+.brand-mini{ width:26px; height:26px; border-radius:8px; background:var(--navy); color:#fff; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; }
+.bell-wrap{ position:relative; width:30px; height:30px; border-radius:9px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; background:var(--surface-2); }
+.bell-count{ position:absolute; top:-6px; right:-6px; min-width:17px; height:17px; padding:0 4px; border-radius:999px; background:var(--danger); color:#fff; font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; border:2px solid var(--surface); }
+.bell-count.warn{ background:var(--warning); }
+.notif-panel{ margin:14px 16px 16px; border:1px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--surface); box-shadow:0 8px 22px -16px rgba(76,29,149,.4); }
+.notif-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--surface-2); border-bottom:1px solid var(--border); }
+.notif-item{ display:flex; gap:10px; padding:12px 14px; border-bottom:1px solid var(--border); align-items:flex-start; }
+.notif-item:last-of-type{ border-bottom:none; }
+.notif-item.unread{ background:linear-gradient(90deg, var(--surface-2), var(--surface) 60%); }
+.notif-dot{ flex:none; width:8px; height:8px; border-radius:50%; background:var(--navy-2); margin-top:5px; }
+.notif-dot.warn{ background:var(--warning); }
+.notif-foot{ padding:9px 14px; background:var(--surface-2); border-top:1px solid var(--border); font-size:11.5px; color:var(--text-dim); text-align:center; }
+.empty-box{ border:1px dashed var(--border-strong); border-radius:10px; padding:16px; text-align:center; background:var(--surface-2); }
+
 </style>
 </head>
 <body>
@@ -509,6 +530,11 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
       <span class="tabgroup-label">Sếp</span>
       <button class="tab-btn" data-tab="approve" type="button">Phê duyệt</button>
       <button class="tab-btn" data-tab="report" type="button">Báo cáo vận hành</button>
+    </div>
+    <div class="tab-sep"></div>
+    <div class="tabgroup">
+      <span class="tabgroup-label">Mới</span>
+      <button class="tab-btn" data-tab="notify" type="button">Thông báo live</button>
     </div>
   </nav>
 
@@ -947,6 +973,234 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
       <svg class="icon"><use href="#i-info"></use></svg>
       <div>Nhấn một dòng để mở → xem chi tiết ở tab <b>"Chi tiết ticket"</b> (dùng chip lọc trên minh hoạ hành vi active-state; danh sách trong bản wireframe là tĩnh).</div>
     </div>
+  </section>
+
+
+  <!-- ============ TAB: THÔNG BÁO LIVE ============ -->
+  <section class="view" id="view-notify">
+    <div class="page-head">
+      <span class="eyebrow">Webapp nội bộ · tính năng MỚI — chưa build, đang chờ PO duyệt luồng</span>
+      <h1>Thông báo live — CSKH &amp; Sếp</h1>
+      <p class="sub">Hai sự kiện, hai người nhận khác nhau. <b>Thông báo chỉ RÚT NGẮN thời gian biết tin — không bao giờ là nơi ra quyết định.</b></p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Hai sự kiện — và ai được nhận <span class="tag">chỉ hai, không hơn</span></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">① Chatbot vừa lập hồ sơ mới</div>
+          <div class="card-sub" style="margin-bottom:10px;">Khách chat với Sen → Sen tạo hồ sơ khiếu nại</div>
+          <div class="kv-row"><span class="k">Ai nhận</span><span class="v"><span class="badge badge-info">Mọi CSKH đang trực</span></span></div>
+          <div class="kv-row"><span class="k">Vì sao</span><span class="v">Hàng chờ là hàng chờ <b>chung</b> — chưa ai được phân công lúc hồ sơ vừa sinh ra</span></div>
+          <div class="kv-row"><span class="k">Sếp có nhận?</span><span class="v"><span class="badge badge-neutral">KHÔNG</span> — sếp chỉ vào cuộc khi có việc cần duyệt</span></div>
+        </div>
+        <div class="card">
+          <div class="card-title">② CSKH trình phương án lên duyệt</div>
+          <div class="card-sub" style="margin-bottom:10px;">Trạng thái <span class="mono">draft → pending_approval</span></div>
+          <div class="kv-row"><span class="k">Ai nhận</span><span class="v"><span class="badge badge-warning">Mọi Sếp (supervisor)</span></span></div>
+          <div class="kv-row"><span class="k">Vì sao</span><span class="v">Đây là <b>cổng bắt buộc trước mọi hành động chạm tiền</b> — chậm một giờ là khách chờ thêm một giờ</span></div>
+          <div class="kv-row"><span class="k">CSKH có nhận?</span><span class="v"><span class="badge badge-neutral">Chỉ người TRÌNH</span> — để biết sếp đã duyệt hay từ chối</span></div>
+        </div>
+      </div>
+      <div class="note" style="margin-top:14px;">
+        <svg class="icon"><use href="#i-info"></use></svg>
+        <div><b>Cố ý CHỈ có hai sự kiện.</b> Không báo mỗi lần AI gọi tool, không báo khách gõ thêm tin, không báo hồ sơ đổi trạng thái lặt vặt. Chuông kêu nhiều thì người ta tắt chuông — và lúc đó nó không còn canh gì nữa.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Màn hình 1 — CSKH: chuông + danh sách</div>
+      <div class="browser">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url mono">sen-noibo.vn/tickets</span></div>
+        <div class="browser-body" style="padding:0;">
+          <div class="appbar">
+            <div class="flex center-y gap-md">
+              <div class="brand-mini">Sen</div>
+              <span class="faint" style="font-size:13px;">Hàng chờ ticket</span>
+            </div>
+            <div class="flex center-y gap-md">
+              <div class="bell-wrap">
+                <svg class="icon"><use href="#i-alert"></use></svg>
+                <span class="bell-count">3</span>
+              </div>
+              <span class="faint" style="font-size:12.5px;">Trần Thị Mai · CSKH</span>
+            </div>
+          </div>
+
+          <div class="notif-panel">
+            <div class="notif-head">
+              <b style="font-size:13.5px;">Thông báo</b>
+              <span class="faint mono" style="font-size:11.5px;">3 chưa đọc</span>
+            </div>
+
+            <div class="notif-item unread">
+              <div class="notif-dot"></div>
+              <div style="flex:1;">
+                <div class="flex between center-y" style="gap:8px;">
+                  <b style="font-size:13px;">Hồ sơ mới từ chatbot</b>
+                  <span class="faint mono" style="font-size:11px;">1 phút trước</span>
+                </div>
+                <div style="font-size:12.5px; color:var(--text-dim); margin-top:3px;">
+                  <span class="mono">KN-2026-08-1204</span> · Chuyển nhầm · Nội bộ ví
+                </div>
+                <div class="flex center-y gap-sm" style="margin-top:6px;">
+                  <span class="badge badge-warning"><svg class="icon icon-sm"><use href="#i-alert"></use></svg>Nghi lừa đảo</span>
+                  <span class="badge badge-neutral">Chưa ai nhận</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="notif-item unread">
+              <div class="notif-dot"></div>
+              <div style="flex:1;">
+                <div class="flex between center-y" style="gap:8px;">
+                  <b style="font-size:13px;">Hồ sơ mới từ chatbot</b>
+                  <span class="faint mono" style="font-size:11px;">6 phút trước</span>
+                </div>
+                <div style="font-size:12.5px; color:var(--text-dim); margin-top:3px;">
+                  <span class="mono">KN-2026-08-1203</span> · Tiền chưa về · Ra ngân hàng
+                </div>
+              </div>
+            </div>
+
+            <div class="notif-item">
+              <div style="width:8px;"></div>
+              <div style="flex:1;">
+                <div class="flex between center-y" style="gap:8px;">
+                  <b style="font-size:13px; font-weight:600;">Sếp đã duyệt phương án của bạn</b>
+                  <span class="faint mono" style="font-size:11px;">34 phút trước</span>
+                </div>
+                <div style="font-size:12.5px; color:var(--text-dim); margin-top:3px;">
+                  <span class="mono">KN-2026-08-1180</span> · Hoàn tiền · đã duyệt
+                </div>
+              </div>
+            </div>
+
+            <div class="notif-foot">Nhấn một dòng để <b>MỞ HỒ SƠ</b> — không xử lý gì tại đây</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px;">
+        <div class="note">
+          <svg class="icon"><use href="#i-shield"></use></svg>
+          <div><b>Không có nút hành động nào trong thông báo.</b> Không "Nhận ticket", không "Duyệt", không "Bỏ qua". Nhấn vào chỉ <i>mở hồ sơ</i>. Mọi việc vẫn làm ở màn hình hồ sơ, nơi có đủ ngữ cảnh để quyết định.</div>
+        </div>
+        <div class="note">
+          <svg class="icon"><use href="#i-lock"></use></svg>
+          <div><b>Không hiện tên khách, không hiện số tiền.</b> Chỉ mã hồ sơ + loại + phạm vi. Thông báo hiện trên màn hình có người đi ngang qua — và người nhận chưa chắc có thẩm quyền xem hồ sơ đó.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Màn hình 2 — Sếp: việc chờ duyệt <span class="tag">khác CSKH ở chỗ nào</span></div>
+      <div class="browser">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url mono">sen-noibo.vn/approve</span></div>
+        <div class="browser-body" style="padding:0;">
+          <div class="appbar">
+            <div class="flex center-y gap-md">
+              <div class="brand-mini">Sen</div>
+              <span class="faint" style="font-size:13px;">Phê duyệt</span>
+            </div>
+            <div class="flex center-y gap-md">
+              <div class="bell-wrap">
+                <svg class="icon"><use href="#i-alert"></use></svg>
+                <span class="bell-count warn">2</span>
+              </div>
+              <span class="faint" style="font-size:12.5px;">Ngô Quang Huy · Sếp</span>
+            </div>
+          </div>
+
+          <div class="notif-panel">
+            <div class="notif-head">
+              <b style="font-size:13.5px;">Chờ bạn duyệt</b>
+              <span class="faint mono" style="font-size:11.5px;">2 việc</span>
+            </div>
+
+            <div class="notif-item unread">
+              <div class="notif-dot warn"></div>
+              <div style="flex:1;">
+                <div class="flex between center-y" style="gap:8px;">
+                  <b style="font-size:13px;">CSKH trình phương án</b>
+                  <span class="faint mono" style="font-size:11px;">4 phút trước</span>
+                </div>
+                <div style="font-size:12.5px; color:var(--text-dim); margin-top:3px;">
+                  <span class="mono">KN-2026-08-1190</span> · Hoàn tiền · <b>Ra ngân hàng</b>
+                </div>
+                <div class="flex center-y gap-sm" style="margin-top:6px;">
+                  <span class="badge badge-neutral">Trình bởi: Trần Thị Mai</span>
+                  <span class="badge badge-danger"><svg class="icon icon-sm"><use href="#i-clock"></use></svg>Hạn còn 6h</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="notif-item unread">
+              <div class="notif-dot warn"></div>
+              <div style="flex:1;">
+                <div class="flex between center-y" style="gap:8px;">
+                  <b style="font-size:13px;">CSKH trình phương án</b>
+                  <span class="faint mono" style="font-size:11px;">51 phút trước</span>
+                </div>
+                <div style="font-size:12.5px; color:var(--text-dim); margin-top:3px;">
+                  <span class="mono">KN-2026-08-1180</span> · Điều chỉnh số dư · Nội bộ ví
+                </div>
+              </div>
+            </div>
+
+            <div class="notif-foot">Nhấn để mở hồ sơ → đọc chuỗi điều tra → <b>rồi mới duyệt, có OTP</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note" style="margin-top:16px; border-left:3px solid var(--danger);">
+        <svg class="icon"><use href="#i-lock"></use></svg>
+        <div><b>Tuyệt đối không có nút "Duyệt" trong thông báo.</b> Duyệt là hành động chạm tiền — nó đòi sếp <i>đọc chuỗi điều tra</i> rồi <i>nhập OTP khớp đúng hồ sơ đó</i>. Một nút duyệt nhanh trong thông báo sẽ biến cổng HITL thành một cú bấm — đúng thứ cả hệ thống được xây để ngăn.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Ba trạng thái phải vẽ — đừng chỉ vẽ trạng thái đẹp</div>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">Rỗng</div>
+          <div class="empty-box">
+            <svg class="icon" style="opacity:.35;"><use href="#i-check"></use></svg>
+            <div style="font-size:12.5px; color:var(--text-dim); margin-top:6px;">Không có thông báo mới</div>
+          </div>
+          <div class="card-sub" style="margin-top:8px;">Phải nói rõ <b>“không có”</b>, không để trắng — trắng đọc ra là “đang tải”.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Mất kết nối</div>
+          <div class="empty-box" style="border-color:var(--warning);">
+            <span class="badge badge-warning"><svg class="icon icon-sm"><use href="#i-alert"></use></svg>Mất kết nối thời gian thực</span>
+            <div style="font-size:12.5px; color:var(--text-dim); margin-top:8px;">Đang thử kết nối lại… Danh sách hàng chờ vẫn đúng.</div>
+          </div>
+          <div class="card-sub" style="margin-top:8px;">🔴 <b>Bắt buộc.</b> Người dùng phải biết mình <i>đang không được báo</i> — im lặng vì mất kết nối trông y hệt im lặng vì không có việc.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Quá nhiều</div>
+          <div class="empty-box">
+            <span class="badge badge-neutral">9+</span>
+            <div style="font-size:12.5px; color:var(--text-dim); margin-top:8px;">Hiện 10 mục gần nhất<br>· còn lại xem ở hàng chờ</div>
+          </div>
+          <div class="card-sub" style="margin-top:8px;">Không cuộn vô tận. Thông báo là <b>lối tắt</b>, hàng chờ mới là <b>danh sách đầy đủ</b>.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Nguyên tắc nền — thứ quyết định tính năng này sống hay chết</div>
+      <div class="card" style="border-left:3px solid var(--navy-2);">
+        <div class="card-title" style="margin-bottom:10px;">Thông báo KHÔNG BAO GIỜ là nguồn sự thật duy nhất</div>
+        <p style="font-size:13.5px; line-height:1.6; margin:0 0 10px;">
+          Kết nối thời gian thực <b>sẽ</b> đứt — mạng chập, tab ngủ, máy chủ khởi động lại. Nếu một hồ sơ chỉ được biết tới <i>qua thông báo</i>, thì một lần đứt kết nối là một khách hàng bị bỏ quên, và <b>không ai biết chuyện đó đã xảy ra</b>.
+        </p>
+        <div class="kv-row"><span class="k">Vì vậy</span><span class="v"><b>Hàng chờ</b> vẫn là nguồn sự thật. Thông báo chỉ <b>rút ngắn thời gian biết tin</b>.</span></div>
+        <div class="kv-row"><span class="k">Kiểm chứng</span><span class="v">Tắt hẳn thông báo đi — mọi việc vẫn làm được, chỉ chậm hơn. Nếu có việc <i>không làm được</i>, thiết kế sai.</span></div>
+      </div>
+    </div>
+
   </section>
 
   <!-- ============ TAB: TICKET DETAIL ============ -->
