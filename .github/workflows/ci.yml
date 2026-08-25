@@ -311,6 +311,48 @@ jobs:
         # xác nhận định kỳ bằng `pip-audit -r requirements.txt` KHÔNG kèm
         # --ignore-vuln, gỡ dòng ignore này ngay khi có bản vá.
         #
+        # ─────────────────────────────────────────────────────────────────
+        # BA IGNORE THÊM 25/08 — PO THẬT KÝ CHẤP NHẬN RỦI RO (đường A), SAU
+        # KHI ĐƯỢC GIẢI THÍCH CẢ RỦI RO CỦA CHÍNH ĐƯỜNG A.
+        #   CVE-2026-45830  thiếu kiểm quyền -> đọc/ghi/xoá collection của
+        #                   TENANT KHÁC (chỉ qua API HTTP của chroma server)
+        #   CVE-2026-45831  SimpleRBACAuthorizationProvider không kiểm
+        #                   tenant/database/collection (chỉ ở chế độ server)
+        #   CVE-2026-45833  code injection qua trust_remote_code — CÙNG HỌ
+        #                   PYSEC-2026-311 ở trên
+        # Cả ba: chromadb 1.5.9, cột "Fix Versions" TRỐNG -> KHÔNG CÓ BẢN VÁ
+        # ĐỂ NÂNG. Không phải "lười nâng" — không có gì để nâng lên.
+        #
+        # LÝ DO AN TOÀN — MỘT TIỀN ĐỀ DUY NHẤT: dự án chạy chroma ở CHẾ ĐỘ
+        # NHÚNG, không mở cổng, không bật trust_remote_code. Cả ba lỗ chỉ với
+        # tới được qua API HTTP của một chroma SERVER.
+        #
+        # BẰNG CHỨNG ĐO ĐƯỢC (25/08, chạy lại thay vì tin chú thích cũ —
+        # chính chú thích PYSEC ở trên là thứ suýt làm tôi khỏi kiểm):
+        #   grep -rn trust_remote_code . --include=*.py *.yml *.yaml *.txt
+        #        -> 0  (hai kết quả duy nhất LÀ CHÍNH KHỐI CHÚ THÍCH NÀY)
+        #   src/rag/store.py:84 -> chromadb.PersistentClient(...)  KHÔNG HttpClient
+        #   docker-compose.yml  -> chỉ VOLUME `chroma_data`, KHÔNG service/port chroma
+        #   grep SimpleRBAC | CHROMA_SERVER  -> 0
+        #
+        # 🔴 TIỀN ĐỀ ẤY CÓ THỂ CHẾT, VÀ KHI NÓ CHẾT MẤY DÒNG IGNORE NÀY VẪN
+        # NẰM IM. Chú thích KHÔNG KÊU. Nên điều kiện huỷ hiệu lực được cắm
+        # thành MỘT CỔNG, không phải một dòng chữ:
+        #
+        #   tests/test_security/test_chromadb_embedded_premise.py
+        #
+        # Nó khẳng định đúng ba tiền đề trên, kèm 4 ca ĐỐI CHỨNG chứng minh
+        # từng hàm dò thật sự bắt được ca vi phạm và không bắt oan volume
+        # `chroma_data`. Ai chuyển sang HttpClient / thêm service chroma /
+        # bật trust_remote_code -> TEST ĐỎ -> mấy dòng ignore này TỰ LỘ là đã
+        # hết hiệu lực. [ĐO 25/08] 7 passed; PO-agent tự đổi PersistentClient
+        # thành HttpClient -> 1 failed, khôi phục -> xanh lại.
+        # 🔴 GỠ TEST ẤY = GỠ ĐIỀU KIỆN PO ĐÃ KÝ. Gỡ thì phải gỡ luôn 3 ignore.
+        #
+        # NGÀY RÀ LẠI: 2026-09-24 (hoặc SỚM HƠN, ngay khi chromadb ra bản vá).
+        # Rà bằng: pip-audit KHÔNG kèm --ignore-vuln, đối chiếu "Fix Versions".
+        # ─────────────────────────────────────────────────────────────────
+        #
         # 🔴 BỎ `--strict` (25/08, PO-agent duyệt) — VÀ VÌ SAO KHÔNG BỎ TRẦN.
         #
         # [ĐO] run 32846571488, bước này, dòng lỗi DUY NHẤT:
@@ -342,7 +384,12 @@ jobs:
         # bước mà mã trả về CHÍNH LÀ thứ ta cần đọc.
         run: |
           set +e
-          pip-audit --ignore-vuln PYSEC-2026-311 > /tmp/pip-audit-c7.log 2>&1
+          pip-audit \
+            --ignore-vuln PYSEC-2026-311 \
+            --ignore-vuln CVE-2026-45830 \
+            --ignore-vuln CVE-2026-45831 \
+            --ignore-vuln CVE-2026-45833 \
+            > /tmp/pip-audit-c7.log 2>&1
           KQ_AUDIT=$?
           set -e
           cat /tmp/pip-audit-c7.log
