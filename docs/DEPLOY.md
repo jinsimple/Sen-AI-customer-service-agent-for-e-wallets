@@ -35,6 +35,62 @@
 > Caddyfile/CI dưới đây vẫn đúng kỹ thuật, chỉ sai vai trò "đây là đường chính"). Việc lớn hơn
 > phạm vi một bản vá, cần một phiên riêng.
 
+## Cập nhật code trên production (đổi UI, đổi backend, mọi thay đổi) — đường THẬT
+
+```powershell
+cd <thư mục repo trên máy Windows>
+.\scripts\deploy_home.ps1
+```
+
+Đó là toàn bộ lệnh. Script **tự** `git pull --ff-only`, tự build lại image nào có code đổi
+(so khớp qua `docker-compose.yml`, không cần biết trước là frontend hay backend), tự chờ
+`/health` xanh, tự kiểm kho RAG, tự xác nhận Cloudflare Tunnel đã nối. **Đọc `[LOI]` màu đỏ nếu
+có** — script dừng và nói rõ bước nào hỏng, không tự đoán tiếp.
+
+⚠️ **Luật Đ′ — cây làm việc phải ĐỨNG YÊN suốt lúc script chạy.** Đừng bấm script trong lúc
+Coder đang commit dở trên `main` — `git pull --ff-only` giữa chừng một đợt land nhiều commit có
+thể kéo về một trạng thái nửa vời. Hỏi trước "code đã land xong hết chưa" rồi mới chạy.
+
+### Lùi lại một bản deploy (rollback)
+
+🔴 **Không có "rollback ảnh"** — dự án build thẳng trên máy, không đẩy lên container registry
+nào (xem `deploy.yml`, cố ý để đơn giản cho quy mô pilot). Cách lùi DUY NHẤT là lùi **mã nguồn**
+trên `main` rồi build lại, không phải chuyển sang một image cũ đã lưu sẵn.
+
+🔴 **ĐỪNG `git checkout <sha cũ>` trực tiếp trên máy production.** `deploy_home.ps1` luôn
+`git pull --ff-only origin main` ở đầu — chạy lại script sau khi checkout thủ công sẽ kéo `main`
+mới nhất về, xoá mất chỗ lùi vừa làm (hoặc lệnh `pull` tự chối chạy vì không còn là fast-forward
+từ trạng thái detached HEAD). Rollback đúng cách đi qua git trước, máy production chỉ chạy lại
+đúng một lệnh quen thuộc:
+
+```powershell
+# 1. TRÊN MÁY DEV (không phải máy production) — lùi main bằng một commit MỚI,
+#    không sửa lịch sử cũ. Thay <sha-gay-loi> bằng commit thật của bản đổi UI.
+git revert <sha-gay-loi>
+git push origin main
+
+# 2. TRÊN MÁY PRODUCTION (Windows) — chạy lại ĐÚNG lệnh deploy bình thường,
+#    không có lệnh "rollback" riêng biệt nào khác:
+cd <thư mục repo>
+.\scripts\deploy_home.ps1
+```
+
+`git revert` tạo một commit MỚI đảo ngược thay đổi (không xoá lịch sử, không force-push) — đúng
+Luật P của dự án, và an toàn khi nhiều phiên đang cùng đọc/ghi nhánh `dev/learning-loop`/`main`.
+Nếu bản lùi lại vẫn xấu hơn bản trước nữa, `git revert` chính commit revert đó — không giới hạn
+số lần, mỗi lần đều là một commit mới, không phải viết đè.
+
+**Xác nhận rollback thật sự có hiệu lực** — đừng tin "script chạy xong không lỗi" là đủ:
+```powershell
+# build_commit trong /health PHẢI khớp commit vừa revert-và-push, không phải
+# commit gây lỗi — so ĐÚNG loại với ĐÚNG loại, đừng lấy build_commit so với
+# build_src_hash (hai nhãn khác nhau, xem src/dau_ma_nguon.py)
+git rev-parse --short HEAD
+curl.exe -s https://app.adaptivealgo.uk/health | ConvertFrom-Json | Select-Object build_commit, build_src_hash
+# Mở https://app.adaptivealgo.uk TỪ MỘT MÁY KHÁC (không phải máy vừa deploy), xác nhận
+# giao diện đã về đúng trạng thái cũ — đúng bước nghiệm thu cuối script tự nhắc
+```
+
 > ✅ **[PO THẬT ĐÍNH CHÍNH 25/08/2026] `app.adaptivealgo.uk` ĐANG CHẠY `main` CỦA P-226.**
 > Nguyên văn PO thật: *"Domain này đang là P-226 nhánh main rồi bạn ơi — bạn đọc doc nào bảo là
 > P-121 thì sửa ngay lại cái doc đấy luôn cho mình nhé."*
