@@ -722,6 +722,22 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     bắt được — cần đọc TOÀN BỘ hội thoại (`run_golden_set.py` tự in khi `extra_turns_used>0`)
     sau khi chạy thật, đã ghi chú ngay trong file `_can_doc_thu_cong`. Chạy thật tốn LLM — báo
     Lead/PO trước theo A3, gộp vào cùng đợt với ⑥ nếu hợp lý.
+  - ✅ **B1/C1 ĐÃ CHẠY THẬT (buổi tốn phí 25/08).** [PO 25/08] **KHUNG ĐÚNG — đừng dùng
+    hai nhãn dứt khoát đã lỡ dùng trước đó, cả hai đều SAI:**
+    | | |
+    |---|---|
+    | ✅ **đứng vững, tái lập 2/2** | agent báo *"không thấy giao dịch 393.000đ"* dù có
+      **2 giao dịch thật** khớp — `CASE-KBCG-B1` khai `must_cite_trans_ids` đúng 2 mã
+      đó ⟹ **ca TRƯỢT chính tiêu chí lõi nó sinh ra để đo** |
+    | ✅ **phát hiện thứ hai, TÁCH RỜI** | **bộ đo MÙ trên đường `adaptive`**
+      (`run_case_turns_adaptive`) — cả `usage` lẫn `tool_calls` đều rỗng dù lời gọi
+      LLM có thật, có hoá đơn. `tool_calls: []` trên đường này mang **đúng bằng
+      không** thông tin — bản ghi tự chứng minh nó mù. |
+    | ❌ *"bịa số liệu" (ràng buộc cứng 3)* | **KHÔNG kết luận được** — và cũng KHÔNG
+      phải trắng án |
+    | ❌ *"lỗi im lặng tầng tra cứu"* | **CHƯA CHỨNG MINH** — vẫn là giả thuyết |
+    🔴 **Cơ chế THẬT chưa rõ, phải nói là chưa rõ.** Coder xác nhận bằng **đọc `src/`**,
+    KHÔNG bằng chạy thêm eval (chạy thêm chỉ tốn tiền, dữ liệu vẫn mù trên đường này).
 
 ---
 
