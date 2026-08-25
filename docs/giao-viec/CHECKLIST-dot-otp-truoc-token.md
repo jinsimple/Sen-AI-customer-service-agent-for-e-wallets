@@ -1107,6 +1107,89 @@ trên nền sai là đúng thứ Luật F cấm.
 | 11:55 **#17** | `ec0263d` | 🟢 | 🟢 ⑪ giữ chưa commit *(đúng)* | 🟢 chạy 20 mẫu · **tìm ra lỗ quan sát 41%** | 🟢 xong cả 3 việc soát | **cả 4 chạy · 0 commit mới** |
 | 12:10 **#18** | `88b0133` | ⏳ chưa có dấu vết mới | ⏳ ⑧⑨⑪ chưa động | 🟢 4 commit — cổng đối soát xong+vá | 🟢 rảnh sau khi đánh sập ⑩ | 🟢 **BUỔI TỐN PHÍ ĐÓNG** |
 | 12:30 **#19** | `18e2166` | 🔴 **im lặng 2 vòng** | 🟢 ⑨ soát xong · ⑪ đang làm | 🟢 vá SL-03 lỗi thời | 🟢 **soát xong ⑧ + giết đường thứ ba của PO** | ⑧⑨ thông · ⑪ là ô cuối |
+| 12:50 **#20** | `0b169de` | 🟢 5 commit — nghiệm thu + bàn giao + 3 luật lên STATE | 🟢 ⑧ land `3ac7d90` · đang ⑪ + đo lượt 4 | 🟢 soạn kịch bản chạy | 🟢 soát độ phủ | 🔴 **8/8 KHÔNG đạt hôm nay** |
+
+### 🔴 #20 — BẢN ĐỒ PHỦ 8 LƯỢT: chỉ đạt 3/8, và một cổng BẮN SAI LƯỢT
+
+🔴 **Tiêu chí nghiệm thu đã đổi** *(PO thật, 25/08)*: **KHÔNG** phải *"ô đã tick"* / *"cổng xanh"*,
+mà là **"kịch bản chuyên gia CSKH chạy TRỌN VẸN trên UI thật"**.
+*(PO hiểu sai lệnh này một lần, hoãn nhầm ⑪ — đã đảo. ⑪ ép cấu trúc **lượt 5/6/3**, mà 5/6/3 chính
+là các lượt trong kịch bản ⟹ nó **là một phần của cái được nghiệm thu**, không phải biến ngoại lai.)*
+
+```
+lượt 1  OTP + giải thích "mã PHIÊN"           ✅ ④ + ⑧ câu 1
+lượt 2  hỏi thời điểm + số tiền MỘT tin        ✅ ⑤
+lượt 3  đọc lại đủ 5 dữ kiện                   🔴 TRỐNG → ⑪
+lượt 4  câu sàng lọc lừa đảo                   🔴 CÓ ⑨ NHƯNG BẮN Ở LƯỢT 8
+lượt 5  ba vế (không được / được / chị làm gì) 🔴 TRỐNG → ⑪
+lượt 6  PDPA đổi góc nhìn                      🔴 TRỐNG → ⑪
+lượt 7  tóm tắt 6 trường, xác nhận TRƯỚC khi ghi 🔴 TRỐNG → ⑩ ĐANG TREO
+lượt 8  mã hồ sơ + cảnh báo lừa                ✅ ⑧ câu 2 (mở rộng ở 3ac7d90)
+```
+
+**⟹ ⑪ một mình KHÔNG đủ nghiệm thu.** Nó phủ 3/5/6. Còn **lượt 4** *(⑨ sai điểm móc)* và **lượt 7**
+*(⑩ treo chờ PO duyệt `ADR-051`)*.
+
+🔴 **LỖ NẶNG NHẤT — ⑨ bắn CHẬM 4 LƯỢT, và chậm đúng chiều nguy hiểm.** [ĐO] `graph.py:2020`:
+```python
+if ticket_id is not None and loai_khieu_nai == "wrong_recipient":
+```
+⟹ chỉ bắn **SAU** khi `create_ticket` trả về, mà vé tạo giữa lượt 7–8 ⟹ câu sàng lọc rơi vào
+**lượt 8**. Kịch bản đặt nó ở **lượt 4** vì câu trả lời **quyết định toàn bộ hướng tư vấn lượt 5–6**
+*(bị lừa ⟹ KHÔNG khuyên liên hệ người nhận, đi trình báo ngay)*.
+**Hệ quả:** khách **đã nghe trọn lời khuyên chuyển-nhầm**, **đã** được lập vé sai loại, **rồi mới**
+bị hỏi có bị lừa không. ⑫b *(FS-13 ⟹ dừng, bàn giao)* cũng chỉ kích hoạt được **sau khi lời khuyên
+sai đã ra khỏi miệng** — cửa sổ ấy nay **đo được: rộng 4 lượt**.
+
+### 🔴 BA TẦNG CÙNG BỎ SÓT MỘT CHIỀU — **THỨ TỰ**
+```
+phiếu PO viết     "hỏi ở MỌI ca chuyển nhầm"    → CÓ HỎI KHÔNG, không nói HỎI Ở ĐÂU
+cổng QA/QC dựng   5 trục SL-01…04b, TẤT CẢ ĐẠT  → chấm CÓ HỎI KHÔNG, không chấm HỎI LƯỢT NÀO
+mã Coder viết     hỏi — nhưng ở lượt 8
+```
+**PO viết phiếu ⟹ PO là tầng đầu tiên bỏ sót.** Coder tự chẩn: *"tôi chọn chỗ DỄ ĐO, không chọn chỗ
+ĐÚNG LƯỢT"* — chính xác, và không phải lỗi của riêng họ.
+
+🔴 **Bài học đắt nhất đợt, áp cho mọi cổng về sau:**
+> **Một cổng chấm *"có làm không"* sẽ XANH MƯỚT trên một luồng làm đúng mọi việc nhưng SAI THỨ TỰ.**
+> Ta có 5 trục ca cho ⑨, **tất cả đạt**, và **không trục nào bắt được lỗi 4 lượt**.
+
+⟹ Kịch bản chuyên gia có giá trị **không phải vì liệt kê các việc phải làm**, mà vì nó **CỐ ĐỊNH
+THỨ TỰ** — và thứ tự chính là chiều **chưa ai từng đo**.
+
+### 🔴 Review soát ĐỘC LẬP — khớp lượt 4, và tìm thêm HAI lỗ Coder không thấy
+
+*(Hai người soi độc lập cùng một vật là **cố ý**. Hôm nay đã hai lần một nguồn duy nhất suýt cho
+kết luận sai — sổ thiếu 41% · phép dò `return_direct` — và **cả hai lần thứ cứu là nguồn thứ hai**.)*
+
+🔴 **LỖ 1 — HAI NHÁNH RẼ KHÔNG CÓ CỔNG TẤT ĐỊNH NÀO, và CẢ HAI ĐÃ CÓ CA HỎNG THẬT:**
+```
+Nhánh A  khách xác nhận bị lừa          ✅ phủ tốt nhất (⑨ → merge → FS-13 → ⑫b)
+Nhánh B  nhiều GD khớp, phải ĐỔI TRỤC   🔴 KHÔNG cổng nào — và đây CHÍNH LÀ CASE-KBCG-B1
+Nhánh C  2 lần đổi trục vẫn không ra    🔴 KHÔNG cổng nào — và đây CHÍNH LÀ CASE-KBCG-C1
+```
+🔴 **Phát hiện ⑬ (ràng buộc cứng 3) KHÔNG phải một ca biên lẻ — nó LÀ hai nhánh rẽ của kịch bản
+chuyên gia, đang chạy không có gì đỡ.** Cả hai nhánh **viết ngắn hơn** trong kịch bản, nên bị đọc
+là phụ; thực tế chúng là **hai chỗ yếu nhất**, và đã có **bằng chứng hỏng thật từ đợt đo trước**.
+
+⚠️ **LỖ 2 — lượt 8 chỉ phủ MỘT NỬA.** K3 *(⑧)* có; nhưng phần **"ba bước tiếp theo"** *(chuyên viên
+tiếp nhận → người nhận đồng ý/không → chứng từ)* **không có cơ chế tất định nào**, để hoàn toàn cho
+prompt. Không hạng mục nào đã land hay sắp land nhắc tới nó.
+
+🔴 **Và Review đóng khung lượt 4 sắc hơn:** ⑨ **không sai NỘI DUNG, sai VAI TRÒ CẤU TRÚC** — nó chỉ
+hoạt động được như một bản **SỬA SAU** *(correction)*, trong khi kịch bản thiết kế nó làm bản
+**CHỌN TRƯỚC** *(path selection)*. ⑫b đóng được **vế cuối** *(dừng tư vấn sai NGAY KHI phát hiện)*
+nhưng **không đóng được vế đầu** *(tránh việc ĐÃ LỠ tư vấn sai một vòng)*. Trích nguyên văn kịch
+bản, mục Nhánh A: *"Bot sẽ ép nó vào 'chuyển nhầm' rồi tư vấn sai toàn bộ."*
+
+### 🔴 BA RỦI RO CHO BUỔI CHẠY THẬT — không cái nào do ⑪, không cái nào ⑪ sửa được
+```
+(a) lượt 7 TRẮNG hoàn toàn        ⑩ treo chờ PO duyệt ADR-051
+(b) nhánh B/C không cổng          đã có ca lỗi THẬT, chưa ai vá
+(c) ⑨ đúng nội dung, sai thời điểm  chỉ vá được SAU khi đã lỡ một vòng tư vấn sai
+```
+⚠️ **Cả ba nằm SÁT ⑪ trong luồng** *(lượt 6→7 liền kề)* ⟹ nếu chạy mà không **ghi trước** ba rủi ro
+này, **lỗi của (a)(b)(c) sẽ bị quy nhầm cho ⑪.**
 
 **#19 — ⑧ và ⑨ thông, đợt còn MỘT ô**
 
