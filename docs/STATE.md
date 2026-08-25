@@ -1443,6 +1443,22 @@ và sai.
 > đúng ở nơi khác) và khác Luật G (G nói cơ chế làm đúng việc CỦA NÓ không phải việc TA GIẢ
 > ĐỊNH; AC hẹp hơn, riêng cho dụng cụ ĐO, kèm ba phép bắt cụ thể theo biến thể).
 
+> **[ĐO 26/08, ca thứ 7, biến thể "sai VẬT"]:** khủng hoảng hạn mức DashScope — PO thật gửi
+> ảnh bảng hạn mức, PO-agent tính "≈19 triệu token còn lại, trần 5tr/ngày ⟹ ~4 ngày" — **VẬT
+> sai:** đó là tổng CẢ TÀI KHOẢN (~20 model), trong khi `LLM_MODEL_POOL` chỉ ghim 7 model.
+> Lead bắt bằng đúng phép của biến thể 1 ("đo lại trên vật khác, so kết quả"): tính riêng
+> 7 model TRONG POOL = 7 triệu, không phải 18,76 triệu ⟹ **1,4 ngày, không phải 3,75 ngày**
+> — lệch **gần 3 lần**, cả hai chiều đều BI QUAN hơn số ban đầu (đúng cảnh báo ở trên: bộ
+> kiểm chỉ canh chiều trấn an sẽ bỏ lọt ca này). Đối chiếu ảnh gốc xác nhận đúng. **Tổng quota
+> tài khoản ≠ quota HỆ THỐNG VỚI TỚI ĐƯỢC — bể xoay (`LLM_MODEL_POOL`) quyết định con số
+> thật, không phải bảng hạn mức của nhà cung cấp.** Đánh đổi lộ ra cùng lúc: 11/18 triệu
+> token còn lại nằm ở NHÃN ĐỘNG (không ghim ngày) — luật `docker-compose.yml:150` (chỉ dùng
+> bản ghim ngày, tránh nhà cung cấp đổi model dưới chân) khoá đúng 60% quota đó CÓ CHỦ Ý, đổi
+> lấy số đo tin được. Trần USD/ngày hợp lý phải suy từ "muốn 7 triệu kéo dài bao lâu" (81
+> ngày tới 15/11 ⟹ ~86.420 token/ngày; 14 ngày ⟹ 500.000/ngày; 7 ngày ⟹ 1.000.000/ngày),
+> không phải suy từ "một ngày chịu được bao nhiêu" — trần 5tr/ngày cũ CAO HƠN CẢ BỂ, vô nghĩa
+> làm giới hạn thật. PO thật quyết mốc nào, chưa chốt lúc ghi dòng này.
+
 > ⭐ **MỞ RỘNG cùng ngày, nối vào Luật D thay vì cấp ký hiệu riêng (Lead quyết, PO đề xuất
 > ban đầu cho vào AC nhưng nó đúng hình dạng D hơn — "cột phòng thủ cần NGUỒN ĐỘC LẬP"):**
 > **Một bất biến kiểm QUAN HỆ giữa hai số rút từ CÙNG một nguồn thì không phải bất biến —
