@@ -365,9 +365,18 @@ mục cổng an toàn ngay dưới.
    `phan_luong.py` tối thiểu) trước khi đi tiếp. **Cổng nhãn-build-vs-`/app/src` cũ
    KHÔNG đủ** — nó không bắt được ảnh tụt lại sau repo, chỉ bắt được ai sửa file bên
    trong container.
-3. Re-confirm login fixture (`USR-0145`/`0974000145` — xem mục 🔴 đầu file) qua chính
+3. **🔴 Kiểm CỜ ĐANG BẬT — độc lập với bước 2, KHÔNG thay thế nhau** (phát hiện PO
+   25/08): đọc `env` THẬT trong tiến trình đang phục vụ (`docker exec <container> env`
+   hoặc tương đương), xác nhận `PHAN_LUONG_BAT=1` VÀ `CONG_T0_BAT=1` tường minh.
+   `src/config.py` đặt `PHAN_LUONG_BAT` **mặc định TẮT** khi không set biến môi trường
+   — một ảnh dựng "sạch" không khai cờ sẽ khiến cổng định tuyến (trung tâm cả đợt này)
+   im lặng không chạy, không cảnh báo gì. Ảnh đúng mã (bước 2 xanh) mà cờ tắt thì mã
+   **có mặt nhưng không chạy** — trông y hệt mã hỏng. Đây chính là lỗi khiến mẫu số lưu
+   lượng 25/08 (`65% day_du`) không dùng được — xem caveat thứ hai trong
+   `eval/results/README-2026-08-25-buoi-ton-phi-13-B1-C1.md`.
+4. Re-confirm login fixture (`USR-0145`/`0974000145` — xem mục 🔴 đầu file) qua chính
    ảnh vừa dựng lại.
-4. Mới chạy kịch bản thật.
+5. Mới chạy kịch bản thật.
 
 Trong lúc chạy:
 

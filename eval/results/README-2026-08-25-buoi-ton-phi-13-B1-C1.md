@@ -190,6 +190,25 @@ token/lời gọi tool (giữ nguyên số PO xác nhận, không tính lại v�
 — bộ ghi lành, sửa nhầm bệnh. Việc gom/tắt 5 ngăn xếp không dùng để tránh OOM lần sau là quyết
 định hạ tầng, ngoài phạm vi ghi của QA/QC — đã có PO tự nhận và ghi nợ.
 
+**🔴 CAVEAT THỨ HAI, ĐỘC LẬP — [PO đo, 25/08, ghi lại theo Luật P — không xoá số cũ, chỉ bổ
+sung lý do KHÔNG dùng được]:** ngoài chuyện mất 24% bản ghi ở trên, chính ngăn `fin05-dot-otp`
+lúc lấy mẫu này đang chạy với **`PHAN_LUONG_BAT=0` VÀ `CONG_T0_BAT=0`** (xác nhận bằng `env` thật
+trong tiến trình đang phục vụ) — dựng có chủ đích cho nghiệm thu ⑦ (ép mọi lượt về `day_du` để
+đọc sổ), không phải bug. Hệ quả: **`65% day_du` (13/20) không phản ánh hành vi thật của sản
+phẩm** — nó phản ánh hành vi của một hệ đã tắt tay cả hai cổng định tuyến tất định. Phân bố này
+giờ có **hai lý do độc lập** để không dùng trích %: mất bản ghi có chọn lọc (trên) VÀ cờ định
+tuyến tắt (đây). Không tính lại số — mẫu này coi như không dùng được cho câu hỏi phân bố `duong`
+thật, đợi mẫu mới trên ngăn có cờ bật tường minh.
+
+**🔴 Phát hiện cấu hình đáng nhớ hơn cả mẫu số — [PO đo, 25/08]:** `src/config.py` đặt
+`PHAN_LUONG_BAT` mặc định **TẮT** khi biến môi trường không được set (`os.environ.get(...,  "")`
+→ falsy), trong khi `CONG_T0_BAT` mặc định **BẬT** (`"1"`). Dựng một ngăn "sạch" không khai báo
+biến này thì cổng định tuyến — trung tâm của cả đợt "OTP trước token" — **im lặng không chạy**,
+không có cảnh báo nào. Mọi buổi chạy thật từ nay cần kiểm **CẢ HAI** độc lập trước khi tin kết
+quả: ① ảnh có đúng mã (so băm cây làm việc ↔ container) VÀ ② cờ có đang bật (đọc `env` thật
+trong tiến trình đang phục vụ) — ảnh đúng mà cờ tắt thì mã có mặt nhưng không chạy, trông y hệt
+mã hỏng.
+
 ## Bài học công cụ đo (Luật 7 style, ghi vào đây để không lặp lại)
 
 Nhánh xử lý lỗi (`except Exception as e: violations = [f"LỖI CHẠY CASE: {e!r}"]`,
