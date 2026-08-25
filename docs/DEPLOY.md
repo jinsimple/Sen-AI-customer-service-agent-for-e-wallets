@@ -492,36 +492,51 @@ nhắn lại liên tục trong ngày mà lần nào cũng bị chặn.
 ```
 Mốc đo — [ĐO, tra được] `docs/DECISIONS.md:3003-3005` · `docs/nhat-ky/2026-08-25-ADR-051-du-
 thao-cho-PO-duyet.md` · `docs/giao-viec/CHECKLIST-dot-otp-truoc-token.md:1570` (đo THẬT từ sổ
-sống, KHÔNG phải ước tính — **25/08, không phải 17/08** như trao đổi trước đó ghi, tự sửa khi
-tra nguồn):
-  0 tool → 10.381 token (n=8) · 1 tool → 20.811 (n=4) · 3 tool → 41.444 (n=1)
-  ⟹ mỗi lời gọi tool ≈ +10.400 token, TUYẾN TÍNH KHÍT (bất biến so_luot_goi_model =
-    so_tool_call + 1, khớp 100% trên hai ngăn độc lập)
-🔴 **Con số "141.000 token/hội thoại 8-lượt" cụ thể — KHÔNG tra ra được nguồn** dù đã tìm khắp
-`docs/DECISIONS.md`, `docs/STATE.md`, toàn bộ `docs/nhat-ky/2026-08-25-*.md` và
-`docs/giao-viec/*.md`. Có thể là số suy ra từ công thức trên (8 lượt × trung bình có tool call ≈
-cùng bậc độ lớn) nhưng KHÔNG tự suy diễn thay — hỏi lại nguồn trước khi dùng số này cho quyết
-định tiền cụ thể. Bảng USD dưới đây VẪN dùng 141.000 làm mốc (đã tính trước khi phát hiện gốc
-không tra ra được) — công thức đúng, chỉ cần THAY số nếu nguồn thật khác.
-⚠️ **[ĐÍNH CHÍNH 25/08, `docs/STATE.md:24`]** số TUYỆT ĐỐI (không phải delta) chỉ đúng khi đo
-TRONG container — `langchain-core` 1.5.3 (host/venv) vs 1.5.4 (container) sinh lược đồ tool khác
-nhau, số tuyệt đối lệch ~12% dù mã giống hệt. Ba con số trên đã ghi trong `CHECKLIST-dot-otp-
-truoc-token.md` là *"đo từ sổ sống"* (usage.jsonl thật, tức TRONG container) ⟹ đúng loại đo được
-phép dùng cho quyết định tiền; nếu sau này ai đối chiếu lại bằng venv host, đừng lấy số đó thay.
-Giá qwen3.7-plus quốc tế [ĐO 17/08, CÓ THỂ ĐÃ ĐỔI — xác nhận lại trước khi
-  dùng số tiền để quyết]: $0,40 / 1M token vào · $1,20 / 1M token ra
-Cận dưới/trên mỗi hội thoại (giả định 100% vào / 100% ra — chưa có tỉ lệ
-  vào:ra thật để tính điểm chính xác hơn):
-  141.000 × 0,40/1.000.000 = $0,0564   …   141.000 × 1,20/1.000.000 = $0,169
+sống usage.jsonl TRONG container — 25/08, không phải 17/08 như trao đổi trước đó ghi):
+  0 tool → 10.381 token (n=8, chắc)  ·  1 tool → 20.811 (n=4, chắc)  ·  3 tool → 41.444 (n=1)
+🔴 **`n=1` ở điểm "3 tool" — MỘT quan sát duy nhất, ở đầu mút xa nhất.** Khớp tuyến tính với
+n=8/n=4 là tín hiệu tốt, nhưng một mẫu đơn ở đầu mút không đủ để KHẲNG ĐỊNH tuyến tính giữ đúng
+ngoài phạm vi đã thấy — khai `n` ra thay vì trình bày như số cùng độ tin cậy với hai điểm kia.
+⟹ mỗi lời gọi tool ≈ +10.400 token (từ (20.811−10.381)/1 và (41.444−10.381)/3, hai ước lượng
+  khớp nhau ~1%, nhưng dựa trên đúng ba điểm trên).
+
+🔴 **"141.000 token/hội thoại 8-lượt" — KHÔNG PHẢI SỐ ĐO.** [Điều phối p-226-f0 tự xác nhận,
+`git grep` toàn repo không ra kết quả nào khác dòng này] Đây là **con số điều phối tự mang vào,
+không kiểm gốc**. Bỏ khỏi vai trò "mốc", giữ lại làm ĐIỂM Ở GIỮA một khoảng suy ra minh bạch:
+
+  8 lượt, giả định KHÔNG tool call nào     ⟹  8 × 10.381 =  83.048 token   (SÀN)
+  8 lượt, giả định 1 lời gọi tool/lượt     ⟹  8 × 20.811 = 166.488 token   (TRẦN)
+  141.000 tương ứng ~0,7 lời gọi tool/lượt trung bình — nằm giữa hai mốc, HỢP LÝ (agent gọi
+  lookup_transaction/search_policy phần lớn lượt, không phải mọi lượt), nhưng vẫn là GIẢ ĐỊNH
+  về hành vi, không phải số đo cho đúng kịch bản 8-lượt.
+
+⚠️ **[ĐÍNH CHÍNH 25/08, `docs/STATE.md:24`]** số TUYỆT ĐỐI chỉ đúng khi đo TRONG container —
+`langchain-core` 1.5.3 (host/venv) vs 1.5.4 (container) sinh lược đồ tool khác nhau, lệch ~12%
+dù mã giống hệt. Ba điểm nguồn trên đo TRONG container (usage.jsonl thật) ⟹ đúng loại dùng được
+cho quyết định tiền; đối chiếu lại bằng venv host thì đừng lấy số đó thay.
+
+Giá qwen3.7-plus quốc tế [ĐO 17/08, CÓ THỂ ĐÃ ĐỔI — xác nhận lại trước khi dùng số tiền để
+  quyết]: $0,40 / 1M token vào · $1,20 / 1M token ra (giả định 100% vào/100% ra làm hai đầu cận
+  — chưa có tỉ lệ vào:ra thật để tính điểm chính xác hơn)
 ```
 
-| Hội thoại 8-lượt/ngày | Token/ngày | Chi phí ước tính (USD/ngày) |
-|---|---|---|
-| 50 | 7.050.000 | $2,82 – $8,46 |
-| 100 | 14.100.000 | $5,64 – $16,92 |
-| **150 (đề xuất)** | **21.150.000 → làm tròn 20.000.000** | **$8,00 – $24,00** |
-| 300 | 42.300.000 | $16,92 – $50,76 |
-| 500 | 70.500.000 | $28,20 – $84,60 |
+**Bảng dựng thẳng từ hai mốc SÀN/TRẦN — mọi ô tra ngược được, không qua một điểm-giữa che giấu
+giả định:**
+
+| Hội thoại 8-lượt/ngày | Token/ngày (SÀN: 0 tool/lượt) | Token/ngày (TRẦN: 1 tool/lượt) | USD/ngày (SÀN–TRẦN) |
+|---|---|---|---|
+| 50 | 4.152.400 | 8.324.400 | $1,66 – $9,99 |
+| 100 | 8.304.800 | 16.648.800 | $3,32 – $19,98 |
+| **150 (đề xuất, xem dưới)** | **12.457.200** | **24.973.200** | **$4,98 – $29,97** |
+| 300 | 24.914.400 | 49.946.400 | $9,97 – $59,94 |
+| 500 | 41.524.000 | 83.244.000 | $16,61 – $99,89 |
+
+🟡 **Đề xuất giữ nguyên: `TRAN_TOKEN_LLM_MOI_NGAY=20.000.000`.** 150 hội thoại 8-lượt/ngày ở giả
+định ~0,7 tool/lượt (141.000/hội thoại) cho ~21,15M token — làm tròn 20M, **nằm trong khoảng
+SÀN–TRẦN của đúng mức 150 hội thoại/ngày** (12,5M–25M) nên số này KHÔNG phụ thuộc việc giả định
+0,7 tool/lượt đúng chính xác hay không — nó là một điểm hợp lý bên trong dải, không phải một số
+đơn lẻ có thể sai lệch hoàn toàn nếu giả định sai. Logic chọn 150 hội thoại/ngày (ngày "share
+public" bận, không phải viral quy mô lớn) giữ nguyên như đã trình.
 
 🟡 **Đề xuất: `TRAN_TOKEN_LLM_MOI_NGAY=20000000`.** Lý lẽ: 150 hội thoại 8-lượt/ngày là một
 ngày "share public" bận rộn thật (không phải viral quy mô lớn — máy cá nhân + Cloudflare Tunnel
