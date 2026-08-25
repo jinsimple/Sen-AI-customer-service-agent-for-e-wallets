@@ -41,11 +41,43 @@ Không được trừ khỏi tổng chỉ vì "ca đỏ" — tiền đã tốn t
 Transcript đầy đủ: `golden_run_20260825_042017_transcript_day_du.md` (raw.json
 gitignored, không giữ lâu dài).
 
-🔴 **Cả hai ca: agent tuyên bố ĐÃ TRA (kèm chi tiết cụ thể) trong khi
+~~🔴 **Cả hai ca: agent tuyên bố ĐÃ TRA (kèm chi tiết cụ thể) trong khi
 `tool_calls: []`** — nghi vi phạm ràng buộc cứng 3 (cấm bịa số liệu). B1 bịa
 hẳn 7 số tiền "gần đúng" không có tool_result nào đứng sau; USR-0034 thật sự
 CÓ 2 giao dịch 393.000đ khớp (đã xác nhận DB), lẽ ra phải tra ra và hỏi đổi
-trục, không phải tuyên bố "không khớp". Xem transcript để đọc nguyên văn.
+trục, không phải tuyên bố "không khớp". Xem transcript để đọc nguyên văn.~~
+
+🔴🔴 **ĐÍNH CHÍNH [PO 25/08, tự đo DB, bằng chứng NGƯỢC LẠI] — khung "bịa hoàn
+toàn"/"vi phạm ràng buộc cứng 3" Ở TRÊN SAI, giữ nguyên văn gạch ngang, không
+xoá (Luật P).** PO đo trực tiếp lịch sử `USR-0034`: cả 7 số tiền agent nêu
+(387/388/391/392/397/398/399) đều là **giao dịch CÓ THẬT**, và agent BỎ QUA
+5 mức có thật khác (382/383/384/385/395) — một model bịa bừa "số gần 393k"
+không có lý do gì loại đúng 5 mức "gần y hệt" rồi trúng đúng 7 mức thật.
+Xác suất trúng 7/7 theo cách đó là không đáng kể ⟹ **7 số này đến từ một kết
+quả tool CÓ THẬT**, không phải bịa từ hư không.
+
+🔴 **Đúng chỗ hỏng: `duong=day_du` mà `usage={}` VÀ `tool_calls=[]` CÙNG RỖNG
+là một MÂU THUẪN TỰ LỘ** — model chạy thật (`day_du`) thì phải có usage nào
+đó, hai trường cùng rỗng nghĩa là **harness làm mất bản ghi**, đúng họ với
+bug `int+str` vừa vá (một lượt tốn tiền thật, kết quả bị vứt) và với
+`tool_calls: null` mà ADR-042 đã dựng để chống. **Cái rỗng là triệu chứng của
+BỘ ĐO, không phải bằng chứng "agent không gọi tool".**
+
+🟢 **Finding THẬT còn lại sau đính chính, đúng lớp kịch bản chuyên gia cảnh
+báo:** agent báo *"không thấy giao dịch nào khớp đúng số tiền 393.000đ"* dù
+có **hai** giao dịch 393.000đ thật (`TXN20260508000555` 08/05,
+`TXN20260509000173` 09/05, cả hai `success`/`internal_wallet`). PO loại trừ
+giả thuyết "giới hạn 20 giao dịch gần nhất" bằng đo trực tiếp: 20 giao dịch
+gần nhất của user KHÔNG chứa 393k lẫn 7 số kia (0/7) — không phải ca
+`limit=20` kịch bản chuyên gia từng cảnh báo, mà một **cửa sổ lọc khác** (chưa
+xác định) đang bỏ sót giao dịch có thật. Khung đúng: *"báo KHÔNG TÌM THẤY cho
+một giao dịch có thật, tuyên bố đã tra"* — lỗi im lặng ở tầng tra cứu/lọc,
+KHÔNG phải bịa số liệu.
+
+**Việc tiếp theo:** chạy lại đúng 2 ca này (đã vá harness) để xem `tool_calls`
+lần này có nội dung không — nếu có, đọc được tham số gọi thật và tìm ra vì
+sao 393k bị lọc mất; nếu vẫn rỗng mà `duong=day_du`, quay lại bàn "bịa" với
+bằng chứng mạnh hơn. Xem cập nhật ngay dưới đây sau khi chạy lại.
 
 ## Bài học công cụ đo (Luật 7 style, ghi vào đây để không lặp lại)
 
