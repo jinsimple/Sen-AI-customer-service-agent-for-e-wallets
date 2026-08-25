@@ -1,5 +1,10 @@
-# Bàn giao — sang mục tiêu mới (test luồng thật + notification vé mới)
+# Điều kiện để chạy được kịch bản CSKH thật
 
+> 🔴 **[ĐÍNH CHÍNH 25/08]** File này ban đầu đặt tên "bàn giao sang mục tiêu mới" — SAI
+> mục đích. PO thật đảo lệnh: đợt **CHƯA đóng**, ⑪ vẫn đang chạy (chặn nghiệm thu). Bốn
+> mục dưới đây **không phải để phiên sau tiếp quản** — mà là **điều kiện để buổi chạy
+> kịch bản chuyên gia CSKH trên UI thật (bước ① của PO thật) không sập giữa chừng**.
+>
 > Đọc hết trong 3 phút. Nguồn chi tiết: `CHECKLIST-dot-otp-truoc-token.md` (1400+ dòng),
 > chỉ mở khi cần truy vết một dòng cụ thể ở đây.
 
@@ -24,7 +29,7 @@ lặp lại đúng sự cố đã xảy ra. Đang chờ PO thật cho phép dọ
 | việc | trạng thái | đọc tiếp ở đâu |
 |---|---|---|
 | ⑩ (bản tóm tắt 6 trường tất định) | Thiết kế đã chốt (`create_ticket` hai thì), chờ PO thật duyệt ADR-051 | `docs/DECISIONS.md` (khi land) + mục ⑩ trong CHECKLIST |
-| ⑪ (cấu trúc 3 vế + góc nhìn PDPA) | HOÃN, PO thật quyết 25/08 (đổi prompt ngay trước test luồng thật là tự nhiễu buổi test) | mục ⑪ trong CHECKLIST |
+| ⑪ (cấu trúc 3 vế + góc nhìn PDPA) | ĐANG LÀM, CHẶN NGHIỆM THU — lượt 5/6/3 nó ép cấu trúc CHÍNH LÀ lượt trong kịch bản CSKH sắp chạy | mục ⑪ trong CHECKLIST |
 | ⑬ (model có tool không gọi, báo đã tra) | Ràng buộc cứng 3 vi phạm, tái lập 2/2 + UI thật — **cơ chế vì sao model bỏ qua tool CHƯA RÕ** | mục ⑬ trong CHECKLIST |
 | Khoảng trống fintech (3 câu) | Chờ PO thật quyết | `docs/2026-08-25-...` (sổ riêng, tên đầy đủ trong CHECKLIST) |
 
