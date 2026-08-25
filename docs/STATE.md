@@ -18,7 +18,7 @@
 | | |
 |---|---|
 | **Nhánh** | `dev/learning-loop` (một nhánh, PR theo đợt) |
-| **Cây làm việc DÙNG CHUNG** giữa nhiều phiên | 🔴 **Mọi lệnh `git` phải có pathspec.** `stash`/`commit`/`checkout`/`clean` không pathspec sẽ đụng việc dở của phiên khác. Đã gây **4** sự cố. 🔴 **[ĐÍNH CHÍNH 25/08, sự cố #4]:** `commit` nguy hiểm không chỉ vì "đụng cây" — **INDEX cũng là trạng thái DÙNG CHUNG**, không chỉ cây làm việc. `git add <path>` để lại một CỬA SỔ: từ lúc stage tới lúc commit, thứ vừa `add` nằm trong một giỏ **mọi phiên khác đều đổ được** bằng một `git commit -m "…"` KHÔNG pathspec của chính họ (dù họ chỉ định sửa file của họ). **Cách đóng cửa sổ:** luôn `git commit -m "…" -- <pathspec>` (trailing pathspec), KHÔNG BAO GIỜ `git commit -m "…"` trần — dạng có pathspec chỉ commit đúng path nêu ra bằng nội dung hiện tại của nó, bất kể index đang có gì khác. 🔴 **Đã xét worktree riêng cho từng vai, ba chân lý luận đều đo thật (Lead + PO độc lập):** ① index riêng theo worktree → worktree ĐÓNG được lỗ cửa sổ trên; ② Docker KHÔNG bind-mount `./src` (`Dockerfile:93 COPY . .` đóng cứng lúc build) → không tốn chi phí remap; ③ **git CẤM hai worktree cùng checkout một branch**, cả đội đang commit thẳng vào MỘT branch ⟹ tách worktree = đổi quy trình (branch-per-vai + nhịp merge) giữa dòng, không phải hạ tầng hay luật-phải-nhớ — đây là chân đứng vững, quyết định KHÔNG tách worktree đứng trên nó. **Mốc xét lại — HAI mốc, không phải một:** (a) sự cố pathspec thứ 5 SAU khi luật trailing-pathspec đã có; (b) *(PO đề nghị 25/08)* **giữa hai đợt** — lúc "đổi quy trình giữa dòng" không còn là phản đối, ba chân xét lại trên bàn cân sạch. |
+| **Cây làm việc DÙNG CHUNG** giữa nhiều phiên | 🔴 **Mọi lệnh `git` phải có pathspec.** `stash`/`commit`/`checkout`/`clean` không pathspec sẽ đụng việc dở của phiên khác. Đã gây **4** sự cố. 🔴 **[ĐÍNH CHÍNH 25/08, sự cố #4]:** `commit` nguy hiểm không chỉ vì "đụng cây" — **INDEX cũng là trạng thái DÙNG CHUNG**, không chỉ cây làm việc. `git add <path>` để lại một CỬA SỔ: từ lúc stage tới lúc commit, thứ vừa `add` nằm trong một giỏ **mọi phiên khác đều đổ được** bằng một `git commit -m "…"` KHÔNG pathspec của chính họ (dù họ chỉ định sửa file của họ). **Cách đóng cửa sổ:** luôn `git commit -m "…" -- <pathspec>` (trailing pathspec), KHÔNG BAO GIỜ `git commit -m "…"` trần — dạng có pathspec chỉ commit đúng path nêu ra bằng nội dung hiện tại của nó, bất kể index đang có gì khác. 🔴 **[ĐÍNH CHÍNH LẦN 2, cùng ngày]:** luật trên CHƯA ĐỦ — PO tự chứng minh bằng chính lỗi của mình: chạy `git add -- <path>` rồi `git commit` RIÊNG (sai thứ tự cờ, lệnh hỏng), để file nằm lại trong index; vài giây sau QA/QC `git commit -m "…" -- <path khác>` và cuốn trọn nội dung của PO vào commit đó — **không mất nội dung, mất TRUY VẾT** (đọc `git log` không thấy dấu vết gì). **Luật đúng: `git commit -m "..." -- <pathspec>` PHẢI là MỘT lệnh duy nhất — không bao giờ tách `git add` ra một bước riêng, dù có định commit ngay sau đó.** `git commit -- <pathspec>` không cần index; thêm `git add` chỉ tạo lại đúng cửa sổ sống mà luật này sinh ra để đóng. 🔴 **Đã xét worktree riêng cho từng vai, ba chân lý luận đều đo thật (Lead + PO độc lập):** ① index riêng theo worktree → worktree ĐÓNG được lỗ cửa sổ trên; ② Docker KHÔNG bind-mount `./src` (`Dockerfile:93 COPY . .` đóng cứng lúc build) → không tốn chi phí remap; ③ **git CẤM hai worktree cùng checkout một branch**, cả đội đang commit thẳng vào MỘT branch ⟹ tách worktree = đổi quy trình (branch-per-vai + nhịp merge) giữa dòng, không phải hạ tầng hay luật-phải-nhớ — đây là chân đứng vững, quyết định KHÔNG tách worktree đứng trên nó. **Mốc xét lại — HAI mốc, không phải một:** (a) sự cố pathspec thứ 5 SAU khi luật trailing-pathspec đã có; (b) *(PO đề nghị 25/08)* **giữa hai đợt** — lúc "đổi quy trình giữa dòng" không còn là phản đối, ba chân xét lại trên bàn cân sạch. |
 | **Ba ngăn xếp Docker** | `fin05` (demo, kho RAG 378 chunk) · `fin05ttl` (đo) · `fin05do` (đo, kho RỖNG) |
 | **Bắt buộc `-p`** | `docker compose -p fin05 …` — thiếu `-p` là hạ ngăn xếp khác |
 | **Chạy test** | 🔴 **`docker exec … pytest` NAY KHÔNG CHẠY ĐƯỢC CẢ SUITE** — `.dockerignore:11` loại `eval/`, 3 tệp test đọc `eval/` ⟹ `Interrupted`, **0 ca chạy, hiện ra như "0 failed"**. **Chạy cổng từ HOST.** `docker exec` chỉ còn đúng cho tập con không đụng `eval/`. `P-121-new/.venv` **CẤM dùng để đo kích thích gửi model** (lệch `langchain-core`) — 🔴 **[ĐÍNH CHÍNH 25/08, Coder tự bắt]:** luật này phủ CẢ hai nghĩa, không chỉ "gọi LLM thật" — **đếm token của kích thích cũng tính** (`convert_to_openai_tool()` sinh lược đồ khác nhau giữa `langchain-core` 1.5.3 host và 1.5.4 container ⟹ số token TUYỆT ĐỐI lệch dù mã giống hệt, băm src khớp). Coder đọc đúng câu chữ nhưng hiểu hẹp, đo ngân sách token bằng venv này cả phiên — mọi **delta** vẫn đúng (lệch cố định triệt tiêu trong hiệu số), mọi con số **tuyệt đối** (kể cả `293` từng dùng làm trần quyết định ⑨ vs ⑪) đều sai, số đúng đo trong container. Muốn số tuyệt đối: đo TRONG container đang chạy, không phải host. |
@@ -1376,6 +1376,38 @@ Y nói về CẶP cơ chế bất kỳ, kể cả không phải ngưỡng, quy�
 > xoá dữ liệu quanh một điểm merge. Ghép Y vào L sẽ làm L mất tính sắc (chỉ còn đúng cho ngưỡng)
 > mà Y cũng không được phát biểu đủ rộng (chỉ còn đúng cho bộ dò). Y là **tổng quát hoá của tinh
 > thần L**, không phải một ví dụ mới của L.
+
+**Luật Z** *(đúc trong đợt "OTP trước token" 25/08, gốc tên sprint-local "Luật Đ" —
+Lead chọn lên STATE.md sau khi đợt đóng, vì bài học tái diễn mọi đợt có vai
+`review`/`critic`)* — **ĐIỂM DANH BẰNG DẤU VẾT GIT CHỈ ÁP ĐƯỢC CHO VAI CÓ VÙNG GHI.**
+`CLAUDE.md §4` quy định `review`/`critic` **không ghi gì vào repo** — `git log` không
+bao giờ thấy họ dù họ làm việc liên tục. Với vai không để lại dấu vết trong repo, dấu
+vết duy nhất là **báo cáo của chính họ** ⟹ phải hỏi theo lịch, và **im lặng trong git
+không phải bằng chứng của việc gì cả**. Áp nhầm "đo trước, hỏi sau" lên một vai không
+ghi repo là đo được thiết kế phân vùng, không đo được người.
+> **Bằng chứng:** PO kết luận *"Review 0 commit cả đợt ⟹ có thể đã dừng"* — sai; Review
+> trả lời ngay là đang chạy, vừa xong soát một commit khác.
+
+**Luật AA** *(đúc 25/08, gốc "Luật Đ″" — hai lần PO tự sai trong một giờ, cả hai đều
+nghe rất chặt)* — 🔴 **MỘT KẾT LUẬN KHÔNG KÈM SỐ THÔ THÌ NGƯỜI NGHE ĐƯỢC QUYỀN ĐÒI SỐ
+TRƯỚC KHI LÀM THEO.** Áp cho MỌI vai, **đặc biệt vai điều phối/thẩm quyền** — vì lời
+của vai đó thường không ai chặn lại để hỏi. Khác Luật X (X nói về ĐIỀU KIỆN một con số
+được coi là vật đo; AA nói về QUYỀN của người nghe một KẾT LUẬN, kể cả kết luận không
+mang hình dạng con số, được hoãn tuân theo tới khi thấy số thô).
+> **Bằng chứng, hai lần cùng một giờ:** ① *"bản ghi có `usage` rỗng ⟹ dụng cụ mù"* —
+> bản ghi **không hề có khoá `usage`** (thiếu khoá, không phải rỗng), bác nhầm một
+> phát hiện đúng. ② *"14/08 ghi 40/40, 25/08 ghi 0/4 ⟹ hồi quy diện rộng, P0"* — sổ
+> server cho thấy tool vẫn gọi được thật trong ngày, gác việc cả đội ~20 phút vô ích.
+
+**Luật AB** *(đúc 25/08, gốc "Luật E")* — 🔴 **ĐẾM THÔ TRÊN QUẦN THỂ PHA TẠP: trước khi
+công bố BẤT KỲ tỉ lệ nào, hỏi mẫu số ở TỬ SỐ và mẫu số ở MẪU SỐ có cùng một quần thể
+không.** Khác Luật F (F đòi mẫu số phải ĐI KÈM con số khi trích dẫn; AB đòi mẫu số đó
+phải ĐÚNG QUẦN THỂ trước khi tính, không chỉ đúng hình thức trình bày).
+> **Bằng chứng, hai lần cùng một giờ, cùng hình dạng:** 41% báo cáo thô → 24% thật
+> (mẫu số lẫn thread agent chưa từng chạy); 26% → 4% thật (mẫu số lẫn thread probe kỹ
+> thuật `dothoat-*`/`bat-*`, chưa từng có AI trả lời). Cả hai lần số thô lớn hơn thật
+> 2-6 lần và **trông hoàn toàn hợp lý** — đây là bẫy "dân số pha tạp" dự án từng trả
+> giá trước đó (`4% = 13/370`, `so_luot_goi_model = 0`).
 
 ---
 
