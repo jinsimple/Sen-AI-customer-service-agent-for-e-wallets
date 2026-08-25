@@ -145,6 +145,7 @@ _TEN_TIN_HIEU_DA_BI_OTP_CHAN = "da_bi_otp_chan"
 _TEN_TIN_HIEU_DA_HOI_SANG_LOC = "da_hoi_sang_loc"
 DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
 DUONG_CAN_OTP = "can_otp"
+DUONG_FS13_BAN_GIAO = "fs13_ban_giao"
 
 # Slot mục tiêu là MÃ GIAO DỊCH HOẶC MỐC THỜI GIAN — KHÁC 1B (số tiền là
 # slot bắt buộc của 1B). Lý do: 1B áp cho lượt ĐẦU TIÊN chưa biết gì; cổng
@@ -203,6 +204,24 @@ CANH_BAO_KHONG_AI_GOI_DIEN = (
 _CAN_XAC_THUC_OTP = (
     "Dạ để tra cứu giao dịch của bạn thì mình cần bạn xác thực OTP phiên làm "
     "việc trước nhé.\n\n" + CANH_BAO_OTP_PHIEN
+)
+
+# ① (PO thật thu hẹp 25/08) — khách XÁC NHẬN có người hướng dẫn chuyển khoản.
+# PO nguyên văn: *"không cần làm sâu, chỉ cần BÁO SẼ CÓ CHUYÊN GIA LIÊN HỆ là đủ."*
+#
+# Hai việc, không hơn:
+#   ① NGỪNG đường khuyên chuyển-nhầm — đạt bằng cách KHÔNG gọi model lượt này.
+#      Cấm bằng lời thì model vẫn có thể nói; không chạy thì nó không nói được.
+#   ② báo sẽ có chuyên viên liên hệ + bàn giao người thật.
+#
+# 🔴 CÂU K3 GHÉP VÀO ĐÂY LÀ BẮT BUỘC, KHÔNG PHẢI TRANG TRÍ. Ta vừa nói với một
+# người NGHI BỊ LỪA rằng "sẽ có người liên hệ lại" — đó chính là câu kẻ lừa đảo
+# cần để gọi lần hai ("em ở bộ phận xử lý khiếu nại đây"). Báo sẽ có người gọi
+# mà không kèm câu này là tự tay dọn đường cho vòng lừa thứ hai.
+_FS13_BAN_GIAO = (
+    "Cảm ơn bạn đã cho mình biết. Trường hợp này mình chuyển ngay cho chuyên "
+    "viên hỗ trợ xử lý trực tiếp, sẽ có người liên hệ lại với bạn.\n\n"
+    + CANH_BAO_KHONG_AI_GOI_DIEN
 )
 
 # Neo nhận diện "câu này đã có sẵn trong lời model" — tránh nói hai lần. Chọn
@@ -1007,6 +1026,40 @@ def run_agent_turn(
                 extra={"user_id": user_id, "thread_id": _tid_sl_thu,
                        "tin_hieu_sau_gop": _gop},
             )
+            # ① — FS-13 bật ⟹ DỪNG LƯỢT, không gọi model. Bàn giao ở TẦNG
+            # SERVICE (`flag_human_handoff`), KHÔNG qua tool của AI — đúng ràng
+            # buộc cứng 2: leo thang không bao giờ do AI tự gọi.
+            if _gop is not None and "FS-13" in _gop:
+                _tk = None
+                try:
+                    _tk = flag_human_handoff(
+                        session, user_id=user_id,
+                        reason="Khách xác nhận có người hướng dẫn chuyển khoản "
+                               "(FS-13) — cần chuyên viên liên hệ trực tiếp.",
+                        thread_id=_tid_sl_thu,
+                    ).get("ticket_id")
+                except Exception:  # noqa: BLE001
+                    _logger.exception(
+                        "agent_turn_fs13_ban_giao_loi",
+                        extra={"user_id": user_id, "thread_id": _tid_sl_thu},
+                    )
+                _kq_fs13 = {
+                    "reply": _FS13_BAN_GIAO,
+                    "tool_calls": [], "ticket_id": _tk, "should_escalate": False,
+                    "model": None, "models_da_thu": [],
+                    "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                              "cached_input_tokens": 0, "reasoning_tokens": 0,
+                              "input_chars": 0, "so_luot_goi_model": 0,
+                              "so_tool_schema_gui": 0, "chars_tool_schema_moi_luot": 0,
+                              "suy_luan_gui": None},
+                    "loc_dau_ra": [],
+                    "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
+                    "goi_y_handoff": True,
+                    "ly_do_fallback": None,
+                    "duong": DUONG_FS13_BAN_GIAO,
+                }
+                _ghi_so(_kq_fs13, thread_id, user_id)
+                return _kq_fs13
         except Exception:  # noqa: BLE001 — ghi nhận KHÔNG được làm hỏng lượt chat
             _logger.exception(
                 "agent_turn_thu_sang_loc_loi",
