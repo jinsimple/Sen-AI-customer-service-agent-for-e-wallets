@@ -114,42 +114,62 @@ button{ font-family:inherit; }
 
 /* ---------- Shell ---------- */
 .app{ min-height:100vh; display:flex; flex-direction:column; }
+/* ═══ THANH ĐẦU TRANG — NỀN SÁNG (PO thật chốt 25/08) ═══════════════════
+   Bản trước: `.topbar{ background:var(--navy) }` + `.tabnav{ background:#170F2B }`
+   ⟹ hai dải tím ĐẶC KÍN chiều ngang, [ĐO] ăn ~220/812px chiều cao ở 375px TRƯỚC KHI
+   có nội dung — hơn nửa màn hình đầu tiên. Đó không phải "accent", đó là mảng màu
+   LỚN NHẤT trang, và nó là phần còn lại của chuyện "rối mắt".
+   🔴 PO chốt SAU KHI được trình rủi ro: bỏ nền tím thì tím mất chỗ đứng lớn nhất,
+   sản phẩm có thể thành "trang xám vô danh". Ba chỗ dưới đây PHẢI GÁNH NỔI vai ấy:
+     · dấu thương hiệu [S]  — to hơn 36→40px, chữ fs-16→fs-20 (trên nền tím nó chìm
+       cũng không sao; trên nền trắng nó là NƠI DUY NHẤT thấy màu thương hiệu)
+     · tab ĐANG CHỌN       — giữ nguyên nền thương hiệu đặc, tương phản rõ với tab thường
+     · nút chính           — giữ var(--navy)
+   🔴 MỌI mã màu cứng ở khối này đã đổi sang BIẾN. Bản trước dùng hex sáng-trên-tối
+   (#F3E8FB · #C4B3D9 · #170F2B · #8A76A8 …); giữ chúng trên nền trắng thì chữ GẦN NHƯ
+   VÔ HÌNH, và khối tối sẽ không tự theo. Dùng biến ⟹ cả hai chế độ đúng cùng lúc.
+   ⚠️ `.topbar` nền `--surface` (trắng) + `main` nền `--bg` (xám rất nhạt) rất dễ TRÔI
+   vào nhau ⟹ BẮT BUỘC có `border-bottom` đọc được. Mất ranh giới cũng là một kiểu rối. */
 .topbar{
-  background:var(--navy); color:#F3E8FB;
+  background:var(--surface); color:var(--text);
+  /* --border-strong chứ KHÔNG --border: [ĐO] nền topbar (--surface #FFFFFF) và nền thân
+     trang (--bg #FAFAFA) chỉ chênh 1.04 — mắt thường KHÔNG thấy ranh giới. Cả đường phân
+     cách nằm hết trên 1px này, nên nó phải là bậc viền ĐẬM. */
+  border-bottom:1px solid var(--border-strong);
   display:flex; align-items:center; justify-content:space-between;
   padding:14px 28px; gap:16px; flex-wrap:wrap;
 }
 .brand{ display:flex; align-items:center; gap:12px; text-decoration:none; }
 .brand-mark{
-  width:36px; height:36px; border-radius:10px; background:var(--gold);
+  width:40px; height:40px; border-radius:11px; background:var(--gold);
   display:flex; align-items:center; justify-content:center; color:#fff;
-  font-weight:700; font-size:var(--fs-16); flex:none;
+  font-weight:700; font-size:var(--fs-20); flex:none;
 }
-.brand-text b{ display:block; font-size:var(--fs-16); letter-spacing:.01em; color:#fff; }
-.brand-text span{ display:block; font-size:var(--fs-12); color:#C4B3D9; margin-top:1px; }
+.brand-text b{ display:block; font-size:var(--fs-16); letter-spacing:.01em; color:var(--text); }
+.brand-text span{ display:block; font-size:var(--fs-12); color:var(--text-dim); margin-top:1px; }
 .topbar-actions{ display:flex; align-items:center; gap:10px; }
 .theme-toggle{
-  display:flex; align-items:center; gap:7px; background:#3A2359; color:#E7D9F5;
-  border:1px solid #4A2E70; padding:7px 12px; border-radius:999px; font-size:var(--fs-14); cursor:pointer;
+  display:flex; align-items:center; gap:7px; background:var(--surface-2); color:var(--text-dim);
+  border:1px solid var(--border-strong); padding:7px 12px; border-radius:999px; font-size:var(--fs-14); cursor:pointer;
   transition:background .18s ease;
 }
-.theme-toggle:hover{ background:#4A2E70; }
-.who-pill{ font-size:var(--fs-12); color:#C4B3D9; border:1px solid #4A2E70; padding:6px 10px; border-radius:999px; background:transparent; cursor:pointer; }
-.who-pill:hover{ background:#3A2359; color:#fff; }
+.theme-toggle:hover{ background:var(--border); color:var(--text); }
+.who-pill{ font-size:var(--fs-12); color:var(--text-dim); border:1px solid var(--border-strong); padding:6px 10px; border-radius:999px; background:transparent; cursor:pointer; }
+.who-pill:hover{ background:var(--surface-2); color:var(--text); }
 
 .tabnav{
-  background:#170F2B; border-bottom:1px solid #2C1B47;
+  background:var(--surface-2); border-bottom:1px solid var(--border);
   padding:10px 28px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
 }
 .tabgroup{ display:flex; align-items:center; gap:6px; }
-.tabgroup-label{ font-size:var(--fs-12); text-transform:uppercase; letter-spacing:.08em; color:#8A76A8; margin-right:4px; font-weight:700; }
-.tab-sep{ width:1px; height:20px; background:#2C1B47; }
+.tabgroup-label{ font-size:var(--fs-12); text-transform:uppercase; letter-spacing:.08em; color:var(--text-faint); margin-right:4px; font-weight:700; }
+.tab-sep{ width:1px; height:20px; background:var(--border-strong); }
 .tab-btn{
-  appearance:none; border:1px solid transparent; background:transparent; color:#C9B8DC;
+  appearance:none; border:1px solid transparent; background:transparent; color:var(--text-dim);
   font-size:var(--fs-14); font-weight:600; padding:8px 13px; border-radius:8px; cursor:pointer;
   transition:background .15s ease, color .15s ease; text-decoration:none; display:inline-block;
 }
-.tab-btn:hover{ background:#29184A; color:#fff; }
+.tab-btn:hover{ background:var(--surface); color:var(--text); }
 .tab-btn.active{ background:var(--gold); color:#fff; }
 
 main{ flex:1; padding:28px; max-width:1440px; margin:0 auto; width:100%; }
