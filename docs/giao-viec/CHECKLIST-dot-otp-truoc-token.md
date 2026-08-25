@@ -551,7 +551,14 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - Đo trên envelope `/agent/chat` *(mang `duong` + `usage.total_tokens`)*
   - **Ba trạng thái:** `0` ≠ `null` ≠ `>0`
   - 🔴 **Cạm bẫy:** cổng chỉ bắn **một lần mỗi hội thoại** — mỗi ca một chat mới
-  - Ngăn gõ: `fin05-po-test` (`127.0.0.1:38443`) · **có tốn token, khai trước**
+  - ~~Ngăn gõ: `fin05-po-test` (`127.0.0.1:38443`)~~ — 🔴 **SAI, PO tự sửa 25/08.** Ngăn
+    đó build từ scratchpad phiên khác, đông cứng 24/08, KHÔNG có mã đợt này (băm
+    `7636400be9c4` ≠ cây làm việc `691dd9c40578`). PO tự nhận đây là lỗi nặng nhất
+    của mình cả đợt — một lời dặn hạ tầng không ai nghĩ để kiểm, khác một con số hay
+    bị bác. **Ngăn đúng: `fin05-dot-otp`** (Coder dựng từ repo thật, xem mục "🔴
+    `fin05-po-test` KHÔNG mang mã đợt này" phía trên) — cổng thật báo sau khi Coder
+    verify băm ảnh khớp `691dd9c40578` **và** PO tự kiểm lại lần hai trước khi cho mở
+    (không nhận địa chỉ qua relay nữa). **Có tốn token, khai trước.**
   - 🔴 **[PO 25/08] BẮT BUỘC THÊM VÀO BUỔI NÀY:** chạy `tests/test_inv_ngan_sach_token.py`
     (cần ngăn xếp sống — đây là điểm DUY NHẤT trong quy trình hiện tại có ngăn xếp sống,
     không phải vì nó tốn LLM — nó KHÔNG tốn). Xem khối "Trần ngân sách token" cuối tệp.
