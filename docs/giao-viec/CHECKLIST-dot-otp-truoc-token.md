@@ -22,10 +22,33 @@
 
 | | |
 |---|---|
-| **Lần điểm danh cuối** | **#15** — 10:59, 25/08 |
-| **HEAD** | `a5f59e3` |
+| **Lần điểm danh cuối** | **#16** — 11:40, 25/08 |
+| **HEAD** | `655a112` |
 | 🟢 **PO thật quyết CẢ NĂM việc** | ① thu hẹp · ② duyệt buổi test · ③ dừng CI · ④ duyệt ADR-049 · ⑤ để lại |
-| 🔴 **Buổi test: ĐÃ MỞ, CHƯA CHẠY** | `usage.jsonl` chưa tồn tại · 0 lượt `/agent/chat` |
+| 🟢 **Buổi test: ĐÃ MỞ, ĐÃ CHẠY** | `usage.jsonl` **12 dòng**, 6 lượt `day_du` · ⑥ **3/3 PASS** · ⑬-B1/C1 chạy 4 lần |
+| 🔴 **Phát hiện nặng nhất đợt** | ⑬-B1/C1 — **ràng buộc cứng 3**, tái lập 2/2, **cơ chế chưa rõ** |
+| 🔴 **LỖ TRONG CHÍNH PHÉP ĐIỂM DANH** | `git log` **mù cấu trúc** với vai `review` — xem ngay dưới |
+
+**Vật chứng #16 — buổi tốn phí đã có số thật, đo từ sổ server**
+
+```
+/app/logs/usage.jsonl trên fin05-dot-otp-backend-1 — 12 dòng, 6 lượt day_du:
+  04:10:22  schema_gui=5  tool_call=1  total_tokens=20.445
+  04:12:48  schema_gui=5  tool_call=1  total_tokens=21.460
+  04:13:01  schema_gui=5  tool_call=0  total_tokens=11.454
+  04:36:20  schema_gui=5  tool_call=0  total_tokens=10.116   (B1/C1)
+  04:36:24  schema_gui=5  tool_call=0  total_tokens=10.227
+  04:36:27  schema_gui=5  tool_call=0  total_tokens=10.298
+```
+
+🔴 **Đọc kỹ hai dòng đầu trước khi kết luận bất cứ điều gì về "agent không gọi tool nữa":**
+`schema_gui=5` ở **mọi** dòng ⟹ 5 tool vẫn gắn đủ; `tool_call=1` **hai lần hôm nay trên đúng bản
+dựng này** ⟹ **năng lực gọi tool còn nguyên, KHÔNG có hồi quy diện rộng.**
+*(PO đã hô P0 nhầm đúng chỗ này lúc 11:35 rồi tự hạ 20 phút sau — xem §Sổ điểm danh #16.)*
+
+⚠️ **Và ghi lại một điều dễ đọc ngược:** ca `tool_call=0` tốn **10–11k**, ca `tool_call=1` tốn
+**20–21k**. Ca vi phạm **rẻ hơn một nửa** vì agent **bỏ qua việc điều tra**. **Nhìn bảng token
+thuần tuý thì nó trông như một thắng lợi.** Token thấp không đồng nghĩa tốt hơn.
 
 **Vật chứng #15 — ngăn đo, PO tự kiểm lần hai trước khi cho mở**
 
@@ -823,16 +846,13 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     tay, không gọi, rồi nói với khách như đã tra. Dấu hiệu phụ: các lượt `tool_call=0`
     tốn 10-11k token, `tool_call=1` tốn 20-21k — **ca rẻ hơn vì agent bỏ qua điều
     tra, rẻ vì lười chứ không vì tối ưu.**
-  - 🟡 **Nghi vấn RIÊNG, chưa đóng — số "0/4" trong báo cáo eval có thể so sai quần
-    thể** (Coder nêu, giao QA/QC — vùng `eval/`, Coder không tự chạm): 3 nhánh khả dĩ
-    — (1) 4 ca đó có thể KHÔNG đi `day_du` (đi `thu_slot`/`can_otp`/`nhe`), lúc đó
-    `tool_calls=[]` là ĐÚNG, và so "40/40 (14/08, trước khi cổng nào tồn tại)" với
-    "0/4 (25/08)" là so hai quần thể khác đường — cùng họ lỗi với N1 (xanh trên bộ
-    dựng lại, đỏ trên corpus gốc, nay ngược: đỏ vì đo nhầm tập con); (2)
-    `_harness.py:408` tự khai chế độ "KHÔNG CHẤM ĐƯỢC: tool_calls không còn kết quả";
-    (3) `_harness.py:679` chỉ trả tool_calls của lượt CUỐI — ca nhiều lượt đọc lượt
-    cuối có thể ra 0 dù các lượt trước có gọi. **Việc: QA/QC đối chiếu cột `duong`
-    của 4 ca 0/4 trước khi dùng con số này cho bất kỳ kết luận nào khác.**
+  - ✅ **Nghi vấn "0/4 so sai quần thể" — ĐÃ KIỂM, BÁC BỎ.** QA/QC: cả 4 ca (B1+C1,
+    2 lần chạy) đều `duong_theo_luot: ["day_du"]` — không ca nào lạc sang
+    `thu_slot`/`can_otp`/`nhe`. **"0/4" là 0/4 THẬT trên đúng quần thể `day_du`,
+    không phải đo nhầm tập con.** Đối chiếu trực tiếp được ở bảng "Đường định tuyến
+    mỗi ca" trong `eval/results/golden_run_20260825_042017.md` (cột "Có chạm model?"
+    = "có" cả hai ca). ⟹ Phát hiện hành vi model (mục trên) đứng vững trên MỌI nguồn
+    đo — eval, UI thật, và nay đã loại trừ luôn khả năng do lỗi đo.
   - **Giao lại (PO 25/08):** ⑪ **gỡ gác, chạy tiếp**. Mẫu số lưu lượng 20 hội thoại
     **MỞ LẠI** (dụng cụ đo đã chứng minh lành qua sổ thật) — giữ nguyên điều kiện gõ
     1 câu kiểm sổ trước khi chạy tiếp. Coder: việc còn lại là tìm **vì sao model chọn
