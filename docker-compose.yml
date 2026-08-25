@@ -35,6 +35,28 @@ services:
     # KHÔNG có `ports:` — cùng nguyên tắc "chỉ caddy publish port" ở đầu file.
     image: redis:7-alpine
     restart: unless-stopped
+    # 🔴 BỀN HOÁ (PO thật duyệt 25/08). TRƯỚC bản này Redis KHÔNG có volume và
+    # `appendonly no` ⟹ mất sạch dữ liệu mỗi lần gỡ container.
+    #
+    # [ĐO 25/08 trên ngăn đang chạy] Redis đang giữ ba loại, và HỆ QUẢ MẤT KHÁC
+    # NHAU — đừng gộp làm một:
+    #   35 khoá `refresh:*`            → mất ⟹ FAIL-CLOSED. `rotate_refresh_token`
+    #     (`auth.py:172-174`) không tìm thấy bản ghi thì TỪ CHỐI token. Hậu quả là
+    #     mọi người phải ĐĂNG NHẬP LẠI — phiền, **KHÔNG phải lỗ bảo mật**. Nói rõ
+    #     vì rất dễ bán bản vá này thành "vá bảo mật"; nó không phải.
+    #   `fin05:chi_tieu_llm_token:*`   → 🔴 ĐÂY MỚI LÀ THỨ ĐÁNG VÁ. Trần chi tiêu
+    #     LLM tính THEO NGÀY (`cong_ra_ngoai.py::_khoa_chi_tieu_hom_nay`). Mất ⟹
+    #     bộ đếm về 0 ⟹ **trần ngày QUÊN phần đã tiêu**, và nó quên IM LẶNG. Với
+    #     một dự án mà ràng buộc vận hành số một là ngân sách token, đó là cổng
+    #     chi phí tự mở lại sau mỗi lần khởi động lại.
+    #   `fin05:thread_signal:*`        → mất ⟹ fail-safe (cổng tất định chạy lại
+    #     như lượt đầu). Khách có thể bị hỏi lại một lần. Phiền, không hỏng.
+    #
+    # `appendonly yes` chứ không dựa RDB: `save 3600 1 300 100 60 10000` có thể bỏ
+    # rơi tới một giờ ghi cuối, mà bộ đếm chi tiêu đúng là thứ đổi liên tục.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -237,6 +259,10 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:   # 🔴 MỚI 25/08 — xem chú thích ở service `redis`. Thêm volume này
+                # ĐỔI Ý NGHĨA của `docker compose down -v`: lệnh ấy nay XOÁ LUÔN
+                # bộ đếm chi tiêu LLM và phiên đăng nhập. Đã gửi devops đoạn cần
+                # thêm vào `docs/DEPLOY.md` (vùng của họ, Coder không tự ghi).
   chroma_data:
   logs_data:
   caddy_data:
