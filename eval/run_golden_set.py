@@ -32,9 +32,11 @@ from eval._harness import (
     cau_hinh_dinh_tuyen_luc_chay,
     check_expected,
     check_forbidden,
+    dong_bang_nguon_mo_hinh,
     load_jsonl,
     now_stamp,
     run_case_turns_adaptive,
+    xac_nhan_nguon_mo_hinh_luc_chay,
 )
 
 EVAL_DIR = Path(__file__).resolve().parent
@@ -57,7 +59,7 @@ def _customer_phone(session, user_id: str) -> str | None:
     return user.phone if user else None
 
 
-def run(cases: list[dict]) -> list[dict]:
+def run(cases: list[dict], nguon_mo_hinh: dict) -> list[dict]:
     with tempfile.TemporaryDirectory(prefix="fin05_eval_") as tmp:
         db_path = Path(tmp) / "eval.db"
         session = build_eval_session(db_path)
@@ -112,13 +114,21 @@ def run(cases: list[dict]) -> list[dict]:
                     # đợt "OTP trước token" 24/08, đóng Đ2 cùng
                     # `cau_hinh_dinh_tuyen_luc_chay()` ở header báo cáo.
                     "duong_theo_luot": agent_result.get("duong_theo_luot") or [],
+                    # ② hạng mục PO giao 26/08 (sau lỗ 41aacd5, 10 ngày CI
+                    # chấm nhầm gpt-4o-mini không một dòng lỗi) — TỰ KHAI
+                    # model/base_url/mã nguồn NGAY TRÊN TỪNG CASE, không chỉ
+                    # ở banner báo cáo: một ai đó lọc/slice riêng lẻ file raw
+                    # JSON (đã có 6 script khác trong eval/ làm việc này) vẫn
+                    # thấy được nguồn mà không cần mở lại .md đi kèm.
+                    **{k: v for k, v in nguon_mo_hinh.items() if k != "dung_duoc"},
+                    "nguon_mo_hinh_dung_duoc": nguon_mo_hinh["dung_duoc"],
                 }
             )
         session.close()
     return results
 
 
-def write_report(results: list[dict], out_path: Path) -> None:
+def write_report(results: list[dict], out_path: Path, nguon_mo_hinh: dict) -> None:
     total = len(results)
     passed = sum(1 for r in results if r["severity"] == "Pass")
     by_cell = defaultdict(lambda: [0, 0])
@@ -142,6 +152,8 @@ def write_report(results: list[dict], out_path: Path) -> None:
 
     lines = [
         f"# Báo cáo eval golden_set — {now_stamp()}",
+        "",
+        dong_bang_nguon_mo_hinh(nguon_mo_hinh),
         "",
         "> ⚠️ **Đường eval dùng sentinel `_ALWAYS_FRESH`** (`run_agent_turn`, "
         "`graph.py`) — OTP phiên LUÔN được coi là vừa xác thực xong. Không ca "
@@ -256,9 +268,11 @@ def main() -> None:
                 break
         cases = sampled
 
+    nguon_mo_hinh = xac_nhan_nguon_mo_hinh_luc_chay()
     print(f"🚦 {cau_hinh_dinh_tuyen_luc_chay()}", file=sys.stderr)
+    print(f"🚦 {dong_bang_nguon_mo_hinh(nguon_mo_hinh)}", file=sys.stderr)
     print(f"Chạy {len(cases)} case từ {args.file} — mỗi case gọi OpenAI thật.", file=sys.stderr)
-    results = run(cases)
+    results = run(cases, nguon_mo_hinh)
 
     out_dir = EVAL_DIR / "results"
     out_dir.mkdir(exist_ok=True)
@@ -272,7 +286,7 @@ def main() -> None:
     print(f"Raw JSON (khôi phục nếu format báo cáo lỗi): {raw_path}", file=sys.stderr)
 
     out_path = args.out or out_dir / f"golden_run_{stamp}.md"
-    write_report(results, out_path)
+    write_report(results, out_path, nguon_mo_hinh)
 
     blocker_or_critical = sum(1 for r in results if r["severity"] in ("Blocker", "Critical"))
     sys.exit(1 if blocker_or_critical > 0 else 0)

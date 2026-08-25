@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy.orm import Session, sessionmaker
 
 from scripts.seed_db import seed as seed_full_dataset
+from src.dau_ma_nguon import bam_ma_nguon
 from src.db.models import Base, Complaint, Ticket
 from src.db.session import get_engine
 
@@ -984,3 +985,56 @@ def cau_hinh_dinh_tuyen_luc_chay() -> str:
     if gt is None:
         return "PHAN_LUONG_BAT KHÔNG đặt trên tiến trình đang chạy report này (os.environ, đọc trực tiếp)"
     return f"PHAN_LUONG_BAT={gt!r} trên tiến trình đang chạy report này (os.environ, đọc trực tiếp)"
+
+
+# Model ghim của dự án (docker-compose.yml:154, `LLM_MODEL: ${LLM_MODEL:-...}`)
+# — chép tay CÓ CHỦ Ý, không import từ `src/config.py`: đọc qua đó sẽ áp đúng
+# default nội bộ của nó lên phép so sánh, che mất chính khoảng lệch mà chốt
+# này sinh ra để bắt (xem lỗ 10 ngày 16-26/08 trong commit 41aacd5).
+MODEL_GHIM_MAC_DINH = "qwen3.7-plus-2026-05-26"
+
+
+def xac_nhan_nguon_mo_hinh_luc_chay() -> dict[str, Any]:
+    """Ghi lại model/base_url/mã nguồn THẬT của tiến trình đang chạy report
+    này — hạng mục ② PO giao 26/08, sau khi `41aacd5` lộ ra: 10 ngày
+    (16-26/08) golden_set/adversarial_set chấm nhầm qua `gpt-4o-mini` (OpenAI
+    thật) vì `LLM_BASE_URL`/`LLM_MODEL`/`LLM_API_KEY` rỗng CÙNG HƯỚNG, gọi
+    thật THÀNH CÔNG, không một dòng lỗi — và không file kết quả nào từng ghi
+    lại model đã dùng, nên không suy ngược được sau đó.
+
+    Đọc `os.environ` TRỰC TIẾP (không qua `src/config.py`) — cùng lý do đã
+    ghi ở `cau_hinh_dinh_tuyen_luc_chay()`: nguồn phải ĐỘC LẬP với default nội
+    bộ của `src/`, nếu không phép so sánh sẽ tự che đúng lớp lệch nó cần bắt.
+    """
+    model = os.environ.get("LLM_MODEL")
+    base_url = os.environ.get("LLM_BASE_URL")
+    return {
+        "model": model,
+        "base_url": base_url,
+        "bam_ma_nguon": bam_ma_nguon(),
+        # Cả hai điều kiện đều PHẢI đúng để coi là "dùng được": model phải
+        # khớp ghim VÀ base_url phải có giá trị (rỗng = lỗ 41aacd5, dù model
+        # đọc ra có tình cờ trùng ghim thì cũng không suy được đích THẬT đã
+        # gọi tới — SDK vẫn có thể rơi về OpenAI nếu base_url rỗng).
+        "dung_duoc": model == MODEL_GHIM_MAC_DINH and bool(base_url),
+    }
+
+
+def dong_bang_nguon_mo_hinh(info: dict[str, Any]) -> str:
+    """Dòng banner TỰ KHAI cho báo cáo — không chỉ ghi số rồi trông chờ người
+    đọc để ý (bài học 26/08, đúc từ 3 phát hiện cùng họ trong một ngày: "tra
+    được" ≠ "kêu"). Model/base_url lệch ghim ⟹ dòng đầu báo cáo phải tự xưng
+    KHÔNG DÙNG ĐƯỢC, không phải một dòng ghi chú lặng lẽ ở cuối.
+    """
+    model, base_url, bam = info["model"], info["base_url"], info["bam_ma_nguon"]
+    if info["dung_duoc"]:
+        return f"✅ **Nguồn model — DÙNG ĐƯỢC.** model=`{model}` (khớp ghim) · base_url=`{base_url}` · mã nguồn `{bam}`"
+    ly_do = []
+    if model != MODEL_GHIM_MAC_DINH:
+        ly_do.append(f"model đo được `{model!r}` KHÁC ghim `{MODEL_GHIM_MAC_DINH!r}`")
+    if not base_url:
+        ly_do.append("base_url RỖNG (đúng lỗ 41aacd5 — SDK có thể đã rơi mặc định OpenAI thật)")
+    return (
+        f"🔴 **KHÔNG DÙNG ĐƯỢC — {'; '.join(ly_do)}.** mã nguồn `{bam}`. "
+        "Không dùng báo cáo này để kết luận chất lượng agent hay so sánh trước/sau."
+    )

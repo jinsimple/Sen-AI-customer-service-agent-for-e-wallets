@@ -22,10 +22,12 @@ from eval._harness import (
     build_eval_session,
     cau_hinh_dinh_tuyen_luc_chay,
     cham_bo_da_luot,
+    dong_bang_nguon_mo_hinh,
     load_jsonl,
     now_stamp,
     phan_loai_loi,
     run_case_adversary,
+    xac_nhan_nguon_mo_hinh_luc_chay,
     xep_trang_thai,
 )
 from eval.measure_quality import dau_thuoc
@@ -77,7 +79,7 @@ def _inject_malicious_transaction_note(session, trans_id: str, text: str) -> Non
     session.commit()
 
 
-def run(cases: list[dict]) -> list[dict]:
+def run(cases: list[dict], nguon_mo_hinh: dict) -> list[dict]:
     import tempfile
 
     with tempfile.TemporaryDirectory(prefix="fin05_adv_") as tmp:
@@ -193,6 +195,13 @@ def run(cases: list[dict]) -> list[dict]:
                 {
                     "case_id": case_id,
                     "_thuoc": dau,
+                    # ② hạng mục PO giao 26/08 (lỗ 41aacd5) — TỰ KHAI model/
+                    # base_url/mã nguồn trên TỪNG bản ghi, cùng chỗ `_thuoc`
+                    # đã đóng dấu THƯỚC — lý do giống hệt: before/after chỉ có
+                    # nghĩa khi biết chắc khác nhau ĐÚNG MỘT BIẾN, và một script
+                    # lọc riêng lẻ raw JSON vẫn thấy được nguồn không cần mở .md.
+                    **{k: v for k, v in nguon_mo_hinh.items() if k != "dung_duoc"},
+                    "nguon_mo_hinh_dung_duoc": nguon_mo_hinh["dung_duoc"],
                     "category": case["category"],
                     "description": case.get("description", ""),
                     # BA trạng thái, không phải hai: ĐẠT · TRƯỢT · KHÔNG ĐO
@@ -268,7 +277,7 @@ def run(cases: list[dict]) -> list[dict]:
 # một hàm chấm-tích-luỹ là lời mời gọi ai đó dùng nhầm cái yếu hơn.
 
 
-def write_report(results: list[dict], out_path: Path) -> None:
+def write_report(results: list[dict], out_path: Path, nguon_mo_hinh: dict) -> None:
     total = len(results)
     passed = sum(1 for r in results if r["passed"])
     # BA trạng thái. Mẫu số của tỉ lệ là số case ĐO ĐƯỢC, không phải tổng case
@@ -284,6 +293,8 @@ def write_report(results: list[dict], out_path: Path) -> None:
     )
     lines = [
         f"# Báo cáo eval adversarial_set — {now_stamp()}",
+        "",
+        dong_bang_nguon_mo_hinh(nguon_mo_hinh),
         "",
         "> ⚠️ **Đường eval dùng sentinel `_ALWAYS_FRESH`** (`run_agent_turn`, "
         "`graph.py`) — OTP phiên LUÔN được coi là vừa xác thực xong. Không ca "
@@ -421,9 +432,11 @@ def main() -> None:
     if args.sample:
         cases = cases[: args.sample]
 
+    nguon_mo_hinh = xac_nhan_nguon_mo_hinh_luc_chay()
     print(f"🚦 {cau_hinh_dinh_tuyen_luc_chay()}", file=sys.stderr)
+    print(f"🚦 {dong_bang_nguon_mo_hinh(nguon_mo_hinh)}", file=sys.stderr)
     print(f"Chạy {len(cases)} case adversarial từ {args.file} — gọi OpenAI thật.", file=sys.stderr)
-    results = run(cases)
+    results = run(cases, nguon_mo_hinh)
 
     out_dir = EVAL_DIR / "results"
     out_dir.mkdir(exist_ok=True)
@@ -436,7 +449,7 @@ def main() -> None:
     print(f"Raw JSON (khôi phục nếu format báo cáo lỗi): {raw_path}", file=sys.stderr)
 
     out_path = args.out or out_dir / f"adversarial_run_{stamp}.md"
-    write_report(results, out_path)
+    write_report(results, out_path, nguon_mo_hinh)
 
     sys.exit(1 if any(not r["passed"] for r in results) else 0)
 
