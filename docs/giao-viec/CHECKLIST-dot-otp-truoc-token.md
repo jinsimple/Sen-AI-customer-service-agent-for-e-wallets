@@ -1235,10 +1235,27 @@ loại**. Lý do không phải sự chính xác suông: **một cổng kêu 41% 
 vặn nhỏ hoặc tắt** — và lúc ấy nó không canh gì nữa. Cổng hỏng vì kêu quá còn tệ hơn cổng không
 tồn tại, vì nó chiếm chỗ.
 
-⚠️ **"THƯỜNG TRỰC hay chỉ do OOM" — CHƯA PHÂN ĐỊNH ĐƯỢC, đừng ghi bên nào.** QA/QC đo `fin05do`
-*(ngăn ổn định 7 ngày)* ra 26% và nghi lỗ thường trực. [ĐO] **`fin05do` CŨNG `OOMKilled=true`** —
-**3/4 backend đều OOM, đều `Trần bộ nhớ = 0`**. Ca đối chứng sạch duy nhất *(`fin05-final`,
-`OOMKilled=false`)* **không có sổ để đối chiếu** ⟹ không có cách phân định.
+✅ **ĐÃ VÁ VÀ ĐO LẠI — `442b06c`.** Cổng nay giải mã checkpoint để phân ba loại. Chạy thật, **không
+suy từ số cũ**:
+```
+fin05-dot-otp   4/17 = 24%   ← ngăn OOM hôm nay giữa lúc dồn tải
+fin05do         3/69 =  4%   ← ~~26%~~ SAI. 15/18 "mất" là thread probe (dothoat-*, bat-*)
+                               chưa từng có AI trả lời — đúng lớp báo động giả đã cảnh báo
+```
+⟹ **Giả thuyết "lỗ thường trực" BỊ RÚT** *(QA/QC tự rút)*: `4%` trên ngăn 7 ngày khớp
+**"chỉ do OOM"** hơn hẳn `26%`. Trạng thái chốt: **24% + 4%, cả hai khớp giả thuyết OOM, chưa có
+bằng chứng cho nguyên nhân thứ hai.** *(3/4 backend `OOMKilled=true`, cả 4 `Trần bộ nhớ = 0`.)*
+
+🔴 **LUẬT E — ĐẾM THÔ TRÊN QUẦN THỂ PHA TẠP. Hai lần trong một giờ, cùng một hình dạng:**
+| lần | số thô | số thật | thứ pha vào |
+|---|---|---|---|
+| 1 | 41% | **24%** | thread agent chưa từng chạy |
+| 2 | 26% | **4%** | thread probe `dothoat-*` / `bat-*` |
+Cả hai lần con số thô **lớn hơn 2–6 lần** và **trông hoàn toàn hợp lý**. Đây đúng bẫy **"dân số
+pha tạp"** *(`STATE §8`)* mà dự án đã trả giá qua `4% (13/370)` và `so_luot_goi_model = 0`.
+⟹ **Trước khi công bố bất kỳ tỉ lệ nào: quần thể ở MẪU SỐ có đồng nhất với thứ TỬ SỐ đang đếm
+không?** Ở đây mẫu số là *"thread từng tồn tại"*, tử số là *"lượt đã tốn tiền"* — **hai dân số
+khác nhau**, và chênh lệch đúng bằng phần bị thổi phồng.
 
 Loại trừ theo thứ tự, mỗi bước một phép đo:
 ```
