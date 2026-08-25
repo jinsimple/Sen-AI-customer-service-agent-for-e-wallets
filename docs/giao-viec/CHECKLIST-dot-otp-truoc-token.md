@@ -845,10 +845,19 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     trên UI thật ngoài eval (`duong=day_du, tool_call=0` cho *"tôi bị trừ tiền"* —
     khiếu nại thiếu số tiền, đáng lẽ cần tra lịch sử) — **cả hai đo qua `usage.jsonl`
     thật/UI thật, không qua harness, nên KHÔNG bị ảnh hưởng bởi nghi vấn "0/4 đo sai
-    đường" bên dưới.** Ràng buộc cứng 3 vi phạm thật ở LỚP NÀY: model có tool trong
-    tay, không gọi, rồi nói với khách như đã tra. Dấu hiệu phụ: các lượt `tool_call=0`
-    tốn 10-11k token, `tool_call=1` tốn 20-21k — **ca rẻ hơn vì agent bỏ qua điều
-    tra, rẻ vì lười chứ không vì tối ưu.**
+    đường" bên dưới.** ~~Ràng buộc cứng 3 vi phạm thật ở LỚP NÀY: model có tool trong
+    tay, không gọi, rồi nói với khách như đã tra.~~ 🔴🔴 **[ĐÍNH CHÍNH DỨT ĐIỂM,
+    commit `4f79741`] SAI — nhãn đã đổi 4 lần trong ngày, đây là lần cuối, có bằng
+    chứng trực tiếp không phải suy luận.** Giải mã checkpoint thật: tool ĐÃ CHẠY
+    (`[3] AIMessage gọi get_customer_history → [4] ToolMessage kết quả`), 7 số agent
+    nêu khớp TUYỆT ĐỐI 10 ứng viên tool trả về. **Agent thuật lại trung thực, KHÔNG vi
+    phạm ràng buộc cứng 3.** Ba lỗi xếp chồng, không lỗi nào ở model: ① 2 giao dịch
+    393k tuổi 108-109 ngày, cửa sổ mặc định 90 ngày ⟹ tool chưa từng thấy chúng ·
+    ② khớp gần đúng ±2% (có chủ đích) lấp chỗ trống bằng 10 kết quả gần giống thay vì
+    trả `not_found` rõ ràng · ③ `thread_id` cố định theo `case_id` + checkpoint không
+    xoá giữa các lần chạy eval — B1 chạy 4 lần, 2 lần đầu hỏng để lại kết quả tool
+    trong lịch sử, lần 3 đọc lại và thuật nhưng `so_tool_call` chỉ đếm lượt hiện tại
+    nên báo 0. **Câu đắt nhất:** *"Khớp mờ không gây ra lỗi — nó XOÁ DẤU VẾT của lỗi."*
   - ✅ **Nghi vấn "0/4 so sai quần thể" — ĐÃ KIỂM, BÁC BỎ.** QA/QC: cả 4 ca (B1+C1,
     2 lần chạy) đều `duong_theo_luot: ["day_du"]` — không ca nào lạc sang
     `thu_slot`/`can_otp`/`nhe`. **"0/4" là 0/4 THẬT trên đúng quần thể `day_du`,
