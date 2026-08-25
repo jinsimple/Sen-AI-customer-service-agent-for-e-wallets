@@ -70,7 +70,12 @@ from src.config import (
     PHAN_LUONG_BAT,
     SUY_LUAN_BAT,
 )
-from src.cong_ra_ngoai import cong_chi_tieu, ghi_nhan_chi_tieu_khong_doc_duoc, http_client_dung_chung
+from src.cong_ra_ngoai import (
+    cong_chi_tieu,
+    ghi_nhan_chi_tieu_khong_doc_duoc,
+    http_client_dung_chung,
+    la_bi_chan,
+)
 from src.dau_ma_nguon import CACH_BAM, nhan_luc_dung
 from src.db.models import Complaint, Ticket, User
 from src.observability.langchain_callback import OTelTracingCallbackHandler
@@ -361,6 +366,17 @@ def _mo_ta_loi_nha_cung_cap(loi: APIError, *, model: str = LLM_MODEL) -> dict[st
     tường minh). Mặc định `LLM_MODEL` chỉ để không vỡ caller cũ không xoay.
     """
     than = (str(getattr(loi, "message", "") or str(loi))).lower()
+    # `la_bi_chan(loi)`: chốt chặn của CHÍNH TA (trần chi tiêu/cờ cho phép,
+    # `src/cong_ra_ngoai.py`) bị SDK bọc thành `APIConnectionError` — KHÔNG
+    # nằm trong `_LOI_CAN_CAN_THIEP` (tuple đó chỉ phân loại lỗi NHÀ CUNG
+    # CẤP). Thiếu vế này, một lượt bị TA tự chặn nhận nhầm câu "bận, nhắn lại
+    # sau ít phút" (sai — trần reset 00:00 UTC, có thể còn hàng giờ) và KHÔNG
+    # được chỉ sang `KENH_HO_TRO_KHAC` — đúng bẫy chính hai chú thích ở nhánh
+    # trả lời bên dưới mô tả, chỉ khác nguồn lỗi. `la_bi_chan()` tồn tại sẵn
+    # để bắc cầu đúng chỗ này (đọc `__cause__`, không phải `isinstance` trên
+    # `APIConnectionError` — lỗi mạng thật cũng là `APIConnectionError`, gộp
+    # nhầm sẽ lại đúng lỗi Luật H mà `la_bi_chan()` sinh ra để tránh).
+    _tu_chan = la_bi_chan(loi)
     return {
         "lop_loi": type(loi).__name__,
         "ma_trang_thai": getattr(loi, "status_code", None),
@@ -372,7 +388,12 @@ def _mo_ta_loi_nha_cung_cap(loi: APIError, *, model: str = LLM_MODEL) -> dict[st
         # biết phải sửa CHỖ NÀY, không phát hiện lại từ đầu.
         "nha_cung_cap": LLM_BASE_URL or "openai",
         "model": model,
-        "can_can_thiep": isinstance(loi, _LOI_CAN_CAN_THIEP),
+        "can_can_thiep": isinstance(loi, _LOI_CAN_CAN_THIEP) or _tu_chan,
+        # Giữ NGUỒN tách bạch khỏi HẬU QUẢ — "cần can thiệp" gộp cả lỗi nhà
+        # cung cấp lẫn tự chặn vì khách thấy cùng một câu, nhưng người trực
+        # sự cố cần phân biệt được "hết hạn mức bên NCC" với "trần của CHÍNH
+        # TA đang chặn" mà không phải đoán từ `lop_loi=APIConnectionError`.
+        "tu_chan": _tu_chan,
         "co_dau_hieu_het_han_muc": any(d in than for d in _DAU_HIEU_HET_HAN_MUC),
         # `request_id` của nhà cung cấp: CHÍNH thứ bộ phận hỗ trợ của họ hỏi khi
         # ta khiếu nại hoá đơn/hạn mức — không có nó thì hồi cứu với họ là bất
@@ -1609,6 +1630,7 @@ def run_agent_turn(
             root_span.set_attribute("fin05.loi_nha_cung_cap", str(mo_ta["lop_loi"]))
             root_span.set_attribute("fin05.can_can_thiep", can_thiep)
             root_span.set_attribute("fin05.het_han_muc", bool(mo_ta["co_dau_hieu_het_han_muc"]))
+            root_span.set_attribute("fin05.tu_chan", bool(mo_ta["tu_chan"]))
             if can_thiep:
                 # Span ĐỎ, không chỉ là span có tag. Jaeger lọc theo `error=true`
                 # mặc định; một tag tự đặt thì người trực phải biết trước tên nó.
