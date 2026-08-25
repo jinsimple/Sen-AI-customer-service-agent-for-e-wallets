@@ -1,13 +1,20 @@
 import type { Metadata } from "next";
-import { Nunito, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// Font đúng theo design token "Mận Sen" (FIN05-Wireframe-UXUI.html §Tổng quan):
-// Nunito cho UI/hội thoại, JetBrains Mono cho dữ liệu dạng bảng cần căn cột.
-const nunito = Nunito({
+// 🔴 ĐỔI 25/08 — Nunito -> Inter. Không phải chuyện gu.
+// Nunito là phông BO TRÒN, thân thiện — đúng cho app trẻ em / học tập. Đây là
+// sản phẩm TÀI CHÍNH xử lý khiếu nại tiền, và phông đang nói sai về sản phẩm
+// TRƯỚC CẢ KHI người ta đọc nội dung. Inter là grotesque trung tính, gần SF Pro
+// của Apple nhất trong số phông miễn phí.
+// 🔴 `subsets` PHẢI có "vietnamese": thiếu nó thì đúng những chữ CÓ DẤU âm thầm
+// rơi về phông hệ thống — chữ nhảy phông GIỮA CÂU, tệ hơn hẳn giữ Nunito.
+// Bỏ weight 800: [ĐO] 9 chỗ dùng, mà đã có 600 và 700 thì 800 không thêm bậc
+// nào, chỉ thêm nhiễu.
+const inter = Inter({
   variable: "--font-ui",
   subsets: ["latin", "vietnamese"],
-  weight: ["400", "600", "700", "800"],
+  weight: ["400", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -23,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="vi" className={`${nunito.variable} ${jetbrainsMono.variable}`}>
+    <html lang="vi" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   );
