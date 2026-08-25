@@ -88,6 +88,43 @@ Lead cần xếp việc GIẢM prompt (hoặc quyết định nâng trần có l
 prompt xuống 3.000 token là việc tốt và test này sẽ không khen; nó chỉ kêu khi
 prompt **lớn lên** mà không ai chú ý.
 
+## 🔴 NỚI 25/08 — nới từ 7.550 → 7.800, CÓ CHỦ ĐÍCH, KHÔNG phải trôi
+
+Lý do: `⑪` (ép cấu trúc ba vế lượt 5, đổi trục hỏi lại lượt 6, đổi góc nhìn
+PDPA) thêm CHỮ có chủ đích vào system prompt — đúng loại thay đổi cảnh báo
+"RỦI RO THẬT" ở mục trên đã nêu trước khi ⑪ land. Cắt vế (c) của lượt 5 để
+né cổng này là làm hỏng đúng câu duy nhất nói cho khách biết **họ tự làm
+được gì** — PO quyết nới, không cắt chữ.
+
+Số dùng để chọn ngưỡng mới (Coder đo 25/08, Lead duyệt phương pháp trục):
+`system` **5.592** (đo trên cây làm việc tại HEAD, môi trường host —
+hợp lệ cho trục `system` vì ⑪ chỉ chạm `prompt.py`) + `tool` **2.014** (số
+CONTAINER đo trước ⑪ — hợp lệ vì ⑪ không chạm tool schema) ⟹ **tổng ước
+tính 7.606**. Đây là ƯỚC TÍNH tổng hợp từ hai nguồn đo khác nhau (host +
+container), CHƯA phải một phép đo container-thật duy nhất sau khi ⑪ land —
+xem mục "CHỜ RECONFIRM" ngay dưới trước khi tin số `NEN` trong code.
+
+`NGUONG_TOKEN` mới = **7.800** = 7.606 + ~2,5% (cùng biên độ dung sai ±2% đã
+dùng ở `test_nen_ghi_trong_test_khop_thuc_te`, làm tròn lên số đẹp) — đủ hấp
+thụ nhiễu đo, không đủ rộng để hết ý nghĩa cảnh báo.
+
+**⚠️ CHỜ RECONFIRM — `NEN` bên dưới CHƯA cập nhật theo ước tính 7.606 ở
+trên.** Container đích của cổng (`fin05do-backend-1`, mặc định `CT`) đo tại
+băm `26b1bd3b1ff5` — KHÔNG có ⑪ (cây làm việc đang ở `9c0b50d0bb92`). Đo lúc
+này vẫn ra số CŨ (~7.186), không phản ánh ⑪ — nới trần mà không nới object
+đang đo là **nới mù**. Đã nhờ Coder dựng lại `fin05do-backend-1` tại HEAD,
+xác nhận băm khớp cây làm việc, rồi QA/QC tự đo lại lần hai qua chính `CT`
+(không chỉ tin số Coder báo) trước khi sửa `NEN`. Cho tới lúc đó, xem `NEN`
+dưới đây là **stale có chủ đích, đã khai**, không phải bị bỏ quên.
+
+**⚠️ Trục `tool` lệch theo MÔI TRƯỜNG, không phải theo thời gian:** container
+đo `tool=2.014` vì ảnh ghim `langchain-core 1.5.4`; host/venv dev đo
+`tool=1.982` vì pin `1.5.3` — `convert_to_openai_tool` giữa hai bản khác
+nhau ở đúng +32 token này. Nếu ai đổi `CT` sang một container khác bản
+`langchain-core`, `test_nen_ghi_trong_test_khop_thuc_te` sẽ đỏ vì **môi
+trường khác nhau**, KHÔNG phải hồi quy — đối chiếu số ghim ở đây trước khi
+kết luận có bug.
+
 ## Đo bằng TOKEN, không bằng ký tự
 
 Ký tự là thứ dễ đo hơn và **sai**: trần TPM đếm token. Tiếng Việt ≈3,3 ký tự/
@@ -107,8 +144,8 @@ import pytest
 from tests._docker_co_mat import co_docker
 
 CT = os.environ.get("FIN05_TOKEN_BUDGET_CT", "fin05do-backend-1")  # [25/08] override cho ngăn khác, vd buổi tốn phí trên fin05-dot-otp
-NGUONG_TOKEN = 7_550           # NEO CỐ ĐỊNH — không tính lại theo NEN, xem docstring 25/08
-NEN = {"system": 5_275, "tool": 1_982, "tong": 7_257}  # [ĐO 25/08, HEAD c02cbb1] xem docstring
+NGUONG_TOKEN = 7_800           # [25/08] nới từ 7_550, lý do ⑪ ba lượt kịch bản chuyên gia, delta đo được +317. Nới CÓ CHỦ ĐÍCH, KHÔNG phải trôi — xem docstring "NỚI 25/08"
+NEN = {"system": 5_275, "tool": 1_982, "tong": 7_257}  # [ĐO 25/08, HEAD c02cbb1] STALE có chủ đích — chưa phản ánh ⑪, chờ Coder dựng lại fin05do-backend-1 tại HEAD, xem docstring "CHỜ RECONFIRM"
 
 _MA = r'''
 import datetime as dt, json
