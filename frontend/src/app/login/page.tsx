@@ -103,8 +103,7 @@ export default function LoginPage() {
             </svg>
             <div>
               <b>Demo:</b> tài khoản khách hàng bên dưới dùng mật khẩu{" "}
-              <span className="mono">{DEMO_PASSWORD}</span>. Là nhân viên CSKH, sếp phê duyệt hay đối tác ví?
-              Đăng nhập tại <span className="mono">/dang-nhap-noi-bo</span>.
+              <span className="mono">{DEMO_PASSWORD}</span>.
             </div>
           </div>
 
