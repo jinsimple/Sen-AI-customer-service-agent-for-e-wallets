@@ -10,6 +10,12 @@ import EnvBadge from "@/components/EnvBadge";
 // — không phải bảo mật thật (đoán được URL vẫn vào), chỉ bớt một lời mời cho
 // người lạ. Giọng: công cụ, gọn — khác hẳn tông "mời gọi" của /login.
 const DEMO_PASSWORD = "Demo@123";
+// 🔴 [ĐO 26/08] "Đối tác ví" (0900000001) do scripts/seed_demo_scenarios.py
+// tạo — KHÔNG có trong data/generated/users.jsonl (nguồn của 3 tài khoản
+// kia, qua scripts/seed_db.py). Dựng một ngăn/DB mới mà CHỈ chạy seed_db.py
+// (không chạy seed_demo_scenarios.py) ⟹ nút này dẫn tới tài khoản KHÔNG TỒN
+// TẠI — bẫy đã cắn đúng một phiên ux-ui và một phiên QA/QC trong cùng một
+// giờ. Dựng ngăn mới cho trang này: chạy CẢ HAI script.
 const STAFF_ACCOUNTS: { label: string; phone: string }[] = [
   { label: "Nhân viên CSKH", phone: "0353000201" },
   { label: "Sếp phê duyệt", phone: "0905000205" },
