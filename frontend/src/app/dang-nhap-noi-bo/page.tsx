@@ -9,21 +9,20 @@ import EnvBadge from "@/components/EnvBadge";
 // có ô chọn vai nào ở đây. Trang này CỐ Ý không nối từ landing page/`/login`
 // — không phải bảo mật thật (đoán được URL vẫn vào), chỉ bớt một lời mời cho
 // người lạ. Giọng: công cụ, gọn — khác hẳn tông "mời gọi" của /login.
-const DEMO_PASSWORD = "Demo@123";
-// 🔴 [ĐO 26/08] "Đối tác ví" (0900000001) do scripts/seed_demo_scenarios.py
-// tạo — KHÔNG có trong data/generated/users.jsonl (nguồn của 3 tài khoản
-// kia, qua scripts/seed_db.py). Dựng một ngăn/DB mới mà CHỈ chạy seed_db.py
-// (không chạy seed_demo_scenarios.py) ⟹ nút này dẫn tới tài khoản KHÔNG TỒN
-// TẠI — bẫy đã cắn đúng một phiên ux-ui và một phiên QA/QC trong cùng một
-// giờ. Dựng ngăn mới cho trang này: chạy CẢ HAI script.
-const STAFF_ACCOUNTS: { label: string; phone: string }[] = [
-  { label: "Nhân viên CSKH", phone: "0353000201" },
-  { label: "Sếp phê duyệt", phone: "0905000205" },
-  { label: "Đối tác ví (Chính sách)", phone: "0900000001" },
-];
-
+//
+// 🔴 [ĐO 26/08] KHÔNG đăng nhập nhanh, KHÔNG in mật khẩu demo, KHÔNG danh
+// sách số điện thoại nhân viên — dù chỉ ở /login (khách) việc này an toàn
+// (tài khoản khách sinh ra để phát cho người lạ), ở ĐÂY nó là rò rỉ thật:
+// route này CÔNG KHAI (PUBLIC_PATHS) + số điện thoại sếp phê duyệt hiện sẵn
+// + mật khẩu chung in thẳng ⟹ bất kỳ ai mở trang là đăng nhập được vai
+// supervisor, duyệt được hoàn tiền. Ba quyết định RIÊNG LẺ đều hợp lý (trang
+// đăng nhập phải công khai · nút nhanh tiện demo · mật khẩu chung tiện test)
+// — cộng lại thành một cửa mở. Trang nội bộ phải trông như một ô đăng nhập
+// trống, không kể gì về chính nó (không cả gợi ý "liên hệ quản trị" — gợi ý
+// đó đã xác nhận "đây là cổng có tài khoản thật phía sau"). Nhân viên tự gõ
+// số và mật khẩu của mình — họ biết, không cần trang nhắc.
 export default function LoginNoiBoPage() {
-  const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm("internal");
+  const { phone, setPhone, password, setPassword, error, loading, handleSubmit } = useLoginForm("internal");
 
   return (
     <main style={{ maxWidth: 420, margin: "80px auto", padding: "0 20px" }}>
@@ -69,27 +68,6 @@ export default function LoginNoiBoPage() {
           <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 20 }} disabled={loading}>
             {loading ? "Đang đăng nhập…" : "Đăng nhập"}
           </button>
-
-          <div className="note" style={{ marginTop: 16 }}>
-            <b>Demo:</b> 3 tài khoản bên dưới dùng chung mật khẩu <span className="mono">{DEMO_PASSWORD}</span>.
-          </div>
-
-          <div className="field" style={{ marginTop: 20 }}>
-            <label>Đăng nhập nhanh (demo)</label>
-            <div className="flex gap-sm wrap" style={{ marginTop: 7 }}>
-              {STAFF_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.phone}
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  disabled={loading}
-                  onClick={() => void doLogin(acc.phone, DEMO_PASSWORD)}
-                >
-                  {acc.label} — {acc.phone}
-                </button>
-              ))}
-            </div>
-          </div>
         </form>
       </div>
     </main>
