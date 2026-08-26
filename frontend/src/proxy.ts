@@ -41,6 +41,17 @@ function homeFor(role: Role | undefined) {
   return role ? roleHome(role) : "/login";
 }
 
+// Review (p-226-8b, 26/08): `startsWith` thô khớp theo TIỀN TỐ KÝ TỰ, không
+// theo ranh giới segment — "/dashboard".startsWith cũng đúng với
+// "/dashboard-admin". Hai chỗ dùng nó (PUBLIC_PATHS bên dưới VÀ
+// ROLE_PREFIXES) đều dính cùng lỗi hình dạng: ai đặt tên route mới trùng
+// tiền tố một route đã cho phép là vô tình mở/leo thang quyền, không cần sửa
+// gì khác. Một hàm khớp có ranh giới (chính xác HOẶC tiền tố + "/") đóng cả
+// hai chỗ cùng lúc, không phải nhớ mà tránh.
+function khopTienTo(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(prefix + "/");
+}
+
 // AUTH5-02 (đợt nâng cấp Auth Flow, 2026-08-12) — access_token giờ chỉ sống
 // 15 phút (JWT_ACCESS_EXPIRE_MINUTES, src/config.py). Nếu không có gì chủ
 // động làm mới, MỌI request sau 15 phút sẽ 401 và người dùng bị đăng xuất
@@ -111,7 +122,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL(homeFor(session?.role), req.url));
   }
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.some((p) => khopTienTo(pathname, p));
   if (isPublic) {
     if (session) return NextResponse.redirect(new URL(roleHome(session.role), req.url));
     return NextResponse.next();
@@ -122,7 +133,7 @@ export async function proxy(req: NextRequest) {
   }
 
   const allowedForRole = ROLE_PREFIXES[session.role];
-  const isAllowed = allowedForRole.some((p) => pathname.startsWith(p));
+  const isAllowed = allowedForRole.some((p) => khopTienTo(pathname, p));
   if (!isAllowed) {
     return NextResponse.redirect(new URL(roleHome(session.role), req.url));
   }
