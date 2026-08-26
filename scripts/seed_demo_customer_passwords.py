@@ -14,6 +14,12 @@ Chạy:
 Idempotent: chạy lại nhiều lần, cùng N -> cùng N tài khoản (chọn tất định
 theo `user_id` tăng dần), không lỗi trùng khoá. Tăng N ở lần sau -> giữ
 nguyên nhóm cũ, thêm đúng phần chênh lệch.
+
+Có CỬA XÁC NHẬN gõ tay trước khi ghi (Review đề xuất, PO duyệt) — cảnh báo
+không có cửa chặn thì trên máy dán-lệnh-chạy-nhanh nó bay qua vô nghĩa. Chạy
+không có terminal tương tác (CI, script gọi script) sẽ KHÔNG đọc được xác
+nhận và tự dừng — đây là hành vi ĐÚNG cho một thao tác ghi mật khẩu hàng loạt,
+không phải lỗi cần vá.
 """
 from __future__ import annotations
 
@@ -63,6 +69,24 @@ def main() -> None:
 
     if not khach:
         raise SystemExit("Không tìm thấy tài khoản role=customer nào trong DB — chạy `make db` trước.")
+
+    if len(khach) < n:
+        print(
+            f"🔴 CẢNH BÁO: chỉ tìm được {len(khach)}/{n} tài khoản customer đủ điều kiện "
+            f"(sau khi loại {len(TEST_ACCOUNT_USER_IDS)} tài khoản demo hiện có). "
+            "Vẫn tiếp tục với số tìm được, KHÔNG phải N yêu cầu."
+        )
+        print()
+
+    # Review đề xuất, PO duyệt: cảnh báo không có cửa chặn thì trên máy
+    # dán-lệnh-chạy-nhanh nó bay qua vô nghĩa. Gõ đúng chuỗi kèm SỐ THẬT sẽ
+    # ghi (không phải N yêu cầu) — dán lại lệnh cũ với N khác cũng không gõ
+    # qua được bằng phản xạ.
+    xac_nhan = f"DAT MAT KHAU {len(khach)}"
+    print(f"Gõ chính xác \"{xac_nhan}\" để xác nhận ghi mật khẩu cho {len(khach)} tài khoản trên:")
+    if input("> ").strip() != xac_nhan:
+        raise SystemExit("Không khớp xác nhận — DỪNG, chưa ghi gì.")
+    print()
 
     hash_dung_chung = _PASSWORD_HASHER.hash(SHARED_TEST_PASSWORD)
     for u in khach:
