@@ -32,11 +32,13 @@ export default function GioiThieuPage() {
             chính sách và chuẩn bị hồ sơ có dẫn chứng. <strong>Người duyệt vẫn là người.</strong>
           </p>
           <div className="lp-hero-actions">
-            <a href="#cach-hoat-dong" className="btn btn-primary">
-              Xem sản phẩm hoạt động
-            </a>
-            <Link href="/login" className="btn btn-outline">
-              Đăng nhập
+            {/* [ĐO 26/08, p-226-f0] "Xem sản phẩm hoạt động" chưa có đích —
+                nút chính chết trên trang quảng cáo tệ hơn không có nút. Đổi
+                chữ + trỏ /login. Bỏ luôn nút "Đăng nhập" thứ hai từng đứng
+                cạnh (nó là nút thứ 3 trùng lặp trên trang — đầu trang + chân
+                trang đã đủ hai lần còn lại). */}
+            <Link href="/login" className="btn btn-primary">
+              Đăng nhập dùng thử
             </Link>
           </div>
         </div>
@@ -78,7 +80,7 @@ export default function GioiThieuPage() {
             <span>Người thật đọc hồ sơ, xác minh, rồi trình lên</span>
           </div>
           <span className="arrow">→</span>
-          <div className="step" style={{ borderColor: "var(--navy)", borderWidth: 2, background: "var(--navy-soft)" }}>
+          <div className="step emphasis">
             <b>④ Sếp duyệt</b>
             <span>Chỉ cấp duyệt mới ra được quyết định cuối</span>
           </div>
