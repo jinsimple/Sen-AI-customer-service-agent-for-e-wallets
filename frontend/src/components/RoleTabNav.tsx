@@ -31,11 +31,19 @@ const GROUP_LABEL: Record<Role, string> = {
 
 export default function RoleTabNav({ role }: { role: Role }) {
   const pathname = usePathname();
+  // 26/08 — chuẩn ngành: một hàng chỉ có ĐÚNG MỘT tab không phải điều hướng,
+  // nó là một nhãn chiếm trọn một hàng khung. customer/partner_admin chỉ có
+  // 1 màn nên KHÔNG render hàng này — cskh/supervisor (nhiều tab) giữ nguyên.
+  // `?? []` phòng TABS[role] undefined (vai lạ) làm nổ .length ở layout —
+  // vỡ TOÀN TRANG thay vì chỉ ẩn tab, dù hôm nay vai luôn là 1-trong-4 giá
+  // trị hợp lệ từ session đã lọc.
+  const tabs = TABS[role] ?? [];
+  if (tabs.length <= 1) return null;
   return (
     <nav className="tabnav">
       <div className="tabgroup">
         <span className="tabgroup-label">{GROUP_LABEL[role]}</span>
-        {TABS[role].map((tab) => (
+        {tabs.map((tab) => (
           <Link
             key={tab.href}
             href={tab.href}

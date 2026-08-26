@@ -13,9 +13,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="topbar">
         <Link href="/" className="brand">
           <div className="brand-mark">S</div>
+          {/* 26/08 — bỏ phụ đề "FIN-05 · AI Agent xử lý khiếu nại giao dịch":
+              đó là câu quảng cáo, người ĐÃ đăng nhập không cần nghe lại ở
+              mọi trang, mọi lượt — thuộc landing, không thuộc khung app. */}
           <div className="brand-text">
             <b>Sen — Trợ lý CSKH ví điện tử</b>
-            <span>FIN-05 · AI Agent xử lý khiếu nại giao dịch</span>
           </div>
         </Link>
         <TopbarActions fullName={session.full_name} role={session.role} />
