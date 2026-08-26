@@ -316,6 +316,49 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
 
 ## Việc vặt cần biết thêm
 
+### Parse-check `scripts/deploy_home.ps1` trên máy không có `pwsh` thật (vd Mac của đội)
+
+```bash
+docker run --rm --platform linux/amd64 -v "$PWD/scripts:/s:ro" mcr.microsoft.com/powershell:latest \
+  pwsh -NoProfile -Command '$e=$null;[System.Management.Automation.Language.Parser]::ParseFile("/s/deploy_home.ps1",[ref]$null,[ref]$e); if($e){$e|%{Write-Host "LOI:" $_.Message}}else{Write-Host "PARSE SACH - 0 loi cu phap"}'
+```
+
+🔴 **`--platform linux/amd64` LÀ BẮT BUỘC trên máy Apple Silicon (arm64), KHÔNG PHẢI tuỳ chọn.**
+[ĐO 26/08] tag mặc định `mcr.microsoft.com/powershell:latest` trên máy arm64 resolve về ảnh
+`arm/linux` (32-bit) — chạy dưới QEMU, **CRASH thật** (`NullReferenceException` / segfault tuỳ
+lần), đôi khi thoát mã `0` như thể thành công trong khi `pwsh` chưa chạy nổi một dòng. Ép
+`--platform linux/amd64` buộc dùng lớp giả lập amd64 trưởng thành hơn — chạy được thật.
+
+⚠️ **Bắt buộc ĐỌC NỘI DUNG output, không tin riêng mã thoát** — hai lượt đo cùng ngày mã thoát `0`
+mà `pwsh` đã chết trước khi in một dòng nào. Bằng chứng hợp lệ DUY NHẤT là thấy dòng
+`PARSE SACH - 0 loi cu phap` (hoặc danh sách `LOI:` thật) trong output, không phải suy từ `$?`.
+
+### 🔴 Bẫy hình dạng thứ hai của "cổng canh xanh giả": mã thoát của một PIPELINE
+
+*(Bắt gặp khi tự đo lệnh trên — nối `| tail -20` khiến mã thoát đọc được là của `tail`, không
+phải của `docker run`, và một lượt "thành công" đã suýt được báo cáo trong khi `pwsh` đã chết.)*
+
+**Bash/zsh:** `$?` sau một pipeline là mã thoát của **LỆNH CUỐI trong ống**, không phải lệnh đầu —
+`cmd_that_fails | tail -20; echo $?` in ra mã của `tail` (gần như luôn `0`), nuốt mất lỗi thật.
+Sửa: bỏ pipe khi cần đọc mã thoát, hoặc `set -o pipefail` trước khi chạy, hoặc đọc NỘI DUNG output
+thay vì mã thoát.
+
+**PowerShell (`deploy_home.ps1` dùng) — [ĐO 26/08, kiểm THẬT bằng `/bin/false` trong container
+`--platform linux/amd64`, không suy từ tài liệu]:** `$LASTEXITCODE` CHỈ bám theo tiến trình NGOẠI
+LAI (native exe) gần nhất, cmdlet PowerShell (`Out-Null`, `Out-String`...) KHÔNG chạm vào nó:
+```
+/bin/false                          → $LASTEXITCODE = 1
+/bin/false | Out-Null               → $LASTEXITCODE = 1   (KHÔNG bị Out-Null ghi đè)
+/bin/false | Out-String | Out-Null  → $LASTEXITCODE = 1   (hai tầng pipe, vẫn giữ nguyên)
+```
+⟹ **`docker compose --profile home restart backend | Out-Null` (dòng ~143) AN TOÀN** — khác cơ
+chế Bash, `$LASTEXITCODE` đọc ngay sau đó vẫn đúng của `docker compose`, không bị `Out-Null` nuốt.
+Đã soát toàn bộ pipe (`|`) thật trong file — chỉ hai chỗ, chỗ còn lại (log Cloudflare Tunnel) đọc
+NỘI DUNG output chứ không đọc mã thoát, không dính lớp bẫy này ở ngôn ngữ nào.
+📌 **Bài học giữ nguyên giá trị dù script này không dính:** khi thêm cổng MỚI dùng pipe + đọc mã
+thoát (Bash HAY PowerShell), luôn tự hỏi *"mã thoát này của lệnh mình quan tâm, hay của lệnh cuối
+trong ống?"* trước khi tin nó.
+
 ### 🔴🔴 Bẫy khi tự sửa `.env`: `LLM_BASE_URL` có + `LLM_API_KEY` trống ⟹ backend CHẾT LÚC KHỞI ĐỘNG
 
 **Đọc mục này TRƯỚC khi thêm hoặc sửa bất kỳ dòng `LLM_*` nào trong `.env` thật** — kể cả khi chỉ
