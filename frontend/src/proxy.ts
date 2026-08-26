@@ -24,7 +24,18 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   partner_admin: ["/knowledge"],
 };
 
-const PUBLIC_PATHS = ["/login"];
+// 26/08 — thêm 2 route công khai (duyệt bởi p-226-f0 sau khi tự đọc dòng
+// 103-115, không qua lời kể). CHỈ thêm tiền tố CỤ THỂ vào mảng có sẵn —
+// KHÔNG thêm "/" vào đây, vì matcher dưới là `startsWith` chứ không phải
+// khớp chính xác; "/" sẽ khớp MỌI path và mở toang /dashboard, /approve...
+// /gioi-thieu là landing TẠM — landing thật sẽ dọn về `/` theo thiết kế
+// riêng của Lead (nhánh `pathname === "/"` ở dưới, giữ khớp CHÍNH XÁC).
+// Hệ quả chấp nhận được: người ĐÃ đăng nhập lỡ mở /gioi-thieu hoặc
+// /dang-nhap-noi-bo cũng bị đá về roleHome(role) — giống hệt cách /login xử
+// lý hiện tại (dòng 104-106). Với /gioi-thieu điều này sẽ hết khi landing
+// dọn về `/`; thêm nhánh riêng cho một route sắp biến mất là nợ, không phải
+// tính năng.
+const PUBLIC_PATHS = ["/login", "/dang-nhap-noi-bo", "/gioi-thieu"];
 
 function homeFor(role: Role | undefined) {
   return role ? roleHome(role) : "/login";
