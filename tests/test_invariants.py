@@ -744,13 +744,33 @@ def test_inv_gan_co_gian_lan_khong_noi_sang_khoa_vi(fsm):
     ]
     assert fraud_files, "Không tìm thấy module fraud nào trong src/ — nghi vấn bị xoá."
 
+    # 🔴 ĐÍNH CHÍNH 26/08 — audit "cổng canh có thật đỏ không". Bản CŨ chỉ
+    # quét DÒNG chứa "import"/"from" CÙNG một trong 3 từ cấm — một lời gọi
+    # qua alias module (`import src.wallet_ops as wo` rồi `wo.lock_wallet(...)`
+    # Ở CHỖ KHÁC trong file) có dòng gọi chứa "lock_wallet" thật, nhưng dòng
+    # đó không có "import"/"from" nên KHÔNG khớp regex cũ — né hoàn toàn.
+    # ĐÃ ĐO bằng git worktree riêng (xoá ngay sau đo, không đụng src/ thật):
+    # thêm hàm gọi `client.lock_wallet(...)` không kèm dòng import nào chứa
+    # từ cấm vào bản sao `fraud_policy.py` -> bản test CŨ vẫn PASS (sai).
+    # Vá: bỏ ràng buộc "cùng dòng với import/from" — quét CẢ FILE cho 3 từ
+    # cấm ở bất kỳ đâu (import, gọi qua alias, gọi trực tiếp).
+    #
+    # ⚠️ GIỚI HẠN CÒN LẠI, KHÔNG VÁ ĐƯỢC Ở TẦNG QUÉT TÊN: nếu hàm khoá ví
+    # thật bị ĐỔI TÊN khỏi cả 3 từ khoá này (vd `lock_wallet` -> `set_locked`)
+    # và không còn lời gọi/import nào nhắc tới 3 từ cấm, KHÔNG quét văn bản/
+    # AST nào (kể cả bản vá này) bắt được — đây là giới hạn cố hữu của MỌI
+    # cách so khớp theo TÊN, đúng cảnh báo ở đầu file (dòng 3-9). Đóng hẳn
+    # lỗ này cần một ca HÀNH VI (gọi evaluate_escalation() thật với wallet đã
+    # seed, assert wallet.status không đổi) — ngoài phạm vi file introspect
+    # thuần này (không có DB session ở đây), đã báo riêng cho Lead/PO như một
+    # đề xuất tách biệt, không tự ý mở rộng file này sang có DB.
     vi_pham = [
         str(p.relative_to(ROOT))
         for p in fraud_files
-        if re.search(r"(import|from).*(lock_wallet|khoa_vi|wallet_lock)", p.read_text(encoding="utf-8", errors="ignore"), re.I)
+        if re.search(r"lock_wallet|khoa_vi|wallet_lock", p.read_text(encoding="utf-8", errors="ignore"), re.I)
     ]
     assert not vi_pham, (
-        f"Module gian lận import module khoá ví: {vi_pham}. "
+        f"Module gian lận nhắc tới định danh khoá ví (import hoặc gọi qua alias): {vi_pham}. "
         "Dương tính giả sẽ làm khách hàng lương thiện mất quyền dùng tiền (CLAUDE.md §2.5)."
     )
 
