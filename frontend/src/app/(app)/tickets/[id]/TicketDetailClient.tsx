@@ -205,7 +205,21 @@ export default function TicketDetailClient({
               <span className="dot dot-pulse" /> Khẩn cấp
             </span>
           )}
-          <span className="badge badge-warning">{HITL_STATUS_LABEL[detail.ticket.hitl_status]}</span>
+          {detail.ticket.hitl_status === "rejected" ? (
+            <span className="badge badge-danger">{HITL_STATUS_LABEL[detail.ticket.hitl_status]}</span>
+          ) : (
+            <span
+              className={`status-dot ${
+                detail.ticket.hitl_status === "approved"
+                  ? "dot-success"
+                  : detail.ticket.hitl_status === "need_more_info"
+                    ? "dot-info"
+                    : ""
+              }`}
+            >
+              {HITL_STATUS_LABEL[detail.ticket.hitl_status]}
+            </span>
+          )}
         </div>
       </div>
 

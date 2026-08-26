@@ -245,13 +245,27 @@ export default function DashboardPage() {
                         Khẩn cấp
                       </span>
                     ) : t.priority === "high" ? (
-                      <span className="badge badge-warning">Cao</span>
+                      <span className="status-dot dot-warning">Cao</span>
                     ) : (
-                      <span className="badge badge-neutral">Bình thường</span>
+                      <span className="status-dot">Bình thường</span>
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-warning">{HITL_STATUS_LABEL[t.hitl_status]}</span>
+                    {t.hitl_status === "rejected" ? (
+                      <span className="badge badge-danger">{HITL_STATUS_LABEL[t.hitl_status]}</span>
+                    ) : (
+                      <span
+                        className={`status-dot ${
+                          t.hitl_status === "approved"
+                            ? "dot-success"
+                            : t.hitl_status === "need_more_info"
+                              ? "dot-info"
+                              : ""
+                        }`}
+                      >
+                        {HITL_STATUS_LABEL[t.hitl_status]}
+                      </span>
+                    )}
                   </td>
                   <td className="mono" style={{ fontSize: 12 }}>
                     {sla.label}
