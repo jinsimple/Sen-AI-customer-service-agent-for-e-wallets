@@ -331,6 +331,39 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
 .table tr:hover td{ background:var(--surface-2); }
 .table tr.clickable{ cursor:pointer; }
 
+/* [ĐO 26/08, p-226-f0] bảng Hàng chờ tràn ngang ở 375px, cắt cột phải (SLA/
+   Cập nhật) — đúng cột người trực cần để quyết định xử lý vé nào trước.
+   PO nghiêng phương án thẻ dọc (mẫu Fundfix/Stripe), không phải cuộn ngang
+   hay ẩn cột — cuộn ngang trên di động là thao tác hay bị bỏ qua, ẩn cột là
+   quyết định NGHIỆP VỤ không phải của ux-ui. Opt-in qua lớp riêng
+   (`table-cards-mobile`), KHÔNG đổi `.table` dùng chung — bảng ở
+   approve/knowledge KHÔNG được yêu cầu sửa, không tự ý đổi hành vi của
+   chúng theo. `data-label` trên từng <td> (component) hiện qua ::before —
+   không đụng nội dung/màu, chỉ đổi BỐ CỤC ở màn hẹp; ≥721px giữ nguyên bảng
+   như cũ, không hồi quy desktop. */
+@media (max-width:720px){
+  .table-cards-mobile thead{ display:none; }
+  .table-cards-mobile, .table-cards-mobile tbody, .table-cards-mobile tr{ display:block; width:100%; }
+  .table-cards-mobile tr{
+    margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius);
+    padding:4px 14px; background:var(--surface); box-shadow:var(--shadow-sm);
+  }
+  .table-cards-mobile tr.row-critical{ box-shadow:inset 3px 0 0 var(--danger); }
+  .table-cards-mobile tr.row-warning{ box-shadow:inset 3px 0 0 var(--warning); }
+  .table-cards-mobile tr.row-critical td:first-child, .table-cards-mobile tr.row-warning td:first-child{ box-shadow:none; }
+  .table-cards-mobile td{
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    padding:9px 0; border-bottom:1px solid var(--border); text-align:right;
+  }
+  .table-cards-mobile td:last-child{ border-bottom:none; }
+  .table-cards-mobile td::before{
+    content:attr(data-label); font-weight:700; font-size:var(--fs-12); text-transform:uppercase;
+    letter-spacing:.05em; color:var(--text-dim); text-align:left; flex:none;
+  }
+  .table-cards-mobile td[colspan]{ display:block; text-align:center; }
+  .table-cards-mobile td[colspan]::before{ content:none; }
+}
+
 /* ---------- Login ---------- */
 .login-shell{ display:grid; grid-template-columns:1fr 1fr; min-height:520px; border-radius:18px; overflow:hidden; box-shadow:var(--shadow-lg); }
 .login-brand{ background:linear-gradient(160deg, var(--navy), var(--navy-2)); color:#fff; padding:44px; display:flex; flex-direction:column; justify-content:space-between; }
@@ -517,6 +550,13 @@ textarea:focus{ border-color:var(--navy-2); outline:none; box-shadow:0 0 0 3px c
   .grid-2, .grid-3, .grid-4{ grid-template-columns:1fr; }
   .tabnav{ padding:10px 16px; }
   .topbar{ padding:12px 16px; }
+  /* [ĐO 26/08] Nguồn THẬT của tràn ngang 375px không phải bảng Hàng chờ —
+     là .topbar-actions (4 phần tử: nhãn môi trường, nút theme, who-pill,
+     Đăng xuất) rộng 461px trong khung 375px, không hề co giãn/xuống dòng.
+     .topbar đã có flex-wrap từ trước nhưng .topbar-actions (cụm bên phải)
+     thì không — sửa bảng xong trang VẪN tràn ngang vì lỗi nằm ở đây, không
+     phải ở bảng. Cho cụm này tự xuống dòng thay vì ép một hàng cứng. */
+  .topbar-actions{ flex-wrap:wrap; justify-content:flex-end; row-gap:8px; }
 }
 
 /* ---------- Landing page ("/") — CHỈ dùng ở trang này ---------- */
