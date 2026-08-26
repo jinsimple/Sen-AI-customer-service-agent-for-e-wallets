@@ -24,22 +24,14 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   partner_admin: ["/knowledge"],
 };
 
-// 26/08 — thêm 2 route công khai (duyệt bởi p-226-f0 sau khi tự đọc dòng
-// 103-115, không qua lời kể). CHỈ thêm tiền tố CỤ THỂ vào mảng có sẵn —
-// KHÔNG thêm "/" vào đây, vì matcher dưới là `startsWith` chứ không phải
-// khớp chính xác; "/" sẽ khớp MỌI path và mở toang /dashboard, /approve...
-// /gioi-thieu là landing TẠM — landing thật sẽ dọn về `/` theo thiết kế
-// riêng của Lead (nhánh `pathname === "/"` ở dưới, giữ khớp CHÍNH XÁC).
-// Hệ quả chấp nhận được: người ĐÃ đăng nhập lỡ mở /gioi-thieu hoặc
-// /dang-nhap-noi-bo cũng bị đá về roleHome(role) — giống hệt cách /login xử
-// lý hiện tại (dòng 104-106). Với /gioi-thieu điều này sẽ hết khi landing
-// dọn về `/`; thêm nhánh riêng cho một route sắp biến mất là nợ, không phải
-// tính năng.
-const PUBLIC_PATHS = ["/login", "/dang-nhap-noi-bo", "/gioi-thieu"];
-
-function homeFor(role: Role | undefined) {
-  return role ? roleHome(role) : "/login";
-}
+// 26/08 — landing đã dọn từ /gioi-thieu VỀ "/" (thiết kế Lead, soát bởi
+// Review). "/" KHÔNG nằm trong mảng này — nó có nhánh khớp CHÍNH XÁC riêng
+// ở dưới (`pathname === "/"`), CỐ Ý tách khỏi PUBLIC_PATHS vì matcher ở đây
+// là `khopTienTo` (tiền tố + ranh giới "/"), và "/" + ranh giới sẽ khớp MỌI
+// path — gộp vào đây là mở toang /dashboard, /approve... /dang-nhap-noi-bo
+// vẫn ở đây: route công khai thật (trang đăng nhập nội bộ), không phải
+// landing.
+const PUBLIC_PATHS = ["/login", "/dang-nhap-noi-bo"];
 
 // Review (p-226-8b, 26/08): `startsWith` thô khớp theo TIỀN TỐ KÝ TỰ, không
 // theo ranh giới segment — "/dashboard".startsWith cũng đúng với
@@ -118,8 +110,15 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Nhánh khớp CHÍNH XÁC, CỐ Ý tách khỏi PUBLIC_PATHS (xem comment ở khai
+  // báo mảng đó) — "/" giờ là landing công khai, không phải logic xác thực
+  // thuần tuý nữa. Có phiên -> vẫn về màn theo vai, KHÔNG ĐỔI GÌ so với
+  // trước (0 thay đổi bề mặt auth cho người đã đăng nhập). Không phiên ->
+  // ĐỔI: cho render (trang quảng cáo tại app/page.tsx), không còn redirect
+  // "/login" nữa.
   if (pathname === "/") {
-    return NextResponse.redirect(new URL(homeFor(session?.role), req.url));
+    if (session) return NextResponse.redirect(new URL(roleHome(session.role), req.url));
+    return NextResponse.next();
   }
 
   const isPublic = PUBLIC_PATHS.some((p) => khopTienTo(pathname, p));

@@ -21,7 +21,7 @@
        #0A2540 "Downriver"       — chữ chính (thay --text)
        #425466 slate            — chữ phụ (thay --text-dim)
        #F6F9FC "Black Squeeze"  — nền trang (thay --bg)
-     Hồng/vàng gradient của Stripe CHỈ dùng cho trang quảng cáo (/gioi-thieu),
+     Hồng/vàng gradient của Stripe CHỈ dùng cho trang quảng cáo ("/"),
      KHÔNG vào token dùng chung ở đây — PO nói rõ hai màu đó là "marketing",
      lọt vào màn nghiệp vụ là sai.
      [ĐO] #635BFF trên trắng / trắng trên #635BFF = 4.70:1 — ĐÚNG NGUYÊN giá
@@ -519,7 +519,7 @@ textarea:focus{ border-color:var(--navy-2); outline:none; box-shadow:0 0 0 3px c
   .topbar{ padding:12px 16px; }
 }
 
-/* ---------- Landing page (/gioi-thieu) — CHỈ dùng ở trang này ---------- */
+/* ---------- Landing page ("/") — CHỈ dùng ở trang này ---------- */
 .lp-nav{ display:flex; align-items:center; justify-content:space-between; padding:20px 32px; max-width:1180px; margin:0 auto; }
 .lp-nav .brand{ font-weight:700; font-size:var(--fs-20); color:var(--text); }
 /* Hero CỐ Ý không dùng var(--bg)/var(--text) — dải gradient chéo hồng/vàng là
