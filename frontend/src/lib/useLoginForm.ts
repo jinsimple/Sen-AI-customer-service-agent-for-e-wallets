@@ -7,9 +7,15 @@ import { roleHome, type Role } from "@/lib/session";
 // Dùng CHUNG cho /login (khách hàng) và /dang-nhap-noi-bo (CSKH/sếp/đối tác) —
 // tách TRANG, không tách CƠ CHẾ (PO chốt 26/08). Cả hai gọi đúng một endpoint,
 // vai trò luôn lấy từ RESPONSE server tra qua phone — không có tham số nào ở
-// đây quyết định quyền người dùng nhận được. Nếu sau này cần khác biệt giữa
-// hai trang, khác biệt đó phải nằm ở COPY/GIAO DIỆN của page, không phải ở hook này.
-export function useLoginForm() {
+// đây quyết định QUYỀN người dùng nhận được.
+//
+// `gate` (26/08, PO đảo quyết định "cứ cho vào") là NGOẠI LỆ có chủ đích và
+// hẹp: nó CHỈ có thể khiến đăng nhập THẤT BẠI THÊM (route /api/session so vai
+// server trả về với gate, từ chối nếu lệch — xem route.ts), không bao giờ
+// giúp thành công thêm hay đổi vai nhận được. Không phải "tham số quyết định
+// quyền" mà dự án đã cấm (12/08) — đó là tham số MỞ quyền; đây là tham số chỉ
+// ĐÓNG. Gửi sai `gate` không đi vòng qua được gì, chỉ tự làm mình bị từ chối.
+export function useLoginForm(gate: "customer" | "internal") {
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +31,7 @@ export function useLoginForm() {
       const res = await fetch("/api/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword }),
+        body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword, gate }),
         signal: controller.signal,
       });
       const body = await res.json();

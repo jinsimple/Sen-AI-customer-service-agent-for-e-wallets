@@ -17,7 +17,7 @@ const STAFF_ACCOUNTS: { label: string; phone: string }[] = [
 ];
 
 export default function LoginNoiBoPage() {
-  const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm();
+  const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm("internal");
 
   return (
     <main style={{ maxWidth: 420, margin: "80px auto", padding: "0 20px" }}>

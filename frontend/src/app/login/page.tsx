@@ -16,7 +16,7 @@ const DEMO_PASSWORD = "Demo@123";
 const CUSTOMER_PHONE = "0974000145";
 
 export default function LoginPage() {
-  const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm();
+  const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm("customer");
 
   return (
     <main style={{ maxWidth: 1000, margin: "48px auto", padding: "0 20px" }}>
