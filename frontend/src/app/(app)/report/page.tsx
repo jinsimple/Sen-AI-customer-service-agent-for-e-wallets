@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { ApiError, getReportSummary } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, SCOPE_LABEL, type ComplaintType, type ReportSummary, type Scope } from "@/lib/types";
 
-const BAR_COLORS = ["var(--navy)", "var(--navy-2)", "var(--gold)", "var(--warning)"];
+// KHÔNG dùng token thương hiệu (--navy/--gold) — thương hiệu là MỘT màu để
+// đồng bộ, biểu đồ phân loại cần các màu TÁCH XA nhau để phân biệt. Đổi bộ
+// màu thương hiệu (tím → lục → Stripe) từng làm 2/4 cột trùng màu vì cả hai
+// đọc chung token. --chart-1..4 độc lập, chọn từ bảng colorblind-safe.
+const BAR_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 
 function BarList({ data, labels }: { data: Record<string, number>; labels: Record<string, string> }) {
   const total = Object.values(data).reduce((a, b) => a + b, 0) || 1;
