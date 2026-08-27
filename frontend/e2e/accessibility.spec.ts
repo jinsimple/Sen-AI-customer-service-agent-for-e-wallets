@@ -13,6 +13,7 @@ import { DEMO_PASSWORD } from "./helpers/actors";
  */
 
 const PHONE = "0974000145";
+const CSKH_PHONE = "0353000201";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/login");
@@ -22,25 +23,82 @@ async function login(page: import("@playwright/test").Page) {
   await page.waitForURL("**/chat");
 }
 
+async function loginCskh(page: import("@playwright/test").Page) {
+  await page.goto("/login");
+  await page.getByPlaceholder("09xx xxx xxx").fill(CSKH_PHONE);
+  await page.getByPlaceholder("••••••••").fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: "Đăng nhập" }).click();
+  await page.waitForURL("**/dashboard");
+}
+
+function baoCaoViPham(trang: string, results: Awaited<ReturnType<AxeBuilder["analyze"]>>) {
+  const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+  return {
+    serious,
+    thongDiep: `Vi phạm WCAG nghiêm trọng ở ${trang}:\n${serious.map((v) => `- [${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} chỗ)`).join("\n")}`,
+  };
+}
+
 test.describe("UX-04/UX-06 — quét accessibility bằng axe-core (WCAG 2.1 A/AA)", () => {
   test("trang /login không có vi phạm WCAG 2.1 A/AA nghiêm trọng", async ({ page }) => {
     await page.goto("/login");
-    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
-    const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-    expect(
-      serious,
-      `Vi phạm WCAG nghiêm trọng ở /login:\n${serious.map((v) => `- [${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} chỗ)`).join("\n")}`
-    ).toEqual([]);
+    const { serious, thongDiep } = baoCaoViPham("/login", await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze());
+    expect(serious, thongDiep).toEqual([]);
   });
 
   test("trang /chat (sau đăng nhập) không có vi phạm WCAG 2.1 A/AA nghiêm trọng", async ({ page }) => {
     await login(page);
-    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
-    const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-    expect(
-      serious,
-      `Vi phạm WCAG nghiêm trọng ở /chat:\n${serious.map((v) => `- [${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} chỗ)`).join("\n")}`
-    ).toEqual([]);
+    const { serious, thongDiep } = baoCaoViPham("/chat", await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze());
+    expect(serious, thongDiep).toEqual([]);
+  });
+});
+
+test.describe("UX-06b — CHẾ ĐỘ TỐI, axe-core (25/08 — trước đợt này, KHÔNG lớp nào quét bằng máy)", () => {
+  /**
+   * [ĐO 25/08] Trước khi có 2 ca này, `color-contrast` chỉ được quét ở chế
+   * độ SÁNG (mặc định Chromium headless) — chế độ TỐI hỏng im lặng, không
+   * test nào đỏ, không log nào kêu, cho tới khi có người tình cờ hỏi. Phát
+   * hiện thật lúc đợt vá bộ màu 25/08: `.status` (badge success) đo được
+   * 3.51:1 ở /chat chế độ tối trên bộ màu CŨ, dưới chuẩn AA 4.5:1 — khớp
+   * cảnh báo đã niêm trong `globals.css` (comment: "CẢ NĂM huy hiệu dưới
+   * chuẩn WCAG... axe-core không bắt vì bộ e2e chạy ở chế độ sáng").
+   * Không land 2 ca này lại thành cổng thường trực thì lần đổi màu SAU sẽ
+   * hỏng lại đúng kiểu này, và lại cần một người tình cờ hỏi mới thấy.
+   */
+  test("trang /login, chế độ tối, không có vi phạm WCAG 2.1 A/AA nghiêm trọng", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/login");
+    const { serious, thongDiep } = baoCaoViPham("/login (tối)", await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze());
+    expect(serious, thongDiep).toEqual([]);
+  });
+
+  test("trang /chat, chế độ tối, không có vi phạm WCAG 2.1 A/AA nghiêm trọng", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await login(page);
+    const { serious, thongDiep } = baoCaoViPham("/chat (tối)", await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze());
+    expect(serious, thongDiep).toEqual([]);
+  });
+});
+
+test.describe("UX-06c — màn CSKH /dashboard, sáng + tối (huy hiệu trạng thái CHỈ hiện ở đây)", () => {
+  /**
+   * [ĐO 25/08] /login + /chat KHÔNG có huy hiệu trạng thái (waiting/active/
+   * processing/failed/closed...) — chúng chỉ hiện ở hàng chờ CSKH. Trước 2
+   * ca này, 4/5 huy hiệu (mọi huy hiệu ngoài "success" đã bắt được ở /chat)
+   * chưa từng được quét bằng máy — ta đang tin lời khai tính tay cho phần
+   * còn lại. Thêm màn này để thu hẹp khoảng đó, không tuyên bố đã phủ hết.
+   */
+  test("trang /dashboard (CSKH), sáng, không có vi phạm WCAG 2.1 A/AA nghiêm trọng", async ({ page }) => {
+    await loginCskh(page);
+    const { serious, thongDiep } = baoCaoViPham("/dashboard", await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze());
+    expect(serious, thongDiep).toEqual([]);
+  });
+
+  test("trang /dashboard (CSKH), chế độ tối, không có vi phạm WCAG 2.1 A/AA nghiêm trọng", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await loginCskh(page);
+    const { serious, thongDiep } = baoCaoViPham("/dashboard (tối)", await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze());
+    expect(serious, thongDiep).toEqual([]);
   });
 });
 

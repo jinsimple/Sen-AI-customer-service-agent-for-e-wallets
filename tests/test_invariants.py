@@ -305,7 +305,26 @@ def _check_constraints() -> dict[str, str]:
     return out
 
 
-def test_inv07_check_constraint_br10_ton_tai():
+# 🔴 ĐÍNH CHÍNH 26/08 — audit "cổng canh có thật đỏ khi ràng buộc hỏng
+# không" (PO giao, hậu phát hiện). Bản CŨ của INV-07/INV-14(BR-11) chỉ kiểm
+# 2-3 substring "...isnotnull" ĐỘC LẬP — đổi `AND` thành `OR` (chỉ cần MỘT
+# cột khác NULL, không phải CẢ HAI/CẢ BA) vẫn giữ nguyên các chuỗi con, test
+# vẫn XANH dù ràng buộc HITL đã bị gỡ một nửa. ĐÃ ĐO bằng git worktree riêng
+# (không đụng cây chung, xoá ngay sau đo): sửa AND->OR thật trong models.py,
+# chạy lại bản test CŨ này -> PASS (sai) cho cả BR-10 lẫn BR-11, và INV-08
+# (forbidden_tools rỗng) -> PASS (sai) tương tự.
+#
+# CHUẨN PHẢI ĐỌC TỪ `contracts/`, KHÔNG TỪ `models.py` (PO chỉ ra 26/08, sau
+# khi bản vá đầu của tôi hardcode đúng chuỗi vừa đọc trong models.py — tự so
+# code với chính nó, luôn xanh, chứng minh 0, và trông chặt hơn bản cũ nên
+# còn NGUY HIỂM HƠN vì tạo niềm tin giả). BR-10 CÓ `bieu_thuc` khai sẵn ở
+# `resolution-state-machine.yaml::resolution.invariant_db` — đọc ĐỘNG từ đó,
+# đúng khuôn INV-15/BR-12 ngay dưới. BR-11 KHÔNG có `bieu_thuc` ở bất kỳ đâu
+# trong contract (đã tìm toàn file) — lỗ ĐỐI XỨNG thật với BR-10/BR-12, Lead
+# đang soạn ADR bổ sung qua §3 (PO duyệt, tech-lead sửa contracts/ — không
+# phải việc của tester). Cho tới lúc đó, INV-14 hardcode TẠM bên dưới, niêm
+# rõ tại chỗ — không coi đây là điểm dừng cuối.
+def test_inv07_check_constraint_br10_ton_tai(fsm):
     """INV-07 · lớp phòng thủ cuối của HITL nằm trong DB, không phải trong if.
 
     Đây là ràng buộc mạnh nhất của cả hệ thống: kể cả một câu UPDATE viết tay
@@ -313,15 +332,21 @@ def test_inv07_check_constraint_br10_ton_tai():
     resolution 'approved' không có người duyệt.
     """
     cons = _check_constraints()
-    ten = "ck_resolutions_approved_requires_approver_br10"
+    ten = fsm["resolution"]["invariant_db"]["ten"]
     assert ten in cons, (
         f"MẤT CHECK constraint {ten} trong src/db/models.py.\n"
         "Đây là lớp phòng thủ cuối cùng của HITL — không có nó, một UPDATE "
         "trực tiếp vào DB có thể tạo resolution 'approved' không người duyệt."
     )
-    bieu_thuc = cons[ten].replace(" ", "").lower()
-    assert "approved_byisnotnull" in bieu_thuc, f"{ten} không còn ép approved_by NOT NULL: {cons[ten]}"
-    assert "approved_atisnotnull" in bieu_thuc, f"{ten} không còn ép approved_at NOT NULL: {cons[ten]}"
+    thuc_te = re.sub(r"\s+", "", cons[ten])
+    khai_bao = re.sub(r"\s+", "", fsm["resolution"]["invariant_db"]["bieu_thuc"])
+    assert thuc_te == khai_bao, (
+        f"{ten} LỆCH giữa contract và code (kiểm TOÀN BỘ biểu thức, không chỉ "
+        f"từng cột NOT NULL rời rạc — AND đổi thành OR vẫn giữ nguyên các cột "
+        f"này nhưng làm yếu hẳn ràng buộc):\n"
+        f"  contract khai: {fsm['resolution']['invariant_db']['bieu_thuc']}\n"
+        f"  models.py có : {cons[ten]}"
+    )
 
 
 def test_inv14_check_constraint_br11_ton_tai():
@@ -333,7 +358,17 @@ def test_inv14_check_constraint_br11_ton_tai():
     viên eval). Một resolution 'rejected' trống lý do không chỉ mất vết audit,
     nó còn lọt vào bộ đo như một mẫu không phân loại được — hỏng chính cái
     thước dùng để chấm cải tiến agent.
+
+    🔴 TẠM — 26/08. Contract THIẾU `bieu_thuc` cho BR-11 (khác BR-10/BR-12,
+    xem ghi chú ĐÍNH CHÍNH phía trên) nên biểu thức mong đợi phải hardcode ở
+    đây, không có nguồn nào khác để so. Chuyển sang đọc động theo đúng khuôn
+    INV-07/INV-15 NGAY khi Lead/PO đóng ADR bổ sung `bieu_thuc` cho BR-11 vào
+    `resolution-state-machine.yaml` qua §3 — đừng để hardcode này sống mãi.
     """
+    _BR11_BIEU_THUC_MONG_DOI_TAM = (
+        "(status != 'rejected') OR (reject_reason IS NOT NULL "
+        "AND rejected_by IS NOT NULL AND rejected_at IS NOT NULL)"
+    )
     cons = _check_constraints()
     ten = "ck_resolutions_rejected_requires_reason_br11"
     assert ten in cons, (
@@ -341,11 +376,15 @@ def test_inv14_check_constraint_br11_ton_tai():
         "INV-14 (ADR-019, BR-11) — không có nó, một UPDATE trực tiếp có thể "
         "tạo resolution 'rejected' không lý do, không người từ chối."
     )
-    bieu_thuc = cons[ten].replace(" ", "").lower()
-    for cot in ("reject_reason", "rejected_by", "rejected_at"):
-        assert f"{cot}isnotnull" in bieu_thuc, (
-            f"{ten} không còn ép {cot} NOT NULL khi status='rejected': {cons[ten]}"
-        )
+    thuc_te = re.sub(r"\s+", "", cons[ten])
+    khai_bao = re.sub(r"\s+", "", _BR11_BIEU_THUC_MONG_DOI_TAM)
+    assert thuc_te == khai_bao, (
+        f"{ten} LỆCH khỏi biểu thức TẠM mong đợi (kiểm TOÀN BỘ, không chỉ "
+        f"từng cột NOT NULL rời rạc — cùng lỗ AND->OR đã đo ở BR-10):\n"
+        f"  mong đợi (TẠM, hardcode — chờ contract bổ sung bieu_thuc BR-11): "
+        f"{_BR11_BIEU_THUC_MONG_DOI_TAM}\n"
+        f"  thực tế  : {cons[ten]}"
+    )
 
 
 def test_inv15_check_constraint_br12_ton_tai_va_khop_bieu_thuc_contract(fsm):
@@ -490,6 +529,24 @@ def test_inv05_chi_supervisor_dua_duoc_resolution_sang_approved(fsm):
         assert t["from"] == "pending_approval", (
             f"Có đường tắt tới 'approved' từ '{t['from']}' — mọi thứ phải qua pending_approval."
         )
+        # 🔴 ĐÍNH CHÍNH 26/08 — audit "cổng canh có thật đỏ khi ràng buộc hỏng
+        # không". INV-06 (ngay dưới) chỉ lọc transition CÓ `cham_tien=true`
+        # rồi kiểm `boi`; nếu ai lỡ xoá `cham_tien: true` khỏi ĐÚNG transition
+        # tiền-thật này (pending_approval→approved), vòng lọc của INV-06 còn
+        # 0 phần tử và nó xanh trơn — không có test nào khác trong file bắt
+        # được việc rớt cờ. ĐÃ ĐO bằng git worktree riêng (xoá ngay sau đo,
+        # không đụng contracts/ that): xoá `cham_tien: true` khỏi transition
+        # này trong contract, chạy lại CẢ INV-05 (bản trước dòng assert này)
+        # LẪN INV-06 -> cả hai PASS (sai). Vá tại đây, không phải INV-06, vì
+        # INV-05 đã có sẵn biến `t` trỏ đúng transition tiền-thật cần canh.
+        assert t.get("cham_tien") is True, (
+            f"Transition {t['from']}→approved KHÔNG khai `cham_tien: true` — đây "
+            "chính là hành động chạm tiền thật của cả hệ thống (duyệt hoàn tiền/"
+            "điều chỉnh sổ cái). Thiếu cờ này, INV-06 (transition chạm tiền chỉ "
+            "do supervisor) không còn thấy transition này để canh, và cổng "
+            "'chạm tiền chỉ do supervisor' mất tác dụng ngay trên chính giao "
+            "dịch tiền quan trọng nhất."
+        )
 
 
 def test_inv06_transition_cham_tien_chi_boi_supervisor(fsm):
@@ -539,6 +596,17 @@ def test_inv09_danh_sach_tool_khop_code_dang_chay(tools_contract):
 def test_inv08_khong_tool_bi_cam_nao_ton_tai(tools_contract):
     """INV-08 · tool trong forbidden_tools không được xuất hiện dưới mọi hình thức."""
     cam = {f["ten"] for f in tools_contract["forbidden_tools"]}
+    # 🔴 ĐÍNH CHÍNH 26/08 — thiếu dòng này thì `agent-tools.yaml` lỡ có
+    # `forbidden_tools: []` (merge lỗi, sửa nhầm) làm cả hai lượt kiểm bên
+    # dưới (giao tập hợp + quét regex `def <tên>(`) chạy trên tập RỖNG — xanh
+    # tuyệt đối, không còn chặn `execute_refund`/`approve_resolution`/
+    # `lock_wallet`/... gì cả, trong khi chính docstring test này gọi đây là
+    # "vi phạm ràng buộc cứng nghiêm trọng nhất của dự án". ĐÃ ĐO bằng git
+    # worktree riêng: xoá rỗng forbidden_tools thật trong contract, chạy lại
+    # bản test CŨ (không có dòng assert này) -> PASS (sai). Mẫu chống-rỗng
+    # này COPY từ `test_inv10_tool_doc_du_lieu_nhay_cam_deu_kiem_otp` ngay
+    # dưới (`assert can_otp`) — cùng file đã có sẵn, chỉ chưa áp ở đây.
+    assert cam, "forbidden_tools rỗng — contract không còn liệt kê tool nào bị cấm, cổng này mất tác dụng."
     thuc_te = set(_live_tool_names())
     lot = sorted(cam & thuc_te)
     assert not lot, (
@@ -676,13 +744,33 @@ def test_inv_gan_co_gian_lan_khong_noi_sang_khoa_vi(fsm):
     ]
     assert fraud_files, "Không tìm thấy module fraud nào trong src/ — nghi vấn bị xoá."
 
+    # 🔴 ĐÍNH CHÍNH 26/08 — audit "cổng canh có thật đỏ không". Bản CŨ chỉ
+    # quét DÒNG chứa "import"/"from" CÙNG một trong 3 từ cấm — một lời gọi
+    # qua alias module (`import src.wallet_ops as wo` rồi `wo.lock_wallet(...)`
+    # Ở CHỖ KHÁC trong file) có dòng gọi chứa "lock_wallet" thật, nhưng dòng
+    # đó không có "import"/"from" nên KHÔNG khớp regex cũ — né hoàn toàn.
+    # ĐÃ ĐO bằng git worktree riêng (xoá ngay sau đo, không đụng src/ thật):
+    # thêm hàm gọi `client.lock_wallet(...)` không kèm dòng import nào chứa
+    # từ cấm vào bản sao `fraud_policy.py` -> bản test CŨ vẫn PASS (sai).
+    # Vá: bỏ ràng buộc "cùng dòng với import/from" — quét CẢ FILE cho 3 từ
+    # cấm ở bất kỳ đâu (import, gọi qua alias, gọi trực tiếp).
+    #
+    # ⚠️ GIỚI HẠN CÒN LẠI, KHÔNG VÁ ĐƯỢC Ở TẦNG QUÉT TÊN: nếu hàm khoá ví
+    # thật bị ĐỔI TÊN khỏi cả 3 từ khoá này (vd `lock_wallet` -> `set_locked`)
+    # và không còn lời gọi/import nào nhắc tới 3 từ cấm, KHÔNG quét văn bản/
+    # AST nào (kể cả bản vá này) bắt được — đây là giới hạn cố hữu của MỌI
+    # cách so khớp theo TÊN, đúng cảnh báo ở đầu file (dòng 3-9). Đóng hẳn
+    # lỗ này cần một ca HÀNH VI (gọi evaluate_escalation() thật với wallet đã
+    # seed, assert wallet.status không đổi) — ngoài phạm vi file introspect
+    # thuần này (không có DB session ở đây), đã báo riêng cho Lead/PO như một
+    # đề xuất tách biệt, không tự ý mở rộng file này sang có DB.
     vi_pham = [
         str(p.relative_to(ROOT))
         for p in fraud_files
-        if re.search(r"(import|from).*(lock_wallet|khoa_vi|wallet_lock)", p.read_text(encoding="utf-8", errors="ignore"), re.I)
+        if re.search(r"lock_wallet|khoa_vi|wallet_lock", p.read_text(encoding="utf-8", errors="ignore"), re.I)
     ]
     assert not vi_pham, (
-        f"Module gian lận import module khoá ví: {vi_pham}. "
+        f"Module gian lận nhắc tới định danh khoá ví (import hoặc gọi qua alias): {vi_pham}. "
         "Dương tính giả sẽ làm khách hàng lương thiện mất quyền dùng tiền (CLAUDE.md §2.5)."
     )
 

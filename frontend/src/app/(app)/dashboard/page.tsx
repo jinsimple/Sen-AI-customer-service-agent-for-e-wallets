@@ -206,7 +206,7 @@ export default function DashboardPage() {
       {error && <div className="note" style={{ borderColor: "var(--danger)" }}>{error}</div>}
 
       <div className="card scroll-x" style={{ padding: 0 }}>
-        <table className="table">
+        <table className="table table-cards-mobile">
           <thead>
             <tr>
               <th>Mã ticket</th>
@@ -225,8 +225,8 @@ export default function DashboardPage() {
               const rowClass = t.priority === "critical" ? "row-critical" : sla.overdue ? "row-warning" : "";
               return (
                 <tr key={t.ticket_id} className={`clickable ${rowClass}`} onClick={() => router.push(`/tickets/${t.ticket_id}`)}>
-                  <td className="mono">{t.ticket_id}</td>
-                  <td>
+                  <td className="mono" data-label="Mã ticket">{t.ticket_id}</td>
+                  <td data-label="Khách hàng">
                     {t.customer_name ?? "—"}
                     {t.human_handoff_requested && (
                       <span className="badge badge-warning" style={{ marginLeft: 6 }}>
@@ -234,29 +234,43 @@ export default function DashboardPage() {
                       </span>
                     )}
                   </td>
-                  <td>{t.complaint_type ? COMPLAINT_TYPE_LABEL[t.complaint_type] : "—"}</td>
-                  <td>
+                  <td data-label="Loại KN">{t.complaint_type ? COMPLAINT_TYPE_LABEL[t.complaint_type] : "—"}</td>
+                  <td data-label="Phạm vi">
                     <span className="badge badge-neutral">{t.scope ? SCOPE_LABEL[t.scope] : "—"}</span>
                   </td>
-                  <td>
+                  <td data-label="Ưu tiên">
                     {t.priority === "critical" ? (
                       <span className="badge badge-critical">
                         <span className="dot dot-pulse" />
                         Khẩn cấp
                       </span>
                     ) : t.priority === "high" ? (
-                      <span className="badge badge-warning">Cao</span>
+                      <span className="status-dot dot-warning">Cao</span>
                     ) : (
-                      <span className="badge badge-neutral">Bình thường</span>
+                      <span className="status-dot">Bình thường</span>
                     )}
                   </td>
-                  <td>
-                    <span className="badge badge-warning">{HITL_STATUS_LABEL[t.hitl_status]}</span>
+                  <td data-label="Trạng thái">
+                    {t.hitl_status === "rejected" ? (
+                      <span className="badge badge-danger">{HITL_STATUS_LABEL[t.hitl_status]}</span>
+                    ) : (
+                      <span
+                        className={`status-dot ${
+                          t.hitl_status === "approved"
+                            ? "dot-success"
+                            : t.hitl_status === "need_more_info"
+                              ? "dot-info"
+                              : ""
+                        }`}
+                      >
+                        {HITL_STATUS_LABEL[t.hitl_status]}
+                      </span>
+                    )}
                   </td>
-                  <td className="mono" style={{ fontSize: 12 }}>
+                  <td className="mono" style={{ fontSize: 12 }} data-label="SLA">
                     {sla.label}
                   </td>
-                  <td className="faint" style={{ fontSize: 12 }}>
+                  <td className="faint" style={{ fontSize: 12 }} data-label="Cập nhật">
                     {formatDateTime(t.created_at)}
                   </td>
                 </tr>

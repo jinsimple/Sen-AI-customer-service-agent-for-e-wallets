@@ -35,6 +35,62 @@
 > Caddyfile/CI dưới đây vẫn đúng kỹ thuật, chỉ sai vai trò "đây là đường chính"). Việc lớn hơn
 > phạm vi một bản vá, cần một phiên riêng.
 
+## Cập nhật code trên production (đổi UI, đổi backend, mọi thay đổi) — đường THẬT
+
+```powershell
+cd <thư mục repo trên máy Windows>
+.\scripts\deploy_home.ps1
+```
+
+Đó là toàn bộ lệnh. Script **tự** `git pull --ff-only`, tự build lại image nào có code đổi
+(so khớp qua `docker-compose.yml`, không cần biết trước là frontend hay backend), tự chờ
+`/health` xanh, tự kiểm kho RAG, tự xác nhận Cloudflare Tunnel đã nối. **Đọc `[LOI]` màu đỏ nếu
+có** — script dừng và nói rõ bước nào hỏng, không tự đoán tiếp.
+
+⚠️ **Luật Đ′ — cây làm việc phải ĐỨNG YÊN suốt lúc script chạy.** Đừng bấm script trong lúc
+Coder đang commit dở trên `main` — `git pull --ff-only` giữa chừng một đợt land nhiều commit có
+thể kéo về một trạng thái nửa vời. Hỏi trước "code đã land xong hết chưa" rồi mới chạy.
+
+### Lùi lại một bản deploy (rollback)
+
+🔴 **Không có "rollback ảnh"** — dự án build thẳng trên máy, không đẩy lên container registry
+nào (xem `deploy.yml`, cố ý để đơn giản cho quy mô pilot). Cách lùi DUY NHẤT là lùi **mã nguồn**
+trên `main` rồi build lại, không phải chuyển sang một image cũ đã lưu sẵn.
+
+🔴 **ĐỪNG `git checkout <sha cũ>` trực tiếp trên máy production.** `deploy_home.ps1` luôn
+`git pull --ff-only origin main` ở đầu — chạy lại script sau khi checkout thủ công sẽ kéo `main`
+mới nhất về, xoá mất chỗ lùi vừa làm (hoặc lệnh `pull` tự chối chạy vì không còn là fast-forward
+từ trạng thái detached HEAD). Rollback đúng cách đi qua git trước, máy production chỉ chạy lại
+đúng một lệnh quen thuộc:
+
+```powershell
+# 1. TRÊN MÁY DEV (không phải máy production) — lùi main bằng một commit MỚI,
+#    không sửa lịch sử cũ. Thay <sha-gay-loi> bằng commit thật của bản đổi UI.
+git revert <sha-gay-loi>
+git push origin main
+
+# 2. TRÊN MÁY PRODUCTION (Windows) — chạy lại ĐÚNG lệnh deploy bình thường,
+#    không có lệnh "rollback" riêng biệt nào khác:
+cd <thư mục repo>
+.\scripts\deploy_home.ps1
+```
+
+`git revert` tạo một commit MỚI đảo ngược thay đổi (không xoá lịch sử, không force-push) — đúng
+Luật P của dự án, và an toàn khi nhiều phiên đang cùng đọc/ghi nhánh `dev/learning-loop`/`main`.
+Nếu bản lùi lại vẫn xấu hơn bản trước nữa, `git revert` chính commit revert đó — không giới hạn
+số lần, mỗi lần đều là một commit mới, không phải viết đè.
+
+**Xác nhận rollback thật sự có hiệu lực** — đừng tin "script chạy xong không lỗi" là đủ:
+```powershell
+# build_commit trong /health PHẢI khớp commit vừa revert-và-push, không phải
+# commit gây lỗi — so ĐÚNG loại với ĐÚNG loại, đừng lấy build_commit so với
+# build_src_hash (hai nhãn khác nhau, xem src/dau_ma_nguon.py)
+git rev-parse --short HEAD
+curl.exe -s https://app.adaptivealgo.uk/health | ConvertFrom-Json | Select-Object build_commit, build_src_hash
+# Mở https://app.adaptivealgo.uk TỪ MỘT MÁY KHÁC (không phải máy vừa deploy), xác nhận
+# giao diện đã về đúng trạng thái cũ — đúng bước nghiệm thu cuối script tự nhắc
+```
+
 > ✅ **[PO THẬT ĐÍNH CHÍNH 25/08/2026] `app.adaptivealgo.uk` ĐANG CHẠY `main` CỦA P-226.**
 > Nguyên văn PO thật: *"Domain này đang là P-226 nhánh main rồi bạn ơi — bạn đọc doc nào bảo là
 > P-121 thì sửa ngay lại cái doc đấy luôn cho mình nhé."*
@@ -260,6 +316,78 @@ live sau khoảng 1-2 phút — không cần SSH tay nữa.
 
 ## Việc vặt cần biết thêm
 
+### Parse-check `scripts/deploy_home.ps1` trên máy không có `pwsh` thật (vd Mac của đội)
+
+```bash
+docker run --rm --platform linux/amd64 -v "$PWD/scripts:/s:ro" mcr.microsoft.com/powershell:latest \
+  pwsh -NoProfile -Command '$e=$null;[System.Management.Automation.Language.Parser]::ParseFile("/s/deploy_home.ps1",[ref]$null,[ref]$e); if($e){$e|%{Write-Host "LOI:" $_.Message}}else{Write-Host "PARSE SACH - 0 loi cu phap"}'
+```
+
+🔴 **`--platform linux/amd64` LÀ BẮT BUỘC trên máy Apple Silicon (arm64), KHÔNG PHẢI tuỳ chọn.**
+[ĐO 26/08] tag mặc định `mcr.microsoft.com/powershell:latest` trên máy arm64 resolve về ảnh
+`arm/linux` (32-bit) — chạy dưới QEMU, **CRASH thật** (`NullReferenceException` / segfault tuỳ
+lần), đôi khi thoát mã `0` như thể thành công trong khi `pwsh` chưa chạy nổi một dòng. Ép
+`--platform linux/amd64` buộc dùng lớp giả lập amd64 trưởng thành hơn — chạy được thật.
+
+⚠️ **Bắt buộc ĐỌC NỘI DUNG output, không tin riêng mã thoát** — hai lượt đo cùng ngày mã thoát `0`
+mà `pwsh` đã chết trước khi in một dòng nào. Bằng chứng hợp lệ DUY NHẤT là thấy dòng
+`PARSE SACH - 0 loi cu phap` (hoặc danh sách `LOI:` thật) trong output, không phải suy từ `$?`.
+
+### 🔴 Bẫy hình dạng thứ hai của "cổng canh xanh giả": mã thoát của một PIPELINE
+
+*(Bắt gặp khi tự đo lệnh trên — nối `| tail -20` khiến mã thoát đọc được là của `tail`, không
+phải của `docker run`, và một lượt "thành công" đã suýt được báo cáo trong khi `pwsh` đã chết.)*
+
+**Bash/zsh:** `$?` sau một pipeline là mã thoát của **LỆNH CUỐI trong ống**, không phải lệnh đầu —
+`cmd_that_fails | tail -20; echo $?` in ra mã của `tail` (gần như luôn `0`), nuốt mất lỗi thật.
+Sửa: bỏ pipe khi cần đọc mã thoát, hoặc `set -o pipefail` trước khi chạy, hoặc đọc NỘI DUNG output
+thay vì mã thoát.
+
+**PowerShell (`deploy_home.ps1` dùng) — [ĐO 26/08, kiểm THẬT bằng `/bin/false` trong container
+`--platform linux/amd64`, không suy từ tài liệu]:** `$LASTEXITCODE` CHỈ bám theo tiến trình NGOẠI
+LAI (native exe) gần nhất, cmdlet PowerShell (`Out-Null`, `Out-String`...) KHÔNG chạm vào nó:
+```
+/bin/false                          → $LASTEXITCODE = 1
+/bin/false | Out-Null               → $LASTEXITCODE = 1   (KHÔNG bị Out-Null ghi đè)
+/bin/false | Out-String | Out-Null  → $LASTEXITCODE = 1   (hai tầng pipe, vẫn giữ nguyên)
+```
+⟹ **`docker compose --profile home restart backend | Out-Null` (dòng ~143) AN TOÀN** — khác cơ
+chế Bash, `$LASTEXITCODE` đọc ngay sau đó vẫn đúng của `docker compose`, không bị `Out-Null` nuốt.
+Đã soát toàn bộ pipe (`|`) thật trong file — chỉ hai chỗ, chỗ còn lại (log Cloudflare Tunnel) đọc
+NỘI DUNG output chứ không đọc mã thoát, không dính lớp bẫy này ở ngôn ngữ nào.
+📌 **Bài học giữ nguyên giá trị dù script này không dính:** khi thêm cổng MỚI dùng pipe + đọc mã
+thoát (Bash HAY PowerShell), luôn tự hỏi *"mã thoát này của lệnh mình quan tâm, hay của lệnh cuối
+trong ống?"* trước khi tin nó.
+
+### 🔴🔴 Bẫy khi tự sửa `.env`: `LLM_BASE_URL` có + `LLM_API_KEY` trống ⟹ backend CHẾT LÚC KHỞI ĐỘNG
+
+**Đọc mục này TRƯỚC khi thêm hoặc sửa bất kỳ dòng `LLM_*` nào trong `.env` thật** — kể cả khi chỉ
+định thêm một dòng trông vô hại.
+
+```
+[ĐO 26/08, docker exec vào container thật, đặt LLM_BASE_URL=dashscope-intl... + OPENAI_API_KEY
+ (KHÔNG đặt LLM_API_KEY), rồi import src.config]
+→ RuntimeError tại src/config.py:342 (_khoa_cho_nha_cung_cap), NGAY LÚC IMPORT —
+  TRƯỚC KHI uvicorn kịp mở cổng. Không phải một lượt chat bị chặn — CẢ CONTAINER
+  không khởi động được, /health cũng không sống để trả lời.
+```
+
+**Vì sao guard này tồn tại (đúng, không phải bug):** nó sinh ra sau sự cố lộ khoá OpenAI 17/08 —
+nếu thiếu `LLM_API_KEY` mà `LLM_BASE_URL` đã trỏ nhà cung cấp khác, code CŨ từng âm thầm dùng
+`OPENAI_API_KEY` gửi sang máy chủ bên thứ ba (rò khoá thật). Guard chặn đúng việc đó — cái giá là
+nó bắn sớm và bắn nặng: **fail-fast tại import, không phải fail-graceful tại từng lời gọi.**
+
+**Quy tắc một câu, áp dụng mọi nơi kể cả `docker-compose.yml`/CI:** **thêm `LLM_BASE_URL` ở đâu
+thì PHẢI thêm `LLM_API_KEY` cùng lượt, cùng chỗ.** Không có ngoại lệ — thiếu một trong hai là
+container chết, không phải chạy sai.
+
+⚠️ **Đây là lý luận từ đọc mã + một lần đo trên container test, KHÔNG PHẢI số đo lặp lại nhiều
+lần trên production** — giữ nguyên mức độ tin cậy này, đừng đọc thành "đã kiểm chứng đầy đủ mọi
+trường hợp". Cụ thể: hành vi khi URL đúng cú pháp nhưng SAI đích (domain thật nhưng không phải
+nhà cung cấp mong muốn) chưa được đo trên container thật — theo mã, sẽ KHÔNG raise (có cả
+`LLM_BASE_URL` lẫn `LLM_API_KEY`), gọi thành công tới nhầm nơi, im lặng — cùng lớp rủi ro guard
+này vốn sinh ra để chặn ở khoá, không phải ở đích.
+
 ### ⚠️ `docker compose down -v` ĐỔI NGHĨA từ 25/08 — và bản mô tả đầu tiên NÓI NHẸ ĐI
 
 🔴 **[SỬA 25/08, tự đính chính]** Bản đầu của mục này (viết sáng 25/08, ngay sau `02892bd`)
@@ -296,7 +424,103 @@ không phục hồi được.
 - **Backup DB**: `docker compose exec postgres pg_dump -U fin05 fin05 >
   backup-$(date +%F).sql` — nên chạy định kỳ, đặc biệt trước khi đổi
   `FIELD_ENCRYPTION_KEY` (đổi key sẽ làm dữ liệu cũ đã mã hoá không đọc được
-  nữa, không có cách khôi phục).
+  nữa, không có cách khôi phục). **Xem mục "Khôi phục — diễn tập" ngay dưới
+  trước khi tin file `.sql` này cứu được bạn.**
+
+### 🔴 Khôi phục từ backup — diễn tập, không phải suy luận
+
+> **Một bản sao lưu chưa từng khôi phục thử KHÔNG PHẢI là bản sao lưu — nó là một tệp và một
+> niềm tin.** Niềm tin đó chỉ bị kiểm chứng đúng vào lúc tệ nhất: sau khi đã mất dữ liệu thật,
+> khi không còn đường lui nào khác.
+
+**🔒 NIÊM — cập nhật MỖI LẦN diễn tập lại, để con số tự già đi cho người sau thấy:**
+```
+Diễn tập QUY TRÌNH (lệnh có chạy được không, dump có phục hồi sạch không)
+  [ĐO 25/08, DevOps] ĐÃ LÀM — trên dump THẬT của ngăn `fin05do` (không phải
+  backup của PO thật, xem lý do bên dưới), khôi phục vào container vứt đi,
+  0 dòng lỗi trong log restore, 5/5 bảng cốt lõi khớp CHÍNH XÁC số dòng
+  (users 206 · tickets 607 · complaints 607 · resolutions 0 · tool_results
+  29), alembic_version khớp, 7 CHECK constraint trên `resolutions` (gồm
+  BR-10/BR-11/BR-12 maker-checker) còn nguyên sau restore, extension
+  `plpgsql` khớp. Container/dump xoá sạch ngay sau khi đo, KHÔNG để lại gì.
+
+Diễn tập TỆP THẬT của PO (`backup-truoc-25-08.sql`, 307MB, trên máy Windows
+  production) — 🔴 CHƯA BAO GIỜ. File này KHÔNG tồn tại trên máy DevOps
+  đang thao tác — không đo được, và diễn tập bằng một dump khác rồi báo
+  "đã diễn tập" là ĐO SAI VẬT, nguy hơn không đo vì tạo niềm tin sai. Việc
+  còn treo, thuộc về PO thật (quy trình dưới đây, tự chạy trên máy họ).
+```
+
+**Vì sao đủ để tin quy trình đúng dù chưa chạm tệp thật:** `pg_dump`/`psql`/lược đồ/constraint
+là cùng một cơ chế cho MỌI dump từ cùng schema — chạy sạch với dump `fin05do` (206 user, 607
+ticket, 7 CHECK constraint) là bằng chứng cơ chế **không hỏng theo cách hệ thống**. Ba cách hỏng
+điều phối (`p-226-f0`) nêu (`pg_dump` cắt giữa chừng · lệch phiên bản Postgres · thiếu
+extension/role) là hỏng theo **VẬT CỤ THỂ** (file dump nào, máy nào) — thứ diễn tập trên
+`fin05do` không loại trừ được cho đúng tệp `backup-truoc-25-08.sql`. Hai lớp bằng chứng khác
+nhau, không thay thế nhau.
+
+🟢 **[SỬA — điều phối (`p-226-f0`) chỉ ra] Hai trong ba cách hỏng KHÔNG cần restore để loại trừ.**
+Dump cắt giữa chừng và lệch phiên bản Postgres đều đọc được **thẳng từ chính tệp**, trong vài
+giây — xem BƯỚC 0
+ngay dưới, đặt TRƯỚC 6 bước dựng container vì đúng thứ tự phải là RẺ TRƯỚC, ĐẮT SAU: nếu tệp bị
+cắt, sáu bước sau là công toi. Chỉ **thiếu extension/role** là thật sự PHẢI restore mới lộ ra —
+không đọc được từ nội dung tệp mà không chạy nó.
+
+**Quy trình cho PO thật tự chạy trên máy Windows, với ĐÚNG tệp đó — RẺ TRƯỚC, ĐẮT SAU:**
+
+```powershell
+# BƯỚC 0 — đọc TỆP, KHÔNG dựng gì cả. Vài giây, loại được 2/3 cách hỏng
+# TRƯỚC KHI tốn công dựng container ở bước 1. Nếu bước 0 đỏ, DỪNG — bước 1-6
+# phía dưới là công toi cho tới khi có một tệp backup khác.
+
+# 0a. Dump có CẮT GIỮA CHỪNG không — pg_dump kết ở dòng "... complete", nhưng
+#     bản psql 16.x còn ghi thêm 1-2 dòng \unrestrict SAU dòng đó, nên tìm
+#     TRONG vài dòng cuối, đừng đòi đúng dòng cuối cùng tuyệt đối.
+Get-Content "C:\đường\dẫn\backup-truoc-25-08.sql" -Tail 5
+#     KHÔNG thấy dòng "-- PostgreSQL database dump complete" ⟹ TỆP BỊ CẮT.
+#     DỪNG Ở ĐÂY — bước 1-6 vô nghĩa với tệp này, cần dump lại từ đầu.
+
+# 0b. Dump có LỆCH PHIÊN BẢN Postgres không — hai dòng này nằm sẵn gần đầu
+#     tệp (khoảng 10 dòng đầu, sau khối \restrict):
+Get-Content "C:\đường\dẫn\backup-truoc-25-08.sql" -TotalCount 10 | Select-String "Dumped from database version|Dumped by pg_dump version"
+#     So với phiên bản ĐANG CHẠY thật — đọc động, đừng chép một số cố định ở
+#     đây: tag ảnh `postgres:16-alpine` là tag DI ĐỘNG, bản đang chạy hôm nay
+#     và hôm PO tạo backup có thể không cùng patch version dù cùng "16-alpine":
+docker compose --profile home exec postgres postgres --version
+#     Lệch bản VÁ (16.13 vs 16.14) thường vô hại. Lệch bản LỚN (15 vs 16) là
+#     dấu hiệu backup này KHÔNG dump từ đúng stack — hỏi lại trước khi restore.
+
+# 1. Container Postgres RỖNG, tên riêng, KHÔNG publish port ra host (không
+#    cần — mọi lệnh chạy qua `docker exec`, tránh luôn rủi ro đụng cổng)
+docker run -d --name fin05-restore-diendap `
+  -e POSTGRES_USER=fin05 -e POSTGRES_PASSWORD=diendap-tam-thoi -e POSTGRES_DB=fin05 `
+  postgres:16-alpine
+
+# 2. Đợi sẵn sàng (vài giây)
+docker exec fin05-restore-diendap pg_isready -U fin05 -d fin05
+
+# 3. Nạp ĐÚNG tệp backup-truoc-25-08.sql — sửa đường dẫn cho khớp máy bạn
+Get-Content "C:\đường\dẫn\backup-truoc-25-08.sql" -Raw | docker exec -i fin05-restore-diendap psql -U fin05 -d fin05
+#    Đọc kỹ output — 0 dòng "ERROR" là điều kiện ĐẦU, không phải điều kiện đủ
+
+# 4. Đếm 5 bảng cốt lõi trong container VỪA PHỤC HỒI
+docker exec fin05-restore-diendap psql -U fin05 -d fin05 -t -c "select 'users',count(*) from users union all select 'tickets',count(*) from tickets union all select 'complaints',count(*) from complaints union all select 'resolutions',count(*) from resolutions union all select 'tool_results',count(*) from tool_results;"
+
+# 5. Đếm CÙNG 5 bảng đó trên ngăn ĐANG SỐNG thật (production), SO SÁNH BẰNG MẮT
+docker compose --profile home exec postgres psql -U fin05 -d fin05 -t -c "select 'users',count(*) from users union all select 'tickets',count(*) from tickets union all select 'complaints',count(*) from complaints union all select 'resolutions',count(*) from resolutions union all select 'tool_results',count(*) from tool_results;"
+
+# 6. DỌN SẠCH — đây là container vứt đi, không phải một stack cần giữ
+docker rm -f fin05-restore-diendap
+```
+
+🔴 **Số ở bước 4 KHÔNG khớp số ở bước 5 là điều BÌNH THƯỜNG nếu backup cũ hơn hiện tại** —
+backup chụp tại một MỐC, production sống tiếp sau mốc đó. Điều cần đúng là: **số ở bước 4 phải
+là số THỰC TẾ có ý nghĩa** (không phải toàn 0, không phải lỗi), và **chênh lệch với bước 5 giải
+thích được bằng thời gian** (vd backup 3 ngày trước ít ticket hơn hôm nay là hợp lý; backup ít
+hơn một nửa số user hiện có mà chỉ cách 1 giờ thì đáng nghi).
+
+⚠️ Sau khi diễn tập xong — **cập nhật lại khối NIÊM ở trên** với ngày thật + kết quả thật. Đừng
+để nó đứng yên ở "CHƯA BAO GIỜ" nếu đã làm — và đừng xoá dòng cũ, ghi đè bằng ngày mới (Luật P).
 - **Xoá sạch làm lại từ đầu**: `docker compose down -v` (xoá **năm trong sáu**
   volume — `postgres_data` giờ an toàn khỏi lệnh này (`external: true`,
   `e5ee8cd`), nhưng bộ đếm chi tiêu/phiên đăng nhập/audit log/chỉ mục RAG/
@@ -310,3 +534,231 @@ không phục hồi được.
   xem docs/TESTING.md phần Observability), truy cập qua SSH tunnel:
   `ssh -L 16686:localhost:16686 <user>@<vps-ip>` rồi mở
   `http://localhost:16686` trên máy mình, chọn service `fin05-backend`.
+
+### 🔴 Trần chi tiêu LLM hằng ngày — chưa đặt, cần trước khi chia sẻ công khai
+
+**[ĐO 25/08, đọc mã, không suy từ trí nhớ]** `TRAN_TOKEN_LLM_MOI_NGAY` (`src/config.py:368`) —
+rỗng/thiếu ⟹ **không giới hạn**. Đơn vị: **token model CHAT nguyên**, KHÔNG gồm embedding
+(khác nhà cung cấp — `src/config.py` giải thích tại chỗ vì sao cộng chung vô nghĩa). Đọc lúc
+**IMPORT** ⟹ đổi giá trị bắt buộc **RECREATE container**, `docker exec -e` không đủ (cùng bẫy
+đã ghi ở `PHAN_LUONG_BAT`).
+
+**Điều gì xảy ra khi chạm trần — đã đọc hết đường đi, không đoán:** `cong_ra_ngoai.py` chặn ở
+tầng transport (`GoiRaNgoaiBiChanError`), SDK nhà cung cấp bọc thành `openai.APIConnectionError`
+(kế thừa `APIError`), `graph.py` bắt ở nhánh `except APIError` — khách **KHÔNG BAO GIỜ nhận
+500**, nhận câu mềm *"hệ thống đang bận nên mình chưa xử lý kịp, bạn nhắn lại giúp mình sau ít
+phút nhé"*. Ở tầng vận hành, log mức `warning` (không phải `error`), không tạo cảnh báo giả
+"nhà cung cấp cần can thiệp" — `APIConnectionError` không nằm trong `_LOI_CAN_CAN_THIEP`.
+
+🔴 **Một khoảng trống hành vi, khai ra chứ không giấu — thuộc `src/`, không tự sửa (vùng
+tech-lead):** câu trả lời mềm ở trên hứa *"sau ít phút"* — đúng cho lỗi nhà cung cấp thoáng
+qua, **SAI** cho ca chạm trần chi tiêu: trần reset lúc **00:00 UTC**, có thể còn hàng giờ, không
+phải "vài phút". Hàm `la_bi_chan()` (`cong_ra_ngoai.py:96`) được viết sẵn CHÍNH ĐỂ phân biệt ca
+này ("PHẢI DÙNG HÀM NÀY" — trích docstring) nhưng **0 lời gọi trong `src/`** — chưa được nối vào
+`graph.py`. Không chặn việc đặt trần (khách vẫn được trả lời mềm, không 500), nhưng đề xuất
+tech-lead nối `la_bi_chan()` vào nhánh `except APIError` để câu trả lời đúng lý do, tránh khách
+nhắn lại liên tục trong ngày mà lần nào cũng bị chặn.
+
+**Cách tính đề xuất — trình PO thật, PO quyết số cuối, KHÔNG tự đặt lên production:**
+
+```
+Mốc đo — [ĐO, tra được] `docs/DECISIONS.md:3003-3005` · `docs/nhat-ky/2026-08-25-ADR-051-du-
+thao-cho-PO-duyet.md` · `docs/giao-viec/CHECKLIST-dot-otp-truoc-token.md:1570` (đo THẬT từ sổ
+sống usage.jsonl TRONG container — 25/08, không phải 17/08 như trao đổi trước đó ghi):
+  0 tool → 10.381 token (n=8, chắc)  ·  1 tool → 20.811 (n=4, chắc)  ·  3 tool → 41.444 (n=1)
+🔴 **`n=1` ở điểm "3 tool" — MỘT quan sát duy nhất, ở đầu mút xa nhất.** Khớp tuyến tính với
+n=8/n=4 là tín hiệu tốt, nhưng một mẫu đơn ở đầu mút không đủ để KHẲNG ĐỊNH tuyến tính giữ đúng
+ngoài phạm vi đã thấy — khai `n` ra thay vì trình bày như số cùng độ tin cậy với hai điểm kia.
+⟹ mỗi lời gọi tool ≈ +10.400 token (từ (20.811−10.381)/1 và (41.444−10.381)/3, hai ước lượng
+  khớp nhau ~1%, nhưng dựa trên đúng ba điểm trên).
+
+🔴 **"141.000 token/hội thoại 8-lượt" — KHÔNG PHẢI SỐ ĐO.** [Điều phối p-226-f0 tự xác nhận,
+`git grep` toàn repo không ra kết quả nào khác dòng này] Đây là **con số điều phối tự mang vào,
+không kiểm gốc**. Bỏ khỏi vai trò "mốc", giữ lại làm ĐIỂM Ở GIỮA một khoảng suy ra minh bạch:
+
+  8 lượt, giả định KHÔNG tool call nào     ⟹  8 × 10.381 =  83.048 token   (SÀN)
+  8 lượt, giả định 1 lời gọi tool/lượt     ⟹  8 × 20.811 = 166.488 token   (TRẦN)
+  141.000 tương ứng ~0,7 lời gọi tool/lượt trung bình — nằm giữa hai mốc, HỢP LÝ (agent gọi
+  lookup_transaction/search_policy phần lớn lượt, không phải mọi lượt), nhưng vẫn là GIẢ ĐỊNH
+  về hành vi, không phải số đo cho đúng kịch bản 8-lượt.
+
+⚠️ **[ĐÍNH CHÍNH 25/08, `docs/STATE.md:24`]** số TUYỆT ĐỐI chỉ đúng khi đo TRONG container —
+`langchain-core` 1.5.3 (host/venv) vs 1.5.4 (container) sinh lược đồ tool khác nhau, lệch ~12%
+dù mã giống hệt. Ba điểm nguồn trên đo TRONG container (usage.jsonl thật) ⟹ đúng loại dùng được
+cho quyết định tiền; đối chiếu lại bằng venv host thì đừng lấy số đó thay.
+
+Giá qwen3.7-plus quốc tế [ĐO 17/08, CÓ THỂ ĐÃ ĐỔI — xác nhận lại trước khi dùng số tiền để
+  quyết]: $0,40 / 1M token vào · $1,20 / 1M token ra (giả định 100% vào/100% ra làm hai đầu cận
+  — chưa có tỉ lệ vào:ra thật để tính điểm chính xác hơn)
+```
+
+**Bảng dựng thẳng từ hai mốc SÀN/TRẦN — mọi ô tra ngược được, không qua một điểm-giữa che giấu
+giả định:**
+
+| Hội thoại 8-lượt/ngày | Token/ngày (SÀN: 0 tool/lượt) | Token/ngày (TRẦN: 1 tool/lượt) | USD/ngày (SÀN–TRẦN) |
+|---|---|---|---|
+| 50 | 4.152.400 | 8.324.400 | $1,66 – $9,99 |
+| 100 | 8.304.800 | 16.648.800 | $3,32 – $19,98 |
+| 150 | 12.457.200 | 24.973.200 | $4,98 – $29,97 |
+| 300 | 24.914.400 | 49.946.400 | $9,97 – $59,94 |
+| 500 | 41.524.000 | 83.244.000 | $16,61 – $99,89 |
+
+🟢 **[PO THẬT CHỐT 26/08, nguyên văn "5 triệu thôi bạn ơi"] `TRAN_TOKEN_LLM_MOI_NGAY=5000000`.**
+Thấp hơn cả năm mức đề xuất ở bảng trên (bảng để nguyên làm bối cảnh, không bôi đậm hàng nào —
+PO không chọn một trong các mức, mà chọn thận trọng hơn toàn bộ dải) — quyết định đã chốt,
+không hỏi lại (`CLAUDE.md §5`). Con số này rơi TRONG khoảng SÀN–TRẦN của đúng hàng **50**
+(4.152.400–8.324.400), lệch về nửa dưới. Quy đổi ngược từ hai mốc SÀN/TRẦN:
+`5.000.000 ÷ 166.488 (TRẦN) ≈ 30` và `5.000.000 ÷ 83.048 (SÀN) ≈ 60` hội thoại 8-lượt/ngày ⟹
+**~30–60 hội thoại/ngày**, tệ nhất ~$2–6/ngày theo giá đã dẫn.
+
+### 🔴🔴 Trần này BẢO VỆ VÍ, KHÔNG BẢO VỆ TÍNH SẴN SÀNG — đọc trước khi tin nó giữ sản phẩm sống
+
+**[TỰ KIỂM ĐỘC LẬP 26/08]** đếm thẳng từ `/app/logs/usage.jsonl` trong container
+`fin05-dot-otp-backend-1` (không chép lại số của ai, tự `docker exec` + cộng bằng Python):
+```
+25/08   72 lượt · tổng 881.414 token · trung bình 12.242 token/lượt (khớp mốc dự án ~10.400)
+Cuối ngày: chuỗi `PermissionDeniedError` (HTTP 403) liên tiếp, `model=None` — TOÀN BỘ bể model
+đã cạn hạn mức phía DashScope, không riêng một model lẻ.
+```
+⟹ **Hạn mức nhà cung cấp cạn ở khoảng ~881.000 token/ngày trên MỘT ngăn** — thấp hơn trần
+`TRAN_TOKEN_LLM_MOI_NGAY=5.000.000` **tới 5,7 lần**. Kể cả trần này bật từ trước, **nó không kịp
+kêu** trước khi tài khoản DashScope tự chặn.
+
+🔴 **Đừng đọc thành "vậy đặt trần vô nghĩa" — SAI, nó vẫn đúng việc của nó:** chặn chi tiêu ngoài
+ý muốn (bug lặp vô hạn, tấn công script hỏi dồn dập) TRƯỚC KHI tốn tới hàng triệu token trong vài
+phút. Trần này là **giới hạn TIỀN**, không phải **giới hạn UPTIME**. Muốn biết sản phẩm còn phục
+vụ được không, phải xem **hạn mức phía DashScope** (dashboard nhà cung cấp), không phải trần này
+— hai câu hỏi khác nhau, một cơ chế không trả lời được cả hai.
+
+⚠️ **KHÔNG đề xuất đổi `5.000.000`** — PO thật đã chốt (`CLAUDE.md §5`), và con số vẫn đúng việc
+nó được giao. Đây chỉ là niêm lại để tài liệu không hứa quá thứ cơ chế làm được.
+
+### 🔴🔴 [SẮC LẠI 26/08] Trần thật của HẠN MỨC còn thấp hơn nữa — tính theo BỂ, không theo TÀI KHOẢN
+
+**[Lead đo, đối chiếu ảnh hạn mức thật của PO thật — tôi tự kiểm lại phần tự kiểm được: đếm trực
+tiếp `LLM_MODEL_POOL` trong `.env`, khớp 7 model]:**
+```
+DashScope tính hạn mức THEO TỪNG MODEL, ghim ngày = 1.000.000 token/model. `LLM_MODEL_POOL`
+chỉ ghim 7 model (không phải toàn bộ ~20 model có trên tài khoản) ⟹ bể xoay chỉ VỚI TỚI ĐƯỢC
+7.000.000 token, KHÔNG PHẢI tổng quota cả tài khoản (~18,76 triệu — số đó gồm cả model NGOÀI
+pool mà bể không bao giờ gọi tới).
+
+Ở trần 5.000.000/ngày: 7.000.000 ÷ 5.000.000 = 1,4 NGÀY là hết sạch cả bể — trần đang CAO HƠN
+CẢ BỂ, hôm nay không phải giới hạn thật đang chặn.
+```
+
+🔴 **Bài học đắt: lần đo đầu đã suýt tính nhầm VẬT** — tổng quota TÀI KHOẢN (~19 triệu, ra ~3,75
+ngày) khác hẳn quota BỂ VỚI TỚI ĐƯỢC (7 triệu, ra 1,4 ngày) — lệch gần 3 lần, và **cả hai chiều
+đều bi quan hơn số đầu tưởng**. Xem đầy đủ bối cảnh + Luật AC ca thứ 7 tại `docs/STATE.md`
+(`9b14b39`).
+
+**Cách tính lại khi ai đổi `LLM_MODEL_POOL`:** đếm số model trong danh sách, nhân 1.000.000
+(giả định mỗi model GHIM NGÀY, chưa từng gọi lần nào trong ngày) — **không dùng con số "quota
+còn lại" tổng trên dashboard nhà cung cấp**, hai con số khác vật.
+
+**Ba mốc trần/ngày theo chân trời muốn kéo dài 7 triệu (PO thật CHƯA chốt mốc nào — niêm để có
+sẵn khi cần, không phải đề xuất thay `5.000.000`):**
+
+| Chân trời | Trần/ngày tương ứng |
+|---|---|
+| 7 ngày | 1.000.000 |
+| 14 ngày | 500.000 |
+| 81 ngày (tới hạn hạn mức 15/11) | ~86.420 |
+
+🟢 **[NIÊM 26/08 — PO thật đóng nhánh này] Không cần theo dõi ba mốc trên nữa.** Nguyên văn PO
+thật: *"không phải lo hết token, đang test thì dùng, người dùng thật sau này dùng token mua."*
+Bảng trên GIỮ NGUYÊN làm bản ghi (Luật P — kể đúng chuyện đã tính, không xoá), không phải việc
+còn mở.
+
+### 🔴🔴 Trước khi tắt "Free quota only" (chuyển sang token mua) — một điều kiện BẮT BUỘC
+
+🔴 **[PO thật phát hiện 26/08]** Mỗi model trong bảng hạn mức DashScope có công tắc **"Free quota
+only"** — hiện TẤT CẢ đang BẬT. Đây chính là lý do hết quota trả về `403` **im lặng, không mất
+tiền** (đúng thứ mục quota phía trên mô tả). Khi PO thật chuyển sang cho người dùng thật dùng
+token mua (đúng lộ trình vừa nói), công tắc đó sẽ bị gạt TẮT — và từ giây phút đó, **hết quota
+free = tính tiền thật**, không còn mốc dừng tự nhiên nào ngoài `TRAN_TOKEN_LLM_MOI_NGAY` của
+chính hệ thống.
+
+```
+TRƯỚC KHI GẠT "Free quota only" SANG TẮT, BẮT BUỘC:
+  1. TRAN_TOKEN_LLM_MOI_NGAY đã đặt THẬT trên máy production và ĐÃ VERIFY có hiệu lực
+     (RECREATE, không phải restart — xem lệnh ở mục "Trần chi tiêu LLM hằng ngày" phía trên).
+  2. Biết trước con số: 1 lượt chat ≈ 12.242 token [ĐO 25/08, tự kiểm độc lập qua
+     usage.jsonl thật, n=72 — xem mục quota phía trên].
+  3. Biết dấu hiệu chạm trần trông thế nào (mục "Dấu hiệu ĐÃ CHẠM TRẦN" ngay dưới), để
+     không nhầm với sản phẩm hỏng giữa buổi có khách thật.
+Thiếu bước 1 ⟹ gạt công tắc = mở ví ra Internet công cộng, KHÔNG CÓ ĐÁY.
+```
+
+🔴 **[CHƯA XÁC MINH được — tôi không có đường vào máy production của PO thật để tự đo]** Bước 1
+đang là giả định, chưa phải sự thật đã kiểm. Cách xác nhận (đã landed sẵn ở mục "Trần chi tiêu
+LLM hằng ngày" phía trên, PO thật tự chạy):
+```powershell
+docker compose exec backend printenv TRAN_TOKEN_LLM_MOI_NGAY
+```
+In ra `5000000` ⟹ bước 1 đã xong. Rỗng/không in gì ⟹ **CHƯA**, và tắt "Free quota only" lúc này
+là mở ví không đáy thật sự. Ai đọc mục này trên máy production: chạy lệnh trên, dán kết quả lại
+cho đội trước khi chạm công tắc DashScope.
+
+### 🔴 Dấu hiệu ĐÃ CHẠM TRẦN — người trực buổi demo phải biết TRƯỚC, không phải tra cứu lúc đang cuống
+
+Với `5.000.000` và PO dự kiến chia sẻ công khai ("chắc sẽ đông đấy"), **~20 người mỗi người 2
+lượt chat là đủ chạm trần** — không phải kịch bản hiếm.
+
+```
+Dấu hiệu: khách nhận câu "Xin lỗi bạn, hệ thống đang gặp sự cố kỹ thuật nên tạm thời chưa xử lý
+được yêu cầu này. Nếu việc của bạn cần xử lý ngay, bạn liên hệ <hotline> giúp mình nhé."
+KHÔNG phải câu "hệ thống đang bận, bạn nhắn lại sau ít phút" — hai câu khác NGHĨA, không chỉ
+khác chữ: câu sau hứa được, câu trên (đúng cho ca chạm trần) không hứa mốc thời gian.
+[SỬA 26/08, `d749691`] Trước bản vá đó, chạm trần cho câu "sau ít phút" — SAI, vì trần chỉ reset
+lúc 00:00 UTC (= 07:00 giờ VN), có thể còn hàng giờ, không phải "ít phút". Với trần 5 triệu —
+thấp, dễ chạm — bản vá này đổi từ "hữu ích" thành "thiết yếu".
+
+Mốc reset: 00:00 UTC = 07:00 giờ Việt Nam. Chạm trần lúc 20:00 VN thì phải chờ tới 07:00 sáng
+hôm sau, không phải "vài giờ" — gần 11 tiếng nếu chạm sớm buổi tối.
+
+Nâng gấp giữa buổi (PO tự quyết, không phải quy trình tự động): sửa `.env` + RECREATE — KHÔNG
+phải restart, xem bước 2 dưới. Không có cách nâng "tạm thời" nhẹ hơn recreate.
+
+🔴 CÙNG MỘT CÂU cho HAI NGUYÊN NHÂN KHÁC NHAU — khách KHÔNG phân biệt được, người trực PHẢI:
+`PermissionDeniedError` (nhà cung cấp hết hạn mức — xem mục quota phía trên, xảy ra ở ~881K
+token/ngày, THẤP HƠN trần của ta) cũng nằm trong nhóm "cần can thiệp" ⟹ khách nhận ĐÚNG CÙNG
+câu như khi ta tự chặn ở 5.000.000. Phân biệt bằng cách đọc bộ đếm, KHÔNG đoán từ câu khách thấy:
+  ĐẾM GẦN 5.000.000  ⟹  trần của TA vừa chặn (xem bước 5, lệnh đọc Redis)
+  ĐẾM CÒN THẤP (vd dưới 1 triệu) mà vẫn lỗi  ⟹  NHÀ CUNG CẤP đã cạn hạn mức, không liên quan
+  trần 5.000.000 — RECREATE với số cao hơn KHÔNG cứu được ca này.
+```
+
+**Cách đặt CẢ HAI biến trên máy Windows, cùng một lần gõ + xác nhận đã có hiệu lực** (gộp
+`TRAN_TOKEN_LLM_MOI_NGAY` với `BAO_VE_CSDL` — cùng tệp `.env`, PO chỉ cần mở lên một lần):
+
+```powershell
+# 1. Thêm HAI dòng vào .env thật trên máy Windows (KHÔNG phải .env.example)
+#    TRAN_TOKEN_LLM_MOI_NGAY=5000000
+#    BAO_VE_CSDL=true
+
+# 2. RECREATE backend — bắt buộc cho TRAN_TOKEN_LLM_MOI_NGAY (biến đọc lúc
+#    import, restart KHÔNG đủ). BAO_VE_CSDL không cần recreate container nào
+#    (chỉ đổi cách `docker compose` quản lý volume, có hiệu lực ngay ở lần
+#    `up` kế tiếp — vd lần chạy deploy_home.ps1 sau) nhưng gộp vào MỘT lệnh
+#    `up` cho gọn, không hại gì khi recreate cả hai cùng lúc:
+docker compose up -d --force-recreate backend
+
+# 3. Xác nhận TRAN_TOKEN_LLM_MOI_NGAY đã vào ĐÚNG container
+docker compose exec backend printenv TRAN_TOKEN_LLM_MOI_NGAY
+#   phải in ra 5000000 — rỗng nghĩa là chưa recreate đúng cách
+
+# 4. Xác nhận BAO_VE_CSDL đã có hiệu lực — tìm dòng `external: true`, KHÔNG
+#    so `true`/`false` (compose ẨN hẳn khoá `external` khi tắt, không in
+#    `false` — xem .env.example)
+docker compose config | Select-String -Context 0,2 "postgres_data:"
+
+# 5. Xem chi tiêu HÔM NAY đang được đếm (không tốn tiền, chỉ đọc Redis) —
+#    khoá theo NGÀY UTC, không phải giờ VN (UTC+7)
+$ngay_utc = (Get-Date).ToUniversalTime().ToString("yyyyMMdd")
+docker compose exec redis redis-cli get "fin05:chi_tieu_llm_token:$ngay_utc"
+```
+
+⚠️ **Đừng "test cho chắc" bằng cách cố tình chạm trần trên production** — đó là tự đốt đúng số
+tiền đang muốn bảo vệ. Tin vào việc đọc mã (đã làm ở trên) thay vì gây sự cố thật để xem nó có
+kêu không.

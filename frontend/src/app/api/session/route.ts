@@ -8,8 +8,23 @@ import { BACKEND_URL } from "@/lib/server-api";
 // client-side tampering" (docs/01-app/02-guides/authentication.md). Token
 // JWT backend phát ra cũng chỉ nằm trong cookie httpOnly này — trình duyệt
 // không bao giờ đọc được, chỉ route handler server-side dùng lại (BFF).
+// 26/08 — PO chốt: chặn nhân viên đăng nhập ở /login (cổng khách) và ngược
+// lại. KHÔNG phải cổng bảo mật — vai vẫn 100% lấy từ RESPONSE backend, `gate`
+// chỉ có thể làm ĐĂNG NHẬP THẤT BẠI THÊM, không bao giờ giúp thành công thêm
+// (ai gửi sai `gate` chỉ tự làm mình bị từ chối, không đi vòng qua được gì).
+// Chặn SAU khi xác thực mật khẩu đúng — sai mật khẩu không học được gì; đúng
+// mật khẩu thì thêm một câu cũng không mất gì (PO). Cùng MỘT câu lỗi cho mọi
+// lý do bị từ chối ở bước này — không khai vai ra màn hình.
+type Gate = "customer" | "internal";
+const WRONG_GATE_MESSAGE = "Tài khoản này không đăng nhập tại đây. Vui lòng dùng cổng dành cho nhân viên.";
+
+function gateRejects(gate: Gate, role: string) {
+  if (gate === "customer") return role !== "customer";
+  return role === "customer";
+}
+
 export async function POST(req: Request) {
-  const { phone, password } = await req.json();
+  const { phone, password, gate } = (await req.json()) as { phone: string; password: string; gate: Gate };
   const res = await fetch(`${BACKEND_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -28,6 +43,14 @@ export async function POST(req: Request) {
     access_token: string;
     refresh_token: string;
   };
+
+  // Mật khẩu đã đúng (backend vừa xác nhận) — nhưng sai cổng. KHÔNG lập
+  // phiên (không set cookie, tokens backend vừa phát ra chết theo request
+  // này). Trả 403 chung chung, không nói vai thật là gì.
+  if (gateRejects(gate, user.role)) {
+    return NextResponse.json({ detail: WRONG_GATE_MESSAGE }, { status: 403 });
+  }
+
   const session: Session = { ...user, phone, role: user.role as Session["role"] };
 
   const store = await cookies();

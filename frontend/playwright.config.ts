@@ -1,5 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// 🔴 LUẬT VẬN HÀNH (25/08, đợt vá bộ màu tối giản) — NGĂN CHẠY DÀI + NHIỀU
+// PHIÊN SONG SONG THÌ KẾT QUẢ E2E KHÔNG DÙNG LÀM NỀN ĐƯỢC, dù trỏ đúng ngăn,
+// đúng biến môi trường. [ĐO] `fin05-dot-otp-backend-1` sau 13 giờ chạy liên
+// tục (từng bị kernel OOM-kill một lần cùng ngày) + tải từ nhiều phiên
+// Claude song song: chạy lại 30/79 ca lỗi SAU KHI đã sửa đúng biến môi
+// trường thiếu (JWT_SECRET_KEY) — phần lớn VẪN đỏ, không rõ vì hồi quy thật
+// hay vì trạng thái/rate-limit tích luỹ suốt ngày. Không đủ thời gian tách
+// bạch từng ca trên một ngăn có thể đã mệt — giá trị biên giảm dần nhanh
+// hơn thời gian bỏ ra. Muốn một "con số nền" đáng tin để so trước/sau một
+// đợt vá: đo trên ngăn MỚI DỰNG, không phải ngăn đã sống nhiều giờ dưới tải
+// nặng — kể cả khi ngăn đó "vẫn đang chạy khoẻ" theo `docker ps`.
+
 // Nhóm identity/AUTH-* (FIN05_QA_TestCases.jsonl) — cần OTP THẬT ở backend
 // (src/auth.py::require_otp_verified) để test có ý nghĩa, không chỉ mô phỏng
 // UI. `reuseExistingServer: true` LUÔN LUÔN (không chỉ dev cục bộ) — CI

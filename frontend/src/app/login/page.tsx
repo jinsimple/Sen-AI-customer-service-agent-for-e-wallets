@@ -1,79 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { roleHome, type Role } from "@/lib/session";
+import { useLoginForm } from "@/lib/useLoginForm";
 import EnvBadge from "@/components/EnvBadge";
 
 // Đăng nhập bằng mật khẩu thật (quyết định 2026-08-12, thay luồng phone+role
 // chọn tay trước đó) — vai trò giờ lấy từ RESPONSE của server (user tìm
 // được qua phone trong DB), không còn do người dùng tự chọn trước khi gửi.
-// 4 tài khoản demo dùng CHUNG 1 mật khẩu (scripts/gen_dataset.py::
-// SHARED_TEST_PASSWORD) — hiện thẳng ở đây làm nút "đăng nhập nhanh" để
-// tiện test tay, đúng tinh thần minh bạch demo đã có sẵn (OTP demo cũng
-// hiện thẳng mã, không giấu).
+//
+// 26/08 — tách trang: đây là cổng CÔNG KHAI cho khách hàng (nối từ trang
+// quảng cáo). Cổng nội bộ (CSKH/sếp/đối tác ví) ở /dang-nhap-noi-bo, KHÔNG
+// nối từ đây — xem lib/useLoginForm.ts để biết cơ chế xác thực dùng chung.
 const DEMO_PASSWORD = "Demo@123";
-const QUICK_LOGIN_ACCOUNTS: { label: string; phone: string }[] = [
-  // Demo 15/08: trỏ USR-0145 (0974000145) chứ không phải USR-0001 — đây là
-  // user có dữ liệu khớp kịch bản demo. Trước đây kịch bản phải dặn "gõ tay,
-  // CẤM bấm nút nhanh", tức cái nút tiện-lợi lại là bẫy: bấm nhầm là vào sai
-  // user rồi mọi số liệu trên màn hình lệch khỏi lời đang nói.
-  { label: "Khách hàng", phone: "0974000145" },
-  { label: "Nhân viên CSKH", phone: "0353000201" },
-  { label: "Sếp phê duyệt", phone: "0905000205" },
-  { label: "Đối tác ví (Chính sách)", phone: "0900000001" },
-];
+// Demo 15/08: trỏ USR-0145 (0974000145) chứ không phải USR-0001 — đây là
+// user có dữ liệu khớp kịch bản demo.
+const CUSTOMER_PHONE = "0974000145";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function doLogin(loginPhone: string, loginPassword: string) {
-    setError(null);
-    setLoading(true);
-    // Timeout phía client (10s) — BUG-01 (FIN05-QA-Test-Report.md): nút "Đang
-    // đăng nhập…" từng bị báo treo vô hạn không có lối thoát. fetch() không tự
-    // có timeout — nếu request thật sự treo (mạng, backend đơ), trước đây
-    // không có gì làm loading=false. AbortController đảm bảo LUÔN có phản hồi
-    // rõ ràng trong 10s, đúng khuyến nghị "không bao giờ để loading treo vô
-    // hạn" của báo cáo — dù thời điểm sửa không tái hiện lại được hang gốc.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const res = await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: loginPhone.trim(), password: loginPassword }),
-        signal: controller.signal,
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        setError(body.detail ?? "Số điện thoại hoặc mật khẩu không đúng.");
-        return;
-      }
-      // Vai trò lấy từ RESPONSE (server tra được qua phone), không phải lựa
-      // chọn client tự khai trước khi gửi như luồng cũ.
-      router.push(roleHome(body.role as Role));
-      router.refresh();
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Máy chủ phản hồi quá lâu (>10s) — thử lại giúp mình nhé.");
-      } else {
-        setError("Không kết nối được máy chủ — kiểm tra backend đã chạy chưa (make run).");
-      }
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    await doLogin(phone, password);
-  }
+  const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm("customer");
 
   return (
     <main style={{ maxWidth: 1000, margin: "48px auto", padding: "0 20px" }}>
@@ -113,8 +56,8 @@ export default function LoginPage() {
           <div style={{ marginBottom: 14 }}>
             <EnvBadge />
           </div>
-          <h3>Đăng nhập</h3>
-          <p className="sub">Nhập số điện thoại và mật khẩu tài khoản của bạn.</p>
+          <h3>Chào bạn 👋</h3>
+          <p className="sub">Đăng nhập để tiếp tục với trợ lý AI của ví — vài giây thôi.</p>
 
           <div className={`field${error ? " field-error" : ""}`} style={{ marginTop: 0 }}>
             <label>Số điện thoại</label>
@@ -159,26 +102,22 @@ export default function LoginPage() {
               <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" />
             </svg>
             <div>
-              <b>Demo:</b> 4 tài khoản test bên dưới dùng chung mật khẩu{" "}
-              <span className="mono">{DEMO_PASSWORD}</span>. Toàn bộ user khác trong dataset có mật khẩu ngẫu nhiên
-              riêng (không dùng để test tay) — xem <span className="mono">data/generated/users.jsonl</span>.
+              <b>Demo:</b> tài khoản khách hàng bên dưới dùng mật khẩu{" "}
+              <span className="mono">{DEMO_PASSWORD}</span>.
             </div>
           </div>
 
           <div className="field" style={{ marginTop: 20 }}>
-            <label>Đăng nhập nhanh (demo) — bấm để vào thẳng đúng vai trò</label>
+            <label>Đăng nhập nhanh (demo)</label>
             <div className="flex gap-sm wrap" style={{ marginTop: 7 }}>
-              {QUICK_LOGIN_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.phone}
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  disabled={loading}
-                  onClick={() => void doLogin(acc.phone, DEMO_PASSWORD)}
-                >
-                  {acc.label} — {acc.phone}
-                </button>
-              ))}
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={loading}
+                onClick={() => void doLogin(CUSTOMER_PHONE, DEMO_PASSWORD)}
+              >
+                Khách hàng — {CUSTOMER_PHONE}
+              </button>
             </div>
           </div>
         </form>

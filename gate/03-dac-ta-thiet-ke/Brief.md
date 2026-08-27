@@ -96,7 +96,7 @@ Danh sách câu hỏi đầy đủ cho chuyên gia nghiệp vụ: xem `FIN05-Dat
 
 ## 10. Liên kết
 
-- **GitHub:** https://github.com/AI20K-Build-Phase-Cohort-3/P-121
+- **GitHub:** https://github.com/AI20K-Build-Phase-Cohort-3/P-226
 - **Figma:** https://www.figma.com/design/qLqouOA7n1oL41Gm0CrBPM/VinUni-AI20k
 - **Trello (quản lý việc hằng ngày):** https://trello.com/b/lO9aaQy6/vin-ai-20k
 - **Tài liệu đi kèm:** `FIN05-PRD.md` · `FIN05-Wireframe.html` · `FIN05-Data-Brief.md`

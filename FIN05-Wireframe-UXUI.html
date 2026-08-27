@@ -449,6 +449,48 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
 .notif-foot{ padding:9px 14px; background:var(--surface-2); border-top:1px solid var(--border); font-size:11.5px; color:var(--text-dim); text-align:center; }
 .empty-box{ border:1px dashed var(--border-strong); border-radius:10px; padding:16px; text-align:center; background:var(--surface-2); }
 
+/* ===== Giao diện v2 — nguồn & mật độ (25/08) ===== */
+.ab{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:820px){ .ab{ grid-template-columns:1fr; } }
+.ab-col{ min-width:0; }
+.ab-tag{ display:inline-flex; align-items:center; gap:6px; font:700 11px/1 var(--font-ui);
+  letter-spacing:.08em; text-transform:uppercase; padding:5px 9px; border-radius:6px; margin-bottom:9px; }
+.ab-tag.truoc{ background:var(--surface-2); color:var(--text-dim); border:1px solid var(--border); }
+.ab-tag.sau{ background:var(--navy); color:#fff; }
+.ab-box{ border:1px solid var(--border); border-radius:12px; padding:14px; background:var(--surface); }
+.ab-box.mo{ opacity:.62; }
+
+/* ② nguồn thành công dân hạng nhất */
+.cite-chip{ display:inline-flex; align-items:center; gap:7px; margin-top:9px;
+  padding:6px 11px; border-radius:999px; border:1px solid var(--border-strong);
+  background:var(--surface-2); font-size:12px; color:var(--navy); cursor:pointer; font-weight:600; }
+.cite-chip .dot{ width:6px; height:6px; border-radius:50%; background:var(--success); }
+.cite-open{ margin-top:9px; border:1px solid var(--border-strong); border-radius:10px; overflow:hidden; }
+.cite-head{ padding:9px 13px; background:var(--surface-2); border-bottom:1px solid var(--border);
+  font-size:12px; font-weight:700; display:flex; justify-content:space-between; align-items:center; }
+.cite-body{ padding:11px 13px; font-size:12.5px; }
+.cite-row{ display:grid; grid-template-columns:96px 1fr; gap:5px 12px; padding:4px 0; }
+.cite-row span:first-child{ color:var(--text-faint); }
+.cite-hit{ margin-top:9px; padding:9px 11px; border-radius:8px; background:var(--success-bg);
+  border:1px solid var(--success); font-size:12.5px; }
+
+/* ④ hàng chờ dạng thẻ */
+.q-list{ display:flex; flex-direction:column; gap:10px; }
+.q-card{ display:grid; grid-template-columns:4px 1fr auto; gap:0 14px; align-items:center;
+  border:1px solid var(--border); border-radius:12px; background:var(--surface); overflow:hidden; }
+.q-stripe{ align-self:stretch; background:var(--border-strong); }
+.q-card.gap .q-stripe{ background:var(--danger); }
+.q-card.som .q-stripe{ background:var(--warning); }
+.q-main{ padding:14px 0; min-width:0; }
+.q-top{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.q-who{ font-size:15.5px; font-weight:700; letter-spacing:-.01em; }
+.q-what{ font-size:13.5px; color:var(--text-dim); margin-top:3px; }
+.q-meta{ font-size:11.5px; color:var(--text-faint); margin-top:6px; font-family:var(--font-ui); }
+.q-right{ padding:14px 16px 14px 0; text-align:right; white-space:nowrap; }
+.q-sla{ font:700 13px/1.2 var(--font-ui); font-variant-numeric:tabular-nums; }
+.q-sla.gap{ color:var(--danger); } .q-sla.som{ color:var(--warning); }
+.q-sla-lbl{ font-size:11px; color:var(--text-faint); margin-top:2px; }
+
 </style>
 </head>
 <body>
@@ -490,7 +532,7 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
       </div>
     </div>
     <div class="topbar-actions">
-      <span class="who-pill">Bản mid-fi · v1 · T121 · 05/08/2026</span>
+      <span class="who-pill">Bản mid-fi · v1 · P-226 · 05/08/2026</span>
       <div class="palette-picker" id="palettePicker">
         <button class="palette-trigger" id="paletteTrigger" type="button" aria-haspopup="true" aria-expanded="false">
           <span class="swatch-pair" id="paletteSwatch"><span></span><span></span></span>
@@ -535,6 +577,7 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
     <div class="tabgroup">
       <span class="tabgroup-label">Mới</span>
       <button class="tab-btn" data-tab="notify" type="button">Thông báo live</button>
+      <button class="tab-btn" data-tab="v2" type="button">Giao diện v2</button>
     </div>
   </nav>
 
@@ -1218,6 +1261,148 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
 
   </section>
 
+
+  <!-- ============ TAB: GIAO DIỆN v2 ============ -->
+  <section class="view" id="view-v2">
+    <div class="page-head">
+      <span class="eyebrow">Đề xuất UX/UI · thuần giao diện — KHÔNG đụng backend</span>
+      <h1>Giao diện v2 — nguồn &amp; mật độ</h1>
+      <p class="sub">Học <b>cách trình bày</b> của Fin.ai. 🔴 <b>KHÔNG</b> học điều họ hứa — Fin bán <i>"AI tự giải quyết"</i>, còn ràng buộc số một của ta là <b>AI không bao giờ quyết định</b>.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">② Nguồn thành công dân hạng nhất <span class="tag">"cấm bịa số liệu" thành thứ khách BẤM ĐƯỢC</span></div>
+      <div class="ab">
+        <div class="ab-col">
+          <div class="ab-tag truoc">Trước</div>
+          <div class="ab-box mo">
+            <div class="mini-bubble">Mình đã tra lịch sử giao dịch của bạn. Giao dịch <b>TXN20260728000108</b> lúc 19:30 ngày 28/07, số tiền 339.000đ, người nhận T. H. Ngân (058***0135).</div>
+            <div class="bubble-cite">nguồn: get_customer_history</div>
+          </div>
+          <div class="note" style="margin-top:10px;">
+            <svg class="icon"><use href="#i-alert"></use></svg>
+            <div>Một dòng chữ xám. Khách <b>không kiểm được gì</b> — vẫn phải tin. Với ví điện tử, <i>"tin tôi đi"</i> là thứ ta đang cố không nói.</div>
+          </div>
+        </div>
+        <div class="ab-col">
+          <div class="ab-tag sau">Sau</div>
+          <div class="ab-box">
+            <div class="mini-bubble">Mình đã tra lịch sử giao dịch của bạn. Giao dịch <b>TXN20260728000108</b> lúc 19:30 ngày 28/07, số tiền 339.000đ, người nhận T. H. Ngân (058***0135).</div>
+            <div class="cite-chip"><span class="dot"></span>Đã tra 90 ngày · 12 kết quả<svg class="icon icon-sm"><use href="#i-chevron-down"></use></svg></div>
+            <div class="cite-open">
+              <div class="cite-head"><span>Mình đã tra gì</span><span class="faint mono" style="font-size:11px;">19:42:07</span></div>
+              <div class="cite-body">
+                <div class="cite-row"><span>Tìm theo</span><span>số tiền <b class="mono">339.000đ</b> (±2%)</span></div>
+                <div class="cite-row"><span>Khoảng thời gian</span><span>90 ngày gần nhất</span></div>
+                <div class="cite-row"><span>Tìm thấy</span><span><b>12</b> giao dịch gần mức đó</span></div>
+                <div class="cite-hit">✓ Khớp đúng: <b class="mono">TXN20260728000108</b> — 28/07 19:30 — 339.000đ</div>
+              </div>
+            </div>
+          </div>
+          <div class="note" style="margin-top:10px;">
+            <svg class="icon"><use href="#i-check"></use></svg>
+            <div>Khách bấm được để xem <b>đúng thứ bot đã tra</b>. Bot nói gì cũng <b>truy ngược được tới một kết quả có thật</b> — đúng ràng buộc cứng 3, và nay <i>nhìn thấy được</i>.</div>
+          </div>
+        </div>
+      </div>
+      <div class="note" style="margin-top:14px;">
+        <svg class="icon"><use href="#i-shield"></use></svg>
+        <div>🔴 <b>Ba thứ KHÔNG được hiện trong khối nguồn:</b> tên đầy đủ người thứ ba · số điện thoại/số tài khoản chưa che · dữ liệu của giao dịch KHÔNG thuộc khách này. Khối này là <b>một đường đọc dữ liệu mới</b> — nó phải chịu đúng luật che như mọi đường khác.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">④ Hàng chờ — bảng dày thành thẻ có nhịp thở <span class="tag">việc gấp phải nổi lên TRƯỚC</span></div>
+      <div class="ab">
+        <div class="ab-col">
+          <div class="ab-tag truoc">Trước</div>
+          <div class="ab-box mo" style="padding:0; overflow-x:auto;">
+            <table class="table" style="font-size:11.5px;">
+              <thead><tr><th>Mã</th><th>Khách</th><th>Loại</th><th>Phạm vi</th><th>Ưu tiên</th><th>Trạng thái</th><th>SLA</th><th>Cập nhật</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">KN-…1201</td><td>Trần T. Hương</td><td>Trừ 2 lần</td><td>Nội bộ</td><td><span class="badge badge-danger">Khẩn</span></td><td><span class="badge badge-info">Chờ CSKH</span></td><td class="mono">còn 47p</td><td class="faint">3 phút</td></tr>
+                <tr><td class="mono">KN-…0994</td><td>Lê M. Quân</td><td>Tiền chưa về</td><td>Từ NH</td><td><span class="badge badge-warning">Cao</span></td><td><span class="badge badge-danger">Quá hạn</span></td><td class="mono">quá 8h</td><td class="faint">1 giờ</td></tr>
+                <tr><td class="mono">KN-…1187</td><td>Nguyễn H. Anh</td><td>Chuyển nhầm</td><td>Nội bộ</td><td><span class="badge badge-neutral">Thường</span></td><td><span class="badge badge-info">Chờ CSKH</span></td><td class="mono">còn 46h</td><td class="faint">12 phút</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note" style="margin-top:10px;">
+            <svg class="icon"><use href="#i-alert"></use></svg>
+            <div><b>Tám cột, năm huy hiệu mỗi dòng.</b> Mắt không biết nhìn đâu trước — <i>quá hạn 8h</i> và <i>còn 46h</i> trông <b>ngang nhau</b>. Người trực phải <b>đọc</b> để biết việc nào gấp, thay vì <b>thấy</b>.</div>
+          </div>
+        </div>
+        <div class="ab-col">
+          <div class="ab-tag sau">Sau</div>
+          <div class="q-list">
+            <div class="q-card gap">
+              <div class="q-stripe"></div>
+              <div class="q-main">
+                <div class="q-top"><span class="q-who">Lê Minh Quân</span><span class="badge badge-danger">Quá hạn đối tác</span></div>
+                <div class="q-what">Tiền chưa về · chuyển từ ngân hàng</div>
+                <div class="q-meta">KN-2026-08-0994 · cập nhật 1 giờ trước</div>
+              </div>
+              <div class="q-right"><div class="q-sla gap">quá hạn 8h</div><div class="q-sla-lbl">hạn xử lý</div></div>
+            </div>
+            <div class="q-card som">
+              <div class="q-stripe"></div>
+              <div class="q-main">
+                <div class="q-top"><span class="q-who">Trần Thị Hương</span><span class="badge badge-warning">Nghi gian lận</span></div>
+                <div class="q-what">Trừ tiền 2 lần · nội bộ ví</div>
+                <div class="q-meta">KN-2026-08-1201 · cập nhật 3 phút trước</div>
+              </div>
+              <div class="q-right"><div class="q-sla som">còn 47 phút</div><div class="q-sla-lbl">hạn xử lý</div></div>
+            </div>
+            <div class="q-card">
+              <div class="q-stripe"></div>
+              <div class="q-main">
+                <div class="q-top"><span class="q-who">Nguyễn Hoàng Anh</span></div>
+                <div class="q-what">Chuyển nhầm người nhận · nội bộ ví</div>
+                <div class="q-meta">KN-2026-08-1187 · cập nhật 12 phút trước</div>
+              </div>
+              <div class="q-right"><div class="q-sla">còn 46 giờ</div><div class="q-sla-lbl">hạn xử lý</div></div>
+            </div>
+          </div>
+          <div class="note" style="margin-top:10px;">
+            <svg class="icon"><use href="#i-check"></use></svg>
+            <div><b>Gấp nằm trên. Vạch màu bên trái nói mức khẩn — không cần đọc chữ.</b> Huy hiệu chỉ còn ở việc <b>bất thường</b>; việc bình thường <b>không đeo gì</b>, nên cái bất thường mới nổi lên.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Ba luật màu — thứ Fin làm tốt nhất, và ta đang làm ngược</div>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">Nền trắng, chữ đen</div>
+          <div class="card-sub">Màu thương hiệu <b>không</b> làm nền cho văn bản. Tím là <b>gia vị</b>, không phải <b>món chính</b>.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Màu nhấn CHỈ ở chỗ bấm được</div>
+          <div class="card-sub">Thấy tím ⟹ <b>bấm được</b>. Hiện tại tím rải khắp nơi ⟹ <b>không chỗ nào nổi</b>, và người dùng thôi tin vào màu.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Bình thường thì không đeo gì</div>
+          <div class="card-sub">Mỗi dòng năm huy hiệu ⟹ huy hiệu <b>hết nghĩa</b>. Chỉ đánh dấu cái <b>lệch khỏi bình thường</b>.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🔴 Điều KHÔNG lấy từ Fin — và vì sao</div>
+      <div class="card" style="border-left:3px solid var(--danger);">
+        <div class="card-title" style="margin-bottom:9px;">Đừng bê khung "AI tự giải quyết"</div>
+        <p style="font-size:13.5px; line-height:1.6; margin:0 0 10px;">
+          Fin bán <b>mức độ tự động</b> — <i>"AI đã xử lý xong bao nhiêu % ticket"</i>. Toàn bộ ngôn ngữ giao diện của họ xoay quanh chuyện ấy.
+        </p>
+        <div class="kv-row"><span class="k">Ta thì ngược</span><span class="v"><b>AI không bao giờ quyết định.</b> Mọi việc chạm tiền cần người duyệt + OTP <i>(ràng buộc cứng 1)</i></span></div>
+        <div class="kv-row"><span class="k">Hệ quả</span><span class="v">Bê nguyên khung ấy vào đây là <b>quảng cáo một sản phẩm ta CỐ Ý không làm</b> — với ví điện tử đó là chỗ <b>mất niềm tin</b>, không phải chỗ ghi điểm</span></div>
+        <div class="kv-row"><span class="k">Lấy gì</span><span class="v">Lấy <b>cách họ trình bày</b>. Đừng lấy <b>điều họ hứa</b>.</span></div>
+      </div>
+    </div>
+
+  </section>
+
   <!-- ============ TAB: TICKET DETAIL ============ -->
   <section class="view" id="view-ticket">
     <div class="page-head">
@@ -1454,7 +1639,7 @@ kết quả: { signals: ["FS-04","FS-05"], tier: "B", count: 2 }</div>
 
   </main>
 
-  <footer class="foot">FIN-05 · Wireframe UX/UI · T121 — AI 20K Build Phase Cohort 3 (Vingroup × VinUni) · Đồng bộ với FIN05-PRD.md v2.1</footer>
+  <footer class="foot">FIN-05 · Wireframe UX/UI · P-226 — AI 20K Build Phase Cohort 3 (Vingroup × VinUni) · Đồng bộ với FIN05-PRD.md v2.1</footer>
 </div>
 
 <script>

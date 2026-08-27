@@ -24,10 +24,24 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   partner_admin: ["/knowledge"],
 };
 
-const PUBLIC_PATHS = ["/login"];
+// 26/08 — landing đã dọn từ /gioi-thieu VỀ "/" (thiết kế Lead, soát bởi
+// Review). "/" KHÔNG nằm trong mảng này — nó có nhánh khớp CHÍNH XÁC riêng
+// ở dưới (`pathname === "/"`), CỐ Ý tách khỏi PUBLIC_PATHS vì matcher ở đây
+// là `khopTienTo` (tiền tố + ranh giới "/"), và "/" + ranh giới sẽ khớp MỌI
+// path — gộp vào đây là mở toang /dashboard, /approve... /dang-nhap-noi-bo
+// vẫn ở đây: route công khai thật (trang đăng nhập nội bộ), không phải
+// landing.
+const PUBLIC_PATHS = ["/login", "/dang-nhap-noi-bo"];
 
-function homeFor(role: Role | undefined) {
-  return role ? roleHome(role) : "/login";
+// Review (p-226-8b, 26/08): `startsWith` thô khớp theo TIỀN TỐ KÝ TỰ, không
+// theo ranh giới segment — "/dashboard".startsWith cũng đúng với
+// "/dashboard-admin". Hai chỗ dùng nó (PUBLIC_PATHS bên dưới VÀ
+// ROLE_PREFIXES) đều dính cùng lỗi hình dạng: ai đặt tên route mới trùng
+// tiền tố một route đã cho phép là vô tình mở/leo thang quyền, không cần sửa
+// gì khác. Một hàm khớp có ranh giới (chính xác HOẶC tiền tố + "/") đóng cả
+// hai chỗ cùng lúc, không phải nhớ mà tránh.
+function khopTienTo(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
 // AUTH5-02 (đợt nâng cấp Auth Flow, 2026-08-12) — access_token giờ chỉ sống
@@ -96,11 +110,18 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Nhánh khớp CHÍNH XÁC, CỐ Ý tách khỏi PUBLIC_PATHS (xem comment ở khai
+  // báo mảng đó) — "/" giờ là landing công khai, không phải logic xác thực
+  // thuần tuý nữa. Có phiên -> vẫn về màn theo vai, KHÔNG ĐỔI GÌ so với
+  // trước (0 thay đổi bề mặt auth cho người đã đăng nhập). Không phiên ->
+  // ĐỔI: cho render (trang quảng cáo tại app/page.tsx), không còn redirect
+  // "/login" nữa.
   if (pathname === "/") {
-    return NextResponse.redirect(new URL(homeFor(session?.role), req.url));
+    if (session) return NextResponse.redirect(new URL(roleHome(session.role), req.url));
+    return NextResponse.next();
   }
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.some((p) => khopTienTo(pathname, p));
   if (isPublic) {
     if (session) return NextResponse.redirect(new URL(roleHome(session.role), req.url));
     return NextResponse.next();
@@ -111,7 +132,7 @@ export async function proxy(req: NextRequest) {
   }
 
   const allowedForRole = ROLE_PREFIXES[session.role];
-  const isAllowed = allowedForRole.some((p) => pathname.startsWith(p));
+  const isAllowed = allowedForRole.some((p) => khopTienTo(pathname, p));
   if (!isAllowed) {
     return NextResponse.redirect(new URL(roleHome(session.role), req.url));
   }

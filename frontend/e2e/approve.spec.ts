@@ -5,6 +5,16 @@ import { createTicketAsCustomerViaAI, loginAs, proposeResolutionAsStaff } from "
  * FIN05-StressTest-Plan-v4 P2 — `/approve` (Nhóm A1 v1, Nhóm C v2) chưa có
  * e2e nào dù đây là UI cho HITL cốt lõi — nơi QUYẾT ĐỊNH TÀI CHÍNH THẬT
  * được duyệt. Ưu tiên CAO NHẤT trong P2 theo đúng gap doc.
+ *
+ * 🔴 NIÊM 25/08 (đợt vá bộ màu tối giản) — CẢ HAI ca dưới đây đỏ ĐÃ CÓ TỪ
+ * TRƯỚC, xác nhận trên `fin05-dot-otp` (ảnh CHƯA vá CSS, đã đặt đúng
+ * JWT_SECRET_KEY) ⟹ KHÔNG liên quan đợt vá màu, KHÔNG được chặn việc đẩy
+ * vì lý do đó. Triệu chứng: mỗi ca chạy ĐỦ 150s (đúng `test.setTimeout`
+ * dưới đây) rồi mới đỏ — không đỏ sớm, không treo im — khớp đúng dấu hiệu
+ * TIMEOUT/nudge-retry đã ghi ở dòng dưới ("bounded retry tối đa 2 lần nếu
+ * backend chạm timeout >60s"), tức đang chạm ĐÚNG nhánh retry này và cả
+ * hai lần thử đều không thành công trong 150s. Đây là manh mối chính cho
+ * ai điều tra tiếp — không phải bằng chứng UI vỡ.
  */
 
 const CUSTOMER_PHONE = "0387000001"; // USR-0001
