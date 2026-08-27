@@ -78,9 +78,21 @@ const ALWAYS_PUBLIC_PATHS = ["/cho-khach-hang"];
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8010";
 const REFRESH_MARGIN_SECONDS = 120;
 
+// 27/08 [ĐO] p-226-dc: thêm ảnh thật vào landing (`/landing/*.png`) rồi phát
+// hiện file đó (VÀ mọi file có sẵn từ trước trong `public/` — đo được cả
+// `/next.svg`, `/file.svg` mặc định của Next) bị đá về /login cho khách
+// CHƯA đăng nhập — matcher chỉ loại trừ `_next/*`/`favicon`, không loại trừ
+// phần còn lại của `public/`. Đây là lỗi CÓ SẴN TỪ TRƯỚC, không phải do ảnh
+// mới gây ra — ảnh mới chỉ là request ĐẦU TIÊN chạm đúng lớp lỗi này vì
+// trước đó chưa trang công khai nào tự tham chiếu file tĩnh nào cả. Bất kỳ
+// file nào đặt trong `public/` được Next serve THẲNG theo tên, nên nhận diện
+// bằng ĐUÔI FILE (không phải liệt kê từng thư mục) mới phủ được CẢ những
+// asset thêm sau này mà không ai nhớ cập nhật danh sách ở đây.
+const DUOI_FILE_TINH = /\.(svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|css|js|txt|xml|json)$/i;
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || DUOI_FILE_TINH.test(pathname)) {
     return NextResponse.next();
   }
 
