@@ -719,6 +719,47 @@ thích, không phải lỗi đối ngoại · C2 `test_f31_f32` đã có cổng 
 
 ---
 
+### 🔴 S. THU HỒI TOKEN CHẬM 15 PHÚT — đóng ở đường TIỀN, hở ở đường ĐỌC
+
+**Ngày:** 27/08 · **Trạng thái:** MỞ, chờ PO quyết · **Không vá gì.**
+**🔴 CỐ Ý TÁCH KHỎI ADR-054** *(Review yêu cầu, và lý do là lý do đúng)*: gộp chung sẽ khiến
+người đọc sau hiểu **ngược** — tưởng cửa sổ 15 phút làm ADR-054 yếu đi, trong khi bằng chứng
+cho thấy **đúng chỗ ADR-054 lo thì hệ ĐÃ ĐÓNG**.
+
+**Đo được:** `access_token` là JWT tự chứa ⟹ `POST /auth/logout` **không giết nó ngay**; nó
+sống tới hết 15 phút. Toàn bộ codebase gọi `is_access_token_revoked` ở **đúng ba chỗ**:
+`auth.py:345` *(trong `require_otp_verified`)* · `main.py:977` *(`/approve`)* ·
+`main.py:1139` *(`/reject`)*.
+
+**✅ ĐƯỜNG TIỀN ĐÃ ĐÓNG — đây là tin tốt, đừng đọc mục này thành báo động:**
+`is_access_token_revoked` là **DÒNG ĐẦU TIÊN** của `/approve` — chạy **TRƯỚC** khi so OTP,
+**TRƯỚC** khi kiểm trạng thái. ⟹ Kể cả khi `/resolutions/{id}/request-approval-otp` **không**
+kiểm thu hồi *(và nó không)*, mã OTP đúc bằng token đã logout vẫn **vô dụng**: `/approve` chết
+ở dòng đầu trước khi mã kịp được so. **Sếp bấm Đăng xuất là giết ngay khả năng duyệt tiền.**
+
+**🔴 VÀNH NGOÀI CÒN HỞ — và phải phân biệt hai loại, đừng gộp:**
+```
+CỐ Ý (có bình luận giải thích trong mã, đã cân nhắc):
+  /tools/lookup_transaction · /tools/get_customer_history
+  lý do: CSKH/sếp cần tra MỌI khách; khách cần dùng trước khi kịp OTP
+
+CHƯA THẤY AI CÂN NHẮC (không bình luận nào giải thích):
+  🔴 /tools/propose_resolution        — ĐỀ XUẤT số tiền hoàn vào hàng chờ duyệt
+  🔴 /resolutions/{id}/request-approval-otp — đúc mã OTP duyệt tiền
+  /policy-search · /policy-docs (GET/POST/DELETE)  — nhạy cảm thấp hơn
+```
+**Cái mở ra:** trong 15 phút sau khi chủ tài khoản logout, token bị đánh cắp vẫn **(a)** đọc
+lịch sử/giao dịch của **mọi khách**, **(b)** **bơm đề xuất hoàn tiền giả vào hàng chờ** — không
+tự duyệt được, nhưng **tạo nhiễu cho sếp thật duyệt nhầm về sau**.
+⟹ **Rò rỉ dữ liệu + làm nhiễu hàng chờ. KHÔNG phải khả năng tự rút tiền.** Mức khác hẳn ADR-054.
+
+**Câu chờ PO:** hai route **CHƯA THẤY AI CÂN NHẮC** ở trên — chấp nhận như hai route đã cố ý,
+hay thêm kiểm thu hồi? *(mỗi lần kiểm = một lượt đọc Redis; đó là cái giá route `/approve` đã
+cố ý trả.)*
+📌 Và phân biệt này mới là thứ đáng giữ: **"cố ý bỏ qua" và "chưa ai nghĩ tới" trông giống hệt
+nhau trong mã** — chỉ bình luận phân biệt được. Route nào không có bình luận thì không ai biết
+nó thuộc loại nào, kể cả người viết nó.
+
 ## 6. BỐN CON SỐ QUYẾT ĐỊNH — kèm mẫu số, đừng trích thiếu
 
 ### 🔴🔴 P. CÂY LÀM VIỆC BỊ CHUYỂN NHÁNH GIỮA LƯỢT — và KHÔNG có triệu chứng nào
