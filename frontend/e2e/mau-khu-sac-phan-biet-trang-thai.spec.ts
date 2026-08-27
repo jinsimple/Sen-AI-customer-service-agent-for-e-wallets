@@ -45,6 +45,7 @@ import { loginAs } from "./helpers/actors";
  */
 
 const CSKH_PHONE = "0353000201";
+const SUPERVISOR_PHONE = "0905000205";
 const NGUONG_TRUNG_GAN_TUYET_DOI = 3;
 
 type MauKhuSac = { text: string; className: string; cot: string; fg: [number, number, number] };
@@ -166,6 +167,22 @@ test.describe("KHỬ MÀU — trạng thái KHÁC ý nghĩa (cùng cột) không
       await loginAs(page, CSKH_PHONE, "/dashboard", 1, "/dang-nhap-noi-bo");
       await page.locator("tbody tr").first().waitFor({ state: "visible", timeout: 15_000 });
       await khongTrungMucXamTrongCungCot(page, ".status-dot, .badge", `/dashboard (${theme})`);
+    });
+
+    // Nhật ký duyệt (/approve) KHÔNG dùng bảng có data-label — mọi badge ở
+    // đây (Duyệt/Từ chối) đều CÙNG một trục ý nghĩa (kết quả phê duyệt), nên
+    // không cần tách cột: hàm dùng chung ở trên tự gộp về một nhóm khi không
+    // tìm thấy data-label nào trong chuỗi ancestor — đúng hành vi cần ở đây.
+    test(`nhật ký duyệt (/approve, ${theme}) — Duyệt/Từ chối không trùng xám`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: theme });
+      await loginAs(page, SUPERVISOR_PHONE, "/approve", 1, "/dang-nhap-noi-bo");
+      await page.waitForTimeout(2_000); // dữ liệu nạp bất đồng bộ sau khi mount
+      const coDuyet = (await page.locator(".badge-success").count()) > 0;
+      const coTuChoi = (await page.locator(".badge-danger").count()) > 0;
+      if (!coDuyet || !coTuChoi) {
+        test.skip(true, "Nhật ký chưa có đủ cả hai trạng thái Duyệt/Từ chối trên ngăn này — không có gì để so.");
+      }
+      await khongTrungMucXamTrongCungCot(page, ".badge-success, .badge-danger", `/approve (${theme})`);
     });
   }
 });
