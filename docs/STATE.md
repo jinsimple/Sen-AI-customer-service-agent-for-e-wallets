@@ -1023,6 +1023,33 @@ KHUÔN VẪN XANH.**
 > `2 failed → 1 failed` đọc thành cải thiện trong khi 37 ca đơn giản là không chạy. Cùng họ với
 > `docker exec … pytest` cho 0 ca chạy mà hiện ra như "0 failed" (§1 của tài liệu này).
 
+> 🔴 **VẾ BỐN (đúc 27/08 — Coder đề nghị neo vào A thay vì xin ký hiệu mới; PO-agent đồng ý,
+> đúng §7b). A nói cổng phải KÊU nhưng KHÔNG nói chứng minh bằng gì. Vế này là PHÉP THỬ:**
+> **Muốn biết một cổng có mang thông tin không, phải cho nó ĂN CẢ HAI LOẠI ĐẦU VÀO. Chạy nó
+> MỘT lần — dù xanh hay đỏ — KHÔNG BAO GIỜ phân biệt được "cổng đúng" với "cổng hằng số".**
+> **Xanh không phải bằng chứng, kể cả xanh đúng.**
+>
+> 🔴 **Và vế bốn đặt tên cho một hướng hỏng mà A + ba mở rộng đầu ĐỀU KHÔNG NÓI: cổng có thể
+> hằng ĐỎ, không chỉ hằng IM.** Cả ba vế trước giả định bệnh là *im lặng*. [ĐO 27/08] phép kiểm
+> "dump có bị cắt không" trong `backup_home.ps1` dùng `-notmatch` trên MẢNG PowerShell — trả
+> `True` ở **CẢ HAI** ca *(dump đủ trailer VÀ dump bị cắt; đo trong hai ảnh `pwsh` độc lập)*.
+> Nó **không phải một phép kiểm bị lệch — nó không phải một phép kiểm.**
+> ⟹ **Cổng hằng ĐỎ NGUY HƠN cổng hằng XANH.** Hằng xanh thì không ai chú ý; hằng đỏ **dạy người
+> ta tắt cảnh báo** — vài lần "backup bị cắt" mà mở ra thấy nguyên vẹn là **lần thứ tư không ai
+> buồn mở**, kể cả lần đó nó cắt thật. *(Lời Coder: "một cổng luôn kêu = một cổng không kiểm gì,
+> chỉ khác là nó TRÔNG như đang kiểm.")*
+>
+> **Ba ca cùng ngày, cùng một bệnh — ĐẦU RA KHÔNG PHỤ THUỘC ĐẦU VÀO:**
+> ```
+> pin test proxy      XANH ngay lần đầu → thêm tạm 1 phần tử vào tệp THẬT → ĐỎ → khôi phục  ✅ mang tin
+> predicate backup    dump ĐỦ + dump BỊ CẮT, hai ảnh pwsh độc lập                          🔴 HẰNG ĐÚNG
+> /health qua Caddy   gọi thật từ ngoài: 302 → /login → 200 bất kể backend sống hay chết   🔴 HẰNG 200
+> ```
+> 📌 Ca đầu là ca đắt nhất để nhớ: **pin test ĐÃ XANH ngay lần chạy đầu.** Dừng ở đó thì không
+> phân biệt được nó với một hàm bóc mảng vỡ luôn trả đúng kết quả mong đợi.
+> *(Họ hàng gần: mở rộng 19/08 hỏi CÙNG câu cho DỤNG CỤ CHẨN ĐOÁN tuỳ ứng. Vế bốn áp cho CỔNG
+> THƯỜNG TRỰC, và thêm hướng hỏng "hằng đỏ" mà 19/08 không có.)*
+
 **Luật B** — làm tròn một phát biểu lên đúng **MỘT nấc** là lớp sai đắt nhất.
 > ⭐ **MỞ RỘNG (security):** kiểm tra cuối trước khi một phát biểu **RỜI KHỎI ĐỘI** là hỏi nó **ĐẨY
 > NGƯỜI NHẬN VÀO CHẾ ĐỘ NÀO**, không chỉ hỏi nó có đúng không. *(vd: "quá hạn" → chế độ khắc phục
