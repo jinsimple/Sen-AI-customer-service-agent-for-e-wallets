@@ -820,6 +820,20 @@ jobs:
           POSTGRES_DB=fin05_ci
           JWT_SECRET_KEY=ci-ephemeral-not-for-production-use-only-in-ci-runs
           FIELD_ENCRYPTION_KEY=Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=
+          # 🔴 LLM_API_KEY BẮT BUỘC có mặt kể từ khi docker-compose.yml đặt mặc định
+          # cho LLM_BASE_URL: config.py:342 `_khoa_cho_nha_cung_cap` NÉM LỖI LÚC IMPORT
+          # khi base_url trỏ nhà cung cấp khác mà khoá trống (chặn đúng đường đã gửi
+          # khoá OpenAI sang máy chủ Alibaba 17/08). Thiếu dòng này ⟹ backend CHẾT ngay
+          # ở `up -d`, và job đỏ vì một lý do KHÔNG liên quan tới thứ nó kiểm.
+          # Job này KHÔNG BAO GIỜ gọi model — [ĐO] tests/test_api/test_frontend_route_guards.py
+          # chỉ có 4 `.get(` (đo 307 redirect, follow_redirects=False) và ĐÚNG MỘT `.post(`
+          # là `/api/session` (đăng nhập). Nên khoá ở đây là chuỗi GIẢ, và tên nó TỰ KHAI
+          # vì sao nó giả — cùng khuôn JWT_SECRET_KEY/FIELD_ENCRYPTION_KEY ngay trên.
+          # ⚠️ BẪY khi tự kiểm: dòng 49 của tệp test ghi `"/chat": "POST /agent/chat"` —
+          # đó là MỘT CHUỖI trong bảng ánh xạ trang→route, KHÔNG phải lời gọi. `grep`
+          # "agent/chat" TRÚNG và trúng SAI. grep không phân biệt LỆNH với VĂN BẢN NÓI
+          # VỀ LỆNH (cùng hình dạng `grep -c curl` đếm 4 trên deploy.yml, cùng ngày).
+          LLM_API_KEY=ci-ephemeral-unused-route-guards-never-call-llm
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           SITE_DOMAIN=localhost
           EOF
@@ -930,6 +944,16 @@ jobs:
           POSTGRES_DB=fin05_ci
           JWT_SECRET_KEY=ci-ephemeral-not-for-production-use-only-in-ci-runs
           FIELD_ENCRYPTION_KEY=Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=
+          # 🔴 LLM_API_KEY BẮT BUỘC có mặt kể từ khi docker-compose.yml đặt mặc định
+          # cho LLM_BASE_URL: config.py:342 `_khoa_cho_nha_cung_cap` NÉM LỖI LÚC IMPORT
+          # khi base_url trỏ nhà cung cấp khác mà khoá trống (chặn đúng đường đã gửi
+          # khoá OpenAI sang máy chủ Alibaba 17/08). Thiếu dòng này ⟹ backend CHẾT ngay
+          # ở `up -d`, và job đỏ vì một lý do KHÔNG liên quan tới thứ nó kiểm.
+          # Job này CÓ gọi model thật ⟹ PHẢI là khoá thật, KHÔNG được thay bằng chuỗi giả.
+          # ⚠️ Secret `LLM_API_KEY` HIỆN CHƯA TỒN TẠI ⟹ job này ĐỎ cho tới khi PO thêm.
+          # ĐÓ LÀ HÀNH VI ĐÚNG (Luật A): không hứa chạy được khi thật sự không có khoá.
+          # Job chạy nightly/dispatch, KHÔNG chặn PR thường. Đừng "chữa" bằng chuỗi giả.
+          LLM_API_KEY=${{ secrets.LLM_API_KEY }}
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           SITE_DOMAIN=localhost
           EOF
