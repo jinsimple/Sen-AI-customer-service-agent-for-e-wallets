@@ -635,3 +635,48 @@ textarea:focus{ border-color:var(--navy-2); outline:none; box-shadow:0 0 0 3px c
 @media (max-width:860px){
   .lp-stat-strip{ grid-template-columns:repeat(2,1fr); }
 }
+
+/* ---------- /cho-khach-hang — trấn an, KHÔNG hiệu ứng ---------- */
+/* [ĐO 27/08] Marketing dẫn "ADR-053" (Playfair Display + particles +
+   magnetic CTA) làm lý do tránh bộ chữ trang "/" — ADR đó KHÔNG tồn tại
+   trong docs/DECISIONS.md (mới nhất ADR-052), và "/" thật đang dùng Inter +
+   hero tĩnh, không có particles/magnetic CTA. Đã báo lại. Nguyên tắc vẫn
+   đứng được mà không cần ADR đó: trang cho người đang hoảng nên tối giản,
+   không chuyển động — dùng ĐÚNG bộ token sẵn có (Inter, --text/--bg/
+   --danger...), không phải bộ serif/màu ấm riêng của bản nháp Marketing
+   (bản đó tự dùng "Source Serif 4" cho phần thân — cùng rủi ro dấu tiếng
+   Việt họ cảnh báo tránh). Không gradient, không animation, không particle. */
+.ck-page{ background:var(--bg); min-height:100vh; padding:56px 20px 80px; }
+.ck-wrap{ max-width:640px; margin:0 auto; }
+.ck-eyebrow{ font-size:var(--fs-12); font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin:0 0 16px; }
+.ck-h1{ font-size:clamp(24px, 4vw, 32px); line-height:1.3; color:var(--text); margin:0 0 20px; }
+.ck-lead{ font-size:var(--fs-16); color:var(--text-dim); line-height:1.6; margin:0 0 12px; }
+.ck-lead-strong{ font-size:var(--fs-16); font-weight:700; color:var(--text); line-height:1.6; margin:0 0 40px; }
+.ck-section{ margin-top:44px; }
+.ck-h2{ font-size:var(--fs-20); color:var(--text); margin:0 0 16px; }
+.ck-h3{ font-size:var(--fs-16); color:var(--text); margin:0 0 10px; }
+.ck-section p{ font-size:var(--fs-16); line-height:1.65; color:var(--text-dim); margin:0 0 12px; }
+.ck-section p b{ color:var(--text); }
+.ck-plain{ margin:0; padding-left:20px; color:var(--text-dim); font-size:var(--fs-16); line-height:1.6; }
+.ck-plain li{ margin:6px 0; }
+.ck-grid-2{ display:grid; grid-template-columns:1fr; gap:28px; }
+@media (min-width:640px){ .ck-grid-2{ grid-template-columns:1fr 1fr; } }
+
+/* Khối "ba điều KHÔNG BAO GIỜ hỏi" — lõi của trang, phải nặng nhất thị
+   giác (chỉ định rõ từ Marketing: "không phải khối giới thiệu tính năng —
+   đây là lý do trang tồn tại"). Dùng --danger: đây là cảnh báo an toàn thật,
+   không phải trạng thái trung tính. */
+.ck-core{ margin-top:40px; padding:28px; border:2px solid var(--danger); border-radius:var(--radius); background:var(--surface); }
+.ck-core .ck-h2{ color:var(--danger); }
+.ck-never{ list-style:none; margin:0 0 20px; padding:0; display:flex; flex-direction:column; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+.ck-never li{ background:var(--surface); padding:16px 18px; display:flex; gap:14px; align-items:flex-start; margin:0; }
+.ck-never .ck-x{ font-size:var(--fs-20); font-weight:700; color:var(--danger); line-height:1.4; flex:none; }
+.ck-never span span, .ck-never li > span:last-child{ font-size:var(--fs-16); line-height:1.55; color:var(--text-dim); }
+.ck-never li b{ color:var(--text); }
+.ck-core-warn{ font-size:var(--fs-16); line-height:1.6; color:var(--danger); background:var(--danger-bg); border-radius:var(--radius-sm); padding:14px 16px; margin:0; }
+.ck-core-warn b{ color:var(--danger); }
+
+.ck-footer{ margin-top:56px; padding-top:24px; border-top:1px solid var(--border); }
+.ck-footer p{ font-size:var(--fs-14); color:var(--text-dim); line-height:1.6; margin:0 0 8px; }
+.ck-footer p b{ color:var(--text); }
+.ck-footer-dim{ color:var(--text-faint) !important; font-size:var(--fs-12) !important; }
