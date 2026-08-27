@@ -39,7 +39,14 @@ export default async function Home() {
         <div className="lp-hero-inner">
           <h1>Khiếu nại giao dịch, điều tra trong vài phút — quyết định vẫn thuộc về con người</h1>
           <p className="lead">
-            FIN-05 là trợ lý AI cho đội chăm sóc khách hàng ví điện tử. Nó tra cứu giao dịch, đối chiếu
+            {/* 27/08 vòng 3 — Marketing tự bắt: PO duyệt câu hero TRƯỚC khi
+                có tên "Sen" — điều kiện đã đổi, câu chữ chưa theo kịp. Trang
+                gọi sản phẩm bằng hai tên ngay hai dòng đầu (nav "Sen ·
+                FIN-05" rồi hero lead "FIN-05...") trong khi mọi khối sau đó
+                đều dùng "Sen" — bắt người đọc tự suy ra là một ở câu thứ hai
+                là mất họ. Vế còn lại của hero (H1 + "Người duyệt vẫn là
+                người") GIỮ NGUYÊN — chỉ đổi đúng một chữ. */}
+            Sen là trợ lý AI cho đội chăm sóc khách hàng ví điện tử. Nó tra cứu giao dịch, đối chiếu
             chính sách và chuẩn bị hồ sơ có dẫn chứng. <strong>Người duyệt vẫn là người.</strong>
           </p>
           <div className="lp-hero-actions">
@@ -55,6 +62,36 @@ export default async function Home() {
               Dùng thử ngay — tài khoản demo
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* 27/08 vòng 3 — Marketing đọc TRỌN trang một lượt như người lạ, dời
+          khối này (07, "AI cộng người") từ gần cuối lên NGAY SAU HERO. Lý
+          do không phải "cho hay hơn": vế hero "quyết định vẫn thuộc về con
+          người" đọc lần đầu nghe như MỘT GIỚI HẠN ("AI này chưa làm được
+          hết") — lời giải thích vì sao đó là ĐIỂM MẠNH lại nằm ở khối này,
+          trước đây tới sau sáu màn mới gặp. Đây là khối DUY NHẤT giải thích
+          vì sao hero được viết như thế — để nó ở cuối là để lời biện hộ đến
+          sau bản án. KHÔNG nêu tên công ty cụ thể trên trang công khai —
+          nói tên trong phòng pitch, không nói ở đây. */}
+      <section className="lp-section">
+        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
+          <h2 style={{ marginBottom: 16 }}>Ngành đã thử hướng kia rồi</h2>
+          <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-16)" }}>
+            Năm 2024, một fintech lớn công bố trợ lý AI của họ làm việc của{" "}
+            <b style={{ color: "var(--text)" }}>700 nhân viên</b>. Năm 2025, chính lãnh đạo công ty
+            thừa nhận việc lấy chi phí làm tiêu chí đánh giá chủ đạo đã dẫn tới{" "}
+            <b style={{ color: "var(--text)" }}>chất lượng thấp hơn</b> — và họ tuyển người thật trở lại.
+          </p>
+          <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-16)", marginTop: 16 }}>
+            Sen chọn &ldquo;AI cộng người&rdquo; từ đầu. Không phải vì chúng tôi khôn hơn — mà vì với
+            tiền thật của khách hàng, không có lựa chọn nào khác.
+          </p>
+          <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-16)", marginTop: 16 }}>
+            <b style={{ color: "var(--text)" }}>Và chúng tôi ép nó bằng kiến trúc, không bằng chính
+            sách.</b> Nguyên tắc người đề xuất không được là người duyệt nằm ở tầng ràng buộc của cơ sở
+            dữ liệu. Một chính sách đảo được bằng một cuộc họp. Cái này thì không.
+          </p>
         </div>
       </section>
 
@@ -208,7 +245,11 @@ export default async function Home() {
           <div className="lp-stat-strip" style={{ marginTop: 40 }}>
             <div className="lp-stat">
               <div className="num">34</div>
-              <div className="label">Mọi đường vào hệ thống đều kiểm quyền theo vai. Không có cửa sau.</div>
+              {/* 27/08 vòng 3 — Marketing: nhãn cũ không bao giờ nói "34 là
+                  34 CÁI GÌ" (bỏ chữ "đường vào hệ thống" vì coi là ngôn ngữ
+                  kỹ sư, làm con số mất chỗ bám). Thêm lại đúng phạm vi ngay
+                  đầu câu, không phục hồi nguyên văn cũ. */}
+              <div className="label">34 đường vào hệ thống. Mọi đường đều kiểm quyền theo vai, không có cửa sau.</div>
             </div>
             <div className="lp-stat">
               <div className="num">5/5</div>
@@ -235,31 +276,6 @@ export default async function Home() {
           </div>
           <p style={{ textAlign: "center", marginTop: 20, fontSize: "var(--fs-12)", color: "var(--text-faint)" }}>
             Đếm ngày 27/08/2026 — đổi contract thì đếm lại.
-          </p>
-        </div>
-      </section>
-
-      {/* 27/08 — Marketing (khối 07, "Vì sao AI cộng người, không phải AI
-          thay người"): KHÔNG nêu tên công ty cụ thể trên trang công khai —
-          nói tên trong phòng pitch, không nói ở đây (rủi ro không cần
-          thiết, không được lợi gì thêm). */}
-      <section className="lp-section">
-        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ marginBottom: 16 }}>Ngành đã thử hướng kia rồi</h2>
-          <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-16)" }}>
-            Năm 2024, một fintech lớn công bố trợ lý AI của họ làm việc của{" "}
-            <b style={{ color: "var(--text)" }}>700 nhân viên</b>. Năm 2025, chính lãnh đạo công ty
-            thừa nhận việc lấy chi phí làm tiêu chí đánh giá chủ đạo đã dẫn tới{" "}
-            <b style={{ color: "var(--text)" }}>chất lượng thấp hơn</b> — và họ tuyển người thật trở lại.
-          </p>
-          <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-16)", marginTop: 16 }}>
-            Sen chọn &ldquo;AI cộng người&rdquo; từ đầu. Không phải vì chúng tôi khôn hơn — mà vì với
-            tiền thật của khách hàng, không có lựa chọn nào khác.
-          </p>
-          <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-16)", marginTop: 16 }}>
-            <b style={{ color: "var(--text)" }}>Và chúng tôi ép nó bằng kiến trúc, không bằng chính
-            sách.</b> Nguyên tắc người đề xuất không được là người duyệt nằm ở tầng ràng buộc của cơ sở
-            dữ liệu. Một chính sách đảo được bằng một cuộc họp. Cái này thì không.
           </p>
         </div>
       </section>
