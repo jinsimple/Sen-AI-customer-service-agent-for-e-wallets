@@ -29,6 +29,35 @@ export interface Session {
 
 export const SESSION_COOKIE = "fin05_session";
 
+// 27/08 — PO báo: nhân viên hết phiên (hoặc bị đăng xuất) luôn bị đá về
+// /login (cổng khách) — NGÕ CỤT thật, vì mỗi cổng CHỈ chấp nhận đúng vai của
+// mình (route.ts::gateRejects), và trang công khai "/" không có đường nào
+// dẫn tới /dang-nhap-noi-bo. Khác với nút Đăng xuất (biết `role` ngay lúc
+// bấm, xem TopbarActions.tsx) — proxy.ts/layout.tsx gặp session đã hỏng
+// (cookie thiếu/hết hạn/bị revoke) thì KHÔNG CÒN vai nào để tra, vì vai nằm
+// trong chính cookie đã chết đó.
+//
+// Cookie gợi ý này lưu GATE (không phải role cụ thể — không cần biết CSKH
+// hay Sếp, chỉ cần biết "trình duyệt này lần trước đăng nhập ở cổng nào") để
+// dùng LÀM DỰ PHÒNG khi session không đọc được nữa. KHÔNG nhạy cảm (không
+// định danh ai, chỉ nói cổng nào) nên KHÔNG httpOnly — `lib/api.ts` (client,
+// chạy trong trình duyệt) cũng cần đọc được nó để biết đá về cổng nào khi
+// một lời gọi API 401 giữa phiên (refresh cũng đã hỏng, xem
+// server-api.ts::_lamMoiPhien) — proxy.ts không kịp thấy ca này vì cookie
+// phiên (đã chết) vẫn còn hình dạng hợp lệ lúc điều hướng trang. Sống dài
+// hơn hẳn session thật (30 ngày) để còn đó SAU KHI session đã hết hạn, đúng
+// lúc cần dùng tới. Ghi ở route.ts::POST mỗi lần đăng nhập thành công, ĐỌC ở
+// proxy.ts khi !session và ở lib/api.ts khi 401 giữa phiên — KHÔNG xoá khi
+// đăng xuất (dụng ý: nhân viên đóng máy rồi quay lại vẫn về đúng cổng nội bộ
+// dù chưa đăng nhập).
+export type Gate = "customer" | "internal";
+export const LAST_GATE_COOKIE = "fin05_last_gate";
+export const LAST_GATE_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+
+export function loginPathForGate(gate: string | undefined): string {
+  return gate === "internal" ? "/dang-nhap-noi-bo" : "/login";
+}
+
 // AUTH5-02B — role nội bộ rủi ro cao hơn nếu refresh_token bị đánh cắp
 // (chạm dữ liệu nhiều khách), TTL cookie ngắn hơn hẳn khách hàng — PHẢI
 // khớp JWT_REFRESH_EXPIRE_DAYS_CUSTOMER/STAFF ở src/config.py (backend).

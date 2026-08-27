@@ -1,12 +1,20 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session-server";
+import { LAST_GATE_COOKIE, loginPathForGate } from "@/lib/session";
 import TopbarActions from "@/components/TopbarActions";
 import RoleTabNav from "@/components/RoleTabNav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
-  if (!session) redirect("/login");
+  // Cùng bản vá "ngõ cụt đăng xuất" ở proxy.ts — trong luồng bình thường
+  // proxy đã chặn trước khi tới đây, chỗ này là phòng vệ đúp để không lệch
+  // hành vi nếu matcher proxy đổi sau này. Xem lib/session.ts::LAST_GATE_COOKIE.
+  if (!session) {
+    const goiY = (await cookies()).get(LAST_GATE_COOKIE)?.value;
+    redirect(loginPathForGate(goiY));
+  }
 
   return (
     <div className="app">

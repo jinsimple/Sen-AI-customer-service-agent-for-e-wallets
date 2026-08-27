@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseSessionCookie, roleHome, sessionCookieMaxAgeSeconds, SESSION_COOKIE, type Role, type Session } from "@/lib/session";
+import {
+  LAST_GATE_COOKIE,
+  loginPathForGate,
+  parseSessionCookie,
+  roleHome,
+  sessionCookieMaxAgeSeconds,
+  SESSION_COOKIE,
+  type Role,
+  type Session,
+} from "@/lib/session";
 
 // US-001 AC: "khách hàng không vào được dashboard CSKH kể cả sửa URL trực
 // tiếp" — chặn ở proxy (Next.js 16 đổi tên từ middleware, chức năng như cũ),
@@ -141,7 +150,13 @@ export async function proxy(req: NextRequest) {
   }
 
   if (!session) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    // 27/08 — PO báo: nhân viên hết phiên luôn bị đá về /login (cổng khách),
+    // NGÕ CỤT vì gate ở đó từ chối vai nội bộ. Không có `session` ở đây nghĩa
+    // là không còn vai nào để tra (cookie phiên đã mất/hỏng) — dùng cookie
+    // gợi ý cổng (LAST_GATE_COOKIE, ghi lúc đăng nhập, sống dài hơn session
+    // thật) làm dự phòng thay vì mặc định luôn /login. Xem lib/session.ts.
+    const goiY = req.cookies.get(LAST_GATE_COOKIE)?.value;
+    return NextResponse.redirect(new URL(loginPathForGate(goiY), req.url));
   }
 
   const allowedForRole = ROLE_PREFIXES[session.role];

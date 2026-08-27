@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE, sessionCookieMaxAgeSeconds, type Session } from "@/lib/session";
+import {
+  LAST_GATE_COOKIE,
+  LAST_GATE_COOKIE_MAX_AGE_SECONDS,
+  SESSION_COOKIE,
+  sessionCookieMaxAgeSeconds,
+  type Gate,
+  type Session,
+} from "@/lib/session";
 import { BACKEND_URL } from "@/lib/server-api";
 
 // Gọi backend server-side (không CORS) rồi set cookie httpOnly — theo đúng
@@ -15,7 +22,6 @@ import { BACKEND_URL } from "@/lib/server-api";
 // Chặn SAU khi xác thực mật khẩu đúng — sai mật khẩu không học được gì; đúng
 // mật khẩu thì thêm một câu cũng không mất gì (PO). Cùng MỘT câu lỗi cho mọi
 // lý do bị từ chối ở bước này — không khai vai ra màn hình.
-type Gate = "customer" | "internal";
 const WRONG_GATE_MESSAGE = "Tài khoản này không đăng nhập tại đây. Vui lòng dùng cổng dành cho nhân viên.";
 
 function gateRejects(gate: Gate, role: string) {
@@ -63,6 +69,18 @@ export async function POST(req: Request) {
     // (chỉ 15 phút) — middleware.ts tự làm mới access_token bên trong cookie
     // này trước khi hết hạn, khách không bị đăng xuất sau 15 phút.
     maxAge: sessionCookieMaxAgeSeconds(session.role),
+  });
+
+  // Cookie gợi ý cổng — xem chú thích tại khai báo LAST_GATE_COOKIE
+  // (lib/session.ts) để biết vì sao KHÔNG httpOnly và KHÔNG xoá khi đăng
+  // xuất. `gate` ở đây chính là tham số client đã gửi (đã qua gateRejects()
+  // ở trên — tới được dòng này nghĩa là gate khớp role thật).
+  const gateThat: Gate = gate === "internal" ? "internal" : "customer";
+  store.set(LAST_GATE_COOKIE, gateThat, {
+    httpOnly: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: LAST_GATE_COOKIE_MAX_AGE_SECONDS,
   });
 
   // Trả về client KHÔNG kèm access_token/refresh_token — client chỉ cần

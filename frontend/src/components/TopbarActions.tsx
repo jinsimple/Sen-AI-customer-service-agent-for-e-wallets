@@ -60,9 +60,18 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
     localStorage.setItem("fin05-theme", next);
   }
 
+  // 27/08 — PO báo: đăng xuất LUÔN đá về /login (cổng khách), kể cả với
+  // nhân viên. Vì gate là mỗi cổng CHỈ CHẤP NHẬN đúng vai của mình
+  // (useLoginForm.ts, server so gate với role và TỪ CHỐI nếu lệch — xem
+  // route.ts::gateRejects), nhân viên bị đá sang /login là NGÕ CỤT: không tự
+  // đăng nhập lại được ở đó, và trang công khai "/" cũng không có đường nào
+  // dẫn tới /dang-nhap-noi-bo. Component này đã nhận `role` sẵn (dùng cho
+  // roleLabel ngay dưới) — chỉ là chỗ điều hướng không tra nó trước khi đó.
+  const loginPath = role === "customer" ? "/login" : "/dang-nhap-noi-bo";
+
   async function logout() {
     await fetch("/api/session", { method: "DELETE" });
-    router.push("/login");
+    router.push(loginPath);
     router.refresh();
   }
 

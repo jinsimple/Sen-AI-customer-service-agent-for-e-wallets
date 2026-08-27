@@ -613,6 +613,16 @@ export default function ChatClient({
         setStage("chat");
         return;
       }
+      // 27/08 [ĐO] p-226-f0: 401 ở đây CHỈ có nghĩa "phiên hết hạn" (xem chú
+      // thích tại lib/api.ts::dieuHuongKhiHetPhien) — lib/api.ts đã tự điều
+      // hướng về đúng cổng VÀ đổi message thành câu người-đọc-được, nhánh
+      // này chỉ hiện lại đúng câu đó, KHÔNG đổ e.message thô như nhánh chung
+      // bên dưới (đó chính là thứ PO thấy giữa buổi demo: "chat báo lỗi").
+      if (e instanceof ApiError && e.status === 401) {
+        push({ id: nid(), from: "bot", text: e.message });
+        setStage("chat");
+        return;
+      }
       push({
         id: nid(),
         from: "bot",
