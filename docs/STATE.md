@@ -719,6 +719,32 @@ thích, không phải lỗi đối ngoại · C2 `test_f31_f32` đã có cổng 
 
 ---
 
+### 🟡 T. BA CA KIỂM NAY VÔ HÌNH VĨNH VIỄN — không đỏ, bị BỎ QUA
+
+**Ngày:** 27/08 · **Trạng thái:** TREO, **không gấp, không chặn gì** · **Chưa giao ai.**
+
+```
+[ĐO] venv chạy test trên máy ĐÃ MẤT (cùng P-121-new)
+     ⟹ mọi phép pytest của đội giờ CHỈ chạy được trong container
+[ĐO] container CỐ Ý không có thư mục eval/ (.dockerignore loại — có chủ đích)
+     ⟹ 3 ca ném ModuleNotFoundError:
+        test_fallback_khong_goi_bo_loc ×2 · test_o_group_khong_chan_nham
+```
+🔴 **Chúng KHÔNG đỏ. Chúng bị BỎ QUA.** Và **lần chúng đỏ THẬT cũng sẽ bị bỏ qua y hệt.**
+📌 Cùng họ với `-notmatch` hằng-đúng ở `backup_home.ps1` *(Luật A vế bốn)* — chỉ khác hướng:
+**cổng kia hằng KÊU, cổng này hằng IM.** Cả hai đều **không mang thông tin**.
+
+⚠️ **Chưa ai biết TRẠNG THÁI THẬT của ba ca đó, ở BẤT KỲ commit nào.** Đừng ai ghi chúng là
+"đỏ sẵn, không liên quan" — câu đó ngụ ý chúng **đã từng chạy và biết là đỏ**. Không đúng.
+*(Lead tự sửa đúng câu này của chính mình trong ngày.)*
+
+🔴 **Dữ kiện cho người nhận việc — ĐỪNG bắt đầu bằng giả định "chỉ cần mount thêm":**
+[ĐO, Coder 27/08] thử đường rẻ nhất — bind-mount `eval/` vào container hiện có — **TREO >2 phút,
+không chạy được, chưa ai kết luận nguyên nhân.** Họ dừng đúng lúc *(không phải việc của họ)*.
+
+**Việc:** dựng lại **một đường chạy `pytest` từ host** — venv mới, hoặc một ảnh riêng CÓ `eval/`.
+Làm sau khi landing page xong.
+
 ### 🔴 S. THU HỒI TOKEN CHẬM 15 PHÚT — đóng ở đường TIỀN, hở ở đường ĐỌC
 
 **Ngày:** 27/08 · **Trạng thái:** MỞ, chờ PO quyết · **Không vá gì.**
