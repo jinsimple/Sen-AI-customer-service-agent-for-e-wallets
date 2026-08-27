@@ -47,9 +47,10 @@ export default async function Home() {
                 người chưa có tài khoản. Đổi sang dẫn thẳng vào phiên demo
                 (tài khoản khách demo có sẵn ở /login, đăng nhập nhanh 1
                 chạm), không còn dẫn tới ô nhập mật khẩu trống.
-                Nút phụ "Đặt lịch trao đổi" CHƯA thêm — chưa có đích thật
-                (không có email/lịch hẹn nào công bố trong dự án để trỏ tới,
-                và trang không tự bịa URL/mailto). Đã hỏi p-226-17. */}
+                Nút phụ "Đặt lịch trao đổi" — HỎI rồi BỎ HẲN: không có đích
+                thật (không email/lịch hẹn công bố), Marketing xác nhận một
+                nút không có đích là "hứa một kênh liên hệ không tồn tại" —
+                cùng họ với mọi câu đã gỡ hôm nay, chỉ khác là hứa bằng nút. */}
             <Link href="/login" className="btn btn-primary">
               Dùng thử ngay — tài khoản demo
             </Link>
@@ -89,8 +90,16 @@ export default async function Home() {
             khách hàng, không hơn. Không có đường nào để AI tự hoàn tiền.
           </p>
           <p style={{ fontSize: "var(--fs-16)", color: "var(--text-dim)", textAlign: "center" }}>
-            <b style={{ color: "var(--text)" }}>Không hỏi thứ không được hỏi.</b> FIN-05 không bao giờ
-            hỏi mật khẩu ví hay mã OTP giao dịch của bạn.
+            {/* 27/08 vòng 2 — Marketing: đổi ngôi "của bạn" (khách cuối) ->
+                "của khách hàng" (ngôi thứ ba) vì trang này là B2B — người
+                mua đọc, không phải nạn nhân tiềm năng. LƯU Ý: đây là NGOẠI
+                LỆ CÓ CHỦ Ý với câu chống lừa đảo đã hợp nhất "của bạn" ở
+                login/chat/cho-khach-hang (nơi người đọc CÓ THỂ bị lừa) —
+                luật nhận-ra-được áp cho cả hai, chỉ đại từ khác vì đối
+                tượng đọc khác. Marketing RÚT vế "kể cả khi khách chủ động
+                đưa" khỏi đặc tả — chưa đo được cơ chế thật, chưa lên trang. */}
+            <b style={{ color: "var(--text)" }}>Không hỏi thứ không được hỏi.</b> Sen không bao giờ hỏi
+            mật khẩu ví hay mã OTP giao dịch của khách hàng.
           </p>
         </div>
       </section>
@@ -118,6 +127,33 @@ export default async function Home() {
             <span>Chỉ cấp duyệt mới ra được quyết định cuối</span>
           </div>
         </div>
+
+        {/* 27/08 — Marketing (khối 04): "sản phẩm đã tự chứng minh bốn bước
+            đó, và không ai đang dùng bằng chứng ấy". Ảnh nguồn cũ
+            (eval/results/render_that_desktop_25aug_SAU_VA.png) ghi "FIN-05 ·
+            T121" (mã dự án CŨ) và lộ huy hiệu DEVELOPMENT/tên người dùng —
+            KHÔNG dùng được nguyên trạng. Chụp lại THẬT trên code hiện tại
+            (đăng nhập khách thật 0974000145, đi hết luồng OTP -> báo lỗi
+            giao dịch -> agent thật tạo ticket TCK-2b176432521f) — không phải
+            mock. TRỌN phần nội dung (rail + khung chat + cột trạng thái),
+            CHỈ cắt dải header phía trên (env badge/tên người dùng) — không
+            crop cột trạng thái, đúng yêu cầu "ảnh chứng minh bảng trạng thái
+            đang ở trên màn hình khách hàng, không phải một mảnh cắt rời". */}
+        <figure style={{ maxWidth: 1120, margin: "40px auto 0" }}>
+          <img
+            src="/landing/ticket-status-thuc-te.png"
+            width={1280}
+            height={951}
+            alt="Màn hình chat của khách hàng, cột phải hiện bảng trạng thái hồ sơ khiếu nại"
+            style={{ width: "100%", height: "auto", borderRadius: "var(--radius)", border: "1px solid var(--border)", display: "block" }}
+          />
+          <figcaption
+            style={{ textAlign: "center", marginTop: 12, fontSize: "var(--fs-14)", color: "var(--text-dim)" }}
+          >
+            Bảng trạng thái trên màn hình khách hàng. Bước &ldquo;Chờ Sếp phê duyệt&rdquo; không ẩn đi
+            — khách thấy hồ sơ của mình đang nằm ở đâu.
+          </figcaption>
+        </figure>
       </section>
 
       {/* 27/08 — Marketing (khối 05, "Bài toán kinh tế"): Brief §3 đặt chi
@@ -238,6 +274,16 @@ export default async function Home() {
           <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-14)", marginTop: 12 }}>
             Hệ thống chạy trong vùng hạ tầng do ví kiểm soát. Phần suy luận của mô hình đi qua nhà cung
             cấp đã khai báo, và hệ thống có sẵn cơ chế chuyển đổi nhà cung cấp mà không phải dựng lại.
+          </p>
+          {/* 27/08 — Marketing: câu này nằm trong tin nhắn, không nằm trong
+              artifact 87eb7652 nên bị bỏ sót ở lượt land đầu. [ĐO] Marketing
+              dẫn models.py:578 (PolicyChunk.text = EncryptedText) +
+              store.py:245 (documents=chunk_ids — placeholder, KHÔNG phải
+              nội dung thật). Phạm vi CỐ Ý hẹp: KHO CHÍNH SÁCH CỦA ĐỐI TÁC,
+              không phải dữ liệu giao dịch của khách — không rút gọn. */}
+          <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-14)", marginTop: 12 }}>
+            Kho tài liệu chính sách của đối tác được mã hoá khi lưu. Kho tìm kiếm chỉ giữ mã tham
+            chiếu, không giữ nội dung tài liệu.
           </p>
         </div>
       </section>
