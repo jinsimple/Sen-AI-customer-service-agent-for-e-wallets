@@ -134,24 +134,33 @@ export default async function Home() {
             T121" (mã dự án CŨ) và lộ huy hiệu DEVELOPMENT/tên người dùng —
             KHÔNG dùng được nguyên trạng. Chụp lại THẬT trên code hiện tại
             (đăng nhập khách thật 0974000145, đi hết luồng OTP -> báo lỗi
-            giao dịch -> agent thật tạo ticket TCK-2b176432521f) — không phải
-            mock. TRỌN phần nội dung (rail + khung chat + cột trạng thái),
-            CHỈ cắt dải header phía trên (env badge/tên người dùng) — không
-            crop cột trạng thái, đúng yêu cầu "ảnh chứng minh bảng trạng thái
-            đang ở trên màn hình khách hàng, không phải một mảnh cắt rời". */}
+            giao dịch -> agent thật tạo ticket) — không phải mock. TRỌN phần
+            nội dung (rail + khung chat + cột trạng thái), CHỈ cắt dải header
+            phía trên (env badge/tên người dùng) — không crop cột trạng
+            thái.
+            27/08 vòng 2 — Marketing xem ảnh đầu (ticket TCK-2b176432521f)
+            bằng mắt, bắt được: đoạn chat đang hiển thị lộ hạn phản hồi
+            "trước ngày 26/09/2026" (SLA 30 ngày cho scope=unknown, vấn đề
+            nghiệp vụ đã biết, đang chờ PO — KHÔNG phải lỗi ảnh) — đá thẳng
+            vào câu hero "điều tra trong vài phút". Chụp lại ticket MỚI
+            (cùng luồng thật), CUỘN khung chat (không sửa ảnh, khung chat vốn
+            cuộn được) để đoạn cảnh báo lừa đảo — agent TỰ ĐƯA RA, không ai
+            hỏi, nêu cả "cài ứng dụng điều khiển từ xa" — thay cho dòng SLA
+            ở đầu tin nhắn. */}
         <figure style={{ maxWidth: 1120, margin: "40px auto 0" }}>
           <img
             src="/landing/ticket-status-thuc-te.png"
             width={1280}
             height={951}
-            alt="Màn hình chat của khách hàng, cột phải hiện bảng trạng thái hồ sơ khiếu nại"
+            alt="Màn hình chat của khách hàng: agent tự đưa cảnh báo chống lừa đảo, cột phải hiện bảng trạng thái hồ sơ khiếu nại"
             style={{ width: "100%", height: "auto", borderRadius: "var(--radius)", border: "1px solid var(--border)", display: "block" }}
           />
           <figcaption
             style={{ textAlign: "center", marginTop: 12, fontSize: "var(--fs-14)", color: "var(--text-dim)" }}
           >
-            Bảng trạng thái trên màn hình khách hàng. Bước &ldquo;Chờ Sếp phê duyệt&rdquo; không ẩn đi
-            — khách thấy hồ sơ của mình đang nằm ở đâu.
+            Một ca thật. Bảng trạng thái bên phải cho thấy hồ sơ đang chờ CSKH tiếp nhận, và bước
+            &ldquo;Chờ Sếp phê duyệt&rdquo; vẫn còn ở phía trước. Cảnh báo lừa đảo bên trái do trợ lý
+            tự đưa ra — không ai hỏi.
           </figcaption>
         </figure>
       </section>
