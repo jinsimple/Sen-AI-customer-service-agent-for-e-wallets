@@ -82,17 +82,33 @@ const REFRESH_MARGIN_SECONDS = 120;
 // hiện file đó (VÀ mọi file có sẵn từ trước trong `public/` — đo được cả
 // `/next.svg`, `/file.svg` mặc định của Next) bị đá về /login cho khách
 // CHƯA đăng nhập — matcher chỉ loại trừ `_next/*`/`favicon`, không loại trừ
-// phần còn lại của `public/`. Đây là lỗi CÓ SẴN TỪ TRƯỚC, không phải do ảnh
-// mới gây ra — ảnh mới chỉ là request ĐẦU TIÊN chạm đúng lớp lỗi này vì
-// trước đó chưa trang công khai nào tự tham chiếu file tĩnh nào cả. Bất kỳ
-// file nào đặt trong `public/` được Next serve THẲNG theo tên, nên nhận diện
-// bằng ĐUÔI FILE (không phải liệt kê từng thư mục) mới phủ được CẢ những
-// asset thêm sau này mà không ai nhớ cập nhật danh sách ở đây.
-const DUOI_FILE_TINH = /\.(svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|css|js|txt|xml|json)$/i;
+// phần còn lại của `public/`. Lỗi CÓ SẴN TỪ TRƯỚC, không phải do ảnh mới gây
+// ra — ảnh mới chỉ là request đầu tiên chạm đúng lớp lỗi này.
+//
+// 🔴 [ĐO 27/08] Review (p-226-8b): bản vá ĐẦU dùng regex theo ĐUÔI FILE —
+// SAI, vì nó test trên pathname mà không phân biệt "file tĩnh thật trong
+// public/" với "route App Router có segment ĐỘNG mà giá trị tham số tình cờ
+// khớp đuôi". Cụ thể: `/tickets/[id]` (chỉ cskh/supervisor được vào theo
+// ROLE_PREFIXES) — khách gọi `/tickets/x.json` sẽ khớp regex đuôi `.json` ở
+// NGAY DÒNG ĐẦU, bỏ qua hẳn khối kiểm vai bên dưới, RENDER được vỏ trang
+// (dữ liệu thật vẫn an toàn vì backend tự kiểm role riêng — nhưng đây vẫn
+// trái nguyên văn US-001 AC ở đầu file: chặn ở proxy, không chỉ ẩn UI).
+// Đuôi file KHÔNG PHẢI bất biến an toàn khi hệ có route động — ALLOWLIST
+// THEO ĐƯỜNG DẪN THẬT thì có, vì nó không suy luận từ HÌNH DẠNG chuỗi (có
+// dấu chấm hay không) mà từ DANH SÁCH asset thật đang tồn tại. Đổi lại dùng
+// `khopTienTo` (đã có sẵn, cùng cơ chế PUBLIC_PATHS/ALWAYS_PUBLIC_PATHS bên
+// dưới) trên đúng các thư mục asset tĩnh thật — `public/` ở dự án này gần
+// như không đổi, chi phí nhớ thêm 1 dòng khi thêm thư mục asset mới THẤP
+// HƠN HẲN rủi ro một regex đuôi file mở lại khe US-001.
+const STATIC_ASSET_PATHS = ["/landing", "/file.svg", "/vercel.svg", "/next.svg", "/globe.svg", "/window.svg"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || DUOI_FILE_TINH.test(pathname)) {
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    STATIC_ASSET_PATHS.some((p) => khopTienTo(pathname, p))
+  ) {
     return NextResponse.next();
   }
 
