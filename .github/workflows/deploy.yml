@@ -46,3 +46,30 @@ jobs:
             git pull origin main
             docker compose up -d --build
             docker image prune -f
+
+      # ⚠️ NẾU THÊM SMOKE TEST SAU DEPLOY — ĐỌC HẾT KHỐI NÀY TRƯỚC KHI GÕ.
+      #
+      # 🔴 Bẫy này cắn NGƯỜI CÀNG TUÂN THỦ CHECKLIST CÀNG DỄ DÍNH: checklist
+      # đóng gói production chuẩn dặn "thêm smoke test sau deploy
+      # (`curl -f .../health`)". Làm ĐÚNG lời dặn đó ở đây là tự tay thêm một
+      # CỔNG GIẢ vào CI/CD — và nó sẽ KHÔNG BAO GIỜ KÊU.
+      #
+      # KHÔNG gọi https://app.adaptivealgo.uk/health
+      #   [ĐO 27/08, gọi thật từ ngoài] Caddy KHÔNG có route riêng cho /health
+      #   phía backend ⟹ yêu cầu rơi vào catch-all ⟹ được frontend phục vụ
+      #   bằng trang /login ⟹ LUÔN 200, KỂ CẢ KHI BACKEND ĐÃ CHẾT HẲN.
+      #   Một cổng trả 200 trong mọi trạng thái không kiểm được trạng thái nào.
+      #
+      # Cổng THẬT — chạm THẲNG process backend qua mạng nội bộ Docker, không
+      # qua Caddy (đã dùng đúng ở scripts/deploy_home.ps1:163):
+      #   docker compose exec -T backend python -c \
+      #     "import urllib.request; urllib.request.urlopen('http://localhost:8010/health', timeout=5)"
+      #
+      # ⚠️ CHƯA ĐO ĐƯỢC trên runner GitHub Actions: script trên chạy trên hộp
+      # Windows của PO qua `docker compose --profile home`. Runner SSH có
+      # `exec` được vào container trên máy đích hay không là câu CHƯA AI TRẢ
+      # LỜI — cần DevOps + PO quyết, ĐỪNG tự thêm.
+      #
+      # 📌 Vì sao chỉ để lại bình luận mà không thêm cổng: một smoke test SAI
+      # còn tệ hơn KHÔNG CÓ smoke test. Không có thì ai cũng biết là chưa kiểm;
+      # có mà giả thì cả đội tin rằng đã kiểm. Trạng thái thứ hai đắt hơn.

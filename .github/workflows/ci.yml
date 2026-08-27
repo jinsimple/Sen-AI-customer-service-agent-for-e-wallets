@@ -514,6 +514,40 @@ jobs:
   business-rules-golden-set:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'schedule' }} # Stage 6 (nightly) không cần chạy lại stage này
+    # ═══ ĐÍCH ĐẾN LLM — KHAI TƯỜNG MINH, 27/08 ═══════════════════════════
+    # 🔴 KHÔNG PHẢI DỌN DẸP. Đây là vá một cổng ĐANG CHẤM SAI VẬT.
+    #
+    # [ĐO 26/08] `ci.yml` CHƯA TỪNG set LLM_BASE_URL/LLM_MODEL. Hệ quả dây chuyền:
+    #   config.py:305  LLM_BASE_URL = os.environ.get(...) or None  -> None
+    #                  ⟹ SDK tự chọn đích MẶC ĐỊNH: api.openai.com THẬT
+    #   config.py:341  LLM_MODEL = ... or OPENAI_MODEL
+    #   config.py:221  OPENAI_MODEL mặc định "gpt-4o-mini"
+    #   ci.yml         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  <- khoá THẬT
+    # ⟹ Ba biến rơi CÙNG MỘT HƯỚNG, không một dòng lỗi: các job eval gọi
+    #   gpt-4o-mini của OpenAI, trong khi sản phẩm chạy qwen qua DashScope.
+    #
+    # 🔴 THỨ ĐẮT HƠN TIỀN: mọi điểm golden_set/functional/fraud/err/adversarial
+    #   sinh ra từ CI kể từ 16-17/08 đang mô tả MỘT MODEL KHÔNG PHỤC VỤ KHÁCH.
+    #   Mỗi lần CI xanh, ta được bảo đảm về một hệ thống khác. Con số đúng định
+    #   dạng, đúng đơn vị, đúng cách tính — và sai vật.
+    #   (Truy ngược được, nhưng phải GHÉP `logs/usage.jsonl` — nó có `model` +
+    #   `base_url` mỗi lượt — với tệp kết quả; tệp kết quả tự nó KHÔNG mang.)
+    #
+    # Khai ở TẦNG JOB, không lặp ở từng step: 5 step eval nằm rải hai job, và
+    # thêm một step mới mà quên `env:` là tái lập đúng lỗi này trong im lặng.
+    #
+    # ⚠️ LLM_API_KEY: nếu secret CHƯA TỒN TẠI, biến rỗng ⟹ config.py:342
+    #   `_khoa_cho_nha_cung_cap` NÉM LỖI KHỞI ĐỘNG với thông báo rõ ràng, job
+    #   ĐỎ NGAY. Đó là hành vi ĐÚNG và CỐ Ý: nó CHẶN đường "base_url trỏ nhà
+    #   cung cấp khác + rơi về OPENAI_API_KEY", tức đúng đường đã gửi khoá
+    #   OpenAI sang máy chủ Alibaba ngày 17/08. Đỏ vì thiếu secret RẺ hơn nhiều
+    #   so với xanh vì gửi khoá đi nhầm chỗ.
+    # 📌 OPENAI_API_KEY GIỮ LẠI ở từng step: embedding vẫn đi OpenAI theo thiết
+    #   kế (EMBEDDING_BASE_URL trống), gỡ nó ra là gãy RAG.
+    env:
+      LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+      LLM_MODEL: qwen3.7-max-2026-06-08
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -560,6 +594,40 @@ jobs:
   ai-safety-adversarial:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'schedule' }}
+    # ═══ ĐÍCH ĐẾN LLM — KHAI TƯỜNG MINH, 27/08 ═══════════════════════════
+    # 🔴 KHÔNG PHẢI DỌN DẸP. Đây là vá một cổng ĐANG CHẤM SAI VẬT.
+    #
+    # [ĐO 26/08] `ci.yml` CHƯA TỪNG set LLM_BASE_URL/LLM_MODEL. Hệ quả dây chuyền:
+    #   config.py:305  LLM_BASE_URL = os.environ.get(...) or None  -> None
+    #                  ⟹ SDK tự chọn đích MẶC ĐỊNH: api.openai.com THẬT
+    #   config.py:341  LLM_MODEL = ... or OPENAI_MODEL
+    #   config.py:221  OPENAI_MODEL mặc định "gpt-4o-mini"
+    #   ci.yml         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  <- khoá THẬT
+    # ⟹ Ba biến rơi CÙNG MỘT HƯỚNG, không một dòng lỗi: các job eval gọi
+    #   gpt-4o-mini của OpenAI, trong khi sản phẩm chạy qwen qua DashScope.
+    #
+    # 🔴 THỨ ĐẮT HƠN TIỀN: mọi điểm golden_set/functional/fraud/err/adversarial
+    #   sinh ra từ CI kể từ 16-17/08 đang mô tả MỘT MODEL KHÔNG PHỤC VỤ KHÁCH.
+    #   Mỗi lần CI xanh, ta được bảo đảm về một hệ thống khác. Con số đúng định
+    #   dạng, đúng đơn vị, đúng cách tính — và sai vật.
+    #   (Truy ngược được, nhưng phải GHÉP `logs/usage.jsonl` — nó có `model` +
+    #   `base_url` mỗi lượt — với tệp kết quả; tệp kết quả tự nó KHÔNG mang.)
+    #
+    # Khai ở TẦNG JOB, không lặp ở từng step: 5 step eval nằm rải hai job, và
+    # thêm một step mới mà quên `env:` là tái lập đúng lỗi này trong im lặng.
+    #
+    # ⚠️ LLM_API_KEY: nếu secret CHƯA TỒN TẠI, biến rỗng ⟹ config.py:342
+    #   `_khoa_cho_nha_cung_cap` NÉM LỖI KHỞI ĐỘNG với thông báo rõ ràng, job
+    #   ĐỎ NGAY. Đó là hành vi ĐÚNG và CỐ Ý: nó CHẶN đường "base_url trỏ nhà
+    #   cung cấp khác + rơi về OPENAI_API_KEY", tức đúng đường đã gửi khoá
+    #   OpenAI sang máy chủ Alibaba ngày 17/08. Đỏ vì thiếu secret RẺ hơn nhiều
+    #   so với xanh vì gửi khoá đi nhầm chỗ.
+    # 📌 OPENAI_API_KEY GIỮ LẠI ở từng step: embedding vẫn đi OpenAI theo thiết
+    #   kế (EMBEDDING_BASE_URL trống), gỡ nó ra là gãy RAG.
+    env:
+      LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+      LLM_MODEL: qwen3.7-max-2026-06-08
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
