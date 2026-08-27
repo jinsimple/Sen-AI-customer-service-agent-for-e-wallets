@@ -13,6 +13,127 @@
 
 ---
 
+## 0. 🔴 BÀN GIAO 27/08 17:5x — TOÀN ĐỘI TẮT. ĐỌC MỤC NÀY TRƯỚC TIÊN.
+
+> PO tắt cả 7 phiên để tránh tràn context. Mục này gom **thứ KHÔNG nằm trong git** —
+> cái gì đã commit thì đọc được ở chỗ khác. **Thứ dưới đây chết theo phiên nếu không ghi.**
+
+### 0.1 🔴 BA RỦI RO ĐANG HOẠT ĐỘNG — không phải rủi ro tương lai
+
+**① ~50 lượt gọi `loginAs()` trong `frontend/e2e/` SẼ ĐỎ HÀNG LOẠT.**
+Cổng chặn-sai-cổng-đăng-nhập **đã land thật** *(nhân viên không đăng nhập được ở `/login`)*.
+`loginAs()` có tham số `loginPath` mới nhưng **chỉ ~3 tệp QA/QC vừa viết dùng nó**; phần còn lại
+vẫn mặc định `/login` cho cskh/sếp/đối tác. **KHÔNG phải bug mới — chưa retrofit.**
+⟹ Phiên sau chạy e2e sẽ thấy một biển đỏ và **rất dễ kết luận sai là hồi quy**.
+
+**② "3 failed" trong MỌI lần chạy pytest qua container = THIẾU MODULE `eval/`, KHÔNG phải hồi quy.**
+Xem mục T. Ai thấy `3 failed` mà kết luận "có gì đó vừa hỏng" là đi sai đường ngay từ bước một.
+
+**③ Trang `/` PO xem ở `https://localhost:60443` (ngăn `fin05-po-demo`).**
+🔴 Ngăn đó **KHÔNG tự cập nhật**. Land xong mà không dựng lại thì **PO nhìn bản cũ và tưởng
+không ai làm gì** — đã xảy ra thật hôm nay, PO hỏi *"sao tôi không thấy thay đổi gì"*.
+
+### 0.2 🔴 RÀNG BUỘC SỐNG CÒN — vi phạm là hỏng im lặng
+
+**ADR-055 / Bậc 1 — CHỈ THÊM `require_token_chua_thu_hoi`. KHÔNG BAO GIỜ rút
+`is_access_token_revoked` ra khỏi `require_otp_verified`.**
+Rút ⟹ `create_ticket` **mất bảo vệ IM LẶNG, không test nào đỏ**, chỉ sai khi có token bị thu hồi
+thật — ca không nằm trong suite thường trực.
+
+**`STATIC_ASSET_PATHS` trong `proxy.ts`:** `proxy.ts` nay dùng **allowlist ĐƯỜNG DẪN**, không phải
+regex đuôi tệp *(đuôi tệp để hở: ai đặt route kết thúc bằng đuôi quen thuộc là đi vòng qua tầng
+xác thực)*. ⟹ **Thêm asset mới vào `public/` phải TỰ THÊM DÒNG.** Không tự động.
+
+**`ALWAYS_PUBLIC_PATHS`:** có `proxy.pin.test.ts` ghim. Thêm path vào đó **phải sửa một dòng test
+tường minh** — đó là chủ đích, không phải phiền hà.
+
+### 0.3 ⛔ ĐỪNG HỒI SINH — hai thứ đã bị RÚT có chủ đích
+
+**① Finding màu "Khẩn cấp / Đã duyệt trùng xám" — BÁO ĐỘNG GIẢ.** Script so **chéo CỘT**
+*(Khẩn cấp ở cột Ưu tiên · Đã duyệt ở cột Trạng thái — CSKH không bao giờ so chéo cột)*. Sau khi
+sửa cổng: **sạch cả hai theme**. Bản nháp `--critical #FF3366` **đã revert, đừng land**.
+*(Số giữ lại nếu sau này có phát hiện THẬT cùng-cột: ΔL 0,047→0,307 · tương phản 4,61:1.)*
+
+**② `docs/nhat-ky/2026-08-26-de-xuat-hai-be-mat-landing-CHUA-DUYET.md`** — tệp này **từng mang số
+ADR-053**, đã gỡ số. Nó **tả một trang CHƯA BAO GIỜ ĐƯỢC DỰNG** *(grep `Playfair`/`particle` →
+0)*. **Đừng dùng làm căn cứ thiết kế.**
+
+### 0.4 Đường cụt đã thử — đừng thử lại
+```
+bind-mount eval/ vào container để chạy pytest  → TREO >2 phút, chưa rõ nguyên nhân
+ảnh mcr.microsoft.com/powershell:latest        → SẬP trên Apple Silicon (chỉ amd64, QEMU chết)
+                                                  dùng dotnet/sdk:8.0 thay thế
+printenv trong container                       → CÓ, nhưng phép kiểm gộp "rỗng" với "lệnh lỗi"
+                                                  dùng python -c để có BA đầu ra cho BA trạng thái
+```
+
+### 0.5 Ba ngăn docker — ai dùng gì
+```
+fin05-po-demo    60443   🔴 PO XEM Ở ĐÂY. dựng lại theo MÃ COMMIT sau mỗi lần land.
+fin05-qa-stripe  59443   QA/QC đo. override CHƯA COMMIT. đã seed. /knowledge 0 tài liệu.
+fin05-sach       80/443  UX/UI. chiếm cổng chuẩn.
+```
+⚠️ Mọi lệnh `docker compose` **BẮT BUỘC có `-p <tên ngăn>`**.
+
+### 0.6 Việc dở, theo vai
+```
+UX/UI      trang / : 9/9 khối + 3 fix vòng 3 đã land (46eac2f). KHÔNG còn nợ chữ.
+           video 24s đã neo vào git (2b84da2) — chưa dùng ở đâu.
+Marketing  không nợ chữ. Còn "④ ghi sổ, không làm": 3 lần lặp ý "AI không tự hoàn tiền"
+           ở khối 03 / số 0 / Klarna — việc GỌT, không gấp.
+Coder      ADR-055 cơ chế đã land (b8cb642). Bậc 1 CHỜ PO, chưa code.
+QA/QC      đã dựng cổng thường trực "trạng thái khác nghĩa cùng cột không trùng xám"
+           (782a965 + abd92b7 mở sang /approve).
+DevOps     ĐÓNG BĂNG theo lệnh PO. Đề xuất header Caddy (db8d460) + /uptime giữ nguyên,
+           KHÔNG land. Hai đường lên main đã dựng — xem 0.7.
+```
+
+### 0.7 🔴 MƯỜI VIỆC CHỜ PO — trang tra: `claude.ai/code/artifact/bb3369b9-8267-4564-be88-0e5bf2ad31fc`
+```
+① quyết main: (a) merge 25 commit — KHUYẾN NGHỊ  ·  (b) cherry-pick phẫu thuật
+   🔴 (b) KHÔNG phải "cherry-pick 4 commit". DevOps đo thật: thiếu 4231d39, và
+      46a89fa/dd55ed6 xung đột chắc chắn (đụng /cho-khach-hang — trang chưa có trên main).
+      Đường sạch = 4231d39 → 812fe0d → 0fde363 + MỘT commit ghép tay 2 tệp.
+   lệnh kiểm TRƯỚC khi merge (ca duy nhất có thể làm sập backend production):
+   docker compose --profile home exec -T backend python -c \
+     "import os;k=os.environ.get('LLM_API_KEY');print('CO' if k else 'KHONG CO')"
+② bật self-hosted runner — MIỄN PHÍ, gỡ 8/14 job   ③ GitHub billing (có đường vòng miễn phí)
+④ secret LLM_API_KEY   ⑤ chạy thử backup_home.ps1 một lượt trên Windows
+⑥ Caddyfile vào §4 (chặn P0-4 header bảo mật)   ⑦ ADR-054 hai câu OTP
+⑧ tín hiệu gian lận lên HÀNG ĐỢI duyệt (khuôn đã có ở /tickets, trích US-011/US-014)
+⑨ phiên track1-day25-…-daongocbich-86 là gì   ⑩ ADR-055 Bậc 1 — 3 route
+```
+
+### 0.8 Bản đồ vai 27/08 — 🔴 SẼ LỖI THỜI, ĐO LẠI ĐỪNG ĐOÁN
+```
+p-226-f0 điều phối · p-226-df LEAD ─┬ p-226-32 Coder ├ p-226-7c QA/QC └ p-226-8b Review
+p-226-dc UX/UI · p-226-17 Marketing · p-226-50 DevOps
+```
+🔴 **TÊN PHIÊN KHÔNG SUY RA VAI.** Hôm nay tôi gọi Review là "Lead" suốt nửa ngày. `ListAgents`
+rồi **hỏi thẳng**, đừng đoán.
+
+### 0.9 Luật vận hành đúc hôm nay — mỗi luật trả bằng một lỗi thật
+```
+① ĐO TRƯỚC, HỎI SAU — tin nhắn là dữ kiện hạng THẤP NHẤT, kể cả tin của mình lúc trước
+② HAI người tìm ĐỘC LẬP rồi đối chiếu. Chỗ LỆCH mới là chỗ đáng đọc.
+   (bắt được 1 assert sẽ đỏ mà cả hai bên đều mô tả sai)
+③ KHÔNG đưa QA/QC số dòng hay nội dung test lấy từ src/. Giao theo QUYẾT ĐỊNH.
+   🔴 "Phép đối chứng KHÔNG phát hiện được bộ test phản chiếu mã — nó chỉ phát hiện
+      được KHI bộ test đã độc lập." Hai cơ chế NHÂN với nhau, không cộng.
+④ Luật A vế BỐN (§7): cho cổng ăn CẢ HAI loại đầu vào. Cổng có thể HẰNG ĐỎ, không chỉ hằng im.
+⑤ Vá xong phải kiểm CHIỀU NGƯỢC.
+⑥ MỖI VAI TỰ ĐẨY sau khi land (dev/learning-loop). main thì KHÔNG — chỉ PO.
+⑦ Dựng lại ngăn thì dựng THEO MÃ COMMIT, không bao giờ theo "cây hiện tại".
+   🔴 khai báo trung thực cứu được NGƯỜI ĐỌC BÁO CÁO, nhưng KHÔNG cứu được BẢN DỰNG.
+⑧ (Marketing) Câu chỉ đúng khi có điều kiện đi kèm thì ĐIỀU KIỆN PHẢI NẰM TRONG CÂU.
+   Chú thích không đi cùng câu qua các lượt truyền. Người ta nhớ CÂU, không nhớ chú thích.
+```
+📌 **Bệnh lặp nhiều nhất trong ngày (4 lần, 4 người khác nhau): `grep` trả ĐÚNG, người đọc SUY
+RỘNG** — đọc kết quả grep như bằng chứng về HÀNH VI. Ba con số route đã sai vì đúng lý do đó.
+⟹ **Trình bằng CƠ CHẾ, đừng trình bằng SỐ ĐẾM.** Cơ chế đúng dù đếm lại ra bao nhiêu.
+
+---
+
 ## 1. ĐỌC MỤC NÀY TRƯỚC KHI GÕ BẤT CỨ LỆNH NÀO
 
 | | |
