@@ -1,4 +1,26 @@
-# ADR-053 (BẢN NHÁP — CHƯA DUYỆT) — Tách hai bề mặt: landing theo fin.ai, màn nghiệp vụ giữ Stripe
+# ĐỀ XUẤT (CHƯA DUYỆT, KHÔNG PHẢI ADR) — Tách hai bề mặt: landing theo fin.ai, màn nghiệp vụ giữ Stripe
+
+> 🔴 **NIÊM 27/08 — TỆP NÀY TỪNG MANG SỐ `ADR-053`. ĐÃ GỠ SỐ.**
+>
+> **Vì sao gỡ:** nó **chiếm trước** một số ADR mà nó chưa bao giờ được duyệt để mang. Người viết
+> ADR-053 thật sẽ đụng số — hoặc tệ hơn, **đọc tệp này và tin nó là một quyết định đã ratify.**
+> Chuyện đó **đã xảy ra thật**: phiên Marketing trích nó làm căn cứ thiết kế, vế *"nháp, chưa
+> duyệt"* rụng mất trên đường đi, và thứ còn lại trông như một quyết định.
+>
+> 🔴 **Và commit `cf7a122` (đưa tệp vào git) làm vế đó NẶNG THÊM, không nhẹ đi** — nằm trong repo
+> khiến nó **dễ tin hơn** lúc còn là tệp lạc. Đó là hệ quả tôi không lường khi commit.
+>
+> **NỘI DUNG DƯỚI ĐÂY TẢ MỘT TRANG CHƯA BAO GIỜ ĐƯỢC DỰNG.** Marketing đo 27/08:
+> ```
+> grep -riE 'particle|magnetic' frontend/src/  → 0 dòng mã (chỉ trúng bình luận viết VỀ sai sót này)
+> grep Playfair frontend/src/                  → 0
+> globals.css:600 .lp-hero → linear-gradient(120deg,#F6F9FC,#FFE9F3,#FFF6D9), chữ #0A2540
+>                            TĨNH, hồng/vàng — KHÔNG phải cam #FF5B24 như tệp này mô tả
+> ```
+> ⟹ **Đọc tệp này như một ĐỀ XUẤT LỊCH SỬ, không phải mô tả sản phẩm.** Muốn biết trang `/` hôm
+> nay trông thế nào thì **mở `globals.css` hoặc mở trang thật ra xem** — đừng đọc tệp này.
+>
+> *(Giữ nguyên toàn văn bên dưới. Luật P: chuyển chỗ + niêm, không xoá.)*
 
 > **Trạng thái: NHÁP.** Chưa vào `docs/DECISIONS.md`. Soạn 26/08/2026 bởi phiên
 > Claude dựng landing page, theo yêu cầu PO. Cần PO duyệt trước khi bất kỳ ai
