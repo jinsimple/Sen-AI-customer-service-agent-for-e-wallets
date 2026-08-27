@@ -32,12 +32,15 @@ export default function LoginPage() {
               <svg className="icon" viewBox="0 0 24 24">
                 <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" />
               </svg>
-              {/* 27/08 — câu cũ ("dữ liệu không rời khỏi hạ tầng ví") SAI, mâu
-                  thuẫn với chính LLM_BASE_URL/EMBEDDING_BASE_URL thật (nhà
-                  cung cấp nước ngoài) và với câu chính khung chat tự khai
-                  ("xử lý bởi AI của nhà cung cấp nước ngoài"). Trang bán hàng
-                  nói ngược với sản phẩm thật — sửa nguyên văn PO duyệt. */}
-              <span>Hệ thống chạy trong vùng ví kiểm soát. Phần suy luận của mô hình đi qua nhà cung cấp đã khai báo, có sẵn cơ chế chuyển đổi nhà cung cấp.</span>
+              {/* 27/08 vòng 2 — Review chỉ ra bản sửa trước ("hệ thống chạy
+                  trong vùng ví kiểm soát") vẫn là lời hứa về ĐỊA ĐIỂM, cùng
+                  trục với câu sai gốc. [ĐO] customer_tools.py _scrub_pii_cho_llm()
+                  chỉ che PII trong KẾT QUẢ TRA CỨU trước khi vào LLM — câu
+                  KHÁCH TỰ GÕ không qua lớp che này (đúng như chân khung chat
+                  đã tự khai: "vui lòng không nhập thông tin cá nhân thật").
+                  Câu mới neo vào XỬ LÝ (kiểm chứng được, PRD §17 ≤6%, đo
+                  5,6%) thay vì ĐỊA ĐIỂM (không đo được, dễ sai lại). */}
+              <span>Kết quả tra cứu được che thông tin cá nhân trước khi đưa vào xử lý. Phần suy luận của mô hình đi qua nhà cung cấp đã khai báo, có sẵn cơ chế chuyển đổi nhà cung cấp.</span>
             </div>
             <div>
               <svg className="icon" viewBox="0 0 24 24">
