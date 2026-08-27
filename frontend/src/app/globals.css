@@ -301,12 +301,26 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
    đặc, huy hiệu thôi mang thông tin — chip đỏ "Khẩn cấp" (1/300) chìm nghỉm.
    Quy ước: CHỈ trạng thái khẩn cấp (priority=critical, giữ .badge-critical)
    và bị từ chối (hitl_status=rejected, giữ .badge-danger) mới có NỀN màu.
-   Mọi trạng thái khác → chấm nhỏ mang màu, CHỮ LUÔN XÁM (--text-dim) — màu chỉ
-   sống ở chấm, không sống ở chữ, để không tạo thêm một khối màu đặc nữa. */
+
+   🔴 [ĐO 27/08] PO báo hồi quy sau vòng đổi bảng màu Stripe: "mất màu cảnh
+   báo, khá khó nhìn". Nguyên nhân: bản đầu chỉ tô màu cho CHẤM 6px, CHỮ luôn
+   xám — đúng cho "bình thường/đang chờ" (không cần nổi), nhưng SAI cho các
+   mức cảnh báo thật (dot-warning/info) — một chấm 6px không đủ hút mắt khi
+   quét nhanh một bảng dài, và đó chính là "màu cảnh báo" PO nói đã biến mất.
+   Phân biệt lại theo MỨC NẶNG, không cào bằng:
+     nguy cấp (priority=critical, rejected) -> nền đặc (.badge-critical/-danger), GIỮ NGUYÊN
+     cảnh báo  (dot-warning/dot-info)        -> CHỮ CÓ MÀU + chấm, không nền
+     bình thường / trung tính (không class)  -> KHÔNG MÀU GÌ (chấm xám nhạt, chữ xám)
+   Chữ có màu đã đo lại trên nền bảng thật (--surface/--bg, không phải nền
+   badge riêng), ≥4.75:1 mọi trường hợp cả hai chế độ — xem lịch sử thay đổi
+   này để đối chiếu số đo cụ thể. */
 .status-dot{ display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-12); font-weight:600; color:var(--text-dim); white-space:nowrap; line-height:var(--lh-than); }
 .status-dot::before{ content:""; width:6px; height:6px; border-radius:50%; flex:0 0 auto; background:var(--text-faint); }
+.status-dot.dot-info{ color:var(--info); font-weight:700; }
 .status-dot.dot-info::before{ background:var(--info); }
+.status-dot.dot-success{ color:var(--success); font-weight:700; }
 .status-dot.dot-success::before{ background:var(--success); }
+.status-dot.dot-warning{ color:var(--warning); font-weight:700; }
 .status-dot.dot-warning::before{ background:var(--warning); }
 .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
 .dot-pulse{ animation:pulse 1.5s ease-in-out infinite; }
@@ -679,4 +693,9 @@ textarea:focus{ border-color:var(--navy-2); outline:none; box-shadow:0 0 0 3px c
 .ck-footer{ margin-top:56px; padding-top:24px; border-top:1px solid var(--border); }
 .ck-footer p{ font-size:var(--fs-14); color:var(--text-dim); line-height:1.6; margin:0 0 8px; }
 .ck-footer p b{ color:var(--text); }
-.ck-footer-dim{ color:var(--text-faint) !important; font-size:var(--fs-12) !important; }
+/* 27/08 — Marketing (p-226-17): dòng khai báo bắt buộc ("sản phẩm mẫu, dữ
+   liệu mô phỏng") bị chìm ở mức --text-faint, đọc như phụ chú bỏ qua được
+   thay vì một câu cần đọc. Nâng lên --text-dim (ngang thân bài `.ck-footer
+   p`), giữ cỡ chữ nhỏ (fs-12) — không tô đỏ, đây không phải cảnh báo rủi ro,
+   chỉ cần đủ trọng lượng để mắt không lướt qua. */
+.ck-footer-dim{ color:var(--text-dim) !important; font-size:var(--fs-12) !important; }
