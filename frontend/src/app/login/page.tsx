@@ -32,22 +32,30 @@ export default function LoginPage() {
               <svg className="icon" viewBox="0 0 24 24">
                 <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" />
               </svg>
-              {/* 27/08 vòng 2 — Review chỉ ra bản sửa trước ("hệ thống chạy
-                  trong vùng ví kiểm soát") vẫn là lời hứa về ĐỊA ĐIỂM, cùng
-                  trục với câu sai gốc. [ĐO] customer_tools.py _scrub_pii_cho_llm()
-                  chỉ che PII trong KẾT QUẢ TRA CỨU trước khi vào LLM — câu
-                  KHÁCH TỰ GÕ không qua lớp che này (đúng như chân khung chat
-                  đã tự khai: "vui lòng không nhập thông tin cá nhân thật").
-                  Câu mới neo vào XỬ LÝ (kiểm chứng được, PRD §17 ≤6%, đo
-                  5,6%) thay vì ĐỊA ĐIỂM (không đo được, dễ sai lại). */}
-              <span>Kết quả tra cứu được che thông tin cá nhân trước khi đưa vào xử lý. Phần suy luận của mô hình đi qua nhà cung cấp đã khai báo, có sẵn cơ chế chuyển đổi nhà cung cấp.</span>
+              {/* 27/08 vòng 3 — Marketing (p-226-17) chỉ ra bản vòng 2 ("kết
+                  quả tra cứu được che... trước khi đưa vào xử lý") ĐÚNG
+                  NHƯNG dẫn người đọc TRÊN TRANG ĐĂNG NHẬP tới kết luận sai:
+                  "dữ liệu CỦA TÔI được che" — trong khi thứ được che là dữ
+                  liệu NGƯỜI KHÁC trong kết quả tra, và câu khách tự gõ vẫn đi
+                  nguyên văn tới model (đúng như chân khung chat tự khai).
+                  Câu mới nói đúng phạm vi thật (bên thứ ba, trước khi HIỂN
+                  THỊ — kiểm được bằng mắt: "T. H. Ngân 058***0135" trên ảnh
+                  sản phẩm), khớp nguyên văn câu đã duyệt trên landing. Copy
+                  nguyên văn marketing, không tự viết lại. */}
+              <span>Thông tin của người khác trong giao dịch được che trước khi hiển thị. Phần suy luận của mô hình đi qua nhà cung cấp đã khai báo, và hệ thống có sẵn cơ chế chuyển đổi nhà cung cấp.</span>
             </div>
             <div>
               <svg className="icon" viewBox="0 0 24 24">
                 <rect x="4" y="11" width="16" height="9" rx="2" />
                 <path d="M8 11V7a4 4 0 018 0v4" />
               </svg>
-              <span>Không màn hình nào hỏi mật khẩu hoặc OTP giao dịch thật của bạn.</span>
+              {/* 27/08 — Marketing: "không màn hình NÀO" tự mâu thuẫn với ô
+                  "Mật khẩu" nằm ngay bên dưới trên chính trang này — người
+                  đọc cẩn thận thấy mâu thuẫn trước tiên, gây nghi thay vì yên
+                  tâm. Ý thật là "không hỏi mật khẩu VÍ", phạm vi đó nằm ở
+                  "trong khi trò chuyện" — đúng nơi kẻ giả danh tổng đài ra
+                  tay. Copy nguyên văn marketing. */}
+              <span>Trong khi trò chuyện, Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.</span>
             </div>
             <div>
               <svg className="icon" viewBox="0 0 24 24">

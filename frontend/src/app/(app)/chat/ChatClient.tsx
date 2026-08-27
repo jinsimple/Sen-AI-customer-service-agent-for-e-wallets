@@ -657,8 +657,15 @@ export default function ChatClient({
       <div className="page-head">
         <span className="eyebrow">Trợ lý AI cho khách hàng</span>
         <h1>Trợ lý AI</h1>
+        {/* 27/08 — Marketing (p-226-17) đổi: câu cũ là phát biểu TUYỆT ĐỐI,
+            cùng hình dạng lỗi vừa vá ở /login, và ĐÃ TỪNG SAI THẬT (ca bot
+            báo "đã tạo hồ sơ" trong khi không tạo, mã hồ sơ thuộc khách
+            khác). Câu mới nói về QUY TRÌNH (kiểm được, có ca mẫu TCK-DEMO-02)
+            thay vì kết quả tuyệt đối; "mọi đề xuất đều có người kiểm" là vế
+            DUY NHẤT thật sự tuyệt đối — ép ở CheckConstraint DB, không phải
+            hành vi mô hình. Copy nguyên văn marketing, không tự viết lại. */}
         <p className="sub">
-          Trợ lý AI — mọi con số đều được tra cứu từ hệ thống thật, không tự suy đoán.
+          Trợ lý AI — Sen tra cứu từ hệ thống trước khi trả lời, và nói rõ khi không tra được. Mọi đề xuất đều có người kiểm trước khi thành quyết định.
         </p>
       </div>
 
