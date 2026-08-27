@@ -862,7 +862,7 @@ export default function ChatClient({
           </div>
           <div className="chat-disclaimer">
             <svg className="icon icon-sm" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></svg>
-            Sen không bao giờ hỏi mật khẩu hoặc mã OTP giao dịch thật của bạn qua chat.
+            Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.
           </div>
           {/* Thông báo xử lý dữ liệu — bản demo dùng dữ liệu mô phỏng, nhưng
               người test là NGƯỜI THẬT gõ chữ thật, nên vẫn cần cho họ biết nội

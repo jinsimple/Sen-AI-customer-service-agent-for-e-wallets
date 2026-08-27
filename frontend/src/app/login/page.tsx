@@ -49,13 +49,16 @@ export default function LoginPage() {
                 <rect x="4" y="11" width="16" height="9" rx="2" />
                 <path d="M8 11V7a4 4 0 018 0v4" />
               </svg>
-              {/* 27/08 — Marketing: "không màn hình NÀO" tự mâu thuẫn với ô
-                  "Mật khẩu" nằm ngay bên dưới trên chính trang này — người
-                  đọc cẩn thận thấy mâu thuẫn trước tiên, gây nghi thay vì yên
-                  tâm. Ý thật là "không hỏi mật khẩu VÍ", phạm vi đó nằm ở
-                  "trong khi trò chuyện" — đúng nơi kẻ giả danh tổng đài ra
-                  tay. Copy nguyên văn marketing. */}
-              <span>Trong khi trò chuyện, Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.</span>
+              {/* 27/08 vòng 2 — Marketing: "không màn hình NÀO" tự mâu thuẫn
+                  với ô "Mật khẩu" ngay bên dưới trên chính trang này, nên
+                  từng thêm vế mở đầu "Trong khi trò chuyện,". 27/08 vòng 3 —
+                  Marketing TỰ RÚT LẠI: câu chuẩn chống lừa đảo phải giống hệt
+                  ở MỌI bề mặt (login/chat/cho-khach-hang) để khách NHẬN RA
+                  được — thêm vế mở đầu phá mất tính nhận-ra-được đó. Mâu
+                  thuẫn với ô "Mật khẩu" tự tan vì câu chuẩn nói "mật khẩu VÍ",
+                  đã khác ô đăng nhập ứng dụng. Câu chuẩn trần, nguyên văn
+                  marketing, giống hệt cả ba nơi. */}
+              <span>Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.</span>
             </div>
             <div>
               <svg className="icon" viewBox="0 0 24 24">

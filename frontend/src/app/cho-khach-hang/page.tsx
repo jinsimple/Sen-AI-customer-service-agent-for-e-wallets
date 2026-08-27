@@ -24,7 +24,7 @@ export default function ChoKhachHangPage() {
       <div className="ck-wrap">
         <p className="ck-eyebrow">Sen · Ví điện tử</p>
         <h1 className="ck-h1">
-          Sen là trợ lý AI của tổng đài ví. Sen không bao giờ hỏi mật khẩu hay mã OTP giao dịch của bạn.
+          Sen là trợ lý AI của tổng đài ví. Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.
         </h1>
         <p className="ck-lead">
           Khi bạn gặp sự cố — bị trừ tiền hai lần, tiền chưa tới nơi, chuyển nhầm người — Sen tra cứu
@@ -34,6 +34,7 @@ export default function ChoKhachHangPage() {
 
         <section className="ck-core">
           <h2 className="ck-h2">Ba điều Sen không bao giờ hỏi bạn</h2>
+          <p className="ck-lead-strong">Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.</p>
           <ul className="ck-never">
             <li>
               <span className="ck-x" aria-hidden="true">✕</span>
