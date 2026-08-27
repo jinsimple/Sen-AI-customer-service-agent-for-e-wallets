@@ -112,6 +112,95 @@ p-226-dc UX/UI · p-226-17 Marketing · p-226-50 DevOps
 🔴 **TÊN PHIÊN KHÔNG SUY RA VAI.** Hôm nay tôi gọi Review là "Lead" suốt nửa ngày. `ListAgents`
 rồi **hỏi thẳng**, đừng đoán.
 
+### 0.6b ☠️ SỰ CỐ THẬT HÔM NAY — CSDL MỘT NGĂN BỊ XOÁ SẠCH
+
+**Coder gõ tên lệnh trong dấu nháy kép; dấu huyền ngược khiến shell THỰC THI lệnh đó
+⟹ mất sạch CSDL ngăn `fin05`.** Ngăn `fin05` **CHƯA SEED LẠI** — chờ PO quyết có seed lại không.
+🔴 **Không phải production** *(production là máy Windows của PO)*, nhưng là **mất dữ liệu thật trên
+một ngăn thật**. Ghi ra để phiên sau không tưởng ngăn đó "tự nhiên rỗng".
+📌 **Bài học dùng được:** dấu huyền ngược trong nháy kép của shell **thực thi**, không phải trích dẫn.
+Tên lệnh muốn đưa vào văn bản thì dùng nháy đơn hoặc thoát dấu.
+
+### 0.6c 🔴 `fin05-sach` ĐANG Ở TRẠNG THÁI LAI — đừng dựng lại ảnh mà không biết
+
+**Container đang chạy đã bị `docker cp` tay 4 tệp** *(`auth.py`, `main.py`, 2 tệp test)* để chạy đo.
+```
+container  =  khớp HEAD
+ẢNH        =  CŨ HƠN
+⟹ dựng lại ảnh sẽ MẤT 4 tệp đó và trông y hệt một HỒI QUY
+⟹ tin "container đang chạy" là đang tin HEAD, KHÔNG phải tin ảnh
+```
+**Việc đúng:** dựng lại ảnh sạch một lượt, **đừng `docker cp` tay nữa.**
+
+### 0.6d Tài khoản seed để bấm UI thật
+```
+khách  0387000001   ·   CSKH  0353000201   ·   sếp  0905000205      mật khẩu: Demo@123
+⚠️ 0901000001 CHỈ là fixture test, KHÔNG có trong CSDL thật.
+```
+**`.env` gốc repo KHÔNG trong git** và nó quyết định `LLM_MODEL`/`LLM_BASE_URL`. Máy này có
+`deepseek` ở dòng 165 — **không ai gõ tay vào đó**. 🔴 **Không ai biết `.env` PRODUCTION ghi gì.**
+`gen_dataset.py` **từ chối chạy nếu thiếu `--eval-out <thư-mục-tạm>`** *(bảo vệ `golden_set.jsonl`)* —
+**đừng nới, chỉ cần truyền cờ.**
+
+### 0.7b 🔴 (b) CHERRY-PICK — CHUỖI CHÍNH XÁC, ĐỪNG DỰNG LẠI TỪ ĐẦU
+```bash
+git cherry-pick 4231d39 812fe0d 0fde363      # sạch cả ba. 812fe0d PHỤ THUỘC 4231d39.
+# rồi PHẪU THUẬT 46a89fa (nguyên commit XUNG ĐỘT — đụng cho-khach-hang, trang chưa có trên main):
+git show 46a89fa -- frontend/src/app/login/page.tsx | git apply
+git show 46a89fa -- "frontend/src/app/(app)/chat/ChatClient.tsx" | git apply
+git add <2 tệp trên> && git commit          # một commit tay
+# 🔴 BỎ HẲN dd55ed6 — CSS status-dot, KHÔNG liên quan "câu chữ", đụng cho-khach-hang y hệt.
+```
+**Đường LÙI (áp cho cả (a) và (b)):** `git revert <sha> && git push` trên máy dev, rồi chạy lại
+`deploy_home.ps1` bình thường. **Không có lệnh rollback riêng.**
+**HAI vế CHƯA ai kiểm:** ① `LLM_API_KEY` trên `.env` PRODUCTION *(bắt buộc trước khi chọn (a))*
+② (b) chưa `npm run build`/`tsc` thật *(worktree không có `node_modules`)*.
+
+### 0.7c 🔴 BỘ SLIDE TRÌNH ZALOPAY — BỐN CÂU SAI, CHƯA AI SỬA
+> Marketing đo lúc 17:5x: **cả bốn còn nguyên.** Slide nặng hơn web — nó **đứng trình trước đối tác**.
+```
+slide 4  BỎ "Log không sửa/xoá được bởi người dùng thường"  — SAI, không hash-chain/append-only
+         → "Mọi bước điều tra được ghi lại và truy được theo mã vé — ai tra gì, lúc nào, căn cứ nào."
+slide 6  "120 ca golden set · 14 bộ"  →  "386 ca đánh giá · 15 bộ riêng biệt"
+         [ĐO 27/08] cat eval/*.jsonl | wc -l = 386 · ls = 15   ⟹ đang đếm THIẾU 140 ca
+slide 6  "60 ca heldout, chưa từng dùng" → thêm VÌ SAO, kẻo đọc thành "60 ca chưa test":
+         "…niêm phong từ đầu để bộ đo không bị tối ưu ngược."
+slide 6  BỎ "60% đề xuất AI được duyệt"  — đọc thành "4/10 bị bác", và đo trên người duyệt MÔ PHỎNG.
+         Giữ thì phải nói 40% kia là gì.
+slide 2 vs 4  TT 15/2024 và TT 40/2024 cùng một hồ sơ, cùng chủ đề. CHỐT MỘT, ghi số điều.
+slide 5  "sla_due_at 12:57 18-09" = hạn 30 NGÀY, ngồi dưới tiêu đề "Giảm thời gian tra soát".
+```
+
+### 0.7d Trang `/` — kết luận đọc trọn, KHÔNG nằm ở đâu khác
+🔴 **7 khối CHƯA thành một lập luận, và lỗi lớn nhất là THỨ TỰ.**
+Khối Klarna đang ở **7/9**, nhưng nó là khối **DUY NHẤT giải thích vì sao hero được viết như thế**.
+Hero nói *"quyết định vẫn thuộc về con người"* — người lạ đọc lần đầu nghe như **một GIỚI HẠN**, và
+lời cứu đến **sau sáu màn**.
+⟹ **Đưa Klarna lên ngay sau hero** thì vế sau của hero đổi từ *"AI chưa đủ giỏi"* thành *"cả ngành
+đã thử hướng kia và quay lại"*. **Rẻ nhất, đòn bẩy cao nhất.**
+**Thừa:** ý *"AI không tự hoàn tiền"* nói **BA LẦN** *(khối 03 · ô `0` · Klarna)* mà **không leo
+thang**. Lời hứa → con số → cơ chế thì mới là củng cố. **Việc gọt, không gấp.**
+
+### 0.7e Luật viết đối ngoại — KÈM LÝ DO, đừng nới khi không biết vì sao
+```
+· Câu chống lừa đảo GIỐNG HỆT TỪNG CHỮ ở chat / login / cho-khach-hang
+  — vì khách nhớ MỘT câu thì nhận ra kẻ giả danh nói lệch; nhớ ba câu na ná thì
+    không nhận ra biến thể nào, kể cả biến thể kẻ lừa đảo bịa.
+  NHƯNG landing dùng "của khách hàng": nhận-ra-được áp ở nơi người CÓ THỂ BỊ LỪA,
+  cách nói cam kết áp ở nơi người ĐANG THẨM ĐỊNH. Cùng LUẬT, khác đại từ.
+· KHÔNG viết "OTP gửi qua SMS" — [ĐO] main.py trả thẳng otp_code trong response, không có SMS.
+· Bỏ "/an-toan" → "/cho-khach-hang": "an toàn" là TỪ HỨA HẸN trên sản phẩm tài chính.
+  Trang NÓI VỀ an toàn thì được; trang TÊN LÀ an toàn thì tự cấp cho mình một chứng nhận.
+· Câu mã hoá giữ đúng phạm vi "KHO CHÍNH SÁCH CỦA ĐỐI TÁC" — KHÔNG rút gọn thành
+  "dữ liệu được mã hoá". Dữ liệu giao dịch của khách là LỚP KHÁC.
+· KHÔNG nêu tên Klarna trên trang công khai (trong phòng pitch thì được).
+· KHÔNG nút/kênh liên hệ không có đích thật.
+```
+**Artifact Marketing giữ:** bàn giao `/` `87eb7652-3703-4ae2-8d38-2e6b20f7c12c` · trang chống lừa
+đảo `bca0327e-d9d1-44cf-82bc-c886aba35941` · sổ kinh tế `30c142c1-412e-4ffd-b713-e8145afb7f68`
+*(tiền tố `claude.ai/code/artifact/`)*. **Thiếu:** lời video · công thức chi phí còn 3 ô trống
+*(lương CSKH có nguồn · ca-kíp hay làm-thêm-giờ · chi phí/vé bằng tiền)*.
+
 ### 0.9 Luật vận hành đúc hôm nay — mỗi luật trả bằng một lỗi thật
 ```
 ① ĐO TRƯỚC, HỎI SAU — tin nhắn là dữ kiện hạng THẤP NHẤT, kể cả tin của mình lúc trước
