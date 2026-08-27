@@ -87,8 +87,21 @@ async function _lamMoiPhien(cu: Session): Promise<Session | null> {
       // sau đó lại 401 → lại thử refresh → lại hỏng, VÒNG LẶP không tự thoát
       // — chỉ bấm Đăng xuất (nơi DUY NHẤT khác gọi store.delete) mới ra
       // được. Xoá cookie NGAY tại đây để vòng lặp không có gì để lặp lại.
-      if (!res.ok) {
+      //
+      // 🔴 [ĐO 27/08] p-226-8b (Review): CHỈ xoá khi backend THẬT SỰ từ chối
+      // refresh_token (401) — `!res.ok` rộng hơn ý định, còn bắt cả 429
+      // (`/auth/refresh` có rate limit 30/phút, main.py — nhiều tab/request
+      // BFF song song đều có thể trigger) và 5xx (exception chưa bắt trong
+      // rotate_refresh_token khi Redis chập chờn thoáng qua). Cả hai đều là
+      // "mạng/backend hỏng tạm thời", không phải "token bị từ chối" — xoá
+      // cookie ở hai ca đó là HUỶ MỘT PHIÊN CÒN SỐNG, đúng loại hồi quy bản
+      // vá này định tránh, chỉ khác hướng (trước: giữ cookie chết quá lâu;
+      // giờ nếu không sửa: xoá cookie sống quá sớm).
+      if (res.status === 401) {
         (await cookies()).delete(SESSION_COOKIE);
+        return null;
+      }
+      if (!res.ok) {
         return null;
       }
       const moi = (await res.json()) as { access_token: string; refresh_token: string };

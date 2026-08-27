@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import {
   LAST_GATE_COOKIE,
-  LAST_GATE_COOKIE_MAX_AGE_SECONDS,
   SESSION_COOKIE,
   sessionCookieMaxAgeSeconds,
   type Gate,
@@ -75,12 +74,21 @@ export async function POST(req: Request) {
   // (lib/session.ts) để biết vì sao KHÔNG httpOnly và KHÔNG xoá khi đăng
   // xuất. `gate` ở đây chính là tham số client đã gửi (đã qua gateRejects()
   // ở trên — tới được dòng này nghĩa là gate khớp role thật).
+  //
+  // 🔴 [ĐO 27/08] Review + p-226-f0: TTL ban đầu ghim CỐ ĐỊNH 30 ngày —
+  // không bám vào vòng đời thật nào (refresh_token nhân viên chỉ 1 ngày,
+  // khách 7 ngày). Sau 1 ngày, nhân viên BẮT BUỘC đăng nhập lại dù cookie
+  // gợi ý còn hay không — nó chỉ CHỌN CỔNG, không thay được đăng nhập, nên
+  // 29 ngày còn lại của hằng số cũ không phục vụ ca dùng hợp lệ nào, chỉ để
+  // lại dấu vết thừa trên máy trạm. Dùng LẠI sessionCookieMaxAgeSeconds(role)
+  // — đã tồn tại, đã đúng theo vai — để mai đổi vòng đời phiên thì cookie
+  // gợi ý tự đi theo, không phải nhớ đồng bộ một hằng số riêng.
   const gateThat: Gate = gate === "internal" ? "internal" : "customer";
   store.set(LAST_GATE_COOKIE, gateThat, {
     httpOnly: false,
     sameSite: "lax",
     path: "/",
-    maxAge: LAST_GATE_COOKIE_MAX_AGE_SECONDS,
+    maxAge: sessionCookieMaxAgeSeconds(session.role),
   });
 
   // Trả về client KHÔNG kèm access_token/refresh_token — client chỉ cần

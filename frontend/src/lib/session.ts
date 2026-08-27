@@ -44,15 +44,20 @@ export const SESSION_COOKIE = "fin05_session";
 // chạy trong trình duyệt) cũng cần đọc được nó để biết đá về cổng nào khi
 // một lời gọi API 401 giữa phiên (refresh cũng đã hỏng, xem
 // server-api.ts::_lamMoiPhien) — proxy.ts không kịp thấy ca này vì cookie
-// phiên (đã chết) vẫn còn hình dạng hợp lệ lúc điều hướng trang. Sống dài
-// hơn hẳn session thật (30 ngày) để còn đó SAU KHI session đã hết hạn, đúng
-// lúc cần dùng tới. Ghi ở route.ts::POST mỗi lần đăng nhập thành công, ĐỌC ở
+// phiên (đã chết) vẫn còn hình dạng hợp lệ lúc điều hướng trang.
+//
+// 🔴 [ĐO 27/08] Review (p-226-8b): TTL ban đầu ghim CỐ ĐỊNH 30 ngày — không
+// bám vào vòng đời thật nào (refresh_token nhân viên chỉ 1 ngày, khách 7
+// ngày; quá hạn đó nhân viên BẮT BUỘC đăng nhập lại bất kể cookie gợi ý còn
+// hay không, vì nó chỉ CHỌN CỔNG chứ không thay được đăng nhập). Dùng LẠI
+// `sessionCookieMaxAgeSeconds(role)` (route.ts::POST) — đã tồn tại, đã đúng
+// theo vai — thay vì ghim một hằng số riêng phải nhớ đồng bộ mỗi khi vòng
+// đời phiên đổi. Ghi ở route.ts::POST mỗi lần đăng nhập thành công, ĐỌC ở
 // proxy.ts khi !session và ở lib/api.ts khi 401 giữa phiên — KHÔNG xoá khi
 // đăng xuất (dụng ý: nhân viên đóng máy rồi quay lại vẫn về đúng cổng nội bộ
-// dù chưa đăng nhập).
+// dù chưa đăng nhập, trong đúng vòng đời session còn hợp lệ).
 export type Gate = "customer" | "internal";
 export const LAST_GATE_COOKIE = "fin05_last_gate";
-export const LAST_GATE_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export function loginPathForGate(gate: string | undefined): string {
   return gate === "internal" ? "/dang-nhap-noi-bo" : "/login";

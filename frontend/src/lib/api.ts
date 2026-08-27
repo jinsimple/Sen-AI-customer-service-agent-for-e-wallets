@@ -39,15 +39,27 @@ export class ApiError extends Error {
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 // 27/08 [ĐO] p-226-f0: 401 từ BFF (server-api.ts::backendFetch, sau khi ĐÃ
-// thử làm mới token và cũng hỏng) chỉ có MỘT nghĩa duy nhất trong hệ này —
-// "phiên không còn hiệu lực, không đăng nhập lại được nữa với token cũ".
-// KHÔNG bao giờ dùng cho lỗi nghiệp vụ (OTP hết tươi/thiếu OTP nằm TRONG
-// payload 200 của /api/agent-chat, xem ChatClient.tsx::OTP_EXPIRED_LOAI —
-// chưa từng là status HTTP 401). An toàn để đá NGAY về đúng cổng thay vì để
-// từng trang tự bắt raw error rồi hiện nguyên văn cho khách (đúng gốc PO
-// báo: "chat với chat bot báo lỗi — đăng xuất ra vào lại thì ok", vì trước
-// đây không nơi nào tự dọn cookie chết/tự điều hướng, chỉ nút Đăng xuất làm
-// việc đó).
+// thử làm mới token và cũng hỏng) PHẦN LỚN nghĩa là "phiên không còn hiệu
+// lực" — KHÔNG bao giờ dùng cho lỗi nghiệp vụ dạng payload 200 (OTP hết
+// tươi/thiếu OTP nằm TRONG /api/agent-chat, xem ChatClient.tsx::
+// OTP_EXPIRED_LOAI — chưa từng là status HTTP 401). An toàn để đá NGAY về
+// đúng cổng thay vì để từng trang tự bắt raw error rồi hiện nguyên văn cho
+// khách (đúng gốc PO báo: "chat với chat bot báo lỗi — đăng xuất ra vào lại
+// thì ok", vì trước đây không nơi nào tự dọn cookie chết/tự điều hướng, chỉ
+// nút Đăng xuất làm việc đó).
+//
+// 🔴 [ĐO 27/08] p-226-8b (Review) lần ra NGOẠI LỆ THẬT: `/auth/otp/verify`
+// (verifyOtp() -> post() -> request(), CÙNG hàm này) trả 401 "Mã OTP không
+// đúng" cho SAI MÃ — khác hẳn hết phiên, nhưng đi qua ĐÚNG backendFetch nên
+// vẫn 401 sau khi refresh-rồi-thử-lại (refresh thành công vì token vẫn
+// sống, mã OTP mới là thứ sai). Không có field cấu trúc để phân biệt (khác
+// OTP_EXPIRED_LOAI, ca đó đi qua 200) nên phải khớp CHUỖI backend sở hữu —
+// cùng nguyên tắc đã dùng ở ChatClient.tsx (ưu tiên status khi đủ, khớp
+// chuỗi khi status không đủ phân biệt). Route duyệt-tiền
+// (/resolutions/{id}/approve) CỐ Ý giữ 403 cho sai mã (main.py, không đổi
+// theo bản vá này) nên KHÔNG cần loại trừ tương tự ở đó.
+const OTP_SAI_MA_MESSAGE = "Mã OTP không đúng";
+
 function dieuHuongKhiHetPhien() {
   if (typeof document === "undefined") return;
   const match = document.cookie.match(new RegExp(`(?:^|; )${LAST_GATE_COOKIE}=([^;]*)`));
@@ -56,6 +68,10 @@ function dieuHuongKhiHetPhien() {
 }
 
 const PHIEN_HET_HAN_MESSAGE = "Phiên làm việc đã hết hạn — mời bạn đăng nhập lại.";
+
+function la401HetPhienThat(detail: string): boolean {
+  return !detail.includes(OTP_SAI_MA_MESSAGE);
+}
 
 async function request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = init ?? {};
@@ -88,7 +104,7 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
     } catch {
       // giữ statusText nếu body không phải JSON
     }
-    if (res.status === 401) {
+    if (res.status === 401 && la401HetPhienThat(detail)) {
       dieuHuongKhiHetPhien();
       throw new ApiError(401, PHIEN_HET_HAN_MESSAGE);
     }
@@ -139,7 +155,7 @@ async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
     } catch {
       // giữ statusText nếu body không phải JSON
     }
-    if (res.status === 401) {
+    if (res.status === 401 && la401HetPhienThat(detail)) {
       dieuHuongKhiHetPhien();
       throw new ApiError(401, PHIEN_HET_HAN_MESSAGE);
     }
