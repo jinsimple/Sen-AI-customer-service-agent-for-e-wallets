@@ -497,7 +497,22 @@ def verify_otp(
                 detail=f"Sai quá {OTP_MAX_FAILED_ATTEMPTS} lần — phiên xác thực đã bị khoá, yêu cầu OTP mới",
             )
         session.commit()
-        raise HTTPException(status_code=401, detail="Mã OTP không đúng")
+        # 🔴 400, KHÔNG 401 (đổi 27/08). 401 nghĩa là "tôi không biết anh là ai" —
+        # nhưng người gõ sai OTP thì ta BIẾT RÕ họ là ai: phiên đăng nhập của họ
+        # còn sống nguyên, họ chỉ gõ nhầm sáu số.
+        # [ĐO 27/08] toàn bộ 401 của backend: main.py 316/362/978/1140 + auth.py
+        # 257/259/264/281/346 — 9/10 chỗ nghĩa là "phiên không dùng được nữa".
+        # Dòng này từng là NGOẠI LỆ DUY NHẤT, và cái giá của nó nằm ở tầng trên:
+        # frontend có quy tắc "401 ⟹ phiên chết ⟹ đá về /login" đúng ở 9/10 chỗ,
+        # nên phải KHỚP CHUỖI "Mã OTP không đúng" chỉ để loại trừ MỘT dòng này.
+        # Hậu quả thật (Review bắt 27/08): gõ nhầm OTP ⟹ mất luôn phiên đang sống.
+        # 400 khớp chính route này (đã dùng 400 cho "chưa yêu cầu OTP") — cùng họ
+        # "yêu cầu của bạn có vấn đề", khác hẳn "bạn là ai".
+        # ⚠️ 401 ở route này VẪN CÒN, do require_role/auth ném TRƯỚC thân hàm khi
+        # phiên chết thật ⟹ quy tắc của frontend nay ĐÚNG KHÔNG NGOẠI LỆ, kể cả ở đây.
+        # ⚠️ KHÔNG đụng hai nhánh 403 (khoá vì sai quá nhiều lần) — chúng phân biệt
+        # "gõ sai" với "hết lượt", và tests/ có ca đối chứng khẳng định đúng ranh giới đó.
+        raise HTTPException(status_code=400, detail="Mã OTP không đúng")
 
     auth_session.otp_status = "verified"
     auth_session.security_q_passed = True

@@ -48,17 +48,19 @@ const DEFAULT_TIMEOUT_MS = 60_000;
 // thì ok", vì trước đây không nơi nào tự dọn cookie chết/tự điều hướng, chỉ
 // nút Đăng xuất làm việc đó).
 //
-// 🔴 [ĐO 27/08] p-226-8b (Review) lần ra NGOẠI LỆ THẬT: `/auth/otp/verify`
-// (verifyOtp() -> post() -> request(), CÙNG hàm này) trả 401 "Mã OTP không
-// đúng" cho SAI MÃ — khác hẳn hết phiên, nhưng đi qua ĐÚNG backendFetch nên
-// vẫn 401 sau khi refresh-rồi-thử-lại (refresh thành công vì token vẫn
-// sống, mã OTP mới là thứ sai). Không có field cấu trúc để phân biệt (khác
-// OTP_EXPIRED_LOAI, ca đó đi qua 200) nên phải khớp CHUỖI backend sở hữu —
-// cùng nguyên tắc đã dùng ở ChatClient.tsx (ưu tiên status khi đủ, khớp
-// chuỗi khi status không đủ phân biệt). Route duyệt-tiền
-// (/resolutions/{id}/approve) CỐ Ý giữ 403 cho sai mã (main.py, không đổi
-// theo bản vá này) nên KHÔNG cần loại trừ tương tự ở đó.
-const OTP_SAI_MA_MESSAGE = "Mã OTP không đúng";
+// ✅ [27/08] NGOẠI LỆ ĐÃ BIẾN MẤT Ở GỐC, không phải được xử lý gọn hơn.
+// Trước đây `/auth/otp/verify` trả 401 cho SAI MÃ OTP — đi qua đúng
+// `backendFetch` nên vẫn 401 sau refresh (refresh THÀNH CÔNG vì token còn
+// sống; mã OTP mới là thứ sai) ⟹ khách gõ nhầm sáu số bị đá về /login, mất
+// luôn phiên đang sống. Không có field cấu trúc nào để bám, nên bản vá đầu
+// phải KHỚP CHUỖI — trái chính nguyên tắc dự án đã viết ra ở ChatClient.tsx
+// ("ưu tiên status, tín hiệu MẠNH thuộc hợp đồng HTTP, hơn khớp câu chữ").
+// Backend nay trả 400 cho ca đó (main.py, "Mã OTP không đúng") ⟹ 401 lại có
+// ĐÚNG MỘT nghĩa trên mọi route: phiên không dùng được nữa.
+// 🔴 ĐỪNG thêm lại một ngoại lệ ở đây. Nếu một route mới trả 401 cho lỗi
+// KHÔNG phải "phiên chết", sửa ROUTE ĐÓ — đừng dạy hàm này thêm một biệt lệ.
+// Một ngoại lệ ở tầng này rẻ lúc viết và đắt mãi về sau: nó biến một quy tắc
+// đọc-là-hiểu thành một quy tắc phải-tra-danh-sách.
 
 function dieuHuongKhiHetPhien() {
   if (typeof document === "undefined") return;
@@ -68,10 +70,6 @@ function dieuHuongKhiHetPhien() {
 }
 
 const PHIEN_HET_HAN_MESSAGE = "Phiên làm việc đã hết hạn — mời bạn đăng nhập lại.";
-
-function la401HetPhienThat(detail: string): boolean {
-  return !detail.includes(OTP_SAI_MA_MESSAGE);
-}
 
 async function request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = init ?? {};
@@ -104,7 +102,7 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
     } catch {
       // giữ statusText nếu body không phải JSON
     }
-    if (res.status === 401 && la401HetPhienThat(detail)) {
+    if (res.status === 401) {
       dieuHuongKhiHetPhien();
       throw new ApiError(401, PHIEN_HET_HAN_MESSAGE);
     }
@@ -155,7 +153,7 @@ async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
     } catch {
       // giữ statusText nếu body không phải JSON
     }
-    if (res.status === 401 && la401HetPhienThat(detail)) {
+    if (res.status === 401) {
       dieuHuongKhiHetPhien();
       throw new ApiError(401, PHIEN_HET_HAN_MESSAGE);
     }
