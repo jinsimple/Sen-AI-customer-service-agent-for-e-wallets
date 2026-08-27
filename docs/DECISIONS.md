@@ -3061,3 +3061,81 @@ BR-11 hiện tại đúng nghiệp vụ TRƯỚC khi niêm** — đây là câu 
 `INV-14` **chép cứng CÓ NIÊM** *(`e804529`)* — docstring và thông điệp lỗi đều ghi rõ *"TẠM,
 chuyển đọc động ngay khi ADR-052 bổ sung `bieu_thuc` BR-11"*. **Cổng vẫn canh được** *(đột biến
 `AND`→`OR` làm nó đỏ đúng)*, chỉ là canh bằng một bản sao thay vì bằng nguồn.
+
+## ADR-055 — Tách kiểm THU HỒI TOKEN khỏi kiểm ĐỘ TƯƠI OTP
+
+**Ngày:** 2026-08-27 · **Trạng thái:** 🟡 CƠ CHẾ đang làm (Lead giao Coder, Review soát) ·
+**PHẠM VI gắn route nào: CHỜ PO** — hai thứ đó cố ý tách, xem §Hệ quả.
+
+### Bối cảnh — nguyên tắc ĐÃ ĐÚNG, đã được viết ra, có lý do kỹ thuật
+`src/auth.py`, ngay trên chỗ gọi, tự khai đây là **quyết định có chủ đích**:
+> *"access token đã rất ngắn hạn (15 phút), thêm 1 lần GET Redis vào MỌI request sẽ biến Redis
+> thành single point of failure cho cả hệ thống trong khi lợi ích biên rất nhỏ; **route CHẠM DỮ
+> LIỆU / TÀI CHÍNH thật xứng đáng trả giá đó, route đọc thường thì không.**"*
+
+**Nguyên tắc đó đúng, ADR này KHÔNG đụng tới nó.**
+
+### 🔴 Vấn đề — nguyên tắc đúng, CƠ CHẾ không diễn đạt được nó
+`is_access_token_revoked()` gọi ở **đúng ba chỗ trong toàn `src/`**, và một trong ba nằm **bên
+trong** một phép kiểm khác:
+```
+auth.py:345    ← BÊN TRONG require_otp_verified
+main.py:992    ← /approve      (tường minh)
+main.py:1154   ← /reject       (tường minh)
+```
+⟹ Một route **chỉ được kiểm thu hồi nếu nó CŨNG cần OTP tươi**. Hai câu hỏi độc lập về bản chất
+bị buộc chung:
+```
+"phiên này còn hiệu lực không?"      → DANH TÍNH, áp cho mọi vai
+"khách vừa xác thực gần đây chưa?"   → ĐỘ TƯƠI, chỉ áp cho customer
+```
+
+### 🔴 Bằng chứng đắt nhất: một quyết định ĐÚNG kéo theo một quyết định KHÔNG AI RA
+`lookup_transaction` và `get_customer_history` **cố ý** không gắn `require_otp_verified`
+(`main.py:563`, `:592`). Lý do ghi rõ và **hoàn toàn chính đáng — VỀ ĐỘ TƯƠI OTP**:
+> *"khách hàng dùng gián tiếp qua rail 'Giao dịch gần đây' NGAY KHI vào trang, trước khi có cơ
+> hội xác thực"*
+
+Lý do đó **không nói gì về thu hồi token**. Nhưng vì hai phép kiểm dính nhau, **gỡ cái này là gỡ
+luôn cái kia.** Người viết quyết định *"không bắt khách xác thực lại trước khi xem giao dịch gần
+đây"* — hợp lý — và **vô tình cũng quyết định** *"token đã thu hồi vẫn đọc được lịch sử giao dịch
+của khách"*, thứ họ **chưa bao giờ được hỏi.**
+
+⟹ **Không ai quyết sai. Không ai quên.** Đó là hình dạng của bệnh này.
+
+### Số đo — ĐÃ SỬA HAI LẦN, đây là số cuối
+```
+[ĐO 27/08] Depends(require_otp_verified) trong main.py  →  ĐÚNG MỘT chỗ (:602 = /tools/create_ticket)
+[ĐO 27/08] is_access_token_revoked trong customer_tools.py (đường agent) → 0 lần
+           (đường agent CÓ _otp_fresh — nhưng đó là ĐỘ TƯƠI, không phải THU HỒI)
+⟹ TOÀN HỆ có BA route được kiểm thu hồi: create_ticket · approve · reject   (trên 23 route ghi)
+⟹ chỉ MỘT route (create_ticket) được bảo vệ NGẦM qua require_otp_verified
+```
+⚠️ **NIÊM hai con số SAI đã lưu hành trong ngày, để người sau không đào lại:**
+*"4 route có kiểm, gồm `lookup_transaction`/`get_customer_history`"* — **SAI**, hai route đó
+không có ở cả hai đường. *"3 route mất bảo vệ nếu làm sai chiều"* — **SAI**, chỉ **một**.
+📌 Cả hai sai vì **đếm bằng `grep` rồi đọc kết quả như bằng chứng về hành vi** — bệnh đã vấp bốn
+lần trong ngày 27/08. **Bán phát hiện bằng CƠ CHẾ, đừng bán bằng SỐ ĐẾM.**
+
+### Quyết định
+Thêm **một FastAPI dependency ĐỘC LẬP** (`require_token_chua_thu_hoi`) chỉ làm một việc: gọi
+`is_access_token_revoked`. Route cần bảo vệ **chỉ gắn thêm** dependency mới, **không** phải đòi
+OTP tươi kèm theo.
+
+🔴 **BÁC BỎ đường "rút phép kiểm ra khỏi `require_otp_verified` rồi gắn lại thủ công."**
+`create_ticket` **được bảo vệ hoàn toàn NGẦM** — nó không tự gọi `is_access_token_revoked`. Rút
+ra là **mất bảo vệ IM LẶNG: không test nào đỏ**, và chỉ sai khi có token bị thu hồi thật — ca
+hiếm, không nằm trong suite thường trực. **CHỈ THÊM, KHÔNG RÚT** loại bỏ hẳn rủi ro đó.
+*(Coder tìm ra vế này trước khi PO kịp duyệt; lời duyệt đầu của PO-agent dùng chữ "tách" — đọc
+được theo đúng hướng nguy hiểm. Ràng buộc nằm CẠNH câu lệnh thì rụng trên đường đi.)*
+
+### Hệ quả — và một ranh giới CỐ Ý
+`src/auth.py` thêm một dependency. **Không đổi hành vi route nào đang chạy.**
+
+🔴 **ADR này quyết CƠ CHẾ, KHÔNG quyết PHẠM VI.** Route nào được gắn là một quyết định riêng,
+thuộc PO: *"route nào xứng đáng trả giá một lượt đọc Redis"* — đúng câu mà nguyên tắc gốc đặt ra.
+**Dựng chỗ để gắn là việc kỹ thuật; quyết gắn vào đâu là chính sách.** Trộn hai thứ vào một ADR
+là để một quyết định chính sách đi lọt dưới danh nghĩa một thay đổi kỹ thuật.
+
+**Đề xuất bậc 1 chờ PO** *(không đổi gì người dùng thấy)*: `propose_resolution` ·
+`escalate_ticket` · `request-approval-otp`.
