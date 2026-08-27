@@ -44,6 +44,15 @@ function khopTienTo(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
+// 27/08 — Marketing dựng /cho-khach-hang: trang "chống lừa đảo" (kiểm chứng
+// "Sen có bao giờ hỏi mã OTP không?"). Đây là NHÓM THỨ BA, khác bản chất với
+// PUBLIC_PATHS — PUBLIC_PATHS đá người ĐÃ đăng nhập về roleHome (đúng cho
+// /login), còn trang này phải đọc được ngay cả khi khách ĐANG đăng nhập và
+// đang hoảng, không được redirect theo BẤT KỲ chiều nào. Không nhét vào
+// PUBLIC_PATHS như một ngoại lệ — hành vi khác bản chất thì phải là nhóm
+// khác, không phải một cờ rẽ nhánh trong nhóm cũ.
+const ALWAYS_PUBLIC_PATHS = ["/cho-khach-hang"];
+
 // AUTH5-02 (đợt nâng cấp Auth Flow, 2026-08-12) — access_token giờ chỉ sống
 // 15 phút (JWT_ACCESS_EXPIRE_MINUTES, src/config.py). Nếu không có gì chủ
 // động làm mới, MỌI request sau 15 phút sẽ 401 và người dùng bị đăng xuất
@@ -107,6 +116,10 @@ export async function proxy(req: NextRequest) {
   //   `withRefreshedCookie(...)`                 -> browser nhận token mới cho
   //       các request SAU
   if (pathname.startsWith("/api")) {
+    return NextResponse.next();
+  }
+
+  if (ALWAYS_PUBLIC_PATHS.some((p) => khopTienTo(pathname, p))) {
     return NextResponse.next();
   }
 
