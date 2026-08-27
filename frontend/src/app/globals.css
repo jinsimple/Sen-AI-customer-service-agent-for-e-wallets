@@ -621,7 +621,9 @@ textarea:focus{ border-color:var(--navy-2); outline:none; box-shadow:0 0 0 3px c
 .lp-section{ max-width:1120px; margin:0 auto; padding:64px 32px; }
 .lp-section h2{ font-size:var(--fs-32); text-align:center; color:var(--text); margin:0; }
 .lp-section .lead{ text-align:center; color:var(--text-dim); font-size:var(--fs-16); max-width:640px; margin:12px auto 0; }
-.lp-stat-strip{ display:grid; grid-template-columns:repeat(4,1fr); gap:24px; background:var(--surface-2); border-radius:var(--radius); padding:40px 32px; }
+/* 27/08 — 4 -> 5 ô (Marketing thêm "386 ca đánh giá" tách khỏi "60 ca niêm
+   phong", trước đó gộp chung dưới một số duy nhất). */
+.lp-stat-strip{ display:grid; grid-template-columns:repeat(5,1fr); gap:24px; background:var(--surface-2); border-radius:var(--radius); padding:40px 32px; }
 .lp-stat{ text-align:center; }
 .lp-stat .num{ font-size:var(--fs-32); font-weight:700; color:var(--text); font-family:var(--font-ui); }
 .lp-stat .label{ margin-top:6px; font-size:var(--fs-14); color:var(--text-dim); }
@@ -646,6 +648,11 @@ textarea:focus{ border-color:var(--navy-2); outline:none; box-shadow:0 0 0 3px c
   .lp-flow .arrow{ transform:none; padding:0 12px; }
 }
 .lp-footer{ border-top:1px solid var(--border); margin-top:40px; padding:48px 32px; }
+/* 5 ô với nhãn dài (câu, không chỉ 1-2 từ như trước) chật trên màn vừa —
+   thêm nấc 3 cột trước khi rơi xuống 2 cột ở mobile. */
+@media (max-width:1120px){
+  .lp-stat-strip{ grid-template-columns:repeat(3,1fr); }
+}
 @media (max-width:860px){
   .lp-stat-strip{ grid-template-columns:repeat(2,1fr); }
 }
