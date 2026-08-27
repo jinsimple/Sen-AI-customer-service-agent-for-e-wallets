@@ -32,7 +32,12 @@ export default function LoginPage() {
               <svg className="icon" viewBox="0 0 24 24">
                 <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" />
               </svg>
-              <span>Dữ liệu giao dịch không rời khỏi hạ tầng ví — không qua bên thứ ba lưu trữ.</span>
+              {/* 27/08 — câu cũ ("dữ liệu không rời khỏi hạ tầng ví") SAI, mâu
+                  thuẫn với chính LLM_BASE_URL/EMBEDDING_BASE_URL thật (nhà
+                  cung cấp nước ngoài) và với câu chính khung chat tự khai
+                  ("xử lý bởi AI của nhà cung cấp nước ngoài"). Trang bán hàng
+                  nói ngược với sản phẩm thật — sửa nguyên văn PO duyệt. */}
+              <span>Hệ thống chạy trong vùng ví kiểm soát. Phần suy luận của mô hình đi qua nhà cung cấp đã khai báo, có sẵn cơ chế chuyển đổi nhà cung cấp.</span>
             </div>
             <div>
               <svg className="icon" viewBox="0 0 24 24">
