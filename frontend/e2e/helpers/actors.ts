@@ -20,8 +20,21 @@ import { expect } from "@playwright/test";
 // còn cần chọn chip trước khi gửi — `loginAs` vì vậy KHÔNG còn tham số role.
 export const DEMO_PASSWORD = "Demo@123";
 
-export async function loginAs(page: Page, phone: string, expectedPathPrefix: string, attempt = 1): Promise<void> {
-  await page.goto("/login");
+// 🔴 ĐÍNH CHÍNH 27/08 — tính năng chặn sai cổng (login-gate-tach-to-chuc.spec.ts)
+// đã LAND THẬT (đo được: loginAs() với SĐT nhân viên qua "/login" nay
+// timeout chờ điều hướng — request bị 403 từ chối trước khi tới nơi, không
+// phải lỗi mạng/chậm). Bản vá dự phòng đã chuẩn bị từ 26/08 (thêm tham số
+// `loginPath`, default "/login" — KHÔNG đổi hành vi 53 lượt gọi cũ dùng SĐT
+// khách hàng) nay áp dụng thật cho lượt gọi nào dùng SĐT nhân viên
+// (CSKH/sếp/đối tác) — đổi TẠI CALL SITE, không đoán hàng loạt.
+export async function loginAs(
+  page: Page,
+  phone: string,
+  expectedPathPrefix: string,
+  attempt = 1,
+  loginPath: "/login" | "/dang-nhap-noi-bo" = "/login"
+): Promise<void> {
+  await page.goto(loginPath);
   await page.getByPlaceholder("09xx xxx xxx").fill(phone);
   await page.getByPlaceholder("••••••••").fill(DEMO_PASSWORD);
   const [response] = await Promise.all([
@@ -31,7 +44,7 @@ export async function loginAs(page: Page, phone: string, expectedPathPrefix: str
   if (response && response.status() === 429) {
     if (attempt >= 3) throw new Error(`Vẫn 429 sau ${attempt} lần thử đăng nhập ${phone}.`);
     await page.waitForTimeout(15_000);
-    return loginAs(page, phone, expectedPathPrefix, attempt + 1);
+    return loginAs(page, phone, expectedPathPrefix, attempt + 1, loginPath);
   }
   await page.waitForURL(`**${expectedPathPrefix}**`, { timeout: 15_000 });
 }
