@@ -1,0 +1,10 @@
+# Lệnh đã gõ: curl -sk -D - -o /dev/null https://localhost:48443/dang-nhap-noi-bo
+# Ngăn: fin05-dot-otp (cổng 48443, https, TLS tự ký cấp cho tên 'localhost')
+# Đo lúc: 2026-08-28T05:23:16Z UTC
+# ---- output thật ----
+HTTP/2 307 
+alt-svc: h3=":443"; ma=2592000
+date: Fri, 28 Aug 2026 05:23:17 GMT
+location: /login
+via: 1.1 Caddy
+
