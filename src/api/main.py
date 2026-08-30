@@ -69,6 +69,7 @@ from src.auth import (
     mint_refresh_token,
     require_otp_verified,
     require_role,
+    require_token_chua_thu_hoi,
     revoke_refresh_token,
     rotate_refresh_token,
     set_revoked_before_now,
@@ -624,6 +625,11 @@ def create_ticket(
 def propose_resolution(
     req: ProposeResolutionRequest,
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    # ADR-055 Bậc 1 (PO chốt 30/08) — chạm dữ liệu điều tra nhưng KHÔNG cần
+    # OTP, nên trước đây rơi ra ngoài require_otp_verified (xem docstring
+    # require_token_chua_thu_hoi). Depends riêng, SAU require_role trong khai
+    # báo — giữ thứ tự lỗi 403 (role sai) trước 401 (token bị thu hồi).
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
     return _handle_tool_error(
@@ -635,6 +641,8 @@ def propose_resolution(
 def escalate_ticket(
     req: EscalateTicketRequest,
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    # ADR-055 Bậc 1 (PO chốt 30/08) — xem chú thích ở propose_resolution.
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
     return _handle_tool_error(
@@ -954,6 +962,11 @@ def request_resolution_approval_otp(
     request: Request,
     resolution_id: str,
     current_user: CurrentUser = Depends(require_role("supervisor")),
+    # ADR-055 Bậc 1 (PO chốt 30/08) — cùng họ route CHẠM TIỀN với approve/
+    # reject (đã tự kiểm revocation riêng inline), nhưng route XIN OTP này
+    # trước đây không kiểm — một supervisor bị thu hồi vẫn xin được challenge
+    # dù không duyệt xong được. Xem chú thích ở propose_resolution.
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
     resolution = session.get(Resolution, resolution_id)
