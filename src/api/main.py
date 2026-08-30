@@ -84,6 +84,7 @@ from src.config import (
     DIALABLE,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
+    OTP_DEMO_MODE,
     OTP_MAX_FAILED_ATTEMPTS,
     REDIS_URL,
     RESOLUTION_APPROVAL_OTP_FRESH_MINUTES,
@@ -437,15 +438,22 @@ def request_otp(
             created_at=dt.datetime.utcnow(),
         )
     )
-    return {
+    # Benchmark EU/US 27/08, Phát hiện #2 — otp_code CHỈ vào response khi
+    # OTP_DEMO_MODE bật tay (mặc định TẮT, fail-fast nếu bật cùng production —
+    # xem src/config.py). Thiếu nhánh gửi SMS thật: đây là gate chặn RÒ RỈ,
+    # không phải triển khai kênh gửi thật — production thật phải có nhà cung
+    # cấp SMS riêng trước khi bật OTP_DEMO_MODE=false mà vẫn hoạt động được.
+    response: dict[str, object] = {
         "session_id": otp_session_id,
         "security_question": user.security_question,  # chỉ hỗ trợ CSKH nhận diện qua hotline, KHÔNG gate OTP verify
-        "otp_code": otp_code,
-        "note": (
+    }
+    if OTP_DEMO_MODE:
+        response["otp_code"] = otp_code
+        response["note"] = (
             "Môi trường demo — mã OTP trả trực tiếp ở đây để tiện test/tự động hoá "
             "(sản phẩm thật sẽ gửi qua SMS, KHÔNG BAO GIỜ trả OTP qua API response)."
-        ),
-    }
+        )
+    return response
 
 
 @app.post("/auth/otp/verify")
@@ -477,7 +485,10 @@ def verify_otp(
     # hội. Mã OTP là yếu tố step-up DUY NHẤT ở đây. `User.security_question`/
     # `security_answer_hash` VẪN giữ trong model, chỉ để hỗ trợ CSKH nhận
     # diện khách khi gọi hotline (không gate route nào cả).
-    otp_ok = req.otp_code == auth_session.otp_code
+    # Benchmark EU/US 27/08, Phát hiện #3 — cùng họ control với
+    # approve_resolution (main.py, Lớp 3 ở trên): so OTP bằng constant-time,
+    # không dùng `==` (rò độ dài tiền tố đúng qua thời gian phản hồi).
+    otp_ok = secrets.compare_digest(req.otp_code or "", auth_session.otp_code or "")
 
     if not otp_ok:
         auth_session.failed_attempts += 1
@@ -964,18 +975,23 @@ def request_resolution_approval_otp(
             created_at=dt.datetime.utcnow(),
         )
     )
-    return {
+    # Benchmark EU/US 27/08, Phát hiện #2 (mở rộng 30/08 — route duyệt TÀI
+    # CHÍNH cũng lộ y hệt route đăng nhập, không chỉ /auth/otp/request). Cùng
+    # gate OTP_DEMO_MODE, cùng lý do — xem chú thích ở request_otp().
+    response: dict[str, object] = {
         "session_id": otp_session_id,
         "resolution_id": resolution_id,
-        "otp_code": otp_code,
-        "note": (
+    }
+    if OTP_DEMO_MODE:
+        response["otp_code"] = otp_code
+        response["note"] = (
             "Môi trường demo — mã OTP trả trực tiếp ở đây để tiện test/tự động hoá "
             "(sản phẩm thật sẽ gửi qua SMS/app riêng cho sếp). Mã CHỈ dùng được cho "
             f"ĐÚNG resolution_id={resolution_id} này, hết hạn sau "
             f"{RESOLUTION_APPROVAL_OTP_FRESH_MINUTES} phút, và mất hiệu lực nếu số tiền "
             "resolution thay đổi sau khi xin mã."
-        ),
-    }
+        )
+    return response
 
 
 @app.post("/resolutions/{resolution_id}/approve")

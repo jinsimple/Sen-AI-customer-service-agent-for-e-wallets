@@ -79,6 +79,13 @@ env:
   # hệ thống tách đôi database). Job nào cần Postgres thật thì override lại ở
   # cấp job (xem db-migration-test).
   DATABASE_URL: "sqlite:///:memory:"
+  # Benchmark EU/US 27/08, Phát hiện #2 (vá 30/08) — otp_code chỉ vào response
+  # khi biến này bật (mặc định TẮT, xem src/config.py). ~8 file test đọc
+  # thẳng otp_code từ response `/auth/otp/request`/`request-approval-otp` để
+  # tự lái flow OTP — bật ở đây để giữ hành vi cũ cho CI, KHÔNG phải nới lỏng
+  # mặc định production (APP_ENV ở đây không phải "production" nên không đụng
+  # chốt fail-fast).
+  OTP_DEMO_MODE: "true"
 
 jobs:
   # ---------------------------------------------------------------------
