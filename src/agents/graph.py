@@ -168,6 +168,48 @@ _CHUA_TAO_DUOC_VE = (
     "chuyên viên hỗ trợ trực tiếp nhé."
 )
 
+
+def _cau_tra_loi_cong_tra_truoc(ket_qua: dict[str, Any]) -> str:
+    """Câu TẤT ĐỊNH thay cho lượt bị cổng CTC1 chặn (xem chỗ áp dụng bên
+    dưới) — dựng thẳng từ kết quả THẬT của `get_customer_history`, không
+    giao model diễn đạt lại (cùng lệ ADR-048 đã áp cho ⑧/⑨/_CHUA_TAO_DUOC_VE:
+    một dòng tất định an toàn hơn đặt cược vào việc model nghe lời prompt).
+
+    Liệt kê tối đa 5 giao dịch gần nhất — đây là DỮ LIỆU CỦA CHÍNH KHÁCH
+    đang chat (đã xác thực OTP để tool này chạy được), không phải PII bên
+    thứ ba, nên không cần che theo BR-07.
+
+    🔴 PO bắt được (đọc diff trước khi hàm này chạy lần đầu): prompt.py:21
+    BẮT BUỘC câu đầu tiên khi sắp nêu kết quả tra cứu phải mở bằng "Mình
+    hiểu..."/"Mình biết...", TUYỆT ĐỐI không mở bằng dữ kiện tra được kiểu
+    "Mình đã tra cứu...". Bản đầu của hàm này vi phạm gần nguyên văn — không
+    cổng tự động nào bắt được (grep _harness.py/output_filter.py không có
+    luật này), nên đây là hồi quy chất lượng đi lọt qua toàn bộ phép đo mà
+    không ai biết. Áp câu mở "Mình hiểu bạn đang sốt ruột." cho CẢ hai
+    nhánh — nhánh rỗng càng cần vì khách dễ hụt hẫng nhất."""
+    giao_dich = ket_qua.get("recent_transactions") or []
+    if not giao_dich:
+        return (
+            "Mình hiểu bạn đang sốt ruột. Mình đã tra lịch sử giao dịch gần đây của "
+            "bạn nhưng chưa thấy giao dịch nào trong 90 ngày qua. Bạn cho mình mã "
+            "giao dịch, số điện thoại người nhận, hoặc số tiền + thời điểm cụ thể để "
+            "mình tra kỹ hơn nhé."
+        )
+    dong = []
+    for t in giao_dich[:5]:
+        so_tien = f"{t['amount']:,}".replace(",", ".") + "đ" if t.get("amount") is not None else "?"
+        chieu = "chuyển đi" if t.get("direction") == "out" else "nhận vào"
+        thoi_diem = (t.get("created_at") or "")[:16].replace("T", " ")
+        dong.append(f"- {t.get('trans_id', '?')}: {so_tien} ({chieu}) lúc {thoi_diem}")
+    danh_sach = "\n".join(dong)
+    return (
+        "Mình hiểu bạn đang sốt ruột. Mình đã tra lịch sử giao dịch gần đây của "
+        f"bạn, thấy:\n{danh_sach}\n\n"
+        "Bạn cho mình biết đây có phải giao dịch bạn đang hỏi không (hoặc gửi mã "
+        "giao dịch cụ thể nếu không có trong danh sách) để mình tra tiếp nhé."
+    )
+
+
 # Slot mục tiêu là MÃ GIAO DỊCH HOẶC MỐC THỜI GIAN — KHÁC 1B (số tiền là
 # slot bắt buộc của 1B). Lý do: 1B áp cho lượt ĐẦU TIÊN chưa biết gì; cổng
 # này áp cho điểm khách đã mô tả đủ để model quyết định gọi tool (đó là lý
@@ -2119,6 +2161,70 @@ def run_agent_turn(
         )
         nhom_khop = list(nhom_khop) + ["RB3"]
         reply_da_loc = _CHUA_TAO_DUOC_VE
+
+    # ── 🔴 CỔNG ÉP TRA TRƯỚC (CTC1) ─────────────────────────────────────────
+    # PO đo được: prompt.py đã dặn 3 lần, in hoa, kèm ví dụ SAI làm phản diện
+    # (dòng 15, 17-18, 41 — "gọi get_customer_history NGAY ở tin nhắn đầu nếu
+    # chưa có mã giao dịch/SĐT, KHÔNG hỏi khách trước") — model vẫn bỏ qua
+    # 29/180 ca. DẶN qua prompt là hướng đã hết room; chuyển sang ÉP ở tầng
+    # mã, cùng nguyên lý các cổng tất định phía trên (_CHUA_TAO_DUOC_VE/⑧/⑨).
+    #
+    # Điều kiện CHỈ hai vế, cố ý đơn giản (bản đầu còn đòi câu có số
+    # tiền/tên người nhận/mốc thời gian — RÚT, vì đo trên nhóm đích thật thì
+    # 12/29 ca khách chỉ tả VẤN ĐỀ ("trừ trùng 2 lần", "bấm nhầm người nhận
+    # trong danh bạ"), không cho chi tiết nhận dạng nào cả — điều kiện hẹp bỏ
+    # sót 41%. get_customer_history không cần khách cho gì thêm, gọi được
+    # ngay chỉ với user_id, nên không có lý do chính đáng nào để KHÔNG gọi ở
+    # tin nhắn khiếu nại đầu tiên):
+    #   prev_len == 0        — tin nhắn ĐẦU của thread này (đã tính sẵn ở
+    #                           đầu run_agent_turn, dùng lại, không suy đoán).
+    #   not tool_calls_out   — lượt này agent chưa gọi tool nào cả.
+    #
+    # ① AN TOÀN KHI KHÔNG CHẮC: gọi qua ĐÚNG tool wrapper mà LLM vẫn dùng
+    # (build_customer_tools()["get_customer_history"].invoke(...)), KHÔNG
+    # gọi thẳng hàm thô trong src/tools/get_customer_history.py — thừa
+    # hưởng NGUYÊN VẸN kiểm OTP tươi (OTP_VIEW_MAX_MINUTES) + che PII của
+    # đường LLM thật. Cổng này vì vậy KHÔNG THỂ tự vi phạm Ràng buộc #4 dù
+    # có bug ở đây: OTP hết hạn/chưa có thì tool tự trả `status: "error"`,
+    # nhánh dưới coi như KHÔNG CHẮC và bỏ qua — KHÔNG tự chế câu trả lời từ
+    # dữ liệu không có.
+    #
+    # ② GHI VÀO KẾT QUẢ ĐO, không chỉ log: thêm đúng một phần tử vào
+    # `tool_calls_out` (cùng hình dạng {"tool_name","args","result"} như tool
+    # call thật — vì đây LÀ một tool call thật, chỉ khác ai quyết định gọi)
+    # và một mã "CTC1" vào `nhom_khop` — cả hai đã đổ thẳng vào
+    # `_kq_cuoi["tool_calls"]`/`_kq_cuoi["loc_dau_ra"]` phía dưới, không cần
+    # sửa gì thêm ở đó.
+    #
+    # ④ KHÔNG đụng create_ticket: nhánh này chỉ có đúng MỘT lời gọi tool
+    # (get_customer_history), không nhánh nào dẫn tới tool khác — không thể
+    # vô tình đẩy nhanh việc tạo hồ sơ.
+    if prev_len == 0 and not tool_calls_out:
+        try:
+            _cong_tools = {
+                t.name: t for t in build_customer_tools(
+                    session, user_id=user_id, otp_verified_at=otp_verified_at,
+                    guard=guard, thread_id=thread_id or user_id,
+                )
+            }
+            _cong_args = {"days": 90, "limit_transactions": 20}
+            _cong_ket_qua = _cong_tools["get_customer_history"].invoke(_cong_args)
+        except Exception:  # noqa: BLE001 — ① không chắc thì đừng chặn; lỗi ở
+            # cổng không được phép làm hỏng một lượt chat vốn dĩ đã có reply
+            # hợp lệ từ model.
+            _logger.exception(
+                "cong_tra_truoc_loi_khi_goi_tool",
+                extra={"user_id": user_id, "thread_id": thread_id or user_id},
+            )
+            _cong_ket_qua = None
+        if isinstance(_cong_ket_qua, dict) and _cong_ket_qua.get("status") != _TRANG_THAI_LOI_TOOL:
+            tool_calls_out = list(tool_calls_out) + [{
+                "tool_name": "get_customer_history",
+                "args": _cong_args,
+                "result": _cong_ket_qua,
+            }]
+            nhom_khop = list(nhom_khop) + ["CTC1"]
+            reply_da_loc = _cau_tra_loi_cong_tra_truoc(_cong_ket_qua)
 
     # ⑧ · K3 — chèn SAU bộ lọc. Xem chú thích tại `_them_canh_bao_mao_danh`
     # về lý do KHÔNG được dời lên trước.
