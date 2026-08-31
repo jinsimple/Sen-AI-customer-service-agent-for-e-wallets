@@ -94,9 +94,10 @@
   phải thiếu tính năng, đó là ràng buộc cứng số 1").
 - **Nhắc:** dashboard cột KHÁCH HÀNG hiện đầy đủ họ tên seed trông giống thật (đã xác nhận ảnh thật)
   — cùng lý do cần caption dữ liệu sinh tổng hợp, nói lại nếu cảnh này xa Cảnh 3 về thời lượng.
-- **⚠️ Rủi ro riêng, chưa loại trừ được:** lỗi dashboard hiện "NaN" đã tái lập 3 lần ở điều kiện sạch
-  trước đây, root cause chưa rõ. Nếu xuất hiện giữa cảnh này — DỪNG, không quay tiếp qua màn hình
-  tổng quan, thử lại hoặc quay lướt nhanh qua khỏi vùng số liệu nghi vấn.
+- ~~⚠️ Rủi ro dashboard "NaN"~~ **GỠ 31/08 — PO root-cause xong: lỗi nằm ở bài test**
+  (`frontend/e2e/dashboard.spec.ts:24`, regex đọc nhãn không khớp định dạng mới "N/100 vé mới nhất"),
+  **sản phẩm render đúng** (`dashboard/page.tsx:165` dùng số thật). Không cần né chip/số nào ở cảnh
+  này, không cần dọn ticket xuống dưới 100.
 
 ## Cảnh 8 — [PLACEHOLDER, CHỜ CODER VÁ XONG] Trình sếp duyệt
 

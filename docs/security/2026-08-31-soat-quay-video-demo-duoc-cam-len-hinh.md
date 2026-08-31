@@ -167,11 +167,15 @@ tiếp được. Ghi nguyên vào tóm tắt cuối tài liệu.
 
 ## Hai điều PO đã biết trước, xác nhận lại + bổ sung phạm vi
 
-- **Dashboard NaN:** **[ĐO]** `docs/STATE.md:291` — lỗi `"Expected 100, Received NaN"` đã **tái lập
-  3 lần Ở ĐIỀU KIỆN SẠCH** (không phải nhiễu ngẫu nhiên, chưa root-cause). QA/QC "không thấy" trong
-  một lượt diễn tập **không đồng nghĩa đã hết** — đúng như Lead cảnh báo. **Xử lý nếu hiện ra giữa
-  lúc quay:** KHÔNG quay tiếp qua nó — dừng, tránh màn hình tổng quan (dashboard) trong lần quay này
-  cho tới khi có ai xác nhận đã root-cause, hoặc chấp nhận cắt cảnh nếu lỡ dính.
+- **🟢 Dashboard NaN — ĐÃ ĐÓNG 31/08, KHÔNG còn là rủi ro, tự kiểm lại trước khi gỡ:** PO root-cause
+  xong. **[ĐO, tự đọc lại 2 file]** `dashboard/page.tsx:165` render chip bằng **số thật**
+  (`counts.all`), kèm nhãn `"({counts.all}/100 vé mới nhất)"` — sản phẩm đúng, không có NaN nào. Lỗi
+  nằm ở CHÍNH BÀI TEST `frontend/e2e/dashboard.spec.ts:24`: regex `/\((\d+)\)/` chỉ khớp dạng số ngay
+  sát dấu `)` — nhãn thật là `"(60/100 vé mới nhất)"`, regex không khớp (số rồi tới `/100...` chứ
+  không phải `)` ngay sau số) ⟹ `.match()` trả `null` ⟹ `Number(undefined)` = `NaN`. **Đây là lỗi
+  test đọc SAI ĐỊNH DẠNG nhãn đã đổi (thêm "/100 vé mới nhất" từ 20/08), không phải lỗi sản phẩm.**
+  ⟹ **Gỡ khỏi danh sách rủi ro quay video** — không cần tránh chip nào, không cần dọn ticket xuống
+  dưới 100.
 - **Banner + OTP demo:** xác nhận đầy đủ ở mục 🔴 trên, kèm vị trí mã nguồn chính xác.
 
 ## Ghi nhận thêm — không gấp trước buổi quay, nhưng cần đứng trong hồ sơ bảo mật
@@ -229,7 +233,8 @@ cần đọc DB trực tiếp — sửa xong vẫn đọc DB được, chỉ đ�
    (khách xác thực phiên + supervisor xin OTP duyệt). Thiếu chuẩn bị này = đứng hình giữa buổi quay.
    Nếu banner/OTP_DEMO_MODE CHƯA kịp tắt lúc quay: quay lại đúng mục 1 cũ (crop + cắt cảnh) thay thế.
 3. KHÔNG mở DevTools trong lúc quay.
-4. Nếu dashboard hiện NaN/lỗi lạ giữa chừng — dừng, không quay tiếp qua đó, báo lại.
+4. ~~Nếu dashboard hiện NaN/lỗi lạ giữa chừng — dừng...~~ **GỠ 31/08** — root-cause xong, lỗi nằm ở
+   bài test (regex đọc nhãn), không phải sản phẩm. Không cần né chip nào trên dashboard.
 5. Đầu video hoặc caption cố định: "Dữ liệu trong demo là dữ liệu sinh tổng hợp, không phải khách
    hàng thật." (đã có sẵn dạng chữ nhỏ ở chân trang /chat — cân nhắc làm nổi bật hơn, không chỉ dựa
    vào dòng đó).
