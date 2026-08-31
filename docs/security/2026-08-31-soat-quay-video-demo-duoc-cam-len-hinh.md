@@ -78,6 +78,24 @@ demo cố ý bật lại để test cũ chạy được).
      hành vi mặc định từ `bdaf17e` là không trả OTP) nếu chỉ cần đúng 2 cảnh đó, quay ngoài
      `qa-stripe`.
 
+🟢 **CẬP NHẬT — Coder đang tắt `OTP_DEMO_MODE` trên `qa-stripe` theo phương án 1. Hệ quả bắt buộc,
+đây là THAO TÁC TAY của người cầm máy, không phải tự động:**
+
+**[ĐO, xác minh trước khi ghi]** `src/api/main.py:441-446` tự khai rõ: `OTP_DEMO_MODE=false` là
+**"gate chặn RÒ RỈ, không phải triển khai kênh gửi thật"** — tắt cờ này **không** tự nhiên có kênh
+SMS thật thay thế. Khi tắt, response KHÔNG còn `otp_code` — người quay **phải có cách khác lấy mã**
+để nhập tay lên UI, nếu không sẽ đứng hình giữa buổi quay.
+
+**Cách lấy mã, đúng thứ tự:**
+1. Mở **một cửa sổ terminal RIÊNG, tuyệt đối KHÔNG lọt khung hình quay** (khác màn hình/khác máy ảo
+   càng tốt — không chỉ "thu nhỏ", vì thu nhỏ vẫn có thể vô tình Alt-Tab qua giữa lúc quay).
+2. Truy vấn cột `otp_code` của bảng `auth_sessions` (`src/db/models.py:486` — cột `String`, không
+   mã hoá, xem đánh giá riêng ở mục "Ghi nhận thêm" bên dưới) đúng `session_id` vừa xin.
+3. Nhập tay mã đó vào UI (đang ở màn hình quay, KHÔNG đọc mã ra khung hình terminal).
+
+⚠️ Đây là bước **BẮT BUỘC**, không phải tuỳ chọn — thiếu nó thì luồng quay xác thực OTP không đi
+tiếp được. Ghi nguyên vào tóm tắt cuối tài liệu.
+
 ## Đi theo từng bước hành trình quay
 
 ### Bước 1 — Đăng nhập (khách)
@@ -156,6 +174,38 @@ demo cố ý bật lại để test cũ chạy được).
   cho tới khi có ai xác nhận đã root-cause, hoặc chấp nhận cắt cảnh nếu lỡ dính.
 - **Banner + OTP demo:** xác nhận đầy đủ ở mục 🔴 trên, kèm vị trí mã nguồn chính xác.
 
+## Ghi nhận thêm — không gấp trước buổi quay, nhưng cần đứng trong hồ sơ bảo mật
+
+### `otp_code` lưu dạng chuỗi thường trong `auth_sessions` — đánh giá của tôi, không phải kết luận sẵn
+
+PO nêu quan sát, yêu cầu tôi tự đánh giá thay vì tự kết luận hộ. **[ĐO]** xác nhận: `AuthSession.otp_code`
+(`src/db/models.py:486`) là cột `String` thường, không qua hàm băm nào trước khi lưu; `verify_otp` so
+sánh trực tiếp `secrets.compare_digest(req.otp_code, auth_session.otp_code)` (constant-time, nhưng
+constant-time compare KHÔNG đồng nghĩa với "đã băm" — hai việc khác nhau, chống hai loại tấn công
+khác nhau: compare-thời-gian chống dò từng ký tự qua độ trễ phản hồi, băm chống lộ khi đọc được DB).
+
+**Đánh giá — KHÔNG ổn, nhưng mức độ THẤP, không phải khẩn cấp:**
+- Lý do KHÔNG coi là khẩn: OTP 6 số có không gian nhỏ (10⁶), khác hẳn mật khẩu — băm bằng thuật toán
+  chậm kiểu Argon2 (như đang dùng cho mật khẩu) gần như vô nghĩa cho không gian nhỏ này nếu kẻ tấn
+  công đã đọc được DB (dò ngược 10⁶ khả năng rất rẻ dù có băm). Đây là lý do hợp lý để KHÔNG áp cùng
+  chuẩn với mật khẩu, không phải lý do để bỏ qua hoàn toàn.
+- Lý do VẪN đáng sửa: OTP có **thời hạn ngắn (session TTL)**, nhưng trong ĐÚNG cửa sổ còn hiệu lực,
+  một lượt đọc DB (backup lộ, dump sự cố, SQL injection giả định, hoặc — đúng bối cảnh tài liệu này —
+  một người có quyền truy vấn DB trực tiếp như bước "lấy mã để quay video" ở trên) cho ngay mã DÙNG
+  ĐƯỢC, không cần thêm bước nào. Băm bằng SHA-256 (rẻ, không cần salt phức tạp do TTL ngắn + đã có
+  `failed_attempts`/khoá chống dò) loại bỏ hẳn rủi ro này với chi phí gần như bằng không — so sánh
+  vẫn O(1): `sha256(input) == stored_hash`.
+- Đây là loại phát hiện một kiểm toán viên chuẩn ngành (SOC2/ISO 27001, mục logging & credential
+  storage) sẽ nêu theo phản xạ — "OTP/mã xác thực không nên nằm dạng đọc được trong CSDL", bất kể TTL
+  ngắn hay không, vì nguyên tắc là KHÔNG BAO GIỜ giả định lớp phòng thủ khác (TTL) đủ một mình.
+
+**Đề xuất:** thêm vào backlog `security`/`tech-lead` — băm `otp_code` trước khi lưu (SHA-256 đủ,
+không cần Argon2), sửa `verify_otp`/route xin OTP duyệt để so khớp theo băm. Việc RẺ, KHÔNG đổi hành
+vi quan sát được từ bên ngoài, không chặn buổi quay video (chính bước "lấy mã để quay" ở trên còn
+cần đọc DB trực tiếp — sửa xong vẫn đọc DB được, chỉ đọc ra bản băm thay vì bản rõ, quy trình lấy mã
+để quay phải đổi cách khác nếu vá xong TRƯỚC buổi quay — nêu ra để không ai ngạc nhiên nếu thứ tự vá
+đổi chỗ lấy mã sau này).
+
 ## Việc CHƯA soát được — khai rõ, không giấu
 
 - **DevTools/console lỗi nếu người quay lỡ mở** — tôi không có công cụ mở trình duyệt thật để kiểm
@@ -172,11 +222,16 @@ demo cố ý bật lại để test cũ chạy được).
 ## Tóm tắt cho người cầm máy — đọc một lần, không cần hỏi ai
 
 ```
-1. Crop/tránh vùng topbar (badge môi trường) suốt video, KHÔNG rê chuột qua nó.
-2. Cắt cảnh lúc màn hình OTP hiện mã (chat khách VÀ supervisor duyệt — hai chỗ khác nhau).
+1. Crop/tránh vùng topbar (badge môi trường) suốt video, KHÔNG rê chuột qua nó — TRỪ KHI Coder xác
+   nhận đã tắt banner trên qa-stripe VÀ có ảnh QA/QC xác nhận biến mất thật (đang chờ, xem đầu file).
+2. 🔴 MỚI, BẮT BUỘC: nếu OTP_DEMO_MODE đã tắt — chuẩn bị SẴN một cửa sổ terminal RIÊNG (không lọt
+   khung hình) để truy vấn cột otp_code trong bảng auth_sessions, nhập tay mã vào UI ở CẢ HAI bước
+   (khách xác thực phiên + supervisor xin OTP duyệt). Thiếu chuẩn bị này = đứng hình giữa buổi quay.
+   Nếu banner/OTP_DEMO_MODE CHƯA kịp tắt lúc quay: quay lại đúng mục 1 cũ (crop + cắt cảnh) thay thế.
 3. KHÔNG mở DevTools trong lúc quay.
 4. Nếu dashboard hiện NaN/lỗi lạ giữa chừng — dừng, không quay tiếp qua đó, báo lại.
 5. Đầu video hoặc caption cố định: "Dữ liệu trong demo là dữ liệu sinh tổng hợp, không phải khách
-   hàng thật."
+   hàng thật." (đã có sẵn dạng chữ nhỏ ở chân trang /chat — cân nhắc làm nổi bật hơn, không chỉ dựa
+   vào dòng đó).
 6. Nếu có bước liên quan Stripe/thanh toán ngoài 5 bước đã soát — dừng, báo security trước khi quay.
 ```
