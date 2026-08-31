@@ -544,8 +544,10 @@ LIVE_CHAT_STALE_WAITING_MINUTES = 30
 #
 # Đặt false MINH THỊ ở đây để biến một cấu-hình-NGẦM thành một quyết-định-HIỆN:
 # muốn bật thật thì phải sửa dòng này ⟹ có diff, có review, có hồ sơ theo
-# NĐ 13/2023 Điều 25 (chuyển dữ liệu cá nhân ra ngoài). `setdefault` chứ không
-# gán đè: người vận hành vẫn cố ý bật được bằng env var, nhưng mặc định im
-# lặng thì không bao giờ là "bật".
+# Luật 91/2025/QH15 (chuyển dữ liệu cá nhân ra ngoài — số điều cụ thể CHƯA xác
+# minh trên bản luật mới, xem docs/security/2026-08-30-niem-luat-91-2025-*.md,
+# đừng tự gán số điều cũ của NĐ 13/2023). `setdefault` chứ không gán đè: người
+# vận hành vẫn cố ý bật được bằng env var, nhưng mặc định im lặng thì không
+# bao giờ là "bật".
 os.environ.setdefault("LANGCHAIN_TRACING_V2", "false")
 os.environ.setdefault("LANGSMITH_TRACING", "false")  # tên mới của cùng cờ
