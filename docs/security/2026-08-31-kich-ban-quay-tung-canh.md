@@ -141,11 +141,17 @@
 
 - **Màn hình:** `/chat`, các bước agent gọi tool (hiện trạng thái "đang tra cứu"/kết quả).
 - **Thao tác:** để agent tự chạy, không cần bấm gì thêm — có thể cần trả lời 1 câu hỏi làm rõ nếu
-  agent hỏi lại (vd xác nhận đúng giao dịch). **Câu trả lời nếu agent hỏi lại — 🟡 ĐỀ XUẤT, CHƯA CHẠY
-  THỬ (khác Cảnh 4/6 đã xác nhận):** "Đúng, đúng giao dịch đó." — ngắn, khẳng định thẳng, tránh gõ
-  dài dòng dễ lệch khỏi kịch bản đã tập. **Cần QA/QC gõ đúng câu này trong lượt diễn tập cuối trước
-  khi quay thật** — nếu chạy được, đổi nhãn thành ĐÃ XÁC NHẬN; nếu agent phản ứng khác dự kiến, thay
-  bằng câu đã thử thành công và cập nhật lại đây.
+  agent hỏi lại (vd xác nhận đúng giao dịch). **Câu trả lời nếu agent hỏi lại:** "Đúng, đúng giao
+  dịch đó." — ngắn, khẳng định thẳng, tránh gõ dài dòng dễ lệch khỏi kịch bản đã tập.
+  🟡 **Nhãn đúng phạm vi đã đo (sửa 31/08, đừng nói rộng hơn):** QA/QC đã gõ đúng câu này và **chạy
+  được, tạo vé thật `TCK-0c9436641f04`** — nhưng bong bóng agent nhận được lúc đó KHÔNG PHẢI câu "hỏi
+  lại vì mơ hồ giao dịch nào" như mô tả ở trên, mà là bong bóng GỘP SẴN kết quả tra cứu + câu hỏi xác
+  nhận tạo hồ sơ (gần với cơ chế Cảnh 6 hơn Cảnh 5). Với giao dịch họ chọn để thử (không mơ hồ), agent
+  không cần hỏi lại kiểu phân biệt — **nhánh "hỏi vì mơ hồ" CHƯA được tái hiện đúng tình huống**.
+  ⟹ Đây là **câu trả lời đã xác nhận chạy đúng trên một câu hỏi xác nhận thật của agent (31/08)**,
+  không phải xác nhận cho đúng kịch bản "mơ hồ giao dịch" mô tả ở trên. Nếu giao dịch chọn ở Cảnh 3
+  đủ rõ ràng (khớp cách QA/QC đã thử), nhiều khả năng KHÔNG CẦN nhánh hỏi-lại-vì-mơ-hồ này trong buổi
+  quay thật — câu trả lời trên vẫn dùng được nếu agent hỏi bất kỳ câu xác nhận nào tương tự.
 - 🟡 **TỒN ĐỌNG:** cảnh này gần như chắc chắn phải đổi sau khi cổng "ép-tra-trước" (đang làm, chưa
   land) đi vào bản chạy thật — cổng đó khiến agent TRA NGAY thay vì có khả năng hỏi lại khách như mô
   tả hiện tại. Soát lại cảnh này khi cổng đó land và đo xong, đừng quay bản cũ sau khi cổng đã đổi
