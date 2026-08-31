@@ -1,5 +1,11 @@
 # Rà soát bảo mật FIN-05 — 27/08/2026 — bản NỀN cho bàn giao Lead + Benchmark EU/US
 
+> 🔴 **NIÊM 30/08/2026 — mục "GDPR (EU)" bên dưới trích NĐ 13/2023 làm tương đương PDPA VN; văn bản
+> đó đã bị THAY THẾ từ 01/01/2026** bởi Luật 91/2025/QH15 + NĐ 356/2025/NĐ-CP. Kết luận GDPR (đối
+> chiếu chuẩn EU) không đổi, nhưng phần "tương đương NĐ 13/2023 Đ.9-Đ.10" cần đọc lại theo văn bản
+> mới trước khi dùng số điều trong hồ sơ chính thức. Chi tiết:
+> `docs/security/2026-08-30-niem-luat-91-2025-thay-nd-13-2023.md`.
+>
 > Vai: `security`. Đọc trước khi làm: `CLAUDE.md` §2, `contracts/*.yaml`,
 > `tests/test_invariants.py` (23/23 test, xác nhận bằng đếm `def test_` thật),
 > `docs/STATE.md` §0 (bàn giao 27/08), `docs/DECISIONS.md` ADR-051…055,

@@ -1,5 +1,11 @@
 # Kiểm kê dữ liệu RỜI BIÊN GIỚI — vật liệu cho hồ sơ ĐGTĐ (NĐ 13/2023 Đ.25)
 
+> 🔴 **NIÊM 30/08/2026 — NĐ 13/2023 đã bị THAY THẾ từ 01/01/2026** bởi Luật 91/2025/QH15 +
+> NĐ 356/2025/NĐ-CP. Vật liệu KỸ THUẬT dưới đây (kiểm kê luồng dữ liệu) vẫn dùng được, nhưng
+> **số điều ("Đ.25") KHÔNG còn đúng** — phải đối chiếu số điều tương đương trong văn bản mới trước
+> khi dùng làm căn cứ cho hồ sơ DPIA CHÍNH THỨC. Chi tiết:
+> `docs/security/2026-08-30-niem-luat-91-2025-thay-nd-13-2023.md`.
+>
 > Vai: **security** · 2026-08-17 · PO-agent đang trình PO thật câu *"hồ sơ đánh
 > giá tác động chuyển dữ liệu ra nước ngoài đã có chưa?"*
 >

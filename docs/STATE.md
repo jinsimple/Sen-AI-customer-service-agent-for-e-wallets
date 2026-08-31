@@ -13,6 +13,242 @@
 
 ---
 
+## 0-BIS. 🟢 PHIÊN 30/08 — ĐỘI MỚI ĐANG CHẠY. ĐỌC MỤC NÀY TRƯỚC §0.
+
+> §0 bên dưới là bàn giao 27/08 lúc **tắt** đội. Mục này là đợt **mở lại**, 30/08.
+> Thứ ở đây **không nằm trong git** — chết theo phiên nếu không ghi.
+
+### 0b.1 Bản đồ vai — đo được, KHÔNG suy từ tên phiên
+```
+PO      p-226-0d [72d059] ─ Lead p-226-61 [ebf65a] ─┬ Coder   p-226-1c [521cba]
+                                                     ├ QA/QC   p-226-10 [5223af]
+                                                     ├ Review  p-226-4c [adb87e]
+                                                     └ Bảo mật p-226-05 [9e3572]
+```
+🔴 **Cách hỏi vai ĐÚNG** (sai 2 lần trong một buổi trước khi tìm ra): hỏi *"TRÍCH NGUYÊN VĂN
+câu lệnh ĐẦU TIÊN người dùng gõ trong phiên bạn"*. Hỏi *"bạn vai gì"* → họ trả lời theo **việc
+đang làm**. Hỏi *"nhãn tab của bạn"* → **không phiên nào đọc được UI**, 4/4 trả lời không nhìn được.
+Suy vai còn lại bằng **phép trừ** → sai. 5 câu trích khớp chéo nhau nên tự kiểm chứng lẫn nhau.
+
+### 0b.2 Bốn quyết định PO thật chốt 30/08
+```
+① Model đo benchmark = qwen3.7-max-2026-05-20  (KHÔNG phải deepseek, xem 0b.4)
+② Coder KIÊM LUÔN vai DevOps — hết uỷ quyền tạm từng file
+③ Mốc DPIA lấy 15/08 ⟹ hạn 14/10/2026 (còn 45 ngày tính từ 30/08)
+④ Chấm tay 28 ca: CHƯA quyết. Đội chuẩn bị cả hai đường, không đứng chờ.
+```
+🔴 **RANH GIỚI CỦA ③, đừng làm tròn:** 15/08 là **mốc giả định để lập kế hoạch NỘI BỘ** — nó
+trả lời *"còn bao nhiêu thời gian"*. Nó **KHÔNG** phải con số điền vào ô "ngày xử lý đầu tiên"
+của hồ sơ nộp cơ quan nhà nước; ô đó vẫn **để trống**, chờ ngày **đo được** từ log production
+Windows. Khai một ngày phỏng đoán với cơ quan nhà nước không phải thận trọng, là khai sai.
+
+### 0b.3 Đã land 30/08
+```
+bdaf17e  gỡ otp_code khỏi response body (CẢ HAI route) + verify_otp constant-time
+5ff93b8  ADR-055 Bậc 1 — require_token_chua_thu_hoi vào đủ 3 route (Depends thứ hai, không nest)
+         gate test_authority_matrix_khop_app_dang_chay XANH trong container thật
+```
+🔴 **NỢ:** cổng nghiệm thu **đỏ-trước/xanh-sau** cho hai bản vá này **CHƯA CÓ**.
+⟹ **CHƯA được dùng chữ "đạt SCA / PSD2 / AAL2"** ở bất kỳ tài liệu nào cho tới khi có vế đỏ.
+
+### 0b.4 ⛔ ĐỪNG ĐIỀU TRA LẠI — lỗi 403 deepseek đã có lời giải
+`deepseek-v4-pro-0813` (tên code ghim) **hết phần miễn phí**, mà tài khoản khoá ở chế độ
+*"Free quota only"* ⟹ **403 AllocationQuota.FreeTierOnly**. Hàng *"deepseek-v4-pro còn 100%"*
+trên dashboard là **bucket KHÁC** với checkpoint `-0813`. Không ai đọc nhầm — hai thứ khác nhau thật.
+**Không cần tiêu tiền thật:** mọi model đều "Free quota only" bật, và model đã chọn còn nguyên 1M.
+
+### 0b.5 🔴 CÂU KHAI PHẠM VI — HAI VẾ, ĐI CÙNG NHAU, KHÔNG TÁCH
+> *"Đo trên `qwen3.7-max-2026-05-20` (checkpoint **anh em** của model sản phẩm `-06-08`)
+> · [nếu chạy không có nhãn người] đo trên **85 điểm**, trục Trải nghiệm **CHƯA ĐO**."*
+
+Vì sao vế 1: model sản phẩm `-06-08` chỉ **còn ~363K**, không đủ một lượt (816–822K).
+Vì sao vế 2: bỏ vế đó ⟹ người đọc tự hiểu thành /100, con số **bị thổi lên ~18%**.
+
+### 0b.6 Luật quản trị rút ra 30/08 — áp cho mọi phiên
+```
+① Hỏi danh tính thì HỎI TRỐNG — đừng kèm giả thuyết; hỏi thứ người ta QUAN SÁT ĐƯỢC
+② Viết tắt được NỘI DUNG, không viết tắt được NGUỒN — ghi công sai làm hỏng phép ĐẾM
+  bằng chứng độc lập (một nguồn bị nhân đôi trên giấy tờ)
+③ Một làn tắc KHÔNG làm tắc làn khác — người ngồi không trong lúc có việc đã gỡ chặn là
+  lãng phí KHÔNG AI BÁO CÁO, vì nó trông giống "đang chờ đúng quy trình"
+④ 🔴 TRƯỚC KHI SỬA LƯNG AI, CHẠY LỆNH KIỂM. Lệnh sửa lưng dừng việc người khác đang làm
+  ĐÚNG ⟹ chịu chuẩn bằng chứng CAO HƠN báo cáo thường. (PO-agent vi phạm chính điều này
+  ngày 30/08: sửa lưng Lead dựa trên đọc lướt tin nhắn, `git log` cho thấy Lead đúng.)
+⑤ Khi hai luật dự án ĐỤNG NHAU, hỏi cái nào bảo vệ thứ KHÔNG TÁI TẠO ĐƯỢC
+⑥ Bế tắc giữa mấy lựa chọn đều tệ ⟹ hỏi dữ kiện có TÁI LẬP ĐƯỢC không (một `SEED` cố định
+  biến "phải đoán hoặc phải hé đáp án" thành "chạy lại và biết chắc")
+```
+
+### 0b.7 Bộ chấm mới `eval/bo-cham/` — SẴN SÀNG, chờ PO thật
+28 ca, 0 ô `[CHƯA ĐIỀN]`. 🔴 **`KHOA-doi-chieu.md` là ĐÁP ÁN — chỉ mở SAU khi điền xong ô cuối.**
+Gói dùng được **một lần**; ai bình luận nội dung ca trước khi PO chấm là **neo nhãn, hỏng vĩnh viễn**.
+Mở khoá: trục Trải nghiệm 15đ · **và** điều kiện tiên quyết để sau này được chạy `heldout_set.jsonl`.
+
+### 0b.8 Pháp lý — đã đọc TOÀN VĂN Luật 91/2025/QH15
+PDF ký số VPCP, 23 trang: `datafiles.chinhphu.vn/cpp/files/vbpq/2025/7/91qh.signed.pdf`
+⚠️ **PDF QUÉT ẢNH** — lớp chữ chỉ 149 ký tự/23 trang, mọi công cụ bóc chữ đều ra rỗng.
+Cách làm được: dựng ảnh từng trang (pymupdf 170 dpi) rồi đọc bằng mắt. **Đừng phí thêm WebFetch.**
+```
+Đ.38.1  hiệu lực 01/01/2026
+Đ.21.1  🔴 nộp DPIA trong 60 NGÀY kể từ ngày ĐẦU TIÊN xử lý dữ liệu cá nhân — đồng hồ, không phải việc-khi-rảnh
+Đ.22.1  cập nhật hồ sơ định kỳ 06 tháng
+Đ.4.1.d "Yêu cầu cung cấp, xóa, hạn chế xử lý" — quyền luật định ⟹ gap route xuất/xoá là thật
+Đ.23.1  báo CƠ QUAN CHUYÊN TRÁCH chậm nhất 72h. KHÔNG buộc báo chủ thể trong 72h (trừ sinh trắc học, Đ.31.4.b)
+Đ.2.3   dữ liệu nhạy cảm "thuộc DANH MỤC DO CHÍNH PHỦ BAN HÀNH" — Luật KHÔNG tự liệt kê
+Đ.38.2  miễn 5 năm cho DN nhỏ, TRỪ bên "trực tiếp xử lý dữ liệu cá nhân nhạy cảm"
+```
+🔴 **NĐ 356/2025 CHƯA đọc được toàn văn** — mọi khẳng định phụ thuộc nghị định giữ nhãn *chưa xác minh*.
+
+### 0b.9 Đo được: KHÔNG có người dùng thật nào trên máy Mac
+Log tiến trình host (`logs/access.log`, 39.204 dòng, 15–27/08) **+ cả 9 volume `logs_data`**
+(16/08 → 30/08): IP nguồn chỉ có `127.0.0.1`, `172.16-31.x` (bridge nội bộ Docker), `testclient`.
+**Số IP công cộng: 0.** Danh tính toàn bộ khớp mẫu tài khoản sinh từ seed.
+⚠️ Ngăn `fin05` trần (mất CSDL 27/08) **không còn volume log** — khoảng trống đó lấp **gián tiếp**
+bằng chồng lấn thời gian với `fin05ttl` (từ 16/08) và log host (từ 15/08), **không phải đọc trực tiếp**.
+⚠️ `logs/` ở repo root là **named volume + .gitignore** ⟹ log của tiến trình chạy THẲNG trên host,
+KHÔNG phải log ngăn Docker nào. Còn **một** khoảng chưa phủ: production Windows qua Cloudflare Tunnel.
+
+### 0b.10 Đang chờ gì
+```
+Coder    đo 10 ca thử trên qwen3.7-max-2026-05-20 → báo token thật/lượt → PO-agent duyệt → chạy trọn
+QA/QC    dựng lượt 4 trục (85đ) không cần nhãn người
+Bảo mật  C3 IR runbook + C4 DPIA — DRAFT, chưa trình ký (chờ toàn văn NĐ 356)
+Review   canh câu khai 2 vế ở 0b.5
+PO thật  ④ chấm tay (chưa quyết) · log production Windows · 47 commit chưa push (chưa gấp)
+```
+### 0b.11 🔴 NIÊM PHONG HELDOUT ĐÃ ĐƯỢC PHÉP MỞ — 30/08/2026
+**PO thật duyệt tiêu `eval/heldout_set.jsonl` (60 ca) — MỘT LẦN DUY NHẤT**, phục vụ pitch đối tác 31/08.
+Lý do luật "phải hiệu chuẩn trọng tài trước" KHÔNG chặn: 4/5 trục là **tất định**
+(ràng buộc cứng · đối chiếu số với `tool_results` · recall@4 · đo giây) — không trục nào dùng
+trọng tài. Chỉ trục Trải nghiệm 15đ mới cần, mà trục đó lần này không đo.
+
+Bốn điều kiện thứ tự **không được đảo**:
+```
+① chờ số 10-ca-thử QUA HARNESS (không qua SDK trần)
+② dự phóng quota phải đủ CẢ golden + heldout TRƯỚC khi chạy dòng nào
+   🔴 cạn giữa chừng = MẤT CẢ HAI: niêm phong vỡ mà không có số dùng được
+③ golden TRƯỚC, heldout SAU — cùng lượt/model/commit/băm kho RAG
+   giá trị lớn nhất là ĐỘ LỆCH giữa hai bộ, không phải con số riêng của heldout
+④ KHÔNG sửa gì giữa hai lượt (code · prompt · kho RAG · cấu hình)
+```
+Nếu quota chỉ đủ MỘT bộ ⟹ **chạy golden, KHÔNG chạy heldout** (heldout thiếu golden đi kèm thì
+mất phần lớn giá trị mà vẫn tiêu mất niêm phong).
+
+⚠️ **Sau ngày này, `heldout_set.jsonl` KHÔNG CÒN là bộ "chưa từng thấy".** Mọi lần dùng lại về sau
+phải khai rõ nó đã chạy ngày 30/08/2026. Cần một bộ niêm phong mới thì phải **dựng bộ mới**.
+
+### 0b.12 ĐÊM 30→31/08 — GOLDEN **ĐÃ CHẠY**, hai lượt, hai model. Đọc 0b.13 trước khi trích số.
+
+> ⚠️ Mục này ghi lúc golden **chưa** chạy. Giữ nguyên để tra lại quá trình suy luận.
+> **Kết quả thật + số dùng được: xem 0b.13 ngay dưới.** Hai câu hỏi lớn của mục này đã có đáp:
+> ① hạn mức **CÓ đếm** phần đệm (cột "rẻ" không tồn tại) · ② bộ dữ liệu 120 ca **KHÔNG lạc hậu**,
+> toàn bộ sự cố quy về một khoá `OPENAI_API_KEY` thiếu.
+
+**Trạng thái lúc ghi:** mọi khâu chuẩn bị đã xong và **kiểm được trên đĩa**; lượt golden(120)
+**chưa chạy**, chặn ở một chỗ duy nhất — PO thật đọc quota `qwen3.7-max-2026-05-20` trên
+DashScope. Hai mốc phân định: **≈924K** ⟹ chạy được (~718K, dư ~28%) · **≈791K** ⟹ không đủ.
+
+**A. Con số đầu đề của script KHÔNG phải con số đem đi nói.**
+`run_golden_set.py:132-133,172` — `passed/total*100`, **bình quân phẳng** trên 120 dòng, KHÔNG
+hai tầng. Ô ma trận nhiều ca lấn át ô ít ca. ⟹ Báo cáo phải tính lại **theo `cell` trước rồi
+mới gộp**, ghi cả hai số kèm nhãn. *(3 nguồn độc lập: Lead · Review · PO-agent)*
+
+**B. Ca chết vì lỗi HỆ THỐNG bị trộn chung với ca trả lời SAI.**
+`:91-94` — mọi exception → `severity="Blocker"`, cùng ô với vi phạm nội dung thật. Container
+sập trông y hệt agent làm sai. ⟹ **CỔNG, không phải ghi chú:** đếm `LỖI CHẠY CASE:` và báo
+tách `X đạt · Y trượt chất lượng · Z không chạy được`. **Z > 0 ⟹ dừng, chưa được trích số nào.**
+
+**C. 🔴 Benchmark KHÔNG đo tầng xác thực — ranh giới, không phải chú thích.**
+`:158-165` (chính báo cáo tự in): đường đo coi OTP phiên **luôn vừa xác thực xong**; **JWT ·
+chặn tần suất · nhật ký kiểm toán KHÔNG nằm trên đường đo**. Nguyên văn: *"kết luận về các tầng
+đó từ kết quả eval là **kết luận SAI CHỖ ĐO**."* ⟹ **Bằng chứng bảo mật và điểm benchmark là
+hai luồng riêng, cấm chạm nhau.** Đã thành Luật 4 trong `presentation/FIN05_Slide_Prompt_Context.md`.
+
+**D. Con số nền 74,57/85 KHÔNG có xuất xứ model — không so trực tiếp được với số mới.**
+`golden_run_20260811_*.md` và `golden_run_20260825_042822*` đều **không ghi tên model**; phần tự
+khai model trên từng ca mới thêm **26/08** (sau lỗ `41aacd5` — 10 ngày CI chấm nhầm
+`gpt-4o-mini` không một dòng lỗi). ⟹ **Cấm đặt số mới cạnh 74,57 kèm mũi tên tăng/giảm.** Mặt
+tích cực: lượt sắp chạy là **con số golden ĐẦU TIÊN có xuất xứ model kiểm chứng được trên từng
+ca** — nó *mở* một chuỗi số, không *nối* chuỗi cũ.
+
+**Ba định danh model cùng tồn tại, không cái nào trùng cái nào:**
+`_harness.py:994` ghim `qwen3.7-plus-2026-05-26` · `.env:178` ship `qwen3.7-max-2026-06-08` ·
+lượt chạy `qwen3.7-max-2026-05-20`. ⟹ mọi dòng kết quả sẽ mang `dung_duoc: false`.
+🔴 **CẤM sửa `MODEL_GHIM_MAC_DINH` để tắt cảnh báo** — đó đúng cái chuông đã im suốt 10 ngày ở
+lỗ `41aacd5`. Nó kêu vì nó đang **làm việc**.
+
+**Hạ tầng dựng sẵn, ngoài repo** (`/Users/soidoc/fin05-benchmark-30aug/`): `RUNBOOK.md` ·
+`chay_golden_voi_phao.py` (phao ghi từng ca ra đĩa — đối chiếu dòng-với-dòng ≡ bản gốc, chỉ
+cộng thêm bước ghi có `try/except`) · `bac_cau_n20/n40.jsonl` · `do_ram_nen.sh` ·
+`eval_out/`. Lý do ngoài repo: `eval/`+`tests/` là vùng ghi của `tester`, **đợt này không có
+phiên tester**.
+
+**Hai cổng bảo mật đỏ-trước/xanh-sau — ĐÃ ĐÓNG 31/08**, hồ sơ
+`docs/security/2026-08-31-cong-do-truoc-xanh-sau-bdaf17e-5ff93b8.md`. `5ff93b8`: trước vá cả 3
+route trả **200 và tạo bản ghi thật** (`RES-752998bd0673` · `ESC-f75e21f026d8` ·
+`SES-80bb2de5ff9e`), sau vá **401/403**. Kiểm bởi **3 nguồn, 3 phương pháp khác nhau**, mỗi
+nguồn tự khai giới hạn phương pháp mình.
+⚠️ **ĐẠT về HÀNH VI, CHƯA ĐẠT về CỔNG THƯỜNG TRỰC** — script kiểm nằm ngoài `tests/`, nên gỡ
+guard sau này **không có gì báo đỏ**. Đưa test vào `tests/` là việc kế tiếp, chờ phiên tester.
+🔴 Cụm **"đạt SCA / PSD2 / AAL2" VẪN CẤM**, kể cả khi đã có đủ hai vế đỏ — lý do đã đổi: một
+cổng đỏ-xanh trên hai bản vá **không phải một cuộc đánh giá tuân thủ**.
+
+**Đang dở, đừng tưởng là hồi quy mới:**
+- **9 file `frontend/e2e/*.spec.ts` đã sửa (B1), `tsc` sạch, nhưng CHƯA lượt chạy nào xác nhận
+  hành vi.** Playwright bị hoãn có chủ ý (ngốn RAM, nhường biên cho golden). e2e đỏ ở phiên sau
+  = **việc đang dở**, không phải bug mới.
+- **4 ngăn docker đang TẮT tạm** (`fin05ttl` · `fin05do` · `fin05-sach` · `fin05-dot-otp`) — chỉ
+  `stop`, dữ liệu còn nguyên, bật lại bằng `start`. RAM nhờ đó 5,32 → **4,39/7,75 GiB**.
+- `fin05-sach` sập Caddy: mount `Caddyfile` trỏ vào **thư mục nháp của một phiên khác** —
+  hỏng sẵn từ trước, restart chỉ **làm lộ** ra. Bài học: **ngăn docker không được mount cấu hình
+  từ thư mục nháp.**
+
+### 0b.13 ✅ KẾT QUẢ GOLDEN 31/08 — SỐ DÙNG ĐƯỢC. Đọc mục này, không đọc số ở 0b.12.
+
+**Nguyên nhân sự cố đêm 30/08 đã VÁ và XÁC NHẬN.** PO thật cấp `OPENAI_API_KEY`; chạy lại đúng
+5 ca đã trượt đêm trước ⟹ **5/5 Pass**, `extra_turns` 0→1-2, `create_ticket` có ở cả 5,
+`de_nghi_truoc_khi_tao_ticket` (CASE-028) False→True. **Cùng ảnh, cùng model, khác đúng một biến
+môi trường** — đây là cặp đỏ-trước/xanh-sau hoàn chỉnh cho chính sự cố ấy.
+⟹ **Bộ `golden_set.jsonl` KHÔNG hỏng, KHÔNG lạc hậu, không sửa dòng nào.** Đừng ai dựng bộ mới.
+
+**Hai lượt chạy, cả hai đều cạn hạn mức giữa chừng:**
+```
+qwen3.7-max-2026-05-20    13 ca sạch → cạn ở ca 14   · 107 ca "Blocker" là CONTAINER CHẾT
+qwen3.7-flash-2026-07-15  35 ca sạch → cạn ở ca 36   ·  85 ca "Blocker" là CONTAINER CHẾT
+```
+🔴 **Cạm bẫy phải nhớ:** bể xoay khoá về **một** model ⟹ hết hạn mức thì `LLM_MODEL=None` →
+`ChatOpenAI` ném lỗi → **mọi ca sau đó thành `Blocker`, mà tiến trình vẫn thoát mã 0**. Trông y
+hệt "chạy xong". Chỉ bắt được nhờ cổng đếm `LỖI CHẠY CASE`. **Con số tổng của script (7,5% và
+tương tự) là RÁC — phải lọc ca lỗi hệ thống TRƯỚC khi tính bất cứ gì.**
+
+**Số đã qua 4 lớp kiểm** (PO-agent tính · QA/QC tính lại độc lập, khớp 100% · Bảo mật đo xuất xứ
+từng dòng · Review phản biện diễn giải):
+| tiêu chí | max-05-20 (13 ca) | flash-07-15 (35 ca) |
+|---|---|---|
+| ưu tiên · gian lận · leo thang | 11/11 · 100% | 13/13 · 100% |
+| phân loại · phạm vi | 10/11 · 90,9% | 12/13 · 92,3% |
+| **trích dẫn mã GD (Ràng buộc cứng #3)** | **14/15 · 93,3%** | 39/51 · 76,5% |
+
+🔴 **HAI DÒNG ĐÃ BỊ RÚT, đừng dùng lại:** `khong_tao_ticket_hop_le` — **tên mô tả NGƯỢC ý nghĩa
+thật**: nó đo *"agent ĐÚNG khi KHÔNG tạo ticket"*, không đo *"tạo hồ sơ thành công"*
+(`_harness.py:898-908`). Và `de_nghi_truoc_khi_tao_ticket` n=2/n=4 — quá nhỏ.
+
+**Kết quả mạnh nhất, đã qua phản biện:** **0/35 ca flash tự ý hành động vượt thẩm quyền.** 13 ca
+có mở hồ sơ, **0 ca mở mà không qua lượt khách xác nhận** (1-3 lượt). Câu chuyển giao chuyên viên
+là **mẫu cứng** `CAU_AN_TOAN` (`src/agents/output_filter.py:26-29`), không phải model tự chọn.
+⚠️ **Đừng phóng đại thành "luôn an toàn có chủ ý"** — Review đọc cả 35 ca: 4/9 do guardrail chặn,
+1/9 model tự nhận thua, **1/9 trả lời CỤT NGANG (bất lực, không phải an toàn)**.
+
+**Hiện vật** (`/Users/soidoc/fin05-benchmark-30aug/eval_out/`): `golden_max0520_13ca_HONG107.jsonl`
+· `golden_flash_tung_ca.jsonl` · `BAO_CAO_MAU_15_CA_31AUG.md` · sổ token từng lượt.
+Trang cầm tay pitch: artifact `8015b4ad-b323-4060-a7f5-d5c32ad26c16`.
+
+**Còn nợ:** `JUDGE_MODEL` vẫn rơi về `gpt-4o-mini` (cùng lỗ, chưa vá) · `simulate_customer_reply()`
+phải KÊU khi hỏng thay vì trả `None` im lặng (vùng `tester`) · 9 file `frontend/e2e/*.spec.ts` đã
+sửa nhưng **chưa lượt chạy nào xác nhận hành vi** · 5 commit chưa push.
+
+---
+
 ## 0. 🔴 BÀN GIAO 27/08 17:5x — TOÀN ĐỘI TẮT. ĐỌC MỤC NÀY TRƯỚC TIÊN.
 
 > PO tắt cả 7 phiên để tránh tràn context. Mục này gom **thứ KHÔNG nằm trong git** —
