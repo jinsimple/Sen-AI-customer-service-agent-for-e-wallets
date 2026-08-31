@@ -237,9 +237,13 @@ ra:
 - **ADR-025 Quyết định 3** (15/08, **ĐÃ KÝ TOÀN BỘ**): hồ sơ khiếu nại (transcript + description +
   note + agent_note) giữ **5 NĂM kể từ ticket đóng**, hết hạn thì xoá hoặc ẩn danh hoá không đảo
   ngược. Căn cứ lấy MAX nhiều chế độ (VN PCTT rửa tiền · NĐ 13/2023 giới hạn lưu trữ · EU AMLD/MiFID
-  II · US Reg E). Cờ giữ nguyên: **con số cần tư vấn pháp lý thật xác nhận trước production**. Đã tự
-  cảnh báo KHÔNG dùng crypto-shredding (khoá mã hoá dùng chung, huỷ khoá phá luôn dữ liệu khác) —
-  xoá theo retention phải là xoá dòng thật.
+  II · US Reg E) — **[TỰ SỬA 31/08]** vế "NĐ 13/2023" là TRÍCH NGUYÊN VĂN từ chính ADR-025 (15/08),
+  đã hết hiệu lực NGAY TỪ LÚC ADR được viết (Luật 91/2025 hiệu lực 01/01/2026, trước đó). Không đổi
+  con số 5 năm (vẫn lấy MAX nhiều chế độ khác), nhưng nếu tư vấn pháp lý thật xác nhận số này, cần
+  đối chiếu lại nguyên tắc giới hạn lưu trữ theo Luật 91/2025 (nếu có điều khoản tương đương), không
+  dựa vào NĐ 13/2023 nữa. Cờ giữ nguyên: **con số cần tư vấn pháp lý thật xác nhận trước production**.
+  Đã tự cảnh báo KHÔNG dùng crypto-shredding (khoá mã hoá dùng chung, huỷ khoá phá luôn dữ liệu khác)
+  — xoá theo retention phải là xoá dòng thật.
 - **ADR-045b** (24/08, **PO thật quyết trực tiếp**): lịch sử hội thoại (LangGraph checkpoint) giữ
   **90 NGÀY** rồi xoá.
 - **[ĐO 31/08]** `grep -rl "retention" src/ scripts/` → **không tìm thấy job xoá theo lịch nào đã
