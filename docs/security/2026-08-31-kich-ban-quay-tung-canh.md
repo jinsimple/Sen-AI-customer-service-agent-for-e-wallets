@@ -16,6 +16,24 @@
 > Cảnh 4 mô tả sai đường (phải bấm nút "Báo lỗi giao dịch này" trên rail, không gõ tự do), Cảnh 6
 > chưa có câu xác nhận đã kiểm, Cảnh 7 thiếu cách tìm ticket giữa hàng trăm dòng, Cảnh 8 sai luồng
 > màn hình (`/approve` chỉ là hàng chờ, nút Duyệt thật nằm ở `/tickets/[id]`).
+>
+> 🔴 **VÒNG 2, CÙNG NGÀY — PO xác nhận đúng cả 6 điểm QA/QC nêu thêm, sửa hết, không cần phân xử:**
+> lệnh Chuẩn bị thiếu tên 3 tài khoản + cách lấy `user_id`; Cảnh 2 có HAI đoạn nói về "dừng quay"
+> tách rời nhau, đọc gộp lại có thể hiểu nhầm thành "bật máy quay rồi mới gõ" — SỬA thành MỘT câu
+> duy nhất; Cảnh 8 trước đó chỉ nhắc chung "qua terminal riêng", không có câu dừng-quay đầy đủ như
+> Cảnh 2 — chép nguyên câu sang, đúng luật "điều kiện phải nằm TRONG câu", người đọc riêng một cảnh
+> không thấy được câu ở cảnh khác; Cảnh 5 thiếu câu trả lời mẫu khi agent hỏi lại; mục "Sau khi quay"
+> còn câu cũ nhắc "khi đã điền" trong khi Cảnh 8 đã điền xong từ vòng 1.
+>
+> 🟢 **QUYẾT ĐỊNH LỊCH — PO chốt: QUAY TRÊN BẢN HIỆN TẠI, TRƯỚC KHI cổng ép-tra-trước land.** Lý do:
+> đường quay đã xác nhận chạy trọn trên bản này (băm mã `9c17c5684c9a`), 246 ca đo + báo cáo benchmark
+> PO đã gửi đều mô tả ĐÚNG bản này — video và báo cáo phải nói về CÙNG một sản phẩm. Cổng mới chưa
+> qua kiểm nào, không nên buộc buổi quay (có hạn chót) chờ nó (chưa chứng minh). **Đây LÀ bản dùng để
+> quay thật, sau khi sửa xong 6 điểm dưới đây.**
+>
+> 🔴 **TỒN ĐỌNG, ghi ngay kẻo quên lý do:** sau khi cổng ép-tra-trước land và đo xong, **kịch bản này
+> PHẢI soát lại** — Cảnh 5 gần như chắc chắn đổi (cổng khiến agent TRA NGAY thay vì có thể hỏi lại
+> khách như hành vi Cảnh 5 mô tả hiện tại).
 
 ## Chuẩn bị TRƯỚC KHI bấm quay — làm một lần, không phải mỗi cảnh
 
@@ -28,6 +46,10 @@
     docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
       "select otp_code from auth_sessions where user_id='<user_id khách demo>' \
        and otp_status='pending' order by created_at desc limit 1"
+
+    Cách lấy `user_id` để điền vào lệnh trên: tra theo SĐT tài khoản khách demo đã dùng ở Cảnh 1 —
+    docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
+      "select user_id from users where phone='<SĐT khách demo>'"
 
   Cảnh 8 (OTP duyệt, theo resolution_id):
     docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
@@ -42,7 +64,10 @@
 □ Caption hoặc lời mở đầu đã chuẩn bị: "Dữ liệu trong demo là dữ liệu sinh tổng hợp, không phải
   khách hàng thật."
 □ Không mở DevTools, không có tab/cửa sổ nào khác dễ vô tình Alt-Tab vào khung quay.
-□ Danh khoản đăng nhập demo đã biết trước (không gõ sai, không phải thử lại nhiều lần).
+□ Danh khoản đăng nhập demo đã biết trước, ĐỦ CẢ BA vai (không gõ sai, không phải thử lại nhiều lần):
+  - Khách (Cảnh 1-6): SĐT + mật khẩu.
+  - CSKH (Cảnh 7): tài khoản đăng nhập qua `/dang-nhap-noi-bo`.
+  - Sếp/supervisor (Cảnh 8): tài khoản đăng nhập qua `/dang-nhap-noi-bo`, vai khác CSKH.
 ```
 
 ## Cảnh 1 — Đăng nhập (khách)
@@ -62,20 +87,23 @@
 - **Điểm nhấn:** đây là OTP PHIÊN LÀM VIỆC (xác thực danh tính), khác OTP giao dịch — nếu kịch bản
   lời thoại có nhắc, đây là chỗ hợp lý để nói "hệ thống không bao giờ hỏi OTP giao dịch hay mật khẩu
   ví qua chat".
-- **Ngoài khung hình (nếu OTP_DEMO_MODE ĐÃ tắt):** cắt sang terminal riêng đã chuẩn bị, chạy đúng lệnh
-  Cảnh 2 ở mục "Chuẩn bị" (điền `user_id` khách demo thật vào chỗ trống), đọc mã, quay lại khung hình
-  chính, nhập tay. **Việc này diễn ra HOÀN TOÀN ngoài khung quay — dừng quay hoặc chuyển camera trước
-  khi mở terminal, không chỉ thu nhỏ cửa sổ.**
-- **Nếu OTP_DEMO_MODE CHƯA tắt lúc quay:** mã hiện thẳng trên UI (xem file gốc mục 🔴-2 chỗ 1) —
-  BẮT BUỘC cắt cảnh đúng khung hình đó ở khâu dựng phim, không phát trực tiếp đoạn này.
-- 🔴 **XỬ LÝ, dù đã tắt `OTP_DEMO_MODE` — PHƯƠNG ÁN PO CHỐT 31/08:** ô nhập OTP (component
-  `.otp-box`) là `type="text"`, hiện RÕ chữ số khi gõ và sau khi gõ xong — KHÔNG phải chấm che (xác
-  nhận bằng ảnh thật, xem file gốc mục 🔴-2 "RỦI RO CÒN LẠI SAU KHI VÁ"). **DỪNG GHI HÌNH đúng lúc
-  chuẩn bị gõ 6 ô, gõ xong mới ghi tiếp** — không phải cắt ở khâu dựng phim, không phải quay riêng
-  rồi ghép. Khán giả thấy panel OTP hiện ra, rồi thấy kết quả — thiếu đúng vài giây gõ số, không ai
-  nhận ra thiếu. **Rẻ hơn cắt/dựng: không cần hậu kỳ, không sợ quên cắt.** *(Che ô nhập bằng chấm đã
-  được PO CÂN NHẮC rồi RÚT LẠI — giá trị bảo mật thấp so với việc phá phép xác nhận độc lập QA/QC vừa
-  làm; đưa vào tồn đọng, không làm gấp — xem file gốc.)*
+- 🔴 **MỘT CÂU DUY NHẤT, ĐỌC ĐÚNG THEO ĐÚNG THỨ TỰ (sửa 31/08 vòng 2 — bản trước tách hai đoạn, đọc
+  gộp có thể hiểu nhầm thành "bật máy quay rồi mới gõ" ⟹ 6 số OTP lên phim):**
+
+  **Nếu OTP_DEMO_MODE ĐÃ tắt: DỪNG GHI HÌNH ngay trước khi mở terminal riêng — giữ máy quay TẮT
+  xuyên suốt từ lúc mở terminal, chạy lệnh tra `otp_code` (điền `user_id` lấy theo hướng dẫn ở mục
+  "Chuẩn bị"), đọc mã, quay lại cửa sổ chính, TỚI KHI gõ xong đủ 6 ô trên UI — chỉ BẬT LẠI máy quay
+  SAU KHI 6 ô đã điền xong.** Không tách thành hai việc riêng (chỉ né terminal / chỉ né lúc gõ) —
+  đây là MỘT khoảng dừng liên tục, không có điểm nào ở giữa được ghi hình.
+  Rẻ hơn cắt/dựng phim: không cần hậu kỳ, không sợ quên cắt. Khán giả thấy panel OTP hiện ra, rồi
+  thấy kết quả — thiếu đúng vài giây, không ai nhận ra thiếu.
+
+  **Nếu OTP_DEMO_MODE CHƯA tắt lúc quay:** mã hiện thẳng trên UI ngay khi panel mở ra (xem file gốc
+  mục 🔴-2 chỗ 1) — áp dụng CÙNG quy tắc dừng ghi hình như trên, từ trước khi panel hiện ra tới khi
+  qua khỏi màn hình đó.
+
+  *(Che ô nhập bằng chấm đã được PO CÂN NHẮC rồi RÚT LẠI — giá trị bảo mật thấp so với việc phá phép
+  xác nhận độc lập QA/QC vừa làm; đưa vào tồn đọng, không làm gấp — xem file gốc.)*
 
 ## Cảnh 3 — Xem giao dịch gần đây
 
@@ -103,7 +131,12 @@
 
 - **Màn hình:** `/chat`, các bước agent gọi tool (hiện trạng thái "đang tra cứu"/kết quả).
 - **Thao tác:** để agent tự chạy, không cần bấm gì thêm — có thể cần trả lời 1 câu hỏi làm rõ nếu
-  agent hỏi lại (vd xác nhận đúng giao dịch).
+  agent hỏi lại (vd xác nhận đúng giao dịch). **Câu trả lời MẪU nếu agent hỏi lại:** "Đúng, đúng giao
+  dịch đó." — ngắn, khẳng định thẳng, tránh gõ dài dòng dễ lệch khỏi kịch bản đã tập.
+- 🟡 **TỒN ĐỌNG:** cảnh này gần như chắc chắn phải đổi sau khi cổng "ép-tra-trước" (đang làm, chưa
+  land) đi vào bản chạy thật — cổng đó khiến agent TRA NGAY thay vì có khả năng hỏi lại khách như mô
+  tả hiện tại. Soát lại cảnh này khi cổng đó land và đo xong, đừng quay bản cũ sau khi cổng đã đổi
+  hành vi.
 - **Điểm nhấn — QUAN TRỌNG NHẤT của cả video:** đây là chỗ chứng minh "AI điều tra bằng tool thật,
   không bịa số liệu" — mọi số agent nhắc tới (số tiền, mã giao dịch, thời điểm) phải khớp đúng dữ
   liệu vừa thấy ở Cảnh 3. Nếu có thể, để camera đứng lâu hơn ở cảnh này so với các cảnh khác.
@@ -153,14 +186,22 @@ placeholder.
   xuất này — dòng chữ này HIỆN THẲNG trên UI, có thể đọc thành lời), số tiền bị khoá tại thời điểm
   xin OTP. Đây là "route chạm tiền nhất hệ thống" — đáng dừng camera lâu nhất toàn video, ở đoạn
   TRƯỚC và SAU khi gõ OTP (không phải đúng lúc đã gõ, xem mục CẤM ngay dưới).
-- **Ngoài khung hình:** nếu `OTP_DEMO_MODE` vẫn bật, hoặc đã tắt — đều cần chạy lệnh Cảnh 8 ở mục
-  "Chuẩn bị" (điền `resolution_id` thật vào chỗ trống, lấy từ trail đang xem), qua terminal riêng.
-- 🔴 **XỬ LÝ, dù đã tắt `OTP_DEMO_MODE` (xem file gốc mục 🔴-2, chỗ 2 — NẶNG NHẤT toàn hành trình,
-  PHƯƠNG ÁN PO CHỐT 31/08):** cùng component `.otp-box` như Cảnh 2 — 6 ô hiện rõ chữ số sau khi gõ,
-  **xác nhận trực tiếp bằng ảnh `64_sau_dien_otp_duyet.png` (983252 hiện rõ)**. **DỪNG GHI HÌNH đúng
-  lúc chuẩn bị gõ 6 ô, gõ xong mới ghi tiếp** (cùng cách xử lý Cảnh 2, không phải cắt/dựng phim) —
-  đây là ưu tiên xử lý cao nhất nếu chỉ chọn được MỘT cảnh để làm đúng. *(Che ô nhập bằng chấm đã bị
-  PO rút lại — xem Cảnh 2.)*
+- 🔴 **MỘT CÂU DUY NHẤT, chép NGUYÊN VĂN từ Cảnh 2 (xem file gốc mục 🔴-2 chỗ 2 — NẶNG NHẤT toàn
+  hành trình, đây là "route chạm tiền nhất hệ thống") — đọc riêng cảnh này vẫn phải đủ nghĩa, không
+  được chỉ ghi "qua terminal riêng" chung chung:**
+
+  **Nếu OTP_DEMO_MODE ĐÃ tắt: DỪNG GHI HÌNH ngay trước khi mở terminal riêng — giữ máy quay TẮT
+  xuyên suốt từ lúc mở terminal, chạy lệnh tra `otp_code` theo `resolution_id` (điền từ trail đang
+  xem, ở mục "Chuẩn bị"), đọc mã, quay lại cửa sổ chính, TỚI KHI gõ xong đủ 6 ô trên UI — chỉ BẬT
+  LẠI máy quay SAU KHI 6 ô đã điền xong**, TRƯỚC khi bấm "Xác nhận duyệt". Không tách thành hai việc
+  riêng — đây là MỘT khoảng dừng liên tục.
+
+  **Nếu OTP_DEMO_MODE CHƯA tắt lúc quay:** mã hiện thẳng trên UI ngay khi panel mở ra — cùng quy tắc
+  dừng ghi hình như trên, từ trước khi panel hiện ra tới khi qua khỏi màn hình đó.
+
+  Xác nhận trực tiếp bằng ảnh `64_sau_dien_otp_duyet.png` (983252 hiện rõ) — đây là ưu tiên xử lý
+  cao nhất nếu chỉ chọn được MỘT cảnh để làm đúng trong toàn video. *(Che ô nhập bằng chấm đã bị PO
+  rút lại — xem Cảnh 2.)*
 - ~~Nhắc riêng: khối "Thông tin giao dịch" từng trích "Nghị định 13/2023/NĐ-CP" đã hết hiệu lực~~
   **ĐÃ SỬA 31/08 (commit `9d46a3c`, tự đọc diff xác nhận)** — dòng giờ đọc đúng "Luật 91/2025/QH15,
   NĐ 356/2025/NĐ-CP". Hết áp dụng, khối này lên hình bình thường.
@@ -171,5 +212,8 @@ placeholder.
 □ Xem lại TOÀN BỘ bản ghi thô một lượt, đối chiếu với 2 mục 🔴 (banner, OTP) — kể cả khi đã vá,
   kiểm tra KHÔNG có khung hình nào sót lại từ lượt quay thử trước khi vá.
 □ Nếu có cắt cảnh — xác nhận điểm cắt không để lộ nửa giây khung hình cấm (tua chậm qua điểm cắt).
-□ Đối chiếu Cảnh 8 (khi đã điền) với bản checklist gốc trước khi ghép vào video cuối.
+□ Đối chiếu toàn bộ 8 cảnh (kể cả Cảnh 8, đã điền đầy đủ từ vòng sửa 31/08) với bản checklist gốc
+  (`docs/security/2026-08-31-soat-quay-video-demo-duoc-cam-len-hinh.md`) trước khi ghép vào video
+  cuối — đặc biệt xác nhận đoạn dừng ghi hình ở Cảnh 2 và Cảnh 8 đã làm ĐÚNG một khoảng liên tục,
+  không có khung hình nào lọt vào giữa lúc mở terminal và lúc gõ xong OTP.
 ```
