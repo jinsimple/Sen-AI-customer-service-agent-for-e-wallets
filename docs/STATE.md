@@ -438,6 +438,45 @@ toàn, KHÔNG bỏ)**. ~8,3tr token.
 🔴 Sửa `src/` ⟹ **băm mã ĐỔI** khỏi `9c17c5684c9a`. Từ đó có **HAI bản mã cùng có kết quả đo** —
 mọi báo cáo phải khai băm nào. 246 ca hiện tại **vĩnh viễn** thuộc `9c17c5684c9a`.
 
+### 0b.17 🔴 TỪ 31/08 CÓ **HAI BẢN MÃ** CÙNG HỢP LỆ — đọc mục này trước khi trích bất kỳ số nào
+
+| băm | là gì | dùng cho |
+|---|---|---|
+| `9c17c5684c9a` | **CHƯA** có cổng CTC1 | **246 ca đo 31/08** · ngăn `fin05-qa-stripe` · **buổi quay video** |
+| `ba8a426b6d9a` | **CÓ** cổng CTC1 (ADR-056, commit `f6045f9`) | ảnh tag riêng `fin05-backend:ctc1` · phép đo cổng |
+
+🔴 **Mọi con số phải khai băm nào.** 246 ca ngày 31/08 **vĩnh viễn** thuộc `9c17c5684c9a`.
+
+**Kỷ luật TÁCH TAG — lý do nó tồn tại, đừng gỡ:** kịch bản đo dùng `fin05-backend:latest`.
+Dựng lại tag đó để đo cổng ⟹ `latest` trỏ bản CÓ cổng ⟹ chỉ một lệnh `up`/`restart` nhắm ngăn
+`qa-stripe` là **buổi quay diễn ra trên bản không có một con số đo nào đứng sau**.
+⟹ Ảnh đo mang tag riêng `ctc1`. **KHÔNG dựng lại `latest`. KHÔNG chạm ngăn `qa-stripe`** cho tới
+khi quay xong. Đã có bước kiểm băm bắt buộc ở cuối phần Chuẩn bị của kịch bản quay.
+
+**Vì sao quay TRƯỚC, đo cổng SAU** *(PO-agent chốt, PO thật duyệt hướng)*: video và báo cáo
+benchmark phải nói về **CÙNG một bản mã**. Quay trên bản có cổng là quay một phiên bản chưa có số
+liệu nào. Hai làn chạy song song được **vì và chỉ vì** chúng dùng hai ảnh khác nhau.
+
+**Việc đang hoãn LẦN HAI, có chủ đích** *(kẻo phiên sau tưởng bỏ sót)*: 2 chuỗi `NĐ 13/2023` còn
+lại ở `src/config.py:547` + `src/agents/prompt.py:81`. Hoãn lần một vì chờ gộp đợt đổi băm; hoãn
+lần hai vì **đang đo trên băm đó**. Sửa sau khi bước 4 xong.
+
+### 0b.18 🔴 BỘ ĐỀ CÓ 6 CA KHÔNG AI TRẢ LỜI ĐÚNG ĐƯỢC — lời khách NGƯỢC hướng nhãn
+
+`CASE-040 · 050 · 067 · 079 · 140` (golden) · `CASE-075` (heldout). **Cả 6 đang bị chấm trượt.**
+
+  `CASE-067`: khách *"tôi **RÚT** 803.000đ **VỀ** TCB"* (tiền ra NH) — nhãn + gd thật: `from_bank` (tiền vào ví)
+  `CASE-050`: khách *"**NẠP** từ thẻ VCB vào ví"* (tiền vào) — nhãn: `to_bank` (tiền ra)
+
+Ngữ nghĩa đã xác minh trên **27.120 giao dịch, 100% nhất quán**: `from_bank` ⟺ `send_bank_account_id`
+có giá trị ⟹ *nạp*; `to_bank` ⟺ `rec_bank_account_id` ⟹ *rút*. **Cách đọc đúng, nhãn sai.**
+⟹ Agent đọc đúng lời khách thì tìm giao dịch không tồn tại theo hướng đó; đọc theo nhãn thì phải bỏ
+qua lời khách. **Không có đường nào đúng.** ~1,2 điểm phần trăm — nhỏ, nhưng đây là **lỗi TÍNH HỢP
+LỆ của phép đo**, không phải lỗi điểm số.
+`CASE-079` + `CASE-075` đã bị **loại khỏi nhóm đích** bước 4 (cột `loi_dataset_huong_tien` trong
+`hai_nhom_buoc4.csv`) — chúng không bao giờ cải thiện được, để lại sẽ kéo kết quả xuống oan.
+🔴 **KHÔNG sửa bộ đề cho tới khi đo xong** — đụng bộ đề giữa lúc so trước/sau là tự phá phép so.
+
 ---
 
 ## 0. 🔴 BÀN GIAO 27/08 17:5x — TOÀN ĐỘI TẮT. ĐỌC MỤC NÀY TRƯỚC TIÊN.
