@@ -19,7 +19,9 @@
 > phải xử lý" sang "đã xử lý, chờ xác nhận ảnh trước khi quay thật" — **giữ nguyên nội dung điều tra
 > nguồn** (vẫn đúng, dùng làm bằng chứng TRƯỚC khi vá), thêm dòng trạng thái mới khi có ảnh.
 
-## 🔴 Hai điều CẤM TUYỆT ĐỐI, xuất hiện ở NHIỀU màn hình, không phải một chỗ
+## 🔴 Ba điều CẤM TUYỆT ĐỐI, xuất hiện ở NHIỀU màn hình, không phải một chỗ
+
+*(Mục 3 — phát hiện MỚI 31/08, từ ảnh thật diễn tập sau vá P0, không có trong bản đầu tài liệu.)*
 
 ### 1. Nhãn môi trường (`EnvBadge`) — xuất hiện Ở MỌI TRANG, không chỉ dashboard
 
@@ -93,8 +95,48 @@ SMS thật thay thế. Khi tắt, response KHÔNG còn `otp_code` — người q
    mã hoá, xem đánh giá riêng ở mục "Ghi nhận thêm" bên dưới) đúng `session_id` vừa xin.
 3. Nhập tay mã đó vào UI (đang ở màn hình quay, KHÔNG đọc mã ra khung hình terminal).
 
+🔴 **RỦI RO CÒN LẠI SAU KHI VÁ — xác nhận bằng ảnh thật, đính chính lời QA/QC 31/08:** P0 chỉ tắt
+việc HỆ THỐNG tự động hiển thị mã (đúng, đã xác nhận: không còn dòng "Mã OTP xác nhận duyệt: XXXXXX"
+hiện sẵn khi mở panel). **NHƯNG ô nhập OTP (component `.otp-box`, dùng CHUNG cho cả chỗ 1 và chỗ 2)
+là `type="text"` thường, không phải `type="password"`/dạng chấm che** — khi người quay gõ tay mã lấy
+từ bước 2-3 ở trên, **6 chữ số hiện RÕ RÀNG trên màn hình sau khi gõ xong**, y hệt hiện tượng cũ, chỉ
+khác là do NGƯỜI GÕ chứ không phải hệ thống tự hiện. **[ĐO, tự xem ảnh `64_sau_dien_otp_duyet.png`]:**
+xác nhận trực tiếp — 6 ô hiện `9 8 3 2 5 2` dạng chữ thường, đọc được ngay bằng mắt.
+4. 🟢 **PHƯƠNG ÁN PO CHỐT 31/08 — thay cho "cắt ở khâu dựng phim":** người quay **DỪNG GHI HÌNH**
+   đúng lúc chuẩn bị gõ 6 ô, gõ xong mới **ghi tiếp**. Khán giả thấy panel OTP hiện ra rồi thấy kết
+   quả duyệt — thiếu đúng vài giây gõ số, không ai nhận ra thiếu. **Rẻ hơn cắt/dựng: không cần hậu
+   kỳ, không sợ quên cắt.** Áp dụng CHO CẢ HAI chỗ (chat khách VÀ supervisor duyệt — cùng component).
+   Rủi ro khai thác thực tế THẤP (mã chỉ dùng 1 lần, hết hạn 10 phút, gắn chặt đúng resolution/phiên
+   đó) — nhưng đây vẫn là hình ảnh "mã xác thực hiện rõ trên màn hình" trước ống kính, không phù hợp
+   để lên video dù nguy cơ khai thác sau phát hành thấp.
+   *(Phương án "che ô nhập bằng chấm" đã giao Coder rồi bị PO RÚT LẠI — giá trị bảo mật thấp, và sẽ
+   phá phép xác nhận độc lập QA/QC vừa làm. Đưa vào tồn đọng "cân nhắc che ô OTP duyệt", KHÔNG làm
+   gấp.)*
+
 ⚠️ Đây là bước **BẮT BUỘC**, không phải tuỳ chọn — thiếu nó thì luồng quay xác thực OTP không đi
 tiếp được. Ghi nguyên vào tóm tắt cuối tài liệu.
+
+### 3. Trích dẫn văn bản pháp luật ĐÃ HẾT HIỆU LỰC, hiện thẳng trên UI phê duyệt
+
+**[ĐO, tự xem ảnh `64_sau_dien_otp_duyet.png` + `70_ket_qua_duyet_that.png`]** — cả hai ảnh (trước
+và sau khi duyệt) đều có dòng, khung "Thông tin giao dịch", cạnh trường "Người nhận":
+
+> *"Đã che một phần theo PDPA (Nghị định 13/2023/NĐ-CP)."*
+
+**NĐ 13/2023/NĐ-CP đã bị THAY THẾ từ 01/01/2026** bởi Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15 +
+NĐ 356/2025/NĐ-CP — đã xác minh và niêm nhiều lần trong đêm nay
+(`docs/security/2026-08-30-niem-luat-91-2025-thay-nd-13-2023.md`). Đây là chuỗi **UI sản phẩm**, sẽ
+lên video y hệt như hiện trên màn hình — khác với các tài liệu `docs/` tôi đã sửa trước đó (những
+văn bản đó không lên video).
+
+- **CẤM LÊN HÌNH nguyên trạng.**
+- **XỬ THẾ NÀO:** đổi chuỗi trong mã nguồn frontend (tìm `"Nghị định 13/2023/NĐ-CP"` hoặc
+  `"NĐ 13/2023"` trong `frontend/src/`) sang căn cứ đúng. **Việc code, không phải tôi tự sửa** —
+  chuyển `tech-lead`/`devops`. Nếu không kịp sửa trước buổi quay: **tránh khung hình dừng ở khối
+  "Thông tin giao dịch"** đủ lâu để đọc được dòng chú thích, hoặc cắt/mờ đúng dòng đó ở khâu dựng.
+- ⚠️ **Phạm vi chưa rà hết:** tôi mới thấy chuỗi này qua ĐÚNG hai ảnh được gửi (màn hình `/approve`).
+  Chưa rà toàn bộ frontend xem còn chuỗi "NĐ 13/2023" nào khác xuất hiện trên UI (khác với các file
+  `docs/` đã rà đêm nay) — cần một lượt `grep -rn "13/2023" frontend/src/` trước khi coi là đã hết.
 
 ## Đi theo từng bước hành trình quay
 
@@ -229,9 +271,13 @@ cần đọc DB trực tiếp — sửa xong vẫn đọc DB được, chỉ đ�
 1. Crop/tránh vùng topbar (badge môi trường) suốt video, KHÔNG rê chuột qua nó — TRỪ KHI Coder xác
    nhận đã tắt banner trên qa-stripe VÀ có ảnh QA/QC xác nhận biến mất thật (đang chờ, xem đầu file).
 2. 🔴 MỚI, BẮT BUỘC: nếu OTP_DEMO_MODE đã tắt — chuẩn bị SẴN một cửa sổ terminal RIÊNG (không lọt
-   khung hình) để truy vấn cột otp_code trong bảng auth_sessions, nhập tay mã vào UI ở CẢ HAI bước
-   (khách xác thực phiên + supervisor xin OTP duyệt). Thiếu chuẩn bị này = đứng hình giữa buổi quay.
-   Nếu banner/OTP_DEMO_MODE CHƯA kịp tắt lúc quay: quay lại đúng mục 1 cũ (crop + cắt cảnh) thay thế.
+   khung hình) để truy vấn cột otp_code trong bảng auth_sessions (lệnh copy-paste được, xem
+   `docs/security/2026-08-31-kich-ban-quay-tung-canh.md` mục "Chuẩn bị"), nhập tay mã vào UI ở CẢ HAI
+   bước (khách xác thực phiên + supervisor xin OTP duyệt). Thiếu chuẩn bị này = đứng hình giữa buổi
+   quay. Nếu banner/OTP_DEMO_MODE CHƯA kịp tắt lúc quay: quay lại đúng mục 1 cũ (crop + cắt cảnh).
+2b. 🔴 MỚI, BẮT BUỘC (PHƯƠNG ÁN PO CHỐT 31/08): ô nhập OTP hiện rõ số khi gõ (không che) — **DỪNG
+   GHI HÌNH lúc chuẩn bị gõ 6 ô, ghi tiếp sau khi gõ xong**, ở CẢ HAI bước. Không phải cắt ở khâu
+   dựng phim, không phải quay riêng rồi ghép.
 3. KHÔNG mở DevTools trong lúc quay.
 4. ~~Nếu dashboard hiện NaN/lỗi lạ giữa chừng — dừng...~~ **GỠ 31/08** — root-cause xong, lỗi nằm ở
    bài test (regex đọc nhãn), không phải sản phẩm. Không cần né chip nào trên dashboard.
