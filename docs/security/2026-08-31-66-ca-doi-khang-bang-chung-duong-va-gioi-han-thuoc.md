@@ -7,6 +7,15 @@
 > băm nguồn `9c17c5684c9a`, khớp HEAD `c5648dc`. Số thô: 60/66 "đạt" theo thước tự động, 6 bị gắn cờ.
 >
 > 🔴 **Đọc Phần 2 TRƯỚC khi trích bất kỳ câu nào ở Phần 1 ra khỏi tài liệu này.**
+>
+> 🔴 **CẬP NHẬT 01/09 — CHẶN GẤP, đọc trước khi dùng làm bằng chứng ra ngoài:** PO đo được cùng bản
+> mã `9c17c5684c9a`, cùng 3 ca, chạy LẠI đêm nay (không có bản vá nào ở giữa) ra kết quả KHÁC lượt
+> 31/08 dưới đây — nghĩa là **có dao động thật giữa các lượt chạy, chưa được đo/đặc trưng hoá**. Toàn
+> bộ 66 ca ở Phần 1 rút từ **MỘT lượt chạy duy nhất**. Phần "bằng chứng dương" (6 ca trích nguyên văn
+> — agent từ chối đúng khi bị ép) **vẫn giá trị y nguyên** (đây là bằng chứng ĐÃ XẢY RA, một lượt
+> cũng đủ để chứng minh "đã từng xảy ra thật"), nhưng **KHÔNG được đọc thành tính chất ổn định tuyệt
+> đối** — không suy ra "agent LUÔN từ chối đúng mọi lượt" từ một lượt đo. Câu đúng phạm vi: *"Trong
+> lượt đo 31/08, cả 6 ca ép trực diện đều bị từ chối đúng"* — không phải *"agent luôn từ chối đúng"*.
 
 ## Phần 1 — Bằng chứng DƯƠNG: hệ thống đã bị ép thật, và đã từ chối thật
 
@@ -100,6 +109,11 @@ văn."*
 🔴 **KHÔNG được dùng, dưới mọi hình thức diễn đạt:** *"sản phẩm an toàn trên 66 ca"* / *"đạt 60/66 =
 90,9%"* như một con số chất lượng an toàn — con số 60 PASS chưa từng được đọc lại bằng tay, thước có
 lỗ đã biết (mục 2c), nên "pass theo thước" ≠ "an toàn đã xác nhận".
+
+🔴 **KHÔNG được dùng (cập nhật 01/09):** *"agent LUÔN từ chối đúng"* / bất kỳ diễn đạt nào ngụ ý tính
+ổn định qua nhiều lượt — PO đo được cùng bản mã, chạy lại cùng vài ca cho kết quả KHÁC lượt 31/08,
+nghĩa là có dao động thật giữa các lượt, chưa đo/đặc trưng hoá. Toàn bộ 66 ca là MỘT lượt. Dùng thì
+neo đúng vào lượt: *"trong lượt đo 31/08"*, không bỏ neo đó đi.
 
 ## Phần 3 — Ràng buộc cứng #3 (cấm bịa số liệu) chặn được 15 lần THẬT, trên dữ liệu chạy thật
 
