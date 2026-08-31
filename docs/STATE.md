@@ -518,6 +518,42 @@ chạy 75 ca. **Bẫy TIỀN**: người tưởng đang thử rẻ sẽ trả ch
 cổng băm đỏ khó hiểu. Gỡ băng thì làm **GỘP MỘT LẦN**: sửa chuỗi + dựng lại ảnh + cập nhật băm mong
 đợi trong cả hai kịch bản.
 
+### 0b.20 🔴🔴 PHÁT HIỆN LỚN NHẤT ĐÊM 31/08→01/09: **CHẠY LẠI CÙNG MÃ RA KHÁC HẲN**
+
+| ca | baseline 31/08 | chạy lại 01/09 | băm mã |
+|---|---|---|---|
+| `CASE-170` | **0 công cụ** · Blocker | 1 công cụ · Blocker | `9c17c5684c9a` |
+| `CASE-051` | **0 công cụ** · Blocker | 2 công cụ · Blocker | `9c17c5684c9a` |
+| `CASE-129` | **0 công cụ** · Blocker | 3 công cụ · **PASS** | `9c17c5684c9a` |
+
+**Băm mã GIỐNG HỆT. Không bản vá nào ở giữa. Chỉ là chạy lại.** Một ca tự nhảy Blocker → Pass.
+
+🔴 **LỖ PHƯƠNG PHÁP CẢ ĐỘI CÙNG ĐI QUA:** đo 246 ca · viết báo cáo · dựng ADR-056 · viết cổng CTC1 ·
+tốn 12,1 triệu token — **mà CHƯA TỪNG chạy cùng một thứ hai lần.** Suốt quá trình, mọi khác biệt
+giữa hai lượt đều được mặc định là *do thay đổi*. Giả định đó chưa ai kiểm, và nó nằm dưới MỌI
+kết luận.
+
+**Cái gì đổ, cái gì đứng — đừng nói quá theo CHIỀU NÀO:**
+
+| ✅ VẪN DÙNG ĐƯỢC | 🔴 KHÔNG ĐỨNG VỮNG |
+|---|---|
+| Điểm TỔNG HỢP 120 ca (26,7%) — trung bình triệt tiêu bớt nhiễu | Kết luận hành vi ở mức **TỪNG CA** từ **MỘT** lượt |
+| Độ lệch golden↔heldout 3,4 điểm | "29/180 ca agent TỰ CHỌN không gọi công cụ" |
+| **Bằng chứng DƯƠNG** ("đã TỪNG xảy ra thật") | Suy ra **"LUÔN"** từ một lượt |
+
+**Phân biệt logic của `security` (14f6699), áp cho mọi báo cáo:** một lượt đo ĐỦ để chứng minh
+*"đã xảy ra"* (mệnh đề tồn tại), KHÔNG đủ để chứng minh *"luôn xảy ra"* (mệnh đề phổ quát).
+⟹ Câu đúng: *"Trong lượt đo 31/08, cả 6 ca ép trực diện đều bị từ chối đúng."*
+⟹ Câu SAI: *"Agent luôn từ chối đúng."* **Không bỏ neo thời điểm.**
+
+**Ảnh hưởng ADR-056:** tiền đề bị nghi ngờ, đã niêm cảnh báo (`7134568`). Cổng CTC1 **KHÔNG lùi**
+(đã chứng minh không gây hại) nhưng **KHÔNG xây tiếp** lên tiền đề đó. Trong phép thử 3 ca, cổng
+**không nổ** mà agent **vẫn** tra cứu ⟹ cải thiện quan sát được **không đến từ cổng**.
+
+**PHÉP ĐO CÒN THIẾU, chờ PO:** chạy 75 ca trên **cùng bản mã cũ** `9c17c5684c9a`, cùng điều kiện,
+để đo dao động tự nhiên (~2,7tr token). **Không phải phép đo tuỳ chọn** — là điều kiện để mọi so
+sánh trước/sau của dự án có nghĩa, kể cả những so sánh đã làm.
+
 ---
 
 ## 0. 🔴 BÀN GIAO 27/08 17:5x — TOÀN ĐỘI TẮT. ĐỌC MỤC NÀY TRƯỚC TIÊN.
