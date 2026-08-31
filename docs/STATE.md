@@ -560,6 +560,54 @@ kết luận.
 để đo dao động tự nhiên (~2,7tr token). **Không phải phép đo tuỳ chọn** — là điều kiện để mọi so
 sánh trước/sau của dự án có nghĩa, kể cả những so sánh đã làm.
 
+### 0b.21 BÀN GIAO CUỐI PHIÊN 01/09 — bẫy của từng vai, thứ không ai khác ghi được
+
+*(Review chưa gửi tính tới lúc ghi — mục của họ để trống, đừng đọc thành "họ không có gì".)*
+
+**CODER**
+- Việc dở: đã xong hết. 2 chuỗi `NĐ 13/2023` đã sửa (`60f0e09`), ảnh `ctc1` dựng lại (`abb9045822ca`).
+- **Kết luận một-lượt:** commit `f6045f9` mang con số *"model bỏ qua 29/180 ca"* — **ĐÃ LỖI THỜI**
+  (xem kết luận ADR-056). **Cơ chế cổng không phụ thuộc con số đó** nên code vẫn đúng; chỉ phần
+  *quy mô vấn đề* trong commit message là hết hạn. Git chỉ ghi thêm nên không sửa được — ai trích
+  `f6045f9` phải tra ADR-056 kèm.
+- 🔴 **BẪY:** `curl` trên macOS (SecureTransport) báo `TLSV1_ALERT_INTERNAL_ERROR` khi gọi HTTPS vào
+  Caddy **bằng địa chỉ IP trần** (`https://127.0.0.1:59443`) thay vì **đúng hostname cert cấp**
+  (`https://localhost:59443`) — SNI không khớp CN/SAN. Trông y hệt hỏng handshake, server hoàn toàn
+  khoẻ. ⟹ **Gọi đúng hostname.** *(PO-agent từng bảo "thêm `-k` là qua" — đúng triệu chứng, SAI
+  nguyên nhân; `-k` che lỗi và tắt luôn xác thực.)*
+
+**BẢO MẬT**
+- Việc dở: C3 (IR runbook) + C4 (khung DPIA) vẫn DRAFT — chờ **đọc toàn văn** NĐ 356/2025 (mới đọc
+  tóm tắt) + log production Windows (chưa có). Cổng soát bản-ghi-thô đã viết, chưa chạy vì chưa có phim.
+- **Kết luận một-lượt:** hồ sơ 66 ca đối kháng (đã tự gắn cảnh báo `14f6699`) · "agent kẹt" ở MT-Z04
+  rút từ **một** transcript, chưa kiểm tái lập.
+- 🔴 **BẪY (a) — giao "chấm mù" cho phiên có NGỮ CẢNH DÀI.** 6/10 ca hoá ra chính họ đã phân tích sâu
+  trong cùng đêm cho việc khác ⟹ **ngữ cảnh dài PHÁ tính mù**. PO-agent kiểm "chưa dựng phiếu, chưa
+  đọc khoá" mà quên "đã chạm CA chưa". ⟹ **Hỏi thẳng phiên nhận "bạn đã đọc những ca này chưa"
+  TRƯỚC khi giao.** Đừng suy tính mù từ phân công.
+- 🔴 **BẪY (b) — SỬA MỘT LUẬT CŨ:** *"không tách `git add` và `git commit`"* chỉ đúng cho tệp **ĐÃ
+  TRACKED**. `git commit -m … -- <pathspec>` **KHÔNG stage tệp MỚI**. Tệp mới phải
+  `git add -- <path> && git commit -- <path>` **trong CÙNG một lệnh Bash**.
+- 🔴 **BẪY (c):** nhiều tệp *"khoá đối chiếu"* trong một thư mục cho các bài KHÁC nhau — **đọc TÊN
+  tệp không đủ**, phải đối chiếu NỘI DUNG khớp bài đang chấm.
+
+**QA/QC**
+- 🔴 Việc dở: **9 tệp `frontend/e2e/*.spec.ts`** đã sửa xong (retrofit 23 lượt `loginAs` sang
+  `/dang-nhap-noi-bo` do cổng chặn-sai-cổng land 27/08) nhưng **CHƯA chạy `playwright test` lần nào**
+  — chỉ đọc diff bằng mắt. **Đang NGOÀI GIT, không có bản sao.** Người tiếp phải chạy trọn 9 tệp
+  trước khi coi là xong. *(PO-agent kiểm diff: đúng như mô tả, cộng thêm 4 hằng số vai được thêm
+  trường `loginPath` — cùng một việc, nhưng phạm vi rộng hơn câu "chỉ đổi dòng loginAs".)*
+- **Kết luận một-lượt:** câu mẫu Cảnh 5 chạy qua UI thật **một** lượt LLM — chạy lại có thể ra dạng
+  câu hỏi khác hẳn.
+- 🔴 **BẪY:** ô nhập OTP (`.otp-row`/`.otp-box`) **VẪN CÒN trong DOM và VISIBLE** sau khi xác thực
+  xong — chỉ chuyển `disabled`. Kịch bản chờ `waitFor({state:'visible'})` sẽ bắt trúng **ô CŨ đã
+  khoá** khi có 2 lượt OTP liên tiếp ⟹ timeout khó hiểu. **Phải kiểm thêm `isEnabled()`.**
+  Khác bẫy `isVisible` vs `waitFor` đã ghi trước — đây là **visible vs enabled**.
+
+**Luật vận hành rút từ đêm nay, áp cho mọi lượt đo sau:**
+🔴 Ảnh dùng để ĐO phải mang **tag CHẾT theo băm** (vd `fin05-backend:ba8a426b6d9a`), **không** dùng
+tag sống như `ctc1` — tag sống bị dựng đè là mất khả năng tái lập (đã xảy ra, xem §0b.17).
+
 ---
 
 ## 0. 🔴 BÀN GIAO 27/08 17:5x — TOÀN ĐỘI TẮT. ĐỌC MỤC NÀY TRƯỚC TIÊN.
