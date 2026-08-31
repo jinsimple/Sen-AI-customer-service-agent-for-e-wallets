@@ -438,12 +438,18 @@ toàn, KHÔNG bỏ)**. ~8,3tr token.
 🔴 Sửa `src/` ⟹ **băm mã ĐỔI** khỏi `9c17c5684c9a`. Từ đó có **HAI bản mã cùng có kết quả đo** —
 mọi báo cáo phải khai băm nào. 246 ca hiện tại **vĩnh viễn** thuộc `9c17c5684c9a`.
 
-### 0b.17 🔴 TỪ 31/08 CÓ **HAI BẢN MÃ** CÙNG HỢP LỆ — đọc mục này trước khi trích bất kỳ số nào
+### 0b.17 🔴 CÓ **BA BẢN MÃ** CÙNG HỢP LỆ — đọc mục này trước khi trích bất kỳ số nào
 
-| băm | là gì | dùng cho |
-|---|---|---|
-| `9c17c5684c9a` | **CHƯA** có cổng CTC1 | **246 ca đo 31/08** · ngăn `fin05-qa-stripe` · **buổi quay video** |
-| `ba8a426b6d9a` | **CÓ** cổng CTC1 (ADR-056, commit `f6045f9`) | ảnh tag riêng `fin05-backend:ctc1` · phép đo cổng |
+| băm | là gì | ảnh còn không? | dùng cho |
+|---|---|---|---|
+| `9c17c5684c9a` | **CHƯA** có cổng CTC1 | ✅ `fin05-backend:latest` | **246 ca đo 31/08** · **phép đo nhiễu 01/09** · ngăn `fin05-qa-stripe` · **buổi quay** |
+| `ba8a426b6d9a` | **CÓ** cổng (ADR-056, `f6045f9`) | 🔴 **KHÔNG — đã bị ghi đè** | **bước 4 đo cổng 01/09** |
+| `abb9045822ca` | có cổng **+** sửa luật 91/2025 (`60f0e09`) | ✅ `fin05-backend:ctc1` | HEAD hiện tại · lượt đo về sau |
+
+🔴 **`ba8a426b6d9a` KHÔNG CÒN ẢNH.** Tag `ctc1` đã bị dựng đè khi gỡ băng `src/`. Kết quả bước 4 vẫn
+nguyên vẹn (mỗi dòng phao tự khai băm), nhưng **muốn TÁI LẬP phép đo đó phải `git checkout f6045f9`
+rồi dựng lại**. Không phải lỗi của ai — hệ quả tất yếu của việc dùng lại một tên ảnh. Ghi ra để
+phiên sau đọc `ba8a426b6d9a` trong tệp kết quả, đi tìm ảnh, không thấy, mà không mất một buổi.
 
 🔴 **Mọi con số phải khai băm nào.** 246 ca ngày 31/08 **vĩnh viễn** thuộc `9c17c5684c9a`.
 
