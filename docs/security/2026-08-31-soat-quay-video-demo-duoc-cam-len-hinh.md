@@ -116,27 +116,25 @@ xác nhận trực tiếp — 6 ô hiện `9 8 3 2 5 2` dạng chữ thường, 
 ⚠️ Đây là bước **BẮT BUỘC**, không phải tuỳ chọn — thiếu nó thì luồng quay xác thực OTP không đi
 tiếp được. Ghi nguyên vào tóm tắt cuối tài liệu.
 
-### 3. Trích dẫn văn bản pháp luật ĐÃ HẾT HIỆU LỰC, hiện thẳng trên UI phê duyệt
+### 3. 🟢 ĐÃ ĐÓNG 31/08 — trích dẫn văn bản pháp luật hết hiệu lực, đã sửa
 
-**[ĐO, tự xem ảnh `64_sau_dien_otp_duyet.png` + `70_ket_qua_duyet_that.png`]** — cả hai ảnh (trước
-và sau khi duyệt) đều có dòng, khung "Thông tin giao dịch", cạnh trường "Người nhận":
+**Trạng thái phát hiện lúc tìm ra** (giữ nguyên làm lịch sử): **[ĐO, tự xem ảnh
+`64_sau_dien_otp_duyet.png` + `70_ket_qua_duyet_that.png`]** — cả hai ảnh (trước và sau khi duyệt)
+đều có dòng, khung "Thông tin giao dịch", cạnh trường "Người nhận": *"Đã che một phần theo PDPA
+(Nghị định 13/2023/NĐ-CP)."* — văn bản đã hết hiệu lực từ 01/01/2026.
 
-> *"Đã che một phần theo PDPA (Nghị định 13/2023/NĐ-CP)."*
+**Đã sửa, tự xác nhận bằng diff thật (không chỉ tin lời báo):** commit `9d46a3c`
+(`docs(frontend): cập nhật căn cứ pháp lý PDPA sang Luật 91/2025/QH15 + NĐ 356/2025`) — 3 file
+(`ChatClient.tsx`, `TicketDetailClient.tsx`, `page.tsx`), đổi đúng 3 dòng, chỉ đổi chữ hiển thị/
+comment, không đổi hành vi. Dòng trên UI giờ đọc: *"Đã che một phần theo PDPA (Luật 91/2025/QH15,
+NĐ 356/2025/NĐ-CP)."* **Gốc rễ:** `CLAUDE.md §8` (nạp vào MỌI phiên) tự nó trích NĐ 13/2023 — PO đã
+sửa (`82c1791`) trước khi Coder sửa 3 chỗ UI theo sau.
 
-**NĐ 13/2023/NĐ-CP đã bị THAY THẾ từ 01/01/2026** bởi Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15 +
-NĐ 356/2025/NĐ-CP — đã xác minh và niêm nhiều lần trong đêm nay
-(`docs/security/2026-08-30-niem-luat-91-2025-thay-nd-13-2023.md`). Đây là chuỗi **UI sản phẩm**, sẽ
-lên video y hệt như hiện trên màn hình — khác với các tài liệu `docs/` tôi đã sửa trước đó (những
-văn bản đó không lên video).
+**Phạm vi đã rà hết** — `grep -rn "13/2023" frontend/src/` → **0 kết quả**, không còn chuỗi nào sót.
+Không cần chờ ảnh chụp riêng để xác nhận (thay đổi là chuỗi văn bản thuần, không có logic hiển thị
+kèm theo có thể sai khác giữa code và màn hình thật) — đủ tin cậy từ diff.
 
-- **CẤM LÊN HÌNH nguyên trạng.**
-- **XỬ THẾ NÀO:** đổi chuỗi trong mã nguồn frontend (tìm `"Nghị định 13/2023/NĐ-CP"` hoặc
-  `"NĐ 13/2023"` trong `frontend/src/`) sang căn cứ đúng. **Việc code, không phải tôi tự sửa** —
-  chuyển `tech-lead`/`devops`. Nếu không kịp sửa trước buổi quay: **tránh khung hình dừng ở khối
-  "Thông tin giao dịch"** đủ lâu để đọc được dòng chú thích, hoặc cắt/mờ đúng dòng đó ở khâu dựng.
-- ⚠️ **Phạm vi chưa rà hết:** tôi mới thấy chuỗi này qua ĐÚNG hai ảnh được gửi (màn hình `/approve`).
-  Chưa rà toàn bộ frontend xem còn chuỗi "NĐ 13/2023" nào khác xuất hiện trên UI (khác với các file
-  `docs/` đã rà đêm nay) — cần một lượt `grep -rn "13/2023" frontend/src/` trước khi coi là đã hết.
+- ~~CẤM LÊN HÌNH nguyên trạng~~ — **hết áp dụng**, có thể lên hình bình thường.
 
 ## Đi theo từng bước hành trình quay
 

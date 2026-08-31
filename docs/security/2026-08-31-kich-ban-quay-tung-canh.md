@@ -161,9 +161,9 @@ placeholder.
   lúc chuẩn bị gõ 6 ô, gõ xong mới ghi tiếp** (cùng cách xử lý Cảnh 2, không phải cắt/dựng phim) —
   đây là ưu tiên xử lý cao nhất nếu chỉ chọn được MỘT cảnh để làm đúng. *(Che ô nhập bằng chấm đã bị
   PO rút lại — xem Cảnh 2.)*
-- **Nhắc riêng của cảnh này:** khối "Thông tin giao dịch" từng có dòng trích "Nghị định 13/2023/NĐ-CP"
-  đã hết hiệu lực — Coder đang sửa (xem file gốc mục 3 mới). Xác nhận đã sửa bằng ảnh mới trước khi
-  coi cảnh này an toàn tuyệt đối để lên hình nguyên trạng.
+- ~~Nhắc riêng: khối "Thông tin giao dịch" từng trích "Nghị định 13/2023/NĐ-CP" đã hết hiệu lực~~
+  **ĐÃ SỬA 31/08 (commit `9d46a3c`, tự đọc diff xác nhận)** — dòng giờ đọc đúng "Luật 91/2025/QH15,
+  NĐ 356/2025/NĐ-CP". Hết áp dụng, khối này lên hình bình thường.
 
 ## Sau khi quay — trước khi coi là "xong"
 
