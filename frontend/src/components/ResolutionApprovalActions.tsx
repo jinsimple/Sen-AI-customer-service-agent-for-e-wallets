@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ApiError, approveResolution, rejectResolution, requestResolutionApprovalOtp } from "@/lib/api";
 import { REJECT_REASON_LABEL, type RejectReason } from "@/lib/types";
+import OtpInput from "@/components/OtpInput";
 
 const REJECT_REASONS = (Object.keys(REJECT_REASON_LABEL) as RejectReason[]).map((value) => ({
   value,
@@ -18,9 +19,11 @@ const REJECT_REASONS = (Object.keys(REJECT_REASON_LABEL) as RejectReason[]).map(
  * hành động chạm tiền, chỗ ít được phép lệch nhau nhất.
  *
  * AUTH5-04: duyệt cần OTP RIÊNG cho ĐÚNG resolution_id đang duyệt (PSD2
- * dynamic linking, gắn với đúng số tiền tại thời điểm xin mã). Môi trường
- * demo trả mã thẳng trong response nên hiện luôn cho sếp thấy, không bắt gõ
- * tay số đã biết sẵn — cùng cách luồng OTP của khách đang làm.
+ * dynamic linking, gắn với đúng số tiền tại thời điểm xin mã).
+ *
+ * Hotfix P0 31/08: đợt vá `bdaf17e` ngừng trả `otp_code` qua response body
+ * (OTP_DEMO_MODE mặc định tắt) — sếp giờ phải TỰ gõ mã nhận qua kênh khác,
+ * dùng chung `OtpInput` với luồng khách (xem `@/components/OtpInput.tsx`).
  *
  * Component này KHÔNG tự kiểm quyền: nơi gọi phải tự bảo đảm chỉ render cho
  * supervisor. Quyền thật vẫn do backend ép (require_role + OTP), UI chỉ phản
@@ -36,7 +39,8 @@ export default function ResolutionApprovalActions({
   onError: (msg: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [otp, setOtp] = useState<{ sessionId: string; otpCode: string } | null>(null);
+  const [otp, setOtp] = useState<{ sessionId: string } | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
   // ADR-019 — từ chối phải kèm lý do có cấu trúc, nên nút "Từ chối" mở form
   // chọn lý do trước, không gửi thẳng như trước.
   const [chonLyDo, setChonLyDo] = useState(false);
@@ -46,7 +50,8 @@ export default function ResolutionApprovalActions({
     setBusy(true);
     try {
       const res = await requestResolutionApprovalOtp(resolutionId);
-      setOtp({ sessionId: res.session_id, otpCode: res.otp_code });
+      setOtp({ sessionId: res.session_id });
+      setOtpError(null);
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Không xin được mã OTP duyệt");
     } finally {
@@ -54,15 +59,18 @@ export default function ResolutionApprovalActions({
     }
   }
 
-  async function handleConfirmApprove() {
+  async function handleConfirmApprove(otpCode: string) {
     if (!otp) return;
     setBusy(true);
+    setOtpError(null);
     try {
-      await approveResolution(resolutionId, otp.sessionId, otp.otpCode);
+      await approveResolution(resolutionId, otp.sessionId, otpCode);
       setOtp(null);
       await onDone();
     } catch (e) {
-      onError(e instanceof ApiError ? e.message : "Duyệt thất bại");
+      const msg = e instanceof ApiError ? e.message : "Duyệt thất bại";
+      setOtpError(msg);
+      onError(msg);
     } finally {
       setBusy(false);
     }
@@ -87,13 +95,15 @@ export default function ResolutionApprovalActions({
     return (
       <div className="note callout-gold approval-otp-row" style={{ marginTop: 16 }}>
         <div>
-          Mã OTP xác nhận duyệt: <strong className="mono approval-otp-code">{otp.otpCode}</strong>{" "}
-          (còn hiệu lực 10 phút, chỉ dùng được cho đúng đề xuất này)
+          Nhập mã OTP xác nhận duyệt (còn hiệu lực 10 phút, chỉ dùng được cho đúng đề xuất này):
         </div>
+        <OtpInput
+          disabled={false}
+          checking={busy}
+          error={otpError}
+          onSubmit={(otpCode) => void handleConfirmApprove(otpCode)}
+        />
         <div className="flex gap-sm wrap" style={{ marginTop: 8 }}>
-          <button className="btn btn-success" disabled={busy} onClick={handleConfirmApprove}>
-            Xác nhận duyệt
-          </button>
           <button className="btn btn-outline" disabled={busy} onClick={() => setOtp(null)}>
             Huỷ
           </button>

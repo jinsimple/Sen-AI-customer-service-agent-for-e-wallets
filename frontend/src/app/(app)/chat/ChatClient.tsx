@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import BannerLechVai from "@/components/BannerLechVai";
+import OtpInput from "@/components/OtpInput";
 import { ApiError, agentChat, getCustomerHistory, requestLiveChatWsTicket, requestOtp, verifyOtp } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, type ComplaintType, type CustomerHistory } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -97,89 +98,11 @@ function nid() {
   return crypto.randomUUID();
 }
 
-function OtpForm({
-  disabled,
-  checking,
-  error,
-  onSubmit,
-}: {
-  disabled: boolean;
-  checking: boolean;
-  error: string | null;
-  onSubmit: (otpCode: string) => void;
-}) {
-  // Controlled (không thao tác DOM tay) — bắt buộc để gõ ĐÈ lên ô đã có sẵn
-  // số hoạt động đúng: input maxLength=1 chưa được bôi đen thì trình duyệt
-  // chặn ký tự mới (đã đạt maxLength), onChange không bắn, không tự nhảy ô.
-  // onFocus bôi đen nội dung cũ để gõ đè luôn thay thế được, dù gõ theo thứ
-  // tự nào hay quay lại ô đã điền.
-  //
-  // AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4) — bỏ
-  // hẳn ô "câu trả lời bảo mật": KBA không còn là authenticator, mã OTP là
-  // yếu tố step-up duy nhất (xem src/api/main.py::verify_otp).
-  const [digits, setDigits] = useState(["", "", "", "", "", ""]);
-  const refs = useRef<Array<HTMLInputElement | null>>([]);
-
-  function handleChange(i: number, value: string) {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    setDigits((prev) => {
-      const next = [...prev];
-      next[i] = digit;
-      return next;
-    });
-    if (digit && i < 5) refs.current[i + 1]?.focus();
-  }
-
-  function handleKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !digits[i] && i > 0) {
-      refs.current[i - 1]?.focus();
-    }
-    if (e.key === "Enter" && canSubmit) onSubmit(digits.join(""));
-  }
-
-  const canSubmit = !disabled && !checking && digits.every(Boolean);
-
-  return (
-    <>
-      <div className="otp-row">
-        {digits.map((d, i) => (
-          <input
-            key={i}
-            ref={(el) => {
-              refs.current[i] = el;
-            }}
-            className="otp-box"
-            inputMode="numeric"
-            maxLength={1}
-            value={d}
-            disabled={disabled || checking}
-            onChange={(e) => handleChange(i, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(i, e)}
-            onFocus={(e) => e.target.select()}
-          />
-        ))}
-      </div>
-      {error && (
-        <div className="dim" style={{ color: "var(--danger, #d33)", fontSize: 12, marginTop: 6 }}>
-          {error}
-        </div>
-      )}
-      {!error && !canSubmit && !checking && digits.some(Boolean) && (
-        <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
-          Nhập đủ 6 số OTP để tiếp tục.
-        </div>
-      )}
-      <button
-        className="btn btn-gold btn-sm"
-        style={{ marginTop: 12 }}
-        disabled={!canSubmit}
-        onClick={() => onSubmit(digits.join(""))}
-      >
-        {checking ? "Đang xác thực..." : "Xác nhận"}
-      </button>
-    </>
-  );
-}
+// AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4) — bỏ hẳn ô
+// "câu trả lời bảo mật": KBA không còn là authenticator, mã OTP là yếu tố
+// step-up duy nhất (xem src/api/main.py::verify_otp). Ô nhập OTP 6 số dùng
+// chung (`OtpInput`, tách ra 31/08 để tái dùng ở luồng sếp duyệt) — xem
+// `@/components/OtpInput.tsx`.
 
 // Lỗi 12 (PO thật 19/08, docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md
 // mục 12): cổng OTP V6 áp cho thẻ "Giao dịch gần đây" nhưng SÓT thẻ "Lịch
@@ -815,7 +738,7 @@ export default function ChatClient({
                           Mã OTP phiên làm việc (mô phỏng — gửi tới {phone}): <strong>{m.demoOtpCode}</strong>
                         </span>
                       </div>
-                      <OtpForm
+                      <OtpInput
                         disabled={m.resolved}
                         checking={m.checking}
                         error={m.error}
