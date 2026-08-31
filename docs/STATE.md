@@ -477,6 +477,47 @@ LỆ của phép đo**, không phải lỗi điểm số.
 `hai_nhom_buoc4.csv`) — chúng không bao giờ cải thiện được, để lại sẽ kéo kết quả xuống oan.
 🔴 **KHÔNG sửa bộ đề cho tới khi đo xong** — đụng bộ đề giữa lúc so trước/sau là tự phá phép so.
 
+### 0b.19 ⏸ BƯỚC 4 (đo cổng CTC1) **CHƯA CHẠY ĐƯỢC** — bàn giao, 6 lần hỏng đã mổ xẻ
+
+**Trạng thái:** ảnh `fin05-backend:ctc1` (`ba8a426b6d9a`) đã dựng ✅ · tệp 75 ca đã sinh và kiểm tay
+✅ (`eval_out/buoc4_subset.jsonl`, 29 đích + 46 chứng) · **chưa có một con số nào**.
+
+**🟢 CỔNG CTC1 VÔ CAN — đã chứng minh bằng đối chứng sạch.** Nhân bản đúng kịch bản, đổi ĐÚNG một
+dòng (ảnh `ctc1` → `latest`, tức bản KHÔNG cổng), giữ nguyên dữ liệu/bộ nhớ/model/mount:
+cả hai đều chết ở ca 1, mã thoát 137, không phao. ⟹ Lỗi môi trường đo, **không phải mã Coder viết**.
+
+**Sáu lần hỏng, nguyên nhân và cách vá:**
+
+| # | hỏng vì | mã thoát | đã vá? |
+|---|---|---|---|
+| 1 | mount TỆP vào trong THƯ MỤC đã bind — Docker Desktop macOS từ chối | **0** | ✅ chép tệp vào `eval_out/` |
+| 2 | chú thích đặt GIỮA lệnh nối dòng `\` — bash nuốt phần sau, lệnh hỏng | **0** | ✅ đưa lên trên khối |
+| 3 | `\| tail -20` cắt mất chính thông báo lỗi cần đọc | **0** | ✅ ghi trọn log ra tệp |
+| 4 | 🔴 **SAI MODEL**: kịch bản chạy `qwen3.7-max-2026-05-20`, baseline là `qwen3.8-flash` | 137 | ✅ về `qwen3.8-flash` |
+| 5 | tràn bộ nhớ: máy ảo Docker 7,75 GiB gánh 32 container | 137 | ❌ **còn** |
+| 6 | `cd` sai thư mục ⟹ `$(pwd)` trỏ nhầm khi tự gõ lại lệnh | 125 | ✅ nhân bản kịch bản thay vì gõ tay |
+
+🔴 **BA lần đầu MÃ THOÁT = 0 trong khi KHÔNG GÌ CHẠY.** Thứ duy nhất phát hiện được là **đếm hiện
+vật**. Luật này đã niêm ở §0b.15 và PO-agent vẫn tự vấp 3 lần liên tiếp trong 10 phút — nó **không
+sống được trong tài liệu, phải thành phản xạ tay**.
+
+🔴 **LỖI #4 LÀ THỨ ĐÁNG GIÁ NHẤT CẢ LÀN ĐO.** Nếu lượt đó chạy trót lọt, ta có bảng "trước/sau" đổi
+**cùng lúc HAI biến** (cổng + model) — trông hoàn chỉnh, hợp lệ, sẵn sàng vào báo cáo, và **không ai
+tách được**. Thứ cứu ta là một sự cố hạ tầng, không phải kỷ luật của ai.
+⟹ **Model là một DANH TÍNH của lượt đo, y hệt băm mã.** Ta có cổng băm tự chặn nhưng **KHÔNG có
+cổng model** — đang giao Coder bổ sung.
+
+**Việc còn lại cho phiên sau:**
+① Giải phóng bộ nhớ máy ảo Docker — tắt bớt ngăn cũ bằng `stop` (`fin05ttl` mã 18/08, `fin05do` mã
+24/08). 🔴 **TUYỆT ĐỐI KHÔNG chạm `fin05-qa-stripe`** nếu chưa quay xong.
+② `chay_buoc4_subset.sh` dòng 52 **ghi cứng** `--file` ⟹ bỏ qua tham số. Truyền tệp 3 ca vào nó vẫn
+chạy 75 ca. **Bẫy TIỀN**: người tưởng đang thử rẻ sẽ trả cho lượt lớn.
+③ Chạy, rồi `bon_cong_buoc4.py` **TRƯỚC** khi đọc điểm. Bốn cổng, đỏ cái nào dừng cái đó.
+④ `src/` đang **ĐÓNG BĂNG** cho tới khi ④ xong — 2 chuỗi `NĐ 13/2023` còn lại chỉ là chú thích
+(không vào prompt, không tới khách) nhưng **sửa là đổi băm** ⟹ ảnh `ctc1` lệch HEAD, phiên sau gặp
+cổng băm đỏ khó hiểu. Gỡ băng thì làm **GỘP MỘT LẦN**: sửa chuỗi + dựng lại ảnh + cập nhật băm mong
+đợi trong cả hai kịch bản.
+
 ---
 
 ## 0. 🔴 BÀN GIAO 27/08 17:5x — TOÀN ĐỘI TẮT. ĐỌC MỤC NÀY TRƯỚC TIÊN.
