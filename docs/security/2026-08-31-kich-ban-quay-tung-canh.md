@@ -167,10 +167,12 @@ làm lệch các tham chiếu đó. Không có Cảnh 6 riêng nữa — đã g�
   mới tạo — dù hiển thị gộp một bong bóng cho khách). Nếu có thể, để camera đứng lâu hơn ở cảnh này so
   với các cảnh khác.
 - **Ngoài khung hình:** không có.
-- 🟡 **TỒN ĐỌNG:** cảnh này có thể phải soát lại sau khi cổng "ép-tra-trước" (đang làm, chưa land) đi
-  vào bản chạy thật — cần xác nhận lại hành vi gộp-một-bong-bóng này có giữ nguyên không sau khi cổng
-  đổi cách agent xử lý tra cứu. Soát lại khi cổng đó land và đo xong, đừng quay bản cũ nếu hành vi
-  đã đổi.
+- 🟡 **TỒN ĐỌNG, ĐIỀU KIỆN RÕ (cập nhật 01/09, đừng hiểu nhầm là phải sửa ngay):** cảnh này chỉ cần
+  soát lại **NẾU sau này quay trên bản ĐÃ CÓ cổng "ép-tra-trước"**. Hiện tại (01/09): PO đã gỡ băng
+  `src/`, Coder sắp dựng lại ảnh có cổng đó — **nhưng ngăn dùng để QUAY PHIM vẫn giữ bản KHÔNG có
+  cổng**, nên mô tả Cảnh 5 ở trên **vẫn đúng cho buổi quay sắp tới**, không cần sửa gì bây giờ. Chỉ
+  khi nào quyết định quay trên một bản build MỚI có cổng đó, mới cần xác nhận lại hành vi
+  gộp-một-bong-bóng này còn giữ nguyên không.
 
 ## Cảnh 7 — CSKH xem hồ sơ
 
