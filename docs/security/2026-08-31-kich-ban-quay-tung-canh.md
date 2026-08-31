@@ -68,6 +68,16 @@
   - Khách (Cảnh 1-6): SĐT + mật khẩu.
   - CSKH (Cảnh 7): tài khoản đăng nhập qua `/dang-nhap-noi-bo`.
   - Sếp/supervisor (Cảnh 8): tài khoản đăng nhập qua `/dang-nhap-noi-bo`, vai khác CSKH.
+□ 🔴 BẮT BUỘC, làm CUỐI CÙNG — ngay TRƯỚC khi bấm quay Cảnh 1 (kiểm ở phút chót mới có nghĩa; kiểm
+  đầu buổi rồi làm việc khác nửa tiếng thì thành lời khẳng định cũ). **[Tự chạy, xác nhận khớp trước
+  khi ghi vào đây]:**
+    docker exec fin05-qa-stripe-backend-1 cat /app/.bam_ma_nguon
+  → phải in đúng: `9c17c5684c9a`
+  → in ra thứ KHÁC ⟹ **DỪNG, KHÔNG BẤM MÁY, báo ngay** — nghĩa là ngăn đã bị dựng lại/đổi ảnh, mọi
+  cảnh trong kịch bản này (đã kiểm trên đúng băm này) không còn đảm bảo đúng như mô tả.
+  *(Lý do đây là PHÉP ĐO, không phải MỆNH LỆNH: lệnh cấm đụng `qa-stripe` phụ thuộc mọi người nhớ và
+  tuân theo; một `docker compose up` vô hại nhắm nhầm ngăn không mệnh lệnh nào chặn được, nhưng phép
+  đo 5 giây này thì luôn đúng bất kể ai quên gì.)*
 ```
 
 ## Cảnh 1 — Đăng nhập (khách)
@@ -131,8 +141,11 @@
 
 - **Màn hình:** `/chat`, các bước agent gọi tool (hiện trạng thái "đang tra cứu"/kết quả).
 - **Thao tác:** để agent tự chạy, không cần bấm gì thêm — có thể cần trả lời 1 câu hỏi làm rõ nếu
-  agent hỏi lại (vd xác nhận đúng giao dịch). **Câu trả lời MẪU nếu agent hỏi lại:** "Đúng, đúng giao
-  dịch đó." — ngắn, khẳng định thẳng, tránh gõ dài dòng dễ lệch khỏi kịch bản đã tập.
+  agent hỏi lại (vd xác nhận đúng giao dịch). **Câu trả lời nếu agent hỏi lại — 🟡 ĐỀ XUẤT, CHƯA CHẠY
+  THỬ (khác Cảnh 4/6 đã xác nhận):** "Đúng, đúng giao dịch đó." — ngắn, khẳng định thẳng, tránh gõ
+  dài dòng dễ lệch khỏi kịch bản đã tập. **Cần QA/QC gõ đúng câu này trong lượt diễn tập cuối trước
+  khi quay thật** — nếu chạy được, đổi nhãn thành ĐÃ XÁC NHẬN; nếu agent phản ứng khác dự kiến, thay
+  bằng câu đã thử thành công và cập nhật lại đây.
 - 🟡 **TỒN ĐỌNG:** cảnh này gần như chắc chắn phải đổi sau khi cổng "ép-tra-trước" (đang làm, chưa
   land) đi vào bản chạy thật — cổng đó khiến agent TRA NGAY thay vì có khả năng hỏi lại khách như mô
   tả hiện tại. Soát lại cảnh này khi cổng đó land và đo xong, đừng quay bản cũ sau khi cổng đã đổi
