@@ -293,7 +293,7 @@ export default async function Home() {
           <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-14)" }}>
             Thiết kế theo khung pháp lý hiện hành cho trung gian thanh toán tại Việt Nam —{" "}
             <b style={{ color: "var(--text)" }}>NĐ 52/2024</b> và <b style={{ color: "var(--text)" }}>TT 40/2024</b>.
-            Dữ liệu cá nhân xử lý theo <b style={{ color: "var(--text)" }}>NĐ 13/2023</b>. Thông tin bên
+            Dữ liệu cá nhân xử lý theo <b style={{ color: "var(--text)" }}>Luật 91/2025/QH15</b>. Thông tin bên
             thứ ba trong giao dịch được che trước khi hiển thị.
           </p>
           <p style={{ color: "var(--text-dim)", fontSize: "var(--fs-14)", marginTop: 12 }}>

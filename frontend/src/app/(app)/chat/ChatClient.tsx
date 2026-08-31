@@ -800,7 +800,7 @@ export default function ChatClient({
           {/* Thông báo xử lý dữ liệu — bản demo dùng dữ liệu mô phỏng, nhưng
               người test là NGƯỜI THẬT gõ chữ thật, nên vẫn cần cho họ biết nội
               dung chat được xử lý bởi nhà cung cấp AI nước ngoài. Đây là căn cứ
-              pháp lý cơ bản (NĐ 13/2023) và thực sự làm giảm lượng PII đi vào —
+              pháp lý cơ bản (Luật 91/2025/QH15 + NĐ 356/2025) và thực sự làm giảm lượng PII đi vào —
               đọc rồi thì người ta không gõ số điện thoại thật. Xem ADR-011. */}
           <div className="chat-disclaimer" style={{ paddingTop: 0 }}>
             <svg className="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5h.01" /></svg>

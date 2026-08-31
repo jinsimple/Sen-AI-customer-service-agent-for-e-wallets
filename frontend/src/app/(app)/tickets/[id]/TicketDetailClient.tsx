@@ -360,7 +360,7 @@ export default function TicketDetailClient({
                   </span>
                 </div>
                 <div className="note" style={{ marginTop: 10, fontSize: 11 }}>
-                  Đã che một phần theo PDPA (Nghị định 13/2023/NĐ-CP).
+                  Đã che một phần theo PDPA (Luật 91/2025/QH15, NĐ 356/2025/NĐ-CP).
                 </div>
               </>
             )}
