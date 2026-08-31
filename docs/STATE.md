@@ -366,6 +366,78 @@ kiểm bằng một `docker run` 5 giây, **0 token**. Script: `chay_lai_doi_kha
 
 Nối tiếp §8 và luật *"cổng có thể HẰNG ĐỎ chứ không chỉ hằng im"*.
 
+### 0b.16 🔴 ĐÊM 31/08 SAU BENCHMARK — bốn phát hiện, một trong đó gộp cả bốn
+
+**① P0: SẾP KHÔNG DUYỆT ĐƯỢC HOÀN TIỀN QUA GIAO DIỆN — và LỖI DO CHÍNH TA GÂY RA HÔM NAY.**
+
+`ResolutionApprovalActions.tsx:90` **hiển thị** `{otp.otpCode}` rồi nút bấm **dội lại** đúng giá
+trị đó — viết cho model cũ *"máy chủ trả mã, giao diện chỉ việc echo"*. Bản vá bảo mật `bdaf17e`
+của chính ta gỡ `otp_code` khỏi phản hồi ⟹ giá trị thành rỗng ⟹ luồng duyệt gãy. Backend từ chối
+ĐÚNG (422 `otp_code: Field required`), không hở khe nào.
+Ngăn `po-demo` (26/08, **chưa** có bản vá) thì nút này **vẫn chạy**. Bug chỉ hiện trên ngăn ĐÃ VÁ.
+
+🔴 **Bài học đắt nhất của ngày: một bản vá bảo mật không kèm test đầu-cuối là bản vá CHƯA HOÀN
+THÀNH.** Nó phá tính năng trung tâm của sản phẩm và sẽ đi thẳng ra production — không cổng nào
+hiện có bắt được, vì không test nào chạm đường đó.
+⟹ Và: **246 ca benchmark đo LÕI, không đo SẢN PHẨM.** Chạy thêm 246 ca nữa cũng không thấy lỗi
+này. Câu đó phải đi kèm mọi con số trích ra ngoài.
+
+**② GỘP BỐN TRIỆU CHỨNG THÀNH MỘT NGUYÊN NHÂN: agent HỎI thay vì LÀM.**
+
+Bóc 63 ca "tra không ra": **30 ca (48%) agent KHÔNG gọi công cụ nào** — trong đó **29/30 là agent
+TỰ CHỌN không gọi**, chỉ 1 ca do bộ lọc chặn. Dữ liệu thì CÓ (Review: 52/52 mã giao dịch tồn tại
+thật), số tiền khách nói **khớp tuyệt đối** với kho (Coder: 33/33, lệch 0,00%).
+
+Bốn thứ tưởng là bốn vấn đề, thật ra là một: *"hứa suông"* (10 ca) · không mở hồ sơ cho khách
+chính đáng (>50%) · ca lừa đảo bị bỏ bước tra rộng (3/5) · trích dẫn mã giao dịch kém (54,9%).
+⟹ Dung sai ±2% không cứu được **một lời gọi chưa bao giờ xảy ra**. Giả thuyết "khách làm tròn
+1.000đ" ĐÃ CHẾT (là artefact regex bắt nhầm SĐT 10 số thành số tiền) — **đừng dùng lại**.
+
+**③ 🔴 SỬA LỜI NHẮC LÀ HƯỚNG ĐÃ CHẾT — đừng ai đề xuất lại.**
+
+`src/agents/prompt.py` **đã dặn đúng điều đó BA LẦN**, in hoa, kèm ví dụ phản diện đúng y hành vi
+sai (dòng 15 · 18 · 41: *"GỌI TOOL NGAY LẬP TỨC, KHÔNG trả lời khách trước để hỏi thêm"*). Mô hình
+vẫn sai **29/180**.
+Đo prompt: **20.429 ký tự · 114 dòng · riêng dòng 40 dài 2.477 ký tự**. Từ nhấn mạnh: `KHÔNG` 34
+lần · `PHẢI` 16 · `TUYỆT ĐỐI` 13 · `BẮT BUỘC` 3.
+⟹ **Khi mọi thứ đều TUYỆT ĐỐI thì không gì còn tuyệt đối.**
+
+**Cách đúng — ÉP TRONG MÃ, và dự án tự có tiền lệ chứng minh:** Ràng buộc #3 dặn trong prompt thì
+mô hình vẫn định bịa, nhưng `_CHUA_TAO_DUOC_VE` (`graph.py:165`, áp `:2121`) đối chiếu CSDL thật và
+chặn **15/15**, không sót.
+> **Dặn thì tuân ~84%. Ép trong mã thì 100%.**
+
+**④ `refund` vs `money_not_received`: BỊ CHẶN BỞI MÔ HÌNH DỮ LIỆU, không phải bởi prompt.**
+
+`refund` chỉ đúng **5/11** — một mình gây quá nửa lỗi phân loại. Quy tắc đúng (chuyên gia của PO):
+*refund = giao dịch NGHỊCH, tồn tại giao dịch gốc bị đảo ngược*. Kiểm dữ liệu:
+- `transactions.jsonl` **KHÔNG có** trường liên kết giao dịch gốc (không `parent_txn_id`)
+- có `status='refunded'` (2.309 gd) nhưng **không dùng được**: chỉ 9/43 ca refund mang nó; 33 ca
+  còn lại mang `success`, **trùng với cả ba loại kia**
+⟹ **Hạn chế đã biết, có tên, có nguyên nhân.** Sửa prompt chỉ đổi kiểu đoán, không bỏ được việc
+đoán. Vá được khi mô hình dữ liệu có trường liên kết giao dịch gốc.
+Giữ lại dùng được ngay: **thứ tự kiểm 4 bước** (double_charge → wrong_transfer → refund → mặc
+định) và **`KHONG_XAC_DINH` thay vì rơi xuống mặc định** khi chưa đủ dữ kiện.
+
+**⑤ Phép đo NGƯỜI-vs-MÁY (gói chấm mù 10 ca, `eval/bo-cham/`, commit `7010e44`):**
+máy đúng 2/6 · người đúng 3/6 — và **sai NGƯỢC CHIỀU nhau**. Máy sai kiểu THỪA (bắt nhầm 4 ca
+agent đang từ chối tốt); người sai kiểu THIẾU (bỏ lọt cả 2 ca kẹt-lặp dù có toàn văn).
+⟹ Bug kẹt-lặp **khó thấy với cả máy lẫn người**; chỉ lộ khi đối chiếu lượt N với lượt N−1 CÓ CHỦ Ý.
+⟹ Phiếu chấm NGƯỜI phải ghi rõ **ĐANG HỎI CÂU GÌ** ngay đầu trang: máy hỏi *"có nói điều cấm
+không"*, người hỏi *"có phục vụ được khách không"* — thiếu dòng đó thì mọi so sánh người-máy về
+sau **không phát biểu được**.
+
+**⑥ BỐN LẦN trong một đêm hai nguồn ra hai số cho cùng một câu hỏi** (nhóm (e) 5/10/13 · phân loại
+129 phép kiểm · số tiền 28/28 vs 14/52 · tập ca 63 vs 52). **Không lần nào do ai đếm sai.**
+⟹ Luật: **một tỉ lệ không kèm MẪU SỐ (ca hay phép kiểm) và TIÊU CHÍ ĐẾM là con số CHƯA DÙNG
+ĐƯỢC**, dù nó đúng. Xem [[feedback_dinh_nghia_phep_dem_truoc_khi_truy_du_lieu]].
+
+**Đang chạy (PO duyệt 31/08):** vá P0 → diễn tập lại → chốt checklist quay → dựng cổng ép-tra-trước
+trong `src/agents` → chạy 52-63 ca (tín hiệu rẻ) → golden 120 → **đối kháng 66 (kiểm hồi quy an
+toàn, KHÔNG bỏ)**. ~8,3tr token.
+🔴 Sửa `src/` ⟹ **băm mã ĐỔI** khỏi `9c17c5684c9a`. Từ đó có **HAI bản mã cùng có kết quả đo** —
+mọi báo cáo phải khai băm nào. 246 ca hiện tại **vĩnh viễn** thuộc `9c17c5684c9a`.
+
 ---
 
 ## 0. 🔴 BÀN GIAO 27/08 17:5x — TOÀN ĐỘI TẮT. ĐỌC MỤC NÀY TRƯỚC TIÊN.
