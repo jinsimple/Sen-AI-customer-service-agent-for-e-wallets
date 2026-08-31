@@ -13,11 +13,19 @@
 > đoán "chắc là vậy". Chỗ nào tôi chưa tự mắt thấy trên trình duyệt (không có công cụ chụp màn hình)
 > được đánh dấu ⚠️ CẦN QA/QC XÁC NHẬN BẰNG ẢNH THẬT trước khi coi là đã kiểm đủ.
 >
-> 🟡 **CẬP NHẬT — TÀI LIỆU CHƯA CHỐT BẢN CUỐI.** PO quyết SỬA THẲNG (không chỉ né bằng cắt cảnh):
-> Coder đang tắt banner môi trường + `OTP_DEMO_MODE` trên `fin05-qa-stripe`. QA/QC sẽ chạy lại đường
-> quay + chụp ảnh xác nhận sau khi Coder xong. Hai mục 🔴-1/🔴-2 dưới đây sẽ chuyển từ "CẤM lên hình,
-> phải xử lý" sang "đã xử lý, chờ xác nhận ảnh trước khi quay thật" — **giữ nguyên nội dung điều tra
-> nguồn** (vẫn đúng, dùng làm bằng chứng TRƯỚC khi vá), thêm dòng trạng thái mới khi có ảnh.
+> 🟢 **CHỐT BẢN CUỐI 31/08 (PO).** Banner môi trường: đã tắt, xác nhận bằng ảnh thật
+> (`30_login_moi.png`, `31_chat_moi.png`). OTP hiện số khi gõ: xử lý bằng thao tác của người cầm máy
+> (dừng ghi hình lúc gõ, ghi tiếp sau — không phải trạng thái giao diện nên không có ảnh riêng để
+> chụp; điều kiện đóng đúng là panel đã xác nhận bằng ảnh (`64_...`) + hướng dẫn đủ rõ để làm theo,
+> QA/QC đã diễn tập — cả hai đã thoả). Mục 3 (trích luật hết hiệu lực trên UI): đã đóng, xác nhận
+> bằng diff `9d46a3c`.
+>
+> 🔴 **Còn 2 chỗ trong `src/` CỐ Ý CHƯA SỬA, ghi rõ để phiên sau không tưởng là sót:**
+> `src/config.py:547` và `src/agents/prompt.py:81` — cả hai là CHÚ THÍCH trong code (không lên UI,
+> không lên video), trích *"NĐ 13/2023 Điều 25"*. Cố ý hoãn, gộp chung đợt sửa với cổng ép-tra-trước
+> đang làm — vì `prompt.py` là system prompt của agent, đổi nó sẽ đổi **băm mã nguồn** dùng để đo
+> benchmark, không sửa hai lần trong cùng một đêm đo. Không phải sót, không chặn buổi quay (chú
+> thích code không hiện trên UI/video).
 
 ## 🔴 Ba điều CẤM TUYỆT ĐỐI, xuất hiện ở NHIỀU màn hình, không phải một chỗ
 

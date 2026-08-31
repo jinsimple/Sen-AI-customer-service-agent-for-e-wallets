@@ -1,4 +1,4 @@
-# Kịch bản quay từng cảnh — phần ĐÃ CHẠY ĐƯỢC
+# Kịch bản quay từng cảnh — 🟢 CHỐT BẢN CUỐI 31/08
 
 > Vai: `security`. Bổ sung cho `docs/security/2026-08-31-soat-quay-video-demo-duoc-cam-len-hinh.md`
 > (bản đó trả lời KHÔNG ĐƯỢC làm gì; tài liệu này trả lời NÊN làm gì, để người cầm máy quay MỘT LƯỢT,
