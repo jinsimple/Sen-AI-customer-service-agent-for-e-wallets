@@ -3139,3 +3139,69 @@ là để một quyết định chính sách đi lọt dưới danh nghĩa một
 
 **Đề xuất bậc 1 chờ PO** *(không đổi gì người dùng thấy)*: `propose_resolution` ·
 `escalate_ticket` · `request-approval-otp`.
+
+---
+
+## ADR-056 — Cổng ÉP TRA TRƯỚC (CTC1): chuyển một quy tắc từ prompt sang mã
+
+**Ngày:** 31/08/2026 · **PO duyệt:** có (*"gật nha"*, sau khi được trình dữ liệu) · **Trạng thái:** đang triển khai
+
+### Vấn đề — đo được, không phải cảm giác
+
+Trong 180 ca golden+heldout, **29 ca agent TỰ CHỌN không gọi một công cụ tra cứu nào** ở tin nhắn
+khiếu nại đầu tiên (chỉ 1 ca nữa do bộ lọc chặn). Nó hỏi khách thêm thông tin thay vì tự tra.
+
+Đây là **một nguyên nhân gộp bốn triệu chứng** từng bị coi là bốn vấn đề riêng: "hứa suông" (nói sẽ
+kiểm tra rồi không tra) · không mở hồ sơ cho khách chính đáng · ca lừa đảo bị bỏ bước tra rộng ·
+trích dẫn mã giao dịch kém (54,9%). Dữ liệu **có thật** (52/52 mã tồn tại trong kho), số tiền khách
+nói **khớp tuyệt đối** (33/33). Không phải công cụ tìm hụt — **lời gọi chưa bao giờ xảy ra**.
+
+### 🔴 Vì sao KHÔNG sửa bằng prompt — hướng này ĐÃ CHẾT, đừng đề xuất lại
+
+`prompt.py` **đã dặn đúng điều đó BA LẦN**, in hoa, kèm ví dụ phản diện đúng y hành vi sai
+(dòng 15 · 18 · 41: *"GỌI TOOL NGAY LẬP TỨC… KHÔNG trả lời khách trước để hỏi thêm. Bạn có khả năng
+tự tra cứu, đừng đẩy việc đó sang cho khách khi chưa thử."*). Mô hình vẫn sai 29/180.
+
+Đo prompt: **20.429 ký tự · 114 dòng** · `KHÔNG` 34 lần · `PHẢI` 16 · `TUYỆT ĐỐI` 13 · `BẮT BUỘC` 3.
+**Khi mọi thứ đều TUYỆT ĐỐI thì không gì còn tuyệt đối.**
+
+**Tiền lệ nội bộ chứng minh cách đúng:** Ràng buộc #3 dặn trong prompt thì mô hình vẫn định bịa,
+nhưng `_CHUA_TAO_DUOC_VE` đối chiếu CSDL thật và **chặn 15/15**, không sót.
+> **Dặn thì tuân ~84%. Ép trong mã thì 100%.**
+
+### Quyết định
+
+Tin nhắn **ĐẦU** của một luồng khiếu nại **+** lượt trả lời **không có lời gọi công cụ nào**
+⟹ **chặn**, thay bằng câu tất định dựng thẳng từ kết quả `get_customer_history` thật.
+
+🔴 **Điều kiện CHỈ hai vế — cố ý.** Bản đầu của PO đòi thêm "khách đã nêu số tiền / tên / thời
+gian", chép từ cách diễn đạt của prompt. **Đo lại thì 12/29 ca không có chi tiết nào** (dạng *"trừ
+trùng 2 lần rồi"*, *"lịch sử hiện 2 dòng giống hệt nhau"*) ⟹ bỏ sót 41%.
+`get_customer_history` có `amount: int | None = None` — **chạy được chỉ với `user_id`**. Nên
+**không bao giờ tồn tại lý do chính đáng để trả lời tin khiếu nại đầu tiên mà chưa nhìn lịch sử.**
+
+⟹ **Bài học chung: chuyển một quy tắc từ prompt sang mã KHÔNG phải chép lại câu chữ.** Prompt viết
+cho mô hình đọc nên liệt kê **ví dụ gợi ý**; mã cần điều kiện **đúng và đủ**. Chép nguyên văn là
+mang theo cả chỗ lỏng lẻo — mà chính chỗ lỏng đó là lý do prompt không hiệu lực ngay từ đầu.
+
+### Ranh giới — bốn ràng buộc, không được nới
+
+1. **Ưu tiên KHÔNG chặn khi không chắc.** Thà bỏ sót vài ca còn hơn phá ca đang chạy tốt.
+2. **PHẢI ghi lại mỗi lần nổ, vào KẾT QUẢ ĐO** chứ không chỉ vào log — bài học 5 lớp lọc O1-O5 cùng
+   thay một chuỗi, lớp nào bắn chỉ vào log ⟹ 19/22 ca không truy ngược được.
+3. 🔴 **CHỈ ép GỌI CÔNG CỤ TRA. TUYỆT ĐỐI không đẩy nhanh `create_ticket`** — chạm ADR-051 hai thì
+   và Ràng buộc cứng #1. Nâng một chỉ số mà phá một ràng buộc cứng là lỗ nặng hơn thứ đang sửa.
+4. `tests/test_invariants.py` **23/23 xanh**, chạy thật, dán kết quả.
+
+### Hệ quả
+
+🔴 **Sửa `src/` ⟹ băm mã ĐỔI khỏi `9c17c5684c9a`.** Từ đó có **HAI bản mã cùng có kết quả đo** —
+mọi báo cáo phải khai băm nào. **246 ca ngày 31/08 vĩnh viễn thuộc `9c17c5684c9a`.**
+
+Đo lại theo thứ tự, đỏ cổng nào **dừng** cổng đó: ① cổng có nổ ≥80% nhóm đích · ② ≥80% nhóm đích
+giờ có lời gọi công cụ · ③ **nhóm chứng 46 ca không tụt ca nào** · ④ điểm số **ghi lại, KHÔNG dùng
+làm cổng** (n=29, sai số ~7 điểm — đo điểm ở cỡ đó là đo nhiễu).
+Rồi golden 120, rồi **đối kháng 66 kiểm hồi quy an toàn — không được bỏ**.
+
+*(Câu tất định phải mở đầu bằng "Mình hiểu…" theo luật giọng văn `prompt.py:21` — PO bắt được lúc
+soát diff, không có phép kiểm tự động nào bắt luật này.)*
