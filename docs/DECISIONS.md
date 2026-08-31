@@ -3241,3 +3241,45 @@ lên tiền đề này cho tới khi có phép đo nhiễu.
 **Phép đo còn thiếu:** chạy 75 ca trên **cùng bản mã cũ** `9c17c5684c9a`, cùng điều kiện, để đo
 dao động tự nhiên. Chờ PO duyệt (~2,7tr token). Đây là **điều kiện để mọi so sánh trước/sau của dự
 án có nghĩa**, không phải một phép đo tuỳ chọn.
+
+### ✅ KẾT LUẬN ADR-056 — 01/09/2026, sau khi ĐO ĐƯỢC NHIỄU
+
+Chạy **75 ca** trên **cùng bản mã cũ** `9c17c5684c9a` (không cổng), cùng model, cùng đêm — để tách
+**nhiễu chạy lại** khỏi **tác dụng cổng**. Ba cột cho cùng 75 ca:
+
+| | nhóm CHỨNG (46 ca) | nhóm ĐÍCH (29 ca) |
+|---|---|---|
+| **Pass** baseline 31/08 | 46 *(theo định nghĩa chọn nhóm)* | 0 *(theo định nghĩa)* |
+| **Pass** chạy lại, mã cũ | 27 | 3 |
+| **Pass** có cổng | **27** | 6 |
+| **Có gọi công cụ** chạy lại | 42 | 22 |
+| **Có gọi công cụ** có cổng | 45 | **29** |
+
+**① CỔNG KHÔNG GÂY HỒI QUY — minh oan tuyệt đối.** Nhóm chứng: chạy-lại 27 Pass · có-cổng 27 Pass.
+**BẰNG NHAU.** Cổng ③ từng báo *"19/46 ca tụt"* ⟹ **toàn bộ là nhiễu**, không phải cổng.
+
+**② CỔNG CÓ TÁC DỤNG THẬT, đo được:** nhóm đích 22/29 → **29/29** có gọi công cụ. Đưa tới tuyệt đối.
+
+**③ 🔴 TIỀN ĐỀ GỐC ĐÃ ĐỔ.** Nhóm đích được chọn vì **0/29 gọi công cụ**. Chạy lại **cùng mã**:
+**22/29 CÓ gọi.** ⟹ **76% số ca ta gọi là "agent TỰ CHỌN không tra cứu" thực ra là một lần chụp ảnh
+vào lúc nó không tra.** Vấn đề thật nhỏ hơn nhiều so với con số 29/180 đã dựng nên ADR này.
+
+**④ Điểm số KHÔNG lên:** nhóm đích 3 → 6 Pass (n=29, trong nhiễu). **Tra cứu nhiều hơn không tự
+động thành trả lời đúng hơn.**
+
+### ⟹ LÝ DO GIỮ CỔNG PHẢI VIẾT LẠI
+
+**KHÔNG phải** "sửa một lỗi lớn ở 29/180 ca". **MÀ LÀ**: biến một hành vi **76% tuỳ lượt** thành
+**100% tất định** ở bước quan trọng nhất — lần chạm đầu tiên với khách đang mất tiền. Với sản phẩm
+tài chính, **bỏ tính ngẫu nhiên** ở bước đó tự nó là giá trị, kể cả khi điểm không nhích.
+**Giữ cổng.** Không lùi. Nhưng đừng ai trích ADR này như bằng chứng "đã sửa một lỗ lớn".
+
+### 🔴 CẢNH BÁO THỐNG KÊ — chỗ PO-agent suýt đọc sai, ghi lại để phiên sau không lặp
+
+Thoạt nhìn "baseline 46 Pass → chạy lại 30 Pass trên cùng mã" trông như bằng chứng **điểm tổng
+không ổn định**. **SAI.** Hai nhóm được chọn **DỰA TRÊN chính kết quả lượt đầu** (chứng = đã Pass,
+đích = 0 công cụ) ⟹ lượt sau **bắt buộc** kém đi kể cả khi không có nhiễu nào. Đó là **hồi quy về
+trung bình**, không phải bằng chứng độ ổn định.
+⟹ **Ta vẫn CHƯA biết điểm tổng 120 ca dao động bao nhiêu.** Phép đo này KHÔNG trả lời được — mẫu
+thiên lệch. Không được nói nó ổn định, cũng không được nói nó không ổn định.
+⟹ Muốn biết: chạy lại **TOÀN BỘ** golden 120 trên cùng mã, không chọn lọc. Chưa làm.
