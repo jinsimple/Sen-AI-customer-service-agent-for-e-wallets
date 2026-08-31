@@ -3205,3 +3205,39 @@ Rồi golden 120, rồi **đối kháng 66 kiểm hồi quy an toàn — không 
 
 *(Câu tất định phải mở đầu bằng "Mình hiểu…" theo luật giọng văn `prompt.py:21` — PO bắt được lúc
 soát diff, không có phép kiểm tự động nào bắt luật này.)*
+
+### 🔴 CẢNH BÁO BỔ SUNG ADR-056 — 01/09/2026: TIỀN ĐỀ ĐANG BỊ NGHI NGỜ
+
+**Đo được sau khi ADR-056 đã viết và cổng đã commit (`f6045f9`):**
+
+| ca | baseline 31/08 | chạy lại 01/09 | băm mã |
+|---|---|---|---|
+| `CASE-170` | **0 công cụ** · Blocker | 1 công cụ · Blocker | `9c17c5684c9a` — **giống hệt** |
+| `CASE-051` | **0 công cụ** · Blocker | 2 công cụ · Blocker | `9c17c5684c9a` — **giống hệt** |
+| `CASE-129` | **0 công cụ** · Blocker | 3 công cụ · **PASS** | `9c17c5684c9a` — **giống hệt** |
+
+**Cùng bản mã, cùng ca, cùng model, KHÔNG bản vá nào ở giữa. Chỉ là chạy lại.**
+
+⟹ Con số **"29/180 ca agent TỰ CHỌN không gọi công cụ"** — tiền đề của toàn bộ ADR này — **có thể
+phần lớn là NHIỄU GIỮA CÁC LƯỢT CHẠY**, không phải tính chất ổn định của sản phẩm.
+
+**Cổng CTC1 KHÔNG nổ trong phép thử 3 ca** (`loc_dau_ra_theo_luot` rỗng, câu trả lời là văn model
+tự viết chứ không phải mẫu tất định) — nhưng agent **vẫn** tra cứu đàng hoàng. Tức cải thiện quan
+sát được ở lượt đo **không đến từ cổng**.
+
+🔴 **RANH GIỚI — đừng nói quá theo chiều ngược lại:** 3 ca là quá ít để định lượng nhiễu. Điểm
+TỔNG HỢP trên 120 ca ổn định hơn nhiều (trung bình triệt tiêu bớt nhiễu), nên **26,7% và độ lệch
+3,4 điểm golden↔heldout vẫn dùng được**. Thứ không đứng vững là **kết luận hành vi ở mức TỪNG CA
+rút ra từ MỘT lượt chạy**.
+
+**Lỗ phương pháp thật, cả đội cùng đi qua:** đo 246 ca · viết báo cáo · dựng ADR · viết cổng · tốn
+12 triệu token — mà **chưa từng chạy cùng một thứ hai lần**. Suốt quá trình, mọi khác biệt giữa hai
+lượt đều được mặc định là *do thay đổi*.
+
+**KHÔNG lùi cổng CTC1** — nó không gây hại đã chứng minh (đối chứng: ảnh không-cổng chết y hệt khi
+thiếu bộ nhớ), và ràng buộc "ưu tiên KHÔNG chặn khi không chắc" vẫn giữ. Nhưng **KHÔNG xây tiếp**
+lên tiền đề này cho tới khi có phép đo nhiễu.
+
+**Phép đo còn thiếu:** chạy 75 ca trên **cùng bản mã cũ** `9c17c5684c9a`, cùng điều kiện, để đo
+dao động tự nhiên. Chờ PO duyệt (~2,7tr token). Đây là **điều kiện để mọi so sánh trước/sau của dự
+án có nghĩa**, không phải một phép đo tuỳ chọn.
