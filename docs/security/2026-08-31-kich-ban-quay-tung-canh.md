@@ -8,8 +8,9 @@
 > chi tiết, chỉ trỏ tới bằng số cảnh tương ứng.
 >
 > Luồng đã xác nhận chạy trọn (QA/QC 31/08, tự đi lại kịch bản này như người cầm máy thật — làm đúng
-> chữ, không tự suy thêm): đăng nhập → OTP → xem giao dịch → mô tả khiếu nại → agent điều tra → tạo
-> hồ sơ → CSKH xem → trình sếp → **sếp duyệt CŨNG đã xác nhận chạy được** (P0 vá xong, xem Cảnh 8).
+> chữ, không tự suy thêm): đăng nhập → OTP → xem giao dịch → mô tả khiếu nại → **agent tra cứu VÀ xin
+> xác nhận tạo hồ sơ trong CÙNG một bong bóng** (Cảnh 5, gộp lại 31/08 — xem cảnh đó) → CSKH xem →
+> trình sếp → **sếp duyệt CŨNG đã xác nhận chạy được** (P0 vá xong, xem Cảnh 8).
 >
 > 🟡 **CẬP NHẬT 31/08 — 6 chỗ QA/QC vướng khi đi đúng chữ, đã sửa vào bản này:** lệnh tra OTP còn
 > chung chung (mục Chuẩn bị + Cảnh 2 + Cảnh 8), rủi ro 6 ô OTP hiện số khi gõ (Cảnh 2 + Cảnh 8),
@@ -137,40 +138,39 @@
   xác nhận riêng bằng thực tế trước khi đưa vào quay — không suy đoán nó cũng chạy được.
 - **Ngoài khung hình:** không có.
 
-## Cảnh 5 — Agent điều tra
+## Cảnh 5 — Agent tra cứu & xác nhận tạo hồ sơ
 
-- **Màn hình:** `/chat`, các bước agent gọi tool (hiện trạng thái "đang tra cứu"/kết quả).
-- **Thao tác:** để agent tự chạy, không cần bấm gì thêm — có thể cần trả lời 1 câu hỏi làm rõ nếu
-  agent hỏi lại (vd xác nhận đúng giao dịch). **Câu trả lời nếu agent hỏi lại:** "Đúng, đúng giao
-  dịch đó." — ngắn, khẳng định thẳng, tránh gõ dài dòng dễ lệch khỏi kịch bản đã tập.
-  🟡 **Nhãn đúng phạm vi đã đo (sửa 31/08, đừng nói rộng hơn):** QA/QC đã gõ đúng câu này và **chạy
-  được, tạo vé thật `TCK-0c9436641f04`** — nhưng bong bóng agent nhận được lúc đó KHÔNG PHẢI câu "hỏi
-  lại vì mơ hồ giao dịch nào" như mô tả ở trên, mà là bong bóng GỘP SẴN kết quả tra cứu + câu hỏi xác
-  nhận tạo hồ sơ (gần với cơ chế Cảnh 6 hơn Cảnh 5). Với giao dịch họ chọn để thử (không mơ hồ), agent
-  không cần hỏi lại kiểu phân biệt — **nhánh "hỏi vì mơ hồ" CHƯA được tái hiện đúng tình huống**.
-  ⟹ Đây là **câu trả lời đã xác nhận chạy đúng trên một câu hỏi xác nhận thật của agent (31/08)**,
-  không phải xác nhận cho đúng kịch bản "mơ hồ giao dịch" mô tả ở trên. Nếu giao dịch chọn ở Cảnh 3
-  đủ rõ ràng (khớp cách QA/QC đã thử), nhiều khả năng KHÔNG CẦN nhánh hỏi-lại-vì-mơ-hồ này trong buổi
-  quay thật — câu trả lời trên vẫn dùng được nếu agent hỏi bất kỳ câu xác nhận nào tương tự.
-- 🟡 **TỒN ĐỌNG:** cảnh này gần như chắc chắn phải đổi sau khi cổng "ép-tra-trước" (đang làm, chưa
-  land) đi vào bản chạy thật — cổng đó khiến agent TRA NGAY thay vì có khả năng hỏi lại khách như mô
-  tả hiện tại. Soát lại cảnh này khi cổng đó land và đo xong, đừng quay bản cũ sau khi cổng đã đổi
-  hành vi.
-- **Điểm nhấn — QUAN TRỌNG NHẤT của cả video:** đây là chỗ chứng minh "AI điều tra bằng tool thật,
-  không bịa số liệu" — mọi số agent nhắc tới (số tiền, mã giao dịch, thời điểm) phải khớp đúng dữ
-  liệu vừa thấy ở Cảnh 3. Nếu có thể, để camera đứng lâu hơn ở cảnh này so với các cảnh khác.
+🔴 **CƠ CẤU LẠI 31/08 — gộp Cảnh 5 + Cảnh 6 cũ thành MỘT cảnh, theo đúng hành vi thật QA/QC quan sát
+được, không phải theo suy đoán ban đầu về sản phẩm.** Bản trước viết hai cảnh tách rời: "Cảnh 5 —
+agent điều tra, có thể hỏi lại làm rõ" rồi "Cảnh 6 — agent tóm tắt & xin xác nhận, một lượt riêng".
+**Thực tế đo được (QA/QC, đường bấm nút → chip ở Cảnh 4):** agent trả về **MỘT bong bóng DUY NHẤT**
+gộp sẵn kết quả tra cứu + câu hỏi xác nhận tạo hồ sơ — không tách thành hai lượt như kịch bản cũ giả
+định. Người quay theo bản cũ sẽ đợi một bong bóng "chỉ hỏi làm rõ" không bao giờ tới rồi lúng túng
+trước ống kính — đây đúng loại sai khác chỉ lộ ra khi có người đi thật qua sản phẩm, không lộ ra khi
+viết kịch bản từ hiểu biết chung về luồng nghiệp vụ.
+*(Số hiệu cảnh giữ nguyên "nhảy" 5 → 7, KHÔNG đánh số lại — nhiều tài liệu khác (checklist gốc,
+`docs/security/2026-08-31-quy-trinh-soat-ban-ghi-tho.md`) đã tham chiếu "Cảnh 8" cụ thể, đổi số sẽ
+làm lệch các tham chiếu đó. Không có Cảnh 6 riêng nữa — đã gộp vào đây.)*
+
+- **Màn hình:** `/chat`, sau khi bấm chip ở Cảnh 4 — agent tự gọi tool tra cứu (hiện trạng thái "đang
+  tra cứu" thoáng qua), rồi trả về MỘT bong bóng gộp: kết quả tra cứu + câu hỏi xác nhận tạo hồ sơ.
+- **Thao tác:** không cần bấm gì thêm cho tới khi bong bóng đó xuất hiện — gõ câu xác nhận. **Hai câu
+  ĐÃ XÁC NHẬN CHẠY ĐƯỢC (QA/QC 31/08, cả hai đều tạo vé thật)**, dùng câu nào cũng được:
+  - *"Đúng, đúng giao dịch đó."* → tạo vé `TCK-0c9436641f04`.
+  - *"Có, tôi đồng ý để bạn tạo hồ sơ khiếu nại giúp tôi."* → tạo vé (lượt xác nhận trước đó).
+  Muốn chắc 100% khi quay, dùng nguyên một trong hai câu trên, đừng tự diễn đạt lại.
+- **Điểm nhấn — QUAN TRỌNG NHẤT của cả video:** hai việc cùng lúc, cả hai đều đáng nói thành lời nếu
+  kịch bản có thoại giải thích: (1) mọi số agent nhắc tới (số tiền, mã giao dịch, thời điểm) trong
+  bong bóng phải khớp đúng dữ liệu vừa thấy ở Cảnh 3 — chứng minh "AI điều tra bằng tool thật, không
+  bịa số liệu"; (2) dù gộp một bong bóng, agent vẫn CHỜ xác nhận rồi mới thật sự tạo vé — không tự ý
+  tạo chỉ từ một câu mơ hồ, đây là cơ chế ADR-051 (hai LƯỢT GỌI TOOL tách biệt bên trong — đề xuất rồi
+  mới tạo — dù hiển thị gộp một bong bóng cho khách). Nếu có thể, để camera đứng lâu hơn ở cảnh này so
+  với các cảnh khác.
 - **Ngoài khung hình:** không có.
-
-## Cảnh 6 — Xác nhận & tạo hồ sơ
-
-- **Màn hình:** `/chat`.
-- **Thao tác:** agent tóm tắt 6 trường (loại khiếu nại, phạm vi, số tiền, mã GD, mô tả, đề xuất) TRƯỚC
-  khi tạo — người quay gõ đúng nguyên văn câu ĐÃ XÁC NHẬN chạy (QA/QC 31/08): **"Có, tôi đồng ý để
-  bạn tạo hồ sơ khiếu nại giúp tôi."** — agent mới thật sự tạo vé (`TCK-...`). Muốn chắc 100% khi
-  quay, dùng đúng câu này, đừng tự diễn đạt lại.
-- **Điểm nhấn:** hai lượt tách biệt (tóm tắt → xác nhận → tạo) — không tạo vé chỉ từ một câu mơ hồ.
-  Đây chính là cơ chế ADR-051, đáng nói thành lời nếu kịch bản có thoại giải thích.
-- **Ngoài khung hình:** không có.
+- 🟡 **TỒN ĐỌNG:** cảnh này có thể phải soát lại sau khi cổng "ép-tra-trước" (đang làm, chưa land) đi
+  vào bản chạy thật — cần xác nhận lại hành vi gộp-một-bong-bóng này có giữ nguyên không sau khi cổng
+  đổi cách agent xử lý tra cứu. Soát lại khi cổng đó land và đo xong, đừng quay bản cũ nếu hành vi
+  đã đổi.
 
 ## Cảnh 7 — CSKH xem hồ sơ
 
@@ -231,7 +231,8 @@ placeholder.
 □ Xem lại TOÀN BỘ bản ghi thô một lượt, đối chiếu với 2 mục 🔴 (banner, OTP) — kể cả khi đã vá,
   kiểm tra KHÔNG có khung hình nào sót lại từ lượt quay thử trước khi vá.
 □ Nếu có cắt cảnh — xác nhận điểm cắt không để lộ nửa giây khung hình cấm (tua chậm qua điểm cắt).
-□ Đối chiếu toàn bộ 8 cảnh (kể cả Cảnh 8, đã điền đầy đủ từ vòng sửa 31/08) với bản checklist gốc
+□ Đối chiếu toàn bộ 7 cảnh (1,2,3,4,5,7,8 — Cảnh 5+6 cũ đã gộp làm một, không có Cảnh 6 riêng; kể cả
+  Cảnh 8, đã điền đầy đủ từ vòng sửa 31/08) với bản checklist gốc
   (`docs/security/2026-08-31-soat-quay-video-demo-duoc-cam-len-hinh.md`) trước khi ghép vào video
   cuối — đặc biệt xác nhận đoạn dừng ghi hình ở Cảnh 2 và Cảnh 8 đã làm ĐÚNG một khoảng liên tục,
   không có khung hình nào lọt vào giữa lúc mở terminal và lúc gõ xong OTP.
