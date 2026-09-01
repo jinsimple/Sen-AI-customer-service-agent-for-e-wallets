@@ -71,6 +71,38 @@ SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
  10 □ ĐĂNG NHẬP rồi QUAY NGAY — token sống 15 phút. Nghỉ lâu hơn thì đăng nhập lại.
 ```
 
+### 👁️ SẼ CÓ 6 HỒ SƠ CŨ TRÊN MÀN HÌNH KHÁCH — biết trước, đừng ngạc nhiên *(đo 01/09 16:45)*
+
+`USR-0145` **đã có 6 khiếu nại** trong CSDL ngăn quay. Chúng **sẽ lên hình**. Không xoá được
+(cấm sửa CSDL ngăn quay), nên **chuẩn bị tinh thần thay vì chữa**:
+
+| khi nào | loại | trạng thái |
+|---|---|---|
+| 31/08 15:17 · 16:08 · 16:42 — **ba cái trong 90 phút** | `money_not_received` / `internal_wallet` | `investigating` |
+| 27/08 10:02 · 10:18 | `wrong_recipient` / `internal_wallet` | `investigating` |
+| 29/06 (dữ liệu seed) | `money_not_received` / `to_bank` | `investigating` |
+
+🔴 **Hai chỗ dễ đọc xấu trên phim, nói ra trước để chọn cách xử lý:**
+- **cả 6 đều đứng ở `investigating`**, không cái nào `resolved` ⟹ nhìn như *"không hồ sơ nào từng
+  được xử lý xong"*. Thực tế 5/6 là **dấu vết diễn tập của QA/QC**, không phải hành vi sản phẩm.
+- **ba hồ sơ giống hệt nhau trong 90 phút** (31/08) nhìn như sản phẩm tạo trùng.
+
+**Cách xử lý gợi ý:** Cảnh 4 tạo hồ sơ MỚI, nó nằm **trên cùng** — quay tập trung vào hồ sơ mới,
+đừng cuộn xuống. Nếu buộc phải thấy, một câu caption *"dữ liệu diễn tập"* là đủ.
+
+*(QA/QC nêu việc này từ trước; nó **rơi mất** trên đường vào tài liệu — grep `sidebar`/`hồ sơ cũ`
+trong file này lúc 16:45 cho **0 dòng**. Ghi lại đúng luật "điều kiện phải nằm TRONG câu".)*
+
+### 🔑 BA MẬT KHẨU — đo bằng chính Argon2 của app, 01/09 16:45
+
+```
+0974000145  USR-0145  customer     Demo@123          ✅ OK
+0353000201  USR-0201  cskh         Demo@123          ✅ OK
+0905000205  USR-0205  supervisor   TestP0Otp!2026    ✅ OK
+```
+*(Trước đó chỉ mật khẩu **sếp** có bước kiểm phút chót — QA/QC chỉ ra vai **CSKH** không có, mà mật
+khẩu sếp đã từng bị đổi tay âm thầm một lần. Nay cả ba đều đã đo.)*
+
 🔴 **BỐN thứ TUYỆT ĐỐI không làm trong lúc quay:** dựng lại bất kỳ container nào (đặc biệt `caddy` —
 mất chuỗi gia hạn cert) · sửa CSDL ngăn quay · bấm link **"Tra cứu chính sách"** trên nav CSKH ·
 **đăng nhập thử bằng `0974000145`** (xem ngay dưới).
