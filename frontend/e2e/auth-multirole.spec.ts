@@ -37,10 +37,13 @@ import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session"
 // cổng backend (PO đã BÁC).
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8010";
 
-const CUSTOMER = { phone: "0387000001", home: "/chat" };
-const CSKH = { phone: "0353000201", home: "/dashboard" };
-const SUPERVISOR = { phone: "0905000205", home: "/approve" };
-const PARTNER_ADMIN = { phone: "0900000001", home: "/knowledge" };
+// loginPath thêm 30/08 (B1, retrofit cổng chặn-sai-cổng-đăng-nhập đã land
+// thật) — nhân viên (cskh/supervisor/partner_admin) qua "/dang-nhap-noi-bo",
+// khách vẫn "/login" (mặc định của loginAs()), không đoán hàng loạt.
+const CUSTOMER = { phone: "0387000001", home: "/chat", loginPath: "/login" as const };
+const CSKH = { phone: "0353000201", home: "/dashboard", loginPath: "/dang-nhap-noi-bo" as const };
+const SUPERVISOR = { phone: "0905000205", home: "/approve", loginPath: "/dang-nhap-noi-bo" as const };
+const PARTNER_ADMIN = { phone: "0900000001", home: "/knowledge", loginPath: "/dang-nhap-noi-bo" as const };
 
 async function readSessionCookie(context: BrowserContext): Promise<Session> {
   const cookies = await context.cookies();
@@ -67,7 +70,7 @@ test.describe("AUTH5-HARD-01 — luồng đăng nhập, cả 4 role cùng lúc (
       // chạy Playwright) — đúng kịch bản AUTH5-08 đã vá (khoá theo phone,
       // không còn khoá theo IP): nếu bug cũ còn, các login này dễ tranh chấp
       // ngưỡng chung dù không ai sai gì.
-      await Promise.all(actors.map((a, i) => loginAs(pages[i], a.phone, a.home)));
+      await Promise.all(actors.map((a, i) => loginAs(pages[i], a.phone, a.home, 1, a.loginPath)));
 
       // --- 2) Chặn chéo role qua URL (proxy.ts) — mỗi role cố vào ĐÚNG 1
       // trang CHỈ role KHÁC được phép, phải bị đá về nhà CHÍNH MÌNH (không
