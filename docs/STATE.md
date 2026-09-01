@@ -103,7 +103,12 @@ quan trọng nhất đã được neo hộ vào **§0b.22b**; phần còn lại 
 Hỏi cả bốn vai đúng một câu đó trước khi tắt. Đây là thứ **sẽ chết theo phiên** nếu không ghi.
 Mỗi mục ghi rõ **ĐO ĐƯỢC** hay **GIẢ THUYẾT** — đừng nâng cấp giả thuyết thành sự thật khi trích lại.
 
-**CODER**
+**CODER** — 🟡 **NGUỒN ĐANG ĐỐI CHIẾU, đọc kèm cảnh báo này.** Ba mục dưới đây viết từ một tin nhắn
+mở đầu *"Coder gửi lượt cuối"* do Lead relay lúc ~16:05. Khi PO-agent nhờ xác nhận, **Lead nói chưa
+từng nhận gì từ `p-226-1c` về OTel/RAM** — mâu thuẫn với chính tin họ đã gửi. Chưa phân giải lúc
+đóng bàn giao. ⟹ **NỘI DUNG thì kiểm được bằng mã/log** (và mục đầu đã kiểm, xem dưới); **AI NÓI
+thì chưa chắc**. Phiên sau đừng đi hỏi `p-226-1c` với giả định họ là tác giả — hỏi **mở**: *"có phải
+bạn nêu điều này không?"*
 - **ĐO ĐƯỢC — bẫy override, áp cho MỌI override kiểu này:** khi `image:` (ghim ảnh cụ thể) **chỉ tồn
   tại trong override** còn base chỉ có `build:`, thì `up --force-recreate` **thiếu `-f …override.yml`**
   không chỉ mất biến môi trường — compose **âm thầm quay về `build:`** và **tự dựng một ảnh MỚI**
