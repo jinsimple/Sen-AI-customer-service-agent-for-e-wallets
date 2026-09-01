@@ -537,7 +537,19 @@ Commit cuối chạm chúng: `48a562f` (24/08) ⟹ **hiện vật cũ ĐÃ BỊ 
 ảnh mà `48a562f` mô tả. `docs/nhat-ky/2026-08-25-ba-loi-ui-hien-thi.md` có trích dẫn chúng.
 
 **Đã hỏi ĐỦ 4/4 vai đang hoạt động 01/09 — không ai nhận.** Cả bốn đều thấy chúng đã ở trạng thái `M`
-ngay lúc phiên mình bắt đầu. Nhiều khả năng là một phiên đã tắt trước đó, hoặc PO thật chạy tay.
+ngay lúc phiên mình bắt đầu.
+
+🟢 **ĐÃ TÌM RA NGUYÊN NHÂN 01/09 — và câu hỏi "ai làm?" là câu hỏi SAI:**
+`playwright.config.ts:25/30` — `testDir: ./e2e`, `testIgnore` **chỉ** loại `live-chat.spec.ts`
+⟹ `kich-ban-chuyen-gia-render-that.spec.ts` **chạy MẶC ĐỊNH**. Và `.github/workflows/ci.yml:724/756`
+(`e2e-playwright-nightly` → `npx playwright test`) **chạy nó HẰNG ĐÊM, tự động**.
+⟹ **Không ai "chạy phép đo render" cả.** Ai đó chạy bộ e2e bình thường; bốn tệp này là **TÁC DỤNG
+PHỤ** họ không biết mình vừa tạo. Vì thế cả bốn lời phủ nhận đều thành thật, và vì thế không ai
+nhận ra — **người ta nhớ mình đã LÀM gì, không nhớ thứ mình VÔ TÌNH SINH RA.**
+
+⟹ **Luật:** khi không ai nhận một thay đổi, giả thuyết đầu tiên không phải *"ai đó giấu"* mà là
+***"đây là tác dụng phụ, không phải hành động"***. **Hỏi công cụ trước khi hỏi người** — rẻ hơn và
+trả lời chắc hơn.
 
 🔴 **ĐỪNG TỰ DỌN.** Không `git checkout`, không `git clean` trên `eval/`. Xoá một hiện vật không rõ
 nguồn gốc là bắt phiên sau **đo lại từ đầu** — đắt hơn hẳn việc giữ bốn tệp. Chỉ **tester** (vùng ghi
