@@ -155,9 +155,22 @@ KHÔNG hiện ô OTP.** Đây là hệ quả trực tiếp của việc QA/QC te
    | không có phiên OTP tươi <12h | ❌ tươi tới 23:37 | **✅ không có** | ✅ |
    | đủ giao dịch cho Cảnh 3-4 | 239 | **241 · to_bank 61** | 108 |
 
-   🔴 **ĐÍNH CHÍNH — bản trước của mục này khuyến nghị `USR-0097`, SAI.** Nó được chọn vì có giao
-   dịch mới nhất (26/08) — nhưng **mật khẩu không phải `Demo@123`**, không đăng nhập nổi Cảnh 1.
-   Lỗi vì **kiểm hai điều kiện rồi khuyến nghị như đã kiểm cả ba.**
+   🔴 **ĐÍNH CHÍNH — bản trước của mục này khuyến nghị `USR-0097`, SAI hai lần.** ① Mật khẩu không
+   phải `Demo@123`, không đăng nhập nổi Cảnh 1. ② Cái "26/08" khiến tôi chọn nó là **ĐÚNG MỘT giao
+   dịch lẻ**, gần như chắc chắn do ai đó test tay — không phải dữ liệu seed.
+
+   **Đo toàn CSDL 01/09 — "kẹt ở 01/08" là tính chất của BỘ DỮ LIỆU, không phải của tài khoản:**
+   ```
+   2026-08-26  ->     1 GD     ← DUY NHẤT, của USR-0097
+   2026-08-01  ->   663 GD     ← mọi thứ dừng ở đây
+   2026-07-31  ->   676 GD
+   ...        ~660 GD/ngày, liên tục từ 11/04
+   ```
+   **Chỉ 1/200 khách có giao dịch sau 01/08.** ⟹ Rail "Giao dịch gần đây" của **mọi** tài khoản đều
+   hiện ngày 01/08 — không có lựa chọn nào "tươi hơn". Và rail của `USR-0097` sẽ hiện **một dòng
+   26/08 rồi nhảy về 01/08**, trông LẠ HƠN một rail 01/08 đều đặn.
+   ⟹ **Ngày dữ liệu KHÔNG phải tiêu chí chọn tài khoản.** Câu caption đã chuẩn bị — *"dữ liệu sinh
+   tổng hợp, không phải khách hàng thật"* — đã trả lời đủ. **Đóng, đừng mở lại.**
 
    🔴🔴 **VÀ ĐÂY MỚI LÀ PHÁT HIỆN LỚN — quét toàn bộ 200 khách bằng chính hàm Argon2 của app:**
    > **CHỈ `USR-0001` và `USR-0145` nhận `Demo@123`. 198/200 tài khoản khách KHÔNG dùng mật khẩu này.**
