@@ -193,6 +193,14 @@ làm lệch các tham chiếu đó. Không có Cảnh 6 riêng nữa — đã g�
   phải thiếu tính năng, đó là ràng buộc cứng số 1").
 - **Nhắc:** dashboard cột KHÁCH HÀNG hiện đầy đủ họ tên seed trông giống thật (đã xác nhận ảnh thật)
   — cùng lý do cần caption dữ liệu sinh tổng hợp, nói lại nếu cảnh này xa Cảnh 3 về thời lượng.
+- 🔴 **CẤM ngoài kịch bản (thêm 01/09):** **không bấm link "Tra cứu chính sách"** trên nav bar CSKH,
+  dù nó luôn hiển thị sẵn cạnh "Hàng chờ" / "Báo cáo vận hành". Trang này có **hai lỗi thật chưa
+  vá**: ① giao diện có khe hở để kết quả cũ hiện thoáng qua khi tìm lượt mới (đã vá phần `catch`,
+  chưa phủ hết); ② **tìm kiếm vector không có ngưỡng tương đồng** — câu vô nghĩa vẫn trả
+  `status=found` kèm một chính sách CÓ THẬT nhưng không liên quan (đo thật trên `qa-stripe` 01/09).
+  Chỉ đi đúng đường Cảnh 7 đã định: `/dashboard` → `/tickets/[id]`.
+  *(Không phải lỗi của kịch bản — kịch bản chưa bao giờ chỉ đạo mở trang này, QA/QC đã grep xác nhận
+  0 kết quả. Đây là rào phòng ngừa cho trường hợp người cầm máy tò mò bấm thử.)*
 - ~~⚠️ Rủi ro dashboard "NaN"~~ **GỠ 31/08 — PO root-cause xong: lỗi nằm ở bài test**
   (`frontend/e2e/dashboard.spec.ts:24`, regex đọc nhãn không khớp định dạng mới "N/100 vé mới nhất"),
   **sản phẩm render đúng** (`dashboard/page.tsx:165` dùng số thật). Không cần né chip/số nào ở cảnh
