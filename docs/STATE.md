@@ -669,6 +669,44 @@ benchmark 30-31/08 đang neo vào.
 Nếu còn cần, **neo vào repo trước khi làm gì khác**; đây đúng rủi ro đã cắn dự án ba lần (video nháp
 `2b84da2`, hai file override `6d9403c`, bể model `fed278c`).
 
+### 0b.22c SOÁT LẠI CHÍNH CÁC PHÉP ĐO — 01/09 16:00, sau khi một cổng lộ ra không đo gì
+
+**Vì sao soát:** phép kiểm "phiên OTP tươi" chạy mỗi 15 phút suốt chiều 01/09, **luôn xanh**, và hoá
+ra đo nhầm bảng (`otp_verified_at` nằm trong TOKEN, không trong CSDL — xem kịch bản quay, `0fdc7d8`).
+⟹ Không có cơ sở tin các cổng còn lại chỉ vì chúng cũng xanh đều. **Cổng hỏng mà hằng ĐỎ bị mổ ngay
+hôm đầu; cổng hỏng mà hằng XANH sống được nhiều tháng.**
+
+**Cổng băm `.bam_ma_nguon` — nghi ngờ SAI, cổng tốt hơn tôi tưởng.** `src/dau_ma_nguon.py:54` dùng
+`goc.rglob("*.py")` ⟹ phủ **toàn bộ `src/**`**, không phải chỉ tầng một. Docstring còn tự khai điểm
+mù hẹp (đổi tên KHÔNG xê dịch thứ tự sắp xếp) kèm **số đo thật**, không suy.
+
+🔴 **Nhưng PHẠM VI hẹp hơn cái tên gợi ra — và đây mới là phát hiện:**
+
+| được neo | KHÔNG được neo |
+|---|---|
+| `src/**/*.py` (56 tệp, đệ quy) | 🔴 **`migrations/`** — xem ngay dưới, lỗ sắc nhất |
+| | **`frontend/`** — không nhãn, không băm, KHÔNG GÌ CẢ |
+| | tệp không phải `.py` trong `src/` · `contracts/` (có `CONTRACT_VERSION` riêng) · `scripts/` `eval/` `tests/` |
+
+🔴 **`migrations/` — lỗ do Coder tìm ra, sắc hơn lỗ frontend của tôi.** Nó nằm **ngoài `src/`** nên
+không vào băm, **nhưng CHẠY THẬT lúc container khởi động**: `docker-entrypoint.sh:32` →
+`alembic upgrade head` trước khi uvicorn lên. Đo: **16 migration**, **3 chạm DỮ LIỆU** (`op.execute`/
+`UPDATE`), cộng `migrations/backfill_ma_hoa_description_raw.py`.
+⟹ **Sửa một migration mà không đụng gì dưới `src/`: băm y hệt, hành vi CSDL đã đổi.** Băm im lặng
+đúng lúc nó cần kêu nhất — đây là loại mã **có tác dụng phụ không đảo ngược được**.
+
+⟹ Mọi câu *"băm đúng nên ngăn quay đúng"* nói **quá**. Nó chỉ nói về **backend Python**.
+
+**Đo bù cho phần không có cổng (01/09 16:00, ngăn `qa-stripe`):**
+- ảnh `fin05-qa-stripe-frontend:latest` dựng **01/09 10:58** · container chạy từ **11:13**
+- ⟹ **KHÔNG chứa `da59145`** (vá frontend 11:44). Không hại: `da59145` sửa đường "Tra cứu chính
+  sách", đúng đường **Cảnh 7 đã CẤM bấm**. Nhưng nó cho thấy frontend có thể lệch repo mà **không
+  cổng nào kêu**.
+- ảnh backend dựng **31/08 22:10** ⟹ không chứa `aee830f`/`60f0e09`/`da59145`. Khớp băm, nhất quán.
+- ✅ **Kiểm thẳng trong container đang chạy:** `grep -rl '13/2023' /app/.next` → **0 tệp**;
+  `'91/2025'` → có. Phát hiện "trích luật hết hiệu lực trên UI" (`48e40d6`) **đóng thật trên ngăn sẽ
+  quay**, không chỉ đóng trong repo. *(Đóng trong repo ≠ đóng trong ảnh — bài học `abb9045822ca`.)*
+
 ### 0b.22b BA TÍNH CHẤT CỦA THƯỚC CHẤM GOLDEN — Review 01/09, **không có tệp gốc**
 
 Review soát đường chấm và kết luận **chỉ đi qua tin nhắn**, chưa từng thành tệp (vai Review không ghi
