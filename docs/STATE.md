@@ -757,6 +757,10 @@ container  =  khớp HEAD
 ```
 khách  0387000001   ·   CSKH  0353000201   ·   sếp  0905000205      mật khẩu: Demo@123
 ⚠️ 0901000001 CHỈ là fixture test, KHÔNG có trong CSDL thật.
+🔴 NGOẠI LỆ ngăn `fin05-qa-stripe` (ngăn QUAY PHIM): mật khẩu SẾP `0905000205` ở ngăn
+   đó KHÔNG phải Demo@123 — đổi tay 31/08 khi test P0, CHỈ trong CSDL ngăn đó.
+   Giá trị thật ghi ở docs/security/2026-08-31-kich-ban-quay-tung-canh.md mục Chuẩn bị.
+   Khách + CSKH vẫn Demo@123 bình thường. Ngăn khác không ảnh hưởng.
 ```
 **`.env` gốc repo KHÔNG trong git** và nó quyết định `LLM_MODEL`/`LLM_BASE_URL`. Máy này có
 `deepseek` ở dòng 165 — **không ai gõ tay vào đó**. 🔴 **Không ai biết `.env` PRODUCTION ghi gì.**
