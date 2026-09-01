@@ -48,8 +48,28 @@ trọng THẤP HƠN một rò rỉ dữ liệu thật, nhưng vẫn là bề m�
 `ctc1-check`/`po-demo` chưa xác nhận có đang chứa gì nhạy hơn seed hay không (ngoài phạm vi tôi tự
 kiểm đêm nay).
 
-⚠️ **ĐỪNG vá cổng `ctc1-check` TRƯỚC KHI QA/QC chạy xong CD1** — đổi cổng đòi dựng lại `caddy`, làm
-rơi cấu hình giữa lượt đang chạy. Xếp việc vá NGAY SAU KHI CD1 đóng, không phải ngay bây giờ.
+~~⚠️ ĐỪNG vá cổng `ctc1-check` TRƯỚC KHI QA/QC chạy xong CD1~~ **🟢 ĐIỀU KIỆN ĐÃ THOẢ 01/09 — CD1 đã
+đóng, SẴN SÀNG VÁ NGAY.** Tự xác nhận lại trước khi báo (không suy đoán từ lời "CD1 đóng"):
+`docker ps` vẫn cho thấy `ctc1-check-caddy-1` bind `0.0.0.0:61080`/`0.0.0.0:61443`, và
+`OTP_DEMO_MODE=true` vẫn còn — nghĩa là lỗ hổng CHƯA tự đóng theo CD1, cần một hành động vá thật.
+
+**Patch sẵn sàng áp dụng, đã tìm đúng file nguồn** (`docker inspect` xác nhận
+`docker-compose.ctc1-check.override.yml` — untracked, tự khai "TẠM THỜI, KHÔNG COMMIT", cùng dạng
+`qa-stripe`). Đổi đúng khối `caddy:` trong file đó:
+
+```diff
+   caddy:
+     ports: !override
+-      - "61080:80"
+-      - "61443:443"
++      - "127.0.0.1:61080:80"
++      - "127.0.0.1:61443:443"
+```
+
+**Việc ÁP DỤNG patch này thuộc vùng ghi `tech-lead`** (`docker-compose*.yml`, ADR-035) — tôi chuẩn bị
+sẵn diff chính xác, không tự sửa file. Sau khi áp dụng: `docker compose -p ctc1-check up -d caddy`
+(không `--build`, không đụng `backend` đang giữ ảnh `fin05-backend:ctc1` đã kiểm băm) để nạp lại đúng
+mỗi service `caddy`, rồi `docker ps` xác nhận lại binding đã đổi sang `127.0.0.1`.
 
 **Khuôn ghim đúng, đề xuất — DÙNG LẠI đúng mẫu đã có sẵn trong CHÍNH các file này** (không cần bịa
 mẫu mới): đổi `"<cổng>:80"` / `"<cổng>:443"` thành `"127.0.0.1:<cổng>:80"` /
