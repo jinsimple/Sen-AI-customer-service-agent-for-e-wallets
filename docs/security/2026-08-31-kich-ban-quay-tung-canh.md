@@ -69,8 +69,26 @@ SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
  10 □ ĐĂNG NHẬP rồi QUAY NGAY — token sống 15 phút. Nghỉ lâu hơn thì đăng nhập lại.
 ```
 
-🔴 **Ba thứ TUYỆT ĐỐI không làm trong lúc quay:** dựng lại bất kỳ container nào (đặc biệt `caddy` —
-mất chuỗi gia hạn cert) · sửa CSDL ngăn quay · bấm link **"Tra cứu chính sách"** trên nav CSKH.
+🔴 **BỐN thứ TUYỆT ĐỐI không làm trong lúc quay:** dựng lại bất kỳ container nào (đặc biệt `caddy` —
+mất chuỗi gia hạn cert) · sửa CSDL ngăn quay · bấm link **"Tra cứu chính sách"** trên nav CSKH ·
+**đăng nhập thử bằng `0974000145`** (xem ngay dưới).
+
+### 🔴🔴 CẤM ĐĂNG NHẬP THỬ BẰNG `0974000145` TRƯỚC GIỜ QUAY *(thêm 01/09 15:41)*
+
+`OTP_VIEW_MAX_MINUTES = 12 giờ`. Cảnh 2 **chỉ kích hoạt khi tài khoản khách CHƯA có phiên OTP tươi**.
+Ai đăng nhập + xác thực OTP bằng `0974000145` bây giờ là tạo một phiên sống **tới 12 tiếng** — vượt
+quá giờ quay tối nay.
+
+**Hậu quả:** tối nay bấm vào, **ô OTP không hiện**. Không lỗi, không cảnh báo, không có gì đỏ —
+Cảnh 2 chỉ **lặng lẽ không xảy ra**, và người cầm máy sẽ tưởng sản phẩm hỏng.
+
+> Đây là kiểu hỏng tệ nhất trong cả tài liệu này: **một phép KIỂM tự tay PHÁ thứ nó định kiểm.**
+> Càng diễn tập cẩn thận thì càng chắc chắn giết Cảnh 2. Và nó **không để lại dấu vết nào** để
+> người sau truy ngược — chỉ còn một cảnh biến mất.
+
+**Cần diễn tập luồng khách?** Dùng **tài khoản khác**, đừng dùng `0974000145`. Đừng tự chọn bằng cách
+thử lần lượt — mỗi lần thử sai cũng là một phiên tươi. *(Ba lần trong ngày 01/09 ta đã khuyến nghị
+nhầm tài khoản vì chỉ kiểm MỘT trong ba điều kiện: mật khẩu · có giao dịch · chưa có phiên tươi.)*
 
 ---
 
