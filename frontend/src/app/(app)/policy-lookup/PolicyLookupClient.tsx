@@ -22,6 +22,7 @@ export default function PolicyLookupClient() {
       setSearched(true);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Tra cứu thất bại");
+      setResults(null);
     } finally {
       setLoading(false);
     }
