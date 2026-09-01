@@ -3364,3 +3364,33 @@ LÚC**, thay vì quẩn quanh tới hết lượt (dạng `MT-Z02`/`MT-Z04`).
 2. Coder cài quy tắc ở **tầng service**, không phải trong prompt · `test_invariants.py` **23/23 xanh**
 3. Bổ sung chỉ số "chuyển người đúng lúc" vào bộ chấm **TRƯỚC** khi đo lại
 4. Đo lại, và **so bằng chỉ số mới**, không so bằng điểm tổng cũ
+
+## ADR-058 — Ngoại lệ có thời hạn: `qwen3.8-flash` (không tên ghim) cho demo 01/09
+- **Ngày:** 2026-09-01
+- **Bối cảnh:** [ĐO 22h] Ping trực tiếp cả 7 model trong `LLM_MODEL_POOL` bằng khoá container
+  (max_tokens=1) → **4/7 trả 403**, gồm cả model đang ghim ở `LLM_MODEL`
+  (`qwen3.7-max-2026-06-08`) và model mà một quyết định trước đó trong đêm định dùng thay thế
+  (`qwen3.7-flash-2026-07-15`) — bể hỏng nặng hơn ghi nhận trước đó. PO thật bật token trả phí
+  cho `qwen3.8-flash` (ping 200 OK) và chọn dùng thẳng model này cho live chat đêm nay.
+- **Quyết định:** Cho phép `LLM_MODEL=qwen3.8-flash` + `LLM_MODEL_POOL` gồm `qwen3.8-flash` và
+  3 model ghim mốc ngày đã đo 200 OK (`qwen3.6-plus-2026-04-02`, `qwen3.6-flash-2026-04-16`,
+  `qwen3.5-flash-2026-02-23`) — áp dụng **duy nhất cho phiên demo 01/09 trên ngăn `po-demo`**.
+  `qwen3.8-flash` **không** có tên ghim mốc ngày, đúng dạng ADR-043 §9 quy định phải bị từ chối.
+- **Phương án đã cân nhắc và bác bỏ:** Giữ nguyên bể cũ (7 model, đủ tên ghim) — bác bỏ vì 4/7
+  đã 403, không đủ độ sống cho live chat đêm nay. Chờ tìm một tên ghim mốc ngày tương đương
+  `qwen3.8-flash` — bác bỏ vì không có thời gian trong cửa sổ 2 tiếng, và PO thật đã quyết dùng
+  ngay model đã bật phí. **Không nới ADR-043 §42** ("mọi phép đo nghiêm túc phải GHIM model") —
+  ngoại lệ này CHỈ áp cho demo, **không** áp cho golden/heldout/benchmark; đo nghiêm túc sau này
+  vẫn phải quay lại tên ghim mốc ngày, kể cả nếu dùng lại `qwen3.8-flash` thì phải chờ nó có một
+  bản ghim tương đương hoặc ghi nhận rõ trong báo cáo đo là "không ghim, không tái lập được".
+- **Hệ quả:** Không đổi `contracts/`. [ĐO] `src/config.py` hiện **không có guard code** kiểm định
+  dạng tên model (có mốc ngày hay không) — ADR-043 §9 là quyết định đã duyệt nhưng **chưa được
+  ép trong mã**, đây là khoảng trống "duyệt trên giấy, chưa ép trong mã" cùng loại việc ADR-033
+  từng lập cổng canh để bắt. **Nợ kỹ thuật, chưa vá đêm nay** (đụng `src/`, ngoài phạm vi đợt
+  2 tiếng) — ghi vào sổ tồn đọng `STATE.md` cho đợt sau: thêm cổng đỏ-trước/xanh-sau kiểm tên
+  model trong bể có khớp định dạng ghim mốc ngày không, trừ khi có cờ ngoại lệ tường minh kiểu
+  ADR này. Yếu tố giảm nhẹ rủi ro: 4 lớp lọc đầu ra O1–O4 là regex tất định, độc lập với model —
+  đổi model không làm guardrail yếu đi.
+- **Thay thế:** không (bổ sung ngoại lệ có thời hạn cho ADR-043 §9, không thay thế nguyên tắc gốc)
+- **Người duyệt:** PO thật *(qua PO-agent tự sửa `.env` — ADR này là bản trình duyệt tường minh,
+  chưa coi là chính thức tới khi PO thật xác nhận trực tiếp)*
