@@ -8,9 +8,7 @@
 > chi tiết, chỉ trỏ tới bằng số cảnh tương ứng.
 >
 > Luồng đã xác nhận chạy trọn (QA/QC 31/08, tự đi lại kịch bản này như người cầm máy thật — làm đúng
-> chữ, không tự suy thêm): đăng nhập → **xem giao dịch → mô tả khiếu nại → OTP**
-> *(🔴 sửa 01/09 — dòng này trước ghi "đăng nhập → OTP → xem giao dịch", SAI thứ tự; xem khối
-> "TRÌNH TỰ THẬT" ngay trước Cảnh 1)* → **agent tra cứu VÀ xin
+> chữ, không tự suy thêm): đăng nhập → OTP → xem giao dịch → mô tả khiếu nại → **agent tra cứu VÀ xin
 > xác nhận tạo hồ sơ trong CÙNG một bong bóng** (Cảnh 5, gộp lại 31/08 — xem cảnh đó) → CSKH xem →
 > trình sếp → **sếp duyệt CŨNG đã xác nhận chạy được** (P0 vá xong, xem Cảnh 8).
 >
@@ -191,7 +189,9 @@ KHÔNG hiện ô OTP.** Đây là hệ quả trực tiếp của việc QA/QC te
    ⚠️ Đổi tài khoản thì **rail giao dịch Cảnh 3 đổi theo** — chọn lại một giao dịch cho Cảnh 4
    (`USR-0145` có 61 giao dịch `to_bank`). **Cảnh 5 (agent điều tra) chưa ai đi thử trên tài khoản
    này — chưa kiểm ⟹ chưa hứa.**
-2. Quay Cảnh 2 **sau 23:37 giờ VN** — hết hạn tự nhiên, giữ nguyên `USR-0001`.
+2. ~~Quay Cảnh 2 sau 23:37 giờ VN, giữ nguyên `USR-0001`~~ — **không dùng được cho buổi quay
+   chiều tối** (23:37 muộn hơn giờ quay dự kiến). Giữ lại làm phương án cuối nếu buổi quay dời
+   sang khuya.
 3. ~~Xoá bản ghi phiên trong CSDL~~ — **KHÔNG.** Kịch bản dòng 77 đã chốt: không đụng CSDL ngăn quay.
 
 🔴 **Kiểm 30 giây ngay trước khi quay** (đừng tin dòng này, nó là số của 01/09):
