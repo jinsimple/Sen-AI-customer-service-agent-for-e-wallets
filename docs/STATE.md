@@ -103,12 +103,12 @@ quan trọng nhất đã được neo hộ vào **§0b.22b**; phần còn lại 
 Hỏi cả bốn vai đúng một câu đó trước khi tắt. Đây là thứ **sẽ chết theo phiên** nếu không ghi.
 Mỗi mục ghi rõ **ĐO ĐƯỢC** hay **GIẢ THUYẾT** — đừng nâng cấp giả thuyết thành sự thật khi trích lại.
 
-**CODER** — 🟡 **NGUỒN ĐANG ĐỐI CHIẾU, đọc kèm cảnh báo này.** Ba mục dưới đây viết từ một tin nhắn
-mở đầu *"Coder gửi lượt cuối"* do Lead relay lúc ~16:05. Khi PO-agent nhờ xác nhận, **Lead nói chưa
-từng nhận gì từ `p-226-1c` về OTel/RAM** — mâu thuẫn với chính tin họ đã gửi. Chưa phân giải lúc
-đóng bàn giao. ⟹ **NỘI DUNG thì kiểm được bằng mã/log** (và mục đầu đã kiểm, xem dưới); **AI NÓI
-thì chưa chắc**. Phiên sau đừng đi hỏi `p-226-1c` với giả định họ là tác giả — hỏi **mở**: *"có phải
-bạn nêu điều này không?"*
+**CODER** — ✅ **đính danh ĐÃ XÁC NHẬN.** Lead thoạt tiên nói *"chưa từng nhận gì từ `p-226-1c` về
+OTel/RAM"*; tra lại bằng từ khoá `BatchSpanProcessor` thì **tìm ra ngay** — tin gốc từ `p-226-1c`
+lúc **09:18 UTC 01/09**, relay nguyên văn. Lead tra hụt vì tìm bằng *chủ đề* (`OTel/RAM`) trong khi
+tin nằm chung một message *"lượt cuối"* ba gạch đầu dòng, và họ chỉ nhớ hai gạch kia.
+🔑 **Bài học tra cứu:** tìm bằng **chuỗi hiếm xuất hiện trong văn bản** (`BatchSpanProcessor`), đừng
+tìm bằng **chủ đề mình đặt tên cho nó** — chủ đề là chữ của người tra, không phải chữ của người viết.
 - **ĐO ĐƯỢC — bẫy override, áp cho MỌI override kiểu này:** khi `image:` (ghim ảnh cụ thể) **chỉ tồn
   tại trong override** còn base chỉ có `build:`, thì `up --force-recreate` **thiếu `-f …override.yml`**
   không chỉ mất biến môi trường — compose **âm thầm quay về `build:`** và **tự dựng một ảnh MỚI**
@@ -117,8 +117,14 @@ bạn nêu điều này không?"*
   ⟹ **Quên `-f` sinh ra ảnh song song không ai xin.**
 - **GIẢ THUYẾT — rò rỉ RAM ③:** đã loại presidio (`lru_cache` thật). Nghi **OTel
   `BatchSpanProcessor` giữ hàng đợi span xuất lỗi** không giải phóng, khớp đường cong 750MB→2,1GiB.
-  🔴 **Bằng chứng KHÔNG CÒN TÁI LẬP ĐƯỢC:** PO-agent grep log `ctc1-check-backend` lúc 16:2x (đo lại 16:27, vẫn 0) →
-  **0 dòng** `Failed to export`/`4317` (log chỉ còn 217 dòng; container đã dựng lại 10:58, log cũ mất).
+  🔴 **Bằng chứng KHÔNG CÒN TÁI LẬP ĐƯỢC — nhưng KHÔNG bị phản bác.** PO-agent grep lúc 16:27 → **0
+  dòng**. Coder trả lời trực tiếp và **sửa lại cách hiểu của PO-agent**: `10:58` là mốc **TẠO GỐC**
+  cả stack, **không phải** một lần recreate. Họ thấy flood trên **container backend GỐC**, ngay sau
+  mốc đó; **rồi mới** recreate backend **2 lần** (lần 1 thiếu `-f override` — chính bẫy ở mục trên).
+  ⟹ Container tôi grep là **instance thứ ba**, log 217 dòng vì mới sinh. **0 dòng ở container MỚI
+  không phủ nhận quan sát ở container CŨ** — hai vật khác nhau. Coder tự khai: chắc chắn về **thứ tự
+  thao tác**, **không** có mốc đồng hồ tuyệt đối, **không** lưu log ra tệp. ⟹ Giữ nguyên mức
+  **"hướng điều tra"**.
   ⟹ Giữ làm **hướng điều tra**, KHÔNG trích như dữ kiện. `tracemalloc` nên soi **cả nhánh OTel**,
   không chỉ presidio/checkpointer.
 - **LỖ QUY TRÌNH:** không registry nào liệt kê mã tag `loc_dau_ra` đã dùng (`O1-O5`, `RB3`, `CTC1`,
@@ -134,8 +140,35 @@ bạn nêu điều này không?"*
   **ba lần**. Không dòng nào trong code/docs cảnh báo điều này.
 - **ĐÃ ĐÓNG bằng đo:** nghi mật khẩu CSKH cũng bị đổi tay âm thầm như mật khẩu sếp → đo cả ba bằng
   Argon2 của app lúc 16:27, **cả ba OK**, đã ghi vào kịch bản (`0c09802`).
-- **CHƯA VÀO TỆP:** ma trận đầy đủ *9 tệp e2e × nguyên nhân đỏ* (mật khẩu sếp cũ · `OTP_DEMO_MODE=false`
-  · regex dashboard cũ · LLM non-determinism · 1 lỗi policy-lookup mới). **Mất khi tắt phiên.**
+- ✅ **MA TRẬN E2E — CỨU ĐƯỢC, không mất.** QA/QC gõ lại từ `error-context.md` từng ca lúc 16:35.
+  **Tổng đúng: 19 test · 8 xanh · 11 đỏ** *(họ tự sửa số cũ mình từng báo: 22 → 19)*.
+  🔴 **0/11 đỏ do bản vá `loginPath`** — quy hết về nguyên nhân **môi trường**, không phải hồi quy.
+
+  | tệp | đỏ | nguyên nhân |
+  |---|---|---|
+  | `approve.spec.ts` · `ticket-detail.spec.ts` | 2+2 | `OTP_DEMO_MODE=false` trên qa-stripe ⟹ `demoCode[i] undefined` |
+  | `auth-multirole.spec.ts` · `report.spec.ts` | 1+2 | `SUPERVISOR_PHONE` dùng `Demo@123`, nhưng USR-0205 đã đổi `TestP0Otp!2026` |
+  | `dashboard.spec.ts` | 1/2 | regex nhãn *"N/100 vé mới nhất"* — đã root-cause 31/08 |
+  | `live-chat.spec.ts` L4-06 | 1 | `OTP_DEMO_MODE=false` |
+  | `live-chat.spec.ts` L4-07 | 1 | LLM non-determinism — **rủi ro đã ghi sẵn trong comment code** (`request_human_handoff` không luôn gọi ngay dù bounded-retry 2 lần). Chưa chạy lại xác nhận. |
+  | `policy-lookup.spec.ts` | 1 | **xem ngay dưới — KHÔNG phải lỗi frontend** |
+  | `knowledge.spec.ts` · `hitl-cskh-khong-co-nut-duyet.spec.ts` | 0 | xanh |
+
+  ⚠️ QA/QC tự khai giới hạn: **phần ĐỎ chắc chắn 100%** (đối chiếu `error-context.md`); **tên 4 test
+  XANH** trong nhóm 8 tệp thì không lưu đủ. Ghi đúng như họ khai.
+
+- 🔴🔴 **`policy-lookup.spec.ts` đỏ KHÔNG phải phát hiện mới — nó là MẶT LỘ RA UI CỦA ①.**
+  QA/QC báo *"tra chuỗi không khớp gì → UI không hiện 'Chưa tìm thấy', vẫn hiện kết quả cũ"* và xếp
+  là lỗi frontend. **Đọc mã thì frontend ĐÚNG:** `PolicyLookupClient.tsx:21` luôn
+  `setResults(res.results)` khi thành công, và `:59` hiện *"Chưa tìm thấy…"* đúng khi
+  `results.length === 0`. ⟹ **Backend KHÔNG BAO GIỜ trả mảng rỗng** — vì `search` không lọc khoảng
+  cách (①). UI không thể nói "không tìm thấy" khi tầng dưới không bao giờ nói thế.
+  *(Và `da59145` **KHÔNG** vá cái này — nó vá nhánh `catch`, tức đường **lỗi**; đây là đường
+  **thành công với 0 kết quả**. Hai đường khác nhau, suýt gộp nhầm.)*
+  ⟹ **Nâng mức ①:** nó không còn là rủi ro lý thuyết ở tầng agent — **người dùng CSKH nhìn thấy được
+  bằng mắt**, và cái họ thấy là *chính sách sai đề trình bày như chính sách đúng*. Chạm thẳng
+  **Ràng buộc cứng #3**. Đây cũng là lý do Cảnh 7 **CẤM bấm "Tra cứu chính sách"** — lệnh cấm đó
+  đang che một lỗi THẬT, không phải đề phòng.
 
 **BẢO MẬT**
 - **ĐO ĐƯỢC:** `eval/results/render_that_desktop_25aug.png` (bản gốc, không `_SAU_VA`) **không chứa
