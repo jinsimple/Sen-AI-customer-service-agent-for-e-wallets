@@ -126,3 +126,52 @@ sửa PO đề xuất — chỉ tách rõ HAI cơ chế khác nhau (sinh ra ↔�
   giao dịch thật đứng sau) — nhưng nên xếp vào backlog "trước khi chạy spec này trên dữ liệu THẬT" nếu
   tương lai project đổi sang môi trường có dữ liệu thật, để không lặp lại đúng lỗ này ở mức nghiêm
   trọng hơn hẳn.
+
+## ĐÃ THỰC THI 01/09 22h — QA/QC (p-226-77), theo lệnh PO đợt "2 tiếng trước hạn 24:00"
+
+Làn C của `docs/giao-viec/2026-09-01-po-dot-2h-truoc-han-24h.md` (việc ④). Vế ĐỎ đo trước khi
+sửa, vế XANH đo sau — cả hai dán nguyên văn để Lead nghiệm thu, không làm tròn:
+
+**ĐỎ (trước):**
+```
+$ git ls-files eval/results/ | grep render_that
+eval/results/render_that_desktop_25aug.png
+eval/results/render_that_desktop_25aug_SAU_VA.png
+eval/results/render_that_mobile_25aug.png
+eval/results/render_that_mobile_25aug_SAU_VA.png
+eval/results/render_that_so_sanh_25aug.json
+eval/results/render_that_so_sanh_25aug_SAU_VA.json
+$ grep testIgnore frontend/playwright.config.ts
+testIgnore: /live-chat\.spec\.ts/,     ← không loại kich-ban-chuyen-gia-render-that.spec.ts
+```
+
+**Thao tác (ĐÚNG THỨ TỰ như đã niêm ở trên):**
+1. `git rm --cached eval/results/render_that_*` — 6 tệp rời khỏi chỉ mục, **giữ nguyên trên đĩa**
+   (đã xác nhận bằng `ls -la`, đủ 6 tệp, kích thước/mtime không đổi).
+2. `.gitignore` — thêm `eval/results/render_that_*` (dòng mới cuối file), kèm chú thích trỏ về
+   tài liệu này.
+3. `frontend/playwright.config.ts` — `testIgnore` đổi từ `/live-chat\.spec\.ts/` sang
+   `/live-chat\.spec\.ts|kich-ban-chuyen-gia-render-that\.spec\.ts/`, chặn CI nightly
+   (`e2e-playwright-nightly`, gọi `playwright test` không tham số) tự chạy spec này mỗi đêm.
+
+**XANH (sau):**
+```
+$ git ls-files eval/results/ | grep render_that
+(rỗng)
+$ npx --prefix frontend playwright test --list 2>/dev/null | grep -c render-that
+0
+```
+
+**KHÔNG đụng** 4 tệp `M` đang treo (`1a_reply_log.jsonl` + 3 `render_that_*_SAU_VA.*`) — đúng
+lệnh C3, không `git checkout`/`git clean`. Chúng giờ hiện `D ` trong `git status` (rời chỉ mục do
+bước 1) nhưng file vật lý còn nguyên trên đĩa.
+
+**Quyết định giữ nguyên lịch sử** (không viết lại, không force-push) là của PO thật, đã chốt
+01/09 — 6 hiện vật cũ (5 mã OTP demo khác nhau, tài khoản `0974000145`/`USR-0145`, đã hết hạn từ
+lâu) vẫn truy được qua `git show <commit>:...`, chấp nhận mức rủi ro THẤP như đã đánh giá ở trên;
+dòng `.gitignore` mới chỉ chặn TỪ NAY.
+
+**Chưa làm — thuộc vai khác:** đổi đường ghi hiện vật của spec ra ngoài repo (hướng "tốt hơn cả
+hai bước" mà tài liệu này đã đề xuất ở trên) — đó cũng thuộc vùng ghi QA/QC (`frontend/e2e/`)
+nhưng PO không giao trong đợt 2 tiếng này (không nằm trong 4 việc của brief), để tránh mở rộng
+phạm vi ngoài giờ giới nghiêm 24:00.

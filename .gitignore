@@ -93,3 +93,11 @@ project-knowledge/
 # gói 30 nhãn — sinh lại bằng eval/soan_goi_30_nhan.py, KHÔNG commit
 eval/goi_30_nhan_NGUOI.md
 eval/goi_30_nhan_MAY.json
+
+# 2026-09-01 — OTP thật (demo, đã hết hạn) render trong ảnh/json output của
+# frontend/e2e/kich-ban-chuyen-gia-render-that.spec.ts, lặp lại mỗi lần spec
+# chạy (đã ghi nhận 4 hiện vật commit, 5 mã OTP khác nhau — xem
+# docs/security/2026-09-01-ma-otp-da-render-trong-git-quet-eval-e2e.md).
+# 6 tệp gốc đã `git rm --cached` cùng đợt — dòng này CHỈ chặn từ nay,
+# KHÔNG viết lại lịch sử (PO thật chốt 01/09).
+eval/results/render_that_*

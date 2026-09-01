@@ -27,7 +27,14 @@ export default defineConfig({
   // playwright.livechat.config.ts) — cổng 3000 trần (next dev/start) ở đây
   // KHÔNG proxy được /ws/live-chat, chạy nhầm ở config này sẽ luôn fail.
   // Loại trừ tường minh thay vì để 2 config vô tình đụng cùng 1 file test.
-  testIgnore: /live-chat\.spec\.ts/,
+  //
+  // kich-ban-chuyen-gia-render-that.spec.ts THÊM 01/09: spec này ghi OTP
+  // thật (demo, sinh mới mỗi lần chạy) thẳng vào eval/results/render_that_*
+  // — trước bản vá này nó chạy MẶC ĐỊNH, kể cả nightly CI (job
+  // e2e-playwright-nightly gọi `playwright test` không tham số), nên đêm
+  // nào cũng sinh một hiện vật OTP mới sẵn sàng bị `git add` nhầm. Xem
+  // docs/security/2026-09-01-ma-otp-da-render-trong-git-quet-eval-e2e.md.
+  testIgnore: /live-chat\.spec\.ts|kich-ban-chuyen-gia-render-that\.spec\.ts/,
   fullyParallel: false, // dùng chung 1 user/OTP state giữa các case trong 1 file — tránh đụng độ AuthSession
   // ĐÍNH CHÍNH ghi chú cũ ở đây (từng nói "chưa xác định chắc rễ, không phải
   // nghẽn khoá SQLite, đã verify bằng concurrent-load test") — SAI, xác nhận

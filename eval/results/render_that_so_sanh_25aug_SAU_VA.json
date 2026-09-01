@@ -12,7 +12,7 @@
   "vanBanHienThi": [
     "Chào bạn, mình là Sen — trợ lý AI của ví. Mình có thể hỗ trợ bạn những thông tin về ví điện tử, truy vấn các giao dịch và những vấn đề liên quan đến chuyển tiền. Bạn có thể gõ trực tiếp câu hỏi, hoặc bấm \"Báo lỗi giao dịch này\" ở một giao dịch cụ thể bên trái.",
     "Dạ để tra cứu giao dịch của bạn thì mình cần bạn xác thực OTP phiên làm việc trước nhé.\n\nMình nói rõ để bạn yên tâm: đây là mã xác thực phiên hỗ trợ, không phải mã OTP giao dịch — mình không bao giờ hỏi mã OTP giao dịch hay mật khẩu ví của bạn.",
-    "Mã OTP phiên làm việc (mô phỏng — gửi tới 0974000145): 574256\nNhập đủ 6 số OTP để tiếp tục.\nXác nhận",
+    "Mã OTP phiên làm việc (mô phỏng — gửi tới 0974000145): 831051\nNhập đủ 6 số OTP để tiếp tục.\nXác nhận",
     "Xác thực thành công — để mình tra ngay giúp bạn.",
     "Mình hiểu bạn đang lo lắng vì chuyển tiền cho con gái cuối tháng 7 nhưng có thể đã gõ sai số, khiến con bạn chưa nhận đủ tiền.\n\nĐể mình giúp bạn kiểm tra lại giao dịch cụ thể và hướng dẫn cách xử lý. Trước tiên, bạn có thể cho mình biết:\n\n1. **Số tiền** bạn đã chuyển là bao nhiêu? (Ví dụ: 500.000đ, 1 triệu...)\n2. **Thời điểm cụ thể** hơn trong cuối tháng 7? (Ví dụ: khoảng ngày 25-30/7, sáng hay chiều)\n\nMình sẽ tra cứu giúp bạn để xác định chính xác giao dịch này và xem tiền đã đi đến đâu.",
     "Bạn vừa nhắc tới việc chuyển tiền cho con gái cuối tháng 7 và có thể gõ sai số. Để mình tra cứu giúp bạn, bạn có thể cho mình biết:\n\n1. **Số tiền** bạn đã chuyển là bao nhiêu? (Ví dụ: 500.000đ, 1 triệu...)\n2. **Thời điểm cụ thể** hơn trong cuối tháng 7? (Ví dụ: khoảng ngày 25-30/7, sáng hay chiều)\n\nVới thông tin này, mình sẽ kiểm tra lịch sử giao dịch và tìm ra giao dịch bạn đang nói tới.\nnguồn: get_customer_history",
