@@ -524,6 +524,31 @@ chạy 75 ca. **Bẫy TIỀN**: người tưởng đang thử rẻ sẽ trả ch
 cổng băm đỏ khó hiểu. Gỡ băng thì làm **GỘP MỘT LẦN**: sửa chuỗi + dựng lại ảnh + cập nhật băm mong
 đợi trong cả hai kịch bản.
 
+### 0b.19e ⏸ BỐN TỆP `eval/results/` SỬA MÀ CHƯA COMMIT — để nguyên CÓ CHỦ ĐÍCH
+
+```
+1a_reply_log.jsonl                     +10 dòng   (nội dung mang mốc 24/08)
+render_that_so_sanh_25aug_SAU_VA.json  ±1 dòng
+render_that_desktop_25aug_SAU_VA.png   165.894 → 161.091 byte
+render_that_mobile_25aug_SAU_VA.png    224.053 → 227.322 byte
+```
+Cả bốn `stat` ra **31/08 23:33:41**. Sinh ra bởi `frontend/e2e/kich-ban-chuyen-gia-render-that.spec.ts`.
+Commit cuối chạm chúng: `48a562f` (24/08) ⟹ **hiện vật cũ ĐÃ BỊ GHI ĐÈ**, hai tấm PNG **không còn là**
+ảnh mà `48a562f` mô tả. `docs/nhat-ky/2026-08-25-ba-loi-ui-hien-thi.md` có trích dẫn chúng.
+
+**Đã hỏi ĐỦ 4/4 vai đang hoạt động 01/09 — không ai nhận.** Cả bốn đều thấy chúng đã ở trạng thái `M`
+ngay lúc phiên mình bắt đầu. Nhiều khả năng là một phiên đã tắt trước đó, hoặc PO thật chạy tay.
+
+🔴 **ĐỪNG TỰ DỌN.** Không `git checkout`, không `git clean` trên `eval/`. Xoá một hiện vật không rõ
+nguồn gốc là bắt phiên sau **đo lại từ đầu** — đắt hơn hẳn việc giữ bốn tệp. Chỉ **tester** (vùng ghi
+`eval/`) hoặc PO thật mới quyết được: commit (nếu là kết quả thật) hay `git checkout` (nếu là nháp).
+
+⚠️ **Phát hiện phụ, cho `security`:** diff của tệp `.json` chứa **mã OTP đã render**
+(`"Mã OTP phiên làm việc (mô phỏng — gửi tới 0974000145): 574256"` — bản CŨ đang nằm TRONG git).
+Dữ liệu tổng hợp + chế độ demo + mã đã hết hạn ⟹ mức thấp. Nhưng đúng **lớp rủi ro** mà quy trình
+soát phim đang canh (không để mã OTP lên hình): hiện vật kiểm thử **cũng** ghi lại mã OTP, và **hiện
+vật thì vào git**. Đáng soát một lượt xem còn tệp nào khác như vậy.
+
 ### 0b.19c ⏸ `fin05-sach` TẮT 01/09 — hỏi đủ 4/4 vai trước khi tắt
 
 Tắt sau khi **cả bốn vai xác nhận không dùng** (không tự quyết như lần `fin05ttl`/`fin05do`).
