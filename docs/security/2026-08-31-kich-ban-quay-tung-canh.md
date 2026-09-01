@@ -85,6 +85,26 @@
     riêng ngăn `qa-stripe`**, không phải thay đổi toàn cục, các ngăn khác vẫn dùng `Demo@123` bình
     thường. Không đổi lại giá trị trong CSDL (đụng CSDL ngăn dùng để quay có rủi ro không cần thiết)
     — sửa tài liệu thay vì sửa CSDL.
+□ 🔴 BẮT BUỘC, cùng lúc với phép kiểm băm bên dưới — **HẠN MỨC MODEL còn không**
+  *(thêm 01/09: sáng nay agent CHẾT HẲN vì hết hạn mức free tier — `403` trên 3 model, rồi `400`
+  ở model thứ tư làm cơ chế xoay DỪNG luôn. Khách chỉ thấy "hệ thống đang gặp sự cố kỹ thuật".
+  Băm mã đúng KHÔNG bảo vệ được khỏi chuyện này: hạn mức nằm ngoài mã, và nó cạn dần theo giờ.)*
+
+    docker exec fin05-qa-stripe-backend-1 python -c "
+    import sys,json,urllib.request,urllib.error; sys.path.insert(0,'/app')
+    from src.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_POOL
+    m=LLM_MODEL_POOL[0]
+    b=json.dumps({'model':m,'messages':[{'role':'user','content':'hi'}],'max_tokens':1}).encode()
+    r=urllib.request.Request(LLM_BASE_URL.rstrip('/')+'/chat/completions',data=b,
+        headers={'Authorization':'Bearer '+LLM_API_KEY,'Content-Type':'application/json'})
+    try: urllib.request.urlopen(r,timeout=20); print(m,'-> 200 CON HAN MUC')
+    except urllib.error.HTTPError as e: print(m,'->',e.code)"
+
+  → **`200 CON HAN MUC`** ⟹ quay được. Sinh **1 token**, gần như không tốn gì.
+  → **`403`** ⟹ model đầu bể đã cạn. **CHƯA phải dừng** — bể còn 6 model, xoay sẽ tự tụt xuống.
+     Nhưng **báo ngay**, và biết trước rằng Cảnh 5 có thể chậm hơn hoặc trả lời khác lượt đã thử.
+  → **`401`** ⟹ khoá sai. **DỪNG, KHÔNG BẤM MÁY.**
+  *(Đo 01/09 13:10: `qwen3.6-plus-2026-04-02` → `200`. Con số này SẼ CŨ — chạy lại, đừng tin dòng này.)*
 □ 🔴 BẮT BUỘC, làm CUỐI CÙNG — ngay TRƯỚC khi bấm quay Cảnh 1 (kiểm ở phút chót mới có nghĩa; kiểm
   đầu buổi rồi làm việc khác nửa tiếng thì thành lời khẳng định cũ). **[Tự chạy, xác nhận khớp trước
   khi ghi vào đây]:**
