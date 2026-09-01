@@ -73,22 +73,32 @@ SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
 mất chuỗi gia hạn cert) · sửa CSDL ngăn quay · bấm link **"Tra cứu chính sách"** trên nav CSKH ·
 **đăng nhập thử bằng `0974000145`** (xem ngay dưới).
 
-### 🔴🔴 CẤM ĐĂNG NHẬP THỬ BẰNG `0974000145` TRƯỚC GIỜ QUAY *(thêm 01/09 15:41)*
+### 🟢 CẢNH 2 AN TOÀN HƠN TA TƯỞNG — và phép kiểm cũ đo NHẦM CHỖ *(đính chính 01/09 15:50)*
 
-`OTP_VIEW_MAX_MINUTES = 12 giờ`. Cảnh 2 **chỉ kích hoạt khi tài khoản khách CHƯA có phiên OTP tươi**.
-Ai đăng nhập + xác thực OTP bằng `0974000145` bây giờ là tạo một phiên sống **tới 12 tiếng** — vượt
-quá giờ quay tối nay.
+**Bản 15:41 của mục này SAI CƠ CHẾ, đã gỡ.** Nó viết rằng đăng nhập thử bằng `0974000145` sẽ tạo
+"phiên OTP tươi 12 tiếng" trong CSDL và giết Cảnh 2. Đọc mã thì không phải vậy:
 
-**Hậu quả:** tối nay bấm vào, **ô OTP không hiện**. Không lỗi, không cảnh báo, không có gì đỏ —
-Cảnh 2 chỉ **lặng lẽ không xảy ra**, và người cầm máy sẽ tưởng sản phẩm hỏng.
+- `otp_verified_at` **không nằm trong CSDL**. Nó là một trường **trong token** (`src/auth.py:46`).
+- Đăng nhập cấp token với `otp_verified_at=None` — **đóng cứng**, `src/api/main.py:339`.
+- `/agent/chat` đọc `current_user.otp_verified_at`, tức **từ token** (`main.py:697`), không tra bảng.
 
-> Đây là kiểu hỏng tệ nhất trong cả tài liệu này: **một phép KIỂM tự tay PHÁ thứ nó định kiểm.**
-> Càng diễn tập cẩn thận thì càng chắc chắn giết Cảnh 2. Và nó **không để lại dấu vết nào** để
-> người sau truy ngược — chỉ còn một cảnh biến mất.
+⟹ **Mỗi lần đăng nhập mới là một lần OTP được đòi lại.** Lịch sử trong `auth_sessions` không ảnh
+hưởng. Cảnh 2 kích hoạt vì **trình duyệt vừa đăng nhập**, không vì tài khoản "chưa dùng gần đây".
 
-**Cần diễn tập luồng khách?** Dùng **tài khoản khác**, đừng dùng `0974000145`. Đừng tự chọn bằng cách
-thử lần lượt — mỗi lần thử sai cũng là một phiên tươi. *(Ba lần trong ngày 01/09 ta đã khuyến nghị
-nhầm tài khoản vì chỉ kiểm MỘT trong ba điều kiện: mật khẩu · có giao dịch · chưa có phiên tươi.)*
+🔴 **Hệ quả cho thẻ hành động:** phép kiểm số **9** (truy `auth_sessions` xem có phiên tươi không)
+**không phải là cổng của Cảnh 2** — nó đo một bảng liên quan, không đo thứ quyết định. Giữ lại thì
+được, nhưng đừng dựa vào nó, và **đừng DỪNG quay chỉ vì nó ra khác kỳ vọng**.
+
+**Điều kiện thật của Cảnh 2, thay cho mục 9:** vào bằng **cửa sổ ẩn danh / đã đăng xuất sạch**, rồi
+đăng nhập tại chỗ. Còn đăng nhập sẵn từ trước là rủi ro thật — nhưng vì **token cũ còn hiệu lực**,
+không vì CSDL.
+
+*Vẫn nên tránh diễn tập bằng `0974000145`* — lý do còn lại là `failed_attempts`/`locked_at`
+(gõ sai OTP 3 lần có thể khoá). Đo 01/09 15:50: **0 phiên bị khoá**, tài khoản sạch.
+
+> **Vì sao giữ nguyên cả đoạn sai ở đây thay vì xoá:** kết luận *"đừng đụng tài khoản đó"* đúng ở cả
+> hai bản, nên nếu chỉ sửa lặng lẽ thì không ai biết **lý do** đã đổi. Một kết luận đúng dựng trên cơ
+> chế sai sẽ **gãy im lặng** ngay lần đầu hoàn cảnh đổi.
 
 ---
 
