@@ -648,6 +648,27 @@ kết luận.
 để đo dao động tự nhiên (~2,7tr token). **Không phải phép đo tuỳ chọn** — là điều kiện để mọi so
 sánh trước/sau của dự án có nghĩa, kể cả những so sánh đã làm.
 
+### 0b.22 📌 SỔ TỒN ĐỌNG 01/09 — MỌI phát hiện hoãn sau buổi quay, KÈM ĐỊA CHỈ
+
+🔴 **Vì sao có mục này:** năm phát hiện lớn nhất ngày 01/09 từng có **0 lần** xuất hiện trong
+`STATE.md` — đo bằng `grep`, không phải cảm giác. Một phát hiện không có địa chỉ **bằng không có**:
+phiên sau sẽ đo lại từ đầu, hoặc tệ hơn, gặp lại nó và tưởng là mới.
+**Tất cả đều CỐ Ý HOÃN** vì chúng đụng `src/` ⟹ phá băm `9c17c5684c9a` mà buổi quay và toàn bộ
+benchmark 30-31/08 đang neo vào.
+
+| # | phát hiện | địa chỉ bằng chứng | việc tiếp theo | vai |
+|---|---|---|---|---|
+| ① | **Tra cứu chính sách KHÔNG có ngưỡng tương đồng** — câu vô nghĩa vẫn trả `status=found` kèm chính sách CÓ THẬT nhưng lạc đề. Agent dùng CHUNG hàm này (`customer_tools.py:999`) ⟹ chạm **Ràng buộc cứng #3**. Docstring tool tự khai `not_found` = "không có tài liệu khớp" — SAI, `not_found` chỉ khi kho RỖNG. | `src/rag/store.py::search` (không lọc khoảng cách) · `src/rag/search.py::search_policy_text` (chỉ `if results:`) · 🔴 **hiện vật NGOÀI REPO**: `/Users/soidoc/fin05-benchmark-30aug/nguong_rag_policy_KET_QUA.md` + `do_nguong_rag_policy.py` | **KHÔNG vá bằng ngưỡng đơn** — đã đo và RÚT LẠI: câu "gần miệng" (*"phí liên ngân hàng"* khi kho chỉ có phí nội bộ ví) có distance **0.9697**, nằm SÂU trong vùng lõi nhóm liên quan, 5/6 lọt. Hướng ①: **lọc theo `scope`** — `Complaint.scope` ĐÃ CÓ (`models.py:209`), đường agent không cần phân loại gì; cần migration + gán lúc `ingest_document` (việc `partner_admin`) + ô chọn trên UI CSKH. Quyết `scope='unknown'` xử ra sao. | tech-lead |
+| ② | **Xoay model DỪNG ở lỗi non-quota** — `403→403→400→dừng`, bỏ mặc 4 model chưa thử, 3 trong đó CÒN hạn mức. Bể sinh ra để sống sót đúng tình huống này và hỏng ở bước cuối. | `src/agents/graph.py:1541` (`if not la_quota: raise`) · `.env.example` (đã ghi bài học, `fed278c`) | Nới xoay sang cả 400 **khi và chỉ khi ĐANG xoay vì quota**. Cần cổng đỏ-trước/xanh-sau. Còn mở: vì sao `05-17` trả 200 cho request tay có `tools` nhưng 400 với payload lượt 3 thật — **so payload, đừng suy**. | tech-lead |
+| ③ | **Rò rỉ bộ nhớ backend** — 750 MB → 1,5-2,1 GiB trong 25-40 phút dùng nhẹ, **hai ngăn độc lập, bốn lần đo**, dựng lại là về 750 MB. Swap từng chạm **1024/1024**. Đã loại giả thuyết presidio (`pii.py:377/395` có `lru_cache`). | log ngăn `ctc1-check` + `qa-stripe` 01/09 · số đo trong tin nhắn Lead 01/09 | `tracemalloc`/`objgraph` hai mốc cách nhau 20 lượt, **so cái gì tăng**, không suy từ tổng. Phép kiểm phải là **đường cong theo số lượt**, một con số lẻ không nói được gì. 🔴 Chặn bài đo 150 người dùng: sẽ chạm trần RAM trước khi chạm trần TPM ⟹ kết luận sai rằng model là nút thắt. | tech-lead |
+| ④ | **Mã OTP đã render nằm TRONG git** — 4 hiện vật đã commit, 5 mã khác nhau ⟹ LẶP LẠI. THẤP vì **hoàn cảnh** (seed + demo + hết hạn), **không phải vì thiết kế** — spec không guard gì. | `docs/security/2026-09-01-ma-otp-da-render-trong-git-quet-eval-e2e.md` (128 dòng) · §0b.19e | Bản vá **ĐỦ HAI BƯỚC**: `git rm --cached` **rồi mới** `.gitignore` (cả 6 tệp `render_that_*` đã tracked). Tốt hơn cả: đổi spec ghi ra **ngoài repo**. | tester/tech-lead |
+| ⑤ | **Ba ngăn mở ra LAN** (`qa-stripe`/`po-demo`/`ctc1-check`, máy `192.168.1.10`) · **`QWEN_API_KEY` bỏ quên** trong `.env`, không mã nào dùng, chưa từng vào git. | `docs/security/2026-09-01-lan-expose-caddy-va-khoa-qwen-bo-quen.md` | Gốc đã vá (`dbdbc6e` — `CADDY_BIND_HOST`, mặc định loopback) + 2 override (`6d9403c`). **Có hiệu lực từ lần dựng lại sau** — đừng dựng lại chỉ để vá. Thu hồi khoá: **việc PO thật**, cần đăng nhập DashScope. | devops · PO |
+| ⑥ | **Golden set không phủ tool NÀO** — cả 5 tool 0/120 và 0/60. Không phải thiếu tiêu chí; bộ đề xoay quanh 12 ô taxonomy, tra cứu chính sách **trực giao**. Nhưng 9/120 ca agent **tự** gọi `search_policy` (8/9 dính ngân hàng, **không ngẫu nhiên**). | §0b.19d · `golden38_full.json` | (b) chấm điều kiện trên 9 ca có sẵn — **là MÁY DÒ (có/không), KHÔNG phải TỈ LỆ**, mẫu chọn theo biến đầu ra. (a) thêm ca ở chiều mới = **mở rộng phạm vi bộ đề ⟹ PO thật quyết**. Và: **phao KHÔNG lưu `tool_result`** ⟹ không trả lời được "tra cứu có trả rác không" dù đã tốn 8,3tr token. | tester · PO |
+
+⚠️ **① có hiện vật NẰM NGOÀI REPO** (`/Users/soidoc/fin05-benchmark-30aug/`) — không được git bảo vệ.
+Nếu còn cần, **neo vào repo trước khi làm gì khác**; đây đúng rủi ro đã cắn dự án ba lần (video nháp
+`2b84da2`, hai file override `6d9403c`, bể model `fed278c`).
+
 ### 0b.21 BÀN GIAO CUỐI PHIÊN 01/09 — bẫy của từng vai, thứ không ai khác ghi được
 
 **REVIEW**
