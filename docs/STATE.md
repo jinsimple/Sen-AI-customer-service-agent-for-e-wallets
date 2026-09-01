@@ -98,7 +98,7 @@ từng vai (bẫy riêng của mỗi vai): **§0b.21**.
 🔴 **Kết luận của Review sống TRONG TIN NHẮN, không có tệp** — vai Review không ghi repo. Ba kết luận
 quan trọng nhất đã được neo hộ vào **§0b.22b**; phần còn lại **mất khi tắt phiên**, chấp nhận.
 
-### 🎒 LƯỢT NỘP CUỐI — "cái gì bạn biết mà repo không biết", 01/09 16:45
+### 🎒 LƯỢT NỘP CUỐI — "cái gì bạn biết mà repo không biết", 01/09 16:27
 
 Hỏi cả bốn vai đúng một câu đó trước khi tắt. Đây là thứ **sẽ chết theo phiên** nếu không ghi.
 Mỗi mục ghi rõ **ĐO ĐƯỢC** hay **GIẢ THUYẾT** — đừng nâng cấp giả thuyết thành sự thật khi trích lại.
@@ -112,7 +112,7 @@ Mỗi mục ghi rõ **ĐO ĐƯỢC** hay **GIẢ THUYẾT** — đừng nâng c�
   ⟹ **Quên `-f` sinh ra ảnh song song không ai xin.**
 - **GIẢ THUYẾT — rò rỉ RAM ③:** đã loại presidio (`lru_cache` thật). Nghi **OTel
   `BatchSpanProcessor` giữ hàng đợi span xuất lỗi** không giải phóng, khớp đường cong 750MB→2,1GiB.
-  🔴 **Bằng chứng KHÔNG CÒN TÁI LẬP ĐƯỢC:** PO-agent grep log `ctc1-check-backend` lúc 16:40 →
+  🔴 **Bằng chứng KHÔNG CÒN TÁI LẬP ĐƯỢC:** PO-agent grep log `ctc1-check-backend` lúc 16:2x (đo lại 16:27, vẫn 0) →
   **0 dòng** `Failed to export`/`4317` (log chỉ còn 217 dòng; container đã dựng lại 10:58, log cũ mất).
   ⟹ Giữ làm **hướng điều tra**, KHÔNG trích như dữ kiện. `tracemalloc` nên soi **cả nhánh OTel**,
   không chỉ presidio/checkpointer.
@@ -128,7 +128,7 @@ Mỗi mục ghi rõ **ĐO ĐƯỢC** hay **GIẢ THUYẾT** — đừng nâng c�
   `thread_id` mới ⟹ phá sạch state tích luỹ theo lượt**. Đã làm QA/QC báo nhầm *"lỗi hạn mức LLM"*
   **ba lần**. Không dòng nào trong code/docs cảnh báo điều này.
 - **ĐÃ ĐÓNG bằng đo:** nghi mật khẩu CSKH cũng bị đổi tay âm thầm như mật khẩu sếp → đo cả ba bằng
-  Argon2 của app lúc 16:45, **cả ba OK**, đã ghi vào kịch bản (`0c09802`).
+  Argon2 của app lúc 16:27, **cả ba OK**, đã ghi vào kịch bản (`0c09802`).
 - **CHƯA VÀO TỆP:** ma trận đầy đủ *9 tệp e2e × nguyên nhân đỏ* (mật khẩu sếp cũ · `OTP_DEMO_MODE=false`
   · regex dashboard cũ · LLM non-determinism · 1 lỗi policy-lookup mới). **Mất khi tắt phiên.**
 

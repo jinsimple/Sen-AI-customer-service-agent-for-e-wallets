@@ -71,7 +71,7 @@ SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
  10 □ ĐĂNG NHẬP rồi QUAY NGAY — token sống 15 phút. Nghỉ lâu hơn thì đăng nhập lại.
 ```
 
-### 👁️ SẼ CÓ 6 HỒ SƠ CŨ TRÊN MÀN HÌNH KHÁCH — biết trước, đừng ngạc nhiên *(đo 01/09 16:45)*
+### 👁️ SẼ CÓ 6 HỒ SƠ CŨ TRÊN MÀN HÌNH KHÁCH — biết trước, đừng ngạc nhiên *(đo 01/09 16:27)*
 
 `USR-0145` **đã có 6 khiếu nại** trong CSDL ngăn quay. Chúng **sẽ lên hình**. Không xoá được
 (cấm sửa CSDL ngăn quay), nên **chuẩn bị tinh thần thay vì chữa**:
@@ -91,9 +91,9 @@ SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
 đừng cuộn xuống. Nếu buộc phải thấy, một câu caption *"dữ liệu diễn tập"* là đủ.
 
 *(QA/QC nêu việc này từ trước; nó **rơi mất** trên đường vào tài liệu — grep `sidebar`/`hồ sơ cũ`
-trong file này lúc 16:45 cho **0 dòng**. Ghi lại đúng luật "điều kiện phải nằm TRONG câu".)*
+trong file này lúc 16:2x cho **0 dòng**. Ghi lại đúng luật "điều kiện phải nằm TRONG câu".)*
 
-### 🔑 BA MẬT KHẨU — đo bằng chính Argon2 của app, 01/09 16:45
+### 🔑 BA MẬT KHẨU — đo bằng chính Argon2 của app, 01/09 16:27
 
 ```
 0974000145  USR-0145  customer     Demo@123          ✅ OK
