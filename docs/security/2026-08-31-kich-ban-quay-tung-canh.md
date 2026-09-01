@@ -105,6 +105,16 @@
   ⚠️ **Đừng suy từ “hôm qua tôi mở được”** — ngoại lệ lưu theo **từng trình duyệt và từng hồ sơ**.
   Quay bằng cửa sổ ẩn danh / hồ sơ khác / trình duyệt khác là **cảnh báo quay lại**.
 
+□ ⏱ **ĐĂNG NHẬP LẠI ngay trước khi bấm máy — đừng để phiên nguội** *(thêm 01/09)*
+  `JWT_ACCESS_EXPIRE_MINUTES = 15` (`src/config.py`). Nếu đăng nhập sẵn rồi đi dựng đèn / tập lời
+  thoại **quá 15 phút**, access token hết hạn **ngay giữa cảnh** — không ai gõ sai gì cả.
+  Có cơ chế gia hạn ngầm (`frontend/src/proxy.ts`), và chú thích tại `proxy.ts:115-145` ghi lại một
+  chuỗi bug ĐÃ TỪNG xảy ra đúng ở cơ chế đó *(“nhẹ khi bấm lại, CHẾT khi tầng UI chỉ thử đúng một
+  lần”)*, khai là **ĐÃ VÁ** — nhưng **chưa ai xác nhận bản vá đó nằm trong ảnh đang chạy**
+  (`9c17c5684c9a`), và đọc mã tĩnh **không** thay được điều đó.
+  ⟹ **Đừng dựa vào gia hạn ngầm.** Cách rẻ nhất và chắc nhất: **đăng nhập là quay ngay.** Nghỉ giữa
+  chừng quá 15 phút thì **đăng xuất, đăng nhập lại** trước khi quay tiếp.
+
 □ ⏱ **Chứng chỉ TLS còn hạn tới khi nào** *(vòng đời chỉ 12 GIỜ — Caddy tự gia hạn, nhưng “tự động”
   không phải “chắc chắn”)*:
     echo | openssl s_client -connect localhost:59443 -servername localhost 2>/dev/null \
