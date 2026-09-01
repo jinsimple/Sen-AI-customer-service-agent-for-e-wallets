@@ -48,25 +48,31 @@ trọng THẤP HƠN một rò rỉ dữ liệu thật, nhưng vẫn là bề m�
 `ctc1-check`/`po-demo` chưa xác nhận có đang chứa gì nhạy hơn seed hay không (ngoài phạm vi tôi tự
 kiểm đêm nay).
 
-~~⚠️ ĐỪNG vá cổng `ctc1-check` TRƯỚC KHI QA/QC chạy xong CD1~~ **🟢 ĐIỀU KIỆN ĐÃ THOẢ 01/09 — CD1 đã
-đóng, SẴN SÀNG VÁ NGAY.** Tự xác nhận lại trước khi báo (không suy đoán từ lời "CD1 đóng"):
-`docker ps` vẫn cho thấy `ctc1-check-caddy-1` bind `0.0.0.0:61080`/`0.0.0.0:61443`, và
-`OTP_DEMO_MODE=true` vẫn còn — nghĩa là lỗ hổng CHƯA tự đóng theo CD1, cần một hành động vá thật.
+~~⚠️ ĐỪNG vá cổng `ctc1-check` TRƯỚC KHI QA/QC chạy xong CD1~~ → ~~🟢 ĐIỀU KIỆN ĐÃ THOẢ, patch sẵn
+sàng chờ áp dụng~~ **🟢 ĐÃ VÁ THẬT, tech-lead làm xong TRƯỚC KHI tôi kịp đưa patch** (commit `dbdbc6e`
+`fix(docker-compose): caddy mặc định loopback-only, không publish ra LAN` + cập nhật riêng từng file
+override, tự xác nhận bằng đọc lại `docker-compose.ctc1-check.override.yml` 01/09):
 
-**Patch sẵn sàng áp dụng, đã tìm đúng file nguồn** (`docker inspect` xác nhận
-`docker-compose.ctc1-check.override.yml` — untracked, tự khai "TẠM THỜI, KHÔNG COMMIT", cùng dạng
-`qa-stripe`). Đổi đúng khối `caddy:` trong file đó:
-
-```diff
-   caddy:
-     ports: !override
--      - "61080:80"
--      - "61443:443"
-+      - "127.0.0.1:61080:80"
-+      - "127.0.0.1:61443:443"
+```
+ports: !override
+  - "${CADDY_BIND_HOST:-127.0.0.1}:61080:80"
 ```
 
-**Việc ÁP DỤNG patch này thuộc vùng ghi `tech-lead`** (`docker-compose*.yml`, ADR-035) — tôi chuẩn bị
+Đúng tinh thần "sửa GỐC" tôi từng đề xuất, còn kỹ hơn: sửa cả `docker-compose.yml` (mặc định an toàn
+cho MỌI ngăn sau này) **và** từng override đang tồn tại (vì `!override` thay thế hoàn toàn, bản vá
+gốc không tự chạm override) — dùng biến `CADDY_BIND_HOST` thay vì hardcode `127.0.0.1`, đúng hơn
+patch tôi định đưa (giữ được đường mở LAN có chủ đích cho VPS thật sau này qua `CADDY_BIND_HOST=0.0.0.0`
+tường minh). **Có hiệu lực từ lần dựng lại SAU** — tự khai rõ trong comment, KHÔNG áp ngay để tránh
+đụng ngăn đang chạy trước giờ quay.
+
+**`po-demo` — đã TÌM RA file override** (docker inspect, trả lời câu Lead đang hỏi):
+`/private/tmp/.../93eb0826-.../scratchpad/docker-compose.po-demo.yml` — nằm trong **scratchpad của
+một phiên khác, KHÔNG phải file trong repo** — đúng lý do không ai tìm thấy khi chỉ tìm trong repo.
+Khớp đúng kế hoạch PO: không cần dựng lại chỉ để vá, container đang chạy được KHỞI ĐỘNG TRƯỚC khi bản
+vá gốc land nên còn giữ binding cũ; lần dựng lại tự nhiên tiếp theo (dùng file scratchpad đó hoặc file
+mới) sẽ tự thừa hưởng mặc định an toàn từ `docker-compose.yml`, MIỄN LÀ file đó không tự hardcode cổng
+trần như `ctc1-check`/`qa-stripe` từng làm — đáng nhắc người dựng lại `po-demo` sau này kiểm tra đúng
+điều đó trước khi tin "tự động an toàn".
 sẵn diff chính xác, không tự sửa file. Sau khi áp dụng: `docker compose -p ctc1-check up -d caddy`
 (không `--build`, không đụng `backend` đang giữ ảnh `fin05-backend:ctc1` đã kiểm băm) để nạp lại đúng
 mỗi service `caddy`, rồi `docker ps` xác nhận lại binding đã đổi sang `127.0.0.1`.
