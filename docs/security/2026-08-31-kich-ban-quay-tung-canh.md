@@ -68,7 +68,14 @@
 □ Danh khoản đăng nhập demo đã biết trước, ĐỦ CẢ BA vai (không gõ sai, không phải thử lại nhiều lần):
   - Khách (Cảnh 1-6): SĐT + mật khẩu.
   - CSKH (Cảnh 7): tài khoản đăng nhập qua `/dang-nhap-noi-bo`.
-  - Sếp/supervisor (Cảnh 8): tài khoản đăng nhập qua `/dang-nhap-noi-bo`, vai khác CSKH.
+  - Sếp/supervisor (Cảnh 8): tài khoản đăng nhập qua `/dang-nhap-noi-bo`, vai khác CSKH. **SĐT
+    `0905000205`, mật khẩu `TestP0Otp!2026`.** 🔴 **KHÁC với `Demo@123` ghi trong `docs/STATE.md:758`
+    — ĐỪNG dùng giá trị đó.** Tự xác minh 01/09 bằng cách so trực tiếp với `password_hash` thật trong
+    CSDL ngăn `qa-stripe` (không đoán): Coder đã đổi mật khẩu này ngay trong CSDL ngăn `qa-stripe` khi
+    test tay bản vá P0 tối 31/08 (có báo qua tin nhắn lúc đó, nhưng chìm giữa luồng chat) — **CHỈ
+    riêng ngăn `qa-stripe`**, không phải thay đổi toàn cục, các ngăn khác vẫn dùng `Demo@123` bình
+    thường. Không đổi lại giá trị trong CSDL (đụng CSDL ngăn dùng để quay có rủi ro không cần thiết)
+    — sửa tài liệu thay vì sửa CSDL.
 □ 🔴 BẮT BUỘC, làm CUỐI CÙNG — ngay TRƯỚC khi bấm quay Cảnh 1 (kiểm ở phút chót mới có nghĩa; kiểm
   đầu buổi rồi làm việc khác nửa tiếng thì thành lời khẳng định cũ). **[Tự chạy, xác nhận khớp trước
   khi ghi vào đây]:**
