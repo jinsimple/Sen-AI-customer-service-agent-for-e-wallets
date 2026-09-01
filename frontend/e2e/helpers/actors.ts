@@ -2,6 +2,18 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 /**
+ * 🔴 [01/09] Bộ e2e chạm luồng OTP (login khách qua `.otp-meta`/`demoOtpCode`
+ * — xem `completeOtpIfPrompted` dưới đây, VÀ luồng sếp duyệt qua network
+ * response `otp_code`) CẦN `OTP_DEMO_MODE=true` trên backend đang test.
+ * KHÔNG có cờ này = mặc định TẮT (đúng thiết kế an toàn của P0 `bdaf17e` —
+ * KHÔNG PHẢI lỗi) = OTP không hiện ở đâu cả = e2e đỏ HÀNG LOẠT ở mọi test
+ * chạm đăng nhập, trông như sản phẩm hỏng trong khi chỉ thiếu một cờ.
+ * ĐẶT CỜ Ở OVERRIDE CỦA NGĂN đang chạy e2e (kiểu docker-compose.qa-stripe.override.yml),
+ * ĐỪNG đặt vào `.env` dùng chung — `.env` nạp vào MỌI ngăn qua `env_file:`,
+ * bật cờ ở đó là mở lại đúng lỗ rò `bdaf17e` vừa vá, trên tất cả ngăn, mặc
+ * định, vĩnh viễn. PO chốt 01/09: thiếu cờ trong `.env` không phải lỗi, đó
+ * là mặc định an toàn — giá của nó là bất tiện này, phải trả, không sửa.
+ *
  * FIN05-StressTest-Plan-v4 P2 — helper dùng chung cho e2e mới (approve,
  * ticket-detail, dashboard, knowledge, policy-lookup) — login theo role +
  * tạo 1 ticket THẬT qua đúng luồng AI + OTP (không có route BFF tắt để tạo
