@@ -30,7 +30,7 @@
 | 4 | Dashboard NaN | *(đã gỡ khỏi rủi ro — lỗi nằm ở bài test, không phải sản phẩm)* | Cảnh 7, nếu muốn soát cho chắc | Chip số liệu hiện số bình thường — không cần hành động nếu thấy số, đây không còn là rủi ro |
 | 5 | Trích luật hết hiệu lực trên UI | *(đã sửa, commit `9d46a3c`)* | Cảnh 8, khối "Thông tin giao dịch" | Dòng đọc "Luật 91/2025/QH15, NĐ 356/2025/NĐ-CP" — nếu vẫn thấy "NĐ 13/2023" ở đây, nghĩa là bản quay dùng ảnh Docker CŨ hơn commit vá, phải dừng và báo ngay (dấu hiệu lệch băm mã) |
 | 6 | DevTools/console mở lộ | Bất kỳ đâu | Có cửa sổ/panel lạ nào không phải giao diện sản phẩm xuất hiện thoáng qua không | Không có |
-| 7 | Dữ liệu trông giống khách thật (nhận thức) | Cảnh 3, Cảnh 7 | Có caption/lời mở đầu "dữ liệu sinh tổng hợp" xuất hiện đủ rõ, đủ sớm trong video không — không phải mục CẤM lên hình, mà mục PHẢI CÓ | Caption/lời thoại đã xuất hiện trước khi màn hình đầu tiên có tên/SĐT hiện ra |
+| 7 | Dữ liệu trông giống khách thật (nhận thức) | Cảnh 3, Cảnh 7 | **BẮT BUỘC: caption CHỮ trên màn hình** "dữ liệu sinh tổng hợp" xuất hiện đủ rõ, đủ sớm — không phải mục CẤM lên hình, mà mục PHẢI CÓ. Lời thoại nói cùng nội dung là TUỲ CHỌN CỘNG THÊM, không thay thế được caption chữ (video có thể bị xem tắt tiếng; chữ kiểm được bằng đúng phương pháp trích khung hình, lời thoại thì không) | Caption CHỮ đã xuất hiện trên màn hình trước khi khung hình đầu tiên có tên/SĐT hiện ra — soát bằng trích khung hình như các dòng khác trong bảng, không cần công cụ nghe |
 
 ## Sau khi soát — kết luận, không lấp lửng
 
@@ -85,14 +85,13 @@ kịp dừng ở khung hình 1-2 giây):**
 - **Lượt 3 (tua chậm điểm cắt)** — nếu bản dựng có cắt cảnh, trích MỌI khung hình (không lọc `fps`)
   trong cửa sổ ±1 giây quanh từng điểm nối, đọc hết không bỏ sót.
 
-**Gap còn TỒN, chưa đóng — không tự sửa, cần Lead/PO quyết định trước 22h:** dòng #7 trong bảng ("có
-caption/lời mở đầu 'dữ liệu sinh tổng hợp'") — nếu đây là LỜI NÓI (audio, không phải chữ hiện trên
-màn hình), tôi KHÔNG có công cụ chuyển giọng nói thành văn bản (`which whisper` → không có, không tự
-cài vì đây là gói nặng — tải mô hình vài GB, quyết định thêm phụ thuộc mới nên hỏi trước, không tự
-quyết như `ffmpeg`). Nếu là CHỮ hiện trên màn hình (on-screen caption) thì đã đóng, dùng đúng phương
-pháp trích khung hình ở trên. **Cần biết trước khi quay: mục 7 sẽ làm bằng caption chữ hay lời thoại?**
-Nếu là lời thoại, cần quyết định thêm công cụ speech-to-text HOẶC đổi sang caption chữ để tôi soát
-được bằng chính công cụ đã có.
+**🟢 Gap đã ĐÓNG — PO quyết 01/09 (không cần chờ đến lúc quay):** dòng #7 dùng **caption CHỮ trên màn
+hình, BẮT BUỘC**; lời thoại nói cùng nội dung là tuỳ chọn CỘNG THÊM, không thay thế. Ba lý do PO nêu:
+① video demo thường bị xem tắt tiếng (Slack/slide/tab nền) — lời thoại không tới được phần lớn người
+xem; ② chữ trên hình kiểm được bằng đúng phương pháp trích khung hình vừa dựng ở trên, lời thoại thì
+không (không tái lập được bằng công cụ hiện có); ③ đây là câu mang tính pháp lý (dữ liệu sinh tổng
+hợp) — phải NHÌN THẤY được, không phụ thuộc người xem có bật loa hay không. Không cần cài whisper.
+Nếu sau này muốn kiểm cả lời thoại (không bắt buộc), đó là việc làm SAU buổi quay, cài whisper lúc đó.
 
 ## Vì sao cần cổng này dù đã có checklist trước khi quay
 
