@@ -524,6 +524,36 @@ chạy 75 ca. **Bẫy TIỀN**: người tưởng đang thử rẻ sẽ trả ch
 cổng băm đỏ khó hiểu. Gỡ băng thì làm **GỘP MỘT LẦN**: sửa chuỗi + dựng lại ảnh + cập nhật băm mong
 đợi trong cả hai kịch bản.
 
+### 0b.19c ⏸ `fin05-sach` TẮT 01/09 — hỏi đủ 4/4 vai trước khi tắt
+
+Tắt sau khi **cả bốn vai xác nhận không dùng** (không tự quyết như lần `fin05ttl`/`fin05do`).
+`docker start fin05-sach-backend-1 fin05-sach-postgres-1 fin05-sach-redis-1 fin05-sach-frontend-1
+fin05-sach-jaeger-1` bật lại.
+
+**Lý do CỤ THỂ, không phải dọn dẹp chung chung:** `swap` đã chạm **1024/1024 MiB — đầy 100%**.
+Quá mốc đó, thiếu RAM không còn làm máy chậm mà **làm tiến trình bị giết** — và ngăn quay
+`9c17c5684c9a` là tiến trình ngốn nhất máy (1,55 GiB), tức ứng viên đầu tiên.
+Sau khi tắt: `available` 0,72 → **1,33 GiB**, `swap` 1024 → **775 MiB**.
+
+⚠️ **Đo RAM phải đọc cột `available` ($7), KHÔNG phải `free` ($4).** PO-agent đọc nhầm cột suốt
+buổi sáng 01/09 ⟹ mọi con số báo ra đều thấp hơn thật (0,42 vs 1,30 tại cùng một thời điểm).
+Lệnh chuẩn: `docker run --rm alpine:3 free -m`, lấy cột **available**.
+
+### 0b.19d 🔴 GOLDEN SET KHÔNG PHỦ `search_policy` — và không phủ tool NÀO
+
+Đếm thật trên `eval/golden_set.jsonl` (120 ca) và `eval/heldout_set.jsonl` (60 ca):
+**cả 5 tool trong `contracts/agent-tools.yaml` đều xuất hiện 0 lần** — `lookup_transaction`,
+`get_customer_history`, `create_ticket`, `request_human_handoff`, `search_policy`.
+
+🔴 **Đọc cho đúng cơ chế, đừng đọc thành "thiếu tiêu chí":** bộ golden **không mã hoá kỳ vọng theo
+tên tool**. 20 khoá của mỗi ca (`expected`/`forbidden`/`trap_for`/`cell`/`scope`/…) xoay quanh
+**12 ô taxonomy khiếu nại** (4 loại × 3 phạm vi). Tra cứu chính sách **trực giao với 12 ô đó**, nên
+nó nằm NGOÀI thiết kế của bộ đề — không phải một tiêu chí bị bỏ sót.
+
+⟹ **Hệ quả:** không thể vá bằng cách thêm một tiêu chí chấm. Muốn phủ thì phải **thêm ca ở một
+chiều bộ đề hiện không có**. Và cho tới lúc đó, mọi phép đo trên golden **không nói gì** về chất
+lượng tra cứu chính sách — kể cả lượt 8,3 triệu token đêm 31/08.
+
 ### 0b.19b ⏸ HAI NGĂN CŨ ĐANG TẮT — CÓ CHỦ ĐÍCH, không phải sự cố
 
 `fin05ttl` (mã 18/08) · `fin05do` (mã 24/08) — **tắt 01/09**, giải phóng **~1,5 GiB** cho các lượt
