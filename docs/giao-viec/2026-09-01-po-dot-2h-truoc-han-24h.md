@@ -66,6 +66,44 @@ không hoãn được và không chạy song song với việc sửa tệp. Làn
 
 ---
 
+---
+
+## ⛔ ĐÍNH CHÍNH 21:15 — LÀN A ĐÃ BỊ CẮT CÒN 1/3. ĐỌC TRƯỚC KHI THI HÀNH §2 LÀN A.
+
+Mục A1/A2/A3 bên dưới **SAI** và tôi giữ nguyên văn để người sau thấy sai ở đâu, không xoá.
+
+🔴 **Hướng "thêm ngưỡng khoảng cách" ĐÃ ĐƯỢC ĐO VÀ RÚT LẠI TRƯỚC KHI TÔI VIẾT TÀI LIỆU NÀY.**
+`docs/STATE.md:845` (§0b.22 mục ①), nguyên văn:
+> *"KHÔNG vá bằng ngưỡng đơn — đã đo và RÚT LẠI: câu 'gần miệng' (`phí liên ngân hàng` khi kho
+> chỉ có phí nội bộ ví) có distance **0.9697**, nằm SÂU trong vùng lõi nhóm liên quan, **5/6 lọt**."*
+
+⟹ Ngưỡng đơn bắt được **1/6**. Nó không sửa ①; nó tạo **niềm tin sai rằng ① đã sửa** — tệ hơn để
+nguyên, vì để nguyên thì còn có người đi tìm.
+⟹ Hướng thật đã ghi sẵn: **lọc theo `scope`** (`Complaint.scope` đã có, `models.py:209`) — cần
+**migration + gán lúc `ingest_document` + ô chọn UI CSKH**. Không phải việc của 2 tiếng, và chạm `migrations/`.
+
+**Làn A tối nay còn ĐÚNG một việc:** **①a nạp kho RAG vào `po-demo`** (ngăn live demo đang có
+**0 tài liệu chính sách**, tra cứu rỗng 100%). **①b hiệu chuẩn: BỎ. ①c lọc: BỎ.**
+Thêm một phép ĐO (không sửa code): xác nhận lại con số 0.9697 trên kho thật — hiện vật gốc nằm
+**NGOÀI repo** (`/Users/soidoc/fin05-benchmark-30aug/`), mất máy đó là mất bằng chứng.
+
+⚠️ **Hệ quả lịch:** nạp kho **không đụng `src/`** ⟹ có thể **KHÔNG cần dựng lại ảnh tối nay**.
+Lead xác nhận trước khi ai gõ lệnh dựng — một lần dựng thừa tiêu 20 phút của cửa sổ 2 tiếng.
+
+### 🔑 Cơ chế tôi sa vào — đáng ghi hơn bản thân lỗi
+Bản tóm §0-TER ghi *"① RAG không ngưỡng"*. Tôi đọc thành *"cần thêm ngưỡng"*. Bản đầy đủ nói
+**ngược lại**. Đây đúng **cạm bẫy ④** của `docs/dieu-phoi-doi-nhieu-claude.md` §6:
+> *"Trong bản tóm, thứ bị BỎ RA nguy hiểm hơn thứ nói KHÁC. Mâu thuẫn thì dễ thấy — hai câu cạnh
+> nhau, khác nhau. Thiếu sót thì vô hình."*
+
+**LUẬT ÁP CHO CẢ ĐỘI TỪ 21:15:** mục nào trong `§0-TER` bạn định **thi hành**, mở `§0b.22` đọc
+bản đầy đủ trước. **Bản tóm đủ để BIẾT, không đủ để LÀM.**
+
+*(Người bắt được: Review `p-226-0c`, bằng cách phản biện đúng thứ PO nhờ họ phản biện. Họ cũng
+sửa luôn một suy luận sai khác của tôi — xem §5 dưới.)*
+
+---
+
 ### LÀN A — Coder (+ QA/QC đo cùng) · việc ① · ĐƯỜNG GĂNG
 
 **A1 · 20:45-21:10 · GỠ B1 — đo ngưỡng, đừng đoán.**
@@ -223,3 +261,23 @@ Nói ra để không ai tưởng bị bỏ quên — cả bốn đều **đáng 
   bằng cách thêm tiêu chí chấm (§0b.19d).
 - **Mật khẩu khách hardcode** trong 2 tệp `quay-video*` — cùng dạng tiền lệ đã tracked
   (`auth.spec.ts`, `auth-multirole.spec.ts`), **không mở lớp rủi ro mới**. Dọn chung một lượt.
+
+
+---
+
+## 5. ĐÍNH CHÍNH THỨ HAI 21:15 — suy luận sai của chính tôi về nguyên nhân ①
+
+Lúc 21:00 tôi báo: *"nguyên nhân gốc của ① không phải thiếu ngưỡng, mà là kho rỗng."*
+**Sai.** Review `p-226-0c` phản biện, và họ đúng:
+
+> Nếu kho **luôn** rỗng thì `search.py:95` **luôn** trả `not_found` — **không thể** sinh ra triệu
+> chứng *"found nhưng sai"* mà ① mô tả. Bằng chứng distance-0.9697 đo trên kho **ĐÃ NẠP** (30/08),
+> khác trạng thái `po-demo` hôm nay.
+
+⟹ Diễn giải đúng: **hai sự cố CỘNG DỒN, không thay thế nhau.**
+① bug ngưỡng — thật, đo trên kho đã nạp · ⑧ `po-demo` chưa seed lại — thật, sự cố **thứ hai**.
+
+**Cơ chế tôi sa vào:** so hai phép đo ở **hai thời điểm khác nhau** rồi kết luận nhân quả. Đúng
+kiểu lỗi mà `docs/STATE.md` §0b.22c gọi tên chiều 01/09 — *soát lại chính các phép đo*.
+[ĐO 21:05] 1 chunk của `qa-stripe` là fixture E2E `e2e-policy-lookup-1788237362705.txt`, **không
+phải corpus thật** — nên nó cũng không dùng làm bằng chứng cho hành vi sản phẩm được.
