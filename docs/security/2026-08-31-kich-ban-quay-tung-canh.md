@@ -122,6 +122,18 @@ Cảnh 4  bấm "Báo lỗi giao dịch này" → rồi mới hiện 4 chip con 
 Cảnh 5  agent tra cứu
 ```
 
+**Hai đường này đi qua HAI CƠ CHẾ KHÁC HẲN NHAU — đo 01/09, đừng gộp:**
+· **(a)** nút gọi `beginOtpFlow()` → `requestOtp()` **thẳng tới endpoint xác thực**
+  (`ChatClient.tsx:324-326`, `:642`/`:679`). **KHÔNG gửi tin nhắn nào, KHÔNG qua agent, KHÔNG qua
+  cổng nhận-diện-khiếu-nại của `graph.py`.** Vì thế nó chạy **ngay sau đăng nhập**, và **cái bẫy
+  chip "Hoàn tiền" không liên quan gì tới đường này.**
+· **(b)** gửi tin → server trả `duong === "can_otp"` → client **cũng gọi `beginOtpFlow()`**
+  (`:472`). Đây mới là đường bị cổng `graph.py:1267-1276` chi phối (4 điều kiện, gồm
+  `la_khieu_nai_ca_nhan`).
+
+⟹ **Nói cho chính xác về câu gốc:** *"ngay sau đăng nhập… xin OTP"* sai ở chữ **"tự"** — phải **bấm
+một nút**. Nhưng **VỊ TRÍ thì đúng**: OTP vẫn ở Cảnh 2, ngay sau Cảnh 1, trước Cảnh 3.
+
 🟢 **Quay theo đường (a).** Ba lý do: nó là nút **hiện sẵn trên màn hình**, không phụ thuộc câu chữ;
 nó tách bạch Cảnh 2 khỏi Cảnh 4 nên **thứ tự quay = thứ tự số cảnh**; và nó **miễn nhiễm với cái bẫy
 chip "Hoàn tiền"** ở Cảnh 4 (xem cảnh đó) — vì OTP đã xong trước khi chạm chip.
