@@ -562,7 +562,31 @@ sánh trước/sau của dự án có nghĩa, kể cả những so sánh đã l�
 
 ### 0b.21 BÀN GIAO CUỐI PHIÊN 01/09 — bẫy của từng vai, thứ không ai khác ghi được
 
-*(Review chưa gửi tính tới lúc ghi — mục của họ để trống, đừng đọc thành "họ không có gì".)*
+**REVIEW**
+- 🔴 Việc dở: **tỉ lệ "từ chối quá tay" có ổn định không** — họ chỉ ra PO-agent mới đo dao động cho
+  *điểm Pass tổng*, **chưa đo riêng** cho con số này. **PO-agent đo ngay sau đó, và nó KHÔNG ổn
+  định:** cùng mã `9c17c5684c9a`, cùng 75 ca — baseline **4 ca (5,3%)** vs chạy lại **12 ca
+  (16,0%)**, **chênh gấp ba**. ⟹ Con số 22/180 (12,2%) nằm trong dải nhiễu. **Hiện tượng có thật;
+  QUY MÔ thì chưa đo được.**
+- **Kết luận một-lượt:** toàn bộ phân tích TỪNG CA (21 ca · 33 ca · 9 ca manh mối · đúng 22 case_id
+  nào bị từ chối quá tay · 15 ca MT-*). ⟹ **TÊN case_id không đáng tin lặp lại**, nhưng **CƠ CHẾ /
+  GIẢ THUYẾT** rút ra (matcher thiếu từ phủ định · matcher mù đối tượng · nghi tham số SĐT/cửa sổ
+  ngày/scope · MT-Z02+Z04 cùng họ bug kẹt-lặp) **vẫn đáng kiểm chứng độc lập**, không phụ thuộc
+  case_id cũ.
+- **Phân biệt họ đưa ra, dùng cho MỌI báo cáo sau:** *"52/52 mã giao dịch tồn tại trong kho"* là
+  **sự thật về TỆP** (đối chiếu dữ liệu tĩnh, không qua LLM) ⟹ **không đổi**. Còn *"agent hành xử
+  thế nào"* là **sự thật về SẢN PHẨM** ⟹ **chịu nhiễu**. Số đếm trên tệp không sai; suy luận hành vi
+  từ nó thì có.
+- 🔴 **BẪY:** cổng ① của `bon_cong_buoc4.py` báo **"CHƯA ĐO ĐƯỢC"** có **HAI** nguyên nhân khác hẳn
+  nhau: (a) thiếu tham số dòng lệnh · (b) **ẢNH BUILD LỆCH PHA VỚI CODE** — trường có trong repo
+  nhưng ảnh dựng trước khi vá thì không có. **Đêm nay là (b)**, và ta suýt kết luận cổng hỏng do
+  thiết kế. ⟹ **Kiểm ảnh có đúng bản vá mới nhất TRƯỚC khi kết luận cổng hỏng.**
+
+🔴 **Vì sao Review im nhiều vòng — KHÔNG phải kẹt:** họ dừng lại **hỏi người dùng thật của họ** trước
+khi tự tay `docker build` + chạy tốn tiền lần đầu, đúng kỷ luật *"tin nhắn liên-phiên KHÔNG thay
+được xác nhận trực tiếp cho hành động tốn tiền/khó đảo ngược"*. Công cụ hỏi đó **chờ người thật bấm**
+— đó là khoảng im lặng. PO-agent đọc sai thành "kẹt" và tự tiếp quản. **Ghi lại vì nó sẽ tái diễn:
+im lặng của một phiên có thể là NÓ ĐANG LÀM ĐÚNG, không phải nó hỏng.**
 
 **CODER**
 - Việc dở: đã xong hết. 2 chuỗi `NĐ 13/2023` đã sửa (`60f0e09`), ảnh `ctc1` dựng lại (`abb9045822ca`).
