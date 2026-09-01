@@ -103,10 +103,25 @@ sửa PO đề xuất — chỉ tách rõ HAI cơ chế khác nhau (sinh ra ↔�
 
 - Dọn/rotate 4 hiện vật đã commit — **KHÔNG LÀM TRƯỚC BUỔI QUAY**, đụng đúng 4 tệp trong §0b.19e đang
   tranh chấp. Sau buổi quay, thuộc `tester` (chủ `frontend/e2e/`, `eval/`).
-- Sửa CƠ CHẾ (ưu tiên hơn che nội dung, xem mục cập nhật 01/09 ở trên): đổi đường ghi hiện vật của
-  `kich-ban-chuyen-gia-render-that.spec.ts` ra thư mục NGOÀI repo, hoặc thêm
-  `eval/results/render_that_*_SAU_VA.*` vào `.gitignore` — chặn ĐƯỜNG vào git thay vì trông chờ người
-  chạy nhớ che ô OTP mỗi lần. Việc code, thuộc `tester`/`tech-lead`, không phải `security` tự sửa.
+- Sửa CƠ CHẾ (ưu tiên hơn che nội dung, xem mục cập nhật 01/09 ở trên) — **🔴 tự đo lại 01/09 vòng 2:
+  chỉ thêm `.gitignore` KHÔNG đủ, đã tự xác nhận cả 6 tệp (`git ls-files eval/results/ | grep
+  render_that`) ĐỀU ĐÃ TRACKED (commit `db7a488`/`1a6eff1`) — `.gitignore` chỉ chặn tệp CHƯA theo dõi,
+  một tệp đã tracked thì `git add` vẫn nạp lại bình thường dù có bao nhiêu dòng `.gitignore`. Thiếu
+  bước gỡ theo dõi thì đây là bản vá TRÔNG như đã chặn nhưng KHÔNG chặn gì — phải làm ĐỦ 2 bước, thiếu
+  bước 1 thì bước 2 vô nghĩa:**
+  1. `git rm --cached eval/results/render_that_*` — gỡ khỏi theo dõi, **giữ nguyên tệp trên đĩa**.
+  2. Thêm `eval/results/render_that_*` vào `.gitignore` — từ nay không quay lại git nữa.
+  Hướng tốt hơn cả hai bước trên: đổi đường ghi hiện vật của
+  `kich-ban-chuyen-gia-render-that.spec.ts` ra thư mục NGOÀI repo — khi đó không cần `.gitignore`,
+  không ai `git add` nhầm được nữa. Việc code, thuộc `tester`/`tech-lead`, không phải `security` tự
+  sửa.
+  **⚠️ Ràng buộc trước khi làm bước 1 (không phải việc hôm nay, cần `tester`/`tech-lead` quyết):**
+  `git rm --cached` xoá theo dõi nhưng không xoá LỊCH SỬ — bản thân file vẫn đọc được qua
+  `git show <commit>:...` như tôi vừa dùng để soát đêm nay. Đã tự kiểm
+  `docs/nhat-ky/2026-08-25-ba-loi-ui-hien-thi.md:20` **CÓ trích dẫn** đúng
+  `eval/results/render_that_so_sanh_25aug.json` làm bằng chứng — gỡ theo dõi không xoá được bằng chứng
+  đó (vẫn truy được qua git history), nhưng người thực hiện cần biết trước để không tưởng nhầm đang
+  "xoá bằng chứng nhật ký".
 - Vì các mã đã hết hạn và dữ liệu là seed, KHÔNG cần hành động khẩn (không phải OTP thật, không có
   giao dịch thật đứng sau) — nhưng nên xếp vào backlog "trước khi chạy spec này trên dữ liệu THẬT" nếu
   tương lai project đổi sang môi trường có dữ liệu thật, để không lặp lại đúng lỗ này ở mức nghiêm
