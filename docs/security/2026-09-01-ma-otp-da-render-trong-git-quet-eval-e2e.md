@@ -57,13 +57,56 @@ mã OTP mới). **Nếu spec này còn tồn tại và còn được chạy + co
 chắn sẽ tạo thêm một hiện vật OTP mới trong git — kể cả sau khi dọn 4 tệp hiện tại. Đây là lỗ CẤU TRÚC,
 không phải lỗ ở 4 tệp cụ thể.
 
+## Cập nhật 01/09 (sau khi Lead relay PO đo tiếp) — spec chạy MẶC ĐỊNH, tự kiểm lại từng vế trước khi ghi
+
+**Tự đo lại, không chép nguyên claim của peer:**
+
+- `frontend/playwright.config.ts:30` — `testIgnore: /live-chat\.spec\.ts/` — **XÁC NHẬN ĐÚNG**, chỉ
+  loại `live-chat.spec.ts`. `kich-ban-chuyen-gia-render-that.spec.ts` KHÔNG bị loại → chạy mỗi khi ai
+  gõ `npx playwright test` không tham số, không cần cố ý nhắm đúng spec này.
+- `.github/workflows/ci.yml` job `e2e-playwright-nightly` (dòng ~724) — **XÁC NHẬN ĐÚNG**: điều kiện
+  `if: github.event_name == 'schedule' || 'workflow_dispatch'`, bước cuối chạy đúng
+  `npx --prefix frontend playwright test` (dùng config mặc định, không lọc riêng nhóm AUTH-* dù comment
+  cạnh đó ghi vậy) → spec render-that CHẠY THẬT mỗi đêm trên máy chủ CI.
+- `frontend/e2e/kich-ban-chuyen-gia-render-that.spec.ts` — đọc trực tiếp: dòng 108-109/160/209 ghi
+  CỨNG đường dẫn `../../eval/results/render_that_*_SAU_VA.{json,png}` bằng `fs.writeFileSync`/
+  `page.screenshot`, không có bất kỳ điều kiện `OTP_DEMO_MODE`/seed-account nào bọc quanh (grep
+  `OTP_DEMO_MODE|seed|USR-0145` trong file → chỉ có `CUSTOMER_PHONE = "0974000145"` hardcode, không có
+  guard).
+
+**🔴 Một chỗ cần ĐÍNH CHÍNH so với cách Lead thuật lại — đã tự kiểm bằng `grep "git commit\|git push"
+.github/workflows/ci.yml` → 0 kết quả:** CI **KHÔNG tự commit** hiện vật vào git. Job
+`e2e-playwright-nightly` chỉ `actions/upload-artifact` đúng thư mục `frontend/playwright-report/`
+(báo cáo HTML riêng của Playwright) — khác hẳn `eval/results/`, và artifact CI là lưu trữ tạm gắn với
+lần chạy (ephemeral), không phải commit vào lịch sử git. Nghĩa là: mỗi đêm CI CÓ sinh một mã OTP mới
+ghi ra đĩa **trên máy chủ CI** (rủi ro thật nhưng ở phạm vi hẹp hơn — mất theo vòng đời runner, không
+tự động vào git) — còn cơ chế biến nó thành VĨNH VIỄN trong git vẫn là bước NGƯỜI tự làm sau đó (`git
+add`/commit trên máy cá nhân, đúng như 4 tệp gốc của §0b.19e). Không đổi kết luận severity hay hướng
+sửa PO đề xuất — chỉ tách rõ HAI cơ chế khác nhau (sinh ra ↔️ đi vào git) để không sửa nhầm chỗ.
+
+**Xác nhận đúng, không đổi:**
+
+- ① Giải đúng bí ẩn §0b.19e — không ai "chạy phép đo render" có chủ đích; chạy bộ e2e bình thường
+  (`npx playwright test`, không tham số) tạo ra 4 tệp này như TÁC DỤNG PHỤ không ai biết trước, khớp cả
+  4 người phủ nhận thành thật.
+- ② Severity THẤP là do **HOÀN CẢNH** (số điện thoại demo, `OTP_DEMO_MODE`, mã đã hết hạn), **KHÔNG
+  PHẢI do THIẾT KẾ** — đã tự xác nhận spec không hề kiểm `OTP_DEMO_MODE` hay xác nhận tài khoản là seed
+  trước khi ghi hiện vật. Chạy đúng đoạn mã này nhắm vào một cấu hình/tài khoản khác (không phải seed)
+  sẽ commit một mã OTP THẬT, không có gì trong code chặn lại.
+- ③ Che ô OTP khi chụp/dump (đề xuất ban đầu của tôi) chỉ chữa NỘI DUNG hiện tại, không chặn được chu
+  kỳ lặp — mỗi lần chạy vẫn ghi đè `eval/results/render_that_*_SAU_VA.*`, ai đó `git add` là lại vào
+  git. Sửa CƠ CHẾ đúng hơn: đổi đường dẫn ghi ra ngoài repo (thư mục tạm) hoặc thêm 3 tên tệp
+  `render_that_*_SAU_VA.*` vào `.gitignore` — khi đó dù CI/local chạy bao nhiêu lần, hiện vật không còn
+  ĐƯỜNG nào vào git nữa, không phụ thuộc người chạy có nhớ che ô hay không.
+
 ## Việc thuộc vai khác, không phải tôi tự sửa — ghi lại để không ai đo lại từ đầu
 
 - Dọn/rotate 4 hiện vật đã commit — **KHÔNG LÀM TRƯỚC BUỔI QUAY**, đụng đúng 4 tệp trong §0b.19e đang
   tranh chấp. Sau buổi quay, thuộc `tester` (chủ `frontend/e2e/`, `eval/`).
-- Sửa gốc (đúng mẫu hình sẽ lặp lại): cân nhắc để spec `kich-ban-chuyen-gia-render-that.spec.ts` che
-  (mask) ô nhập OTP trước khi chụp/dump, hoặc loại khối chứa mã OTP khỏi nội dung JSON được ghi ra —
-  việc code, thuộc `tester`/`tech-lead`, không phải `security` tự sửa.
+- Sửa CƠ CHẾ (ưu tiên hơn che nội dung, xem mục cập nhật 01/09 ở trên): đổi đường ghi hiện vật của
+  `kich-ban-chuyen-gia-render-that.spec.ts` ra thư mục NGOÀI repo, hoặc thêm
+  `eval/results/render_that_*_SAU_VA.*` vào `.gitignore` — chặn ĐƯỜNG vào git thay vì trông chờ người
+  chạy nhớ che ô OTP mỗi lần. Việc code, thuộc `tester`/`tech-lead`, không phải `security` tự sửa.
 - Vì các mã đã hết hạn và dữ liệu là seed, KHÔNG cần hành động khẩn (không phải OTP thật, không có
   giao dịch thật đứng sau) — nhưng nên xếp vào backlog "trước khi chạy spec này trên dữ liệu THẬT" nếu
   tương lai project đổi sang môi trường có dữ liệu thật, để không lặp lại đúng lỗ này ở mức nghiêm
