@@ -3,6 +3,9 @@
 > **Viết cho người đọc NGUỘI** — bạn không có gì trong đầu, chỉ có repo này.
 > Đọc `CLAUDE.md` (hiến pháp) trước, rồi file này, rồi 5 ADR gần nhất trong `docs/DECISIONS.md`.
 >
+> 🔴 **Cập nhật MỚI NHẤT: 01/09/2026 16:30 — đọc `§0-TER` ngay dưới, TRƯỚC mọi mục khác.**
+> Dòng "Cập nhật 18/08" cũ bên dưới giữ nguyên làm mốc lịch sử, **không còn là mốc hiện hành**.
+>
 > Cập nhật: **18/08/2026**, ngay trước khi PO thật tắt toàn đội để khởi động lại sạch.
 >
 > 🔴 **NIÊM 24/08 — FILE NÀY CŨ 6 NGÀY.** Đội chạy rất nhanh trong 19–24/08 (đợt 1A/1B, ADR-043→048).
@@ -10,6 +13,83 @@
 > PO đã gỡ nhiều nút ngày 24/08. Dọn trọn file này là việc của `/wrapup` phiên hiện tại.
 > Nhật ký chi tiết ngày 17/08 (3.001 dòng, mọi lập luận và số đo):
 > `docs/nhat-ky/2026-08-17-nhat-ky-day-du.md`
+
+---
+
+## 0-TER. 🔴 BÀN GIAO 01/09 — PO TẮT TOÀN ĐỘI. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
+
+> Viết lúc **01/09 16:30**, ngay trước khi PO thật tắt cả bốn phiên để mở đội mới.
+> Mọi mục §0-BIS và §0 bên dưới là bàn giao của các đợt **CŨ HƠN** — đọc sau.
+> Buổi quay video demo dự kiến **chiều tối 01/09**, chưa quay lúc viết dòng này.
+
+### ⛔ SÁU LỆNH CẤM — đọc trước khi gõ bất cứ lệnh nào
+
+| cấm | vì sao — hậu quả THẬT, không phải đề phòng |
+|---|---|
+| `docker compose down` · `-v` · `--volumes` · `rm` · `prune` | Đã **xoá sạch CSDL `fin05`** ngày 27/08. Tắt ngăn: **chỉ `stop`**. Mọi lệnh compose **bắt buộc `-p <project>`**. |
+| Dựng lại / rebuild **bất kỳ ảnh nào** | Ngăn quay neo vào băm `9c17c5684c9a`; repo đã đi trước ảnh 3 commit chạm `src/`. Rebuild = mất mốc neo của **cả buổi quay lẫn toàn bộ benchmark 30-31/08**. |
+| Sửa **`src/`** hoặc **`migrations/`** | `src/` phá băm. `migrations/` **không nằm trong băm nhưng chạy thật** lúc khởi động (`docker-entrypoint.sh:32`) và **không đảo ngược được** — xem §0b.22c. |
+| Dựng lại **`caddy`** ngăn `fin05-qa-stripe` | Phá chuỗi gia hạn cert 12 giờ mà buổi quay đang dựa vào. |
+| Tắt ngăn **`fin05-dot-otp`** | **Không dựng lại được** — cấu hình sinh ra nó không có trong repo. Xem §0b.22 ⑦. |
+| `git add .` · `commit -a` · `clean` · `checkout` không pathspec | Cây làm việc **dùng chung** nhiều phiên. Và **đừng đụng `eval/`** — 4 hiện vật đang để nguyên có chủ đích (§0b.19e). |
+
+Ngoài ra: **không đăng nhập bằng `0974000145`** tới khi quay xong (lý do: `failed_attempts`/`locked_at`,
+**không** phải lý do "phiên OTP tươi" — xem đính chính dưới). Không in API key. Không thêm
+`OTP_DEMO_MODE=true` vào `.env` thật.
+
+### 📹 Buổi quay — trạng thái lúc bàn giao
+
+**Tài liệu duy nhất cần đọc:** `docs/security/2026-08-31-kich-ban-quay-tung-canh.md`.
+Đầu file có **⚡ THẺ HÀNH ĐỘNG 10 việc** theo thứ tự làm — đó là thứ đọc lúc 20h; phần thân là thứ
+đọc khi có gì bất thường.
+
+Đo lúc **16:30 · 01/09**, cả sáu đều xanh: băm `9c17c5684c9a` · `59443` **đúng** là `qa-stripe`
+(đã kiểm, không suy) · cert tới **02:40 sáng 02/09** · RAM khả dụng ~2,2 GB · frontend không chứa
+`13/2023`, có `91/2025` (grep thẳng trong container) · golden **chưa chạy lại**.
+
+🔴 **HAI CHỖ TRONG THẺ ĐÃ ĐÍNH CHÍNH HÔM NAY — đừng đọc bản cũ ở đâu đó:**
+1. **Mục 7** thiếu nhánh `403`. `403` = **VẪN QUAY ĐƯỢC**, báo ngay. Thiếu nó gây **DỪNG OAN** đúng
+   vào nhánh dễ xảy ra nhất (`798deff`).
+2. **Mục 9** bảo truy `auth_sessions` — **ĐO NHẦM BẢNG, đã bỏ**. `otp_verified_at` nằm **trong
+   TOKEN** (`src/auth.py:46`), đăng nhập cấp token với `otp_verified_at=None` (`src/api/main.py:339`),
+   `/agent/chat` đọc từ token (`:697`). ⟹ **Đăng nhập mới = LUÔN đòi OTP lại.** Điều kiện thật của
+   Cảnh 2: **mở cửa sổ ẩn danh rồi đăng nhập tại chỗ** (`f40cf5b`, `0fdc7d8`).
+
+### 📌 Việc còn lại → **`§0b.22` SỔ TỒN ĐỌNG**, 7 mục, mỗi mục có địa chỉ bằng chứng
+
+Tóm: ① RAG không ngưỡng (chạm **Ràng buộc cứng #3**) · ② xoay model dừng ở lỗi non-quota ·
+③ rò rỉ RAM (**chặn bài đo 150 người**) · ④ OTP đã render trong git · ⑤ LAN expose (**còn sống**,
+vá chỉ tốn một lần dựng lại `caddy`, làm **sau** buổi quay) · ⑥ golden không phủ tool nào ·
+⑦ `dot-otp` không tái lập được.
+**Cả bảy đều CỐ Ý HOÃN** vì đụng `src/`/hạ tầng ⟹ phá mốc neo buổi quay.
+
+### 🙋 Hai quyết định chỉ PO thật quyết được — đội KHÔNG bị chặn vì chúng
+
+1. **Chạy lại golden hôm nay?** Hạn mức chỉ còn **4/7 model**, mà buổi quay tối cần model sống.
+2. **Mở rộng bộ đề sang chiều "câu hỏi chính sách"?** Golden hiện **0/120 và 0/60** không phủ tool
+   nào — đây là **mở rộng phạm vi**, không phải sửa lỗi.
+
+Việc tay chỉ PO làm được: **thu hồi `QWEN_API_KEY`** trong console DashScope (⑤).
+
+### 🧭 Bài học phương pháp 01/09 — thứ đắt nhất học được hôm nay
+
+**Một cổng đo nhầm chỗ không im lặng — nó phát tín hiệu trấn an ĐỀU ĐẶN.** Phép kiểm "phiên OTP tươi"
+chạy mỗi 15 phút suốt chiều, **luôn xanh**, và không đo gì cả. Cổng hỏng mà **hằng ĐỎ** bị mổ ngay hôm
+đầu; cổng hỏng mà **hằng XANH** sống được nhiều tháng.
+⟹ Đợt soát lại chính các phép đo: **§0b.22c**. Ba tính chất thước chấm golden: **§0b.22b**.
+
+Hai lần trong ngày, hai vai khác nhau, cùng một cơ chế bắt lỗi: **trả lời câu được hỏi, RỒI hỏi tiếp
+"còn gì thuộc loại này mà không ai hỏi tới?"** — Review bắt nhánh `403`, Coder bắt `migrations/`.
+Cả hai lần thứ tìm được **nặng hơn** thứ đang tìm.
+
+### 👥 Trạng thái đội lúc tắt
+
+Cả bốn vai (`Coder 1c` · `Bảo mật 05` · `Review 4c` · `QA/QC 10`) **trống, không ai bị chặn, không ai
+cầm việc dở** — do PO-agent chủ động giữ mọi người khỏi `src/` trước buổi quay. Bàn giao chi tiết
+từng vai (bẫy riêng của mỗi vai): **§0b.21**.
+
+🔴 **Kết luận của Review sống TRONG TIN NHẮN, không có tệp** — vai Review không ghi repo. Ba kết luận
+quan trọng nhất đã được neo hộ vào **§0b.22b**; phần còn lại **mất khi tắt phiên**, chấp nhận.
 
 ---
 
