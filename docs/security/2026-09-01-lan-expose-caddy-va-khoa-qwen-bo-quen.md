@@ -25,14 +25,31 @@ mở LAN, vì tác giả rõ ràng BIẾT cách ghim (đã làm đúng cho 2/3 s
 **Ai trong LAN chạm được gì:** máy này ở địa chỉ `192.168.1.10` (mạng riêng/nhà) — bất kỳ thiết bị
 nào cùng đoạn mạng (cùng WiFi, kể cả khách/hàng xóm nếu chia sẻ mạng) gõ thẳng
 `https://192.168.1.10:59443` (hoặc `:60443`/`:61443`) sẽ vào được **đúng giao diện FIN-05 đầy đủ**
-của ngăn tương ứng — không cần VPN, không cần ở trong Docker network. Cụ thể với `qa-stripe`: kịch
-bản nghiêm trọng nhất là `OTP_DEMO_MODE=true` đang bật cho ngăn này (xem
-`docs/security/2026-08-31-soat-quay-video-demo-duoc-cam-len-hinh.md`) — ai trong LAN cũng gọi được
-`/auth/otp/request` và nhận thẳng mã OTP trong response, y hệt rủi ro đã ghi cho buổi quay, nhưng giờ
-là **bất kỳ ai trong LAN**, không chỉ người ngồi trước máy này. Toàn bộ dữ liệu 3 ngăn là dữ liệu sinh
-tổng hợp (seed), không phải khách hàng thật — mức độ nghiêm trọng THẤP HƠN một rò rỉ dữ liệu thật,
-nhưng vẫn là bề mặt tấn công không cố ý, và với `ctc1-check`/`po-demo` chưa xác nhận có đang chứa gì
-nhạy hơn seed hay không (ngoài phạm vi tôi tự kiểm đêm nay).
+của ngăn tương ứng — không cần VPN, không cần ở trong Docker network.
+
+🔴 **TỰ SỬA 01/09 — bản đầu ghi SAI NGĂN, dùng tri thức CŨ (30/08) mà không đo lại hôm nay.** Đã tự
+đo lại `OTP_DEMO_MODE` thật của cả 3 backend bằng `docker exec ... python3 -c "import os; print(...)"`
+ngay lúc viết mục này:
+
+```
+qa-stripe    OTP_DEMO_MODE=false   ← ĐÃ ĐẢO NGƯỢC 31/08 để chuẩn bị quay video, KHÔNG còn true
+ctc1-check   OTP_DEMO_MODE=true    ← 🔴 CẶP ĐÔI NGUY HIỂM THẬT nằm ở đây, không phải qa-stripe
+po-demo      OTP_DEMO_MODE=<không đặt>   ← mặc định fail-closed (bdaf17e), không phải rủi ro demo
+```
+
+**Kịch bản nghiêm trọng nhất, ĐÚNG NGĂN: `ctc1-check`** — OTP demo bật **VÀ** cổng mở LAN **VÀ** đây
+là ngăn QA/QC đang chạy việc CD1 ngay lúc viết báo cáo này (không phải ngăn tĩnh) — ai trong cùng
+WiFi gọi `https://192.168.1.10:61443/auth/otp/request` sẽ nhận thẳng mã OTP trong response. Nặng hơn
+một báo cáo tĩnh vì ngăn này đang SỐNG. `qa-stripe`/`po-demo` vẫn LAN-mở (mục ①, gốc rễ không đổi)
+nhưng KHÔNG có lỗ OTP-demo cộng dồn — vẫn cần vá binding, nhưng không phải "cặp đôi nguy hiểm nhất".
+
+Toàn bộ dữ liệu 3 ngăn là dữ liệu sinh tổng hợp (seed), không phải khách hàng thật — mức độ nghiêm
+trọng THẤP HƠN một rò rỉ dữ liệu thật, nhưng vẫn là bề mặt tấn công không cố ý, và với
+`ctc1-check`/`po-demo` chưa xác nhận có đang chứa gì nhạy hơn seed hay không (ngoài phạm vi tôi tự
+kiểm đêm nay).
+
+⚠️ **ĐỪNG vá cổng `ctc1-check` TRƯỚC KHI QA/QC chạy xong CD1** — đổi cổng đòi dựng lại `caddy`, làm
+rơi cấu hình giữa lượt đang chạy. Xếp việc vá NGAY SAU KHI CD1 đóng, không phải ngay bây giờ.
 
 **Khuôn ghim đúng, đề xuất — DÙNG LẠI đúng mẫu đã có sẵn trong CHÍNH các file này** (không cần bịa
 mẫu mới): đổi `"<cổng>:80"` / `"<cổng>:443"` thành `"127.0.0.1:<cổng>:80"` /
