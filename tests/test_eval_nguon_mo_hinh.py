@@ -14,8 +14,6 @@ chạm mạng.
 """
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from tests._eval_co_mat import doi_hoi_eval

@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { SESSION_COOKIE, sessionCookieMaxAgeSeconds, type Session } from "@/lib/session";
+import {
+  LAST_GATE_COOKIE,
+  SESSION_COOKIE,
+  sessionCookieMaxAgeSeconds,
+  type Gate,
+  type Session,
+} from "@/lib/session";
 import { BACKEND_URL } from "@/lib/server-api";
 
 // Gọi backend server-side (không CORS) rồi set cookie httpOnly — theo đúng
@@ -15,7 +21,6 @@ import { BACKEND_URL } from "@/lib/server-api";
 // Chặn SAU khi xác thực mật khẩu đúng — sai mật khẩu không học được gì; đúng
 // mật khẩu thì thêm một câu cũng không mất gì (PO). Cùng MỘT câu lỗi cho mọi
 // lý do bị từ chối ở bước này — không khai vai ra màn hình.
-type Gate = "customer" | "internal";
 const WRONG_GATE_MESSAGE = "Tài khoản này không đăng nhập tại đây. Vui lòng dùng cổng dành cho nhân viên.";
 
 function gateRejects(gate: Gate, role: string) {
@@ -62,6 +67,27 @@ export async function POST(req: Request) {
     // 1 ngày role nội bộ), KHÔNG còn khớp trực tiếp JWT_ACCESS_EXPIRE_MINUTES
     // (chỉ 15 phút) — middleware.ts tự làm mới access_token bên trong cookie
     // này trước khi hết hạn, khách không bị đăng xuất sau 15 phút.
+    maxAge: sessionCookieMaxAgeSeconds(session.role),
+  });
+
+  // Cookie gợi ý cổng — xem chú thích tại khai báo LAST_GATE_COOKIE
+  // (lib/session.ts) để biết vì sao KHÔNG httpOnly và KHÔNG xoá khi đăng
+  // xuất. `gate` ở đây chính là tham số client đã gửi (đã qua gateRejects()
+  // ở trên — tới được dòng này nghĩa là gate khớp role thật).
+  //
+  // 🔴 [ĐO 27/08] Review + p-226-f0: TTL ban đầu ghim CỐ ĐỊNH 30 ngày —
+  // không bám vào vòng đời thật nào (refresh_token nhân viên chỉ 1 ngày,
+  // khách 7 ngày). Sau 1 ngày, nhân viên BẮT BUỘC đăng nhập lại dù cookie
+  // gợi ý còn hay không — nó chỉ CHỌN CỔNG, không thay được đăng nhập, nên
+  // 29 ngày còn lại của hằng số cũ không phục vụ ca dùng hợp lệ nào, chỉ để
+  // lại dấu vết thừa trên máy trạm. Dùng LẠI sessionCookieMaxAgeSeconds(role)
+  // — đã tồn tại, đã đúng theo vai — để mai đổi vòng đời phiên thì cookie
+  // gợi ý tự đi theo, không phải nhớ đồng bộ một hằng số riêng.
+  const gateThat: Gate = gate === "internal" ? "internal" : "customer";
+  store.set(LAST_GATE_COOKIE, gateThat, {
+    httpOnly: false,
+    sameSite: "lax",
+    path: "/",
     maxAge: sessionCookieMaxAgeSeconds(session.role),
   });
 

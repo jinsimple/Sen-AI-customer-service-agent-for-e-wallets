@@ -30,6 +30,7 @@ from openai import (
     RateLimitError,
 )
 from opentelemetry.trace import Status, StatusCode
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.agents import llm_pool
@@ -154,6 +155,23 @@ _TEN_TIN_HIEU_DA_HOI_SANG_LOC = "da_hoi_sang_loc"
 # dịch chưa". Gộp là mất khả năng bắn ĐÚNG LƯỢT.
 _TEN_TIN_HIEU_CA_CHUYEN_NHAM = "ca_chuyen_nham"
 _TEN_TIN_HIEU_DA_TRA_DUOC_GD = "da_tra_duoc_gd"
+
+# ADR-057 (docs/DECISIONS.md, 01/09) — CHUYỂN NGƯỜI SỚM cho "tầng đắt".
+# Đếm SỐ LƯỢT (không phải điều kiện một-lần như ⑨) — tăng mỗi lượt còn ở
+# trạng thái "tầng đắt, chưa xác định giao dịch", đọc lại ở gate áp dụng
+# bên dưới (gần CTC1). Đặt CẠNH NHAU, KHÔNG GỘP với các tín hiệu ⑨ phía
+# trên — hai bộ tín hiệu trả lời hai câu khác nhau.
+_TEN_TIN_HIEU_LUOT_TANG_DAT = "luot_tang_dat"
+# 🔴 N TẠM CHỌN, căn cứ YẾU (ADR-057 tự khai: số từ MỘT lượt đo, nhiễu đã
+# chứng minh lớn — 22/75 ca đổi kết quả khi chạy lại cùng mã, xem ADR-056).
+# ĐỔI N = đổi ĐÚNG hằng số này — không rải số 2 ở chỗ khác.
+_N_LUOT_CHUYEN_NGUOI_TANG_DAT = 2
+# "Tầng đắt" — refund + wrong_recipient, kém nhất trong 4 loại khiếu nại
+# (14,0%/17,1% so với 26,7%/38,1%), và tiền ĐÃ NẰM TRONG TAY NGƯỜI KHÁC —
+# sai ở đây là để khách chờ một thứ không bao giờ tới, khác 2 loại còn lại
+# (lượt sau còn sửa được). Giá trị enum khớp CheckConstraint
+# `ck_complaints_type` (src/db/models.py) — không tự đặt tên khác.
+_LOAI_KHIEU_NAI_TANG_DAT = frozenset({"refund", "wrong_recipient"})
 DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
 DUONG_CAN_OTP = "can_otp"
 DUONG_FS13_BAN_GIAO = "fs13_ban_giao"
@@ -167,6 +185,48 @@ _CHUA_TAO_DUOC_VE = (
     "chờ nhầm. Bạn nhắn lại giúp mình để tạo lại, hoặc mình chuyển bạn sang "
     "chuyên viên hỗ trợ trực tiếp nhé."
 )
+
+
+def _cau_tra_loi_cong_tra_truoc(ket_qua: dict[str, Any]) -> str:
+    """Câu TẤT ĐỊNH thay cho lượt bị cổng CTC1 chặn (xem chỗ áp dụng bên
+    dưới) — dựng thẳng từ kết quả THẬT của `get_customer_history`, không
+    giao model diễn đạt lại (cùng lệ ADR-048 đã áp cho ⑧/⑨/_CHUA_TAO_DUOC_VE:
+    một dòng tất định an toàn hơn đặt cược vào việc model nghe lời prompt).
+
+    Liệt kê tối đa 5 giao dịch gần nhất — đây là DỮ LIỆU CỦA CHÍNH KHÁCH
+    đang chat (đã xác thực OTP để tool này chạy được), không phải PII bên
+    thứ ba, nên không cần che theo BR-07.
+
+    🔴 PO bắt được (đọc diff trước khi hàm này chạy lần đầu): prompt.py:21
+    BẮT BUỘC câu đầu tiên khi sắp nêu kết quả tra cứu phải mở bằng "Mình
+    hiểu..."/"Mình biết...", TUYỆT ĐỐI không mở bằng dữ kiện tra được kiểu
+    "Mình đã tra cứu...". Bản đầu của hàm này vi phạm gần nguyên văn — không
+    cổng tự động nào bắt được (grep _harness.py/output_filter.py không có
+    luật này), nên đây là hồi quy chất lượng đi lọt qua toàn bộ phép đo mà
+    không ai biết. Áp câu mở "Mình hiểu bạn đang sốt ruột." cho CẢ hai
+    nhánh — nhánh rỗng càng cần vì khách dễ hụt hẫng nhất."""
+    giao_dich = ket_qua.get("recent_transactions") or []
+    if not giao_dich:
+        return (
+            "Mình hiểu bạn đang sốt ruột. Mình đã tra lịch sử giao dịch gần đây của "
+            "bạn nhưng chưa thấy giao dịch nào trong 90 ngày qua. Bạn cho mình mã "
+            "giao dịch, số điện thoại người nhận, hoặc số tiền + thời điểm cụ thể để "
+            "mình tra kỹ hơn nhé."
+        )
+    dong = []
+    for t in giao_dich[:5]:
+        so_tien = f"{t['amount']:,}".replace(",", ".") + "đ" if t.get("amount") is not None else "?"
+        chieu = "chuyển đi" if t.get("direction") == "out" else "nhận vào"
+        thoi_diem = (t.get("created_at") or "")[:16].replace("T", " ")
+        dong.append(f"- {t.get('trans_id', '?')}: {so_tien} ({chieu}) lúc {thoi_diem}")
+    danh_sach = "\n".join(dong)
+    return (
+        "Mình hiểu bạn đang sốt ruột. Mình đã tra lịch sử giao dịch gần đây của "
+        f"bạn, thấy:\n{danh_sach}\n\n"
+        "Bạn cho mình biết đây có phải giao dịch bạn đang hỏi không (hoặc gửi mã "
+        "giao dịch cụ thể nếu không có trong danh sách) để mình tra tiếp nhé."
+    )
+
 
 # Slot mục tiêu là MÃ GIAO DỊCH HOẶC MỐC THỜI GIAN — KHÁC 1B (số tiền là
 # slot bắt buộc của 1B). Lý do: 1B áp cho lượt ĐẦU TIÊN chưa biết gì; cổng
@@ -2120,6 +2180,108 @@ def run_agent_turn(
         nhom_khop = list(nhom_khop) + ["RB3"]
         reply_da_loc = _CHUA_TAO_DUOC_VE
 
+    # ── 🔴 CỔNG ÉP TRA TRƯỚC (CTC1) ─────────────────────────────────────────
+    # PO đo được: prompt.py đã dặn 3 lần, in hoa, kèm ví dụ SAI làm phản diện
+    # (dòng 15, 17-18, 41 — "gọi get_customer_history NGAY ở tin nhắn đầu nếu
+    # chưa có mã giao dịch/SĐT, KHÔNG hỏi khách trước") — model vẫn bỏ qua
+    # 29/180 ca. DẶN qua prompt là hướng đã hết room; chuyển sang ÉP ở tầng
+    # mã, cùng nguyên lý các cổng tất định phía trên (_CHUA_TAO_DUOC_VE/⑧/⑨).
+    #
+    # Điều kiện CHỈ hai vế, cố ý đơn giản (bản đầu còn đòi câu có số
+    # tiền/tên người nhận/mốc thời gian — RÚT, vì đo trên nhóm đích thật thì
+    # 12/29 ca khách chỉ tả VẤN ĐỀ ("trừ trùng 2 lần", "bấm nhầm người nhận
+    # trong danh bạ"), không cho chi tiết nhận dạng nào cả — điều kiện hẹp bỏ
+    # sót 41%. get_customer_history không cần khách cho gì thêm, gọi được
+    # ngay chỉ với user_id, nên không có lý do chính đáng nào để KHÔNG gọi ở
+    # tin nhắn khiếu nại đầu tiên):
+    #   prev_len == 0        — tin nhắn ĐẦU của thread này (đã tính sẵn ở
+    #                           đầu run_agent_turn, dùng lại, không suy đoán).
+    #   not tool_calls_out   — lượt này agent chưa gọi tool nào cả.
+    #
+    # ① AN TOÀN KHI KHÔNG CHẮC: gọi qua ĐÚNG tool wrapper mà LLM vẫn dùng
+    # (build_customer_tools()["get_customer_history"].invoke(...)), KHÔNG
+    # gọi thẳng hàm thô trong src/tools/get_customer_history.py — thừa
+    # hưởng NGUYÊN VẸN kiểm OTP tươi (OTP_VIEW_MAX_MINUTES) + che PII của
+    # đường LLM thật. Cổng này vì vậy KHÔNG THỂ tự vi phạm Ràng buộc #4 dù
+    # có bug ở đây: OTP hết hạn/chưa có thì tool tự trả `status: "error"`,
+    # nhánh dưới coi như KHÔNG CHẮC và bỏ qua — KHÔNG tự chế câu trả lời từ
+    # dữ liệu không có.
+    #
+    # ② GHI VÀO KẾT QUẢ ĐO, không chỉ log: thêm đúng một phần tử vào
+    # `tool_calls_out` (cùng hình dạng {"tool_name","args","result"} như tool
+    # call thật — vì đây LÀ một tool call thật, chỉ khác ai quyết định gọi)
+    # và một mã "CTC1" vào `nhom_khop` — cả hai đã đổ thẳng vào
+    # `_kq_cuoi["tool_calls"]`/`_kq_cuoi["loc_dau_ra"]` phía dưới, không cần
+    # sửa gì thêm ở đó.
+    #
+    # ④ KHÔNG đụng create_ticket: nhánh này chỉ có đúng MỘT lời gọi tool
+    # (get_customer_history), không nhánh nào dẫn tới tool khác — không thể
+    # vô tình đẩy nhanh việc tạo hồ sơ.
+    if prev_len == 0 and not tool_calls_out:
+        try:
+            _cong_tools = {
+                t.name: t for t in build_customer_tools(
+                    session, user_id=user_id, otp_verified_at=otp_verified_at,
+                    guard=guard, thread_id=thread_id or user_id,
+                )
+            }
+            _cong_args = {"days": 90, "limit_transactions": 20}
+            _cong_ket_qua = _cong_tools["get_customer_history"].invoke(_cong_args)
+        except Exception:  # noqa: BLE001 — ① không chắc thì đừng chặn; lỗi ở
+            # cổng không được phép làm hỏng một lượt chat vốn dĩ đã có reply
+            # hợp lệ từ model.
+            _logger.exception(
+                "cong_tra_truoc_loi_khi_goi_tool",
+                extra={"user_id": user_id, "thread_id": thread_id or user_id},
+            )
+            _cong_ket_qua = None
+        if isinstance(_cong_ket_qua, dict) and _cong_ket_qua.get("status") != _TRANG_THAI_LOI_TOOL:
+            tool_calls_out = list(tool_calls_out) + [{
+                "tool_name": "get_customer_history",
+                "args": _cong_args,
+                "result": _cong_ket_qua,
+            }]
+            nhom_khop = list(nhom_khop) + ["CTC1"]
+            reply_da_loc = _cau_tra_loi_cong_tra_truoc(_cong_ket_qua)
+
+    # ── 🔴 ADR-057 · CHUYỂN NGƯỜI SỚM cho "tầng đắt" (CD1) ────────────────
+    # 🔴 RANH GIỚI (đọc trước khi sửa): đây là quy tắc TẤT ĐỊNH ở TẦNG
+    # SERVICE — AI KHÔNG quyết định gì cả, nó vẫn chỉ điều tra và trả lời
+    # như cũ. Nhánh này CHỈ được phép làm ĐÚNG MỘT việc: bật cờ gợi ý
+    # handoff (`goi_y_handoff`, đã có sẵn — ES-xx, frontend tự render nút
+    # "gặp người thật", hệ thống chỉ ĐỀ NGHỊ). TUYỆT ĐỐI không gọi
+    # create_ticket/request_human_handoff, không tự đổi should_escalate
+    # (khoá riêng cho FS-06 — test_fraud_policy_chi_dinh_tuyen_khong_phan_quyet).
+    # Dạy AI "tự thấy khó thì chuyển" là AI TỰ ESCALATE, phạm Ràng buộc
+    # cứng #2 — đây KHÔNG làm vậy: điều kiện đọc thẳng từ DB (Complaint.type/
+    # trans_id), không giao model diễn giải "khó" là gì.
+    #
+    # Điều kiện — máy đọc được, không cần mô hình hợp tác:
+    #   complaint_type ∈ {refund, wrong_recipient}   (tầng đắt, xem ADR-057)
+    #   AND số lượt còn ở trạng thái này ≥ N          (_N_LUOT_CHUYEN_NGUOI_TANG_DAT)
+    #   AND chưa xác định được giao dịch               (Complaint.trans_id IS NULL)
+    #
+    # Complaint TRA QUA `thread_id`, không qua `ticket_id` biến cục bộ ở
+    # trên — `ticket_id` chỉ khác None nếu TURN NÀY vừa tạo vé; complaint
+    # tầng đắt còn dang dở thường được tạo ở lượt TRƯỚC.
+    _tid_dat = thread_id or user_id
+    _complaint_dat = session.scalars(
+        select(Complaint)
+        .where(Complaint.thread_id == _tid_dat)
+        .order_by(Complaint.created_at.desc())
+        .limit(1)
+    ).first()
+    can_chuyen_nguoi_tang_dat = False
+    if (
+        _complaint_dat is not None
+        and _complaint_dat.type in _LOAI_KHIEU_NAI_TANG_DAT
+        and _complaint_dat.trans_id is None
+    ):
+        _luot_dat = tang_tin_hieu(_TEN_TIN_HIEU_LUOT_TANG_DAT, _tid_dat)
+        if _luot_dat >= _N_LUOT_CHUYEN_NGUOI_TANG_DAT:
+            can_chuyen_nguoi_tang_dat = True
+            nhom_khop = list(nhom_khop) + ["CD1"]
+
     # ⑧ · K3 — chèn SAU bộ lọc. Xem chú thích tại `_them_canh_bao_mao_danh`
     # về lý do KHÔNG được dời lên trước.
     reply_da_loc = _them_canh_bao_mao_danh(
@@ -2195,7 +2357,9 @@ def run_agent_turn(
         # ES-xx -> FRONTEND render nút "gặp người thật". KHÔNG tự gọi
         # request_human_handoff: quyền quyết định gặp người là của KHÁCH
         # (CTRL-001 / ISO-IEC 25059), hệ thống chỉ ĐỀ NGHỊ.
-        "goi_y_handoff": bool(tin_hieu_cam_xuc),
+        # ADR-057 (CD1) OR vào ĐÚNG cờ có sẵn này — không cờ mới, không
+        # đường mới, chỉ thêm MỘT lý do nữa khiến hệ thống đề nghị gặp người.
+        "goi_y_handoff": bool(tin_hieu_cam_xuc) or can_chuyen_nguoi_tang_dat,
         "duong": DUONG_DAY_DU,
         "ly_do_fallback": None,  # TƯỜNG MINH null, KHÔNG thiếu key — thiếu key
         # không phân biệt được với "bản cũ chưa có trường này".

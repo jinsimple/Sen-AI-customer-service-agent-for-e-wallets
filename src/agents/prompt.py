@@ -78,7 +78,9 @@ def build_system_prompt(*, current_time: dt.datetime, customer_name: str | None 
     gì để điều tra giao dịch — xưng "quý khách" là đủ, chất lượng không đổi.
 
     Bỏ đi giải quyết cùng lúc hai việc: (1) tối thiểu hoá dữ liệu cá nhân theo
-    OWASP LLM02:2025 + NĐ 13/2023 Điều 25, (2) bớt token ở phần gửi lại mỗi vòng.
+    OWASP LLM02:2025 + Luật 91/2025/QH15 (số điều cụ thể CHƯA xác minh trên
+    bản luật mới, không gán số điều cũ của NĐ 13/2023), (2) bớt token ở phần
+    gửi lại mỗi vòng.
 
     Xem tests/test_security/test_pii_khong_ro_ri_len_llm.py và ADR-010.
     """

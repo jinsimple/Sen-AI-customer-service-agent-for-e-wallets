@@ -225,6 +225,21 @@ def test_otp_request_rate_limited_per_user(client):
 
 
 def test_otp_verify_wrong_code_increments_failed_attempts(client):
+    """🔴 ĐÍNH CHÍNH 27/08 — quyết định hợp đồng mới (PO qua p-226-f0): gõ SAI
+    mã OTP là lỗi PHÍA NGƯỜI GỌI, không phải lỗi XÁC THỰC. "Lỗi xác thực"
+    (401) nói hệ thống KHÔNG BIẾT người gọi là ai — sai, vì phiên (JWT) vẫn
+    còn nguyên, hệ thống biết rõ họ là ai, họ chỉ gõ nhầm 6 chữ số. Hậu quả
+    THẬT của việc gộp hai thứ (401) trước đây: gõ nhầm một lần bị đá về
+    trang đăng nhập, mất phiên đang sống — PO gặp đúng ca này.
+
+    401 -> 400 (Bad Request — lỗi dữ liệu người gọi gửi lên, không phải lỗi
+    danh tính). Đây là PHÁN ĐOÁN theo đúng quy ước đã có SẴN trong CHÍNH file
+    này (test_otp_verify_session_id_must_belong_to_caller ngay dưới đã dùng
+    400 cho một lỗi phía người gọi khác) — không suy đoán từ src/ (không đọc,
+    CLAUDE.md §4). Coder giữ danh sách riêng để đối chiếu SAU khi báo cáo;
+    lệch số cụ thể (nếu Coder chọn khác 400) sẽ lộ ra khi so, không phải lỗi
+    của quy trình này.
+    """
     login_token = _login_token()
     session_id = client.post("/auth/otp/request", headers=_auth(login_token)).json()["session_id"]
     resp = client.post(
@@ -232,7 +247,27 @@ def test_otp_verify_wrong_code_increments_failed_attempts(client):
         headers=_auth(login_token),
         json={"session_id": session_id, "otp_code": "000000"},
     )
-    assert resp.status_code == 401
+    assert resp.status_code == 400, (
+        f"Mã OTP sai phải là lỗi PHÍA NGƯỜI GỌI (400), không phải lỗi xác thực (401) — "
+        f"401 làm phiên (JWT) còn sống bị đối xử như đã chết, đá nhầm người dùng về đăng "
+        f"nhập dù họ chỉ gõ sai 6 chữ số. Nhận HTTP {resp.status_code}."
+    )
+    # 🔴 CA ĐỐI CHỨNG BẮT BUỘC (Luật A) — chiều NGƯỢC LẠI của đính chính trên.
+    # Vá "sai mã không còn đá ra" mà làm luôn "phiên CHẾT THẬT cũng không bị
+    # đá ra" là đổi một lỗi lấy một lỗi NẶNG HƠN, và không ai thấy vì triệu
+    # chứng cũ đã hết. Token method chưa hoàn thành login (không phải access
+    # token thật) vẫn PHẢI bị từ chối như một request không có danh tính hợp
+    # lệ — 400 chỉ áp cho "mã OTP sai với một phiên đăng nhập CÒN SỐNG".
+    resp_khong_dang_nhap = client.post(
+        "/auth/otp/verify",
+        json={"session_id": session_id, "otp_code": "000000"},
+    )
+    assert resp_khong_dang_nhap.status_code in (401, 403), (
+        f"Request KHÔNG có access token hợp lệ (chưa đăng nhập) vẫn phải bị từ chối như "
+        f"một danh tính không xác định được — nếu nó cũng trả 400 giống ca có JWT sống ở "
+        f"trên, nghĩa là bản vá đã xoá luôn ranh giới 'phiên có sống hay không', không chỉ "
+        f"sửa đúng ca mã sai. Nhận HTTP {resp_khong_dang_nhap.status_code}."
+    )
 
 
 def test_otp_verify_locks_after_max_failed_attempts(client):
@@ -242,15 +277,28 @@ def test_otp_verify_locks_after_max_failed_attempts(client):
         resp = client.post(
             "/auth/otp/verify", headers=_auth(login_token), json={"session_id": session_id, "otp_code": "000000"}
         )
-        assert resp.status_code == 401
-    # Lần cuối chạm ngưỡng -> khoá (403), không phải 401 sai bình thường nữa.
+        assert resp.status_code == 400, (
+            f"Mã sai (phiên còn sống, chưa chạm ngưỡng khoá) phải là lỗi phía người gọi "
+            f"(400) — xem đính chính 27/08 ở test_otp_verify_wrong_code_increments_failed_attempts. "
+            f"Nhận HTTP {resp.status_code}."
+        )
+    # 🔴 CA PHÂN BIỆT HAI TRẠNG THÁI (cố ý giữ nguyên tinh thần, chỉ đổi vế
+    # đối chiếu 401->400) — "sai quá nhiều lần -> khoá" PHẢI trả một mã KHÁC
+    # với "sai một lần" (giờ là 400). Xoá ca này, hoặc sửa nó thành so với
+    # chính giá trị mới (vd assert 403 == 403), là biến một cổng thật thành
+    # cổng hằng số luôn xanh — đúng vế BỐN Luật A vừa niêm.
     resp = client.post(
         "/auth/otp/verify", headers=_auth(login_token), json={"session_id": session_id, "otp_code": "000000"}
     )
     assert resp.status_code == 403
+    assert resp.status_code != 400, (
+        "Lần chạm ngưỡng khoá phải phân biệt được với 'sai bình thường' (400) — cả hai "
+        "cùng trả 400 nghĩa là CSKH/khách không còn cách nào biết tài khoản đã bị khoá hẳn "
+        "hay chỉ vừa gõ nhầm, tự động thử lại vô ích mãi mãi."
+    )
     assert "khoá" in resp.json()["detail"]
 
-    # Đã khoá -> gọi lại lần nữa vẫn phải bị chặn (403), không quay lại 401
+    # Đã khoá -> gọi lại lần nữa vẫn phải bị chặn (403), không quay lại 400
     # "sai bình thường" — khoá phải chặn TUYỆT ĐỐI, không tự mở lại.
     resp = client.post(
         "/auth/otp/verify",

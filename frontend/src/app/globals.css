@@ -301,12 +301,26 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
    đặc, huy hiệu thôi mang thông tin — chip đỏ "Khẩn cấp" (1/300) chìm nghỉm.
    Quy ước: CHỈ trạng thái khẩn cấp (priority=critical, giữ .badge-critical)
    và bị từ chối (hitl_status=rejected, giữ .badge-danger) mới có NỀN màu.
-   Mọi trạng thái khác → chấm nhỏ mang màu, CHỮ LUÔN XÁM (--text-dim) — màu chỉ
-   sống ở chấm, không sống ở chữ, để không tạo thêm một khối màu đặc nữa. */
+
+   🔴 [ĐO 27/08] PO báo hồi quy sau vòng đổi bảng màu Stripe: "mất màu cảnh
+   báo, khá khó nhìn". Nguyên nhân: bản đầu chỉ tô màu cho CHẤM 6px, CHỮ luôn
+   xám — đúng cho "bình thường/đang chờ" (không cần nổi), nhưng SAI cho các
+   mức cảnh báo thật (dot-warning/info) — một chấm 6px không đủ hút mắt khi
+   quét nhanh một bảng dài, và đó chính là "màu cảnh báo" PO nói đã biến mất.
+   Phân biệt lại theo MỨC NẶNG, không cào bằng:
+     nguy cấp (priority=critical, rejected) -> nền đặc (.badge-critical/-danger), GIỮ NGUYÊN
+     cảnh báo  (dot-warning/dot-info)        -> CHỮ CÓ MÀU + chấm, không nền
+     bình thường / trung tính (không class)  -> KHÔNG MÀU GÌ (chấm xám nhạt, chữ xám)
+   Chữ có màu đã đo lại trên nền bảng thật (--surface/--bg, không phải nền
+   badge riêng), ≥4.75:1 mọi trường hợp cả hai chế độ — xem lịch sử thay đổi
+   này để đối chiếu số đo cụ thể. */
 .status-dot{ display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-12); font-weight:600; color:var(--text-dim); white-space:nowrap; line-height:var(--lh-than); }
 .status-dot::before{ content:""; width:6px; height:6px; border-radius:50%; flex:0 0 auto; background:var(--text-faint); }
+.status-dot.dot-info{ color:var(--info); font-weight:700; }
 .status-dot.dot-info::before{ background:var(--info); }
+.status-dot.dot-success{ color:var(--success); font-weight:700; }
 .status-dot.dot-success::before{ background:var(--success); }
+.status-dot.dot-warning{ color:var(--warning); font-weight:700; }
 .status-dot.dot-warning::before{ background:var(--warning); }
 .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
 .dot-pulse{ animation:pulse 1.5s ease-in-out infinite; }
@@ -607,7 +621,9 @@ textarea:focus{ border-color:var(--navy-2); outline:none; box-shadow:0 0 0 3px c
 .lp-section{ max-width:1120px; margin:0 auto; padding:64px 32px; }
 .lp-section h2{ font-size:var(--fs-32); text-align:center; color:var(--text); margin:0; }
 .lp-section .lead{ text-align:center; color:var(--text-dim); font-size:var(--fs-16); max-width:640px; margin:12px auto 0; }
-.lp-stat-strip{ display:grid; grid-template-columns:repeat(4,1fr); gap:24px; background:var(--surface-2); border-radius:var(--radius); padding:40px 32px; }
+/* 27/08 — 4 -> 5 ô (Marketing thêm "386 ca đánh giá" tách khỏi "60 ca niêm
+   phong", trước đó gộp chung dưới một số duy nhất). */
+.lp-stat-strip{ display:grid; grid-template-columns:repeat(5,1fr); gap:24px; background:var(--surface-2); border-radius:var(--radius); padding:40px 32px; }
 .lp-stat{ text-align:center; }
 .lp-stat .num{ font-size:var(--fs-32); font-weight:700; color:var(--text); font-family:var(--font-ui); }
 .lp-stat .label{ margin-top:6px; font-size:var(--fs-14); color:var(--text-dim); }
@@ -632,6 +648,61 @@ textarea:focus{ border-color:var(--navy-2); outline:none; box-shadow:0 0 0 3px c
   .lp-flow .arrow{ transform:none; padding:0 12px; }
 }
 .lp-footer{ border-top:1px solid var(--border); margin-top:40px; padding:48px 32px; }
+/* 5 ô với nhãn dài (câu, không chỉ 1-2 từ như trước) chật trên màn vừa —
+   thêm nấc 3 cột trước khi rơi xuống 2 cột ở mobile. */
+@media (max-width:1120px){
+  .lp-stat-strip{ grid-template-columns:repeat(3,1fr); }
+}
 @media (max-width:860px){
   .lp-stat-strip{ grid-template-columns:repeat(2,1fr); }
 }
+
+/* ---------- /cho-khach-hang — trấn an, KHÔNG hiệu ứng ---------- */
+/* [ĐO 27/08] Marketing dẫn "ADR-053" (Playfair Display + particles +
+   magnetic CTA) làm lý do tránh bộ chữ trang "/" — ADR đó KHÔNG tồn tại
+   trong docs/DECISIONS.md (mới nhất ADR-052), và "/" thật đang dùng Inter +
+   hero tĩnh, không có particles/magnetic CTA. Đã báo lại. Nguyên tắc vẫn
+   đứng được mà không cần ADR đó: trang cho người đang hoảng nên tối giản,
+   không chuyển động — dùng ĐÚNG bộ token sẵn có (Inter, --text/--bg/
+   --danger...), không phải bộ serif/màu ấm riêng của bản nháp Marketing
+   (bản đó tự dùng "Source Serif 4" cho phần thân — cùng rủi ro dấu tiếng
+   Việt họ cảnh báo tránh). Không gradient, không animation, không particle. */
+.ck-page{ background:var(--bg); min-height:100vh; padding:56px 20px 80px; }
+.ck-wrap{ max-width:640px; margin:0 auto; }
+.ck-eyebrow{ font-size:var(--fs-12); font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin:0 0 16px; }
+.ck-h1{ font-size:clamp(24px, 4vw, 32px); line-height:1.3; color:var(--text); margin:0 0 20px; }
+.ck-lead{ font-size:var(--fs-16); color:var(--text-dim); line-height:1.6; margin:0 0 12px; }
+.ck-lead-strong{ font-size:var(--fs-16); font-weight:700; color:var(--text); line-height:1.6; margin:0 0 40px; }
+.ck-section{ margin-top:44px; }
+.ck-h2{ font-size:var(--fs-20); color:var(--text); margin:0 0 16px; }
+.ck-h3{ font-size:var(--fs-16); color:var(--text); margin:0 0 10px; }
+.ck-section p{ font-size:var(--fs-16); line-height:1.65; color:var(--text-dim); margin:0 0 12px; }
+.ck-section p b{ color:var(--text); }
+.ck-plain{ margin:0; padding-left:20px; color:var(--text-dim); font-size:var(--fs-16); line-height:1.6; }
+.ck-plain li{ margin:6px 0; }
+.ck-grid-2{ display:grid; grid-template-columns:1fr; gap:28px; }
+@media (min-width:640px){ .ck-grid-2{ grid-template-columns:1fr 1fr; } }
+
+/* Khối "ba điều KHÔNG BAO GIỜ hỏi" — lõi của trang, phải nặng nhất thị
+   giác (chỉ định rõ từ Marketing: "không phải khối giới thiệu tính năng —
+   đây là lý do trang tồn tại"). Dùng --danger: đây là cảnh báo an toàn thật,
+   không phải trạng thái trung tính. */
+.ck-core{ margin-top:40px; padding:28px; border:2px solid var(--danger); border-radius:var(--radius); background:var(--surface); }
+.ck-core .ck-h2{ color:var(--danger); }
+.ck-never{ list-style:none; margin:0 0 20px; padding:0; display:flex; flex-direction:column; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+.ck-never li{ background:var(--surface); padding:16px 18px; display:flex; gap:14px; align-items:flex-start; margin:0; }
+.ck-never .ck-x{ font-size:var(--fs-20); font-weight:700; color:var(--danger); line-height:1.4; flex:none; }
+.ck-never span span, .ck-never li > span:last-child{ font-size:var(--fs-16); line-height:1.55; color:var(--text-dim); }
+.ck-never li b{ color:var(--text); }
+.ck-core-warn{ font-size:var(--fs-16); line-height:1.6; color:var(--danger); background:var(--danger-bg); border-radius:var(--radius-sm); padding:14px 16px; margin:0; }
+.ck-core-warn b{ color:var(--danger); }
+
+.ck-footer{ margin-top:56px; padding-top:24px; border-top:1px solid var(--border); }
+.ck-footer p{ font-size:var(--fs-14); color:var(--text-dim); line-height:1.6; margin:0 0 8px; }
+.ck-footer p b{ color:var(--text); }
+/* 27/08 — Marketing (p-226-17): dòng khai báo bắt buộc ("sản phẩm mẫu, dữ
+   liệu mô phỏng") bị chìm ở mức --text-faint, đọc như phụ chú bỏ qua được
+   thay vì một câu cần đọc. Nâng lên --text-dim (ngang thân bài `.ck-footer
+   p`), giữ cỡ chữ nhỏ (fs-12) — không tô đỏ, đây không phải cảnh báo rủi ro,
+   chỉ cần đủ trọng lượng để mắt không lướt qua. */
+.ck-footer-dim{ color:var(--text-dim) !important; font-size:var(--fs-12) !important; }

@@ -28,7 +28,7 @@ test.describe("TICKET-DETAIL-* — chi tiết ticket & hành động CSKH", () =
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, "0353000201", "/dashboard");
+      await loginAs(staffPage, "0353000201", "/dashboard", 1, "/dang-nhap-noi-bo");
       await staffPage.goto(`/tickets/${ticketId}`);
 
       await expect(staffPage.locator("h2.mono")).toHaveText(ticketId);
@@ -87,7 +87,7 @@ test.describe("TICKET-DETAIL-* — chi tiết ticket & hành động CSKH", () =
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, "0353000201", "/dashboard");
+      await loginAs(staffPage, "0353000201", "/dashboard", 1, "/dang-nhap-noi-bo");
       await staffPage.goto(`/tickets/${ticketId}`);
       await expect(staffPage.locator("h2.mono")).toHaveText(ticketId);
 

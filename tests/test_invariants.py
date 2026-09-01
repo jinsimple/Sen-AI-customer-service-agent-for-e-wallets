@@ -365,7 +365,9 @@ def test_inv14_check_constraint_br11_ton_tai():
     INV-07/INV-15 NGAY khi Lead/PO đóng ADR bổ sung `bieu_thuc` cho BR-11 vào
     `resolution-state-machine.yaml` qua §3 — đừng để hardcode này sống mãi.
     """
-    _BR11_BIEU_THUC_MONG_DOI_TAM = (
+    # noqa cho N806: viết hoa CỐ Ý — đánh dấu đây là hằng TẠM/hardcode (xem
+    # docstring "🔴 TẠM" phía trên), không phải biến cục bộ thường.
+    _BR11_BIEU_THUC_MONG_DOI_TAM = (  # noqa: N806
         "(status != 'rejected') OR (reject_reason IS NOT NULL "
         "AND rejected_by IS NOT NULL AND rejected_at IS NOT NULL)"
     )

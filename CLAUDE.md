@@ -110,6 +110,7 @@ contracts/                   ← NGUỒN SỰ THẬT về cấu trúc
 docs/DECISIONS.md            ← ADR, CHỈ GHI THÊM, không sửa
 docs/STATE.md                ← đang làm gì, ghi đè cuối mỗi phiên
 docs/TESTING.md              ← cách chạy từng nhóm test
+docs/dieu-phoi-doi-nhieu-claude.md ← sổ tay vận hành đội nhiều Claude (đọc khi bật đội mới)
 scripts/check_contracts.py   ← phát hiện artifact lỗi thời
 tests/test_invariants.py     ← 5 ràng buộc cứng, 23 test, introspect app thật
 tests/                       ← 90 file test backend
@@ -168,5 +169,7 @@ làm phiên sau **phát hiện lại từ đầu** — đắt hơn hẳn việc 
 
 - GitHub: `AI20K-Build-Phase-Cohort-3/P-226` *(đo 18/08 từ `git remote -v` — dòng cũ ghi `P-121`, SAI)*
 - Pháp lý hiện hành: NĐ 52/2024, TT 40/2024 (**không** dùng TT 39/2014 — đã hết hiệu lực),
-  NĐ 13/2023 (PDPA), QĐ 2345/QĐ-NHNN (ngưỡng 10tr/lần, 20tr/ngày — là ngưỡng **xác thực
+  PDPA = **Luật 91/2025/QH15 + NĐ 356/2025** *(hiệu lực 01/01/2026, thay TOÀN BỘ **NĐ 13/2023** —
+  văn bản cũ, đừng trích; xác minh 30/08 tại `docs/security/2026-08-30-niem-luat-91-2025-*.md`)*,
+  QĐ 2345/QĐ-NHNN (ngưỡng 10tr/lần, 20tr/ngày — là ngưỡng **xác thực
   sinh trắc**, KHÔNG phải ngưỡng gian lận; nói rõ điều này khi trao đổi với chuyên gia).

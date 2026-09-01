@@ -14,6 +14,7 @@ import type {
   TicketTranscript,
 } from "@/lib/types";
 import type { LiveChatContext } from "@/lib/useLiveChatSocket";
+import { LAST_GATE_COOKIE, loginPathForGate } from "@/lib/session";
 
 // Client Component gọi các route nội bộ /api/* (BFF, xem frontend/src/app/api/)
 // — KHÔNG bao giờ gọi thẳng FastAPI. Route nội bộ đọc JWT từ cookie httpOnly
@@ -36,6 +37,39 @@ export class ApiError extends Error {
 // tế có lượt cần 15-20s+ khi tải cao — timeout phải đủ rộng để không huỷ
 // nhầm request đang chạy đúng, chỉ chặn trường hợp treo thật sự.
 const DEFAULT_TIMEOUT_MS = 60_000;
+
+// 27/08 [ĐO] p-226-f0: 401 từ BFF (server-api.ts::backendFetch, sau khi ĐÃ
+// thử làm mới token và cũng hỏng) PHẦN LỚN nghĩa là "phiên không còn hiệu
+// lực" — KHÔNG bao giờ dùng cho lỗi nghiệp vụ dạng payload 200 (OTP hết
+// tươi/thiếu OTP nằm TRONG /api/agent-chat, xem ChatClient.tsx::
+// OTP_EXPIRED_LOAI — chưa từng là status HTTP 401). An toàn để đá NGAY về
+// đúng cổng thay vì để từng trang tự bắt raw error rồi hiện nguyên văn cho
+// khách (đúng gốc PO báo: "chat với chat bot báo lỗi — đăng xuất ra vào lại
+// thì ok", vì trước đây không nơi nào tự dọn cookie chết/tự điều hướng, chỉ
+// nút Đăng xuất làm việc đó).
+//
+// ✅ [27/08] NGOẠI LỆ ĐÃ BIẾN MẤT Ở GỐC, không phải được xử lý gọn hơn.
+// Trước đây `/auth/otp/verify` trả 401 cho SAI MÃ OTP — đi qua đúng
+// `backendFetch` nên vẫn 401 sau refresh (refresh THÀNH CÔNG vì token còn
+// sống; mã OTP mới là thứ sai) ⟹ khách gõ nhầm sáu số bị đá về /login, mất
+// luôn phiên đang sống. Không có field cấu trúc nào để bám, nên bản vá đầu
+// phải KHỚP CHUỖI — trái chính nguyên tắc dự án đã viết ra ở ChatClient.tsx
+// ("ưu tiên status, tín hiệu MẠNH thuộc hợp đồng HTTP, hơn khớp câu chữ").
+// Backend nay trả 400 cho ca đó (main.py, "Mã OTP không đúng") ⟹ 401 lại có
+// ĐÚNG MỘT nghĩa trên mọi route: phiên không dùng được nữa.
+// 🔴 ĐỪNG thêm lại một ngoại lệ ở đây. Nếu một route mới trả 401 cho lỗi
+// KHÔNG phải "phiên chết", sửa ROUTE ĐÓ — đừng dạy hàm này thêm một biệt lệ.
+// Một ngoại lệ ở tầng này rẻ lúc viết và đắt mãi về sau: nó biến một quy tắc
+// đọc-là-hiểu thành một quy tắc phải-tra-danh-sách.
+
+function dieuHuongKhiHetPhien() {
+  if (typeof document === "undefined") return;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${LAST_GATE_COOKIE}=([^;]*)`));
+  const goiY = match ? decodeURIComponent(match[1]) : undefined;
+  window.location.href = loginPathForGate(goiY);
+}
+
+const PHIEN_HET_HAN_MESSAGE = "Phiên làm việc đã hết hạn — mời bạn đăng nhập lại.";
 
 async function request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = init ?? {};
@@ -67,6 +101,10 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
       detail = body.detail ?? body.error ?? JSON.stringify(body);
     } catch {
       // giữ statusText nếu body không phải JSON
+    }
+    if (res.status === 401) {
+      dieuHuongKhiHetPhien();
+      throw new ApiError(401, PHIEN_HET_HAN_MESSAGE);
     }
     throw new ApiError(res.status, detail);
   }
@@ -114,6 +152,10 @@ async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
       detail = body.detail ?? body.error ?? JSON.stringify(body);
     } catch {
       // giữ statusText nếu body không phải JSON
+    }
+    if (res.status === 401) {
+      dieuHuongKhiHetPhien();
+      throw new ApiError(401, PHIEN_HET_HAN_MESSAGE);
     }
     throw new ApiError(res.status, detail);
   }

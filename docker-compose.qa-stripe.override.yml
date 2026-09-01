@@ -1,0 +1,43 @@
+# [01/09] NAY COMMIT — ghi chú "TẠM THỜI, KHÔNG COMMIT" cũ đúng lúc viết (khi
+# đó chỉ là remap cổng dùng một lần cho đo axe-core 26/08), KHÔNG còn đúng: file
+# này giờ là CẤU HÌNH THẬT của ngăn quay video demo — APP_ENV=production +
+# OTP_DEMO_MODE=false (giữ banner DEVELOPMENT khỏi lên phim), cổng 59080/59443
+# (địa chỉ toàn bộ kịch bản quay đang trỏ tới), CADDY_BIND_HOST (bản vá LAN).
+# Mất file này = docker compose up tiếp theo dựng ra ngăn SAI (banner
+# DEVELOPMENT + OTP demo bật lại) mà không ai biết vì sao — cùng loại rủi ro
+# đã trả giá ở video nháp (commit 2b84da2 "một lệnh git clean là mất"), đắt
+# hơn vì lần này là cấu hình vận hành, không phải một file media.
+# Đã kiểm không có bí mật nào trước khi commit (grep password|secret|key|
+# token|jwt|api|hash — 0 dòng khớp).
+#
+# Chỉ remap host port cho ngăn fin05-qa-stripe để không đụng cổng
+# 80/443/5432/16686 mà fin05-sach/fin05-dot-otp đang giữ trên máy này.
+services:
+  postgres:
+    ports: !override
+      - "127.0.0.1:59433:5432"
+  jaeger:
+    ports: !override
+      - "127.0.0.1:59687:16686"
+  caddy:
+    # [01/09] Cùng khuôn CADDY_BIND_HOST của base docker-compose.yml — !override
+    # THAY THẾ HOÀN TOÀN khối ports của base, nên bản vá gốc KHÔNG tự chạm tới
+    # đây. 🔴 CHỈ SỬA FILE — có hiệu lực từ lần dựng lại SAU buổi quay, TUYỆT
+    # ĐỐI không docker compose up ngăn này để "áp" trước giờ quay.
+    ports: !override
+      - "${CADDY_BIND_HOST:-127.0.0.1}:59080:80"
+      - "${CADDY_BIND_HOST:-127.0.0.1}:59443:443"
+  backend:
+    # 31/08 — PO thật duyệt: TẮT banner DEVELOPMENT + cờ OTP_DEMO_MODE, chuẩn bị
+    # buổi quay video demo trên NGĂN NÀY. Đảo NGƯỢC ghi chú 30/08 bên dưới —
+    # nay KHÔNG còn giữ OTP_DEMO_MODE=true cho ngăn này nữa.
+    # 🔴 HỆ QUẢ CÓ CHỦ Ý: OTP_DEMO_MODE=false + APP_ENV=production đồng thời =
+    # ~8 file test QA-QC đọc thẳng otp_code từ response SẼ ĐỎ nếu chạy nhắm vào
+    # NGĂN NÀY — không phải hồi quy, là hệ quả trực tiếp của việc tắt cờ demo
+    # cho buổi quay. QA-QC cần biết trước khi chạy lại bộ test trên qa-stripe.
+    # (Ghi chú 30/08 cũ, giữ lại làm bằng chứng đã tồn tại: "chưa có
+    # OTP_DEMO_MODE, sửa .env ảnh hưởng cả fin05-sach/fin05-po-demo — CHỈ đặt
+    # riêng ở đây, đúng khuôn CI, để ~8 file test tiếp tục chạy được.")
+    environment:
+      OTP_DEMO_MODE: "false"
+      APP_ENV: "production"

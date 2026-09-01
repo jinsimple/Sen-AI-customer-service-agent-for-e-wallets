@@ -345,3 +345,43 @@ def require_otp_verified(current_user: CurrentUser = Depends(get_current_user)) 
     if is_access_token_revoked(current_user.user_id, current_user.iat):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đã bị thu hồi — đăng nhập lại")
     return current_user
+
+
+def require_token_chua_thu_hoi(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """CHỈ kiểm token đã bị thu hồi — KHÔNG kiểm OTP tươi. Gắn được vào route
+    KHÔNG cần OTP mà vẫn chạm dữ liệu (vd `propose_resolution`).
+
+    🔴 VÌ SAO CẦN TÁCH RA — nguyên tắc KHÔNG SAI, CƠ CHẾ mới sai:
+    Chú thích AUTH5-06 ngay trên (`require_otp_verified`) đã cân đúng: KHÔNG áp
+    kiểm thu hồi cho MỌI request, vì thêm một lượt GET Redis vào mọi lời gọi
+    biến Redis thành single point of failure cho cả hệ thống. Chỉ route CHẠM
+    DỮ LIỆU/TÀI CHÍNH mới đáng trả giá đó. Nguyên tắc ấy đúng, và giữ nguyên.
+    [ĐO 27/08] Nhưng cơ chế thi hành nó ĐI NHỜ XE: phép kiểm thu hồi nằm BÊN
+    TRONG `require_otp_verified`, nên nó CHỈ tới được những route CẦN OTP.
+    Route chạm dữ liệu mà KHÔNG cần OTP (`propose_resolution` 11 dòng,
+    `escalate_ticket` 18 dòng, `request-approval-otp`) rơi ra ngoài — không
+    phải ai quên, mà vì cỗ xe không đi qua đó.
+    ⟹ Tách thành Depends riêng để "route nào đáng trả giá Redis" trở thành một
+    lựa chọn GẮN TƯỜNG MINH, thay vì hệ quả phụ của việc route đó có cần OTP hay không.
+
+    🔴 VÌ SAO `require_otp_verified` KHÔNG `Depends` VÀO HÀM NÀY — đã cân và BÁC:
+    FastAPI resolve dependency TRƯỚC thân hàm ⟹ kiểm thu hồi sẽ chạy TRƯỚC kiểm
+    OTP-tươi, đảo ngược thứ tự hiện tại. Người dùng vừa BỊ THU HỒI vừa OTP CŨ
+    hôm nay nhận 403 ("cần xác thực OTP"), sau khi ghép sẽ nhận 401 ("phiên đã
+    bị thu hồi"). Cả hai đều "đúng", nhưng ĐÓ LÀ ĐỔI HÀNH VI QUAN SÁT ĐƯỢC —
+    trong khi việc này là refactor CƠ CHẾ, cố ý không đổi gì bên ngoài.
+    Nên `require_otp_verified` GIỮ NGUYÊN lời gọi nội tuyến của nó. Hai đường
+    cùng gọi một hàm thuần `is_access_token_revoked()` — trùng lặp CÓ CHỦ ĐÍCH,
+    một dòng, đổi lấy việc không đụng thứ tự lỗi của một cổng đang chạy.
+
+    ⚠️ CHƯA GẮN VÀO ROUTE NÀO. Việc gắn (`propose_resolution` · `escalate_ticket`
+    · `request-approval-otp`) là Bậc 1, còn chờ PO. Depends này tồn tại sẵn để
+    lúc đó chỉ cần thêm MỘT tham số, không phải chép tay phép kiểm — chép tay
+    chính là cách lỗi "đi nhờ xe" sinh ra lần đầu."""
+    if is_access_token_revoked(current_user.user_id, current_user.iat):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đã bị thu hồi — đăng nhập lại"
+        )
+    return current_user

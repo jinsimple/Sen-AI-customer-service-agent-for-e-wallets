@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseSessionCookie, roleHome, sessionCookieMaxAgeSeconds, SESSION_COOKIE, type Role, type Session } from "@/lib/session";
+import {
+  LAST_GATE_COOKIE,
+  loginPathForGate,
+  parseSessionCookie,
+  roleHome,
+  sessionCookieMaxAgeSeconds,
+  SESSION_COOKIE,
+  type Role,
+  type Session,
+} from "@/lib/session";
 
 // US-001 AC: "khách hàng không vào được dashboard CSKH kể cả sửa URL trực
 // tiếp" — chặn ở proxy (Next.js 16 đổi tên từ middleware, chức năng như cũ),
@@ -44,6 +53,15 @@ function khopTienTo(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
+// 27/08 — Marketing dựng /cho-khach-hang: trang "chống lừa đảo" (kiểm chứng
+// "Sen có bao giờ hỏi mã OTP không?"). Đây là NHÓM THỨ BA, khác bản chất với
+// PUBLIC_PATHS — PUBLIC_PATHS đá người ĐÃ đăng nhập về roleHome (đúng cho
+// /login), còn trang này phải đọc được ngay cả khi khách ĐANG đăng nhập và
+// đang hoảng, không được redirect theo BẤT KỲ chiều nào. Không nhét vào
+// PUBLIC_PATHS như một ngoại lệ — hành vi khác bản chất thì phải là nhóm
+// khác, không phải một cờ rẽ nhánh trong nhóm cũ.
+const ALWAYS_PUBLIC_PATHS = ["/cho-khach-hang"];
+
 // AUTH5-02 (đợt nâng cấp Auth Flow, 2026-08-12) — access_token giờ chỉ sống
 // 15 phút (JWT_ACCESS_EXPIRE_MINUTES, src/config.py). Nếu không có gì chủ
 // động làm mới, MỌI request sau 15 phút sẽ 401 và người dùng bị đăng xuất
@@ -60,9 +78,37 @@ function khopTienTo(pathname: string, prefix: string) {
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8010";
 const REFRESH_MARGIN_SECONDS = 120;
 
+// 27/08 [ĐO] p-226-dc: thêm ảnh thật vào landing (`/landing/*.png`) rồi phát
+// hiện file đó (VÀ mọi file có sẵn từ trước trong `public/` — đo được cả
+// `/next.svg`, `/file.svg` mặc định của Next) bị đá về /login cho khách
+// CHƯA đăng nhập — matcher chỉ loại trừ `_next/*`/`favicon`, không loại trừ
+// phần còn lại của `public/`. Lỗi CÓ SẴN TỪ TRƯỚC, không phải do ảnh mới gây
+// ra — ảnh mới chỉ là request đầu tiên chạm đúng lớp lỗi này.
+//
+// 🔴 [ĐO 27/08] Review (p-226-8b): bản vá ĐẦU dùng regex theo ĐUÔI FILE —
+// SAI, vì nó test trên pathname mà không phân biệt "file tĩnh thật trong
+// public/" với "route App Router có segment ĐỘNG mà giá trị tham số tình cờ
+// khớp đuôi". Cụ thể: `/tickets/[id]` (chỉ cskh/supervisor được vào theo
+// ROLE_PREFIXES) — khách gọi `/tickets/x.json` sẽ khớp regex đuôi `.json` ở
+// NGAY DÒNG ĐẦU, bỏ qua hẳn khối kiểm vai bên dưới, RENDER được vỏ trang
+// (dữ liệu thật vẫn an toàn vì backend tự kiểm role riêng — nhưng đây vẫn
+// trái nguyên văn US-001 AC ở đầu file: chặn ở proxy, không chỉ ẩn UI).
+// Đuôi file KHÔNG PHẢI bất biến an toàn khi hệ có route động — ALLOWLIST
+// THEO ĐƯỜNG DẪN THẬT thì có, vì nó không suy luận từ HÌNH DẠNG chuỗi (có
+// dấu chấm hay không) mà từ DANH SÁCH asset thật đang tồn tại. Đổi lại dùng
+// `khopTienTo` (đã có sẵn, cùng cơ chế PUBLIC_PATHS/ALWAYS_PUBLIC_PATHS bên
+// dưới) trên đúng các thư mục asset tĩnh thật — `public/` ở dự án này gần
+// như không đổi, chi phí nhớ thêm 1 dòng khi thêm thư mục asset mới THẤP
+// HƠN HẲN rủi ro một regex đuôi file mở lại khe US-001.
+const STATIC_ASSET_PATHS = ["/landing", "/file.svg", "/vercel.svg", "/next.svg", "/globe.svg", "/window.svg"];
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    STATIC_ASSET_PATHS.some((p) => khopTienTo(pathname, p))
+  ) {
     return NextResponse.next();
   }
 
@@ -110,6 +156,10 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  if (ALWAYS_PUBLIC_PATHS.some((p) => khopTienTo(pathname, p))) {
+    return NextResponse.next();
+  }
+
   // Nhánh khớp CHÍNH XÁC, CỐ Ý tách khỏi PUBLIC_PATHS (xem comment ở khai
   // báo mảng đó) — "/" giờ là landing công khai, không phải logic xác thực
   // thuần tuý nữa. Có phiên -> vẫn về màn theo vai, KHÔNG ĐỔI GÌ so với
@@ -128,7 +178,13 @@ export async function proxy(req: NextRequest) {
   }
 
   if (!session) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    // 27/08 — PO báo: nhân viên hết phiên luôn bị đá về /login (cổng khách),
+    // NGÕ CỤT vì gate ở đó từ chối vai nội bộ. Không có `session` ở đây nghĩa
+    // là không còn vai nào để tra (cookie phiên đã mất/hỏng) — dùng cookie
+    // gợi ý cổng (LAST_GATE_COOKIE, ghi lúc đăng nhập, sống dài hơn session
+    // thật) làm dự phòng thay vì mặc định luôn /login. Xem lib/session.ts.
+    const goiY = req.cookies.get(LAST_GATE_COOKIE)?.value;
+    return NextResponse.redirect(new URL(loginPathForGate(goiY), req.url));
   }
 
   const allowedForRole = ROLE_PREFIXES[session.role];

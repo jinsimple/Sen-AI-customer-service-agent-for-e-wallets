@@ -186,6 +186,23 @@ DATASET_SEED = 20260802
 # đặt số riêng.
 OTP_MAX_FAILED_ATTEMPTS = 3
 
+# Benchmark EU/US 27/08, Phát hiện #2 — `/auth/otp/request` và
+# `/resolutions/{id}/request-approval-otp` trả thẳng `otp_code` trong response
+# body, xoá mất yếu tố "sở hữu" (PSD2 dynamic linking chỉ còn đúng trên giấy,
+# NIST 800-63B tụt AAL2 thiết kế xuống AAL1 runtime). MẶC ĐỊNH TẮT (fail-closed
+# theo đúng nguyên tắc APP_ENV ở trên) — bật tay bằng OTP_DEMO_MODE=true, và
+# KHÔNG được phép bật cùng lúc với APP_ENV=production: một máy deploy quên gỡ
+# cờ demo là lộ OTP giao dịch ra production, không phải lỗi chấp nhận được ở
+# mức "quên khai" như APP_ENV — đây fail-fast ngay lúc khởi động, không đợi
+# runtime.
+OTP_DEMO_MODE = os.environ.get("OTP_DEMO_MODE", "").strip().lower() in ("1", "true", "yes")
+if OTP_DEMO_MODE and APP_ENV == "production":
+    raise RuntimeError(
+        "OTP_DEMO_MODE=true nhưng APP_ENV=production — không được trả otp_code "
+        "qua response body ở môi trường production (benchmark EU/US 27/08, "
+        "Phát hiện #2). Tắt OTP_DEMO_MODE hoặc sửa APP_ENV cho đúng."
+    )
+
 # AUTH-005/007/008 (FIN05_QA_TestCases.jsonl) — quyết định thiết kế đã chốt
 # sau khi đối chiếu chuẩn ngành (nghiên cứu 2026-08-10, xem docs/TESTING.md):
 # - Thao tác CHỈ XEM (lookup_transaction, get_customer_history — bao gồm cả
@@ -527,8 +544,10 @@ LIVE_CHAT_STALE_WAITING_MINUTES = 30
 #
 # Đặt false MINH THỊ ở đây để biến một cấu-hình-NGẦM thành một quyết-định-HIỆN:
 # muốn bật thật thì phải sửa dòng này ⟹ có diff, có review, có hồ sơ theo
-# NĐ 13/2023 Điều 25 (chuyển dữ liệu cá nhân ra ngoài). `setdefault` chứ không
-# gán đè: người vận hành vẫn cố ý bật được bằng env var, nhưng mặc định im
-# lặng thì không bao giờ là "bật".
+# Luật 91/2025/QH15 (chuyển dữ liệu cá nhân ra ngoài — số điều cụ thể CHƯA xác
+# minh trên bản luật mới, xem docs/security/2026-08-30-niem-luat-91-2025-*.md,
+# đừng tự gán số điều cũ của NĐ 13/2023). `setdefault` chứ không gán đè: người
+# vận hành vẫn cố ý bật được bằng env var, nhưng mặc định im lặng thì không
+# bao giờ là "bật".
 os.environ.setdefault("LANGCHAIN_TRACING_V2", "false")
 os.environ.setdefault("LANGSMITH_TRACING", "false")  # tên mới của cùng cờ

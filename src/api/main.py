@@ -69,6 +69,7 @@ from src.auth import (
     mint_refresh_token,
     require_otp_verified,
     require_role,
+    require_token_chua_thu_hoi,
     revoke_refresh_token,
     rotate_refresh_token,
     set_revoked_before_now,
@@ -84,6 +85,7 @@ from src.config import (
     DIALABLE,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
+    OTP_DEMO_MODE,
     OTP_MAX_FAILED_ATTEMPTS,
     REDIS_URL,
     RESOLUTION_APPROVAL_OTP_FRESH_MINUTES,
@@ -437,15 +439,22 @@ def request_otp(
             created_at=dt.datetime.utcnow(),
         )
     )
-    return {
+    # Benchmark EU/US 27/08, Phát hiện #2 — otp_code CHỈ vào response khi
+    # OTP_DEMO_MODE bật tay (mặc định TẮT, fail-fast nếu bật cùng production —
+    # xem src/config.py). Thiếu nhánh gửi SMS thật: đây là gate chặn RÒ RỈ,
+    # không phải triển khai kênh gửi thật — production thật phải có nhà cung
+    # cấp SMS riêng trước khi bật OTP_DEMO_MODE=false mà vẫn hoạt động được.
+    response: dict[str, object] = {
         "session_id": otp_session_id,
         "security_question": user.security_question,  # chỉ hỗ trợ CSKH nhận diện qua hotline, KHÔNG gate OTP verify
-        "otp_code": otp_code,
-        "note": (
+    }
+    if OTP_DEMO_MODE:
+        response["otp_code"] = otp_code
+        response["note"] = (
             "Môi trường demo — mã OTP trả trực tiếp ở đây để tiện test/tự động hoá "
             "(sản phẩm thật sẽ gửi qua SMS, KHÔNG BAO GIỜ trả OTP qua API response)."
-        ),
-    }
+        )
+    return response
 
 
 @app.post("/auth/otp/verify")
@@ -477,7 +486,10 @@ def verify_otp(
     # hội. Mã OTP là yếu tố step-up DUY NHẤT ở đây. `User.security_question`/
     # `security_answer_hash` VẪN giữ trong model, chỉ để hỗ trợ CSKH nhận
     # diện khách khi gọi hotline (không gate route nào cả).
-    otp_ok = req.otp_code == auth_session.otp_code
+    # Benchmark EU/US 27/08, Phát hiện #3 — cùng họ control với
+    # approve_resolution (main.py, Lớp 3 ở trên): so OTP bằng constant-time,
+    # không dùng `==` (rò độ dài tiền tố đúng qua thời gian phản hồi).
+    otp_ok = secrets.compare_digest(req.otp_code or "", auth_session.otp_code or "")
 
     if not otp_ok:
         auth_session.failed_attempts += 1
@@ -497,7 +509,22 @@ def verify_otp(
                 detail=f"Sai quá {OTP_MAX_FAILED_ATTEMPTS} lần — phiên xác thực đã bị khoá, yêu cầu OTP mới",
             )
         session.commit()
-        raise HTTPException(status_code=401, detail="Mã OTP không đúng")
+        # 🔴 400, KHÔNG 401 (đổi 27/08). 401 nghĩa là "tôi không biết anh là ai" —
+        # nhưng người gõ sai OTP thì ta BIẾT RÕ họ là ai: phiên đăng nhập của họ
+        # còn sống nguyên, họ chỉ gõ nhầm sáu số.
+        # [ĐO 27/08] toàn bộ 401 của backend: main.py 316/362/978/1140 + auth.py
+        # 257/259/264/281/346 — 9/10 chỗ nghĩa là "phiên không dùng được nữa".
+        # Dòng này từng là NGOẠI LỆ DUY NHẤT, và cái giá của nó nằm ở tầng trên:
+        # frontend có quy tắc "401 ⟹ phiên chết ⟹ đá về /login" đúng ở 9/10 chỗ,
+        # nên phải KHỚP CHUỖI "Mã OTP không đúng" chỉ để loại trừ MỘT dòng này.
+        # Hậu quả thật (Review bắt 27/08): gõ nhầm OTP ⟹ mất luôn phiên đang sống.
+        # 400 khớp chính route này (đã dùng 400 cho "chưa yêu cầu OTP") — cùng họ
+        # "yêu cầu của bạn có vấn đề", khác hẳn "bạn là ai".
+        # ⚠️ 401 ở route này VẪN CÒN, do require_role/auth ném TRƯỚC thân hàm khi
+        # phiên chết thật ⟹ quy tắc của frontend nay ĐÚNG KHÔNG NGOẠI LỆ, kể cả ở đây.
+        # ⚠️ KHÔNG đụng hai nhánh 403 (khoá vì sai quá nhiều lần) — chúng phân biệt
+        # "gõ sai" với "hết lượt", và tests/ có ca đối chứng khẳng định đúng ranh giới đó.
+        raise HTTPException(status_code=400, detail="Mã OTP không đúng")
 
     auth_session.otp_status = "verified"
     auth_session.security_q_passed = True
@@ -598,6 +625,11 @@ def create_ticket(
 def propose_resolution(
     req: ProposeResolutionRequest,
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    # ADR-055 Bậc 1 (PO chốt 30/08) — chạm dữ liệu điều tra nhưng KHÔNG cần
+    # OTP, nên trước đây rơi ra ngoài require_otp_verified (xem docstring
+    # require_token_chua_thu_hoi). Depends riêng, SAU require_role trong khai
+    # báo — giữ thứ tự lỗi 403 (role sai) trước 401 (token bị thu hồi).
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
     return _handle_tool_error(
@@ -609,6 +641,8 @@ def propose_resolution(
 def escalate_ticket(
     req: EscalateTicketRequest,
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    # ADR-055 Bậc 1 (PO chốt 30/08) — xem chú thích ở propose_resolution.
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
     return _handle_tool_error(
@@ -928,6 +962,11 @@ def request_resolution_approval_otp(
     request: Request,
     resolution_id: str,
     current_user: CurrentUser = Depends(require_role("supervisor")),
+    # ADR-055 Bậc 1 (PO chốt 30/08) — cùng họ route CHẠM TIỀN với approve/
+    # reject (đã tự kiểm revocation riêng inline), nhưng route XIN OTP này
+    # trước đây không kiểm — một supervisor bị thu hồi vẫn xin được challenge
+    # dù không duyệt xong được. Xem chú thích ở propose_resolution.
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
     resolution = session.get(Resolution, resolution_id)
@@ -949,18 +988,23 @@ def request_resolution_approval_otp(
             created_at=dt.datetime.utcnow(),
         )
     )
-    return {
+    # Benchmark EU/US 27/08, Phát hiện #2 (mở rộng 30/08 — route duyệt TÀI
+    # CHÍNH cũng lộ y hệt route đăng nhập, không chỉ /auth/otp/request). Cùng
+    # gate OTP_DEMO_MODE, cùng lý do — xem chú thích ở request_otp().
+    response: dict[str, object] = {
         "session_id": otp_session_id,
         "resolution_id": resolution_id,
-        "otp_code": otp_code,
-        "note": (
+    }
+    if OTP_DEMO_MODE:
+        response["otp_code"] = otp_code
+        response["note"] = (
             "Môi trường demo — mã OTP trả trực tiếp ở đây để tiện test/tự động hoá "
             "(sản phẩm thật sẽ gửi qua SMS/app riêng cho sếp). Mã CHỈ dùng được cho "
             f"ĐÚNG resolution_id={resolution_id} này, hết hạn sau "
             f"{RESOLUTION_APPROVAL_OTP_FRESH_MINUTES} phút, và mất hiệu lực nếu số tiền "
             "resolution thay đổi sau khi xin mã."
-        ),
-    }
+        )
+    return response
 
 
 @app.post("/resolutions/{resolution_id}/approve")

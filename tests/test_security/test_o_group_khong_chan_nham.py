@@ -175,6 +175,10 @@ def test_bo_18_ca_mu_voi_siet_nham():
 
     Test này nói về giới hạn của BỘ CHẤM nên không phụ thuộc bộ lọc có tồn tại.
     """
+    from tests._eval_co_mat import doi_hoi_eval
+
+    doi_hoi_eval()
+
     import sys
 
     sys.path.insert(0, str(_GOC))

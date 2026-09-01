@@ -152,6 +152,17 @@ services:
       # ghim mã (`bam_ma_nguon`) và ghim ảnh (`BUILD_COMMIT`) — đây là vật thứ
       # ba cùng lớp, trước nay chưa ghim.
       LLM_MODEL: ${LLM_MODEL:-qwen3.7-plus-2026-05-26}
+      # Mặc định cho LLM_BASE_URL — DevOps soát và duyệt 27/08 sau khi tự đo.
+      # Vì sao cần: thiếu nó thì SDK rơi về đích MẶC ĐỊNH (api.openai.com) trong
+      # khi LLM_MODEL đã là tên model DashScope ⟹ hai nửa cấu hình đến từ hai
+      # nguồn, một nửa có lưới an toàn (dòng trên), nửa kia không. Cấu hình
+      # TRÔNG đầy đủ vì nửa hỏng KHÔNG để lại chỗ trống — đó là cách sự cố
+      # "CI chấm điểm bằng gpt-4o-mini suốt 10 ngày" im lặng được lâu đến vậy.
+      # ⚠️ Bản vá này BẮT BUỘC đi kèm LLM_API_KEY trong .env của hai job CI dùng
+      # `docker compose up` (route-guards-docker · livechat-e2e-nightly): đặt
+      # base_url mà thiếu khoá ⟹ config.py:342 ném lỗi lúc import ⟹ backend chết
+      # ở `up -d`. Land riêng một nửa là làm đỏ hai job đang xanh.
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
       # Suy luận TẮT mặc định — xem lý lẽ đo được ở src/config.py (T3).
       # Bật lại để đo chất lượng: SUY_LUAN_BAT=1, rồi RECREATE (đọc lúc import).
       SUY_LUAN_BAT: ${SUY_LUAN_BAT:-0}
@@ -263,9 +274,23 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # [01/09] MẶC ĐỊNH loopback-only (127.0.0.1), CÙNG KHUÔN postgres/jaeger ở
+    # trên — trước bản này port TRẦN ("80:80") = bind mọi interface (0.0.0.0),
+    # tức publish ra LAN/WiFi cho MỌI ngăn dựng từ file này, kể cả ngăn dev
+    # tạm trên máy nhiều người dùng chung (đo được 01/09: qa-stripe VÀ po-demo
+    # cùng hở vì cùng thừa hưởng gốc này — sửa GỐC để ngăn thứ tư sau này tự
+    # đúng, không cần ai nhớ).
+    # 🔴 KHÔNG hardcode 127.0.0.1 tuyệt đối — VPS công khai thật (docs/DEPLOY.md,
+    # ĐƯỜNG 1 "IP công khai") CẦN bind mọi interface để khách truy cập được từ
+    # ngoài. Cùng khuôn `SITE_DOMAIN:-localhost` đã dùng ngay dưới: mặc định AN
+    # TOÀN cho dev, ai deploy thật phải TỰ Ý đặt `CADDY_BIND_HOST=0.0.0.0` (một
+    # quyết định HIỆN, không phải mặc định ngầm). Đường Cloudflare Tunnel
+    # (`--profile home`) KHÔNG cần đổi biến này — cloudflared nói chuyện với
+    # caddy qua mạng nội bộ compose, không qua port publish này (xem khối
+    # `cloudflared` bên dưới).
     ports:
-      - "80:80"
-      - "443:443"
+      - "${CADDY_BIND_HOST:-127.0.0.1}:80:80"
+      - "${CADDY_BIND_HOST:-127.0.0.1}:443:443"
     environment:
       # Mặc định "localhost" để `docker compose up` chạy thử cục bộ không cần
       # domain/internet thật (Caddy tự dùng chứng chỉ nội bộ cho localhost).

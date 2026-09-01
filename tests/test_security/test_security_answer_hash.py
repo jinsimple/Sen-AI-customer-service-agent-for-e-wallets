@@ -119,8 +119,11 @@ def test_verify_otp_no_longer_gates_on_security_answer(client, sample_db):
 
 def test_verify_otp_rejects_correct_otp_alone_is_still_gated_by_otp_itself(client, sample_db):
     """Đối chứng: KHÔNG phải mọi request đều qua — otp_code SAI vẫn bị từ
-    chối (401), chứng minh OTP vẫn là gate thật, chỉ có câu hỏi bảo mật là bị
-    bỏ, không phải bỏ luôn toàn bộ xác thực."""
+    chối (400 — lỗi PHÍA NGƯỜI GỌI, ĐÍNH CHÍNH 27/08: xem
+    tests/test_api/test_otp.py::test_otp_verify_wrong_code_increments_failed_attempts,
+    401 trước đây làm phiên còn sống bị đối xử như đã chết), chứng minh OTP
+    vẫn là gate THẬT, chỉ có câu hỏi bảo mật là bị bỏ, không phải bỏ luôn
+    toàn bộ xác thực."""
     from src.db.models import AuthSession
     from src.tools.base import new_id
 
@@ -143,4 +146,4 @@ def test_verify_otp_rejects_correct_otp_alone_is_still_gated_by_otp_itself(clien
         json={"session_id": session_id, "otp_code": "000000"},
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert resp.status_code == 401
+    assert resp.status_code == 400

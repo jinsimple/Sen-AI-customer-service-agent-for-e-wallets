@@ -25,11 +25,34 @@
 	}
 }
 
+# Header bảo mật tầng biên — 2026-09-01, đúng khối đã đề xuất và validate
+# (docs/devops/2026-08-27-de-xuat-header-bao-mat-caddy.md, `caddy validate` → mã thoát 0).
+# CỐ Ý KHÔNG kèm Content-Security-Policy — CSP cần đo Report-Only trên traffic thật
+# trước khi chốt policy, không đoán. Đừng tự thêm CSP vào đây.
+(header_bao_mat) {
+	header {
+		# HSTS — buộc trình duyệt luôn dùng HTTPS cho domain này sau lần
+		# truy cập đầu.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# Chặn nhúng trang này vào <iframe> trên domain khác — clickjacking,
+		# đặc biệt quan trọng cho /login và /dang-nhap-noi-bo.
+		X-Frame-Options "DENY"
+		# Chặn trình duyệt tự đoán content-type khác Content-Type khai báo.
+		X-Content-Type-Options "nosniff"
+		# Không gửi URL đầy đủ (có thể chứa query nhạy cảm) sang site khác
+		# khi khách bấm link ra ngoài.
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Tắt các quyền trình duyệt app này không cần — camera/mic/định vị.
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	}
+}
+
 # ĐƯỜNG 1 — truy cập trực tiếp (localhost trên máy dev, hoặc VPS có IP công
 # khai). Caddy tự lo TLS: cert nội bộ cho localhost, Let's Encrypt cho domain
 # thật. Không đổi so với trước.
 {$SITE_DOMAIN} {
 	import dinh_tuyen_app
+	import header_bao_mat
 }
 
 # ĐƯỜNG 2 — Cloudflare Tunnel (deploy tại nhà, profile `home`).
@@ -47,4 +70,5 @@
 # hostname trên :80 mà không ai gọi tới. Máy dev không đổi hành vi một li.
 http://{$TUNNEL_DOMAIN:app.adaptivealgo.uk} {
 	import dinh_tuyen_app
+	import header_bao_mat
 }

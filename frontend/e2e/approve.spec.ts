@@ -42,7 +42,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, "0353000201", "/dashboard");
+      await loginAs(staffPage, "0353000201", "/dashboard", 1, "/dang-nhap-noi-bo");
       await proposeResolutionAsStaff(staffPage, ticketId, "Đối chiếu log giao dịch xác nhận đã trừ tiền, đề xuất hoàn ví.");
     } finally {
       await staffContext.close();
@@ -51,7 +51,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const supervisorContext = await browser.newContext();
     const supervisorPage = await supervisorContext.newPage();
     try {
-      await loginAs(supervisorPage, SUPERVISOR_PHONE, "/approve");
+      await loginAs(supervisorPage, SUPERVISOR_PHONE, "/approve", 1, "/dang-nhap-noi-bo");
       // Chỉ tìm trong lưới "đang chờ duyệt" (.grid.grid-2) — KHÔNG chỉ dùng
       // ".card" trần: nhật ký hành động HITL bên dưới cũng là 1 div.card bọc
       // <table>, và sau khi duyệt xong, ticketId sẽ xuất hiện lại dưới dạng
@@ -65,10 +65,26 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
 
       // AUTH5-04 (đợt nâng cấp Auth Flow 2026-08-12) — "Duyệt" giờ chỉ XIN
       // OTP riêng cho resolution này (PSD2 dynamic linking), chưa duyệt
-      // ngay — phải bấm thêm "Xác nhận duyệt" mới thật sự gọi approve.
-      await card.getByRole("button", { name: "Duyệt" }).click();
-      await expect(card.locator(".approval-otp-code")).toBeVisible({ timeout: 10_000 });
-      await card.getByRole("button", { name: "Xác nhận duyệt" }).click();
+      // ngay — phải gõ đủ 6 số rồi bấm "Xác nhận" mới thật sự gọi approve.
+      //
+      // [01/09, P0 554f6ad] otp_code KHÔNG còn hiện trên màn hình (đúng mục
+      // đích bản vá bảo mật — sếp phải tự gõ, không đọc thẳng như trước) —
+      // đọc mã từ CHÍNH response mạng thật (chỉ có khi OTP_DEMO_MODE=true ở
+      // ngăn đang chạy, xem ghi chú đầu helpers/actors.ts), không đọc DOM.
+      const [otpResp] = await Promise.all([
+        supervisorPage.waitForResponse(
+          (r) => r.url().includes("/request-approval-otp") && r.request().method() === "POST"
+        ),
+        card.getByRole("button", { name: "Duyệt" }).click(),
+      ]);
+      const { otp_code: otpCode } = (await otpResp.json()) as { otp_code: string };
+      expect(otpCode, "OTP_DEMO_MODE phải bật ở ngăn đang chạy e2e — xem ghi chú đầu helpers/actors.ts").toBeTruthy();
+      const otpBoxes = card.locator(".otp-box");
+      await expect(otpBoxes.first()).toBeVisible({ timeout: 10_000 });
+      for (let i = 0; i < otpCode.length; i++) {
+        await otpBoxes.nth(i).fill(otpCode[i]);
+      }
+      await card.getByRole("button", { name: "Xác nhận", exact: true }).click();
       await expect(card).not.toBeVisible({ timeout: 15_000 });
 
       const historyRow = supervisorPage.locator("tbody tr", { hasText: ticketId });
@@ -97,7 +113,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const staffContext = await browser.newContext();
     const staffPage = await staffContext.newPage();
     try {
-      await loginAs(staffPage, "0353000201", "/dashboard");
+      await loginAs(staffPage, "0353000201", "/dashboard", 1, "/dang-nhap-noi-bo");
       await proposeResolutionAsStaff(staffPage, ticketId, "Chưa đủ căn cứ xác nhận trừ tiền 2 lần, đề xuất từ chối.");
     } finally {
       await staffContext.close();
@@ -106,7 +122,7 @@ test.describe("APPROVE-* — luồng phê duyệt HITL", () => {
     const supervisorContext = await browser.newContext();
     const supervisorPage = await supervisorContext.newPage();
     try {
-      await loginAs(supervisorPage, SUPERVISOR_PHONE, "/approve");
+      await loginAs(supervisorPage, SUPERVISOR_PHONE, "/approve", 1, "/dang-nhap-noi-bo");
       // Xem ghi chú ở test "duyệt" bên trên — scope vào .grid.grid-2 để
       // không nhầm sang div.card của bảng nhật ký HITL.
       const pendingGrid = supervisorPage.locator(".grid.grid-2");

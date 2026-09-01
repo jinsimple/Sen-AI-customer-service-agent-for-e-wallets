@@ -114,6 +114,13 @@ def run(cases: list[dict], nguon_mo_hinh: dict) -> list[dict]:
                     # đợt "OTP trước token" 24/08, đóng Đ2 cùng
                     # `cau_hinh_dinh_tuyen_luc_chay()` ở header báo cáo.
                     "duong_theo_luot": agent_result.get("duong_theo_luot") or [],
+                    # [ĐO 31/08, PO duyệt] Coder đề xuất — GHI THÊM dữ liệu CHẨN
+                    # ĐOÁN đã có sẵn trong agent_result (`loc_dau_ra_theo_luot`,
+                    # nhóm O nào chặn mỗi lượt) mà trước đây bị vứt. KHÔNG đổi
+                    # hành vi agent, KHÔNG cần cờ môi trường, KHÔNG đổi thước
+                    # chấm (khác hẳn commit bdfc8f0) — chỉ ngừng vứt một trường
+                    # sản phẩm vốn đã tính.
+                    "loc_dau_ra_theo_luot": agent_result.get("loc_dau_ra_theo_luot") or [],
                     # ② hạng mục PO giao 26/08 (sau lỗ 41aacd5, 10 ngày CI
                     # chấm nhầm gpt-4o-mini không một dòng lỗi) — TỰ KHAI
                     # model/base_url/mã nguồn NGAY TRÊN TỪNG CASE, không chỉ

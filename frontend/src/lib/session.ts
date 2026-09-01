@@ -29,6 +29,40 @@ export interface Session {
 
 export const SESSION_COOKIE = "fin05_session";
 
+// 27/08 — PO báo: nhân viên hết phiên (hoặc bị đăng xuất) luôn bị đá về
+// /login (cổng khách) — NGÕ CỤT thật, vì mỗi cổng CHỈ chấp nhận đúng vai của
+// mình (route.ts::gateRejects), và trang công khai "/" không có đường nào
+// dẫn tới /dang-nhap-noi-bo. Khác với nút Đăng xuất (biết `role` ngay lúc
+// bấm, xem TopbarActions.tsx) — proxy.ts/layout.tsx gặp session đã hỏng
+// (cookie thiếu/hết hạn/bị revoke) thì KHÔNG CÒN vai nào để tra, vì vai nằm
+// trong chính cookie đã chết đó.
+//
+// Cookie gợi ý này lưu GATE (không phải role cụ thể — không cần biết CSKH
+// hay Sếp, chỉ cần biết "trình duyệt này lần trước đăng nhập ở cổng nào") để
+// dùng LÀM DỰ PHÒNG khi session không đọc được nữa. KHÔNG nhạy cảm (không
+// định danh ai, chỉ nói cổng nào) nên KHÔNG httpOnly — `lib/api.ts` (client,
+// chạy trong trình duyệt) cũng cần đọc được nó để biết đá về cổng nào khi
+// một lời gọi API 401 giữa phiên (refresh cũng đã hỏng, xem
+// server-api.ts::_lamMoiPhien) — proxy.ts không kịp thấy ca này vì cookie
+// phiên (đã chết) vẫn còn hình dạng hợp lệ lúc điều hướng trang.
+//
+// 🔴 [ĐO 27/08] Review (p-226-8b): TTL ban đầu ghim CỐ ĐỊNH 30 ngày — không
+// bám vào vòng đời thật nào (refresh_token nhân viên chỉ 1 ngày, khách 7
+// ngày; quá hạn đó nhân viên BẮT BUỘC đăng nhập lại bất kể cookie gợi ý còn
+// hay không, vì nó chỉ CHỌN CỔNG chứ không thay được đăng nhập). Dùng LẠI
+// `sessionCookieMaxAgeSeconds(role)` (route.ts::POST) — đã tồn tại, đã đúng
+// theo vai — thay vì ghim một hằng số riêng phải nhớ đồng bộ mỗi khi vòng
+// đời phiên đổi. Ghi ở route.ts::POST mỗi lần đăng nhập thành công, ĐỌC ở
+// proxy.ts khi !session và ở lib/api.ts khi 401 giữa phiên — KHÔNG xoá khi
+// đăng xuất (dụng ý: nhân viên đóng máy rồi quay lại vẫn về đúng cổng nội bộ
+// dù chưa đăng nhập, trong đúng vòng đời session còn hợp lệ).
+export type Gate = "customer" | "internal";
+export const LAST_GATE_COOKIE = "fin05_last_gate";
+
+export function loginPathForGate(gate: string | undefined): string {
+  return gate === "internal" ? "/dang-nhap-noi-bo" : "/login";
+}
+
 // AUTH5-02B — role nội bộ rủi ro cao hơn nếu refresh_token bị đánh cắp
 // (chạm dữ liệu nhiều khách), TTL cookie ngắn hơn hẳn khách hàng — PHẢI
 // khớp JWT_REFRESH_EXPIRE_DAYS_CUSTOMER/STAFF ở src/config.py (backend).

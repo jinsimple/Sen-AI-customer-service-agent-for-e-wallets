@@ -1,0 +1,32 @@
+# [01/09] NAY COMMIT — cùng lý do đã ghi ở docker-compose.qa-stripe.override.yml:
+# ghi chú "TẠM THỜI, KHÔNG COMMIT" cũ chỉ đúng lúc viết. File này là cấu hình
+# TÁI LẬP ĐƯỢC cho ngăn nghiệm thu CD1 (ADR-057) — mất file thì lần bật lại
+# sau phải nhớ lại toàn bộ remap cổng + OTP_DEMO_MODE từ đầu. Đã kiểm không có
+# bí mật nào trước khi commit (grep password|secret|key|token|jwt|api|hash —
+# 0 dòng khớp).
+#
+# Ngăn riêng cho QA/QC nghiệm thu ADR-057 (CD1) qua UI thật, băm
+# fin05-backend:ctc1 hiện tại là 4a304d474b3e. Remap toàn bộ cổng host để
+# không đụng fin05-qa-stripe (đang đóng băng chờ quay video chiều tối) hay
+# bất kỳ ngăn nào khác đang chạy trên máy này.
+services:
+  postgres:
+    ports: !override
+      - "127.0.0.1:61432:5432"
+  jaeger:
+    ports: !override
+      - "127.0.0.1:61686:16686"
+  caddy:
+    # [01/09] Cùng khuôn CADDY_BIND_HOST của base docker-compose.yml — !override
+    # THAY THẾ HOÀN TOÀN khối ports của base, nên bản vá gốc KHÔNG tự chạm tới
+    # đây, phải sửa lặp lại ở từng override. Có hiệu lực từ lần dựng lại SAU.
+    ports: !override
+      - "${CADDY_BIND_HOST:-127.0.0.1}:61080:80"
+      - "${CADDY_BIND_HOST:-127.0.0.1}:61443:443"
+  backend:
+    # Dùng LẠI ảnh đã dựng + kiểm băm (4a304d474b3e), không để compose build
+    # bản mới — image: cùng tồn tại với build: thì `up` (không --build) chỉ
+    # dùng ảnh đã có sẵn theo tag này, không dựng lại.
+    image: fin05-backend:ctc1
+    environment:
+      OTP_DEMO_MODE: "true"

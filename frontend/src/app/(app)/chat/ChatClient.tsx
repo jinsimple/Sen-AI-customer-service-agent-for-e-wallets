@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import BannerLechVai from "@/components/BannerLechVai";
+import OtpInput from "@/components/OtpInput";
 import { ApiError, agentChat, getCustomerHistory, requestLiveChatWsTicket, requestOtp, verifyOtp } from "@/lib/api";
 import { COMPLAINT_TYPE_LABEL, type ComplaintType, type CustomerHistory } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -97,89 +98,11 @@ function nid() {
   return crypto.randomUUID();
 }
 
-function OtpForm({
-  disabled,
-  checking,
-  error,
-  onSubmit,
-}: {
-  disabled: boolean;
-  checking: boolean;
-  error: string | null;
-  onSubmit: (otpCode: string) => void;
-}) {
-  // Controlled (không thao tác DOM tay) — bắt buộc để gõ ĐÈ lên ô đã có sẵn
-  // số hoạt động đúng: input maxLength=1 chưa được bôi đen thì trình duyệt
-  // chặn ký tự mới (đã đạt maxLength), onChange không bắn, không tự nhảy ô.
-  // onFocus bôi đen nội dung cũ để gõ đè luôn thay thế được, dù gõ theo thứ
-  // tự nào hay quay lại ô đã điền.
-  //
-  // AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4) — bỏ
-  // hẳn ô "câu trả lời bảo mật": KBA không còn là authenticator, mã OTP là
-  // yếu tố step-up duy nhất (xem src/api/main.py::verify_otp).
-  const [digits, setDigits] = useState(["", "", "", "", "", ""]);
-  const refs = useRef<Array<HTMLInputElement | null>>([]);
-
-  function handleChange(i: number, value: string) {
-    const digit = value.replace(/\D/g, "").slice(-1);
-    setDigits((prev) => {
-      const next = [...prev];
-      next[i] = digit;
-      return next;
-    });
-    if (digit && i < 5) refs.current[i + 1]?.focus();
-  }
-
-  function handleKeyDown(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !digits[i] && i > 0) {
-      refs.current[i - 1]?.focus();
-    }
-    if (e.key === "Enter" && canSubmit) onSubmit(digits.join(""));
-  }
-
-  const canSubmit = !disabled && !checking && digits.every(Boolean);
-
-  return (
-    <>
-      <div className="otp-row">
-        {digits.map((d, i) => (
-          <input
-            key={i}
-            ref={(el) => {
-              refs.current[i] = el;
-            }}
-            className="otp-box"
-            inputMode="numeric"
-            maxLength={1}
-            value={d}
-            disabled={disabled || checking}
-            onChange={(e) => handleChange(i, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(i, e)}
-            onFocus={(e) => e.target.select()}
-          />
-        ))}
-      </div>
-      {error && (
-        <div className="dim" style={{ color: "var(--danger, #d33)", fontSize: 12, marginTop: 6 }}>
-          {error}
-        </div>
-      )}
-      {!error && !canSubmit && !checking && digits.some(Boolean) && (
-        <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
-          Nhập đủ 6 số OTP để tiếp tục.
-        </div>
-      )}
-      <button
-        className="btn btn-gold btn-sm"
-        style={{ marginTop: 12 }}
-        disabled={!canSubmit}
-        onClick={() => onSubmit(digits.join(""))}
-      >
-        {checking ? "Đang xác thực..." : "Xác nhận"}
-      </button>
-    </>
-  );
-}
+// AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4) — bỏ hẳn ô
+// "câu trả lời bảo mật": KBA không còn là authenticator, mã OTP là yếu tố
+// step-up duy nhất (xem src/api/main.py::verify_otp). Ô nhập OTP 6 số dùng
+// chung (`OtpInput`, tách ra 31/08 để tái dùng ở luồng sếp duyệt) — xem
+// `@/components/OtpInput.tsx`.
 
 // Lỗi 12 (PO thật 19/08, docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md
 // mục 12): cổng OTP V6 áp cho thẻ "Giao dịch gần đây" nhưng SÓT thẻ "Lịch
@@ -613,6 +536,16 @@ export default function ChatClient({
         setStage("chat");
         return;
       }
+      // 27/08 [ĐO] p-226-f0: 401 ở đây CHỈ có nghĩa "phiên hết hạn" (xem chú
+      // thích tại lib/api.ts::dieuHuongKhiHetPhien) — lib/api.ts đã tự điều
+      // hướng về đúng cổng VÀ đổi message thành câu người-đọc-được, nhánh
+      // này chỉ hiện lại đúng câu đó, KHÔNG đổ e.message thô như nhánh chung
+      // bên dưới (đó chính là thứ PO thấy giữa buổi demo: "chat báo lỗi").
+      if (e instanceof ApiError && e.status === 401) {
+        push({ id: nid(), from: "bot", text: e.message });
+        setStage("chat");
+        return;
+      }
       push({
         id: nid(),
         from: "bot",
@@ -657,8 +590,15 @@ export default function ChatClient({
       <div className="page-head">
         <span className="eyebrow">Trợ lý AI cho khách hàng</span>
         <h1>Trợ lý AI</h1>
+        {/* 27/08 — Marketing (p-226-17) đổi: câu cũ là phát biểu TUYỆT ĐỐI,
+            cùng hình dạng lỗi vừa vá ở /login, và ĐÃ TỪNG SAI THẬT (ca bot
+            báo "đã tạo hồ sơ" trong khi không tạo, mã hồ sơ thuộc khách
+            khác). Câu mới nói về QUY TRÌNH (kiểm được, có ca mẫu TCK-DEMO-02)
+            thay vì kết quả tuyệt đối; "mọi đề xuất đều có người kiểm" là vế
+            DUY NHẤT thật sự tuyệt đối — ép ở CheckConstraint DB, không phải
+            hành vi mô hình. Copy nguyên văn marketing, không tự viết lại. */}
         <p className="sub">
-          Trợ lý AI — mọi con số đều được tra cứu từ hệ thống thật, không tự suy đoán.
+          Trợ lý AI — Sen tra cứu từ hệ thống trước khi trả lời, và nói rõ khi không tra được. Mọi đề xuất đều có người kiểm trước khi thành quyết định.
         </p>
       </div>
 
@@ -798,7 +738,7 @@ export default function ChatClient({
                           Mã OTP phiên làm việc (mô phỏng — gửi tới {phone}): <strong>{m.demoOtpCode}</strong>
                         </span>
                       </div>
-                      <OtpForm
+                      <OtpInput
                         disabled={m.resolved}
                         checking={m.checking}
                         error={m.error}
@@ -855,12 +795,12 @@ export default function ChatClient({
           </div>
           <div className="chat-disclaimer">
             <svg className="icon icon-sm" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></svg>
-            Sen không bao giờ hỏi mật khẩu hoặc mã OTP giao dịch thật của bạn qua chat.
+            Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.
           </div>
           {/* Thông báo xử lý dữ liệu — bản demo dùng dữ liệu mô phỏng, nhưng
               người test là NGƯỜI THẬT gõ chữ thật, nên vẫn cần cho họ biết nội
               dung chat được xử lý bởi nhà cung cấp AI nước ngoài. Đây là căn cứ
-              pháp lý cơ bản (NĐ 13/2023) và thực sự làm giảm lượng PII đi vào —
+              pháp lý cơ bản (Luật 91/2025/QH15 + NĐ 356/2025) và thực sự làm giảm lượng PII đi vào —
               đọc rồi thì người ta không gõ số điện thoại thật. Xem ADR-011. */}
           <div className="chat-disclaimer" style={{ paddingTop: 0 }}>
             <svg className="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5h.01" /></svg>

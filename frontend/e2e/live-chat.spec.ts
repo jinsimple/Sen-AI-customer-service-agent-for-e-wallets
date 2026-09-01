@@ -80,7 +80,7 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       await expect(chatThread.getByText("chuyên viên CSKH")).toBeVisible({ timeout: 10_000 });
 
       // --- CSKH: đăng nhập, PHẢI thấy hàng chờ REALTIME, không cần F5 (L4-05) ---
-      await loginAs(staffPage, STAFF_PHONE, "/dashboard");
+      await loginAs(staffPage, STAFF_PHONE, "/dashboard", 1, "/dang-nhap-noi-bo");
       const waitingWidget = staffPage.getByText("Khách đang chờ chat trực tiếp");
       await expect(waitingWidget).toBeVisible({ timeout: 20_000 });
 
@@ -139,7 +139,7 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       await loginAs(customerPage, CUSTOMER_PHONE, "/chat");
       await requestHumanHandoffAndWaitConnected(customerPage);
 
-      await loginAs(firstStaffPage, STAFF_PHONE, "/dashboard");
+      await loginAs(firstStaffPage, STAFF_PHONE, "/dashboard", 1, "/dang-nhap-noi-bo");
       await expect(firstStaffPage.getByText("Khách đang chờ chat trực tiếp")).toBeVisible({ timeout: 20_000 });
       await firstStaffPage.getByText("Mở & nhận").first().click();
       await firstStaffPage.getByRole("button", { name: "Nhận phiên chat này" }).click();
@@ -157,7 +157,7 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       const secondStaffContext = await browser.newContext();
       const secondStaffPage = await secondStaffContext.newPage();
       try {
-        await loginAs(secondStaffPage, STAFF_PHONE, "/dashboard");
+        await loginAs(secondStaffPage, STAFF_PHONE, "/dashboard", 1, "/dang-nhap-noi-bo");
         await expect(secondStaffPage.getByText("Khách đang chờ chat trực tiếp")).toBeVisible({ timeout: 20_000 });
       } finally {
         await secondStaffContext.close();
@@ -275,8 +275,8 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       // backend, khác hẳn gọi claim_session() 2 lần tuần tự trong unit test)
       // — optimistic-concurrency UPDATE (claimed_by IS NULL) phải đảm bảo
       // ĐÚNG 1 người thắng, người thua thấy rõ ràng, không bị treo im lặng.
-      await loginAs(staffAPage, STAFF_PHONE, "/dashboard");
-      await loginAs(staffBPage, STAFF_PHONE_B, "/dashboard");
+      await loginAs(staffAPage, STAFF_PHONE, "/dashboard", 1, "/dang-nhap-noi-bo");
+      await loginAs(staffBPage, STAFF_PHONE_B, "/dashboard", 1, "/dang-nhap-noi-bo");
       await expect(staffAPage.getByText("Khách đang chờ chat trực tiếp")).toBeVisible({ timeout: 20_000 });
       await expect(staffBPage.getByText("Khách đang chờ chat trực tiếp")).toBeVisible({ timeout: 20_000 });
       await Promise.all([staffAPage.getByText("Mở & nhận").first().click(), staffBPage.getByText("Mở & nhận").first().click()]);
@@ -364,7 +364,7 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       // (không mất khi chuyển ca), nhắn tiếp, khách nhận được bình thường.
       staffCContext = await browser.newContext();
       const staffCPage = await staffCContext.newPage();
-      await loginAs(staffCPage, STAFF_PHONE_C, "/dashboard");
+      await loginAs(staffCPage, STAFF_PHONE_C, "/dashboard", 1, "/dang-nhap-noi-bo");
       await expect(staffCPage.getByText("Khách đang chờ chat trực tiếp")).toBeVisible({ timeout: 20_000 });
       await staffCPage.getByText("Mở & nhận").first().click();
       await staffCPage.getByRole("button", { name: "Nhận phiên chat này" }).click();
@@ -419,7 +419,7 @@ test.describe("L4-01/02/03/05 — live-chat 2 người dùng thật (docker comp
       await loginAs(customerPage, CUSTOMER_PHONE, "/chat");
       await requestHumanHandoffAndWaitConnected(customerPage);
 
-      await loginAs(staffPage, STAFF_PHONE, "/dashboard");
+      await loginAs(staffPage, STAFF_PHONE, "/dashboard", 1, "/dang-nhap-noi-bo");
       await expect(staffPage.getByText("Khách đang chờ chat trực tiếp")).toBeVisible({ timeout: 20_000 });
       await staffPage.getByText("Mở & nhận").first().click();
       await staffPage.getByRole("button", { name: "Nhận phiên chat này" }).click();

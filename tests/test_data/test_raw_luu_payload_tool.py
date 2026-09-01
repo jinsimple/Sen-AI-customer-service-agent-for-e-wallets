@@ -30,7 +30,11 @@ from pathlib import Path
 
 import pytest
 
+from tests._eval_co_mat import doi_hoi_eval
+
 _GOC = Path(__file__).resolve().parents[2]
+
+doi_hoi_eval()
 
 
 def _khoa_duoc_ghi(duong_dan: Path, ten_ham: str) -> set[str]:

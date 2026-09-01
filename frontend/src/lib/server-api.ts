@@ -80,7 +80,30 @@ async function _lamMoiPhien(cu: Session): Promise<Session | null> {
         body: JSON.stringify({ refresh_token: cu.refresh_token }),
         cache: "no-store",
       });
-      if (!res.ok) return null;
+      // 27/08 [ĐO] p-226-f0: khi refresh_token cũng đã hỏng (hết hạn/bị thu
+      // hồi), hàm này trả null NHƯNG cookie phiên chết vẫn nằm nguyên trong
+      // trình duyệt — proxy.ts chỉ kiểm HÌNH DẠNG cookie, không kiểm hiệu
+      // lực, nên vẫn coi là "đã đăng nhập" và cho vào. Mọi lời gọi backend
+      // sau đó lại 401 → lại thử refresh → lại hỏng, VÒNG LẶP không tự thoát
+      // — chỉ bấm Đăng xuất (nơi DUY NHẤT khác gọi store.delete) mới ra
+      // được. Xoá cookie NGAY tại đây để vòng lặp không có gì để lặp lại.
+      //
+      // 🔴 [ĐO 27/08] p-226-8b (Review): CHỈ xoá khi backend THẬT SỰ từ chối
+      // refresh_token (401) — `!res.ok` rộng hơn ý định, còn bắt cả 429
+      // (`/auth/refresh` có rate limit 30/phút, main.py — nhiều tab/request
+      // BFF song song đều có thể trigger) và 5xx (exception chưa bắt trong
+      // rotate_refresh_token khi Redis chập chờn thoáng qua). Cả hai đều là
+      // "mạng/backend hỏng tạm thời", không phải "token bị từ chối" — xoá
+      // cookie ở hai ca đó là HUỶ MỘT PHIÊN CÒN SỐNG, đúng loại hồi quy bản
+      // vá này định tránh, chỉ khác hướng (trước: giữ cookie chết quá lâu;
+      // giờ nếu không sửa: xoá cookie sống quá sớm).
+      if (res.status === 401) {
+        (await cookies()).delete(SESSION_COOKIE);
+        return null;
+      }
+      if (!res.ok) {
+        return null;
+      }
       const moi = (await res.json()) as { access_token: string; refresh_token: string };
       const phien: Session = { ...cu, access_token: moi.access_token, refresh_token: moi.refresh_token };
       // ĐÂY là đường egress đã đo được — `cookies()` của next/headers, cùng
@@ -94,8 +117,11 @@ async function _lamMoiPhien(cu: Session): Promise<Session | null> {
       });
       return phien;
     } catch {
-      // Mạng/backend hỏng — KHÔNG giả vờ đã gia hạn. Trả null để caller ném
-      // đúng lỗi 401 gốc thay vì thử lại bằng một token không tồn tại.
+      // Mạng/backend hỏng (KHÔNG PHẢI refresh_token bị từ chối — đó là
+      // nhánh !res.ok phía trên) — không xoá cookie ở đây: session có thể
+      // vẫn còn hợp lệ, chỉ là backend tạm không gọi được. Trả null để
+      // caller ném đúng lỗi 401 gốc thay vì thử lại bằng một token không
+      // chắc còn tồn tại.
       return null;
     } finally {
       _dangRefresh.delete(cu.refresh_token);

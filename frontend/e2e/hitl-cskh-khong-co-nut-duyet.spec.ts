@@ -22,7 +22,7 @@ const CSKH_PHONE = "0353000201";
 
 test.describe("HITL-* — GĐ2: phủ định thẩm quyền CSKH (US-012)", () => {
   test("CSKH mở một ticket bất kỳ -> KHÔNG có nút 'Duyệt' ở đâu trên trang", async ({ page }) => {
-    await loginAs(page, CSKH_PHONE, "/dashboard");
+    await loginAs(page, CSKH_PHONE, "/dashboard", 1, "/dang-nhap-noi-bo");
 
     const rows = page.locator("tbody tr");
     await expect(rows.first()).toBeVisible({ timeout: 15_000 });

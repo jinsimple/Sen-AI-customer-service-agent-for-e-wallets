@@ -3061,3 +3061,374 @@ BR-11 hiện tại đúng nghiệp vụ TRƯỚC khi niêm** — đây là câu 
 `INV-14` **chép cứng CÓ NIÊM** *(`e804529`)* — docstring và thông điệp lỗi đều ghi rõ *"TẠM,
 chuyển đọc động ngay khi ADR-052 bổ sung `bieu_thuc` BR-11"*. **Cổng vẫn canh được** *(đột biến
 `AND`→`OR` làm nó đỏ đúng)*, chỉ là canh bằng một bản sao thay vì bằng nguồn.
+
+## ADR-055 — Tách kiểm THU HỒI TOKEN khỏi kiểm ĐỘ TƯƠI OTP
+
+**Ngày:** 2026-08-27 · **Trạng thái:** 🟡 CƠ CHẾ đang làm (Lead giao Coder, Review soát) ·
+**PHẠM VI gắn route nào: CHỜ PO** — hai thứ đó cố ý tách, xem §Hệ quả.
+
+### Bối cảnh — nguyên tắc ĐÃ ĐÚNG, đã được viết ra, có lý do kỹ thuật
+`src/auth.py`, ngay trên chỗ gọi, tự khai đây là **quyết định có chủ đích**:
+> *"access token đã rất ngắn hạn (15 phút), thêm 1 lần GET Redis vào MỌI request sẽ biến Redis
+> thành single point of failure cho cả hệ thống trong khi lợi ích biên rất nhỏ; **route CHẠM DỮ
+> LIỆU / TÀI CHÍNH thật xứng đáng trả giá đó, route đọc thường thì không.**"*
+
+**Nguyên tắc đó đúng, ADR này KHÔNG đụng tới nó.**
+
+### 🔴 Vấn đề — nguyên tắc đúng, CƠ CHẾ không diễn đạt được nó
+`is_access_token_revoked()` gọi ở **đúng ba chỗ trong toàn `src/`**, và một trong ba nằm **bên
+trong** một phép kiểm khác:
+```
+auth.py:345    ← BÊN TRONG require_otp_verified
+main.py:992    ← /approve      (tường minh)
+main.py:1154   ← /reject       (tường minh)
+```
+⟹ Một route **chỉ được kiểm thu hồi nếu nó CŨNG cần OTP tươi**. Hai câu hỏi độc lập về bản chất
+bị buộc chung:
+```
+"phiên này còn hiệu lực không?"      → DANH TÍNH, áp cho mọi vai
+"khách vừa xác thực gần đây chưa?"   → ĐỘ TƯƠI, chỉ áp cho customer
+```
+
+### 🔴 Bằng chứng đắt nhất: một quyết định ĐÚNG kéo theo một quyết định KHÔNG AI RA
+`lookup_transaction` và `get_customer_history` **cố ý** không gắn `require_otp_verified`
+(`main.py:563`, `:592`). Lý do ghi rõ và **hoàn toàn chính đáng — VỀ ĐỘ TƯƠI OTP**:
+> *"khách hàng dùng gián tiếp qua rail 'Giao dịch gần đây' NGAY KHI vào trang, trước khi có cơ
+> hội xác thực"*
+
+Lý do đó **không nói gì về thu hồi token**. Nhưng vì hai phép kiểm dính nhau, **gỡ cái này là gỡ
+luôn cái kia.** Người viết quyết định *"không bắt khách xác thực lại trước khi xem giao dịch gần
+đây"* — hợp lý — và **vô tình cũng quyết định** *"token đã thu hồi vẫn đọc được lịch sử giao dịch
+của khách"*, thứ họ **chưa bao giờ được hỏi.**
+
+⟹ **Không ai quyết sai. Không ai quên.** Đó là hình dạng của bệnh này.
+
+### Số đo — ĐÃ SỬA HAI LẦN, đây là số cuối
+```
+[ĐO 27/08] Depends(require_otp_verified) trong main.py  →  ĐÚNG MỘT chỗ (:602 = /tools/create_ticket)
+[ĐO 27/08] is_access_token_revoked trong customer_tools.py (đường agent) → 0 lần
+           (đường agent CÓ _otp_fresh — nhưng đó là ĐỘ TƯƠI, không phải THU HỒI)
+⟹ TOÀN HỆ có BA route được kiểm thu hồi: create_ticket · approve · reject   (trên 23 route ghi)
+⟹ chỉ MỘT route (create_ticket) được bảo vệ NGẦM qua require_otp_verified
+```
+⚠️ **NIÊM hai con số SAI đã lưu hành trong ngày, để người sau không đào lại:**
+*"4 route có kiểm, gồm `lookup_transaction`/`get_customer_history`"* — **SAI**, hai route đó
+không có ở cả hai đường. *"3 route mất bảo vệ nếu làm sai chiều"* — **SAI**, chỉ **một**.
+📌 Cả hai sai vì **đếm bằng `grep` rồi đọc kết quả như bằng chứng về hành vi** — bệnh đã vấp bốn
+lần trong ngày 27/08. **Bán phát hiện bằng CƠ CHẾ, đừng bán bằng SỐ ĐẾM.**
+
+### Quyết định
+Thêm **một FastAPI dependency ĐỘC LẬP** (`require_token_chua_thu_hoi`) chỉ làm một việc: gọi
+`is_access_token_revoked`. Route cần bảo vệ **chỉ gắn thêm** dependency mới, **không** phải đòi
+OTP tươi kèm theo.
+
+🔴 **BÁC BỎ đường "rút phép kiểm ra khỏi `require_otp_verified` rồi gắn lại thủ công."**
+`create_ticket` **được bảo vệ hoàn toàn NGẦM** — nó không tự gọi `is_access_token_revoked`. Rút
+ra là **mất bảo vệ IM LẶNG: không test nào đỏ**, và chỉ sai khi có token bị thu hồi thật — ca
+hiếm, không nằm trong suite thường trực. **CHỈ THÊM, KHÔNG RÚT** loại bỏ hẳn rủi ro đó.
+*(Coder tìm ra vế này trước khi PO kịp duyệt; lời duyệt đầu của PO-agent dùng chữ "tách" — đọc
+được theo đúng hướng nguy hiểm. Ràng buộc nằm CẠNH câu lệnh thì rụng trên đường đi.)*
+
+### Hệ quả — và một ranh giới CỐ Ý
+`src/auth.py` thêm một dependency. **Không đổi hành vi route nào đang chạy.**
+
+🔴 **ADR này quyết CƠ CHẾ, KHÔNG quyết PHẠM VI.** Route nào được gắn là một quyết định riêng,
+thuộc PO: *"route nào xứng đáng trả giá một lượt đọc Redis"* — đúng câu mà nguyên tắc gốc đặt ra.
+**Dựng chỗ để gắn là việc kỹ thuật; quyết gắn vào đâu là chính sách.** Trộn hai thứ vào một ADR
+là để một quyết định chính sách đi lọt dưới danh nghĩa một thay đổi kỹ thuật.
+
+**Đề xuất bậc 1 chờ PO** *(không đổi gì người dùng thấy)*: `propose_resolution` ·
+`escalate_ticket` · `request-approval-otp`.
+
+---
+
+## ADR-056 — Cổng ÉP TRA TRƯỚC (CTC1): chuyển một quy tắc từ prompt sang mã
+
+**Ngày:** 31/08/2026 · **PO duyệt:** có (*"gật nha"*, sau khi được trình dữ liệu) · **Trạng thái:** đang triển khai
+
+### Vấn đề — đo được, không phải cảm giác
+
+Trong 180 ca golden+heldout, **29 ca agent TỰ CHỌN không gọi một công cụ tra cứu nào** ở tin nhắn
+khiếu nại đầu tiên (chỉ 1 ca nữa do bộ lọc chặn). Nó hỏi khách thêm thông tin thay vì tự tra.
+
+Đây là **một nguyên nhân gộp bốn triệu chứng** từng bị coi là bốn vấn đề riêng: "hứa suông" (nói sẽ
+kiểm tra rồi không tra) · không mở hồ sơ cho khách chính đáng · ca lừa đảo bị bỏ bước tra rộng ·
+trích dẫn mã giao dịch kém (54,9%). Dữ liệu **có thật** (52/52 mã tồn tại trong kho), số tiền khách
+nói **khớp tuyệt đối** (33/33). Không phải công cụ tìm hụt — **lời gọi chưa bao giờ xảy ra**.
+
+### 🔴 Vì sao KHÔNG sửa bằng prompt — hướng này ĐÃ CHẾT, đừng đề xuất lại
+
+`prompt.py` **đã dặn đúng điều đó BA LẦN**, in hoa, kèm ví dụ phản diện đúng y hành vi sai
+(dòng 15 · 18 · 41: *"GỌI TOOL NGAY LẬP TỨC… KHÔNG trả lời khách trước để hỏi thêm. Bạn có khả năng
+tự tra cứu, đừng đẩy việc đó sang cho khách khi chưa thử."*). Mô hình vẫn sai 29/180.
+
+Đo prompt: **20.429 ký tự · 114 dòng** · `KHÔNG` 34 lần · `PHẢI` 16 · `TUYỆT ĐỐI` 13 · `BẮT BUỘC` 3.
+**Khi mọi thứ đều TUYỆT ĐỐI thì không gì còn tuyệt đối.**
+
+**Tiền lệ nội bộ chứng minh cách đúng:** Ràng buộc #3 dặn trong prompt thì mô hình vẫn định bịa,
+nhưng `_CHUA_TAO_DUOC_VE` đối chiếu CSDL thật và **chặn 15/15**, không sót.
+> **Dặn thì tuân ~84%. Ép trong mã thì 100%.**
+
+### Quyết định
+
+Tin nhắn **ĐẦU** của một luồng khiếu nại **+** lượt trả lời **không có lời gọi công cụ nào**
+⟹ **chặn**, thay bằng câu tất định dựng thẳng từ kết quả `get_customer_history` thật.
+
+🔴 **Điều kiện CHỈ hai vế — cố ý.** Bản đầu của PO đòi thêm "khách đã nêu số tiền / tên / thời
+gian", chép từ cách diễn đạt của prompt. **Đo lại thì 12/29 ca không có chi tiết nào** (dạng *"trừ
+trùng 2 lần rồi"*, *"lịch sử hiện 2 dòng giống hệt nhau"*) ⟹ bỏ sót 41%.
+`get_customer_history` có `amount: int | None = None` — **chạy được chỉ với `user_id`**. Nên
+**không bao giờ tồn tại lý do chính đáng để trả lời tin khiếu nại đầu tiên mà chưa nhìn lịch sử.**
+
+⟹ **Bài học chung: chuyển một quy tắc từ prompt sang mã KHÔNG phải chép lại câu chữ.** Prompt viết
+cho mô hình đọc nên liệt kê **ví dụ gợi ý**; mã cần điều kiện **đúng và đủ**. Chép nguyên văn là
+mang theo cả chỗ lỏng lẻo — mà chính chỗ lỏng đó là lý do prompt không hiệu lực ngay từ đầu.
+
+### Ranh giới — bốn ràng buộc, không được nới
+
+1. **Ưu tiên KHÔNG chặn khi không chắc.** Thà bỏ sót vài ca còn hơn phá ca đang chạy tốt.
+2. **PHẢI ghi lại mỗi lần nổ, vào KẾT QUẢ ĐO** chứ không chỉ vào log — bài học 5 lớp lọc O1-O5 cùng
+   thay một chuỗi, lớp nào bắn chỉ vào log ⟹ 19/22 ca không truy ngược được.
+3. 🔴 **CHỈ ép GỌI CÔNG CỤ TRA. TUYỆT ĐỐI không đẩy nhanh `create_ticket`** — chạm ADR-051 hai thì
+   và Ràng buộc cứng #1. Nâng một chỉ số mà phá một ràng buộc cứng là lỗ nặng hơn thứ đang sửa.
+4. `tests/test_invariants.py` **23/23 xanh**, chạy thật, dán kết quả.
+
+### Hệ quả
+
+🔴 **Sửa `src/` ⟹ băm mã ĐỔI khỏi `9c17c5684c9a`.** Từ đó có **HAI bản mã cùng có kết quả đo** —
+mọi báo cáo phải khai băm nào. **246 ca ngày 31/08 vĩnh viễn thuộc `9c17c5684c9a`.**
+
+Đo lại theo thứ tự, đỏ cổng nào **dừng** cổng đó: ① cổng có nổ ≥80% nhóm đích · ② ≥80% nhóm đích
+giờ có lời gọi công cụ · ③ **nhóm chứng 46 ca không tụt ca nào** · ④ điểm số **ghi lại, KHÔNG dùng
+làm cổng** (n=29, sai số ~7 điểm — đo điểm ở cỡ đó là đo nhiễu).
+Rồi golden 120, rồi **đối kháng 66 kiểm hồi quy an toàn — không được bỏ**.
+
+*(Câu tất định phải mở đầu bằng "Mình hiểu…" theo luật giọng văn `prompt.py:21` — PO bắt được lúc
+soát diff, không có phép kiểm tự động nào bắt luật này.)*
+
+### 🔴 CẢNH BÁO BỔ SUNG ADR-056 — 01/09/2026: TIỀN ĐỀ ĐANG BỊ NGHI NGỜ
+
+**Đo được sau khi ADR-056 đã viết và cổng đã commit (`f6045f9`):**
+
+| ca | baseline 31/08 | chạy lại 01/09 | băm mã |
+|---|---|---|---|
+| `CASE-170` | **0 công cụ** · Blocker | 1 công cụ · Blocker | `9c17c5684c9a` — **giống hệt** |
+| `CASE-051` | **0 công cụ** · Blocker | 2 công cụ · Blocker | `9c17c5684c9a` — **giống hệt** |
+| `CASE-129` | **0 công cụ** · Blocker | 3 công cụ · **PASS** | `9c17c5684c9a` — **giống hệt** |
+
+**Cùng bản mã, cùng ca, cùng model, KHÔNG bản vá nào ở giữa. Chỉ là chạy lại.**
+
+⟹ Con số **"29/180 ca agent TỰ CHỌN không gọi công cụ"** — tiền đề của toàn bộ ADR này — **có thể
+phần lớn là NHIỄU GIỮA CÁC LƯỢT CHẠY**, không phải tính chất ổn định của sản phẩm.
+
+**Cổng CTC1 KHÔNG nổ trong phép thử 3 ca** (`loc_dau_ra_theo_luot` rỗng, câu trả lời là văn model
+tự viết chứ không phải mẫu tất định) — nhưng agent **vẫn** tra cứu đàng hoàng. Tức cải thiện quan
+sát được ở lượt đo **không đến từ cổng**.
+
+🔴 **RANH GIỚI — đừng nói quá theo chiều ngược lại:** 3 ca là quá ít để định lượng nhiễu. Điểm
+TỔNG HỢP trên 120 ca ổn định hơn nhiều (trung bình triệt tiêu bớt nhiễu), nên **26,7% và độ lệch
+3,4 điểm golden↔heldout vẫn dùng được**. Thứ không đứng vững là **kết luận hành vi ở mức TỪNG CA
+rút ra từ MỘT lượt chạy**.
+
+**Lỗ phương pháp thật, cả đội cùng đi qua:** đo 246 ca · viết báo cáo · dựng ADR · viết cổng · tốn
+12 triệu token — mà **chưa từng chạy cùng một thứ hai lần**. Suốt quá trình, mọi khác biệt giữa hai
+lượt đều được mặc định là *do thay đổi*.
+
+**KHÔNG lùi cổng CTC1** — nó không gây hại đã chứng minh (đối chứng: ảnh không-cổng chết y hệt khi
+thiếu bộ nhớ), và ràng buộc "ưu tiên KHÔNG chặn khi không chắc" vẫn giữ. Nhưng **KHÔNG xây tiếp**
+lên tiền đề này cho tới khi có phép đo nhiễu.
+
+**Phép đo còn thiếu:** chạy 75 ca trên **cùng bản mã cũ** `9c17c5684c9a`, cùng điều kiện, để đo
+dao động tự nhiên. Chờ PO duyệt (~2,7tr token). Đây là **điều kiện để mọi so sánh trước/sau của dự
+án có nghĩa**, không phải một phép đo tuỳ chọn.
+
+### ✅ KẾT LUẬN ADR-056 — 01/09/2026, sau khi ĐO ĐƯỢC NHIỄU
+
+Chạy **75 ca** trên **cùng bản mã cũ** `9c17c5684c9a` (không cổng), cùng model, cùng đêm — để tách
+**nhiễu chạy lại** khỏi **tác dụng cổng**. Ba cột cho cùng 75 ca:
+
+| | nhóm CHỨNG (46 ca) | nhóm ĐÍCH (29 ca) |
+|---|---|---|
+| **Pass** baseline 31/08 | 46 *(theo định nghĩa chọn nhóm)* | 0 *(theo định nghĩa)* |
+| **Pass** chạy lại, mã cũ | 27 | 3 |
+| **Pass** có cổng | **27** | 6 |
+| **Có gọi công cụ** chạy lại | 42 | 22 |
+| **Có gọi công cụ** có cổng | 45 | **29** |
+
+**① CỔNG KHÔNG GÂY HỒI QUY — minh oan tuyệt đối.** Nhóm chứng: chạy-lại 27 Pass · có-cổng 27 Pass.
+**BẰNG NHAU.** Cổng ③ từng báo *"19/46 ca tụt"* ⟹ **toàn bộ là nhiễu**, không phải cổng.
+
+**② CỔNG CÓ TÁC DỤNG THẬT, đo được:** nhóm đích 22/29 → **29/29** có gọi công cụ. Đưa tới tuyệt đối.
+
+**③ 🔴 TIỀN ĐỀ GỐC ĐÃ ĐỔ.** Nhóm đích được chọn vì **0/29 gọi công cụ**. Chạy lại **cùng mã**:
+**22/29 CÓ gọi.** ⟹ **76% số ca ta gọi là "agent TỰ CHỌN không tra cứu" thực ra là một lần chụp ảnh
+vào lúc nó không tra.** Vấn đề thật nhỏ hơn nhiều so với con số 29/180 đã dựng nên ADR này.
+
+**④ Điểm số KHÔNG lên:** nhóm đích 3 → 6 Pass (n=29, trong nhiễu). **Tra cứu nhiều hơn không tự
+động thành trả lời đúng hơn.**
+
+### ⟹ LÝ DO GIỮ CỔNG PHẢI VIẾT LẠI
+
+**KHÔNG phải** "sửa một lỗi lớn ở 29/180 ca". **MÀ LÀ**: biến một hành vi **76% tuỳ lượt** thành
+**100% tất định** ở bước quan trọng nhất — lần chạm đầu tiên với khách đang mất tiền. Với sản phẩm
+tài chính, **bỏ tính ngẫu nhiên** ở bước đó tự nó là giá trị, kể cả khi điểm không nhích.
+**Giữ cổng.** Không lùi. Nhưng đừng ai trích ADR này như bằng chứng "đã sửa một lỗ lớn".
+
+### 🔴 CẢNH BÁO THỐNG KÊ — chỗ PO-agent suýt đọc sai, ghi lại để phiên sau không lặp
+
+Thoạt nhìn "baseline 46 Pass → chạy lại 30 Pass trên cùng mã" trông như bằng chứng **điểm tổng
+không ổn định**. **SAI.** Hai nhóm được chọn **DỰA TRÊN chính kết quả lượt đầu** (chứng = đã Pass,
+đích = 0 công cụ) ⟹ lượt sau **bắt buộc** kém đi kể cả khi không có nhiễu nào. Đó là **hồi quy về
+trung bình**, không phải bằng chứng độ ổn định.
+⟹ **Ta vẫn CHƯA biết điểm tổng 120 ca dao động bao nhiêu.** Phép đo này KHÔNG trả lời được — mẫu
+thiên lệch. Không được nói nó ổn định, cũng không được nói nó không ổn định.
+⟹ Muốn biết: chạy lại **TOÀN BỘ** golden 120 trên cùng mã, không chọn lọc. Chưa làm.
+
+---
+
+## ADR-057 — CHUYỂN NGƯỜI SỚM cho tầng đắt: quy tắc TẤT ĐỊNH ở tầng service
+
+**Ngày:** 01/09/2026 · **PO duyệt:** có (*"A bạn nhé"*, sau khi được trình 3 phương án kèm dữ liệu)
+· **Trạng thái:** chờ triển khai — 🔴 **KHÔNG code trước khi đọc hết mục "Ranh giới" dưới**
+
+### Vấn đề — đo được, và trùng khít với một ca thật ngoài ngành
+
+Tỉ lệ đạt theo loại khiếu nại, 180 ca (lượt đo 31/08, bản mã `9c17c5684c9a`):
+
+| loại | đạt |
+|---|---|
+| **`refund`** | **6/43 = 14,0%** |
+| **`wrong_recipient`** | **7/41 = 17,1%** |
+| `double_charge` | 8/30 = 26,7% |
+| `money_not_received` | 24/63 = 38,1% |
+
+Hai loại kém nhất kém loại tốt nhất **gần ba lần**. Và chúng **ánh xạ thẳng** sang hai trong ba tầng
+mà **Klarna** phải đưa nhân viên người trở lại sau khi quay đầu chiến lược AI tháng 5/2025 (*tranh
+chấp · hoàn tiền phức tạp · khách khó khăn tài chính*). Ta tìm ra bằng dữ liệu nội bộ, họ tìm ra
+bằng khách hàng thật — **cùng một kết luận, hai đường độc lập**.
+
+**Vì sao hai loại này đắt hơn** *(không phải vì điểm thấp)*: cả hai đều là **tiền đã nằm trong tay
+người khác**. Ví không lấy lại hộ được, chỉ đối soát và đề nghị. Trả lời sai ở đó là **để khách chờ
+một thứ không bao giờ tới**. Ba loại còn lại sai thì lượt sau còn sửa được.
+
+### Quyết định
+
+**Tầng đắt = `refund` + `wrong_recipient`.** Ca thuộc tầng này mà **chưa xác định được giao dịch**
+sau **N lượt** ⟹ **chuyển chuyên viên**, không cố thêm.
+
+### 🔴 RANH GIỚI — làm sai cách là PHẠM RÀNG BUỘC CỨNG #2
+
+Hiến pháp §2 mục 2: *"AI không vượt cấp… **escalate chỉ xảy ra qua tầng service** hoặc route của
+`cskh` — **KHÔNG BAO GIỜ do AI tự gọi**."*
+
+❌ **CẤM:** dạy agent tự quyết chuyển chuyên viên khi "thấy ca khó". Đó là **AI tự escalate** —
+phạm thẳng ràng buộc cứng, và sẽ đỏ ở `tests/test_invariants.py` đúng như thiết kế.
+
+✅ **ĐÚNG:** quy tắc **tất định** ở tầng service, máy đọc được, không cần mô hình hợp tác — cùng
+khuôn với hai cơ chế đã chạy tốt (`_CHUA_TAO_DUOC_VE` và cổng CTC1/ADR-056):
+
+```
+complaint_type ∈ {refund, wrong_recipient}  AND  số lượt ≥ N  AND  chưa xác định được giao dịch
+   ⟹ tầng service đánh dấu chuyển chuyên viên
+```
+
+**Tầng service quyết định. AI không quyết gì cả** — nó vẫn chỉ điều tra và trả lời như cũ.
+Khác biệt nghe nhỏ mà là ranh giới sống còn: *"AI thấy khó thì bỏ cuộc"* ≠ *"hệ thống có luật: ca
+loại này quá N lượt chưa ra thì đưa người"*.
+
+### N = 2 — TẠM CHỌN, và tôi khai rõ là chưa chắc
+
+Dữ liệu 180 ca: đỉnh tỉ lệ đạt nằm ở **2 lượt thêm (17/26 = 65,4%)**, tụt ở 3 lượt/chạm trần
+(11/43 = 25,6%), và 0 lượt gần như luôn hỏng (2/68 = 2,9%).
+🔴 **Nhưng đây là số từ MỘT lượt đo, và ta đã chứng minh nhiễu lớn** (22/75 ca đổi kết quả khi chạy
+lại cùng bản mã — xem kết luận ADR-056). Thêm nữa, `security`/`review` chỉ ra con số "0 lượt" phần
+lớn là **artefact của bộ mô phỏng** (hội thoại dừng vì câu cuối không có dấu hỏi), không phải hành
+vi agent.
+⟹ **N=2 là điểm khởi đầu có căn cứ yếu, KHÔNG phải hằng số đã chứng minh.** Phải xem lại khi có
+nhiều lượt đo. Đừng ai trích N=2 như một ngưỡng đã kiểm.
+
+### 🔴 HỆ QUẢ ĐO LƯỜNG — điểm tổng SẼ TỤT, và đó là ĐÚNG THIẾT KẾ
+
+Ca chuyển người sớm là ca agent **không tự giải quyết** ⟹ bộ chấm hiện tại tính là **không đạt**.
+Áp ADR này rồi đo lại thì con số **xấu đi**.
+
+**Đừng ai thấy điểm tụt rồi kết luận ADR-057 hỏng.** Thước cũ đo *"agent tự làm được bao nhiêu"* —
+mà ADR này cố ý **giảm** con số đó để tăng thứ khác.
+⟹ Phải bổ sung chỉ số mới đo đúng thứ ADR nhắm tới: **tỉ lệ ca tầng đắt được chuyển người ĐÚNG
+LÚC**, thay vì quẩn quanh tới hết lượt (dạng `MT-Z02`/`MT-Z04`).
+⟹ Luật chung rút ra: **đổi mục tiêu thì phải đổi thước cùng lúc** — nếu không, thước cũ sẽ phạt
+đúng thứ ta vừa cố ý làm.
+
+### Việc phải làm, theo thứ tự
+1. PO thật duyệt ADR này *(quy trình §3 — contract không đổi, nhưng chính sách escalate thì có)*
+2. Coder cài quy tắc ở **tầng service**, không phải trong prompt · `test_invariants.py` **23/23 xanh**
+3. Bổ sung chỉ số "chuyển người đúng lúc" vào bộ chấm **TRƯỚC** khi đo lại
+4. Đo lại, và **so bằng chỉ số mới**, không so bằng điểm tổng cũ
+
+## ADR-058 — Ngoại lệ có thời hạn: `qwen3.8-flash` (không tên ghim) cho demo 01/09
+- **Ngày:** 2026-09-01
+- **Bối cảnh:** [ĐO 22h] Ping trực tiếp cả 7 model trong `LLM_MODEL_POOL` bằng khoá container
+  (max_tokens=1) → **4/7 trả 403**, gồm cả model đang ghim ở `LLM_MODEL`
+  (`qwen3.7-max-2026-06-08`) và model mà một quyết định trước đó trong đêm định dùng thay thế
+  (`qwen3.7-flash-2026-07-15`) — bể hỏng nặng hơn ghi nhận trước đó. PO thật bật token trả phí
+  cho `qwen3.8-flash` (ping 200 OK) và chọn dùng thẳng model này cho live chat đêm nay.
+- **Quyết định:** Cho phép `LLM_MODEL=qwen3.8-flash` + `LLM_MODEL_POOL` gồm `qwen3.8-flash` và
+  3 model ghim mốc ngày đã đo 200 OK (`qwen3.6-plus-2026-04-02`, `qwen3.6-flash-2026-04-16`,
+  `qwen3.5-flash-2026-02-23`) — áp dụng **duy nhất cho phiên demo 01/09 trên ngăn `po-demo`**.
+  `qwen3.8-flash` **không** có tên ghim mốc ngày, đúng dạng ADR-043 §9 quy định phải bị từ chối.
+- **Phương án đã cân nhắc và bác bỏ:** Giữ nguyên bể cũ (7 model, đủ tên ghim) — bác bỏ vì 4/7
+  đã 403, không đủ độ sống cho live chat đêm nay. Chờ tìm một tên ghim mốc ngày tương đương
+  `qwen3.8-flash` — bác bỏ vì không có thời gian trong cửa sổ 2 tiếng, và PO thật đã quyết dùng
+  ngay model đã bật phí. **Không nới ADR-043 §42** ("mọi phép đo nghiêm túc phải GHIM model") —
+  ngoại lệ này CHỈ áp cho demo, **không** áp cho golden/heldout/benchmark; đo nghiêm túc sau này
+  vẫn phải quay lại tên ghim mốc ngày, kể cả nếu dùng lại `qwen3.8-flash` thì phải chờ nó có một
+  bản ghim tương đương hoặc ghi nhận rõ trong báo cáo đo là "không ghim, không tái lập được".
+- **Hệ quả:** Không đổi `contracts/`. [ĐO] `src/config.py` hiện **không có guard code** kiểm định
+  dạng tên model (có mốc ngày hay không) — ADR-043 §9 là quyết định đã duyệt nhưng **chưa được
+  ép trong mã**, đây là khoảng trống "duyệt trên giấy, chưa ép trong mã" cùng loại việc ADR-033
+  từng lập cổng canh để bắt. **Nợ kỹ thuật, chưa vá đêm nay** (đụng `src/`, ngoài phạm vi đợt
+  2 tiếng) — ghi vào sổ tồn đọng `STATE.md` cho đợt sau: thêm cổng đỏ-trước/xanh-sau kiểm tên
+  model trong bể có khớp định dạng ghim mốc ngày không, trừ khi có cờ ngoại lệ tường minh kiểu
+  ADR này. Yếu tố giảm nhẹ rủi ro: 4 lớp lọc đầu ra O1–O4 là regex tất định, độc lập với model —
+  đổi model không làm guardrail yếu đi.
+- **Thay thế:** không (bổ sung ngoại lệ có thời hạn cho ADR-043 §9, không thay thế nguyên tắc gốc)
+- **Người duyệt:** PO thật *(qua PO-agent tự sửa `.env` — ADR này là bản trình duyệt tường minh,
+  chưa coi là chính thức tới khi PO thật xác nhận trực tiếp)*
+
+## ADR-059 — SỬA ADR-058: `qwen3.8-flash` là BASELINE đo lường, không phải ngoại lệ demo
+- **Ngày:** 2026-09-01
+- **Bối cảnh:** ADR-058 (viết cùng đêm, ngay phía trên) khai `qwen3.8-flash` là "ngoại lệ có
+  thời hạn, chỉ áp cho demo, không dùng cho đo nghiêm túc" — **SAI DỮ KIỆN**. [ĐO] `docs/STATE.md:487`:
+  toàn bộ **246 ca benchmark 31/08** (golden 120 · heldout 60 · đối kháng 66) chạy trên chính
+  `qwen3.8-flash`. [ĐO] `docs/STATE.md:686`: một lượt chạy nhầm `qwen3.7-max-2026-05-20` bị xếp
+  là **SỰ CỐ** (mất 137 phút), và cách sửa ghi nguyên văn là *"✅ về `qwen3.8-flash`"* — tức
+  `qwen3.8-flash` **đã là baseline được công nhận từ trước**, không phải lựa chọn mới của đêm nay.
+  Lỗi thuộc về Lead (viết ADR-058 theo hướng dẫn sai của PO-agent, không tự đối chiếu `STATE.md`
+  trước khi viết) và PO-agent (dặn sai hướng). PO thật tự đọc lại tài liệu và bắt được.
+- **Quyết định:** ADR-058 **giữ nguyên, không sửa/xoá** (đúng CLAUDE.md §7b — ADR chỉ ghi thêm).
+  ADR này khai: câu *"KHÔNG dùng cho phép đo benchmark, ADR-043 §42 vẫn nguyên hiệu lực"* trong
+  ADR-058 là **SAI**, đọc thành: `qwen3.8-flash` **đã và đang** là model benchmark thực tế của dự
+  án từ 31/08. **ADR-043 §9** ("Bể chỉ nhận TÊN GHIM… bí danh trôi ⟹ từ chối lúc khởi động") coi
+  như **bị bỏ qua trong thực tế từ 31/08**, chưa từng có ADR nào khai việc đó tới hôm nay — ADR
+  này chính thức khai, và công nhận thực tế thay vì giả vờ luật vẫn được tuân thủ.
+- **Phương án đã cân nhắc và bác bỏ:** Buộc benchmark quay lại dùng tên ghim mốc ngày cho đúng
+  ADR-043 §9 — bác bỏ đêm nay vì không có thời gian tìm/xác nhận một tên ghim tương đương trước
+  hạn 24:00, và đổi model giữa chừng phá khả năng so sánh với 246 ca đã đo. Coi đây là việc của
+  đợt sau, không phải quyết định vĩnh viễn từ bỏ nguyên tắc ghim.
+- **Hệ quả — nợ kỹ thuật NẶNG hơn ADR-058 mô tả:**
+  1. [ĐO] `src/config.py` **không có guard nào ép ADR-043 §9** — nếu guard đó tồn tại như ADR-043
+     hứa, benchmark 31/08 (246 ca, quan trọng nhất dự án) **đã không chạy được**. Luật đứng trên
+     giấy, thực tế đã đi qua nó, không ai khai — cho tới ADR này.
+  2. 🔴 **Rủi ro sống, không phải giả định:** `qwen3.8-flash` không mốc ngày ⟹ nhà cung cấp có thể
+     đổi nó sang phiên bản khác **bất kỳ đêm nào** mà không ai biết — khi đó **mọi số của benchmark
+     31/08 mất khả năng tái lập**, và không có cơ chế nào phát hiện việc đó đã xảy ra.
+  3. Việc cần làm (đợt sau, không phải đêm nay): (a) thêm guard kiểm định dạng tên model trong
+     `src/config.py`, cho phép danh sách ngoại lệ tường minh (kiểu allowlist có ADR đi kèm) thay vì
+     từ chối cứng mọi bí danh; (b) tìm/xác nhận một tên ghim mốc ngày tương đương `qwen3.8-flash`
+     nếu nhà cung cấp có cung cấp, để benchmark tương lai tái lập được.
+- **Thay thế:** ADR-058 (phần khẳng định phạm vi "chỉ demo, không benchmark" — phần còn lại của
+  ADR-058, tức bản thân việc chọn `qwen3.8-flash` cho `po-demo` tối nay, vẫn đúng và không đổi).
+  ADR-043 §9 coi như **bị thực tế vượt qua từ 31/08**, chưa chính thức sửa — đợt sau cần quyết
+  giữ nguyên §9 kèm allowlist, hay sửa lại nguyên tắc.
+- **Người duyệt:** PO thật *(tự đọc lại tài liệu và bắt lỗi, quan trọng hơn thứ tự thẩm quyền
+  thông thường: đây là PO thật tự sửa dữ kiện, không phải PO-agent tự quyết)*
