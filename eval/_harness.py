@@ -707,6 +707,11 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
     # bản `run_agent_turn` đang chạy chưa trả khoá này (bản cũ) — giữ nguyên
     # văn, không tự suy diễn thành "nhe"/"day_du".
     duong_theo_luot: list[str | None] = []
+    # [SỬA 01/09] Hàm SONG SONG `run_case_adversary` đã có 3 dòng này từ
+    # trước; hàm NÀY — hàm golden set thật sự dùng — thì KHÔNG. Vá 79ca6d5
+    # thêm việc ĐỌC field vào wrapper, nhưng không ai GHI nó ra ở đây ⟹
+    # `loc_dau_ra_theo_luot` luôn None ⟹ luôn [] ⟹ cổng đo CTC1/CD1 mù.
+    loc_dau_ra_theo_luot: list[list[str] | None] = []
     result: dict[str, Any] = {}
 
     def _add_usage(r: dict[str, Any]) -> None:
@@ -733,6 +738,7 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
         duong_theo_luot.append(result.get("duong"))
+        loc_dau_ra_theo_luot.append(result.get("loc_dau_ra"))
         _add_usage(result)
         if luot_tao_ticket is None and result.get("ticket_id"):
             luot_tao_ticket = so_luot
@@ -753,6 +759,7 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
         all_agent_replies.append(result.get("reply", ""))
         all_tool_calls.extend(result.get("tool_calls") or [])
         duong_theo_luot.append(result.get("duong"))
+        loc_dau_ra_theo_luot.append(result.get("loc_dau_ra"))
         _add_usage(result)
         if luot_tao_ticket is None and result.get("ticket_id"):
             luot_tao_ticket = so_luot
@@ -767,6 +774,7 @@ def run_case_turns_adaptive(session: Session, *, case: dict[str, Any], thread_id
     result["all_agent_replies"] = all_agent_replies
     result["extra_turns_used"] = extra_turns_used
     result["duong_theo_luot"] = duong_theo_luot
+    result["loc_dau_ra_theo_luot"] = loc_dau_ra_theo_luot
     return result
 
 
