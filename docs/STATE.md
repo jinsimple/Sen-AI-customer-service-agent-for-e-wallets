@@ -3,7 +3,8 @@
 > **Viết cho người đọc NGUỘI** — bạn không có gì trong đầu, chỉ có repo này.
 > Đọc `CLAUDE.md` (hiến pháp) trước, rồi file này, rồi 5 ADR gần nhất trong `docs/DECISIONS.md`.
 >
-> 🔴 **Cập nhật MỚI NHẤT: 01/09/2026 16:30 — đọc `§0-TER` ngay dưới, TRƯỚC mọi mục khác.**
+> 🔴 **Cập nhật MỚI NHẤT: 01/09/2026 ~23:00 — đọc `§0-QUATER` ngay dưới, TRƯỚC mọi mục khác.**
+> `§0-TER` (16:30) là bàn giao đợt TRƯỚC buổi quay bị gỡ — đọc SAU, làm nền lịch sử.
 > Dòng "Cập nhật 18/08" cũ bên dưới giữ nguyên làm mốc lịch sử, **không còn là mốc hiện hành**.
 >
 > Cập nhật: **18/08/2026**, ngay trước khi PO thật tắt toàn đội để khởi động lại sạch.
@@ -13,6 +14,88 @@
 > PO đã gỡ nhiều nút ngày 24/08. Dọn trọn file này là việc của `/wrapup` phiên hiện tại.
 > Nhật ký chi tiết ngày 17/08 (3.001 dòng, mọi lập luận và số đo):
 > `docs/nhat-ky/2026-08-17-nhat-ky-day-du.md`
+
+---
+
+## 0-QUATER. 🔴 BÀN GIAO 01/09 ~23:00 — ĐỢT 2 TIẾNG TRƯỚC HẠN 24:00. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
+
+> Viết bởi Lead (`p-226-92`), tổng hợp từ Coder/QA-QC/Bảo mật/Review/DevOps + PO (`p-226-29`).
+> Bối cảnh: PO thật **gỡ hẳn buổi quay tối nay** (~21:10) — mọi lệnh cấm cũ về rebuild ảnh/sửa
+> `src/`/dựng lại `caddy` của `qa-stripe` ở `§0-TER` **KHÔNG còn hiệu lực**. Ưu tiên đổi sang:
+> **chốt code trước 24:00** (sau đó không cập nhật nữa trong đợt này).
+
+### Việc đã ĐÓNG, có commit — đường găng đêm nay
+
+| # | việc | commit | vai |
+|---|---|---|---|
+| ② header bảo mật Caddy (5/5: HSTS·X-Frame·X-Content-Type·Referrer·Permissions) | `8823ccf` | Bảo mật |
+| ④ OTP-render gỡ khỏi git (2 lần — lần đầu `ec2c697` LÀM NGƯỢC tiêu đề, PO bắt bằng output thật; lần 2 `da4ed97` sửa đúng, xác nhận bằng `git ls-files`→0) | `ec2c697`+`da4ed97` | QA/QC + Lead |
+| ① RAG — CẮT còn nạp kho (378 chunk, 2 tài liệu, CSDL↔Chroma khớp 3/3), ①b/①c (ngưỡng/lọc) BỊ BÁC — hướng đó đã đo-và-rút-lại từ trước (`:845`) | `.env`, không tracked | Coder |
+| ⑤ LAN `po-demo` → `127.0.0.1` (qua lượt tạo lại gộp) | container recreate | Coder |
+| `OPENAI_API_KEY` thiếu ở đường CHẠY po-demo — hoá ra KHÔNG cần sửa `docker-compose.yml`: `env_file:.env` tự đủ, container chỉ cũ hơn `.env` 6 ngày | container recreate | Coder |
+| Bể model đổi sang `qwen3.8-flash` (4/7 model cũ đang 403, kể cả model ghim) | `.env`, ADR-058+**ADR-059 sửa lại** ADR-058 (qwen3.8-flash là BASELINE benchmark 246 ca từ 31/08, không phải ngoại lệ demo — PO thật tự bắt lỗi khung của chính Lead) | PO + Lead |
+| CI: fix #3 (`dependency-and-secret-scan`, lỗi định dạng gói `xx_ent_wiki_sm` gạch dưới/ngang, KHÔNG phải gitleaks) | `795898d` | DevOps |
+| CI: 3 lỗi nhỏ `tests/` (skipif sai container, import thừa, noqa) | `76e1ae1` | DevOps+QA/QC |
+| CI: `route-guards-docker` → self-hosted (phép thử 1/6, ĐÃ chạy `success` — nhưng ⚠️ path-filter skip nhánh Docker nặng, KHÔNG chứng minh Docker/Compose chạy được trên máy BTC) | `1372616` | DevOps |
+| CI: `business-rules-golden-set`/`ai-safety-adversarial` → ghim `team-226` (an ninh — tránh secret LLM chạm pool BTC rò rỉ theo ADR-037) | `5e3b7a3` | DevOps |
+| Review: quét "tóm≠đầy đủ" mở rộng — tìm thêm 2 ca trong `STATE.md` (③RAM, ②xoay-model) + 1 ca trong `src/config.py` (bể model/`LLM_MODEL`) — tổng 4 ca, phạm vi CHƯA quét hết `src/` | `04804a8`+`459661a`+`c40c8a6` | Review (Lead neo hộ) |
+
+### 🔴 CHƯA xong, cần biết trước khi đọc tiếp
+
+1. **Secret `LLM_API_KEY` — CHƯA thêm.** PO thật là người duy nhất chạy được (`admin:false` trên repo, không ai làm hộ — đúng luật chống rửa quyền). Không có nó, 2 job CI trên vẫn đỏ dù đã đổi runner — **đó là kỳ vọng đúng**, đừng đọc thành lỗi mới.
+2. **CI sẽ KHÔNG xanh toàn bộ trước 24:00** — số học: ~140 phút/lượt đầy đủ trên 1 runner, còn <80 phút lúc PO tính. Hạ tầng đã sửa đúng hướng; thời gian thì không đủ. Đừng ai cố "rút ngắn" bằng `continue-on-error`/`|| true`/thêm `if:` né đỏ — 3 nước đó bị cấm tường minh cả đêm.
+3. **Mục 2 (tra cứu chính sách) vẫn lộ lỗi ① ra UI thật** — QA/QC đã chụp ảnh: truy vấn rác trả 5 thẻ kết quả lạc đề (kể cả nội dung ngoài phạm vi lẫn trong chính tài liệu nguồn), không hiện "Chưa tìm thấy". Không sửa được trong phạm vi đêm nay (hướng ngưỡng đã bác). **Rủi ro demo thật** — né bằng cách không gõ câu ngẫu nhiên vào ô tra cứu, nếu định demo trước 24:00.
+4. **`67ea193`** (commit trực tiếp của PO thật, không qua Lead): đang dựng thêm runner self-hosted trên máy Windows/WSL2 riêng của đội — hướng dẫn tại `docs/giao-viec/2026-09-01-huong-dan-cai-runner-may-windows.md`. Chưa rõ đã hoàn tất hay chưa lúc viết dòng này.
+
+### ✅ Mục 6 (live chat) — tin tốt nhất đêm nay
+
+XANH cả 4 (6a-6d) sau khi đổi `qwen3.8-flash` — model cũ (`qwen3.7-max-2026-06-08`) từng chặn hẳn luồng này (② dừng xoay ở lỗi 400 non-quota), model mới không dính lỗi đó. **② không còn P0 cho demo**, vẫn đáng vá sau (chưa vá đêm nay, đụng `src/agents/graph.py:1541`, cố ý không gộp cùng lượt dựng lại đêm nay). 6d xác nhận `101 Switching Protocols` qua CDP trực tiếp — bắt nguyên nhân, không chỉ triệu chứng. Mục 1/4/5/7a/3 đều xanh, ảnh trong scratchpad QA/QC.
+
+### 🔑 Cơ chế lỗi đáng nhớ nhất đêm nay — không phải của một người
+
+Đêm nay có **5 lần** một khẳng định chắc chắn hoá ra sai vì đo **sai đối tượng/sai output** (không phải vì thiếu cẩn thận nói chung):
+1. Lead `git commit -m ... -- <pathspec dài>` khi path đã `rm --cached` → âm thầm "hồi sinh" nội dung trên đĩa thay vì tôn trọng deletion đã stage.
+2. PO `grep -c 'OPENAI_API_KEY' docker-compose.yml` → 0, suy ra "compose không truyền" — sai, truyền NGẦM qua `env_file`, `grep` theo tên biến không bắt được cơ chế ngầm định.
+3. Lead + PO cùng viện dẫn "máy đang RAM thấp" để hoãn self-hosted — đo nhầm MÁY (máy Mac cục bộ, không phải hồ VM BTC nơi self-hosted thực sự chạy).
+4. PO đọc bản tóm `§0-TER:68` ("① RAG không ngưỡng") thành "cần thêm ngưỡng" — bản đầy đủ `§0b.22` nói NGƯỢC (đã đo-và-rút-lại). Cùng bẫy tái diễn ở `src/config.py:361-373` (Review xác nhận, không tìm thêm ca thứ 5 trong phạm vi đã quét).
+5. Lead viết ADR-058 theo hướng dẫn PO-agent mà không tự đối chiếu `STATE.md` — PO thật tự đọc lại và bắt: `qwen3.8-flash` là BASELINE 246 ca, không phải ngoại lệ demo.
+
+⟹ **Luật rút ra, áp cho mọi phiên sau:** trước khi kết luận từ MỘT lệnh đo (`grep`, `git status`, RAM của MỘT máy, một dòng tóm tắt), tự hỏi *"phạm vi phép đo này có đúng khớp phạm vi kết luận tôi sắp đưa ra không"* — đây là luật T3 mà chính PO đặt ra cho đội, và họ tự phạm nó 2 lần trong đêm mình vừa canh nó.
+
+### Lượt nộp cuối từng vai — "biết mà repo chưa biết", 01/09 ~23:00
+
+**CODER** (p-226-56)
+- ĐO ĐƯỢC: ảnh gốc container `po-demo-backend-1` (`sha256:9aaba806...`) đã **xoá khỏi image store** trước khi phát hiện — chỉ còn sống nhờ container đang chạy giữ layer. Đã `docker commit` snapshot bảo hiểm (`fin05-po-demo-backend:snapshot-9aaba806-01sep`) TRƯỚC khi tạo lại — **giữ nguyên, chưa xoá**, đề xuất giữ ít nhất qua đêm nay.
+- ĐO ĐƯỢC: `up --force-recreate --no-build backend caddy` (chỉ định 2 service) **kéo theo recreate cả `postgres`** ngoài chỉ định — compose tính lại config-hash toàn dự án khi thêm `-f` override mới. Dữ liệu sống sót (volume có tên), nhưng đây là hành vi không ai xin, cổng `:80`/`:443` host mới xuất hiện thêm là hệ quả của việc này.
+- ĐO ĐƯỢC (xác nhận lại số cũ): "gần miệng" (`phí liên ngân hàng`) trên kho 378 chunk hôm nay = **0.9059**, nằm trong dải KHỚP (0.698–0.936), dưới hẳn min(RÁC)=1.008 — xác nhận lại kết luận 30/08 (0.9697): không có ngưỡng đơn nào an toàn. **Khác biệt với số 30/08:** đây là số đo ĐẦU TIÊN nằm trong chính conversation log của team — bản 30/08 chỉ có ở hiện vật ngoài repo, máy đó mất là mất luôn.
+- 🔴 ĐO ĐƯỢC — cơ chế lộ secret của chính mình đêm nay, ghi lại để không ai lặp: `docker compose config <tên-service>` **KHÔNG lọc chỉ service đó** — vẫn in TOÀN BỘ config đã resolve của MỌI service, gồm mọi secret nội suy từ `env_file`. Muốn kiểm config một service mà không in secret: lọc bằng `--format json | python3 -c "...chỉ đọc field cần..."`, KHÔNG BAO GIỜ in thẳng `config <service>`.
+- ⚠️ **Trạng thái secret — để phiên sau khỏi tưởng đã xoay ĐÊM NAY:** team tiếp tục dùng khoá CŨ (còn hiệu lực) cho việc nạp kho + tạo lại `po-demo` trong đợt 2 tiếng — việc xoay `LLM_API_KEY`/`QWEN_API_KEY`/`OPENAI_API_KEY`/`AI_LOG_API_KEY`/`JWT_SECRET_KEY` (hoãn `POSTGRES_PASSWORD`, cấm `FIELD_ENCRYPTION_KEY`) là PO thật tự làm sau, ngoài phạm vi mô tả ở trên. **Cập nhật muộn hơn (22:4x):** PO thật đã tự `gh secret set` thêm `LLM_API_KEY` vào GitHub Actions secrets (repo-level, khác hẳn việc xoay `.env`) — xem mục CI ở trên.
+
+**QA/QC** (p-226-77)
+- ĐO ĐƯỢC: tự bắt lỗi TRONG CHÍNH test của mình (6b/6c ban đầu báo đỏ do `getByText`+`isVisible` strict-mode false-negative) — sửa cách đo (đọc `body.innerText()` sau 6s) trước khi báo lại, không phải sản phẩm lỗi. Ghi lại vì đây đúng loại lỗi "công cụ đo, không phải vật được đo".
+- ĐO ĐƯỢC: mục 2 (tra cứu chính sách) — xem mục "CHƯA xong" ở trên, có ảnh chụp UI thật.
+- ĐO ĐƯỢC: 3 lỗi CI nhỏ trong `tests/` đã sửa đúng phạm vi (xem bảng "đã đóng").
+
+**BẢO MẬT** (p-226-87)
+- ĐO ĐƯỢC — bẫy vận hành mới: `caddy reload --config ... --adapter caddyfile` qua `docker exec` trên container ĐANG SỐNG (thử cả 3 ngăn) adapt Caddyfile hợp lệ ra **`{}` RỖNG** — `caddy validate` KHÔNG bắt được (báo "Valid" cho cả `{}`). Cùng file trên container MỚI dựng thì adapt đúng. Nguyên nhân **GIẢ THUYẾT chưa đóng** (đã loại trừ workdir, env khớp 100% qua đối chiếu `/proc/1/environ`). Workaround ĐO ĐƯỢC: `docker restart` (không phải `reload`) — cert không mất (volume có tên). Khuyến nghị niêm cho ai đụng Caddyfile 3 ngăn này sau.
+- ĐO ĐƯỢC: chính lệnh `reload` trên đêm nay làm cả 3 ngăn mất kết nối vài phút — tự phát hiện qua `curl` báo reset, tự phục hồi bằng `restart`, không ai khác can thiệp.
+- Khuyến nghị đã gửi riêng (chưa niêm toàn văn ở đây): rủi ro lộ `OPENAI_API_KEY` (qa-stripe) vào transcript một phiên Coder — xếp THẤP, không cần xoay gấp, lý do đầy đủ trong tin nhắn gốc.
+
+**REVIEW** (p-226-0c, không ghi repo — Lead neo hộ)
+- ĐO ĐƯỢC: **chưa từng nhận báo cáo đóng cổng nào để soát chéo** đêm nay (vai được giao là điều tra phụ, không phải cổng ①②④⑤ như kế hoạch gốc). Đừng đọc im lặng của Review thành "đã xác nhận cổng nào" — chưa có cổng nào qua tay họ.
+- ĐO ĐƯỢC (mẫu nhỏ, n=4): phân biệt "bẫy tóm≠đầy đủ thật" (luật ⟶ code chen giữa ⟶ RÚT tách rời) khỏi "nhật ký quyết định minh bạch" (luật+RÚT liền mạch, tự gắn nhãn tường thuật) — 3 ứng viên đã kiểm và loại đúng cách này. Coi là hướng đo cần kiểm định thêm nếu ai định tự động hoá (viết linter), chưa phải luật đã xác nhận chéo.
+- GIẢ THUYẾT: 4 file `src/` chưa quét (`customer_tools.py`·`phan_luong.py`·`cong_ra_ngoai.py`·`pii.py`) có xác suất chứa ca tương tự KHÔNG ĐỀU — nghi file có lịch sử sửa dày/nhiều ADR trỏ tới nhiều khả năng hơn. Chưa kiểm chứng, chỉ là gợi ý xếp lịch cho đợt sau.
+
+**DEVOPS** (p-226-31, vai mới đêm nay)
+- ĐO ĐƯỢC: chuyển CI sang self-hosted tiến hành khi câu hỏi gốc ADR-037 (đĩa runner BTC dùng chung tới mức nào — từng máy hay cả hồ) **vẫn CHƯA có lời đáp từ BTC**. Quyết định có ý thức dưới sức ép giờ (2 job ghi `.env` thật đã có `if: always()` dọn, kiểm tận nơi đêm nay) — không phải bỏ sót, nhưng câu hỏi gốc vẫn treo, đừng để "đã chuyển xong" ru ngủ thành "chắc ổn".
+- ĐO ĐƯỢC: `route-guards-docker` xanh trên self-hosted đêm nay **chỉ chứng minh hạ tầng nhận việc**, KHÔNG chứng minh Docker/Compose v2 chạy được trên máy BTC — nhánh `chay=co` (dựng stack thật) chưa từng kích hoạt vì path-filter đúng thiết kế skip nó (commit chỉ đổi `ci.yml`). Điều kiện tiên quyết ADR-037 tự ghi "PHẢI KIỂM, KHÔNG ĐƯỢC GIẢ ĐỊNH" — vẫn chưa kiểm, chỉ chưa kiểm được vô hại.
+- GIẢ THUYẾT (mẫu 2 lần đo): hàng đợi FIFO đêm nay có vẻ là nghẽn CHUNG (1 job/lượt được cấp máy bất kể job nào), không phải lỗi nhãn riêng — cần thêm dữ kiện để khẳng định.
+
+**LEAD** (p-226-92, tự khai lỗi của mình — đúng luật "lỗi cấp trên phải ghi tên")
+- Phạm lỗi git pathspec khiến `ec2c697` làm ngược tiêu đề (thêm thay vì gỡ mã OTP) — PO bắt bằng output thật, không phải tôi tự phát hiện trước.
+- Lỡ in đầy đủ giá trị `OPENAI_API_KEY` vào transcript riêng do dùng `&` trong `sed` (hiểu nhầm ý nghĩa đặc biệt của ký tự này trong chuỗi thay thế) — tự báo ngay, không ai phát hiện hộ.
+- Viết ADR-058 sai khung (gọi `qwen3.8-flash` là "ngoại lệ demo") mà không tự đối chiếu `STATE.md` trước — PO thật tự bắt, phải ghi ADR-059 sửa.
+- 122+ commit đã push lên `origin/dev/learning-loop` đêm nay — **CHƯA merge `main`**, việc đó là của PO thật (`CLAUDE.md` §3, kích CI hạ tầng BTC).
 
 ---
 
