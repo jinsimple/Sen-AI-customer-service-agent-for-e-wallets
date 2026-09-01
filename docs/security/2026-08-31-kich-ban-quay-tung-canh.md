@@ -85,6 +85,38 @@
     riêng ngăn `qa-stripe`**, không phải thay đổi toàn cục, các ngăn khác vẫn dùng `Demo@123` bình
     thường. Không đổi lại giá trị trong CSDL (đụng CSDL ngăn dùng để quay có rủi ro không cần thiết)
     — sửa tài liệu thay vì sửa CSDL.
+□ 🔴🔴 **CẢNH BÁO TLS — mở thử TRƯỚC KHI BẤM MÁY, đây là thứ lên hình ngay khung đầu tiên**
+  *(phát hiện 01/09 13:15, chưa ai kiểm bao giờ vì QA/QC dùng Playwright — công cụ đó BỎ QUA lỗi
+  TLS, nên chạy xanh cả ngày mà không ai thấy điều trình duyệt thật sẽ thấy.)*
+
+  Đo thật: `curl https://localhost:59443/` **không** cờ `-k` → `curl: (60) SSL certificate problem:
+  unable to get local issuer certificate`. Cấp bởi `CN=Caddy Local Authority - ECC Intermediate`,
+  và CA gốc đó **KHÔNG có trong keychain nào** của máy (System = 0, login = 0).
+  ⟹ **Trình duyệt sạch sẽ hiện TRANG CẢNH BÁO ĐỎ TOÀN MÀN HÌNH** *(“Kết nối của bạn không phải là
+  kết nối riêng tư” / `NET::ERR_CERT_AUTHORITY_INVALID`)* trước khi tới `/login`.
+  🔴 **Với một sản phẩm FINTECH, khung hình đầu tiên nói “không an toàn” là hỏng cả video.**
+
+  **Cách xử — làm TRƯỚC khi bật máy quay, chọn một:**
+  🟢 (a) **Mở `https://localhost:59443/` trong ĐÚNG trình duyệt sẽ quay, bấm qua cảnh báo MỘT LẦN,
+     đóng tab.** Ngoại lệ được lưu theo trình duyệt ⟹ lúc quay vào thẳng, không cảnh báo.
+     **Rẻ nhất, không đụng hệ thống, không cần quyền admin.**
+  (b) Cài CA gốc của Caddy vào keychain (`docker cp` cert ra rồi thêm vào System keychain) — sạch
+     hơn nhưng **đổi cấu hình tin cậy toàn máy**, cần cân nhắc, KHÔNG làm gấp trước giờ quay.
+  ⚠️ **Đừng suy từ “hôm qua tôi mở được”** — ngoại lệ lưu theo **từng trình duyệt và từng hồ sơ**.
+  Quay bằng cửa sổ ẩn danh / hồ sơ khác / trình duyệt khác là **cảnh báo quay lại**.
+
+□ ⏱ **Chứng chỉ TLS còn hạn tới khi nào** *(vòng đời chỉ 12 GIỜ — Caddy tự gia hạn, nhưng “tự động”
+  không phải “chắc chắn”)*:
+    echo | openssl s_client -connect localhost:59443 -servername localhost 2>/dev/null \
+      | openssl x509 -noout -dates
+  → `notAfter` phải cách giờ quay **ít nhất vài tiếng**. *(Đo 01/09 13:13: `notAfter = 01/09 11:40
+  GMT = 18:40 giờ VN` — tức **có thể hết hạn NGAY GIỮA buổi quay chiều tối**. Caddy gia hạn theo chu
+  kỳ 12h và đã gia hạn nhiều lần trong đêm, nên nhiều khả năng tự ổn — **nhưng phải ĐO LẠI, đừng suy
+  từ “tối qua thấy nó gia hạn”**.)*
+  → Nếu `notAfter` sắp tới: đợi Caddy gia hạn (xem `docker logs fin05-qa-stripe-caddy-1 | grep renew`)
+  🔴 **TUYỆT ĐỐI KHÔNG khởi động lại `caddy` để “ép gia hạn”** — dựng lại là mất cache, và ta đã mất
+  một vòng sáng nay vì dựng lại làm rơi cấu hình.
+
 □ 🔴 BẮT BUỘC, cùng lúc với phép kiểm băm bên dưới — **HẠN MỨC MODEL còn không**
   *(thêm 01/09: sáng nay agent CHẾT HẲN vì hết hạn mức free tier — `403` trên 3 model, rồi `400`
   ở model thứ tư làm cơ chế xoay DỪNG luôn. Khách chỉ thấy "hệ thống đang gặp sự cố kỹ thuật".
