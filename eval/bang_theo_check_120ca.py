@@ -5,9 +5,15 @@ lại: Pass, extra_turns 1-2, create_ticket có đủ). Không còn cần lọc 
 31/08, đã NIÊM — xem docstring file đó) — mọi `checks` trong file kết quả giờ
 đáng tin trên TOÀN BỘ ca, gộp thẳng theo tên phép kiểm.
 
-Cấu trúc bảng giữ NGUYÊN như bản cũ, chỉ bỏ 2 dòng "KHÔNG ĐO ĐƯỢC"
-(`khong_tao_ticket_hop_le`, `de_nghi_truoc_khi_tao_ticket`) — không còn lý do
-loại trừ chúng.
+🔴 SỬA 01/09 (câu cũ đọc ngược nghĩa — xem feedback_dieu_kien_nam_trong_cau):
+bản CŨ LOẠI TRỪ 2 phép kiểm `khong_tao_ticket_hop_le` và `de_nghi_truoc_khi_tao_ticket`
+khỏi bảng (gắn nhãn "KHÔNG ĐO ĐƯỢC", lý do: bộ mô phỏng thêm lượt hỏng 31/08).
+Bản NÀY GIỮ CẢ HAI, không loại trừ nữa — lý do loại trừ cũ không còn áp dụng.
+Cả hai vẫn cần đọc cẩn thận (xem nhãn cảnh báo ngay cạnh số trong bảng in ra):
+tên `khong_tao_ticket_hop_le` NÓI NGƯỢC — True nghĩa là "KHÔNG tạo hồ sơ mới
+ĐÚNG", không phải "tạo hồ sơ hợp lệ"; `de_nghi_truoc_khi_tao_ticket` chỉ đo
+gián tiếp trên rất ít mẫu (n thường ~4), tỉ lệ cao trên mẫu nhỏ không nói
+được nhiều.
 
 Chạy:
     python eval/bang_theo_check_120ca.py --ket-qua <golden_ket_qua_tung_ca.jsonl> [--ra <file .jsonl>]
@@ -84,28 +90,43 @@ def main() -> int:
         print("🔴 KHÔNG còn ca nào sau khi lọc lỗi hạ tầng — dừng, không có gì để tính.")
         return 1
 
+    # KHỐI LƯỢNG: đo có-xảy-ra (dùng lượt thêm hay không) — KHÔNG nói gì về
+    # đúng/sai. Tách riêng khỏi CHẤT LƯỢNG bên dưới theo quyết định PO 01/09
+    # (ca Klarna, điều ②) — đêm 31/08 cổng CTC1 từng đẩy "có tra cứu" 22/29 →
+    # 29/29 trong khi "trả lời đúng" 3 → 6 nằm trong nhiễu; hai loại số lẫn
+    # trong một bảng suýt bị đọc thành cùng một bằng chứng.
+    print("KHỐI LƯỢNG (n = " + str(len(records)) + " ca):")
+    print("  🔴 Chỉ số khối lượng KHÔNG được dùng làm bằng chứng cải thiện.")
     dem_extra_turns: dict[int, int] = {}
     for d in records:
         et = d.get("extra_turns_used")
         dem_extra_turns[et] = dem_extra_turns.get(et, 0) + 1
-    print(f"Phân bố extra_turns_used: {dict(sorted(dem_extra_turns.items(), key=lambda x: (x[0] is None, x[0])))}")
+    print(f"  Phân bố extra_turns_used: {dict(sorted(dem_extra_turns.items(), key=lambda x: (x[0] is None, x[0])))}")
     if dem_extra_turns.get(0, 0) == len(records) and len(records) > 3:
         print(
-            "🔴 CẢNH BÁO: TOÀN BỘ ca có extra_turns_used=0 — đúng dấu hiệu mô phỏng "
+            "  🔴 CẢNH BÁO: TOÀN BỘ ca có extra_turns_used=0 — đúng dấu hiệu mô phỏng "
             "thêm lượt lại chết (xem eval/phan_loai_truot_adr051.py, tình huống 31/08). "
             "DỪNG, kiểm lại khoá OpenAI/hạ tầng trước khi tin bảng dưới đây."
         )
 
-    print(f"\nTỪNG PHÉP KIỂM (n = {len(records)} ca):")
+    # Nhãn cảnh báo gắn NGAY CẠNH số — đọc rời số khỏi cảnh báo là y hệt cái
+    # bẫy "câu điều kiện rụng khỏi câu" đã gặp nhiều lần (xem docstring đầu file).
+    _CANH_BAO_CANH_TEN = {
+        "khong_tao_ticket_hop_le": "🔴 TÊN NGƯỢC — True = KHÔNG tạo hồ sơ là ĐÚNG, không phải \"tạo hợp lệ\"",
+        "de_nghi_truoc_khi_tao_ticket": "🔴 n RẤT NHỎ (~4) — tỉ lệ cao trên mẫu này gần như không nói gì",
+    }
+    print(f"\nCHẤT LƯỢNG (n = {len(records)} ca):")
     bang_check = gom_theo_check(records)
     for ten, (dat, tong_ck) in bang_check.items():
-        print(f"  {ten:55s} {dat}/{tong_ck}")
+        canh_bao = _CANH_BAO_CANH_TEN.get(ten, "")
+        dong = f"  {ten:55s} {dat}/{tong_ck}"
+        print(f"{dong}  {canh_bao}" if canh_bao else dong)
 
     dem_severity: dict[str, int] = {}
     for d in records:
         sv = d.get("severity", "?")
         dem_severity[sv] = dem_severity.get(sv, 0) + 1
-    print(f"\nTheo severity: {dict(dem_severity)}")
+    print(f"\nTheo severity (thành phần bộ đề — input, không phải kết quả đo): {dict(dem_severity)}")
 
     if args.ra:
         args.ra.parent.mkdir(parents=True, exist_ok=True)
