@@ -38,6 +38,40 @@
 
 ## Chuẩn bị TRƯỚC KHI bấm quay — làm một lần, không phải mỗi cảnh
 
+### ⚡ THẺ HÀNH ĐỘNG — 10 việc, theo THỨ TỰ LÀM. Chi tiết & lý do nằm ngay dưới.
+
+*(Thêm 01/09: mục Chuẩn bị đã phình từ ~50 lên 129 dòng trong một ngày. Lý do thì đáng giữ, nhưng
+người cầm máy lúc 20h **không đọc 129 dòng** — họ cần biết PHẢI LÀM GÌ. Thẻ này là thứ đọc lúc đó;
+phần dưới là thứ đọc khi có gì bất thường.)*
+
+```
+LÀM SỚM, thong thả — không cần sát giờ quay
+  1 □ Mở https://localhost:59443/ trong ĐÚNG trình duyệt sẽ quay → bấm qua CẢNH BÁO ĐỎ một
+      lần → đóng tab.  🔴 Bỏ bước này = khung hình đầu tiên nói "không an toàn".
+  2 □ Terminal RIÊNG, trên màn hình KHÁC màn hình quay (để tra OTP).
+  3 □ Caption CHỮ "dữ liệu sinh tổng hợp" đã chuẩn bị — BẮT BUỘC, lời thoại không thay được.
+  4 □ Tắt DevTools, đóng tab/cửa sổ dễ Alt-Tab nhầm.
+  5 □ Ba danh khoản trong tay:
+        khách  0974000145 / Demo@123   (USR-0145 — ĐỪNG dùng USR-0001, xem Cảnh 2)
+        CSKH   0353000201 / Demo@123
+        sếp    0905000205 / TestP0Otp!2026   (KHÔNG phải Demo@123)
+
+SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
+  6 □ docker exec fin05-qa-stripe-backend-1 cat /app/.bam_ma_nguon
+      → PHẢI là 9c17c5684c9a. Khác ⟹ DỪNG, KHÔNG BẤM MÁY.
+  7 □ Hạn mức model (lệnh ở mục bên dưới) → 200 = quay được · 401 = DỪNG.
+  8 □ Cert còn hạn (lệnh openssl bên dưới) → notAfter phải cách giờ quay vài tiếng.
+      🟢 Đo 01/09 14:41: hạn tới 02:40 sáng mai — gần như chắc chắn xanh.
+  9 □ Phiên OTP của khách CHƯA "tươi" (lệnh psql ở Cảnh 2) → rỗng = Cảnh 2 quay được.
+ 10 □ ĐĂNG NHẬP rồi QUAY NGAY — token sống 15 phút. Nghỉ lâu hơn thì đăng nhập lại.
+```
+
+🔴 **Ba thứ TUYỆT ĐỐI không làm trong lúc quay:** dựng lại bất kỳ container nào (đặc biệt `caddy` —
+mất chuỗi gia hạn cert) · sửa CSDL ngăn quay · bấm link **"Tra cứu chính sách"** trên nav CSKH.
+
+---
+
+
 ```
 □ Terminal RIÊNG đã mở sẵn, đặt ở màn hình/máy KHÁC màn hình đang quay, kết nối được DB ngăn
   fin05-qa-stripe — dùng để tra otp_code trong auth_sessions khi cần (xem cảnh 2 và cảnh 8).
