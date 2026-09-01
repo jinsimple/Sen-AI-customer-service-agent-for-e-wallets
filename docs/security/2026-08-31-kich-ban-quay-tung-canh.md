@@ -8,7 +8,9 @@
 > chi tiết, chỉ trỏ tới bằng số cảnh tương ứng.
 >
 > Luồng đã xác nhận chạy trọn (QA/QC 31/08, tự đi lại kịch bản này như người cầm máy thật — làm đúng
-> chữ, không tự suy thêm): đăng nhập → OTP → xem giao dịch → mô tả khiếu nại → **agent tra cứu VÀ xin
+> chữ, không tự suy thêm): đăng nhập → **xem giao dịch → mô tả khiếu nại → OTP**
+> *(🔴 sửa 01/09 — dòng này trước ghi "đăng nhập → OTP → xem giao dịch", SAI thứ tự; xem khối
+> "TRÌNH TỰ THẬT" ngay trước Cảnh 1)* → **agent tra cứu VÀ xin
 > xác nhận tạo hồ sơ trong CÙNG một bong bóng** (Cảnh 5, gộp lại 31/08 — xem cảnh đó) → CSKH xem →
 > trình sếp → **sếp duyệt CŨNG đã xác nhận chạy được** (P0 vá xong, xem Cảnh 8).
 >
@@ -68,8 +70,12 @@
 □ Danh khoản đăng nhập demo đã biết trước, ĐỦ CẢ BA vai (không gõ sai, không phải thử lại nhiều lần).
   **[Điền 01/09 — QA/QC ĐĂNG NHẬP THẬT cả ba vai trên `https://localhost:59443`, không đọc CSDL rồi
   suy; không gửi lượt chat nào.]**
-  - Khách (Cảnh 1-6): **`0387000001` / `Demo@123`** → vào `/chat`. `user_id` = **`USR-0001`**
+  - Khách (Cảnh 1-6): 🟢 **DÙNG `0974000145` / `Demo@123`** → vào `/chat`. `user_id` = **`USR-0145`**
     (điền vào lệnh `psql` Cảnh 2 ở trên).
+    🔴 **ĐỪNG dùng `0387000001` (`USR-0001`)** — bản trước của mục này ghi tài khoản đó, **SAI cho
+    buổi quay**: `USR-0001` đã xác thực OTP hôm nay nên **còn "tươi" tới 23:37 giờ VN** ⟹ Cảnh 2
+    sẽ KHÔNG hiện ô OTP. Xem khối 🔴🔴 đầu Cảnh 2. Chỉ 2/200 tài khoản khách dùng `Demo@123`
+    (`USR-0001` và `USR-0145`) — **không có lựa chọn thứ ba**, đừng thử tài khoản khác.
   - CSKH (Cảnh 7): **`0353000201` / `Demo@123`** → vào `/dashboard`.
   - Sếp/supervisor (Cảnh 8): tài khoản đăng nhập qua `/dang-nhap-noi-bo`, vai khác CSKH. **SĐT
     `0905000205`, mật khẩu `TestP0Otp!2026`.** 🔴 **KHÁC với `Demo@123` ghi trong `docs/STATE.md:758`
