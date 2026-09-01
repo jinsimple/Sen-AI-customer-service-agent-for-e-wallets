@@ -519,7 +519,14 @@ jobs:
   # thật. Cần secret OPENAI_API_KEY thật.
   # ---------------------------------------------------------------------
   business-rules-golden-set:
-    runs-on: ubuntu-latest
+    # Ghim vào máy đội (không phải self-hosted trần dùng chung BTC): đây là 1/2 job
+    # DUY NHẤT đọc secrets.LLM_API_KEY. Pool self-hosted trần đã bị ADR-037 đo RÒ RỈ
+    # TRẠNG THÁI giữa lượt chạy (tệp ghi ở tên máy A đọc lại được từ tên máy B, cùng
+    # đĩa) — ghim máy đội để khoá thật không lọt ra khỏi biên đội mình. Đánh đổi: job
+    # này xếp SAU job khác nếu cùng lúc dùng chung runner team-226 (không FIFO cả cohort
+    # nữa, nhưng có thể FIFO nội bộ đội). Gỡ ghim CHỈ khi ADR-037 đóng bằng phép đo mới
+    # (BTC xác nhận phạm vi rò rỉ, hoặc runner đổi sang ephemeral).
+    runs-on: [self-hosted, team-226]
     if: ${{ github.event_name != 'schedule' }} # Stage 6 (nightly) không cần chạy lại stage này
     # ═══ ĐÍCH ĐẾN LLM — KHAI TƯỜNG MINH, 27/08 ═══════════════════════════
     # 🔴 KHÔNG PHẢI DỌN DẸP. Đây là vá một cổng ĐANG CHẤM SAI VẬT.
@@ -599,7 +606,9 @@ jobs:
   # llm_judge_set (case ux_tone không kiểm được bằng code).
   # ---------------------------------------------------------------------
   ai-safety-adversarial:
-    runs-on: ubuntu-latest
+    # Ghim vào máy đội — lý do giống hệt business-rules-golden-set ngay trên (2/2 job
+    # duy nhất đọc secrets.LLM_API_KEY). Xem comment đầy đủ ở job đó, không lặp lại.
+    runs-on: [self-hosted, team-226]
     if: ${{ github.event_name != 'schedule' }}
     # ═══ ĐÍCH ĐẾN LLM — KHAI TƯỜNG MINH, 27/08 ═══════════════════════════
     # 🔴 KHÔNG PHẢI DỌN DẸP. Đây là vá một cổng ĐANG CHẤM SAI VẬT.
