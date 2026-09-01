@@ -77,6 +77,8 @@
     sẽ KHÔNG hiện ô OTP. Xem khối 🔴🔴 đầu Cảnh 2. Chỉ 2/200 tài khoản khách dùng `Demo@123`
     (`USR-0001` và `USR-0145`) — **không có lựa chọn thứ ba**, đừng thử tài khoản khác.
   - CSKH (Cảnh 7): **`0353000201` / `Demo@123`** → vào `/dashboard`.
+    *(QA/QC đăng nhập THẬT thành công nhiều lần 01/09 — ghi ra để dòng này tin được ngang hai
+    dòng kia, đúng đề nghị QA/QC: mỗi dòng phải tự đủ nghĩa khi đọc một mình.)*
   - Sếp/supervisor (Cảnh 8): tài khoản đăng nhập qua `/dang-nhap-noi-bo`, vai khác CSKH. **SĐT
     `0905000205`, mật khẩu `TestP0Otp!2026`.** 🔴 **KHÁC với `Demo@123` ghi trong `docs/STATE.md:758`
     — ĐỪNG dùng giá trị đó.** Tự xác minh 01/09 bằng cách so trực tiếp với `password_hash` thật trong
@@ -97,31 +99,37 @@
   đo 5 giây này thì luôn đúng bất kể ai quên gì.)*
 ```
 
-## 🔴🔴 TRÌNH TỰ THẬT — số cảnh KHÔNG phải thứ tự bấm máy (sửa 01/09)
+## 🔴🔴 KHI NÀO Ô OTP HIỆN — đọc trước, đây là chỗ dễ khựng nhất (sửa 01/09, VÒNG 2)
 
-**Giữ nguyên số cảnh** (3 tài liệu khác đang trích dẫn theo số này — đánh số lại là vỡ hết).
-**Nhưng Cảnh 2 KHÔNG xảy ra ở vị trí thứ hai.** Thứ tự thao tác thật, đã đối chiếu mã:
+🔴 **ĐÍNH CHÍNH BẢN 12:17 CỦA CHÍNH TÔI.** Bản đó viết *"Cảnh 2 xảy ra SAU Cảnh 4"* và
+*"Cảnh 3 KHÔNG cần OTP"* — **SAI**. Rail giao dịch **CÓ** đòi OTP. Số cảnh **1→2→3→4→5 vốn đã
+đúng**; tôi sửa một lỗi thật rồi tự thêm một lỗi mới. Bằng chứng:
+`ChatClient.tsx:125-133` — `if (!otpVerified)` thì rail **không render**, chỉ hiện nút
+**"Xác thực ngay"**; `customer_tools.py:829-831 / 878-880` — `get_customer_history` trả
+`_OTP_REQUIRED_ERROR` khi chưa xác thực. QA/QC **nhìn thấy tận mắt** rail `USR-0145` đang khoá.
+
+**Điều DUY NHẤT sai trong bản gốc:** câu *"ngay sau đăng nhập, bong bóng chat đầu tiên xin OTP"*.
+**Ô OTP KHÔNG tự hiện.** Nó cần **một hành động của người dùng** — có hai đường:
 
 ```
-Cảnh 1  đăng nhập
-        → vào /chat, bong bóng đầu tiên là LỜI CHÀO TĨNH của Sen — KHÔNG phải OTP
-          (ChatClient.tsx:208-214, useEffect lúc mount)
-Cảnh 3  xem rail "Giao dịch gần đây"          ← KHÔNG cần OTP
-Cảnh 4  bấm "Báo lỗi giao dịch này" + chọn chip
-        → chip sinh ra câu khiếu nại đầu tiên
-Cảnh 2  ⚡ ĐÚNG LÚC NÀY ô OTP mới hiện        ← SAU Cảnh 4, không phải trước Cảnh 3
+Cảnh 1  đăng nhập → /chat
+        → bong bóng đầu là LỜI CHÀO TĨNH của Sen (ChatClient.tsx:208-214)
+        → rail "Giao dịch gần đây" hiện ở trạng thái KHOÁ + nút "Xác thực ngay"
+Cảnh 2  ô OTP hiện — CHỈ SAU MỘT TRONG HAI:
+        🟢 (a) BẤM NÚT "Xác thực ngay" trên rail        ← DÙNG ĐƯỜNG NÀY ĐỂ QUAY
+           (b) gõ/bấm chip sinh ra một câu KHIẾU NẠI CÁ NHÂN
+        → nhập 6 số → xác thực xong → rail MỞ KHOÁ
+Cảnh 3  xem rail (nay đã mở)
+Cảnh 4  bấm "Báo lỗi giao dịch này" → rồi mới hiện 4 chip con → chọn chip
 Cảnh 5  agent tra cứu
 ```
 
-**Vì sao:** cổng OTP (`graph.py:1267-1276`) cần **BỐN** điều kiện cùng đúng, trong đó có
-`la_khieu_nai_ca_nhan(message)` — hàm nhận **câu khách vừa gửi** làm tham số, nên **chỉ đánh giá
-được SAU KHI khách đã gửi một câu**. Client mở hộp thoại bằng `result.duong === "can_otp"`
-(`ChatClient.tsx:470`) — nằm trong nhánh **xử lý phản hồi sau khi gửi tin**, không phải logic chạy
-lúc mở trang.
+🟢 **Quay theo đường (a).** Ba lý do: nó là nút **hiện sẵn trên màn hình**, không phụ thuộc câu chữ;
+nó tách bạch Cảnh 2 khỏi Cảnh 4 nên **thứ tự quay = thứ tự số cảnh**; và nó **miễn nhiễm với cái bẫy
+chip "Hoàn tiền"** ở Cảnh 4 (xem cảnh đó) — vì OTP đã xong trước khi chạm chip.
 
-⚠️ **Hệ quả cho người cầm máy:** đăng nhập xong mà **ngồi đợi ô OTP thì nó KHÔNG BAO GIỜ TỚI.**
-Phải đi tiếp Cảnh 3 → Cảnh 4 trước. Đợi nhầm ở đây trông y hệt "hệ thống hỏng" — trong khi mọi thứ
-đang chạy đúng.
+⚠️ Nếu **cố ý** quay đường (b) cho tự nhiên hơn: **chip "Hoàn tiền" KHÔNG kích được OTP** — bắt buộc
+đọc bảng ở Cảnh 4 trước.
 
 ## Cảnh 1 — Đăng nhập (khách)
 
@@ -194,7 +202,10 @@ docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
 ```
 → **có dòng trả về ⟹ SẼ KHÔNG hiện OTP**, đổi tài khoản. **Rỗng ⟹ quay được.**
 
-- **Màn hình:** `/chat`, ngay sau đăng nhập, bong bóng chat đầu tiên xin OTP.
+- **Màn hình:** `/chat`. 🔴 **[Sửa 01/09]** Ô OTP **KHÔNG** tự hiện sau đăng nhập — bản trước
+  viết "bong bóng chat đầu tiên xin OTP", SAI. Nó hiện **sau khi bấm nút "Xác thực ngay"** trên
+  rail giao dịch đang khoá (đường khuyến nghị), hoặc sau khi khách gửi một câu khiếu nại cá nhân.
+  Xem khối "KHI NÀO Ô OTP HIỆN" ngay trước Cảnh 1.
 - **Thao tác:** hệ thống hiện ô nhập OTP; người quay nhập mã.
 - **Điểm nhấn:** đây là OTP PHIÊN LÀM VIỆC (xác thực danh tính), khác OTP giao dịch — nếu kịch bản
   lời thoại có nhắc, đây là chỗ hợp lý để nói "hệ thống không bao giờ hỏi OTP giao dịch hay mật khẩu
@@ -219,7 +230,11 @@ docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
 
 ## Cảnh 3 — Xem giao dịch gần đây
 
-- **Màn hình:** `/chat`, rail "Giao dịch gần đây" hiện sau khi xác thực.
+- **Màn hình:** `/chat`, rail "Giao dịch gần đây" hiện sau khi xác thực OTP.
+  ✅ **[Xác nhận 01/09] Câu này ĐÚNG, giữ nguyên.** Ghi rõ vì bản 12:17 của tôi từng nói ngược
+  ("Cảnh 3 KHÔNG cần OTP") và cả Review lẫn QA/QC đều đề xuất sửa dòng này theo bản sai đó —
+  đừng ai sửa lại lần nữa. `ChatClient.tsx:125-133`: chưa xác thực thì rail **không render**,
+  chỉ hiện nút "Xác thực ngay".
 - **Thao tác:** lướt qua danh sách, dừng ở giao dịch sẽ dùng làm ví dụ khiếu nại.
 - **Điểm nhấn:** rail chỉ hiện số tiền/ngày/mã giao dịch — **đã xác nhận bằng ảnh thật (QA/QC
   31/08)** không hiện tên/SĐT người liên quan, an toàn để lên hình nguyên trạng.
@@ -260,6 +275,12 @@ docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
 - **Ngoài khung hình:** không có.
 
 ## Cảnh 5 — Agent tra cứu & xác nhận tạo hồ sơ
+
+⚠️ **[Thêm 01/09 — QA/QC]** Nếu quay theo đường **(b)** (không bấm "Xác thực ngay" trước, mà để
+chip/câu khiếu nại kích OTP), thì **Cảnh 2 xen vào GIỮA Cảnh 4 và cảnh này**: bấm chip → ô OTP
+hiện → **dừng ghi hình, lấy mã, nhập** → rồi agent mới trả lời. Đọc lại đoạn dừng-ghi-hình ở
+Cảnh 2 TRƯỚC. Quay theo đường **(a)** khuyến nghị thì không có bước xen này — OTP đã xong từ
+trước Cảnh 3.
 
 🔴 **CƠ CẤU LẠI 31/08 — gộp Cảnh 5 + Cảnh 6 cũ thành MỘT cảnh, theo đúng hành vi thật QA/QC quan sát
 được, không phải theo suy đoán ban đầu về sản phẩm.** Bản trước viết hai cảnh tách rời: "Cảnh 5 —
