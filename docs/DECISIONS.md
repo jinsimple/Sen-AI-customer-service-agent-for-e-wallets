@@ -3283,3 +3283,84 @@ trung bình**, không phải bằng chứng độ ổn định.
 ⟹ **Ta vẫn CHƯA biết điểm tổng 120 ca dao động bao nhiêu.** Phép đo này KHÔNG trả lời được — mẫu
 thiên lệch. Không được nói nó ổn định, cũng không được nói nó không ổn định.
 ⟹ Muốn biết: chạy lại **TOÀN BỘ** golden 120 trên cùng mã, không chọn lọc. Chưa làm.
+
+---
+
+## ADR-057 — CHUYỂN NGƯỜI SỚM cho tầng đắt: quy tắc TẤT ĐỊNH ở tầng service
+
+**Ngày:** 01/09/2026 · **PO duyệt:** có (*"A bạn nhé"*, sau khi được trình 3 phương án kèm dữ liệu)
+· **Trạng thái:** chờ triển khai — 🔴 **KHÔNG code trước khi đọc hết mục "Ranh giới" dưới**
+
+### Vấn đề — đo được, và trùng khít với một ca thật ngoài ngành
+
+Tỉ lệ đạt theo loại khiếu nại, 180 ca (lượt đo 31/08, bản mã `9c17c5684c9a`):
+
+| loại | đạt |
+|---|---|
+| **`refund`** | **6/43 = 14,0%** |
+| **`wrong_recipient`** | **7/41 = 17,1%** |
+| `double_charge` | 8/30 = 26,7% |
+| `money_not_received` | 24/63 = 38,1% |
+
+Hai loại kém nhất kém loại tốt nhất **gần ba lần**. Và chúng **ánh xạ thẳng** sang hai trong ba tầng
+mà **Klarna** phải đưa nhân viên người trở lại sau khi quay đầu chiến lược AI tháng 5/2025 (*tranh
+chấp · hoàn tiền phức tạp · khách khó khăn tài chính*). Ta tìm ra bằng dữ liệu nội bộ, họ tìm ra
+bằng khách hàng thật — **cùng một kết luận, hai đường độc lập**.
+
+**Vì sao hai loại này đắt hơn** *(không phải vì điểm thấp)*: cả hai đều là **tiền đã nằm trong tay
+người khác**. Ví không lấy lại hộ được, chỉ đối soát và đề nghị. Trả lời sai ở đó là **để khách chờ
+một thứ không bao giờ tới**. Ba loại còn lại sai thì lượt sau còn sửa được.
+
+### Quyết định
+
+**Tầng đắt = `refund` + `wrong_recipient`.** Ca thuộc tầng này mà **chưa xác định được giao dịch**
+sau **N lượt** ⟹ **chuyển chuyên viên**, không cố thêm.
+
+### 🔴 RANH GIỚI — làm sai cách là PHẠM RÀNG BUỘC CỨNG #2
+
+Hiến pháp §2 mục 2: *"AI không vượt cấp… **escalate chỉ xảy ra qua tầng service** hoặc route của
+`cskh` — **KHÔNG BAO GIỜ do AI tự gọi**."*
+
+❌ **CẤM:** dạy agent tự quyết chuyển chuyên viên khi "thấy ca khó". Đó là **AI tự escalate** —
+phạm thẳng ràng buộc cứng, và sẽ đỏ ở `tests/test_invariants.py` đúng như thiết kế.
+
+✅ **ĐÚNG:** quy tắc **tất định** ở tầng service, máy đọc được, không cần mô hình hợp tác — cùng
+khuôn với hai cơ chế đã chạy tốt (`_CHUA_TAO_DUOC_VE` và cổng CTC1/ADR-056):
+
+```
+complaint_type ∈ {refund, wrong_recipient}  AND  số lượt ≥ N  AND  chưa xác định được giao dịch
+   ⟹ tầng service đánh dấu chuyển chuyên viên
+```
+
+**Tầng service quyết định. AI không quyết gì cả** — nó vẫn chỉ điều tra và trả lời như cũ.
+Khác biệt nghe nhỏ mà là ranh giới sống còn: *"AI thấy khó thì bỏ cuộc"* ≠ *"hệ thống có luật: ca
+loại này quá N lượt chưa ra thì đưa người"*.
+
+### N = 2 — TẠM CHỌN, và tôi khai rõ là chưa chắc
+
+Dữ liệu 180 ca: đỉnh tỉ lệ đạt nằm ở **2 lượt thêm (17/26 = 65,4%)**, tụt ở 3 lượt/chạm trần
+(11/43 = 25,6%), và 0 lượt gần như luôn hỏng (2/68 = 2,9%).
+🔴 **Nhưng đây là số từ MỘT lượt đo, và ta đã chứng minh nhiễu lớn** (22/75 ca đổi kết quả khi chạy
+lại cùng bản mã — xem kết luận ADR-056). Thêm nữa, `security`/`review` chỉ ra con số "0 lượt" phần
+lớn là **artefact của bộ mô phỏng** (hội thoại dừng vì câu cuối không có dấu hỏi), không phải hành
+vi agent.
+⟹ **N=2 là điểm khởi đầu có căn cứ yếu, KHÔNG phải hằng số đã chứng minh.** Phải xem lại khi có
+nhiều lượt đo. Đừng ai trích N=2 như một ngưỡng đã kiểm.
+
+### 🔴 HỆ QUẢ ĐO LƯỜNG — điểm tổng SẼ TỤT, và đó là ĐÚNG THIẾT KẾ
+
+Ca chuyển người sớm là ca agent **không tự giải quyết** ⟹ bộ chấm hiện tại tính là **không đạt**.
+Áp ADR này rồi đo lại thì con số **xấu đi**.
+
+**Đừng ai thấy điểm tụt rồi kết luận ADR-057 hỏng.** Thước cũ đo *"agent tự làm được bao nhiêu"* —
+mà ADR này cố ý **giảm** con số đó để tăng thứ khác.
+⟹ Phải bổ sung chỉ số mới đo đúng thứ ADR nhắm tới: **tỉ lệ ca tầng đắt được chuyển người ĐÚNG
+LÚC**, thay vì quẩn quanh tới hết lượt (dạng `MT-Z02`/`MT-Z04`).
+⟹ Luật chung rút ra: **đổi mục tiêu thì phải đổi thước cùng lúc** — nếu không, thước cũ sẽ phạt
+đúng thứ ta vừa cố ý làm.
+
+### Việc phải làm, theo thứ tự
+1. PO thật duyệt ADR này *(quy trình §3 — contract không đổi, nhưng chính sách escalate thì có)*
+2. Coder cài quy tắc ở **tầng service**, không phải trong prompt · `test_invariants.py` **23/23 xanh**
+3. Bổ sung chỉ số "chuyển người đúng lúc" vào bộ chấm **TRƯỚC** khi đo lại
+4. Đo lại, và **so bằng chỉ số mới**, không so bằng điểm tổng cũ
