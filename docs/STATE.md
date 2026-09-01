@@ -524,6 +524,21 @@ chạy 75 ca. **Bẫy TIỀN**: người tưởng đang thử rẻ sẽ trả ch
 cổng băm đỏ khó hiểu. Gỡ băng thì làm **GỘP MỘT LẦN**: sửa chuỗi + dựng lại ảnh + cập nhật băm mong
 đợi trong cả hai kịch bản.
 
+### 0b.19b ⏸ HAI NGĂN CŨ ĐANG TẮT — CÓ CHỦ ĐÍCH, không phải sự cố
+
+`fin05ttl` (mã 18/08) · `fin05do` (mã 24/08) — **tắt 01/09**, giải phóng **~1,5 GiB** cho các lượt
+đo và nghiệm thu. Không ai dùng chúng suốt hai ngày (đã hỏi cả bốn vai, cả bốn xác nhận).
+`docker start <tên container>` bật lại bất cứ lúc nào nếu ai cần.
+
+🔴 **Vì sao ghi ra:** PO-agent từng tắt chúng, rồi **tự bật lại** vì đã hứa *"bàn giao sạch, trả
+môi trường về như cũ"* — và 1,5 GiB đó lập tức đẩy RAM xuống dưới ngưỡng, chặn lượt nghiệm thu
+tiếp theo. Chính 1,5 GiB ấy đã giết container đo **ba lần** đêm 31/08.
+
+⟹ **Luật: khôi phục nguyên trạng là MẶC ĐỊNH TỐT, không phải luật tuyệt đối.** Khi vừa phát hiện
+trạng thái cũ có hại, khôi phục nó là **lặp lại cái hại một cách có kỷ luật**.
+Câu hỏi đúng không phải *"tôi trả lại như cũ chưa"* mà là ***"cái cũ có đáng trả lại không"*** —
+và nếu không, **ghi lại vì sao**, đừng lặng lẽ để khác đi.
+
 ### 0b.20 🔴🔴 PHÁT HIỆN LỚN NHẤT ĐÊM 31/08→01/09: **CHẠY LẠI CÙNG MÃ RA KHÁC HẲN**
 
 | ca | baseline 31/08 | chạy lại 01/09 | băm mã |
