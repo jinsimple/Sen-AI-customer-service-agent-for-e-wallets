@@ -114,21 +114,30 @@ KHÔNG hiện ô OTP.** Đây là hệ quả trực tiếp của việc QA/QC te
 
 **Cách xử — chọn MỘT, theo thứ tự ưu tiên:**
 1. **Đổi tài khoản khách sang một `user_id` chưa xác thực hôm nay** (KHÔNG đụng CSDL, an toàn nhất).
-   Đã đo 01/09: **chỉ `USR-0001` có phiên tươi**, mọi khách khác đều dùng được.
-   🟢 **Khuyến nghị: `USR-0097` / `0766000097` / `Demo@123`** — đo thật trên ngăn quay:
+   🟢 **DÙNG `USR-0145` / `0974000145` / `Demo@123`.** Đây là tài khoản **DUY NHẤT** thoả cả ba
+   điều kiện — cả ba đều **đo thật**, không suy:
 
-   | tài khoản | số GD | GD mới nhất | to_bank | nội bộ ví |
-   |---|---|---|---|---|
-   | `USR-0001` *(đang ghi trong kịch bản)* | 239 | **01/08** | — | — |
-   | **`USR-0097`** ✅ | 108 | **26/08** | 39 | 69 |
-   | `USR-0002` / `USR-0003` | 358 / 246 | 01/08 | — | — |
+   | điều kiện | `USR-0001` | `USR-0145` ✅ | `USR-0097` |
+   |---|---|---|---|
+   | mật khẩu `Demo@123` còn đúng | ✅ | **✅** | ❌ **TỪ CHỐI** |
+   | không có phiên OTP tươi <12h | ❌ tươi tới 23:37 | **✅ không có** | ✅ |
+   | đủ giao dịch cho Cảnh 3-4 | 239 | **241 · to_bank 61** | 108 |
 
-   **`USR-0097` không chỉ "dùng tạm được" — nó TỐT HƠN `USR-0001` cho buổi quay:** giao dịch mới
-   nhất **26/08** thay vì **01/08**, nên rail "Giao dịch gần đây" ở Cảnh 3 hiện ngày **gần hôm quay**
-   thay vì ngày cách đó một tháng. Và vẫn đủ cả hai phạm vi (`to_bank` 39 · nội bộ ví 69) để chọn
-   giao dịch hợp với kịch bản khiếu nại.
-   ⚠️ Đổi tài khoản thì **giao dịch trong rail Cảnh 3 đổi theo** — chọn lại đúng một giao dịch cho
-   Cảnh 4, và Cảnh 5 (agent điều tra) chưa ai đi thử trên tài khoản này. **Chưa kiểm ⟹ chưa hứa.**
+   🔴 **ĐÍNH CHÍNH — bản trước của mục này khuyến nghị `USR-0097`, SAI.** Nó được chọn vì có giao
+   dịch mới nhất (26/08) — nhưng **mật khẩu không phải `Demo@123`**, không đăng nhập nổi Cảnh 1.
+   Lỗi vì **kiểm hai điều kiện rồi khuyến nghị như đã kiểm cả ba.**
+
+   🔴🔴 **VÀ ĐÂY MỚI LÀ PHÁT HIỆN LỚN — quét toàn bộ 200 khách bằng chính hàm Argon2 của app:**
+   > **CHỈ `USR-0001` và `USR-0145` nhận `Demo@123`. 198/200 tài khoản khách KHÔNG dùng mật khẩu này.**
+
+   Không phải "một số tài khoản bị đổi tay" — mà **ngược lại**: hầu như **không** tài khoản nào từng
+   có `Demo@123`. Ai đọc `Demo@123` thành "mật khẩu chung của khách demo" sẽ **đăng nhập hỏng 99%
+   số lần thử**. Phép đối chứng xác nhận cách đo đúng: hai tài khoản QA/QC đăng nhập THẬT thành công
+   đều `NHẬN`, còn `USR-0205` (đã đổi sang `TestP0Otp!2026`) đúng là `TỪ CHỐI`.
+
+   ⚠️ Đổi tài khoản thì **rail giao dịch Cảnh 3 đổi theo** — chọn lại một giao dịch cho Cảnh 4
+   (`USR-0145` có 61 giao dịch `to_bank`). **Cảnh 5 (agent điều tra) chưa ai đi thử trên tài khoản
+   này — chưa kiểm ⟹ chưa hứa.**
 2. Quay Cảnh 2 **sau 23:37 giờ VN** — hết hạn tự nhiên, giữ nguyên `USR-0001`.
 3. ~~Xoá bản ghi phiên trong CSDL~~ — **KHÔNG.** Kịch bản dòng 77 đã chốt: không đụng CSDL ngăn quay.
 
