@@ -43,9 +43,19 @@ import subprocess
 
 import pytest
 
-from tests._docker_co_mat import LY_DO, co_docker
+from tests._docker_co_mat import container_song
 
 POSTGRES = os.environ.get("FIN05_POSTGRES_CONTAINER", "fin05-postgres-1")
+
+
+def _postgres_song() -> bool:
+    # Uỷ cho `tests/_docker_co_mat.py` — kiểm ĐÚNG container này đang chạy,
+    # không chỉ "docker daemon có sống". Trên runner CI, daemon sống nhưng
+    # container `fin05-postgres-1` không được dựng ⟹ `co_docker()` trả True,
+    # skipif không kích hoạt, test chạy rồi ĐỎ vì `psql` gọi vào container
+    # không tồn tại — SKIP đáng lẽ phải xảy ra lại không xảy ra.
+    return container_song(POSTGRES)
+
 
 # Dạng Postgres sinh ra cho một CHECK liệt kê:
 #   CHECK (((status)::text = ANY ((ARRAY['a'::character varying, …])::text[])))
@@ -147,7 +157,7 @@ MIEN_TRU: dict[tuple[str, str, str], tuple[str, str]] = {
     ),
 }
 
-@pytest.mark.skipif(not co_docker(), reason=LY_DO)
+@pytest.mark.skipif(not _postgres_song(), reason=f"container {POSTGRES} không chạy")
 def test_moi_nhan_co_it_nhat_mot_dong_du_lieu_mang_no():
     """🔴 Cổng này SINH RA ĐỂ ĐỎ hôm nay — dữ liệu demo chưa được sinh.
 
