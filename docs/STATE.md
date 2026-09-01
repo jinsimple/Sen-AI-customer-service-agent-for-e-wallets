@@ -669,6 +669,26 @@ benchmark 30-31/08 đang neo vào.
 Nếu còn cần, **neo vào repo trước khi làm gì khác**; đây đúng rủi ro đã cắn dự án ba lần (video nháp
 `2b84da2`, hai file override `6d9403c`, bể model `fed278c`).
 
+### 0b.22b BA TÍNH CHẤT CỦA THƯỚC CHẤM GOLDEN — Review 01/09, **không có tệp gốc**
+
+Review soát đường chấm và kết luận **chỉ đi qua tin nhắn**, chưa từng thành tệp (vai Review không ghi
+repo). PO-agent tự đọc mã xác nhận lại cả ba, 01/09 15:40. Neo ở đây vì nếu không, kết luận chết theo
+phiên và phiên sau soát lại từ đầu.
+
+🔴 **Địa chỉ Review đưa SAI:** họ ghi `eval/_harness.py::write_report` — hàm đó **không tồn tại** ở
+tệp đó. Đúng là **`eval/run_golden_set.py:138`**. *Địa chỉ sai nguy hiểm hơn không có địa chỉ*: người
+sau mở đúng tệp được trỏ, không thấy gì, và kết luận phát hiện là bịa.
+
+1. **Điểm headline là BÌNH QUÂN PHẲNG THEO CA**, không phải hai tầng theo ô — `run_golden_set.py:179`
+   tính thẳng `passed/total` trên `len(results)`. Bảng "theo ô" (`:193-195`) **chỉ để hiển thị**,
+   không bao giờ được dùng lại để tính số tổng. ⟹ ô có nhiều ca kéo điểm mạnh hơn ô ít ca.
+2. **Ca lỗi HỆ THỐNG bị trộn với ca lỗi CHẤT LƯỢNG** — `:91-94`, mọi `Exception` khi chạy ca thành
+   `severity="Blocker"` rồi vào chung `results`. ⟹ nằm trong mẫu số *và* trong ô Blocker, không tách.
+   Một đợt đo có hạ tầng chập chờn sẽ **trông giống hệt** một đợt agent trả lời tệ.
+3. **Mọi trục ở tệp này TẤT ĐỊNH** — chỉ `check_expected` + `check_forbidden` (`:33-34`), không trục
+   nào cần người/LLM chấm. ⟹ **không phải "lặng lẽ cho 0"**, mà là *trục cần-người chưa từng tồn tại
+   trên đường này*. (`run_llm_judge_set.py` là đường **khác**, không góp vào số golden.)
+
 ### 0b.21 BÀN GIAO CUỐI PHIÊN 01/09 — bẫy của từng vai, thứ không ai khác ghi được
 
 **REVIEW**
