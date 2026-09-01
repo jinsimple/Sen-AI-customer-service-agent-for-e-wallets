@@ -555,6 +555,12 @@ trả lời chắc hơn.
 nguồn gốc là bắt phiên sau **đo lại từ đầu** — đắt hơn hẳn việc giữ bốn tệp. Chỉ **tester** (vùng ghi
 `eval/`) hoặc PO thật mới quyết được: commit (nếu là kết quả thật) hay `git checkout` (nếu là nháp).
 
+📌 **HỒ SƠ ĐẦY ĐỦ:** `docs/security/2026-09-01-ma-otp-da-render-trong-git-quet-eval-e2e.md`
+(128 dòng — 4 hiện vật đã commit có mã OTP, 5 mã khác nhau qua các lượt ⟹ LẶP LẠI; cơ chế
+`sinh ra` ↔ `vào git` tách bạch; bản vá **đủ hai bước** `git rm --cached` **rồi mới** `.gitignore`
+— chỉ `.gitignore` là vá không chặn gì mà trông như đã chặn, vì cả 6 tệp `render_that_*` **đã
+tracked** từ `db7a488`/`1a6eff1`). **Việc tester/tech-lead, sau buổi quay.**
+
 ⚠️ **Phát hiện phụ, cho `security`:** diff của tệp `.json` chứa **mã OTP đã render**
 (`"Mã OTP phiên làm việc (mô phỏng — gửi tới 0974000145): 574256"` — bản CŨ đang nằm TRONG git).
 Dữ liệu tổng hợp + chế độ demo + mã đã hết hạn ⟹ mức thấp. Nhưng đúng **lớp rủi ro** mà quy trình
