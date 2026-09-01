@@ -59,7 +59,10 @@ LÀM SỚM, thong thả — không cần sát giờ quay
 SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
   6 □ docker exec fin05-qa-stripe-backend-1 cat /app/.bam_ma_nguon
       → PHẢI là 9c17c5684c9a. Khác ⟹ DỪNG, KHÔNG BẤM MÁY.
-  7 □ Hạn mức model (lệnh ở mục bên dưới) → 200 = quay được · 401 = DỪNG.
+  7 □ Hạn mức model (lệnh ở mục bên dưới) → BA nhánh, đừng bỏ nhánh giữa:
+        200 = quay được
+        403 = VẪN QUAY ĐƯỢC nhưng BÁO NGAY — model đầu bể cạn, còn 6 model, xoay tự tụt
+        401 = DỪNG, KHÔNG BẤM MÁY (khoá sai)
   8 □ Cert còn hạn (lệnh openssl bên dưới) → notAfter phải cách giờ quay vài tiếng.
       🟢 Đo 01/09 14:41: hạn tới 02:40 sáng mai — gần như chắc chắn xanh.
   9 □ Phiên OTP của khách CHƯA "tươi" (lệnh psql ở Cảnh 2) → rỗng = Cảnh 2 quay được.
