@@ -110,6 +110,7 @@ contracts/                   ← NGUỒN SỰ THẬT về cấu trúc
 docs/DECISIONS.md            ← ADR, CHỈ GHI THÊM, không sửa
 docs/STATE.md                ← đang làm gì, ghi đè cuối mỗi phiên
 docs/TESTING.md              ← cách chạy từng nhóm test
+docs/dieu-phoi-doi-nhieu-claude.md ← sổ tay vận hành đội nhiều Claude (đọc khi bật đội mới)
 scripts/check_contracts.py   ← phát hiện artifact lỗi thời
 tests/test_invariants.py     ← 5 ràng buộc cứng, 23 test, introspect app thật
 tests/                       ← 90 file test backend

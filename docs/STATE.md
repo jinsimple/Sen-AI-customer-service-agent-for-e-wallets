@@ -22,6 +22,13 @@
 > Mọi mục §0-BIS và §0 bên dưới là bàn giao của các đợt **CŨ HƠN** — đọc sau.
 > Buổi quay video demo dự kiến **chiều tối 01/09**, chưa quay lúc viết dòng này.
 
+### 📘 BẬT ĐỘI MỚI? ĐỌC `docs/dieu-phoi-doi-nhieu-claude.md` TRƯỚC
+
+Sổ tay vận hành đội nhiều Claude — hình dạng đội & vì sao có Lead · nhịp điểm danh và ba ý bắt buộc ·
+luật *KIỂM trước khi nhận* · ba luật báo cáo · cơ chế chống dẫm chân trên cây làm việc dùng chung ·
+**sáu cạm bẫy điều phối đã trả giá** · lượt nộp cuối khi tắt đội · việc chỉ người thật làm.
+Mọi luật trong đó đều có **một sự cố thật** đứng sau.
+
 ### ⛔ SÁU LỆNH CẤM — đọc trước khi gõ bất cứ lệnh nào
 
 | cấm | vì sao — hậu quả THẬT, không phải đề phòng |
