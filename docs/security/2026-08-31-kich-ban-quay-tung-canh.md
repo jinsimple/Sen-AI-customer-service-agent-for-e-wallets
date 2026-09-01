@@ -114,9 +114,21 @@ KHÔNG hiện ô OTP.** Đây là hệ quả trực tiếp của việc QA/QC te
 
 **Cách xử — chọn MỘT, theo thứ tự ưu tiên:**
 1. **Đổi tài khoản khách sang một `user_id` chưa xác thực hôm nay** (KHÔNG đụng CSDL, an toàn nhất).
-   Đã đo 01/09: **chỉ `USR-0001` có phiên tươi**; mọi khách khác đều dùng được, ví dụ
-   `USR-0002` / `0761000002`, `USR-0003` / `0812000003` (mật khẩu `Demo@123`).
-   ⚠️ Đổi tài khoản thì **giao dịch trong rail Cảnh 3 cũng đổi** — xem lại Cảnh 3-5 có còn hợp không.
+   Đã đo 01/09: **chỉ `USR-0001` có phiên tươi**, mọi khách khác đều dùng được.
+   🟢 **Khuyến nghị: `USR-0097` / `0766000097` / `Demo@123`** — đo thật trên ngăn quay:
+
+   | tài khoản | số GD | GD mới nhất | to_bank | nội bộ ví |
+   |---|---|---|---|---|
+   | `USR-0001` *(đang ghi trong kịch bản)* | 239 | **01/08** | — | — |
+   | **`USR-0097`** ✅ | 108 | **26/08** | 39 | 69 |
+   | `USR-0002` / `USR-0003` | 358 / 246 | 01/08 | — | — |
+
+   **`USR-0097` không chỉ "dùng tạm được" — nó TỐT HƠN `USR-0001` cho buổi quay:** giao dịch mới
+   nhất **26/08** thay vì **01/08**, nên rail "Giao dịch gần đây" ở Cảnh 3 hiện ngày **gần hôm quay**
+   thay vì ngày cách đó một tháng. Và vẫn đủ cả hai phạm vi (`to_bank` 39 · nội bộ ví 69) để chọn
+   giao dịch hợp với kịch bản khiếu nại.
+   ⚠️ Đổi tài khoản thì **giao dịch trong rail Cảnh 3 đổi theo** — chọn lại đúng một giao dịch cho
+   Cảnh 4, và Cảnh 5 (agent điều tra) chưa ai đi thử trên tài khoản này. **Chưa kiểm ⟹ chưa hứa.**
 2. Quay Cảnh 2 **sau 23:37 giờ VN** — hết hạn tự nhiên, giữ nguyên `USR-0001`.
 3. ~~Xoá bản ghi phiên trong CSDL~~ — **KHÔNG.** Kịch bản dòng 77 đã chốt: không đụng CSDL ngăn quay.
 
