@@ -3394,3 +3394,41 @@ LÚC**, thay vì quẩn quanh tới hết lượt (dạng `MT-Z02`/`MT-Z04`).
 - **Thay thế:** không (bổ sung ngoại lệ có thời hạn cho ADR-043 §9, không thay thế nguyên tắc gốc)
 - **Người duyệt:** PO thật *(qua PO-agent tự sửa `.env` — ADR này là bản trình duyệt tường minh,
   chưa coi là chính thức tới khi PO thật xác nhận trực tiếp)*
+
+## ADR-059 — SỬA ADR-058: `qwen3.8-flash` là BASELINE đo lường, không phải ngoại lệ demo
+- **Ngày:** 2026-09-01
+- **Bối cảnh:** ADR-058 (viết cùng đêm, ngay phía trên) khai `qwen3.8-flash` là "ngoại lệ có
+  thời hạn, chỉ áp cho demo, không dùng cho đo nghiêm túc" — **SAI DỮ KIỆN**. [ĐO] `docs/STATE.md:487`:
+  toàn bộ **246 ca benchmark 31/08** (golden 120 · heldout 60 · đối kháng 66) chạy trên chính
+  `qwen3.8-flash`. [ĐO] `docs/STATE.md:686`: một lượt chạy nhầm `qwen3.7-max-2026-05-20` bị xếp
+  là **SỰ CỐ** (mất 137 phút), và cách sửa ghi nguyên văn là *"✅ về `qwen3.8-flash`"* — tức
+  `qwen3.8-flash` **đã là baseline được công nhận từ trước**, không phải lựa chọn mới của đêm nay.
+  Lỗi thuộc về Lead (viết ADR-058 theo hướng dẫn sai của PO-agent, không tự đối chiếu `STATE.md`
+  trước khi viết) và PO-agent (dặn sai hướng). PO thật tự đọc lại tài liệu và bắt được.
+- **Quyết định:** ADR-058 **giữ nguyên, không sửa/xoá** (đúng CLAUDE.md §7b — ADR chỉ ghi thêm).
+  ADR này khai: câu *"KHÔNG dùng cho phép đo benchmark, ADR-043 §42 vẫn nguyên hiệu lực"* trong
+  ADR-058 là **SAI**, đọc thành: `qwen3.8-flash` **đã và đang** là model benchmark thực tế của dự
+  án từ 31/08. **ADR-043 §9** ("Bể chỉ nhận TÊN GHIM… bí danh trôi ⟹ từ chối lúc khởi động") coi
+  như **bị bỏ qua trong thực tế từ 31/08**, chưa từng có ADR nào khai việc đó tới hôm nay — ADR
+  này chính thức khai, và công nhận thực tế thay vì giả vờ luật vẫn được tuân thủ.
+- **Phương án đã cân nhắc và bác bỏ:** Buộc benchmark quay lại dùng tên ghim mốc ngày cho đúng
+  ADR-043 §9 — bác bỏ đêm nay vì không có thời gian tìm/xác nhận một tên ghim tương đương trước
+  hạn 24:00, và đổi model giữa chừng phá khả năng so sánh với 246 ca đã đo. Coi đây là việc của
+  đợt sau, không phải quyết định vĩnh viễn từ bỏ nguyên tắc ghim.
+- **Hệ quả — nợ kỹ thuật NẶNG hơn ADR-058 mô tả:**
+  1. [ĐO] `src/config.py` **không có guard nào ép ADR-043 §9** — nếu guard đó tồn tại như ADR-043
+     hứa, benchmark 31/08 (246 ca, quan trọng nhất dự án) **đã không chạy được**. Luật đứng trên
+     giấy, thực tế đã đi qua nó, không ai khai — cho tới ADR này.
+  2. 🔴 **Rủi ro sống, không phải giả định:** `qwen3.8-flash` không mốc ngày ⟹ nhà cung cấp có thể
+     đổi nó sang phiên bản khác **bất kỳ đêm nào** mà không ai biết — khi đó **mọi số của benchmark
+     31/08 mất khả năng tái lập**, và không có cơ chế nào phát hiện việc đó đã xảy ra.
+  3. Việc cần làm (đợt sau, không phải đêm nay): (a) thêm guard kiểm định dạng tên model trong
+     `src/config.py`, cho phép danh sách ngoại lệ tường minh (kiểu allowlist có ADR đi kèm) thay vì
+     từ chối cứng mọi bí danh; (b) tìm/xác nhận một tên ghim mốc ngày tương đương `qwen3.8-flash`
+     nếu nhà cung cấp có cung cấp, để benchmark tương lai tái lập được.
+- **Thay thế:** ADR-058 (phần khẳng định phạm vi "chỉ demo, không benchmark" — phần còn lại của
+  ADR-058, tức bản thân việc chọn `qwen3.8-flash` cho `po-demo` tối nay, vẫn đúng và không đổi).
+  ADR-043 §9 coi như **bị thực tế vượt qua từ 31/08**, chưa chính thức sửa — đợt sau cần quyết
+  giữ nguyên §9 kèm allowlist, hay sửa lại nguyên tắc.
+- **Người duyệt:** PO thật *(tự đọc lại tài liệu và bắt lỗi, quan trọng hơn thứ tự thẩm quyền
+  thông thường: đây là PO thật tự sửa dữ kiện, không phải PO-agent tự quyết)*
