@@ -123,6 +123,12 @@
   GMT = 18:40 giờ VN` — tức **có thể hết hạn NGAY GIỮA buổi quay chiều tối**. Caddy gia hạn theo chu
   kỳ 12h và đã gia hạn nhiều lần trong đêm, nên nhiều khả năng tự ổn — **nhưng phải ĐO LẠI, đừng suy
   từ “tối qua thấy nó gia hạn”**.)*
+  🟢 **[CẬP NHẬT 01/09 14:41 — RỦI RO NÀY ĐÃ QUA]** Caddy **đã gia hạn đúng lúc 14:40 như dự đoán**;
+  `notAfter` mới = **01/09 19:40 GMT = 02:40 VN sáng hôm sau** ⟹ **phủ trọn buổi quay chiều tối, dư
+  ~8 tiếng.** Nhịp gia hạn đo được từ 15 lần trong log: **8,0 giờ đều tăm tắp** (vòng đời 12h ⟹ cert
+  luôn còn ít nhất 4h dự trữ). Tiến trình `caddy` chạy liên tục **4 ngày**, chưa từng dựng lại — đó
+  là ĐÚNG tiến trình đã gia hạn 15 lần. **Vẫn chạy lệnh trên trước khi quay** (30 giây), nhưng nay
+  biết trước rằng nó gần như chắc chắn xanh.
   → Nếu `notAfter` sắp tới: đợi Caddy gia hạn (xem `docker logs fin05-qa-stripe-caddy-1 | grep renew`)
   🔴 **TUYỆT ĐỐI KHÔNG khởi động lại `caddy` để “ép gia hạn”** — dựng lại là mất cache, và ta đã mất
   một vòng sáng nay vì dựng lại làm rơi cấu hình.
