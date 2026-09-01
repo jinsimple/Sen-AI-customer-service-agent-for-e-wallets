@@ -91,6 +91,32 @@
   đo 5 giây này thì luôn đúng bất kể ai quên gì.)*
 ```
 
+## 🔴🔴 TRÌNH TỰ THẬT — số cảnh KHÔNG phải thứ tự bấm máy (sửa 01/09)
+
+**Giữ nguyên số cảnh** (3 tài liệu khác đang trích dẫn theo số này — đánh số lại là vỡ hết).
+**Nhưng Cảnh 2 KHÔNG xảy ra ở vị trí thứ hai.** Thứ tự thao tác thật, đã đối chiếu mã:
+
+```
+Cảnh 1  đăng nhập
+        → vào /chat, bong bóng đầu tiên là LỜI CHÀO TĨNH của Sen — KHÔNG phải OTP
+          (ChatClient.tsx:208-214, useEffect lúc mount)
+Cảnh 3  xem rail "Giao dịch gần đây"          ← KHÔNG cần OTP
+Cảnh 4  bấm "Báo lỗi giao dịch này" + chọn chip
+        → chip sinh ra câu khiếu nại đầu tiên
+Cảnh 2  ⚡ ĐÚNG LÚC NÀY ô OTP mới hiện        ← SAU Cảnh 4, không phải trước Cảnh 3
+Cảnh 5  agent tra cứu
+```
+
+**Vì sao:** cổng OTP (`graph.py:1267-1276`) cần **BỐN** điều kiện cùng đúng, trong đó có
+`la_khieu_nai_ca_nhan(message)` — hàm nhận **câu khách vừa gửi** làm tham số, nên **chỉ đánh giá
+được SAU KHI khách đã gửi một câu**. Client mở hộp thoại bằng `result.duong === "can_otp"`
+(`ChatClient.tsx:470`) — nằm trong nhánh **xử lý phản hồi sau khi gửi tin**, không phải logic chạy
+lúc mở trang.
+
+⚠️ **Hệ quả cho người cầm máy:** đăng nhập xong mà **ngồi đợi ô OTP thì nó KHÔNG BAO GIỜ TỚI.**
+Phải đi tiếp Cảnh 3 → Cảnh 4 trước. Đợi nhầm ở đây trông y hệt "hệ thống hỏng" — trong khi mọi thứ
+đang chạy đúng.
+
 ## Cảnh 1 — Đăng nhập (khách)
 
 - **Màn hình:** `/login`
@@ -187,10 +213,28 @@ docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
 
 - **Màn hình:** `/chat`, vẫn ở rail "Giao dịch gần đây" từ Cảnh 3.
 - **Thao tác (đường ĐÃ xác nhận chạy, dùng đường này để quay):** bấm nút **"Báo lỗi giao dịch này"**
-  ngay trên dòng giao dịch đã chọn ở Cảnh 3 → hệ thống hiện các **chip loại khiếu nại** → bấm đúng
-  chip khớp tình huống. **[Sửa 01/09 — Review đối chiếu `ChatClient.tsx:20-25`, bản trước ghi
-  "Bị trừ tiền hai lần", KHÔNG có chip nào tên vậy.]** Bốn chip THẬT, nguyên văn:
-  **"Chuyển nhầm"** · **"Tiền chưa về"** · **"Trừ tiền 2 lần"** · **"Hoàn tiền"**.
+  ngay trên dòng giao dịch đã chọn ở Cảnh 3.
+  🔴 **HAI TẦNG, không phải một** *(QA/QC đo thật 01/09 — bản trước gộp làm một, người quay sẽ tìm
+  chip ngay mà không thấy)*: bấm **"Báo lỗi giao dịch này"** TRƯỚC → **RỒI** mới hiện 4 chip loại
+  khiếu nại con → bấm chip khớp tình huống.
+  **[Sửa 01/09 — bản trước ghi "Bị trừ tiền hai lần", KHÔNG có chip nào tên vậy.]** Bốn chip THẬT:
+
+  | chip | câu tự sinh khi bấm | kích được ô OTP? |
+  |---|---|---|
+  | **"Chuyển nhầm"** | "Tôi bị chuyển nhầm tiền." | ✅ |
+  | **"Tiền chưa về"** | "Tôi chuyển tiền mà bên kia chưa nhận được." | ✅ |
+  | **"Trừ tiền 2 lần"** | "Tôi bị trừ tiền 2 lần cho cùng 1 giao dịch." | ✅ |
+  | **"Hoàn tiền"** | "Tôi được duyệt hoàn tiền nhưng chưa thấy tiền về." | ❌ **KHÔNG** |
+
+  🔴🔴 **ĐỪNG BẤM CHIP "Hoàn tiền" nếu còn cần quay Cảnh 2.** Đo thật 01/09 bằng chính hàm
+  `la_khieu_nai_ca_nhan` (hàm thuần, 0 lời gọi model): câu tự sinh của chip này **không khớp** bộ
+  nhận diện khiếu nại cá nhân ⟹ **cổng OTP không nổ** ⟹ Cảnh 2 biến mất, và trông y hệt "hệ thống
+  hỏng". Ba chip kia đều kích được.
+  **Câu gõ tay dự phòng** (đã đo, đều kích được) nếu muốn đường tự nhiên hơn:
+  *"Tôi bị trừ tiền hai lần cho một giao dịch"* · *"Tôi bị mất 500.000đ trong tài khoản"* ·
+  *"Tôi chuyển nhầm 500.000đ cho người khác tối qua"*.
+  **Câu KHÔNG kích** (đã đo, đừng dùng làm câu mở đầu): *"xin chào"* · *"Phí chuyển tiền là bao
+  nhiêu?"* · *"Chính sách hoàn tiền thế nào?"*.
 - **Điểm nhấn:** thao tác bấm, không phải gõ — nhanh, ít khả năng lỗi chính tả/gõ nhầm khi quay
   nhiều lượt. Nếu kịch bản MUỐN có đoạn gõ tự do (cho tự nhiên hơn), đó là một nhánh KHÁC, cần ai
   xác nhận riêng bằng thực tế trước khi đưa vào quay — không suy đoán nó cũng chạy được.
