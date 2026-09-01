@@ -40,7 +40,7 @@ và **không chỗ nào là lỗi thiết kế**:
 | `grep '"otp_code"' src/api/main.py` | `:452` `:999` — **đã vào trong `if OTP_DEMO_MODE`**, `config.py:199` fail-fast khi `APP_ENV=production` ⟹ **A1 ĐÃ VÁ** |
 | `grep compare_digest src/api/main.py` | `:492` `:1077` ⟹ **A2 ĐÃ VÁ** |
 | `grep -E 'HSTS\|CSP\|X-Frame-Options' Caddyfile` | **0** ⟹ ⑤ header bảo mật **VẪN CHƯA LAND** (treo từ 27/08) |
-| `git rev-list --count main..HEAD` | **213** · `origin/main..HEAD` = **145** |
+| `git rev-list --count main..HEAD` | ~~213~~ → **148** (đo lại 20:35). 🔴 **Số 213 lúc 20:20 SAI vì `main` local đang cũ 65 commit** — một phiên khác `git pull` fast-forward lúc **20:31:04**, `main` nay **= `origin/main` = `e92214c``. Bài học đúng luật T4: số này hỏng trong **15 phút**. Và nó nhắc cây làm việc **đang có phiên khác đụng git**. |
 | `grep -rl '91/2025' docs/` | 10 tệp ⟹ **C1/C2 đã làm**; nhưng `13/2023` còn ở **42 tệp** (phần lớn là lịch sử đã niêm — cần Bảo mật phân loại, không xoá) |
 | `ls docs/security/*C3* *C4*` | IR runbook + DPIA **có bản DRAFT**, chưa phê duyệt |
 | `grep -E 'sla\|due_at\|provisional' src/db/models.py` | **đúng 1 trường**: `Ticket.sla_due_at` — xem §3 |
