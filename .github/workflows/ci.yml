@@ -419,7 +419,7 @@ jobs:
           cat /tmp/pip-audit-c7.log
 
           KHONG_QUET_DUOC=$(grep -c "could not be audited" /tmp/pip-audit-c7.log || true)
-          DUNG_GOI_DA_BIET=$(grep -c "xx_ent_wiki_sm.*could not be audited" /tmp/pip-audit-c7.log || true)
+          DUNG_GOI_DA_BIET=$(grep -cE "xx[_-]ent[_-]wiki[_-]sm.*could not be audited" /tmp/pip-audit-c7.log || true)
           if [ "$KHONG_QUET_DUOC" -ne "$DUNG_GOI_DA_BIET" ] || [ "$KHONG_QUET_DUOC" -gt 1 ]; then
             echo "::error::C7 — có gói KHÔNG QUÉT ĐƯỢC ngoài xx_ent_wiki_sm."
             echo "::error::  dòng 'could not be audited': $KHONG_QUET_DUOC · khớp xx_ent_wiki_sm: $DUNG_GOI_DA_BIET"
