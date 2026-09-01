@@ -43,6 +43,57 @@
   soát, kết luận) — làm bằng chứng đã soát thật, không phải suy luận từ đã có checklist trước khi quay.
 ```
 
+## Diễn tập trước khi có phim (01/09) — đóng lỗ CÔNG CỤ trước, không đợi 22h mới phát hiện
+
+> Lý do làm mục này: PO chỉ đúng — "chờ có phim thật mới chạy quy trình" là lúc TỆ NHẤT để phát hiện
+> quy trình có lỗ công cụ. Tự đặt câu hỏi cho TỪNG bước ở trên: "tôi (`security`) làm được bước này
+> NGAY BÂY GIỜ không, hay còn thiếu công cụ/quyền?" — rồi tự đo, không suy luận.
+
+**Phát hiện gốc — tôi (`security`, chạy trong CLI, không có mắt xem video thời gian thực) KHÔNG có
+cách nào mở/tua/dừng khung hình một file video** bằng công cụ đang có. Đo trực tiếp trước khi sửa:
+
+```
+which ffmpeg ffprobe mpv vlc  →  KHÔNG có cái nào (chỉ có qlmanage — Quick Look GUI, tôi không thao
+                                   tác được vì không có màn hình/chuột)
+python3 -c "import cv2"        →  ModuleNotFoundError
+python3 -c "import imageio"    →  ModuleNotFoundError
+```
+
+Nghĩa là: nếu không sửa, đúng lúc 22h có phim thật, TOÀN BỘ 3 lượt soát trong bảng trên đều KHÔNG chạy
+được — "Lượt 1 xem bình thường" / "dừng khung hình" / "tua chậm 0.25x" đều giả định có một trình phát
+video, tôi không có.
+
+**Đã vá — cài `ffmpeg` (`brew install ffmpeg`), rồi TỰ KIỂM đủ 2 khâu bằng video tổng hợp giả (không
+đụng file thật, không cần đợi có phim):**
+
+1. Trích một khung hình tại đúng mốc giây chỉ định (`ffmpeg -ss <giây> -i <video> -frames:v 1 out.png`)
+   — mô phỏng bước "dừng khung hình" ở Lượt 2/3.
+2. Đọc lại `out.png` bằng chính Read tool — xác nhận nhìn được ảnh thật (không phải suy luận từ log).
+
+Cả hai khâu chạy đúng, có ảnh thật xác nhận. **Kết luận: lỗ công cụ đã đóng, quy trình giờ thi hành
+được** — không phải "chắc là được" như trước 01/09.
+
+**Cách thi hành thực tế 3 lượt bằng `ffmpeg` (thay cho "xem/tua" bằng mắt — tôi không có mắt xem
+video thời gian thực, đây là cách tương đương, thậm chí chặt hơn con người vì không phụ thuộc phản xạ
+kịp dừng ở khung hình 1-2 giây):**
+
+- **Lượt 1 (thay "xem bình thường")** — trích khung hình thưa đều toàn video (vd `fps=1`, một khung
+  mỗi giây) → đọc lướt theo lô để định vị ranh giới 8 Cảnh trên trục thời gian thật.
+- **Lượt 2 (đúng mục cấm)** — dùng mốc thời gian mỗi Cảnh vừa định vị, trích khung hình DÀY quanh đúng
+  vùng nghi ngờ của từng dòng trong bảng (badge góc trên-phải mọi Cảnh; toàn bộ khoảng OTP ở Cảnh 2 và
+  Cảnh 8) — đọc từng khung, đối chiếu cột "An toàn =".
+- **Lượt 3 (tua chậm điểm cắt)** — nếu bản dựng có cắt cảnh, trích MỌI khung hình (không lọc `fps`)
+  trong cửa sổ ±1 giây quanh từng điểm nối, đọc hết không bỏ sót.
+
+**Gap còn TỒN, chưa đóng — không tự sửa, cần Lead/PO quyết định trước 22h:** dòng #7 trong bảng ("có
+caption/lời mở đầu 'dữ liệu sinh tổng hợp'") — nếu đây là LỜI NÓI (audio, không phải chữ hiện trên
+màn hình), tôi KHÔNG có công cụ chuyển giọng nói thành văn bản (`which whisper` → không có, không tự
+cài vì đây là gói nặng — tải mô hình vài GB, quyết định thêm phụ thuộc mới nên hỏi trước, không tự
+quyết như `ffmpeg`). Nếu là CHỮ hiện trên màn hình (on-screen caption) thì đã đóng, dùng đúng phương
+pháp trích khung hình ở trên. **Cần biết trước khi quay: mục 7 sẽ làm bằng caption chữ hay lời thoại?**
+Nếu là lời thoại, cần quyết định thêm công cụ speech-to-text HOẶC đổi sang caption chữ để tôi soát
+được bằng chính công cụ đã có.
+
 ## Vì sao cần cổng này dù đã có checklist trước khi quay
 
 Checklist trước khi quay là **kế hoạch** — nó nói người cầm máy NÊN làm gì. Cổng này soát **kết quả

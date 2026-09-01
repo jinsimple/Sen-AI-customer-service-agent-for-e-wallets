@@ -106,6 +106,23 @@ vùng ghi `security`). Trước khi rút, người có quyền nên xác nhận 
 nhiên — nếu còn hiệu lực và có khả năng đây là khoá TRẢ PHÍ đang bị tính tiền dù không dùng, đây còn
 là vấn đề CHI PHÍ, không chỉ bảo mật, đáng báo riêng cho người quản lý tài khoản nhà cung cấp.
 
+**🔴 Cách đóng KHÔNG cần biết câu trả lời "còn hiệu lực không" — thu hồi là đúng dù khoá còn sống hay
+đã chết, một khoá bị bỏ quên không có lý do gì để giữ. Việc của PO thật (đăng nhập tài khoản cá nhân,
+tôi không tự làm được và không nên làm thay):**
+
+```
+1. Vào bảng điều khiển DashScope (Alibaba Cloud Model Studio): https://dashscope.console.aliyun.com/
+   → mục "API-KEY管理" / "API Key Management".
+2. Tìm khoá có tiền tố "sk-w..." (KHÔNG PHẢI khoá LLM_API_KEY app đang dùng thật — xác nhận đúng khoá
+   bằng cách so 6-8 ký tự đầu với giá trị QWEN_API_KEY trong .env thật trước khi thu hồi, tránh thu
+   hồi nhầm khoá đang sống).
+3. Bấm thu hồi/xoá (Revoke/Delete) đúng khoá đó.
+4. Sau khi thu hồi: `devops` xoá dòng QWEN_API_KEY khỏi .env (không còn khoá sống để giữ nữa).
+```
+
+Việc của PO thật — cần đăng nhập tài khoản cá nhân trên dashboard, tôi không có và không nên có quyền
+đó. Sau buổi quay video (không chặn buổi quay, không liên quan luồng camera).
+
 ## Việc thuộc vai khác, không phải tôi tự làm
 
 - Sửa `docker-compose.*.override.yml` (mục ①) — `devops`/`tech-lead`.
