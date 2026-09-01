@@ -65,9 +65,12 @@
 □ Caption hoặc lời mở đầu đã chuẩn bị: "Dữ liệu trong demo là dữ liệu sinh tổng hợp, không phải
   khách hàng thật."
 □ Không mở DevTools, không có tab/cửa sổ nào khác dễ vô tình Alt-Tab vào khung quay.
-□ Danh khoản đăng nhập demo đã biết trước, ĐỦ CẢ BA vai (không gõ sai, không phải thử lại nhiều lần):
-  - Khách (Cảnh 1-6): SĐT + mật khẩu.
-  - CSKH (Cảnh 7): tài khoản đăng nhập qua `/dang-nhap-noi-bo`.
+□ Danh khoản đăng nhập demo đã biết trước, ĐỦ CẢ BA vai (không gõ sai, không phải thử lại nhiều lần).
+  **[Điền 01/09 — QA/QC ĐĂNG NHẬP THẬT cả ba vai trên `https://localhost:59443`, không đọc CSDL rồi
+  suy; không gửi lượt chat nào.]**
+  - Khách (Cảnh 1-6): **`0387000001` / `Demo@123`** → vào `/chat`. `user_id` = **`USR-0001`**
+    (điền vào lệnh `psql` Cảnh 2 ở trên).
+  - CSKH (Cảnh 7): **`0353000201` / `Demo@123`** → vào `/dashboard`.
   - Sếp/supervisor (Cảnh 8): tài khoản đăng nhập qua `/dang-nhap-noi-bo`, vai khác CSKH. **SĐT
     `0905000205`, mật khẩu `TestP0Otp!2026`.** 🔴 **KHÁC với `Demo@123` ghi trong `docs/STATE.md:758`
     — ĐỪNG dùng giá trị đó.** Tự xác minh 01/09 bằng cách so trực tiếp với `password_hash` thật trong
@@ -99,6 +102,31 @@
   góc trên-phải; nếu ĐÃ vá, không cần né nhưng vẫn không rê chuột qua vùng đó (thói quen an toàn).
 
 ## Cảnh 2 — Xác thực OTP phiên
+
+🔴🔴 **CHẶN — ĐỌC TRƯỚC KHI BẤM MÁY (phát hiện 01/09, đo thật trên ngăn quay):**
+**Nếu khách đã xác thực OTP trong vòng 12 giờ, cảnh này SẼ KHÔNG XẢY RA.** Đăng nhập xong là vào
+thẳng `/chat`, **không có ô OTP nào để quay.** Không phải hỏng — đúng thiết kế
+(`src/config.py:215` `OTP_VIEW_MAX_MINUTES = 12 * 60`).
+
+Đo lúc 01/09 05:02 UTC trên `qa-stripe`: `USR-0001` có phiên `verified` lúc **04:37 UTC**
+⟹ **còn "tươi" tới 16:37 UTC (23:37 giờ VN)** ⟹ **quay chiều tối nay bằng `USR-0001` thì Cảnh 2
+KHÔNG hiện ô OTP.** Đây là hệ quả trực tiếp của việc QA/QC test tay cả ngày trên đúng tài khoản này.
+
+**Cách xử — chọn MỘT, theo thứ tự ưu tiên:**
+1. **Đổi tài khoản khách sang một `user_id` chưa xác thực hôm nay** (KHÔNG đụng CSDL, an toàn nhất).
+   Đã đo 01/09: **chỉ `USR-0001` có phiên tươi**; mọi khách khác đều dùng được, ví dụ
+   `USR-0002` / `0761000002`, `USR-0003` / `0812000003` (mật khẩu `Demo@123`).
+   ⚠️ Đổi tài khoản thì **giao dịch trong rail Cảnh 3 cũng đổi** — xem lại Cảnh 3-5 có còn hợp không.
+2. Quay Cảnh 2 **sau 23:37 giờ VN** — hết hạn tự nhiên, giữ nguyên `USR-0001`.
+3. ~~Xoá bản ghi phiên trong CSDL~~ — **KHÔNG.** Kịch bản dòng 77 đã chốt: không đụng CSDL ngăn quay.
+
+🔴 **Kiểm 30 giây ngay trước khi quay** (đừng tin dòng này, nó là số của 01/09):
+```
+docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
+  "select otp_status, created_at from auth_sessions where user_id='<user_id khách>' \
+   and otp_status='verified' and created_at > now() - interval '12 hours'"
+```
+→ **có dòng trả về ⟹ SẼ KHÔNG hiện OTP**, đổi tài khoản. **Rỗng ⟹ quay được.**
 
 - **Màn hình:** `/chat`, ngay sau đăng nhập, bong bóng chat đầu tiên xin OTP.
 - **Thao tác:** hệ thống hiện ô nhập OTP; người quay nhập mã.
@@ -139,7 +167,9 @@
 - **Màn hình:** `/chat`, vẫn ở rail "Giao dịch gần đây" từ Cảnh 3.
 - **Thao tác (đường ĐÃ xác nhận chạy, dùng đường này để quay):** bấm nút **"Báo lỗi giao dịch này"**
   ngay trên dòng giao dịch đã chọn ở Cảnh 3 → hệ thống hiện các **chip loại khiếu nại** → bấm đúng
-  chip khớp tình huống (vd "Bị trừ tiền hai lần").
+  chip khớp tình huống. **[Sửa 01/09 — Review đối chiếu `ChatClient.tsx:20-25`, bản trước ghi
+  "Bị trừ tiền hai lần", KHÔNG có chip nào tên vậy.]** Bốn chip THẬT, nguyên văn:
+  **"Chuyển nhầm"** · **"Tiền chưa về"** · **"Trừ tiền 2 lần"** · **"Hoàn tiền"**.
 - **Điểm nhấn:** thao tác bấm, không phải gõ — nhanh, ít khả năng lỗi chính tả/gõ nhầm khi quay
   nhiều lượt. Nếu kịch bản MUỐN có đoạn gõ tự do (cho tự nhiên hơn), đó là một nhánh KHÁC, cần ai
   xác nhận riêng bằng thực tế trước khi đưa vào quay — không suy đoán nó cũng chạy được.
@@ -208,6 +238,12 @@ làm lệch các tham chiếu đó. Không có Cảnh 6 riêng nữa — đã g�
 
 ## Cảnh 8 — Trình sếp duyệt
 
+🔴 **SỬA 01/09 — nút sau khi nhập OTP tên là "Xác nhận", KHÔNG phải "Xác nhận duyệt".**
+Review grep `frontend/src/`: chuỗi "Xác nhận duyệt" **không tồn tại ở đâu cả**. Nút mở panel
+đúng là **"Duyệt"**; nút bấm SAU KHI nhập OTP nằm trong `OtpInput.tsx:86` — dùng CHUNG với
+Cảnh 2 — chỉ ghi **"Xác nhận"** (và "Đang xác thực..." lúc chờ). Người quay tìm chữ "duyệt"
+trên nút đó sẽ không thấy, và khựng lại đúng ở route chạm tiền nhất hệ thống.
+
 🟢 **P0 đã vá (commit 554f6ad) — ĐÃ XÁC NHẬN CHẠY TRỌN bằng ảnh thật** (`64_sau_dien_otp_duyet.png`,
 `70_ket_qua_duyet_that.png`; đối chiếu DB: `status=approved`, `approved_by=USR-0205`). Không còn
 placeholder.
@@ -216,7 +252,7 @@ placeholder.
   thẻ đề xuất, KHÔNG có nút Duyệt ở đây) → bấm **"Mở chi tiết →"** trên đúng thẻ → chuyển sang
   `/tickets/[id]` — **nút Duyệt/ô nhập OTP/nút Xác nhận nằm ở TRANG NÀY**, không phải ở `/approve`.
 - **Thao tác đã xác nhận:** ở `/tickets/[id]`, xem trail đầy đủ (kể cả phần CSKH đã xem ở Cảnh 7,
-  cùng trang) → bấm xin OTP duyệt → nhập OTP → bấm "Xác nhận duyệt" → trạng thái chuyển
+  cùng trang) → bấm xin OTP duyệt → nhập OTP → bấm **"Xác nhận"** → trạng thái chuyển
   "Đã duyệt", khối "Quyết định phê duyệt" đổi thành "Ticket này không có đề xuất nào đang chờ duyệt."
 - **Điểm nhấn:** OTP RIÊNG cho đúng resolution này (còn hiệu lực 10 phút, chỉ dùng được cho đúng đề
   xuất này — dòng chữ này HIỆN THẲNG trên UI, có thể đọc thành lời), số tiền bị khoá tại thời điểm
@@ -229,7 +265,7 @@ placeholder.
   **Nếu OTP_DEMO_MODE ĐÃ tắt: DỪNG GHI HÌNH ngay trước khi mở terminal riêng — giữ máy quay TẮT
   xuyên suốt từ lúc mở terminal, chạy lệnh tra `otp_code` theo `resolution_id` (điền từ trail đang
   xem, ở mục "Chuẩn bị"), đọc mã, quay lại cửa sổ chính, TỚI KHI gõ xong đủ 6 ô trên UI — chỉ BẬT
-  LẠI máy quay SAU KHI 6 ô đã điền xong**, TRƯỚC khi bấm "Xác nhận duyệt". Không tách thành hai việc
+  LẠI máy quay SAU KHI 6 ô đã điền xong**, TRƯỚC khi bấm **"Xác nhận"**. Không tách thành hai việc
   riêng — đây là MỘT khoảng dừng liên tục.
 
   **Nếu OTP_DEMO_MODE CHƯA tắt lúc quay:** mã hiện thẳng trên UI ngay khi panel mở ra — cùng quy tắc
