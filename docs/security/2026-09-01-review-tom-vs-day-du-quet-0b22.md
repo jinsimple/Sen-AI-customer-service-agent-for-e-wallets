@@ -57,6 +57,19 @@ hoặc tệ hơn, "sửa cho khớp" (thêm lại guard đồng bộ hai biến)
 *"luật X"* rồi ngay dưới có *"đã rút / đã bác / không còn áp dụng"* — đây là một lớp bẫy có hệ
 thống, không phải một lần ngẫu nhiên.
 
+**Kết quả quét — không tìm thêm ca thứ 5, phạm vi đã quét: `graph.py` · `output_filter.py` ·
+`search.py`/`store.py`.** Review đúc kết hình dạng bẫy THẬT (khác quan trọng so với "chỉ nhắc rồi
+rút"): **luật ⟶ có ĐOẠN CODE chen giữa (trông như luật đang được thi hành) ⟶ RÚT nằm SAU code,
+tách rời**. 3 ứng viên kiểm kỹ và loại vì không khớp hình dạng đó — luật và RÚT nằm CÙNG một
+đoạn văn xuôi liền mạch, không có code chen giữa, tự gắn nhãn tường thuật ngay từ câu đầu
+(`graph.py:863`, `graph.py:2191`, `output_filter.py:164` — dạng "nhật ký quyết định minh bạch",
+không phải bẫy).
+
+🔴 **Phạm vi CHƯA quét, khai rõ để không ai đọc thành "toàn repo sạch":** `customer_tools.py` ·
+`phan_luong.py` · `cong_ra_ngoai.py` · `pii.py` và các file lớn khác chưa chạm đêm nay. Kết quả
+đúng là *"4 ca trong phạm vi đã quét"*, không phải *"chỉ có 4 ca trong toàn repo"* — dừng quét ở
+đây vì hạn 24:00, không phải vì đã quét hết.
+
 ## Lưu ý phụ — liên quan trực tiếp đêm nay, không phải bẫy tóm/đầy đủ
 
 **⑥ Golden set không dùng được để kiểm bản vá ①.** `STATE.md:68` ghi "golden không phủ tool
