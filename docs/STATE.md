@@ -91,6 +91,65 @@ từng vai (bẫy riêng của mỗi vai): **§0b.21**.
 🔴 **Kết luận của Review sống TRONG TIN NHẮN, không có tệp** — vai Review không ghi repo. Ba kết luận
 quan trọng nhất đã được neo hộ vào **§0b.22b**; phần còn lại **mất khi tắt phiên**, chấp nhận.
 
+### 🎒 LƯỢT NỘP CUỐI — "cái gì bạn biết mà repo không biết", 01/09 16:45
+
+Hỏi cả bốn vai đúng một câu đó trước khi tắt. Đây là thứ **sẽ chết theo phiên** nếu không ghi.
+Mỗi mục ghi rõ **ĐO ĐƯỢC** hay **GIẢ THUYẾT** — đừng nâng cấp giả thuyết thành sự thật khi trích lại.
+
+**CODER**
+- **ĐO ĐƯỢC — bẫy override, áp cho MỌI override kiểu này:** khi `image:` (ghim ảnh cụ thể) **chỉ tồn
+  tại trong override** còn base chỉ có `build:`, thì `up --force-recreate` **thiếu `-f …override.yml`**
+  không chỉ mất biến môi trường — compose **âm thầm quay về `build:`** và **tự dựng một ảnh MỚI**
+  dưới tag khác (log thật: `Image fin05-ctc1-check-backend Built`, thay vì dùng lại
+  `fin05-backend:ctc1`). Xác nhận `docker-compose.ctc1-check.override.yml:30` có `image:`, base không.
+  ⟹ **Quên `-f` sinh ra ảnh song song không ai xin.**
+- **GIẢ THUYẾT — rò rỉ RAM ③:** đã loại presidio (`lru_cache` thật). Nghi **OTel
+  `BatchSpanProcessor` giữ hàng đợi span xuất lỗi** không giải phóng, khớp đường cong 750MB→2,1GiB.
+  🔴 **Bằng chứng KHÔNG CÒN TÁI LẬP ĐƯỢC:** PO-agent grep log `ctc1-check-backend` lúc 16:40 →
+  **0 dòng** `Failed to export`/`4317` (log chỉ còn 217 dòng; container đã dựng lại 10:58, log cũ mất).
+  ⟹ Giữ làm **hướng điều tra**, KHÔNG trích như dữ kiện. `tracemalloc` nên soi **cả nhánh OTel**,
+  không chỉ presidio/checkpointer.
+- **LỖ QUY TRÌNH:** không registry nào liệt kê mã tag `loc_dau_ra` đã dùng (`O1-O5`, `RB3`, `CTC1`,
+  `CD1`…). Coder tự tránh trùng bằng `grep` tay. Phiên sau thêm cổng mới **có thể trùng mã, không
+  cổng nào bắt**.
+
+**QA/QC**
+- **ĐO ĐƯỢC — DOM còn sót:** `.otp-row`/`.otp-box` **KHÔNG unmount** sau khi xác thực xong, chỉ
+  `disable`. ⟹ Playwright kiểm "có yêu cầu OTP MỚI không" phải dùng `isEnabled()`, **không đủ với**
+  `isVisible()`. *(Chỉ nằm trong memory cá nhân, chưa từng vào repo.)*
+- **ĐO ĐƯỢC — bẫy test đa lượt:** tách file riêng mỗi lượt + đăng nhập lại giữa chừng ⟹ **JWT mới ⟹
+  `thread_id` mới ⟹ phá sạch state tích luỹ theo lượt**. Đã làm QA/QC báo nhầm *"lỗi hạn mức LLM"*
+  **ba lần**. Không dòng nào trong code/docs cảnh báo điều này.
+- **ĐÃ ĐÓNG bằng đo:** nghi mật khẩu CSKH cũng bị đổi tay âm thầm như mật khẩu sếp → đo cả ba bằng
+  Argon2 của app lúc 16:45, **cả ba OK**, đã ghi vào kịch bản (`0c09802`).
+- **CHƯA VÀO TỆP:** ma trận đầy đủ *9 tệp e2e × nguyên nhân đỏ* (mật khẩu sếp cũ · `OTP_DEMO_MODE=false`
+  · regex dashboard cũ · LLM non-determinism · 1 lỗi policy-lookup mới). **Mất khi tắt phiên.**
+
+**BẢO MẬT**
+- **ĐO ĐƯỢC:** `eval/results/render_that_desktop_25aug.png` (bản gốc, không `_SAU_VA`) **không chứa
+  OTP** ⟹ phiếu 4 hiện vật là ĐỦ, không sót hiện vật thứ 5.
+- **GIẢ THUYẾT:** 3 tệp không hậu tố `_SAU_VA` có thể từ bản spec cũ — chưa xác nhận bằng
+  `git log -p`. Không đổi kết luận (cả 6 tệp đều đã tracked).
+- **CÒN MỞ:** vá session-refresh `frontend/src/proxy.ts:115-145` **tự khai "ĐÃ VÁ" trong comment** —
+  **chưa ai xác nhận nó có trong ảnh Docker đang chạy**. Đúng bẫy *đọc source tĩnh ≠ ảnh chạy thật*.
+  Không chặn buổi quay (chính sách "đăng nhập là quay ngay" đã né).
+
+**REVIEW** *(vai này KHÔNG ghi repo — mọi thứ dưới đây chỉ có ở đây)*
+- **Bí ẩn chưa đóng:** `MT-Z01` lượt 2 — model **tự bịa "đã tạo hồ sơ"** dù khách không nhắc.
+  `RB3` (`graph.py:2095-2121`) chặn đúng **hậu quả**, nhưng **nguyên nhân gốc chưa ai điều tra**.
+- **3 GIẢ THUYẾT** (cần đọc `lookup_transaction` xác nhận; cố ý **không** nêu `case_id` vì tên ca
+  không đáng tin lặp lại): ① so khớp theo SĐT có thể không chạy cho giao dịch `to_bank` (không có ví
+  nhận nội bộ) · ② cửa sổ ngày mặc định có thể hẹp/lệch so với ngày giao dịch thật · ③ tham số `scope`
+  truyền vào tool có thể không khớp lời khách.
+- **LỖ ĐO:** `_NEGATION_WORDS` (`eval/_harness.py`) thiếu *"chưa hề"* / *"không X"* trần — **vá rẻ**.
+  Riêng biệt và **khó hơn hẳn**: matcher **mù đối tượng/phạm vi** (từ cấm nằm trong tên danh mục,
+  hoặc gắn tân ngữ vô hại) — **không vá được bằng cách thêm từ**.
+- **KHÔNG CÓ CỔNG:** `MT-F01` tự thiết kế để bắt *over-refusal* nhưng **không invariant nào đo nó**.
+  Và `must_create_manual_ticket` (`CASE-109/110`) — **không dòng nào trong `check_expected` từng đọc
+  field này**; hai ca đó chấm như thể cờ không tồn tại.
+- **SỐ CẦN ĐỌC KÈM ĐIỀU KIỆN:** *22/180 (12,2%) từ chối quá tay* là số **đã xác nhận trên tệp**,
+  nhưng **độ ổn định qua nhiều lượt CHƯA ai đo** — khác điểm Pass tổng golden (đã đo, ổn định).
+
 ---
 
 ## 0-BIS. 🟢 PHIÊN 30/08 — ĐỘI MỚI ĐANG CHẠY. ĐỌC MỤC NÀY TRƯỚC §0.
