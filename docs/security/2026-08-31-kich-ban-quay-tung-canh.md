@@ -65,7 +65,9 @@ SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
         401 = DỪNG, KHÔNG BẤM MÁY (khoá sai)
   8 □ Cert còn hạn (lệnh openssl bên dưới) → notAfter phải cách giờ quay vài tiếng.
       🟢 Đo 01/09 14:41: hạn tới 02:40 sáng mai — gần như chắc chắn xanh.
-  9 □ Phiên OTP của khách CHƯA "tươi" (lệnh psql ở Cảnh 2) → rỗng = Cảnh 2 quay được.
+  9 □ Mở CỬA SỔ ẨN DANH (hoặc đăng xuất sạch) rồi mới đăng nhập → Cảnh 2 chắc chắn hiện OTP.
+      🔴 Sửa 01/09 15:50: mục này TRƯỚC ĐÂY bảo truy auth_sessions — ĐO NHẦM BẢNG, bỏ đi.
+      otp_verified_at nằm trong TOKEN, không trong CSDL. Đăng nhập mới = luôn đòi OTP lại.
  10 □ ĐĂNG NHẬP rồi QUAY NGAY — token sống 15 phút. Nghỉ lâu hơn thì đăng nhập lại.
 ```
 
@@ -339,13 +341,19 @@ KHÔNG hiện ô OTP.** Đây là hệ quả trực tiếp của việc QA/QC te
    sang khuya.
 3. ~~Xoá bản ghi phiên trong CSDL~~ — **KHÔNG.** Kịch bản dòng 77 đã chốt: không đụng CSDL ngăn quay.
 
-🔴 **Kiểm 30 giây ngay trước khi quay** (đừng tin dòng này, nó là số của 01/09):
-```
-docker exec fin05-qa-stripe-postgres-1 psql -U fin05 -d fin05 -tAc \
-  "select otp_status, created_at from auth_sessions where user_id='<user_id khách>' \
-   and otp_status='verified' and created_at > now() - interval '12 hours'"
-```
-→ **có dòng trả về ⟹ SẼ KHÔNG hiện OTP**, đổi tài khoản. **Rỗng ⟹ quay được.**
+🔴 **[ĐÍNH CHÍNH 01/09 15:50] Lệnh psql ở đây ĐO NHẦM BẢNG — đã bỏ.** Bản cũ bảo truy
+`auth_sessions` xem có phiên `verified` trong 12h không, "có dòng ⟹ sẽ không hiện OTP". SAI:
+`otp_verified_at` là trường **trong token** (`src/auth.py:46`), đăng nhập cấp token với
+`otp_verified_at=None` đóng cứng (`src/api/main.py:339`), và `/agent/chat` đọc từ token chứ không tra
+bảng (`main.py:697`). Lịch sử `auth_sessions` **không quyết định gì** ở đây.
+
+✅ **Điều kiện thật, làm 5 giây, không cần lệnh:** mở **cửa sổ ẩn danh** (hoặc đăng xuất sạch) rồi
+đăng nhập tại chỗ. Đăng nhập mới ⟹ **luôn** đòi OTP lại. Rủi ro duy nhất còn lại là **token cũ còn
+sống** trong trình duyệt đã đăng nhập sẵn từ trước.
+
+> Vì sao ghi lại cả bản sai: lệnh đó đã chạy mỗi 15 phút suốt chiều 01/09 và **luôn ra "xanh"**.
+> Một cổng đo nhầm chỗ **không im lặng** — nó phát tín hiệu trấn an đều đặn, và chính sự đều đặn đó
+> làm không ai nghĩ tới việc kiểm lại xem nó đo cái gì.
 
 - **Màn hình:** `/chat`. 🔴 **[Sửa 01/09]** Ô OTP **KHÔNG** tự hiện sau đăng nhập — bản trước
   viết "bong bóng chat đầu tiên xin OTP", SAI. Nó hiện **sau khi bấm nút "Xác thực ngay"** trên
