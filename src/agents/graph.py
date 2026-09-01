@@ -30,6 +30,7 @@ from openai import (
     RateLimitError,
 )
 from opentelemetry.trace import Status, StatusCode
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.agents import llm_pool
@@ -154,6 +155,23 @@ _TEN_TIN_HIEU_DA_HOI_SANG_LOC = "da_hoi_sang_loc"
 # dịch chưa". Gộp là mất khả năng bắn ĐÚNG LƯỢT.
 _TEN_TIN_HIEU_CA_CHUYEN_NHAM = "ca_chuyen_nham"
 _TEN_TIN_HIEU_DA_TRA_DUOC_GD = "da_tra_duoc_gd"
+
+# ADR-057 (docs/DECISIONS.md, 01/09) — CHUYỂN NGƯỜI SỚM cho "tầng đắt".
+# Đếm SỐ LƯỢT (không phải điều kiện một-lần như ⑨) — tăng mỗi lượt còn ở
+# trạng thái "tầng đắt, chưa xác định giao dịch", đọc lại ở gate áp dụng
+# bên dưới (gần CTC1). Đặt CẠNH NHAU, KHÔNG GỘP với các tín hiệu ⑨ phía
+# trên — hai bộ tín hiệu trả lời hai câu khác nhau.
+_TEN_TIN_HIEU_LUOT_TANG_DAT = "luot_tang_dat"
+# 🔴 N TẠM CHỌN, căn cứ YẾU (ADR-057 tự khai: số từ MỘT lượt đo, nhiễu đã
+# chứng minh lớn — 22/75 ca đổi kết quả khi chạy lại cùng mã, xem ADR-056).
+# ĐỔI N = đổi ĐÚNG hằng số này — không rải số 2 ở chỗ khác.
+_N_LUOT_CHUYEN_NGUOI_TANG_DAT = 2
+# "Tầng đắt" — refund + wrong_recipient, kém nhất trong 4 loại khiếu nại
+# (14,0%/17,1% so với 26,7%/38,1%), và tiền ĐÃ NẰM TRONG TAY NGƯỜI KHÁC —
+# sai ở đây là để khách chờ một thứ không bao giờ tới, khác 2 loại còn lại
+# (lượt sau còn sửa được). Giá trị enum khớp CheckConstraint
+# `ck_complaints_type` (src/db/models.py) — không tự đặt tên khác.
+_LOAI_KHIEU_NAI_TANG_DAT = frozenset({"refund", "wrong_recipient"})
 DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
 DUONG_CAN_OTP = "can_otp"
 DUONG_FS13_BAN_GIAO = "fs13_ban_giao"
@@ -2226,6 +2244,44 @@ def run_agent_turn(
             nhom_khop = list(nhom_khop) + ["CTC1"]
             reply_da_loc = _cau_tra_loi_cong_tra_truoc(_cong_ket_qua)
 
+    # ── 🔴 ADR-057 · CHUYỂN NGƯỜI SỚM cho "tầng đắt" (CD1) ────────────────
+    # 🔴 RANH GIỚI (đọc trước khi sửa): đây là quy tắc TẤT ĐỊNH ở TẦNG
+    # SERVICE — AI KHÔNG quyết định gì cả, nó vẫn chỉ điều tra và trả lời
+    # như cũ. Nhánh này CHỈ được phép làm ĐÚNG MỘT việc: bật cờ gợi ý
+    # handoff (`goi_y_handoff`, đã có sẵn — ES-xx, frontend tự render nút
+    # "gặp người thật", hệ thống chỉ ĐỀ NGHỊ). TUYỆT ĐỐI không gọi
+    # create_ticket/request_human_handoff, không tự đổi should_escalate
+    # (khoá riêng cho FS-06 — test_fraud_policy_chi_dinh_tuyen_khong_phan_quyet).
+    # Dạy AI "tự thấy khó thì chuyển" là AI TỰ ESCALATE, phạm Ràng buộc
+    # cứng #2 — đây KHÔNG làm vậy: điều kiện đọc thẳng từ DB (Complaint.type/
+    # trans_id), không giao model diễn giải "khó" là gì.
+    #
+    # Điều kiện — máy đọc được, không cần mô hình hợp tác:
+    #   complaint_type ∈ {refund, wrong_recipient}   (tầng đắt, xem ADR-057)
+    #   AND số lượt còn ở trạng thái này ≥ N          (_N_LUOT_CHUYEN_NGUOI_TANG_DAT)
+    #   AND chưa xác định được giao dịch               (Complaint.trans_id IS NULL)
+    #
+    # Complaint TRA QUA `thread_id`, không qua `ticket_id` biến cục bộ ở
+    # trên — `ticket_id` chỉ khác None nếu TURN NÀY vừa tạo vé; complaint
+    # tầng đắt còn dang dở thường được tạo ở lượt TRƯỚC.
+    _tid_dat = thread_id or user_id
+    _complaint_dat = session.scalars(
+        select(Complaint)
+        .where(Complaint.thread_id == _tid_dat)
+        .order_by(Complaint.created_at.desc())
+        .limit(1)
+    ).first()
+    can_chuyen_nguoi_tang_dat = False
+    if (
+        _complaint_dat is not None
+        and _complaint_dat.type in _LOAI_KHIEU_NAI_TANG_DAT
+        and _complaint_dat.trans_id is None
+    ):
+        _luot_dat = tang_tin_hieu(_TEN_TIN_HIEU_LUOT_TANG_DAT, _tid_dat)
+        if _luot_dat >= _N_LUOT_CHUYEN_NGUOI_TANG_DAT:
+            can_chuyen_nguoi_tang_dat = True
+            nhom_khop = list(nhom_khop) + ["CD1"]
+
     # ⑧ · K3 — chèn SAU bộ lọc. Xem chú thích tại `_them_canh_bao_mao_danh`
     # về lý do KHÔNG được dời lên trước.
     reply_da_loc = _them_canh_bao_mao_danh(
@@ -2301,7 +2357,9 @@ def run_agent_turn(
         # ES-xx -> FRONTEND render nút "gặp người thật". KHÔNG tự gọi
         # request_human_handoff: quyền quyết định gặp người là của KHÁCH
         # (CTRL-001 / ISO-IEC 25059), hệ thống chỉ ĐỀ NGHỊ.
-        "goi_y_handoff": bool(tin_hieu_cam_xuc),
+        # ADR-057 (CD1) OR vào ĐÚNG cờ có sẵn này — không cờ mới, không
+        # đường mới, chỉ thêm MỘT lý do nữa khiến hệ thống đề nghị gặp người.
+        "goi_y_handoff": bool(tin_hieu_cam_xuc) or can_chuyen_nguoi_tang_dat,
         "duong": DUONG_DAY_DU,
         "ly_do_fallback": None,  # TƯỜNG MINH null, KHÔNG thiếu key — thiếu key
         # không phân biệt được với "bản cũ chưa có trường này".
