@@ -30,6 +30,33 @@
 - **Việc tiếp:** không chạm đêm nay (đã loại vì lý do khác — gộp đổi `src/` phá khả năng quy
   trách). Ghi lại để người làm sau không vá nhanh dựa trên giả định chưa kiểm.
 
+## Ca thứ 4 — cùng bẫy, nhưng lần này NẰM TRONG `src/`, không phải `STATE.md`
+
+**Phát hiện bởi PO (không phải Review), trong lúc kiểm tiền đề trước khi sửa `.env` cho (c).**
+Ghi vào đây vì cùng cấu trúc bẫy hệt ①②③ ở trên, và cho thấy bẫy này không giới hạn trong tài
+liệu điều phối — nó sống được cả trong chú thích mã nguồn.
+
+`src/config.py:361-363` (tiêu đề): *"Phần tử đầu PHẢI là `LLM_MODEL` — không tự thêm/sắp lại:
+một bể không bắt đầu bằng model đang ghim là đổi hành vi mặc định ÂM THẦM."*
+
+`src/config.py:368-373` (6 dòng dưới, cùng khối): *"RÚT một guard 'phần tử đầu phải == LLM_MODEL'
+đã viết ở đây rồi tự bác... `LLM_MODEL` và `LLM_MODEL_POOL` là hai biến ĐỘC LẬP có chủ đích;
+vòng xoay đọc `LLM_MODEL_POOL`, không đọc `LLM_MODEL` trực tiếp — không cần chúng khớp nhau để
+đúng."*
+
+**Đo thật xác nhận bản dưới đúng, bản trên đã lỗi thời:** `LLM_MODEL=qwen3.7-max-2026-06-08`
+(model #4 trong bể 6-7 model) — bể **không** bắt đầu bằng `LLM_MODEL` từ trước khi PO sửa gì tối
+nay, và hệ thống vẫn chạy đúng. `test_llm_pool_gd3.py` (QA/QC viết từ đặc tả) đòi chính xác khả
+năng này: đổi `LLM_MODEL_POOL` qua env mà KHÔNG cần đổi `LLM_MODEL` theo.
+
+**Rủi ro nếu chỉ đọc dòng 361-363:** từ chối một thay đổi hợp lệ (như (c) — gỡ `-05-17` khỏi bể),
+hoặc tệ hơn, "sửa cho khớp" (thêm lại guard đồng bộ hai biến) — phá đúng kịch bản
+`test_llm_pool_gd3.py` đang bảo vệ.
+
+**Việc giao Review:** mở rộng phép soát "tóm ≠ đầy đủ" sang chú thích trong `src/`, tìm dạng
+*"luật X"* rồi ngay dưới có *"đã rút / đã bác / không còn áp dụng"* — đây là một lớp bẫy có hệ
+thống, không phải một lần ngẫu nhiên.
+
 ## Lưu ý phụ — liên quan trực tiếp đêm nay, không phải bẫy tóm/đầy đủ
 
 **⑥ Golden set không dùng được để kiểm bản vá ①.** `STATE.md:68` ghi "golden không phủ tool
@@ -51,4 +78,6 @@ nên caveat này hiện không chặn gì — giữ lại cho lần sau ai đị
 
 3/7 mục trong sổ tồn đọng có khoảng cách bản tóm/đầy đủ đáng ghi (①②③ theo đánh số §0b.22,
 ① đã tự PO bắt được trước khi Review vào cuộc). 4/7 mục còn lại khớp hoặc được kế hoạch tối
-nay supersede tường minh — không cần hành động thêm ngoài việc niêm lại ở đây.
+nay supersede tường minh — không cần hành động thêm ngoài việc niêm lại ở đây. Cộng thêm 1 ca
+tìm thấy sau, trong `src/config.py` (không tính vào 3/7 vì khác tầng tài liệu) — xem mục riêng
+ở trên; Review đang mở rộng phạm vi soát sang toàn bộ chú thích `src/`.
