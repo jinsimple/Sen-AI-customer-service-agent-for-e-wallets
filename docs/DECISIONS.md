@@ -3432,3 +3432,97 @@ LÚC**, thay vì quẩn quanh tới hết lượt (dạng `MT-Z02`/`MT-Z04`).
   giữ nguyên §9 kèm allowlist, hay sửa lại nguyên tắc.
 - **Người duyệt:** PO thật *(tự đọc lại tài liệu và bắt lỗi, quan trọng hơn thứ tự thẩm quyền
   thông thường: đây là PO thật tự sửa dữ kiện, không phải PO-agent tự quyết)*
+
+## ADR-060 — Bật hiển thị OTP duyệt trong CHẾ ĐỘ DEMO (ngang hàng login OTP); production tuyệt đối không hiện
+- **Ngày:** 2026-09-03
+- **Bối cảnh:** Bản vá P0 `bdaf17e` (31/08) gỡ hiển thị mã OTP duyệt khỏi màn Sếp — yếu tố "sở
+  hữu" cho hành động tài chính cao nhất (duyệt hoàn tiền). Đúng về bảo mật production. NHƯNG gỡ
+  hẳn mà **không dựng kênh demo thay thế**: số điện thoại toàn dự án là GIẢ ⟹ không có SMS thật ⟹
+  trong demo, OTP duyệt **chỉ lấy được qua tab Network/log, không có đường UI**. Trong khi login OTP
+  vẫn hiện trên màn trong demo (`ChatClient` render `demoOtpCode`). Lệch, và làm bước Sếp-duyệt-OTP
+  **không quay video sạch được**. PO thật cần quay đoạn showcase một-vé liền mạch có cả bước này.
+- **Quyết định:** Bật lại hiển thị mã OTP duyệt trên màn Sếp **CHỈ trong chế độ demo** (gate theo
+  cờ demo, giống hệt cách login OTP đang làm), production **tuyệt đối không hiện và không trả
+  `otp_code` trong response**. Đưa OTP duyệt về **ngang hàng** login OTP trong demo — không hơn.
+- **Ràng buộc bất di (Coder phải giữ):**
+  1. `secrets.compare_digest` ở backend GIỮ NGUYÊN — duyệt vẫn bắt buộc OTP đúng, không bypass.
+  2. Gate demo-only **fail-closed**: production (không bật cờ demo) không hiện mã, không trả
+     `otp_code`. Giữ nguyên guard `config.py` fail-fast (`OTP_DEMO_MODE=true` + `APP_ENV=production`
+     ⟹ chết lúc khởi động).
+  3. Chỉ sửa **hiển thị + gate**, KHÔNG đụng logic HITL / authority-matrix / compare.
+- **Phương án đã cân nhắc và bác bỏ:** (A) Quay off-camera lấy mã từ Network tab — bác vì "Sếp lấy
+  OTP ở đâu" nằm off-camera, gượng, và số điện thoại giả nên không có câu chuyện "nhận qua điện
+  thoại" để kể. (C) Giữ nguyên bản vá P0, không đụng — bác vì để lại khoảng trống demo không lấp
+  (OTP duyệt không có kênh UI nào trong demo).
+- **Hệ quả:**
+  1. Video quay được bước Sếp duyệt OTP sạch, nhất quán với login OTP.
+  2. Rủi ro chấp nhận: trong DEMO, OTP duyệt hiện trên màn — đúng như login OTP đã chấp nhận từ
+     trước. **Production KHÔNG đổi** (vẫn ẩn nhờ gate). Nới lỏng CHỈ cho môi trường demo cô lập, dữ
+     liệu giả — không phải production.
+  3. 🔴 Lưu ý triển khai: bật `OTP_DEMO_MODE` xung đột với `APP_ENV=production` (guard `config.py`
+     fail-fast). Coder cần giải quyết (cờ/ảnh `quay-video` riêng, hoặc `APP_ENV != production` cho
+     ảnh đó) — **đề xuất phương án trước khi land**, vì đụng recreate + lớp bảo mật.
+- **Người duyệt:** PO thật (chọn "B" trực tiếp, 03/09/2026).
+
+## ADR-061 — Vá Finding ①: lọc theo `scope` mức CHUNK + cổng abstention bằng cross-encoder rerank (không dùng ngưỡng embedding đơn, không dùng LLM chấm)
+- **Ngày:** 2026-09-03
+- **Bối cảnh:** `search_policy`/`/policy-search` không có cổng lọc liên quan — câu rác hoặc câu lạc
+  đề scope vẫn trả `status=found` kèm chunk chính sách CÓ THẬT nhưng sai ngữ cảnh, chạm Ràng buộc
+  cứng #3. Đã thử hướng ngưỡng khoảng cách embedding đơn (30/08, đo lại 01/09 và 03/09 trên kho
+  thật) — THẤT BẠI cả ba lần đo: câu near-miss "phí liên ngân hàng" cho distance 0.9697/0.9059,
+  nằm sâu trong vùng lõi nhóm liên quan (0.698–0.936), không ngưỡng nào tách được mà không cắt
+  luôn ca khớp thật yếu nhất.
+- **Quyết định:** Vá bằng HAI LỚP độc lập, không thay thế lẫn nhau:
+  1. Lọc theo `scope` — gắn ở mức CHUNK (không phải document): khảo sát nội dung thật cho thấy
+     một tài liệu FAQ (297 chunk) tự nó trộn nhiều chủ đề (liên kết ngân hàng, thanh toán hoá đơn,
+     dịch vụ, khuyến mãi) — document-level không đủ mịn để giải đúng ca near-miss. Cơ chế lọc:
+     nới `k` truy vấn Chroma (không đổi embedding/Chroma schema), lọc theo `chunk.scope` khớp
+     `complaint.scope` (hoặc `chunk.scope=="unknown"` luôn qua) trong Python, cắt về số kết quả
+     cuối.
+  2. Cổng abstention — cross-encoder rerank-gate, KHÔNG dùng LLM chấm ("grounded generation"):
+     dự án có nguyên tắc xuyên suốt "guardrail tất định, độc lập với model" (O1–O4); cross-encoder
+     mã hoá CHUNG query+chunk nên bắt được loại lỗi mà bi-encoder (đã thất bại) không bắt được,
+     chạy CPU rẻ, không tốn token LLM.
+- **Ràng buộc bất di:**
+  1. `scope='unknown'` CHỈ khi thật sự không có căn cứ phân loại — BA review THẬT bản nháp
+     auto-phân-loại (script từ khoá tiêu đề FAQ), không rubber-stamp toàn bộ về `unknown`.
+  2. Model cross-encoder PHẢI đo hiệu quả trên câu TIẾNG VIỆT thật trước khi chọn — không tiền
+     cam kết tên model. Nếu cần cài thêm hạ tầng (RAM/model mới), báo trước khi cài.
+  3. Không đụng `contracts/agent-tools.yaml` cho tới khi ADR này được duyệt chính thức — chỉ sửa
+     `ghi_chu` mô tả (docstring `not_found` hiện sai, không phải đổi input/output/chữ ký), qua
+     đúng quy trình §3 hiến pháp.
+  4. Không gộp UI chọn scope lúc upload vào đợt này — tài liệu mới mặc định `scope='unknown'`,
+     Lớp 2 (abstention) chịu trách nhiệm phần đó. Việc kiểm duyệt nội dung upload track riêng
+     theo finding bảo mật (`docs/security/2026-09-03-finding-rag-upload-khong-kiem-duyet-noi-dung.md`).
+- **Phương án đã cân nhắc và bác bỏ:** (A) Ngưỡng embedding đơn — bác, đã đo 3 lần, thất bại có
+  số liệu. (B) Scope mức document — bác, nội dung thật trộn chủ đề trong một tài liệu. (C)
+  Grounded-generation bằng LLM chấm liên quan — bác, đi ngược nguyên tắc guardrail tất định độc
+  lập model, thêm chi phí/độ trễ, tự nó có thể bịa "liên quan" giống cách LLM bịa số. (D) Gộp UI
+  chọn scope lúc upload vào đợt này — hoãn, không chặn việc vá chính.
+- **Kế hoạch đo (bắt buộc trước khi tuyên bố xong, không "trông ổn"):** đo TRƯỚC/SAU trên cùng
+  tập test, lấy đủ BA số: precision khi `found` · tỉ lệ abstain ĐÚNG (near-miss + rác) · tỉ lệ
+  abstain SAI trên câu THẬT (né lặp lại lỗi "từ chối quá tay" 12–16% đã ghi nhận ở nơi khác của
+  hệ thống). Tập test gồm: relevant × 3 scope thật + near-miss-sai-scope + rác + query dò nội
+  dung `STATE.md` — **VÀ bắt buộc thêm bucket KHÔNG kèm `complaint.scope`** (mô phỏng đúng đường
+  AGENT tự gọi `search_policy`, hiện không truyền scope) cho cả near-miss lẫn query dò STATE.md,
+  đo RIÊNG số abstain-đúng cho bucket này, không gộp chung với bucket có scope — đây là ca nguy
+  hiểm nhất, đo chung sẽ che mất. Đo qua gọi thẳng `POST /policy-search` (tất định, không qua
+  LLM/agent, không tốn token) — không sửa hạ tầng `run_golden_set.py` trong đợt này.
+- **Hệ quả:**
+  1. Cần migration thêm cột `scope` (nullable, CHECK 4 giá trị y hệt `ck_complaints_scope`) vào
+     `policy_chunks`.
+  2. Cần backfill scope cho 378 chunk hiện có (BA review bản nháp auto-phân-loại của tech-lead).
+  3. `search_policy` không đổi chữ ký (`status`/`results` giữ nguyên type) — nhưng đổi HÀNH VI
+     thật (nhiều `not_found` hơn, đúng mục đích). Ghi rõ để không ai đọc contract tĩnh mà tưởng
+     hành vi không đổi.
+  4. Tài liệu mới nạp sau ADR này mặc định `scope=unknown` cho tới khi có UI gán (việc SAU, chưa
+     có ngày cam kết).
+  5. 🔴 `scope='unknown'` LUÔN qua Lớp 1 (thiết kế "trực giao mọi scope") — đây là LỖ CỐ HỮU của
+     Lớp 1, không phải bug: chunk `unknown` + đường agent không truyền scope ⟹ Lớp 1 hoàn toàn
+     INERT. Chỉ Lớp 2 gác được hai trường hợp này. Hệ quả vận hành: (a) tối thiểu hoá số chunk
+     `unknown` là điều kiện SỐNG CÒN cho hiệu quả Lớp 1, không phải tối ưu phụ; (b) Lớp 2 PHẢI tự
+     đứng vững một mình cho đường agent + nội dung `unknown`, không được thiết kế như "lớp phụ
+     trợ sau Lớp 1".
+- **Người duyệt:** Hướng hai lớp (①lọc scope + ②abstention) do PO THẬT chốt 03/09. Thiết kế kỹ
+  thuật cụ thể (chunk-level, cross-encoder, chi tiết migration) do phiên PO duyệt theo uỷ quyền —
+  sẽ tóm tắt lại cho PO thật, không phải PO thật tự đọc từng dòng kỹ thuật.
