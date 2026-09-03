@@ -94,8 +94,12 @@ export default function DashboardPage() {
     return {
       all: tickets.length,
       pending: tickets.filter((t) => t.hitl_status === "pending").length,
-      partner: tickets.filter((t) => t.partner_wait_status === "waiting" || t.partner_wait_status === "overdue")
-        .length,
+      partner: tickets.filter(
+        (t) =>
+          (t.partner_wait_status === "waiting" || t.partner_wait_status === "overdue") &&
+          t.hitl_status !== "approved" &&
+          t.hitl_status !== "rejected"
+      ).length,
       critical: tickets.filter((t) => t.priority === "critical").length,
       handoff: tickets.filter((t) => t.human_handoff_requested).length,
     };
@@ -106,7 +110,16 @@ export default function DashboardPage() {
     let list = tickets;
     if (filter === "pending") list = list.filter((t) => t.hitl_status === "pending");
     if (filter === "partner")
-      list = list.filter((t) => t.partner_wait_status === "waiting" || t.partner_wait_status === "overdue");
+      // Vé đã DUYỆT/TỪ CHỐI coi như đã kết thúc — không còn "chờ" gì nữa dù
+      // partner_wait_status chưa/không được cập nhật lại. Bug thật 03/09:
+      // hai vé "Đã duyệt" vẫn lọt vào tab này vì điều kiện cũ chỉ nhìn
+      // partner_wait_status, bỏ qua hitl_status.
+      list = list.filter(
+        (t) =>
+          (t.partner_wait_status === "waiting" || t.partner_wait_status === "overdue") &&
+          t.hitl_status !== "approved" &&
+          t.hitl_status !== "rejected"
+      );
     if (filter === "critical") list = list.filter((t) => t.priority === "critical");
     if (filter === "handoff") list = list.filter((t) => t.human_handoff_requested);
     if (search.trim()) {
