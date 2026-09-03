@@ -22,6 +22,13 @@ RUN node src/dau_ma_nguon.mjs > /app/.bam_ma_nguon && cat /app/.bam_ma_nguon
 
 # BACKEND_URL không cần lúc build — server-api.ts đọc process.env lúc request
 # chạy thật (route handler server-side), không phải lúc `next build`.
+#
+# NEXT_PUBLIC_QUICK_LOGIN — mặc định "false". Next.js thay NEXT_PUBLIC_* LÚC
+# BUILD nên KHÔNG truyền --build-arg = ba nút đăng nhập nhanh (page.tsx) và
+# mật khẩu đi kèm KHÔNG TỒN TẠI trong bundle, không phải chỉ ẩn UI. Chỉ bật
+# cho ảnh gắn tag riêng dùng một lần (quay video demo), không đè `latest`.
+ARG NEXT_PUBLIC_QUICK_LOGIN=false
+ENV NEXT_PUBLIC_QUICK_LOGIN=$NEXT_PUBLIC_QUICK_LOGIN
 RUN npm run build
 
 # ---- Stage 3: runtime ----

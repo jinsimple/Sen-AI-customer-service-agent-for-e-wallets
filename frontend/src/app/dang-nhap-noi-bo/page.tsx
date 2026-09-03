@@ -21,8 +21,25 @@ import EnvBadge from "@/components/EnvBadge";
 // trống, không kể gì về chính nó (không cả gợi ý "liên hệ quản trị" — gợi ý
 // đó đã xác nhận "đây là cổng có tài khoản thật phía sau"). Nhân viên tự gõ
 // số và mật khẩu của mình — họ biết, không cần trang nhắc.
+// 🔴 NGOẠI LỆ có chủ đích, hẹp, cho quyết định CẤM ở comment trên (26/08) —
+// KHÔNG đảo quyết định đó. Cờ build-time `NEXT_PUBLIC_QUICK_LOGIN`, mặc định
+// TẮT, cùng khuôn `OTP_DEMO_MODE`: Next.js thay `NEXT_PUBLIC_*` LÚC BUILD nên
+// không đặt cờ = ba tài khoản dưới KHÔNG tồn tại trong bundle gửi trình
+// duyệt, không phải chỉ ẩn UI. Dùng cho ĐÚNG một lần quay video demo 01/09,
+// build riêng tag `quay-video`, KHÔNG đè `latest`. PO thật chốt qua Lead.
+// PO thật đã đồng bộ CSDL `po-demo` 01/09 tối: cả ba tài khoản dưới dùng
+// CHUNG một mật khẩu (của CSKH, có backup hash cũ, đảo ngược được) — chỉ
+// khác số điện thoại. Không phải mặc định của toàn hệ thống, chỉ áp cho
+// ngăn `po-demo` đêm quay video 01/09.
+const MAT_KHAU_QUAY_VIDEO = "Demo@123";
+const QUICK_LOGIN_ACCOUNTS: { label: string; phone: string; password: string }[] = [
+  { label: "CSKH", phone: "0353000201", password: MAT_KHAU_QUAY_VIDEO },
+  { label: "Sếp", phone: "0905000205", password: MAT_KHAU_QUAY_VIDEO },
+  { label: "Đối tác ví", phone: "0900000001", password: MAT_KHAU_QUAY_VIDEO },
+];
+
 export default function LoginNoiBoPage() {
-  const { phone, setPhone, password, setPassword, error, loading, handleSubmit } = useLoginForm("internal");
+  const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm("internal");
 
   return (
     <main style={{ maxWidth: 420, margin: "80px auto", padding: "0 20px" }}>
@@ -32,6 +49,23 @@ export default function LoginNoiBoPage() {
         </div>
         <h3>Đăng nhập nội bộ</h3>
         <p className="sub">Dành cho nhân viên CSKH, sếp phê duyệt và đối tác ví.</p>
+
+        {process.env.NEXT_PUBLIC_QUICK_LOGIN === "true" && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            {QUICK_LOGIN_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.phone}
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: "1 1 auto" }}
+                disabled={loading}
+                onClick={() => doLogin(acc.phone, acc.password)}
+              >
+                {acc.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className={`field${error ? " field-error" : ""}`}>
