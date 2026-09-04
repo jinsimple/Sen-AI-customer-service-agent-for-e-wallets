@@ -14,6 +14,9 @@ const TABS: Record<Role, { href: string; label: string }[]> = {
   ],
   supervisor: [
     { href: "/approve", label: "Phê duyệt" },
+    // [04/09] Tách khỏi trang Phê duyệt — PO đo thật đông CSKH làm bảng
+    // chật trang duyệt. Bảng/cơ chế presence giữ nguyên, chỉ đổi chỗ.
+    { href: "/cskh-online", label: "CSKH online" },
     { href: "/report", label: "Báo cáo vận hành" },
     // Sếp cũng cần tra chính sách khi quyết định — backend /policy-search đã
     // mở cho supervisor sẵn trong authority-matrix, chỉ thiếu lối vào ở nav.

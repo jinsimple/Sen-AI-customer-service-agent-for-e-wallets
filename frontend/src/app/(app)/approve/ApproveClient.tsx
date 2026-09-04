@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ApiError, listResolutions } from "@/lib/api";
 import { ACTION_TYPE_LABEL, COMPLAINT_TYPE_LABEL, SCOPE_LABEL, type ResolutionListItem } from "@/lib/types";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import StaffPresenceTable from "@/components/StaffPresenceTable";
 
 export default function ApproveClient() {
   const [pending, setPending] = useState<ResolutionListItem[] | null>(null);
@@ -45,8 +44,6 @@ export default function ApproveClient() {
       </div>
 
       {error && <div className="note" style={{ borderColor: "var(--danger)" }}>{error}</div>}
-
-      <StaffPresenceTable />
 
       <div className="grid grid-2" style={{ alignItems: "start" }}>
         {pending?.length === 0 && <div className="dim">Không có đề xuất nào đang chờ duyệt.</div>}

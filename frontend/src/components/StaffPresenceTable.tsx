@@ -37,6 +37,14 @@ export default function StaffPresenceTable() {
 
   if (error) return <div className="note" style={{ borderColor: "var(--danger)" }}>{error}</div>;
 
+  // [04/09] Sắp xếp mặc định PO chốt: online lên đầu, trong mỗi nhóm xếp
+  // theo số vé đang xử lý giảm dần — ai đông việc nổi lên trước để dễ nhìn
+  // phân bổ. Chỉ sắp xếp hiển thị, không đổi dữ liệu/API.
+  const sapXep = items === null ? null : [...items].sort((a, b) => {
+    if (a.online !== b.online) return a.online ? -1 : 1;
+    return b.so_ve_dang_xu_ly - a.so_ve_dang_xu_ly;
+  });
+
   return (
     <div className="card" style={{ marginBottom: 20 }}>
       <div className="card-title" style={{ marginBottom: 10 }}>CSKH đang online</div>
@@ -52,7 +60,7 @@ export default function StaffPresenceTable() {
             </tr>
           </thead>
           <tbody>
-            {items.map((it) => (
+            {sapXep!.map((it) => (
               <tr key={it.user_id}>
                 <td>{it.full_name}</td>
                 <td>
