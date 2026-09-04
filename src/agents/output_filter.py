@@ -507,6 +507,47 @@ _O5_HUONG_KHACH = ["ban", "anh", "chi", "minh", "cua ban", "quy khach"]
 # suất, lịch sử, người khác) thì KHÔNG tính, dù có đủ động từ+đối tượng.
 _O5_MO_TA_CHUNG = ["nhieu lan", "truoc day", "thuong xuyen", "khach khac"]
 
+# 🔴 RB3 false-positive LẦN HAI (04/09, QA bắt qua T1-T5, 2/8 lượt — lần đầu
+# 04/09 sớm hơn là thiếu nguồn `request_human_handoff`, đã vá c6d15ac, KHÁC
+# bug này). Coder tái lập bằng test hàm trực tiếp (0 token, tất định):
+#   "Mình đã ghi nhận khiếu nại của bạn, đang xử lý tiếp." -> True SAI
+# "ghi nhận khiếu nại" KHÔNG phải model tự bịa — đây là cụm NGUYÊN VĂN
+# `prompt.py` dạy dùng (Ràng buộc #1 vế b) và kịch bản chuyên gia CSKH tham
+# chiếu dùng lặp lại nhiều lần — PO chốt: KHÔNG đụng prompt.py (nghiệp vụ
+# đúng), chỉ matcher cần khôn lên phân biệt 2 NGHĨA khác nhau của cùng cụm:
+#   NGHĨA MỀM — "đã ghi nhận/tiếp nhận" = đã NGHE/HIỂU thông tin, đang tiếp
+#     tục xử lý (chưa chắc đã gọi create_ticket).
+#   NGHĨA CỨNG — "đã tạo/mở/lập" = khẳng định một bản ghi cụ thể ĐÃ TỒN TẠI.
+# Review thiết kế, Coder verify 9 case + 4 case đối kháng tự thêm (khớp
+# 100%) trước khi land — xem lịch sử trao đổi Lead/Review/Coder 04/09 tối,
+# không lặp lại toàn bộ ma trận ở đây.
+_O5_DONG_TU_CUNG = [
+    "da tao", "da mo", "da lap",
+    "vua tao", "vua mo", "vua lap",
+    "da duoc tao", "da duoc mo", "da duoc lap",
+    "vua duoc tao", "vua duoc mo", "vua duoc lap",
+]
+_O5_DONG_TU_MEM = [
+    "da ghi nhan", "da tiep nhan",
+    "vua ghi nhan", "vua tiep nhan",
+    "da duoc ghi nhan", "da duoc tiep nhan",
+    "vua duoc ghi nhan", "vua duoc tiep nhan",
+]
+# Câu MỀM nói tiếp-diễn/chưa-xong (đứng CẠNH động từ mềm, KHÔNG phải toàn
+# reply — xem cảnh báo "reply-global" trong `khai_da_tao_ve` bên dưới, đây
+# CHÍNH LÀ nơi bẫy đó từng suýt tái diễn nếu đặt sai vị trí nhánh if).
+_O5_TIEP_DIEN = [
+    "dang xu ly", "de minh tra", "de minh kiem tra", "se tiep tuc",
+    "tiep tuc kiem tra", "cho minh it phut",
+]
+# KHÔNG có " ma " (mã) ở đây nữa — [ĐO 04/09] `_bo_dau()` sập TẤT CẢ "ma/má/
+# mạ/mả/mã/mà" về cùng chuỗi "ma", nên "mã" (số hồ sơ) và "mà" (liên từ —
+# một trong những từ phổ biến nhất tiếng Việt, vd "...của bạn MÀ chưa rõ...")
+# va chạm, bắt oan hàng loạt câu mềm+tiếp-diễn hợp lệ. Chuyển "mã" ra kiểm
+# riêng trên `reply` GỐC còn dấu trong `khai_da_tao_ve` (an toàn: hàm chỉ
+# nhận văn bản AGENT TỰ SINH, không phải input khách gõ tắt/không dấu).
+_O5_XAC_NHAN_MANH_KO_DAU = ["thanh cong", "xong"]
+
 
 def khai_da_tao_ve(reply: str) -> bool:
     """Câu này có KHAI rằng vé/hồ sơ ĐÃ ĐƯỢC TẠO không — bất kể có kèm mã hay không.
@@ -521,17 +562,53 @@ def khai_da_tao_ve(reply: str) -> bool:
     khe này chỉ mở ra với mã **BỊA** — và không ai vấp cho tới khi model bịa thật.
     Hậu quả đo được: **thêm một mã giả vào câu làm nó AN TOÀN HƠN trong mắt bộ lọc.**
 
-    ⟹ Hàm này CỐ Ý **không** miễn trừ theo mã. Nó chỉ trả lời *"có khai đã tạo
-    không"*; việc đối chiếu với `ticket_id` THẬT là của tầng gọi (`graph.py`), nơi
-    duy nhất biết sự thật. Đây là ràng buộc cứng 3 ép bằng SỰ THẬT, không bằng từ vựng
-    — nên nó không thừa hưởng trần của cách khớp-từ mà chú thích `_khop_o5` đã khai.
+    ⟹ Hàm này CỐ Ý **không** miễn trừ theo mã — có mã (thật hay bịa) không bao
+    giờ khiến hàm trả `False`, chỉ có thể đẩy VỀ PHÍA `True` (xem nhánh MỀM
+    dưới). Nó chỉ trả lời *"có khai đã tạo không"*; việc đối chiếu với
+    `ticket_id` THẬT là của tầng gọi (`graph.py`), nơi duy nhất biết sự thật.
+    Đây là ràng buộc cứng 3 ép bằng SỰ THẬT, không bằng từ vựng — nên nó không
+    thừa hưởng trần của cách khớp-từ mà chú thích `_khop_o5` đã khai.
+
+    🔴 04/09 — tách CỨNG/MỀM (xem `_O5_DONG_TU_CUNG`/`_O5_DONG_TU_MEM` phía
+    trên): động từ CỨNG ("tạo/mở/lập") luôn `True` khi có đối tượng — hành vi
+    CŨ, không đổi. Động từ MỀM ("ghi nhận/tiếp nhận") cần thêm 1 trong 2:
+    có MÃ THẬT (kèm dấu), hoặc KHÔNG có câu tiếp-diễn ("đang xử lý tiếp"...)
+    thì mới `True`; có tiếp-diễn mà không mã thì `False` (đúng case QA bắt).
+
+    Thứ tự bên trong nhánh MỀM là CỐ Ý — mã/thành-công xét TRƯỚC tiếp-diễn,
+    để một câu vừa có mã vừa có tiếp-diễn ("...mã KN-00042, đang xử lý tiếp
+    nhé") vẫn `True` (mã THẮNG, không bị câu tiếp-diễn "rửa sạch").
+
+    ⚠️ HAI ĐÁNH ĐỔI ĐÃ KHAI (Review + Coder, 04/09) — không phải lỗ bị giấu,
+    người đọc sau ĐỪNG tưởng chỉ có một hướng:
+    1. Check mã/"thành công" đang REPLY-GLOBAL (không giới hạn trong mệnh đề
+       chứa động từ mềm) — chỉ có thể làm hàm QUÁ TAY, gắn `True` THỪA cho
+       câu mềm có mã/"thành công" nằm ở mệnh đề khác không liên quan.
+       KHÔNG BAO GIỜ làm lọt một ca hallucination thật (chiều an toàn — dương
+       tính giả > âm tính giả, đúng nguyên tắc đầu file).
+    2. Check `" mã "` đọc `reply` GỐC còn dấu, KHÔNG qua `_bo_dau()` — nếu
+       model (hiếm, chưa từng thấy qua hàng chục ví dụ LLM thật) lỡ SINH RA
+       chữ "mã" thiếu dấu giữa một câu có dấu đầy đủ khác, câu đó rơi xuống
+       nhánh tiếp-diễn thay vì bắt được mã — CHIỀU NGƯỢC LẠI với đánh đổi ①
+       (có thể BỎ SÓT thay vì bắt oan). Chấp nhận vì hàm chỉ nhận văn bản
+       agent tự sinh (không phải input khách gõ tắt/không dấu), và tránh nó
+       lại mở lại va chạm "ma/má/mạ/mả/mã/mà" phổ biến hơn nhiều lần.
     """
     md = _bo_dau(reply)
     if any(t in md for t in _O5_MO_TA_CHUNG):
         return False
-    return any(v in md for v in _O5_DONG_TU_HOAN_TAT) and any(
-        d in md for d in _O5_DOI_TUONG
-    )
+    if not any(d in md for d in _O5_DOI_TUONG):
+        return False
+    if any(v in md for v in _O5_DONG_TU_CUNG):
+        return True
+    if any(v in md for v in _O5_DONG_TU_MEM):
+        co_ma_that = " mã " in f" {reply.lower()} "
+        if co_ma_that or any(x in md for x in _O5_XAC_NHAN_MANH_KO_DAU):
+            return True
+        if any(t in md for t in _O5_TIEP_DIEN):
+            return False
+        return True
+    return False
 
 
 def _khop_o5(reply: str) -> bool:
