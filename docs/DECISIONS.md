@@ -3625,3 +3625,9 @@ sản phẩm PO thật vừa chốt).
   khi code landing đủ 6 route — đúng trình tự contract-first đã định, không phải hồi quy.
 - **Thay thế:** không.
 - **Người duyệt:** PO thật (04/09, qua phiên PO — greenlit build, xác nhận qua chính ADR này).
+
+**Addendum (04/09, cùng ngày — GHI LẠI hành vi đã implement, không phải quyết định mới):** BOLA trên
+notifications trả **404** (anti-enumeration, không 403) — không phân biệt được "không tồn tại" với "của
+người khác". Xác nhận khớp `src/api/main.py::mark_notification_read` + test
+`tests/test_api/test_notifications_bola.py`. Ràng buộc bất di #1 ở trên chỉ nói "cô lập tầng service,
+chống BOLA" chưa ghi literal ngưỡng HTTP — dòng này chốt để hợp đồng không chỉ sống trong test.
