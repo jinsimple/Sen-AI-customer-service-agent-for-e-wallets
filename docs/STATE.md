@@ -59,6 +59,38 @@ người + bản live, không đóng bằng band-aid đêm nay):**
    cấu hình tái lập tại `docker-compose.dot-otp.override.yml` (commit `4226541`), PO duyệt tắt cho cửa
    sổ quay hôm nay (`docker stop`, không `rm` — đảo ngược được).
 
+## 0-SEXIES. 🔴 MỐC (c) RÚT LẠI 04/09 — bug RB3 P0 chặn quay, KHÁC gốc với rủi ro RAM ở §0-QUINQUIES
+
+> Mitigation RAM (worker 4→2 + pre-warm) THÀNH CÔNG — B3/B5 hết 500-body-rỗng, RAM ổn định suốt E2E
+> (đỉnh đo rời rạc: backend 1,869 GiB / rerank 1,173 GiB, KHÔNG phải đo liên tục — có thể lỡ đỉnh ngắn).
+> QA chạy trọn B1→B17 một mạch, vé xuyên suốt `TCK-6666adeb1f38`, Finding ① xác nhận vững qua network
+> log thô (B15 found đúng chunk · B16/B17 `not_found` thật, `tool_result_id:TR-dd38db445f55`).
+
+🔴 **Nhưng QA đối chiếu `tool_calls` thật với TEXT hiển thị cho khách — phát hiện bug KHÁC, P0, RÚT
+LẠI mốc (c):** bộ lọc `RB3` (`graph.py:2095-2121`, điều kiện kích ở `:2172`) — vốn chặn model tự bịa
+"đã tạo hồ sơ" khi khách chưa yêu cầu (đúng Ràng buộc cứng #3) — đang **FALSE-POSITIVE 2/2 lần** trong
+đúng lượt "sạch": `request_human_handoff` thành công THẬT (`ticket_id` đúng, `created_new_ticket:false`)
+nhưng RB3 vẫn ghi đè bằng câu phủ nhận sai "hồ sơ khiếu nại CHƯA được tạo". Gốc (Coder xác nhận bằng
+dòng code thật): vòng lặp gán biến `ticket_id` cấp graph (`graph.py:1943-1944`) chỉ đọc tool call tên
+`"create_ticket"`, bỏ sót `request_human_handoff` dù payload của nó cũng có `ticket_id` thật.
+
+**KHÔNG cùng gốc với bí ẩn `MT-Z01 lượt 2`** (Review, dòng cũ ở mục Review bên dưới) — đó là model bịa
+thật KHÔNG có tool call, RB3 bắt ĐÚNG. Ca này là false-positive NGƯỢC — tool thật thành công, RB3 bắt
+SAI. Hai bug khác nhau, cùng chạm cơ chế RB3.
+
+**Mức độ:** 2/2 lần trong lượt "sạch", đúng 2 khoảnh khắc đoán trước được (sau xác thực · lúc xin gặp
+người) ⟹ nhiều khả năng TÁI DIỄN mọi lượt, không phải may rủi hiếm. Đo tự động (kiểm state/ticket) KHÔNG
+bắt được vì state đúng, chỉ TEXT sai — khách thật đọc thấy thông tin sai ("chưa xong" khi đã xong).
+Chạm tinh thần Ràng buộc cứng #3 chiều ngược (không bịa CÓ, nhưng phủ nhận SAI cái THẬT). Xếp **P1 cho
+production**, không chỉ demo.
+
+**Trình tự PO chốt:** (1) Coder chẩn đoán+đề xuất vá RB3 (giữ nguyên mục đích gốc, không làm yếu guard
+cho ca `MT-Z01`) → Review soi BẮT BUỘC (bộ lọc chạm hằng số cứng) → PO/Lead gật → apply, gộp cùng lượt
+recreate bật `docker stats` ghi liên tục nền (mẫu rời rạc trước có thể lỡ đỉnh ngắn ở B10/B12-B14) →
+QA đo lại B3/B5 phải khớp ĐÚNG TEXT (không chỉ state) → (2) PO greenlit thêm tính năng thông báo (brief
+riêng, chưa tới) → (3) bổ sung bước vào storyboard 1-vé → (4) QA chạy 3 lần luồng mở rộng → (5) PO
+review để quay. **KHÔNG đóng gói "sẵn sàng quay" tới khi hết chuỗi này.**
+
 ## 0-QUATER. 🔴 BÀN GIAO 01/09 ~23:00 — ĐỢT 2 TIẾNG TRƯỚC HẠN 24:00. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
 
 > Viết bởi Lead (`p-226-92`), tổng hợp từ Coder/QA-QC/Bảo mật/Review/DevOps + PO (`p-226-29`).
