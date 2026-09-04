@@ -1450,7 +1450,21 @@ def policy_search(
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
     session: Session = Depends(get_session),
 ):
-    return _handle_tool_error(search_policy_text, session, query=req.query, k=req.top_k, duong_tra="cskh")
+    # ADR-062 — Lớp 1: route TỰ TRA scope từ complaint_id, KHÔNG tin `scope`
+    # do client tự khai (client chỉ được NÓI đang tra vé nào, không được TỰ
+    # NÓI phạm vi). `complaint_id` không tồn tại/không tra được ⟹ coi như
+    # KHÔNG có scope (bỏ lọc) — KHÔNG trả lỗi, KHÔNG phá luồng tra cứu.
+    # role đã gác ở `require_role` trên (chỉ cskh/supervisor) — cùng khuôn
+    # `get_ticket_detail` (main.py:774), route đó cũng không ép thêm quyền sở
+    # hữu theo complaint ngoài role, cskh/supervisor vốn thấy được MỌI vé.
+    scope = None
+    if req.complaint_id is not None:
+        complaint = session.get(Complaint, req.complaint_id)
+        if complaint is not None:
+            scope = complaint.scope
+    return _handle_tool_error(
+        search_policy_text, session, query=req.query, k=req.top_k, duong_tra="cskh", scope=scope
+    )
 
 
 # ---------------------------------------------------------------------------

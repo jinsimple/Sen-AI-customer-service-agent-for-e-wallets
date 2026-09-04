@@ -570,6 +570,17 @@ class PolicyDocument(Base):
 
 class PolicyChunk(Base):
     __tablename__ = "policy_chunks"
+    __table_args__ = (
+        # ADR-061 nháp (03/09) — Finding ① lớp 1. NULL = chưa gán (mặc định
+        # tài liệu mới, và toàn bộ 378 chunk hiện có tới khi BA review xong
+        # bản nháp auto-phân-loại). KHÔNG đọc cột này ở đâu trong search_policy
+        # cho tới khi ADR duyệt chính thức — thêm cột trước để tách bạch
+        # "chuẩn bị schema" khỏi "đổi hành vi", hai việc khác quy trình duyệt.
+        CheckConstraint(
+            "scope IN ('internal_wallet','from_bank','to_bank','unknown')",
+            name="ck_policy_chunks_scope",
+        ),
+    )
 
     chunk_id: Mapped[str] = mapped_column(String, primary_key=True)
     doc_id: Mapped[str] = mapped_column(ForeignKey("policy_documents.doc_id"), nullable=False)
@@ -577,4 +588,5 @@ class PolicyChunk(Base):
     # Mã hoá trong suốt (Fernet, giống BankAccount.account_no) — "bảo mật RAG
     # cấp cao": file SQLite trên đĩa không chứa nội dung chính sách dạng thô.
     text: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    scope: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)

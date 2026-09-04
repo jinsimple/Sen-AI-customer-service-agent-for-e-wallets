@@ -517,6 +517,27 @@ RAG_EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL") or "text-embedding-3-sma
 RAG_CHUNK_SIZE = 800
 RAG_CHUNK_OVERLAP = 150
 RAG_SEARCH_TOP_K = 4
+
+# ADR-061 (03/09) — Finding ① lớp 2: cổng abstention bằng cross-encoder rerank
+# thay vì ngưỡng khoảng cách bi-encoder đơn (đã đo và BÁC — xem ADR).
+# Cơ chế: lấy RAG_RERANK_CANDIDATE_K ứng viên từ Chroma (rộng hơn
+# RAG_SEARCH_TOP_K để không bỏ sót chunk đúng nằm ngoài top-K hẹp — ca
+# REL-IW-01 đo được 03/09 là bằng chứng: top-1 Chroma sai, nhưng top-8 có
+# chunk đúng), rerank TOÀN BỘ, chunk nào < ngưỡng bị loại, phần còn lại cắt
+# về RAG_SEARCH_TOP_K theo điểm rerank (không phải thứ tự distance cũ).
+RAG_RERANK_MODEL = os.environ.get("RAG_RERANK_MODEL") or "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+RAG_RERANK_CANDIDATE_K = int(os.environ.get("RAG_RERANK_CANDIDATE_K", "8"))
+# ADR-061 cập nhật 04/09 — kiến trúc SIDECAR (đo được backend 4-5 worker nhân
+# RAM nếu load model trực tiếp trong process). Rỗng = tính năng TẮT HẲN
+# (rerank.py coi như sidecar luôn "không tới được", fallback fail-closed —
+# không phải lỗi, là trạng thái hợp lệ cho ngăn chưa bật dịch vụ này).
+RAG_RERANK_SERVICE_URL = os.environ.get("RAG_RERANK_SERVICE_URL", "")
+RAG_RERANK_TIMEOUT_S = float(os.environ.get("RAG_RERANK_TIMEOUT_S", "5"))
+# Ngưỡng đo 03/09 trên 18 ca thật (tiếng Việt, top-k→rerank): tách biệt hoàn
+# toàn, phù hợp 7.03–10.91 / không phù hợp -7.52–-0.98, giữa khe ~3.0. KHÔNG
+# tự đổi số này mà không đo lại — đúng bài học ngưỡng đơn đã thất bại một
+# lần cho hướng khác (distance bi-encoder).
+RAG_RERANK_THRESHOLD = float(os.environ.get("RAG_RERANK_THRESHOLD", "3.0"))
 MAX_UPLOAD_SIZE_MB = 10
 
 # Live chat (2026-08-11) — lớp phòng vệ THỨ 2 bên cạnh dọn phiên lúc WS ngắt

@@ -199,6 +199,12 @@ class PolicySearchRequest(BaseModel):
 
     query: str
     top_k: int = Field(default=RAG_SEARCH_TOP_K, ge=1, le=8)
+    # ADR-062 — Lớp 1 (scope-filter, ADR-061) cần biết CSKH đang tra chính
+    # sách CHO vé nào để lọc đúng phạm vi giao dịch. Optional: KHÔNG truyền
+    # = hành vi CŨ (không lọc scope), client cũ không vỡ. Route tự tra
+    # `Complaint.scope` — không tin `scope` do client tự khai (client không
+    # được phép TỰ NÓI phạm vi, chỉ được NÓI đang tra vé nào).
+    complaint_id: str | None = None
 
 
 class LiveChatWsTicketRequest(BaseModel):
