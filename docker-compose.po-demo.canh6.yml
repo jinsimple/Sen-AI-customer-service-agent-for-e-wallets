@@ -1,0 +1,37 @@
+# Đưa vào repo 04/09 (trước đó sống trong scratchpad — file này CHÍNH XÁC là
+# nguồn đã dùng cho mọi recreate `po-demo` thành công hôm nay; đã tự bắt
+# được lỗi tối nay khi recreate THIẾU file này khiến `APP_ENV`/`OTP_DEMO_MODE`
+# rơi về mặc định production/false — không phải bug code, là do đường dẫn
+# tạm dễ quên `-f`).
+#
+# CHỈ dùng khi quay Cảnh 6 (ADR-060). Ghi đè APP_ENV/OTP_DEMO_MODE CHỈ cho
+# service `backend` của project fin05-po-demo — KHÔNG chạm .env gốc (dùng
+# chung cho các ngăn khác qua env_file). `environment:` ở đây đè lên giá trị
+# .env cùng tên cho ĐÚNG project này, gỡ bằng cách bỏ -f này ở lần recreate
+# sau (không cần sửa gì thêm để về trạng thái cũ, vì .env gốc không đổi).
+services:
+  backend:
+    environment:
+      APP_ENV: development
+      OTP_DEMO_MODE: "true"
+      # [04/09] Band-aid tạm cho rò rỉ RAM CÓ SẴN (chưa vá, việc riêng của
+      # DevOps) — hạ 4→2 để có thêm dư địa trước khi rò rỉ chạm trần VM lúc
+      # đang quay. KHÔNG phải bản vá gốc, chỉ mua thêm thời gian/dư địa.
+      #
+      # [04/09, 10:3x] Từng hạ tiếp 2→1 CHỈ cho lượt QA re-verify K1-K7 lúc
+      # RAM VM còn 8GB (MemAvailable ~3,63GiB, không đủ dư địa 2-worker cold-
+      # load NER). PO thật đã NÂNG RAM VM Docker Desktop lên 12GB (đo lại
+      # MemAvailable ~11,4GB, swap sạch) — hết lý do giữ 1, KHÔI PHỤC "2"
+      # đúng lời dặn tự ghi ở lần sửa trước.
+      #
+      # [04/09, muộn hơn] LƯU Ý: `.env` (gốc, dùng chung mọi ngăn) RIÊNG đã
+      # được thêm `UVICORN_WORKERS=2` bền (xem docs/STATE.md §0-QUINQUIES
+      # mục 5) — dòng dưới đây LẶP LẠI cùng giá trị cho project `po-demo`
+      # CỤ THỂ, không mâu thuẫn, chỉ là hai lớp phòng thủ cho cùng một số
+      # (một lớp chung mọi ngăn, một lớp riêng ngăn quay) — đổi 1 trong 2
+      # mà quên đổi lớp kia là đúng bẫy "hai định nghĩa của cùng một vật
+      # lệch nhau trong im lặng" đã cảnh báo ở nơi khác của dự án.
+      UVICORN_WORKERS: "2"
+
+# Dựng (LUÔN kèm docker-compose.po-demo.yml, không dùng riêng file này):
+# docker compose -p fin05-po-demo -f docker-compose.yml -f docker-compose.po-demo.yml -f docker-compose.po-demo.canh6.yml up -d --force-recreate --no-deps backend
