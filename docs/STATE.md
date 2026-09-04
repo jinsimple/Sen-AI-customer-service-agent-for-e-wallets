@@ -17,6 +17,48 @@
 
 ---
 
+## 0-QUINQUIES. 🔴 RỦI RO ĐANG MỞ 04/09 — worker chết không rõ nguyên nhân kernel-level, RAM mỏng
+
+> Phát hiện giữa cổng E2E cuối trước Review (Finding ① vừa land). Không phải bug Finding ①/rerank.py
+> (lỗ đó THẬT, đã vá riêng — `52d789f` — Review đã soát diff, không phải thủ phạm ở đây).
+
+**Triệu chứng thật (QA/QC, `po-demo`):** HTTP 500 body rỗng 2 lần liên tiếp (B3, B5 của kịch bản E2E),
+04:53:04-04:54:00 UTC 04/09. Log app: `Child process [N] died` — KHÔNG traceback, 2 lần liên tiếp.
+
+**Đã LOẠI:** không phải sai container/sai ngăn/sai cổng (QA đối chiếu mtime ảnh + `docker port`, khớp
+đúng container Coder soi). Không phải OOM-kill đã XÁC NHẬN ở kernel — `dmesg` đúng khung 04:52-04:56 UTC
+**0 dòng**; 2 dòng OOM ban đầu tưởng khớp thực ra là sự kiện CŨ ~37h trước (Coder tự phát hiện lệch
+timestamp, tự sửa). ⟹ "chết worker" có thật, "OOM" là giả thuyết hợp lý — CHƯA xác nhận kernel-level.
+
+**Cơ chế thật (DevOps, đọc mã + đo trực tiếp, không đoán):** `docker-entrypoint.sh:32` chạy
+`uvicorn --workers N`, **KHÔNG có `--preload`** (uvicorn 0.52.3 xác nhận qua `--help`) ⟹ mỗi worker là
+tiến trình Python ĐỘC LẬP, tự tải PII/NER riêng, không chia sẻ bộ nhớ. Đo: 1 tiến trình 192MB khởi động
+→ 2494MB SAU LƯỢT ĐẦU chạm PII-scrub (+2,3GB, một lần/worker). N=4 worker cùng chạm PII-scrub (dễ xảy
+ra dưới traffic thật) ⟹ ~10GB + sidecar rerank 1,1GB ≈ 11GB, vượt hẳn VM 7,75GB — **không phải "rò rỉ"
+tăng dần, là N-worker-độc-lập × tải-model-không-preload**, khớp đúng 993MB→3,54GB đo được (một vài
+worker tải xong, số khác tải dở). Đây CHÍNH XÁC là finding P1-6 DevOps ghi từ 01/09
+(`docs/devops/2026-09-01-tiep-nhan-danh-gia-ha-tang-eu-us.md`) — thiếu `mem_limit` mọi service.
+
+**Mitigation đêm nay (PO duyệt):** `UVICORN_WORKERS` 4→2 + recreate (reset) + pre-warm PII-scrub trên
+CẢ 2 worker sau recreate + theo dõi RAM live. Biên độ SAU khi hạ vẫn MỎNG: 2×2,3GB+nền ≈ 6,1GB + sidecar
+1,1GB ≈ 7,2GB/7,75GB VM — còn ~0,55GB cho Postgres/Redis/Jaeger/Caddy/frontend CỦA po-demo VÀ cả ngăn
+`dot-otp` chạy song song (không `mem_limit` tách biệt nào giữa 2 ngăn). Đây là GIẢM xác suất, KHÔNG
+LOẠI rủi ro tận gốc.
+
+🔴 **Việc CHƯA làm, backlog thật — 2-worker là BAND-AID, KHÔNG PHẢI fix gốc (rủi ro P1 cho đợt 150
+người + bản live, không đóng bằng band-aid đêm nay):**
+1. Thử trước, rẻ nhất: cờ `--preload` của uvicorn — tải model MỘT LẦN ở master rồi fork (copy-on-write),
+   thay vì N tiến trình độc lập mỗi cái tự tải lại 2,3GB.
+2. Nếu (1) không đủ/không hợp kiến trúc hiện tại: tách PII-scrub/NER thành sidecar riêng (đúng khuôn
+   `rerank_service/` vừa dựng) — tải model MỘT LẦN, giải quyết tận gốc thay vì đánh đổi concurrency
+   bằng giảm worker.
+3. `mem_limit` cho service `backend` mọi ngăn — rẻ, 1 dòng compose, DevOps đã đề xuất từ 01/09 (finding
+   P1-6), CỘNG THÊM dù đã làm (1) hoặc (2) — vẫn cần giới hạn cứng để một ngăn không OOM-kill ngăn khác
+   trên cùng VM không chia sẻ `mem_limit`.
+4. Ngăn `dot-otp` — việc ⑦ ĐÃ XONG 04/09: P4 xác nhận đã lưu nơi khác (`eval/results/2026-08-28-p4-*`),
+   cấu hình tái lập tại `docker-compose.dot-otp.override.yml` (commit `4226541`), PO duyệt tắt cho cửa
+   sổ quay hôm nay (`docker stop`, không `rm` — đảo ngược được).
+
 ## 0-QUATER. 🔴 BÀN GIAO 01/09 ~23:00 — ĐỢT 2 TIẾNG TRƯỚC HẠN 24:00. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
 
 > Viết bởi Lead (`p-226-92`), tổng hợp từ Coder/QA-QC/Bảo mật/Review/DevOps + PO (`p-226-29`).
