@@ -223,6 +223,33 @@ button{ font-family:inherit; }
 .user-menu-item-danger{ color:var(--danger); }
 .user-menu-item-danger:hover, .user-menu-item-danger:focus-visible{ background:var(--danger-bg); }
 
+/* ADR-063 — Chuông thông báo. Trigger vuông (không viên/tên như user-menu),
+   badge số nổi góc trên-phải icon chuông. */
+.notif-bell-trigger{ padding:7px; position:relative; }
+.notif-badge{
+  position:absolute; top:2px; right:2px; min-width:16px; height:16px; padding:0 4px;
+  background:var(--danger); color:#fff; border-radius:999px; font-size:10px; font-weight:800;
+  line-height:16px; text-align:center;
+}
+.notif-dropdown{ left:0; right:auto; min-width:300px; max-width:min(340px, calc(100vw - 32px)); max-height:70vh; overflow-y:auto; padding:0; }
+.notif-dropdown-header{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:10px 12px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface);
+}
+.notif-mark-all{ background:transparent; border:none; color:var(--navy); font-size:var(--fs-12); font-weight:600; cursor:pointer; padding:2px 4px; }
+.notif-mark-all:hover{ text-decoration:underline; }
+.notif-empty{ padding:20px 12px; text-align:center; color:var(--text-dim); font-size:var(--fs-14); }
+.notif-item{
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; text-align:left;
+  background:transparent; border:none; border-bottom:1px solid var(--border); padding:10px 12px; cursor:pointer;
+}
+.notif-item:last-child{ border-bottom:none; }
+.notif-item:hover, .notif-item:focus-visible{ background:var(--surface-2); outline:none; }
+.notif-item-unread{ background:color-mix(in srgb, var(--navy) 6%, transparent); }
+.notif-item-label{ font-size:var(--fs-14); font-weight:600; color:var(--text); }
+.notif-item-ticket{ font-size:var(--fs-12); color:var(--text-dim); font-family:var(--font-mono); }
+.notif-item-time{ font-size:var(--fs-12); color:var(--text-dim); }
+
 .tabnav{
   background:var(--surface-2); border-bottom:1px solid var(--border);
   padding:10px 28px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;

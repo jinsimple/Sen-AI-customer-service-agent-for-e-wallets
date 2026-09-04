@@ -341,3 +341,29 @@ export interface PolicySearchResult {
   results: PolicySearchResultItem[];
   tool_result_id: string;
 }
+
+// ADR-063 — Chuông thông báo. Nội dung CHỈ event_type + ticket_id — KHÔNG số
+// tiền/PII/SĐT (ràng buộc cứng #3 + PDPA, ép ở cả tầng backend lẫn type này).
+export type NotificationEventType = "ve_moi" | "cho_duyet" | "da_duyet" | "da_tu_choi";
+
+export interface NotificationItem {
+  notification_id: string;
+  event_type: NotificationEventType;
+  ticket_id: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export const NOTIFICATION_EVENT_LABEL: Record<NotificationEventType, string> = {
+  ve_moi: "Vé mới",
+  cho_duyet: "Đề xuất chờ duyệt",
+  da_duyet: "Đề xuất đã được duyệt",
+  da_tu_choi: "Đề xuất đã bị từ chối",
+};
+
+export interface StaffPresenceItem {
+  user_id: string;
+  full_name: string;
+  online: boolean;
+  so_ve_dang_xu_ly: number;
+}

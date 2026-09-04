@@ -4,11 +4,13 @@ import type {
   AgentChatResult,
   CustomerHistory,
   LookupTransactionResult,
+  NotificationItem,
   PolicyDocument,
   PolicySearchResult,
   RejectReason,
   ReportSummary,
   ResolutionListItem,
+  StaffPresenceItem,
   TicketDetail,
   TicketSummary,
   TicketTranscript,
@@ -372,4 +374,29 @@ export function submitChatCsat(chatSessionId: string, score: number) {
     `/api/live-chat/sessions/${chatSessionId}/csat`,
     { score }
   );
+}
+
+// ADR-063 — Chuông thông báo.
+export function listNotifications() {
+  return get<{ items: NotificationItem[] }>("/api/notifications");
+}
+
+export function getUnreadNotificationCount() {
+  return get<{ unread_count: number }>("/api/notifications/unread-count");
+}
+
+export function markNotificationRead(notificationId: string) {
+  return post<{ notification_id: string; read: boolean }>(`/api/notifications/${notificationId}/read`);
+}
+
+export function markAllNotificationsRead() {
+  return post<{ marked_read: number }>("/api/notifications/read-all");
+}
+
+export function presenceHeartbeat() {
+  return post<{ status: string }>("/api/presence/heartbeat");
+}
+
+export function listStaffPresence() {
+  return get<{ items: StaffPresenceItem[] }>("/api/presence/staff");
 }
