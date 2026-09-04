@@ -151,7 +151,12 @@ services:
       # cung cấp đổi model dưới chân ta, và MỌI SỐ ĐO âm thầm hết hạn. Ta đã
       # ghim mã (`bam_ma_nguon`) và ghim ảnh (`BUILD_COMMIT`) — đây là vật thứ
       # ba cùng lớp, trước nay chưa ghim.
-      LLM_MODEL: ${LLM_MODEL:-qwen3.7-plus-2026-05-26}
+      # [04/09] Cập nhật mặc định khớp ADR-058/059 — qwen3.8-flash là
+      # BASELINE thật từ 01/09, không phải ngoại lệ demo. Rủi ro ADR-059
+      # (tên KHÔNG ghim ngày, provider có thể đổi ngầm phía sau tên) VẪN CÒN
+      # MỞ — dòng này chỉ khớp hằng số với quyết định hiện hành, không giải
+      # quyết rủi ro gốc đó.
+      LLM_MODEL: ${LLM_MODEL:-qwen3.8-flash}
       # Mặc định cho LLM_BASE_URL — DevOps soát và duyệt 27/08 sau khi tự đo.
       # Vì sao cần: thiếu nó thì SDK rơi về đích MẶC ĐỊNH (api.openai.com) trong
       # khi LLM_MODEL đã là tên model DashScope ⟹ hai nửa cấu hình đến từ hai

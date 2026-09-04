@@ -1013,11 +1013,15 @@ def cau_hinh_dinh_tuyen_luc_chay() -> str:
     return f"PHAN_LUONG_BAT={gt!r} trên tiến trình đang chạy report này (os.environ, đọc trực tiếp)"
 
 
-# Model ghim của dự án (docker-compose.yml:154, `LLM_MODEL: ${LLM_MODEL:-...}`)
+# Model ghim của dự án (docker-compose.yml:159, `LLM_MODEL: ${LLM_MODEL:-...}`)
 # — chép tay CÓ CHỦ Ý, không import từ `src/config.py`: đọc qua đó sẽ áp đúng
 # default nội bộ của nó lên phép so sánh, che mất chính khoảng lệch mà chốt
 # này sinh ra để bắt (xem lỗ 10 ngày 16-26/08 trong commit 41aacd5).
-MODEL_GHIM_MAC_DINH = "qwen3.7-plus-2026-05-26"
+#
+# [04/09] Cập nhật khớp ADR-058/059 — qwen3.8-flash là BASELINE thật từ
+# 01/09, không phải ngoại lệ demo. Rủi ro ADR-059 (tên KHÔNG ghim ngày) VẪN
+# CÒN MỞ — dòng này chỉ khớp hằng số với quyết định hiện hành.
+MODEL_GHIM_MAC_DINH = "qwen3.8-flash"
 
 
 def xac_nhan_nguon_mo_hinh_luc_chay() -> dict[str, Any]:
