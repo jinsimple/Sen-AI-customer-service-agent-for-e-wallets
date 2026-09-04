@@ -299,6 +299,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
                 <th>Trạng thái</th>
                 <th>SLA</th>
                 <th>Cập nhật</th>
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -312,39 +313,18 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
                     onClick={() => router.push(`/tickets/${t.ticket_id}`)}
                   >
                     <td className="tls-stt" data-label="STT">{sttTheoTicketId.get(t.ticket_id)}</td>
-                    <td className="mono" data-label="Mã ticket">
-                      {t.ticket_id}
-                      {/* ADR-064(b), PO chốt UX 04/09 — nút CHỈ hiện cho cskh
-                          + vé còn trong pool; vé đã claim → badge cho mọi vai. */}
-                      {role === "cskh" && t.claimed_by === null ? (
-                        <button
-                          type="button"
-                          className="btn btn-outline btn-sm"
-                          style={{ marginLeft: 8 }}
-                          disabled={claiming === t.ticket_id}
-                          onClick={(e) => handleClaim(t.ticket_id, e)}
-                        >
-                          {claiming === t.ticket_id ? "Đang nhận…" : "Nhận vé"}
-                        </button>
-                      ) : t.claimed_by !== null ? (
-                        <span className="badge badge-neutral" style={{ marginLeft: 8 }}>
-                          Đã nhận
-                        </span>
-                      ) : null}
+                    <td className="mono" data-label="Mã ticket">{t.ticket_id}</td>
+                    <td className="tls-col-khach" data-label="Khách hàng">
+                      <span className="tls-ten" title={t.customer_name ?? "—"}>{t.customer_name ?? "—"}</span>
+                      {t.human_handoff_requested && <span className="badge badge-warning">Yêu cầu người thật</span>}
                     </td>
-                    <td data-label="Khách hàng">
-                      {t.customer_name ?? "—"}
-                      {t.human_handoff_requested && (
-                        <span className="badge badge-warning" style={{ marginLeft: 6 }}>
-                          Yêu cầu người thật
-                        </span>
-                      )}
+                    <td className="tls-col-loai-kn" data-label="Loại KN" title={t.complaint_type ? COMPLAINT_TYPE_LABEL[t.complaint_type] : "—"}>
+                      {t.complaint_type ? COMPLAINT_TYPE_LABEL[t.complaint_type] : "—"}
                     </td>
-                    <td data-label="Loại KN">{t.complaint_type ? COMPLAINT_TYPE_LABEL[t.complaint_type] : "—"}</td>
-                    <td data-label="Phạm vi">
+                    <td className="tls-nowrap" data-label="Phạm vi">
                       <span className="badge badge-neutral">{t.scope ? SCOPE_LABEL[t.scope] : "—"}</span>
                     </td>
-                    <td data-label="Ưu tiên">
+                    <td className="tls-nowrap" data-label="Ưu tiên">
                       {t.priority === "critical" ? (
                         <span className="badge badge-critical">
                           <span className="dot dot-pulse" />
@@ -356,7 +336,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
                         <span className="status-dot">Bình thường</span>
                       )}
                     </td>
-                    <td data-label="Trạng thái">
+                    <td className="tls-nowrap" data-label="Trạng thái">
                       {t.hitl_status === "rejected" ? (
                         <span className="badge badge-danger">{HITL_STATUS_LABEL[t.hitl_status]}</span>
                       ) : (
@@ -373,18 +353,37 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
                         </span>
                       )}
                     </td>
-                    <td className="mono" style={{ fontSize: 12 }} data-label="SLA">
+                    <td className="mono tls-nowrap" style={{ fontSize: 12 }} data-label="SLA">
                       {sla.label}
                     </td>
-                    <td className="faint" style={{ fontSize: 12 }} data-label="Cập nhật">
+                    <td className="faint tls-nowrap" style={{ fontSize: 12 }} data-label="Cập nhật">
                       {formatDateTime(t.created_at)}
+                    </td>
+                    <td className="tls-col-thao-tac" data-label="Thao tác">
+                      {/* ADR-064(b), PO chốt UX 04/09 — nút CHỈ hiện cho cskh +
+                          vé còn trong pool; vé đã claim → badge cho mọi vai.
+                          [polish 04/09, PO bắt ragged] tách khỏi ô Mã ticket —
+                          cột riêng để độ dài mã KHÔNG còn quyết định nút có
+                          rớt dòng hay không. */}
+                      {role === "cskh" && t.claimed_by === null ? (
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          disabled={claiming === t.ticket_id}
+                          onClick={(e) => handleClaim(t.ticket_id, e)}
+                        >
+                          {claiming === t.ticket_id ? "Đang nhận…" : "Nhận vé"}
+                        </button>
+                      ) : t.claimed_by !== null ? (
+                        <span className="badge badge-neutral">Đã nhận</span>
+                      ) : null}
                     </td>
                   </tr>
                 );
               })}
               {tickets && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="dim" style={{ textAlign: "center", padding: 24 }}>
+                  <td colSpan={10} className="dim" style={{ textAlign: "center", padding: 24 }}>
                     Không có ticket nào khớp bộ lọc.
                   </td>
                 </tr>

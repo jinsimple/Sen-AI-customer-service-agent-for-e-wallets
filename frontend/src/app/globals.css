@@ -433,6 +433,12 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
   }
   .table-cards-mobile td[colspan]{ display:block; text-align:center; }
   .table-cards-mobile td[colspan]::before{ content:none; }
+  /* Ellipsis/max-width ở desktop tồn tại để tránh cột kéo dài làm bảng lệch
+     hàng — thẻ dọc mobile không có "hàng" để lệch, ép cắt chữ ở đây chỉ làm
+     mất thông tin không cần thiết. */
+  .table-cards-mobile .tls-col-loai-kn{ max-width:none; white-space:normal; text-align:right; }
+  .table-cards-mobile .tls-col-khach .tls-ten{ max-width:none; white-space:normal; text-align:right; }
+  .table-cards-mobile .tls-col-khach{ flex-direction:column; align-items:flex-end; }
 }
 
 /* ---------- Login ---------- */
@@ -582,6 +588,23 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
 .tls-filter-panel .btn-clear-filter:hover{ background:var(--navy-2); border-color:var(--navy-2); }
 
 .tls-stt{ color:var(--text-dim); font-family:var(--font-mono); font-size:var(--fs-12); text-align:right; width:1%; white-space:nowrap; }
+
+/* [polish trước quay 04/09, PO bắt qua ảnh chụp] Bảng ticket dòng cao SO LE
+   — gốc là nút "Nhận vé"/badge "Đã nhận" SỐNG CHUNG ô với mã ticket, xuống
+   dòng hay không tuỳ độ dài mã. Tách nút/badge ra cột "Thao tác" riêng
+   (cuối bảng) là fix CHÍNH — mọi rule dưới đây chỉ dọn nốt các cột còn lại.
+   `min-width` cố định để trình duyệt ngắt dòng NHẤT QUÁN — nhiều dòng vẫn
+   được (PO chấp nhận, chỉ không chịu ragged), miễn CÙNG NỘI DUNG luôn ngắt
+   giống nhau, không phụ thuộc dòng bên cạnh còn bao nhiêu chỗ trống. */
+.tls-nowrap{ white-space:nowrap; }
+.tls-col-loai-kn{ max-width:170px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tls-col-khach{ min-width:150px; }
+.tls-col-khach .tls-ten{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
+/* display:block (không phải inline-block) CHỦ Ý — badge PHẢI luôn tự xuống
+   dòng riêng bất kể tên ngắn/dài, không được "đôi lúc vừa thì nằm cạnh tên"
+   (đó chính là kiểu so le PO vừa bắt). */
+.tls-col-khach .badge{ display:block; width:fit-content; margin-top:4px; }
+.tls-col-thao-tac{ white-space:nowrap; min-width:110px; }
 
 /* Queue */
 .filter-bar{ display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
