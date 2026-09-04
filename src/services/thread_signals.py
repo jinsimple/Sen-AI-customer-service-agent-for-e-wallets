@@ -112,6 +112,43 @@ def doc_hoac_khong_ro(ten_tin_hieu: str, thread_id: str) -> int | None:
         return None
 
 
+def luu_gia_tri(ten_tin_hieu: str, thread_id: str, gia_tri: str) -> None:
+    """Lưu MỘT CHUỖI (không phải bộ đếm) — dùng khi nơi gọi cần nhớ LÀ CÁI GÌ
+    (vd trans_id đang chờ xử lý), không chỉ CÓ HAY KHÔNG/BAO NHIÊU LẦN như
+    `tang`/`doc`. Cùng khuôn khoá + TTL, khác lệnh Redis (`SET` thay `INCR`).
+
+    Lỗi Redis: NUỐT, không raise — cùng nguyên tắc "tính năng phụ không được
+    làm hỏng lượt chat" của cả module. Nơi gọi đọc lại bằng `doc_gia_tri`, tự
+    lo phần "không lưu được thì làm gì" (xem gate ⑨ mục 4, `graph.py`)."""
+    try:
+        client = get_default_client()
+        khoa = _khoa(ten_tin_hieu, thread_id)
+        client.set(khoa, gia_tri, ex=TTL_GIAY)
+    except Exception as e:  # noqa: BLE001
+        _logger.warning(
+            "thread_signal_luu_gia_tri_that_bai",
+            extra={"ten_tin_hieu": ten_tin_hieu, "thread_id": thread_id, "loi": repr(e)},
+        )
+
+
+def doc_gia_tri(ten_tin_hieu: str, thread_id: str) -> str | None:
+    """Đọc lại chuỗi đã lưu bằng `luu_gia_tri`. Không có/Redis lỗi → `None` —
+    nơi gọi PHẢI tự phân biệt "chưa từng lưu" khỏi "lưu rồi nhưng đọc hỏng"
+    nếu điều đó quan trọng cho nơi gọi (xem `doc_hoac_khong_ro` ở trên, cùng
+    lý do): hàm này KHÔNG tự chọn hộ hướng an toàn, vì nó là primitive dùng
+    chung cho nhiều mục đích khác nhau, không riêng gate nào."""
+    try:
+        # `decode_responses=True` ở client dùng chung (redis_client.py) — đã
+        # là `str`, không phải `bytes`, không cần decode tay.
+        return get_default_client().get(_khoa(ten_tin_hieu, thread_id))
+    except Exception as e:  # noqa: BLE001
+        _logger.warning(
+            "thread_signal_doc_gia_tri_that_bai",
+            extra={"ten_tin_hieu": ten_tin_hieu, "thread_id": thread_id, "loi": repr(e)},
+        )
+        return None
+
+
 def dat_lai(ten_tin_hieu: str, thread_id: str) -> None:
     """Xoá bộ đếm về 0.
 
