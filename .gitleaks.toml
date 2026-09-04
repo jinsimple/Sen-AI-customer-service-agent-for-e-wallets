@@ -63,6 +63,17 @@ id = "generic-api-key"
   # được bằng mắt ("ci-dummy-...", "ci-ephemeral-not-for-production-..."),
   # không phải secret thật. Bỏ sót ở đợt phân loại 17-finding trước (DevOps
   # tự nhận lỗi phân loại, không phải secret mới lộ).
+  #
+  # 04/09 muộn hơn — path `docs/security/...finding-ai-log-api-key...md` bổ
+  # sung: KHÔNG PHẢI secret mới, CÙNG giá trị AI_LOG_API_KEY đã risk-accept ở
+  # trên (`REDACTED_AI_LOG_KEY`), chỉ đang nằm ở 2 nơi trong LỊCH SỬ thay vì 1 —
+  # chính hồ sơ finding này đã từng chép nguyên văn/che-một-phần giá trị đó ở
+  # các lần commit trước khi che triệt để ở HEAD (DevOps đo qua `git log -p`,
+  # 3 bản: đầy đủ → che một phần (vẫn đủ entropy bị bắt) → che triệt để hiện
+  # tại). Redact thêm ở HEAD KHÔNG xoá được bản cũ trong lịch sử (không
+  # rewrite — PO đã chốt), nên allowlist theo path này là cách xử lý NHẤT
+  # QUÁN với quyết định risk-accept đã ra cho `.env.example`, không phải một
+  # quyết định rủi ro mới.
   regexes = [
     '''Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=''',
     '''MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9''',
@@ -82,4 +93,5 @@ id = "generic-api-key"
     '''^data/generated/manifest\.json$''',
     '''^docs/guide/chapter-09\.md$''',
     '''^\.env\.example$''',
+    '''^docs/security/2026-09-04-finding-ai-log-api-key-git-history\.md$''',
   ]
