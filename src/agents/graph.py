@@ -86,9 +86,8 @@ from src.observability.tracing import get_tracer
 from src.services.complaint_intake import flag_human_handoff, hop_nhat_tin_hieu_gian_lan
 from src.services.emotion_signals import danh_gia_luot
 from src.services.thread_signals import dat_lai as xoa_tin_hieu
-from src.services.thread_signals import doc_gia_tri
+from src.services.thread_signals import doc_gia_tri, luu_gia_tri
 from src.services.thread_signals import doc_hoac_khong_ro as doc_tin_hieu
-from src.services.thread_signals import luu_gia_tri
 from src.services.thread_signals import tang as tang_tin_hieu
 from src.tools.base import ToolError
 
