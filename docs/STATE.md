@@ -141,6 +141,16 @@ người + bản live, không đóng bằng band-aid đêm nay):**
    cấu hình tái lập tại `docker-compose.dot-otp.override.yml` (commit `4226541`), PO duyệt tắt cho cửa
    sổ quay hôm nay (`docker stop`, không `rm` — đảo ngược được).
 
+🔴 **ĐÃ VÁ 04/09 (DevOps) — lỗ CẤU HÌNH thật, tự phát hiện lúc nâng trần chi tiêu:** mitigation
+"`UVICORN_WORKERS` 4→2" ở trên **CHƯA TỪNG được ghi bền** vào `.env`/`docker-compose.yml` — `grep
+UVICORN_WORKERS` cả hai file → **0 kết quả** trước bản vá này. Hệ quả: MỌI lần `docker compose up -d
+backend` (của bất kỳ ai, kể cả DevOps tự recreate để đổi trần chi tiêu 2M→3M) **âm thầm rơi về mặc định
+4** (`docker-entrypoint.sh:16`, `${UVICORN_WORKERS:=4}`) — đã tự bắt được đúng lúc recreate cho việc
+khác, KHÔNG PHẢI cố ý đổi lại. Đã thêm `UVICORN_WORKERS=2` vào `.env` (đoạn "App Config") + recreate lại
+→ [ĐO] `docker top fin05-po-demo-backend-1` xác nhận đúng 2 tiến trình `spawn_main...--multiprocessing-
+fork` (không suy từ dòng lệnh, đếm tiến trình con thật). Từ nay recreate KHÔNG rơi về 4 nữa, trừ khi ai
+đó tự đổi số trong `.env`.
+
 ## 0-SEXIES. 🔴 MỐC (c) RÚT LẠI 04/09 — bug RB3 P0 chặn quay, KHÁC gốc với rủi ro RAM ở §0-QUINQUIES
 
 > Mitigation RAM (worker 4→2 + pre-warm) THÀNH CÔNG — B3/B5 hết 500-body-rỗng, RAM ổn định suốt E2E
