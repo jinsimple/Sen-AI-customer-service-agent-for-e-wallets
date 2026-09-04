@@ -26,9 +26,12 @@
 - Chuông Sếp badge **+1**; thông báo "Vé #TCK-… chờ duyệt".
 - ✅ CSKH-B **KHÔNG** nhận thông báo "chờ duyệt" này (chỉ Sếp).
 
-**N4 — Sếp mở bảng "CSKH đang online".**
+**N4 — Sếp bấm tab "CSKH online" (tab riêng trong nav Sếp, TÁCH khỏi trang Phê duyệt — PO chốt
+04/09, lý do: thực tế đông CSKH, để chung trang Phê duyệt sẽ chật).**
 - ✅ Thấy CSKH-A và CSKH-B là **online**; đóng tab CSKH-B ~45s → B chuyển **offline** (presence TTL).
 - ✅ Cột "số vé đang xử lý" của CSKH-A phản ánh đúng (phiên live-chat đang nhận + đề xuất chờ duyệt).
+- ✅ Trang Phê duyệt KHÔNG còn bảng này (đã dời hẳn sang tab mới, không để 2 chỗ).
+- ✅ Sắp xếp mặc định: online lên đầu, rồi theo số vé giảm dần.
 
 **N5 — sau khi Sếp duyệt (≈B11).** Trên màn CSKH-A (người đã đề xuất):
 - Chuông A badge **+1**; thông báo "Sếp đã duyệt #TCK-…".
