@@ -97,6 +97,16 @@ chuông, badge môi trường ẩn) → Lead soi → chuyển PO-coord → trìn
   `authority-matrix.yaml` (thêm cột `kiem_thu_hoi` + test introspect) → **bắt buộc quy trình §3 + PO thật
   duyệt**. CHƯA áp, giữ dạng spec/ADR nháp.
 
+- **CI job `appsec` đỏ tất định theo state runner, không phải regression code** (DevOps đo 04/09
+  tối). `ci.yml:505-527` KHÔNG tự dựng docker compose cô lập (khác `route-guards-docker` có
+  `-p fin05-ci-<run_id>` riêng), và `tests/test_api/test_frontend_route_guards.py:32` hardcode
+  `BASE = "https://localhost"` — job nối vào BẤT KỲ stack thật nào đang nghe cổng 443 trên máy runner
+  self-hosted lúc đó. Đỏ vì tài khoản demo `0387000001` bị đổi vai bởi hoạt động thật khác (rất nhiều
+  thao tác đăng nhập/đổi vai trên po-demo/dot-otp tối nay), không liên quan commit đang test (`b1850aa`
+  chỉ đụng `output_filter.py`). Cùng họ lỗ P2-1 đã ghi 01/09 (runner CI tự quản dùng chung, không cách
+  ly tenancy) — nay lộ thêm: không chỉ dùng chung MÁY mà dùng chung DỮ LIỆU/STACK THẬT. Vá tận gốc =
+  tái cấu trúc job này tự dựng stack cô lập per-run (tech-lead, không khẩn, không chặn quay).
+
 ### BACKLOG khác (sau quay, trước 150 người) — hồ sơ đã neo git `6e315cf`
 cookie secure flag · vá regex điện thoại test-harness (`_harness.py:818`, thêm anchor) · test BOLA tự
 động cho 6 route noti (chờ phiên tester bật) · docstring `danh_dau_da_doc` (nói "SQL" nhưng thực lọc
