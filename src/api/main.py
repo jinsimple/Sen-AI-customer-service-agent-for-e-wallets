@@ -119,10 +119,13 @@ from src.services.notifications import (
     danh_dau_da_doc,
     danh_dau_tat_ca_da_doc,
     dem_chua_doc,
-    liet_ke as liet_ke_notifications,
     notify_da_quyet_dinh,
 )
-from src.services.presence import heartbeat as presence_heartbeat, online_user_ids, so_ve_dang_xu_ly
+from src.services.notifications import (
+    liet_ke as liet_ke_notifications,
+)
+from src.services.presence import heartbeat as presence_heartbeat
+from src.services.presence import online_user_ids, so_ve_dang_xu_ly
 from src.tools.base import ToolError, new_id
 from src.tools.escalate_ticket import escalate_ticket as _escalate_ticket
 from src.tools.get_customer_history import get_customer_history as _get_customer_history

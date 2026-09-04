@@ -20,6 +20,18 @@ ignore = ["E501"]
 # N802, CHỈ trong tests/ — mọi luật `N` khác (vd N806 biến cục bộ) và mọi tên
 # hàm trong src/ vẫn phải theo luật, không có lý do tiếng Việt nào ở đó.
 "tests/**" = ["N802"]
+# 04/09 — cùng lý do trên, cùng khuôn: eval/bo-cham/bom_loi_khach.py có hàm
+# `_kiem_tra_CA_CU_MO_HO` (viết hoa nhấn "case cũ mơ hồ"), không phải lỗi
+# đặt tên, là chủ đích. eval/bo-cham/ sinh test data, cùng bản chất với
+# tests/, không phải src/.
+"eval/bo-cham/**" = ["N802"]
+# 04/09 — cases.py tự khai ở đầu file: "Nguồn: goi_30_nhan_NGUOI.md — giữ
+# NGUYÊN VĂN, không sửa một chữ nào." 5 dòng W291 nằm TRONG chuỗi
+# agent="""...""" nhiều dòng — trailing whitespace đó là PHẦN CỦA DỮ LIỆU
+# trích dẫn, không phải style code. `ruff --fix`/`--unsafe-fixes` sẽ XOÁ nó,
+# tức sửa đúng "một chữ" (khoảng trắng) mà comment đầu file cấm sửa. Miễn
+# W291 CHỈ file này, không lan sang cases khác hay eval/bo-cham/** nói chung.
+"eval/bo-cham/cases.py" = ["W291"]
 
 [format]
 quote-style = "double"

@@ -535,7 +535,14 @@ jobs:
     # nữa, nhưng có thể FIFO nội bộ đội). Gỡ ghim CHỈ khi ADR-037 đóng bằng phép đo mới
     # (BTC xác nhận phạm vi rò rỉ, hoặc runner đổi sang ephemeral).
     runs-on: [self-hosted, team-226]
-    if: ${{ github.event_name != 'schedule' }} # Stage 6 (nightly) không cần chạy lại stage này
+    # 04/09 — CHUYỂN sang nightly-only (PO): job này gọi run_agent_turn()
+    # trực tiếp trong tiến trình, không qua docker-compose backend, nên
+    # FIN05_CHO_PHEP_GOI_RA_NGOAI (mặc định TỪ CHỐI) chưa từng được khai ở
+    # đây — chặn 100% case từ 18/08, không phải regression. Sửa gốc (khai
+    # env dưới) + đổi sang per-push→nightly cùng lúc, đúng khuôn Stage 6:
+    # 120 case + functional/fraud/err là LLM-eval đắt, nondeterministic,
+    # không hợp làm cổng chặn mọi push — giữ độ phủ ở nightly, không xoá.
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     # ═══ ĐÍCH ĐẾN LLM — KHAI TƯỜNG MINH, 27/08 ═══════════════════════════
     # 🔴 KHÔNG PHẢI DỌN DẸP. Đây là vá một cổng ĐANG CHẤM SAI VẬT.
     #
@@ -570,6 +577,11 @@ jobs:
       LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
       LLM_MODEL: qwen3.7-max-2026-06-08
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
+      # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
+      # backend, nơi biến này CÓ khai) nên chưa từng được mở — chặn mọi case
+      # từ ngày cổng ra đời, không phải regression của thay đổi nào sau này.
+      FIN05_CHO_PHEP_GOI_RA_NGOAI: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -652,6 +664,11 @@ jobs:
       LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
       LLM_MODEL: qwen3.7-max-2026-06-08
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
+      # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
+      # backend, nơi biến này CÓ khai) nên chưa từng được mở — chặn mọi case
+      # từ ngày cổng ra đời, không phải regression của thay đổi nào sau này.
+      FIN05_CHO_PHEP_GOI_RA_NGOAI: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

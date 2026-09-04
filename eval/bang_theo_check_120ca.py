@@ -111,14 +111,14 @@ def main() -> int:
 
     # Nhãn cảnh báo gắn NGAY CẠNH số — đọc rời số khỏi cảnh báo là y hệt cái
     # bẫy "câu điều kiện rụng khỏi câu" đã gặp nhiều lần (xem docstring đầu file).
-    _CANH_BAO_CANH_TEN = {
+    _canh_bao_canh_ten = {
         "khong_tao_ticket_hop_le": "🔴 TÊN NGƯỢC — True = KHÔNG tạo hồ sơ là ĐÚNG, không phải \"tạo hợp lệ\"",
         "de_nghi_truoc_khi_tao_ticket": "🔴 n RẤT NHỎ (~4) — tỉ lệ cao trên mẫu này gần như không nói gì",
     }
     print(f"\nCHẤT LƯỢNG (n = {len(records)} ca):")
     bang_check = gom_theo_check(records)
     for ten, (dat, tong_ck) in bang_check.items():
-        canh_bao = _CANH_BAO_CANH_TEN.get(ten, "")
+        canh_bao = _canh_bao_canh_ten.get(ten, "")
         dong = f"  {ten:55s} {dat}/{tong_ck}"
         print(f"{dong}  {canh_bao}" if canh_bao else dong)
 
