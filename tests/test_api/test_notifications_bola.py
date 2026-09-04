@@ -1,4 +1,4 @@
-"""BOLA cho notifications (ADR-063 · contracts/authority-matrix.yaml v2.2.0).
+"""BOLA cho notifications (ADR-063 · contracts/authority-matrix.yaml v2.3.0).
 
 Nguồn (đọc, KHÔNG đọc src/):
   - contracts/authority-matrix.yaml — 6 route notification/presence, roles
@@ -35,7 +35,12 @@ from src.auth import create_access_token
 from src.db.models import Complaint, Notification, Ticket
 
 CONTRACT_VERSION = {
-    "authority-matrix.yaml": "82682d415144",
+    # Bump 04/09 sau ADR-064: xác nhận đã đọc diff (f87aa9f) — ADR-064 chỉ
+    # đổi route/ghi_chu của GET /tickets, GET /tickets/{id}, transcript,
+    # request-more-info, GET /resolutions, và route MỚI POST .../claim.
+    # 6 route notification/presence mà file này test KHÔNG bị đụng tới
+    # (không route/roles nào của chúng xuất hiện trong diff f87aa9f).
+    "authority-matrix.yaml": "13ec039a71a9",
 }
 
 # recipient_user_id lấy từ user có sẵn trong sample_db (tests/conftest.py):
