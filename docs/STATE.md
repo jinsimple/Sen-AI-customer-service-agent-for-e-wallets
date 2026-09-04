@@ -3,8 +3,10 @@
 > **Viết cho người đọc NGUỘI** — bạn không có gì trong đầu, chỉ có repo này.
 > Đọc `CLAUDE.md` (hiến pháp) trước, rồi file này, rồi 5 ADR gần nhất trong `docs/DECISIONS.md`.
 >
-> 🔴 **Cập nhật MỚI NHẤT: 01/09/2026 ~23:00 — đọc `§0-QUATER` ngay dưới, TRƯỚC mọi mục khác.**
-> `§0-TER` (16:30) là bàn giao đợt TRƯỚC buổi quay bị gỡ — đọc SAU, làm nền lịch sử.
+> 🔴 **Cập nhật MỚI NHẤT: 04/09/2026 ~17:00 — đọc `§0-HIỆN-HÀNH` ngay dưới, TRƯỚC mọi mục khác.**
+> Đó là ẢNH CHỤP hiện hành. `§0-QUINQUIES`/`§0-SEXIES` (04/09) là nhật ký sự kiện chi tiết cùng ngày
+> (địa chỉ commit/ADR/file để truy vết). `§0-QUATER` trở xuống (01/09 ~23:00, `§0-TER` 16:30, và cũ
+> hơn) là bàn giao các phiên TRƯỚC — đọc SAU, làm nền lịch sử.
 > Dòng "Cập nhật 18/08" cũ bên dưới giữ nguyên làm mốc lịch sử, **không còn là mốc hiện hành**.
 >
 > Cập nhật: **18/08/2026**, ngay trước khi PO thật tắt toàn đội để khởi động lại sạch.
@@ -14,6 +16,86 @@
 > PO đã gỡ nhiều nút ngày 24/08. Dọn trọn file này là việc của `/wrapup` phiên hiện tại.
 > Nhật ký chi tiết ngày 17/08 (3.001 dòng, mọi lập luận và số đo):
 > `docs/nhat-ky/2026-08-17-nhat-ky-day-du.md`
+
+---
+
+## 0-HIỆN-HÀNH. 🟢 04/09/2026 ~17:00 — SẴN SÀNG QUAY, chỉ chờ vá 2 lỗi UI chuông cuối
+
+> ẢNH CHỤP hiện hành cho người đọc nguội. Nắm trạng thái chỉ cần mục này. Các mục §0-QUINQUIES/§0-SEXIES
+> ngay dưới là nhật ký sự kiện chi tiết cùng ngày (địa chỉ bằng chứng: commit/ADR/file). §0-QUATER trở
+> xuống là bàn giao phiên trước, làm nền lịch sử.
+
+### Đang ở đâu
+Chuẩn bị buổi quay demo **"một vé liền mạch"** (kịch bản B1-B17 xen thông báo N1-N6, gói ảnh+kịch bản ở
+artifact `cf9fb4c9`). Mọi điều kiện KỸ THUẬT để quay ĐÃ ĐỦ; nút cổ chai duy nhất còn lại: khoá nốt 2 lỗi
+UI nhỏ trên chuông thông báo (PO thật bắt trực tiếp trên màn 04/09), gộp 1 lần rebuild.
+
+### Đã XONG + verify THẬT (nền tin được)
+- **Finding ①** (RAG trả chunk lạc scope) — vá 2 lớp: Lớp 1 lọc scope theo chunk · Lớp 2 rerank
+  cross-encoder qua **sidecar** (`rerank_service/`, fail-closed → `not_found` nếu sidecar chết).
+  **ADR-061**. Verify: câu rác→not_found, đúng-scope→found, rerank khớp host, 23/23 invariants.
+- **Nối dây `complaint_id`** — **ADR-062** (server đọc `Complaint.scope`, chặn IDOR; không-quyền→scope=None
+  KHÔNG 403; đường agent scope-less).
+- **Thông báo (chuông + bảng presence Sếp)** — **ADR-063**, backend `051c8f8` + frontend `7aa3c4d` đã
+  land. 6 route, presence Redis TTL 45s, fan-out 1 hàng/người (cùng transaction sự kiện gốc), BOLA→404.
+  Verify ×3 abridged + 1 full seamless. Review soát ADR-063 SẠCH (cả 2 đường tạo vé — `create_ticket` &
+  `request_human_handoff` — đi CÙNG một hàm notify, không sót).
+- **RB3 false-positive** (`graph.py`) — model phủ nhận SAI "hồ sơ chưa tạo" sau handoff thành công. Vá
+  `c6d15ac` (đọc `ticket_id` từ payload `request_human_handoff`, vòng cũ chỉ đọc `create_ticket`). Review
+  chứng minh đơn điệu (không làm yếu guard ca hallucination thật), QA verify đúng TEXT hiển thị.
+- **MỐC (c) — lượt FULL SEAMLESS** vé `TCK-a316e1a2f3db`, một mạch B1-B17 xen N1-N6, 25/25 manifest Đạt,
+  Lead tự soi 5 ảnh + đọc log. 1 lượt full sạch = ĐỦ bar quay (budget ~450-480k token/lượt, không chạy lượt 2).
+- **Cổng an toàn đối kháng** — TỪNG xanh-giả (đo định tuyến, không đo LLM; env `FIN05_CHO_PHEP_GOI_RA_NGOAI`
+  thiếu trong `ci.yml` từ 18/08). Chạy lại THẬT trên `qwen3.8-flash`: **45/46 ĐẠT**, agent kháng injection
+  thật. 1 ca "trượt" (ADV-035) = **lỗi regex BỘ KIỂM** `eval/_harness.py:818` bắt nhầm 6 số cuối mã GD
+  thành SĐT — KHÔNG phải agent lộ. Regex production `src/observability/pii.py` chặt hơn, an toàn.
+- **CI 4 job đỏ** vá xong: pypdf 2 CVE→6.16.1 · ruff whitespace vùng tester · `business-rules-golden-set`
+  →nightly-only · `ai-safety-adversarial` giữ per-push + thêm env. (PO chốt bỏ golden-set khỏi CI/CD
+  per-push 04/09.)
+- **2 hằng model-pin** (`_harness.py:1020` + `docker-compose.yml:154`) vá `cffb024` khớp `qwen3.8-flash`
+  (baseline thật theo ADR-058/059).
+- **USR-0202 reset `Demo@123`** (PO duyệt 04/09) — cần 2 CSKH online cùng lúc cho fan-out N1-N6. Verify
+  bằng đăng nhập THẬT (`0560000202`/`Demo@123` → 200, Lý Đức Giang). Hash gốc lưu, đảo ngược được.
+- **Che PII: MỘT chính sách DUY NHẤT** (security xác nhận 04/09) — `mask_full_name`/`mask_phone`
+  (`masking.py`, BR-06) theo `is_owner`, KHÔNG theo vai. "chị Ngân" (chat khách) vs "T. H. Ngân" (bảng
+  CSKH) chỉ khác CÁCH TRÌNH BÀY cùng phần dữ liệu KHÔNG-che (CSKH cũng thấy y hệt), không phải hai mức
+  che. An toàn lên camera. (Chi tiết: `docs/security/2026-08-15-ra-hai-duong-scrub-con-lai.md`.)
+
+### UI chuông — 3 lỗi PO bắt trực tiếp, ĐÃ VÁ + đo THẬT (04/09 ~17:30)
+Gộp 2 đợt rebuild, HEAD hiện `e3112ed`:
+1. **Panel tràn PHẢI** (desktop) — VÁ `7cafdc9` (`.notif-dropdown` `left:0`→`right:0`, `globals.css`).
+2. **Panel tràn TRÁI** (mobile 390px) — VÁ (media query màn hẹp neo theo viewport). Đo Playwright:
+   x=8/width=374 → trọn viewport (trước vá x=-255).
+3. **Badge số đỏ đè icon chuông** — VÁ (`.notif-badge` offset âm, badge nổi ngoài góc). Cận cảnh: icon
+   rõ, badge không đè, cả 2 kích thước.
+Đo xác nhận đủ (Coder, Playwright thật): desktop 1280px KHÔNG hồi quy (x=783/width=300 y hệt trước) · cờ
+quay còn (băm khớp HEAD `e3112ed`, quick-login còn bundle, badge môi trường ẩn cả 2 kích thước) · CHỈ
+frontend recreate, backend/rerank/pg/redis/caddy/jaeger uptime + cờ nguyên vẹn.
+**Nút cổ chai duy nhất còn lại:** QA chụp ảnh CHÍNH THỨC cho gói quay (panel mobile+desktop, cận cảnh
+chuông, badge môi trường ẩn) → Lead soi → chuyển PO-coord → trình PO thật quyết quay.
+
+### RỦI RO ĐANG MỞ (KHÔNG chặn quay — chặn đợt 150 người / bản live)
+- **RAM/OOM** — uvicorn không `--preload`, mỗi worker tự tải PII/NER 2,3GB; 4 worker > VM 7,75GB.
+  Band-aid đang giữ: 2 worker + prewarm. Fix gốc backlog: **PII sidecar + `mem_limit`** (DevOps P1-6,
+  `docs/devops/2026-09-04-mem-limit-va-pii-sidecar-de-xuat.md`). Đã đo lại: `--preload` là của **Gunicorn
+  KHÔNG phải uvicorn** → đi thẳng sidecar.
+- **Logout không thu hồi token — RỘNG hơn tưởng**: `/agent/chat` gọi `run_agent_turn()` in-process,
+  KHÔNG qua HTTP tool route → access_token đã logout vẫn chat + AI vẫn tra được ví/giao dịch qua tool nội
+  bộ. Đây là đường 150 người thật dùng (ưu tiên #1). Security spec
+  `docs/security/2026-09-04-spec-deny-by-default-token-thu-hoi-va-cookie-secure.md`. Vá = **ĐỔI CONTRACT**
+  `authority-matrix.yaml` (thêm cột `kiem_thu_hoi` + test introspect) → **bắt buộc quy trình §3 + PO thật
+  duyệt**. CHƯA áp, giữ dạng spec/ADR nháp.
+
+### BACKLOG khác (sau quay, trước 150 người) — hồ sơ đã neo git `6e315cf`
+cookie secure flag · vá regex điện thoại test-harness (`_harness.py:818`, thêm anchor) · test BOLA tự
+động cho 6 route noti (chờ phiên tester bật) · docstring `danh_dau_da_doc` (nói "SQL" nhưng thực lọc
+Python — cosmetic, an toàn) · Jaeger chưa có TTL/rotation trace · auto-attach nối vé xác định (phác thảo
+`docs/giao-viec/2026-09-04-phac-thao-tu-noi-ve-mo-gan-nhat.md`) · kiểm duyệt upload hướng C.
+
+### Đội (04/09 ~17:00)
+Lead `p-226-92` điều phối Coder/QA/Review; PO-coord `p-226-29`. Không vai nào kẹt: Security/DevOps xong
+hồ sơ backlog (thuần tài liệu, không đụng po-demo), Review xong soát ADR-063, QA chờ tín hiệu build UI
+chuông. Bản demo ĐÓNG BĂNG: chỉ nhận đúng đợt vá UI chuông, không thêm vá nào khác trước quay.
 
 ---
 
@@ -202,6 +284,25 @@ chứng minh HỢP THÀNH). QA dừng đúng ở đây theo chính sách này.
 báo xong 2 tầng+verify ×3+full, Finding ① vững, `ai-safety-adversarial` xác nhận không P0, CI 4 job vá,
 mitigation RAM giữ vững suốt các lượt. Còn lại là quyết định của PO thật (chốt B3-tự-phục-hồi đã không
 còn ý nghĩa vì RB3 đã vá triệt để, không còn hiện tượng đó nữa).
+
+**Bổ sung cùng ngày:** PO thật yêu cầu thêm — tách bảng "CSKH đang online" ra tab riêng nav Sếp (`d6289bb`
++ `9a9a052`, thuần frontend, không đụng contract). Trong lúc vá, Coder tự bắt: route mới bị `proxy.ts`
+(allowlist route-theo-vai RIÊNG của frontend, tách khỏi `authority-matrix`) chặn — **CA THỨ TƯ cùng lớp
+lỗi** "guard frontend hẹp hơn contract" (trước: `/policy-lookup`, `/dashboard`, `/report`). Đã vá tại
+chỗ, nhưng 4 lần không còn là ngẫu nhiên.
+
+🔴 **BACKLOG MỞ, cần PO quyết ranh giới trước khi giao ai:** dựng test kiểu `test_invariants.py` cho
+FRONTEND — đối chiếu `ROLE_PREFIXES` (`proxy.ts`) với `authority-matrix.yaml` tự động, bắt đúng lớp lỗi
+này ngay khi route mới quên khai. Vướng: `tests/` là vùng `tester`, nhưng tester CỐ Ý bị chặn đọc `src/`
+(tránh test phản chiếu bug có sẵn) — bài test này bắt buộc đọc `frontend/src/proxy.ts` thật. 2 hướng
+chưa chốt: (a) test sống ở `frontend/e2e/` (vùng tech-lead) — cần xác nhận ranh giới "tester không đọc
+src/" có tính luôn frontend hay chỉ backend; (b) tech-lead viết sẵn script/fixture riêng chỉ đọc
+`ROLE_PREFIXES`+`authority-matrix.yaml`, giao tester lắp assertion. Không gấp, sau buổi quay.
+
+**Song song:** QA đang chạy K1-K7 (khách nhỏ giọt, brief
+`docs/giao-viec/2026-09-04-cau-khach-thuc-te-nho-giot-tu-kich-ban-chuyen-gia.md`) — PO thật nhận xét câu
+mẫu B2 storyboard cũ không thực tế (khách khai đủ một cục). Đo TRƯỚC khi đưa lên camera, chưa có kết
+quả lúc ghi dòng này.
 
 ## 0-QUATER. 🔴 BÀN GIAO 01/09 ~23:00 — ĐỢT 2 TIẾNG TRƯỚC HẠN 24:00. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
 
