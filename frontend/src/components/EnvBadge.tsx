@@ -18,6 +18,14 @@ import { useEffect, useState } from "react";
  * stack, không cần điều tra.
  *
  * Nhãn TỰ ẨN khi `env === "production"` — người dùng thật không cần thấy.
+ *
+ * [03/09, ADR-060] `NEXT_PUBLIC_HIDE_ENV_BADGE` — cờ build-time RIÊNG, mặc
+ * định tắt, cùng khuôn `NEXT_PUBLIC_QUICK_LOGIN`. Vì sao cần thêm thay vì
+ * đổi `APP_ENV`: badge và guard fail-fast ở `config.py:199` cùng đọc CHÍNH
+ * XÁC một biến `APP_ENV`, nên đổi `APP_ENV` để bật OTP_DEMO_MODE cho quay
+ * video Cảnh 6 sẽ LÀM HIỆN LẠI badge — đúng thứ cần ẩn. Cờ này tách hai mối
+ * quan tâm ra, không đụng `config.py`. Production không set cờ ⟹ hành vi cũ
+ * y hệt, không hồi quy.
  */
 
 type EnvInfo = { env: string; db_kind: string; db_name: string; backend: string };
@@ -41,6 +49,7 @@ export default function EnvBadge({ compact = false }: { compact?: boolean }) {
 
   if (!info) return null;
   if (info.env === "production") return null;
+  if (process.env.NEXT_PUBLIC_HIDE_ENV_BADGE === "true") return null;
 
   const mau = MAU[info.env] ?? MAU.development;
   const khongKetNoi = info.env === "unreachable";

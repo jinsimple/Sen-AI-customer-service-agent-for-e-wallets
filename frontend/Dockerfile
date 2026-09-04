@@ -29,6 +29,12 @@ RUN node src/dau_ma_nguon.mjs > /app/.bam_ma_nguon && cat /app/.bam_ma_nguon
 # cho ảnh gắn tag riêng dùng một lần (quay video demo), không đè `latest`.
 ARG NEXT_PUBLIC_QUICK_LOGIN=false
 ENV NEXT_PUBLIC_QUICK_LOGIN=$NEXT_PUBLIC_QUICK_LOGIN
+
+# NEXT_PUBLIC_HIDE_ENV_BADGE — mặc định "false", cùng khuôn trên. Cảnh 6
+# (ADR-060) cần APP_ENV != production để bật OTP_DEMO_MODE, cờ này ẩn badge
+# môi trường độc lập với APP_ENV — xem EnvBadge.tsx.
+ARG NEXT_PUBLIC_HIDE_ENV_BADGE=false
+ENV NEXT_PUBLIC_HIDE_ENV_BADGE=$NEXT_PUBLIC_HIDE_ENV_BADGE
 RUN npm run build
 
 # ---- Stage 3: runtime ----
