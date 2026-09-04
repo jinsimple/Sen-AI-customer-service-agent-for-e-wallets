@@ -50,3 +50,16 @@
 - Vẫn giữ ràng buộc quay: người đóng CSKH nhận handoff trong 60-90s (hàng chờ hết hạn ~193s).
 - Ảnh thật mỗi bước N; Lead tự soi ≥5 ảnh (gồm ít nhất 1 ảnh nội-dung-thông-báo để xác minh không rò PII) trước khi báo PO.
 - Chạy 3 lần → tổng hợp → PO review để quay.
+
+## 🎬 CHOREOGRAPHY QUAY — 2 lưu ý bắt buộc, không phải bug (04/09, từ lượt full seamless)
+
+Đo trực tiếp trong lúc verify — người đóng vai/dàn cảnh PHẢI biết trước, nếu không sẽ tưởng sản phẩm
+lỗi giữa take:
+
+1. **Presence (bảng "CSKH đang online" của Sếp):** cần **>20 giây** sau khi CSKH đăng nhập mới cập
+   nhật đúng — cơ chế heartbeat định kỳ (~20s/lượt), KHÔNG cập nhật tức thời lúc kết nối. Đo được:
+   vẫn "Offline" tới giây 15, chuyển đúng "Đang online" ở giây 20. Nếu quay cảnh Sếp mở bảng presence
+   ngay sau khi CSKH vừa đăng nhập — ĐỢI ít nhất 20 giây trước khi bấm quay/chụp, không cắt cảnh sớm.
+2. **Hàng chờ live-chat:** người đóng vai CSKH phải bấm "Mở & nhận" trong khung **60-90 giây** sau khi
+   khách bấm "nói chuyện trực tiếp" — hàng chờ tự hết hạn ở mốc ~193 giây (đo cận trên). CSKH trực sẵn,
+   phản ứng nhanh khi khách bấm nút.
