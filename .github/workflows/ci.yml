@@ -735,6 +735,7 @@ jobs:
           name: adversarial-set-report
           path: |
             eval/results/adversarial_run_*.md
+            eval/results/adversarial_run_*_raw.json
             eval/results/llm_judge_run_*.md
 
   # ---------------------------------------------------------------------
