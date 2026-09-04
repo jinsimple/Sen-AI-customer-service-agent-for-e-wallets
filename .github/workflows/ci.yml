@@ -448,9 +448,14 @@ jobs:
       - name: Quét CVE gói npm (C7, bổ sung — bản gốc bỏ sót JS side)
         run: npm audit --prefix frontend --audit-level=high
       - name: Quét secret lỡ commit (C5)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Gọi thẳng binary gitleaks — bỏ gitleaks-action@v2 sau khi nó bắt đầu đòi
+        # GITLEAKS_LICENSE cho repo tổ chức (breaking change SaaS, không liên quan
+        # tới việc quét secret). Đúng nguyên tắc đã dùng ở route-guards-docker
+        # (tự viết thay vì phụ thuộc action bên thứ ba khi bản chất chỉ là 1 lệnh
+        # CLI) — bớt một phụ thuộc chuỗi cung ứng, không mất khả năng quét.
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks detect --source . --redact -v
 
   # ---------------------------------------------------------------------
   # F-MIG — chuỗi migration phải CHẠY ĐƯỢC, và phải khớp với models.py
@@ -663,6 +668,12 @@ jobs:
     env:
       LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
       LLM_MODEL: qwen3.7-max-2026-06-08
+      # Bể nhiều model — job trước chỉ ghim 1 model (LLM_MODEL_POOL không đặt ⟹
+      # mặc định bể = [LLM_MODEL], 1 phần tử) ⟹ model đó cạn là bể cạn NGAY, kích
+      # bug None-check ở graph.py:1456 (vá riêng, chưa land). Thêm dự phòng đúng
+      # họ model production đang dùng (po-demo: qwen3.8-flash + 3 model dự phòng)
+      # để bể không cạn tức thì trong lúc chờ vá gốc.
+      LLM_MODEL_POOL: qwen3.7-max-2026-06-08,qwen3.8-flash,qwen3.6-plus-2026-04-02,qwen3.6-flash-2026-04-16
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
       # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
       # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
