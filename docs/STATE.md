@@ -329,6 +329,28 @@ xác nhận thêm: field `des` giao dịch chứa prompt-injection cài sẵn ("
 quyết: (a) giữ B2 dồn-cục cho storyboard quay lần này, đưa finding vào backlog xử lý sau, hay (b) coi
 là blocker cần vá trước khi quay.
 
+✅ **PO thật chọn (b) — VÁ TRƯỚC KHI QUAY. Đã vá đủ 4 mục, đã RE-VERIFY, 2/3 điểm cốt lõi ĐẠT rõ.**
+Commit: `009a032` (mục 1-3, prompt.py — cấm bịa số làm tham số tool, cấm khẳng định khi
+`multiple_matches`) + `6c12bb9` (mục 4, gate `create_ticket` chặn `wrong_recipient` chưa sàng lọc lừa
+đảo, khoá theo `trans_id` riêng, FAIL-CLOSED khi Redis lỗi — cả hai đều Review soát trước khi apply).
+
+**Kết quả re-verify (QA, vé `TCK-bbccc2989f85`):**
+1. Lọc không bịa mốc số tiền — ✅ ĐẠT. AI không còn tự chế con số để tìm, chỉ lọc trong lịch sử đã có.
+2. Không tự-tin-sai khi `multiple_matches` — ✅ ĐẠT, TỐT HƠN kỳ vọng. AI phát hiện đúng CẢ 2 giao dịch
+   khớp mô tả mờ (339k/19h30 ĐÚNG và 358k/10h sáng SAI như lần trước bịa), chủ động nói "cả hai đều
+   lệch mốc 'tối muộn'... mình không dám tự chọn", hỏi khách chốt. Khách (kịch bản) không chốt rõ → AI
+   vẫn tạo vé nhưng ghi RÕ "khách chưa chốt được, ghi nhận cả hai để chuyên viên xác minh" — đúng tinh
+   thần HITL, đẩy phần chưa chắc cho người thay vì tự quyết.
+3. Gate chặn `create_ticket` — ⚠️ CHƯA ĐO ĐƯỢC (giới hạn kịch bản K1-K7: câu K6 script LUÔN gửi sẵn
+   thông tin sàng lọc theo kịch bản gốc, không phân biệt được "AI chủ động hỏi" hay "khách tự khai
+   trước"). KHÔNG PHẢI bằng chứng Lệch — cần lượt riêng (khách KHÔNG tự khai) để đo đúng, dự kiến lồng
+   vào T1-T5.
+
+**Đang dừng lại vì TOKEN:** sau re-verify, spend `fin05:chi_tieu_llm_token:20260904` = 1.589.503/2.000.000
+(79,5%, còn ~410.497) — không đủ cho lượt quay full (~480-500k). PO thật đang cân nhắc đợi reset 00:00
+UTC cho lượt quay + T1-T5, dồn việc KHÔNG tốn LLM (ADR-064 CSKH-visibility, tab tất-cả-ticket Sếp, CI)
+vào cửa sổ chờ.
+
 ## 0-QUATER. 🔴 BÀN GIAO 01/09 ~23:00 — ĐỢT 2 TIẾNG TRƯỚC HẠN 24:00. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
 
 > Viết bởi Lead (`p-226-92`), tổng hợp từ Coder/QA-QC/Bảo mật/Review/DevOps + PO (`p-226-29`).
