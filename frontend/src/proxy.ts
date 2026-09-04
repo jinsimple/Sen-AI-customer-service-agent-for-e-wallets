@@ -34,7 +34,12 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   // riêng của proxy" (khác nhánh contract-backend, đã xảy ra 3 lần trước:
   // /policy-lookup, /dashboard, /report). Route không gọi API nào ngoài
   // /presence/staff (đã cho phép supervisor sẵn trong authority-matrix).
-  supervisor: ["/approve", "/cskh-online", "/report", "/tickets", "/policy-lookup", "/dashboard"],
+  // /quan-ly-ticket (ADR-064 b): tab MỚI tách từ /approve theo cùng khuôn
+  // /cskh-online — CA THỨ NĂM nhắc lại đúng lớp lỗi "route mới quên khai ở
+  // đây" nếu bỏ sót (4 lần trước: /policy-lookup, /dashboard, /report,
+  // /cskh-online). Route không mở API mới — /quan-ly-ticket chỉ gọi lại
+  // GET /tickets đã cho phép supervisor sẵn trong authority-matrix.
+  supervisor: ["/approve", "/cskh-online", "/quan-ly-ticket", "/report", "/tickets", "/policy-lookup", "/dashboard"],
   partner_admin: ["/knowledge"],
 };
 
