@@ -1,0 +1,33 @@
+# Tái lập cấu hình ngăn `fin05-dot-otp` — viết từ `docker inspect` ngăn ĐANG
+# SỐNG lúc 04/09, KHÔNG suy đoán. Đúng việc ⑦ giao cho devops (`docs/STATE.md:951`,
+# 01/09) — cấu hình gốc (override tạo ra ngăn này) từng sống trong scratchpad
+# của MỘT PHIÊN CŨ (`.../scratchpad/chay-kich-ban.override.yml` +
+# `.../scratchpad/dot-otp.override.yml`, xác nhận qua nhãn
+# `com.docker.compose.project.config_files` trên chính container) và đã MẤT
+# khi phiên đó kết thúc — đúng bài học "nháp ngoài repo" áp nhầm cho hạ tầng
+# LÂU DÀI thay vì việc thử một lần.
+#
+# CHỈ chứa phần LỆCH so với `docker-compose.yml` mặc định — ảnh/env/volume
+# khác đều đọc từ base file + `.env` chung, đã ở trong git, không cần chép
+# lại. Phần lệch DUY NHẤT xác nhận được qua inspect: BA cổng host bị đổi để
+# không đụng cổng cố định (5432/16686) và cổng mặc định Caddy (80/443) mà
+# base file dùng — cần thiết vì NHIỀU ngăn cùng chạy trên MỘT máy.
+#
+# ⚠️ CHƯA KIỂM: file này tái lập được PORT MAPPING (phần chắc chắn nhất, xác
+# nhận qua HostConfig.PortBindings) — KHÔNG đảm bảo phục hồi được TRẠNG THÁI
+# (dữ liệu Postgres/Redis/volume RAG) nếu ngăn đã bị tắt trước khi có bản chụp
+# volume riêng. Dùng file này để DỰNG LẠI cấu trúc, không phải để "coi như
+# chưa từng tắt".
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:45432:5432"
+  jaeger:
+    ports:
+      - "127.0.0.1:46686:16686"
+  caddy:
+    ports:
+      - "127.0.0.1:48080:80"
+      - "127.0.0.1:48443:443"
+
+# Dựng lại: docker compose -p fin05-dot-otp -f docker-compose.yml -f docker-compose.dot-otp.override.yml up -d
