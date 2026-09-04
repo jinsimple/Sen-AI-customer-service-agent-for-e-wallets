@@ -110,9 +110,54 @@ eval/golden_set.jsonl` — `.dockerignore` loại `eval/` khỏi ảnh, gốc đ
 notifications/RB3) — đo bằng `pytest tests/test_data/ -q` trên cả commit cha (`051c8f8`) lẫn working
 tree, y hệt 3 test đỏ ở cả hai bên.
 
-**Còn treo:** frontend (chuông+badge+danh sách+bảng presence Sếp) đang code song song. Ca BOLA tự động
-(tester viết) vẫn chờ phiên tester được bật — kiểm sống HTTP của Coder cho tự tin trước mắt, chưa khoá
-chặt bằng test tự động (xem `docs/giao-viec/2026-09-04-po-build-chuong-thong-bao.md` mục "việc tồn").
+**Còn treo:** frontend (chuông+badge+danh sách+bảng presence Sếp) — ĐÃ LAND (`7aa3c4d`), xem cập nhật
+dưới. Ca BOLA tự động (tester viết) vẫn chờ phiên tester được bật — kiểm sống HTTP của Coder cho tự tin
+trước mắt, chưa khoá chặt bằng test tự động (xem `docs/giao-viec/2026-09-04-po-build-chuong-thong-bao.md`
+mục "việc tồn").
+
+### ✅ Cập nhật cùng ngày — frontend land, USR-0202 reset (PO thật duyệt), CI 4 job đỏ đã vá
+
+**Frontend thông báo ĐÃ LAND** (`7aa3c4d`) — chuông, bảng presence, `tsc --noEmit` sạch, kiểm sống render
+đúng qua cổng thật. ADR-060 (badge ẩn + OTP duyệt hiện demo) neo riêng, đã commit (`eae1d07`) — việc dở
+từ 03/09, khớp đúng ảnh `quay-video` đang chạy.
+
+**USR-0202 reset password → `Demo@123`, PO thật duyệt 04/09**, phục vụ po-demo recording + kiểm fan-out
+N1-N6 (cần 2 tài khoản CSKH online cùng lúc — chỉ USR-0201 có mật khẩu demo biết trước; quick-login
+(B) autofill mật khẩu thật, không bypass, nên không giải được). Verify bằng đăng nhập THẬT (không tin
+exit code lệnh update): `POST /api/session` với `0560000202`/`Demo@123` → 200, đúng `USR-0202`/Lý Đức
+Giang. Hash gốc lưu ở scratchpad Coder, đảo ngược được nếu cần.
+
+**CI 4 job đỏ (push mới nhất, run `33836621131`) — DevOps chẩn đoán, KHÔNG có secret lộ, KHÔNG có
+regression:**
+- `dependency-and-secret-scan`: 2 CVE thật trên `pypdf 6.16.0` (không phải secret) → vá `6.16.1`
+  (`requirements.lock.txt`).
+- `lint-and-test`: 654/654 test PASS, đỏ do `ruff` — 21 lỗi trong `eval/bo-cham/` (whitespace/import,
+  auto-fix) + 1 N802 giống mẫu Vietnamese-emphasis đã có ở `tests/**` (miễn cho `eval/bo-cham/**`) + 1
+  N806 KHÔNG được miễn (đúng chủ trương cũ "N806 vẫn phải theo luật") → đổi tên biến. Riêng
+  `eval/bo-cham/cases.py` — 5 dòng W291 nằm TRONG chuỗi dữ liệu tự khai "giữ NGUYÊN VĂN" → miễn W291
+  CHỈ file này, KHÔNG chạy `--fix` (tránh sửa dữ liệu trích dẫn). Thêm 1 lỗi I001 MỚI trong
+  `src/api/main.py` (import chưa sort, phát sinh từ commit notifications `051c8f8` — DevOps chẩn đoán
+  trước khi commit đó tồn tại) → auto-fix.
+- `business-rules-golden-set` + `ai-safety-adversarial`: CÙNG GỐC — cổng `cong_ra_ngoai.py` (mặc định
+  TỪ CHỐI) chưa từng được khai `FIN05_CHO_PHEP_GOI_RA_NGOAI` trong `ci.yml` từ ngày cổng ra đời (18/08)
+  — 2 job gọi `run_agent_turn()` trực tiếp, không qua docker-compose backend (nơi biến CÓ khai). KHÔNG
+  liên quan RB3. Bằng chứng an tâm: `ai-safety-adversarial` 41/46 case đo được thì 41/41 ĐẠT. PO chốt:
+  golden-set CHUYỂN nightly-only (đổi `if:`, đúng khuôn Stage 6) + thêm env; adversarial GIỮ per-push
+  (cổng an toàn) + thêm env — 5 case "không đo được" cần DevOps xác nhận không gây bập bênh trước khi
+  coi job này XANH HẲN (đang chờ trả lời).
+- Toàn bộ `python3 -m ruff check src/ tests/ eval/` (đúng lệnh CI) đã XANH sau vá, xác nhận cục bộ.
+
+🔴 **ĐÍNH CHÍNH ngay sau khi viết dòng trên — KHÔNG xoá, ghi thêm (luật append-only):** câu "Bằng chứng
+an tâm: 41/41 ĐẠT" ở trên là VỘI. DevOps đào sâu, phát hiện nghi vấn: cột "Có chạm model?" trong báo cáo
+chỉ đo `duong == "day_du"` (QUYẾT ĐỊNH ĐỊNH TUYẾN), KHÔNG PHẢI xác nhận LLM gọi thành công — thấy
+`goi_ra_ngoai_bi_chan` xuất hiện ở CẢ case báo `passed=True, chạm model=có` (ADV-044/045/046). Nghi ngờ:
+khi bị chặn, `run_agent_turn` rơi fallback (`agent_turn_ncc_can_can_thiep`), VẪN TRẢ REPLY (xin lỗi) —
+reply đó đương nhiên không chứa nội dung bị dụ nên PASS TRIVIAL, không phải agent thật chống được
+injection. **Nếu đúng: "41/41 ĐẠT" là XANH GIẢ**, đúng dạng cảnh báo `§0-TER` 01/09 ("cổng đo nhầm chỗ
+không im lặng, phát tín hiệu trấn an đều đặn"). CHƯA chứng minh dứt điểm (cần đọc format reply
+fallback vs thật). **KHÔNG được coi `ai-safety-adversarial` là cổng an toàn đáng tin cho tới khi chạy
+lại TOÀN BỘ 46 case sau vá env-var + đối chiếu nội dung `reply` trước/sau.** Đang chờ PO quyết bước
+tiếp — có thể quan trọng hơn cả 4 job CI ban đầu.
 
 ## 0-QUATER. 🔴 BÀN GIAO 01/09 ~23:00 — ĐỢT 2 TIẾNG TRƯỚC HẠN 24:00. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
 
