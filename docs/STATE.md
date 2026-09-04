@@ -174,7 +174,34 @@ tester: vá regex test thêm anchor đầu chuỗi.
 `qwen3.7-plus-2026-05-26`" — đây là GAP TÀI LIỆU CŨ (hằng số `eval/_harness.py:1020` +
 `docker-compose.yml:154` default chưa cập nhật theo ADR-058/059 chốt `qwen3.8-flash` là baseline thật),
 KHÔNG PHẢI dấu hiệu đo nhầm model lạ. Không đủ để rút lại kết luận trên, nhưng nên vá 2 hằng số này
-(rẻ) để báo cáo sau không còn tự cảnh báo sai.
+(rẻ) để báo cáo sau không còn tự cảnh báo sai. **[ĐÃ VÁ cùng ngày, commit `cffb024`]** — cả 2 hằng số
+nay khớp `qwen3.8-flash`, rủi ro ADR-059 (tên không ghim ngày) ghi rõ vẫn MỞ trong comment.
+
+## ✅ MỐC (c) ĐẠT THẬT 04/09 — lượt FULL SEAMLESS, MỘT vé xuyên suốt B1-B17 xen N1-N6
+
+QA chạy TRỌN một vé (`TCK-a316e1a2f3db`), một mạch B1→B17 xen N1-N6 đúng chỗ (không ghép mảnh riêng lẻ
+đã verify trước đó — PO yêu cầu tường minh vì tương tác/thứ tự giữa các phần trên cùng vé chưa từng
+được test chung). 25/25 dòng manifest Đạt. Lead tự soi 5 ảnh + tự đọc log trước khi báo PO (không chỉ
+tin QA): `FULL1-B3b` (RB3 vẫn đúng — text khớp tool_calls, không còn "chưa tạo được") ·
+`FULL1-N4b` (presence: Lý Đức Giang Offline đúng sau đóng tab) · `FULL1-B16` (Finding ① — câu rác →
+not_found) · `FULL1-B13` (upload FAQ → "Đã lập chỉ mục") · `FULL1-N1-cskhA` (nội dung noti sạch, không
+PII/tiền).
+
+**2 lỗi đo QA tự phát hiện + tự sửa trong lúc chạy (không phải sản phẩm):**
+1. Nghi vấn che PII sai tại B3 — regex kiểm của QA không khớp dạng backslash-escape (`058\*\*\*0135`)
+   trong raw JSON; dữ liệu che ĐÚNG thật tại nguồn.
+2. N4 "trước" báo cả 2 CSKH Offline dù vừa đăng nhập — đo trực tiếp xác nhận presence cần >15s (chuyển
+   đúng ở mốc 20s) mới cập nhật, đúng bản chất cơ chế heartbeat định kỳ, không phải bug. **Lưu ý vận
+   hành cho buổi quay: đợi >20s sau đăng nhập trước khi tin bảng presence.**
+
+Do budget chỉ đủ AN TOÀN cho 1 lượt full (~450-480k/lượt, còn ~928k lúc quyết) — PO chốt **1 lượt full
+sạch là ĐỦ bar "sẵn sàng quay"**, không chạy lượt 2 (các mảnh đã verify ×3 riêng, lượt full chỉ cần
+chứng minh HỢP THÀNH). QA dừng đúng ở đây theo chính sách này.
+
+**⟹ Tất cả điều kiện trước khi PO thật quyết định quay đã đủ:** RB3 vá xong+xác nhận, tính năng thông
+báo xong 2 tầng+verify ×3+full, Finding ① vững, `ai-safety-adversarial` xác nhận không P0, CI 4 job vá,
+mitigation RAM giữ vững suốt các lượt. Còn lại là quyết định của PO thật (chốt B3-tự-phục-hồi đã không
+còn ý nghĩa vì RB3 đã vá triệt để, không còn hiện tượng đó nữa).
 
 ## 0-QUATER. 🔴 BÀN GIAO 01/09 ~23:00 — ĐỢT 2 TIẾNG TRƯỚC HẠN 24:00. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
 
