@@ -113,6 +113,27 @@ ROUTES: list[RouteCheck] = [
         "GET", "/live-chat/sessions/{chat_session_id}/messages", "/live-chat/sessions/CHS-NOPE/messages",
         {"customer", "cskh", "supervisor"}, safe_success_check=True,
     ),
+    # ADR-063 (docs/DECISIONS.md) + contracts/authority-matrix.yaml v2.2.0 —
+    # "Chuông thông báo vé mới". Cô lập theo recipient_user_id ép ở tầng
+    # SERVICE (chống BOLA), route chỉ ép ROLE. Cả 6 route khai extra
+    # require_token_chua_thu_hoi ngay từ đầu. allowed_roles lấy NGUYÊN VĂN từ
+    # contract: 5 route [cskh, supervisor], riêng GET /presence/staff chỉ
+    # [supervisor]. BOLA thật (mark-read noti của người khác → 404) test riêng
+    # ở tests/test_api/test_notifications_bola.py.
+    RouteCheck("GET", "/notifications", "/notifications", {"cskh", "supervisor"}, safe_success_check=True),
+    RouteCheck(
+        "GET", "/notifications/unread-count", "/notifications/unread-count",
+        {"cskh", "supervisor"}, safe_success_check=True,
+    ),
+    RouteCheck(
+        "POST", "/notifications/{notification_id}/read", "/notifications/NT-NOPE/read",
+        {"cskh", "supervisor"}, body={},
+    ),
+    RouteCheck("POST", "/notifications/read-all", "/notifications/read-all", {"cskh", "supervisor"}, body={}),
+    RouteCheck("POST", "/presence/heartbeat", "/presence/heartbeat", {"cskh", "supervisor"}, body={}),
+    # contracts/authority-matrix.yaml — GET /presence/staff CHỈ supervisor
+    # ("bảng CSKH nào đang online", chỉ Sếp xem).
+    RouteCheck("GET", "/presence/staff", "/presence/staff", {"supervisor"}, safe_success_check=True),
 ]
 
 # Route công khai (không cần token), ngoài phạm vi phân quyền nghiệp vụ, hoặc
