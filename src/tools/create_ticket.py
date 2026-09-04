@@ -17,6 +17,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.db.models import Complaint, Ticket, Transaction, User
+from src.services.notifications import notify_ve_moi
 from src.tools.base import ToolError, _new_id, record_tool_result
 from src.tools.fraud_policy import evaluate_escalation
 from src.tools.lookup_transaction import la_mot_ben_cua_giao_dich
@@ -107,6 +108,10 @@ def create_ticket(
     )
     session.add(ticket)
     session.flush()
+
+    # ADR-063 — fan-out CÙNG transaction: vé rollback thì thông báo rollback
+    # theo, không có thông báo "ma" cho vé chưa từng thành hình.
+    notify_ve_moi(session, ticket_id=ticket_id)
 
     result = {
         "complaint_id": complaint_id,

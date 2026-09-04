@@ -115,6 +115,14 @@ from src.rag.search import search_policy_text
 from src.rate_limit import RedisConcurrencyLimiter, RedisSlidingWindowLimiter
 from src.services import live_chat, reporting
 from src.services.complaint_intake import create_ticket_with_fraud_check
+from src.services.notifications import (
+    danh_dau_da_doc,
+    danh_dau_tat_ca_da_doc,
+    dem_chua_doc,
+    liet_ke as liet_ke_notifications,
+    notify_da_quyet_dinh,
+)
+from src.services.presence import heartbeat as presence_heartbeat, online_user_ids, so_ve_dang_xu_ly
 from src.tools.base import ToolError, new_id
 from src.tools.escalate_ticket import escalate_ticket as _escalate_ticket
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
@@ -1137,6 +1145,13 @@ def approve_resolution(
     auth_session.otp_status = "consumed"
     auth_session.otp_code = None
     _dong_bo_hitl_status(session, resolution)
+    # ADR-063 — báo NGƯỢC đúng 1 CSKH đã đề xuất. `created_by` có thể None
+    # (resolution tạo trước ADR-020/BR-12) — không noti được thì bỏ qua, đây
+    # là dữ liệu cũ, không phải lỗi hôm nay.
+    if resolution.created_by is not None:
+        notify_da_quyet_dinh(
+            session, ticket_id=resolution.ticket_id, cskh_user_id=resolution.created_by, approved=True
+        )
     session.flush()
     return {"resolution_id": resolution_id, "status": resolution.status, "approved_by": current_user.user_id}
 
@@ -1246,6 +1261,11 @@ def reject_resolution(
     resolution.note = note_da_scrub
     resolution.note_flagged = note_flagged
     _dong_bo_hitl_status(session, resolution)
+    # ADR-063 — đối xứng với nhánh duyệt.
+    if resolution.created_by is not None:
+        notify_da_quyet_dinh(
+            session, ticket_id=resolution.ticket_id, cskh_user_id=resolution.created_by, approved=False
+        )
     session.flush()
     return {
         "resolution_id": resolution_id,
@@ -1628,6 +1648,102 @@ async def live_chat_close_session(
     closed = _handle_tool_error(live_chat.close_session, session, chat_session_id=chat_session_id)
     await _live_chat_manager.send_to_session(chat_session_id, {"type": "session_closed", "chat_session_id": chat_session_id})
     return closed
+
+
+# ---------------------------------------------------------------------------
+# ADR-063 — Chuông thông báo (notifications) + presence CSKH/Sếp.
+# Cô lập theo người nhận ép ở TẦNG SERVICE (src/services/notifications.py) —
+# route chỉ ép ROLE. Nội dung trả về CHỈ event_type + ticket_id + created_at/
+# read_at — KHÔNG số tiền/PII/SĐT (Ràng buộc cứng #3 + PDPA).
+# ---------------------------------------------------------------------------
+
+
+@app.get("/notifications")
+def list_notifications(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    items = liet_ke_notifications(session, user_id=current_user.user_id)
+    return {
+        "items": [
+            {
+                "notification_id": n.notification_id,
+                "event_type": n.event_type,
+                "ticket_id": n.ticket_id,
+                "created_at": n.created_at.isoformat(),
+                "read_at": n.read_at.isoformat() if n.read_at else None,
+            }
+            for n in items
+        ]
+    }
+
+
+@app.get("/notifications/unread-count")
+def notifications_unread_count(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    return {"unread_count": dem_chua_doc(session, user_id=current_user.user_id)}
+
+
+@app.post("/notifications/{notification_id}/read")
+def mark_notification_read(
+    notification_id: str,
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    # Không tồn tại VÀ không thuộc user_id đang đăng nhập trả CÙNG một 404 —
+    # phân biệt hai ca sẽ lộ cho client dò được thông báo người khác có tồn
+    # tại hay không (xem docstring danh_dau_da_doc).
+    ok = danh_dau_da_doc(session, user_id=current_user.user_id, notification_id=notification_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="notification không tồn tại")
+    return {"notification_id": notification_id, "read": True}
+
+
+@app.post("/notifications/read-all")
+def mark_all_notifications_read(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    so_luong = danh_dau_tat_ca_da_doc(session, user_id=current_user.user_id)
+    return {"marked_read": so_luong}
+
+
+@app.post("/presence/heartbeat")
+def presence_heartbeat_route(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+):
+    # KHÔNG cần session DB — presence sống hoàn toàn trong Redis TTL, đúng
+    # nguyên tắc "không giữ state trong process" (4-5 worker độc lập).
+    presence_heartbeat(current_user.user_id)
+    return {"status": "ok"}
+
+
+@app.get("/presence/staff")
+def presence_staff_list(
+    current_user: CurrentUser = Depends(require_role("supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    cskh_users = session.scalars(select(User).where(User.role == "cskh")).all()
+    online_ids = online_user_ids([u.user_id for u in cskh_users])
+    return {
+        "items": [
+            {
+                "user_id": u.user_id,
+                "full_name": u.full_name,
+                "online": u.user_id in online_ids,
+                "so_ve_dang_xu_ly": so_ve_dang_xu_ly(session, user_id=u.user_id),
+            }
+            for u in cskh_users
+        ]
+    }
 
 
 @app.post("/live-chat/sessions/{chat_session_id}/csat")

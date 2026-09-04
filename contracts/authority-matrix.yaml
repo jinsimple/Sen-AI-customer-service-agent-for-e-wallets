@@ -20,7 +20,7 @@ version: "2.2.0"
 source: "Sinh ngược từ src/api/main.py @ 2026-08-13 · thay thế bản 1.0.0 viết từ PRD"
 # v2.2.0 (04/09) — ADR-063, PO greenlit build "chuông thông báo vé mới".
 # Thêm 6 route: GET /notifications · GET /notifications/unread-count ·
-# POST /notifications/{id}/read · POST /notifications/read-all ·
+# POST /notifications/{notification_id}/read · POST /notifications/read-all ·
 # POST /presence/heartbeat (cskh+supervisor) · GET /presence/staff (chỉ
 # supervisor). Cả 6 đều khai extra: [require_token_chua_thu_hoi] NGAY TỪ ĐẦU
 # — tránh lặp lại lớp bug "quên thêm route mới vào allowlist" (đã xảy ra 3
@@ -193,7 +193,7 @@ routes:
   - route: "GET /notifications/unread-count"
     roles: [cskh, supervisor]
     extra: [require_token_chua_thu_hoi]
-  - route: "POST /notifications/{id}/read"
+  - route: "POST /notifications/{notification_id}/read"
     roles: [cskh, supervisor]
     extra: [require_token_chua_thu_hoi]
   - route: "POST /notifications/read-all"

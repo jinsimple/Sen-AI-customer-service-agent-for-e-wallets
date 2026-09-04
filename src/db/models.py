@@ -590,3 +590,27 @@ class PolicyChunk(Base):
     text: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     scope: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+
+
+class Notification(Base):
+    """ADR-063 — chuông thông báo. Fan-out: MỘT hàng/người nhận (không phải
+    một hàng gắn danh sách người nhận) — `read_at` riêng từng người nên phải
+    tách hàng theo người TỪ ĐẦU, không gộp rồi lọc lúc đọc. Nội dung hiển thị
+    CHỈ suy ra được từ `event_type` + `ticket_id` — KHÔNG có cột số
+    tiền/PII/SĐT nào trong bảng này, đúng Ràng buộc cứng #3 + PDPA (đây là
+    ràng buộc ở TẦNG SCHEMA, không chỉ ở tầng code hiển thị)."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('ve_moi','cho_duyet','da_duyet','da_tu_choi')",
+            name="ck_notifications_event_type",
+        ),
+    )
+
+    notification_id: Mapped[str] = mapped_column(String, primary_key=True)
+    recipient_user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    event_type: Mapped[str] = mapped_column(String, nullable=False)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+    read_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)

@@ -47,7 +47,7 @@ MODELS_PY = ROOT / "src" / "db" / "models.py"
 # Phiên bản contract mà bộ test này được viết dựa trên.
 # Lấy giá trị mới bằng: python scripts/check_contracts.py --stamp <file>
 CONTRACT_VERSION = {
-    "authority-matrix.yaml": "288cb51befab",  # v2.2.0 — ADR-063 (chuông thông báo: 6 route notifications/presence)
+    "authority-matrix.yaml": "82682d415144",  # v2.2.0 — ADR-063 (chuông thông báo: 6 route notifications/presence; sửa {id}→{notification_id} khớp code)
     "resolution-state-machine.yaml": "a39f2b84ec5d",  # v2.5.0 — ADR-024 (resolutions.note + note_flagged + INV-17)
     "agent-tools.yaml": "df6e7c9353d3",  # v2.2.0 — ADR-051 create_ticket HAI THÌ (+input `xac_nhan`, output dict→chuỗi)
 }
