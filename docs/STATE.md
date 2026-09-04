@@ -91,6 +91,29 @@ QA đo lại B3/B5 phải khớp ĐÚNG TEXT (không chỉ state) → (2) PO gre
 riêng, chưa tới) → (3) bổ sung bước vào storyboard 1-vé → (4) QA chạy 3 lần luồng mở rộng → (5) PO
 review để quay. **KHÔNG đóng gói "sẵn sàng quay" tới khi hết chuỗi này.**
 
+### ✅ Cập nhật cùng ngày — (1) RB3 ĐÓNG, (2) tính năng thông báo (ADR-063) backend ĐÃ LAND
+
+**RB3 vá xong, xác nhận ĐÚNG TEXT** (`c6d15ac`) — thêm nhánh đọc `ticket_id` từ payload
+`request_human_handoff` (vòng lặp cũ chỉ đọc `create_ticket`). Review soát diff thật khớp byte-for-byte
+pseudo-diff đã duyệt, chứng minh đơn điệu cho ca `MT-Z01` (bản vá chỉ khiến `ticket_id` đi None→giá trị
+thật, không có chiều ngược, nên hallucination thật vẫn bị chặn đúng). QA chạy lại B3/B5 (vé mới
+`TCK-5830fc10aa00`) — TEXT hiển thị giờ khớp đúng tool_calls thật, cả 2 bước ĐẠT THẬT.
+
+**Tính năng thông báo (ADR-063) — backend ĐÃ LAND** (`5cb678b` contract, `051c8f8` code): 6 route
+(`GET /notifications`, `GET /notifications/unread-count`, `POST /notifications/{notification_id}/read`,
+`POST /notifications/read-all`, `POST /presence/heartbeat`, `GET /presence/staff`), presence Redis TTL
+45s, fan-out `notifications` (1 hàng/người nhận, cùng transaction sự kiện gốc), BOLA chặn bằng 404 (không
+403) khi mark-read noti không phải của mình. Kiểm sống HTTP thật: fan-out đúng số người nhận, BOLA 404
+thật, role-gate đúng, 23/23 invariants xanh. **10 lỗi `test_data/*` nghi ban đầu → đối chiếu cha-vs-con
+xác nhận chỉ 3 lỗi thật (số cũ SAI, Coder tự sửa), cả 3 PRE-EXISTING** (`FileNotFoundError:
+eval/golden_set.jsonl` — `.dockerignore` loại `eval/` khỏi ảnh, gốc đã biết từ trước, không liên quan
+notifications/RB3) — đo bằng `pytest tests/test_data/ -q` trên cả commit cha (`051c8f8`) lẫn working
+tree, y hệt 3 test đỏ ở cả hai bên.
+
+**Còn treo:** frontend (chuông+badge+danh sách+bảng presence Sếp) đang code song song. Ca BOLA tự động
+(tester viết) vẫn chờ phiên tester được bật — kiểm sống HTTP của Coder cho tự tin trước mắt, chưa khoá
+chặt bằng test tự động (xem `docs/giao-viec/2026-09-04-po-build-chuong-thong-bao.md` mục "việc tồn").
+
 ## 0-QUATER. 🔴 BÀN GIAO 01/09 ~23:00 — ĐỢT 2 TIẾNG TRƯỚC HẠN 24:00. ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC.
 
 > Viết bởi Lead (`p-226-92`), tổng hợp từ Coder/QA-QC/Bảo mật/Review/DevOps + PO (`p-226-29`).
