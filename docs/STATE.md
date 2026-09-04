@@ -75,6 +75,17 @@ frontend recreate, backend/rerank/pg/redis/caddy/jaeger uptime + cờ nguyên v�
 chuông, badge môi trường ẩn) → Lead soi → chuyển PO-coord → trình PO thật quyết quay.
 
 ### RỦI RO ĐANG MỞ (KHÔNG chặn quay — chặn đợt 150 người / bản live)
+- **Gate sàng lọc lừa đảo (`wrong_recipient`) lệch trans_id khi có ứng viên thứ hai** (Coder đo 04/09
+  tối, sau khi vá RB3 lần 2 — xem `§0-SEXIES`). `_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC` (`graph.py`) là 1
+  SLOT DUY NHẤT/thread, ghi ĐÈ không ghi thêm — nếu model tra ra ứng viên THỨ HAI trước khi ca đầu kịp
+  hỏi-đáp xong (hay gặp khi khách mô tả MỜ, đúng khung K1-K7/3.1), slot bị ghi đè, `sang_loc_xong` gắn
+  nhầm trans_id → `create_ticket` với trans_id CA ĐẦU vẫn bị chặn dù khách ĐÃ trả lời sàng lọc. Fail
+  SAFE (chặn + tự `request_human_handoff`, không tạo vé thiếu sàng lọc, không traceback lộ khách) —
+  GAP CHỨC NĂNG, không phải lỗ bảo mật. CHỈ nhánh `wrong_recipient` (`customer_tools.py:959`) —
+  storyboard quay 04/09 dùng `money_not_received`, đã QA test sống B2-B4 thành công, KHÔNG bị ảnh
+  hưởng. PO chốt: KHÔNG vá tối nay (tránh vá dưới áp lực giờ quay), vá TRƯỚC đợt 150 người. Hướng vá đề
+  xuất: đổi slot đơn sang tập hợp nhiều slot theo trans_id (dict/set), sửa cả 2 đầu ghi (⑨ lúc bắn câu
+  hỏi) và đọc (MẢNH-4 lúc nhận câu trả lời) trong `graph.py`.
 - **RAM/OOM** — uvicorn không `--preload`, mỗi worker tự tải PII/NER 2,3GB; 4 worker > VM 7,75GB.
   Band-aid đang giữ: 2 worker + prewarm. Fix gốc backlog: **PII sidecar + `mem_limit`** (DevOps P1-6,
   `docs/devops/2026-09-04-mem-limit-va-pii-sidecar-de-xuat.md`). Đã đo lại: `--preload` là của **Gunicorn
