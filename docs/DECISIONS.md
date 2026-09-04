@@ -3631,3 +3631,64 @@ notifications trả **404** (anti-enumeration, không 403) — không phân bi�
 người khác". Xác nhận khớp `src/api/main.py::mark_notification_read` + test
 `tests/test_api/test_notifications_bola.py`. Ràng buộc bất di #1 ở trên chỉ nói "cô lập tầng service,
 chống BOLA" chưa ghi literal ngưỡng HTTP — dòng này chốt để hợp đồng không chỉ sống trong test.
+
+## ADR-064 — Phạm vi nhìn ticket theo claim: CSKH chỉ thấy pool+của mình, Sếp thấy tất cả
+- **Ngày:** 2026-09-04
+- **Bối cảnh:** PO yêu cầu 2 việc gộp một thiết kế backend (`GET /tickets`): (1) CSKH hiện thấy
+  TOÀN BỘ ticket hệ thống, không phân biệt ai đã nhận xử lý — gây nhiễu/dẫm chân khi đông CSKH;
+  (2) Sếp cần thêm 1 màn riêng xem TẤT CẢ ticket để quản lý (hành vi này Sếp ĐÃ có sẵn, chỉ thiếu
+  lối vào UI — landed riêng, tab "Quản lý ticket", commit `11192cd`).
+- **Bằng chứng đã đo (Coder, 04/09):**
+  - `src/api/main.py` (`GET /tickets`): filter DUY NHẤT hiện có là `hitl_status` (tuỳ chọn) —
+    không filter theo người gọi. Mọi CSKH/Sếp nhận CÙNG một danh sách.
+  - `src/db/models.py` (model `Ticket`): KHÔNG có field ownership cấp-người nào. `assigned_role`
+    chỉ là string cấp-VAI ("cskh"), không phải cấp NGƯỜI. `claimed_by` đã tồn tại nhưng ở bảng
+    KHÁC (`ChatSession`) — chưa từng áp cho `Ticket`.
+  - `contracts/authority-matrix.yaml` ghi_chú route `GET /tickets/{id}/transcript` dùng CHÍNH câu
+    "mọi cskh/supervisor vốn đã đọc được mọi ticket" làm CĂN CỨ cho một quyết định bảo mật khác —
+    đổi hành vi `GET /tickets` làm câu này SAI ngay trong văn bản contract đang sống.
+  - `tests/test_invariants.py::test_authority_matrix_khop_app_dang_chay` chỉ introspect
+    route×role — KHÔNG bắt được thay đổi row-level này, không có lưới an toàn tự động.
+- **Quyết định:**
+  1. Thêm 2 cột `claimed_by: user_id | null`, `claimed_at: datetime | null` vào `Ticket`
+     (migration mới).
+  2. Route mới `POST /tickets/{ticket_id}/claim`, role `[cskh]` — CSKH bấm "Nhận vé" CHỦ ĐỘNG
+     (khớp nút "Mở & nhận" đã có ở dashboard live-chat), set `claimed_by=current_user` +
+     `claimed_at=now`. Idempotent: đã `claimed_by` CHÍNH MÌNH → 200 không đổi gì; đã `claimed_by`
+     NGƯỜI KHÁC → 409 (không cho cướp vé). Supervisor KHÔNG có route này.
+  3. `GET /tickets` (route/role không đổi, vẫn `[cskh, supervisor]`): CSKH lọc
+     `WHERE claimed_by IS NULL OR claimed_by = current_user.user_id`. Supervisor KHÔNG lọc, giữ
+     nguyên như hôm nay — nền cho tab "Quản lý ticket".
+  4. 🔴 **`GET /tickets/{ticket_id}/transcript` KHOÁ THEO CÙNG LUẬT** (không phải "để mở" như đề
+     xuất ban đầu) — CSKH: `claimed_by IS NULL OR = mình`; Supervisor: không lọc. Lý do PO chốt:
+     để mở mâu thuẫn thẳng với "CSKH chỉ thấy vé của mình" và hở BOLA trên transcript chứa PII
+     hội thoại khách — đúng thứ tính năng này đang đóng. KHÔNG phá luồng bàn giao ADR-044: vé chờ
+     handoff nằm trong POOL (`claimed_by IS NULL`) nên mọi CSKH trực vẫn đọc được transcript pool
+     để tiếp nhận; sau khi claim thì là của mình. Chỉ transcript của vé CSKH KHÁC đã claim mới bị
+     ẩn. Nhu cầu đọc chéo thật sau này (Sếp nhờ CSKH review vé người khác) → làm route/quyền
+     RIÊNG có chủ đích, không mở toang mặc định. Test BOLA bổ sung: CSKH đọc transcript vé người
+     khác đã claim → 404 (đúng khuôn anti-enumeration).
+  5. `contracts/resolution-state-machine.yaml` — KHÔNG đổi. Claim là thuộc tính RIÊNG của
+     `Ticket` (giống `ChatSession.claimed_by`), không phải 1 trục trong 3 trục
+     `hitl_status`/`resolution.status`/`partner_wait_status` đã có.
+- **Phương án đã cân nhắc và bác bỏ:**
+  - *Lọc thuần ở tầng UI* (ẩn ticket của CSKH khác trên frontend, backend vẫn trả hết): BỊ BÁC
+    BỎ — lỗ BOLA nguyên văn (CSKH-A gọi thẳng API vẫn lấy được ticket CSKH-B). PO yêu cầu tường
+    minh "backend enforce, không chỉ ẩn UI".
+  - *Khoá theo `complaint_id`* (chữ PO dùng ban đầu) hiểu là PK thật của `Complaint`: BỊ BÁC BỎ
+    về kỹ thuật — `complaint_id` sinh ra SAU khi `create_ticket` chạy, không tồn tại tại thời
+    điểm cần xác định "vé này của ai" khi CSKH đang xem hàng chờ. Diễn giải lại đúng tinh thần
+    PO thành khoá theo `Ticket.ticket_id` (tồn tại ngay lúc tạo, 1-1 với `Ticket`).
+  - *Route transcript để mở, không khoá theo claim* (đề xuất ban đầu của Coder): BỊ BÁC BỎ —
+    xem điểm 4.
+- **Hệ quả:**
+  - Contract: `contracts/authority-matrix.yaml` (+1 route `POST /tickets/{id}/claim` [cskh];
+    sửa ghi_chú route transcript cho khớp hành vi mới — CSKH đọc transcript pool để bàn giao,
+    KHÔNG đọc transcript vé CSKH khác đã claim).
+  - Migration mới cho `Ticket.claimed_by`/`claimed_at`.
+  - Test mới (tester): BOLA cho `GET /tickets` VÀ `GET /tickets/{id}/transcript` (CSKH-A không
+    thấy/đọc được ticket CSKH-B đã claim), regression cho Sếp (vẫn thấy toàn bộ cả 2 route),
+    authz cho route claim mới (409 khi cướp vé, 200 idempotent khi claim lại chính mình).
+  - `CONTRACT_VERSION` ở `tests/test_invariants.py` cần bump sau `check_contracts.py --update`.
+- **Thay thế:** không.
+- **Người duyệt:** PO thật (04/09, qua phiên PO).
