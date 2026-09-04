@@ -45,8 +45,18 @@ id = "generic-api-key"
   #     chuỗi hex dài trông giống entropy cao.
   #   sk-proj-abc123...  = placeholder kinh điển trong docs/guide/chapter-09.md,
   #     nằm trong đoạn dạy "SAI: Hardcoded API key" — ví dụ dạy TRÁNH leak.
-  # KHÔNG allowlist AI_LOG_API_KEY (.env.example, chỉ còn trong git history) —
-  # xem docs/security/2026-09-04-finding-ai-log-api-key-git-history.md.
+  #
+  # 🔴 KHÁC LOẠI với 5 dòng trên — dòng CUỐI trong `regexes` KHÔNG PHẢI giá
+  # trị giả. RISK-ACCEPT CÓ GHI CHÉP (PO thật, 04/09): khoá telemetry AI-log
+  # do BAN TỔ CHỨC (BTC) AI20K tự cấp cho TOÀN COHORT để đếm log hoạt động
+  # Claude Code — hạ tầng của BTC, không phải secret của dự án FIN-05, BTC tự
+  # biết và lường trước việc khoá này nằm trong repo của mọi đội. Rủi ro
+  # thấp (xấu nhất: rác vào log-ingest của BTC, KHÔNG lộ dữ liệu khách
+  # hàng/nội bộ dự án). Đã gỡ khỏi `.env.example` hiện tại — mục này chỉ để
+  # dọn tiếng ồn CI cho các commit LỊCH SỬ đã có nó, không phải "coi như
+  # chưa từng lộ". KHÔNG báo BTC (họ tự phát khoá này, biết trước rủi ro).
+  # KHÔNG rewrite git history (PO chốt — quá nhạy cho một khoá rủi ro thấp).
+  # Hồ sơ đầy đủ: docs/security/2026-09-04-finding-ai-log-api-key-git-history.md
   regexes = [
     '''Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=''',
     '''MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9''',
@@ -54,6 +64,7 @@ id = "generic-api-key"
     '''sk-deepseek-SENTINEL-KHONG-DUOC-ROI-KHOI-MAY-000''',
     '''d26ec7c15f46ddd8b8e7b0b28cfe89636117e7459a1db9f228e1abc6d2dbf4d4''',
     '''sk-proj-abc123\.\.\.''',
+    '''REDACTED_AI_LOG_KEY''',
   ]
   paths = [
     '''^\.github/workflows/ci\.yml$''',
@@ -62,4 +73,5 @@ id = "generic-api-key"
     '''^tests/test_config/test_fail_fast_secrets\.py$''',
     '''^data/generated/manifest\.json$''',
     '''^docs/guide/chapter-09\.md$''',
+    '''^\.env\.example$''',
   ]

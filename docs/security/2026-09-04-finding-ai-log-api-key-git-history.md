@@ -25,10 +25,15 @@ dữ liệu khách hàng/dự án.
 
 ## Quyết định
 
-- **KHÔNG allowlist trong `.gitleaks.toml`** — giữ finding này ĐỎ có chủ đích trong
-  `dependency-and-secret-scan` cho tới khi BTC xoay/thu hồi khoá phía họ. Đây là RISK-ACCEPT CÓ
-  GHI CHÉP (tài liệu này), khác với che giấu — người sau đọc log CI đỏ + hồ sơ này hiểu ngay lý
-  do, không cần điều tra lại từ đầu.
+> 🔴 **ĐÍNH CHÍNH cùng ngày (append, không sửa):** bản đầu của hồ sơ này (viết trước khi PO thật
+> có đủ ngữ cảnh) ghi "KHÔNG allowlist, giữ đỏ". Sau khi PO thật đánh giá rủi ro (xem trên), quyết
+> định CUỐI là **CÓ allowlist, kèm chú thích rõ** — xem lý do bên dưới. Giữ dòng cũ lại đây làm
+> bằng chứng lịch sử quyết định (Luật P — niêm, không xoá), KHÔNG áp dụng nữa.
+
+- **CÓ allowlist trong `.gitleaks.toml`** (mảng `regexes`/`paths` của rule `generic-api-key`),
+  KÈM CHÚ THÍCH RÕ ngay tại chỗ (không allowlist trống/im lặng) — đây là RISK-ACCEPT CÓ GHI CHÉP,
+  khác với che giấu: người sau đọc `.gitleaks.toml` VÀ hồ sơ này hiểu ngay lý do, không cần điều
+  tra lại từ đầu. `dependency-and-secret-scan` sẽ XANH sau khi land.
 - **KHÔNG rewrite git history** (filter-repo/BFG/force-push) — quá nhạy cho một khoá rủi ro
   thấp: nhánh dùng chung, nhiều phiên đang làm việc song song, giữa cửa sổ chuẩn bị quay demo.
 - **KHÔNG cần báo BTC** — họ là bên phát hành khoá, không phải nạn nhân của một lần rò rỉ.
@@ -36,6 +41,6 @@ dữ liệu khách hàng/dự án.
 
 ## Việc còn treo (không khẩn)
 
-CI job `dependency-and-secret-scan` sẽ tiếp tục báo đỏ vì finding này — đây là hành vi ĐÚNG,
-không phải lỗi cần vá thêm. Nếu muốn job xanh hoàn toàn, cần BTC xác nhận khoá đã hết hạn/thu
-hồi, lúc đó mới allowlist với chú thích cập nhật ("đã thu hồi, xem xác nhận từ BTC ngày...").
+Nếu sau này BTC xác nhận khoá đã hết hạn/thu hồi hẳn, cập nhật lại chú thích trong
+`.gitleaks.toml` ("đã thu hồi, xem xác nhận từ BTC ngày...") — không bắt buộc, chỉ để hồ sơ luôn
+khớp trạng thái mới nhất.
