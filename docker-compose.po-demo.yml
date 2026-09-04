@@ -26,5 +26,21 @@ services:
   # khác" mà team đã trả giá trước đó trong đêm.
   frontend:
     image: fin05-po-demo-frontend:quay-video
+    # [04/09 tối, PO thật bắt qua ảnh chụp màn hình] `docker compose build`
+    # KHÔNG kế thừa build-arg của lần `docker build` tay trước đó — build lại
+    # qua compose (đúng thứ đợt polish pagination/filter/noti vừa làm) âm
+    # thầm rơi về default Dockerfile (NEXT_PUBLIC_QUICK_LOGIN=false,
+    # NEXT_PUBLIC_HIDE_ENV_BADGE=false) dù `image:` tag vẫn là `quay-video`
+    # — mất 3 nút đăng nhập nhanh + hiện lại badge DEVELOPMENT, PHÁT HIỆN
+    # NGAY TRƯỚC GIỜ QUAY. Ghim ở đây để LẦN SAU `docker compose ... build
+    # frontend` (không cần nhớ build tay) vẫn ra đúng ảnh — CHỈ áp cho tag
+    # `quay-video` này (đúng phạm vi Dockerfile đã khai "ảnh gắn tag riêng
+    # dùng một lần"), KHÔNG đổi default của base docker-compose.yml/`latest`.
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_QUICK_LOGIN: "true"
+        NEXT_PUBLIC_HIDE_ENV_BADGE: "true"
 
 # Dựng: docker compose -p fin05-po-demo -f docker-compose.yml -f docker-compose.po-demo.yml [-f docker-compose.po-demo.canh6.yml] up -d
