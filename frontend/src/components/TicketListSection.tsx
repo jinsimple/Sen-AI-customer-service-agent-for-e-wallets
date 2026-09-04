@@ -134,6 +134,18 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
       [load]
     );
 
+    // [polish trước quay 04/09] STT toàn cục theo phân trang (PO chốt: trang
+    // 2, page_size 50 → STT 51-100, KHÔNG lặp lại 1-50) — chỉ số tính trên VỊ
+    // TRÍ TRONG TRANG ĐÃ FETCH (`tickets`), không phải trên `filtered` (2 chip
+    // page-scoped + ô tìm phía dưới không được làm STT "nhảy số" liên tục,
+    // đúng ngữ nghĩa "đây là dòng thứ mấy của TRANG này", không phải "thứ mấy
+    // trong kết quả còn lại sau khi lọc thêm tại trình duyệt").
+    const sttTheoTicketId = useMemo(() => {
+      const m = new Map<string, number>();
+      (tickets ?? []).forEach((t, i) => m.set(t.ticket_id, (page - 1) * pageSize + i + 1));
+      return m;
+    }, [tickets, page, pageSize]);
+
     const filtered = useMemo(() => {
       if (!tickets) return [];
       let list = tickets;
@@ -161,7 +173,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
 
     return (
       <>
-        <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card tls-filter-panel" style={{ marginBottom: 16 }}>
           <div className="card-title">Bộ lọc</div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginTop: 10 }}>
             <div>
@@ -235,7 +247,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
               />
             </div>
             {hasServerFilter && (
-              <span className="btn btn-outline btn-sm" onClick={clearFilters}>
+              <span className="btn-clear-filter" onClick={clearFilters}>
                 Xoá bộ lọc
               </span>
             )}
@@ -278,6 +290,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
           <table className="table table-cards-mobile">
             <thead>
               <tr>
+                <th>STT</th>
                 <th>Mã ticket</th>
                 <th>Khách hàng</th>
                 <th>Loại KN</th>
@@ -298,6 +311,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
                     className={`clickable ${rowClass}`}
                     onClick={() => router.push(`/tickets/${t.ticket_id}`)}
                   >
+                    <td className="tls-stt" data-label="STT">{sttTheoTicketId.get(t.ticket_id)}</td>
                     <td className="mono" data-label="Mã ticket">
                       {t.ticket_id}
                       {/* ADR-064(b), PO chốt UX 04/09 — nút CHỈ hiện cho cskh
@@ -370,7 +384,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
               })}
               {tickets && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="dim" style={{ textAlign: "center", padding: 24 }}>
+                  <td colSpan={9} className="dim" style={{ textAlign: "center", padding: 24 }}>
                     Không có ticket nào khớp bộ lọc.
                   </td>
                 </tr>

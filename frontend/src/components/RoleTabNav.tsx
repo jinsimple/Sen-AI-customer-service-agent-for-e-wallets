@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/lib/session";
@@ -36,29 +37,61 @@ const GROUP_LABEL: Record<Role, string> = {
   partner_admin: "Đối tác ví",
 };
 
+// [polish trước quay 04/09] PO bắt qua ảnh chụp: vào `/tickets/{id}` từ Hàng
+// chờ/Quản lý ticket/Phê duyệt thì KHÔNG tab nào sáng — trang đó không có
+// href riêng trong TABS (khai từ 26/08: "vào từ hàng chờ", chấp nhận lúc đó,
+// nay PO muốn sửa). CSKH chỉ có 1 lối vào ticket (Hàng chờ) nên trỏ thẳng;
+// Sếp có 2 lối (Quản lý ticket/Phê duyệt) nên phải NHỚ lối vào GẦN NHẤT —
+// dùng sessionStorage (không phải state/URL param, vì cả router.push lẫn
+// next/link ở 4 nơi khác nhau đều dẫn vào đây, sửa tận gốc ở component nav
+// rẻ hơn sửa từng call site) ghi MỖI LẦN trang đứng đúng trên 1 tab của
+// chính vai đó, đọc lại khi đang ở `/tickets/`. Cold start (mở thẳng link vé
+// chưa từng ghé tab nào trong phiên) → không tab nào sáng, giữ nguyên hành
+// vi cũ, không tệ hơn trước.
+const NHO_TAB_KEY = (role: Role) => `fin05_tab_gan_nhat:${role}`;
+
 export default function RoleTabNav({ role }: { role: Role }) {
   const pathname = usePathname();
+  const tabs = TABS[role] ?? [];
+  const isTicketDetail = pathname.startsWith("/tickets/");
+
+  const [tabGanNhat, setTabGanNhat] = useState<string | null>(null);
+  useEffect(() => {
+    const matched = tabs.find((t) => pathname.startsWith(t.href));
+    if (matched) {
+      // Ghi ra sessionStorage (hệ thống ngoài) — không cần setState ở nhánh
+      // này, vì `active` bên dưới đã tính đúng qua `pathname.startsWith`
+      // trực tiếp, không phụ thuộc tabGanNhat khi đang ĐỨNG TRÊN một tab thật.
+      sessionStorage.setItem(NHO_TAB_KEY(role), matched.href);
+    } else if (isTicketDetail) {
+      // Nhánh DUY NHẤT cần đọc lại state từ hệ thống ngoài (sessionStorage) —
+      // đúng khuôn "subscribe cập nhật từ external system" mà effect sinh ra
+      // để làm, không tính vào tổng lời gọi setState-trong-effect cần tránh.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTabGanNhat(sessionStorage.getItem(NHO_TAB_KEY(role)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, role]);
+
   // 26/08 — chuẩn ngành: một hàng chỉ có ĐÚNG MỘT tab không phải điều hướng,
   // nó là một nhãn chiếm trọn một hàng khung. customer/partner_admin chỉ có
   // 1 màn nên KHÔNG render hàng này — cskh/supervisor (nhiều tab) giữ nguyên.
   // `?? []` phòng TABS[role] undefined (vai lạ) làm nổ .length ở layout —
   // vỡ TOÀN TRANG thay vì chỉ ẩn tab, dù hôm nay vai luôn là 1-trong-4 giá
   // trị hợp lệ từ session đã lọc.
-  const tabs = TABS[role] ?? [];
   if (tabs.length <= 1) return null;
   return (
     <nav className="tabnav">
       <div className="tabgroup">
         <span className="tabgroup-label">{GROUP_LABEL[role]}</span>
-        {tabs.map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={`tab-btn${pathname.startsWith(tab.href) ? " active" : ""}`}
-          >
-            {tab.label}
-          </Link>
-        ))}
+        {tabs.map((tab) => {
+          const active = pathname.startsWith(tab.href) || (isTicketDetail && tabGanNhat === tab.href);
+          return (
+            <Link key={tab.href} href={tab.href} className={`tab-btn${active ? " active" : ""}`}>
+              {tab.label}
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
