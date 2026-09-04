@@ -1953,6 +1953,25 @@ def run_agent_turn(
                 # đã dời đi, tức nó CHỦ ĐỘNG chỉ sai đường cho người đọc sau.
                 # (Nếu cần `complaint_type` cho việc KHÁC: nó nằm ở `args`,
                 # KHÔNG ở `result` — create_ticket.py:110-118 cố ý không trả.)
+
+            # RB3 false-positive (04/09, QA phát hiện, 2/2 ca E2E): vòng lặp
+            # này trước đây CHỈ đọc ticket_id từ create_ticket — mọi
+            # request_human_handoff THÀNH CÔNG (tạo mới HOẶC tái dùng vé cũ,
+            # xem flag_human_handoff trả {"ticket_id":...}) đều bị coi như
+            # "chưa có vé thật", RB3 (khối ngay dưới, ~dòng 2172) ghi đè câu
+            # trả lời ĐÚNG bằng _CHUA_TAO_DUOC_VE. KHÔNG gộp vào nhánh
+            # create_ticket ở trên — request_human_handoff KHÔNG có
+            # should_escalate (khác payload shape), gộp sẽ đọc field không
+            # tồn tại. Nhánh này KHÔNG nới điều kiện RB3
+            # (`ticket_id is None and khai_da_tao_ve(...)` giữ nguyên) — chỉ
+            # thêm một nguồn HỢP LỆ để ticket_id khác None khi tool thật đã
+            # thành công. Ca MT-Z01 (model bịa "đã tạo hồ sơ" KHÔNG có tool
+            # call nào phía sau) không đi qua nhánh này — vòng lặp không có
+            # AIMessage nào mang tool_calls, ticket_id vẫn None, RB3 vẫn
+            # kích đúng như thiết kế gốc.
+            if call["name"] == "request_human_handoff" and "ticket_id" in payload:
+                ticket_id = payload["ticket_id"]
+
             # ⑧ · điểm gắn "lượt 1" — lượt này có tool nào bị CỔNG OTP chặn
             # không. Đọc GIÁ TRỊ TRẢ VỀ, không bắt exception: hai lỗi OTP
             # `return` một dict, KHÔNG raise (customer_tools.py:596-613) —
