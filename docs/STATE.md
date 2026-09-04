@@ -291,13 +291,16 @@ còn ý nghĩa vì RB3 đã vá triệt để, không còn hiện tượng đó 
 lỗi** "guard frontend hẹp hơn contract" (trước: `/policy-lookup`, `/dashboard`, `/report`). Đã vá tại
 chỗ, nhưng 4 lần không còn là ngẫu nhiên.
 
-🔴 **BACKLOG MỞ, cần PO quyết ranh giới trước khi giao ai:** dựng test kiểu `test_invariants.py` cho
-FRONTEND — đối chiếu `ROLE_PREFIXES` (`proxy.ts`) với `authority-matrix.yaml` tự động, bắt đúng lớp lỗi
-này ngay khi route mới quên khai. Vướng: `tests/` là vùng `tester`, nhưng tester CỐ Ý bị chặn đọc `src/`
-(tránh test phản chiếu bug có sẵn) — bài test này bắt buộc đọc `frontend/src/proxy.ts` thật. 2 hướng
-chưa chốt: (a) test sống ở `frontend/e2e/` (vùng tech-lead) — cần xác nhận ranh giới "tester không đọc
-src/" có tính luôn frontend hay chỉ backend; (b) tech-lead viết sẵn script/fixture riêng chỉ đọc
-`ROLE_PREFIXES`+`authority-matrix.yaml`, giao tester lắp assertion. Không gấp, sau buổi quay.
+✅ **PO thật CHỐT hướng (b), backlog SAU quay, không ăn attention cửa sổ quay:** dựng test kiểu
+`test_invariants.py` cho FRONTEND — đối chiếu `ROLE_PREFIXES` (`proxy.ts`) với `authority-matrix.yaml`
+tự động, bắt đúng lớp lỗi đã lặp 4 lần ngay khi route mới quên khai. Lý do chọn (b): lệnh cấm §4 "tester
+không đọc src/" nhắm vào test PHẢN CHIẾU LOGIC (đọc code nghiệp vụ rồi viết test khẳng định hành vi,
+vô tình chép bug) — bài này KHÁC LOẠI, là test NHẤT QUÁN giữa hai artifact cấu hình (danh sách path ↔
+prefix route), không phản chiếu logic nào. Giữ trọn cả chữ lẫn ý của §4: **tech-lead** viết fixture/script
+HẸP chỉ trích 2 danh sách (`ROLE_PREFIXES` + prefix route Sếp/CSKH từ authority-matrix), KHÔNG lộ logic
+proxy nào khác; **tester** lắp assertion so khớp trên fixture đó, test sống ở `tests/` (vùng tester) —
+tester KHÔNG đọc `proxy.ts` trực tiếp, quy tắc §4 nguyên vẹn. Gán: tech-lead (fixture) → tester
+(assertion), sau buổi quay.
 
 **Song song:** QA đang chạy K1-K7 (khách nhỏ giọt, brief
 `docs/giao-viec/2026-09-04-cau-khach-thuc-te-nho-giot-tu-kich-ban-chuyen-gia.md`) — PO thật nhận xét câu
