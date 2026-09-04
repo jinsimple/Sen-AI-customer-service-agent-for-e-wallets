@@ -3632,6 +3632,22 @@ người khác". Xác nhận khớp `src/api/main.py::mark_notification_read` + 
 `tests/test_api/test_notifications_bola.py`. Ràng buộc bất di #1 ở trên chỉ nói "cô lập tầng service,
 chống BOLA" chưa ghi literal ngưỡng HTTP — dòng này chốt để hợp đồng không chỉ sống trong test.
 
+**Addendum 2 (04/09, đợt polish trước quay demo — PO chốt):** `GET /notifications` thêm 4 trường vào
+mỗi item: `complaint_type` · `scope` · `priority` · `sla_due_at` — để mỗi thẻ thông báo tự đủ thông tin
+(loại khiếu nại/phạm vi/độ ưu tiên/SLA còn lại), CSKH/Sếp không phải mở vé mới biết. **KHÔNG vi phạm
+Ràng buộc bất di #2** ("chỉ mã vé + nhãn sự kiện, KHÔNG số tiền/PII/SĐT") — 4 trường này là dữ liệu
+PHÂN LOẠI/VẬN HÀNH, đã hiển thị công khai trên danh sách vé cho CSKH từ trước, không phải PII cá nhân
+khách/bên thứ ba. Security xác nhận qua Lead (04/09): không phạm PII/BOLA, và tự kiểm thêm không xung
+đột ADR-064 (fan-out "vé mới" gửi mọi CSKH đúng lúc ticket CHƯA claim được — khớp chính xác luật
+pool-visibility, không phải ngoại lệ).
+- **Kỹ thuật:** JOIN sang `Ticket`/`Complaint` LÚC ĐỌC (`GET /notifications`), KHÔNG snapshot lúc
+  fan-out — vì `priority` KHÔNG bất biến sau khi tạo (`_nang_uu_tien_theo_cam_xuc`, `graph.py`, ghi đè
+  priority SAU KHI ticket tồn tại khi tín hiệu cảm xúc khách kích). Snapshot lúc fan-out sẽ tạo lỗi
+  "số liệu cũ trông như đang đúng" nếu case bị nâng ưu tiên sau khi noti đã gửi.
+- **Hệ quả:** Không đổi route/role/schema `notifications` — field mới CHỈ ở response, không phải cột
+  DB mới. Không cần quy trình §3 (không đổi `authority-matrix.yaml`/`resolution-state-machine.yaml`).
+- **Người duyệt:** PO thật (04/09, qua phiên PO), Security xác nhận non-PII qua Lead cùng ngày.
+
 ## ADR-064 — Phạm vi nhìn ticket theo claim: CSKH chỉ thấy pool+của mình, Sếp thấy tất cả
 - **Ngày:** 2026-09-04
 - **Bối cảnh:** PO yêu cầu 2 việc gộp một thiết kế backend (`GET /tickets`): (1) CSKH hiện thấy
@@ -3691,4 +3707,31 @@ chống BOLA" chưa ghi literal ngưỡng HTTP — dòng này chốt để hợp
     authz cho route claim mới (409 khi cướp vé, 200 idempotent khi claim lại chính mình).
   - `CONTRACT_VERSION` ở `tests/test_invariants.py` cần bump sau `check_contracts.py --update`.
 - **Thay thế:** không.
+- **Người duyệt:** PO thật (04/09, qua phiên PO).
+
+**Addendum (04/09, cùng ngày, đợt polish trước quay demo — GHI DẤU VẾT breaking change, KHÔNG phải
+quyết định §3):** `GET /tickets` đổi SHAPE response và thêm tham số lọc, phục vụ bảng ticket 660 dòng
+không kéo hết 1 trang + filter chuyên nghiệp cho CSKH/Sếp. Route/role KHÔNG đổi (`[cskh, supervisor]`
+như cũ) nên KHÔNG cần quy trình §3/đổi `authority-matrix.yaml`, nhưng shape đổi là breaking change thật
+với mọi consumer, ghi lại để tra được sau này.
+- **Shape CŨ → MỚI:** mảng trần `[{...}, ...]` → object phân trang `{"items": [{...cùng field cũ,
+  không đổi...}], "total": int, "page": int, "page_size": int}`.
+- **Param CŨ → MỚI:** `hitl_status` giữ nguyên; `limit` BỎ, thay bằng `page` (mặc định 1, ≥1 hay 422) +
+  `page_size` (mặc định 50, CHỈ nhận 30/50/100 hay 422). Thêm mới: `complaint_type`/`scope`/`priority`/
+  `sla_before`/`sla_after` — kết hợp AND với nhau và với `hitl_status` (SQL WHERE thật, không lọc tay
+  sau khi fetch).
+- **Consumer đã sửa:** `tests/test_api/test_ticket_claim_adr064.py` (đọc `.json()["items"]`),
+  `frontend/src/lib/api.ts::listTickets()` (chữ ký + parse), `frontend/e2e/dashboard.spec.ts` (đổi neo
+  UI — bỏ chip đếm "Tất cả (N)"/"Chờ tiếp nhận (N)" không có tham số server tương ứng, giữ lại làm
+  toggle CLIENT-SIDE với nhãn rõ "(trang này)" tránh lặp lỗi đọc-nhầm-% đã bắt 20/08).
+- **Consumer XÁC NHẬN không cần sửa:** `frontend/src/app/api/tickets/route.ts` (BFF, transparent proxy
+  — forward query string, trả thẳng JSON, không parse shape); `test_authz_matrix.py` (chỉ assert
+  status_code, không đọc body).
+- **Frontend:** gộp `frontend/src/components/TicketListSection.tsx` dùng chung cho `/dashboard` (CSKH)
+  và `/quan-ly-ticket` (Sếp) — 2 trang trước đó gần như copy-paste nguyên khối bảng+filter.
+- **Fast-follow chưa đóng (§4-crossing cần soát lại):** `frontend/e2e/dashboard.spec.ts` do tech-lead
+  sửa trực tiếp (đúng vùng ghi `tester` theo CLAUDE.md §4) vì shape mới làm spec cũ chắc chắn đỏ — báo
+  Lead trước khi land, không lén. Tester cần soát lại TỪ SPEC (xác nhận assertion kiểm ĐÚNG hành vi
+  mong đợi — 30/trang · filter AND · pool→claim mất vé — không chỉ khớp output của tech-lead) sau khi
+  qua mốc quay demo. Không chặn quay (E2E là artifact CI, recording không phụ thuộc).
 - **Người duyệt:** PO thật (04/09, qua phiên PO).

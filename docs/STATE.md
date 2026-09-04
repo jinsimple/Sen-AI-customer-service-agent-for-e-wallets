@@ -40,6 +40,25 @@ UI nhỏ trên chuông thông báo (PO thật bắt trực tiếp trên màn 04/
   land. 6 route, presence Redis TTL 45s, fan-out 1 hàng/người (cùng transaction sự kiện gốc), BOLA→404.
   Verify ×3 abridged + 1 full seamless. Review soát ADR-063 SẠCH (cả 2 đường tạo vé — `create_ticket` &
   `request_human_handoff` — đi CÙNG một hàm notify, không sót).
+- **Đợt polish trước quay 04/09 (noti giàu trường + pagination + filter)** — commit `3887fa4`, **ADR-063
+  addendum 2** + **ADR-064 addendum**. `GET /notifications` thêm `complaint_type`/`scope`/`priority`/
+  `sla_due_at` (JOIN lúc đọc, non-PII, Security xác nhận). `GET /tickets` đổi shape mảng trần→
+  `{items,total,page,page_size}` + filter AND thật (SQL WHERE) 5 tiêu chí — breaking change có ghi dấu
+  vết, route/role không đổi nên không §3. Verify sống (Playwright, đo DOM): pagination 30/trang khớp
+  "Trang 2/22 — tổng 660", filter AND (money_not_received=117 → +priority critical=1), ADR-064 sống sót
+  (CSKH-B mất vé khỏi pool sau khi A claim), Sếp thấy đủ 660/660. Checklist hạ tầng 6/6 xanh (băm, env,
+  migration head, contract 3/3, dữ liệu nguyên vẹn, token cap).
+  - 🔵 Bug pre-existing lộ ra + đã vá cùng đợt: badge "Phạm vi" rỗng chữ cho `scope="unknown"` (DB cho
+    phép giá trị này, `SCOPE_LABEL` frontend chưa khai) — thêm "Chưa xác định", verify lại đúng.
+  - 🔵 Cụm 17 test OTP failed/24 error trước đó: **ENV-DEPENDENT**, không phải regression/WIP — thiếu
+    `OTP_DEMO_MODE=true` lúc chạy (mặc định TẮT chủ đích, `config.py:198`). Chạy lại đúng env → 46/46
+    passed. Đối chiếu `git show eae1d07` (ADR-060): không đụng nhánh gây lỗi, không liên quan.
+  - 🔵 `test_frontend_route_guards.py` 24 ERROR còn treo — CHÍNH LÀ finding P2-1/`appsec` đã ghi ở
+    "RỦI RO ĐANG MỞ" bên dưới (test hit stack sống dùng chung trên `localhost:443`, không phải po-demo),
+    không phải phát hiện mới, không chặn.
+  - ⚠️ Fast-follow chưa đóng: `frontend/e2e/dashboard.spec.ts` tech-lead sửa trực tiếp (vùng `tester`) vì
+    breaking change làm spec cũ chắc chắn đỏ — PO chốt GIỮ (mechanical, không chặn quay), tester soát
+    lại TỪ SPEC sau khi qua mốc quay. Xem addendum ADR-064.
 - **RB3 false-positive** (`graph.py`) — model phủ nhận SAI "hồ sơ chưa tạo" sau handoff thành công. Vá
   `c6d15ac` (đọc `ticket_id` từ payload `request_human_handoff`, vòng cũ chỉ đọc `create_ticket`). Review
   chứng minh đơn điệu (không làm yếu guard ca hallucination thật), QA verify đúng TEXT hiển thị.
