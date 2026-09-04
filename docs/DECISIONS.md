@@ -3584,3 +3584,44 @@ sản phẩm PO thật vừa chốt).
      Lớp 2 gác — không hồi quy so với trước.
 - **Người duyệt:** PO thật (04/09, qua phiên PO — chọn "Option 1: nối dây thật, gộp 1 build"
   sau khi được trình phát hiện "Lớp 1 code nhưng không đường nào gọi được").
+
+## ADR-063 — Chuông thông báo vé mới (CSKH & Sếp): 6 route mới, presence Redis, fan-out notifications
+- **Ngày:** 2026-09-04
+- **Bối cảnh:** Chatbot tạo vé → cần báo CSKH đang online; CSKH đề xuất (`propose_resolution`
+  → `pending_approval`) → cần báo Sếp; Sếp duyệt/từ chối → cần báo ngược CSKH. Hiện không có
+  cơ chế nào — CSKH/Sếp phải tự F5/tự kiểm hàng chờ.
+- **Quyết định** (PO chốt 04/09, brief đầy đủ
+  `docs/giao-viec/2026-09-04-po-build-chuong-thong-bao.md`):
+  1. Độ bền khi cả kíp offline: LƯU thông báo cho MỌI CSKH liên quan (fan-out ghi 1 dòng/người
+     nhận), chỉ ĐẨY tức thời cho người đang online — không để vé rơi.
+  2. MVP: polling ~20s (WebSocket là đợt nâng cấp sau, không làm đợt này).
+  3. Báo ngược khi Sếp duyệt/từ chối: CÓ, trong MVP.
+  4. Cột "số vé đang xử lý" trong bảng Sếp: CÓ, trong MVP.
+- **Công thức "số vé đang xử lý" của một CSKH** (tech-lead chốt, đúng đề xuất PO, khớp schema
+  hiện có):
+  `COUNT(ChatSession WHERE claimed_by=user_id AND status='active') + COUNT(Resolution WHERE
+  created_by=user_id AND status='pending_approval')` — cả hai trường (`ChatSession.status`
+  enum có sẵn `'active'`; `Resolution.created_by`/`status` từ BR-12 maker-checker, ADR-020) đã
+  tồn tại đúng nghĩa cần dùng, không cần thêm cột `claimed_by` lên `Complaint` (vé vẫn là kho
+  chung, đúng ràng buộc "CSKH không sở hữu vé").
+- **Kiến trúc:** Presence qua Redis TTL (`presence:staff:<user_id>` EX 45s, ghi mỗi lượt
+  `POST /presence/heartbeat` ~20s — không giữ state trong process, đúng nguyên tắc 4-worker).
+  Notification là bảng Postgres mới `notifications`, fan-out (tạo trong CÙNG transaction với
+  sự kiện gốc, không noti cho vé bị rollback), `read_at` riêng từng người nhận.
+- **6 route mới**, roles `[cskh, supervisor]` (riêng `GET /presence/staff` chỉ `[supervisor]`):
+  `GET /notifications` · `GET /notifications/unread-count` · `POST /notifications/{id}/read` ·
+  `POST /notifications/read-all` · `POST /presence/heartbeat` · `GET /presence/staff`.
+- **Ràng buộc bất di:**
+  1. Cô lập theo người nhận (`recipient_user_id = người đăng nhập`) ép ở tầng SERVICE khi truy
+     vấn — chống BOLA, không tin tham số client.
+  2. Nội dung notification CHỈ mã vé + nhãn loại sự kiện — KHÔNG số tiền/PII/SĐT (Ràng buộc
+     cứng #3 + PDPA).
+  3. Cả 6 route khai `extra: [require_token_chua_thu_hoi]` NGAY TỪ ĐẦU trong contract — tránh
+     lặp lại lớp bug "quên thêm route mới vào allowlist thu hồi token" (đã xảy ra 3 lần trước,
+     xem finding logout 04/09; đây là bước đầu cho hướng deny-by-default đang thiết kế, áp
+     trước cho route MỚI trong lúc thiết kế tổng thể còn đang làm).
+- **Hệ quả:** `authority-matrix.yaml` v2.1.0→v2.2.0 (+6 route, không đổi route/role cũ nào).
+  `test_invariants` dự kiến ĐỎ tạm thời ở `test_authority_matrix_khop_app_dang_chay` cho tới
+  khi code landing đủ 6 route — đúng trình tự contract-first đã định, không phải hồi quy.
+- **Thay thế:** không.
+- **Người duyệt:** PO thật (04/09, qua phiên PO — greenlit build, xác nhận qua chính ADR này).

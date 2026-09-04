@@ -16,8 +16,15 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.1.0"
+version: "2.2.0"
 source: "Sinh ngược từ src/api/main.py @ 2026-08-13 · thay thế bản 1.0.0 viết từ PRD"
+# v2.2.0 (04/09) — ADR-063, PO greenlit build "chuông thông báo vé mới".
+# Thêm 6 route: GET /notifications · GET /notifications/unread-count ·
+# POST /notifications/{id}/read · POST /notifications/read-all ·
+# POST /presence/heartbeat (cskh+supervisor) · GET /presence/staff (chỉ
+# supervisor). Cả 6 đều khai extra: [require_token_chua_thu_hoi] NGAY TỪ ĐẦU
+# — tránh lặp lại lớp bug "quên thêm route mới vào allowlist" (đã xảy ra 3
+# lần trước, xem finding logout 04/09).
 
 # ---------------------------------------------------------------------------
 # 4 role THẬT (bản contract cũ thiếu partner_admin — lỗi thật, đã sửa)
@@ -176,6 +183,27 @@ routes:
   - route: "POST /live-chat/sessions/{chat_session_id}/close"
     roles: [cskh, supervisor]
 
+  # ADR-063 — Chuông thông báo vé mới. Cô lập theo người nhận
+  # (recipient_user_id = người đăng nhập, chống BOLA) ép ở tầng service, không
+  # ở route — route chỉ ép ROLE. Nội dung noti CHỈ mã vé + nhãn loại, không
+  # số tiền/PII/SĐT (Ràng buộc cứng #3 + PDPA).
+  - route: "GET /notifications"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+  - route: "GET /notifications/unread-count"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+  - route: "POST /notifications/{id}/read"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+  - route: "POST /notifications/read-all"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+  - route: "POST /presence/heartbeat"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+    ghi_chu: "Ghi khoá Redis presence:staff:<user_id> TTL 45s — không giữ state trong process."
+
   # --- 3 role (khách xem lại hội thoại của chính mình) ---
   - route: "GET /live-chat/sessions/{chat_session_id}/messages"
     roles: [cskh, customer, supervisor]
@@ -194,6 +222,10 @@ routes:
   - route: "POST /resolutions/{resolution_id}/reject"
     roles: [supervisor]
     ghi_chu: "Từ chối KHÔNG cần OTP — không phải hành động tài chính."
+  - route: "GET /presence/staff"
+    roles: [supervisor]
+    extra: [require_token_chua_thu_hoi]
+    ghi_chu: "ADR-063 — bảng 'CSKH nào đang online' + số vé đang xử lý, chỉ Sếp xem."
 
   # --- CHỈ partner_admin — kho chính sách RAG ---
   - route: "POST /policy-docs"
