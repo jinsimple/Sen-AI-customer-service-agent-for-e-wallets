@@ -9,7 +9,8 @@ import {
   markNotificationRead,
   presenceHeartbeat,
 } from "@/lib/api";
-import { NOTIFICATION_EVENT_LABEL, type NotificationItem } from "@/lib/types";
+import { COMPLAINT_TYPE_LABEL, NOTIFICATION_EVENT_LABEL, PRIORITY_LABEL, SCOPE_LABEL, type NotificationItem } from "@/lib/types";
+import { formatSlaRemaining } from "@/lib/format";
 
 // ADR-063 — MVP polling ~20s (WebSocket là đợt nâng cấp sau, KHÔNG làm ở
 // đây). Gộp heartbeat presence CÙNG vòng poll unread-count — một chu kỳ,
@@ -121,6 +122,27 @@ export default function NotificationBell() {
               >
                 <span className="notif-item-label">{NOTIFICATION_EVENT_LABEL[item.event_type]}</span>
                 <span className="notif-item-ticket">{item.ticket_id}</span>
+                {/* [polish trước quay 04/09] loại/phạm vi/ưu tiên/SLA — non-PII,
+                    join-tại-lúc-đọc (xem GET /notifications, main.py). Có thể
+                    null (vé/khiếu nại đã bị xoá giữa lúc tạo noti và lúc đọc —
+                    hiếm nhưng KHÔNG loại trừ được) — ẩn cả dòng khi vậy thay vì
+                    hiện "—" rối mắt trên một panel vốn đã chật. */}
+                {item.complaint_type && (
+                  <span className="notif-item-meta" style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
+                    <span className="badge badge-neutral">{COMPLAINT_TYPE_LABEL[item.complaint_type]}</span>
+                    {item.scope && <span className="badge badge-neutral">{SCOPE_LABEL[item.scope]}</span>}
+                    {item.priority === "critical" ? (
+                      <span className="badge badge-critical">{PRIORITY_LABEL[item.priority]}</span>
+                    ) : item.priority && item.priority !== "normal" ? (
+                      <span className="badge badge-warning">{PRIORITY_LABEL[item.priority]}</span>
+                    ) : null}
+                    {item.sla_due_at && (
+                      <span className="mono" style={{ color: "var(--text-dim)" }}>
+                        {formatSlaRemaining(item.sla_due_at).label}
+                      </span>
+                    )}
+                  </span>
+                )}
                 <span className="notif-item-time">{thoiGianTuongDoi(item.created_at)}</span>
               </button>
             ))}

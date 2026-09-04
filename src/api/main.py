@@ -36,7 +36,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.agents.graph import close_checkpointer, doc_transcript_bang_giao, run_agent_turn
@@ -764,22 +764,66 @@ def agent_chat(
 # ---------------------------------------------------------------------------
 
 
+_TICKET_PAGE_SIZES = (30, 50, 100)
+
+
 @app.get("/tickets")
 def list_tickets(
     hitl_status: str | None = None,
-    limit: int = 50,
+    # [polish trước quay 04/09] Lọc AND — kết hợp được nhiều tiêu chí cùng
+    # lúc, mỗi tham số bỏ trống thì không lọc theo tiêu chí đó.
+    complaint_type: str | None = None,
+    scope: str | None = None,
+    priority: str | None = None,
+    # SLA "khoảng còn lại" — 2 mốc CHỌN được, không ép sẵn bucket (vd "quá
+    # hạn"/"còn <24h") vào backend: frontend tự tính mốc theo giờ hiện tại
+    # rồi truyền `sla_before`/`sla_after`, backend chỉ so sánh trực tiếp
+    # `Ticket.sla_due_at` — 1 cặp tham số phục vụ được mọi bucket UI muốn vẽ,
+    # không phải sửa backend mỗi khi đổi định nghĩa bucket.
+    sla_before: dt.datetime | None = None,
+    sla_after: dt.datetime | None = None,
+    # Thay `limit` cũ bằng phân trang thật — trang 660+ vé một lần là
+    # nguyên nhân PO yêu cầu đợt polish này. `page_size` CHỈ nhận 1 trong 3
+    # giá trị PO chốt, không tự do — tránh FE gửi số tuỳ ý kéo cả bảng.
+    page: int = 1,
+    page_size: int = 50,
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
     session: Session = Depends(get_session),
 ):
-    stmt = select(Ticket).order_by(Ticket.created_at.desc()).limit(limit)
+    if page < 1:
+        raise HTTPException(status_code=422, detail="page phải >= 1")
+    if page_size not in _TICKET_PAGE_SIZES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"page_size phải là 1 trong {list(_TICKET_PAGE_SIZES)}",
+        )
+
+    # JOIN thật (không phải join-ở-Python như trước) — lọc theo
+    # complaint_type/scope/priority cần WHERE ở tầng SQL để COUNT/OFFSET
+    # đúng; join-sau-khi-đã-select-Ticket (cách cũ) không lọc được.
+    stmt = select(Ticket).join(Complaint, Ticket.complaint_id == Complaint.complaint_id, isouter=True)
     if hitl_status:
         stmt = stmt.where(Ticket.hitl_status == hitl_status)
+    if complaint_type:
+        stmt = stmt.where(Complaint.type == complaint_type)
+    if scope:
+        stmt = stmt.where(Complaint.scope == scope)
+    if priority:
+        stmt = stmt.where(Complaint.priority == priority)
+    if sla_before:
+        stmt = stmt.where(Ticket.sla_due_at <= sla_before)
+    if sla_after:
+        stmt = stmt.where(Ticket.sla_due_at >= sla_after)
     # ADR-064(b) — row-level scoping (route/role không đổi). CSKH chỉ thấy
     # vé CHƯA claim (pool chung) + vé của CHÍNH MÌNH. supervisor KHÔNG lọc —
     # giữ nguyên quyền hiện có, Sếp không claim, chỉ quản lý/duyệt.
     if current_user.role == "cskh":
         stmt = stmt.where(or_(Ticket.claimed_by.is_(None), Ticket.claimed_by == current_user.user_id))
-    tickets = session.scalars(stmt).all()
+
+    total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    tickets = session.scalars(
+        stmt.order_by(Ticket.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    ).all()
     # Dashboard CSKH cần loại/phạm vi/ưu tiên/tín hiệu gian lận ngay trên bảng
     # (US-011, US-014) — join 1 lần qua complaint_id thay vì N+1 request.
     complaints = {
@@ -820,7 +864,7 @@ def list_tickets(
                 "claimed_by": t.claimed_by,
             }
         )
-    return out
+    return {"items": out, "total": total, "page": page, "page_size": page_size}
 
 
 @app.get("/tickets/{ticket_id}")
@@ -1785,18 +1829,48 @@ def list_notifications(
     session: Session = Depends(get_session),
 ):
     items = liet_ke_notifications(session, user_id=current_user.user_id)
-    return {
-        "items": [
+    # [polish trước quay 04/09] Đợt PO chốt: JOIN sang Ticket/Complaint LÚC
+    # RENDER, KHÔNG lưu snapshot lúc fan-out (ADR-063 addendum) — `priority`
+    # KHÔNG bất biến sau khi tạo (`_nang_uu_tien_theo_cam_xuc`, graph.py:654,
+    # ghi đè `complaint.priority` SAU khi ticket đã tồn tại theo tín hiệu cảm
+    # xúc khách). Snapshot lúc fan-out sẽ hiện priority CŨ nếu case bị nâng
+    # SAU khi noti đã gửi — đúng loại "số liệu cũ trông như đang đúng". Nạp
+    # 1 lần theo BATCH (join qua ticket_id/complaint_id), không N+1 mỗi noti.
+    tickets = {
+        t.ticket_id: t
+        for t in session.scalars(
+            select(Ticket).where(Ticket.ticket_id.in_([n.ticket_id for n in items]))
+        ).all()
+    }
+    complaints = {
+        c.complaint_id: c
+        for c in session.scalars(
+            select(Complaint).where(
+                Complaint.complaint_id.in_([t.complaint_id for t in tickets.values()])
+            )
+        ).all()
+    }
+    out = []
+    for n in items:
+        t = tickets.get(n.ticket_id)
+        c = complaints.get(t.complaint_id) if t else None
+        out.append(
             {
                 "notification_id": n.notification_id,
                 "event_type": n.event_type,
                 "ticket_id": n.ticket_id,
                 "created_at": n.created_at.isoformat(),
                 "read_at": n.read_at.isoformat() if n.read_at else None,
+                # 4 field non-PII, hiện tại y hệt cách GET /tickets đã hiện
+                # ("bình thường / còn 29 ngày") — vé bị xoá/không tra được
+                # (không nên xảy ra, FK ràng buộc) thì None, không suy đoán.
+                "complaint_type": c.type if c else None,
+                "scope": c.scope if c else None,
+                "priority": c.priority if c else None,
+                "sla_due_at": t.sla_due_at.isoformat() if t else None,
             }
-            for n in items
-        ]
-    }
+        )
+    return {"items": out}
 
 
 @app.get("/notifications/unread-count")

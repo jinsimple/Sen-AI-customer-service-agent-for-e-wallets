@@ -12,7 +12,9 @@ import type {
   ResolutionListItem,
   StaffPresenceItem,
   TicketDetail,
-  TicketSummary,
+  TicketListFilters,
+  TicketPageResponse,
+  TicketPageSize,
   TicketTranscript,
 } from "@/lib/types";
 import type { LiveChatContext } from "@/lib/useLiveChatSocket";
@@ -230,12 +232,22 @@ export function escalateTicket(params: { ticket_id: string; target: string; reas
 // /tickets* — đọc, dùng cho UI CSKH/sếp
 // ---------------------------------------------------------------------------
 
-export function listTickets(params?: { hitl_status?: string; limit?: number }) {
+// [polish trước quay 04/09] `limit` cũ đã bỏ ở backend (xem main.py) — phân
+// trang thật thay thế. `page_size` giới hạn 30/50/100 khớp PO chốt, không
+// nhận số tuỳ ý (backend 422 nếu sai, nhưng chặn từ type ở đây rẻ hơn).
+export function listTickets(
+  params?: TicketListFilters & { page?: number; page_size?: TicketPageSize }
+) {
   const qs = new URLSearchParams();
   if (params?.hitl_status) qs.set("hitl_status", params.hitl_status);
-  if (params?.limit) qs.set("limit", String(params.limit));
-  const suffix = qs.toString() ? `?${qs}` : "";
-  return get<TicketSummary[]>(`/api/tickets${suffix}`);
+  if (params?.complaint_type) qs.set("complaint_type", params.complaint_type);
+  if (params?.scope) qs.set("scope", params.scope);
+  if (params?.priority) qs.set("priority", params.priority);
+  if (params?.sla_before) qs.set("sla_before", params.sla_before);
+  if (params?.sla_after) qs.set("sla_after", params.sla_after);
+  qs.set("page", String(params?.page ?? 1));
+  qs.set("page_size", String(params?.page_size ?? 50));
+  return get<TicketPageResponse>(`/api/tickets?${qs}`);
 }
 
 export function getTicketDetail(ticketId: string) {

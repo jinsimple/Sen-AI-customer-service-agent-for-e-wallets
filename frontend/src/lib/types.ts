@@ -3,7 +3,12 @@
 // "other" (CTRL-001, 2026-08-11) — khách yêu cầu gặp người thật không kèm
 // mô tả khớp 1 trong 4 loại khiếu nại giao dịch cụ thể.
 export type ComplaintType = "wrong_recipient" | "money_not_received" | "double_charge" | "refund" | "other";
-export type Scope = "internal_wallet" | "from_bank" | "to_bank";
+// "unknown" — VALID_SCOPES (create_ticket.py) cho phép, khách không xác
+// định được sau CLARIFY_QUESTION_MAX_ROUNDS + 1 câu hỏi phạm vi (2026-08-11).
+// Thiếu nhánh này trước đây khiến SCOPE_LABEL[scope] trả `undefined`, badge
+// render RỖNG (không lỗi console, chỉ im lặng mất chữ) — bắt được khi soi
+// ảnh chụp panel thông báo đợt polish 04/09, không phải lỗi MỚI của đợt này.
+export type Scope = "internal_wallet" | "from_bank" | "to_bank" | "unknown";
 export type Priority = "low" | "normal" | "high" | "critical";
 export type HitlStatus = "pending" | "approved" | "rejected" | "need_more_info";
 export type PartnerWaitStatus = "n/a" | "waiting" | "overdue" | "responded";
@@ -95,6 +100,27 @@ export interface TicketSummary {
   // trị: với cskh LUÔN là chính mình (backend đã lọc), với supervisor có
   // thể là bất kỳ ai (route đó không lọc).
   claimed_by: string | null;
+}
+
+// [polish trước quay 04/09] GET /tickets đổi từ mảng trần sang trang có phân
+// trang thật — `total` là tổng số vé KHỚP BỘ LỌC hiện tại (không phải tổng
+// toàn hệ thống), dùng để tính số trang.
+export interface TicketPageResponse {
+  items: TicketSummary[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export type TicketPageSize = 30 | 50 | 100;
+
+export interface TicketListFilters {
+  hitl_status?: HitlStatus;
+  complaint_type?: ComplaintType;
+  scope?: Scope;
+  priority?: Priority;
+  sla_before?: string;
+  sla_after?: string;
 }
 
 export interface TicketDetail {
@@ -196,6 +222,14 @@ export const SCOPE_LABEL: Record<Scope, string> = {
   internal_wallet: "Nội bộ ví",
   from_bank: "Từ ngân hàng",
   to_bank: "Ra ngân hàng",
+  unknown: "Chưa xác định",
+};
+
+export const PRIORITY_LABEL: Record<Priority, string> = {
+  low: "Thấp",
+  normal: "Bình thường",
+  high: "Cao",
+  critical: "Khẩn cấp",
 };
 
 export interface CustomerHistory {
@@ -350,12 +384,20 @@ export interface PolicySearchResult {
 // tiền/PII/SĐT (ràng buộc cứng #3 + PDPA, ép ở cả tầng backend lẫn type này).
 export type NotificationEventType = "ve_moi" | "cho_duyet" | "da_duyet" | "da_tu_choi";
 
+// [polish trước quay 04/09] 4 trường thêm — join-tại-lúc-đọc từ Ticket/
+// Complaint hiện có (KHÔNG snapshot lúc fan-out, vì ưu tiên có thể đổi SAU
+// khi noti đã tạo — vd `_nang_uu_tien_theo_cam_xuc`). Vẫn chỉ non-PII, cùng
+// ràng buộc cứng #3 như comment trên.
 export interface NotificationItem {
   notification_id: string;
   event_type: NotificationEventType;
   ticket_id: string;
   created_at: string;
   read_at: string | null;
+  complaint_type: ComplaintType | null;
+  scope: Scope | null;
+  priority: Priority | null;
+  sla_due_at: string | null;
 }
 
 export const NOTIFICATION_EVENT_LABEL: Record<NotificationEventType, string> = {

@@ -103,7 +103,7 @@ def test_list_tickets_cskh_thay_pool_va_cua_minh_khong_thay_cua_nguoi_khac(clien
 
     resp = client.get("/tickets", headers={"Authorization": f"Bearer {_token(*_CSKH_A)}"})
     assert resp.status_code == 200
-    ids = {t["ticket_id"] for t in resp.json()}
+    ids = {t["ticket_id"] for t in resp.json()["items"]}
     assert tid_pool in ids, "vé chưa claim (pool) phải thấy được"
     assert tid_a in ids, "vé của chính mình phải thấy được"
     assert tid_b not in ids, "BOLA: KHÔNG được thấy vé CSKH khác đã claim"
@@ -117,7 +117,7 @@ def test_list_tickets_supervisor_khong_bi_loc_van_thay_tat_ca(client, sample_db)
 
     resp = client.get("/tickets", headers={"Authorization": f"Bearer {_token(*_SUP)}"})
     assert resp.status_code == 200
-    ids = {t["ticket_id"] for t in resp.json()}
+    ids = {t["ticket_id"] for t in resp.json()["items"]}
     assert tid_a in ids and tid_b in ids, "supervisor không đổi quyền — vẫn thấy TẤT CẢ"
 
 
