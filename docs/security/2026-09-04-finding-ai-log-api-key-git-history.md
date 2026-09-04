@@ -10,11 +10,13 @@
 ```
 # ---- AI Hook Logging (provided by instructor) ----
 AI_LOG_SERVER=https://ai-logs.note.transformerlabs.ai/api/ingest
-AI_LOG_API_KEY=REDACTED_AI_LOG_KEY   # [04/09] CHE MỘT PHẦN cố ý — giá trị đầy
-# đủ đã nằm trong git history của .env.example (truy được qua `git log -p`),
-# chép lại nguyên văn ở ĐÂY sẽ tạo thêm MỘT BẢN SAO mới của secret mà
-# gitleaks phải allowlist theo path riêng — mỗi tài liệu nhắc tới lại thêm
-# một lỗ, không phải một. Xem giá trị đầy đủ tại git history nếu cần đối
+AI_LOG_API_KEY=<đã che — xem giá trị đầy đủ trong git history của .env.example>
+# [04/09] CHE TRIỆT ĐỂ (không giữ ký tự thật nào của chuỗi) — bản che một
+# phần trước đó (đầu+cuối chuỗi thật) VẪN đủ entropy để gitleaks tự bắt lại
+# như MỘT BẢN SAO MỚI của secret (DevOps đo qua run CI thật, không phải suy
+# đoán) — che nửa vời không giải quyết được vấn đề gốc: mỗi tài liệu nhắc
+# tới secret lại thêm một lỗ, không phải một. Xem giá trị đầy đủ tại git
+# history (`git log -p -- .env.example`) nếu cần đối
 # chiếu, đừng dán lại nguyên văn ở tài liệu khác.
 ```
 
