@@ -532,7 +532,13 @@ RAG_RERANK_CANDIDATE_K = int(os.environ.get("RAG_RERANK_CANDIDATE_K", "8"))
 # (rerank.py coi như sidecar luôn "không tới được", fallback fail-closed —
 # không phải lỗi, là trạng thái hợp lệ cho ngăn chưa bật dịch vụ này).
 RAG_RERANK_SERVICE_URL = os.environ.get("RAG_RERANK_SERVICE_URL", "")
-RAG_RERANK_TIMEOUT_S = float(os.environ.get("RAG_RERANK_TIMEOUT_S", "5"))
+# 5s → 15s (04/09, PO bắt qua log thật) — lề an toàn PHỤ, sau khi
+# `rerank_service/app.py` đã vá gốc (tải model lúc khởi động thay vì lười
+# tải ở request đầu). 15s chỉ còn phải hứng mạng chậm/tải máy tức thời
+# thật, không còn phải hứng thời gian tải model (đã chuyển ra khỏi request
+# path). Không hạ về 5s nếu chưa đo lại — 5s đã CHỨNG MINH không đủ trên VM
+# RAM mỏng của po-demo (log timeout thật 04/09).
+RAG_RERANK_TIMEOUT_S = float(os.environ.get("RAG_RERANK_TIMEOUT_S", "15"))
 # Ngưỡng đo 03/09 trên 18 ca thật (tiếng Việt, top-k→rerank): tách biệt hoàn
 # toàn, phù hợp 7.03–10.91 / không phù hợp -7.52–-0.98, giữa khe ~3.0. KHÔNG
 # tự đổi số này mà không đo lại — đúng bài học ngưỡng đơn đã thất bại một
