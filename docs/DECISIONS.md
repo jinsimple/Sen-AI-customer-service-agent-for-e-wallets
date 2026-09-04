@@ -3550,3 +3550,37 @@ nhận được, vì "kém khả dụng" an toàn hơn "khả dụng nhưng sai"
 đợt này) · giảm worker xuống 1-2 (chỉ giải quyết tạm cho demo, không phải hướng chất lượng
 sản phẩm PO thật vừa chốt).
 **Người duyệt:** PO thật (04/09, qua phiên PO — chọn sidecar trong 3 phương án đã khảo sát).
+
+## ADR-062 — Nối dây `complaint_id` cho `/policy-search` (CSKH), scope-aware, chặn IDOR
+- **Ngày:** 2026-09-04
+- **Bối cảnh:** ADR-061 thiết kế Lớp 1 (lọc theo `scope`) nhưng không có đường gọi nào trong
+  code base cung cấp được `scope` cho `search_policy_text` — đường agent
+  (`customer_tools.py:999`, `build_customer_tools()`) không có `complaint`/`scope` trong tham
+  số; đường CSKH (`/policy-search`, `main.py`) trước đó chỉ có `query`+`top_k`. Nếu chỉ viết
+  hàm lọc mà không nối dây, Lớp 1 "đã code nhưng không bao giờ chạy" — mọi lời gọi thật luôn
+  truyền `None`, không có giá trị vận hành.
+- **Quyết định:** Nối dây THẬT cho đường CSKH — thêm `complaint_id: str | None = None`
+  (optional, `extra="forbid"` giữ nguyên) vào `PolicySearchRequest`. Route tự tra
+  `Complaint.scope` từ `complaint_id` SERVER-SIDE — **không tin `scope` do client tự khai**.
+  Đường agent giữ nguyên KHÔNG có scope (kiến trúc hiện tại không thay đổi); Lớp 2
+  (cross-encoder, ADR-061) là tuyến gác duy nhất cho đường đó, đúng đã ghi trong ADR-061 Hệ
+  quả #5.
+- **Ràng buộc bất di (chặn IDOR):**
+  1. Trước khi đọc `Complaint.scope`, kiểm caller có quyền trên `complaint_id` đó — dùng đúng
+     pattern quyền có sẵn (`require_role("cskh","supervisor")`, cùng khuôn `get_ticket_detail`
+     — cskh/supervisor vốn thấy được mọi vé, không phát minh mô hình quyền riêng cho route
+     này). Không có quyền / `complaint_id` không tồn tại ⟹ coi như `scope=None` (bỏ lọc),
+     **KHÔNG trả 403 phá luồng**, không lộ scope của vé người khác qua thông báo lỗi.
+  2. `test_invariants` phải VẪN XANH sau khi thêm field — field optional không được đổi
+     route count / roles / `authority-matrix.yaml`. [ĐO] chạy thật trong container po-demo:
+     **23/23 xanh**, gồm `test_authority_matrix_khop_app_dang_chay` — xác nhận bằng máy, không
+     chỉ bằng lời, rằng thay đổi này KHÔNG chạm `contracts/`.
+- **Hệ quả:**
+  1. `search_policy` (tool contract, `contracts/agent-tools.yaml`) KHÔNG đổi — thay đổi chỉ ở
+     tầng HTTP request schema của route `/policy-search`, không phải chữ ký tool.
+  2. CSKH tra chính sách CHO một vé cụ thể (truyền `complaint_id`) giờ được lọc đúng phạm vi
+     giao dịch của vé đó — giá trị vận hành thật của Lớp 1, không còn là "code chết".
+  3. Tra cứu KHÔNG gắn với vé cụ thể (không truyền `complaint_id`, hoặc đường agent) vẫn chỉ có
+     Lớp 2 gác — không hồi quy so với trước.
+- **Người duyệt:** PO thật (04/09, qua phiên PO — chọn "Option 1: nối dây thật, gộp 1 build"
+  sau khi được trình phát hiện "Lớp 1 code nhưng không đường nào gọi được").
