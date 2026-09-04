@@ -10,7 +10,12 @@
 ```
 # ---- AI Hook Logging (provided by instructor) ----
 AI_LOG_SERVER=https://ai-logs.note.transformerlabs.ai/api/ingest
-AI_LOG_API_KEY=REDACTED_AI_LOG_KEY
+AI_LOG_API_KEY=REDACTED_AI_LOG_KEY   # [04/09] CHE MỘT PHẦN cố ý — giá trị đầy
+# đủ đã nằm trong git history của .env.example (truy được qua `git log -p`),
+# chép lại nguyên văn ở ĐÂY sẽ tạo thêm MỘT BẢN SAO mới của secret mà
+# gitleaks phải allowlist theo path riêng — mỗi tài liệu nhắc tới lại thêm
+# một lỗ, không phải một. Xem giá trị đầy đủ tại git history nếu cần đối
+# chiếu, đừng dán lại nguyên văn ở tài liệu khác.
 ```
 
 Entropy cao, không có dấu hiệu placeholder — khác hẳn 15 finding còn lại trong cùng đợt quét

@@ -57,6 +57,12 @@ id = "generic-api-key"
   # chưa từng lộ". KHÔNG báo BTC (họ tự phát khoá này, biết trước rủi ro).
   # KHÔNG rewrite git history (PO chốt — quá nhạy cho một khoá rủi ro thấp).
   # Hồ sơ đầy đủ: docs/security/2026-09-04-finding-ai-log-api-key-git-history.md
+  #
+  # 04/09 — 2 giá trị dummy bổ sung (DevOps đọc source xác nhận): cả hai là
+  # JWT_SECRET_KEY giả dùng trong ci.yml (fail-fast test + step khác) — đọc
+  # được bằng mắt ("ci-dummy-...", "ci-ephemeral-not-for-production-..."),
+  # không phải secret thật. Bỏ sót ở đợt phân loại 17-finding trước (DevOps
+  # tự nhận lỗi phân loại, không phải secret mới lộ).
   regexes = [
     '''Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=''',
     '''MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9''',
@@ -65,6 +71,8 @@ id = "generic-api-key"
     '''d26ec7c15f46ddd8b8e7b0b28cfe89636117e7459a1db9f228e1abc6d2dbf4d4''',
     '''sk-proj-abc123\.\.\.''',
     '''REDACTED_AI_LOG_KEY''',
+    '''ci-ephemeral-not-for-production-use-only-in-ci-runs''',
+    '''ci-dummy-secret-key-0123456789abcd''',
   ]
   paths = [
     '''^\.github/workflows/ci\.yml$''',

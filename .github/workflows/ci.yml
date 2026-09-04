@@ -580,7 +580,10 @@ jobs:
     #   kế (EMBEDDING_BASE_URL trống), gỡ nó ra là gãy RAG.
     env:
       LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-      LLM_MODEL: qwen3.7-max-2026-06-08
+      # 04/09 — ADR-059: qwen3.8-flash là BASELINE đo lường thật (246 ca
+      # benchmark 31/08 đã chạy trên model này), không phải model ghim cũ
+      # qwen3.7-max-2026-06-08 (đã 403, ADR-058). Đổi đồng bộ với job dưới.
+      LLM_MODEL: qwen3.8-flash
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
       # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
       # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
@@ -589,6 +592,16 @@ jobs:
       FIN05_CHO_PHEP_GOI_RA_NGOAI: "1"
     steps:
       - uses: actions/checkout@v4
+      # 04/09 — DevOps: nghi vấn self-hosted runner (không ephemeral) giữ
+      # __pycache__/*.pyc từ lần chạy TRƯỚC checkout hiện tại, khiến Python
+      # tái dùng bytecode CŨ thay vì biên dịch lại từ .py vừa checkout (đúng
+      # khuôn ADV-035 báo đỏ dù source đã vá từ 10/08). Dọn tất định TRƯỚC
+      # khi cài dependency — rẻ, không có tác dụng phụ trên GitHub-hosted
+      # (nơi mỗi lần vốn đã sạch).
+      - name: Dọn __pycache__/*.pyc cũ trên self-hosted runner
+        run: |
+          find . -name '__pycache__' -type d -prune -exec rm -rf {} +
+          find . -name '*.pyc' -delete
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -667,13 +680,16 @@ jobs:
     #   kế (EMBEDDING_BASE_URL trống), gỡ nó ra là gãy RAG.
     env:
       LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-      LLM_MODEL: qwen3.7-max-2026-06-08
+      # 04/09 — ADR-059: qwen3.8-flash là BASELINE đo lường thật, không phải
+      # qwen3.7-max-2026-06-08 (đã 403, ADR-058). Đổi đồng bộ với job trên;
+      # model cũ giữ lại CUỐI bể làm dự phòng, không xoá hẳn.
+      LLM_MODEL: qwen3.8-flash
       # Bể nhiều model — job trước chỉ ghim 1 model (LLM_MODEL_POOL không đặt ⟹
       # mặc định bể = [LLM_MODEL], 1 phần tử) ⟹ model đó cạn là bể cạn NGAY, kích
       # bug None-check ở graph.py:1456 (vá riêng, chưa land). Thêm dự phòng đúng
       # họ model production đang dùng (po-demo: qwen3.8-flash + 3 model dự phòng)
       # để bể không cạn tức thì trong lúc chờ vá gốc.
-      LLM_MODEL_POOL: qwen3.7-max-2026-06-08,qwen3.8-flash,qwen3.6-plus-2026-04-02,qwen3.6-flash-2026-04-16
+      LLM_MODEL_POOL: qwen3.8-flash,qwen3.6-plus-2026-04-02,qwen3.6-flash-2026-04-16,qwen3.7-max-2026-06-08
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
       # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
       # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
@@ -682,6 +698,16 @@ jobs:
       FIN05_CHO_PHEP_GOI_RA_NGOAI: "1"
     steps:
       - uses: actions/checkout@v4
+      # 04/09 — DevOps: nghi vấn self-hosted runner (không ephemeral) giữ
+      # __pycache__/*.pyc từ lần chạy TRƯỚC checkout hiện tại, khiến Python
+      # tái dùng bytecode CŨ thay vì biên dịch lại từ .py vừa checkout (đúng
+      # khuôn ADV-035 báo đỏ dù source đã vá từ 10/08). Dọn tất định TRƯỚC
+      # khi cài dependency — rẻ, không có tác dụng phụ trên GitHub-hosted
+      # (nơi mỗi lần vốn đã sạch).
+      - name: Dọn __pycache__/*.pyc cũ trên self-hosted runner
+        run: |
+          find . -name '__pycache__' -type d -prune -exec rm -rf {} +
+          find . -name '*.pyc' -delete
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
