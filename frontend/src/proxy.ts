@@ -29,7 +29,12 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   // (GET /tickets: cskh, supervisor). Đây là ca thứ BA cùng lớp lỗi
   // "guard frontend hẹp hơn contract" — bộ quét ma trận role×route của
   // tester là thứ chặn ca thứ tư.
-  supervisor: ["/approve", "/report", "/tickets", "/policy-lookup", "/dashboard"],
+  // /cskh-online: tab mới tách khỏi /approve (04/09) — thiếu tiền tố này ở
+  // đây là CA THỨ TƯ cùng lớp lỗi "route mới không có mặt trong allowlist
+  // riêng của proxy" (khác nhánh contract-backend, đã xảy ra 3 lần trước:
+  // /policy-lookup, /dashboard, /report). Route không gọi API nào ngoài
+  // /presence/staff (đã cho phép supervisor sẵn trong authority-matrix).
+  supervisor: ["/approve", "/cskh-online", "/report", "/tickets", "/policy-lookup", "/dashboard"],
   partner_admin: ["/knowledge"],
 };
 
