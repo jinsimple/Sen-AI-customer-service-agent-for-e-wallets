@@ -5,10 +5,10 @@ Test qua HTTP thật (role gate, row-level scoping, BOLA), theo đúng khuôn
 để dựng ticket, không cần đi qua toàn bộ luồng AI agent)."""
 from __future__ import annotations
 
+import datetime as dt
+
 import pytest
 from fastapi.testclient import TestClient
-
-import datetime as dt
 
 from src.api.deps import get_session
 from src.api.main import app

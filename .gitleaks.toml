@@ -82,6 +82,11 @@ id = "generic-api-key"
     '''d26ec7c15f46ddd8b8e7b0b28cfe89636117e7459a1db9f228e1abc6d2dbf4d4''',
     '''sk-proj-abc123\.\.\.''',
     '''REDACTED_AI_LOG_KEY''',
+    # Bản CHE MỘT PHẦN (commit trung gian trước khi che triệt để) — chuỗi
+    # ĐÃ CẮT khác với bản đầy đủ ở trên, nên regex trước không khớp; gitleaks
+    # vẫn quét ra nó ở lịch sử. Cùng khoá, khác cách viết, không phải bí mật
+    # mới — xem docs/security/2026-09-04-finding-ai-log-api-key-git-history.md.
+    '''REDACTED_AI_LOG_KEY''',
     '''ci-ephemeral-not-for-production-use-only-in-ci-runs''',
     '''ci-dummy-secret-key-0123456789abcd''',
   ]
