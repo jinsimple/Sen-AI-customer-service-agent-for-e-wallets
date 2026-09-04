@@ -91,6 +91,10 @@ export interface TicketSummary {
   fraud_signals: string[];
   customer_name: string | null;
   human_handoff_requested: boolean;
+  // ADR-064(b) — null = còn trong pool (CSKH thấy nút "Nhận vé"). Có giá
+  // trị: với cskh LUÔN là chính mình (backend đã lọc), với supervisor có
+  // thể là bất kỳ ai (route đó không lọc).
+  claimed_by: string | null;
 }
 
 export interface TicketDetail {

@@ -247,6 +247,14 @@ export function getTicketTranscript(ticketId: string) {
   return get<TicketTranscript>(`/api/tickets/${ticketId}/transcript`);
 }
 
+// ADR-064(b) — "Nhận vé" chủ động, CHỈ cskh (backend 403 cho vai khác).
+export function claimTicket(ticketId: string) {
+  return post<{ ticket_id: string; claimed_by: string; claimed_at: string }>(
+    `/api/tickets/${ticketId}/claim`,
+    {}
+  );
+}
+
 export function requestMoreInfo(ticketId: string, params: { note?: string }) {
   return post<{ ticket_id: string; hitl_status: string }>(
     `/api/tickets/${ticketId}/request-more-info`,

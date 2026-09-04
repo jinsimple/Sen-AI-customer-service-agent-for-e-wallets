@@ -319,6 +319,13 @@ class Ticket(Base):
     # tại mốc này — trên vạch là thứ gây ra bàn giao, dưới vạch là thứ xảy ra
     # sau (transcript đọc LIVE, có thể trôi tiếp sau khi khách đã xin gặp người).
     handoff_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    # ADR-064(b) — CSKH "nhận vé" chủ động (POST /tickets/{id}/claim), KHÔNG
+    # tự động. NULL = còn trong pool chung, mọi CSKH thấy+claim được. Không
+    # FK ràng buộc CASCADE gì đặc biệt — user bị xoá (không xảy ra trong sản
+    # phẩm, không có route xoá user) thì để NULL đứng yên, không phải trục
+    # ưu tiên xử lý ở đây.
+    claimed_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
+    claimed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ToolResult(Base):

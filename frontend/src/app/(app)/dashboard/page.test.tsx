@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import DashboardPage from "./page";
+import DashboardClient from "./DashboardClient";
 
 /**
  * BUGREPRO-001/002 (FIN05_QA_TestCases.jsonl — QA/QC test tay 12/08/2026,
@@ -81,7 +81,7 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
         ticket({ ticket_id: "TCK-0002", human_handoff_requested: true, customer_name: "Khách B" }),
       ] as never);
 
-    render(<DashboardPage />);
+    render(<DashboardClient role="cskh" />);
 
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
     // Neo vào `(0/` chứ KHÔNG `(0)`: nhãn chip mang cửa sổ đếm — "(0/100 vé mới
@@ -103,7 +103,7 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
   it("sự kiện session_claimed cũng nạp lại ticket (CSKH khác vừa nhận ca)", async () => {
     vi.mocked(listTickets).mockResolvedValue([ticket()] as never);
 
-    render(<DashboardPage />);
+    render(<DashboardClient role="cskh" />);
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
 
     await waitFor(() => expect(capturedWsHandler).not.toBeNull());
@@ -115,7 +115,7 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
   it("sự kiện WS không liên quan KHÔNG được gây fetch thừa", async () => {
     vi.mocked(listTickets).mockResolvedValue([ticket()] as never);
 
-    render(<DashboardPage />);
+    render(<DashboardClient role="cskh" />);
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
 
     await waitFor(() => expect(capturedWsHandler).not.toBeNull());
@@ -131,7 +131,7 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(listTickets).mockResolvedValue([ticket()] as never);
 
-    render(<DashboardPage />);
+    render(<DashboardClient role="cskh" />);
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
     const waitingCallsBefore = vi.mocked(listWaitingChatSessions).mock.calls.length;
 

@@ -68,6 +68,11 @@ ROUTES: list[RouteCheck] = [
         "GET", "/tickets/{ticket_id}/transcript", "/tickets/TCK-NOPE/transcript",
         {"cskh", "supervisor"}, safe_success_check=True,
     ),
+    # ADR-064(b) (04/09) — "Nhận vé" chủ động, CHỈ cskh (supervisor không
+    # claim). Test BOLA/idempotent riêng ở test_ticket_claim_adr064.py — ở
+    # đây chỉ kiểm lớp uỷ quyền (401/403), TCK-NOPE không tồn tại nên role
+    # đúng vẫn 404, không có side-effect thật để lo.
+    RouteCheck("POST", "/tickets/{ticket_id}/claim", "/tickets/TCK-NOPE/claim", {"cskh"}),
     RouteCheck(
         "POST", "/resolutions/{resolution_id}/request-approval-otp",
         "/resolutions/RES-NOPE/request-approval-otp", {"supervisor"},

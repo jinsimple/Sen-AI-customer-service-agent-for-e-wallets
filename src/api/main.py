@@ -36,7 +36,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from src.agents.graph import close_checkpointer, doc_transcript_bang_giao, run_agent_turn
@@ -273,6 +273,19 @@ def _handle_tool_error(fn, *args, **kwargs):
         return fn(*args, **kwargs)
     except ToolError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+# ADR-064(b) (04/09) — MỘT điều kiện dùng chung cho MỌI route đọc/ghi dữ
+# liệu scoped theo 1 Ticket cụ thể, thay vì rải lại 3 dòng ở từng route (rải
+# lại là tự mời sai lệch giữa các route — đúng lớp lỗi Review bắt ở
+# GET /tickets/{ticket_id} lúc đầu bị bỏ sót). supervisor KHÔNG BAO GIỜ bị
+# hàm này chặn (return False vô điều kiện) — Sếp không claim, không lọc.
+def _cskh_bi_chan_boi_claim(current_user: CurrentUser, ticket: Ticket) -> bool:
+    return (
+        current_user.role == "cskh"
+        and ticket.claimed_by is not None
+        and ticket.claimed_by != current_user.user_id
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -643,6 +656,15 @@ def propose_resolution(
     _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
+    # ADR-064(b) (04/09) — ticket_id tới từ BODY (không phải path) nhưng
+    # cùng luật: CSKH không đề xuất được resolution cho vé người khác đang
+    # xử lý. Tra Ticket TRƯỚC khi gọi service — service tự tra lại theo
+    # ticket_id (không đổi hành vi của nó), ở đây chỉ thêm 1 lớp kiểm quyền.
+    ticket = session.get(Ticket, req.ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
     return _handle_tool_error(
         _propose_resolution, session, created_by=current_user.user_id, **req.model_dump()
     )
@@ -656,6 +678,15 @@ def escalate_ticket(
     _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
+    # ADR-064(b) (04/09) — cùng lý do ở propose_resolution ngay trên. KHÔNG
+    # chạm đường leo thang TỰ ĐỘNG của AI (fraud_policy/FS-06 chạy trong
+    # create_ticket, một code path hoàn toàn khác) — route này CHỈ phục vụ
+    # cskh/supervisor chủ động leo thang tay, đúng đối tượng ADR-064 nhắm.
+    ticket = session.get(Ticket, req.ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
     return _handle_tool_error(
         _escalate_ticket, session, created_by=current_user.user_id, **req.model_dump()
     )
@@ -743,6 +774,11 @@ def list_tickets(
     stmt = select(Ticket).order_by(Ticket.created_at.desc()).limit(limit)
     if hitl_status:
         stmt = stmt.where(Ticket.hitl_status == hitl_status)
+    # ADR-064(b) — row-level scoping (route/role không đổi). CSKH chỉ thấy
+    # vé CHƯA claim (pool chung) + vé của CHÍNH MÌNH. supervisor KHÔNG lọc —
+    # giữ nguyên quyền hiện có, Sếp không claim, chỉ quản lý/duyệt.
+    if current_user.role == "cskh":
+        stmt = stmt.where(or_(Ticket.claimed_by.is_(None), Ticket.claimed_by == current_user.user_id))
     tickets = session.scalars(stmt).all()
     # Dashboard CSKH cần loại/phạm vi/ưu tiên/tín hiệu gian lận ngay trên bảng
     # (US-011, US-014) — join 1 lần qua complaint_id thay vì N+1 request.
@@ -776,6 +812,12 @@ def list_tickets(
                 "fraud_signals": c.fraud_signals if c else [],
                 "customer_name": u.full_name if u else None,
                 "human_handoff_requested": t.human_handoff_requested,
+                # ADR-064(b) — frontend cần biết để quyết định hiện nút "Nhận
+                # vé": null = pool (nút hiện), có giá trị = đã có người nhận
+                # (với cskh, backend đã lọc ở trên nên "có giá trị" LUÔN là
+                # CHÍNH MÌNH; với supervisor route không lọc nên có thể là AI
+                # ĐÓ khác — supervisor không có nút claim, chỉ hiển thị).
+                "claimed_by": t.claimed_by,
             }
         )
     return out
@@ -789,6 +831,16 @@ def get_ticket_detail(
 ):
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    # ADR-064(b) (04/09, Review bắt lỗ thật) — CÙNG LUẬT row-level scoping
+    # với GET /tickets và transcript. Đường khai thác thật: notify_ve_moi
+    # (ADR-063) fan-out ticket_id cho MỌI cskh ngay lúc tạo vé, trước khi ai
+    # claim — CSKH nào cũng có ticket_id hợp lệ qua GET /notifications của
+    # chính mình, và route NÀY (KHÁC list/transcript) trả full detail:
+    # description_raw (thường chứa PII bên thứ ba), fraud_signals, TOÀN BỘ
+    # resolutions (số tiền/rationale), TOÀN BỘ investigation_logs — nặng hơn
+    # transcript hẳn. 404 (không phải 403) — cùng khuôn anti-enumeration.
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
     complaint = session.get(Complaint, ticket.complaint_id)
     resolutions = session.scalars(
@@ -901,15 +953,25 @@ def get_ticket_transcript(
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    # ADR-064(b) (04/09) — ĐỔI so với ADR-044 gốc: route này giờ áp CÙNG
+    # LUẬT row-level scoping với GET /tickets. cskh chỉ đọc được transcript
+    # của vé CHƯA claim (pool — mọi CSKH trực vẫn tiếp nhận được ca bàn
+    # giao) HOẶC vé claimed_by CHÍNH MÌNH. 404 (KHÔNG phải 403) cho vé đã
+    # claim bởi người khác — cùng khuôn anti-enumeration đã dùng cho
+    # notifications (không lộ có tồn tại hay không qua mã trạng thái khác
+    # nhau). supervisor KHÔNG lọc, như trước.
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
     complaint = session.get(Complaint, ticket.complaint_id)
     if complaint is None:
         # Không nên xảy ra (FK complaint_id NOT NULL) — 404 để không lộ khác
         # biệt hành vi với ca "ticket không tồn tại" phía trên (cùng lớp lỗi
         # dò được-vé-nào-tồn-tại qua mã trạng thái).
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
-    # "user_id khớp" KHÔNG phải ranh giới thẩm quyền ở route này (ADR-044
-    # mục 3) — mọi cskh/supervisor vốn đã đọc được mọi ticket qua
-    # GET /tickets/{ticket_id} phía trên, guard đó không chặn được gì thật.
+    # "user_id khớp" KHÔNG phải ranh giới thẩm quyền RIÊNG của route này
+    # (ADR-044 mục 3) — ranh giới thật giờ là luật claimed_by ở trên
+    # (ADR-064(b)), áp DÙNG CHUNG với GET /tickets, không phải một cơ chế
+    # riêng cho transcript.
 
     handoff_at = ticket.handoff_at.isoformat() if ticket.handoff_at else None
 
@@ -946,6 +1008,37 @@ def get_ticket_transcript(
         # timestamp — không có mốc per-message để so với handoff_at).
         "chi_so_bang_giao": ket_qua["chi_so_bang_giao"],
     }
+
+
+# ---------------------------------------------------------------------------
+# ADR-064(b) (04/09, PO thật duyệt) — CSKH "nhận vé" CHỦ ĐỘNG, không tự
+# động. Khớp mẫu "Mở & nhận" đã có ở dashboard live-chat (claim-based
+# routing của ChatSession, xem src/db/models.py:504-508) — cùng triết lý,
+# áp thêm cho Ticket.
+# ---------------------------------------------------------------------------
+@app.post("/tickets/{ticket_id}/claim")
+def claim_ticket(
+    ticket_id: str,
+    current_user: CurrentUser = Depends(require_role("cskh")),
+    session: Session = Depends(get_session),
+):
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    if ticket.claimed_by is not None and ticket.claimed_by != current_user.user_id:
+        # 409, KHÔNG phải 404/403 — khác BOLA ở GET (ẩn tồn tại), ở đây CSKH
+        # ĐANG thao tác trên 1 ticket họ vừa thấy trong pool (hoặc URL cũ đã
+        # mở từ trước khi bị người khác nhận) — cần biết RÕ lý do "không nhận
+        # được" (đã có người nhận) để UI báo đúng, không phải một 404 mơ hồ.
+        raise HTTPException(status_code=409, detail="ticket đã được CSKH khác nhận")
+    if ticket.claimed_by == current_user.user_id:
+        # Idempotent — bấm lại "Nhận vé" cho ticket mình đã nhận không phải
+        # lỗi, không ghi đè claimed_at (giữ mốc nhận LẦN ĐẦU).
+        return {"ticket_id": ticket.ticket_id, "claimed_by": ticket.claimed_by, "claimed_at": ticket.claimed_at.isoformat()}
+    ticket.claimed_by = current_user.user_id
+    ticket.claimed_at = dt.datetime.utcnow()
+    session.commit()
+    return {"ticket_id": ticket.ticket_id, "claimed_by": ticket.claimed_by, "claimed_at": ticket.claimed_at.isoformat()}
 
 
 # ---------------------------------------------------------------------------
@@ -1303,6 +1396,12 @@ def list_resolutions(
     out = []
     for r in resolutions:
         ticket = session.get(Ticket, r.ticket_id)
+        # ADR-064(b) (04/09, Review bắt — đường VÒNG rò cùng dữ liệu dù
+        # GET /tickets đã khoá) — CSKH bỏ qua hẳn resolution của vé người
+        # khác đang xử lý, KHÔNG chỉ ẩn field nhạy cảm: amount/rationale/
+        # destination_ref là chính thứ ADR-064 định che.
+        if ticket is not None and _cskh_bi_chan_boi_claim(current_user, ticket):
+            continue
         complaint = session.get(Complaint, ticket.complaint_id) if ticket else None
         approver = approvers.get(r.approved_by) if r.approved_by else None
         out.append(
@@ -1340,6 +1439,10 @@ def request_more_info(
 ):
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    # ADR-064(b) (04/09) — hành động GHI trên 1 ticket cụ thể, cùng luật với
+    # các route đọc: CSKH không tác động được vé đã claim bởi người khác.
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
     # FIN05-StressTest-Plan-v4 S4-06 — phát hiện thật: route này KHÔNG có
     # guard trạng thái (khác approve_resolution/reject_resolution cùng file,
@@ -1553,6 +1656,12 @@ def live_chat_session_by_ticket(
     LUÔN LUÔN — trước đây chỉ đẩy qua WS lúc claim thành công, CSKH mở ticket
     có phiên đã đóng sẽ không bao giờ nhận được claim_success nên không thấy
     được SĐT."""
+    # ADR-064(b) (04/09, Review bắt — rò SĐT khách thật) — cùng luật row-
+    # level scoping. Tra Ticket TRƯỚC khi tra ChatSession: ticket không tồn
+    # tại/bị claim bởi người khác đều 404 giống nhau, KHÔNG lộ khác biệt.
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None or _cskh_bi_chan_boi_claim(current_user, ticket):
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
     chat_session = session.scalars(
         select(ChatSession).where(ChatSession.ticket_id == ticket_id).order_by(ChatSession.started_at.desc())
     ).first()
@@ -1585,6 +1694,14 @@ def live_chat_session_messages(
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
     if current_user.role == "customer" and chat_session.customer_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="Phiên chat này không thuộc về bạn")
+    # ADR-064(b) (04/09, Review bắt — đường lấy chat_session_id: by-ticket
+    # HOẶC /live-chat/sessions/waiting trước khi ai claim, đọc lại VĨNH VIỄN
+    # sau khi đồng nghiệp claim nếu không chặn ở đây). Nội dung đã che PII
+    # (che_pii_van_ban ngay dưới) nhưng vẫn là transcript thật — cùng luật.
+    if current_user.role == "cskh":
+        ticket = session.get(Ticket, chat_session.ticket_id)
+        if ticket is not None and _cskh_bi_chan_boi_claim(current_user, ticket):
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
     messages = session.scalars(
         select(Message).where(Message.chat_session_id == chat_session_id).order_by(Message.created_at)
     ).all()
