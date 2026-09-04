@@ -3526,3 +3526,27 @@ LÚC**, thay vì quẩn quanh tới hết lượt (dạng `MT-Z02`/`MT-Z04`).
 - **Người duyệt:** Hướng hai lớp (①lọc scope + ②abstention) do PO THẬT chốt 03/09. Thiết kế kỹ
   thuật cụ thể (chunk-level, cross-encoder, chi tiết migration) do phiên PO duyệt theo uỷ quyền —
   sẽ tóm tắt lại cho PO thật, không phải PO thật tự đọc từng dòng kỹ thuật.
+
+**Cập nhật 04/09 (kiến trúc) — Lớp 2 dùng SIDECAR, không load model trong từng worker backend.**
+Bối cảnh: đo được `po-demo` backend chạy **4-5 tiến trình uvicorn worker độc lập**
+(multiprocessing, không chia sẻ bộ nhớ tiến trình). Load cross-encoder trực tiếp trong
+`search_policy_text` sẽ nhân RAM theo số worker: PyTorch full ~812MB × 4-5 = **3,2-4,1GB**;
+ONNX int8-quantize ~1008MB × 4-5 = **4,0-5,0GB** (🔴 ONNX KHÔNG nhẹ hơn PyTorch cho tổ hợp
+model/thư viện này — giả định ban đầu "ONNX thường giảm 2-4 lần" đã đo và RÚT LẠI, đừng lặp
+lại giả định đó ở đợt sau). Cả hai đều là chi phí không chấp nhận được trên hạ tầng hiện tại.
+**Quyết định:** tách rerank thành **service riêng (sidecar)** trong ngăn compose — load model
+ĐÚNG MỘT LẦN, mọi worker backend gọi qua HTTP nội bộ (docker network) thay vì tự load. RAM cho
+reranker cố định ~1 instance (~800MB đo thật qua `docker stats`, khớp đo trên host), không
+nhân theo worker.
+**Ràng buộc fallback (bắt buộc):** sidecar chết/timeout/lỗi mạng ⟹ `search_policy_text`
+**KHÔNG được crash**, xử lý như **KHÔNG có ứng viên nào qua được rerank** ⟹ `status=not_found`.
+Lý do chọn "fail-closed thành not_found" thay vì "trả kết quả chưa lọc khi sidecar chết": trả
+chưa lọc khi sidecar hỏng tái tạo NGUYÊN VẸN Finding ① (lạc đề/rác lọt qua) đúng lúc cần Lớp 2
+nhất — vi phạm Ràng buộc cứng #3 (thà "không tìm thấy" còn hơn nói sai). Đánh đổi: sidecar
+không ổn định ⟹ tính năng tra cứu chính sách kém khả dụng hơn (nhiều `not_found` hơn) — chấp
+nhận được, vì "kém khả dụng" an toàn hơn "khả dụng nhưng sai".
+**Đã cân nhắc và bác:** load model trong từng worker (RAM nhân ×4-5, đã đo, không chấp nhận
+được) · IPC/shared-memory riêng (công sức cao, nhiều bề mặt lỗi mới, không hợp cho phạm vi
+đợt này) · giảm worker xuống 1-2 (chỉ giải quyết tạm cho demo, không phải hướng chất lượng
+sản phẩm PO thật vừa chốt).
+**Người duyệt:** PO thật (04/09, qua phiên PO — chọn sidecar trong 3 phương án đã khảo sát).
