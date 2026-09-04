@@ -43,6 +43,15 @@ def rerank_va_loc(query: str, ung_vien: list[tuple[str, str]]) -> list[tuple[str
         "query": query,
         "ung_vien": [{"chunk_id": cid, "text": text} for cid, text in ung_vien],
     }
+    # 🔴 Review 04/09: bản trước chỉ bọc try/except quanh gọi HTTP + `.json()`
+    # (mạng/timeout/HTTP lỗi) — phần ĐỌC schema response (`item["chunk_id"]`,
+    # `item["score"]`, `data["ket_qua"][0]["score"]` ở dòng log) nằm NGOÀI,
+    # nên sidecar trả 200 với JSON SAI SCHEMA (thiếu key/score không parse
+    # được số) sẽ bắn `KeyError`/`ValueError`/`IndexError` thẳng ra ngoài,
+    # KHÔNG rơi vào fallback fail-closed — đúng vi phạm ràng buộc bất di ở
+    # docstring module. Toàn bộ phần đọc `data` giờ nằm CHUNG một khối bảo vệ
+    # với phần gọi mạng — MỌI lỗi từ lúc gửi request tới lúc đọc xong response
+    # đều fail-closed như nhau, không có khe hở nào giữa hai việc.
     try:
         resp = httpx.post(
             f"{RAG_RERANK_SERVICE_URL}/rerank",
@@ -51,29 +60,30 @@ def rerank_va_loc(query: str, ung_vien: list[tuple[str, str]]) -> list[tuple[str
         )
         resp.raise_for_status()
         data = resp.json()
+
+        qua_nguong = [
+            (item["chunk_id"], float(item["score"]))
+            for item in data.get("ket_qua", [])
+            if float(item["score"]) >= RAG_RERANK_THRESHOLD
+        ]
+        _logger.info(
+            "rag_rerank",
+            extra={
+                "so_ung_vien": len(ung_vien),
+                "so_qua_nguong": len(qua_nguong),
+                "diem_cao_nhat": data["ket_qua"][0]["score"] if data.get("ket_qua") else None,
+                "nguong": RAG_RERANK_THRESHOLD,
+            },
+        )
+        return qua_nguong
     except Exception as e:
-        # ĐÚNG NHÓM lỗi được fail-closed: mạng/timeout/HTTP lỗi/JSON hỏng —
-        # tất cả coi như "sidecar không tới được", KHÔNG phân biệt loại lỗi
+        # ĐÚNG NHÓM lỗi được fail-closed: mạng/timeout/HTTP lỗi/JSON hỏng/
+        # SCHEMA SAI (key thiếu, score không parse được) — tất cả coi như
+        # "sidecar không tới được/không dùng được", KHÔNG phân biệt loại lỗi
         # (đơn giản hoá có chủ đích: phân biệt thêm không đổi hành vi, chỉ
         # đổi chi tiết log).
         _logger.warning(
             "rag_rerank_sidecar_loi",
-            extra={"loi": str(e), "service_url": RAG_RERANK_SERVICE_URL},
+            extra={"loi": str(e), "loi_kieu": type(e).__name__, "service_url": RAG_RERANK_SERVICE_URL},
         )
         return []
-
-    qua_nguong = [
-        (item["chunk_id"], float(item["score"]))
-        for item in data.get("ket_qua", [])
-        if float(item["score"]) >= RAG_RERANK_THRESHOLD
-    ]
-    _logger.info(
-        "rag_rerank",
-        extra={
-            "so_ung_vien": len(ung_vien),
-            "so_qua_nguong": len(qua_nguong),
-            "diem_cao_nhat": data["ket_qua"][0]["score"] if data.get("ket_qua") else None,
-            "nguong": RAG_RERANK_THRESHOLD,
-        },
-    )
-    return qua_nguong
