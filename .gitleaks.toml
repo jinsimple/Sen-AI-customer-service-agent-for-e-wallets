@@ -21,9 +21,45 @@ id = "generic-api-key"
   # nhét một Fernet key sinh ngẫu nhiên vào ci.yml với bản OR thì gitleaks IM
   # LẶNG; đổi sang AND thì bắt được. Một allowlist bảo mật có thể tự vô hiệu
   # hoá đúng thứ nó bảo vệ mà không báo lỗi gì cả.
+  #
+  # 🔴 CHỈ MỘT khối `[[rules]] id = "generic-api-key"` được phép tồn tại
+  # trong file này — DevOps đo thật (chạy gitleaks local, thử 5 khối riêng
+  # rẽ): gitleaks KHÔNG cộng dồn nhiều khối cùng id, chỉ khối CUỐI CÙNG có
+  # hiệu lực. Thêm khối thứ hai = âm thầm VÔ HIỆU HOÁ khối này (kể cả dòng
+  # ci.yml phía trên). Mọi giá trị miễn trừ mới PHẢI gộp thêm vào ĐÚNG mảng
+  # `regexes`/`paths` bên dưới, không tạo khối `[[rules]]` mới.
   condition = "AND"
   regexTarget = "match"
   # Chuỗi gốc đọc được: "ci-ephemeral-key-not-for-prod-32". Cố ý để đọc ra được
   # bằng mắt, để người review thấy ngay đây không phải key thật.
-  regexes = ['''Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=''']
-  paths = ['''^\.github/workflows/ci\.yml$''']
+  #
+  # 04/09 — 4 giá trị dummy/fixture bổ sung (DevOps đọc source từng vị trí
+  # xác nhận, đối chiếu git log -p cho cả history, không chỉ HEAD):
+  #   MTIzNDU2...  = base64("1234567890123456789012345678901") — sentinel số
+  #     lặp dùng trong test_llm_pool_gd3.py / test_llm_api_key_khong_roi_
+  #     provider.py / test_fail_fast_secrets.py / rải rác ci.yml.
+  #   sk-proj-SENTINEL.../sk-deepseek-SENTINEL... — hằng số tự khai SENTINEL
+  #     trong tên, test_llm_api_key_khong_roi_provider.py.
+  #   d26ec7c1...  = SHA256 hash của file dữ liệu sinh tự động trong
+  #     data/generated/manifest.json — KHÔNG PHẢI secret, gitleaks bắt nhầm
+  #     chuỗi hex dài trông giống entropy cao.
+  #   sk-proj-abc123...  = placeholder kinh điển trong docs/guide/chapter-09.md,
+  #     nằm trong đoạn dạy "SAI: Hardcoded API key" — ví dụ dạy TRÁNH leak.
+  # KHÔNG allowlist AI_LOG_API_KEY (.env.example, chỉ còn trong git history) —
+  # xem docs/security/2026-09-04-finding-ai-log-api-key-git-history.md.
+  regexes = [
+    '''Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=''',
+    '''MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9''',
+    '''sk-proj-SENTINEL-KHONG-DUOC-ROI-KHOI-MAY-000''',
+    '''sk-deepseek-SENTINEL-KHONG-DUOC-ROI-KHOI-MAY-000''',
+    '''d26ec7c15f46ddd8b8e7b0b28cfe89636117e7459a1db9f228e1abc6d2dbf4d4''',
+    '''sk-proj-abc123\.\.\.''',
+  ]
+  paths = [
+    '''^\.github/workflows/ci\.yml$''',
+    '''^tests/test_agents/test_llm_pool_gd3\.py$''',
+    '''^tests/test_config/test_llm_api_key_khong_roi_provider\.py$''',
+    '''^tests/test_config/test_fail_fast_secrets\.py$''',
+    '''^data/generated/manifest\.json$''',
+    '''^docs/guide/chapter-09\.md$''',
+  ]
