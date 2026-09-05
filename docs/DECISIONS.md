@@ -3735,3 +3735,43 @@ với mọi consumer, ghi lại để tra được sau này.
   mong đợi — 30/trang · filter AND · pool→claim mất vé — không chỉ khớp output của tech-lead) sau khi
   qua mốc quay demo. Không chặn quay (E2E là artifact CI, recording không phụ thuộc).
 - **Người duyệt:** PO thật (04/09, qua phiên PO).
+
+## ADR-065 — Deep-link toàn văn cho `/policy-search`: route mới `GET /policy-doc/{doc_id}`
+- **Ngày:** 2026-09-05
+- **Bối cảnh:** PO muốn (cho lượt quay demo) mỗi kết quả `/policy-search` có link mở TOÀN VĂN tài liệu
+  chính sách/FAQ gốc ở tab mới, tự cuộn tới + tô sáng đúng đoạn đã khớp lúc tìm.
+- **Bằng chứng đã đo (tech-lead, 05/09):** `PolicyChunk` KHÔNG lưu toàn văn — chỉ chunk 800 ký tự,
+  `overlap=150` (`RecursiveCharacterTextSplitter`). Ghép các chunk theo `chunk_index` KHÔNG tái tạo
+  đúng văn bản gốc (overlap lặp ở mỗi ranh giới). 4 tài liệu đang index: 2 tài liệu DÀI (FAQ giao dịch
+  297 chunk, ToS 81 chunk — cuộn-tới-đúng-đoạn có ý nghĩa thật), 2 tài liệu NGẮN (1 chunk — toàn văn ≈
+  đoạn trích, không cần rẽ nhánh riêng, cơ chế chung vẫn áp được). Security xác nhận (05/09, quét thật
+  380 chunk bằng regex số + từ khoá định danh) 2 tài liệu dài KHÔNG lẫn PII khách hàng — chỉ thông tin
+  công khai của công ty (mã số DN, hotline, địa chỉ) — đủ điều kiện PDPA phục vụ toàn văn.
+- **Quyết định:**
+  1. Thêm `PolicyDocument.full_text` (migration, KHÔNG phải §3 — không đụng route/role) — hook 1 dòng ở
+     `ingest_document()` lưu văn bản gốc (đã có sẵn trong biến trước khi đưa vào splitter), không đổi
+     logic chunk/index/rerank hiện có. Backfill 4 tài liệu đang có.
+  2. `/policy-search` response thêm field `chunk_id` vào mỗi kết quả (ADDITIVE, không phá client cũ,
+     không phải §3) — cần cho FE dựng link. Hàm search/ngưỡng `-2.5` GIỮ NGUYÊN 100%, không đụng.
+  3. **Route MỚI `GET /policy-doc/{doc_id}?chunk_id=<optional>`**, roles `[cskh, supervisor]` — ĐÚNG
+     như `/policy-search`, không nới rộng. `doc_id` tra qua DB (`status="indexed"`), KHÔNG qua
+     filesystem — không có đường path-traversal, chỉ trả tài liệu đã nạp qua `/policy-docs`
+     (`partner_admin`). Có `chunk_id`: tra `PolicyChunk`, xác nhận `chunk.doc_id == doc_id`, tìm vị trí
+     bằng `full_text.find(chunk_text)` → trả `{start, end}` cho FE tô sáng. Không tìm ra (hiếm — chunk
+     cũ trước khi có `full_text`, hoặc lệch parser) → `highlight: null`, FE vẫn mở tài liệu, chỉ không
+     tô sáng/cuộn — suy giảm êm, không lỗi.
+  4. FE: link "Xem toàn văn" (`target="_blank"`) trên mỗi kết quả `/policy-search` → trang mới qua BFF
+     chuẩn `/api/policy-doc/[docId]` (không gọi thẳng backend từ client, đúng khuôn mọi route khác),
+     bọc đoạn `[start,end]` trong `<mark>`, cuộn bằng `scrollIntoView`. Không cần entry `RoleTabNav`
+     riêng (chỉ mở từ link, giống `/tickets/{id}`) — nhớ thêm `frontend/src/proxy.ts` allowlist.
+- **Phương án đã cân nhắc và bác bỏ:** ghép các `PolicyChunk` theo `chunk_index` để dựng lại toàn văn
+  thay vì lưu cột mới — BỊ BÁC BỎ, `overlap=150` làm văn bản ghép lặp/lệch ở mọi ranh giới chunk, không
+  phải toàn văn thật.
+- **Hệ quả:** `contracts/authority-matrix.yaml` +1 route `GET /policy-doc/{doc_id}` `[cskh, supervisor]`
+  (không đổi route/role nào cũ). Migration mới cho `PolicyDocument.full_text`. `CONTRACT_VERSION` ở
+  `tests/test_invariants.py` cần bump sau `check_contracts.py --update`. Test mới (tester): 404 cho
+  `doc_id` không tồn tại/chưa indexed, `chunk_id` lệch `doc_id` bị từ chối, `highlight: null` khi không
+  khớp được vị trí (suy giảm êm).
+- **Thay thế:** không.
+- **Người duyệt:** PO thật (05/09, qua phiên PO) — CHỜ DUYỆT tường minh trước khi
+  `check_contracts.py --update` + code, đúng quy trình §3.
