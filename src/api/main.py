@@ -1836,7 +1836,11 @@ async def live_chat_claim_session(
     session: Session = Depends(get_session),
 ):
     claimed = _handle_tool_error(
-        live_chat.claim_session, session, chat_session_id=chat_session_id, staff_id=current_user.user_id
+        live_chat.claim_session,
+        session,
+        chat_session_id=chat_session_id,
+        staff_id=current_user.user_id,
+        is_cskh=current_user.role == "cskh",
     )
     if claimed is None:
         raise HTTPException(status_code=409, detail="Phiên chat này đã có chuyên viên khác nhận")

@@ -55,12 +55,41 @@ def open_chat_session(session: Session, *, ticket_id: str, customer_id: str, now
     return _session_to_dict(chat_session)
 
 
-def claim_session(session: Session, *, chat_session_id: str, staff_id: str, now: dt.datetime | None = None) -> dict[str, Any] | None:
+def claim_session(
+    session: Session, *, chat_session_id: str, staff_id: str, is_cskh: bool = False, now: dt.datetime | None = None
+) -> dict[str, Any] | None:
     """Optimistic-concurrency claim — chỉ thành công nếu CHƯA ai nhận
     (`claimed_by IS NULL`). Trả None nếu đã bị người khác nhận trước (caller
     tự xử lý thông báo "đã có người nhận"), không raise — đây là tình huống
-    bình thường khi 2 CSKH cùng bấm nhận 1 lúc, không phải lỗi hệ thống."""
+    bình thường khi 2 CSKH cùng bấm nhận 1 lúc, không phải lỗi hệ thống.
+
+    CP10b (BOLA, 05/09) — claim phiên chat qua "Mở & nhận" TRƯỚC bản vá này
+    chỉ set `ChatSession.claimed_by`, hoàn toàn tách biệt khỏi `claim_ticket()`
+    (route /tickets/{id}/claim, ADR-064). Cổng chặn BOLA
+    `_cskh_bi_chan_boi_claim` chỉ đọc `Ticket.claimed_by` — luôn NULL qua
+    đường này — nên CSKH thứ hai mở THẲNG cùng ticket không hề bị chặn dù
+    ticket "trông như" đã có người nhận trên dashboard. Từ bản vá này, CSKH
+    claim phiên chat CŨNG claim ticket (cùng ngữ nghĩa "Nhận vé", cùng mẫu
+    atomic `claimed_by IS NULL`) — claim Ticket TRƯỚC, chỉ claim ChatSession
+    nếu thắng (hoặc đã là chính mình), tránh phải rollback 2 tài nguyên nếu
+    claim nửa chừng thất bại.
+
+    `is_cskh=False` (Sếp) CỐ Ý bỏ qua đoạn khoá Ticket — Sếp vốn không nằm
+    trong mô hình khoá-theo-claim (`_cskh_bi_chan_boi_claim` luôn bỏ qua Sếp
+    vô điều kiện), nên claim phiên chat của Sếp không được phép khoá ticket
+    khỏi CSKH khác — đó sẽ là hành vi MỚI ngoài ý muốn, không phải vá lỗi."""
     now = now or dt.datetime.utcnow()
+    chat_session = session.get(ChatSession, chat_session_id)
+
+    if is_cskh and chat_session is not None:
+        session.execute(
+            update(Ticket)
+            .where(Ticket.ticket_id == chat_session.ticket_id, Ticket.claimed_by.is_(None))
+            .values(claimed_by=staff_id, claimed_at=now)
+        )
+        ticket = session.get(Ticket, chat_session.ticket_id)
+        if ticket.claimed_by != staff_id:
+            return None  # vé đã thuộc CSKH khác — không cho cướp qua đường chat
 
     result = session.execute(
         update(ChatSession)
