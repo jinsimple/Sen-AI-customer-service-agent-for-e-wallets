@@ -313,6 +313,12 @@ footer.foot{ padding:22px 28px; text-align:center; color:var(--text-faint); font
 .note .icon{ color:var(--navy-2); margin-top:1px; }
 .callout-gold{ border-color:var(--gold); background:var(--gold-bg); color:var(--gold-ink); }
 .callout-gold .icon{ color:var(--gold-ink); }
+/* [05/09, PO bắt qua ảnh chụp] `.note` là flex ROW (dòng 310) — cụm OTP
+   duyệt (ResolutionApprovalActions.tsx) có 4 khối con (nhãn/mã mô phỏng/
+   hàng ô OTP/nút) nên bị ép xếp NGANG trong cột hẹp, nhãn vỡ chữ theo
+   chiều dọc. Xếp lại DỌC — OtpInput tự lo bố cục ngang 6 ô của riêng nó,
+   không đụng. */
+.approval-otp-row{ flex-direction: column; gap: 6px; align-items: stretch; }
 
 /* ---------- Badges ---------- */
 .badge{ display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:var(--fs-12); font-weight:700; white-space:nowrap; line-height:var(--lh-than); }
