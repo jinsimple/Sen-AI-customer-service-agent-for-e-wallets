@@ -24,15 +24,26 @@ from src.observability.logging_config import get_logger
 _logger = get_logger("fin05.rag")
 
 
-def rerank_va_loc(query: str, ung_vien: list[tuple[str, str]]) -> list[tuple[str, float]]:
+def rerank_va_loc(
+    query: str, ung_vien: list[tuple[str, str]], *, threshold: float | None = None
+) -> list[tuple[str, float]]:
     """`ung_vien`: [(chunk_id, text), ...] — ứng viên THÔ từ Chroma.
 
-    Trả về [(chunk_id, score), ...] CHỈ gồm ứng viên score >= RAG_RERANK_THRESHOLD,
-    sắp XẾP GIẢM DẦN theo score. Rỗng khi: tất cả ứng viên dưới ngưỡng (đúng
+    Trả về [(chunk_id, score), ...] CHỈ gồm ứng viên score >= ngưỡng, sắp
+    XẾP GIẢM DẦN theo score. Rỗng khi: tất cả ứng viên dưới ngưỡng (đúng
     thiết kế), HOẶC sidecar không tới được (fallback fail-closed — xem
     docstring module), HOẶC `RAG_RERANK_SERVICE_URL` chưa cấu hình (tính năng
     tắt hẳn cho ngăn này, không phải lỗi).
+
+    `threshold`: `None` (mặc định) dùng `RAG_RERANK_THRESHOLD` (đường agent,
+    5 tool `build_customer_tools` — KHÔNG đổi). Truyền tường minh khi caller
+    cần ngưỡng khác (xem `search_policy_text` — đường CSKH `/policy-search`
+    dùng `RAG_RERANK_THRESHOLD_CSKH`, PO chốt 05/09: excerpt cho NGƯỜI đọc,
+    không phải AI khẳng định, nên đổi được recall/precision trade-off ĐỘC
+    LẬP với đường agent).
     """
+    if threshold is None:
+        threshold = RAG_RERANK_THRESHOLD
     if not ung_vien:
         return []
     if not RAG_RERANK_SERVICE_URL:
@@ -64,7 +75,7 @@ def rerank_va_loc(query: str, ung_vien: list[tuple[str, str]]) -> list[tuple[str
         qua_nguong = [
             (item["chunk_id"], float(item["score"]))
             for item in data.get("ket_qua", [])
-            if float(item["score"]) >= RAG_RERANK_THRESHOLD
+            if float(item["score"]) >= threshold
         ]
         _logger.info(
             "rag_rerank",
@@ -72,7 +83,7 @@ def rerank_va_loc(query: str, ung_vien: list[tuple[str, str]]) -> list[tuple[str
                 "so_ung_vien": len(ung_vien),
                 "so_qua_nguong": len(qua_nguong),
                 "diem_cao_nhat": data["ket_qua"][0]["score"] if data.get("ket_qua") else None,
-                "nguong": RAG_RERANK_THRESHOLD,
+                "nguong": threshold,
             },
         )
         return qua_nguong

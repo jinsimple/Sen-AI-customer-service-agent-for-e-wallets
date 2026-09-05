@@ -14,7 +14,12 @@ import hmac
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.config import FIELD_ENCRYPTION_KEY, RAG_RERANK_CANDIDATE_K, RAG_SEARCH_TOP_K
+from src.config import (
+    FIELD_ENCRYPTION_KEY,
+    RAG_RERANK_CANDIDATE_K,
+    RAG_RERANK_THRESHOLD_CSKH,
+    RAG_SEARCH_TOP_K,
+)
 from src.db.models import PolicyChunk, PolicyDocument
 from src.observability.logging_config import get_logger
 from src.rag import rerank, store
@@ -58,9 +63,12 @@ def search_policy_text(
     score ra ngoài, giữ output gọn cho cả agent lẫn UI CSKH.
 
     `duong_tra`: "agent" (qua tool, CÓ lọc tier ở `_sanitize_policy_results`) hoặc
-    "cskh" (POST /policy-search, CỐ Ý không lọc — Y5). Chỉ dùng để ghi log:
-    hai đường cùng chạm một hàm nhưng hậu quả khác nhau, hồ sơ sự cố phải
-    phân biệt được mà không phải suy.
+    "cskh" (POST /policy-search, CỐ Ý không lọc — Y5). Dùng để ghi log (hai
+    đường cùng chạm một hàm nhưng hậu quả khác nhau, hồ sơ sự cố phải phân
+    biệt được mà không phải suy) VÀ (05/09, PO chốt) chọn ngưỡng rerank:
+    "cskh" dùng `RAG_RERANK_THRESHOLD_CSKH` (ưu tiên recall — người đọc
+    excerpt trực tiếp, không phải AI khẳng định), "agent" giữ nguyên
+    `RAG_RERANK_THRESHOLD` mặc định (không đổi hành vi/precision).
 
     `scope`: ADR-061 Lớp 1. `None` = KHÔNG lọc (hành vi y hệt trước khi có
     Lớp 1 — đúng trạng thái đường agent HÔM NAY, `build_customer_tools()`
@@ -112,7 +120,14 @@ def search_policy_text(
                 continue
             ung_vien.append((chunk_id, chunk.text))
 
-        qua_nguong = rerank.rerank_va_loc(query, ung_vien)[:k]
+        # PO chốt 05/09 — ngưỡng RIÊNG cho đường CSKH (`/policy-search`, xem
+        # main.py): trang đọc excerpt trực tiếp, không qua AI tổng hợp/khẳng
+        # định (phụ đề trang tự khai điều đó), nên mối lo precision Finding
+        # ① không áp dụng — ưu tiên recall cho câu ngắn/từ khoá. Đường agent
+        # (`duong_tra="agent"`, 5 tool) giữ NGUYÊN `RAG_RERANK_THRESHOLD` mặc
+        # định (truyền `None` cho `rerank_va_loc` — không đổi hành vi cũ).
+        nguong = RAG_RERANK_THRESHOLD_CSKH if duong_tra == "cskh" else None
+        qua_nguong = rerank.rerank_va_loc(query, ung_vien, threshold=nguong)[:k]
         for chunk_id, _score in qua_nguong:
             chunk = chunks_by_id[chunk_id]
             doc = docs_by_id.get(chunk.doc_id)
