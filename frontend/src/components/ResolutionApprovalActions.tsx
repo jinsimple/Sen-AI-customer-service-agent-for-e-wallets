@@ -112,12 +112,12 @@ export default function ResolutionApprovalActions({
           checking={busy}
           error={otpError}
           onSubmit={(otpCode) => void handleConfirmApprove(otpCode)}
+          trailing={
+            <button className="btn btn-outline" disabled={busy} onClick={() => setOtp(null)}>
+              Huỷ
+            </button>
+          }
         />
-        <div className="flex gap-sm wrap" style={{ marginTop: 8 }}>
-          <button className="btn btn-outline" disabled={busy} onClick={() => setOtp(null)}>
-            Huỷ
-          </button>
-        </div>
       </div>
     );
   }
