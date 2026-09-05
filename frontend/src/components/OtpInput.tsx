@@ -87,7 +87,6 @@ export default function OtpInput({
         <div className="flex gap-sm wrap" style={{ marginTop: 12 }}>
           <button
             className="btn btn-gold btn-sm"
-            style={{ flex: 1 }}
             disabled={!canSubmit}
             onClick={() => onSubmit(digits.join(""))}
           >

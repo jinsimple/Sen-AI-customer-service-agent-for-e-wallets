@@ -113,7 +113,7 @@ export default function ResolutionApprovalActions({
           error={otpError}
           onSubmit={(otpCode) => void handleConfirmApprove(otpCode)}
           trailing={
-            <button className="btn btn-outline" disabled={busy} onClick={() => setOtp(null)}>
+            <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => setOtp(null)}>
               Huỷ
             </button>
           }
