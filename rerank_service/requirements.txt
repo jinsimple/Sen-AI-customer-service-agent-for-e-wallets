@@ -1,0 +1,10 @@
+# Bản torch mặc định trên PyPI kéo theo TOÀN BỘ thư viện CUDA/NVIDIA dù máy
+# không có GPU (đo được: ảnh phồng lên 9,5GB) — ngăn này CPU-only (home-
+# server/VPS không GPU), dùng index CPU-only chính chủ của PyTorch để tránh
+# tải thứ không bao giờ dùng tới.
+--extra-index-url https://download.pytorch.org/whl/cpu
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.0
+sentence-transformers>=3.2.0
+torch>=2.2.0

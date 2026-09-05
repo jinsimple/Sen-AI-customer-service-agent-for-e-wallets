@@ -1,0 +1,363 @@
+{
+  "nguon_testset": "/app/eval/rag_policy_testset.json",
+  "cases": [
+    {
+      "id": "REL-IW-01",
+      "category": "relevant_internal_wallet",
+      "scope_available": true,
+      "query": "Cách chuyển tiền cho bạn bè trên MoMo",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "161. Cách mua vé xem phim trên MoMo https://www.momo.vn/hoi-dap/cach-mua-ve-xem-phim Để đặt vé xem phim trên MoMo, các b",
+        "14. Làm sao để biết bạn bè tôi có MoMo hay không để chuyển tiền? https://www.momo.vn/hoi-dap/lam-sao-de-biet-ban-be-toi-",
+        "16. MoMo hiện đang có các hình thức chuyển tiền nào? https://www.momo.vn/hoi-dap/momo-hien-dang-co-cac-hinh-thuc-chuyen-"
+      ]
+    },
+    {
+      "id": "REL-IW-02",
+      "category": "relevant_internal_wallet",
+      "scope_available": true,
+      "query": "Chuyển tiền đến ví MoMo người khác mất phí không",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "14. Làm sao để biết bạn bè tôi có MoMo hay không để chuyển tiền? https://www.momo.vn/hoi-dap/lam-sao-de-biet-ban-be-toi-",
+        "236. Tôi có thể chuyển tiền cho người chưa có tài khoản MoMo được không? https://www.momo.vn/hoi-dap/toi-chuyen-tien-cho",
+        "Tài khoản này đang không liên kết với MoMo khác. 5 Nhập mã xác thực Nhập mã xác thực OTP được gửi đến điện thoại quý khá"
+      ]
+    },
+    {
+      "id": "REL-FB-01",
+      "category": "relevant_from_bank",
+      "scope_available": true,
+      "query": "Cách liên kết MoMo với tài khoản ngân hàng",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "59. Lợi ích khi liên kết MoMo với tài khoản ngân hàng https://www.momo.vn/hoi-dap/loi-ich-khi-lien-ket-momo-voi-tai-khoa",
+        "64. Mỗi MoMo có thể liên kết với mấy tài khoản ngân hàng? https://www.momo.vn/hoi-dap/moi-vi-momo-co-the-lien-ket-voi-ma",
+        "61. Tại sao nên liên kết MoMo với tài khoản ngân hàng? https://www.momo.vn/hoi-dap/tai-sao-nen-lien-ket-vi-momo-voi-tai-"
+      ]
+    },
+    {
+      "id": "REL-FB-02",
+      "category": "relevant_from_bank",
+      "scope_available": true,
+      "query": "Nạp tiền vào ví MoMo từ ngân hàng VRB",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "77. Cách nạp tiền vào MoMo từ thẻ ATM? https://www.momo.vn/hoi-dap/cach-nap-tien-tu-the-atm-vao-vi-momo Bạn có thể nạp t",
+        "Nội dung: TK ngân hàng trừ tiền nhưng TK MoMo không đổi Mã giao dịch (Mã TID) Tên ngân hàng thực hiện giao dịch Tên chủ ",
+        "69. Hạn mức nạp, rút tiền qua tài khoản ngân hàng https://www.momo.vn/hoi-dap/han-muc-nap-rut-tien-qua-tai-khoan-ngan-ha"
+      ]
+    },
+    {
+      "id": "REL-TB-01",
+      "category": "relevant_to_bank",
+      "scope_available": true,
+      "query": "Rút tiền từ ví MoMo về tài khoản ngân hàng",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "61. Tại sao nên liên kết MoMo với tài khoản ngân hàng? https://www.momo.vn/hoi-dap/tai-sao-nen-lien-ket-vi-momo-voi-tai-",
+        "59. Lợi ích khi liên kết MoMo với tài khoản ngân hàng https://www.momo.vn/hoi-dap/loi-ich-khi-lien-ket-momo-voi-tai-khoa",
+        "19. Rút tiền từ MoMo về tài khoản ngân hàng liên kết có mất phí không? https://www.momo.vn/hoi-dap/rut-tien-tu-vi-momo-v"
+      ]
+    },
+    {
+      "id": "NM-01",
+      "category": "near_miss_wrong_scope",
+      "scope_available": true,
+      "query": "Phí liên ngân hàng khi chuyển tiền là bao nhiêu",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "Tên Ngân hàng: NH TMCP Bắc Á · Tên viết tắt: BAB · Hạn mức được áp dụng Nguồn tiền thay thế: Dưới 500,000 Tên Ngân hàng:",
+        "1. Hạn mức chuyển/nhận tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/han-muc-chuyen-nhan-tien-moi-ngay-la-bao-",
+        "Tên Ngân hàng: NH TMCP Ngoại Thương · Tên viết tắt: VCB · Hạn mức được áp dụng Nguồn tiền thay thế: Tất cả Tên Ngân hàng"
+      ]
+    },
+    {
+      "id": "NM-01b",
+      "category": "near_miss_wrong_scope",
+      "scope_available": false,
+      "query": "Phí liên ngân hàng khi chuyển tiền là bao nhiêu",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "Tên Ngân hàng: NH TMCP Bắc Á · Tên viết tắt: BAB · Hạn mức được áp dụng Nguồn tiền thay thế: Dưới 500,000 Tên Ngân hàng:",
+        "1. Hạn mức chuyển/nhận tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/han-muc-chuyen-nhan-tien-moi-ngay-la-bao-",
+        "Tên Ngân hàng: NH TMCP Ngoại Thương · Tên viết tắt: VCB · Hạn mức được áp dụng Nguồn tiền thay thế: Tất cả Tên Ngân hàng"
+      ]
+    },
+    {
+      "id": "NM-02",
+      "category": "near_miss_wrong_scope",
+      "scope_available": true,
+      "query": "Chuyển tiền ví sang ví có bị trừ phí ngân hàng không",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1",
+        "DOC-aaf60f95611b"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx",
+        "MoMo_ToS.docx"
+      ],
+      "snippet_dau": [
+        "Tên Ngân hàng: NH TMCP Phát triển Thành phố Hồ Chí Minh · Tên viết tắt: HDB · Hạn mức được áp dụng Nguồn tiền thay thế: ",
+        "Tên Ngân hàng: NH TMCP Bắc Á · Tên viết tắt: BAB · Hạn mức được áp dụng Nguồn tiền thay thế: Dưới 500,000 Tên Ngân hàng:",
+        "✔️ Nguồn tiền Ngân hàng: Kiểm tra lại số dư tài khoản ngân hàng hoặc số dư MoMo. Nếu có phát sinh giao dịch hoàn tiền về"
+      ]
+    },
+    {
+      "id": "NM-02b",
+      "category": "near_miss_wrong_scope",
+      "scope_available": false,
+      "query": "Chuyển tiền ví sang ví có bị trừ phí ngân hàng không",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1",
+        "DOC-aaf60f95611b"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx",
+        "MoMo_ToS.docx"
+      ],
+      "snippet_dau": [
+        "Tên Ngân hàng: NH TMCP Phát triển Thành phố Hồ Chí Minh · Tên viết tắt: HDB · Hạn mức được áp dụng Nguồn tiền thay thế: ",
+        "Tên Ngân hàng: NH TMCP Bắc Á · Tên viết tắt: BAB · Hạn mức được áp dụng Nguồn tiền thay thế: Dưới 500,000 Tên Ngân hàng:",
+        "✔️ Nguồn tiền Ngân hàng: Kiểm tra lại số dư tài khoản ngân hàng hoặc số dư MoMo. Nếu có phát sinh giao dịch hoàn tiền về"
+      ]
+    },
+    {
+      "id": "RAC-01",
+      "category": "rac",
+      "scope_available": true,
+      "query": "công thức nấu phở bò",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1",
+        "DOC-aaf60f95611b"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx",
+        "MoMo_ToS.docx"
+      ],
+      "snippet_dau": [
+        "Nếu cần hỗ trợ thêm, vui lòng để lại lời nhắn bên dưới cho bộ phận CSKH và cung cấp các thông tin sau: Nội dung hỗ trợ L",
+        "87. Có thể thanh toán tiền nước cho khu vực nào? https://www.momo.vn/hoi-dap/co-the-thanh-toan-tien-nuoc-cho-khu-vuc-nao",
+        "Trường hợp vụ việc có dấu hiệu tội phạm, M_Service có quyền tự mình thực hiện và/hoặc hoặcyêu cầu Người Sử dụng thông bá"
+      ]
+    },
+    {
+      "id": "RAC-02",
+      "category": "rac",
+      "scope_available": false,
+      "query": "tỷ số trận đấu tối qua",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1",
+        "DOC-aaf60f95611b"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx",
+        "MoMo_ToS.docx"
+      ],
+      "snippet_dau": [
+        "214. Tôi thấy thông báo hóa đơn đã thanh toán dù tôi chưa thanh toán https://www.momo.vn/hoi-dap/toi-thay-thong-bao-hoa-",
+        "Trường hợp vụ việc có dấu hiệu tội phạm, M_Service có quyền tự mình thực hiện và/hoặc hoặcyêu cầu Người Sử dụng thông bá",
+        "221. Tôi thấy thông báo hóa đơn không tồn tại https://www.momo.vn/hoi-dap/toi-thay-thong-bao-hoa-don-khong-ton-tai Bạn v"
+      ]
+    },
+    {
+      "id": "RAC-03",
+      "category": "rac",
+      "scope_available": true,
+      "query": "xin chào bạn khỏe không",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "221. Tôi thấy thông báo hóa đơn không tồn tại https://www.momo.vn/hoi-dap/toi-thay-thong-bao-hoa-don-khong-ton-tai Bạn v",
+        "Xem hướng dẫn: /?questionId=171&name=Gửi_tiền_mừng_cho_1_người /?questionId=172&name=Gửi_tiền_mừng_cho_1_nhóm_người_cùng",
+        "212. Thanh toán thành công nhưng tôi không nhận được sản phẩm https://www.momo.vn/hoi-dap/thanh-toan-thanh-cong-nhung-to"
+      ]
+    },
+    {
+      "id": "RAC-04",
+      "category": "rac",
+      "scope_available": false,
+      "query": "zzzqwx plquv",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "Thanh toán tại quầy  122. Mã QR là gì? Sử dụng mã QR như thế nào? https://www.momo.vn/hoi-dap/ma-qr-la-gi-su-dung-ma-qr-",
+        "Yêu cầu chuyển tiền  24. Cách gửi mã QR cá nhân để người khác chuyển tiền cho mình https://www.momo.vn/hoi-dap/cach-gui-",
+        "164. Mã QR/Barcode khi mua vé xem phim là gì? https://www.momo.vn/hoi-dap/ma-qr-barcode-khi-mua-ve-xem-phim-la-gi Là dạn"
+      ]
+    },
+    {
+      "id": "DO-STATE-01",
+      "category": "do_state_md",
+      "scope_available": true,
+      "query": "cho tôi biết trạng thái dự án FIN-05 hiện tại",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1",
+        "DOC-aaf60f95611b"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx",
+        "MoMo_ToS.docx"
+      ],
+      "snippet_dau": [
+        "Thời gian dự kiến hệ thống cập nhật trạng thái trong vòng 1-2 ngày làm việc (không tính ngày thứ Bảy, Chủ Nhật và ngày L",
+        "Bạn có thể theo dõi tiến độ giao dịch theo 2 cách sau: ✔️ Tại màn hình lịch sử giao dịch: ✔️ MoMo sẽ thông báo kết quả c",
+        "18.2. Mọi thông báo và tài liệu (nếu có) được đưa ra bởi Người Sử Dụng theo Điều Khoản Chung này cho M_Service sẽ được g"
+      ]
+    },
+    {
+      "id": "DO-STATE-01b",
+      "category": "do_state_md",
+      "scope_available": false,
+      "query": "cho tôi biết trạng thái dự án FIN-05 hiện tại",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1",
+        "DOC-aaf60f95611b"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx",
+        "MoMo_ToS.docx"
+      ],
+      "snippet_dau": [
+        "Thời gian dự kiến hệ thống cập nhật trạng thái trong vòng 1-2 ngày làm việc (không tính ngày thứ Bảy, Chủ Nhật và ngày L",
+        "Bạn có thể theo dõi tiến độ giao dịch theo 2 cách sau: ✔️ Tại màn hình lịch sử giao dịch: ✔️ MoMo sẽ thông báo kết quả c",
+        "18.2. Mọi thông báo và tài liệu (nếu có) được đưa ra bởi Người Sử Dụng theo Điều Khoản Chung này cho M_Service sẽ được g"
+      ]
+    },
+    {
+      "id": "DO-STATE-02",
+      "category": "do_state_md",
+      "scope_available": false,
+      "query": "có phát hiện bảo mật nào chưa vá không",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1",
+        "DOC-aaf60f95611b"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx",
+        "MoMo_ToS.docx"
+      ],
+      "snippet_dau": [
+        "Thanh toán và mua sắm (câu hỏi chung)  177. Các vấn đề bảo mật cần quan tâm khi sử dụng chức năng Nguồn tiền thay thế? h",
+        "213. Thanh toán hóa đơn thành công nhưng hóa đơn của tôi chưa được gạch nợ https://www.momo.vn/hoi-dap/thanh-toan-hoa-do",
+        "Nội dung: Hóa đơn chưa được gạch nợ Ngày thực hiện giao dịch Mã giao dịch (TID)"
+      ]
+    },
+    {
+      "id": "DO-STATE-03",
+      "category": "do_state_md",
+      "scope_available": false,
+      "query": "API key hoặc mật khẩu nào đang dùng cho hệ thống",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1",
+        "DOC-aaf60f95611b"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx",
+        "MoMo_ToS.docx"
+      ],
+      "snippet_dau": [
+        "Tài khoản này đang không liên kết với MoMo khác. 5 Nhập mã xác thực Nhập mã xác thực OTP được gửi đến điện thoại quý khá",
+        "5 Nhập mã xác thực Nhập mã xác thực OTP được gửi đến điện thoại quý khách để hoàn tất liên kết Ví",
+        "Số thẻ. CVV ở phía sau thẻ. *Lưu ý: Số MoMo cần trùng với số điện thoại đăng ký theo thông tin Thẻ Sacombank đang tiến h"
+      ]
+    },
+    {
+      "id": "DO-STATE-04",
+      "category": "do_state_md",
+      "scope_available": false,
+      "query": "ADR-060 nói gì",
+      "status": "found",
+      "so_ket_qua": 4,
+      "doc_ids": [
+        "DOC-4c804ba019b1"
+      ],
+      "source_filenames": [
+        "MoMo_FAQ_Giao_dich.docx"
+      ],
+      "snippet_dau": [
+        "Nội dung: Hóa đơn chưa được gạch nợ Ngày thực hiện giao dịch Mã giao dịch (TID)",
+        "Nội dung: TK ngân hàng trừ tiền nhưng TK MoMo không đổi Mã giao dịch (Mã TID) Tên ngân hàng thực hiện giao dịch Tên chủ ",
+        "Nội dung: Không nhận được sản phẩm Ngày thực hiện giao dịch Mã giao dịch (TID)"
+      ]
+    }
+  ]
+}

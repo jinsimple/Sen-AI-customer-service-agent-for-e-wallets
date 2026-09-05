@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import EnvBadge from "./EnvBadge";
+import NotificationBell from "./NotificationBell";
 
 // 26/08 — chuẩn ngành: gom nút theme + viên tên (who-pill, trông như nút
 // nhưng KHÔNG bấm được) + nút đăng xuất thành MỘT nút người dùng có menu thả
@@ -106,6 +107,10 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
       {/* Nhãn môi trường đứng ĐẦU TIÊN, trước mọi thứ khác — nếu 2 cửa sổ
           hiện 2 nhãn khác nhau thì biết ngay đang lệch stack. Xem ADR-009. */}
       <EnvBadge compact />
+      {/* ADR-063 — CHỈ cskh/supervisor có vé để nhận thông báo (customer/
+          partner_admin không nằm trong luồng chuông). Đặt TRƯỚC user-menu
+          — "trên-trái cạnh tên nhân viên" đúng brief. */}
+      {(role === "cskh" || role === "supervisor") && <NotificationBell />}
       <div className="user-menu" ref={wrapRef}>
         <button
           ref={triggerRef}

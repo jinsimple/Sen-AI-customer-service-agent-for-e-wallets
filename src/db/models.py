@@ -319,6 +319,13 @@ class Ticket(Base):
     # tại mốc này — trên vạch là thứ gây ra bàn giao, dưới vạch là thứ xảy ra
     # sau (transcript đọc LIVE, có thể trôi tiếp sau khi khách đã xin gặp người).
     handoff_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    # ADR-064(b) — CSKH "nhận vé" chủ động (POST /tickets/{id}/claim), KHÔNG
+    # tự động. NULL = còn trong pool chung, mọi CSKH thấy+claim được. Không
+    # FK ràng buộc CASCADE gì đặc biệt — user bị xoá (không xảy ra trong sản
+    # phẩm, không có route xoá user) thì để NULL đứng yên, không phải trục
+    # ưu tiên xử lý ở đây.
+    claimed_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
+    claimed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ToolResult(Base):
@@ -566,10 +573,29 @@ class PolicyDocument(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="processing")
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ADR-065 (05/09) — toàn văn GỐC, đọc TRƯỚC khi cắt chunk (xem
+    # src/rag/ingest.py). PolicyChunk.text chỉ lưu từng đoạn ĐÃ CẮT VÀ CHỒNG
+    # LẤN (overlap=150) — ghép lại theo chunk_index KHÔNG tái tạo đúng văn
+    # bản gốc, nên trang đọc toàn văn (deep-link từ /policy-search) cần cột
+    # riêng này, không đoán ghép từ chunk. NULLABLE VĨNH VIỄN cho 4 tài liệu
+    # index TRƯỚC cột này tồn tại (backfill là việc vận hành riêng, không
+    # phải điều kiện của migration).
+    full_text: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
 
 
 class PolicyChunk(Base):
     __tablename__ = "policy_chunks"
+    __table_args__ = (
+        # ADR-061 nháp (03/09) — Finding ① lớp 1. NULL = chưa gán (mặc định
+        # tài liệu mới, và toàn bộ 378 chunk hiện có tới khi BA review xong
+        # bản nháp auto-phân-loại). KHÔNG đọc cột này ở đâu trong search_policy
+        # cho tới khi ADR duyệt chính thức — thêm cột trước để tách bạch
+        # "chuẩn bị schema" khỏi "đổi hành vi", hai việc khác quy trình duyệt.
+        CheckConstraint(
+            "scope IN ('internal_wallet','from_bank','to_bank','unknown')",
+            name="ck_policy_chunks_scope",
+        ),
+    )
 
     chunk_id: Mapped[str] = mapped_column(String, primary_key=True)
     doc_id: Mapped[str] = mapped_column(ForeignKey("policy_documents.doc_id"), nullable=False)
@@ -577,4 +603,29 @@ class PolicyChunk(Base):
     # Mã hoá trong suốt (Fernet, giống BankAccount.account_no) — "bảo mật RAG
     # cấp cao": file SQLite trên đĩa không chứa nội dung chính sách dạng thô.
     text: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    scope: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+
+
+class Notification(Base):
+    """ADR-063 — chuông thông báo. Fan-out: MỘT hàng/người nhận (không phải
+    một hàng gắn danh sách người nhận) — `read_at` riêng từng người nên phải
+    tách hàng theo người TỪ ĐẦU, không gộp rồi lọc lúc đọc. Nội dung hiển thị
+    CHỈ suy ra được từ `event_type` + `ticket_id` — KHÔNG có cột số
+    tiền/PII/SĐT nào trong bảng này, đúng Ràng buộc cứng #3 + PDPA (đây là
+    ràng buộc ở TẦNG SCHEMA, không chỉ ở tầng code hiển thị)."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('ve_moi','cho_duyet','da_duyet','da_tu_choi')",
+            name="ck_notifications_event_type",
+        ),
+    )
+
+    notification_id: Mapped[str] = mapped_column(String, primary_key=True)
+    recipient_user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    event_type: Mapped[str] = mapped_column(String, nullable=False)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
+    read_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)

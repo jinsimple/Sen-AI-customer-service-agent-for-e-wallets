@@ -16,8 +16,21 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.1.0"
+version: "2.4.0"
 source: "Sinh ngược từ src/api/main.py @ 2026-08-13 · thay thế bản 1.0.0 viết từ PRD"
+# v2.3.0 (04/09) — ADR-064, PO thật duyệt. CSKH chỉ thấy vé CHƯA claim +
+# CỦA CHÍNH MÌNH (pool + own), Sếp KHÔNG đổi (vẫn thấy tất cả). Route/role
+# của GET /tickets và GET /tickets/{ticket_id}/transcript KHÔNG đổi (vẫn
+# [cskh, supervisor]) — thay đổi nằm ở ROW-LEVEL SCOPING (ai thấy DÒNG nào),
+# ghi_chu ở từng route mô tả rõ. Thêm route MỚI POST /tickets/{ticket_id}/claim
+# [cskh] — nút "Nhận vé" chủ động, idempotent.
+# v2.2.0 (04/09) — ADR-063, PO greenlit build "chuông thông báo vé mới".
+# Thêm 6 route: GET /notifications · GET /notifications/unread-count ·
+# POST /notifications/{notification_id}/read · POST /notifications/read-all ·
+# POST /presence/heartbeat (cskh+supervisor) · GET /presence/staff (chỉ
+# supervisor). Cả 6 đều khai extra: [require_token_chua_thu_hoi] NGAY TỪ ĐẦU
+# — tránh lặp lại lớp bug "quên thêm route mới vào allowlist" (đã xảy ra 3
+# lần trước, xem finding logout 04/09).
 
 # ---------------------------------------------------------------------------
 # 4 role THẬT (bản contract cũ thiếu partner_admin — lỗi thật, đã sửa)
@@ -134,8 +147,20 @@ routes:
   # --- cskh + supervisor ---
   - route: "GET /tickets"
     roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-064(b) — ROW-LEVEL SCOPING (route/role không đổi): cskh chỉ thấy
+      ticket CHƯA claim (`claimed_by IS NULL`, pool chung) HOẶC ticket
+      `claimed_by = current_user`. supervisor KHÔNG lọc, thấy TẤT CẢ như
+      trước — Sếp không claim, chỉ quản lý/duyệt.
   - route: "GET /tickets/{ticket_id}"
     roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-064(b) (04/09) — CÙNG LUẬT row-level scoping với GET /tickets và
+      transcript (Review bắt lỗ thật lúc soát: route này ban đầu bị BỎ SÓT,
+      trả nguyên description_raw/fraud_signals/resolutions/investigation_logs
+      — nặng hơn transcript). cskh chỉ đọc được vé CHƯA claim (pool) HOẶC
+      claimed_by CHÍNH MÌNH; 404 (không 403) cho vé người khác — cùng khuôn
+      anti-enumeration với list/transcript. supervisor KHÔNG lọc.
   - route: "GET /tickets/{ticket_id}/transcript"
     roles: [cskh, supervisor]
     ghi_chu: >
@@ -143,32 +168,80 @@ routes:
       giao gặp người thật. GUARD CHÍNH: route CHỈ nhận `ticket_id`, KHÔNG BAO
       GIỜ nhận `thread_id` làm tham số request (query/body/header) dưới bất
       kỳ hình thức nào — `thread_id` suy DUY NHẤT từ `ticket.complaint.
-      thread_id` đọc từ DB. "user_id khớp" chỉ là 404-handler phụ, KHÔNG phải
-      ranh giới thẩm quyền (mọi cskh/supervisor vốn đã đọc được mọi ticket).
-      Vé cũ (trước migration, thread_id null) trả transcript:null kèm lý do
-      — không đoán theo mốc thời gian. `agent-tools.yaml` CỐ Ý KHÔNG đổi:
-      cho AI tool đọc transcript bàn giao là để nó tự đọc hồ sơ "nó bị đá
-      ra", cùng họ ràng buộc cứng số 2 (AI không vượt cấp).
+      thread_id` đọc từ DB.
+      🔴 ADR-064(b) (04/09) — ĐỔI so với thiết kế gốc ADR-044: route này giờ
+      áp CÙNG LUẬT row-level scoping với `GET /tickets` (KHÔNG còn "mọi
+      cskh/supervisor đọc được mọi ticket"). cskh chỉ đọc được transcript
+      của ticket `claimed_by IS NULL` (pool — mọi CSKH trực vẫn tiếp nhận
+      được ca bàn giao) HOẶC `claimed_by = current_user` (đã claim). Ticket
+      `claimed_by` thuộc CSKH KHÁC → 404 (cùng khuôn anti-enumeration với
+      notifications — không lộ có tồn tại hay không). Lý do đổi: để mở sẽ
+      mâu thuẫn trực tiếp mục tiêu "CSKH chỉ thấy vé của mình" VÀ hở BOLA
+      trên dữ liệu PII hội thoại khách — nặng hơn hẳn route list thường.
+      supervisor KHÔNG lọc, như trước. "user_id khớp" (ADR-044 cũ) vẫn chỉ
+      là 404-handler phụ CHO PHẦN thread_id/transcript-null, KHÔNG thay thế
+      luật claimed_by ở trên. Vé cũ (trước migration, thread_id null) trả
+      transcript:null kèm lý do — không đoán theo mốc thời gian.
+      `agent-tools.yaml` CỐ Ý KHÔNG đổi: cho AI tool đọc transcript bàn giao
+      là để nó tự đọc hồ sơ "nó bị đá ra", cùng họ ràng buộc cứng số 2 (AI
+      không vượt cấp) — AI gọi tool dưới danh nghĩa customer, không đi qua
+      route này/không bị luật claimed_by trên chi phối.
+  - route: "POST /tickets/{ticket_id}/claim"
+    roles: [cskh]
+    ghi_chu: >
+      ADR-064(b) — nút "Nhận vé" chủ động (khớp mẫu "Mở & nhận" đã có ở
+      dashboard live-chat). Set claimed_by=current_user + claimed_at=now.
+      Idempotent: ticket đã claimed_by CHÍNH MÌNH → 200 không đổi gì (bấm
+      lại không lỗi). Đã claimed_by NGƯỜI KHÁC → 409 (không cho cướp vé).
+      supervisor KHÔNG có route này — Sếp không "nhận" vé, chỉ xem/duyệt.
   - route: "POST /tickets/{ticket_id}/request-more-info"
     roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-064(b) (04/09) — cskh không tác động được vé đã claim bởi CSKH
+      khác: 404 (cùng khuôn anti-enumeration với list/detail/transcript).
+      supervisor KHÔNG lọc.
   - route: "GET /resolutions"
     roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-064(b) (04/09, Review bắt — đường VÒNG rò cùng dữ liệu dù
+      GET /tickets đã khoá) — cskh KHÔNG thấy resolution (amount/rationale/
+      destination_ref) của ticket đã claim bởi CSKH khác, lọc theo
+      Ticket.claimed_by qua join ticket_id. supervisor KHÔNG lọc.
   - route: "POST /tools/propose_resolution"
     roles: [cskh, supervisor]
     ghi_chu: >
       ĐỀ XUẤT, không phải duyệt. Resolution sinh ra luôn ở status='draft'
       hoặc 'pending_approval' — CHECK constraint ck_resolutions_status +
       ck_resolutions_approved_requires_approver_br10 chặn ghi thẳng 'approved'.
+      ADR-064(b) (04/09) — ticket_id tới từ BODY, cùng luật row-level scoping:
+      cskh không đề xuất được cho vé claimed_by CSKH khác (404).
   - route: "POST /tools/escalate_ticket"
     roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-064(b) (04/09) — cùng luật ở propose_resolution (ticket_id từ
+      BODY, cskh bị chặn 404 nếu vé đã claim bởi người khác). KHÔNG chạm
+      đường leo thang TỰ ĐỘNG của AI (fraud_policy/FS-06 trong create_ticket,
+      code path khác hẳn) — route này CHỈ phục vụ leo thang TAY của nhân viên.
   - route: "GET /reports/summary"
     roles: [cskh, supervisor]
   - route: "POST /policy-search"
     roles: [cskh, supervisor]
+  - route: "GET /policy-doc/{doc_id}"
+    roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-065 (05/09) — deep-link đọc toàn văn cho kết quả /policy-search.
+      CHỈ trả tài liệu status=indexed đã nạp qua /policy-docs (partner_admin);
+      doc_id tra qua DB, không qua filesystem (chống path traversal). Query
+      `chunk_id` optional để tính offset tô sáng — sai/không khớp thì bỏ qua
+      tô sáng (không lỗi), không mở rộng phạm vi đọc ngoài tài liệu đã index.
   - route: "POST /live-chat/staff/ws-ticket"
     roles: [cskh, supervisor]
   - route: "GET /live-chat/sessions/by-ticket/{ticket_id}"
     roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-064(b) (04/09, Review bắt — rò SĐT khách thật qua `context`) —
+      cùng luật row-level scoping. Ticket không tồn tại HOẶC claimed_by CSKH
+      khác đều 404 giống nhau (không lộ khác biệt). supervisor KHÔNG lọc.
   - route: "GET /live-chat/sessions/waiting"
     roles: [cskh, supervisor]
   - route: "POST /live-chat/sessions/{chat_session_id}/claim"
@@ -176,9 +249,38 @@ routes:
   - route: "POST /live-chat/sessions/{chat_session_id}/close"
     roles: [cskh, supervisor]
 
+  # ADR-063 — Chuông thông báo vé mới. Cô lập theo người nhận
+  # (recipient_user_id = người đăng nhập, chống BOLA) ép ở tầng service, không
+  # ở route — route chỉ ép ROLE. Nội dung noti CHỈ mã vé + nhãn loại, không
+  # số tiền/PII/SĐT (Ràng buộc cứng #3 + PDPA).
+  - route: "GET /notifications"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+  - route: "GET /notifications/unread-count"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+  - route: "POST /notifications/{notification_id}/read"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+  - route: "POST /notifications/read-all"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+  - route: "POST /presence/heartbeat"
+    roles: [cskh, supervisor]
+    extra: [require_token_chua_thu_hoi]
+    ghi_chu: "Ghi khoá Redis presence:staff:<user_id> TTL 45s — không giữ state trong process."
+
   # --- 3 role (khách xem lại hội thoại của chính mình) ---
   - route: "GET /live-chat/sessions/{chat_session_id}/messages"
     roles: [cskh, customer, supervisor]
+    ghi_chu: >
+      customer: chỉ phiên CỦA CHÍNH MÌNH (403 nếu khác — check có SẴN trước
+      ADR-064, không đổi). ADR-064(b) (04/09, Review độc lập soát toàn bộ 33
+      route tìm ra — CÙNG mức nghiêm trọng transcript): cskh KHÔNG đọc được
+      messages (đã che PII nhưng vẫn là transcript thật) của chat_session
+      thuộc ticket đã claim bởi CSKH khác (404) — `chat_session_id` dễ lấy
+      qua `by-ticket`/`sessions/waiting` TRƯỚC khi ai claim, đọc lại được
+      VĨNH VIỄN sau đó nếu không chặn ở đây. supervisor KHÔNG lọc.
 
   # --- CHỈ supervisor — nhóm chạm tiền ---
   - route: "POST /resolutions/{resolution_id}/request-approval-otp"
@@ -194,6 +296,10 @@ routes:
   - route: "POST /resolutions/{resolution_id}/reject"
     roles: [supervisor]
     ghi_chu: "Từ chối KHÔNG cần OTP — không phải hành động tài chính."
+  - route: "GET /presence/staff"
+    roles: [supervisor]
+    extra: [require_token_chua_thu_hoi]
+    ghi_chu: "ADR-063 — bảng 'CSKH nào đang online' + số vé đang xử lý, chỉ Sếp xem."
 
   # --- CHỈ partner_admin — kho chính sách RAG ---
   - route: "POST /policy-docs"

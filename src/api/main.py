@@ -36,7 +36,7 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.agents.graph import close_checkpointer, doc_transcript_bang_giao, run_agent_turn
@@ -99,6 +99,7 @@ from src.db.models import (
     Escalation,
     InvestigationLog,
     Message,
+    PolicyChunk,
     PolicyDocument,
     Resolution,
     Ticket,
@@ -115,6 +116,17 @@ from src.rag.search import search_policy_text
 from src.rate_limit import RedisConcurrencyLimiter, RedisSlidingWindowLimiter
 from src.services import live_chat, reporting
 from src.services.complaint_intake import create_ticket_with_fraud_check
+from src.services.notifications import (
+    danh_dau_da_doc,
+    danh_dau_tat_ca_da_doc,
+    dem_chua_doc,
+    notify_da_quyet_dinh,
+)
+from src.services.notifications import (
+    liet_ke as liet_ke_notifications,
+)
+from src.services.presence import heartbeat as presence_heartbeat
+from src.services.presence import online_user_ids, so_ve_dang_xu_ly
 from src.tools.base import ToolError, new_id
 from src.tools.escalate_ticket import escalate_ticket as _escalate_ticket
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
@@ -262,6 +274,19 @@ def _handle_tool_error(fn, *args, **kwargs):
         return fn(*args, **kwargs)
     except ToolError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+# ADR-064(b) (04/09) — MỘT điều kiện dùng chung cho MỌI route đọc/ghi dữ
+# liệu scoped theo 1 Ticket cụ thể, thay vì rải lại 3 dòng ở từng route (rải
+# lại là tự mời sai lệch giữa các route — đúng lớp lỗi Review bắt ở
+# GET /tickets/{ticket_id} lúc đầu bị bỏ sót). supervisor KHÔNG BAO GIỜ bị
+# hàm này chặn (return False vô điều kiện) — Sếp không claim, không lọc.
+def _cskh_bi_chan_boi_claim(current_user: CurrentUser, ticket: Ticket) -> bool:
+    return (
+        current_user.role == "cskh"
+        and ticket.claimed_by is not None
+        and ticket.claimed_by != current_user.user_id
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -632,6 +657,15 @@ def propose_resolution(
     _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
+    # ADR-064(b) (04/09) — ticket_id tới từ BODY (không phải path) nhưng
+    # cùng luật: CSKH không đề xuất được resolution cho vé người khác đang
+    # xử lý. Tra Ticket TRƯỚC khi gọi service — service tự tra lại theo
+    # ticket_id (không đổi hành vi của nó), ở đây chỉ thêm 1 lớp kiểm quyền.
+    ticket = session.get(Ticket, req.ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
     return _handle_tool_error(
         _propose_resolution, session, created_by=current_user.user_id, **req.model_dump()
     )
@@ -645,6 +679,15 @@ def escalate_ticket(
     _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
     session: Session = Depends(get_session),
 ):
+    # ADR-064(b) (04/09) — cùng lý do ở propose_resolution ngay trên. KHÔNG
+    # chạm đường leo thang TỰ ĐỘNG của AI (fraud_policy/FS-06 chạy trong
+    # create_ticket, một code path hoàn toàn khác) — route này CHỈ phục vụ
+    # cskh/supervisor chủ động leo thang tay, đúng đối tượng ADR-064 nhắm.
+    ticket = session.get(Ticket, req.ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
     return _handle_tool_error(
         _escalate_ticket, session, created_by=current_user.user_id, **req.model_dump()
     )
@@ -722,17 +765,66 @@ def agent_chat(
 # ---------------------------------------------------------------------------
 
 
+_TICKET_PAGE_SIZES = (30, 50, 100)
+
+
 @app.get("/tickets")
 def list_tickets(
     hitl_status: str | None = None,
-    limit: int = 50,
+    # [polish trước quay 04/09] Lọc AND — kết hợp được nhiều tiêu chí cùng
+    # lúc, mỗi tham số bỏ trống thì không lọc theo tiêu chí đó.
+    complaint_type: str | None = None,
+    scope: str | None = None,
+    priority: str | None = None,
+    # SLA "khoảng còn lại" — 2 mốc CHỌN được, không ép sẵn bucket (vd "quá
+    # hạn"/"còn <24h") vào backend: frontend tự tính mốc theo giờ hiện tại
+    # rồi truyền `sla_before`/`sla_after`, backend chỉ so sánh trực tiếp
+    # `Ticket.sla_due_at` — 1 cặp tham số phục vụ được mọi bucket UI muốn vẽ,
+    # không phải sửa backend mỗi khi đổi định nghĩa bucket.
+    sla_before: dt.datetime | None = None,
+    sla_after: dt.datetime | None = None,
+    # Thay `limit` cũ bằng phân trang thật — trang 660+ vé một lần là
+    # nguyên nhân PO yêu cầu đợt polish này. `page_size` CHỈ nhận 1 trong 3
+    # giá trị PO chốt, không tự do — tránh FE gửi số tuỳ ý kéo cả bảng.
+    page: int = 1,
+    page_size: int = 50,
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
     session: Session = Depends(get_session),
 ):
-    stmt = select(Ticket).order_by(Ticket.created_at.desc()).limit(limit)
+    if page < 1:
+        raise HTTPException(status_code=422, detail="page phải >= 1")
+    if page_size not in _TICKET_PAGE_SIZES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"page_size phải là 1 trong {list(_TICKET_PAGE_SIZES)}",
+        )
+
+    # JOIN thật (không phải join-ở-Python như trước) — lọc theo
+    # complaint_type/scope/priority cần WHERE ở tầng SQL để COUNT/OFFSET
+    # đúng; join-sau-khi-đã-select-Ticket (cách cũ) không lọc được.
+    stmt = select(Ticket).join(Complaint, Ticket.complaint_id == Complaint.complaint_id, isouter=True)
     if hitl_status:
         stmt = stmt.where(Ticket.hitl_status == hitl_status)
-    tickets = session.scalars(stmt).all()
+    if complaint_type:
+        stmt = stmt.where(Complaint.type == complaint_type)
+    if scope:
+        stmt = stmt.where(Complaint.scope == scope)
+    if priority:
+        stmt = stmt.where(Complaint.priority == priority)
+    if sla_before:
+        stmt = stmt.where(Ticket.sla_due_at <= sla_before)
+    if sla_after:
+        stmt = stmt.where(Ticket.sla_due_at >= sla_after)
+    # ADR-064(b) — row-level scoping (route/role không đổi). CSKH chỉ thấy
+    # vé CHƯA claim (pool chung) + vé của CHÍNH MÌNH. supervisor KHÔNG lọc —
+    # giữ nguyên quyền hiện có, Sếp không claim, chỉ quản lý/duyệt.
+    if current_user.role == "cskh":
+        stmt = stmt.where(or_(Ticket.claimed_by.is_(None), Ticket.claimed_by == current_user.user_id))
+
+    total = session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    tickets = session.scalars(
+        stmt.order_by(Ticket.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    ).all()
     # Dashboard CSKH cần loại/phạm vi/ưu tiên/tín hiệu gian lận ngay trên bảng
     # (US-011, US-014) — join 1 lần qua complaint_id thay vì N+1 request.
     complaints = {
@@ -765,9 +857,15 @@ def list_tickets(
                 "fraud_signals": c.fraud_signals if c else [],
                 "customer_name": u.full_name if u else None,
                 "human_handoff_requested": t.human_handoff_requested,
+                # ADR-064(b) — frontend cần biết để quyết định hiện nút "Nhận
+                # vé": null = pool (nút hiện), có giá trị = đã có người nhận
+                # (với cskh, backend đã lọc ở trên nên "có giá trị" LUÔN là
+                # CHÍNH MÌNH; với supervisor route không lọc nên có thể là AI
+                # ĐÓ khác — supervisor không có nút claim, chỉ hiển thị).
+                "claimed_by": t.claimed_by,
             }
         )
-    return out
+    return {"items": out, "total": total, "page": page, "page_size": page_size}
 
 
 @app.get("/tickets/{ticket_id}")
@@ -778,6 +876,16 @@ def get_ticket_detail(
 ):
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    # ADR-064(b) (04/09, Review bắt lỗ thật) — CÙNG LUẬT row-level scoping
+    # với GET /tickets và transcript. Đường khai thác thật: notify_ve_moi
+    # (ADR-063) fan-out ticket_id cho MỌI cskh ngay lúc tạo vé, trước khi ai
+    # claim — CSKH nào cũng có ticket_id hợp lệ qua GET /notifications của
+    # chính mình, và route NÀY (KHÁC list/transcript) trả full detail:
+    # description_raw (thường chứa PII bên thứ ba), fraud_signals, TOÀN BỘ
+    # resolutions (số tiền/rationale), TOÀN BỘ investigation_logs — nặng hơn
+    # transcript hẳn. 404 (không phải 403) — cùng khuôn anti-enumeration.
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
     complaint = session.get(Complaint, ticket.complaint_id)
     resolutions = session.scalars(
@@ -890,15 +998,25 @@ def get_ticket_transcript(
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    # ADR-064(b) (04/09) — ĐỔI so với ADR-044 gốc: route này giờ áp CÙNG
+    # LUẬT row-level scoping với GET /tickets. cskh chỉ đọc được transcript
+    # của vé CHƯA claim (pool — mọi CSKH trực vẫn tiếp nhận được ca bàn
+    # giao) HOẶC vé claimed_by CHÍNH MÌNH. 404 (KHÔNG phải 403) cho vé đã
+    # claim bởi người khác — cùng khuôn anti-enumeration đã dùng cho
+    # notifications (không lộ có tồn tại hay không qua mã trạng thái khác
+    # nhau). supervisor KHÔNG lọc, như trước.
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
     complaint = session.get(Complaint, ticket.complaint_id)
     if complaint is None:
         # Không nên xảy ra (FK complaint_id NOT NULL) — 404 để không lộ khác
         # biệt hành vi với ca "ticket không tồn tại" phía trên (cùng lớp lỗi
         # dò được-vé-nào-tồn-tại qua mã trạng thái).
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
-    # "user_id khớp" KHÔNG phải ranh giới thẩm quyền ở route này (ADR-044
-    # mục 3) — mọi cskh/supervisor vốn đã đọc được mọi ticket qua
-    # GET /tickets/{ticket_id} phía trên, guard đó không chặn được gì thật.
+    # "user_id khớp" KHÔNG phải ranh giới thẩm quyền RIÊNG của route này
+    # (ADR-044 mục 3) — ranh giới thật giờ là luật claimed_by ở trên
+    # (ADR-064(b)), áp DÙNG CHUNG với GET /tickets, không phải một cơ chế
+    # riêng cho transcript.
 
     handoff_at = ticket.handoff_at.isoformat() if ticket.handoff_at else None
 
@@ -935,6 +1053,37 @@ def get_ticket_transcript(
         # timestamp — không có mốc per-message để so với handoff_at).
         "chi_so_bang_giao": ket_qua["chi_so_bang_giao"],
     }
+
+
+# ---------------------------------------------------------------------------
+# ADR-064(b) (04/09, PO thật duyệt) — CSKH "nhận vé" CHỦ ĐỘNG, không tự
+# động. Khớp mẫu "Mở & nhận" đã có ở dashboard live-chat (claim-based
+# routing của ChatSession, xem src/db/models.py:504-508) — cùng triết lý,
+# áp thêm cho Ticket.
+# ---------------------------------------------------------------------------
+@app.post("/tickets/{ticket_id}/claim")
+def claim_ticket(
+    ticket_id: str,
+    current_user: CurrentUser = Depends(require_role("cskh")),
+    session: Session = Depends(get_session),
+):
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    if ticket.claimed_by is not None and ticket.claimed_by != current_user.user_id:
+        # 409, KHÔNG phải 404/403 — khác BOLA ở GET (ẩn tồn tại), ở đây CSKH
+        # ĐANG thao tác trên 1 ticket họ vừa thấy trong pool (hoặc URL cũ đã
+        # mở từ trước khi bị người khác nhận) — cần biết RÕ lý do "không nhận
+        # được" (đã có người nhận) để UI báo đúng, không phải một 404 mơ hồ.
+        raise HTTPException(status_code=409, detail="ticket đã được CSKH khác nhận")
+    if ticket.claimed_by == current_user.user_id:
+        # Idempotent — bấm lại "Nhận vé" cho ticket mình đã nhận không phải
+        # lỗi, không ghi đè claimed_at (giữ mốc nhận LẦN ĐẦU).
+        return {"ticket_id": ticket.ticket_id, "claimed_by": ticket.claimed_by, "claimed_at": ticket.claimed_at.isoformat()}
+    ticket.claimed_by = current_user.user_id
+    ticket.claimed_at = dt.datetime.utcnow()
+    session.commit()
+    return {"ticket_id": ticket.ticket_id, "claimed_by": ticket.claimed_by, "claimed_at": ticket.claimed_at.isoformat()}
 
 
 # ---------------------------------------------------------------------------
@@ -1137,6 +1286,13 @@ def approve_resolution(
     auth_session.otp_status = "consumed"
     auth_session.otp_code = None
     _dong_bo_hitl_status(session, resolution)
+    # ADR-063 — báo NGƯỢC đúng 1 CSKH đã đề xuất. `created_by` có thể None
+    # (resolution tạo trước ADR-020/BR-12) — không noti được thì bỏ qua, đây
+    # là dữ liệu cũ, không phải lỗi hôm nay.
+    if resolution.created_by is not None:
+        notify_da_quyet_dinh(
+            session, ticket_id=resolution.ticket_id, cskh_user_id=resolution.created_by, approved=True
+        )
     session.flush()
     return {"resolution_id": resolution_id, "status": resolution.status, "approved_by": current_user.user_id}
 
@@ -1246,6 +1402,11 @@ def reject_resolution(
     resolution.note = note_da_scrub
     resolution.note_flagged = note_flagged
     _dong_bo_hitl_status(session, resolution)
+    # ADR-063 — đối xứng với nhánh duyệt.
+    if resolution.created_by is not None:
+        notify_da_quyet_dinh(
+            session, ticket_id=resolution.ticket_id, cskh_user_id=resolution.created_by, approved=False
+        )
     session.flush()
     return {
         "resolution_id": resolution_id,
@@ -1280,6 +1441,12 @@ def list_resolutions(
     out = []
     for r in resolutions:
         ticket = session.get(Ticket, r.ticket_id)
+        # ADR-064(b) (04/09, Review bắt — đường VÒNG rò cùng dữ liệu dù
+        # GET /tickets đã khoá) — CSKH bỏ qua hẳn resolution của vé người
+        # khác đang xử lý, KHÔNG chỉ ẩn field nhạy cảm: amount/rationale/
+        # destination_ref là chính thứ ADR-064 định che.
+        if ticket is not None and _cskh_bi_chan_boi_claim(current_user, ticket):
+            continue
         complaint = session.get(Complaint, ticket.complaint_id) if ticket else None
         approver = approvers.get(r.approved_by) if r.approved_by else None
         out.append(
@@ -1317,6 +1484,10 @@ def request_more_info(
 ):
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
+    # ADR-064(b) (04/09) — hành động GHI trên 1 ticket cụ thể, cùng luật với
+    # các route đọc: CSKH không tác động được vé đã claim bởi người khác.
+    if _cskh_bi_chan_boi_claim(current_user, ticket):
         raise HTTPException(status_code=404, detail="ticket không tồn tại")
     # FIN05-StressTest-Plan-v4 S4-06 — phát hiện thật: route này KHÔNG có
     # guard trạng thái (khác approve_resolution/reject_resolution cùng file,
@@ -1450,7 +1621,61 @@ def policy_search(
     current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
     session: Session = Depends(get_session),
 ):
-    return _handle_tool_error(search_policy_text, session, query=req.query, k=req.top_k, duong_tra="cskh")
+    # ADR-062 — Lớp 1: route TỰ TRA scope từ complaint_id, KHÔNG tin `scope`
+    # do client tự khai (client chỉ được NÓI đang tra vé nào, không được TỰ
+    # NÓI phạm vi). `complaint_id` không tồn tại/không tra được ⟹ coi như
+    # KHÔNG có scope (bỏ lọc) — KHÔNG trả lỗi, KHÔNG phá luồng tra cứu.
+    # role đã gác ở `require_role` trên (chỉ cskh/supervisor) — cùng khuôn
+    # `get_ticket_detail` (main.py:774), route đó cũng không ép thêm quyền sở
+    # hữu theo complaint ngoài role, cskh/supervisor vốn thấy được MỌI vé.
+    scope = None
+    if req.complaint_id is not None:
+        complaint = session.get(Complaint, req.complaint_id)
+        if complaint is not None:
+            scope = complaint.scope
+    return _handle_tool_error(
+        search_policy_text, session, query=req.query, k=req.top_k, duong_tra="cskh", scope=scope
+    )
+
+
+# ---------------------------------------------------------------------------
+# ADR-065 (05/09) — deep-link đọc toàn văn cho một kết quả /policy-search.
+# CHỈ trả tài liệu status="indexed" đã nạp qua /policy-docs — doc_id tra qua
+# DB (không phải filesystem), nên không có đường path-traversal: doc_id lạ/
+# chưa index/đã xoá đều 404 giống nhau, không phân biệt (không lộ tài liệu
+# nào từng tồn tại).
+# ---------------------------------------------------------------------------
+
+
+@app.get("/policy-doc/{doc_id}")
+def get_policy_doc(
+    doc_id: str,
+    chunk_id: str | None = None,
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    session: Session = Depends(get_session),
+):
+    doc = session.get(PolicyDocument, doc_id)
+    if doc is None or doc.status != "indexed":
+        raise HTTPException(status_code=404, detail="tài liệu không tồn tại")
+
+    highlight = None
+    # `chunk_id` optional — sai/không khớp doc_id/không tìm ra vị trí trong
+    # toàn văn đều CHỈ bỏ qua tô sáng (suy giảm êm), KHÔNG lỗi cả yêu cầu.
+    # Tài liệu chưa có full_text (4 tài liệu index TRƯỚC cột này, xem
+    # migration f1a2b3c4d5e6) cũng rơi vào nhánh này một cách tự nhiên.
+    if chunk_id and doc.full_text:
+        chunk = session.get(PolicyChunk, chunk_id)
+        if chunk is not None and chunk.doc_id == doc_id:
+            start = doc.full_text.find(chunk.text)
+            if start != -1:
+                highlight = {"start": start, "end": start + len(chunk.text)}
+
+    return {
+        "doc_id": doc.doc_id,
+        "filename": doc.filename,
+        "full_text": doc.full_text,
+        "highlight": highlight,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1516,6 +1741,12 @@ def live_chat_session_by_ticket(
     LUÔN LUÔN — trước đây chỉ đẩy qua WS lúc claim thành công, CSKH mở ticket
     có phiên đã đóng sẽ không bao giờ nhận được claim_success nên không thấy
     được SĐT."""
+    # ADR-064(b) (04/09, Review bắt — rò SĐT khách thật) — cùng luật row-
+    # level scoping. Tra Ticket TRƯỚC khi tra ChatSession: ticket không tồn
+    # tại/bị claim bởi người khác đều 404 giống nhau, KHÔNG lộ khác biệt.
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None or _cskh_bi_chan_boi_claim(current_user, ticket):
+        raise HTTPException(status_code=404, detail="ticket không tồn tại")
     chat_session = session.scalars(
         select(ChatSession).where(ChatSession.ticket_id == ticket_id).order_by(ChatSession.started_at.desc())
     ).first()
@@ -1548,6 +1779,14 @@ def live_chat_session_messages(
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
     if current_user.role == "customer" and chat_session.customer_id != current_user.user_id:
         raise HTTPException(status_code=403, detail="Phiên chat này không thuộc về bạn")
+    # ADR-064(b) (04/09, Review bắt — đường lấy chat_session_id: by-ticket
+    # HOẶC /live-chat/sessions/waiting trước khi ai claim, đọc lại VĨNH VIỄN
+    # sau khi đồng nghiệp claim nếu không chặn ở đây). Nội dung đã che PII
+    # (che_pii_van_ban ngay dưới) nhưng vẫn là transcript thật — cùng luật.
+    if current_user.role == "cskh":
+        ticket = session.get(Ticket, chat_session.ticket_id)
+        if ticket is not None and _cskh_bi_chan_boi_claim(current_user, ticket):
+            raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
     messages = session.scalars(
         select(Message).where(Message.chat_session_id == chat_session_id).order_by(Message.created_at)
     ).all()
@@ -1614,6 +1853,132 @@ async def live_chat_close_session(
     closed = _handle_tool_error(live_chat.close_session, session, chat_session_id=chat_session_id)
     await _live_chat_manager.send_to_session(chat_session_id, {"type": "session_closed", "chat_session_id": chat_session_id})
     return closed
+
+
+# ---------------------------------------------------------------------------
+# ADR-063 — Chuông thông báo (notifications) + presence CSKH/Sếp.
+# Cô lập theo người nhận ép ở TẦNG SERVICE (src/services/notifications.py) —
+# route chỉ ép ROLE. Nội dung trả về CHỈ event_type + ticket_id + created_at/
+# read_at — KHÔNG số tiền/PII/SĐT (Ràng buộc cứng #3 + PDPA).
+# ---------------------------------------------------------------------------
+
+
+@app.get("/notifications")
+def list_notifications(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    items = liet_ke_notifications(session, user_id=current_user.user_id)
+    # [polish trước quay 04/09] Đợt PO chốt: JOIN sang Ticket/Complaint LÚC
+    # RENDER, KHÔNG lưu snapshot lúc fan-out (ADR-063 addendum) — `priority`
+    # KHÔNG bất biến sau khi tạo (`_nang_uu_tien_theo_cam_xuc`, graph.py:654,
+    # ghi đè `complaint.priority` SAU khi ticket đã tồn tại theo tín hiệu cảm
+    # xúc khách). Snapshot lúc fan-out sẽ hiện priority CŨ nếu case bị nâng
+    # SAU khi noti đã gửi — đúng loại "số liệu cũ trông như đang đúng". Nạp
+    # 1 lần theo BATCH (join qua ticket_id/complaint_id), không N+1 mỗi noti.
+    tickets = {
+        t.ticket_id: t
+        for t in session.scalars(
+            select(Ticket).where(Ticket.ticket_id.in_([n.ticket_id for n in items]))
+        ).all()
+    }
+    complaints = {
+        c.complaint_id: c
+        for c in session.scalars(
+            select(Complaint).where(
+                Complaint.complaint_id.in_([t.complaint_id for t in tickets.values()])
+            )
+        ).all()
+    }
+    out = []
+    for n in items:
+        t = tickets.get(n.ticket_id)
+        c = complaints.get(t.complaint_id) if t else None
+        out.append(
+            {
+                "notification_id": n.notification_id,
+                "event_type": n.event_type,
+                "ticket_id": n.ticket_id,
+                "created_at": n.created_at.isoformat(),
+                "read_at": n.read_at.isoformat() if n.read_at else None,
+                # 4 field non-PII, hiện tại y hệt cách GET /tickets đã hiện
+                # ("bình thường / còn 29 ngày") — vé bị xoá/không tra được
+                # (không nên xảy ra, FK ràng buộc) thì None, không suy đoán.
+                "complaint_type": c.type if c else None,
+                "scope": c.scope if c else None,
+                "priority": c.priority if c else None,
+                "sla_due_at": t.sla_due_at.isoformat() if t else None,
+            }
+        )
+    return {"items": out}
+
+
+@app.get("/notifications/unread-count")
+def notifications_unread_count(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    return {"unread_count": dem_chua_doc(session, user_id=current_user.user_id)}
+
+
+@app.post("/notifications/{notification_id}/read")
+def mark_notification_read(
+    notification_id: str,
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    # Không tồn tại VÀ không thuộc user_id đang đăng nhập trả CÙNG một 404 —
+    # phân biệt hai ca sẽ lộ cho client dò được thông báo người khác có tồn
+    # tại hay không (xem docstring danh_dau_da_doc).
+    ok = danh_dau_da_doc(session, user_id=current_user.user_id, notification_id=notification_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="notification không tồn tại")
+    return {"notification_id": notification_id, "read": True}
+
+
+@app.post("/notifications/read-all")
+def mark_all_notifications_read(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    so_luong = danh_dau_tat_ca_da_doc(session, user_id=current_user.user_id)
+    return {"marked_read": so_luong}
+
+
+@app.post("/presence/heartbeat")
+def presence_heartbeat_route(
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+):
+    # KHÔNG cần session DB — presence sống hoàn toàn trong Redis TTL, đúng
+    # nguyên tắc "không giữ state trong process" (4-5 worker độc lập).
+    presence_heartbeat(current_user.user_id)
+    return {"status": "ok"}
+
+
+@app.get("/presence/staff")
+def presence_staff_list(
+    current_user: CurrentUser = Depends(require_role("supervisor")),
+    _revoked: CurrentUser = Depends(require_token_chua_thu_hoi),
+    session: Session = Depends(get_session),
+):
+    cskh_users = session.scalars(select(User).where(User.role == "cskh")).all()
+    online_ids = online_user_ids([u.user_id for u in cskh_users])
+    return {
+        "items": [
+            {
+                "user_id": u.user_id,
+                "full_name": u.full_name,
+                "online": u.user_id in online_ids,
+                "so_ve_dang_xu_ly": so_ve_dang_xu_ly(session, user_id=u.user_id),
+            }
+            for u in cskh_users
+        ]
+    }
 
 
 @app.post("/live-chat/sessions/{chat_session_id}/csat")

@@ -1,0 +1,379 @@
+chunk_id,tieu_de,scope_nhap,scope_dung,ly_do
+CHK-9326de3e05d0,(header FAQ giao dich),unknown,unknown,Dau tai lieu - truc giao moi pham vi
+CHK-d4a501944b6b,Han muc chuyen/nhan tien moi ngay,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-ee2cf85f621b,TK chua xac thuc bang the/TK ngan hang,from_bank,unknown,Ve xac thuc/trang thai tai khoan - khong phai giao dich nap/rut cu the
+CHK-131a1a87723e,Sau bao lau nguoi nhan nhan duoc tien,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-cdacc5f6d8da,Chuyen toi da bao nhieu moi ngay,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-d85dc378cf35,Chuyen tien co an toan khong,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-187c08c3dcd3,Mat bao lau nguoi nhan nhan sau khi chuyen,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-7f4544af9536,Chuyen nham den MoMo khong con su dung,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-fd943ad58585,Gioi han nhan tien ve MoMo moi ngay,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-a9de7ef98bfd,Khong co nguon tien co chuyen duoc khong,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-291b73e639f5,So tien toi thieu chuyen qua MoMo,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-ecfcbe32fc85,Lay lai tien GD chuyen thanh cong,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-44e307f77bd8,Khong dung tien trong MoMo co rut ra khong,unknown,to_bank,RUT tien tu vi ra ngan hang/the (vi->NH) - CO THE can full text xac nhan
+CHK-01a69402f902,Chua xac thuc/lien ket NH co chuyen tien,from_bank,internal_wallet,Cau hoi ve kha nang chuyen tien vi-vi - dieu kien lien ket NH chi la bo tro
+CHK-d8cb2e63927a,Biet ban be co MoMo de chuyen,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-9733461d83dc,Cac hinh thuc chuyen tien,unknown,internal_wallet,Chuyen/nhan tien vi-vi - CO THE gom ca ra ngan hang (diem QD)
+CHK-9848bc56e8b0,Chuyen tien gap su co nguoi nhan khong nhan,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-44e17f758e81,Tru vi nhung TK NH nguoi nhan chua nhan,from_bank,to_bank,Vi bi tru nhung TK ngan hang nguoi NHAN chua nhan = vi->NH (rut/chuyen ra bank)
+CHK-79911c769057,(noi: tien chuyen den ngay...),unknown,unknown,Noi tiep khong tieu de - 100 ky tu dau KHONG du can cu - can Coder cap full text
+CHK-66733ac48217,(noi: he thong cap nhat 1-2 ngay),unknown,unknown,Noi tiep khong tieu de - 100 ky tu dau KHONG du can cu - can Coder cap full text
+CHK-9addee50e434,(noi: theo doi tien do GD),unknown,unknown,Xu ly su co chuyen/nhan tien - 100 ky tu dau khong tach duoc huong
+CHK-08d080380cf9,(noi: loi duong truyen),unknown,unknown,Xu ly su co chuyen/nhan tien - 100 ky tu dau khong tach duoc huong
+CHK-39ce0f7b441d,(noi: so DT nhan thay doi),unknown,unknown,Xu ly su co chuyen/nhan tien - 100 ky tu dau khong tach duoc huong
+CHK-271de598cf7f,(noi: chia se bien lai),unknown,unknown,Xu ly su co chuyen/nhan tien - 100 ky tu dau khong tach duoc huong
+CHK-fbe72476020c,(noi: chuyen nham rut lai tuy nguoi nhan),unknown,internal_wallet,Noi tiep mach chuyen nham vi-vi o tieu de truoc
+CHK-525a625ff92b,(noi: nguon tien NH kiem tra so du),unknown,unknown,Xu ly su co chuyen/nhan tien - 100 ky tu dau khong tach duoc huong
+CHK-2088a419f862,Rut tien tu MoMo ve NH lien ket co phi,from_bank,to_bank,RUT tien tu vi ra ngan hang/the (vi->NH)
+CHK-96d8bae85d86,Chuyen tien cho nguoi chua co MoMo,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-2dd65fbebc8a,Gui tien mung nhu the nao,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-b760ed9420fe,(noi: huong dan gui tien mung),unknown,internal_wallet,Noi tiep mach gui tien mung vi-vi o tieu de truoc
+CHK-2d61819843f3,Cach gui tien mung cho 1 nguoi,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-6495620fa4b5,(noi: so tien co dinh gui mung),unknown,internal_wallet,Noi tiep mach gui tien mung vi-vi o tieu de truoc
+CHK-2c0fcda41c45,Cach gui tien mung cho nhom,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-df9dfb009696,(noi: chia deu/ngau nhien),unknown,internal_wallet,Noi tiep mach gui tien mung vi-vi o tieu de truoc
+CHK-2dd348b26d9a,(noi: yeu cau chuyen tien/QR),unknown,internal_wallet,Noi tiep mach yeu cau chuyen tien vi-vi o tieu de truoc
+CHK-f23320b30f30,Yeu cau nguoi khac chuyen tien bang MoMo,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-79a61ea4ea67,Ma QR ca nhan khac ma thanh toan,unknown,internal_wallet,QR nhan tien vi-vi
+CHK-c154d0de8223,(noi: Nhan tien Quoc te intro),unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-6597d3a3ef49,Nhan tien quoc te khac biet gi,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-55b5f703cb2b,Giay to khi nhan tien quoc te,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-361b554242ea,Nhan tien quoc te la gi,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-4e5e7b2e2e26,Ai dung duoc nhan tien quoc te,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-19e840700921,Loai tien nhan khi nhan quoc te,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-a6ce7fbef0d6,Dieu khoan nhan tien quoc te,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-114510b0b42a,DK Dich Vu Nhan Tien Tu Dong,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-20432ebd05d3,DK Giao Dich nhan tien quoc te,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-6f31c495d6be,DK Uy Quyen (lam viec voi NH),from_bank,unknown,Dieu khoan nhan tien quoc te - ngoai 3 pham vi; ngan hang chi xuat hien phu
+CHK-4731feb773c1,(noi: da lien ket NH thanh cong),unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-99cc48b36400,DK dieu kien Dich Vu Nhan Tien Tu Dong,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-e17d5c1c7a13,DK cam ket thong tin (lien ket NH),from_bank,unknown,Dieu khoan nhan tien quoc te - ngan hang chi xuat hien phu
+CHK-b88edca19088,DK uu tien ghi co doi sang TK NH,from_bank,unknown,Dieu khoan nhan tien quoc te - ngan hang chi xuat hien phu
+CHK-0b2c449ed267,DK khong ghi co duoc se thong bao,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-4e11960b499e,DK chuyen nham so tien quoc te,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-4b5a3122afe4,DK khong thu phi NTT quoc te,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-25fafaa5aee9,DK du lieu ca nhan,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-eee71db572e6,DK vi pham dieu khoan,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-be16c580f631,DK sua doi dieu khoan,unknown,unknown,Nhan tien quoc te (kieu hoi) - ngoai 3 pham vi noi dia
+CHK-b2928d251d04,(noi: Quy Nhom la gi),unknown,unknown,Tinh nang Quy Nhom - khong phai nap/rut/chuyen don le
+CHK-b8b4176a738d,Moi TK tao/tham gia bao nhieu Quy,unknown,unknown,Tinh nang Quy Nhom - khong phai nap/rut/chuyen don le
+CHK-f0610444e38c,Quyen loi Chu Quy/thanh vien,unknown,unknown,Tinh nang Quy Nhom - khong phai nap/rut/chuyen don le
+CHK-95a8de8ec2a1,Roi/dung Quy Nhom,unknown,unknown,Tinh nang Quy Nhom - khong phai nap/rut/chuyen don le
+CHK-72f14d2eee1a,Ai xem/tham gia Quy,unknown,unknown,Tinh nang Quy Nhom - khong phai nap/rut/chuyen don le
+CHK-5d4fbca6003c,Han muc Quy Nhom,unknown,unknown,Tinh nang Quy Nhom - khong phai nap/rut/chuyen don le
+CHK-81983bc2dbef,Lien ket NH OCB,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-ff043322d365,(noi: lien ket OCB steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-8b1fe0e84d01,Lien ket NH Vietinbank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-4db251990abe,(noi: quan ly tai khoan steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-11c59b4a3013,Lien ket NH TPBank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-554e2083f73e,(noi: OTP steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-8c475ebae0e4,(noi: nhap thong tin the ATM),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-01cbf8be7c3d,Lien ket NH BIDV,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-0818df71c2e7,(noi: OTP BIDV),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-042f78e2df7e,Lien ket NH Shinhan,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-486367138283,(noi: Shinhan steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-81466edd29cc,Lien ket NH VRB,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-4fac928999c2,(noi: VRB steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-b0568c894b35,Lien ket NH Bao Viet,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-fce54dddb527,(noi: Bao Viet OTP),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-9d9aeb1e2ccc,(noi: nhap ma xac thuc),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-408b32354fae,Lien ket NH VPBank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-f1fa08a10cac,(noi: VPBank OTP),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-5dc83caab897,(noi: dang nhap VPBank Online),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-d8d2eac1b735,Lien ket NH Sacombank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-7f380873f43c,(noi: Sacombank steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-5787f7ec97a1,(noi: hinh thuc lien ket),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-89f354ad46de,(noi: so the CVV),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-d1fdd0803545,Lien ket NH VIB,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-b0a47e0eb2af,(noi: VIB steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-775e13f8ba16,Lien ket NH Eximbank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-cfaf41b150aa,(noi: Eximbank OTP),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-7c6e25cba5fd,(noi: CMND trung),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-325dad126b58,Lien ket NH SCB,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-4689fb0a66a7,(noi: SCB steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-4084436f9ddb,Lien ket NH ACB,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-bb3eec410820,(noi: ACB steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-299e80d63d87,(noi: ma xac thuc ACB),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-a2f60f514dba,Lien ket NH Vietcombank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-be84a975892f,(noi: VCB steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-57faad421493,(noi: CMND trung NH),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-6611eb08a9fe,Mot MoMo lien ket bao nhieu the NH,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-1d09f6528c8c,Loi ich lien ket MoMo voi NH,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-d794e9124da7,Lien ket NH ABBank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-2c08b478029c,(noi: ABBank steps),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-903662a17543,Tai sao nen lien ket MoMo voi NH,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-eb389a58a4d6,Khong hoan thanh buoc co nhan uu dai,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-5e6cb1367892,Lien ket NH Indovina,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-735da641e778,(noi: OTP tin nhan NH),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-e6229b719b09,Moi MoMo lien ket may TK NH,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-60a0ddfa1bad,Khong hoan thanh 1 buoc co nhan uu dai,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-d78971fc0dd8,(noi: Nap/rut qua TK NH; so du toi thieu),unknown,from_bank,Phu ca nap lan rut qua NH - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-d703c4015ff1,Cach rut tien tu MoMo ve NH da lien ket,from_bank,to_bank,RUT tien tu vi ra ngan hang/the (vi->NH)
+CHK-39c3aa12788f,Cach nap tien vao MoMo tu TK NH,from_bank,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-200343263ee2,Han muc nap rut qua TK NH,from_bank,from_bank,Phu ca nap lan rut qua NH - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-5be5238a62c2,Han muc nap/rut moi ngay,unknown,from_bank,Phu ca nap lan rut qua NH - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-b0004ab7b5b6,(noi: so du MoMo toi da 200tr),unknown,unknown,Han muc so du vi noi chung - truc giao pham vi
+CHK-9324672f179f,Rut tien tu MoMo ve the ATM va the quoc te,from_bank,to_bank,RUT tien tu vi ra ngan hang/the (vi->NH)
+CHK-77260e1b5f5f,Rut tien tu MoMo ve TK NH co phi,from_bank,to_bank,RUT tien tu vi ra ngan hang/the (vi->NH)
+CHK-4739dbfb2b5c,(noi: Nap tu the quoc te/the ATM),unknown,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-eaceb8f9cc5d,Lien ket MoMo voi the quoc te Visa/Master/JCB,unknown,from_bank,Lien ket the ngan hang/quoc te - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-91a474b9474e,(noi: uu dai mien phi nap duoi 1tr),unknown,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-0de3600f7b6f,(noi: buoc dang nhap nap),unknown,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-439887abdd6d,Nap tu The ghi no quoc te DEBIT,from_bank,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-4925f8d4dd58,(noi: lien ket the quoc te),unknown,from_bank,Lien ket the ngan hang/quoc te - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-218599b9e5f9,Nap tu the ATM cua ngan hang nao,from_bank,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-96e1b1860a90,Cach nap vao MoMo tu the ATM,from_bank,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-ddbb23858f2c,(noi: III. THANH TOAN & MUA SAM),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-35d116556cd5,Cach thanh toan tien dien,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-18f79279bd75,Thanh toan dien thoai co dinh,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-e13fe06f8982,Thanh toan hoa don truyen hinh,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-cb9a5b2cbb95,Thanh toan tien dien khu vuc nao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-c8cbf3d7b1d9,Thanh toan tien nuoc khu vuc nao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-be8250ed2e6a,Tra cuu tien nuoc,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-d62d58ff6593,Han muc thanh toan tien nuoc,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-257133230d30,Khong dong tien nuoc bao lau bi cat,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-66b1c9fdf255,Thanh toan le phi xet tuyen DH,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-9f6b55af9025,(noi: ma QR thanh toan),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-b5b35b9e99db,(noi: chuyen sang app MoMo),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-19da2f7d30ce,Thanh toan nhung khong cap nhat thanh cong,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-a804fa50546d,Phu huynh thanh toan le phi thay thi sinh,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-f7d6a3ec82f1,Luu hoa don da thanh toan,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-3839c723eff7,Thanh toan le phi nhung khong nhan qua,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-3e9ac3dbb093,(noi: chuong trinh khong ap dung dong thoi),unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-ca3b9c014dd3,Den ky thanh toan nhan thong bao o dau,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-e963a02e5a2d,Kiem tra hoa don da gach no,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-17471739018f,Biet chuong trinh khuyen mai thanh toan HD,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-02f82e8095ce,Chua du 18 tuoi dang ky thanh toan,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-16d37611af41,(noi: nang luc hanh vi dan su),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-90bf4314956e,(noi: xac thuc sinh trac CCCD),unknown,unknown,Ve xac thuc/trang thai tai khoan - khong phai giao dich nap/rut cu the
+CHK-baf69032cb82,Thanh toan loai hoa don nao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-eadd18e63c6a,Nap tien dien thoai tra truoc,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-20b79e61d7a5,Mua ma the di dong,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-9630636ca694,Nap DT tra truoc nha mang nao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-bab7e2adcf08,Thanh toan thue bao tra sau,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-3376f9161b92,Thanh toan bang MoMo co phi,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-e7a2c2797574,Mua the/nap DT bang nguon tien nao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-d43eb8bd6569,Lien ket the Visa nguon tien mua/nap DT,from_bank,unknown,Chu de mua/nap the DT - the Visa chi la nguon tien - khong phai nap/rut vi
+CHK-fb97ae78975f,Top Up la gi,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-5832b744dcfe,Cap nhat khuyen mai nha mang,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-f3dc32ee094f,Loi ich nap DT tren MoMo,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-53c0c566325b,Nap DT cho nguoi khac,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-ffd339caba9c,Goi tu dong gia han xem o dau,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-a22065f703fa,(noi: quan ly/huy goi gia han),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-34685da244de,Cong gop hoa don la gi,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-da1a7b41b611,Loi ich thanh toan App Store,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-476d02113ad3,(noi: thiet lap MoMo cho ID Apple),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-f5d54503a5d3,Thiet lap MoMo cho ID Apple,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-5483b3a1895f,Kiem tra don hang dich vu Apple,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-914712408e57,(noi: cai dat phuong tien mua),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-e886c8f7759a,Thanh toan trong ung dung voi MoMo,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-4106e53aaa86,(noi: chon goi/vat pham),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-ac227bdfd7b4,Nhieu phuong thuc thanh toan ID Apple,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-591953714880,(noi: ID Apple mac dinh),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-8b0dca1cd0f1,(noi: Thanh toan tai quay; ma QR),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-33a9c9cf1beb,Thay doi han muc thanh toan tai quay,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-c342b75d8db8,Tim diem chap nhan thanh toan,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-0626d2d8a03a,Mua hang TMDT phuong thuc thanh toan,from_bank,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich; the ATM chi la phuong thuc
+CHK-f5c323490265,Thanh toan tai quay nhu the nao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-17fe28207452,(noi: quet ma thanh toan),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-e110348f8eaf,San uu dai an uong,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-cf26b9047099,(noi: Hoan tien mua sam la gi),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-06815a011099,Ung dung hoan tien la gi,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-0c5924f267e2,Cashback la gi,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-10bd7f78b571,Hoan tien 50% va chuong trinh khac,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-a6bff62bdab3,Huy toan bo GD dich vu co hoan tien,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-24712c727b39,Huy mot phan GD dich vu hoan tien,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-51403209d79f,Rut tien tu TK Hoan Tien ve MoMo,unknown,unknown,Rut tu tai khoan Hoan Tien noi bo ve vi - khong phai kenh ngan hang
+CHK-de3349b016d6,Rut tu TK Hoan tien ve MoMo chua nhan,unknown,unknown,Rut tu tai khoan Hoan Tien noi bo ve vi - khong phai kenh ngan hang
+CHK-caedab91a24e,Tai sao khong duoc hoan tien,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-351a1c851b4f,(noi: vuot muc hoan tien thang),unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-42ccffb03567,Tham gia chuong trinh hoan tien,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-196f9f0975fb,Toi thieu rut tu TK Hoan tien ve MoMo,unknown,unknown,Rut tu tai khoan Hoan Tien noi bo ve vi - khong phai kenh ngan hang
+CHK-b84d12fcc083,Nap tien quang cao TikTok,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-5f0c33dec65f,(noi: the qua thanh toan),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-faa95ffa9d5f,Nap tien quang cao Google,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-a54be44710b4,Nap tien quang cao Google Ads,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-24f136559dd3,Thanh toan quang cao co phi,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-cf6af9a36c6c,Quan ly quang cao TikTok may tinh vs DT,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-b347979a4625,Nap quang cao Facebook Ads,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-a6f391fb9c8d,Toi da TK Facebook/TikTok/Google,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-6c2b3d2c518d,Nguon tien thanh toan quang cao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-bfb8c44da924,The qua khi nap quang cao Google,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-deb7a69be092,Nang han muc nap quang cao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-69dfe288e11d,Huy lien ket TK sieu MoMo va quang cao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-366858a31511,Nap quang cao Promote TikTok,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-1ff9d05d8666,Nap quang cao Facebook,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-bb4ee9fa2fe7,VIP User thanh toan quang cao,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-f097e0d2e419,Nap quang cao TikTok Ads,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-dfd9d0b3413d,(noi: lien ket MoMo voi TikTok),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-0cc76ebf207f,(noi: chon ngan sach quang cao),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-3dd703b577b3,(noi: Ve xem phim rap nao),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-2616c87c0121,Mua ve xem phim,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-a3d5cde45a95,(noi: chon suat chieu),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-dc9ddd6b00c8,Ve phim MoMo dat hon rap,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-eac4ad97780c,Ma QR/Barcode ve phim,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-09248a8fc9f5,Chua nhan ma ve phim,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-9d56f2e86cb7,Ve phim kem bap nuoc,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-81e7bbe11d0a,GD mua ve phim dang cho xu ly,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-d705f2642814,(noi: Giai tri; gia han goi),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-da21c49a5c9c,Gia han/nap truyen hinh truc tuyen,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-e97c2e1fb883,(noi: Mua sam truc tuyen; voucher),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-2b5c77234963,Mua hoa Hoa Yeu Thuong,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-7f2cee8a34f5,Mua the qua Got It,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-80d9820c7434,Dat giup viec JupViec,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-abaef259cefd,(noi: JupViec steps),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-2556bda770b7,(noi: Ban quyen phan mem),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-56c2168135ce,(noi: cau hoi chung thanh toan),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-f4f51a113376,Gia tri GD nho hon nap toi thieu cua NH,from_bank,from_bank,NAP tien tu ngan hang vao vi (NH->vi) - han muc nap toi thieu cua NH
+CHK-26ece7ae78b6,Tat Nguon tien thay the,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-bc666b4f61f9,TK Lazada lien ket bao nhieu MoMo,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-36ee36b1f415,Kiem tra tien Lazada hoan ve MoMo,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-f6089326c49e,Dung Nguon tien thay the tranh GD loi,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-befecdd65b00,(noi: bat tinh nang lien ket),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-787b091af469,Nguon tien thay the nen dung khi nao,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-5229baa3147d,Cac ngan hang ap dung Nguon tien thay the,from_bank,from_bank,Nguon tien thay the dung NH lien ket lam nguon - kenh from_bank (diem QD #1)
+CHK-6c16f285494a,(noi: NH Bac A han muc nguon thay the),unknown,from_bank,Nguon tien thay the dung NH lien ket lam nguon - kenh from_bank (diem QD #1)
+CHK-f12408f045e3,(noi: HDB nguon thay the),unknown,from_bank,Nguon tien thay the dung NH lien ket lam nguon - kenh from_bank (diem QD #1)
+CHK-04d51fc42f6e,(noi: SCB nguon thay the),unknown,from_bank,Nguon tien thay the dung NH lien ket lam nguon - kenh from_bank (diem QD #1)
+CHK-782c993af633,(noi: VCB nguon thay the),unknown,from_bank,Nguon tien thay the dung NH lien ket lam nguon - kenh from_bank (diem QD #1)
+CHK-aec038bd37d3,KH hoan/huy/doi tra san pham,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-fdd84fc52782,Huy don thoi gian hoan tien,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-395f451ca921,Nguon tien thay the la gi,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-42ad93f8dbf5,Khong thay MoMo trong Lazada,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-c540f3e097e0,(noi: MoMoShip doi thong tin COD),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-b3da737d7663,Khi nao bi thu phi vuot can,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-40bf5ad270db,(noi: don vi van chuyen),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-80697bff3e4e,Bao lau nhan phan hoi khieu nai,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-f8617cd815bb,Xem lich doi soat COD,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-b309667f16f4,Xuat hoa don cuoc van chuyen,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-f6263b19efb5,Nguoi nhan dong kiem don hang,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-82b3d244f665,(noi: IV. Su co; su co lien ket TK NH),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-576262a63615,Van de lien ket NH Vietcombank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-bb71c4901860,Van de lien ket NH Sacombank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-1c41317569b5,Van de lien ket NH VIB,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-eeb56669b010,Vi sao lien ket NH khong thanh cong,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-6b60b7c95e5d,(noi: quy dinh lien ket tung NH),unknown,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-a18b4150ec4d,Van de lien ket NH Vietinbank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-24c7c8498b49,Van de lien ket NH BIDV,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-1e7b4e61afdc,Van de lien ket NH OCB,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-8df13b2adc1d,Van de lien ket NH VPBank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-c4d1ddb6b1d3,Van de lien ket NH Eximbank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-151dfaa1d398,Van de lien ket NH TPBank,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-eb4e2f9d3e7b,Van de lien ket NH ACB,from_bank,from_bank,Lien ket/su co lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-dc90f45f4dc4,Thanh toan thanh cong nhung khong nhan SP,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-046dab27a427,(noi: noi dung khong nhan SP),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-c24d596430a2,Thanh toan HD thanh cong chua gach no,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-ad932dfd5718,(noi: HD chua gach no),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-c8959930f325,Thong bao HD da TT du chua TT,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-7a6775a9f7a1,TT khong thanh cong nhung MoMo bi tru,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-b87e12d759c4,TK bi tru nhung GD dang cho xu ly,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-17bb4344cbe0,(noi: ten NH thuc hien GD),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-103d1bd4440b,Khong dung duoc dich vu/SP da mua,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-7f3bf41c4364,Nhap sai thong tin luc nap DT,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-91d37e51dbad,Nap nham so tien dich vu,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-b148ed4d20d5,Thong bao HD khong ton tai,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-cda59a69c608,Nhap sai TT thanh toan HD dien nuoc net,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-06da2bfa51f1,(noi: ma GD sai/dung),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-4ac5eccd368a,Nhap sai TT thanh toan HD tai chinh,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-ceaff5605663,Nap nham dich vu,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-2d1be24ff82e,Huy GD dang cho xu ly/thuc hien lai,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-deffc8769827,Thanh toan HD lap 2 lan,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-57aac679419c,Vi sao GD thanh toan khong thanh cong,unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-db0975fbbf21,(noi: de lai loi nhan CSKH),unknown,unknown,Thanh toan hoa don/dich vu/mua sam - truc giao 3 truc giao dich
+CHK-e861788c2691,(noi: Su co khi nap tien hoac rut tien),unknown,from_bank,Phu ca nap lan rut qua NH - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-6a8cb81cc157,Nap tu TK NH vao MoMo khong thanh cong,from_bank,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-8f7ae02b0f64,(noi: khong gap van de tren),unknown,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi) - noi tiep su co nap
+CHK-b19dcd48b1fa,Rut tu MoMo ve TK NH khong thanh cong,from_bank,to_bank,RUT tien tu vi ra ngan hang/the (vi->NH)
+CHK-0e9add9dfe4d,Nap tu NH TK NH tru tien nhung MoMo khong doi,from_bank,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-9707b3e393ef,(noi: noi dung nap NH tru MoMo khong doi),unknown,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi) - noi tiep su co nap
+CHK-d7d91424ae35,Diem Nap/rut MoMo thu phi nap tien,unknown,unknown,Nap/rut tien mat tai diem giao dich - khong thuoc kenh ngan hang
+CHK-416d50f370e7,Nap tu NH TK NH tru tien 2 lan,from_bank,from_bank,NAP tien tu ngan hang/the vao vi (NH->vi)
+CHK-82543ecac6e0,Rut ve NH MoMo tru nhung TK NH khong doi,from_bank,to_bank,RUT tien tu vi ra ngan hang/the (vi->NH)
+CHK-d8620a15eb33,Diem Nap/rut MoMo thu sai phi rut,unknown,unknown,Nap/rut tien mat tai diem giao dich - khong thuoc kenh ngan hang
+CHK-95b754c76963,Chuyen tien cho nguoi chua co MoMo,unknown,internal_wallet,Chuyen/nhan tien giua hai vi MoMo (vi-vi)
+CHK-dc9e0143b486,(noi: Su co khuyen mai; the qua),unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-9fa1a4e7bb46,Ma khuyen mai khong hop le,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-2154d8c7499c,(noi: CTKM khong ap dung dong thoi),unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-593ba8438c67,Khong nhan duoc qua tang,unknown,unknown,Khuyen mai/uu dai - truc giao pham vi giao dich
+CHK-9c650e8d2480,(mo dau Dieu Khoan Dich Vu),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-8b65a4f66b9a,Giai thich tu ngu,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-f1b2eee4c753,DN Chinh Sach Quyen Rieng Tu,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-1533b8f811f1,DN San Pham/Dich Vu,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-24f104aa0e39,DN Giao Dich,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-6150cbe7761e,DN Bien Phap Xac Thuc,from_bank,unknown,Ve xac thuc/trang thai tai khoan - ngan hang chi xuat hien phu - khong phai giao dich nap/rut
+CHK-89f3e4e38bc5,DN Dich Vu Khach Hang,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-44c6f797c691,(noi: Ho So Mo TK),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-a523a3e01e32,(noi: Ho So Mo TK Vi),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-42bce71ee3fd,(noi: Quy Che TMDT),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-51433bfa189e,Cac Quy Tac Chung,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-0a2b6a1259fa,Cam ket dong y dieu khoan,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-36ff177b895a,Trach nhiem kiem tra cap nhat DK,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-0a1c3ad00d4d,Quyen va trach nhiem Nguoi Su Dung,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-4571b952e75b,(noi: cac quyen khac),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-4881a47c51ca,(noi: thong bao thay doi TT),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-7be13ec7aead,(noi: trach nhiem khac),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-37b9ecd60d38,Quyen va trach nhiem M_Service,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-81a031acd703,(noi: khong du so du/han muc),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-801111d8045f,Trach nhiem cua M_Service,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-4b113f69fb45,Phi dich vu va thue,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-786213599a30,Trach nhiem thanh toan phi,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-bf5c99744b3a,Dang ky mo TK lien ket TK ngan hang,from_bank,from_bank,Lien ket TK ngan hang - gan from_bank theo quy tac kenh-NH-trung-tinh (diem QD #1)
+CHK-620cc36bee6b,(noi: cung cap thong tin dang ky),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-364420956561,Su dung Tai Khoan Vi Dien Tu,unknown,unknown,Dieu khoan liet ke nhieu thao tac vi (nap/rut/chuyen) - khong don pham vi
+CHK-173c8a69e525,(noi: rut ve TK NH; chuyen tien),unknown,unknown,Dieu khoan liet ke nhieu thao tac vi (rut/chuyen) - khong don pham vi
+CHK-875af11b7c1a,(noi: gioi han so du vi),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-1be192ac0f07,(noi: TK vi don vi chap nhan),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-717dc8a8dd81,(noi: han muc TK to chuc),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-2328593a8d17,(noi: bu tru nghia vu),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-90b2b81c45c9,(noi: tam giu so du vi),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-74e7db7cbcfa,(noi: cam ket khong khieu nai),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-a18b06715513,Xu ly nghi ngo gian lan/gia mao,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-9a67ebdb9dfb,Bien phap khi GD nghi vi pham,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-3db498ed248a,(noi: khau tru thu hoi so du),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-d9507c8f288a,(noi: khong hop tac/chiem doat),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-791097c0e699,(noi: lam dung khuyen mai),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-7c61abd953c1,(noi: nguyen tac thanh toan SP/DV),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-635fa5333b4c,(noi: tu choi/tam ngung DV),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-132c55e62e71,(noi: ly do tu choi DV),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-3add9141cb28,(noi: cham dut thoa thuan),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-b8d82e36a6a7,(noi: nghia vu truoc cham dut),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-73bc4f3baba8,SP/DV cua Doi Tac Cung Ung,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-c3a6c372f714,(noi: khong cam ket DV doi tac),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-2e2fa821c1f7,(noi: ho tro chuyen yeu cau),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-d81606290c41,Cham dut quan he hop dong,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-386769e814c0,(noi: dong TK vi xu ly so du),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-988b552176c2,(noi: ca nhan chet/mat tich),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-ca4a41dfa310,(noi: truong hop khac dong TK),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-36951fe1a2e5,(noi: hoan tra so du khi dong),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-0112dd649cd1,(noi: thu hoi giay phep),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-85b2fbc839fc,Quyen so huu tri tue,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-d8712aa137a3,Han che su dung SHTT,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-2b1f9713a27a,Boi hoan,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-f24b1ef074d3,Thu Thap va Xu Ly Thong Tin,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-4cc67d0fe63d,Xu ly du lieu khong phai DLCN,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-b254ccc5c3bf,(noi: uy quyen tiet lo),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-9b6610bab132,Gioi Han Trach Nhiem,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-ece1e782d6f2,Gioi han gia tri boi thuong,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-6d077edc57f9,(noi: trach nhiem M_Service),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-9cd7cbd099fc,Mien tru bat kha khang,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-922a83d75db6,Tuan thu lenh co quan nha nuoc,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-21b0fc141d83,An Ninh,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-f7958f657e8e,Bao mat TK/mat khau,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-02fc6896ae7f,(noi: tam ngung TK),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-f809c40dfa1a,Cung cap thong tin,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-8aae3ab819ef,Thong tin so du cho nguoi thua ke,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-4b2476d1836c,Thong Tin Lien Lac va Thong Bao,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-208234b3c564,Phuong thuc lien lac,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-bb6278dd8d54,(noi: gui thu),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-dfaceee4353f,Tra soat va khieu nai,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-3fe6610b5609,Phuong thuc tiep nhan tra soat,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-ded18137acdc,(noi: mau de nghi tra soat),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-6b11a5a92cd9,(noi: thoi han xu ly tra soat),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-601726df2fc2,(noi: dau hieu toi pham),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-1d527cf2aff7,Cac quy dinh khac,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-7535ffc1b561,Dieu khoan vo hieu mot phan,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-92ba9babfb2f,Chuyen nhuong quyen,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-de9a7fdbb74d,Giai quyet tranh chap,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-78af0e48ddd8,Tranh chap voi ben thu ba,unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the
+CHK-88fe1e92269e,(noi: thoi diem thiet lap thoa thuan),unknown,unknown,Dieu khoan dich vu chung - khong gan pham vi giao dich cu the

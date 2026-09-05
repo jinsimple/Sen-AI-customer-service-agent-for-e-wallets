@@ -60,6 +60,11 @@ def ingest_document(
         session.flush()
         raise
 
+    # ADR-065 — lưu toàn văn GỐC TRƯỚC khi cắt (không phải sau — ghép chunk
+    # lại không tái tạo đúng văn bản vì overlap). Dùng cho trang đọc toàn
+    # văn deep-link từ /policy-search, không đổi luồng cắt/rerank hiện có.
+    doc.full_text = text
+
     splitter = RecursiveCharacterTextSplitter(chunk_size=RAG_CHUNK_SIZE, chunk_overlap=RAG_CHUNK_OVERLAP)
     pieces = [p.strip() for p in splitter.split_text(text) if p.strip()]
     if not pieces:

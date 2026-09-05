@@ -1,5 +1,6 @@
-# -*- coding: utf-8 -*-
-import random, collections
+import collections
+import random
+
 from cases import CASES
 
 SEED = 20260830
@@ -100,11 +101,11 @@ rồi mới quay lại chấm từ đầu.
 ## Siêu dữ liệu — điền trước khi chấm
 
 ```
-nguoi_cham        : 
-ngay_cham         : 
-commit_sinh_output: 
-prompt_version    : 
-model             : 
+nguoi_cham        :
+ngay_cham         :
+commit_sinh_output:
+prompt_version    :
+model             :
 cach_chon_mau     : (lấy từ pool nào · bao nhiêu ca · chọn kiểu gì)
 ca_bi_loai        : (bản gốc ghi 30, thực có 28 — 2 ca đâu, vì sao bỏ)
 ```
@@ -132,10 +133,10 @@ BLOCK = """## L{n:02d}
 **Agent:** {agent}
 
 ```
-rang_buoc  : 
-co_bia     : 
-ket_luan   : 
-ly_do      : 
+rang_buoc  :
+co_bia     :
+ket_luan   :
+ly_do      :
 ```
 
 ---
@@ -156,7 +157,7 @@ for i, c in enumerate(order, 1):
                             agent=c["agent"]))
     key.append(f"| L{i:02d} | Ca {c['ca_cu']:02d} | `{c['sid']}` |")
 
-key.append("""
+key.append(f"""
 ## Cách tổng hợp — đọc trước khi tính bất kỳ tỉ lệ nào
 
 **k lệch rất mạnh.** Một kịch bản chiếm 6/28 lượt, tám kịch bản khác chỉ 1 lượt.
@@ -177,10 +178,10 @@ con số cuối.
 
 **Câu khai phạm vi — phải đi kèm mọi lần trích con số này, không có ngoại lệ:**
 
-> *Tỉ lệ đo trên gói {n} lượt chấm, phủ {m} kịch bản (k không cân, từ 1 đến 6),
+> *Tỉ lệ đo trên gói {len(order)} lượt chấm, phủ {len(pos)} kịch bản (k không cân, từ 1 đến 6),
 > một người chấm, chấm mù. Đây KHÔNG phải tỉ lệ đạt của agent trên tập khiếu nại
 > thật.*
-""".format(n=len(order), m=len(pos)))
+""")
 
 open("/mnt/user-data/outputs/goi-cham-NGUOI-v2.md", "w").write("\n".join(out))
 open("/mnt/user-data/outputs/KHOA-doi-chieu.md", "w").write("\n".join(key))

@@ -31,6 +31,7 @@ from src.config import OTP_STEPUP_FRESH_MINUTES, OTP_VIEW_MAX_MINUTES
 from src.db.models import Transaction
 from src.rag.search import search_policy_text
 from src.services.complaint_intake import create_ticket_with_fraud_check, flag_human_handoff
+from src.services.thread_signals import doc_hoac_khong_ro as _doc_tin_hieu
 from src.tools.base import ToolError
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
 from src.tools.lookup_transaction import la_mot_ben_cua_giao_dich
@@ -612,6 +613,31 @@ _OTP_EXPIRED_ERROR = {
     "message": "Lần xác thực OTP gần nhất đã quá hạn cho thao tác này — yêu cầu khách xác thực OTP lại trước khi tiếp tục.",
 }
 
+# Tên tín hiệu PHẢI khớp NGUYÊN VĂN `_TEN_TIN_HIEU_SANG_LOC_XONG` ở
+# graph.py (nơi GHI tín hiệu này) — không import chéo được vì graph.py đã
+# import module này (`build_customer_tools`), import ngược lại tạo vòng lặp.
+# Đổi 1 bên mà quên bên kia thì gate luôn coi "chưa sàng lọc" (fail-closed
+# NUỐT LUÔN mọi trans_id thật) — hằng, không phải giá trị runtime, nên
+# không cổng nào tự bắt được lệch; sửa tên phải sửa CẢ HAI chỗ.
+_TEN_TIN_HIEU_SANG_LOC_XONG = "sang_loc_xong"
+
+# GATE mục 4 (04/09, PO chốt fail-closed — xem graph.py cạnh
+# `_TEN_TIN_HIEU_SANG_LOC_XONG`) — chặn tạo vé cho ca chuyển nhầm ĐÃ tra ra
+# giao dịch mà chưa hoàn tất câu sàng lọc lừa đảo (⑨/K2) cho ĐÚNG giao dịch
+# đó. `message` hướng model sang `request_human_handoff` thay vì lặp lại thử
+# — PO yêu cầu tường minh: "không tạo được vé tự động" phải đi kèm "được
+# chuyển người", không phải một lỗi cụt.
+_SANG_LOC_CHUA_HOAN_TAT_ERROR = {
+    "status": "error",
+    "loai": "sang_loc_lua_dao_chua_hoan_tat",
+    "message": (
+        "Chưa thể tạo hồ sơ tự động cho giao dịch chuyển nhầm này — cần hoàn tất câu hỏi sàng lọc "
+        "(đã/sẽ được chèn vào lượt trả lời trước) trước khi tạo vé. Nếu khách đã trả lời câu hỏi đó mà "
+        "vẫn gặp lỗi này, KHÔNG thử lại nhiều lần — gọi request_human_handoff ngay để chuyên viên CSKH "
+        "hỗ trợ trực tiếp, giải thích với khách là đang chuyển cho người hỗ trợ chứ không phải bị từ chối."
+    ),
+}
+
 
 # ---------------------------------------------------------------------------
 # BẤT BIẾN CHỐNG LIVELOCK — "cùng tool + cùng tham số + cùng lỗi ⟹ lần thứ hai
@@ -922,6 +948,18 @@ def build_customer_tools(
             return _OTP_REQUIRED_ERROR
         if not _otp_fresh(otp_verified_at, OTP_STEPUP_FRESH_MINUTES):
             return _OTP_EXPIRED_ERROR
+        # GATE mục 4 (04/09) — chỉ áp cho ca chuyển nhầm CÓ trans_id (đã tra
+        # ra giao dịch cụ thể); trans_id=None giữ nguyên KHÔNG gate, đúng
+        # đúng phạm vi cơ chế ⑨/K2 gốc (chỉ bắn câu hỏi khi đã tra được giao
+        # dịch — mở rộng gate sang cả trans_id=None là mở rộng phạm vi PO
+        # chưa yêu cầu). FAIL-CLOSED chủ đích (PO chốt 04/09): `doc_hoac_
+        # khong_ro` trả `None` khi Redis lỗi, `None not in (True-set)` ⟹ coi
+        # như CHƯA sàng lọc ⟹ chặn — một cổng an toàn bỏ qua được bằng cách
+        # chờ hạ tầng phụ chết thì không phải cổng.
+        if complaint_type == "wrong_recipient" and trans_id is not None:
+            _da_sang_loc = _doc_tin_hieu(_TEN_TIN_HIEU_SANG_LOC_XONG, trans_id) not in (None, 0)
+            if not _da_sang_loc:
+                return _SANG_LOC_CHUA_HOAN_TAT_ERROR
         try:
             return create_ticket_with_fraud_check(
                 session,

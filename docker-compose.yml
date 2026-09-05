@@ -151,7 +151,12 @@ services:
       # cung cấp đổi model dưới chân ta, và MỌI SỐ ĐO âm thầm hết hạn. Ta đã
       # ghim mã (`bam_ma_nguon`) và ghim ảnh (`BUILD_COMMIT`) — đây là vật thứ
       # ba cùng lớp, trước nay chưa ghim.
-      LLM_MODEL: ${LLM_MODEL:-qwen3.7-plus-2026-05-26}
+      # [04/09] Cập nhật mặc định khớp ADR-058/059 — qwen3.8-flash là
+      # BASELINE thật từ 01/09, không phải ngoại lệ demo. Rủi ro ADR-059
+      # (tên KHÔNG ghim ngày, provider có thể đổi ngầm phía sau tên) VẪN CÒN
+      # MỞ — dòng này chỉ khớp hằng số với quyết định hiện hành, không giải
+      # quyết rủi ro gốc đó.
+      LLM_MODEL: ${LLM_MODEL:-qwen3.8-flash}
       # Mặc định cho LLM_BASE_URL — DevOps soát và duyệt 27/08 sau khi tự đo.
       # Vì sao cần: thiếu nó thì SDK rơi về đích MẶC ĐỊNH (api.openai.com) trong
       # khi LLM_MODEL đã là tên model DashScope ⟹ hai nửa cấu hình đến từ hai
@@ -189,6 +194,12 @@ services:
       # thứ một trong hai bên sai.
       SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
       REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+      # ADR-061 — DNS nội bộ compose, service `rerank` bên dưới. KHÔNG
+      # `condition: service_healthy` ở depends_on (xem ngay dưới) — sidecar
+      # là TĂNG CƯỜNG chất lượng, không phải điều kiện backend được sống;
+      # backend phải lên được dù sidecar chưa/không lên (fallback fail-closed
+      # ở src/rag/rerank.py, không phải lỗi nếu URL này tạm chưa trả lời).
+      RAG_RERANK_SERVICE_URL: http://rerank:8020
     volumes:
       - chroma_data:/app/data/rag_index
       - logs_data:/app/logs
@@ -197,6 +208,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # `service_started` (KHÔNG phải `service_healthy`) — chỉ tránh race lúc
+      # container `rerank` còn chưa tồn tại, không chặn backend chờ model
+      # rerank load xong (có thể mất chục giây). Cân nhắc TRÁNH "sidecar chậm
+      # ⟹ mọi lần recreate backend cũng chậm theo" — đúng tinh thần fallback
+      # ở trên: sidecar không sẵn sàng KHÔNG được cản backend phục vụ.
+      rerank:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health')"]
       interval: 30s
@@ -218,6 +236,21 @@ services:
       # không nên public. Xem trên VPS thật qua SSH tunnel:
       # `ssh -L 16686:localhost:16686 user@host` rồi mở localhost:16686 máy mình.
       - "127.0.0.1:16686:16686"
+
+  # ADR-061 (04/09) — sidecar rerank cho Finding ① Lớp 2. Service RIÊNG,
+  # KHÔNG publish port ra host (chỉ mạng nội bộ compose) — xem
+  # rerank_service/app.py cho lý do tách khỏi backend (RAM ×worker).
+  rerank:
+    build:
+      context: ./rerank_service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8020/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
 
   frontend:
     build:

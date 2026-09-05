@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Nguồn: goi_30_nhan_NGUOI.md — giữ NGUYÊN VĂN, không sửa một chữ nào.
 # ca_cu = số ca trong file gốc (dùng cho khoá đối chiếu, KHÔNG hiện trong gói chấm)
 

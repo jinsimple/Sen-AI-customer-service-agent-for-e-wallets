@@ -39,7 +39,12 @@ export default function ResolutionApprovalActions({
   onError: (msg: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [otp, setOtp] = useState<{ sessionId: string } | null>(null);
+  // ADR-060 (03/09) — `otpCode` chỉ khác `undefined` khi backend đang chạy
+  // OTP_DEMO_MODE (route /request-approval-otp gate ở main.py:998, KHÔNG
+  // đụng ở đây). Production không bật cờ ⟹ trường này luôn undefined ⟹ dòng
+  // hiện mã bên dưới không render — soi gương đúng cách ChatClient hiện
+  // demoOtpCode cho OTP đăng nhập, không phát minh cơ chế mới.
+  const [otp, setOtp] = useState<{ sessionId: string; otpCode?: string } | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
   // ADR-019 — từ chối phải kèm lý do có cấu trúc, nên nút "Từ chối" mở form
   // chọn lý do trước, không gửi thẳng như trước.
@@ -50,7 +55,7 @@ export default function ResolutionApprovalActions({
     setBusy(true);
     try {
       const res = await requestResolutionApprovalOtp(resolutionId);
-      setOtp({ sessionId: res.session_id });
+      setOtp({ sessionId: res.session_id, otpCode: res.otp_code });
       setOtpError(null);
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Không xin được mã OTP duyệt");
@@ -97,6 +102,11 @@ export default function ResolutionApprovalActions({
         <div>
           Nhập mã OTP xác nhận duyệt (còn hiệu lực 10 phút, chỉ dùng được cho đúng đề xuất này):
         </div>
+        {otp.otpCode && (
+          <div className="otp-meta">
+            Mã OTP duyệt (mô phỏng): <strong>{otp.otpCode}</strong>
+          </div>
+        )}
         <OtpInput
           disabled={false}
           checking={busy}

@@ -448,9 +448,14 @@ jobs:
       - name: Quét CVE gói npm (C7, bổ sung — bản gốc bỏ sót JS side)
         run: npm audit --prefix frontend --audit-level=high
       - name: Quét secret lỡ commit (C5)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Gọi thẳng binary gitleaks — bỏ gitleaks-action@v2 sau khi nó bắt đầu đòi
+        # GITLEAKS_LICENSE cho repo tổ chức (breaking change SaaS, không liên quan
+        # tới việc quét secret). Đúng nguyên tắc đã dùng ở route-guards-docker
+        # (tự viết thay vì phụ thuộc action bên thứ ba khi bản chất chỉ là 1 lệnh
+        # CLI) — bớt một phụ thuộc chuỗi cung ứng, không mất khả năng quét.
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.0/gitleaks_8.24.0_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks detect --source . --redact -v
 
   # ---------------------------------------------------------------------
   # F-MIG — chuỗi migration phải CHẠY ĐƯỢC, và phải khớp với models.py
@@ -535,7 +540,14 @@ jobs:
     # nữa, nhưng có thể FIFO nội bộ đội). Gỡ ghim CHỈ khi ADR-037 đóng bằng phép đo mới
     # (BTC xác nhận phạm vi rò rỉ, hoặc runner đổi sang ephemeral).
     runs-on: [self-hosted, team-226]
-    if: ${{ github.event_name != 'schedule' }} # Stage 6 (nightly) không cần chạy lại stage này
+    # 04/09 — CHUYỂN sang nightly-only (PO): job này gọi run_agent_turn()
+    # trực tiếp trong tiến trình, không qua docker-compose backend, nên
+    # FIN05_CHO_PHEP_GOI_RA_NGOAI (mặc định TỪ CHỐI) chưa từng được khai ở
+    # đây — chặn 100% case từ 18/08, không phải regression. Sửa gốc (khai
+    # env dưới) + đổi sang per-push→nightly cùng lúc, đúng khuôn Stage 6:
+    # 120 case + functional/fraud/err là LLM-eval đắt, nondeterministic,
+    # không hợp làm cổng chặn mọi push — giữ độ phủ ở nightly, không xoá.
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     # ═══ ĐÍCH ĐẾN LLM — KHAI TƯỜNG MINH, 27/08 ═══════════════════════════
     # 🔴 KHÔNG PHẢI DỌN DẸP. Đây là vá một cổng ĐANG CHẤM SAI VẬT.
     #
@@ -568,10 +580,28 @@ jobs:
     #   kế (EMBEDDING_BASE_URL trống), gỡ nó ra là gãy RAG.
     env:
       LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-      LLM_MODEL: qwen3.7-max-2026-06-08
+      # 04/09 — ADR-059: qwen3.8-flash là BASELINE đo lường thật (246 ca
+      # benchmark 31/08 đã chạy trên model này), không phải model ghim cũ
+      # qwen3.7-max-2026-06-08 (đã 403, ADR-058). Đổi đồng bộ với job dưới.
+      LLM_MODEL: qwen3.8-flash
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
+      # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
+      # backend, nơi biến này CÓ khai) nên chưa từng được mở — chặn mọi case
+      # từ ngày cổng ra đời, không phải regression của thay đổi nào sau này.
+      FIN05_CHO_PHEP_GOI_RA_NGOAI: "1"
     steps:
       - uses: actions/checkout@v4
+      # 04/09 — DevOps: nghi vấn self-hosted runner (không ephemeral) giữ
+      # __pycache__/*.pyc từ lần chạy TRƯỚC checkout hiện tại, khiến Python
+      # tái dùng bytecode CŨ thay vì biên dịch lại từ .py vừa checkout (đúng
+      # khuôn ADV-035 báo đỏ dù source đã vá từ 10/08). Dọn tất định TRƯỚC
+      # khi cài dependency — rẻ, không có tác dụng phụ trên GitHub-hosted
+      # (nơi mỗi lần vốn đã sạch).
+      - name: Dọn __pycache__/*.pyc cũ trên self-hosted runner
+        run: |
+          find . -name '__pycache__' -type d -prune -exec rm -rf {} +
+          find . -name '*.pyc' -delete
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -650,10 +680,34 @@ jobs:
     #   kế (EMBEDDING_BASE_URL trống), gỡ nó ra là gãy RAG.
     env:
       LLM_BASE_URL: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-      LLM_MODEL: qwen3.7-max-2026-06-08
+      # 04/09 — ADR-059: qwen3.8-flash là BASELINE đo lường thật, không phải
+      # qwen3.7-max-2026-06-08 (đã 403, ADR-058). Đổi đồng bộ với job trên;
+      # model cũ giữ lại CUỐI bể làm dự phòng, không xoá hẳn.
+      LLM_MODEL: qwen3.8-flash
+      # Bể nhiều model — job trước chỉ ghim 1 model (LLM_MODEL_POOL không đặt ⟹
+      # mặc định bể = [LLM_MODEL], 1 phần tử) ⟹ model đó cạn là bể cạn NGAY, kích
+      # bug None-check ở graph.py:1456 (vá riêng, chưa land). Thêm dự phòng đúng
+      # họ model production đang dùng (po-demo: qwen3.8-flash + 3 model dự phòng)
+      # để bể không cạn tức thì trong lúc chờ vá gốc.
+      LLM_MODEL_POOL: qwen3.8-flash,qwen3.6-plus-2026-04-02,qwen3.6-flash-2026-04-16,qwen3.7-max-2026-06-08
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
+      # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
+      # backend, nơi biến này CÓ khai) nên chưa từng được mở — chặn mọi case
+      # từ ngày cổng ra đời, không phải regression của thay đổi nào sau này.
+      FIN05_CHO_PHEP_GOI_RA_NGOAI: "1"
     steps:
       - uses: actions/checkout@v4
+      # 04/09 — DevOps: nghi vấn self-hosted runner (không ephemeral) giữ
+      # __pycache__/*.pyc từ lần chạy TRƯỚC checkout hiện tại, khiến Python
+      # tái dùng bytecode CŨ thay vì biên dịch lại từ .py vừa checkout (đúng
+      # khuôn ADV-035 báo đỏ dù source đã vá từ 10/08). Dọn tất định TRƯỚC
+      # khi cài dependency — rẻ, không có tác dụng phụ trên GitHub-hosted
+      # (nơi mỗi lần vốn đã sạch).
+      - name: Dọn __pycache__/*.pyc cũ trên self-hosted runner
+        run: |
+          find . -name '__pycache__' -type d -prune -exec rm -rf {} +
+          find . -name '*.pyc' -delete
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -681,6 +735,7 @@ jobs:
           name: adversarial-set-report
           path: |
             eval/results/adversarial_run_*.md
+            eval/results/adversarial_run_*_raw.json
             eval/results/llm_judge_run_*.md
 
   # ---------------------------------------------------------------------

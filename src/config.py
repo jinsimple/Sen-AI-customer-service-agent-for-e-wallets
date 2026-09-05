@@ -517,6 +517,56 @@ RAG_EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL") or "text-embedding-3-sma
 RAG_CHUNK_SIZE = 800
 RAG_CHUNK_OVERLAP = 150
 RAG_SEARCH_TOP_K = 4
+
+# ADR-061 (03/09) — Finding ① lớp 2: cổng abstention bằng cross-encoder rerank
+# thay vì ngưỡng khoảng cách bi-encoder đơn (đã đo và BÁC — xem ADR).
+# Cơ chế: lấy RAG_RERANK_CANDIDATE_K ứng viên từ Chroma (rộng hơn
+# RAG_SEARCH_TOP_K để không bỏ sót chunk đúng nằm ngoài top-K hẹp — ca
+# REL-IW-01 đo được 03/09 là bằng chứng: top-1 Chroma sai, nhưng top-8 có
+# chunk đúng), rerank TOÀN BỘ, chunk nào < ngưỡng bị loại, phần còn lại cắt
+# về RAG_SEARCH_TOP_K theo điểm rerank (không phải thứ tự distance cũ).
+RAG_RERANK_MODEL = os.environ.get("RAG_RERANK_MODEL") or "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+RAG_RERANK_CANDIDATE_K = int(os.environ.get("RAG_RERANK_CANDIDATE_K", "8"))
+# ADR-061 cập nhật 04/09 — kiến trúc SIDECAR (đo được backend 4-5 worker nhân
+# RAM nếu load model trực tiếp trong process). Rỗng = tính năng TẮT HẲN
+# (rerank.py coi như sidecar luôn "không tới được", fallback fail-closed —
+# không phải lỗi, là trạng thái hợp lệ cho ngăn chưa bật dịch vụ này).
+RAG_RERANK_SERVICE_URL = os.environ.get("RAG_RERANK_SERVICE_URL", "")
+# 5s → 15s (04/09, PO bắt qua log thật) — lề an toàn PHỤ, sau khi
+# `rerank_service/app.py` đã vá gốc (tải model lúc khởi động thay vì lười
+# tải ở request đầu). 15s chỉ còn phải hứng mạng chậm/tải máy tức thời
+# thật, không còn phải hứng thời gian tải model (đã chuyển ra khỏi request
+# path). Không hạ về 5s nếu chưa đo lại — 5s đã CHỨNG MINH không đủ trên VM
+# RAM mỏng của po-demo (log timeout thật 04/09).
+RAG_RERANK_TIMEOUT_S = float(os.environ.get("RAG_RERANK_TIMEOUT_S", "15"))
+# Ngưỡng đo 03/09 trên 18 ca thật (tiếng Việt, top-k→rerank): tách biệt hoàn
+# toàn, phù hợp 7.03–10.91 / không phù hợp -7.52–-0.98, giữa khe ~3.0. KHÔNG
+# tự đổi số này mà không đo lại — đúng bài học ngưỡng đơn đã thất bại một
+# lần cho hướng khác (distance bi-encoder).
+RAG_RERANK_THRESHOLD = float(os.environ.get("RAG_RERANK_THRESHOLD", "3.0"))
+# Ngưỡng RIÊNG cho /policy-search (CSKH đọc excerpt trực tiếp — phụ đề trang
+# tự khai "KHÔNG qua tổng hợp AI", PO thật chốt 05/09: mối lo precision
+# Finding ① [AI TRÍCH DẪN nhầm chunk sai scope vào câu KHẲNG ĐỊNH] không áp
+# dụng ở đây, con người tự đọc/tự lọc excerpt) — KHÔNG áp cho đường agent (5
+# tool `build_customer_tools`, giữ nguyên RAG_RERANK_THRESHOLD=3.0 y hệt cũ.
+#
+# Đo thật 05/09 trên eval/rag_policy_set.jsonl (34 ca, PO+QA dựng), dò từng
+# 0.5 điểm: -2.5 tới -2.9 cho ĐÚNG 2/28 ca lệch (cùng 1 từ khoá khó "tranh
+# chấp", KHÔNG có ca precision nào lọt — 9/9 ca rác/lạc đề/dò thông tin nội
+# bộ vẫn not_found). Từ -3.0 trở xuống, "giá vàng hôm nay bao nhiêu" (P2-01,
+# RÕ RÀNG lạc đề) bắt đầu lọt — -2.5 là điểm dừng AN TOÀN, có lề (không nằm
+# sát vách -3.0). KHÔNG hạ thêm mà chưa đo lại 34 ca.
+#
+# 🔴 Review 05/09 tự đo lại 12 câu trên sidecar sống, thấy BIÊN THẬT mỏng hơn
+# số tổng (26/28+9/9) gợi ý: "phí rút"/"hạn mức" (found, đúng phía) chỉ hơn
+# ngưỡng ~0.4 điểm; "giá vàng" (garbage, đúng phía) chỉ THẤP HƠN ngưỡng ~0.4
+# điểm — khoảng cách found-ngắn-nhất↔garbage-cao-nhất chỉ ~0.8 điểm, trong
+# khi phần lớn ca khác tách nhau 3-5+ điểm. Không phải lý do bác ngưỡng này
+# (34 ca hiện có đều tách đúng phía) — nhưng biên mỏng nghĩa là một câu ngắn
+# khác phách một chút (vd "hạn mức tối đa", "phí chuyển") CÓ THỂ rơi sai phía
+# mà tập 34 ca chưa từng đo tới. Theo dõi khi có báo cáo not_found/found sai
+# mới trên câu ngắn dạng khác — đừng đo lại từ đầu, tra thẳng nhật ký này.
+RAG_RERANK_THRESHOLD_CSKH = float(os.environ.get("RAG_RERANK_THRESHOLD_CSKH", "-2.5"))
 MAX_UPLOAD_SIZE_MB = 10
 
 # Live chat (2026-08-11) — lớp phòng vệ THỨ 2 bên cạnh dọn phiên lúc WS ngắt

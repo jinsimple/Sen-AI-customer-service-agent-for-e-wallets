@@ -3432,3 +3432,346 @@ LÚC**, thay vì quẩn quanh tới hết lượt (dạng `MT-Z02`/`MT-Z04`).
   giữ nguyên §9 kèm allowlist, hay sửa lại nguyên tắc.
 - **Người duyệt:** PO thật *(tự đọc lại tài liệu và bắt lỗi, quan trọng hơn thứ tự thẩm quyền
   thông thường: đây là PO thật tự sửa dữ kiện, không phải PO-agent tự quyết)*
+
+## ADR-060 — Bật hiển thị OTP duyệt trong CHẾ ĐỘ DEMO (ngang hàng login OTP); production tuyệt đối không hiện
+- **Ngày:** 2026-09-03
+- **Bối cảnh:** Bản vá P0 `bdaf17e` (31/08) gỡ hiển thị mã OTP duyệt khỏi màn Sếp — yếu tố "sở
+  hữu" cho hành động tài chính cao nhất (duyệt hoàn tiền). Đúng về bảo mật production. NHƯNG gỡ
+  hẳn mà **không dựng kênh demo thay thế**: số điện thoại toàn dự án là GIẢ ⟹ không có SMS thật ⟹
+  trong demo, OTP duyệt **chỉ lấy được qua tab Network/log, không có đường UI**. Trong khi login OTP
+  vẫn hiện trên màn trong demo (`ChatClient` render `demoOtpCode`). Lệch, và làm bước Sếp-duyệt-OTP
+  **không quay video sạch được**. PO thật cần quay đoạn showcase một-vé liền mạch có cả bước này.
+- **Quyết định:** Bật lại hiển thị mã OTP duyệt trên màn Sếp **CHỈ trong chế độ demo** (gate theo
+  cờ demo, giống hệt cách login OTP đang làm), production **tuyệt đối không hiện và không trả
+  `otp_code` trong response**. Đưa OTP duyệt về **ngang hàng** login OTP trong demo — không hơn.
+- **Ràng buộc bất di (Coder phải giữ):**
+  1. `secrets.compare_digest` ở backend GIỮ NGUYÊN — duyệt vẫn bắt buộc OTP đúng, không bypass.
+  2. Gate demo-only **fail-closed**: production (không bật cờ demo) không hiện mã, không trả
+     `otp_code`. Giữ nguyên guard `config.py` fail-fast (`OTP_DEMO_MODE=true` + `APP_ENV=production`
+     ⟹ chết lúc khởi động).
+  3. Chỉ sửa **hiển thị + gate**, KHÔNG đụng logic HITL / authority-matrix / compare.
+- **Phương án đã cân nhắc và bác bỏ:** (A) Quay off-camera lấy mã từ Network tab — bác vì "Sếp lấy
+  OTP ở đâu" nằm off-camera, gượng, và số điện thoại giả nên không có câu chuyện "nhận qua điện
+  thoại" để kể. (C) Giữ nguyên bản vá P0, không đụng — bác vì để lại khoảng trống demo không lấp
+  (OTP duyệt không có kênh UI nào trong demo).
+- **Hệ quả:**
+  1. Video quay được bước Sếp duyệt OTP sạch, nhất quán với login OTP.
+  2. Rủi ro chấp nhận: trong DEMO, OTP duyệt hiện trên màn — đúng như login OTP đã chấp nhận từ
+     trước. **Production KHÔNG đổi** (vẫn ẩn nhờ gate). Nới lỏng CHỈ cho môi trường demo cô lập, dữ
+     liệu giả — không phải production.
+  3. 🔴 Lưu ý triển khai: bật `OTP_DEMO_MODE` xung đột với `APP_ENV=production` (guard `config.py`
+     fail-fast). Coder cần giải quyết (cờ/ảnh `quay-video` riêng, hoặc `APP_ENV != production` cho
+     ảnh đó) — **đề xuất phương án trước khi land**, vì đụng recreate + lớp bảo mật.
+- **Người duyệt:** PO thật (chọn "B" trực tiếp, 03/09/2026).
+
+## ADR-061 — Vá Finding ①: lọc theo `scope` mức CHUNK + cổng abstention bằng cross-encoder rerank (không dùng ngưỡng embedding đơn, không dùng LLM chấm)
+- **Ngày:** 2026-09-03
+- **Bối cảnh:** `search_policy`/`/policy-search` không có cổng lọc liên quan — câu rác hoặc câu lạc
+  đề scope vẫn trả `status=found` kèm chunk chính sách CÓ THẬT nhưng sai ngữ cảnh, chạm Ràng buộc
+  cứng #3. Đã thử hướng ngưỡng khoảng cách embedding đơn (30/08, đo lại 01/09 và 03/09 trên kho
+  thật) — THẤT BẠI cả ba lần đo: câu near-miss "phí liên ngân hàng" cho distance 0.9697/0.9059,
+  nằm sâu trong vùng lõi nhóm liên quan (0.698–0.936), không ngưỡng nào tách được mà không cắt
+  luôn ca khớp thật yếu nhất.
+- **Quyết định:** Vá bằng HAI LỚP độc lập, không thay thế lẫn nhau:
+  1. Lọc theo `scope` — gắn ở mức CHUNK (không phải document): khảo sát nội dung thật cho thấy
+     một tài liệu FAQ (297 chunk) tự nó trộn nhiều chủ đề (liên kết ngân hàng, thanh toán hoá đơn,
+     dịch vụ, khuyến mãi) — document-level không đủ mịn để giải đúng ca near-miss. Cơ chế lọc:
+     nới `k` truy vấn Chroma (không đổi embedding/Chroma schema), lọc theo `chunk.scope` khớp
+     `complaint.scope` (hoặc `chunk.scope=="unknown"` luôn qua) trong Python, cắt về số kết quả
+     cuối.
+  2. Cổng abstention — cross-encoder rerank-gate, KHÔNG dùng LLM chấm ("grounded generation"):
+     dự án có nguyên tắc xuyên suốt "guardrail tất định, độc lập với model" (O1–O4); cross-encoder
+     mã hoá CHUNG query+chunk nên bắt được loại lỗi mà bi-encoder (đã thất bại) không bắt được,
+     chạy CPU rẻ, không tốn token LLM.
+- **Ràng buộc bất di:**
+  1. `scope='unknown'` CHỈ khi thật sự không có căn cứ phân loại — BA review THẬT bản nháp
+     auto-phân-loại (script từ khoá tiêu đề FAQ), không rubber-stamp toàn bộ về `unknown`.
+  2. Model cross-encoder PHẢI đo hiệu quả trên câu TIẾNG VIỆT thật trước khi chọn — không tiền
+     cam kết tên model. Nếu cần cài thêm hạ tầng (RAM/model mới), báo trước khi cài.
+  3. Không đụng `contracts/agent-tools.yaml` cho tới khi ADR này được duyệt chính thức — chỉ sửa
+     `ghi_chu` mô tả (docstring `not_found` hiện sai, không phải đổi input/output/chữ ký), qua
+     đúng quy trình §3 hiến pháp.
+  4. Không gộp UI chọn scope lúc upload vào đợt này — tài liệu mới mặc định `scope='unknown'`,
+     Lớp 2 (abstention) chịu trách nhiệm phần đó. Việc kiểm duyệt nội dung upload track riêng
+     theo finding bảo mật (`docs/security/2026-09-03-finding-rag-upload-khong-kiem-duyet-noi-dung.md`).
+- **Phương án đã cân nhắc và bác bỏ:** (A) Ngưỡng embedding đơn — bác, đã đo 3 lần, thất bại có
+  số liệu. (B) Scope mức document — bác, nội dung thật trộn chủ đề trong một tài liệu. (C)
+  Grounded-generation bằng LLM chấm liên quan — bác, đi ngược nguyên tắc guardrail tất định độc
+  lập model, thêm chi phí/độ trễ, tự nó có thể bịa "liên quan" giống cách LLM bịa số. (D) Gộp UI
+  chọn scope lúc upload vào đợt này — hoãn, không chặn việc vá chính.
+- **Kế hoạch đo (bắt buộc trước khi tuyên bố xong, không "trông ổn"):** đo TRƯỚC/SAU trên cùng
+  tập test, lấy đủ BA số: precision khi `found` · tỉ lệ abstain ĐÚNG (near-miss + rác) · tỉ lệ
+  abstain SAI trên câu THẬT (né lặp lại lỗi "từ chối quá tay" 12–16% đã ghi nhận ở nơi khác của
+  hệ thống). Tập test gồm: relevant × 3 scope thật + near-miss-sai-scope + rác + query dò nội
+  dung `STATE.md` — **VÀ bắt buộc thêm bucket KHÔNG kèm `complaint.scope`** (mô phỏng đúng đường
+  AGENT tự gọi `search_policy`, hiện không truyền scope) cho cả near-miss lẫn query dò STATE.md,
+  đo RIÊNG số abstain-đúng cho bucket này, không gộp chung với bucket có scope — đây là ca nguy
+  hiểm nhất, đo chung sẽ che mất. Đo qua gọi thẳng `POST /policy-search` (tất định, không qua
+  LLM/agent, không tốn token) — không sửa hạ tầng `run_golden_set.py` trong đợt này.
+- **Hệ quả:**
+  1. Cần migration thêm cột `scope` (nullable, CHECK 4 giá trị y hệt `ck_complaints_scope`) vào
+     `policy_chunks`.
+  2. Cần backfill scope cho 378 chunk hiện có (BA review bản nháp auto-phân-loại của tech-lead).
+  3. `search_policy` không đổi chữ ký (`status`/`results` giữ nguyên type) — nhưng đổi HÀNH VI
+     thật (nhiều `not_found` hơn, đúng mục đích). Ghi rõ để không ai đọc contract tĩnh mà tưởng
+     hành vi không đổi.
+  4. Tài liệu mới nạp sau ADR này mặc định `scope=unknown` cho tới khi có UI gán (việc SAU, chưa
+     có ngày cam kết).
+  5. 🔴 `scope='unknown'` LUÔN qua Lớp 1 (thiết kế "trực giao mọi scope") — đây là LỖ CỐ HỮU của
+     Lớp 1, không phải bug: chunk `unknown` + đường agent không truyền scope ⟹ Lớp 1 hoàn toàn
+     INERT. Chỉ Lớp 2 gác được hai trường hợp này. Hệ quả vận hành: (a) tối thiểu hoá số chunk
+     `unknown` là điều kiện SỐNG CÒN cho hiệu quả Lớp 1, không phải tối ưu phụ; (b) Lớp 2 PHẢI tự
+     đứng vững một mình cho đường agent + nội dung `unknown`, không được thiết kế như "lớp phụ
+     trợ sau Lớp 1".
+- **Người duyệt:** Hướng hai lớp (①lọc scope + ②abstention) do PO THẬT chốt 03/09. Thiết kế kỹ
+  thuật cụ thể (chunk-level, cross-encoder, chi tiết migration) do phiên PO duyệt theo uỷ quyền —
+  sẽ tóm tắt lại cho PO thật, không phải PO thật tự đọc từng dòng kỹ thuật.
+
+**Cập nhật 04/09 (kiến trúc) — Lớp 2 dùng SIDECAR, không load model trong từng worker backend.**
+Bối cảnh: đo được `po-demo` backend chạy **4-5 tiến trình uvicorn worker độc lập**
+(multiprocessing, không chia sẻ bộ nhớ tiến trình). Load cross-encoder trực tiếp trong
+`search_policy_text` sẽ nhân RAM theo số worker: PyTorch full ~812MB × 4-5 = **3,2-4,1GB**;
+ONNX int8-quantize ~1008MB × 4-5 = **4,0-5,0GB** (🔴 ONNX KHÔNG nhẹ hơn PyTorch cho tổ hợp
+model/thư viện này — giả định ban đầu "ONNX thường giảm 2-4 lần" đã đo và RÚT LẠI, đừng lặp
+lại giả định đó ở đợt sau). Cả hai đều là chi phí không chấp nhận được trên hạ tầng hiện tại.
+**Quyết định:** tách rerank thành **service riêng (sidecar)** trong ngăn compose — load model
+ĐÚNG MỘT LẦN, mọi worker backend gọi qua HTTP nội bộ (docker network) thay vì tự load. RAM cho
+reranker cố định ~1 instance (~800MB đo thật qua `docker stats`, khớp đo trên host), không
+nhân theo worker.
+**Ràng buộc fallback (bắt buộc):** sidecar chết/timeout/lỗi mạng ⟹ `search_policy_text`
+**KHÔNG được crash**, xử lý như **KHÔNG có ứng viên nào qua được rerank** ⟹ `status=not_found`.
+Lý do chọn "fail-closed thành not_found" thay vì "trả kết quả chưa lọc khi sidecar chết": trả
+chưa lọc khi sidecar hỏng tái tạo NGUYÊN VẸN Finding ① (lạc đề/rác lọt qua) đúng lúc cần Lớp 2
+nhất — vi phạm Ràng buộc cứng #3 (thà "không tìm thấy" còn hơn nói sai). Đánh đổi: sidecar
+không ổn định ⟹ tính năng tra cứu chính sách kém khả dụng hơn (nhiều `not_found` hơn) — chấp
+nhận được, vì "kém khả dụng" an toàn hơn "khả dụng nhưng sai".
+**Đã cân nhắc và bác:** load model trong từng worker (RAM nhân ×4-5, đã đo, không chấp nhận
+được) · IPC/shared-memory riêng (công sức cao, nhiều bề mặt lỗi mới, không hợp cho phạm vi
+đợt này) · giảm worker xuống 1-2 (chỉ giải quyết tạm cho demo, không phải hướng chất lượng
+sản phẩm PO thật vừa chốt).
+**Người duyệt:** PO thật (04/09, qua phiên PO — chọn sidecar trong 3 phương án đã khảo sát).
+
+## ADR-062 — Nối dây `complaint_id` cho `/policy-search` (CSKH), scope-aware, chặn IDOR
+- **Ngày:** 2026-09-04
+- **Bối cảnh:** ADR-061 thiết kế Lớp 1 (lọc theo `scope`) nhưng không có đường gọi nào trong
+  code base cung cấp được `scope` cho `search_policy_text` — đường agent
+  (`customer_tools.py:999`, `build_customer_tools()`) không có `complaint`/`scope` trong tham
+  số; đường CSKH (`/policy-search`, `main.py`) trước đó chỉ có `query`+`top_k`. Nếu chỉ viết
+  hàm lọc mà không nối dây, Lớp 1 "đã code nhưng không bao giờ chạy" — mọi lời gọi thật luôn
+  truyền `None`, không có giá trị vận hành.
+- **Quyết định:** Nối dây THẬT cho đường CSKH — thêm `complaint_id: str | None = None`
+  (optional, `extra="forbid"` giữ nguyên) vào `PolicySearchRequest`. Route tự tra
+  `Complaint.scope` từ `complaint_id` SERVER-SIDE — **không tin `scope` do client tự khai**.
+  Đường agent giữ nguyên KHÔNG có scope (kiến trúc hiện tại không thay đổi); Lớp 2
+  (cross-encoder, ADR-061) là tuyến gác duy nhất cho đường đó, đúng đã ghi trong ADR-061 Hệ
+  quả #5.
+- **Ràng buộc bất di (chặn IDOR):**
+  1. Trước khi đọc `Complaint.scope`, kiểm caller có quyền trên `complaint_id` đó — dùng đúng
+     pattern quyền có sẵn (`require_role("cskh","supervisor")`, cùng khuôn `get_ticket_detail`
+     — cskh/supervisor vốn thấy được mọi vé, không phát minh mô hình quyền riêng cho route
+     này). Không có quyền / `complaint_id` không tồn tại ⟹ coi như `scope=None` (bỏ lọc),
+     **KHÔNG trả 403 phá luồng**, không lộ scope của vé người khác qua thông báo lỗi.
+  2. `test_invariants` phải VẪN XANH sau khi thêm field — field optional không được đổi
+     route count / roles / `authority-matrix.yaml`. [ĐO] chạy thật trong container po-demo:
+     **23/23 xanh**, gồm `test_authority_matrix_khop_app_dang_chay` — xác nhận bằng máy, không
+     chỉ bằng lời, rằng thay đổi này KHÔNG chạm `contracts/`.
+- **Hệ quả:**
+  1. `search_policy` (tool contract, `contracts/agent-tools.yaml`) KHÔNG đổi — thay đổi chỉ ở
+     tầng HTTP request schema của route `/policy-search`, không phải chữ ký tool.
+  2. CSKH tra chính sách CHO một vé cụ thể (truyền `complaint_id`) giờ được lọc đúng phạm vi
+     giao dịch của vé đó — giá trị vận hành thật của Lớp 1, không còn là "code chết".
+  3. Tra cứu KHÔNG gắn với vé cụ thể (không truyền `complaint_id`, hoặc đường agent) vẫn chỉ có
+     Lớp 2 gác — không hồi quy so với trước.
+- **Người duyệt:** PO thật (04/09, qua phiên PO — chọn "Option 1: nối dây thật, gộp 1 build"
+  sau khi được trình phát hiện "Lớp 1 code nhưng không đường nào gọi được").
+
+## ADR-063 — Chuông thông báo vé mới (CSKH & Sếp): 6 route mới, presence Redis, fan-out notifications
+- **Ngày:** 2026-09-04
+- **Bối cảnh:** Chatbot tạo vé → cần báo CSKH đang online; CSKH đề xuất (`propose_resolution`
+  → `pending_approval`) → cần báo Sếp; Sếp duyệt/từ chối → cần báo ngược CSKH. Hiện không có
+  cơ chế nào — CSKH/Sếp phải tự F5/tự kiểm hàng chờ.
+- **Quyết định** (PO chốt 04/09, brief đầy đủ
+  `docs/giao-viec/2026-09-04-po-build-chuong-thong-bao.md`):
+  1. Độ bền khi cả kíp offline: LƯU thông báo cho MỌI CSKH liên quan (fan-out ghi 1 dòng/người
+     nhận), chỉ ĐẨY tức thời cho người đang online — không để vé rơi.
+  2. MVP: polling ~20s (WebSocket là đợt nâng cấp sau, không làm đợt này).
+  3. Báo ngược khi Sếp duyệt/từ chối: CÓ, trong MVP.
+  4. Cột "số vé đang xử lý" trong bảng Sếp: CÓ, trong MVP.
+- **Công thức "số vé đang xử lý" của một CSKH** (tech-lead chốt, đúng đề xuất PO, khớp schema
+  hiện có):
+  `COUNT(ChatSession WHERE claimed_by=user_id AND status='active') + COUNT(Resolution WHERE
+  created_by=user_id AND status='pending_approval')` — cả hai trường (`ChatSession.status`
+  enum có sẵn `'active'`; `Resolution.created_by`/`status` từ BR-12 maker-checker, ADR-020) đã
+  tồn tại đúng nghĩa cần dùng, không cần thêm cột `claimed_by` lên `Complaint` (vé vẫn là kho
+  chung, đúng ràng buộc "CSKH không sở hữu vé").
+- **Kiến trúc:** Presence qua Redis TTL (`presence:staff:<user_id>` EX 45s, ghi mỗi lượt
+  `POST /presence/heartbeat` ~20s — không giữ state trong process, đúng nguyên tắc 4-worker).
+  Notification là bảng Postgres mới `notifications`, fan-out (tạo trong CÙNG transaction với
+  sự kiện gốc, không noti cho vé bị rollback), `read_at` riêng từng người nhận.
+- **6 route mới**, roles `[cskh, supervisor]` (riêng `GET /presence/staff` chỉ `[supervisor]`):
+  `GET /notifications` · `GET /notifications/unread-count` · `POST /notifications/{id}/read` ·
+  `POST /notifications/read-all` · `POST /presence/heartbeat` · `GET /presence/staff`.
+- **Ràng buộc bất di:**
+  1. Cô lập theo người nhận (`recipient_user_id = người đăng nhập`) ép ở tầng SERVICE khi truy
+     vấn — chống BOLA, không tin tham số client.
+  2. Nội dung notification CHỈ mã vé + nhãn loại sự kiện — KHÔNG số tiền/PII/SĐT (Ràng buộc
+     cứng #3 + PDPA).
+  3. Cả 6 route khai `extra: [require_token_chua_thu_hoi]` NGAY TỪ ĐẦU trong contract — tránh
+     lặp lại lớp bug "quên thêm route mới vào allowlist thu hồi token" (đã xảy ra 3 lần trước,
+     xem finding logout 04/09; đây là bước đầu cho hướng deny-by-default đang thiết kế, áp
+     trước cho route MỚI trong lúc thiết kế tổng thể còn đang làm).
+- **Hệ quả:** `authority-matrix.yaml` v2.1.0→v2.2.0 (+6 route, không đổi route/role cũ nào).
+  `test_invariants` dự kiến ĐỎ tạm thời ở `test_authority_matrix_khop_app_dang_chay` cho tới
+  khi code landing đủ 6 route — đúng trình tự contract-first đã định, không phải hồi quy.
+- **Thay thế:** không.
+- **Người duyệt:** PO thật (04/09, qua phiên PO — greenlit build, xác nhận qua chính ADR này).
+
+**Addendum (04/09, cùng ngày — GHI LẠI hành vi đã implement, không phải quyết định mới):** BOLA trên
+notifications trả **404** (anti-enumeration, không 403) — không phân biệt được "không tồn tại" với "của
+người khác". Xác nhận khớp `src/api/main.py::mark_notification_read` + test
+`tests/test_api/test_notifications_bola.py`. Ràng buộc bất di #1 ở trên chỉ nói "cô lập tầng service,
+chống BOLA" chưa ghi literal ngưỡng HTTP — dòng này chốt để hợp đồng không chỉ sống trong test.
+
+**Addendum 2 (04/09, đợt polish trước quay demo — PO chốt):** `GET /notifications` thêm 4 trường vào
+mỗi item: `complaint_type` · `scope` · `priority` · `sla_due_at` — để mỗi thẻ thông báo tự đủ thông tin
+(loại khiếu nại/phạm vi/độ ưu tiên/SLA còn lại), CSKH/Sếp không phải mở vé mới biết. **KHÔNG vi phạm
+Ràng buộc bất di #2** ("chỉ mã vé + nhãn sự kiện, KHÔNG số tiền/PII/SĐT") — 4 trường này là dữ liệu
+PHÂN LOẠI/VẬN HÀNH, đã hiển thị công khai trên danh sách vé cho CSKH từ trước, không phải PII cá nhân
+khách/bên thứ ba. Security xác nhận qua Lead (04/09): không phạm PII/BOLA, và tự kiểm thêm không xung
+đột ADR-064 (fan-out "vé mới" gửi mọi CSKH đúng lúc ticket CHƯA claim được — khớp chính xác luật
+pool-visibility, không phải ngoại lệ).
+- **Kỹ thuật:** JOIN sang `Ticket`/`Complaint` LÚC ĐỌC (`GET /notifications`), KHÔNG snapshot lúc
+  fan-out — vì `priority` KHÔNG bất biến sau khi tạo (`_nang_uu_tien_theo_cam_xuc`, `graph.py`, ghi đè
+  priority SAU KHI ticket tồn tại khi tín hiệu cảm xúc khách kích). Snapshot lúc fan-out sẽ tạo lỗi
+  "số liệu cũ trông như đang đúng" nếu case bị nâng ưu tiên sau khi noti đã gửi.
+- **Hệ quả:** Không đổi route/role/schema `notifications` — field mới CHỈ ở response, không phải cột
+  DB mới. Không cần quy trình §3 (không đổi `authority-matrix.yaml`/`resolution-state-machine.yaml`).
+- **Người duyệt:** PO thật (04/09, qua phiên PO), Security xác nhận non-PII qua Lead cùng ngày.
+
+## ADR-064 — Phạm vi nhìn ticket theo claim: CSKH chỉ thấy pool+của mình, Sếp thấy tất cả
+- **Ngày:** 2026-09-04
+- **Bối cảnh:** PO yêu cầu 2 việc gộp một thiết kế backend (`GET /tickets`): (1) CSKH hiện thấy
+  TOÀN BỘ ticket hệ thống, không phân biệt ai đã nhận xử lý — gây nhiễu/dẫm chân khi đông CSKH;
+  (2) Sếp cần thêm 1 màn riêng xem TẤT CẢ ticket để quản lý (hành vi này Sếp ĐÃ có sẵn, chỉ thiếu
+  lối vào UI — landed riêng, tab "Quản lý ticket", commit `11192cd`).
+- **Bằng chứng đã đo (Coder, 04/09):**
+  - `src/api/main.py` (`GET /tickets`): filter DUY NHẤT hiện có là `hitl_status` (tuỳ chọn) —
+    không filter theo người gọi. Mọi CSKH/Sếp nhận CÙNG một danh sách.
+  - `src/db/models.py` (model `Ticket`): KHÔNG có field ownership cấp-người nào. `assigned_role`
+    chỉ là string cấp-VAI ("cskh"), không phải cấp NGƯỜI. `claimed_by` đã tồn tại nhưng ở bảng
+    KHÁC (`ChatSession`) — chưa từng áp cho `Ticket`.
+  - `contracts/authority-matrix.yaml` ghi_chú route `GET /tickets/{id}/transcript` dùng CHÍNH câu
+    "mọi cskh/supervisor vốn đã đọc được mọi ticket" làm CĂN CỨ cho một quyết định bảo mật khác —
+    đổi hành vi `GET /tickets` làm câu này SAI ngay trong văn bản contract đang sống.
+  - `tests/test_invariants.py::test_authority_matrix_khop_app_dang_chay` chỉ introspect
+    route×role — KHÔNG bắt được thay đổi row-level này, không có lưới an toàn tự động.
+- **Quyết định:**
+  1. Thêm 2 cột `claimed_by: user_id | null`, `claimed_at: datetime | null` vào `Ticket`
+     (migration mới).
+  2. Route mới `POST /tickets/{ticket_id}/claim`, role `[cskh]` — CSKH bấm "Nhận vé" CHỦ ĐỘNG
+     (khớp nút "Mở & nhận" đã có ở dashboard live-chat), set `claimed_by=current_user` +
+     `claimed_at=now`. Idempotent: đã `claimed_by` CHÍNH MÌNH → 200 không đổi gì; đã `claimed_by`
+     NGƯỜI KHÁC → 409 (không cho cướp vé). Supervisor KHÔNG có route này.
+  3. `GET /tickets` (route/role không đổi, vẫn `[cskh, supervisor]`): CSKH lọc
+     `WHERE claimed_by IS NULL OR claimed_by = current_user.user_id`. Supervisor KHÔNG lọc, giữ
+     nguyên như hôm nay — nền cho tab "Quản lý ticket".
+  4. 🔴 **`GET /tickets/{ticket_id}/transcript` KHOÁ THEO CÙNG LUẬT** (không phải "để mở" như đề
+     xuất ban đầu) — CSKH: `claimed_by IS NULL OR = mình`; Supervisor: không lọc. Lý do PO chốt:
+     để mở mâu thuẫn thẳng với "CSKH chỉ thấy vé của mình" và hở BOLA trên transcript chứa PII
+     hội thoại khách — đúng thứ tính năng này đang đóng. KHÔNG phá luồng bàn giao ADR-044: vé chờ
+     handoff nằm trong POOL (`claimed_by IS NULL`) nên mọi CSKH trực vẫn đọc được transcript pool
+     để tiếp nhận; sau khi claim thì là của mình. Chỉ transcript của vé CSKH KHÁC đã claim mới bị
+     ẩn. Nhu cầu đọc chéo thật sau này (Sếp nhờ CSKH review vé người khác) → làm route/quyền
+     RIÊNG có chủ đích, không mở toang mặc định. Test BOLA bổ sung: CSKH đọc transcript vé người
+     khác đã claim → 404 (đúng khuôn anti-enumeration).
+  5. `contracts/resolution-state-machine.yaml` — KHÔNG đổi. Claim là thuộc tính RIÊNG của
+     `Ticket` (giống `ChatSession.claimed_by`), không phải 1 trục trong 3 trục
+     `hitl_status`/`resolution.status`/`partner_wait_status` đã có.
+- **Phương án đã cân nhắc và bác bỏ:**
+  - *Lọc thuần ở tầng UI* (ẩn ticket của CSKH khác trên frontend, backend vẫn trả hết): BỊ BÁC
+    BỎ — lỗ BOLA nguyên văn (CSKH-A gọi thẳng API vẫn lấy được ticket CSKH-B). PO yêu cầu tường
+    minh "backend enforce, không chỉ ẩn UI".
+  - *Khoá theo `complaint_id`* (chữ PO dùng ban đầu) hiểu là PK thật của `Complaint`: BỊ BÁC BỎ
+    về kỹ thuật — `complaint_id` sinh ra SAU khi `create_ticket` chạy, không tồn tại tại thời
+    điểm cần xác định "vé này của ai" khi CSKH đang xem hàng chờ. Diễn giải lại đúng tinh thần
+    PO thành khoá theo `Ticket.ticket_id` (tồn tại ngay lúc tạo, 1-1 với `Ticket`).
+  - *Route transcript để mở, không khoá theo claim* (đề xuất ban đầu của Coder): BỊ BÁC BỎ —
+    xem điểm 4.
+- **Hệ quả:**
+  - Contract: `contracts/authority-matrix.yaml` (+1 route `POST /tickets/{id}/claim` [cskh];
+    sửa ghi_chú route transcript cho khớp hành vi mới — CSKH đọc transcript pool để bàn giao,
+    KHÔNG đọc transcript vé CSKH khác đã claim).
+  - Migration mới cho `Ticket.claimed_by`/`claimed_at`.
+  - Test mới (tester): BOLA cho `GET /tickets` VÀ `GET /tickets/{id}/transcript` (CSKH-A không
+    thấy/đọc được ticket CSKH-B đã claim), regression cho Sếp (vẫn thấy toàn bộ cả 2 route),
+    authz cho route claim mới (409 khi cướp vé, 200 idempotent khi claim lại chính mình).
+  - `CONTRACT_VERSION` ở `tests/test_invariants.py` cần bump sau `check_contracts.py --update`.
+- **Thay thế:** không.
+- **Người duyệt:** PO thật (04/09, qua phiên PO).
+
+**Addendum (04/09, cùng ngày, đợt polish trước quay demo — GHI DẤU VẾT breaking change, KHÔNG phải
+quyết định §3):** `GET /tickets` đổi SHAPE response và thêm tham số lọc, phục vụ bảng ticket 660 dòng
+không kéo hết 1 trang + filter chuyên nghiệp cho CSKH/Sếp. Route/role KHÔNG đổi (`[cskh, supervisor]`
+như cũ) nên KHÔNG cần quy trình §3/đổi `authority-matrix.yaml`, nhưng shape đổi là breaking change thật
+với mọi consumer, ghi lại để tra được sau này.
+- **Shape CŨ → MỚI:** mảng trần `[{...}, ...]` → object phân trang `{"items": [{...cùng field cũ,
+  không đổi...}], "total": int, "page": int, "page_size": int}`.
+- **Param CŨ → MỚI:** `hitl_status` giữ nguyên; `limit` BỎ, thay bằng `page` (mặc định 1, ≥1 hay 422) +
+  `page_size` (mặc định 50, CHỈ nhận 30/50/100 hay 422). Thêm mới: `complaint_type`/`scope`/`priority`/
+  `sla_before`/`sla_after` — kết hợp AND với nhau và với `hitl_status` (SQL WHERE thật, không lọc tay
+  sau khi fetch).
+- **Consumer đã sửa:** `tests/test_api/test_ticket_claim_adr064.py` (đọc `.json()["items"]`),
+  `frontend/src/lib/api.ts::listTickets()` (chữ ký + parse), `frontend/e2e/dashboard.spec.ts` (đổi neo
+  UI — bỏ chip đếm "Tất cả (N)"/"Chờ tiếp nhận (N)" không có tham số server tương ứng, giữ lại làm
+  toggle CLIENT-SIDE với nhãn rõ "(trang này)" tránh lặp lỗi đọc-nhầm-% đã bắt 20/08).
+- **Consumer XÁC NHẬN không cần sửa:** `frontend/src/app/api/tickets/route.ts` (BFF, transparent proxy
+  — forward query string, trả thẳng JSON, không parse shape); `test_authz_matrix.py` (chỉ assert
+  status_code, không đọc body).
+- **Frontend:** gộp `frontend/src/components/TicketListSection.tsx` dùng chung cho `/dashboard` (CSKH)
+  và `/quan-ly-ticket` (Sếp) — 2 trang trước đó gần như copy-paste nguyên khối bảng+filter.
+- **Fast-follow chưa đóng (§4-crossing cần soát lại):** `frontend/e2e/dashboard.spec.ts` do tech-lead
+  sửa trực tiếp (đúng vùng ghi `tester` theo CLAUDE.md §4) vì shape mới làm spec cũ chắc chắn đỏ — báo
+  Lead trước khi land, không lén. Tester cần soát lại TỪ SPEC (xác nhận assertion kiểm ĐÚNG hành vi
+  mong đợi — 30/trang · filter AND · pool→claim mất vé — không chỉ khớp output của tech-lead) sau khi
+  qua mốc quay demo. Không chặn quay (E2E là artifact CI, recording không phụ thuộc).
+- **Người duyệt:** PO thật (04/09, qua phiên PO).
+
+## ADR-065 — Deep-link toàn văn cho `/policy-search`: route mới `GET /policy-doc/{doc_id}`
+- **Ngày:** 2026-09-05
+- **Bối cảnh:** PO muốn (cho lượt quay demo) mỗi kết quả `/policy-search` có link mở TOÀN VĂN tài liệu
+  chính sách/FAQ gốc ở tab mới, tự cuộn tới + tô sáng đúng đoạn đã khớp lúc tìm.
+- **Bằng chứng đã đo (tech-lead, 05/09):** `PolicyChunk` KHÔNG lưu toàn văn — chỉ chunk 800 ký tự,
+  `overlap=150` (`RecursiveCharacterTextSplitter`). Ghép các chunk theo `chunk_index` KHÔNG tái tạo
+  đúng văn bản gốc (overlap lặp ở mỗi ranh giới). 4 tài liệu đang index: 2 tài liệu DÀI (FAQ giao dịch
+  297 chunk, ToS 81 chunk — cuộn-tới-đúng-đoạn có ý nghĩa thật), 2 tài liệu NGẮN (1 chunk — toàn văn ≈
+  đoạn trích, không cần rẽ nhánh riêng, cơ chế chung vẫn áp được). Security xác nhận (05/09, quét thật
+  380 chunk bằng regex số + từ khoá định danh) 2 tài liệu dài KHÔNG lẫn PII khách hàng — chỉ thông tin
+  công khai của công ty (mã số DN, hotline, địa chỉ) — đủ điều kiện PDPA phục vụ toàn văn.
+- **Quyết định:**
+  1. Thêm `PolicyDocument.full_text` (migration, KHÔNG phải §3 — không đụng route/role) — hook 1 dòng ở
+     `ingest_document()` lưu văn bản gốc (đã có sẵn trong biến trước khi đưa vào splitter), không đổi
+     logic chunk/index/rerank hiện có. Backfill 4 tài liệu đang có.
+  2. `/policy-search` response thêm field `chunk_id` vào mỗi kết quả (ADDITIVE, không phá client cũ,
+     không phải §3) — cần cho FE dựng link. Hàm search/ngưỡng `-2.5` GIỮ NGUYÊN 100%, không đụng.
+  3. **Route MỚI `GET /policy-doc/{doc_id}?chunk_id=<optional>`**, roles `[cskh, supervisor]` — ĐÚNG
+     như `/policy-search`, không nới rộng. `doc_id` tra qua DB (`status="indexed"`), KHÔNG qua
+     filesystem — không có đường path-traversal, chỉ trả tài liệu đã nạp qua `/policy-docs`
+     (`partner_admin`). Có `chunk_id`: tra `PolicyChunk`, xác nhận `chunk.doc_id == doc_id`, tìm vị trí
+     bằng `full_text.find(chunk_text)` → trả `{start, end}` cho FE tô sáng. Không tìm ra (hiếm — chunk
+     cũ trước khi có `full_text`, hoặc lệch parser) → `highlight: null`, FE vẫn mở tài liệu, chỉ không
+     tô sáng/cuộn — suy giảm êm, không lỗi.
+  4. FE: link "Xem toàn văn" (`target="_blank"`) trên mỗi kết quả `/policy-search` → trang mới qua BFF
+     chuẩn `/api/policy-doc/[docId]` (không gọi thẳng backend từ client, đúng khuôn mọi route khác),
+     bọc đoạn `[start,end]` trong `<mark>`, cuộn bằng `scrollIntoView`. Không cần entry `RoleTabNav`
+     riêng (chỉ mở từ link, giống `/tickets/{id}`) — nhớ thêm `frontend/src/proxy.ts` allowlist.
+- **Phương án đã cân nhắc và bác bỏ:** ghép các `PolicyChunk` theo `chunk_index` để dựng lại toàn văn
+  thay vì lưu cột mới — BỊ BÁC BỎ, `overlap=150` làm văn bản ghép lặp/lệch ở mọi ranh giới chunk, không
+  phải toàn văn thật.
+- **Hệ quả:** `contracts/authority-matrix.yaml` +1 route `GET /policy-doc/{doc_id}` `[cskh, supervisor]`
+  (không đổi route/role nào cũ). Migration mới cho `PolicyDocument.full_text`. `CONTRACT_VERSION` ở
+  `tests/test_invariants.py` cần bump sau `check_contracts.py --update`. Test mới (tester): 404 cho
+  `doc_id` không tồn tại/chưa indexed, `chunk_id` lệch `doc_id` bị từ chối, `highlight: null` khi không
+  khớp được vị trí (suy giảm êm).
+- **Thay thế:** không.
+- **Người duyệt:** PO thật (05/09, qua phiên PO) — CHỜ DUYỆT tường minh trước khi
+  `check_contracts.py --update` + code, đúng quy trình §3.

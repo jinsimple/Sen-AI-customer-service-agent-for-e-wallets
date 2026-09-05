@@ -86,6 +86,7 @@ from src.observability.tracing import get_tracer
 from src.services.complaint_intake import flag_human_handoff, hop_nhat_tin_hieu_gian_lan
 from src.services.emotion_signals import danh_gia_luot
 from src.services.thread_signals import dat_lai as xoa_tin_hieu
+from src.services.thread_signals import doc_gia_tri, luu_gia_tri
 from src.services.thread_signals import doc_hoac_khong_ro as doc_tin_hieu
 from src.services.thread_signals import tang as tang_tin_hieu
 from src.tools.base import ToolError
@@ -155,6 +156,27 @@ _TEN_TIN_HIEU_DA_HOI_SANG_LOC = "da_hoi_sang_loc"
 # dịch chưa". Gộp là mất khả năng bắn ĐÚNG LƯỢT.
 _TEN_TIN_HIEU_CA_CHUYEN_NHAM = "ca_chuyen_nham"
 _TEN_TIN_HIEU_DA_TRA_DUOC_GD = "da_tra_duoc_gd"
+
+# GATE mục 4 (04/09, PO chốt fail-closed) — HAI tín hiệu MỚI, khác hẳn ba cái
+# trên: ba cái trên khoá theo THREAD (một lần/hội thoại), hai cái dưới đây
+# khoá theo TRANS_ID (một lần/GIAO DỊCH) — đúng yêu cầu PO "mỗi ca chuyển
+# nhầm riêng biệt phải sàng lọc riêng", không dùng chung 1 lần cho cả thread.
+#
+# `_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC` (khoá theo THREAD, giá trị là CHUỖI
+# trans_id, dùng `luu_gia_tri`/`doc_gia_tri`): "câu hỏi vừa bắn ở lượt N là
+# HỎI VỀ giao dịch nào" — cầu nối bắt buộc vì lượt bắn câu hỏi (⑨, biết
+# trans_id) và lượt nhận câu trả lời (MẢNH 4, chỉ có text tự do của khách,
+# không tự nhiên biết đang trả lời cho giao dịch nào) là HAI LƯỢT KHÁC NHAU.
+_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC = "trans_id_cho_sang_loc"
+# `_TEN_TIN_HIEU_SANG_LOC_XONG` (khoá theo TRANS_ID, đếm — dùng
+# `tang_tin_hieu`/`doc_tin_hieu`): "giao dịch này ĐÃ hỏi VÀ ĐÃ nhận câu trả
+# lời sàng lọc" — `create_ticket` (customer_tools.py) đọc tín hiệu này qua
+# ĐÚNG `trans_id` sắp tạo vé để quyết cho qua hay chặn. KHÔNG BAO GIỜ xoá:
+# khác `_TEN_TIN_HIEU_DA_HOI_SANG_LOC` (xoá sau mỗi vòng hỏi-đáp để hỏi lại
+# được cho ca SAU), tín hiệu này phải sống VĨNH VIỄN cho đúng trans_id đó —
+# một giao dịch chỉ cần sàng lọc ĐÚNG MỘT LẦN, hỏi lại là hỏng theo cách
+# khác (khách bị hỏi lặp một câu đã trả lời).
+_TEN_TIN_HIEU_SANG_LOC_XONG = "sang_loc_xong"
 
 # ADR-057 (docs/DECISIONS.md, 01/09) — CHUYỂN NGƯỜI SỚM cho "tầng đắt".
 # Đếm SỐ LƯỢT (không phải điều kiện một-lần như ⑨) — tăng mỗi lượt còn ở
@@ -608,6 +630,49 @@ def _trieu_chung_loi(loi: BaseException | None) -> dict[str, object]:
         # làm mọi phép lọc `>= 500` im lặng trả rỗng thay vì báo lỗi.
         "ma_trang_thai_ncc": int(ma) if isinstance(ma, (int, str)) and str(ma).isdigit() else None,
     }
+
+
+_TEN_TOOL_TAO_VE = ("create_ticket", "request_human_handoff")
+
+
+def _co_de_xuat_tao_ve(turn_messages: list) -> tuple[bool, bool]:
+    """RB3 false-positive LẦN BA (05/09, QA tái lập 2/2 lần) — khách hỏi
+    "chưa nhận được tiền", lượt CHỈ gọi `lookup_transaction`, model tóm tắt
+    kết quả rồi HỎI Ý khách trước khi tạo hồ sơ ("...được không ạ?") — CHƯA
+    hề đề xuất tạo vé lượt này. `khai_da_tao_ve()` vẫn trả `True` vì đúng
+    CHIỀU RỦI RO ĐÃ KHAI của nó (mã/"thành công" xét REPLY-GLOBAL, xem
+    docstring hàm đó): "Mã giao dịch" (mã GD, không phải mã vé) + "đã ghi
+    nhận" (nói TIỀN đã ghi nhận chuyển, không phải hồ sơ) rơi đúng 2 mảnh
+    ghép của nhánh MỀM, dù không mảnh nào nói về việc TẠO HỒ SƠ thật.
+
+    Hàm THUẦN, tách riêng để test KHÔNG cần gọi LLM (cùng khuôn
+    `write_investigation_logs_for_ticket`,
+    tests/test_agents/test_investigation_log.py — hàm nhận thẳng
+    `all_messages`, không tự chạy graph) — nhận `turn_messages` (message
+    LangChain thô của lượt hiện tại), trả 2 cờ:
+      - `co_goi_tool`: lượt này có gọi tool NÀO không (bất kỳ loại).
+      - `co_de_xuat_tao_ve`: trong số đó, có `create_ticket`/
+        `request_human_handoff` không — ĐỌC RAW `AIMessage.tool_calls`,
+        tính CẢ lời gọi MỒ CÔI (không có `ToolMessage` phản hồi). Review
+        05/09 tự đối chiếu lại ca gốc 25/08 (MT-Z01) xác nhận nó THỰC RA CÓ
+        `create_ticket` mồ côi trong tool_calls thô — chú thích cũ ở nhánh
+        `request_human_handoff` (phía trên trong `run_agent_turn`) từng
+        khai nhầm là "0 tool_call", đã đính chính tại chỗ. Đọc raw thay vì
+        `tool_calls_out` (đã lọc bỏ mồ côi) là ĐIỀU KIỆN AN TOÀN BẮT BUỘC —
+        đọc `tool_calls_out` sẽ khiến ca MT-Z01 không còn thoả điều kiện
+        "có ý định tạo vé", mở lại đúng lỗ ràng buộc cứng #3 mà RB3 sinh ra
+        để đóng.
+    """
+    co_goi_tool = False
+    co_de_xuat_tao_ve = False
+    for m in turn_messages:
+        if not (isinstance(m, AIMessage) and m.tool_calls):
+            continue
+        for call in m.tool_calls:
+            co_goi_tool = True
+            if call["name"] in _TEN_TOOL_TAO_VE:
+                co_de_xuat_tao_ve = True
+    return co_goi_tool, co_de_xuat_tao_ve
 
 
 def _reply_goc_cho_eval(reply_goc: str, nhom_khop: list[str]) -> dict:
@@ -1152,10 +1217,23 @@ def run_agent_turn(
             # merge lại mỗi lượt. Retry bị chặn trên bởi số lượt khách còn chat,
             # không phải một vòng lặp trong một lượt.
             xoa_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu)
+            # GATE mục 4 — đánh dấu ĐÚNG giao dịch vừa được hỏi-đáp xong là
+            # "đã sàng lọc", khoá theo trans_id (không theo thread) — đọc lại
+            # ở `create_ticket` (customer_tools.py) trước khi cho tạo vé.
+            # Đánh dấu VÔ ĐIỀU KIỆN ở đây (khách trả lời "có" hay "không" đều
+            # là ĐÃ SÀNG LỌC XONG cho giao dịch này — nội dung câu trả lời chỉ
+            # ảnh hưởng `_gop`/FS-13, không ảnh hưởng việc đã-hỏi-đã-đáp).
+            # Không có trans_id lưu được (Redis lỗi đúng lúc ⑨ ghi, hoặc case
+            # hiếm ⑨ chưa kịp ghi) → KHÔNG đánh dấu gì — fail-closed đúng ý
+            # PO chốt: gate ở create_ticket coi như CHƯA sàng lọc, chặn cho
+            # tới khi có bằng chứng thật.
+            _trans_id_vua_hoi = doc_gia_tri(_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC, _tid_sl_thu)
+            if _trans_id_vua_hoi:
+                tang_tin_hieu(_TEN_TIN_HIEU_SANG_LOC_XONG, _trans_id_vua_hoi)
             _logger.info(
                 "agent_turn_thu_sang_loc_lua_dao",
                 extra={"user_id": user_id, "thread_id": _tid_sl_thu,
-                       "tin_hieu_sau_gop": _gop},
+                       "tin_hieu_sau_gop": _gop, "trans_id_sang_loc": _trans_id_vua_hoi},
             )
             # ① — FS-13 bật ⟹ DỪNG LƯỢT, không gọi model. Bàn giao ở TẦNG
             # SERVICE (`flag_human_handoff`), KHÔNG qua tool của AI — đúng ràng
@@ -1953,6 +2031,34 @@ def run_agent_turn(
                 # đã dời đi, tức nó CHỦ ĐỘNG chỉ sai đường cho người đọc sau.
                 # (Nếu cần `complaint_type` cho việc KHÁC: nó nằm ở `args`,
                 # KHÔNG ở `result` — create_ticket.py:110-118 cố ý không trả.)
+
+            # RB3 false-positive (04/09, QA phát hiện, 2/2 ca E2E): vòng lặp
+            # này trước đây CHỈ đọc ticket_id từ create_ticket — mọi
+            # request_human_handoff THÀNH CÔNG (tạo mới HOẶC tái dùng vé cũ,
+            # xem flag_human_handoff trả {"ticket_id":...}) đều bị coi như
+            # "chưa có vé thật", RB3 (khối ngay dưới, ~dòng 2172) ghi đè câu
+            # trả lời ĐÚNG bằng _CHUA_TAO_DUOC_VE. KHÔNG gộp vào nhánh
+            # create_ticket ở trên — request_human_handoff KHÔNG có
+            # should_escalate (khác payload shape), gộp sẽ đọc field không
+            # tồn tại. Nhánh này KHÔNG nới điều kiện RB3
+            # (`ticket_id is None and khai_da_tao_ve(...)` giữ nguyên) — chỉ
+            # thêm một nguồn HỢP LỆ để ticket_id khác None khi tool thật đã
+            # thành công.
+            #
+            # 🔴 ĐÍNH CHÍNH 05/09 (Review tự đối chiếu lại, dòng cũ SAI): ca
+            # MT-Z01 KHÔNG PHẢI "0 tool_call" — `AIMessage.tool_calls` THÔ
+            # lượt đó CÓ `create_ticket`, nhưng là lời gọi MỒ CÔI (không có
+            # `ToolMessage` phản hồi, xem `so_goi_mo_coi` ở vòng lặp phía
+            # trên) nên KHÔNG lọt vào `tool_calls_out`/nhánh này — đó là lý
+            # do đo lúc đó ra `so_tool_call=0` (đếm trên `tool_calls_out` đã
+            # lọc), không phải model hoàn toàn không gọi tool nào. `ticket_id`
+            # vẫn None đúng như cũ (payload không tồn tại thì không đọc được),
+            # nhưng RB3 giờ kích qua tín hiệu THÔ `co_de_xuat_tao_ve_luot_nay`
+            # (xem cổng RB3 phía dưới), không phải qua việc "không có
+            # AIMessage nào mang tool_calls" như dòng cũ khai nhầm.
+            if call["name"] == "request_human_handoff" and "ticket_id" in payload:
+                ticket_id = payload["ticket_id"]
+
             # ⑧ · điểm gắn "lượt 1" — lượt này có tool nào bị CỔNG OTP chặn
             # không. Đọc GIÁ TRỊ TRẢ VỀ, không bắt exception: hai lỗi OTP
             # `return` một dict, KHÔNG raise (customer_tools.py:596-613) —
@@ -2171,7 +2277,36 @@ def run_agent_turn(
     # với `ticket_id` THẬT của chính lượt này. Đó là lý do nó không thừa hưởng
     # trần của cách khớp-từ mà `_khop_o5` đã tự khai sau ba vòng vá.
     # Đặt TRƯỚC mọi chỗ chèn (⑧/⑨) để câu thay thế không mang theo lời khai sai.
-    if ticket_id is None and khai_da_tao_ve(reply_da_loc):
+    #
+    # 🔴 LẦN BA (05/09) — QA tái lập 2/2 lần: khách hỏi "chưa nhận được tiền",
+    # lượt CHỈ gọi `lookup_transaction` (trạng thái "thành công" phía hệ
+    # thống), model tóm tắt kết quả rồi HỎI Ý khách trước khi tạo hồ sơ ("...
+    # được không ạ?") — CHƯA hề đề xuất tạo vé lượt này. `khai_da_tao_ve()`
+    # vẫn trả `True` vì đúng CHIỀU RỦI RO ĐÃ KHAI ở đó (mã/"thành công" xét
+    # REPLY-GLOBAL): "Mã giao dịch" (mã GD, không phải mã vé) + "đã ghi nhận"
+    # (nói về TIỀN đã ghi nhận chuyển, không phải hồ sơ) rơi đúng 2 mảnh ghép
+    # của nhánh MỀM, dù không mảnh nào nói về việc TẠO HỒ SƠ thật.
+    #
+    # Vá bằng CỔNG CẤU TRÚC (Review đề xuất, ưu tiên hơn vá thêm từ vựng lần
+    # 3 — sợ đẻ nhánh thứ 4): chỉ hỏi `khai_da_tao_ve()` khi LƯỢT NÀY thật sự
+    # có ý định tạo vé (`create_ticket`/`request_human_handoff` xuất hiện
+    # trong `AIMessage.tool_calls` THÔ — kể cả lời gọi MỒ CÔI, xem vòng lặp
+    # phía trên). Lượt CHỈ gọi tool khác (lookup/history/policy...) không thể
+    # nào đang "khai đã tạo vé" theo đúng nghĩa ràng buộc #3 nhắm tới — dù
+    # câu chữ tình cờ khớp từ vựng. Lượt KHÔNG gọi tool nào (`co_goi_tool_
+    # luot_nay=False`, hallucination thuần) VẪN bị bắt — không nới lỏng
+    # hướng đó, chỉ thu hẹp đúng hướng vừa lộ false-positive.
+    #
+    # ⚠️ ĐÁNH ĐỔI ĐÃ KHAI: về lý thuyết, một lượt gọi tool KHÁC (vd lookup)
+    # RỒI ĐỘC LẬP bịa thêm "tôi cũng đã tạo vé" trong cùng câu trả lời sẽ
+    # KHÔNG bị cổng này bắt nữa. Chấp nhận vì CẢ BA false-positive thật đêm
+    # nay đều đúng khuôn "gọi tool khác, không đề xuất tạo vé" — CHƯA ai đo
+    # được ca hallucination-kèm-tool-khác nào — và MT-Z01 (ca gốc sinh ra
+    # RB3) qua đối chiếu lại của Review VẪN có `create_ticket` mồ côi trong
+    # tool_calls thô, nên vẫn bị bắt đúng bởi cổng mới.
+    _co_goi_tool_luot_nay, _co_de_xuat_tao_ve_luot_nay = _co_de_xuat_tao_ve(turn_messages)
+    _chi_tool_khong_lien_quan_tao_ve = _co_goi_tool_luot_nay and not _co_de_xuat_tao_ve_luot_nay
+    if ticket_id is None and not _chi_tool_khong_lien_quan_tao_ve and khai_da_tao_ve(reply_da_loc):
         _logger.error(
             "agent_khai_tao_ve_khong_co_ve",
             extra={"user_id": user_id, "thread_id": thread_id or user_id,
@@ -2325,13 +2460,30 @@ def run_agent_turn(
     # Ghi SAU khi đã xét ở trên — nếu ghi trước, lượt tra-được sẽ tự thoả điều
     # kiện và câu hỏi rơi vào lượt 3 (chung tin với bản đọc lại 5 dữ kiện),
     # phá luôn R1 "một Ý mỗi tin".
-    if not _da_tra_duoc and any(
-        c.get("tool_name") == "lookup_transaction"
-        and isinstance(c.get("result"), dict)
-        and c["result"].get("status") == "found"
-        for c in tool_calls_out
-    ):
-        tang_tin_hieu(_TEN_TIN_HIEU_DA_TRA_DUOC_GD, _tid_sl)
+    if not _da_tra_duoc:
+        _ket_qua_tra_duoc = next(
+            (
+                c["result"] for c in tool_calls_out
+                if c.get("tool_name") == "lookup_transaction"
+                and isinstance(c.get("result"), dict)
+                and c["result"].get("status") == "found"
+            ),
+            None,
+        )
+        if _ket_qua_tra_duoc is not None:
+            tang_tin_hieu(_TEN_TIN_HIEU_DA_TRA_DUOC_GD, _tid_sl)
+            # GATE mục 4 — lưu trans_id NGAY lúc biết nó, để lượt hỏi (⑨ ở
+            # trên, cùng lượt hoặc lượt sau) và lượt nhận câu trả lời (MẢNH 4,
+            # đầu hàm này) khớp đúng CÙNG một giao dịch. Ghi đè trans_id cũ
+            # nếu thread đang có ca chuyển nhầm THỨ HAI tra được TRƯỚC KHI ca
+            # đầu kịp hỏi-đáp xong — chấp nhận được: ⑨ chỉ hỏi MỘT câu/lượt
+            # (R1), nên tình huống này hiếm, và ca bị ghi đè vẫn tự tra lại
+            # được (`_da_tra_duoc` đã lên 1, `lookup_transaction` không gọi
+            # lại) — không mất giao dịch, chỉ có thể trả lời sàng lọc bị gán
+            # nhầm sang ca kia một lần, tự sửa ở lượt hỏi kế tiếp của ca đó.
+            _trans_id_moi_tra = _ket_qua_tra_duoc.get("trans_id")
+            if _trans_id_moi_tra:
+                luu_gia_tri(_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC, _tid_sl, _trans_id_moi_tra)
     tin_hieu_lo_chi_thi_ket_qua = tin_hieu_lo_chi_thi(reply, thread_id=thread_id or user_id)
     _kq_cuoi = {
         "reply": reply_da_loc,

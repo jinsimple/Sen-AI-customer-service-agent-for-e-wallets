@@ -1,20 +1,27 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import DashboardPage from "./page";
+import DashboardClient from "./DashboardClient";
 
 /**
  * BUGREPRO-001/002 (FIN05_QA_TestCases.jsonl — QA/QC test tay 12/08/2026,
  * xác nhận lại bằng đọc code 13/08) — khách bấm "cho tôi gặp người thật",
- * CSKH đang mở sẵn Hàng chờ KHÔNG thấy gì, chip "Khách yêu cầu người thật (N)"
- * đứng yên ở 0.
+ * CSKH đang mở sẵn Hàng chờ KHÔNG thấy gì.
  *
  * Nguyên nhân gốc: sự kiện WS `queue_update` chỉ gọi `loadWaitingChats()`.
- * Danh sách `tickets` — nguồn dữ liệu của MỌI chip đếm và của cả bảng ticket —
- * chỉ fetch ĐÚNG MỘT LẦN lúc mount (useEffect deps rỗng), và poll 60s cũng chỉ
- * chạm `waitingChats`. Nên số đếm đứng yên tới khi reload cả trang.
+ * Danh sách ticket — nguồn dữ liệu của bảng — chỉ fetch ĐÚNG MỘT LẦN lúc
+ * mount (useEffect deps rỗng), và poll 60s cũng chỉ chạm `waitingChats`. Nên
+ * bảng đứng yên tới khi reload cả trang.
  *
- * Test này canh đúng hành vi đó ở tầng component: bắn `queue_update` và khẳng
- * định `listTickets` được gọi LẠI, rồi chip đếm lên đúng số mới.
+ * Test này canh đúng hành vi đó ở tầng component: bắn `queue_update` và
+ * khẳng định `listTickets` được gọi LẠI, rồi ticket mới (có cờ handoff) xuất
+ * hiện trên bảng.
+ *
+ * [polish trước quay 04/09] `listTickets` đổi shape từ mảng trần sang
+ * `{items, total, page, page_size}` (phân trang thật) — mock cập nhật theo.
+ * Chip "Khách yêu cầu người thật" cũng đổi từ đếm-số (đúng cửa sổ 100 vé,
+ * nguồn gốc lỗi đọc-nhầm-% Lead bắt 20/08) sang toggle lọc-trang-này không
+ * số — anchor cũ `\(0\//` không còn khớp, thay bằng khẳng định trực tiếp
+ * trên DOM bảng (badge "Yêu cầu người thật" của đúng ticket mới).
  *
  * Mock ở biên module (`@/lib/api`, `useLiveChatSocket`, `next/navigation`) —
  * giữ nguyên hành vi render/state THẬT của React, cùng cách ChatClient.test.tsx.
@@ -22,6 +29,7 @@ import DashboardPage from "./page";
 
 vi.mock("@/lib/api", () => ({
   listTickets: vi.fn(),
+  claimTicket: vi.fn(),
   listWaitingChatSessions: vi.fn(),
   requestStaffWsTicket: vi.fn(),
 }));
@@ -50,13 +58,18 @@ function ticket(overrides: Record<string, unknown> = {}) {
     partner_wait_status: "n/a",
     created_at: "2026-08-13T08:00:00Z",
     complaint_type: "other",
-    scope: "unknown",
+    scope: "internal_wallet",
     priority: "normal",
     fraud_signals: [],
     customer_name: "Khách A",
     human_handoff_requested: false,
+    claimed_by: null,
     ...overrides,
   };
+}
+
+function page(items: Record<string, unknown>[]) {
+  return { items, total: items.length, page: 1, page_size: 50 };
 }
 
 describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu người thật", () => {
@@ -72,24 +85,20 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
   });
 
   it("BUGREPRO-002: sự kiện queue_update phải nạp LẠI danh sách ticket, không chỉ waitingChats", async () => {
-    // Lượt đầu: chưa ai yêu cầu người thật → chip = 0.
-    // Lượt sau: đã có 1 khách yêu cầu → chip phải thành 1.
+    // Lượt đầu: chưa ai yêu cầu người thật. Lượt sau: đã có 1 khách yêu cầu.
     vi.mocked(listTickets)
-      .mockResolvedValueOnce([ticket()] as never)
-      .mockResolvedValueOnce([
-        ticket(),
-        ticket({ ticket_id: "TCK-0002", human_handoff_requested: true, customer_name: "Khách B" }),
-      ] as never);
+      .mockResolvedValueOnce(page([ticket()]) as never)
+      .mockResolvedValueOnce(
+        page([
+          ticket(),
+          ticket({ ticket_id: "TCK-0002", human_handoff_requested: true, customer_name: "Khách B" }),
+        ]) as never
+      );
 
-    render(<DashboardPage />);
+    render(<DashboardClient role="cskh" />);
 
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
-    // Neo vào `(0/` chứ KHÔNG `(0)`: nhãn chip mang cửa sổ đếm — "(0/100 vé mới
-    // nhất)" — từ 2755a9e (20/08), khi Lead phát hiện 60/100 bị đọc thành 60%
-    // trong khi thật là 113/786. Bản test cũ neo `\(0\)` nên ĐỎ từ hôm đó tới
-    // giờ. Neo `(0/` giữ nguyên sức phân biệt 0↔1 mà không vỡ lại nếu câu chữ
-    // "vé mới nhất" đổi lần nữa.
-    expect(await screen.findByText(/Khách yêu cầu người thật \(0\//)).toBeTruthy();
+    expect(screen.queryByText("Yêu cầu người thật")).toBeNull();
 
     // Khách bấm "gặp người thật" → backend broadcast queue_update.
     await waitFor(() => expect(capturedWsHandler).not.toBeNull());
@@ -97,13 +106,13 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
 
     // Đây là điểm TRƯỚC BẢN VÁ sẽ đỏ: listTickets không bao giờ được gọi lần 2.
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText(/Khách yêu cầu người thật \(1\//)).toBeTruthy();
+    expect(await screen.findByText("Yêu cầu người thật")).toBeTruthy();
   });
 
   it("sự kiện session_claimed cũng nạp lại ticket (CSKH khác vừa nhận ca)", async () => {
-    vi.mocked(listTickets).mockResolvedValue([ticket()] as never);
+    vi.mocked(listTickets).mockResolvedValue(page([ticket()]) as never);
 
-    render(<DashboardPage />);
+    render(<DashboardClient role="cskh" />);
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
 
     await waitFor(() => expect(capturedWsHandler).not.toBeNull());
@@ -113,9 +122,9 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
   });
 
   it("sự kiện WS không liên quan KHÔNG được gây fetch thừa", async () => {
-    vi.mocked(listTickets).mockResolvedValue([ticket()] as never);
+    vi.mocked(listTickets).mockResolvedValue(page([ticket()]) as never);
 
-    render(<DashboardPage />);
+    render(<DashboardClient role="cskh" />);
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
 
     await waitFor(() => expect(capturedWsHandler).not.toBeNull());
@@ -129,9 +138,9 @@ describe("Dashboard — hàng chờ cập nhật khi có khách yêu cầu ngư�
 
   it("lưới an toàn 60s nạp lại CẢ ticket lẫn waitingChats khi WS rớt", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    vi.mocked(listTickets).mockResolvedValue([ticket()] as never);
+    vi.mocked(listTickets).mockResolvedValue(page([ticket()]) as never);
 
-    render(<DashboardPage />);
+    render(<DashboardClient role="cskh" />);
     await waitFor(() => expect(listTickets).toHaveBeenCalledTimes(1));
     const waitingCallsBefore = vi.mocked(listWaitingChatSessions).mock.calls.length;
 

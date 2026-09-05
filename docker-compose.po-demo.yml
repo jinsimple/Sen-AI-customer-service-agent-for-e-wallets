@@ -1,0 +1,46 @@
+# Override CẤU TRÚC cho ngăn `fin05-po-demo` — cổng host + ảnh frontend ghim.
+# Đưa vào repo 04/09 (trước đó sống trong scratchpad của một phiên, đã từng
+# MẤT một lần vì lý do đó — xem docs/devops/2026-09-04-mem-limit-va-pii-sidecar-de-xuat.md
+# và bài học ⑦ dot-otp cùng họ lỗi). Dùng CHO MỌI LẦN recreate `po-demo` kể cả
+# ngoài cửa sổ quay — khác `docker-compose.po-demo.canh6.yml` (chỉ dùng lúc
+# quay Cảnh 6).
+#
+# Dựng lại từ `docker inspect fin05-po-demo-caddy-1` (01/09), vì override gốc
+# nằm trong scratchpad của một phiên khác đã mất. Đối chiếu base
+# docker-compose.yml: mọi thứ khác (env SITE_DOMAIN, volumes, depends_on) đã
+# khớp mặc định của base — CHỈ port mapping là khác (60080/60443 thay vì
+# 80/443 mặc định). Không suy đoán gì ngoài port lấy từ HostConfig.PortBindings
+# đã lưu (60080, 60443) và bind-host lấy theo cùng khuôn CADDY_BIND_HOST đã
+# vá ở base (docker-compose.yml:291-293) để thừa hưởng đúng bản vá loopback.
+#
+# [ĐO 04/09, trước khi đưa vào repo] `docker port fin05-po-demo-caddy-1` xác
+# nhận đúng cổng này ĐANG hoạt động trên ngăn sống — không suy đoán từ file cũ.
+services:
+  caddy:
+    ports:
+      - "${CADDY_BIND_HOST:-127.0.0.1}:60080:80"
+      - "${CADDY_BIND_HOST:-127.0.0.1}:60443:443"
+  # [01/09 tối] Ghim ảnh quay-video cho MỖI LẦN swap tối nay — base chỉ có
+  # `build:`, không có `image:`. Thiếu dòng này thì `--no-build` không biết
+  # dùng tag nào, có thể rơi lại đúng bẫy "compose tự dựng ảnh mới dưới tag
+  # khác" mà team đã trả giá trước đó trong đêm.
+  frontend:
+    image: fin05-po-demo-frontend:quay-video
+    # [04/09 tối, PO thật bắt qua ảnh chụp màn hình] `docker compose build`
+    # KHÔNG kế thừa build-arg của lần `docker build` tay trước đó — build lại
+    # qua compose (đúng thứ đợt polish pagination/filter/noti vừa làm) âm
+    # thầm rơi về default Dockerfile (NEXT_PUBLIC_QUICK_LOGIN=false,
+    # NEXT_PUBLIC_HIDE_ENV_BADGE=false) dù `image:` tag vẫn là `quay-video`
+    # — mất 3 nút đăng nhập nhanh + hiện lại badge DEVELOPMENT, PHÁT HIỆN
+    # NGAY TRƯỚC GIỜ QUAY. Ghim ở đây để LẦN SAU `docker compose ... build
+    # frontend` (không cần nhớ build tay) vẫn ra đúng ảnh — CHỈ áp cho tag
+    # `quay-video` này (đúng phạm vi Dockerfile đã khai "ảnh gắn tag riêng
+    # dùng một lần"), KHÔNG đổi default của base docker-compose.yml/`latest`.
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_QUICK_LOGIN: "true"
+        NEXT_PUBLIC_HIDE_ENV_BADGE: "true"
+
+# Dựng: docker compose -p fin05-po-demo -f docker-compose.yml -f docker-compose.po-demo.yml [-f docker-compose.po-demo.canh6.yml] up -d

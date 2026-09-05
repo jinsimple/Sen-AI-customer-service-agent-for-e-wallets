@@ -17,6 +17,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.db.models import Complaint, Resolution, Ticket, ToolResult, Transaction
+from src.services.notifications import notify_cho_duyet
 from src.tools.base import ToolError, new_id, record_tool_result
 
 VALID_ACTION_TYPES = {
@@ -130,6 +131,9 @@ def propose_resolution(
     )
     session.add(resolution)
     session.flush()
+
+    # ADR-063 — fan-out CÙNG transaction, đúng khuôn create_ticket.py.
+    notify_cho_duyet(session, ticket_id=ticket_id)
 
     result = {
         "resolution_id": resolution_id,

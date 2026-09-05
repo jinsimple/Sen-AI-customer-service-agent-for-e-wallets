@@ -14,10 +14,15 @@ import hmac
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.config import FIELD_ENCRYPTION_KEY, RAG_SEARCH_TOP_K
+from src.config import (
+    FIELD_ENCRYPTION_KEY,
+    RAG_RERANK_CANDIDATE_K,
+    RAG_RERANK_THRESHOLD_CSKH,
+    RAG_SEARCH_TOP_K,
+)
 from src.db.models import PolicyChunk, PolicyDocument
 from src.observability.logging_config import get_logger
-from src.rag import store
+from src.rag import rerank, store
 from src.tools.base import record_tool_result
 
 _logger = get_logger("fin05.rag")
@@ -51,20 +56,42 @@ def search_policy_text(
     query: str,
     k: int = RAG_SEARCH_TOP_K,
     duong_tra: str = "khong_ro",
+    scope: str | None = None,
 ) -> dict:
     """Trả {"status": "found"|"not_found", "results": [...], "tool_result_id": ...}.
-    Mỗi result: {"text", "source_filename", "doc_id"} — không kèm chunk_id/
-    score ra ngoài, giữ output gọn cho cả agent lẫn UI CSKH.
+    Mỗi result: {"text", "source_filename", "doc_id", "chunk_id"} — KHÔNG kèm
+    score ra ngoài. `chunk_id` thêm 05/09 (ADR-065) cho FE dựng deep-link
+    "Xem toàn văn" — không phải PII, agent path bỏ qua field thừa này.
 
     `duong_tra`: "agent" (qua tool, CÓ lọc tier ở `_sanitize_policy_results`) hoặc
-    "cskh" (POST /policy-search, CỐ Ý không lọc — Y5). Chỉ dùng để ghi log:
-    hai đường cùng chạm một hàm nhưng hậu quả khác nhau, hồ sơ sự cố phải
-    phân biệt được mà không phải suy.
+    "cskh" (POST /policy-search, CỐ Ý không lọc — Y5). Dùng để ghi log (hai
+    đường cùng chạm một hàm nhưng hậu quả khác nhau, hồ sơ sự cố phải phân
+    biệt được mà không phải suy) VÀ (05/09, PO chốt) chọn ngưỡng rerank:
+    "cskh" dùng `RAG_RERANK_THRESHOLD_CSKH` (ưu tiên recall — người đọc
+    excerpt trực tiếp, không phải AI khẳng định), "agent" giữ nguyên
+    `RAG_RERANK_THRESHOLD` mặc định (không đổi hành vi/precision).
+
+    `scope`: ADR-061 Lớp 1. `None` = KHÔNG lọc (hành vi y hệt trước khi có
+    Lớp 1 — đúng trạng thái đường agent HÔM NAY, `build_customer_tools()`
+    không có scope nào để truyền). Có giá trị (1 trong 4: internal_wallet/
+    from_bank/to_bank/unknown) ⟹ chỉ giữ ứng viên có `chunk.scope == scope`
+    HOẶC `chunk.scope == "unknown"` (chunk trực giao mọi phạm vi — xem
+    ADR-061 §5.2). 🔴 Lọc CHUNK CHƯA GÁN (`chunk.scope is None`, backfill
+    chưa chạy/chunk mới upload) — coi như KHÔNG khớp bất kỳ scope cụ thể nào
+    (an toàn: thà bỏ sót còn hơn cho qua nhầm một chunk chưa ai xác nhận).
+
+    ADR-061 Lớp 2: lấy RAG_RERANK_CANDIDATE_K ứng viên (RỘNG hơn `k` cuối
+    cùng — ca đo 03/09 REL-IW-01 cho thấy top-1/top-k hẹp có thể bỏ lỡ chunk
+    đúng nằm xa hơn trong danh sách gần theo distance), lọc scope (nếu có),
+    rerank phần CÒN LẠI bằng cross-encoder, loại chunk dưới ngưỡng
+    RAG_RERANK_THRESHOLD — đây CHÍNH LÀ cổng abstention, không phải bộ lọc phụ.
     """
-    hits = store.search(query, k=k)
+    hits = store.search(query, k=RAG_RERANK_CANDIDATE_K)
 
     results: list[dict] = []
     chunk_ids_tra_ve: list[str] = []
+    bo_qua_thieu_chunk = 0
+    so_bi_loc_scope = 0
     if hits:
         chunk_ids = [chunk_id for chunk_id, _ in hits]
         rows = session.scalars(
@@ -75,13 +102,35 @@ def search_policy_text(
         docs_by_id = {
             d.doc_id: d for d in session.scalars(select(PolicyDocument).where(PolicyDocument.doc_id.in_(doc_ids))).all()
         }
-        # Giữ đúng thứ tự liên quan Chroma trả về (gần nhất trước), bỏ qua
-        # chunk_id không còn tồn tại (tài liệu vừa bị xoá nhưng index chưa kịp
-        # đồng bộ — hiếm, không nên chặn cả lượt tra cứu).
+        # Ứng viên THÔ cho rerank — bỏ qua chunk_id không còn tồn tại (tài
+        # liệu vừa bị xoá nhưng index chưa kịp đồng bộ). Đếm riêng
+        # `bo_qua_thieu_chunk` (lệch Chroma/Postgres) — KHÁC hẳn ứng viên bị
+        # rerank loại vì không liên quan, hai nguyên nhân "biến mất" khác
+        # nhau, không được gộp log chung.
+        # ADR-061 Lớp 1 — lọc scope TRƯỚC khi đưa vào rerank (rẻ hơn: khỏi
+        # tốn lời gọi sidecar cho ứng viên đã biết chắc sai phạm vi). `scope
+        # is None` ⟹ không lọc gì (nhánh y hệt trước khi có Lớp 1).
+        ung_vien: list[tuple[str, str]] = []
         for chunk_id, _distance in hits:
             chunk = chunks_by_id.get(chunk_id)
             if chunk is None:
+                bo_qua_thieu_chunk += 1
                 continue
+            if scope is not None and chunk.scope not in (scope, "unknown"):
+                so_bi_loc_scope += 1
+                continue
+            ung_vien.append((chunk_id, chunk.text))
+
+        # PO chốt 05/09 — ngưỡng RIÊNG cho đường CSKH (`/policy-search`, xem
+        # main.py): trang đọc excerpt trực tiếp, không qua AI tổng hợp/khẳng
+        # định (phụ đề trang tự khai điều đó), nên mối lo precision Finding
+        # ① không áp dụng — ưu tiên recall cho câu ngắn/từ khoá. Đường agent
+        # (`duong_tra="agent"`, 5 tool) giữ NGUYÊN `RAG_RERANK_THRESHOLD` mặc
+        # định (truyền `None` cho `rerank_va_loc` — không đổi hành vi cũ).
+        nguong = RAG_RERANK_THRESHOLD_CSKH if duong_tra == "cskh" else None
+        qua_nguong = rerank.rerank_va_loc(query, ung_vien, threshold=nguong)[:k]
+        for chunk_id, _score in qua_nguong:
+            chunk = chunks_by_id[chunk_id]
             doc = docs_by_id.get(chunk.doc_id)
             chunk_ids_tra_ve.append(chunk_id)
             results.append(
@@ -89,6 +138,11 @@ def search_policy_text(
                     "text": chunk.text,
                     "source_filename": doc.filename if doc else "(không rõ nguồn)",
                     "doc_id": chunk.doc_id,
+                    # ADR-065 — FE dùng dựng link deep-link "Xem toàn văn"
+                    # (GET /policy-doc/{doc_id}?chunk_id=...). chunk_id không
+                    # phải PII, không mở thêm phạm vi đọc (route đích tự
+                    # kiểm chunk.doc_id khớp doc_id).
+                    "chunk_id": chunk_id,
                 }
             )
 
@@ -107,7 +161,13 @@ def search_policy_text(
     # bằng chunk_id CŨ, tất cả bị bỏ, `results` rỗng, `status="not_found"` —
     # trông y hệt "không tìm thấy gì". Hai số cạnh nhau thì máy nhìn ra ngay:
     # hit > 0 mà bỏ hết = Chroma và Postgres đang nói về hai kho khác nhau.
-    bo_qua = len(hits) - len(results)
+    #
+    # 🔴 ADR-061: KHÔNG còn tính bằng `len(hits) - len(results)` — hiệu số đó
+    # lẫn CẢ BA nguyên nhân khác nhau (thiếu ở Postgres / bị lọc sai scope /
+    # bị rerank loại vì không liên quan HOẶC rớt ngoài top-k cuối). Ba số
+    # đếm riêng để log trả lời được "vì sao results ít hơn hits" mà không
+    # cần suy đoán.
+    so_bi_rerank_loai = len(hits) - bo_qua_thieu_chunk - so_bi_loc_scope - len(results)
     _logger.info(
         "policy_search",
         extra={
@@ -116,21 +176,24 @@ def search_policy_text(
             "query_hash": _bam_truy_van(query),
             "query_len": len(query),
             "k": k,
+            "scope_loc": scope,
             "so_hit_chroma": len(hits),
             "so_ket_qua": len(results),
-            "bo_qua_thieu_chunk": bo_qua,
+            "bo_qua_thieu_chunk": bo_qua_thieu_chunk,
+            "so_bi_loc_scope": so_bi_loc_scope,
+            "so_bi_rerank_loai": so_bi_rerank_loai,
             "chunk_ids": chunk_ids_tra_ve,
             "doc_ids": sorted({r["doc_id"] for r in results}),
             "status": payload["status"],
         },
     )
-    if bo_qua > 0:
+    if bo_qua_thieu_chunk > 0:
         _logger.warning(
             "policy_search_lech_kho",
             extra={
                 "so_hit_chroma": len(hits),
                 "so_ket_qua": len(results),
-                "bo_qua_thieu_chunk": bo_qua,
+                "bo_qua_thieu_chunk": bo_qua_thieu_chunk,
                 "ghi_chu": "Chroma trả chunk_id mà Postgres không có — "
                 "gần như chắc chắn tiến trình phục vụ đang cầm segment cũ. "
                 "Xem scripts/kho_rag.py::_server_dang_cam_kho_cu.",

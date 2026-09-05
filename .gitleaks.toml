@@ -21,9 +21,82 @@ id = "generic-api-key"
   # nhét một Fernet key sinh ngẫu nhiên vào ci.yml với bản OR thì gitleaks IM
   # LẶNG; đổi sang AND thì bắt được. Một allowlist bảo mật có thể tự vô hiệu
   # hoá đúng thứ nó bảo vệ mà không báo lỗi gì cả.
+  #
+  # 🔴 CHỈ MỘT khối `[[rules]] id = "generic-api-key"` được phép tồn tại
+  # trong file này — DevOps đo thật (chạy gitleaks local, thử 5 khối riêng
+  # rẽ): gitleaks KHÔNG cộng dồn nhiều khối cùng id, chỉ khối CUỐI CÙNG có
+  # hiệu lực. Thêm khối thứ hai = âm thầm VÔ HIỆU HOÁ khối này (kể cả dòng
+  # ci.yml phía trên). Mọi giá trị miễn trừ mới PHẢI gộp thêm vào ĐÚNG mảng
+  # `regexes`/`paths` bên dưới, không tạo khối `[[rules]]` mới.
   condition = "AND"
   regexTarget = "match"
   # Chuỗi gốc đọc được: "ci-ephemeral-key-not-for-prod-32". Cố ý để đọc ra được
   # bằng mắt, để người review thấy ngay đây không phải key thật.
-  regexes = ['''Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=''']
-  paths = ['''^\.github/workflows/ci\.yml$''']
+  #
+  # 04/09 — 4 giá trị dummy/fixture bổ sung (DevOps đọc source từng vị trí
+  # xác nhận, đối chiếu git log -p cho cả history, không chỉ HEAD):
+  #   MTIzNDU2...  = base64("1234567890123456789012345678901") — sentinel số
+  #     lặp dùng trong test_llm_pool_gd3.py / test_llm_api_key_khong_roi_
+  #     provider.py / test_fail_fast_secrets.py / rải rác ci.yml.
+  #   sk-proj-SENTINEL.../sk-deepseek-SENTINEL... — hằng số tự khai SENTINEL
+  #     trong tên, test_llm_api_key_khong_roi_provider.py.
+  #   d26ec7c1...  = SHA256 hash của file dữ liệu sinh tự động trong
+  #     data/generated/manifest.json — KHÔNG PHẢI secret, gitleaks bắt nhầm
+  #     chuỗi hex dài trông giống entropy cao.
+  #   sk-proj-abc123...  = placeholder kinh điển trong docs/guide/chapter-09.md,
+  #     nằm trong đoạn dạy "SAI: Hardcoded API key" — ví dụ dạy TRÁNH leak.
+  #
+  # 🔴 KHÁC LOẠI với 5 dòng trên — dòng CUỐI trong `regexes` KHÔNG PHẢI giá
+  # trị giả. RISK-ACCEPT CÓ GHI CHÉP (PO thật, 04/09): khoá telemetry AI-log
+  # do BAN TỔ CHỨC (BTC) AI20K tự cấp cho TOÀN COHORT để đếm log hoạt động
+  # Claude Code — hạ tầng của BTC, không phải secret của dự án FIN-05, BTC tự
+  # biết và lường trước việc khoá này nằm trong repo của mọi đội. Rủi ro
+  # thấp (xấu nhất: rác vào log-ingest của BTC, KHÔNG lộ dữ liệu khách
+  # hàng/nội bộ dự án). Đã gỡ khỏi `.env.example` hiện tại — mục này chỉ để
+  # dọn tiếng ồn CI cho các commit LỊCH SỬ đã có nó, không phải "coi như
+  # chưa từng lộ". KHÔNG báo BTC (họ tự phát khoá này, biết trước rủi ro).
+  # KHÔNG rewrite git history (PO chốt — quá nhạy cho một khoá rủi ro thấp).
+  # Hồ sơ đầy đủ: docs/security/2026-09-04-finding-ai-log-api-key-git-history.md
+  #
+  # 04/09 — 2 giá trị dummy bổ sung (DevOps đọc source xác nhận): cả hai là
+  # JWT_SECRET_KEY giả dùng trong ci.yml (fail-fast test + step khác) — đọc
+  # được bằng mắt ("ci-dummy-...", "ci-ephemeral-not-for-production-..."),
+  # không phải secret thật. Bỏ sót ở đợt phân loại 17-finding trước (DevOps
+  # tự nhận lỗi phân loại, không phải secret mới lộ).
+  #
+  # 04/09 muộn hơn — path `docs/security/...finding-ai-log-api-key...md` bổ
+  # sung: KHÔNG PHẢI secret mới, CÙNG giá trị AI_LOG_API_KEY đã risk-accept ở
+  # trên (`REDACTED_AI_LOG_KEY`), chỉ đang nằm ở 2 nơi trong LỊCH SỬ thay vì 1 —
+  # chính hồ sơ finding này đã từng chép nguyên văn/che-một-phần giá trị đó ở
+  # các lần commit trước khi che triệt để ở HEAD (DevOps đo qua `git log -p`,
+  # 3 bản: đầy đủ → che một phần (vẫn đủ entropy bị bắt) → che triệt để hiện
+  # tại). Redact thêm ở HEAD KHÔNG xoá được bản cũ trong lịch sử (không
+  # rewrite — PO đã chốt), nên allowlist theo path này là cách xử lý NHẤT
+  # QUÁN với quyết định risk-accept đã ra cho `.env.example`, không phải một
+  # quyết định rủi ro mới.
+  regexes = [
+    '''Y2ktZXBoZW1lcmFsLWtleS1ub3QtZm9yLXByb2QtMzI=''',
+    '''MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI9''',
+    '''sk-proj-SENTINEL-KHONG-DUOC-ROI-KHOI-MAY-000''',
+    '''sk-deepseek-SENTINEL-KHONG-DUOC-ROI-KHOI-MAY-000''',
+    '''d26ec7c15f46ddd8b8e7b0b28cfe89636117e7459a1db9f228e1abc6d2dbf4d4''',
+    '''sk-proj-abc123\.\.\.''',
+    '''REDACTED_AI_LOG_KEY''',
+    # Bản CHE MỘT PHẦN (commit trung gian trước khi che triệt để) — chuỗi
+    # ĐÃ CẮT khác với bản đầy đủ ở trên, nên regex trước không khớp; gitleaks
+    # vẫn quét ra nó ở lịch sử. Cùng khoá, khác cách viết, không phải bí mật
+    # mới — xem docs/security/2026-09-04-finding-ai-log-api-key-git-history.md.
+    '''REDACTED_AI_LOG_KEY''',
+    '''ci-ephemeral-not-for-production-use-only-in-ci-runs''',
+    '''ci-dummy-secret-key-0123456789abcd''',
+  ]
+  paths = [
+    '''^\.github/workflows/ci\.yml$''',
+    '''^tests/test_agents/test_llm_pool_gd3\.py$''',
+    '''^tests/test_config/test_llm_api_key_khong_roi_provider\.py$''',
+    '''^tests/test_config/test_fail_fast_secrets\.py$''',
+    '''^data/generated/manifest\.json$''',
+    '''^docs/guide/chapter-09\.md$''',
+    '''^\.env\.example$''',
+    '''^docs/security/2026-09-04-finding-ai-log-api-key-git-history\.md$''',
+  ]
