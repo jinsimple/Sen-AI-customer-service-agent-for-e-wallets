@@ -5,6 +5,7 @@ import type {
   CustomerHistory,
   LookupTransactionResult,
   NotificationItem,
+  PolicyDocFullText,
   PolicyDocument,
   PolicySearchResult,
   RejectReason,
@@ -339,6 +340,12 @@ export function deletePolicyDoc(docId: string) {
 
 export function searchPolicy(query: string) {
   return post<PolicySearchResult>("/api/policy-search", { query });
+}
+
+// ADR-065 (05/09) — deep-link đọc toàn văn cho 1 kết quả /policy-search.
+export function getPolicyDoc(docId: string, chunkId?: string) {
+  const qs = chunkId ? `?chunk_id=${encodeURIComponent(chunkId)}` : "";
+  return get<PolicyDocFullText>(`/api/policy-doc/${docId}${qs}`);
 }
 
 // ---------------------------------------------------------------------------

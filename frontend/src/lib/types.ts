@@ -372,6 +372,18 @@ export interface PolicySearchResultItem {
   text: string;
   source_filename: string;
   doc_id: string;
+  // ADR-065 (05/09) — dùng dựng link deep-link "Xem toàn văn".
+  chunk_id: string;
+}
+
+// ADR-065 — GET /policy-doc/{doc_id}. `highlight` null khi không xác định
+// được vị trí tô sáng (chunk_id sai/không khớp/tài liệu chưa có full_text) —
+// FE vẫn hiện toàn văn, chỉ không tô sáng/cuộn, không phải lỗi.
+export interface PolicyDocFullText {
+  doc_id: string;
+  filename: string;
+  full_text: string | null;
+  highlight: { start: number; end: number } | null;
 }
 
 export interface PolicySearchResult {

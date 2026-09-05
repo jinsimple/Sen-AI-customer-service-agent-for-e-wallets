@@ -99,6 +99,7 @@ from src.db.models import (
     Escalation,
     InvestigationLog,
     Message,
+    PolicyChunk,
     PolicyDocument,
     Resolution,
     Ticket,
@@ -1635,6 +1636,46 @@ def policy_search(
     return _handle_tool_error(
         search_policy_text, session, query=req.query, k=req.top_k, duong_tra="cskh", scope=scope
     )
+
+
+# ---------------------------------------------------------------------------
+# ADR-065 (05/09) — deep-link đọc toàn văn cho một kết quả /policy-search.
+# CHỈ trả tài liệu status="indexed" đã nạp qua /policy-docs — doc_id tra qua
+# DB (không phải filesystem), nên không có đường path-traversal: doc_id lạ/
+# chưa index/đã xoá đều 404 giống nhau, không phân biệt (không lộ tài liệu
+# nào từng tồn tại).
+# ---------------------------------------------------------------------------
+
+
+@app.get("/policy-doc/{doc_id}")
+def get_policy_doc(
+    doc_id: str,
+    chunk_id: str | None = None,
+    current_user: CurrentUser = Depends(require_role("cskh", "supervisor")),
+    session: Session = Depends(get_session),
+):
+    doc = session.get(PolicyDocument, doc_id)
+    if doc is None or doc.status != "indexed":
+        raise HTTPException(status_code=404, detail="tài liệu không tồn tại")
+
+    highlight = None
+    # `chunk_id` optional — sai/không khớp doc_id/không tìm ra vị trí trong
+    # toàn văn đều CHỈ bỏ qua tô sáng (suy giảm êm), KHÔNG lỗi cả yêu cầu.
+    # Tài liệu chưa có full_text (4 tài liệu index TRƯỚC cột này, xem
+    # migration f1a2b3c4d5e6) cũng rơi vào nhánh này một cách tự nhiên.
+    if chunk_id and doc.full_text:
+        chunk = session.get(PolicyChunk, chunk_id)
+        if chunk is not None and chunk.doc_id == doc_id:
+            start = doc.full_text.find(chunk.text)
+            if start != -1:
+                highlight = {"start": start, "end": start + len(chunk.text)}
+
+    return {
+        "doc_id": doc.doc_id,
+        "filename": doc.filename,
+        "full_text": doc.full_text,
+        "highlight": highlight,
+    }
 
 
 # ---------------------------------------------------------------------------

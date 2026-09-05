@@ -59,8 +59,9 @@ def search_policy_text(
     scope: str | None = None,
 ) -> dict:
     """Trả {"status": "found"|"not_found", "results": [...], "tool_result_id": ...}.
-    Mỗi result: {"text", "source_filename", "doc_id"} — không kèm chunk_id/
-    score ra ngoài, giữ output gọn cho cả agent lẫn UI CSKH.
+    Mỗi result: {"text", "source_filename", "doc_id", "chunk_id"} — KHÔNG kèm
+    score ra ngoài. `chunk_id` thêm 05/09 (ADR-065) cho FE dựng deep-link
+    "Xem toàn văn" — không phải PII, agent path bỏ qua field thừa này.
 
     `duong_tra`: "agent" (qua tool, CÓ lọc tier ở `_sanitize_policy_results`) hoặc
     "cskh" (POST /policy-search, CỐ Ý không lọc — Y5). Dùng để ghi log (hai
@@ -137,6 +138,11 @@ def search_policy_text(
                     "text": chunk.text,
                     "source_filename": doc.filename if doc else "(không rõ nguồn)",
                     "doc_id": chunk.doc_id,
+                    # ADR-065 — FE dùng dựng link deep-link "Xem toàn văn"
+                    # (GET /policy-doc/{doc_id}?chunk_id=...). chunk_id không
+                    # phải PII, không mở thêm phạm vi đọc (route đích tự
+                    # kiểm chunk.doc_id khớp doc_id).
+                    "chunk_id": chunk_id,
                 }
             )
 

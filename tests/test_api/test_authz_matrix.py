@@ -92,6 +92,7 @@ ROUTES: list[RouteCheck] = [
     RouteCheck("GET", "/policy-docs", "/policy-docs", {"partner_admin"}, safe_success_check=True),
     RouteCheck("DELETE", "/policy-docs/{doc_id}", "/policy-docs/DOC-NOPE", {"partner_admin"}),
     RouteCheck("POST", "/policy-search", "/policy-search", {"cskh", "supervisor"}, body={"query": "test"}),
+    RouteCheck("GET", "/policy-doc/{doc_id}", "/policy-doc/DOC-NOPE", {"cskh", "supervisor"}),
     RouteCheck("POST", "/live-chat/ws-ticket", "/live-chat/ws-ticket", {"customer"}, body={"ticket_id": "TCK-NOPE"}),
     RouteCheck("POST", "/live-chat/staff/ws-ticket", "/live-chat/staff/ws-ticket", {"cskh", "supervisor"}, body={}),
     RouteCheck(

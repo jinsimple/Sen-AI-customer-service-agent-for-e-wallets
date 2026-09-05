@@ -20,7 +20,12 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   // nhưng frontend đang chặt hơn — CSKH bị đá về /dashboard. Đây là LẦN THỨ HAI
   // cùng lớp lỗi "guard frontend hẹp hơn contract" (lần một: sếp + /policy-lookup,
   // d0baf35). Tester đang viết test quét cả ma trận role×route để lần ba bị máy bắt.
-  cskh: ["/dashboard", "/tickets", "/policy-lookup", "/report"],
+  // /policy-doc: deep-link "Xem toàn văn" từ /policy-lookup (ADR-065, 05/09)
+  // — mở qua link, KHÔNG có tab nav riêng, cùng khuôn /tickets/{id}. CA THỨ
+  // SÁU cùng lớp lỗi "route mới quên khai ở đây" nếu bỏ sót (5 lần trước:
+  // /policy-lookup, /dashboard, /report, /cskh-online, /quan-ly-ticket) —
+  // khai NGAY lúc thêm route, không đợi ai bấm hỏng mới phát hiện.
+  cskh: ["/dashboard", "/tickets", "/policy-lookup", "/policy-doc", "/report"],
   // /policy-lookup: sếp cũng cần tra chính sách khi quyết định duyệt. Thiếu
   // tiền tố này thì proxy đá thẳng về roleHome() = /approve, nên bấm vào tab
   // trông như tab hỏng (QA đo được 14/08). Backend đã cho phép sẵn —
@@ -39,7 +44,10 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   // đây" nếu bỏ sót (4 lần trước: /policy-lookup, /dashboard, /report,
   // /cskh-online). Route không mở API mới — /quan-ly-ticket chỉ gọi lại
   // GET /tickets đã cho phép supervisor sẵn trong authority-matrix.
-  supervisor: ["/approve", "/cskh-online", "/quan-ly-ticket", "/report", "/tickets", "/policy-lookup", "/dashboard"],
+  supervisor: [
+    "/approve", "/cskh-online", "/quan-ly-ticket", "/report", "/tickets",
+    "/policy-lookup", "/policy-doc", "/dashboard",
+  ],
   partner_admin: ["/knowledge"],
 };
 

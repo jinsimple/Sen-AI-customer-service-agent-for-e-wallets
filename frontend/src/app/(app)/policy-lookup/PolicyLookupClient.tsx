@@ -63,7 +63,19 @@ export default function PolicyLookupClient() {
             <div className="flex-col gap-md">
               {results?.map((r, i) => (
                 <div className="card" key={`${r.doc_id}-${i}`}>
-                  <div className="card-title mono" style={{ fontSize: 13 }}>{r.source_filename}</div>
+                  <div className="flex between center-y">
+                    <div className="card-title mono" style={{ fontSize: 13 }}>{r.source_filename}</div>
+                    {/* ADR-065 (05/09) — mở TAB MỚI, tự cuộn+tô sáng đúng đoạn này. */}
+                    <a
+                      className="mono"
+                      style={{ fontSize: 12, fontWeight: 600 }}
+                      href={`/policy-doc/${r.doc_id}?chunk_id=${encodeURIComponent(r.chunk_id)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Xem toàn văn ↗
+                    </a>
+                  </div>
                   <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{r.text}</p>
                 </div>
               ))}

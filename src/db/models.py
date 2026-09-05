@@ -573,6 +573,14 @@ class PolicyDocument(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="processing")
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ADR-065 (05/09) — toàn văn GỐC, đọc TRƯỚC khi cắt chunk (xem
+    # src/rag/ingest.py). PolicyChunk.text chỉ lưu từng đoạn ĐÃ CẮT VÀ CHỒNG
+    # LẤN (overlap=150) — ghép lại theo chunk_index KHÔNG tái tạo đúng văn
+    # bản gốc, nên trang đọc toàn văn (deep-link từ /policy-search) cần cột
+    # riêng này, không đoán ghép từ chunk. NULLABLE VĨNH VIỄN cho 4 tài liệu
+    # index TRƯỚC cột này tồn tại (backfill là việc vận hành riêng, không
+    # phải điều kiện của migration).
+    full_text: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
 
 
 class PolicyChunk(Base):

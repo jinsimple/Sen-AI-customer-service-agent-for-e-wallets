@@ -42,6 +42,10 @@ def test_ingest_md_creates_indexed_document(sample_db, _stub_vector_store):
     # Text đọc lại qua ORM phải đúng nội dung gốc (mã hoá/giải mã trong suốt)
     assert "Chính sách hoàn tiền" in chunks[0].text
 
+    # ADR-065 — full_text lưu NGUYÊN VĂN GỐC (trước khi cắt), không phải
+    # ghép lại từ chunk — phải khớp byte-for-byte với input gốc.
+    assert doc.full_text == content.decode("utf-8")
+
     assert len(_stub_vector_store["add"]) == 1
     called_doc_id, called_chunk_ids, called_texts = _stub_vector_store["add"][0]
     assert called_doc_id == doc.doc_id
