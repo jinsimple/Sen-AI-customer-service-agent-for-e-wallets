@@ -16,7 +16,7 @@
 #
 # Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
 
-version: "2.3.0"
+version: "2.4.0"
 source: "Sinh ngược từ src/api/main.py @ 2026-08-13 · thay thế bản 1.0.0 viết từ PRD"
 # v2.3.0 (04/09) — ADR-064, PO thật duyệt. CSKH chỉ thấy vé CHƯA claim +
 # CỦA CHÍNH MÌNH (pool + own), Sếp KHÔNG đổi (vẫn thấy tất cả). Route/role
@@ -226,6 +226,14 @@ routes:
     roles: [cskh, supervisor]
   - route: "POST /policy-search"
     roles: [cskh, supervisor]
+  - route: "GET /policy-doc/{doc_id}"
+    roles: [cskh, supervisor]
+    ghi_chu: >
+      ADR-065 (05/09) — deep-link đọc toàn văn cho kết quả /policy-search.
+      CHỈ trả tài liệu status=indexed đã nạp qua /policy-docs (partner_admin);
+      doc_id tra qua DB, không qua filesystem (chống path traversal). Query
+      `chunk_id` optional để tính offset tô sáng — sai/không khớp thì bỏ qua
+      tô sáng (không lỗi), không mở rộng phạm vi đọc ngoài tài liệu đã index.
   - route: "POST /live-chat/staff/ws-ticket"
     roles: [cskh, supervisor]
   - route: "GET /live-chat/sessions/by-ticket/{ticket_id}"
