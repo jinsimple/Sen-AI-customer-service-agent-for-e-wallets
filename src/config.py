@@ -79,6 +79,25 @@ if not DATABASE_URL:
 # toàn đã cho đúng thứ cần mà không cần ép khai ở mọi nơi.
 APP_ENV = os.environ.get("APP_ENV", "production")
 
+# 🔴 ĐÍNH CHÍNH 05/09 — đoạn chú thích TRÊN vẫn đúng cho MỌI thứ khác đọc
+# APP_ENV (vd guard OTP_DEMO_MODE dưới đây), nhưng câu "bật /docs khi APP_ENV
+# != production" ở đó KHÔNG CÒN ĐÚNG kể từ cờ `ENABLE_API_DOCS` này — xem lý
+# do ngay dưới. Giữ nguyên đoạn cũ (Luật P — niêm tại chỗ, không xoá lịch sử
+# suy luận), chỉ đính chính điểm đã lệch.
+#
+# Production thật (VPS `home`, judge xem) cần `APP_ENV != "production"` để
+# bật `OTP_DEMO_MODE` (hiện mã OTP demo cho giám khảo) — nhưng cờ CŨ
+# (`docs_url=None if APP_ENV=="production" else "/docs"`, main.py) coi mọi
+# `APP_ENV != production` là "môi trường dev", nên bật OTP demo VÔ TÌNH mở
+# luôn `/docs`/`/redoc`/`/openapi.json` (31 route + schema tham số/xác thực)
+# ra production thật — hai quyết định KHÔNG liên quan (hiện OTP demo cho giám
+# khảo · mở tài liệu API) bị trói vào CHUNG một biến.
+#
+# Tách RIÊNG, mặc định FALSE (fail-safe OFF) — cùng khuôn OTP_DEMO_MODE:
+# quên khai thì API docs vẫn tắt, không suy luận ngầm từ APP_ENV nữa. Bật
+# tường minh bằng `ENABLE_API_DOCS=true` khi THẬT SỰ cần (dev cục bộ).
+ENABLE_API_DOCS = os.environ.get("ENABLE_API_DOCS", "").strip().lower() in ("1", "true", "yes")
+
 # Dấu vật, do Dockerfile ARG đặt lúc build. "khong-ro" = không truyền được —
 # tự tố cáo, không im lặng giả vờ hợp lệ.
 # Phân luồng lượt chat (T1). MẶC ĐỊNH TẮT — bật là đổi hành vi sản phẩm, và
