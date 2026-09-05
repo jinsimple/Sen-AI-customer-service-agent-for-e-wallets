@@ -14,11 +14,17 @@ export default function OtpInput({
   checking,
   error,
   onSubmit,
+  trailing,
 }: {
   disabled: boolean;
   checking: boolean;
   error: string | null;
   onSubmit: (otpCode: string) => void;
+  // [05/09, PO chốt] Tuỳ chọn — nút PHỤ đặt CÙNG HÀNG với "Xác nhận" (vd
+  // "Huỷ" ở luồng Sếp duyệt, ResolutionApprovalActions.tsx). KHÔNG truyền
+  // (mặc định, luồng khách ChatClient.tsx) ⟹ render nút Xác nhận Y HỆT
+  // trước khi có prop này — luồng khách byte-identical, rủi ro = 0.
+  trailing?: React.ReactNode;
 }) {
   // Controlled (không thao tác DOM tay) — bắt buộc để gõ ĐÈ lên ô đã có sẵn
   // số hoạt động đúng: input maxLength=1 chưa được bôi đen thì trình duyệt
@@ -77,14 +83,27 @@ export default function OtpInput({
           Nhập đủ 6 số OTP để tiếp tục.
         </div>
       )}
-      <button
-        className="btn btn-gold btn-sm"
-        style={{ marginTop: 12 }}
-        disabled={!canSubmit}
-        onClick={() => onSubmit(digits.join(""))}
-      >
-        {checking ? "Đang xác thực..." : "Xác nhận"}
-      </button>
+      {trailing ? (
+        <div className="flex gap-sm wrap" style={{ marginTop: 12 }}>
+          <button
+            className="btn btn-gold btn-sm"
+            disabled={!canSubmit}
+            onClick={() => onSubmit(digits.join(""))}
+          >
+            {checking ? "Đang xác thực..." : "Xác nhận"}
+          </button>
+          {trailing}
+        </div>
+      ) : (
+        <button
+          className="btn btn-gold btn-sm"
+          style={{ marginTop: 12 }}
+          disabled={!canSubmit}
+          onClick={() => onSubmit(digits.join(""))}
+        >
+          {checking ? "Đang xác thực..." : "Xác nhận"}
+        </button>
+      )}
     </>
   );
 }
