@@ -1,0 +1,38 @@
+# Override CHỈ cho build frontend deploy VPS Windows PO thật (`--profile home`,
+# domain judge xem — app.adaptivealgo.uk). Đưa lại vào repo 05/09 sau khi PO
+# thật chốt CHẤP NHẬN rủi ro có chủ đích (dữ liệu giả, bối cảnh judge demo) —
+# xem trao đổi Lead/PO 05/09 tối.
+#
+# VÌ SAO FILE RIÊNG, không sửa `build.args` thẳng ở docker-compose.yml gốc:
+# 5 override khác trong repo (qa-stripe/ctc1-check/dot-otp/ttl-test/do) KHÔNG
+# tự khai `build.args` cho frontend — nếu đổi default ở file gốc, cả 5 ngăn
+# đó ÂM THẦM thừa hưởng NEXT_PUBLIC_QUICK_LOGIN=true/HIDE_ENV_BADGE=true theo
+# (docker compose merge map `args` giữa các file, thiếu khai = kế thừa từ
+# gốc). ĐO ĐƯỢC MỘT XUNG ĐỘT THẬT khi cân nhắc lại 05/09: `docker-compose.
+# qa-stripe.override.yml` tự khai rõ mục đích "APP_ENV=production +
+# OTP_DEMO_MODE=false (giữ banner DEVELOPMENT khỏi lên phim)" — một ngăn
+# DỰNG RIÊNG ĐỂ QUAY VIDEO SẠCH. Bật quick-login mặc định ở đó qua đổi file
+# gốc sẽ tái diễn ĐÚNG loại lỗi "vật lạ lọt vào khung hình" cả đội đã thức
+# đêm để dọn — file riêng này không đụng gì tới ngăn đó.
+#
+# 🔴 BẪY FLAG-DROP (PO bắt 05/09): `scripts/deploy_home.ps1`/`.sh` gọi
+# `docker compose --profile home ...` KHÔNG `-f` nào — file override này TỰ
+# NÓ vô dụng nếu không có ai `-f` nó vào. Đã vá tận gốc: CẢ HAI script giờ
+# gom mọi lệnh qua 1 biến `$ComposeArgs`/`COMPOSE_ARGS` LUÔN bao gồm file
+# này, không còn chỗ nào gõ tay `--profile home` rời rạc để quên.
+#
+# CHỈ ghim 2 build-arg — KHÔNG bao gồm APP_ENV/OTP_DEMO_MODE/ENABLE_API_DOCS
+# (đó là biến MÔI TRƯỜNG lúc CHẠY container, PO tự quản trên `.env` VPS của
+# họ, không phải build-arg đóng cứng vào ảnh — xem src/config.py cho giá trị
+# khuyến nghị "judge-prod": APP_ENV=demo, OTP_DEMO_MODE=true,
+# ENABLE_API_DOCS để trống/off).
+#
+# Dựng tay (ngoài 2 script trên, nếu cần): docker compose -f docker-compose.yml -f docker-compose.home-judge.yml --profile home up -d --build
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_QUICK_LOGIN: "true"
+        NEXT_PUBLIC_HIDE_ENV_BADGE: "true"

@@ -24,6 +24,16 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
+# 05/09 — MỌI lệnh `docker compose` của script này PHẢI đi qua đúng biến
+# này (splat `@ComposeArgs`), KHÔNG gõ tay `--profile home` rời rạc nữa.
+# Lý do: `docker-compose.home-judge.yml` ghim build-arg
+# NEXT_PUBLIC_QUICK_LOGIN/NEXT_PUBLIC_HIDE_ENV_BADGE cho frontend — thiếu
+# đúng MỘT `-f` này ở MỘT trong 10 lệnh bên dưới là build ra ảnh sai (mất
+# nút đăng nhập nhanh/hiện lại badge DEVELOPMENT) mà không ai biết, đúng
+# họ lỗi "flag-drop" đã xảy ra nhiều lần tối 04-05/09 với po-demo. Gộp vào
+# MỘT biến ở đây để không ai phải nhớ gõ đủ 2 `-f` ở 10 chỗ khác nhau.
+$ComposeArgs = @("-f", "docker-compose.yml", "-f", "docker-compose.home-judge.yml", "--profile", "home")
+
 # 🔴 CHUỖI IN RA CHO NGƯỜI DÙNG (Say/Ok/Bad/Warn): KHÔNG dùng dấu nguyên âm
 # tiếng Việt. Script không đặt mã trang console ⟹ phụ thuộc console của PO.
 # Không UTF-8 thì "tiếp nhận" thành rác ở MỌI nguyên âm — mất cả câu. `—` `·`
@@ -110,9 +120,9 @@ Say ""; Say "--- Build + khoi dong (profile home) ---"
 $env:BUILD_COMMIT = (git rev-parse --short HEAD)
 $env:BUILD_AT     = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss+00:00")
 Ok "Dau build: $($env:BUILD_COMMIT) · $($env:BUILD_AT)"
-docker compose --profile home build
+docker compose @ComposeArgs build
 if ($LASTEXITCODE -ne 0) { Bad "Build that bai"; exit 1 }
-docker compose --profile home up -d
+docker compose @ComposeArgs up -d
 if ($LASTEXITCODE -ne 0) { Bad "Khoi dong that bai"; exit 1 }
 
 # --- SMOKE: khong tin "up -d khong bao loi" ------------------------------
@@ -124,10 +134,10 @@ $loi = 0
 # --- KHO RAG: kiem lech phien ban, tu nap lai neu can -------------------
 # KHONG de nguoi dung phai NHO buoc nay — xem ghi chu trong ban .sh.
 Say ""; Say "--- Kho RAG ---"
-docker compose --profile home exec -T backend python scripts/kho_rag.py kiem
+docker compose @ComposeArgs exec -T backend python scripts/kho_rag.py kiem
 if ($LASTEXITCODE -ne 0) {
     Say "  -> nap lai kho (mat vai phut, co goi API embedding)"
-    docker compose --profile home exec -T backend python scripts/kho_rag.py nap-lai
+    docker compose @ComposeArgs exec -T backend python scripts/kho_rag.py nap-lai
     if ($LASTEXITCODE -ne 0) {
         Bad "Nap lai kho RAG that bai"; $loi++
     } else {
@@ -140,14 +150,14 @@ if ($LASTEXITCODE -ne 0) {
         # tot. Do that: 1 luot co ket qua roi 12 luot lien tiep rong, trong khi
         # Chroma dung yen 378 vector.
         # nap-lai khong the tu restart: no chay BEN TRONG chinh container do.
-        docker compose --profile home restart backend | Out-Null
+        docker compose @ComposeArgs restart backend | Out-Null
         if ($LASTEXITCODE -ne 0) { Bad "Restart backend sau nap lai that bai"; $loi++ }
         else { Ok "Da restart backend de no doc kho moi" }
     }
 }
 
 # Cong nay chay CA KHI khong nap lai — bat ca "ai do vua nap tay roi quen restart".
-docker compose --profile home exec -T backend python scripts/kho_rag.py kiem
+docker compose @ComposeArgs exec -T backend python scripts/kho_rag.py kiem
 if ($LASTEXITCODE -ne 0) { Bad "Kho RAG van chua san sang sau buoc tren"; $loi++ }
 
 
@@ -160,7 +170,7 @@ Say "  cho backend san sang..."
 # đã chọn urllib thay vì curl).
 $san = $false
 foreach ($i in 1..30) {
-    docker compose --profile home exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8010/health', timeout=5)" *> $null
+    docker compose @ComposeArgs exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8010/health', timeout=5)" *> $null
     if ($LASTEXITCODE -eq 0) { $san = $true; break }
     Start-Sleep -Seconds 2
 }
@@ -174,7 +184,7 @@ if ($san) { Ok "backend song (health noi bo qua docker exec)" } else { Bad "back
 # .env có thể không có dòng này và rơi về mặc định của docker-compose.yml,
 # đọc text sẽ báo "thiếu" SAI trong khi app vẫn chạy đúng.
 if ($san) {
-    $modelThat = (docker compose --profile home exec -T backend python -c "from src.config import LLM_MODEL; print(LLM_MODEL)" 2>$null)
+    $modelThat = (docker compose @ComposeArgs exec -T backend python -c "from src.config import LLM_MODEL; print(LLM_MODEL)" 2>$null)
     if ($LASTEXITCODE -ne 0 -or -not $modelThat) {
         Bad "Khong doc duoc LLM_MODEL dang chay tu backend"; $loi++
     } else {
@@ -203,7 +213,7 @@ try {
 # đọc thẳng trạng thái đó, chính xác hơn "status=running" (có thể trúng
 # khoảnh khắc container vừa restart trong crash-loop).
 foreach ($s in @("postgres","redis","backend")) {
-    $cid = (docker compose --profile home ps -q $s)
+    $cid = (docker compose @ComposeArgs ps -q $s)
     $health = $null
     if ($cid) { $health = (docker inspect --format "{{.State.Health.Status}}" $cid 2>$null) }
     if ($health -eq "healthy") { Ok "service $s healthy (Docker healthcheck that)" }
@@ -212,18 +222,18 @@ foreach ($s in @("postgres","redis","backend")) {
 # frontend/caddy/cloudflared KHÔNG có Docker healthcheck riêng -> "running"
 # là tín hiệu rẻ nhất có, chưa đo tất định. NGHI VẤN, chưa nâng thành phát
 # hiện: có thể trúng khoảnh khắc container vừa restart trong crash-loop.
-$chay = (docker compose --profile home ps --services --filter "status=running")
+$chay = (docker compose @ComposeArgs ps --services --filter "status=running")
 foreach ($s in @("frontend","caddy","cloudflared")) {
     if ($chay -contains $s) { Ok "service $s dang chay (NGHI VAN: status=running, chua do tat dinh)" } else { Bad "service $s KHONG chay"; $loi++ }
 }
 
 # Tunnel da noi duoc Cloudflare chua — doc log that, khong doan.
-$logTunnel = docker compose --profile home logs --tail 40 cloudflared 2>&1 | Out-String
+$logTunnel = docker compose @ComposeArgs logs --tail 40 cloudflared 2>&1 | Out-String
 if ($logTunnel -match "Registered tunnel connection|Connection .* registered") {
     Ok "Cloudflare Tunnel da ket noi"
 } else {
     Bad "Chua thay tunnel ket noi trong log"
-    Warn "        Xem chi tiet: docker compose --profile home logs cloudflared"
+    Warn "        Xem chi tiet: docker compose $($ComposeArgs -join ' ') logs cloudflared"
     $loi++
 }
 
