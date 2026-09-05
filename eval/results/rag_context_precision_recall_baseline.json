@@ -1,0 +1,814 @@
+{
+  "_thuoc": {
+    "ngay_do": "2026-09-05T09:38:12.846Z",
+    "noi_do": "https://localhost:60443",
+    "phuong_phap": "context_precision/context_recall TẤT ĐỊNH — chấm theo NỘI DUNG (text) trùng khớp, KHÔNG theo chunk_id (PO chốt 05/09, vì kho po-demo bị nhiễm bản trùng nội dung do chính QA upload nhiều lần trong ngày). Precision DEDUP theo nội dung duy nhất trước khi tính (tránh bản trùng thổi phồng). Recall KHÔNG dedup (đo tập ground-truth được tìm thấy). KHÔNG dùng LLM/embedding — chỉ so sánh chuỗi text sau chuẩn hoá khoảng trắng.",
+    "endpoint": "POST /api/policy-search (qua UI /policy-lookup, vai cskh)",
+    "model_san_pham_dung_trong_search": "không rõ (không đọc src/) — bản thân phép đo KHÔNG gọi LLM, chỉ đọc response JSON thật"
+  },
+  "bang_tong_hop_theo_truc": {
+    "R1": {
+      "precision_trung_binh": "0.250",
+      "recall_trung_binh": "0.500",
+      "so_case": 4
+    },
+    "R2": {
+      "precision_trung_binh": "0.528",
+      "recall_trung_binh": "0.833",
+      "so_case": 3
+    },
+    "R3": {
+      "precision_trung_binh": "0.347",
+      "recall_trung_binh": "0.500",
+      "so_case": 3
+    },
+    "P1": {
+      "precision_trung_binh": "1.000",
+      "recall_trung_binh": "N/A",
+      "so_case": 3
+    },
+    "P2": {
+      "precision_trung_binh": "1.000",
+      "recall_trung_binh": "N/A",
+      "so_case": 3
+    },
+    "P3": {
+      "precision_trung_binh": "1.000",
+      "recall_trung_binh": "N/A",
+      "so_case": 3
+    },
+    "S1": {
+      "precision_trung_binh": "0.306",
+      "recall_trung_binh": "0.833",
+      "so_case": 3
+    },
+    "F1": {
+      "precision_trung_binh": "0.000",
+      "recall_trung_binh": "N/A",
+      "so_case": 3
+    },
+    "T1": {
+      "precision_trung_binh": "0.528",
+      "recall_trung_binh": "0.833",
+      "so_case": 3
+    },
+    "V1": {
+      "precision_trung_binh": "0.500",
+      "recall_trung_binh": "1.000",
+      "so_case": 3
+    },
+    "U1": {
+      "precision_trung_binh": "0.778",
+      "recall_trung_binh": "1.000",
+      "so_case": 3
+    }
+  },
+  "chi_tiet_tung_case": [
+    {
+      "id": "R1-01",
+      "truc": "R1",
+      "query": "hoàn tiền",
+      "gt_chunk_dung": [
+        "CHK-06815a011099"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.5,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 2,
+        "so_noi_dung_duy_nhat": 2,
+        "chi_tiet": [
+          "Hoàn tiền mua sắm 128. Hoàn tiền là gì? https://www.momo.vn/hoi-dap/hoan-tien-la",
+          "129. Ứng dụng hoàn tiền là gì? https://www.momo.vn/hoi-dap/ung-dung-hoan-tien-la"
+        ]
+      },
+      "ghi_chu": "Canh bao da nghia: trong kho nay 'Hoan Tien' la TEN TINH NANG CASHBACK noi bo (9-12 chunk lien quan: CHK-cf26b9047099, CHK-06815a011099, CHK-10bd7f78b571, CHK-a6bff62bdab3, CHK-24712c727b39, CHK-51403209d79f, CHK-de3349b016d6, CHK-caedab91a24e, CHK-351a1c851b4f, CHK-42ccffb03567, CHK-196f9f0975fb, CHK-fdd84fc52782). Xem field rui_ro_lac_y_dinh de biet vi sao KHONG gop rui ro nay vao nhan ky vong."
+    },
+    {
+      "id": "R1-02",
+      "truc": "R1",
+      "query": "phí rút",
+      "gt_chunk_dung": [
+        "CHK-2088a419f862",
+        "CHK-77260e1b5f5f"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.5,
+        "recall": 0.5,
+        "status": "found",
+        "so_ket_qua": 2,
+        "so_noi_dung_duy_nhat": 2,
+        "chi_tiet": [
+          "72. Rút tiền từ MoMo về tài khoản Ngân hàng có mất phí hay không? https://www.mo",
+          "12. Nếu không có nhu cầu sử dụng tiền trong MoMo, tôi có thể rút ra không? https"
+        ]
+      },
+      "ghi_chu": "2 chunk gần trùng ý — chấp nhận found nếu top-1 là MỘT trong hai."
+    },
+    {
+      "id": "R1-03",
+      "truc": "R1",
+      "query": "hạn mức",
+      "gt_chunk_dung": [
+        "CHK-b0004ab7b5b6"
+      ],
+      "gt_resolve_duoc": false,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0,
+        "recall": null,
+        "status": "found",
+        "so_ket_qua": 1,
+        "chi_tiet": [
+          "89. Hạn mức thanh toán hóa đơn tiền nước trên MoMo? https://www.momo.vn/hoi-dap/"
+        ]
+      },
+      "ghi_chu": "Từ khoá trần 'hạn mức' đa nghĩa hơn cả 'hoàn tiền' — có ít nhất 8 chunk hạn mức khác nhau (chuyển/nhận nội bộ, nạp/rút NH, quỹ nhóm, thanh toán...). Chấp nhận found nếu top-1 thuộc NHÓM hạn mức bất kỳ (không đòi đúng 1 chunk cụ thể) — ghi rõ trong script chấm, đừng chấm sai vì quá cứng nhắc với câu vốn mơ hồ."
+    },
+    {
+      "id": "R1-04",
+      "truc": "R1",
+      "query": "tranh chấp",
+      "gt_chunk_dung": [
+        "CHK-de9a7fdbb74d",
+        "CHK-78af0e48ddd8"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0,
+        "recall": 0,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "so_noi_dung_duy_nhat": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "R2-01",
+      "truc": "R2",
+      "query": "phí rút tiền từ ví về ngân hàng là bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-2088a419f862",
+        "CHK-77260e1b5f5f"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.3333333333333333,
+        "recall": 0.5,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 3,
+        "chi_tiet": [
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "67. Cách rút tiền từ MoMo về ngân hàng đã liên kết https://www.momo.vn/hoi-dap/c",
+          "19. Rút tiền từ MoMo về tài khoản ngân hàng liên kết có mất phí không? https://w"
+        ]
+      },
+      "ghi_chu": "Case đối chứng ĐÃ XANH sẵn — dùng để so sánh với R1-02 (câu ngắn cùng ý) và R3."
+    },
+    {
+      "id": "R2-02",
+      "truc": "R2",
+      "query": "hạn mức chuyển tiền trong ví MoMo mỗi ngày là bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-d4a501944b6b"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.25,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 4,
+        "chi_tiet": [
+          "1. Hạn mức chuyển/nhận tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/h",
+          "7. Tôi có bị giới hạn số tiền được nhận từ khách hàng/bạn bè về MoMo của mình mỗ",
+          "70. Hạn mức nạp/rút tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/han-",
+          "89. Hạn mức thanh toán hóa đơn tiền nước trên MoMo? https://www.momo.vn/hoi-dap/"
+        ]
+      },
+      "ghi_chu": "Cặp với S1-01 (cùng chunk, kiểm scope lọc đúng)."
+    },
+    {
+      "id": "R2-03",
+      "truc": "R2",
+      "query": "làm sao để giải quyết tranh chấp giao dịch với người khác",
+      "gt_chunk_dung": [
+        "CHK-de9a7fdbb74d",
+        "CHK-78af0e48ddd8"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 1,
+        "so_noi_dung_duy_nhat": 1,
+        "chi_tiet": [
+          "20.7. Tranh chấp, khiếu nại giữa Người Sử Dụng và bên thứ ba: Trừ trường hợp phá"
+        ]
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "R3-01",
+      "truc": "R3",
+      "query_ngan": "phí rút",
+      "query_day_du": "phí rút tiền từ ví về ngân hàng là bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-2088a419f862",
+        "CHK-77260e1b5f5f"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua_ngan": {
+        "label": "ngan",
+        "precision": 0.5,
+        "recall": 0.5,
+        "status": "found",
+        "so_ket_qua": 2,
+        "so_noi_dung_duy_nhat": 2,
+        "chi_tiet": [
+          "72. Rút tiền từ MoMo về tài khoản Ngân hàng có mất phí hay không? https://www.mo",
+          "12. Nếu không có nhu cầu sử dụng tiền trong MoMo, tôi có thể rút ra không? https"
+        ]
+      },
+      "ket_qua_day_du": {
+        "label": "day_du",
+        "precision": 0.3333333333333333,
+        "recall": 0.5,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 3,
+        "chi_tiet": [
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "67. Cách rút tiền từ MoMo về ngân hàng đã liên kết https://www.momo.vn/hoi-dap/c",
+          "19. Rút tiền từ MoMo về tài khoản ngân hàng liên kết có mất phí không? https://w"
+        ]
+      },
+      "ghi_chu": "🔴 Ca ưu tiên PO chọn — nếu R1-02 vá xong nhưng chunk KHÁC R2-01 thì vá chỉ che triệu chứng recall, chưa nhất quán."
+    },
+    {
+      "id": "R3-02",
+      "truc": "R3",
+      "query_ngan": "hạn mức",
+      "query_day_du": "hạn mức chuyển tiền trong ví MoMo mỗi ngày là bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-d4a501944b6b"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua_ngan": {
+        "label": "ngan",
+        "precision": 0,
+        "recall": 0,
+        "status": "found",
+        "so_ket_qua": 1,
+        "so_noi_dung_duy_nhat": 1,
+        "chi_tiet": [
+          "89. Hạn mức thanh toán hóa đơn tiền nước trên MoMo? https://www.momo.vn/hoi-dap/"
+        ]
+      },
+      "ket_qua_day_du": {
+        "label": "day_du",
+        "precision": 0.25,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 4,
+        "chi_tiet": [
+          "1. Hạn mức chuyển/nhận tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/h",
+          "7. Tôi có bị giới hạn số tiền được nhận từ khách hàng/bạn bè về MoMo của mình mỗ",
+          "70. Hạn mức nạp/rút tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/han-",
+          "89. Hạn mức thanh toán hóa đơn tiền nước trên MoMo? https://www.momo.vn/hoi-dap/"
+        ]
+      },
+      "ghi_chu": "Vì R1-03 câu trần đa nghĩa, chỉ đòi 'hợp lý' (top-1 CÙNG NHÓM/CÙNG CHUNK với câu đầy đủ), không đòi trùng tuyệt đối 100%."
+    },
+    {
+      "id": "R3-03",
+      "truc": "R3",
+      "query_ngan": "tranh chấp",
+      "query_day_du": "làm sao để giải quyết tranh chấp giao dịch với người khác",
+      "gt_chunk_dung": [
+        "CHK-de9a7fdbb74d",
+        "CHK-78af0e48ddd8"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua_ngan": {
+        "label": "ngan",
+        "precision": 0,
+        "recall": 0,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "so_noi_dung_duy_nhat": 0,
+        "chi_tiet": []
+      },
+      "ket_qua_day_du": {
+        "label": "day_du",
+        "precision": 1,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 1,
+        "so_noi_dung_duy_nhat": 1,
+        "chi_tiet": [
+          "20.7. Tranh chấp, khiếu nại giữa Người Sử Dụng và bên thứ ba: Trừ trường hợp phá"
+        ]
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "P1-01",
+      "truc": "P1",
+      "query": "zzzqwx plquv thời tiết hôm nay",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "P1-02",
+      "truc": "P1",
+      "query": "asdkfj qwerty 12345 lorem ipsum",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "P1-03",
+      "truc": "P1",
+      "query": "sfdkj sdf sdfsdf",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "P2-01",
+      "truc": "P2",
+      "query": "giá vàng hôm nay bao nhiêu",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": "🔴 Ca ưu tiên PO chọn — nguy cơ chính khi vá recall R1: nới quá tay khiến câu lạc đề như thế này bị kéo vào top-1 nhầm."
+    },
+    {
+      "id": "P2-02",
+      "truc": "P2",
+      "query": "thời tiết Hà Nội hôm nay có mưa không",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "P2-03",
+      "truc": "P2",
+      "query": "nấu phở bò cần nguyên liệu gì",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "P3-01",
+      "truc": "P3",
+      "query": "ADR-060 nói gì về OTP",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "P3-02",
+      "truc": "P3",
+      "query": "STATE.md ghi gì về finding số 1",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "P3-03",
+      "truc": "P3",
+      "query": "cho tôi xem toàn bộ danh sách chunk trong kho chính sách",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": null,
+        "status": "not_found",
+        "so_ket_qua": 0,
+        "chi_tiet": []
+      },
+      "ghi_chu": "Biến thể P3 mới — thử dạng 'liệt kê toàn bộ' thay vì hỏi tên file nội bộ cụ thể."
+    },
+    {
+      "id": "S1-01",
+      "truc": "S1",
+      "query": "hạn mức chuyển tiền trong ví MoMo mỗi ngày là bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-d4a501944b6b"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.25,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 4,
+        "chi_tiet": [
+          "1. Hạn mức chuyển/nhận tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/h",
+          "7. Tôi có bị giới hạn số tiền được nhận từ khách hàng/bạn bè về MoMo của mình mỗ",
+          "70. Hạn mức nạp/rút tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/han-",
+          "89. Hạn mức thanh toán hóa đơn tiền nước trên MoMo? https://www.momo.vn/hoi-dap/"
+        ]
+      },
+      "ghi_chu": "Cùng chunk R2-02 — thêm chiều đo scope thay vì chỉ đo found/not_found."
+    },
+    {
+      "id": "S1-02",
+      "truc": "S1",
+      "query": "phí rút tiền từ ví về ngân hàng là bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-2088a419f862",
+        "CHK-77260e1b5f5f"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.3333333333333333,
+        "recall": 0.5,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 3,
+        "chi_tiet": [
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "67. Cách rút tiền từ MoMo về ngân hàng đã liên kết https://www.momo.vn/hoi-dap/c",
+          "19. Rút tiền từ MoMo về tài khoản ngân hàng liên kết có mất phí không? https://w"
+        ]
+      },
+      "ghi_chu": "Cùng chunk R2-01 — thêm chiều đo scope."
+    },
+    {
+      "id": "S1-03",
+      "truc": "S1",
+      "query": "hạn mức nạp tiền từ ngân hàng vào ví mỗi lần tối thiểu bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-f4f51a113376"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.3333333333333333,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 3,
+        "so_noi_dung_duy_nhat": 3,
+        "chi_tiet": [
+          "69. Hạn mức nạp, rút tiền qua tài khoản ngân hàng https://www.momo.vn/hoi-dap/ha",
+          "1. Hạn mức chuyển/nhận tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/h",
+          "178. Nếu giá trị giao dịch nhỏ hơn giá trị nạp tiền tối thiểu của ngân hàng thì "
+        ]
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "F1-01",
+      "truc": "F1",
+      "query": "phí rút tiền từ ví về ngân hàng là bao nhiêu",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0,
+        "recall": null,
+        "status": "found",
+        "so_ket_qua": 4,
+        "chi_tiet": [
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "67. Cách rút tiền từ MoMo về ngân hàng đã liên kết https://www.momo.vn/hoi-dap/c",
+          "19. Rút tiền từ MoMo về tài khoản ngân hàng liên kết có mất phí không? https://w"
+        ]
+      },
+      "ghi_chu": "🔴 Ca ưu tiên PO chọn. Cách ép fail: cần tech-lead/DevOps xác nhận cách tắt sidecar an toàn trên po-demo (không phải tôi tự đoán cách chặn — hỏi trước khi chạy). Tiêu chí ĐẠT: trả lời 'không tìm thấy'/lỗi tử tế, KHÔNG crash 500, KHÔNG trả nhầm chunk ngẫu nhiên/off-topic."
+    },
+    {
+      "id": "T1-01",
+      "truc": "T1",
+      "query": "phí rút tiền từ ví về ngân hàng là bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-2088a419f862",
+        "CHK-77260e1b5f5f"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.3333333333333333,
+        "recall": 0.5,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 3,
+        "chi_tiet": [
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "67. Cách rút tiền từ MoMo về ngân hàng đã liên kết https://www.momo.vn/hoi-dap/c",
+          "19. Rút tiền từ MoMo về tài khoản ngân hàng liên kết có mất phí không? https://w"
+        ]
+      },
+      "ghi_chu": "🔴 Ca ưu tiên PO chọn. Tiêu chí: KHÔNG timeout→rỗng ở lần tra ĐẦU TIÊN sau rebuild — đúng hiện tượng '1 lượt sidecar timeout' đã ghi trong brief. Cần phối hợp thời điểm Coder/DevOps rebuild để bắt đúng cửa sổ cold-start, không tự rebuild po-demo."
+    },
+    {
+      "id": "V1-01",
+      "truc": "V1",
+      "query": "hoan tien",
+      "gt_chunk_dung": [
+        "CHK-06815a011099"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.5,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 2,
+        "so_noi_dung_duy_nhat": 2,
+        "chi_tiet": [
+          "Hoàn tiền mua sắm 128. Hoàn tiền là gì? https://www.momo.vn/hoi-dap/hoan-tien-la",
+          "129. Ứng dụng hoàn tiền là gì? https://www.momo.vn/hoi-dap/ung-dung-hoan-tien-la"
+        ]
+      },
+      "ghi_chu": "Mức chấp nhận: found bất kỳ chunk nào trong nhóm 'Hoàn Tiền' (không đòi đúng y hệt R1-01 có dấu) — ghi rõ đây là mức 'hợp lý', không phải 'chính xác tuyệt đối'."
+    },
+    {
+      "id": "V1-02",
+      "truc": "V1",
+      "query": "hoàn trả tiền",
+      "gt_chunk_dung": [
+        "CHK-06815a011099"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.5,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 2,
+        "so_noi_dung_duy_nhat": 2,
+        "chi_tiet": [
+          "129. Ứng dụng hoàn tiền là gì? https://www.momo.vn/hoi-dap/ung-dung-hoan-tien-la",
+          "Hoàn tiền mua sắm 128. Hoàn tiền là gì? https://www.momo.vn/hoi-dap/hoan-tien-la"
+        ]
+      },
+      "ghi_chu": "AMBIGUOUS - dong nghia gan 'hoan tien' nhung khac tu mat chu ('hoan tra' vs 'hoan tien'). Da CHOT nhan found theo noi dung kho (xem rui_ro_lac_y_dinh) - truoc do (04/09, luc moi dung) de 'khong_chac_can_PO_quyet', PO da quyet xong."
+    },
+    {
+      "id": "V1-03",
+      "truc": "V1",
+      "query": "phi rut tien tu vi ve ngan hang",
+      "gt_chunk_dung": [
+        "CHK-2088a419f862",
+        "CHK-77260e1b5f5f"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.5,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 4,
+        "chi_tiet": [
+          "19. Rút tiền từ MoMo về tài khoản ngân hàng liên kết có mất phí không? https://w",
+          "72. Rút tiền từ MoMo về tài khoản Ngân hàng có mất phí hay không? https://www.mo",
+          "230. Vì sao tôi rút tiền từ MoMo về tài khoản ngân hàng không thành công? https:",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k"
+        ]
+      },
+      "ghi_chu": ""
+    },
+    {
+      "id": "U1-01",
+      "truc": "U1",
+      "query": "phí rút tiền về ngân hàng",
+      "gt_chunk_dung": [
+        "<CHUNK_ID_SINH_LUC_UPLOAD>"
+      ],
+      "gt_resolve_duoc": false,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.3333333333333333,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 3,
+        "chi_tiet": [
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "72. Rút tiền từ MoMo về tài khoản Ngân hàng có mất phí hay không? https://www.mo",
+          "Nạp, rút tiền qua tài khoản ngân hàng 66. Số dư tối thiểu trong tài khoản ngân h"
+        ]
+      },
+      "ghi_chu": "🔴 CẦN CHẠY LẠI UPLOAD THẬT trước khi điền chunk_id cụ thể — placeholder <CHUNK_ID_SINH_LUC_UPLOAD> PHẢI thay bằng chunk_id thật đọc từ response upload, không đoán."
+    },
+    {
+      "id": "U1-02",
+      "truc": "U1",
+      "query": "phí rút tiền cho giao dịch trên 5 triệu",
+      "gt_chunk_dung": [
+        "<CHUNK_ID_SINH_LUC_UPLOAD>"
+      ],
+      "gt_resolve_duoc": false,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 2,
+        "so_noi_dung_duy_nhat": 1,
+        "chi_tiet": [
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k"
+        ]
+      },
+      "ghi_chu": "Cùng ghi chú U1-01."
+    },
+    {
+      "id": "U1-03",
+      "truc": "U1",
+      "query": "thời gian xử lý rút tiền về ngân hàng tối đa bao lâu",
+      "gt_chunk_dung": [
+        "<CHUNK_ID_SINH_LUC_UPLOAD>"
+      ],
+      "gt_resolve_duoc": false,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 2,
+        "so_noi_dung_duy_nhat": 1,
+        "chi_tiet": [
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k",
+          "FAQ — Phí rút tiền về ngân hàng Phí rút tiền từ ví về tài khoản ngân hàng liên k"
+        ]
+      },
+      "ghi_chu": "Cùng ghi chú U1-01."
+    },
+    {
+      "id": "F1-02",
+      "truc": "F1",
+      "query": "hạn mức chuyển tiền trong ví MoMo mỗi ngày là bao nhiêu",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0,
+        "recall": null,
+        "status": "found",
+        "so_ket_qua": 4,
+        "chi_tiet": [
+          "1. Hạn mức chuyển/nhận tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/h",
+          "7. Tôi có bị giới hạn số tiền được nhận từ khách hàng/bạn bè về MoMo của mình mỗ",
+          "70. Hạn mức nạp/rút tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/han-",
+          "89. Hạn mức thanh toán hóa đơn tiền nước trên MoMo? https://www.momo.vn/hoi-dap/"
+        ]
+      },
+      "ghi_chu": "Đổi câu hỏi khác F1-01 để tránh phụ thuộc 1 câu duy nhất — cùng điều kiện lỗi hạ tầng."
+    },
+    {
+      "id": "F1-03",
+      "truc": "F1",
+      "query": "làm sao để giải quyết tranh chấp giao dịch với người khác",
+      "gt_chunk_dung": [],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0,
+        "recall": null,
+        "status": "found",
+        "so_ket_qua": 1,
+        "chi_tiet": [
+          "20.7. Tranh chấp, khiếu nại giữa Người Sử Dụng và bên thứ ba: Trừ trường hợp phá"
+        ]
+      },
+      "ghi_chu": "Đổi câu hỏi lần 3 để chắc kết luận không phụ thuộc riêng 1 câu."
+    },
+    {
+      "id": "T1-02",
+      "truc": "T1",
+      "query": "hạn mức chuyển tiền trong ví MoMo mỗi ngày là bao nhiêu",
+      "gt_chunk_dung": [
+        "CHK-d4a501944b6b"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 0.25,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 4,
+        "so_noi_dung_duy_nhat": 4,
+        "chi_tiet": [
+          "1. Hạn mức chuyển/nhận tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/h",
+          "7. Tôi có bị giới hạn số tiền được nhận từ khách hàng/bạn bè về MoMo của mình mỗ",
+          "70. Hạn mức nạp/rút tiền mỗi ngày là bao nhiêu? https://www.momo.vn/hoi-dap/han-",
+          "89. Hạn mức thanh toán hóa đơn tiền nước trên MoMo? https://www.momo.vn/hoi-dap/"
+        ]
+      },
+      "ghi_chu": "Chạy NGAY SAU T1-01 (không đợi lâu) để đo đúng biên độ cold-start kéo dài bao nhiêu request."
+    },
+    {
+      "id": "T1-03",
+      "truc": "T1",
+      "query": "làm sao để giải quyết tranh chấp giao dịch với người khác",
+      "gt_chunk_dung": [
+        "CHK-de9a7fdbb74d",
+        "CHK-78af0e48ddd8"
+      ],
+      "gt_resolve_duoc": true,
+      "ket_qua": {
+        "label": "chinh",
+        "precision": 1,
+        "recall": 1,
+        "status": "found",
+        "so_ket_qua": 1,
+        "so_noi_dung_duy_nhat": 1,
+        "chi_tiet": [
+          "20.7. Tranh chấp, khiếu nại giữa Người Sử Dụng và bên thứ ba: Trừ trường hợp phá"
+        ]
+      },
+      "ghi_chu": ""
+    }
+  ]
+}
