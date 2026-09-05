@@ -43,6 +43,20 @@ _CA_PHAI_CHAN = [
      "Đã tạo hồ sơ khiếu nại cho bạn. Mình đang xử lý tiếp các bước sau nhé."),
     ("mem_tu_ngay_mai_khong_phai_ma_that_van_mac_dinh_true",
      "Mình đã ghi nhận khiếu nại của bạn, ngày mai sẽ có người liên hệ."),
+    # RB3 lần 3 (05/09, QA tái lập 2/2 lần thật, bước TRA CỨU, xem
+    # tests/test_agents/test_rb3_gate_cau_truc.py) — matcher ĐÚNG khi đánh
+    # giá RIÊNG câu này (đây LÀ một khai-đã-tạo/mã lẫn lộn thật: "Mã giao
+    # dịch" của GIAO DỊCH + "đã ghi nhận" nói về TIỀN, không phải hồ sơ).
+    # Cái SAI không nằm ở matcher — nằm ở việc RB3 gọi matcher cho một lượt
+    # CHỈ lookup, không hề đề xuất tạo vé. Vá ở CỔNG (graph.py), KHÔNG vá
+    # matcher — giữ case này ở `_CA_PHAI_CHAN` để khoá lại hiểu đúng đó,
+    # tránh ai sau này "sửa" matcher theo hướng làm mất lớp bảo vệ cấu trúc.
+    ("mem_de_nghi_hoi_y_lookup_step_rb3_lan_3",
+     "Mình đã tra được đúng giao dịch bạn nói, bạn đối chiếu giúp mình nhé:\n\n"
+     "- **Mã giao dịch:** TXN20260728000108\n"
+     "- **Trạng thái phía hệ thống:** thành công — tiền đã ghi nhận chuyển vào ví người nhận\n\n"
+     "Bạn cho mình xác nhận: mình tạo hồ sơ khiếu nại \"tiền chưa về\" cho giao dịch này "
+     "để chuyển chuyên viên CSKH xử lý, được không ạ?"),
 ]
 
 

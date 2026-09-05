@@ -632,6 +632,49 @@ def _trieu_chung_loi(loi: BaseException | None) -> dict[str, object]:
     }
 
 
+_TEN_TOOL_TAO_VE = ("create_ticket", "request_human_handoff")
+
+
+def _co_de_xuat_tao_ve(turn_messages: list) -> tuple[bool, bool]:
+    """RB3 false-positive LẦN BA (05/09, QA tái lập 2/2 lần) — khách hỏi
+    "chưa nhận được tiền", lượt CHỈ gọi `lookup_transaction`, model tóm tắt
+    kết quả rồi HỎI Ý khách trước khi tạo hồ sơ ("...được không ạ?") — CHƯA
+    hề đề xuất tạo vé lượt này. `khai_da_tao_ve()` vẫn trả `True` vì đúng
+    CHIỀU RỦI RO ĐÃ KHAI của nó (mã/"thành công" xét REPLY-GLOBAL, xem
+    docstring hàm đó): "Mã giao dịch" (mã GD, không phải mã vé) + "đã ghi
+    nhận" (nói TIỀN đã ghi nhận chuyển, không phải hồ sơ) rơi đúng 2 mảnh
+    ghép của nhánh MỀM, dù không mảnh nào nói về việc TẠO HỒ SƠ thật.
+
+    Hàm THUẦN, tách riêng để test KHÔNG cần gọi LLM (cùng khuôn
+    `write_investigation_logs_for_ticket`,
+    tests/test_agents/test_investigation_log.py — hàm nhận thẳng
+    `all_messages`, không tự chạy graph) — nhận `turn_messages` (message
+    LangChain thô của lượt hiện tại), trả 2 cờ:
+      - `co_goi_tool`: lượt này có gọi tool NÀO không (bất kỳ loại).
+      - `co_de_xuat_tao_ve`: trong số đó, có `create_ticket`/
+        `request_human_handoff` không — ĐỌC RAW `AIMessage.tool_calls`,
+        tính CẢ lời gọi MỒ CÔI (không có `ToolMessage` phản hồi). Review
+        05/09 tự đối chiếu lại ca gốc 25/08 (MT-Z01) xác nhận nó THỰC RA CÓ
+        `create_ticket` mồ côi trong tool_calls thô — chú thích cũ ở nhánh
+        `request_human_handoff` (phía trên trong `run_agent_turn`) từng
+        khai nhầm là "0 tool_call", đã đính chính tại chỗ. Đọc raw thay vì
+        `tool_calls_out` (đã lọc bỏ mồ côi) là ĐIỀU KIỆN AN TOÀN BẮT BUỘC —
+        đọc `tool_calls_out` sẽ khiến ca MT-Z01 không còn thoả điều kiện
+        "có ý định tạo vé", mở lại đúng lỗ ràng buộc cứng #3 mà RB3 sinh ra
+        để đóng.
+    """
+    co_goi_tool = False
+    co_de_xuat_tao_ve = False
+    for m in turn_messages:
+        if not (isinstance(m, AIMessage) and m.tool_calls):
+            continue
+        for call in m.tool_calls:
+            co_goi_tool = True
+            if call["name"] in _TEN_TOOL_TAO_VE:
+                co_de_xuat_tao_ve = True
+    return co_goi_tool, co_de_xuat_tao_ve
+
+
 def _reply_goc_cho_eval(reply_goc: str, nhom_khop: list[str]) -> dict:
     """Câu TRƯỚC KHI LỌC — chỉ khi bật cờ, chỉ khi thật sự có chặn.
 
@@ -2000,10 +2043,19 @@ def run_agent_turn(
             # tồn tại. Nhánh này KHÔNG nới điều kiện RB3
             # (`ticket_id is None and khai_da_tao_ve(...)` giữ nguyên) — chỉ
             # thêm một nguồn HỢP LỆ để ticket_id khác None khi tool thật đã
-            # thành công. Ca MT-Z01 (model bịa "đã tạo hồ sơ" KHÔNG có tool
-            # call nào phía sau) không đi qua nhánh này — vòng lặp không có
-            # AIMessage nào mang tool_calls, ticket_id vẫn None, RB3 vẫn
-            # kích đúng như thiết kế gốc.
+            # thành công.
+            #
+            # 🔴 ĐÍNH CHÍNH 05/09 (Review tự đối chiếu lại, dòng cũ SAI): ca
+            # MT-Z01 KHÔNG PHẢI "0 tool_call" — `AIMessage.tool_calls` THÔ
+            # lượt đó CÓ `create_ticket`, nhưng là lời gọi MỒ CÔI (không có
+            # `ToolMessage` phản hồi, xem `so_goi_mo_coi` ở vòng lặp phía
+            # trên) nên KHÔNG lọt vào `tool_calls_out`/nhánh này — đó là lý
+            # do đo lúc đó ra `so_tool_call=0` (đếm trên `tool_calls_out` đã
+            # lọc), không phải model hoàn toàn không gọi tool nào. `ticket_id`
+            # vẫn None đúng như cũ (payload không tồn tại thì không đọc được),
+            # nhưng RB3 giờ kích qua tín hiệu THÔ `co_de_xuat_tao_ve_luot_nay`
+            # (xem cổng RB3 phía dưới), không phải qua việc "không có
+            # AIMessage nào mang tool_calls" như dòng cũ khai nhầm.
             if call["name"] == "request_human_handoff" and "ticket_id" in payload:
                 ticket_id = payload["ticket_id"]
 
@@ -2225,7 +2277,36 @@ def run_agent_turn(
     # với `ticket_id` THẬT của chính lượt này. Đó là lý do nó không thừa hưởng
     # trần của cách khớp-từ mà `_khop_o5` đã tự khai sau ba vòng vá.
     # Đặt TRƯỚC mọi chỗ chèn (⑧/⑨) để câu thay thế không mang theo lời khai sai.
-    if ticket_id is None and khai_da_tao_ve(reply_da_loc):
+    #
+    # 🔴 LẦN BA (05/09) — QA tái lập 2/2 lần: khách hỏi "chưa nhận được tiền",
+    # lượt CHỈ gọi `lookup_transaction` (trạng thái "thành công" phía hệ
+    # thống), model tóm tắt kết quả rồi HỎI Ý khách trước khi tạo hồ sơ ("...
+    # được không ạ?") — CHƯA hề đề xuất tạo vé lượt này. `khai_da_tao_ve()`
+    # vẫn trả `True` vì đúng CHIỀU RỦI RO ĐÃ KHAI ở đó (mã/"thành công" xét
+    # REPLY-GLOBAL): "Mã giao dịch" (mã GD, không phải mã vé) + "đã ghi nhận"
+    # (nói về TIỀN đã ghi nhận chuyển, không phải hồ sơ) rơi đúng 2 mảnh ghép
+    # của nhánh MỀM, dù không mảnh nào nói về việc TẠO HỒ SƠ thật.
+    #
+    # Vá bằng CỔNG CẤU TRÚC (Review đề xuất, ưu tiên hơn vá thêm từ vựng lần
+    # 3 — sợ đẻ nhánh thứ 4): chỉ hỏi `khai_da_tao_ve()` khi LƯỢT NÀY thật sự
+    # có ý định tạo vé (`create_ticket`/`request_human_handoff` xuất hiện
+    # trong `AIMessage.tool_calls` THÔ — kể cả lời gọi MỒ CÔI, xem vòng lặp
+    # phía trên). Lượt CHỈ gọi tool khác (lookup/history/policy...) không thể
+    # nào đang "khai đã tạo vé" theo đúng nghĩa ràng buộc #3 nhắm tới — dù
+    # câu chữ tình cờ khớp từ vựng. Lượt KHÔNG gọi tool nào (`co_goi_tool_
+    # luot_nay=False`, hallucination thuần) VẪN bị bắt — không nới lỏng
+    # hướng đó, chỉ thu hẹp đúng hướng vừa lộ false-positive.
+    #
+    # ⚠️ ĐÁNH ĐỔI ĐÃ KHAI: về lý thuyết, một lượt gọi tool KHÁC (vd lookup)
+    # RỒI ĐỘC LẬP bịa thêm "tôi cũng đã tạo vé" trong cùng câu trả lời sẽ
+    # KHÔNG bị cổng này bắt nữa. Chấp nhận vì CẢ BA false-positive thật đêm
+    # nay đều đúng khuôn "gọi tool khác, không đề xuất tạo vé" — CHƯA ai đo
+    # được ca hallucination-kèm-tool-khác nào — và MT-Z01 (ca gốc sinh ra
+    # RB3) qua đối chiếu lại của Review VẪN có `create_ticket` mồ côi trong
+    # tool_calls thô, nên vẫn bị bắt đúng bởi cổng mới.
+    _co_goi_tool_luot_nay, _co_de_xuat_tao_ve_luot_nay = _co_de_xuat_tao_ve(turn_messages)
+    _chi_tool_khong_lien_quan_tao_ve = _co_goi_tool_luot_nay and not _co_de_xuat_tao_ve_luot_nay
+    if ticket_id is None and not _chi_tool_khong_lien_quan_tao_ve and khai_da_tao_ve(reply_da_loc):
         _logger.error(
             "agent_khai_tao_ve_khong_co_ve",
             extra={"user_id": user_id, "thread_id": thread_id or user_id,
