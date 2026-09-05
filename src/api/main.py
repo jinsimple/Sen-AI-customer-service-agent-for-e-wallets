@@ -83,6 +83,7 @@ from src.config import (
     DB_KIND,
     DB_NAME,
     DIALABLE,
+    ENABLE_API_DOCS,
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
     OTP_DEMO_MODE,
@@ -164,7 +165,7 @@ limiter = Limiter(
     in_memory_fallback_enabled=True,
 )
 
-# TẮT tài liệu tự sinh khi APP_ENV=production.
+# TẮT tài liệu tự sinh MẶC ĐỊNH — bật tường minh bằng ENABLE_API_DOCS.
 #
 # security đo trong container: `/openapi.json` trả HTTP 200, 28.470 byte,
 # **31 path** — kèm lược đồ tham số và mô hình xác thực của toàn bộ API.
@@ -173,19 +174,24 @@ limiter = Limiter(
 # đây là tiềm ẩn, không phải sự cố — nhưng nó **đắt nhất khi rò và rẻ nhất khi
 # tắt**, và bề mặt nó phơi ra không phải một endpoint mà là tấm bản đồ đầy đủ.
 #
-# Gate theo môi trường chứ không tắt hẳn: dev cần `/docs` để làm việc, và một
-# biện pháp làm dev khó chịu là biện pháp sẽ bị ai đó gỡ.
+# 🔴 ĐÍNH CHÍNH 05/09 — TRƯỚC gate theo `APP_ENV != production`, y hệt thiết
+# kế "dev cần /docs, gate theo môi trường chứ không tắt hẳn" đã khai gốc.
+# ĐỔI vì lộ THẬT: production judge-xem (VPS `home`) cần `APP_ENV != production`
+# CHỈ để bật `OTP_DEMO_MODE` (hiện mã OTP demo cho giám khảo, xem
+# `config.py::OTP_DEMO_MODE`) — cờ cũ đọc CHUNG biến đó nên bật OTP demo vô
+# tình mở LUÔN `/docs` ra production thật. Hai quyết định không liên quan bị
+# trói vào 1 biến. Tách cờ RIÊNG (`ENABLE_API_DOCS`, mặc định FALSE) — dev
+# cục bộ tự bật tường minh khi cần, không còn suy luận ngầm từ APP_ENV.
 #
 # `INV-00` đã bỏ qua ba tiền tố này (tests/test_invariants.py) nên việc chúng
-# xuất hiện/biến mất theo môi trường KHÔNG làm cổng contract đỏ — đã kiểm
-# trước khi sửa, vì một bản vá bảo mật làm đỏ cổng khác sẽ bị revert vội.
-_LA_PROD = APP_ENV == "production"
+# xuất hiện/biến mất theo cờ này KHÔNG làm cổng contract đỏ — đã kiểm trước
+# khi sửa, vì một bản vá bảo mật làm đỏ cổng khác sẽ bị revert vội.
 app = FastAPI(
     title="FIN-05 AI Agent CSKH — Backend",
     version="0.1.0",
-    docs_url=None if _LA_PROD else "/docs",
-    redoc_url=None if _LA_PROD else "/redoc",
-    openapi_url=None if _LA_PROD else "/openapi.json",
+    docs_url="/docs" if ENABLE_API_DOCS else None,
+    redoc_url="/redoc" if ENABLE_API_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_API_DOCS else None,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
