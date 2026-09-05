@@ -6,7 +6,7 @@
 > dữ liệu thật, và các ràng buộc đó được ép ở tầng database + 23 test bất biến.
 
 **Đội:** T226 (AI 20K Build Phase, Cohort 3 — Vingroup × VinUni) · **PO & Thực hiện:** Đào Ngọc Bích
-· **Mentor:** Đặng Hải Lộc · **Đối tác nghiệp vụ:** ZaloPay
+· **Mentor:** Đặng Hải Lộc · **Đối tác nghiệp vụ:** ZaloPay và VNPT Money
 
 **Live:** https://app.adaptivealgo.uk *(home-server + Cloudflare Tunnel — xem
 [hướng dẫn triển khai](docs/giao-viec/2026-08-15-chay-that-tai-nha-windows-tunnel.md))*
@@ -15,7 +15,7 @@
 
 ## Kiến trúc 30 giây
 
-LLM **bể 4 model tự xoay** (`qwen3.7-plus` · 3 bản `deepseek`, qua DashScope — ADR-043) điều phối bằng **LangGraph** (ReAct, 5 tool tra cứu DB thật) · RAG chính sách
+LLM **bể 4 model tự xoay** (`qwen3.8-plus` · 3 bản `deepseek`, qua DashScope — ADR-043) điều phối bằng **LangGraph** (ReAct, 5 tool tra cứu DB thật) · RAG chính sách
 trên **ChromaDB** (trích nguyên văn kèm nguồn, không tổng hợp AI) · **mọi lớp an toàn là luật tất
 định ngoài model**: che PII trước khi lên LLM (Presidio + spaCy NER), chặn bịa số (origin-rule —
 số phải truy về tool result), chống prompt-injection (spotlighting + phân tier), maker-checker ép
@@ -30,11 +30,13 @@ bằng CHECK constraint. Chi tiết: [ARCHITECTURE.md](ARCHITECTURE.md).
   dịch không tồn tại → agent nói thẳng *"không tìm thấy"*, không bịa.
 - **Tự chuyển người thật**: `request_human_handoff` mở live-chat + tạo/ưu tiên ticket.
 
-**Tra cứu chính sách (RAG)** — ADR-061/062
+**Tra cứu chính sách (RAG)** — ADR-061/062/065
 - Trích **nguyên văn kèm nguồn**, không tổng hợp AI; lọc đúng phạm vi + rerank cross-encoder
   (sidecar, **fail-closed** → `not_found` nếu sidecar chết).
 - Tra được **cả từ khoá ngắn** ("phí rút tiền", "hoàn tiền") lẫn câu đầy đủ; câu rác/lạc đề
   ("zzzqwx", "thời tiết") → *"Chưa tìm thấy"* (precision giữ).
+- **Xem toàn văn ↗** (ADR-065): bấm kết quả → mở tab mới đọc toàn bộ tài liệu, **tự cuộn + tô sáng
+  đúng đoạn khớp** câu tra cứu.
 
 **Hàng chờ CSKH & phân quyền theo dòng** — ADR-063/064
 - **Chuông thông báo vé mới** — fan-out theo CSKH đang online, kèm loại khiếu nại · phạm vi · độ
@@ -128,7 +130,7 @@ cho tôi gặp người thật
 ```bash
 pytest tests/test_invariants.py -v        # 5 ràng buộc cứng, 23 test — introspect app THẬT
 python scripts/check_contracts.py         # phát hiện artifact lệch contracts/
-pytest tests/ -m "not security_finding"   # toàn bộ backend (**107 file · 582 hàm test**, đo 05/09)
+pytest tests/ -m "not security_finding"   # toàn bộ backend (**110 file · 598 hàm test**, đo 05/09)
 python eval/run_golden_set.py             # 120 case nghiệp vụ (gọi OpenAI thật)
 python eval/run_adversarial_set.py        # 45+ case tấn công
 ```
@@ -151,13 +153,13 @@ CI đã chuyển sang self-hosted và 8 job chạy thật.)*
 ## Cấu trúc & tài liệu
 
 ```
-contracts/        ← NGUỒN SỰ THẬT: 41 route × role · state machine HITL · 5 tool AI
+contracts/        ← NGUỒN SỰ THẬT: 42 route × role · state machine HITL · 5 tool AI
 src/agents/       ← LangGraph agent + 5 tool + guardrails (spotlighting, O1-O4, origin-rule)
 src/api/          ← FastAPI (BFF-first, rate-limit, OTP step-up)
 frontend/         ← Next.js (BFF pattern — browser không bao giờ cầm JWT backend)
-tests/            ← 107 file test + tests/test_invariants.py (đỏ = build hỏng)
+tests/            ← 110 file test + tests/test_invariants.py (đỏ = build hỏng)
 eval/             ← golden/adversarial/heldout set + bằng chứng chạy thật
-docs/DECISIONS.md ← 64 ADR — mọi quyết định kèm lý do và lý-do-bác-phương-án-khác
+docs/DECISIONS.md ← 65 ADR — mọi quyết định kèm lý do và lý-do-bác-phương-án-khác
 docs/STATE.md     ← trạng thái sống của dự án, cập nhật mỗi phiên làm việc
 ```
 
