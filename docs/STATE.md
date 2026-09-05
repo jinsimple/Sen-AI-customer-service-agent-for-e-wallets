@@ -3,7 +3,7 @@
 > **Viết cho người đọc NGUỘI** — bạn không có gì trong đầu, chỉ có repo này.
 > Đọc `CLAUDE.md` (hiến pháp) trước, rồi file này, rồi 5 ADR gần nhất trong `docs/DECISIONS.md`.
 >
-> 🔴 **Cập nhật MỚI NHẤT: 04/09/2026 ~17:00 — đọc `§0-HIỆN-HÀNH` ngay dưới, TRƯỚC mọi mục khác.**
+> 🔴 **Cập nhật MỚI NHẤT: 05/09/2026 — đọc `§0-NOW` ngay dưới, TRƯỚC mọi mục khác.** (`§0-HIỆN-HÀNH` 04/09 giữ làm lịch sử.)
 > Đó là ẢNH CHỤP hiện hành. `§0-QUINQUIES`/`§0-SEXIES` (04/09) là nhật ký sự kiện chi tiết cùng ngày
 > (địa chỉ commit/ADR/file để truy vết). `§0-QUATER` trở xuống (01/09 ~23:00, `§0-TER` 16:30, và cũ
 > hơn) là bàn giao các phiên TRƯỚC — đọc SAU, làm nền lịch sử.
@@ -18,6 +18,34 @@
 > `docs/nhat-ky/2026-08-17-nhat-ky-day-du.md`
 
 ---
+
+## 0-NOW. 🟢 05/09/2026 — SẴN SÀNG QUAY LẠI (2 blocker + tính năng toàn-văn ADR-065 đã verify sống)
+
+> ẢNH CHỤP hiện hành — thay thế mốc 04/09 "SẴN SÀNG QUAY" ngay dưới (giữ làm lịch sử).
+>
+> **Đã vá + verify SỐNG trên UI (05/09, nền tin được):**
+> - **Recall câu ngắn /policy-search** (`00ed4bb`): ngưỡng riêng `RAG_RERANK_THRESHOLD_CSKH=-2.5` CHỈ cho
+>   ô người-đọc, đường agent giữ 3.0. "phí rút tiền"/"hoàn tiền" → RA kết quả; "zzzqwx"/"thời tiết" →
+>   not_found. ⚠️ biên ~0.8 điểm mỏng — bộ 34-case (`eval/rag_policy_set.jsonl`) canh về sau.
+> - **RB3-lần-3** (`c4fbc85`): vá CẤU TRÚC — guardrail `khai_da_tao_ve` CHỈ đánh giá khi lượt thật sự có ý
+>   định tạo vé (đọc RAW tool_calls kể cả mồ côi), hết false-positive ở bước tra cứu B3. Review soát, ca gốc
+>   25/08 vẫn bị bắt. 236 test pass.
+> - **Cold-start sidecar rerank** (`519d3e2`): tải model lúc khởi động (không lazy) + timeout 5s→15s.
+> - Hạ tầng lượt full-seamless: RAM đỉnh 2,6GB/11,67GB (22%), không OOM/500 — OOM đã loại (gốc là
+>   N-worker × PII/NER-không-preload, đã mitigate + VM 12GB, KHÔNG phải rò rỉ).
+>
+> **XONG + verify sống (`5a42b15`, ADR-065, PO duyệt 05/09):** route mới `GET /policy-doc/{doc_id}?chunk_id=`
+> (role `[cskh,supervisor]` không nới · `session.get` qua DB không filesystem · 404 đồng nhất anti-enumeration) +
+> `PolicyDocument.full_text` (migration) + frontend "Xem toàn văn ↗" tự cuộn/tô-sáng đoạn khớp. `/policy-search`
+> chỉ thêm field `chunk_id` additive. 5/5 bằng chứng Playwright thật (dài 297-chunk cuộn+highlight chính xác ·
+> FAQ ngắn hiện thẳng · doc_id lạ→404 · search không hồi quy). Regression 754 passed/0 failed. Checklist hạ tầng
+> 6/6 (băm khớp, 2 cờ frontend đúng, migration head, contract 3/3, 4 doc/380 chunk/660 ticket). PDPA sạch.
+> **⟹ Điều kiện kỹ thuật để quay ĐÃ ĐỦ, chờ PO thật bấm quay.** Gói kịch bản (`cf9fb4c9`) đã thêm bước B15b.
+>
+> **Ưu tiên trước-150-user (không chặn quay):** vá `upload-validation` — tính năng toàn-văn nâng blast-radius
+> của finding upload-không-kiểm-duyệt (lộ excerpt → lộ toàn văn).
+>
+> --- (dưới đây là ảnh chụp 04/09, giữ làm lịch sử) ---
 
 ## 0-HIỆN-HÀNH. 🟢 04/09/2026 ~17:00 — SẴN SÀNG QUAY, chỉ chờ vá 2 lỗi UI chuông cuối
 
