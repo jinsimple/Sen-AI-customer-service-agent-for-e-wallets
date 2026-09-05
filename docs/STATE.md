@@ -122,6 +122,16 @@ frontend recreate, backend/rerank/pg/redis/caddy/jaeger uptime + cờ nguyên v�
 chuông, badge môi trường ẩn) → Lead soi → chuyển PO-coord → trình PO thật quyết quay.
 
 ### RỦI RO ĐANG MỞ (KHÔNG chặn quay — chặn đợt 150 người / bản live)
+- **`POST /tickets/{id}/claim` (ADR-064 gốc, "Nhận vé") KHÔNG atomic — race 2 CSKH cùng thắng** (Review
+  đo 05/09 khi soát fix CP10b). Route dùng đọc-rồi-ghi ORM thường (`ticket = session.get(...)` → kiểm
+  `claimed_by is None` → gán → `commit()`), KHÔNG có `WHERE claimed_by IS NULL` atomic như bản vá
+  `claim_session()` (`live_chat.py`, CP10b, `25699e6`) vừa dùng. Hai CSKH bấm "Nhận vé" gần đồng thời
+  trên CÙNG ticket: cả hai đọc `claimed_by=None` trước khi bên nào commit → cả hai qua điều kiện, cả
+  hai nhận HTTP 200 "đã nhận" — người commit SAU âm thầm ghi đè người commit TRƯỚC, DB chỉ ghi 1 người
+  thắng thật. KHÔNG PHẢI BOLA (không lộ dữ liệu, chỉ sai người-thắng-race) — nhưng rủi ro THỰC TẾ tăng
+  vì ADR-063 (chuông `ve_moi`) báo TOÀN BỘ CSKH cùng lúc, nhiều người dễ bấm gần như đồng thời hơn.
+  Vá: đổi sang cùng mẫu `UPDATE Ticket ... WHERE claimed_by IS NULL` — có sẵn code mẫu trong `25699e6`
+  để copy. Chưa vá, không chặn quay.
 - **Gate sàng lọc lừa đảo (`wrong_recipient`) lệch trans_id khi có ứng viên thứ hai** (Coder đo 04/09
   tối, sau khi vá RB3 lần 2 — xem `§0-SEXIES`). `_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC` (`graph.py`) là 1
   SLOT DUY NHẤT/thread, ghi ĐÈ không ghi thêm — nếu model tra ra ứng viên THỨ HAI trước khi ca đầu kịp
