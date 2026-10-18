@@ -12,9 +12,9 @@ import { rich } from "@/lib/i18n/rich";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { useLiveChatSocket, type LiveChatEvent } from "@/lib/useLiveChatSocket";
 
-// Complaint.status (khác Ticket.hitl_status) — trong dataset/pipeline hiện
-// tại chỉ dùng "investigating"/"resolved", nhưng không có CHECK constraint
-// ràng buộc ở DB nên fallback về đúng chuỗi gốc nếu gặp giá trị lạ.
+// Complaint.status (different from Ticket.hitl_status) — the current dataset/pipeline only uses
+// "investigating"/"resolved", but there's no CHECK constraint enforcing it in the DB, so this falls
+// back to the raw original string for an unfamiliar value.
 const COMPLAINT_STATUS_LABEL: Record<string, DictKey> = {
   investigating: "chat.cstatus.investigating",
   resolved: "chat.cstatus.resolved",
@@ -28,50 +28,48 @@ const COMPLAINT_CHIPS: { value: ComplaintType; label: string; starter: string }[
   { value: "refund", label: "Hoàn tiền", starter: "Tôi được duyệt hoàn tiền nhưng chưa thấy tiền về." },
 ];
 
-// OTP chỉ cần xác thực khi agent THỰC SỰ chạm dữ liệu giao dịch/tài khoản
-// hoặc tạo ticket — hỏi chính sách/phí chung chung không cần.
+// OTP verification is only needed when the agent REALLY touches transaction/account data or creates
+// a ticket — a generic policy/fee question doesn't need it.
 //
-// Finding B2 (GĐ2.5) — `create_ticket` THIẾU ở đây là MỘT trong hai nguyên
-// nhân độc lập của Finding B (phép AND, vá một cái không đủ — xem
-// otpStaleCall bên dưới cho nửa còn lại): khi tool này hỏng vì OTP hết tươi,
-// nó không tạo `ticket_id` (tạo thất bại) VÀ trước bản vá này không có mặt
-// trong tập "nhạy cảm" ⟹ touchedSensitiveData=false ⟹ không hỏi lại OTP.
+// Finding B2 (phase 2.5) — `create_ticket` being MISSING here is ONE of two independent causes of
+// Finding B (an AND condition; patching only one isn't enough — see otpStaleCall below for the
+// other half): when this tool fails because the OTP has expired, it doesn't produce a `ticket_id`
+// (the creation failed) AND, before this patch, it wasn't in the "sensitive" set either ⟹
+// touchedSensitiveData=false ⟹ no OTP re-prompt.
 const SENSITIVE_TOOLS = new Set(["lookup_transaction", "get_customer_history", "create_ticket"]);
 
-// Finding B1 (GĐ2.5, QUYẾT ĐỊNH B — docs/giao-viec/2026-08-19-gd25-va-finding-ab-otp.md,
-// commit 32751c2, PO thật chốt 19/08) — OTP hết tươi KHÔNG BAO GIỜ tới client
-// dưới dạng HTTP 403 trên đường agent thật (chỉ route HTTP /tools/create_ticket
-// TRỰC TIẾP mới 403, và ChatClient không gọi route đó — xem
-// customer_tools.py:632-635: tool trả `{"status":"error",...}` TRONG một
-// response 200 bình thường, KHÔNG raise). Cách nhận diện DUY NHẤT trong ràng
-// buộc backend ĐÓNG BĂNG đợt này: khớp CHÍNH XÁC chuỗi hằng số backend tự
-// viết ra (KHÁC hẳn khớp thân lỗi NHÀ CUNG CẤP — thứ đã cấm ở GĐ3: đây là
-// literal TA SỞ HỮU, dưới quản lý phiên bản, ghim được bằng cổng).
+// Finding B1 (phase 2.5, DECISION B — docs/giao-viec/2026-08-19-gd25-va-finding-ab-otp.md, commit
+// 32751c2, decided by the real PO on Aug 19) — an expired OTP NEVER reaches the client as an HTTP
+// 403 on the real agent path (only a DIRECT HTTP call to /tools/create_ticket gets a 403, and
+// ChatClient never calls that route — see customer_tools.py:632-635: the tool returns
+// `{"status":"error",...}` INSIDE a normal 200 response, it never raises). The ONLY way to
+// recognise it, given the backend is FROZEN this round: match EXACTLY the constant string the
+// backend itself wrote (VERY DIFFERENT from matching a THIRD-PARTY PROVIDER's error body — banned
+// in phase 3: this is a literal WE OWN, under version control, pinnable by a guard).
 //
-// 🔴 CHỈ khớp `_OTP_EXPIRED_ERROR` (customer_tools.py:600-603) — KHÔNG khớp
-// `_OTP_REQUIRED_ERROR` (trả ở :814·:863·:905, điều kiện `otp_verified_at is
-// None` — khách CHƯA TỪNG xác thực). Không phải thiếu sót, có lý do đo được:
-// ca REQUIRED chỉ xảy ra khi `otp_verified_at is None`, tức `otpVerifiedRef.
-// current` đang là FALSE (chưa từng xác thực trong phiên) ⟹ điều kiện
-// `touchedSensitiveData && !otpVerifiedRef.current` bên dưới TỰ BẮN, không
-// cần tín hiệu gì thêm. Ca EXPIRED thì NGƯỢC LẠI: đã xác thực một lần nên
-// `ref` là TRUE ⟹ điều kiện đó KHÔNG bắn — đây là ca DUY NHẤT cần otpStaleCall.
-// Sau khi B2 (SENSITIVE_TOOLS thêm create_ticket) land, ca REQUIRED được phủ
-// MIỄN PHÍ qua đúng con đường đó, kể cả cho create_ticket.
-// ⟹ Khớp thêm REQUIRED không thừa MỘT CHÚT — nó THỪA HOÀN TOÀN, và trả giá
-// bằng một chuỗi cổng ghim không phủ (cổng ② chỉ so đúng EXPIRED — xem
-// ChatClient.pin.test.ts). Khớp SAI (kể cả REQUIRED) rơi qua nhánh
-// touchedSensitiveData bên dưới như bình thường — KHÔNG RÕ không bị gộp
-// ngầm vào OTP (điều khoản ba-trạng-thái của Bảo Mật).
+// 🔴 Match `_OTP_EXPIRED_ERROR` ONLY (customer_tools.py:600-603) — do NOT match
+// `_OTP_REQUIRED_ERROR` (returned at :814·:863·:905, condition `otp_verified_at is None` — the
+// customer has NEVER verified). Not an oversight, there's a measured reason: the REQUIRED case only
+// happens when `otp_verified_at is None`, meaning `otpVerifiedRef.current` is already FALSE (never
+// verified this session) ⟹ the condition `touchedSensitiveData && !otpVerifiedRef.current` below
+// FIRES ON ITS OWN, no extra signal needed. The EXPIRED case is the OPPOSITE: already verified once
+// so `ref` is TRUE ⟹ that condition does NOT fire — this is the ONE case that needs otpStaleCall.
+// Once B2 lands (create_ticket added to SENSITIVE_TOOLS), the REQUIRED case gets covered FOR FREE
+// through that exact same path, including for create_ticket.
+// ⟹ Also matching REQUIRED wouldn't be slightly redundant — it would be ENTIRELY redundant, and it
+// costs a guard-pin test that doesn't cover it (guard ② only checks EXPIRED — see
+// ChatClient.pin.test.ts). A WRONG match (REQUIRED included) falls through the touchedSensitiveData
+// branch below as normal — it does NOT get silently folded into OTP as UNDETERMINED (Security's
+// three-state rule).
 //
-// 🔴 CHUYẾN TRẢ NỢ (20/08) — backend nay CÓ field `loai:"otp_het_tuoi"` có cấu
-// trúc trong `_OTP_EXPIRED_ERROR` (customer_tools.py:600-611). Đọc `loai`
-// TRƯỚC, fallback về khớp chuỗi CHỈ khi `loai` vắng mặt — KHÔNG thay thế
-// thẳng: backend/frontend là HAI ẢNH DỰNG RIÊNG, một khung dựng-ảnh-lệch (ảnh
-// backend cũ chưa mang `loai`, ảnh frontend mới đã bỏ fallback) sẽ làm nhận
-// diện OTP-hết-tươi hỏng IM LẶNG — đúng lớp lỗi Finding B mà GĐ2.5 vừa vá,
-// chỉ khác là hợp đồng GIỮA HAI ẢNH thay vì giữa DB và ảnh. Gỡ nhánh fallback
-// + `OTP_EXPIRED_MESSAGE` ở một đợt SAU, khi đã chắc mọi ảnh đều mang `loai`.
+// 🔴 A DEBT REPAID (Aug 20) — the backend now has a STRUCTURED `loai:"otp_het_tuoi"` field inside
+// `_OTP_EXPIRED_ERROR` (customer_tools.py:600-611). Read `loai` FIRST, fall back to a string match
+// ONLY when `loai` is absent — NOT a straight replacement: the backend/frontend are TWO SEPARATELY
+// BUILT IMAGES, and a mismatched-image window (an older backend image without `loai`, a newer
+// frontend image that already dropped the fallback) would make OTP-expiry detection fail SILENTLY —
+// the same bug class Finding B just patched, just a contract BETWEEN TWO IMAGES instead of between
+// the DB and an image. Remove the fallback branch + `OTP_EXPIRED_MESSAGE` in a LATER round, once
+// every image is confirmed to carry `loai`.
 const OTP_EXPIRED_LOAI = "otp_het_tuoi";
 const OTP_EXPIRED_MESSAGE =
   "Lần xác thực OTP gần nhất đã quá hạn cho thao tác này — yêu cầu khách xác thực OTP lại trước khi tiếp tục.";
@@ -94,27 +92,25 @@ type Msg =
 type Stage = "greeting" | "otp" | "chat" | "busy";
 
 function nid() {
-  // crypto.randomUUID() thay vì bộ đếm cấp module — bộ đếm bị Next.js
-  // Fast Refresh (dev) reset về 0 mỗi lần sửa file trong khi state cũ (đã
-  // có id "m1"...) vẫn còn, gây trùng key React ("Encountered two children
-  // with the same key"). UUID không phụ thuộc trạng thái module nên không
-  // bao giờ trùng, kể cả qua hot-reload.
+  // crypto.randomUUID() instead of a module-level counter — the counter gets reset to 0 by Next.js
+  // Fast Refresh (dev) every time a file is edited while old state (already holding an id like
+  // "m1"...) is still around, causing a duplicate React key ("Encountered two children with the
+  // same key"). A UUID doesn't depend on module state, so it never collides, even across a hot
+  // reload.
   return crypto.randomUUID();
 }
 
-// AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4) — bỏ hẳn ô
-// "câu trả lời bảo mật": KBA không còn là authenticator, mã OTP là yếu tố
-// step-up duy nhất (xem src/api/main.py::verify_otp). Ô nhập OTP 6 số dùng
-// chung (`OtpInput`, tách ra 31/08 để tái dùng ở luồng sếp duyệt) — xem
-// `@/components/OtpInput.tsx`.
+// AUTH5-01 (Auth Flow upgrade, 2026-08-12, NIST SP 800-63B-4) — dropped the "security answer" field
+// entirely: KBA is no longer an authenticator, an OTP code is the only step-up factor (see
+// src/api/main.py::verify_otp). A shared 6-digit OTP input (`OtpInput`, split out Aug 31 for reuse
+// in the supervisor-approval flow) — see `@/components/OtpInput.tsx`.
 
-// Lỗi 12 (PO thật 19/08, docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md
-// mục 12): cổng OTP V6 áp cho thẻ "Giao dịch gần đây" nhưng SÓT thẻ "Lịch
-// sử khiếu nại" — cùng lớp lỗi "chính sách đúng, áp thiếu một nhánh" đã vá
-// 3 lần khác trong ngày (scrub_pii/cong_chi_tieu/_ghi_so). Bảo Mật + Lead
-// chốt: MỘT nơi định nghĩa cổng, không phải mỗi thẻ tự viết `!otpVerified ?`
-// riêng — thẻ thứ ba sau này thừa hưởng cổng tự động, không cần ai nhớ copy
-// đúng pattern.
+// Bug 12 (real PO, Aug 19, docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md item 12): the V6 OTP
+// gate applied to the "Recent transactions" card but MISSED the "Complaint history" card — the same
+// bug class "the policy is correct, applied to one branch only" that was patched 3 other times that
+// same day (scrub_pii/cong_chi_tieu/_ghi_so). Security + the Lead decided: ONE place defines the
+// gate, instead of each card writing its own `!otpVerified ?` check — a future third card inherits
+// the gate automatically, with no one needing to remember to copy the pattern correctly.
 function RailCardGatedByOtp({
   otpVerified,
   onXacThuc,
@@ -149,20 +145,19 @@ export default function ChatClient({
 }: {
   userId: string;
   phone: string;
-  // Finding A (GĐ2.5 / M-10) — tính SẴN từ phiên lúc render trang (server,
-  // page.tsx), 12h theo OTP_VIEW_MAX_MINUTES. Tên có "LucTai" CÓ CHỦ ĐÍCH
-  // (Lead/PO-agent): đây là ẢNH CHỤP tại thời điểm render, KHÔNG PHẢI trạng
-  // thái sống — nếu trang mở lâu quá 12h thì giá trị này CŨ, đúng như tên nó
-  // nói. CHỈ gate hiển thị rail "Giao dịch gần đây" lúc TẢI TRANG — KHÔNG
-  // dùng để bỏ qua bước hỏi OTP trước thao tác nhạy cảm (đó là
-  // `otpVerifiedRef`, khác biến, khác mục đích: nó đúng khi CÒN reset mỗi
-  // lần mount, phần "hết tươi TRONG KHI đang mở trang" là việc của Finding B
-  // — xem sendToAgent).
+  // Finding A (phase 2.5 / M-10) — computed UPFRONT from the session at page-render time (the
+  // server, page.tsx), 12h per OTP_VIEW_MAX_MINUTES. The "LucTai" ("-at-load-time") in the name is
+  // DELIBERATE (Lead/PO-agent): this is a SNAPSHOT taken at render time, NOT a live state — if the
+  // page stays open past 12h, this value is STALE, exactly as its name says. It ONLY gates showing
+  // the "Recent transactions" card AT PAGE LOAD — it is NOT used to skip the OTP prompt before a
+  // sensitive action (that's `otpVerifiedRef`, a different variable for a different purpose: it is
+  // correct exactly because it resets on every mount; the "expired WHILE the page stays open" case
+  // is Finding B's job — see sendToAgent).
   otpXemConHanLucTai: boolean;
 }) {
-  // UI-02 — vai của phiên hiện tại KHÔNG khớp màn này. Đặt từ phản hồi 403 của
-  // API chứ không đọc lúc render: tab đang mở không điều hướng lần nào, nên
-  // guard route (`proxy.ts`) không bao giờ chạy — 403 là tín hiệu DUY NHẤT.
+  // UI-02 — the current session's role does NOT match this screen. Set from the API's 403 response
+  // rather than read at render time: the already-open tab never navigates, so the guard route
+  // (`proxy.ts`) never runs — the 403 is the ONLY signal.
   const { t, lang } = useI18n();
   const [vaiLech, setVaiLech] = useState<string | null>(null);
   const [history, setHistory] = useState<CustomerHistory | null>(null);
@@ -170,77 +165,78 @@ export default function ChatClient({
   const [stage, setStage] = useState<Stage>("greeting");
   const [input, setInput] = useState("");
   const [lastTicket, setLastTicket] = useState<{ ticket_id: string; should_escalate: boolean } | null>(null);
-  // Live chat (2026-08-11) — khách yêu cầu người thật (request_human_handoff,
-  // CTRL-001) không trả ticket_id ở TOP LEVEL của AgentChatResult (chỉ
-  // create_ticket làm vậy, xem src/agents/graph.py) — phải tự dò trong
-  // tool_calls để biết đúng ticket_id cần mở panel chat trực tiếp.
+  // Live chat (2026-08-11) — a customer asking for a human (request_human_handoff, CTRL-001)
+  // doesn't return ticket_id at the TOP LEVEL of AgentChatResult (only create_ticket does that, see
+  // src/agents/graph.py) — it has to be dug out of tool_calls to know which ticket_id to open the
+  // live-chat panel for.
   const [liveChatTicketId, setLiveChatTicketId] = useState<string | null>(null);
-  // Live chat (2026-08-11, phản hồi thật từ test tay) — tin nhắn CSKH gộp
-  // THẲNG vào cùng .chat-thread với AI, KHÔNG mở 1 khung chat riêng biệt bên
-  // dưới — cảm giác phải là "AI bàn giao cho người thật trong CÙNG 1 cuộc
-  // trò chuyện", không phải 2 cửa sổ tách rời.
+  // Live chat (2026-08-11, a real finding from manual testing) — support-agent messages are merged
+  // DIRECTLY into the same .chat-thread as the AI, with NO separate chat window opened below — the
+  // feel must be "the AI handing off to a human within the SAME conversation", not two separate
+  // windows.
   const [liveChatWsTicket, setLiveChatWsTicket] = useState<string | null>(null);
   const [liveChatSessionId, setLiveChatSessionId] = useState<string | null>(null);
   const liveChatConnectStartedRef = useRef(false);
-  // Ref-guard GIỮ NGUYÊN mục đích gốc (chặn StrictMode double-invoke, lý do
-  // thật từ 2026-08-11 — cùng pattern greetedRef). `lanThuLai` là đường mở lại
-  // CÓ CHỦ Ý của người dùng, không phải gỡ bỏ ref.
+  // The ref-guard KEEPS its original purpose (blocking a StrictMode double-invoke, a real reason
+  // from 2026-08-11 — the same pattern as greetedRef). `lanThuLai` ("retry count") is a DELIBERATE
+  // user-triggered reopening path, not a removal of the ref.
   const [lanThuLai, setLanThuLai] = useState(0);
   const [loiKetNoiChat, setLoiKetNoiChat] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const greetedRef = useRef(false);
-  // Xác thực 1 lần/phiên — sau khi true, không hỏi lại OTP dù chip/rail/agent
-  // có chạm dữ liệu nhạy cảm thêm lần nữa trong cùng phiên chat. LUÔN khởi
-  // tạo `false` — CỐ Ý, khác `otpVerified` bên dưới (xem Finding A/B GĐ2.5).
-  // Ref này gác bước "hỏi OTP TRƯỚC một thao tác nhạy cảm sắp làm" (chip/
-  // sendToAgent) — sai lệch RẺ theo hướng hỏi thừa (chấp nhận được), trong khi
-  // pre-set nó `true` từ một giá trị tính lúc render có thể làm lọt một thao
-  // tác đã hết tươi STEP-UP dù còn tươi VIEW — nguồn sự thật cho ca đó là 403/
-  // tool-error SỐNG, không phải suy ra lúc mount (Finding B xử lý).
+  // Verified once per session — once true, no re-prompting for OTP even if a chip/card/the agent
+  // touches sensitive data again later in the same chat session. ALWAYS initialised to `false` —
+  // DELIBERATELY, unlike `otpVerified` below (see Finding A/B, phase 2.5). This ref guards the step
+  // "ask for OTP BEFORE an about-to-happen sensitive action" (chip/sendToAgent) — a wrong value is
+  // CHEAP in the direction of asking once too often (acceptable), whereas pre-setting it to `true`
+  // from a value computed at render time could let an action through whose STEP-UP had expired even
+  // while the VIEW window was still valid — the source of truth for that case is a live
+  // 403/tool-error, not something inferred at mount time (handled by Finding B).
   const otpVerifiedRef = useRef(false);
-  // KHÔNG còn là "bản STATE của ref trên" (khác V6/14-08) — hai biến này nay
-  // tách bạch chủ đích: ref (trên) gác thao tác SẮP làm, state (dưới) chỉ gác
-  // HIỂN THỊ rail "Giao dịch gần đây" và ĐƯỢC PHÉP khởi tạo lạc quan từ phiên
-  // thật (Finding A) vì hậu quả sai chỉ là UI — rail cùng lắm mở nhầm khi
-  // otp_verified_at đã hết hạn 12h, còn mọi route đọc dữ liệu thật vẫn tự
-  // kiểm otp_verified_at ở server (INV-10), không có gì rò qua ngả này.
+  // No longer "a state copy of the ref above" (unlike V6/Aug 14) — the two variables are now
+  // deliberately separated: the ref (above) guards an about-to-happen action, the state (below)
+  // only guards the DISPLAY of the "Recent transactions" card and is ALLOWED to be optimistically
+  // initialised from the real session (Finding A) because getting it wrong only affects the UI — at
+  // worst the card opens when it shouldn't because otp_verified_at expired 12h ago, while every
+  // route that reads real data still checks otp_verified_at on the server itself (INV-10) — nothing
+  // leaks through this path.
   const [otpVerified, setOtpVerified] = useState(otpXemConHanLucTai);
-  // Tin nhắn đang chờ gửi cho agent SAU KHI xác thực OTP xong — dùng cho 2
-  // lối vào đã biết chắc chắn liên quan giao dịch/ticket NGAY TỪ ĐẦU (chip,
-  // "Báo lỗi giao dịch này"): phải xác thực TRƯỚC khi gọi agent, không phải
-  // sau khi agent đã lỡ tra cứu/tạo ticket rồi mới hỏi.
+  // The message waiting to be sent to the agent AFTER OTP verification finishes — used for the 2
+  // entry points that already know for certain they relate to a transaction/ticket FROM THE START
+  // (a chip, "Report this transaction"): verification must happen BEFORE calling the agent, not
+  // asked for after the agent has already attempted a lookup/ticket creation.
   const pendingStarterRef = useRef<string | null>(null);
 
   useEffect(() => {
     getCustomerHistory({}).then(setHistory).catch(() => setHistory(null));
-    // React StrictMode (dev) chạy effect 2 lần lúc mount để bắt lỗi thiếu
-    // cleanup — không chặn thì lời chào bị đẩy 2 lần. Ref giữ nguyên qua 2
-    // lần chạy đó (khác state), nên chặn được đúng 1 lần.
+    // React StrictMode (dev) runs an effect twice on mount to catch missing cleanup — without a
+    // guard, the greeting gets pushed twice. The ref survives those 2 runs (unlike state), so it
+    // blocks it down to exactly one.
     if (greetedRef.current) return;
     greetedRef.current = true;
-    // Không còn chip 4 loại khiếu nại ở đây nữa — trùng lặp với chip hiện ra
-    // khi bấm "Báo lỗi giao dịch này" (đúng chỗ cần chọn loại vấn đề, vì đã
-    // gắn sẵn với 1 giao dịch cụ thể). Ở đây khách gõ tự do là đủ.
+    // The 4 complaint-type chips no longer live here — they duplicated the chip that appears after
+    // clicking "Report this transaction" (the right place to pick a problem type, since it's
+    // already tied to one specific transaction). Here, the customer typing freely is enough.
     push({
       id: nid(),
       from: "bot",
-      // DISC-002 (FIN05_QA_TestCases.jsonl, EU AI Act Art.50) — nêu rõ "trợ
-      // lý AI" ngay trong chính tin nhắn chào, không chỉ ở tiêu đề trang/
-      // nhãn cố định bên ngoài khung chat (2 chỗ đó có sẵn nhưng không đủ
-      // theo đúng nghĩa "banner/câu mở đầu" mà chuẩn minh bạch yêu cầu).
-      // Câu chào 19/08 (bản 19/08 sáng do PO-agent soạn theo brief 4 đoạn —
-      // docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md mục 11 — RÚT NGẮN
-      // theo yêu cầu trực tiếp của PO thật cùng ngày, muộn hơn: giữ đúng
-      // "trợ lý AI" bắt buộc + đường vào nhanh, bỏ phần diễn giải tra-được/
-      // không-quyết dài dòng).
+      // DISC-002 (FIN05_QA_TestCases.jsonl, EU AI Act Art. 50) — spells out "AI assistant" right
+      // inside the greeting message itself, not only in the page title/a fixed label outside the
+      // chat window (those two exist but don't satisfy the literal "banner/opening statement" the
+      // transparency standard requires). The Aug 19 greeting (the morning-of-Aug-19 version,
+      // drafted by the PO-agent from a 4-paragraph brief —
+      // docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md item 11 — then SHORTENED per the real
+      // PO's own direct request later that same day: keeping the required "AI assistant" phrase + a
+      // quick entry point, dropping the long-winded explanation of
+      // look-up-ability/non-decision-making).
       text: translate(docLang(), "chat.greeting"),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  // Mở vé WS + kết nối NGAY khi phát hiện handoff — ref-guard chặn
-  // StrictMode double-invoke (đúng nguyên nhân đã gây tin nhắn lặp/tách khi
-  // gửi, phát hiện thật 2026-08-11 — cùng pattern với greetedRef ở trên).
+  // Open the WS ticket + connect IMMEDIATELY on detecting a handoff — a ref-guard blocks a
+  // StrictMode double-invoke (the exact cause of messages getting duplicated/split when sending, a
+  // real finding, 2026-08-11 — same pattern as greetedRef above).
   useEffect(() => {
     if (!liveChatTicketId || liveChatConnectStartedRef.current) return;
     liveChatConnectStartedRef.current = true;
@@ -250,16 +246,15 @@ export default function ChatClient({
         setLiveChatWsTicket(res.ws_ticket);
       })
       .catch(() => {
-        // UI-02 — MỞ LẠI CỬA THỬ LẠI. Trước bản này `liveChatConnectStartedRef`
-        // set `true` một lần và KHÔNG BAO GIỜ reset ở đâu (grep toàn repo: đúng
-        // 3 dòng — khai báo, kiểm, set). Một lần thử, vĩnh viễn. Và `.catch`
-        // lại bảo khách "thử lại giúp mình nhé" trong khi KHÔNG TỒN TẠI đường
-        // nào để thử lại: effect chỉ chạy lại khi `liveChatTicketId` đổi, mà
-        // nó không đổi.
+        // UI-02 — REOPENING THE RETRY DOOR. Before this version, `liveChatConnectStartedRef` was
+        // set `true` once and NEVER reset anywhere (grepped the whole repo: exactly 3 lines — the
+        // declaration, the check, the set). One attempt, forever. And `.catch` told the customer
+        // "please try again" while there was NO path to try again at all: the effect only re-runs
+        // when `liveChatTicketId` changes, and it never does.
         //
-        // ⚠️ RESET REF MỘT MÌNH KHÔNG ĐỦ — deps không đổi thì effect không chạy
-        // lại dù ref đã về false. Phải có `lanThuLai` trong deps. Một bản vá
-        // chỉ reset ref sẽ TRÔNG đúng và KHÔNG có hiệu lực.
+        // ⚠️ RESETTING THE REF ALONE ISN'T ENOUGH — if the deps don't change, the effect doesn't
+        // re-run even once the ref is back to false. `lanThuLai` must be in the deps. A patch that
+        // only resets the ref would LOOK correct and have NO effect.
         liveChatConnectStartedRef.current = false;
         setLoiKetNoiChat(true);
       });
@@ -271,17 +266,17 @@ export default function ChatClient({
       if (event.role === "staff") {
         setMessages((prev) => (prev.some((m) => m.id === event.message_id) ? prev : [...prev, { id: event.message_id, from: "staff", text: event.content }]));
       } else {
-        // Echo tin nhắn CHÍNH KHÁCH vừa gửi — nguồn sự thật duy nhất là
-        // server, không echo cục bộ lúc gửi để tránh hiện trùng.
+        // Echoing the message the CUSTOMER THEMSELVES just sent — the one source of truth is the
+        // server; don't echo locally at send time, to avoid showing a duplicate.
         setMessages((prev) => (prev.some((m) => m.id === event.message_id) ? prev : [...prev, { id: event.message_id, from: "user", text: event.content }]));
       }
     } else if (event.type === "system") {
       setMessages((prev) => [...prev, { id: nid(), from: "system", text: event.text }]);
     } else if (event.type === "session_closed") {
-      // Phiên chat trực tiếp đã kết thúc (CSKH bấm "Kết thúc chat", hoặc
-      // chính khách vừa mất kết nối rồi phía server tự đóng — xem
-      // close_customer_session_on_disconnect) — quay lại nói chuyện với Sen,
-      // KHÔNG để khách gõ tiếp vào 1 phiên đã chết trong im lặng.
+      // The live chat session has ended (the support agent clicked "End chat", or the customer just
+      // lost their connection and the server closed it on its own — see
+      // close_customer_session_on_disconnect) — go back to talking with Sen, instead of letting the
+      // customer keep typing into a session that died silently.
       setMessages((prev) => [...prev, { id: nid(), from: "system", text: translate(docLang(), "chat.liveEnded") }]);
       setLiveChatSessionId(null);
       setLiveChatWsTicket(null);
@@ -293,12 +288,12 @@ export default function ChatClient({
 
   const { status: liveChatStatus, sendMessage: sendLiveChatMessage } = useLiveChatSocket(liveChatWsTicket, handleLiveChatEvent);
 
-  // Cảnh báo rời trang khi đang chat trực tiếp với CSKH (2026-08-11) — F5/
-  // đóng tab NGẮT kết nối WS, phía server tự đóng phiên NGAY (xem
-  // close_customer_session_on_disconnect trong live_chat_ws.py) — khách cần
-  // biết trước rằng rời trang lúc này nghĩa là kết thúc phiên chat trực
-  // tiếp ở CẢ 2 đầu, không chỉ riêng màn hình của họ. Trình duyệt hiện đại
-  // không cho tuỳ biến nội dung hộp thoại native, chỉ bật/tắt được nó.
+  // A leave-page warning while chatting live with a support agent (2026-08-11) — F5/closing the tab
+  // DISCONNECTS the WS, and the server closes the session IMMEDIATELY on its own (see
+  // close_customer_session_on_disconnect in live_chat_ws.py) — the customer needs to know
+  // beforehand that leaving the page now means ending the live chat session on BOTH ends, not just
+  // their own screen. Modern browsers don't allow customising the native dialog's content, only
+  // turning it on/off.
   useEffect(() => {
     if (!liveChatSessionId || liveChatStatus !== "open") return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -317,16 +312,15 @@ export default function ChatClient({
     setMessages((prev) => [...prev, msg]);
   }
 
-  // Chip chọn loại vấn đề sau khi bấm "Báo lỗi giao dịch này" — luôn ghép rõ
-  // complaint_type vào starter, KHÔNG BAO GIỜ gửi cho agent một tin nhắn chỉ
-  // có mã giao dịch mà không nói rõ vấn đề gì (agent từng tạo ticket vội khi
-  // nhận tin mơ hồ kiểu đó, dù prompt đã dặn rõ — LLM không tuân thủ tuyệt
-  // đối 100%, nên chặn hẳn ở tầng UI).
-  // Gọi /auth/otp/request THẬT (backend giờ xác thực thật, không còn là gate
-  // UI thuần — xem src/auth.py::require_otp_verified) rồi mới hiện form OTP.
-  // AUTH5-01 (2026-08-12) — không còn hỏi câu hỏi bảo mật (KBA bỏ khỏi vai
-  // trò authenticator), chỉ mã OTP. Thất bại (mất mạng...) thì báo lỗi,
-  // không hiện form giả.
+  // The problem-type chip shown after clicking "Report this transaction" — always attaches
+  // complaint_type explicitly to the starter message, NEVER sending the agent a message that's just
+  // a transaction ID with no stated problem (the agent has created a ticket hastily on an ambiguous
+  // message like that before, even with the prompt spelling it out — an LLM doesn't follow
+  // instructions with 100% certainty, so it's blocked outright at the UI layer).
+  // Calls the REAL /auth/otp/request (the backend now verifies for real, no longer a pure UI gate —
+  // see src/auth.py::require_otp_verified) before showing the OTP form. AUTH5-01 (2026-08-12) — no
+  // more security question (KBA dropped from the authenticator role), only the OTP code. On failure
+  // (network loss...), show an error instead of a fake form.
   async function beginOtpFlow() {
     try {
       const { session_id, otp_code } = await requestOtp();
@@ -390,29 +384,29 @@ export default function ChatClient({
     const starter = pendingStarterRef.current;
     pendingStarterRef.current = null;
     if (starter) {
-      // Lối vào đã biết chắc liên quan giao dịch (chip/rail) — giờ mới thật
-      // sự gửi cho agent, SAU KHI đã xác thực xong.
+      // An entry point that already knows for certain it relates to a transaction (chip/card) —
+      // only now actually sends it to the agent, AFTER verification has finished.
       //
-      // `vuaXacThucDeGuiLai: true` — cờ TƯỜNG MINH báo đây là lượt TỰ GỬI
-      // LẠI câu đã bị chặn OTP (scratchpad/nhap-cong-thu-slot-sau-otp.md
-      // mục 1). Đây là ĐÚNG MỘT lệnh gọi resend, dùng chung cho cả 3 nguồn
-      // đặt `pendingStarterRef` (chip startComplaint · otpStaleCall giữa
-      // hội thoại · touchedSensitiveData) — không phân biệt nguồn, cùng một
-      // ý nghĩa "khách vừa xác thực xong, đây là câu cần model xử lý lại".
+      // `vuaXacThucDeGuiLai: true` ("just-verified-resend") — an EXPLICIT flag marking this as a
+      // turn that RESENDS a message OTP had blocked (scratchpad/nhap-cong-thu-slot-sau-otp.md item
+      // 1). This is EXACTLY ONE resend call, shared by all 3 sources that set `pendingStarterRef`
+      // (the startComplaint chip · otpStaleCall mid-conversation · touchedSensitiveData) — no
+      // distinction by source, all meaning the same thing: "the customer just finished verifying,
+      // this is the message the model needs to process again".
       push({ id: nid(), from: "bot", text: t("chat.otpOkLookup") });
       void sendToAgent(starter, { echoAsUser: false, vuaXacThucDeGuiLai: true });
     } else {
-      // Phản ứng (gõ tự do, agent vừa lỡ chạm dữ liệu nhạy cảm) — không có
-      // gì phải gửi lại, chỉ mở lại chat.
+      // A reaction (typing freely, the agent just happened to touch sensitive data) — nothing to
+      // resend, just reopen the chat.
       push({ id: nid(), from: "bot", text: t("chat.otpOkContinue") });
       setStage("chat");
     }
   }
 
   function reportFromRail(tx: NonNullable<CustomerHistory["recent_transactions"]>[number]) {
-    // KHÔNG gửi thẳng cho agent — bấm nút này mới chỉ biết giao dịch nào,
-    // chưa biết vấn đề gì. Hỏi khách chọn loại vấn đề trước (chip), rồi mới
-    // ghép với thông tin giao dịch qua startComplaint().
+    // Don't send straight to the agent — clicking this button only tells us which transaction, not
+    // yet what the problem is. Ask the customer to pick a problem type first (a chip), then combine
+    // it with the transaction info via startComplaint().
     push({
       id: nid(),
       from: "bot",
@@ -448,47 +442,46 @@ export default function ChatClient({
           setLastTicket({ ticket_id: handoffTicketId, should_escalate: false });
         }
       }
-      // Làm mới rail "Lịch sử khiếu nại" sau MỌI lượt có chạm tool (không chỉ
-      // lúc vừa tạo ticket mới) — agent có thể chỉ NHẮC lại 1 ticket đã tạo
-      // trước đó (không trả ticket_id lượt này), khách vẫn cần thấy đúng dữ
-      // liệu thật thay vì chỉ nghe agent kể lại bằng lời.
+      // Refresh the "Complaint history" card after EVERY turn that touches a tool (not only right
+      // after creating a new ticket) — the agent might just MENTION an already-created ticket again
+      // (without returning a ticket_id this turn); the customer still needs to see the real data
+      // instead of only hearing the agent describe it in words.
       if (result.tool_calls.length > 0) {
         getCustomerHistory({}).then(setHistory).catch(() => {});
       }
 
-      // ④ (25/08) — CỔNG OTP TẤT ĐỊNH đã chặn lượt này TRƯỚC khi chạm model
-      // (backend: src/agents/graph.py, DUONG_CAN_OTP). Phải kiểm TRƯỚC hai
-      // nhánh dưới: cả hai dò trong `tool_calls`, mà đường này không gọi tool
-      // nào nên `tool_calls` RỖNG — không nhánh nào bắn, khách sẽ đứng trước
-      // một câu "xác thực nhé" mà không có gì mở ra.
+      // ④ (Aug 25) — the DETERMINISTIC OTP GATE already blocked this turn BEFORE it ever touched
+      // the model (backend: src/agents/graph.py, DUONG_CAN_OTP). Must be checked BEFORE the two
+      // branches below: both of them probe `tool_calls`, but this path calls no tool at all, so
+      // `tool_calls` is EMPTY — neither branch fires, and the customer would be left staring at a
+      // "please verify" message with nothing to open.
       //
-      // Đọc KHOÁ `duong`, KHÔNG khớp câu chữ `reply` — sửa văn phong backend
-      // sau này không được làm client mù lại (đúng lý do OTP_EXPIRED_LOAI ra
-      // đời ở GĐ2.5).
+      // Reads the `duong` ("path") KEY, does NOT match the `reply` text — a future change to the
+      // backend's wording must not blind the client again (the same reason OTP_EXPIRED_LOAI was
+      // created in phase 2.5).
       //
-      // 🔴 KHÔNG `push(result.reply)` ở đây. Dòng :501 phía trên đã đẩy nó rồi,
-      // VÔ ĐIỀU KIỆN, cho MỌI đường — kể cả đường này. Bản gốc đẩy lần thứ hai
-      // và khách thấy ĐÚNG MỘT bong bóng ấy hiện hai lần, giống hệt từng chữ
-      // (PO đo 25/08: backend gửi 8 câu → màn hình hiện 12 bong bóng).
+      // 🔴 Do NOT `push(result.reply)` here. Line :501 above already pushed it, UNCONDITIONALLY,
+      // for EVERY path — including this one. The original version pushed it a second time, and the
+      // customer saw that EXACT SAME bubble appear twice, character for character (PO measured Aug
+      // 25: the backend sends 8 sentences → the screen shows 12 bubbles).
       //
-      // Câu chống mạo danh K3 VẪN ĐẾN TAY KHÁCH — nó nằm trong `result.reply`,
-      // và :501 đã đẩy. Mối lo ấy đúng; chỉ là nó đã được lo xong ở trên rồi.
-      // (`cite` ở :501 là `undefined` trên đường này vì `tool_calls` rỗng, nên
-      // hai bong bóng vốn y hệt nhau — giữ cái đầu không mất chữ nào.)
+      // The anti-impersonation sentence K3 STILL reaches the customer — it's inside `result.reply`,
+      // and :501 already pushed it. That worry is valid; it's just already handled above.
+      // (`cite` at :501 is `undefined` on this path because `tool_calls` is empty, so the two
+      // bubbles would be exactly identical anyway — keeping the first one loses no text.)
       if (result.duong === "can_otp") {
         pendingStarterRef.current = text;
         void beginOtpFlow();
         return;
       }
 
-      // Finding B1 (GĐ2.5, Quyết định B) — tool vừa hỏng vì OTP ĐÃ hết tươi
-      // GIỮA phiên (`otpVerifiedRef.current` vẫn `true` từ lần xác thực
-      // trước, backend mới là nguồn sự thật). Đọc `loai` TRƯỚC (ảnh backend
-      // mới), fallback khớp CHÍNH XÁC `message` (ảnh backend cũ chưa mang
-      // `loai` — xem chú thích tại khai báo OTP_EXPIRED_LOAI/_MESSAGE phía
-      // trên). Không lọc thêm theo tool_name: cả hai tín hiệu chỉ 3 tool
-      // (lookup_transaction/get_customer_history/create_ticket) có thể sinh
-      // ra nên đã đủ hẹp.
+      // Finding B1 (phase 2.5, Decision B) — the tool just failed because the OTP expired
+      // MID-SESSION (`otpVerifiedRef.current` is still `true` from an earlier verification; the
+      // backend is now the source of truth). Read `loai` FIRST (newer backend image), fall back to
+      // an EXACT match on `message` (an older backend image doesn't carry `loai` yet — see the
+      // comment at the OTP_EXPIRED_LOAI/_MESSAGE declaration above). No extra filtering by
+      // tool_name needed: both signals can only be produced by 3 tools
+      // (lookup_transaction/get_customer_history/create_ticket), which is already narrow enough.
       const otpStaleCall = result.tool_calls.find(
         (c) =>
           c.result.status === "error" &&
@@ -505,9 +498,9 @@ export default function ChatClient({
         return;
       }
 
-      // Chỉ chạm dữ liệu giao dịch/tài khoản thật (SENSITIVE_TOOLS) hoặc vừa
-      // tạo ticket mới cần xác thực OTP — và chỉ hỏi đúng 1 lần/phiên. Câu
-      // hỏi chính sách/phí chung chung (chỉ gọi search_policy) không cần.
+      // OTP verification is needed only for touching real transaction/account data
+      // (SENSITIVE_TOOLS) or just creating a new ticket — and only asked ONCE per session. A
+      // generic policy/fee question (only calling search_policy) doesn't need it.
       const touchedSensitiveData =
         result.tool_calls.some((c) => SENSITIVE_TOOLS.has(c.tool_name)) || !!result.ticket_id;
       if (touchedSensitiveData && !otpVerifiedRef.current) {
@@ -516,39 +509,39 @@ export default function ChatClient({
           from: "bot",
           text: t("chat.needOtpSensitive"),
         });
-        // Lỗi 1 (PO thật 19/08): thiếu dòng này làm câu khách vừa hỏi bị MẤT
-        // sau khi xác thực xong — bắt gõ lại đúng lúc khách đang bực. Cùng
-        // khuôn `pendingStarterRef` đã dùng ở startComplaint() (:392) và
-        // otpStaleCall (:488) — submitOtp() tự gửi lại `text` sau khi OTP
-        // xanh (giờ otpVerifiedRef=true nên tool sẽ chạy được).
+        // Bug 1 (real PO, Aug 19): missing this line LOST the question the customer had just asked
+        // once verification finished — forcing them to retype it exactly when they were already
+        // frustrated. The same `pendingStarterRef` pattern already used in startComplaint() (:392)
+        // and otpStaleCall (:488) — submitOtp() resends `text` itself once the OTP is confirmed
+        // (otpVerifiedRef=true now, so the tool will be able to run).
         pendingStarterRef.current = text;
         void beginOtpFlow();
         return;
       }
       setStage("chat");
     } catch (e) {
-      // Lệch vai = 403 KÈM chuỗi ta sở hữu (auth.py:306 require_role) —
-      // KHÔNG chỉ /role/i, thứ khớp bất kỳ lỗi nào lỡ chứa chữ "role". Ưu
-      // tiên `status` (tín hiệu MẠNH, thuộc hợp đồng HTTP, ApiError đã mang
-      // sẵn) hơn khớp câu chữ (tín hiệu YẾU) — cùng nguyên tắc đã chốt cho
-      // `_DAU_HIEU_HET_HAN_MUC`: ưu tiên status_code khi có, chỉ dựa chuỗi
-      // khi KHÔNG có. status===403 mà KHÔNG khớp chuỗi ⟹ BA TRẠNG THÁI vẫn
-      // giữ: rơi qua nhánh KHÔNG RÕ bên dưới (push lỗi chung), TUYỆT ĐỐI
-      // không ngầm gộp vào "lệch vai" — giấu một lỗi thật đắt hơn mất một
-      // câu thông báo đẹp. Đổ nguyên văn `"Cần role thuộc ['customer'], tài
-      // khoản hiện tại là cskh"` vào khung chat là thứ PO đọc thấy giữa buổi
-      // demo — vô nghĩa với người dùng và trông như sản phẩm hỏng.
+      // A role mismatch = a 403 WITH a string WE OWN (auth.py:306 require_role) — NOT a generic
+      // /role/i, which would match any error that happens to contain the word "role". Prefer
+      // `status` (a STRONG signal, part of the HTTP contract, already carried by ApiError) over
+      // matching text (a WEAK signal) — the same rule already decided for `_DAU_HIEU_HET_HAN_MUC`
+      // ("expiry signal"): prefer status_code when available, only fall back to a string when there
+      // ISN'T one. status===403 with NO string match ⟹ the THREE-STATE rule still holds: it falls
+      // through to the UNDETERMINED branch below (pushing a generic error), ABSOLUTELY never
+      // silently folded into "role mismatch" — hiding a real error costs more than losing one
+      // nicely worded message. Dumping the literal `"Requires role in ['customer'], current account
+      // is cskh"` straight into the chat window is the exact thing the PO saw in the middle of a
+      // demo — meaningless to a user and looking like a broken product.
       if (e instanceof ApiError && e.status === 403 && e.message.includes("Cần role thuộc")) {
         const m = /hiện tại là (\w+)/.exec(e.message);
         setVaiLech(m?.[1] ?? "khác");
         setStage("chat");
         return;
       }
-      // 27/08 [ĐO] p-226-f0: 401 ở đây CHỈ có nghĩa "phiên hết hạn" (xem chú
-      // thích tại lib/api.ts::dieuHuongKhiHetPhien) — lib/api.ts đã tự điều
-      // hướng về đúng cổng VÀ đổi message thành câu người-đọc-được, nhánh
-      // này chỉ hiện lại đúng câu đó, KHÔNG đổ e.message thô như nhánh chung
-      // bên dưới (đó chính là thứ PO thấy giữa buổi demo: "chat báo lỗi").
+      // 27/08 [measured] p-226-f0: a 401 here ONLY ever means "the session has expired" (see the
+      // comment at lib/api.ts::dieuHuongKhiHetPhien) — lib/api.ts already redirects to the right
+      // gate on its own AND rewrites the message into human-readable copy; this branch just
+      // re-shows that same sentence, instead of dumping the raw e.message like the generic branch
+      // below (that raw dump is exactly what the PO saw mid-demo: "the chat shows an error").
       if (e instanceof ApiError && e.status === 401) {
         push({ id: nid(), from: "bot", text: e.message });
         setStage("chat");
@@ -564,16 +557,16 @@ export default function ChatClient({
   }
 
   const liveChatSendingRef = useRef(false);
-  // Phát hiện thật (2026-08-11): ô nhập đôi khi còn sót chữ sau khi gửi dù
-  // setInput("") đã chạy — buộc React remount hẳn <input> (đổi key) sau MỖI
-  // lần gửi (cả 2 nhánh AI/live-chat) để chắc chắn sạch bất kể timing.
+  // A real finding (2026-08-11): the input box sometimes still has leftover text after sending even
+  // though setInput("") ran — forces React to fully remount the <input> (changing its key) after
+  // EVERY send (both the AI and live-chat branches) to guarantee it's clean regardless of timing.
   const [inputResetKey, setInputResetKey] = useState(0);
 
   function handleSend() {
     const text = input.trim();
     if (!text || stage === "otp" || stage === "busy") return;
-    // Sau khi đã kết nối chat trực tiếp, MỌI tin nhắn đi qua CSKH, không qua
-    // AI nữa — cùng cửa sổ, chỉ đổi "người nghe" phía sau.
+    // Once a live chat connection is established, EVERY message goes through the support agent, no
+    // longer through the AI — the same window, only the "listener" behind it changes.
     if (liveChatSessionId) {
       if (liveChatSendingRef.current) return;
       liveChatSendingRef.current = true;
@@ -788,7 +781,7 @@ export default function ChatClient({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.repeat) handleSend();
               }}
-              // CONSUME-001 — khớp AgentChatRequest.message (src/api/schemas.py)
+              // CONSUME-001 — matches AgentChatRequest.message (src/api/schemas.py)
               maxLength={4000}
             />
             <button
