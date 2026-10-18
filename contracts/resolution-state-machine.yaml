@@ -1,18 +1,25 @@
 # contracts/resolution-state-machine.yaml
 #
-# NGUỒN SỰ THẬT về vòng đời HITL (đề xuất → duyệt → thực thi).
+# SOURCE OF TRUTH for the HITL lifecycle (proposal → approval → execution).
 #
-# ĐỔI TÊN CÓ CHỦ ĐÍCH so với bản contract cũ (`ticket-state-machine.yaml`):
-# hệ thống thật KHÔNG có một máy trạng thái ticket 10 bước nối tiếp
-# (draft → cskh_received → ... → executed → closed) như bản cũ mô tả.
-# Thực tế mô hình hoá bằng BA trường TRỰC GIAO trên hai bảng khác nhau —
-# ép chúng vào một FSM tuyến tính là mô tả sai sản phẩm:
+# A DELIBERATE RENAME from the old contract (`ticket-state-machine.yaml`):
+# the real system does NOT have a 10-step sequential ticket state machine
+# (draft → cskh_received → ... → executed → closed) as the old version described.
+# In reality it is modelled with THREE ORTHOGONAL fields on two different tables —
+# forcing them into one linear FSM would describe the product wrongly:
 #
-#   Resolution.status        ← nơi HITL thật sự diễn ra (file này)
-#   Ticket.hitl_status       ← trạng thái ticket dưới góc nhìn CSKH
-#   Ticket.partner_wait_status ← trạng thái chờ ngân hàng đối tác, ĐỘC LẬP
+#   Resolution.status          ← where HITL really happens (this file)
+#   Ticket.hitl_status         ← the ticket's state from the CSKH point of view
+#   Ticket.partner_wait_status ← waiting on the partner bank, INDEPENDENT
 #
-# Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
+# Editing this file = requires an ADR + PO approval. See CLAUDE.md §3.
+#
+# KEY GLOSSARY (keys and free-text values are Vietnamese because tests read them verbatim;
+# an English rendering of every contract lives in docs/en/contracts.md):
+#   mo_ta = description · ghi_chu = note · ly_do = reason · ten = name · nguon = source
+#   yeu_cau_otp = OTP requirement · bang = table · cot = columns · y_nghia = meaning
+#   truy_vet = traceability · kieu = type · cham_tien = touches money · gia_tri_ma = code values
+#   rang_buoc_db = DB constraint · bieu_thuc = expression · boi = enforced by · ranh_gioi = boundary
 
 version: "2.5.0"
 source: >
@@ -22,13 +29,12 @@ source: >
   resolutions.note + note_flagged + INV-17 — ADR-024, PO thật duyệt.
 
 # ===========================================================================
-# 1. Resolution — nơi ràng buộc HITL được ép ở TẦNG DATABASE
+# 1. Resolution — where the HITL constraint is enforced at the DATABASE LAYER
 # ===========================================================================
 #
-# Điểm mạnh nhất của thiết kế hiện tại, và là thứ bản contract cũ không nắm
-# được: HITL không chỉ nằm trong if/else của route, nó nằm trong CHECK
-# constraint của Postgres/SQLite. Kể cả có ai viết thẳng SQL UPDATE bỏ qua toàn
-# bộ tầng application, DB vẫn từ chối.
+# The strongest point of the current design, and what the old contract missed: HITL doesn't
+# only live in a route's if/else, it lives in a Postgres/SQLite CHECK constraint. Even if someone
+# writes a raw SQL UPDATE bypassing the whole application layer, the DB still refuses.
 
 resolution:
   bang: "resolutions"
@@ -59,7 +65,7 @@ resolution:
         mo_ta: "Sếp từ chối"
         yeu_cau_role: supervisor
 
-  # ---- Ràng buộc BR-10, ép ở tầng DB, không ở tầng code ----
+  # ---- Constraint BR-10, enforced at the DB layer, not in code ----
   invariant_db:
     ten: "ck_resolutions_approved_requires_approver_br10"
     bieu_thuc: "(status != 'approved') OR (approved_by IS NOT NULL AND approved_at IS NOT NULL)"
@@ -95,7 +101,7 @@ resolution:
         - "note BẮT BUỘC có nội dung khi reject_reason='khac' — ADR-024, INV-17"
         - "Ép ở tầng DB: ck_resolutions_note_bat_buoc_khi_khac (INV-17)"
 
-  # ---- Ràng buộc BR-12 maker-checker (ADR-020), ép ở tầng DB ----
+  # ---- Constraint BR-12 maker-checker (ADR-020), enforced at the DB layer ----
   invariant_db_maker_checker:
     ten: "ck_resolutions_maker_checker_br12"
     bieu_thuc: >-
@@ -121,7 +127,7 @@ resolution:
       Ghi ra đây để không ai đọc sự TỒN TẠI của constraint thành bằng chứng
       rằng dữ liệu cũ đã sạch.
 
-  # ---- Taxonomy lý do từ chối (ADR-019) ----
+  # ---- Rejection reason taxonomy (ADR-019) ----
   reject_reason:
     rang_buoc_db: "ck_resolutions_reject_reason"
     ghi_chu: >
@@ -158,7 +164,7 @@ resolution:
         mo_ta: "Lý do khác — BẮT BUỘC kèm ghi chú tự do"
         la_tin_hieu_hoc: false
 
-  # ---- Ghi chú tự do khi từ chối (ADR-024, TM-03 sign-off của security) ----
+  # ---- Free-text note on rejection (ADR-024, security TM-03 sign-off) ----
   note:
     cot: "resolutions.note"
     kieu: "Text NULLABLE — bắt buộc CÓ NỘI DUNG (sau strip) khi reject_reason='khac'"
@@ -191,7 +197,7 @@ resolution:
       cho input của khách (TM-01 ở dạng nguy hiểm nhất).
 
 # ===========================================================================
-# 2. Ticket.hitl_status — góc nhìn CSKH, TRỰC GIAO với resolution.status
+# 2. Ticket.hitl_status — the CSKH point of view, ORTHOGONAL to resolution.status
 # ===========================================================================
 ticket_hitl_status:
   bang: "tickets"
@@ -216,7 +222,7 @@ ticket_hitl_status:
     (route POST /tickets/{ticket_id}/request-more-info).
 
 # ===========================================================================
-# 3. Ticket.partner_wait_status — chờ ngân hàng, ĐỘC LẬP HOÀN TOÀN
+# 3. Ticket.partner_wait_status — waiting on the bank, COMPLETELY INDEPENDENT
 # ===========================================================================
 ticket_partner_wait_status:
   bang: "tickets"
@@ -229,7 +235,7 @@ ticket_partner_wait_status:
     tiếp trong cùng một FSM — mô tả SAI, vì thực tế hai trục chạy song song.
 
 # ===========================================================================
-# 4. Cờ gian lận ≠ khoá ví (RÀNG BUỘC CỨNG 5)
+# 4. Fraud flag ≠ wallet lock (HARD CONSTRAINT 5)
 # ===========================================================================
 fraud:
   luu_o: "complaints.fraud_signals (JSON list)"
@@ -248,11 +254,11 @@ fraud:
     - "Module fraud không được import module khoá ví (nếu sau này có)."
 
 # ===========================================================================
-# 4b. Tín hiệu CẢM XÚC (ES-xx) — ĐỊNH TUYẾN, không phải phán quyết (ADR-022)
+# 4b. EMOTION signals (ES-xx) — ROUTING, not a verdict (ADR-022)
 # ===========================================================================
-# CỐ Ý TÁCH KHỎI khối `fraud:` ở trên. Hai họ tín hiệu KHÔNG được trộn: chỉ cần
-# một lần ai đó thêm ES vào fraud_signals/tier_a là bức xúc TỰ ĐỘNG escalate lên
-# supervisor — đúng thứ ràng buộc cứng 2 cấm.
+# DELIBERATELY SEPARATED FROM the `fraud:` block above. The two signal families must NOT mix: it
+# only takes one person adding ES to fraud_signals/tier_a for frustration to AUTOMATICALLY escalate
+# to a supervisor — exactly what hard constraint 2 forbids.
 tin_hieu_cam_xuc:
   luu_o: "KHÔNG lưu vào DB. Bộ đếm ở Redis, TTL 2h, giá trị là SỐ, không phải nhãn."
   tinh_boi: "src/services/emotion_signals.py — tầng service, KHÔNG do agent/LLM sinh"

@@ -1,39 +1,46 @@
 # contracts/authority-matrix.yaml
 #
-# NGUỒN SỰ THẬT về thẩm quyền. Tester/Security/UX đọc file này, KHÔNG đọc src/.
+# SOURCE OF TRUTH for authority. Tester/Security/UX read this file, NOT src/.
 #
-# File này được sinh NGƯỢC từ code đang chạy (2026-08-13), không phải chép từ
-# PRD — PRD §4 mô tả thiết kế ban đầu, code đã đi xa hơn (thêm role
-# partner_admin cho RAG chính sách, thêm live-chat, thêm OTP step-up riêng cho
-# duyệt resolution). Contract phải khớp thứ ĐANG CHẠY, nếu không thì mọi
-# artifact hạ nguồn đều dựa trên thông tin chết.
+# This file was REVERSE-generated from the running code (2026-08-13), not copied from the
+# PRD — PRD §4 describes the initial design, and the code has gone further (adding the
+# partner_admin role for the policy RAG, live chat, and a dedicated OTP step-up for resolution
+# approval). The contract must match what IS RUNNING, otherwise every downstream artefact rests on
+# dead information.
 #
-# CƠ CHẾ CHỐNG LỆCH (khác hẳn "tin vào lời dặn"):
+# ANTI-DRIFT MECHANISM (entirely different from "trust the instructions"):
 #   tests/test_invariants.py::test_authority_matrix_khop_app_dang_chay
-#   introspect `src.api.main.app` lúc runtime, lấy allowed_roles từ closure của
-#   require_role(), rồi so khớp TỪNG route với bảng dưới. Thêm/xoá/đổi guard 1
-#   route mà quên sửa file này  →  test ĐỎ ngay, không cần ai nhớ nhắc ai.
+#   introspects `src.api.main.app` at runtime, extracts allowed_roles from the closure of
+#   require_role(), and compares EVERY route with the table below. Add/remove/change one route's
+#   guard and forget to update this file  →  test goes RED immediately, nobody has to remind anyone.
 #
-# Sửa file này = phải có ADR + Bách duyệt. Xem CLAUDE.md §3.
+# Editing this file = requires an ADR + PO approval. See CLAUDE.md §3.
+#
+# KEY GLOSSARY (keys and free-text values are Vietnamese because tests read them verbatim;
+# an English rendering of every contract lives in docs/en/contracts.md):
+#   mo_ta = description · ghi_chu = note · ly_do = reason · ten = name · nguon = source
+#   yeu_cau_otp = OTP requirement · bang = table · cot = columns · y_nghia = meaning
+#   truy_vet = traceability · kieu = type · cham_tien = touches money · gia_tri_ma = code values
+#   rang_buoc_db = DB constraint · bieu_thuc = expression · boi = enforced by · ranh_gioi = boundary
 
 version: "2.4.0"
 source: "Sinh ngược từ src/api/main.py @ 2026-08-13 · thay thế bản 1.0.0 viết từ PRD"
-# v2.3.0 (04/09) — ADR-064, PO thật duyệt. CSKH chỉ thấy vé CHƯA claim +
-# CỦA CHÍNH MÌNH (pool + own), Sếp KHÔNG đổi (vẫn thấy tất cả). Route/role
-# của GET /tickets và GET /tickets/{ticket_id}/transcript KHÔNG đổi (vẫn
-# [cskh, supervisor]) — thay đổi nằm ở ROW-LEVEL SCOPING (ai thấy DÒNG nào),
-# ghi_chu ở từng route mô tả rõ. Thêm route MỚI POST /tickets/{ticket_id}/claim
-# [cskh] — nút "Nhận vé" chủ động, idempotent.
-# v2.2.0 (04/09) — ADR-063, PO greenlit build "chuông thông báo vé mới".
-# Thêm 6 route: GET /notifications · GET /notifications/unread-count ·
+# v2.3.0 (04/09) — ADR-064, approved by the real PO. CSKH only see UNCLAIMED tickets + THEIR
+# OWN (pool + own); supervisors are UNCHANGED (still see everything). The routes/roles of
+# GET /tickets and GET /tickets/{ticket_id}/transcript are UNCHANGED (still
+# [cskh, supervisor]) — the change is in ROW-LEVEL SCOPING (who sees which ROWS), described by the
+# ghi_chu of each route. Adds a NEW route POST /tickets/{ticket_id}/claim
+# [cskh] — an explicit, idempotent "Claim ticket" button.
+# v2.2.0 (04/09) — ADR-063, the PO green-lit building the "new ticket notification bell".
+# Adds 6 routes: GET /notifications · GET /notifications/unread-count ·
 # POST /notifications/{notification_id}/read · POST /notifications/read-all ·
-# POST /presence/heartbeat (cskh+supervisor) · GET /presence/staff (chỉ
-# supervisor). Cả 6 đều khai extra: [require_token_chua_thu_hoi] NGAY TỪ ĐẦU
-# — tránh lặp lại lớp bug "quên thêm route mới vào allowlist" (đã xảy ra 3
-# lần trước, xem finding logout 04/09).
+# POST /presence/heartbeat (cskh+supervisor) · GET /presence/staff (supervisor only). All 6
+# declare extra: [require_token_chua_thu_hoi] (require an unrevoked token) FROM THE START
+# — avoiding a repeat of the "forgot to add the new route to the allowlist" bug class (which had
+# happened 3 times before, see the logout finding of 04/09).
 
 # ---------------------------------------------------------------------------
-# 4 role THẬT (bản contract cũ thiếu partner_admin — lỗi thật, đã sửa)
+# 4 REAL roles (the old contract was missing partner_admin — a real bug, fixed)
 # ---------------------------------------------------------------------------
 roles:
   customer:
@@ -56,17 +63,17 @@ roles:
       tiền, không xem dữ liệu khách hàng. Vai này KHÔNG có trong PRD §4 gốc —
       phát sinh khi thêm tính năng RAG chính sách.
 
-# ADR-029 mục 4 (PO thật duyệt 17/08). TRƯỚC bản này mục `scopes` khai 3 giá
-# trị bằng chuỗi mô tả trần, KHÔNG khai `gia_tri_ma` — nên không phép kiểm nào
-# bắc được từ contract sang CHECK constraint thật, và giá trị thứ tư `unknown`
-# (thêm vào DB 11/08) sống sáu ngày ngoài mọi tài liệu.
+# ADR-029 item 4 (approved by the real PO 17/08). BEFORE this version the `scopes` section
+# declared 3 values as bare description strings, WITHOUT `gia_tri_ma` (code values) — so no check
+# could bridge the contract to the real CHECK constraint, and the fourth value `unknown`
+# (added to the DB on 11/08) lived six days outside every document.
 #
-# Hậu quả đã đo: `flag_human_handoff` ghi cứng `scope="internal_wallet"` cho cả
-# đường khách-xin-gặp-người — hệ thống làm đúng điều nó CẤM model làm — và
-# không cổng nào đỏ, vì contract không biết `unknown` tồn tại.
+# Measured consequence: `flag_human_handoff` hard-coded `scope="internal_wallet"` for the whole
+# customer-asks-for-a-human path — the system doing exactly what it FORBIDS the model to do — and
+# no gate went red, because the contract didn't know `unknown` existed.
 #
-# `gia_tri_ma` là thứ cho phép `test_invariants` so contract ↔ CHECK constraint.
-# Thêm/bớt một giá trị ở một bên mà quên bên kia ⟹ ĐỎ.
+# `gia_tri_ma` is what lets `test_invariants` compare contract ↔ CHECK constraint.
+# Add/remove a value on one side and forget the other ⟹ RED.
 scopes:
   noi_bo_vi:
     mo_ta: "Giao dịch ví ↔ ví trong cùng hệ thống"
@@ -87,17 +94,17 @@ scopes:
     rang_buoc_db: ck_complaints_scope
 
 # ---------------------------------------------------------------------------
-# BẢNG ROUTE — sinh bằng máy, so khớp bằng máy.
+# ROUTE TABLE — generated by machine, checked by machine.
 #
-# roles: []                   → route công khai, không cần đăng nhập
-# roles: [any_authenticated]  → chỉ cần JWT hợp lệ, không ép role cụ thể
+# roles: []                   → public route, no login needed
+# roles: [any_authenticated]  → only a valid JWT needed, no specific role enforced
 # roles: [a, b]               → require_role("a","b")
-# extra:                      → dependency bổ sung (vd require_otp_verified)
-# cham_tien: true             → route có hậu quả tài chính. INV-01 áp ở đây.
+# extra:                      → additional dependency (e.g. require_otp_verified)
+# cham_tien: true             → route with financial consequences. INV-01 applies here.
 # ---------------------------------------------------------------------------
 routes:
 
-  # --- Công khai ---
+  # --- Public ---
   - route: "GET /health"
     roles: []
     ghi_chu: "Liveness probe — KHÔNG được chạm DB/Redis."
@@ -114,7 +121,7 @@ routes:
       Ticket lấy qua POST /live-chat/ws-ticket (customer) hoặc
       /live-chat/staff/ws-ticket (cskh, supervisor).
 
-  # --- Đã đăng nhập, không ép role ---
+  # --- Logged in, no specific role ---
   - route: "POST /auth/logout"
     roles: [any_authenticated]
     extra: [get_current_user]
@@ -249,10 +256,11 @@ routes:
   - route: "POST /live-chat/sessions/{chat_session_id}/close"
     roles: [cskh, supervisor]
 
-  # ADR-063 — Chuông thông báo vé mới. Cô lập theo người nhận
-  # (recipient_user_id = người đăng nhập, chống BOLA) ép ở tầng service, không
-  # ở route — route chỉ ép ROLE. Nội dung noti CHỈ mã vé + nhãn loại, không
-  # số tiền/PII/SĐT (Ràng buộc cứng #3 + PDPA).
+  # ADR-063 — new-ticket notification bell. Isolation by recipient
+  # (recipient_user_id = the logged-in user, anti-BOLA) is enforced at the service layer, not in the
+  # route — routes only enforce ROLE. Notification content is ONLY the ticket code + a type label,
+  # no
+  # amounts/PII/phone numbers (hard constraint #3 + PDPA).
   - route: "GET /notifications"
     roles: [cskh, supervisor]
     extra: [require_token_chua_thu_hoi]
@@ -270,7 +278,7 @@ routes:
     extra: [require_token_chua_thu_hoi]
     ghi_chu: "Ghi khoá Redis presence:staff:<user_id> TTL 45s — không giữ state trong process."
 
-  # --- 3 role (khách xem lại hội thoại của chính mình) ---
+  # --- 3 roles (customers re-reading their own conversation) ---
   - route: "GET /live-chat/sessions/{chat_session_id}/messages"
     roles: [cskh, customer, supervisor]
     ghi_chu: >
@@ -282,7 +290,7 @@ routes:
       qua `by-ticket`/`sessions/waiting` TRƯỚC khi ai claim, đọc lại được
       VĨNH VIỄN sau đó nếu không chặn ở đây. supervisor KHÔNG lọc.
 
-  # --- CHỈ supervisor — nhóm chạm tiền ---
+  # --- supervisor ONLY — the money-touching group ---
   - route: "POST /resolutions/{resolution_id}/request-approval-otp"
     roles: [supervisor]
     ghi_chu: "Xin OTP step-up RIÊNG cho đúng 1 resolution (PSD2 dynamic linking)."
@@ -301,7 +309,7 @@ routes:
     extra: [require_token_chua_thu_hoi]
     ghi_chu: "ADR-063 — bảng 'CSKH nào đang online' + số vé đang xử lý, chỉ Sếp xem."
 
-  # --- CHỈ partner_admin — kho chính sách RAG ---
+  # --- partner_admin ONLY — the policy RAG store ---
   - route: "POST /policy-docs"
     roles: [partner_admin]
   - route: "GET /policy-docs"
@@ -310,7 +318,7 @@ routes:
     roles: [partner_admin]
 
 # ---------------------------------------------------------------------------
-# BẤT BIẾN — tests/test_invariants.py đọc phần này
+# INVARIANTS — tests/test_invariants.py reads this section
 # ---------------------------------------------------------------------------
 invariants:
   - id: INV-01
@@ -337,7 +345,7 @@ invariants:
     nguon: "Nguyên tắc least-privilege, phát sinh cùng tính năng RAG"
 
 # ---------------------------------------------------------------------------
-# CÂU HỎI MỞ — chờ chuyên gia ví điện tử
+# OPEN QUESTIONS — awaiting an e-wallet domain expert
 # ---------------------------------------------------------------------------
 open_questions:
   - "Có tồn tại vai 'CSKH cấp 2' được duyệt case nội bộ nhỏ trong thực tế không?

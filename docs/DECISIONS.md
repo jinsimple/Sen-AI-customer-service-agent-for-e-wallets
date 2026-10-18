@@ -768,7 +768,7 @@ nhánh. Áp sau khi PO thật ký, trong một commit trọn theo CLAUDE.md §3.
   trình điều tra". Đo thật (bản `5f643f71ddb5`): câu liệt kê nguyên tắc đếm 3;
   hai câu liệt kê nguyên văn quy trình đếm 0.
 
-### Quyết định 1 — `src/agents/khop_cum.py`: khớp cụm cho phép chèn hư từ, THUẦN CỘNG
+### Quyết định 1 — `src/agents/phrase_match.py`: khớp cụm cho phép chèn hư từ, THUẦN CỘNG
 
 Module dùng chung cho O1/O2/O3 (`output_filter.py`), mỏ neo nguyên-tắc và
 tier-1/tier-2 injection (`customer_tools.py`). Với 0 hư từ chèn giữa, mẫu mới
@@ -855,7 +855,7 @@ chưa từng khởi tạo, và Redis là fakeredis per-process: bộ đếm vô 
 người đo nếu chỉ ghi Redis. Additive: không đổi `reply`, không đổi
 `loc_dau_ra`, không đổi quyết định chặn.
 
-- **Hệ quả:** `src/agents/khop_cum.py` (mới) · `src/agents/output_filter.py`
+- **Hệ quả:** `src/agents/phrase_match.py` (mới) · `src/agents/output_filter.py`
   (Luật 18 cho O1/O2/O3/mỏ-neo-nguyên-tắc + mỏ neo quy-trình +
   `tin_hieu_lo_chi_thi()`) · `src/agents/tools/customer_tools.py` (Luật 18 cho
   tier-1/tier-2 F-24) · `src/agents/graph.py` (gọi bộ đếm, trường envelope
@@ -2000,7 +2000,7 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 - **Ngày:** 2026-08-18 · **Trạng thái:** Đang hiệu lực — PO thật chốt 18/08/2026
 - **Bối cảnh:**
 
-  Chốt chặn chi phí ở tầng transport (`src/cong_ra_ngoai.py`, land 18/08) còn **một lỗ cuối**: cờ cho
+  Chốt chặn chi phí ở tầng transport (`src/egress_gate.py`, land 18/08) còn **một lỗ cuối**: cờ cho
   phép mặc định là **CHO PHÉP**, nên **script nháp** không được phủ — đúng đường tech-lead tự đâm vào
   khi dựng ca nghiệm thu. Đảo mặc định thành **TỪ CHỐI** đòi `docker-compose.yml` khai `=1`, nếu không
   **lần dựng tới sản phẩm chết**: mọi lượt chat và mọi lượt embedding bị chính chốt chặn của ta từ chối.
@@ -2019,7 +2019,7 @@ plaintext DUY NHẤT còn lại của lời khai khách**.
 - **Lý do:** compose khai **biến môi trường mà `src/` đọc lúc import** — nó là **phần nối dài của cấu
   hình `src/`**, không phải tài liệu. Người viết `src/config.py` là người duy nhất biết một biến được
   đọc lúc nào, đổi nó cần `recreate` hay `restart`, và mặc định nào làm sản phẩm chết. Tách hai thứ ấy
-  cho hai vai là **tạo đúng loại lệch mà `dau_ma_nguon.py` sinh ra để chống**: *hai định nghĩa của cùng
+  cho hai vai là **tạo đúng loại lệch mà `build_stamp.py` sinh ra để chống**: *hai định nghĩa của cùng
   một vật sẽ lệch trong im lặng.*
 
 - **Lý do BÁC BỎ *"để `po` giữ, vì compose là hạ tầng"*:** `po` **không đọc `src/`** ở mức đủ để biết
@@ -2943,7 +2943,7 @@ luật cũ**, không có cơ sở nào tin nó thắng. Sáu vòng vừa rồi l
 ### Đề xuất
 
 Nhận diện **tất định** câu khách yêu cầu tạo vé, ép nhánh ở tầng code — **đúng cơ chế cổng
-`thu_slot` (1B) đã dựng hôm nay**, hạ tầng có sẵn (`phan_luong.py`).
+`thu_slot` (1B) đã dựng hôm nay**, hạ tầng có sẵn (`triage.py`).
 
 **Nguyên tắc bắt buộc kế thừa từ 1B — thà BỎ SÓT còn hơn BẮT OAN:**
 - Bỏ sót ⟹ agent hỏi thêm một lượt. Phiền, không hỏng.
@@ -3775,3 +3775,26 @@ với mọi consumer, ghi lại để tra được sau này.
 - **Thay thế:** không.
 - **Người duyệt:** PO thật (05/09, qua phiên PO) — CHỜ DUYỆT tường minh trước khi
   `check_contracts.py --update` + code, đúng quy trình §3.
+
+## ADR-066 — Portfolio edition: English code comments, English identifiers, comment-only contract edits
+- **Date:** 2026-10-18
+- **Context:** The owner is publishing a personal portfolio copy of this repository for
+  international recruiters. Code comments, docstrings and many identifiers were Vietnamese.
+- **Decision:**
+  1. Translate every comment/docstring in `src/` to English. Each file was rewritten by a tool that
+     refuses to save unless the Python AST (docstrings stripped) is byte-identical to the original —
+     i.e. no executable code changed.
+  2. Rename Vietnamese Python identifiers, module names and environment variables to English
+     (token-aware rename; DB columns, JSON wire fields, Redis key values and LLM tool schemas are
+     deliberately unchanged so the deployed data stays compatible).
+  3. `contracts/*.yaml`: **comments only** were translated (plus a key glossary). The parsed YAML data
+     was verified identical before/after (`yaml.safe_load` equality), so no route, role, enum or
+     constraint changed. Hashes changed, hence `check_contracts.py --update` and a
+     `CONTRACT_VERSION` bump in `tests/test_invariants.py`.
+  4. Kept in Vietnamese on purpose: the agent system prompt, the five `@tool` docstrings (they are sent
+     to the LLM as tool descriptions), customer-facing replies, Vietnamese-language regexes, eval
+     datasets, and historical ADRs/journals. English renderings live in `docs/en/`.
+- **Verification:** full backend suite run before and after; same pass/skip counts as the baseline
+  commit except environment-dependent tests (documented in the portfolio QA checklist).
+- **Replaces:** none.
+- **Approved by:** the project owner/PO (2026-10-18, scope "all three tiers").

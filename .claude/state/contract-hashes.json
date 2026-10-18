@@ -1,8 +1,8 @@
 {
   "contracts": {
-    "agent-tools.yaml": "df6e7c9353d3",
-    "authority-matrix.yaml": "5c3ba34cfc99",
-    "resolution-state-machine.yaml": "a39f2b84ec5d"
+    "agent-tools.yaml": "59e2b8390568",
+    "authority-matrix.yaml": "f9a83fc6b1bd",
+    "resolution-state-machine.yaml": "5b36e076fb19"
   },
   "note": "Baseline đã được PO duyệt. Cập nhật qua --update."
 }
