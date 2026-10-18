@@ -15,19 +15,18 @@ import { COMPLAINT_TYPE_LABEL, SCOPE_LABEL, labelOf } from "@/lib/types";
 import { useI18n } from "@/lib/i18n/client";
 import { docLang, translate } from "@/lib/i18n/core";
 
-// Live chat (2026-08-11) — panel dùng CHUNG cho cả khách hàng (trang /chat)
-// và CSKH/sếp (panel trong TicketDetailClient), tái dùng NGUYÊN class CSS đã
-// có ở ChatClient.tsx (.chat-panel/.chat-thread/.bubble-*) — không tự chế
-// class mới. KHÔNG có bất kỳ nút thao tác tài chính nào ở đây — nhất quán
-// nguyên tắc HITL tuyệt đối (chỉ /approve mới ghi approved), panel này CHỈ
-// xem/gõ chữ.
+// Live chat (2026-08-11) — a panel SHARED by both the customer (the /chat page) and
+// support/supervisor (the panel inside TicketDetailClient), reusing the EXACT CSS classes already
+// used in ChatClient.tsx (.chat-panel/.chat-thread/.bubble-*) — no new classes invented. NO
+// financial-action button of any kind here — consistent with the absolute HITL rule (only /approve
+// ever writes approved), this panel is ONLY for reading/typing text.
 
 interface LiveChatPanelProps {
   ticketId: string;
   viewerRole: "customer" | "cskh" | "supervisor";
-  viewerUserId?: string; // bắt buộc thực tế cho staff — dùng phân biệt "tôi
-  // đã nhận ca này" với "người KHÁC đã nhận" khi mở lại panel (vd supervisor
-  // xem 1 ticket CSKH khác đang xử lý — không được coi là claimedByMe).
+  viewerUserId?: string; // required in practice for staff — used to tell "I claimed this
+  // ticket" apart from "someone ELSE claimed it" when reopening the panel (e.g. a supervisor
+  // viewing a ticket another support agent is handling — must not be treated as claimedByMe).
 }
 
 interface LocalMessage {
@@ -47,26 +46,26 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [input, setInput] = useState("");
   const [csatSubmitted, setCsatSubmitted] = useState(false);
-  // Trạng thái NGHIỆP VỤ của phiên (server nói đã đóng), KHÁC với `status`
-  // của useLiveChatSocket (trạng thái CHÍNH kết nối WebSocket) — 2 khái
-  // niệm không được lẫn: mất mạng (status="closed") không có nghĩa CSKH đã
-  // kết thúc phiên chat thật.
+  // The BUSINESS status of the session (the server says it's closed), DIFFERENT from `status` in
+  // useLiveChatSocket (the WEBSOCKET connection's OWN state) — the two concepts must not be
+  // confused: a dropped connection (status="closed") doesn't mean the support agent actually ended
+  // the chat session.
   const [sessionClosed, setSessionClosed] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // Phát hiện thật (2026-08-11): sau khi gửi, ô nhập đôi khi còn sót lại
-  // 1 phần chữ vừa gõ dù setInput("") đã chạy (đua giữa state React và DOM
-  // input thật — chưa xác định chính xác trigger). Buộc React REMOUNT hẳn
-  // <input> (đổi key) sau mỗi lần gửi thành công — chắc chắn sạch bất kể
-  // nguyên nhân timing chính xác là gì.
+  // A real finding (2026-08-11): after sending, the input box sometimes still shows a leftover
+  // fragment of what was just typed even though setInput("") ran (a race between React state and
+  // the real DOM input — the exact trigger hasn't been pinned down). Forces React to fully REMOUNT
+  // the <input> (changing its key) after every successful send — guaranteed clean regardless of the
+  // precise timing cause.
   const [inputResetKey, setInputResetKey] = useState(0);
   const threadRef = useRef<HTMLDivElement>(null);
 
   const handleEvent = useCallback(
     (event: LiveChatEvent) => {
       if (event.type === "message") {
-        // Dedupe theo message_id — phòng vệ 2 lớp: dù server/kết nối trùng
-        // có gửi cùng 1 tin nhắn nhiều lần (phát hiện thật 2026-08-11, tin
-        // nhắn hiện tượng "bị tách chữ"), UI vẫn không hiện trùng.
+        // Dedupe by message_id — a second layer of defence: even if the server/connection
+        // duplicates and sends the same message more than once (a real finding, 2026-08-11,
+        // messages showing up "split apart"), the UI still never shows a duplicate.
         setMessages((prev) => (prev.some((m) => m.key === event.message_id) ? prev : [...prev, { key: event.message_id, role: event.role, content: event.content }]));
       } else if (event.type === "system") {
         setMessages((prev) => [...prev, { key: `sys-${prev.length}-${Date.now()}`, role: "system", content: event.text }]);
@@ -92,12 +91,11 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight });
   }, [messages]);
 
-  // Cảnh báo rời trang (2026-08-11, phát hiện thật qua test tay) — F5/đóng
-  // tab khi đang chat KHÔNG có gì báo trước cho CSKH, phiên tự đóng "âm
-  // thầm" ở tầng server (xem release_staff_sessions). Trình duyệt hiện đại
-  // (Chrome/Firefox/Safari, từ ~2011) không cho tuỳ biến NỘI DUNG hộp thoại
-  // native — chỉ điều khiển được việc CÓ hiện hộp thoại xác nhận hay không,
-  // không viết được câu tiếng Việt riêng vào đó.
+  // A leave-page warning (2026-08-11, a real finding from manual testing) — F5/closing the tab
+  // mid-chat gives the support agent NO warning, the session closes "silently" at the server layer
+  // (see release_staff_sessions). Modern browsers (Chrome/Firefox/Safari, since ~2011) don't allow
+  // customising the native dialog's CONTENT — you can only control WHETHER a confirmation dialog
+  // appears, you can't write your own Vietnamese sentence into it.
   useEffect(() => {
     if (chatSessionId === null || sessionClosed) return;
     if (isStaff && !claimedByMe) return;
@@ -109,12 +107,12 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
     return () => window.removeEventListener("beforeunload", handler);
   }, [chatSessionId, sessionClosed, isStaff, claimedByMe]);
 
-  // React StrictMode chạy effect 2 lần lúc mount để bắt lỗi thiếu cleanup —
-  // không chặn thì mint 2 ws-ticket + mở 2 kết nối WS cho CÙNG 1 lượt mount
-  // (phát hiện thật 2026-08-11: đúng nguyên nhân tin nhắn bị lặp/tách khi
-  // gửi — 2 kết nối cùng active, cùng nhận broadcast). Cùng pattern ref-guard
-  // ChatClient.tsx đã dùng cho effect chào hỏi (dòng ~168) — ref sống sót
-  // qua 2 lần mount/unmount đó (khác state), chặn được đúng 1 lần thật.
+  // React StrictMode runs an effect twice on mount to catch missing cleanup — without a guard, that
+  // mints 2 ws-tickets + opens 2 WS connections for the SAME mount (a real finding, 2026-08-11: the
+  // exact cause of messages getting duplicated/split when sending — 2 connections both active, both
+  // receiving the broadcast). Same ref-guard pattern ChatClient.tsx already uses for the greeting
+  // effect (around line 168) — the ref survives those 2 mount/unmount cycles (unlike state),
+  // blocking it down to exactly one real run.
   const connectStartedRef = useRef(false);
 
   useEffect(() => {
@@ -137,9 +135,10 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
           setChatSessionId(existing.chat_session.chat_session_id);
           setWaitingUnclaimed(existing.chat_session.status === "waiting" && existing.chat_session.claimed_by === null);
           setClaimedByMe(existing.chat_session.status === "active" && existing.chat_session.claimed_by === viewerUserId);
-          // Phiên đã đóng (khách F5/thoát — release_staff_sessions/
-          // close_customer_session_on_disconnect) vẫn phải hiện được LỊCH SỬ
-          // + SĐT khách để CSKH liên hệ lại, không chỉ khi còn waiting/active.
+          // A closed session (the customer hit F5/left —
+          // release_staff_sessions/close_customer_session_on_disconnect) still needs to show its
+          // HISTORY + the customer's phone number so the support agent can reach back out, not only
+          // while waiting/active.
           setSessionClosed(existing.chat_session.status === "closed");
           if (existing.context) setContext(existing.context);
           const history = await getLiveChatMessages(existing.chat_session.chat_session_id);
@@ -153,9 +152,9 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
           });
         }
       } catch (e) {
-        // Không để lỗi mở phiên chat (vd 403/429/5xx) rơi mất âm thầm — phát
-        // hiện thật 2026-08-11: OTP-gate cũ chặn ngầm route này, khách bấm
-        // "gặp người thật" xong không thấy gì xảy ra, tưởng tính năng hỏng.
+        // Don't let an error opening a chat session (e.g. 403/429/5xx) silently vanish — a real
+        // finding, 2026-08-11: the old OTP gate was blocking this route invisibly, so the customer
+        // clicked "talk to a human" and saw nothing happen, assuming the feature was broken.
         if (!cancelled) {
           setLoadError(e instanceof Error ? e.message : translate(docLang(), "live.openError"));
         }
@@ -171,19 +170,19 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
     if (!chatSessionId) return;
     try {
       await claimChatSession(chatSessionId);
-      // Kết quả thật (context/claimedByMe) tới qua push WS "claim_success",
-      // không set state trực tiếp ở đây — tránh 2 nguồn sự thật lệch nhau.
+      // The real result (context/claimedByMe) arrives via the "claim_success" WS push —
+      // don't set state directly here, to avoid two sources of truth drifting apart.
     } catch {
       setMessages((prev) => [...prev, { key: `claim-err-${Date.now()}`, role: "system", content: t("live.claimedByOther") }]);
       setWaitingUnclaimed(false);
     }
   };
 
-  // Khoá gửi tạm thời — phát hiện thật 2026-08-11: 1 lần Enter đôi khi kích
-  // hoạt handleSend nhiều lần liên tiếp (nghi do sự kiện keydown lặp/component
-  // mount trùng chưa xác định được gốc rễ chính xác), gây gửi trùng tin nhắn
-  // dù người dùng chỉ thao tác 1 lần. Khoá 400ms là đủ ngăn double-fire sát
-  // nhau mà không cản trở gửi nhiều tin nhắn thật liên tục.
+  // A temporary send lock — a real finding, 2026-08-11: a single Enter press sometimes triggered
+  // handleSend several times in a row (suspected to be a duplicated keydown event/duplicate
+  // component mount, exact root cause not pinned down), sending a duplicate message even though the
+  // user only acted once. A 400ms lock is enough to block near-simultaneous double-fires without
+  // blocking genuinely sending several messages in quick succession.
   const sendingRef = useRef(false);
 
   const handleSend = () => {
@@ -297,9 +296,9 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
             disabled={isStaff && !claimedByMe}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              // isComposing/repeat: bỏ qua Enter đến từ bộ gõ tiếng Việt đang
-              // soạn thảo (Unikey/OpenKey) hoặc phím giữ lặp — chỉ gửi đúng 1
-              // lần cho 1 lần bấm Enter thật của người dùng.
+              // isComposing/repeat: ignore an Enter that comes from a Vietnamese input method
+              // mid-composition (Unikey/OpenKey) or from a held-down repeating key — send EXACTLY
+              // once per one real Enter press from the user.
               if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.repeat) handleSend();
             }}
             maxLength={4000}
