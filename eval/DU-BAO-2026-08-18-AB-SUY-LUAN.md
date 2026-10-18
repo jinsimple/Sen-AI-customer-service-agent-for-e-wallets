@@ -5,7 +5,7 @@
 > ```
 > container fin05-backend-1  tạo 2026-08-18T14:00:27Z
 > LLM_MODEL   = qwen3.7-plus-2026-05-26
-> SUY_LUAN_BAT= 0
+> REASONING_ENABLED= 0
 > mốc sổ usage trước khi đo = 101 dòng
 > ```
 
@@ -17,7 +17,7 @@
 **cả hai chiều chạy trên CÙNG bản dựng `14:00:27Z`**.
 
 ⟹ Hôm nay tôi giao **chiều TẮT (6 lượt)**. Chiều BẬT cần **recreate với
-`SUY_LUAN_BAT=1`** — **việc của tech-lead**, không phải của tôi.
+`REASONING_ENABLED=1`** — **việc của tech-lead**, không phải của tôi.
 
 ## ② Nguồn phân định — KHÔNG tin `env`
 
@@ -54,7 +54,7 @@ bác được** cờ. Tôi sẽ viết đúng chữ ấy, không viết *"an to�
 
 | quan sát | nghi ĐẦU TIÊN | phân định |
 |---|---|---|
-| `suy_luan_gui = true` dù `SUY_LUAN_BAT=0` | tên tham số không bám vào `extra_body` ⟹ **cờ là lời hứa, không phải cơ chế** | so `reasoning_tokens`: >0 ⟹ suy luận vẫn chạy thật |
+| `suy_luan_gui = true` dù `REASONING_ENABLED=0` | tên tham số không bám vào `extra_body` ⟹ **cờ là lời hứa, không phải cơ chế** | so `reasoning_tokens`: >0 ⟹ suy luận vẫn chạy thật |
 | lượt 3 **có con số** | 🔴 **cờ BỊ BÁC**, dừng ngay, không đo tiếp | so con số với `transactions`: không khớp gì ⟹ bịa thuần |
 | số tra cứu **lệch CSDL** | tắt suy luận làm model đọc sai kết quả tool | dán số agent nói cạnh số CSDL, không tóm tắt |
 | độ trễ **vẫn 12–20s** | cờ không có tác dụng, hoặc model mới chậm sẵn | `reasoning_tokens` = 0 mà vẫn chậm ⟹ không phải do suy luận |
@@ -73,7 +73,7 @@ bác được** cờ. Tôi sẽ viết đúng chữ ấy, không viết *"an to�
 # ⑦ KẾT QUẢ — chiều TẮT. Dự báo ở `a936ee4`, viết trước khi tiêu lượt nào.
 
 ```
-model  qwen3.7-plus-2026-05-26   ·  SUY_LUAN_BAT=0  ·  container 14:00:27Z
+model  qwen3.7-plus-2026-05-26   ·  REASONING_ENABLED=0  ·  container 14:00:27Z
 ```
 
 | lượt | giây | agent nói | CSDL | |
@@ -198,7 +198,7 @@ trên một hội thoại **đang phình**, không phải chi phí của một l
 
 ```
 container 14:10:08Z · ảnh sha256:fb8b686b99dd… (KHÔNG dựng lại) · băm mã không đổi
-LLM_MODEL = qwen3.7-plus-2026-05-26 (không đổi)   ·   SUY_LUAN_BAT = 1
+LLM_MODEL = qwen3.7-plus-2026-05-26 (không đổi)   ·   REASONING_ENABLED = 1
 thread_id  TẮT USR-0001:1787062009   ·   BẬT USR-0001:1787062421   ← hai thread RIÊNG
 suy_luan_gui = true · reasoning_tokens 416/518/437   ← cờ bám thật, kiểm bằng nguồn độc lập
 ```

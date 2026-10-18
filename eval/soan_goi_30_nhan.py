@@ -111,13 +111,13 @@ def phan_tang(bg: list[dict], ca_bien: set[str], rnd: random.Random) -> dict[str
             "C_bien": bien[:MOI_TANG]}
 
 
-def _kiem_ro_ri(noi_dung: str, chon: list[dict]) -> None:
+def _kiem_ro_ri(content_text: str, chon: list[dict]) -> None:
     """Cổng chống rò rỉ — chạy TRƯỚC khi ghi, không dựa vào trí nhớ người soạn."""
-    xau = [t for t in CAM_TRONG_FILE_NGUOI if t.lower() in noi_dung.lower()]
+    xau = [t for t in CAM_TRONG_FILE_NGUOI if t.lower() in content_text.lower()]
     if xau:
         sys.exit(f"🔴 FILE NGƯỜI CHẤM RÒ PHÁN QUYẾT MÁY: {xau} — DỪNG, không ghi.")
     for x in chon:
-        if x["ly_do_may"] and x["ly_do_may"][:40].lower() in noi_dung.lower():
+        if x["ly_do_may"] and x["ly_do_may"][:40].lower() in content_text.lower():
             sys.exit(f"🔴 RÒ lý do máy của ca {x['id']} — DỪNG, không ghi.")
 
 
@@ -143,11 +143,11 @@ def main() -> None:
         print("      Chạy run_llm_judge_set trên bộ lớn hơn trước khi soạn gói này.")
 
     rnd = random.Random(a.seed)
-    tang = phan_tang(bg, {s.strip() for s in a.ca_bien.split(",") if s.strip()}, rnd)
-    for ten, ds in tang.items():
+    bump = phan_tang(bg, {s.strip() for s in a.ca_bien.split(",") if s.strip()}, rnd)
+    for ten, ds in bump.items():
         print(f"  {ten:<14} {len(ds)}/{MOI_TANG} ca" + ("" if len(ds) == MOI_TANG else "   ⚠️ THIẾU"))
 
-    chon = [x for ds in tang.values() for x in ds]
+    chon = [x for ds in bump.values() for x in ds]
     rnd.shuffle(chon)  # xáo: gom theo tầng là một dạng rò rỉ (người chấm nhận ra khúc toàn ca xấu)
 
     dong = [
@@ -177,14 +177,14 @@ def main() -> None:
         for k in range(len(x["hoi"]), len(x["dap"])):
             dong.append(f"**Agent:** {x['dap'][k]}\n")
         dong += ["```", "ket_luan      : ", "ly_do         : ", "co_bia_khong  : ", "```", "", "---", ""]
-    noi_dung = "\n".join(dong)
+    content_text = "\n".join(dong)
 
-    _kiem_ro_ri(noi_dung, chon)
+    _kiem_ro_ri(content_text, chon)
 
     h = hashlib.sha256()
     for p in sorted((GOC / "src").rglob("*.py")):
         h.update(p.read_bytes())
-    RA_NGUOI.write_text(noi_dung, encoding="utf-8")
+    RA_NGUOI.write_text(content_text, encoding="utf-8")
     RA_MAY.write_text(json.dumps({
         "nhan_vat": {
             "he_thong": h.hexdigest()[:12],

@@ -29,7 +29,7 @@ cá nhân và câu hỏi chính sách chưa OTP; model chạy thật sau OTP).
 | ④ | Cổng OTP tất định NHÓM B | Backend+FE 1 commit, hợp đồng envelope đúng |
 | ⑤ | Cổng sau OTP hỏi thời gian+số tiền 1 tin | |
 | ⑥ | Bất biến 0-token trên UI thật | 3/3 PASS — đóng N3 |
-| ⑦ | Kill-switch T0 độc lập `PHAN_LUONG_BAT` | Tiêu chí sửa lại vì ④ ra đời sau: "day_du HOẶC can_otp" |
+| ⑦ | Kill-switch T0 độc lập `TRIAGE_ENABLED` | Tiêu chí sửa lại vì ④ ra đời sau: "day_du HOẶC can_otp" |
 | ⑧ | 2 câu chống mạo danh CSKH | Hằng số, 0 token |
 | ⑨ | Câu sàng lọc lừa đảo | 5/5 trục, tất định phần (a), phụ thuộc ADR-050 phần (b) |
 | ⑫b | Nối FS-13 với `request_human_handoff` có sẵn | **KHÔNG phải** loại khiếu nại thứ 5 đầy đủ — xem "Thu hẹp" |

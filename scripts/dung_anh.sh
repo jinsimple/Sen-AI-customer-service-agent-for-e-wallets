@@ -27,9 +27,9 @@
 # Phần làm nó HOẠT ĐỘNG là hậu tố **tra không ra**: một nhãn sai mà tra được
 # thì người ta tin nó; một nhãn sai mà tra không ra thì người ta đi hỏi.
 #
-# 🔴 CỐ Ý KHÔNG đóng băm `src/` vào nhãn này. Băm đã có ở `/app/.bam_ma_nguon`,
+# 🔴 CỐ Ý KHÔNG đóng băm `src/` vào nhãn này. Băm đã có ở `/app/.source_hash`,
 # **tự tính trong Dockerfile, không qua tay người**. Thêm một bản sao do script
-# này tính là tạo đúng thứ `src/dau_ma_nguon.py` sinh ra để chống:
+# này tính là tạo đúng thứ `src/build_stamp.py` sinh ra để chống:
 # *hai định nghĩa của cùng một vật sẽ lệch nhau, và lệch trong im lặng.*
 #
 # DÙNG:
@@ -97,5 +97,5 @@ import hashlib, pathlib
 h = hashlib.sha256()
 for f in sorted(pathlib.Path('src').rglob('*.py')): h.update(f.read_bytes())
 print(h.hexdigest()[:12])")"
-echo "băm ảnh  : $(docker exec "$CT" cat /app/.bam_ma_nguon 2>/dev/null || echo '(chưa sẵn sàng)')"
+echo "băm ảnh  : $(docker exec "$CT" cat /app/.source_hash 2>/dev/null || echo '(chưa sẵn sàng)')"
 echo "sửa-tay  : $(docker diff "$CT" 2>/dev/null | grep -E '^C /app/src.*\.py$' | grep -v __pycache__ | wc -l | tr -d ' ')"

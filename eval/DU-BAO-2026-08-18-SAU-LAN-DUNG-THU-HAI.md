@@ -15,9 +15,9 @@ làm nó bác được.
 ## ② Điều lần dựng này đổi (theo khai báo của tech-lead qua PO-agent)
 
 ```
-1  cờ FIN05_CHO_PHEP_GOI_RA_NGOAI  mặc định đảo → TỪ CHỐI; compose khai =1 cho cả ba
+1  cờ FIN05_ALLOW_EGRESS  mặc định đảo → TỪ CHỐI; compose khai =1 cho cả ba
 2  tests/ trong ảnh  ← nay là bản mới nhất của tôi
-3  sổ cong_ra_ngoai.jsonl  bắt đầu đếm từ 0
+3  sổ egress_ledger.jsonl  bắt đầu đếm từ 0
 ```
 
 ## ③ DỰ BÁO — bốn cổng của tôi, chạy TỪ HOST
@@ -29,7 +29,7 @@ làm nó bác được.
 | 3 | `fin05` vẫn **761 mã hoá / 0 trần** | **cao** | CSDL nằm trên **volume**, `rebuild` không đụng volume — và PO-agent đã cấm `down -v` |
 | 4 | `fin05ttl` vẫn **4 / 738** ⟹ ca đối chứng vẫn **PASSED** | **trung bình** | phụ thuộc `fin05ttl` còn sống — sếp **đang quyết** có bỏ hay không |
 | 5 | `docker diff` ba container về **gần 0** | **cao** | container mới tinh; 678/181/287 dòng cũ là tích luỹ của phiên trước |
-| 6 | cổng chi phí của tôi **vẫn skip** (`FIN05_CHO_PHEP_TON_TIEN` tắt) | **cao** | cờ transport là lớp **thứ hai**, không thay lớp thứ nhất |
+| 6 | cổng chi phí của tôi **vẫn skip** (`FIN05_ALLOW_PAID_CALLS` tắt) | **cao** | cờ transport là lớp **thứ hai**, không thay lớp thứ nhất |
 
 ## ④ 🔴 NẾU KHÁC THÌ NGHI GÌ — dòng đầu là dòng quan trọng nhất
 

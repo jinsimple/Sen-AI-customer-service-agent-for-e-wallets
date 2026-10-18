@@ -1,16 +1,15 @@
-"""Vector store cho RAG chính sách/FAQ — ChromaDB local, persistent, chạy
-in-process (`data/rag_index/`, KHÔNG commit — xem .gitignore). Không dùng
-managed vector DB bên thứ 3 (Pinecone/Qdrant Cloud...) để giữ đúng cam kết
-"dữ liệu không rời khỏi hạ tầng" đã nêu ở trang đăng nhập.
+"""Vector store for the policy/FAQ RAG — local, persistent ChromaDB running in-process
+(`data/rag_index/`, NOT committed — see .gitignore). No third-party managed vector DB
+(Pinecone/Qdrant Cloud...) is used, to keep the "data never leaves our infrastructure"
+promise stated on the login page.
 
-QUAN TRỌNG — "bảo mật RAG cấp cao": Chroma ở đây CHỈ lưu embedding vector +
-chunk_id, KHÔNG lưu text thật của tài liệu (tham số `documents=` truyền vào
-Chroma là chunk_id, không phải nội dung). Text thật nằm mã hoá trong bảng
-SQLite `policy_chunks` (EncryptedText, src/db/crypto_types.py) — tra cứu phải
-qua 2 bước: hỏi Chroma lấy chunk_id theo độ tương đồng, rồi giải mã text thật
-từ SQLite (xem search.py). Nhờ vậy dù thư mục data/rag_index/ bị đọc trộm
-cũng không lộ nội dung chính sách, chỉ lộ các vector số không đảo ngược được
-thành văn bản gốc.
+IMPORTANT — "hardened RAG security": Chroma here stores ONLY embedding vectors +
+chunk_ids, NOT the documents' real text (the `documents=` argument passed to Chroma is the
+chunk_id, not the content). The real text lives encrypted in the SQL table
+`policy_chunks` (EncryptedText, src/db/crypto_types.py) — lookups take 2 steps: ask Chroma
+for chunk_ids by similarity, then decrypt the real text from SQL (see search.py). So even if
+the data/rag_index/ directory is stolen, no policy content leaks — only numeric vectors that
+cannot be inverted back into the original text.
 """
 from __future__ import annotations
 
@@ -26,51 +25,53 @@ from src.config import (
     RAG_EMBEDDING_MODEL,
     RAG_INDEX_DIR,
 )
-from src.cong_ra_ngoai import http_client_dung_chung
+from src.egress_gate import shared_http_client
 
-_COLLECTION_GOC = "policy_faq"
+_BASE_COLLECTION = "policy_faq"
 
 
-def _ten_collection() -> str:
-    """Tên collection MANG THEO model nhúng — công tắc, không phải migrate.
+def _collection_name() -> str:
+    """The collection name CARRIES the embedding model — a switch, not a migration.
 
-    Chiều vector khác nhau (`text-embedding-3-small` 1536 · Qwen
-    `text-embedding-v4` 1024) và Chroma GHIM chiều lúc TẠO collection, nên hai
-    model KHÔNG dùng chung một collection được. Làm ngây thơ thì mỗi lần đổi
-    nhà cung cấp là nạp lại toàn bộ kho.
+    Vector dimensions differ (`text-embedding-3-small` 1536 · Qwen
+    `text-embedding-v4` 1024) and Chroma PINS the dimension when the collection is CREATED,
+    so two models CANNOT share one collection. A naive approach would re-ingest the whole
+    store every time the provider changes.
 
-    Đặt tên theo model -> hai kho sống SONG SONG, mỗi kho nạp MỘT LẦN, đổi qua
-    đổi lại là đổi biến môi trường và 0 giây nạp lại.
+    Naming by model -> two stores live SIDE BY SIDE, each ingested ONCE; switching back and
+    forth is an environment-variable change with 0 seconds of re-ingestion.
 
-    Và nó CỨU CHUỖI ĐO: kho `3-small` còn nguyên vẹn nên mọi số truy hồi cũ
-    (nền 23/47, rerank 38/47, trần Recall@20, 47 ca golden) vẫn đo lại được
-    trên đúng vật cũ — chỉ cần lật biến về.
+    And it SAVES THE MEASUREMENT CHAIN: the `3-small` store is intact, so every old retrieval
+    number (baseline 23/47, rerank 38/47, Recall@20 ceiling, 47 golden cases) can still be
+    re-measured on exactly the same object — just flip the variable back.
     """
-    return f"{_COLLECTION_GOC}__{RAG_EMBEDDING_MODEL}"
+    return f"{_BASE_COLLECTION}__{RAG_EMBEDDING_MODEL}"
 
 
-def _doi_ten_kho_cu_mot_lan(client) -> None:
-    """Kho dựng TRƯỚC quy ước đặt tên này nằm ở tên trần `policy_faq`.
+def _rename_legacy_store_once(client) -> None:
+    """Stores built BEFORE this naming convention live under the bare name `policy_faq`.
 
-    Đổi quy ước mà không xử nó = 378 vector trở thành VÔ HÌNH, và `kiem` sẽ
-    báo TRONG rồi bảo người ta nạp lại một kho vốn hoàn toàn đúng — tốn tiền
-    nhúng lại và cắt chuỗi đo, đúng hai thứ quy ước này sinh ra để tránh.
+    Changing the convention without handling it = 378 vectors become INVISIBLE, and `kiem`
+    would report EMPTY and tell people to re-ingest a store that is perfectly correct —
+    costing re-embedding money and breaking the measurement chain, exactly the two things
+    this convention exists to avoid.
 
-    Đổi TÊN chứ không nhúng lại: vector giữ nguyên, 0 lượt gọi API.
+    RENAME rather than re-embed: the vectors stay the same, 0 API calls.
 
-    ⚠️ CHỈ đổi khi model hiện tại ĐÚNG LÀ model đã dựng kho cũ. Kho trần đó
-    dựng bằng `text-embedding-3-small` (hardcode thời đó); nếu ai chạy lần đầu
-    với model khác thì gán nhãn model mới cho vector cũ là tạo ra đúng loại
-    lệch-một-vế mà cả `chuan_hoa` lẫn `model_embed` tồn tại để chặn.
+    ⚠️ ONLY rename when the current model REALLY IS the model that built the old store. That
+    bare store was built with `text-embedding-3-small` (hard-coded at the time); if someone
+    runs for the first time with a different model, labelling old vectors with the new model
+    creates exactly the one-sided drift that both `chuan_hoa` and `model_embed` exist to
+    prevent.
     """
     if RAG_EMBEDDING_MODEL != "text-embedding-3-small":
         return
-    ten_moi = _ten_collection()
-    co = {c.name for c in client.list_collections()}
-    if _COLLECTION_GOC in co and ten_moi not in co:
-        cu = client.get_collection(_COLLECTION_GOC)
-        if cu.count() > 0:
-            cu.modify(name=ten_moi, metadata={"chuan_hoa": CHUAN_HOA_VERSION,
+    new_name = _collection_name()
+    found = {c.name for c in client.list_collections()}
+    if _BASE_COLLECTION in found and new_name not in found:
+        prev = client.get_collection(_BASE_COLLECTION)
+        if prev.count() > 0:
+            prev.modify(name=new_name, metadata={"chuan_hoa": NORMALIZATION_VERSION,
                                               "model_embed": RAG_EMBEDDING_MODEL})
 
 _client: chromadb.ClientAPI | None = None
@@ -88,31 +89,31 @@ def _get_client() -> chromadb.ClientAPI:
 def _get_embeddings() -> OpenAIEmbeddings:
     global _embeddings
     if _embeddings is None:
-        # ⚠️ "TƯƠNG THÍCH OpenAI" LÀ TƯƠNG THÍCH Ở TẦNG HTTP, KHÔNG PHẢI Ở
-        # TẦNG THƯ VIỆN CLIENT. Endpoint nhận đúng đường dẫn và đúng hình dạng
-        # JSON, nhưng client `langchain-openai` gửi những thứ chỉ OpenAI chấp
-        # nhận. Hai lỗi dưới đây KHÔNG đọc tài liệu nào ra được, chỉ gọi thật
-        # mới thấy — mỗi cái là một lượt 400 và nửa buổi nếu không biết trước.
+        # ⚠️ "OpenAI-COMPATIBLE" MEANS COMPATIBLE AT THE HTTP LEVEL, NOT AT THE CLIENT-LIBRARY
+        # LEVEL. The endpoint accepts the right path and the right JSON shape, but the
+        # `langchain-openai` client sends things only OpenAI accepts. The two errors below CANNOT be
+        # found by reading any documentation, only by making real calls — each one costs a 400 and
+        # half a day if you don't know in advance.
         #
-        # `check_embedding_ctx_length=False` CHỈ khi trỏ nhà cung cấp khác.
+        # `check_embedding_ctx_length=False` ONLY when pointing at another provider.
         #
-        # Mặc định LangChain TOKENISE phía client rồi gửi MẢNG SỐ NGUYÊN.
-        # OpenAI nhận; endpoint "tương thích OpenAI" của Qwen TỪ CHỐI:
+        # By default LangChain TOKENISES on the client and sends an ARRAY OF INTEGERS.
+        # OpenAI accepts it; Qwen's "OpenAI-compatible" endpoint REJECTS it:
         #   400 InvalidParameter: contents is neither str nor list of str
-        # Tắt cờ đó -> gửi chuỗi thô, đúng thứ mọi endpoint đều hiểu.
+        # Turning the flag off -> sends raw strings, which every endpoint understands.
         #
-        # CÓ ĐIỀU KIỆN chứ không bật luôn: cờ này cũng tắt phép cắt-theo-ngữ-
-        # cảnh phía client. Chunk của ta 800 ký tự nên không chạm trần, nhưng
-        # bật nó cho đường OpenAI là ĐỔI VẬT trên kho 378 vector đang giữ cả
-        # chuỗi đo — không đổi thứ đang chạy đúng để chiều một nhà cung cấp
-        # chưa dùng.
+        # CONDITIONAL rather than always on: this flag also disables client-side context-length
+        # truncation. Our chunks are 800 characters so they never hit the limit, but enabling it on
+        # the OpenAI path would CHANGE THE OBJECT on the 378-vector store that anchors the whole
+        # measurement chain — don't change something that works correctly to accommodate a provider
+        # we don't use yet.
         _embeddings = OpenAIEmbeddings(
             # DUNG CHUNG http_client voi duong chat (src/agents/graph.py) —
-            # xem src/cong_ra_ngoai.py. BAT BUOC o day: duong embedding KHONG
+            # xem src/egress_gate.py. BAT BUOC o day: duong embedding KHONG
             # di qua graph.py, nen mot chot chan chi cam o duong chat se de lot
             # DUNG duong it cong nhat — va do la duong ca tester lan coder da
             # dam vao trong cung mot ngay (§5.F).
-            http_client=http_client_dung_chung(),
+            http_client=shared_http_client(),
             model=RAG_EMBEDDING_MODEL,
             api_key=EMBEDDING_API_KEY,
             base_url=EMBEDDING_BASE_URL,
@@ -135,16 +136,16 @@ def _get_embeddings() -> OpenAIEmbeddings:
 #
 #   1 = truoc don 2 (embed text nguyen ban)
 #   2 = don 2 (embed ban da bo dau)
-CHUAN_HOA_VERSION = 2
+NORMALIZATION_VERSION = 2
 
 
 def _get_collection():
     c = _get_client()
-    _doi_ten_kho_cu_mot_lan(c)
-    return c.get_or_create_collection(_ten_collection())
+    _rename_legacy_store_once(c)
+    return c.get_or_create_collection(_collection_name())
 
 
-def _dong_dau(col) -> None:
+def _stamp(col) -> None:
     """Ghi dau phien ban len collection.
 
     `get_or_create_collection(name, metadata=...)` CHI ap metadata luc TAO. Kho
@@ -152,12 +153,12 @@ def _dong_dau(col) -> None:
     418 chunk, `metadata = None`. Nen phai `modify()` TUONG MINH sau moi lan
     nap, khong dua vao tham so luc lay collection.
     """
-    # Ghi CẢ model embedding, khong chi `chuan_hoa`. Truoc day dau phien ban
-    # chi theo doi cach BIEN TEXT (bo dau hay khong); model sinh ra vector thi
-    # hardcode nen khong the lech. Tu khi `EMBEDDING_MODEL` doc tu env, no LECH
-    # DUOC — va do la dung lop loi don 2: doi model -> moi vector trong kho vo
-    # nghia, ma search van tra du k ket qua, khong loi, khong log.
-    col.modify(metadata={"chuan_hoa": CHUAN_HOA_VERSION, "model_embed": RAG_EMBEDDING_MODEL})
+    # Record the embedding model TOO, not just `chuan_hoa` (normalisation). Previously the
+    # version stamp only tracked how TEXT was transformed (diacritics stripped or not); the model
+    # producing the vectors was hard-coded, so it could not drift. Since `EMBEDDING_MODEL` is read
+    # from env, it CAN drift — and that is exactly bug class #2: change the model -> every vector
+    # in the store becomes meaningless, yet search still returns k results, no error, no log.
+    col.modify(metadata={"chuan_hoa": NORMALIZATION_VERSION, "model_embed": RAG_EMBEDDING_MODEL})
 
 
 # Ba trang thai PHAN BIET DUOC — gop chung la nguon goc cua bug dau tien:
@@ -166,23 +167,23 @@ def _dong_dau(col) -> None:
 #   LECH         co dau nhung khac phien ban code
 #   KHOP         dau == phien ban code
 #   LECH_MODEL   dau khop nhung MODEL EMBEDDING khac -> vector vo nghia
-TRANG_THAI_TRONG = "trong"
-TRANG_THAI_KHONG_DAU = "khong_dau"
-TRANG_THAI_LECH = "lech"
-TRANG_THAI_LECH_MODEL = "lech_model"
-TRANG_THAI_KHOP = "khop"
+STATUS_EMPTY = "trong"
+STATUS_NO_STAMP = "khong_dau"
+STATUS_DRIFT = "lech"
+STATUS_MODEL_DRIFT = "lech_model"
+STATUS_MATCH = "khop"
 
 
-def trang_thai_kho() -> tuple[str, int | None]:
+def store_status() -> tuple[str, int | None]:
     """(trang_thai, phien_ban_tren_dia)."""
     col = _get_collection()
     if col.count() == 0:
-        return TRANG_THAI_TRONG, None
+        return STATUS_EMPTY, None
     pb = (col.metadata or {}).get("chuan_hoa")
     if pb is None:
-        return TRANG_THAI_KHONG_DAU, None
-    if pb != CHUAN_HOA_VERSION:
-        return TRANG_THAI_LECH, pb
+        return STATUS_NO_STAMP, None
+    if pb != NORMALIZATION_VERSION:
+        return STATUS_DRIFT, pb
     # Kho dung TRUOC ban nay khong co `model_embed` -> KHONG ket luan lech.
     # Fail-open o day la CO CHU DICH va hep: thieu dau model nghia la kho dung
     # boi code chua biet ghi dau, khi do model chac chan van la mac dinh
@@ -190,11 +191,11 @@ def trang_thai_kho() -> tuple[str, int | None]:
     # Chi khi CO dau va dau KHAC moi la lech that.
     me = (col.metadata or {}).get("model_embed")
     if me is not None and me != RAG_EMBEDDING_MODEL:
-        return TRANG_THAI_LECH_MODEL, pb
-    return TRANG_THAI_KHOP, pb
+        return STATUS_MODEL_DRIFT, pb
+    return STATUS_MATCH, pb
 
 
-def kho_can_nap_lai() -> bool:
+def stores_to_reload() -> bool:
     """True khi kho KHONG dam bao khop phien ban chuan hoa cua code.
 
     KHONG_DAU tinh la CAN NAP LAI — day la cho ban dau toi lam NGUOC: coi
@@ -202,11 +203,11 @@ def kho_can_nap_lai() -> bool:
     hiem nhat (kho dung truoc don 2, chua bo dau, trong khi query da bo dau).
     Mot canh cong sai huong con te hon khong co cong.
     """
-    tt, _ = trang_thai_kho()
-    return tt != TRANG_THAI_KHOP
+    tt, _ = store_status()
+    return tt != STATUS_MATCH
 
 
-def bo_dau(s: str) -> str:
+def strip_diacritics(s: str) -> str:
     """Bo dau tieng Viet, thuong hoa — dung cho CA HAI ve cua phep so khop.
 
     DON 2. Do duoc (probe-8, kho 419 chunk): cung 8 cau, **co dau 3/8 · KHONG
@@ -231,21 +232,21 @@ def bo_dau(s: str) -> str:
 
 
 def add_chunks(doc_id: str, chunk_ids: list[str], texts: list[str]) -> None:
-    """Embed + index. `texts` chỉ dùng để TÍNH embedding — không được lưu lại
-    trong Chroma, `documents=chunk_ids` mới là thứ thật sự ghi vào collection."""
+    """Embed + index. `texts` is only used to COMPUTE embeddings — it must not be stored in
+    Chroma; `documents=chunk_ids` is what actually gets written to the collection."""
     if not chunk_ids:
         return
     # Embed ban DA BO DAU — phai khop dung phep chuan hoa o `search()`.
     # Lech mot ve la toan bo index vo dung ma khong co trieu chung nao.
-    vectors = _get_embeddings().embed_documents([bo_dau(t) for t in texts])
+    vectors = _get_embeddings().embed_documents([strip_diacritics(t) for t in texts])
     col = _get_collection()
     col.add(
         ids=chunk_ids,
         embeddings=vectors,
-        documents=chunk_ids,  # cố ý: placeholder, KHÔNG phải nội dung thật
+        documents=chunk_ids,  # deliberate: placeholder, NOT real content
         metadatas=[{"doc_id": doc_id} for _ in chunk_ids],
     )
-    _dong_dau(col)
+    _stamp(col)
 
 
 def delete_document(doc_id: str) -> None:
@@ -253,13 +254,13 @@ def delete_document(doc_id: str) -> None:
 
 
 def search(query: str, k: int) -> list[tuple[str, float]]:
-    """Trả về [(chunk_id, distance)], gần nhất trước. distance càng nhỏ càng
-    liên quan (Chroma mặc định cosine/L2 tuỳ cấu hình, không cần agent quan
-    tâm — chỉ dùng để sắp xếp)."""
+    """Returns [(chunk_id, distance)], nearest first. Smaller distance = more relevant
+    (Chroma defaults to cosine/L2 depending on config; the agent need not care — it is only
+    used for ordering)."""
     collection = _get_collection()
     if collection.count() == 0:
         return []
-    vector = _get_embeddings().embed_query(bo_dau(query))
+    vector = _get_embeddings().embed_query(strip_diacritics(query))
     result = collection.query(query_embeddings=[vector], n_results=min(k, collection.count()))
     ids = result.get("ids", [[]])[0]
     distances = result.get("distances", [[]])[0]

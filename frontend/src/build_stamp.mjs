@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * Băm nội dung `frontend/src/**\/*.{ts,tsx}` — nhãn định danh MÃ SẢN PHẨM
- * frontend, tương đương `src/dau_ma_nguon.py` bên backend (PO-agent giao
+ * frontend, tương đương `src/build_stamp.py` bên backend (PO-agent giao
  * 20/08 — backend đã có, frontend thì không, và cái giá đã trả bằng số:
  * một ca cổng 403-role vỡ, chẩn đoán "do ảnh cũ" nhưng KHÔNG ai chứng minh
  * được — phải dựng lại rồi chạy lại mới biết, trong khi backend một dòng
- * `cat /app/.bam_ma_nguon` trả lời trong hai giây).
+ * `cat /app/.source_hash` trả lời trong hai giây).
  *
  * CÙNG THUẬT TOÁN, CÙNG Ý TƯỞNG với bản Python (sha256 nội dung, sắp theo
  * đường dẫn TƯƠNG ĐỐI trước khi băm, 12 ký tự hex đầu) — không tự bịa cách
@@ -20,14 +20,14 @@
  * CLAUDE.md §4 (không tách nội bộ như `tests/` riêng bên backend), nên
  * không có lý do loại phần nào ra — đúng tinh thần backend không loại gì
  * khỏi `src/`. File CHÍNH nó (đuôi `.mjs`, không khớp `.ts`/`.tsx`) KHÔNG
- * nằm trong băm — khác backend (nơi `dau_ma_nguon.py` tự băm chính nó vì
+ * nằm trong băm — khác backend (nơi `build_stamp.py` tự băm chính nó vì
  * cùng đuôi `.py`) — lệch này là HỆ QUẢ của đuôi file, không phải một loại
  * trừ có chủ đích.
  *
  * KHÁC BACKEND MỘT ĐIỂM KIẾN TRÚC, không phải một lựa chọn tuỳ ý: backend
  * `COPY . .` giữ nguyên `src/**\/*.py` tới tận stage runtime CUỐI (Python
  * thông dịch, không build), nên băm tính được NGAY TRONG stage cuối, đọc
- * lại bằng `docker exec ... cat /app/.bam_ma_nguon`. Frontend build
+ * lại bằng `docker exec ... cat /app/.source_hash`. Frontend build
  * `output: "standalone"` (next.config.ts) XOÁ hẳn `frontend/src/` khỏi
  * stage runtime cuối (chỉ còn `.next/standalone` đã biên dịch) — nhãn BẮT
  * BUỘC phải tính ở stage "builder" (nơi `frontend/src/` còn nguyên vẹn)
@@ -75,9 +75,9 @@ export function bamMaNguon(goc = dirname(fileURLToPath(import.meta.url))) {
   return h.digest("hex").slice(0, DO_DAI);
 }
 
-// Chạy trực tiếp (`node dau_ma_nguon.mjs`) in băm ra stdout, KHÔNG xuống
+// Chạy trực tiếp (`node build_stamp.mjs`) in băm ra stdout, KHÔNG xuống
 // dòng — đúng khuôn `python -c "...write(...)"` bên Dockerfile backend,
-// dùng thẳng được trong `RUN node ... > /app/.bam_ma_nguon`.
+// dùng thẳng được trong `RUN node ... > /app/.source_hash`.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   process.stdout.write(bamMaNguon());
 }

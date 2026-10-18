@@ -1,23 +1,24 @@
-"""BỂ MODEL cho tính năng đổi/xoay (GĐ3, PO thật chốt 19/08 — `876a240`).
+"""MODEL POOL for the switch/rotate feature (phase 3, fixed by the real PO on 19/08 — `876a240`).
 
-Đảo có khai một quyết định cũ CÓ CHỦ ĐÍCH (`a3fb125`: ghim model theo NGÀY, vì
-"đổi model = đổi VẬT" — mọi phép đo A/B phụ thuộc danh tính model). Xoay ở đây
-là chế độ DEMO/TEST: `usage.jsonl` vẫn ghi `model` PER-LƯỢT (không đổi) — đó là
-thứ cứu ta khi đọc số sau này; mọi phép đo eval NGHIÊM TÚC vẫn phải GHIM một
-model, không được chạy qua module này.
+This deliberately reverses an earlier decision, openly (`a3fb125`: pin the model PER DAY,
+because "changing the model = changing the OBJECT" — every A/B measurement depends on model
+identity). Rotation here is a DEMO/TEST mode: `usage.jsonl` still records `model` PER TURN
+(unchanged) — that is what saves us when reading the numbers later; every SERIOUS eval
+measurement must still PIN one model and must not run through this module.
 
-TRẠNG THÁI "model đã cạn" ở REDIS, KHÔNG phải biến tiến trình — cùng bài học
-`docker-entrypoint.sh:16 UVICORN_WORKERS=4` đã buộc `cong_ra_ngoai.py` phải làm
-vậy: 4 worker độc lập, một biến trong RAM chỉ đúng cho 1/4 số lượt.
+The "model exhausted" STATE lives in REDIS, NOT in a process variable — the same lesson
+(`docker-entrypoint.sh:16 UVICORN_WORKERS=4`) that forced `egress_gate.py` to do the same:
+4 independent workers, so an in-RAM variable is right for only 1/4 of turns.
 
-FAIL-OPEN khi Redis lỗi (coi như "chưa cạn") — cùng triết lý `thread_signals.py`:
-đây là tính năng PHỤ (giúp né một model đã biết hỏng), không phải cửa vào. Đọc
-sai theo hướng "thử lại một model đã cạn" chỉ tốn tối đa MỘT lời gọi hỏng, vòng
-xoay tự sửa ở lần thử kế; đọc sai theo hướng ngược lại (coi mọi model đều cạn)
-sẽ làm KHÁCH THẬT nhận "bể cạn toàn phần" trong khi mọi model đều ổn — tệ hơn
-nhiều. Đây là quyết định NGƯỢC với trần chi tiêu ở `cong_ra_ngoai.py` (fail-
-CLOSED, vì đó là cơ chế BẢO VỆ TIỀN, không phải tiện ích né lỗi) — đọc kỹ trước
-khi "làm cho nhất quán", hai nơi khác câu hỏi nên khác chiều lỗi cố ý.
+FAIL-OPEN when Redis errors (treated as "not exhausted") — same philosophy as
+`thread_signals.py`: this is a SECONDARY feature (helps avoid a model known to be failing),
+not a gate. Misreading towards "retry an exhausted model" costs at most ONE failed call and
+the rotation self-corrects on the next try; misreading the other way (treating every model
+as exhausted) would give REAL CUSTOMERS "pool fully exhausted" while every model is fine —
+far worse. This is deliberately the OPPOSITE of the spending cap in `egress_gate.py`
+(fail-CLOSED, because that is a MONEY-PROTECTION mechanism, not an error-avoidance
+convenience) — read carefully before "making them consistent": two places answering
+different questions should fail in different directions, on purpose.
 """
 from __future__ import annotations
 
@@ -28,58 +29,59 @@ from src.redis_client import get_default_client
 
 _logger = logging.getLogger("fin05.llm_pool")
 
-# KHÔNG tiền tố "fin05:" — khác `thread_signals.py`, CỐ Ý: đây là tên đã KHAI
-# cho QA/QC trước khi họ viết cổng (`test_llm_pool_gd3.py`, viết từ đặc tả,
-# không đọc src/). Đổi tiền tố ở đây mà không báo là đúng lớp lỗi "khai một
-# đằng, code một nẻo" — sửa CODE khớp đã khai, không bắt test viết lại.
-_KHOA_PREFIX = "model_can:"
-# TTL là BACKOFF — "bao lâu thì THỬ LẠI model này", KHÔNG PHẢI suy đoán chu kỳ
-# reset hạn ngạch thật của nhà cung cấp (ta không biết, và không cần biết để
-# chọn con số này đúng). Sai hướng ngắn -> tốn một lượt thử rồi cạn lại (rẻ).
-# Sai hướng dài -> chậm nhận ra model đã hồi, tối đa bằng chính TTL (rẻ).
-TTL_MODEL_CAN_GIAY = 15 * 60
+# NO "fin05:" prefix — unlike `thread_signals.py`, ON PURPOSE: this name was DECLARED to
+# QA/QC before they wrote the gate (`test_llm_pool_gd3.py`, written from the spec without
+# reading src/). Changing the prefix here without notice is exactly the "declare one thing,
+# code another" class of bug — fix the CODE to match what was declared; don't force the test
+# to be rewritten.
+_KEY_PREFIX = "model_can:"
+# The TTL is a BACKOFF — "how long before RETRYING this model", NOT a guess at the
+# provider's real quota reset cycle (we don't know it, and don't need to in order to choose
+# this number correctly). Erring short -> one wasted retry then exhausted again (cheap).
+# Erring long -> slower to notice the model recovered, by at most the TTL itself (cheap).
+EXHAUSTED_MODEL_TTL_SECONDS = 15 * 60
 
 
-def _khoa(model: str) -> str:
-    return f"{_KHOA_PREFIX}{model}"
+def _key(model: str) -> str:
+    return f"{_KEY_PREFIX}{model}"
 
 
-def model_dang_can(model: str) -> bool:
-    """Model này đang bị đánh dấu cạn không? Redis lỗi -> False (fail-open)."""
+def exhausted_model(model: str) -> bool:
+    """Is this model currently marked exhausted? Redis error -> False (fail-open)."""
     try:
-        return get_default_client().exists(_khoa(model)) > 0
+        return get_default_client().exists(_key(model)) > 0
     except Exception as e:  # noqa: BLE001
         _logger.warning("model_dang_can_that_bai", extra={"model": model, "loi": repr(e)})
         return False
 
 
-def danh_dau_can(model: str) -> None:
-    """Đánh dấu `model` cạn trong `TTL_MODEL_CAN_GIAY` giây. Ghi sự kiện log
-    `model_rotated` — KHÔNG log key/token, chỉ tên model (đã tự khai không
-    nhạy cảm, xem `config.py:298`, cùng nếp `LLM_MODEL`)."""
+def mark_exhausted(model: str) -> None:
+    """Mark `model` exhausted for `EXHAUSTED_MODEL_TTL_SECONDS` seconds. Emits the log event
+    `model_rotated` — NEVER logs key/token, only the model name (self-declared as
+    non-sensitive, see `config.py:298`, same convention as `LLM_MODEL`)."""
     try:
         client = get_default_client()
-        client.set(_khoa(model), "1", ex=TTL_MODEL_CAN_GIAY)
+        client.set(_key(model), "1", ex=EXHAUSTED_MODEL_TTL_SECONDS)
     except Exception as e:  # noqa: BLE001
         _logger.warning("danh_dau_can_that_bai", extra={"model": model, "loi": repr(e)})
-    _logger.warning("model_rotated", extra={"model_can": model, "ttl_giay": TTL_MODEL_CAN_GIAY})
+    _logger.warning("model_rotated", extra={"model_can": model, "ttl_giay": EXHAUSTED_MODEL_TTL_SECONDS})
 
 
-def model_dau_luot(da_thu: set[str] | None = None) -> str | None:
-    """Model tiếp theo cho ĐẦU LƯỢT — model đầu tiên trong bể (theo thứ tự ưu
-    tiên khai ở `LLM_MODEL_POOL`) CHƯA bị đánh dấu cạn và CHƯA có trong
-    `da_thu` (những model lượt xoay này đã thử và thất bại).
+def turn_start_model(tried: set[str] | None = None) -> str | None:
+    """Next model for the START OF A TURN — the first model in the pool (in the priority order
+    declared in `LLM_MODEL_POOL`) that is NOT marked exhausted and NOT in
+    `tried` (models this rotation round already tried and failed).
 
-    Trả `None` khi TOÀN BỘ bể đã cạn/đã thử — người gọi phải xử lý ca này bằng
-    một thông điệp tử tế, KHÔNG lặp vô hạn (đúng ràng buộc PO `876a240`).
+    Returns `None` when the WHOLE pool is exhausted/tried — the caller must handle this case
+    with a polite message, NEVER loop forever (PO constraint `876a240`).
 
-    KHÔNG có tham số `thread_id`: chọn model là quyết định TOÀN CỤC theo bể,
-    không theo từng khách — "model X cạn" là sự thật chung cho mọi hội thoại.
+    NO `thread_id` parameter: choosing a model is a GLOBAL pool-wide decision, not
+    per-customer — "model X is exhausted" is a shared fact for every conversation.
     """
-    thu = da_thu or set()
+    attempt = tried or set()
     for model in LLM_MODEL_POOL:
-        if model in thu:
+        if model in attempt:
             continue
-        if not model_dang_can(model):
+        if not exhausted_model(model):
             return model
     return None

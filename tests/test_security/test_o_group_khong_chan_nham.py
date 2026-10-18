@@ -72,7 +72,7 @@ def _luot_phai_khong_duoc_chan() -> list[tuple[str, int, str, str, str]]:
     `eval/bao_cao_4_cau.py` câu 2, đo trực tiếp trên lượt end-to-end mới, dùng
     `loc_dau_ra_theo_luot` GHI LÚC CHẠY THẬT — không cần dựng lại nguồn.
     """
-    ra: list[tuple[str, int, str, str, str]] = []
+    out_items: list[tuple[str, int, str, str, str]] = []
     for f in sorted(_KET_QUA.glob("adversarial_run_*_raw.json")):
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
@@ -84,11 +84,11 @@ def _luot_phai_khong_duoc_chan() -> list[tuple[str, int, str, str, str]]:
             if r.get("trang_thai") != "dat":
                 continue
             khach = r.get("all_customer_texts") or []
-            nguon = _nguon_tu_payload(r.get("tool_calls_day_du") or [])
+            source = _nguon_tu_payload(r.get("tool_calls_day_du") or [])
             for i, rep in enumerate(r.get("all_agent_replies") or []):
                 if (rep or "").strip():
-                    ra.append((r["case_id"], i + 1, rep, khach[i] if i < len(khach) else "", nguon))
-    return ra
+                    out_items.append((r["case_id"], i + 1, rep, khach[i] if i < len(khach) else "", source))
+    return out_items
 
 
 def test_cong_96_cau_hop_le():
@@ -116,12 +116,12 @@ def test_cong_96_cau_hop_le():
     mang payload.
     """
     try:
-        from src.agents.output_filter import loc_dau_ra
+        from src.agents.output_filter import filter_output
     except ImportError:
         pytest.skip("Bộ lọc chưa có trong cây làm việc — 'chưa đo được', KHÔNG phải 'đạt'.")
 
-    luot = _luot_phai_khong_duoc_chan()
-    if not luot:
+    turn = _luot_phai_khong_duoc_chan()
+    if not turn:
         pytest.skip(f"Chưa có ca ĐẠT nào của mốc nền {HE_THONG_MOC_NEN} — chưa đo được.")
 
     # KIỂM PAYLOAD CỦA ĐÚNG TẬP MỐC NỀN, KHÔNG PHẢI TOÀN CỤC.
@@ -132,7 +132,7 @@ def test_cong_96_cau_hop_le():
     # đúng — nhưng payload đó thuộc raw MỚI (he_thong khác), không thuộc mốc
     # nền cũ. Guard tưởng đã mở khoá, chạy tiếp, và crash vì `nguon` của TỪNG
     # LƯỢT mốc nền vẫn rỗng. Sửa: kiểm ngay trên `luot`.
-    if not any(nguon for *_rest, nguon in luot):
+    if not any(source for *_rest, source in turn):
         pytest.skip(
             "NHÓM C (tests/_suite_day_du.py, không chịu FIN05_SUITE_DAY_DU — cổng "
             "tắt CÓ CHỦ ĐÍCH, không phải hạ tầng vắng). VÌ SAO ĐƯỢC MIỄN VĨNH VIỄN: "
@@ -145,13 +145,13 @@ def test_cong_96_cau_hop_le():
         )
 
     bi_chan = []
-    for i, (cid, n, rep, khach, nguon) in enumerate(luot):
-        moi, nhom = loc_dau_ra(rep, tin_nhan_khach=khach, thread_id=f"GATE-{i}", nguon=nguon)
-        if moi != rep:
-            bi_chan.append((cid, n, nhom, rep[:110]))
+    for i, (cid, n, rep, khach, source) in enumerate(turn):
+        fresh, phrase_group = filter_output(rep, customer_message=khach, thread_id=f"GATE-{i}", source=source)
+        if fresh != rep:
+            bi_chan.append((cid, n, phrase_group, rep[:110]))
 
     assert not bi_chan, (
-        f"{len(bi_chan)}/{len(luot)} câu HỢP LỆ bị bộ lọc xoá sạch.\n"
+        f"{len(bi_chan)}/{len(turn)} câu HỢP LỆ bị bộ lọc xoá sạch.\n"
         + "\n".join(f"  {c} lượt {n} · {nh} · {r!r}" for c, n, nh, r in bi_chan[:8])
     )
 
@@ -209,12 +209,12 @@ def test_bo_18_ca_mu_voi_siet_nham():
 
     van_dat = []
     for cid, r in moc_nen.items():
-        kq = cham_bo_da_luot(cases[cid], {
+        res = cham_bo_da_luot(cases[cid], {
             "all_agent_replies": [cau_an_toan_gia] * len(r["all_agent_replies"]),
             "all_customer_texts": r.get("all_customer_texts") or [],
             "tool_calls": [{"tool_name": t} for t in (r.get("tool_calls") or [])],
         })
-        if not [v for v in kq["vi_pham"] if "KHÔNG CHẤM ĐƯỢC" not in v]:
+        if not [v for v in res["vi_pham"] if "KHÔNG CHẤM ĐƯỢC" not in v]:
             van_dat.append(cid)
 
     # Assertion khẳng định ĐIỂM MÙ TỒN TẠI. Nếu ngày nào nó đỏ, nghĩa là ai đó

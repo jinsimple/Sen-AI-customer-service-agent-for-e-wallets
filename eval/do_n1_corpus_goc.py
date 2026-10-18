@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """ĐO N1 — cổng `thu_slot` bắn bao nhiêu lần trên CORPUS GỐC `eval/*.jsonl`.
 
-    python eval/do_n1_corpus_goc.py [--luat <phan_luong.py>] [--nen <phan_luong.py>]
+    python eval/do_n1_corpus_goc.py [--luat <triage.py>] [--nen <triage.py>]
 
-`--luat` mặc định bản thật trong repo (`src/agents/phan_luong.py`) — trỏ vào
+`--luat` mặc định bản thật trong repo (`src/agents/triage.py`) — trỏ vào
 bản KHÁC (cũ/đột biến/ngoài repo) để bất kỳ vai nào cũng kiểm chéo được cả
 hai vế của Luật A (cổng có KÊU đúng lúc không) **mà không cần sửa
 `eval/n1_bao_oan_da_biet.json`** (vùng ghi QA/QC) — [PO 25/08] đề xuất sau
 khi tự thấy giới hạn: chỉ chạy được vế IM (`exit 0`), không dựng được ca
 phá vì sẽ phải chạm vùng ghi người khác.
 
-Dựng nền để so:  `git show a3bc860:src/agents/phan_luong.py > /tmp/pl_nen.py`
+Dựng nền để so:  `git show a3bc860:src/agents/triage.py > /tmp/pl_nen.py`
 rồi `--nen /tmp/pl_nen.py`.
 
 🔴 `heldout_set.jsonl` LOẠI TUYỆT ĐỐI — niêm phong (`CLAUDE.md` §6).
@@ -139,13 +139,13 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     # `--luat` — [PO 25/08] gỡ đúng nút "vai khác không kiểm chéo được vế KÊU của
     # Luật A vì phải chạm eval/n1_bao_oan_da_biet.json (vùng ghi QA/QC)". Trỏ
-    # `--luat` vào một bản phan_luong.py cũ/đột biến NGOÀI repo là dựng được ca
+    # `--luat` vào một bản triage.py cũ/đột biến NGOÀI repo là dựng được ca
     # phá mà không cần sửa file nào trong vùng của QA/QC — cùng khuôn
     # `cong_ca_am_thu_slot_dot2.py` đã dùng cho ②.
-    ap.add_argument("--luat", default="src/agents/phan_luong.py",
-                     help="đường dẫn phan_luong.py coi là HEAD/hiện hành (mặc định: bản thật trong repo)")
+    ap.add_argument("--luat", default="src/agents/triage.py",
+                     help="đường dẫn triage.py coi là HEAD/hiện hành (mặc định: bản thật trong repo)")
     ap.add_argument("--nen", default=None,
-                     help="đường dẫn phan_luong.py NỀN để so token (tuỳ chọn, không tham gia diff regression)")
+                     help="đường dẫn triage.py NỀN để so token (tuỳ chọn, không tham gia diff regression)")
     a = ap.parse_args()
 
     moi = nap(a.luat, "_luat_head")
@@ -164,9 +164,9 @@ def main() -> int:
                 continue
             for c in cau_trong(d):
                 tong += 1
-                if nen and nen.phan_luong(c)[0] == "thu_slot":
+                if nen and nen.triage(c)[0] == "thu_slot":
                     nen_n += 1
-                if moi.phan_luong(c)[0] == "thu_slot":
+                if moi.triage(c)[0] == "thu_slot":
                     moi_n += 1
                     con_ban.append((f.split("/")[-1], c))
 

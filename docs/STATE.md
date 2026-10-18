@@ -92,7 +92,7 @@ UI nhỏ trên chuông thông báo (PO thật bắt trực tiếp trên màn 04/
   chứng minh đơn điệu (không làm yếu guard ca hallucination thật), QA verify đúng TEXT hiển thị.
 - **MỐC (c) — lượt FULL SEAMLESS** vé `TCK-a316e1a2f3db`, một mạch B1-B17 xen N1-N6, 25/25 manifest Đạt,
   Lead tự soi 5 ảnh + đọc log. 1 lượt full sạch = ĐỦ bar quay (budget ~450-480k token/lượt, không chạy lượt 2).
-- **Cổng an toàn đối kháng** — TỪNG xanh-giả (đo định tuyến, không đo LLM; env `FIN05_CHO_PHEP_GOI_RA_NGOAI`
+- **Cổng an toàn đối kháng** — TỪNG xanh-giả (đo định tuyến, không đo LLM; env `FIN05_ALLOW_EGRESS`
   thiếu trong `ci.yml` từ 18/08). Chạy lại THẬT trên `qwen3.8-flash`: **45/46 ĐẠT**, agent kháng injection
   thật. 1 ca "trượt" (ADV-035) = **lỗi regex BỘ KIỂM** `eval/_harness.py:818` bắt nhầm 6 số cuối mã GD
   thành SĐT — KHÔNG phải agent lộ. Regex production `src/observability/pii.py` chặt hơn, an toàn.
@@ -308,8 +308,8 @@ regression:**
   CHỈ file này, KHÔNG chạy `--fix` (tránh sửa dữ liệu trích dẫn). Thêm 1 lỗi I001 MỚI trong
   `src/api/main.py` (import chưa sort, phát sinh từ commit notifications `051c8f8` — DevOps chẩn đoán
   trước khi commit đó tồn tại) → auto-fix.
-- `business-rules-golden-set` + `ai-safety-adversarial`: CÙNG GỐC — cổng `cong_ra_ngoai.py` (mặc định
-  TỪ CHỐI) chưa từng được khai `FIN05_CHO_PHEP_GOI_RA_NGOAI` trong `ci.yml` từ ngày cổng ra đời (18/08)
+- `business-rules-golden-set` + `ai-safety-adversarial`: CÙNG GỐC — cổng `egress_gate.py` (mặc định
+  TỪ CHỐI) chưa từng được khai `FIN05_ALLOW_EGRESS` trong `ci.yml` từ ngày cổng ra đời (18/08)
   — 2 job gọi `run_agent_turn()` trực tiếp, không qua docker-compose backend (nơi biến CÓ khai). KHÔNG
   liên quan RB3. Bằng chứng an tâm: `ai-safety-adversarial` 41/46 case đo được thì 41/41 ĐẠT. PO chốt:
   golden-set CHUYỂN nightly-only (đổi `if:`, đúng khuôn Stage 6) + thêm env; adversarial GIỮ per-push
@@ -506,7 +506,7 @@ XANH cả 4 (6a-6d) sau khi đổi `qwen3.8-flash` — model cũ (`qwen3.7-max-2
 **REVIEW** (p-226-0c, không ghi repo — Lead neo hộ)
 - ĐO ĐƯỢC: **chưa từng nhận báo cáo đóng cổng nào để soát chéo** đêm nay (vai được giao là điều tra phụ, không phải cổng ①②④⑤ như kế hoạch gốc). Đừng đọc im lặng của Review thành "đã xác nhận cổng nào" — chưa có cổng nào qua tay họ.
 - ĐO ĐƯỢC (mẫu nhỏ, n=4): phân biệt "bẫy tóm≠đầy đủ thật" (luật ⟶ code chen giữa ⟶ RÚT tách rời) khỏi "nhật ký quyết định minh bạch" (luật+RÚT liền mạch, tự gắn nhãn tường thuật) — 3 ứng viên đã kiểm và loại đúng cách này. Coi là hướng đo cần kiểm định thêm nếu ai định tự động hoá (viết linter), chưa phải luật đã xác nhận chéo.
-- GIẢ THUYẾT: 4 file `src/` chưa quét (`customer_tools.py`·`phan_luong.py`·`cong_ra_ngoai.py`·`pii.py`) có xác suất chứa ca tương tự KHÔNG ĐỀU — nghi file có lịch sử sửa dày/nhiều ADR trỏ tới nhiều khả năng hơn. Chưa kiểm chứng, chỉ là gợi ý xếp lịch cho đợt sau.
+- GIẢ THUYẾT: 4 file `src/` chưa quét (`customer_tools.py`·`triage.py`·`egress_gate.py`·`pii.py`) có xác suất chứa ca tương tự KHÔNG ĐỀU — nghi file có lịch sử sửa dày/nhiều ADR trỏ tới nhiều khả năng hơn. Chưa kiểm chứng, chỉ là gợi ý xếp lịch cho đợt sau.
 
 **DEVOPS** (p-226-31, vai mới đêm nay)
 - ĐO ĐƯỢC: chuyển CI sang self-hosted tiến hành khi câu hỏi gốc ADR-037 (đĩa runner BTC dùng chung tới mức nào — từng máy hay cả hồ) **vẫn CHƯA có lời đáp từ BTC**. Quyết định có ý thức dưới sức ép giờ (2 job ghi `.env` thật đã có `if: always()` dọn, kiểm tận nơi đêm nay) — không phải bỏ sót, nhưng câu hỏi gốc vẫn treo, đừng để "đã chuyển xong" ru ngủ thành "chắc ổn".
@@ -1383,7 +1383,7 @@ ra đo nhầm bảng (`otp_verified_at` nằm trong TOKEN, không trong CSDL —
 ⟹ Không có cơ sở tin các cổng còn lại chỉ vì chúng cũng xanh đều. **Cổng hỏng mà hằng ĐỎ bị mổ ngay
 hôm đầu; cổng hỏng mà hằng XANH sống được nhiều tháng.**
 
-**Cổng băm `.bam_ma_nguon` — nghi ngờ SAI, cổng tốt hơn tôi tưởng.** `src/dau_ma_nguon.py:54` dùng
+**Cổng băm `.source_hash` — nghi ngờ SAI, cổng tốt hơn tôi tưởng.** `src/build_stamp.py:54` dùng
 `goc.rglob("*.py")` ⟹ phủ **toàn bộ `src/**`**, không phải chỉ tầng một. Docstring còn tự khai điểm
 mù hẹp (đổi tên KHÔNG xê dịch thứ tự sắp xếp) kèm **số đo thật**, không suy.
 
@@ -1738,7 +1738,7 @@ RỘNG** — đọc kết quả grep như bằng chứng về HÀNH VI. Ba con s
 | 🔴 **CI, từ 24/08** | **CHƯA CỔNG NÀO CHẠY XANH trên bất kỳ commit nào của đợt "OTP trước token".** Mọi "đã land" trong đợt đứng trên phép chạy CỤC BỘ, không phải CI. **[ĐÍNH CHÍNH 25/08, Coder đo sâu hơn — dòng dưới đây THAY dòng [ĐO 25/08, Lead] cũ:]** runner self-hosted (ADR-037) **CÓ THẬT, CÓ CHẠY** — tên `eph-vmrunner-*`/`eph-vmrunner2-*`, **ephemeral** (đóng câu hỏi mở §5.A0 *"tới lúc đó giả định PERSISTENT"* — nay đã ĐO, không còn là giả định). Nguyên nhân CI chưa xanh KHÔNG phải runner chết: `ci.yml:164-170` chạy `ruff check` **NGAY TRƯỚC** bước pytest, không `if: always()` ⟹ **ruff đỏ thì pytest bị SKIP hoàn toàn** — trông giống "chưa tới lượt", không giống "hỏng". [ĐO] `lint-and-test` job thật: ruff FAILURE, pytest SKIPPED. Gốc: 17 lỗi ruff, **toàn bộ trong `eval/`** (vùng QA/QC), nặng nhất ở `cong_phan_luong.py`/`do_cong_thu_tu.py` — hai cổng đo lường CHÍNH của đợt này tự chặn CI báo cáo phần còn lại. Nhóm billing (`ubuntu-latest`, 3 job, annotation *"spending limit"*) là sự cố KHÁC, đã biết từ trước, chỉ PO thật gỡ. Xử lý: xem `docs/giao-viec/CHECKLIST-dot-otp-truoc-token.md` mục CI/lint. **🔴 [ĐÍNH CHÍNH LẦN 2, 25/08, Coder đo]:** `git rev-list --left-right --count origin/dev/learning-loop...HEAD` → **`0  47`** — nhánh đi trước origin **47 commit, lùi 0**. **TOÀN BỘ đợt "OTP trước token" CHƯA TỪNG PUSH.** Mọi run CI vừa mổ ở trên chạy trên code **CŨ HƠN** — không phải "CI đỏ với đợt này", mà **CI chưa từng thấy đợt này**. Hệ quả: số "17 lỗi ruff" là DỰ BÁO trên cây làm việc hôm nay, không phải phép đo trên cái CI thật sự chạy; C3 (sửa `ci.yml`) chưa nghiệm thu được — cần một run CI thật sau khi push mới xác nhận. **Điểm danh bằng `git log` trong đợt này là điểm danh CỤC BỘ** — không chứng minh gì về trạng thái repo nhìn từ bên ngoài máy này (mentor/BTC/PO thật ở máy khác thấy con số 0). **Push cần người thật duyệt** — Coder đúng khi không tự push (thao tác ra ngoài, kích CI trên hạ tầng BTC, hiển thị cho người ngoài đội). 🟢 **[QUYẾT ĐỊNH PO THẬT 25/08, qua PO agent]: KHÔNG gỡ hạn mức, KHÔNG push `dev/learning-loop`.** Bản sao lưu đã có trên GitHub. **Đợt "OTP trước token" đóng với CI KHÔNG chạy — mọi "đã land" đứng trên phép chạy CỤC BỘ, PO thật biết và chấp nhận 25/08.** Đây là quyết định CÓ KHAI, không phải sót — người trực sự cố đọc dòng này để biết không có xác nhận CI cho đợt này, không phải để đi tìm nguyên nhân CI hỏng. |
 | 🔴🔴 **Deploy production — ĐÍNH CHÍNH 25/08 (Lead đo sai, PO thật bác bằng 3 nguồn độc lập)** | ~~P-226 CHƯA TỪNG lên site thật, "việc 2" là lần go-live ĐẦU TIÊN~~ — **SAI, Lead đọc nhầm câu.** `docs/DEPLOY.md:3` nói về NỀN TẢNG SAI (tiêu đề ghi Oracle Cloud, thật là máy Windows cá nhân PO chạy 24/7), không nói gì về repo nào đang chạy. Câu Lead lấy nhầm nằm ở dòng 9: *"`DEPLOY.md` là TÀI LIỆU đợt P-121 CHƯA AI THỰC THI"* — nói về **TÀI LIỆU** (quy trình SSH+Oracle mô tả trong file không ai làm theo), không nói về **DOMAIN đang chạy gì**. Hai mệnh đề khác nhau, Lead ghép làm một. **PO thật xác nhận trực tiếp:** *"Domain này đang là P-226 nhánh main rồi"* — đo bằng `docker volume ls` trên máy production thật: `fin05_postgres_data`/`fin05_chroma_data`/`fin05_caddy_data`... (tên ngăn `fin05` = đúng P-226), cộng bằng chứng PO đã tự chat thử trên bản live. **P-226 ĐÃ LIVE**, qua Cloudflare Tunnel từ máy Windows tại nhà (`docs/giao-viec/2026-08-15-chay-that-tai-nha-windows-tunnel.md`, script `scripts/deploy_home.ps1`), KHÔNG qua GitHub Actions/SSH-Oracle như `DEPLOY.md` mục 1-7 mô tả. **PO thật đã chốt cơ chế deploy này trước — hỏi lại dưới dạng "chọn A/B/C qua CI" là hỏi lại một quyết định đã chốt (CLAUDE.md §5), Lead rút toàn bộ khung A/B/C.** Dữ kiện đo được cùng ngày trên máy production thật: thiếu `fin05_redis_data` volume ⟹ bản vá bền hoá Redis 25/08 (`02892bd`) CHƯA lên production. **Điều còn đứng vững, TÁCH KHỎI câu hỏi deploy:** CI trên `main` đỏ ở 8 job không chặn deploy (deploy không qua CI) nhưng làm đội MÙ khi sửa code — đúng lúc sắp đổi toàn bộ CSS UI để PO chia sẻ công khai. `lint-and-test` (10 lỗi ruff, 100% `eval/`, 0 `src/` — vùng QA/QC, không phải Lead) chặn pytest · `security-findings-gate` đỏ CÓ CHỦ ĐÍCH (P0 chưa vá, quy ước dự án — **đừng ai "sửa" cho xanh**) · `dependency-and-secret-scan` CVE thật chưa xem chi tiết · `db-migration-test` đỏ vì `ci.yml:213` gõ cứng cổng `5432:5432`, xung đột trên runner tự quản (vùng `.github/workflows/` = Lead, việc rẻ, cần vá) · 6 job billing đã biết trước, không sửa bằng code được. |
 | 🔴 **`deploy_home.ps1` (`53a69c6`, 26/08) — CHƯA PARSE-CHECK bằng PowerShell thật** | Lead sửa 3 chỗ (cổng `/health` giả→thật qua `docker exec`, thêm `param($ModelDuKien)` so model thực tế, healthcheck tất định cho postgres/redis/backend) nhưng **không có `pwsh` trên máy Mac để kiểm cú pháp** trước khi PO thật deploy. **Đây là CỬA DUY NHẤT lên production** — lỗi cú pháp PowerShell làm script chết ngay dòng đầu, PO phát hiện bằng cách KHÔNG deploy được, đúng lúc cần nhất. [ĐO tay, rẻ, đã làm] `param(...)` đứng ở dòng 13, chỉ sau 12 dòng comment/blank — đúng vị trí bắt buộc (câu lệnh thực thi đầu tiên), không đứng sau `$ErrorActionPreference`. 🔴 **[ĐO 26/08] ĐÃ THỬ, KHÔNG PARSE-CHECK ĐƯỢC TRÊN MÁY NÀY — dừng lại, không phải "đang chờ".** `docker logs` trên 2 container chạy đúng lệnh `[System.Management.Automation.Language.Parser]::ParseFile(...)` (tạo 18:02 và 18:09, 25/08): cả hai **crash dưới QEMU** (`Segmentation fault`/`NullReferenceException` không xử lý được), không ra kết quả parse nào — 0 dòng lỗi cú pháp, 0 dòng "PARSE OK". Nguyên nhân [ĐO]: `mcr.microsoft.com/powershell:latest` là ảnh **linux/arm 32-bit**, máy này **arm64** ⟹ chạy qua lớp giả lập không ổn định, không phải "chậm", mà **không chạy nổi**. **[ĐO PHỤ]** một container CÙNG lệnh, CÙNG kiểu crash đã tồn tại từ 15/08 (11 ngày trước) — cách tiếp cận này đã thất bại y hệt một lần trước, không ai khai lại nên hôm nay lặp lại đúng ngõ cụt. **Kết luận:** parse-check tự động bằng Docker KHÔNG khả thi trên máy Mac hiện tại. **Sàn tối thiểu còn lại:** kiểm tay (đã làm — cân ngoặc, `param` đúng vị trí) + PO thật tự chạy thử một lượt trên chính Windows LÚC RẢNH trước, đừng để lần chạy đầu tiên rơi vào giữa buổi chia sẻ công khai — đây là phép kiểm CUỐI CÙNG còn khả thi, không phải một lựa chọn trong nhiều lựa chọn. 🔴 **[26/08, PO đo]** luật ASCII-cho-chuỗi-in-ra đã ghi thẳng vào script cạnh `Say/Ok/Bad/Warn` (`4aea8bb`) — script không đặt mã trang console nên phụ thuộc console của PO, dấu câu (`—`/`·`) méo 1 ký tự vẫn đọc được, nguyên âm có dấu méo thì mất cả câu. **VIỆC TREO, HOÃN CÓ CHỦ Ý:** bản vá thật (`[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`, xoá hẳn nhu cầu luật trên) **CHƯA làm** — lý do hoãn: đang có bản vá PowerShell khác (`53a69c6`+`9834aa5`+`4aea8bb`) trên CỬA DUY NHẤT lên production, CHƯA parse-check thật, chồng thêm thay đổi trước khi biết bản hiện tại có chạy không là tăng số mảnh động đúng lúc không đo được mảnh nào. **Thứ tự bắt buộc:** parse-check xong ⟹ PO chạy thật một lượt ⟹ rồi mới thêm UTF8 encoding. |
-| 🔴🔴 **Eval CI đo NHẦM MODEL, từ `54164fa` (16/08) — vá `26/08`** | [ĐO] `.github/workflows/ci.yml`: `LLM_BASE_URL` xuất hiện **0 lần** trong toàn file. Job `business-rules-golden-set`/`ai-safety-adversarial` (`run_golden_set.py` + `functional_qa_set`/`fraud_qa_set`/`err_qa_set` + `run_adversarial_set.py` + `run_llm_judge_set.py`) chỉ set `OPENAI_API_KEY` **thật**, gọi thẳng `run_agent_turn` (`eval/_harness.py:530,686,774` → `src.agents.graph`). `LLM_BASE_URL` trống ⟹ `_khoa_cho_nha_cung_cap` không raise (base_url=None ⟹ "chưa đổi đích") ⟹ `LLM_API_KEY` rơi `OPENAI_API_KEY`, `LLM_MODEL` rơi `OPENAI_MODEL="gpt-4o-mini"` ⟹ agent **THẬT SỰ gọi OpenAI gpt-4o-mini**, không phải model dự án ghim (qwen/deepseek qua DashScope) — thành công, không một dòng lỗi. **Mốc [ĐO] bằng `git log -S` trên `src/config.py`:** cả ba dòng (`LLM_BASE_URL`/`LLM_MODEL` rơi `OPENAI_MODEL`) sinh cùng lúc ở `54164fa` (16/08, *"tách nhà cung cấp LLM khỏi embedding + GHIM thước eval"* — mỉa mai: commit này ghim thước cho MODEL CHẤM, để hở đúng lỗ cho MODEL BỊ CHẤM), `LLM_API_KEY` khoá lại bằng `_khoa_cho_nha_cung_cap` một ngày sau ở `7ce8209` (17/08) nhưng KHÔNG đóng nhánh base_url-trống. ⟹ **mọi điểm eval từ CI kể từ 16-17/08 phải coi là "chưa biết model chạy", không phải "đo trên model production"** — [ĐO, Coder] `run_golden_set.py` không ghi `model`/`base_url` vào TỆP KẾT QUẢ, nên một tệp kết quả cũ không tự khai nó chạy trên model nào. 🔴 **[ĐÍNH CHÍNH 26/08, Coder tự sửa lời mình]:** ban đầu gọi đây là "không suy ngược được" — QUÁ BI QUAN. `logs/usage.jsonl` **CÓ** ghi `model`+`base_url` cho MỖI lượt gọi thật; nếu CI giữ được `usage.jsonl` của các lần chạy cũ thì nối theo thời gian/thread với tệp kết quả là truy lại được model đã dùng. Đúng mức độ: **"khó truy, phải ghép hai tệp"**, không phải **"mất trắng"**. Cái thiếu thật là tệp KẾT QUẢ không tự mang model nên người đọc không thấy ngay — vẫn đúng lý do giữ đề xuất treo (Coder, chưa làm, vùng `eval/` = tester): ghi `model`+`base_url` thẳng vào mỗi tệp kết quả để loại sự cố này không im lặng được nữa. **Vá (Lead, PO duyệt thiết kế, 26/08, `src/cong_ra_ngoai.py` `handle_request`):** chốt tại tầng transport (đích THẬT `request.url.path`, không suy từ cờ môi trường — CI/production đọc cờ giống hệt nhau, chỉ đích lúc gửi mới khác) — `LLM_BASE_URL` trống + path KHÔNG phải `/embeddings` (loại trừ vì `EMBEDDING_BASE_URL` trống rơi OpenAI là CÓ CHỦ Ý) ⟹ raise `GoiRaNgoaiBiChanError`. [ĐO tay, 3 ca] base_url trống+chat→raise (đúng, mới); base_url trống+embeddings→không raise từ chốt mới, rơi cổng cũ (đúng, không gãy RAG); base_url có+chat→không raise từ chốt mới (đúng, không dương tính giả). **Hệ quả dự kiến, ĐÃ BÁO TRƯỚC, không phải hồi quy:** bản vá này nhiều khả năng làm `business-rules-golden-set`/`ai-safety-adversarial` đỏ trên CI — đỏ đúng, vì hai job đó thiếu `LLM_BASE_URL` (vùng `.github/workflows/` = Lead, chưa vá — chờ PO xác nhận trước khi sửa `ci.yml` theo lệnh đóng băng đang hiệu lực). Test đơn vị mới cho chốt này CHƯA CÓ (vùng `tests/` = tester) — cần giao. |
+| 🔴🔴 **Eval CI đo NHẦM MODEL, từ `54164fa` (16/08) — vá `26/08`** | [ĐO] `.github/workflows/ci.yml`: `LLM_BASE_URL` xuất hiện **0 lần** trong toàn file. Job `business-rules-golden-set`/`ai-safety-adversarial` (`run_golden_set.py` + `functional_qa_set`/`fraud_qa_set`/`err_qa_set` + `run_adversarial_set.py` + `run_llm_judge_set.py`) chỉ set `OPENAI_API_KEY` **thật**, gọi thẳng `run_agent_turn` (`eval/_harness.py:530,686,774` → `src.agents.graph`). `LLM_BASE_URL` trống ⟹ `_khoa_cho_nha_cung_cap` không raise (base_url=None ⟹ "chưa đổi đích") ⟹ `LLM_API_KEY` rơi `OPENAI_API_KEY`, `LLM_MODEL` rơi `OPENAI_MODEL="gpt-4o-mini"` ⟹ agent **THẬT SỰ gọi OpenAI gpt-4o-mini**, không phải model dự án ghim (qwen/deepseek qua DashScope) — thành công, không một dòng lỗi. **Mốc [ĐO] bằng `git log -S` trên `src/config.py`:** cả ba dòng (`LLM_BASE_URL`/`LLM_MODEL` rơi `OPENAI_MODEL`) sinh cùng lúc ở `54164fa` (16/08, *"tách nhà cung cấp LLM khỏi embedding + GHIM thước eval"* — mỉa mai: commit này ghim thước cho MODEL CHẤM, để hở đúng lỗ cho MODEL BỊ CHẤM), `LLM_API_KEY` khoá lại bằng `_khoa_cho_nha_cung_cap` một ngày sau ở `7ce8209` (17/08) nhưng KHÔNG đóng nhánh base_url-trống. ⟹ **mọi điểm eval từ CI kể từ 16-17/08 phải coi là "chưa biết model chạy", không phải "đo trên model production"** — [ĐO, Coder] `run_golden_set.py` không ghi `model`/`base_url` vào TỆP KẾT QUẢ, nên một tệp kết quả cũ không tự khai nó chạy trên model nào. 🔴 **[ĐÍNH CHÍNH 26/08, Coder tự sửa lời mình]:** ban đầu gọi đây là "không suy ngược được" — QUÁ BI QUAN. `logs/usage.jsonl` **CÓ** ghi `model`+`base_url` cho MỖI lượt gọi thật; nếu CI giữ được `usage.jsonl` của các lần chạy cũ thì nối theo thời gian/thread với tệp kết quả là truy lại được model đã dùng. Đúng mức độ: **"khó truy, phải ghép hai tệp"**, không phải **"mất trắng"**. Cái thiếu thật là tệp KẾT QUẢ không tự mang model nên người đọc không thấy ngay — vẫn đúng lý do giữ đề xuất treo (Coder, chưa làm, vùng `eval/` = tester): ghi `model`+`base_url` thẳng vào mỗi tệp kết quả để loại sự cố này không im lặng được nữa. **Vá (Lead, PO duyệt thiết kế, 26/08, `src/egress_gate.py` `handle_request`):** chốt tại tầng transport (đích THẬT `request.url.path`, không suy từ cờ môi trường — CI/production đọc cờ giống hệt nhau, chỉ đích lúc gửi mới khác) — `LLM_BASE_URL` trống + path KHÔNG phải `/embeddings` (loại trừ vì `EMBEDDING_BASE_URL` trống rơi OpenAI là CÓ CHỦ Ý) ⟹ raise `GoiRaNgoaiBiChanError`. [ĐO tay, 3 ca] base_url trống+chat→raise (đúng, mới); base_url trống+embeddings→không raise từ chốt mới, rơi cổng cũ (đúng, không gãy RAG); base_url có+chat→không raise từ chốt mới (đúng, không dương tính giả). **Hệ quả dự kiến, ĐÃ BÁO TRƯỚC, không phải hồi quy:** bản vá này nhiều khả năng làm `business-rules-golden-set`/`ai-safety-adversarial` đỏ trên CI — đỏ đúng, vì hai job đó thiếu `LLM_BASE_URL` (vùng `.github/workflows/` = Lead, chưa vá — chờ PO xác nhận trước khi sửa `ci.yml` theo lệnh đóng băng đang hiệu lực). Test đơn vị mới cho chốt này CHƯA CÓ (vùng `tests/` = tester) — cần giao. |
 
 ## 2. TRẠNG THÁI VẬT (đo lúc bàn giao)
 
@@ -1760,7 +1760,7 @@ suite backend     1 ĐỎ  (test_thanh_phan_tai_lieu_kho::…noi_bo_da_biet)
 **chưa kiểm** (cần `docker exec`, đang chờ đèn xanh):
 
 ```
-băm src/       ✅ b8e7c5397457  — cây làm việc VÀ /app/.bam_ma_nguon của CẢ BA container, 54 file
+băm src/       ✅ b8e7c5397457  — cây làm việc VÀ /app/.source_hash của CẢ BA container, 54 file
 BUILD_COMMIT   ✅ bec7235       — cả ba, khớp bàn giao
 sửa-tay        ✅ 0 · 0 · 0     — bộ lọc `^C /app/src.*\.py$` trừ __pycache__
 ba ngăn xếp    ✅ Up + healthy  — backend 9h, postgres/redis/caddy/jaeger 19–46h
@@ -1770,7 +1770,7 @@ invariants · check_contracts · ca đỏ "kho rỗng"   ⬜ CHƯA KIỂM LẠI
 
 ⚠️ **Bẫy đã gặp lúc kiểm, ghi lại để người sau khỏi vấp:**
 - **Băm bằng phép TỰ CHẾ ra số khác.** PO-agent tự gõ `find|xargs shasum` ra `bc20ff277ad3` —
-  lệch, vì phép ấy **băm cả đường dẫn**. Phép chính chủ (`src/dau_ma_nguon.py:bam_ma_nguon`) chỉ
+  lệch, vì phép ấy **băm cả đường dẫn**. Phép chính chủ (`src/build_stamp.py:bam_ma_nguon`) chỉ
   băm **nội dung**, sắp theo đường dẫn. ⟹ **Một con số băm không kèm CÁCH BĂM thì không phải bằng
   chứng** — chính module đó đã viết sẵn câu này, và nó vừa cứu một báo động giả.
 - **`docker diff` bản THÔ kêu ở cả ba** (9 · 0 · 7 mục dạng `C /app/src/<thư-mục>`). Đã mở ra
@@ -1787,20 +1787,20 @@ hết đóng băng"*). Câu hỏi treo từ 17/08 nay đã đóng.
 🔴 **HỆ QUẢ PHẢI ĐỌC KÈM — ta CỐ Ý đứng trên HAI lớp, không phải ba.** Lớp ② nay vĩnh viễn tắt
 (xem §3): cả 3 bộ test tốn tiền mất chốt `skipif(dang_dong_bang())`. **Lớp ① là lớp DUY NHẤT còn
 chặn.** Nó đủ mạnh và là nguồn độc lập thật (biến môi trường vs file — Luật D), nhưng **dự phòng
-đã hết**: một sơ suất đặt `FIN05_CHO_PHEP_TON_TIEN=1` giờ **không còn gì đỡ phía sau**.
+đã hết**: một sơ suất đặt `FIN05_ALLOW_PAID_CALLS=1` giờ **không còn gì đỡ phía sau**.
 ⟹ Việc xoá vẫn chưa commit (`D` trong `git status`). Ai commit thì **dùng pathspec** và ghi rõ
 đây là quyết định của PO thật 18/08, không phải dọn rác.
 
 ## 3. BA LỚP GIỮ HOÁ ĐƠN — kiểm trước khi chạy bất cứ thứ gì
 
 ```
-① FIN05_CHO_PHEP_TON_TIEN   mặc định TẮT ⟹ 3 bộ test gọi LLM thật đều SKIP   ✅ [ĐO] 18/08
+① FIN05_ALLOW_PAID_CALLS   mặc định TẮT ⟹ 3 bộ test gọi LLM thật đều SKIP   ✅ [ĐO] 18/08
 ② .DANG-DONG-BANG-LLM       cờ đóng băng                                🔴 [ĐO] 18/08 — ĐANG MẤT
-③ PHAN_LUONG_BAT=1          câu chào hỏi đi đường nhẹ, 0 token          ✅ [ĐO] 18/08
+③ TRIAGE_ENABLED=1          câu chào hỏi đi đường nhẹ, 0 token          ✅ [ĐO] 18/08
 ```
 
 **[ĐO] 18/08 — PO-agent kiểm tận mắt, kèm MẪU SỐ:**
-- **① còn nguyên.** `FIN05_CHO_PHEP_TON_TIEN` không đặt trong môi trường, không trong `.env*`.
+- **① còn nguyên.** `FIN05_ALLOW_PAID_CALLS` không đặt trong môi trường, không trong `.env*`.
   **Mẫu số: 3/3 bộ ĐÃ KHAI** đều có `skipif(not duoc_phep_ton_tien())` — `test_a2…:119` ·
   `test_bat_bien_dinh_tuyen…:60` · `test_agents/test_f31_f32…:133`.
   ⚠️ **CHƯA quét toàn `tests/` tìm bộ thứ tư chưa khai.** "3/3 bộ đã biết" ≠ "toàn bộ suite".
@@ -1812,7 +1812,7 @@ chặn.** Nó đủ mạnh và là nguồn độc lập thật (biến môi trư
   lớp đều bật. Sai vì tôi kết luận trên mẫu số **"3 bộ ĐÃ KHAI"** rồi phát biểu về **cả suite** —
   tôi có khai mẫu số ấy ra, và **vẫn bước qua chính nó ở câu kế tiếp**. Đúng §8, do chính người
   viết nếp kiểm phạm.
-- **③ còn nguyên.** `PHAN_LUONG_BAT=1` trong `Config.Env` của **cả ba** container.
+- **③ còn nguyên.** `TRIAGE_ENABLED=1` trong `Config.Env` của **cả ba** container.
 - 🟢 **NIÊM 20/08:** dòng "② THẬT SỰ MẤT" ở trên và cảnh báo `pytest tests/` đẩy lượt nhúng ra
   Internet đều đo **18/08**. §5.F (chốt chặn tầng transport) đã ĐÓNG 20/08 — xem `docs/STATE.md §5.F`
   cho trạng thái hiện hành trước khi dựa vào con số ở đây.
@@ -1835,7 +1835,7 @@ chiếu dashboard (A4) · bí danh/bản ghim chung xô là GIẢ ĐỊNH thận
   ngay**. 23/23 xanh.
 - **Năm ràng buộc cứng** đã mã hoá thành test (HITL tuyệt đối · AI không vượt cấp · cấm bịa số
   liệu · OTP phiên · cờ gian lận ≠ khoá ví).
-- **T1 định tuyến (`src/agents/phan_luong.py`)** — luật cứng, allow-list, tự khai băm. Đo được:
+- **T1 định tuyến (`src/agents/triage.py`)** — luật cứng, allow-list, tự khai băm. Đo được:
   **−33,5% tất định**, câu `"alo"` = **0 token**.
 - **Sự cố lộ khoá OpenAI đã đóng**: `_khoa_cho_nha_cung_cap()` fail-fast — thiếu khoá + base_url
   khác ⟹ `RuntimeError` lúc khởi động, **không bao giờ âm thầm mượn `OPENAI_API_KEY`**.
@@ -1956,10 +1956,10 @@ khiếu nại ⟹ mở NGAY, vì thời hạn tra soát đếm từ **ngày ti�
 3. **Redis là điểm chết đơn** — tắt Redis ⟹ `/agent/chat` **crash hẳn**, không response.
    Vá ở `1a33239`, **chưa live-fire xác nhận**.
 
-**🔴 VẬN HÀNH — người trực sự cố PHẢI biết:** `PHAN_LUONG_BAT` **KHÔNG** bao trọn mọi đường tất
+**🔴 VẬN HÀNH — người trực sự cố PHẢI biết:** `TRIAGE_ENABLED` **KHÔNG** bao trọn mọi đường tất
 định trước LLM. Từ 24/08 có thêm **T0** (cổng thu-slot **sau khi xác thực OTP**, `graph.py`), kích
-hoạt bằng cờ tường minh `vua_xac_thuc_de_gui_lai` từ giao diện, **độc lập `PHAN_LUONG_BAT`**.
-⟹ Tắt `PHAN_LUONG_BAT` để chữa cháy **vẫn còn T0 chạy**, và **không có tín hiệu nào báo điều đó**.
+hoạt bằng cờ tường minh `vua_xac_thuc_de_gui_lai` từ giao diện, **độc lập `TRIAGE_ENABLED`**.
+⟹ Tắt `TRIAGE_ENABLED` để chữa cháy **vẫn còn T0 chạy**, và **không có tín hiệu nào báo điều đó**.
 Nhận diện trong sổ đo: `duong=otp_resend_thu_slot` ⟹ T0 xử lý. *(Review nêu 24/08; đề xuất thêm
 kill-switch riêng cho T0 — chưa làm.)*
 
@@ -2124,8 +2124,8 @@ nhất chứng minh cổng plaintext còn biết kêu khi bất thường (Luậ
 ### ✅ F. Chốt chặn chi phí sai tầng — ĐÃ ĐÓNG, chuyển
 `docs/nhat-ky/2026-08-20-state-dep-F-G-IJ.md`
 
-[ĐO 20/08] Đã vá đúng cả hai việc đề xuất: `src/cong_ra_ngoai.py:22` giải thích lý do cắm ở tầng
-transport (không phải `_khoa_cho_nha_cung_cap()`) · `src/cong_ra_ngoai.py:355` có `so_luot_da_phat()`.
+[ĐO 20/08] Đã vá đúng cả hai việc đề xuất: `src/egress_gate.py:22` giải thích lý do cắm ở tầng
+transport (không phải `_khoa_cho_nha_cung_cap()`) · `src/egress_gate.py:355` có `so_luot_da_phat()`.
 
 ### ✅ G. Miễn trừ OTP `search_policy` — ĐÃ ĐÓNG một phần, chuyển
 `docs/nhat-ky/2026-08-20-state-dep-F-G-IJ.md`
@@ -2272,7 +2272,7 @@ nào do PO-agent tự bắt.
 **[ĐO] ca ③ — `so_luot_da_phat()` KHÔNG PHẢI MỘT CUỐN SỔ:**
 ```
 docker-entrypoint.sh:16-17   UVICORN_WORKERS mặc định 4  ⟹ BỐN bộ đếm độc lập
-src/cong_ra_ngoai.py:173     _dem: dict[str, int]        ⟹ trong RAM, về 0 mỗi lần recreate
+src/egress_gate.py:173     _dem: dict[str, int]        ⟹ trong RAM, về 0 mỗi lần recreate
 grep so_luot_da_phat src/    2 hit, cả hai cùng một file ⟹ 0 endpoint · 0 ghi volume
 ```
 **Phát biểu ĐÚNG:** bộ đếm **trong tiến trình**, phục vụ **ca đối chứng** — nó chứng minh chốt chặn
@@ -2293,8 +2293,8 @@ nháp**) · một đường đọc bộ đếm từ ngoài tiến trình. **Sau 
 🔴 **[ĐO 20/08, PO-agent] 1/3 XONG — KHÔNG gộp vào §5.F dù cùng chủ đề, đó là hai VIỆC khác nhau
 (F = cắm chốt chặn đúng tầng, K giai đoạn 2 = làm bộ đếm đọc được từ ngoài):**
 ```
-✅ src/cong_ra_ngoai.py:355  so_luot_da_phat()  — đường đọc bộ đếm ngoài tiến trình XONG
-⬜ src/cong_ra_ngoai.py:181  "…KHÔNG NƠI NÀO ĐỌC nó" — đổ da_phat vào usage.jsonl CHƯA xong
+✅ src/egress_gate.py:355  so_luot_da_phat()  — đường đọc bộ đếm ngoài tiến trình XONG
+⬜ src/egress_gate.py:181  "…KHÔNG NƠI NÀO ĐỌC nó" — đổ da_phat vào usage.jsonl CHƯA xong
 ⬜ đảo mặc định cờ compose thành TỪ CHỐI + khai =1 — chưa đo, chưa kết luận
 ```
 
@@ -2309,7 +2309,7 @@ cổng ngân sách token    6.565/7.550 · system 4.587 (+0) · tool 1.978 (+0) 
 security_finding        3 failed · 3 passed  (chạy từ HOST)
 ```
 
-🔴 **NHÃN `BUILD_COMMIT` ĐANG NÓI DỐI — ca thứ ba, đúng thứ `dau_ma_nguon.py` sinh ra để chống.**
+🔴 **NHÃN `BUILD_COMMIT` ĐANG NÓI DỐI — ca thứ ba, đúng thứ `build_stamp.py` sinh ra để chống.**
 ```
 [ĐO] BUILD_COMMIT trong cả ba container   bf1bd5a
 [ĐO] HEAD                                  9f864c6   (chuyển docstring search_policy → chú thích #)
@@ -2319,7 +2319,7 @@ Mã trong ảnh là của **cây làm việc lúc dựng** (đã có bản vá `
 — một commit mà `customer_tools.py` **vẫn còn docstring 376 token**. ⟹ **Ai lần theo nhãn sẽ tìm thấy
 mã KHÁC thứ đang chạy.**
 ✅ **Băm `bam_ma_nguon` khớp tuyệt đối ở cả bốn chỗ ⟹ KHÔNG SAI VẬT.** Đúng như docstring
-`dau_ma_nguon.py` đã viết: ***`build_commit` định danh KHO, nhãn băm định danh MÃ — tin nhãn băm.***
+`build_stamp.py` đã viết: ***`build_commit` định danh KHO, nhãn băm định danh MÃ — tin nhãn băm.***
 Nhưng đây là **lần thứ ba trong dự án** nhãn ấy lệch, nên nó không còn là tai nạn: **`BUILD_COMMIT`
 chỉ đúng khi cây làm việc == HEAD lúc build**, và nếp *chạy → xác minh → mới commit* của đội **bảo đảm
 điều đó thường KHÔNG đúng**. Ghi lại để không ai dùng cột ấy làm mỏ neo chẩn đoán.
@@ -3127,7 +3127,7 @@ Rào cản là DỮ KIỆN của đội, không phải ma sát riêng của ngư
 > việc mình vừa lách một chủ đích.)*
 
 **Luật W** *(đúc 19/08; PHÁT BIỂU ĐẦU tại `82c9c90` SAI — đúc trên tiền đề "mất ảnh nghiệm thu"
-trong khi `38e65466e3ce` là BĂM NỘI DUNG `src/` (dau_ma_nguon.py), không phải image ID, và phép
+trong khi `38e65466e3ce` là BĂM NỘI DUNG `src/` (build_stamp.py), không phải image ID, và phép
 đồng nhất vẫn xanh. Viết lại CÙNG NGÀY sau khi Lead rút finding và PO-agent đo lại độc lập)* —
 **HAI LOẠI ĐỊNH DANH, đừng bắt cái này làm việc của cái kia: BĂM NỘI DUNG là hàm của vật — tự
 tái lập bất cứ lúc nào, KHÔNG cần sổ, trả lời "VẬT LÀ GÌ". SỔ GIÁM HỘ trả lời "AI dựng · LÚC
@@ -3142,7 +3142,7 @@ NÀO · bằng LỆNH GÌ" — những câu không hàm nào của vật trả l
 > vật; Luật T — PO-agent phạm đúng T khi đúc phát biểu đầu: relay tiền đề của người vừa sai mà
 > không kiểm.)*
 > **Gốc của vế ③ — theo §7b, giữ nguồn CŨ HƠN, không mint luật mới:** vế ③ là phép tổng quát hoá
-> của câu đã có từ 17/08 trong docstring `src/dau_ma_nguon.py`: *"một con số băm không kèm CÁCH
+> của câu đã có từ 17/08 trong docstring `src/build_stamp.py`: *"một con số băm không kèm CÁCH
 > BĂM thì không phải bằng chứng."* Ví dụ mới nhất: sự cố 7c hồ sơ 19/08 (đọc 12-hex-băm-nguồn
 > thành image ID). Hình dạng "ba người một ngày cùng lớp lỗi" KHÔNG được cấp luật riêng —
 > nó đã có tên ở đây. (Review đề nghị, PO-agent chuẩn y 19/08.)

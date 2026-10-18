@@ -90,8 +90,8 @@ def _trang_thai_test() -> str:
                  "LANGCHAIN_TRACING_V2": "false", "LANGSMITH_TRACING": "false"},
         )
         dong = [d for d in r.stdout.splitlines() if "passed" in d or "failed" in d or "error" in d]
-        ket_qua = dong[-1].strip() if dong else "(không đọc được kết quả)"
-        return f"{'XANH' if r.returncode == 0 else 'ĐỎ'} — {ket_qua}"
+        outcome = dong[-1].strip() if dong else "(không đọc được kết quả)"
+        return f"{'XANH' if r.returncode == 0 else 'ĐỎ'} — {outcome}"
     except Exception as e:  # noqa: BLE001 — briefing không được chết vì test lỗi
         return f"(không chạy được: {type(e).__name__}: {e})"
 

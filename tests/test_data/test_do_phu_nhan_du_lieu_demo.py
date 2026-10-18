@@ -79,37 +79,37 @@ def _psql(sql: str) -> list[str]:
 
 def _nhan_tu_check() -> tuple[dict[tuple[str, str], list[str]], list[str]]:
     """Nguồn ①. Trả `({(bảng, cột): [giá trị]}, [định nghĩa BỊ BỎ QUA])`."""
-    dong = _psql(
+    line = _psql(
         "SELECT conrelid::regclass::text, pg_get_constraintdef(oid) FROM pg_constraint "
         "WHERE contype='c' AND conrelid <> 0 ORDER BY 1;"
     )
-    nhan: dict[tuple[str, str], list[str]] = {}
+    label_text: dict[tuple[str, str], list[str]] = {}
     bo_qua = []
-    for d in dong:
-        bang, dinh_nghia = d.split("\t", 1)
+    for d in line:
+        table_rows, dinh_nghia = d.split("\t", 1)
         m = _DANG_ENUM.search(dinh_nghia)
         if not m:
-            bo_qua.append(f"{bang}: {dinh_nghia[:90]}")
+            bo_qua.append(f"{table_rows}: {dinh_nghia[:90]}")
             continue
-        nhan[(bang, m.group(1))] = _GIA_TRI.findall(m.group(2))
-    return nhan, bo_qua
+        label_text[(table_rows, m.group(1))] = _GIA_TRI.findall(m.group(2))
+    return label_text, bo_qua
 
 
 def _nhan_tu_boolean() -> dict[tuple[str, str], list[str]]:
     """Nguồn ② — nhãn KHÔNG constraint nào khai, và là nguồn duy nhất phủ được
     `complaints.otp_disclosed`, tức chính ca đối chứng của brief."""
-    dong = _psql(
+    line = _psql(
         "SELECT table_name, column_name FROM information_schema.columns "
         "WHERE table_schema='public' AND data_type='boolean' ORDER BY 1,2;"
     )
-    return {tuple(d.split("\t", 1)): ["true", "false"] for d in dong}
+    return {tuple(d.split("\t", 1)): ["true", "false"] for d in line}
 
 
 def _bang_rong() -> set[str]:
-    dong = _psql(
+    line = _psql(
         "SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY 1;"
     )
-    return {d.split("\t")[0] for d in dong if d.split("\t")[1] == "0"}
+    return {d.split("\t")[0] for d in line if d.split("\t")[1] == "0"}
 
 
 # ═══ DANH SÁCH MIỄN TRỪ — có KHAI, có LÝ DO, và tự phát hiện khai THỪA ═══════
@@ -174,27 +174,27 @@ def test_moi_nhan_co_it_nhat_mot_dong_du_lieu_mang_no():
     moi_nhan = {**tu_check, **tu_bool}
     thieu, bo_vi_bang_rong, mien, khai_thua = [], [], [], []
 
-    for (bang, cot), gia_tri in sorted(moi_nhan.items()):
-        if bang in rong:
-            bo_vi_bang_rong.append(f"{bang}.{cot}")
+    for (table_rows, column), val in sorted(moi_nhan.items()):
+        if table_rows in rong:
+            bo_vi_bang_rong.append(f"{table_rows}.{column}")
             continue
-        for v in gia_tri:
-            dk = f"{cot} IS TRUE" if v == "true" else (
-                f"{cot} IS FALSE" if v == "false" else f"{cot} = '{v}'")
-            n = _psql(f"SELECT count(*) FROM {bang} WHERE {dk};")
+        for v in val:
+            dk = f"{column} IS TRUE" if v == "true" else (
+                f"{column} IS FALSE" if v == "false" else f"{column} = '{v}'")
+            n = _psql(f"SELECT count(*) FROM {table_rows} WHERE {dk};")
             rong_nhan = bool(n) and n[0] == "0"
-            khai = MIEN_TRU.get((bang, cot, v))
-            if rong_nhan and khai:
-                mien.append(f"  📋 {bang}.{cot} = {v}  [{khai[0]}]\n       {khai[1]}")
+            declared = MIEN_TRU.get((table_rows, column, v))
+            if rong_nhan and declared:
+                mien.append(f"  📋 {table_rows}.{column} = {v}  [{declared[0]}]\n       {declared[1]}")
             elif rong_nhan:
-                thieu.append(f"  {bang}.{cot} = {v}")
-            elif khai:
+                thieu.append(f"  {table_rows}.{column} = {v}")
+            elif declared:
                 # 🔴 KHAI THỪA — nhãn nay CÓ dòng nhưng miễn trừ vẫn còn.
                 # Không bắt cái này thì danh sách miễn trừ MỤC dần: mỗi khai
                 # sống mãi sau khi lý do của nó đã hết, và người sau đọc một
                 # danh sách toàn thứ không còn đúng. Đây là Luật P ở dạng
                 # "artefact tự làm cũ mà không ai niêm".
-                khai_thua.append(f"  {bang}.{cot} = {v}  ← nay CÓ dòng, GỠ khai đi")
+                khai_thua.append(f"  {table_rows}.{column} = {v}  ← nay CÓ dòng, GỠ khai đi")
 
     assert not khai_thua, (
         "🔴 MIỄN TRỪ KHAI THỪA — nhãn nay đã có dòng, khai không còn đúng:\n"

@@ -50,7 +50,7 @@ Cùng dự báo lần trước, cùng lý do, và lần trước nó trúng từ
 
 Đây là **thay đổi hành vi có chủ ý** so với lần dựng trước: cùng lệnh
 `pytest tests/` giờ **không đốt token nào**. Nếu chúng **vẫn chạy** thì cờ
-`FIN05_CHO_PHEP_TON_TIEN` đang bị đặt ở đâu đó ngoài ý muốn — **điều tra ngay**,
+`FIN05_ALLOW_PAID_CALLS` đang bị đặt ở đâu đó ngoài ý muốn — **điều tra ngay**,
 đừng để nó thành mặc định ngầm.
 
 ### ⑤ Tổng suite `-m "not security_finding"` → **7 đỏ → 4 đỏ**

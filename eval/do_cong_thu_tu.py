@@ -100,17 +100,17 @@ def cham_thu_tu_mot_ca(case_id: str, all_agent_replies: list[str], tool_calls_th
 
 def _tu_kiem_bat_dung_vi_pham() -> bool:
     """0 token — dựng transcript giả: lượt 0 đã nêu mã giao dịch, CHƯA gọi tool nào."""
-    kq = cham_thu_tu_mot_ca(
+    res = cham_thu_tu_mot_ca(
         "TU-KIEM-①",
         all_agent_replies=["Mình đã kiểm tra và không thấy giao dịch TXN20260101000099 nào."],
         tool_calls_theo_luot=[[]],
     )
-    return kq["cham_duoc"] is True and kq["vi_pham"] is not None
+    return res["cham_duoc"] is True and res["vi_pham"] is not None
 
 
 def _tu_kiem_khong_bao_oan_ca_dung_thu_tu() -> bool:
     """0 token — ca ĐÚNG: gọi tool lượt 0, nêu mã ở lượt 1. Không được báo vi phạm."""
-    kq = cham_thu_tu_mot_ca(
+    res = cham_thu_tu_mot_ca(
         "TU-KIEM-②",
         all_agent_replies=[
             "Để mình kiểm tra lịch sử giao dịch của bạn nhé.",
@@ -118,24 +118,24 @@ def _tu_kiem_khong_bao_oan_ca_dung_thu_tu() -> bool:
         ],
         tool_calls_theo_luot=[["get_customer_history"], []],
     )
-    return kq["cham_duoc"] is True and kq["vi_pham"] is None
+    return res["cham_duoc"] is True and res["vi_pham"] is None
 
 
 def _tu_kiem_khong_bao_oan_ca_goi_tool_va_tra_loi_cung_mot_luot() -> bool:
     """0 token — bẫy tự bắt được khi validate trên MT-E01 thật: mẫu ReAct
     chuẩn (gọi tool RỒI trả lời, CÙNG một lượt) không được báo oan."""
-    kq = cham_thu_tu_mot_ca(
+    res = cham_thu_tu_mot_ca(
         "TU-KIEM-④",
         all_agent_replies=["Giao dịch TXN20260101000099 đã tìm thấy, số tiền 100.000đ."],
         tool_calls_theo_luot=[["lookup_transaction"]],
     )
-    return kq["cham_duoc"] is True and kq["vi_pham"] is None
+    return res["cham_duoc"] is True and res["vi_pham"] is None
 
 
 def _tu_kiem_khong_cham_duoc_khi_lech_do_dai() -> bool:
     """0 token — bản ghi thiếu tool_calls_theo_luot đồng bộ phải báo KHÔNG CHẤM ĐƯỢC."""
-    kq = cham_thu_tu_mot_ca("TU-KIEM-③", all_agent_replies=["a", "b"], tool_calls_theo_luot=[[]])
-    return kq["cham_duoc"] is False
+    res = cham_thu_tu_mot_ca("TU-KIEM-③", all_agent_replies=["a", "b"], tool_calls_theo_luot=[[]])
+    return res["cham_duoc"] is False
 
 
 def main() -> int:
@@ -191,13 +191,13 @@ def main() -> int:
         if agr is None or tclt is None:
             khong_cham_duoc += 1
             continue
-        kq = cham_thu_tu_mot_ca(case_id, agr, tclt)
-        if not kq["cham_duoc"]:
+        res = cham_thu_tu_mot_ca(case_id, agr, tclt)
+        if not res["cham_duoc"]:
             khong_cham_duoc += 1
             continue
         cham_duoc += 1
-        if kq["vi_pham"]:
-            vi_pham_list.append((case_id, kq["vi_pham"]))
+        if res["vi_pham"]:
+            vi_pham_list.append((case_id, res["vi_pham"]))
 
     tong = cham_duoc + khong_cham_duoc
     print(f"\n── CHẤM TRÊN {args.file} ──")

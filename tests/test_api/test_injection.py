@@ -20,7 +20,7 @@ from src.api.deps import get_session
 from src.api.main import app
 from src.auth import create_access_token
 from src.db.models import User
-from tests._ton_tien import duoc_phep_ton_tien, ly_do
+from tests._ton_tien import duoc_phep_ton_tien, reason_text
 
 SQLI_PAYLOADS = [
     "'; DROP TABLE tickets; --",
@@ -133,7 +133,7 @@ def _ten_tai_lieu(sample_db) -> set[str]:
     `tests/test_rag/test_thanh_phan_tai_lieu_kho.py:113`, không từ `src/`.
     """
     sample_db.expire_all()
-    return {hang[0] for hang in sample_db.execute(text("SELECT filename FROM policy_documents;"))}
+    return {row_item[0] for row_item in sample_db.execute(text("SELECT filename FROM policy_documents;"))}
 
 
 def _tao_partner_admin(sample_db) -> None:
@@ -145,11 +145,11 @@ def _tao_partner_admin(sample_db) -> None:
     sample_db.commit()
 
 
-def _nap(client, ten_tep: str, noi_dung: bytes = b"noi dung test khong lien quan"):
+def _nap(client, ten_tep: str, content_text: bytes = b"noi dung test khong lien quan"):
     return client.post(
         "/policy-docs",
         headers=_auth("partner_admin", "USR-PA-TEST"),
-        files={"file": (ten_tep, noi_dung, "text/plain")},
+        files={"file": (ten_tep, content_text, "text/plain")},
     )
 
 
@@ -173,7 +173,7 @@ def _nap(client, ten_tep: str, noi_dung: bytes = b"noi dung test khong lien quan
 # cần tech-lead chỉ ĐIỂM NỐI (tester không đọc `src/`).
 _CONG_CHI_PHI = pytest.mark.skipif(
     not duoc_phep_ton_tien(),
-    reason=ly_do(60, "2 lời gọi OpenAI /v1/embeddings qua POST /policy-docs"),
+    reason=reason_text(60, "2 lời gọi OpenAI /v1/embeddings qua POST /policy-docs"),
 )
 
 
@@ -243,21 +243,21 @@ def test_policy_doc_upload_ten_tep_da_luu_phai_bi_giam(client, sample_db):
     `lint-and-test`, tức bản vá làm IM một phép kiểm đang chạy tốt (Luật J).
     """
     _tao_partner_admin(sample_db)
-    truoc = _ten_tai_lieu(sample_db)
+    before = _ten_tai_lieu(sample_db)
 
     resp = _nap(client, "../../../../etc/passwd.txt")
     assert resp.status_code in (200, 400), f"HTTP {resp.status_code}: {resp.text[:200]}"
 
-    ten_moi = _ten_tai_lieu(sample_db) - truoc
+    new_name = _ten_tai_lieu(sample_db) - before
     if resp.status_code == 200:
-        assert len(ten_moi) == 1, (
+        assert len(new_name) == 1, (
             f"nạp trả 200 nhưng số hàng mới trong `policy_documents` là "
-            f"{len(ten_moi)}, chờ đúng 1: {sorted(ten_moi)} — KHÔNG ĐO ĐƯỢC"
+            f"{len(new_name)}, chờ đúng 1: {sorted(new_name)} — KHÔNG ĐO ĐƯỢC"
         )
-    assert ten_moi, "KHÔNG ĐO ĐƯỢC: không có hàng mới nào để soi tên"
-    for ten in ten_moi:
-        assert ten == os.path.basename(ten) and ".." not in ten, (
-            f"🔴 tên tệp KHÔNG bị giam, lưu nguyên văn {ten!r} trong "
+    assert new_name, "KHÔNG ĐO ĐƯỢC: không có hàng mới nào để soi tên"
+    for name_text in new_name:
+        assert name_text == os.path.basename(name_text) and ".." not in name_text, (
+            f"🔴 tên tệp KHÔNG bị giam, lưu nguyên văn {name_text!r} trong "
             "`policy_documents`. 200/400 không nói gì về điều này — đây là trục "
             "mà tên ca gốc hứa."
         )

@@ -114,14 +114,14 @@ def db():
     # Chỉ skip ở đúng ca đó, không nới rộng hơn.
     try:
         with engine.connect() as conn:
-            so_resolution = conn.execute(text("SELECT COUNT(*) FROM resolutions")).scalar_one()
+            resolution_count = conn.execute(text("SELECT COUNT(*) FROM resolutions")).scalar_one()
     except Exception as e:  # noqa: BLE001 — bảng chưa tồn tại: DB rỗng chưa migrate
         pytest.skip(
             f"Chưa có bảng `resolutions` ({type(e).__name__}) — DB rỗng chưa migrate, "
             "không phải DB demo mà file này canh.",
             allow_module_level=True,
         )
-    if so_resolution == 0:
+    if resolution_count == 0:
         pytest.skip(
             "DB không có resolution nào — đây là DB rỗng (CI dựng mới), không phải DB demo "
             "mà file này canh. Chạy trên DB demo: xem lệnh ở docstring đầu file.",
@@ -151,10 +151,10 @@ def test_dong_rejected_duy_nhat_tro_vao_sentinel_khong_phai_nguoi_that(db):
     `ORDER BY user_id LIMIT 1` — tức là chọn theo thứ tự bảng chữ cái, không
     theo bằng chứng nào.
     """
-    hang = db.execute(text("SELECT resolution_id, rejected_by FROM resolutions WHERE status = 'rejected'")).all()
-    assert len(hang) == 1, f"Phải còn đúng 1 dòng rejected, thực tế {len(hang)}: {hang}"
+    row_item = db.execute(text("SELECT resolution_id, rejected_by FROM resolutions WHERE status = 'rejected'")).all()
+    assert len(row_item) == 1, f"Phải còn đúng 1 dòng rejected, thực tế {len(row_item)}: {row_item}"
 
-    resolution_id, rejected_by = hang[0]
+    resolution_id, rejected_by = row_item[0]
     assert resolution_id == RES_REJECTED_CON_LAI, (
         f"Dòng rejected còn lại là {resolution_id}, đặc tả nói phải là {RES_REJECTED_CON_LAI} "
         "— có thể đã xoá nhầm dòng."

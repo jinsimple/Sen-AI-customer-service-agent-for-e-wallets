@@ -1,7 +1,7 @@
 # Đợt "OTP trước token" — phiếu giao việc
 
 > **Người giao:** phiên PO · **Người nhận:** Lead · **Ngày:** 24/08/2026
-> **Nền đo:** HEAD `a3bc860` · băm luật `phan_luong.py` = `abec4358a501` (md5-toan-file-12)
+> **Nền đo:** HEAD `a3bc860` · băm luật `triage.py` = `abec4358a501` (md5-toan-file-12)
 > **Đặc tả nghiệp vụ:** `docs/kich-ban-chuyen-gia-cskh-chuyen-nham-tien.md`
 >
 > **PO thật đã duyệt toàn bộ bản này ngày 24/08.** Bốn câu Q1–Q4 đã chốt, không hỏi lại.
@@ -68,9 +68,9 @@ nấc — và chính nấc đó tạo ra cổng hỏi-số-tiền đứng cô l�
 |---|---|---|
 | **Đ1** | Cổng `thu_slot` bắn oan **6/11** lần: 2 câu chính sách · 2 ca adversarial · 1 lượt sau khi đã phân loại · 1 ca khách cần hướng dẫn. Nguyên nhân: `"nhầm"`, `"bị"` trần trong `_TIN_HIEU_KHIEU_NAI`; `"nhận"` khớp trong "xác nhận" | chạy `phan_luong()` trên `eval/*.jsonl` |
 | | 🔴 **Hệ quả nặng nhất:** `ADV-036` (ép lộ tên+STK người nhận) và `ADV-038` (ép kết luận gian lận) đang **XANH** vì cổng trả câu lạc đề — request không chạm LLM, không qua O1–O5. Khuôn cấm không khớp câu "cho mình xin số tiền" ⟹ đạt. **Hai lớp phòng thủ chưa từng được chạy** | `eval/_harness.py:555` gọi `run_agent_turn` |
-| **Đ2** | Eval và sản phẩm chạy **hai cấu hình cờ khác nhau**: 3/3 container có `PHAN_LUONG_BAT=1`; host — nơi eval bắt buộc chạy — **không đặt**; không tệp eval nào khai cờ | `printenv` từng container · `env` host |
+| **Đ2** | Eval và sản phẩm chạy **hai cấu hình cờ khác nhau**: 3/3 container có `TRIAGE_ENABLED=1`; host — nơi eval bắt buộc chạy — **không đặt**; không tệp eval nào khai cờ | `printenv` từng container · `env` host |
 | **Đ3** | Cổng T0 hỏi lại thứ khách vừa nói **2/8**: `"tuần trước"`, `"khoảng 3 giờ chiều"` không được khuôn thời gian nhận diện — dù chính câu hỏi của T0 dạy khách trả lời "sáng/chiều/tối" | `co_ma_giao_dich_hoac_thoi_gian()` |
-| **Đ4** | T0 chạy trước T1 và **độc lập** `PHAN_LUONG_BAT`. Tắt cờ chữa cháy thì T0 vẫn chạy, không tín hiệu nào báo | `graph.py:839` · Review nêu 24/08 |
+| **Đ4** | T0 chạy trước T1 và **độc lập** `TRIAGE_ENABLED`. Tắt cờ chữa cháy thì T0 vẫn chạy, không tín hiệu nào báo | `graph.py:839` · Review nêu 24/08 |
 | **K1** | 🔴 **Taxonomy không có ô cho lừa đảo.** `CHECK` chỉ có `wrong_recipient/money_not_received/double_charge/refund/other`. Bot ép ca lừa đảo vào `wrong_recipient` rồi khuyên "chờ liên hệ người nhận" — vô nghĩa khi người nhận là kẻ lừa, và tiêu mất giờ vàng trình báo | `src/db/models.py:199` |
 | **K2** | Không chỗ nào **bắt bot HỎI** câu sàng lọc lừa đảo. FS-13 cho chỗ *ghi nhận* tín hiệu; thiếu chỗ bắt bot *đi lấy* | ADR-048 |
 | **K3** | Hai câu chống mạo danh CSKH **chưa có câu nào**. Dự án ép rất chặt việc bot *không hỏi* OTP giao dịch; chưa ai nghĩ tới việc bot **nói cho khách biết** nó sẽ không bao giờ hỏi | grep toàn `src/` |
@@ -91,7 +91,7 @@ L0  ──► ①  ──► ②  ──► ③        (ca đối chứng ĐỎ 
 | # | hạng mục | vai | ràng buộc |
 |---|---|---|---|
 | **L0** | Xuất lại `project-knowledge/`; thu ACK cả 4 vai đã đọc bản mới | Lead | **trước mọi việc** |
-| ① | Ghim cờ định tuyến vào phép đo — in `PHAN_LUONG_BAT` + cột `duong` vào báo cáo eval | QA/QC | trước mọi phép đo khác |
+| ① | Ghim cờ định tuyến vào phép đo — in `TRIAGE_ENABLED` + cột `duong` vào báo cáo eval | QA/QC | trước mọi phép đo khác |
 | ② | Bộ ca đối chứng **ÂM** cho cổng `thu_slot` | QA/QC | **phải ĐỎ trên `a3bc860`** trước ③ |
 | ③ | Siết ba từ — đóng Đ1 + Q3 | Coder | sau ② |
 | ④ | Cổng OTP tất định cho NHÓM B — Q1 | Coder | — |
@@ -133,7 +133,7 @@ L0  ──► ①  ──► ②  ──► ③        (ca đối chứng ĐỎ 
 > test soạn hộ sẽ *phản chiếu* code, kể cả code sai. Bạn tự dựng, từ đặc tả và từ quan sát
 > hộp đen (gọi API thật, liệt kê collection từ container đang chạy, đọc contract, gõ UI).
 
-**① Ghim cờ.** Báo cáo eval in `PHAN_LUONG_BAT` lúc chạy + một cột `duong` cho mỗi ca.
+**① Ghim cờ.** Báo cáo eval in `TRIAGE_ENABLED` lúc chạy + một cột `duong` cho mỗi ca.
 *Xong khi:* đọc được câu *"ca này đi `thu_slot`, không chạm model"* **mà không phải mở code**.
 
 **② Ca âm cho cổng `thu_slot`.** Mỗi trục ≥1 ca, kỳ vọng **không** đi `thu_slot`:

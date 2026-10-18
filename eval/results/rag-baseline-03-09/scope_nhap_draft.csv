@@ -317,7 +317,7 @@ CHK-7bba1e768049,DOC-606240c112f8,STATE.md,17,,unknown,khong_co_tieu_de_ro,0,**Q
 CHK-7ea008ff4e98,DOC-606240c112f8,STATE.md,18,,unknown,khong_co_tieu_de_ro,0,**BẢO MẬT** (p-226-87) - ĐO ĐƯỢC — bẫy vận hành mới: `caddy reload --config ... --adapter caddyfile`
 CHK-5e81ae6b6c42,DOC-606240c112f8,STATE.md,19,,unknown,khong_co_tieu_de_ro,0,- Khuyến nghị đã gửi riêng (chưa niêm toàn văn ở đây): rủi ro lộ `OPENAI_API_KEY` (qa-stripe) vào tr
 CHK-9172f9bab971,DOC-606240c112f8,STATE.md,20,,unknown,khong_co_tieu_de_ro,0,"**REVIEW** (p-226-0c, không ghi repo — Lead neo hộ) - ĐO ĐƯỢC: **chưa từng nhận báo cáo đóng cổng nà"
-CHK-44ca2926b73b,DOC-606240c112f8,STATE.md,21,,unknown,khong_co_tieu_de_ro,0,- GIẢ THUYẾT: 4 file `src/` chưa quét (`customer_tools.py`·`phan_luong.py`·`cong_ra_ngoai.py`·`pii.p
+CHK-44ca2926b73b,DOC-606240c112f8,STATE.md,21,,unknown,khong_co_tieu_de_ro,0,- GIẢ THUYẾT: 4 file `src/` chưa quét (`customer_tools.py`·`triage.py`·`egress_gate.py`·`pii.p
 CHK-0a0a59000c12,DOC-606240c112f8,STATE.md,22,,unknown,khong_co_tieu_de_ro,0,"**DEVOPS** (p-226-31, vai mới đêm nay) - ĐO ĐƯỢC: chuyển CI sang self-hosted tiến hành khi câu hỏi g"
 CHK-f18a3b293116,DOC-606240c112f8,STATE.md,23,,unknown,khong_co_tieu_de_ro,0,"- ĐO ĐƯỢC: `route-guards-docker` xanh trên self-hosted đêm nay **chỉ chứng minh hạ tầng nhận việc**,"
 CHK-1623d20bf2c2,DOC-606240c112f8,STATE.md,24,,unknown,khong_co_tieu_de_ro,0,"**LEAD** (p-226-92, tự khai lỗi của mình — đúng luật ""lỗi cấp trên phải ghi tên"") - Phạm lỗi git pat"
@@ -425,7 +425,7 @@ CHK-21abf15d5cbb,DOC-606240c112f8,STATE.md,125,,unknown,khong_co_tieu_de_ro,0,"V
 CHK-d51110d8aaf5,DOC-606240c112f8,STATE.md,126,,unknown,khong_co_tieu_de_ro,0,| ⑥ | **Golden set không phủ tool NÀO** — cả 5 tool 0/120 và 0/60. Không phải thiếu tiêu chí; bộ đề 
 CHK-cb18be75d838,DOC-606240c112f8,STATE.md,127,,unknown,khong_co_tieu_de_ro,0,"| ⑦ | **Ngăn `fin05-dot-otp` KHÔNG TÁI LẬP ĐƯỢC** — đang chạy 28 giờ, giữ bằng chứng P4 (`eval/resul"
 CHK-c76f6753fd9c,DOC-606240c112f8,STATE.md,128,,unknown,khong_co_tieu_de_ro,0,⚠️ **① có hiện vật NẰM NGOÀI REPO** (`/Users/soidoc/fin05-benchmark-30aug/`) — không được git bảo vệ
-CHK-2cd6d0be226e,DOC-606240c112f8,STATE.md,129,,unknown,khong_co_tieu_de_ro,0,"**Cổng băm `.bam_ma_nguon` — nghi ngờ SAI, cổng tốt hơn tôi tưởng.** `src/dau_ma_nguon.py:54` dùng `"
+CHK-2cd6d0be226e,DOC-606240c112f8,STATE.md,129,,unknown,khong_co_tieu_de_ro,0,"**Cổng băm `.source_hash` — nghi ngờ SAI, cổng tốt hơn tôi tưởng.** `src/build_stamp.py:54` dùng `"
 CHK-8fc8d8c9d4d6,DOC-606240c112f8,STATE.md,130,,unknown,khong_co_tieu_de_ro,0,"🔴 **`migrations/` — lỗ do Coder tìm ra, sắc hơn lỗ frontend của tôi.** Nó nằm **ngoài `src/`** nên k"
 CHK-054805b3f426,DOC-606240c112f8,STATE.md,131,,unknown,khong_co_tieu_de_ro,0,"**Đo bù cho phần không có cổng (01/09 16:00, ngăn `qa-stripe`):** - ảnh `fin05-qa-stripe-frontend:la"
 CHK-320666efd34b,DOC-606240c112f8,STATE.md,132,,unknown,khong_co_tieu_de_ro,0,"### 0b.22b BA TÍNH CHẤT CỦA THƯỚC CHẤM GOLDEN — Review 01/09, **không có tệp gốc**  Review soát đườn"
@@ -496,12 +496,12 @@ CHK-74c3b92c96b1,DOC-606240c112f8,STATE.md,196,,unknown,khong_co_tieu_de_ro,0,"C
 CHK-e5f173c54672,DOC-606240c112f8,STATE.md,197,,unknown,khong_co_tieu_de_ro,0,vùng `eval/` = tester): ghi `model`+`base_url` thẳng vào mỗi tệp kết quả để loại sự cố này không im 
 CHK-d376453ffee2,DOC-606240c112f8,STATE.md,198,,unknown,khong_co_tieu_de_ro,0,"có+chat→không raise từ chốt mới (đúng, không dương tính giả). **Hệ quả dự kiến, ĐÃ BÁO TRƯỚC, không "
 CHK-46c7952075f6,DOC-606240c112f8,STATE.md,199,,unknown,khong_co_tieu_de_ro,0,## 2. TRẠNG THÁI VẬT (đo lúc bàn giao)  ``` HEAD nhánh dev/learning-loop        [ĐO] 18/08: addec5e 
-CHK-6ecfba2dbae3,DOC-606240c112f8,STATE.md,200,,unknown,khong_co_tieu_de_ro,0,"``` băm src/       ✅ b8e7c5397457  — cây làm việc VÀ /app/.bam_ma_nguon của CẢ BA container, 54 file"
+CHK-6ecfba2dbae3,DOC-606240c112f8,STATE.md,200,,unknown,khong_co_tieu_de_ro,0,"``` băm src/       ✅ b8e7c5397457  — cây làm việc VÀ /app/.source_hash của CẢ BA container, 54 file"
 CHK-2346e0a50e5d,DOC-606240c112f8,STATE.md,201,,unknown,khong_co_tieu_de_ro,0,"⚠️ **Bẫy đã gặp lúc kiểm, ghi lại để người sau khỏi vấp:** - **Băm bằng phép TỰ CHẾ ra số khác.** PO"
 CHK-dac06654756f,DOC-606240c112f8,STATE.md,202,,unknown,khong_co_tieu_de_ro,0,**Model đang chạy:** `qwen3.7-max` qua DashScope **Singapore** (`dashscope-intl`). Embedding vẫn **O
 CHK-559d647be05a,DOC-606240c112f8,STATE.md,203,,unknown,khong_co_tieu_de_ro,0,"🔴 **HỆ QUẢ PHẢI ĐỌC KÈM — ta CỐ Ý đứng trên HAI lớp, không phải ba.** Lớp ② nay vĩnh viễn tắt (xem §"
-CHK-8f696770de92,DOC-606240c112f8,STATE.md,204,,unknown,khong_co_tieu_de_ro,0,## 3. BA LỚP GIỮ HOÁ ĐƠN — kiểm trước khi chạy bất cứ thứ gì  ``` ① FIN05_CHO_PHEP_TON_TIEN   mặc đị
-CHK-7f6a149bb723,DOC-606240c112f8,STATE.md,205,,unknown,khong_co_tieu_de_ro,0,"**[ĐO] 18/08 — PO-agent kiểm tận mắt, kèm MẪU SỐ:** - **① còn nguyên.** `FIN05_CHO_PHEP_TON_TIEN` kh"
+CHK-8f696770de92,DOC-606240c112f8,STATE.md,204,,unknown,khong_co_tieu_de_ro,0,## 3. BA LỚP GIỮ HOÁ ĐƠN — kiểm trước khi chạy bất cứ thứ gì  ``` ① FIN05_ALLOW_PAID_CALLS   mặc đị
+CHK-7f6a149bb723,DOC-606240c112f8,STATE.md,205,,unknown,khong_co_tieu_de_ro,0,"**[ĐO] 18/08 — PO-agent kiểm tận mắt, kèm MẪU SỐ:** - **① còn nguyên.** `FIN05_ALLOW_PAID_CALLS` kh"
 CHK-13bb410f75a5,DOC-606240c112f8,STATE.md,206,,unknown,khong_co_tieu_de_ro,0,"- 🔴🔴 **ĐÍNH CHÍNH cùng ngày — ""① vẫn đủ chặn một mình"" là SAI. PO-agent viết câu đó, tester bác   bằ"
 CHK-feeddd96088f,DOC-606240c112f8,STATE.md,207,,unknown,khong_co_tieu_de_ro,0,"🔴 **Hạn mức: A3 của PO thật còn hiệu lực — ""chưa nạp gì cho tới khi tối ưu xong chi tiêu token.""** ~"
 CHK-819aa6f7e10f,DOC-606240c112f8,STATE.md,208,,unknown,khong_co_tieu_de_ro,0,- **Kiến trúc contract-first hoạt động thật.** `tests/test_invariants.py` **introspect app đang   ch
@@ -520,7 +520,7 @@ CHK-539857686eec,DOC-606240c112f8,STATE.md,220,,unknown,khong_co_tieu_de_ro,0,**
 CHK-643ee82bd734,DOC-606240c112f8,STATE.md,221,,unknown,khong_co_tieu_de_ro,0,"> ⚠️ **GHI MỘT LẦN, KHÔNG NHẮC LẠI — ranh giới của quyết định ""bỏ Đ.25"".** > PO thật bỏ **HỒ SƠ Đ.25"
 CHK-78018b9efc26,DOC-606240c112f8,STATE.md,222,,unknown,khong_co_tieu_de_ro,0,"### 📅 24/08 — HAI ĐỢT LỚN, ĐỌC MỤC NÀY TRƯỚC MỌI MỤC KHÁC  > Phiếu chi tiết: `docs/giao-viec/2026-08"
 CHK-a6976573c7b0,DOC-606240c112f8,STATE.md,223,,unknown,khong_co_tieu_de_ro,0,"**🔴 Ba việc CHƯA đóng, phiên sau phải biết:** 1. **A2 vế 2 đỏ 6 vòng** — loại trừ cả trần model. Pro"
-CHK-790bfc8ef74a,DOC-606240c112f8,STATE.md,224,,unknown,khong_co_tieu_de_ro,0,**🔴 VẬN HÀNH — người trực sự cố PHẢI biết:** `PHAN_LUONG_BAT` **KHÔNG** bao trọn mọi đường tất định 
+CHK-790bfc8ef74a,DOC-606240c112f8,STATE.md,224,,unknown,khong_co_tieu_de_ro,0,**🔴 VẬN HÀNH — người trực sự cố PHẢI biết:** `TRIAGE_ENABLED` **KHÔNG** bao trọn mọi đường tất định 
 CHK-591e3139ba4b,DOC-606240c112f8,STATE.md,225,,unknown,khong_co_tieu_de_ro,0,**⚠️ Bài học đắt nhất trong ngày — CÔNG CỤ ĐO hỏng SÁU lần:** cổng báo đỏ mà báo cáo chỉ nêu số lẻ x
 CHK-a3a23a7d422a,DOC-606240c112f8,STATE.md,226,,unknown,khong_co_tieu_de_ro,0,"---  ### 🔴 A. CHẶN, chỉ PO thật gỡ được  **A1 · ADR-031 — ✅ ĐÓNG 18/08 vòng 2. Không còn chặn.** PO "
 CHK-faf8fe24fa10,DOC-606240c112f8,STATE.md,227,,unknown,khong_co_tieu_de_ro,0,<details><summary>nguyên văn ba câu treo (đã trả lời — bấm để xem)</summary>  **A1 · ADR-031 (truy v
@@ -559,8 +559,8 @@ CHK-564911c5fba0,DOC-606240c112f8,STATE.md,259,,unknown,khong_co_tieu_de_ro,0,**
 CHK-8ad0a1dfcb53,DOC-606240c112f8,STATE.md,260,,unknown,khong_co_tieu_de_ro,0,"> **Vì sao ca này suýt đắt hơn hai ca kia:** nếu nó vào STATE như PO-agent viết, sáu tháng sau sẽ có"
 CHK-95b1f9831ab0,DOC-606240c112f8,STATE.md,261,,unknown,khong_co_tieu_de_ro,0,"🔴 **[ĐO 20/08, PO-agent] 1/3 XONG — KHÔNG gộp vào §5.F dù cùng chủ đề, đó là hai VIỆC khác nhau (F ="
 CHK-ad7872d324a9,DOC-606240c112f8,STATE.md,262,,unknown,khong_co_tieu_de_ro,0,"### ✅ L. DỰNG ẢNH 18/08 — nghiệm thu ĐỘC LẬP ĐẠT, kèm MỘT nhãn đang nói dối  **PO-agent kiểm bằng ph"
-CHK-678b70570d9d,DOC-606240c112f8,STATE.md,263,,unknown,khong_co_tieu_de_ro,0,"🔴 **NHÃN `BUILD_COMMIT` ĐANG NÓI DỐI — ca thứ ba, đúng thứ `dau_ma_nguon.py` sinh ra để chống.** ```"
-CHK-6192defac99b,DOC-606240c112f8,STATE.md,264,,unknown,khong_co_tieu_de_ro,0,"`dau_ma_nguon.py` đã viết: ***`build_commit` định danh KHO, nhãn băm định danh MÃ — tin nhãn băm.***"
+CHK-678b70570d9d,DOC-606240c112f8,STATE.md,263,,unknown,khong_co_tieu_de_ro,0,"🔴 **NHÃN `BUILD_COMMIT` ĐANG NÓI DỐI — ca thứ ba, đúng thứ `build_stamp.py` sinh ra để chống.** ```"
+CHK-6192defac99b,DOC-606240c112f8,STATE.md,264,,unknown,khong_co_tieu_de_ro,0,"`build_stamp.py` đã viết: ***`build_commit` định danh KHO, nhãn băm định danh MÃ — tin nhãn băm.***"
 CHK-19e2c968b158,DOC-606240c112f8,STATE.md,265,,unknown,khong_co_tieu_de_ro,0,"**Ba ca đỏ `security_finding` — đã phân định, KHÔNG ca nào là hồi quy:** 2 ca là **cổng plaintext** "
 CHK-5ed91316a073,DOC-606240c112f8,STATE.md,266,,unknown,khong_co_tieu_de_ro,0,"⚠️ **Và một bẫy PO-agent tự đâm vào, ghi để người sau khỏi vấp:** chạy `docker exec … pytest /app/te"
 CHK-1cbe056fdf80,DOC-606240c112f8,STATE.md,267,,unknown,khong_co_tieu_de_ro,0,"### 🔴🔴🔴 N. ADR-026 ""Đang hiệu lực"" — NHƯNG CƠ CHẾ TRUNG TÂM CỦA NÓ KHÔNG TỒN TẠI. Sự cố nó đóng VẪN "

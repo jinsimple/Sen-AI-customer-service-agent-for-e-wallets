@@ -87,9 +87,9 @@ CAU_DON = "alo"  # đúng hằng số T1 dùng làm câu đường nhẹ chuẩn
 def test_trong_duong_nhe_tool_calls_la_mang(sample_db):
     import src.agents.graph as graph_module
 
-    ket_qua = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU_DON)
-    assert isinstance(ket_qua["tool_calls"], list), (
-        f"Đường nhẹ (T1, câu {CAU_DON!r}) trả tool_calls={ket_qua.get('tool_calls')!r} "
+    outcome = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU_DON)
+    assert isinstance(outcome["tool_calls"], list), (
+        f"Đường nhẹ (T1, câu {CAU_DON!r}) trả tool_calls={outcome.get('tool_calls')!r} "
         "— không phải MẢNG. Đây đúng dòng :639 Coder đang vá."
     )
 
@@ -125,12 +125,12 @@ def test_trong_vong_lap_tool_van_giu_none_co_chu_dich(sample_db, monkeypatch):
     import src.agents.graph as graph_module
 
     monkeypatch.setattr(graph_module, "_build_agent", lambda *a, **kw: _AgentNoTungRecursion())
-    ket_qua = graph_module.run_agent_turn(
+    outcome = graph_module.run_agent_turn(
         sample_db, user_id="USR-A", message="tôi bị trừ tiền hai lần mà không nhớ mã giao dịch"
     )
-    assert ket_qua.get("tool_calls") is None, (
+    assert outcome.get("tool_calls") is None, (
         f"Tầng TRONG đường vòng-lặp-tool/timeout trả tool_calls="
-        f"{ket_qua.get('tool_calls')!r} — PHẢI là None (ngoại lệ có chủ đích). "
+        f"{outcome.get('tool_calls')!r} — PHẢI là None (ngoại lệ có chủ đích). "
         "Nếu ca này đỏ vì tool_calls giờ là [], nghĩa là :999 đã bị đổi sang "
         "mảng — SAI quyết định Lead 19/08, đi hỏi lại trước khi đổi cổng này."
     )
@@ -171,8 +171,8 @@ class _AgentNemLoi:
     class _State:
         values: dict = {}
 
-    def __init__(self, loi: Exception):
-        self._loi = loi
+    def __init__(self, err: Exception):
+        self._loi = err
 
     def get_state(self, config):
         return self._State()
@@ -192,12 +192,12 @@ def test_trong_fallback_nha_cung_cap_tool_calls_la_mang(sample_db, monkeypatch, 
     import src.agents.graph as graph_module
 
     monkeypatch.setattr(graph_module, "_build_agent", lambda *a, **kw: _AgentNemLoi(dung_loi()))
-    ket_qua = graph_module.run_agent_turn(
+    outcome = graph_module.run_agent_turn(
         sample_db, user_id="USR-A", message="tôi bị trừ tiền hai lần mà không nhớ mã giao dịch"
     )
-    assert isinstance(ket_qua.get("tool_calls"), list), (
+    assert isinstance(outcome.get("tool_calls"), list), (
         f"[{ten_ca}] tầng TRONG đường fallback nhà cung cấp trả tool_calls="
-        f"{ket_qua.get('tool_calls')!r} — không phải MẢNG. Đúng dòng Coder đang vá."
+        f"{outcome.get('tool_calls')!r} — không phải MẢNG. Đúng dòng Coder đang vá."
     )
 
 

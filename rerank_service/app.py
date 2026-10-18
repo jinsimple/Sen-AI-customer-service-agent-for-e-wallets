@@ -61,7 +61,7 @@ class Ung_vien(BaseModel):
 
 class RerankRequest(BaseModel):
     query: str
-    ung_vien: list[Ung_vien]
+    candidate: list[Ung_vien]
 
 
 class RerankResultItem(BaseModel):
@@ -70,7 +70,7 @@ class RerankResultItem(BaseModel):
 
 
 class RerankResponse(BaseModel):
-    ket_qua: list[RerankResultItem]
+    outcome: list[RerankResultItem]
 
 
 @app.get("/health")
@@ -84,14 +84,14 @@ def health() -> dict:
 
 @app.post("/rerank", response_model=RerankResponse)
 def rerank(req: RerankRequest) -> RerankResponse:
-    if not req.ung_vien:
-        return RerankResponse(ket_qua=[])
+    if not req.candidate:
+        return RerankResponse(outcome=[])
     model = _get_model()
-    pairs = [(req.query, uv.text) for uv in req.ung_vien]
+    pairs = [(req.query, uv.text) for uv in req.candidate]
     scores = model.predict(pairs)
-    ket_qua = [
+    outcome = [
         RerankResultItem(chunk_id=uv.chunk_id, score=float(s))
-        for uv, s in zip(req.ung_vien, scores)
+        for uv, s in zip(req.candidate, scores)
     ]
-    ket_qua.sort(key=lambda x: x.score, reverse=True)
-    return RerankResponse(ket_qua=ket_qua)
+    outcome.sort(key=lambda x: x.score, reverse=True)
+    return RerankResponse(outcome=outcome)

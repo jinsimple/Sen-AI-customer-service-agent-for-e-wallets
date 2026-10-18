@@ -40,7 +40,7 @@ import uuid
 import pytest
 
 from tests._docker_co_mat import LY_DO, co_docker
-from tests.test_security.test_cot_nhom_a_khong_nam_plaintext import _dem
+from tests.test_security.test_cot_nhom_a_khong_nam_plaintext import _counters
 
 ANH = "postgres:16-alpine"
 TEN = "fin05-doi-chung-vut-di"
@@ -106,13 +106,13 @@ def quan_the_vut_di():
         subprocess.run(["docker", "rm", "-f", TEN], capture_output=True)
 
 
-def _nap(bang: str, gia_tri: tuple[str, ...]) -> None:
-    _psql_vut_di(f"DROP TABLE IF EXISTS {bang};")
-    r = _psql_vut_di(f"CREATE TABLE {bang} (id serial primary key, description_raw text);")
+def _nap(table_rows: str, val: tuple[str, ...]) -> None:
+    _psql_vut_di(f"DROP TABLE IF EXISTS {table_rows};")
+    r = _psql_vut_di(f"CREATE TABLE {table_rows} (id serial primary key, description_raw text);")
     if r.returncode != 0:
-        pytest.fail(f"KHÔNG ĐO ĐƯỢC: không tạo được bảng {bang} — {r.stderr[:300]}")
-    for v in gia_tri:
-        _psql_vut_di(f"INSERT INTO {bang} (description_raw) VALUES ('{v}');")
+        pytest.fail(f"KHÔNG ĐO ĐƯỢC: không tạo được bảng {table_rows} — {r.stderr[:300]}")
+    for v in val:
+        _psql_vut_di(f"INSERT INTO {table_rows} (description_raw) VALUES ('{v}');")
 
 
 def test_cong_keu_khi_quan_the_co_dong_plaintext(quan_the_vut_di):
@@ -123,7 +123,7 @@ def test_cong_keu_khi_quan_the_co_dong_plaintext(quan_the_vut_di):
     đó **không có triệu chứng** — cổng vẫn xanh y hệt.
     """
     _nap("ban", TRAN_GIA + MA_HOA_GIA)
-    phan_bo = _dem("ban", "description_raw", TEN)
+    phan_bo = _counters("ban", "description_raw", TEN)
     assert phan_bo.get("tran", 0) == len(TRAN_GIA), (
         f"cổng KHÔNG đếm đúng số dòng trần trên quần thể bẩn: {phan_bo} "
         f"(chờ tran={len(TRAN_GIA)})"
@@ -140,7 +140,7 @@ def test_cong_im_khi_quan_the_sach(quan_the_vut_di):
     trên, và cổng trở thành thứ luôn kêu — tức là thứ cả đội học cách bỏ qua.
     """
     _nap("sach", MA_HOA_GIA)
-    phan_bo = _dem("sach", "description_raw", TEN)
+    phan_bo = _counters("sach", "description_raw", TEN)
     assert phan_bo.get("tran", 0) == 0, f"cổng kêu OAN trên quần thể sạch: {phan_bo}"
     assert phan_bo.get("ma_hoa", 0) == len(MA_HOA_GIA), phan_bo
 
@@ -166,7 +166,7 @@ def test_khong_doc_duoc_quan_the_bao_rieng_khong_lang_le_xanh():
     # Ghi lại vì nó đúng lớp lỗi cả ngày: **"phép thử của tôi hỏng" ≠ "thứ tôi
     # đo hỏng"**, và phân biệt được chỉ nhờ ĐỌC thông điệp thay vì đọc màu.
     with pytest.raises(pytest.fail.Exception) as e:
-        _dem("ban", "description_raw", ten_khong_co)
+        _counters("ban", "description_raw", ten_khong_co)
     assert "KHÔNG ĐO ĐƯỢC" in str(e.value), (
         f"phép đo thất bại nhưng KHÔNG báo trạng thái thứ ba: {str(e.value)[:200]}"
     )

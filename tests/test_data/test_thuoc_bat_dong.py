@@ -39,7 +39,7 @@ GEN = REPO / "scripts" / "gen_dataset.py"
 CO_CHO_PHEP = "--cho-phep-ghi-de-thuoc"
 
 
-def _chay_gen_dataset(*them: str) -> subprocess.CompletedProcess:
+def _chay_gen_dataset(*extra_items: str) -> subprocess.CompletedProcess:
     """Chạy gen_dataset với `--out` trỏ vào thư mục tạm.
 
     KHÔNG truyền `--eval-out`: đường ghi thứ hai vào `eval/` dùng giá trị mặc
@@ -49,7 +49,7 @@ def _chay_gen_dataset(*them: str) -> subprocess.CompletedProcess:
     """
     with tempfile.TemporaryDirectory(prefix="fin05_gen_") as tmp:
         return subprocess.run(
-            [sys.executable, str(GEN), "--out", tmp, *them],
+            [sys.executable, str(GEN), "--out", tmp, *extra_items],
             capture_output=True, text=True, timeout=300, cwd=REPO,
         )
 
@@ -72,16 +72,16 @@ def test_gen_dataset_khong_co_co_thi_khong_duoc_dung_toi_golden_set():
     if not GOLDEN.exists():
         pytest.skip("Chưa có eval/golden_set.jsonl để canh.")
 
-    truoc = GOLDEN.read_bytes()
+    before = GOLDEN.read_bytes()
     try:
-        ket_qua = _chay_gen_dataset()
-        sau = GOLDEN.read_bytes()
+        outcome = _chay_gen_dataset()
+        after = GOLDEN.read_bytes()
     finally:
         # KHÔI PHỤC TRƯỚC KHI ASSERT — kể cả khi script ném lỗi. Test này tồn
         # tại vì sản phẩm ĐANG ghi đè; nếu nó để lại hậu quả thì mỗi lần chạy
         # suite là một lần phá thước.
-        if GOLDEN.read_bytes() != truoc:
-            GOLDEN.write_bytes(truoc)
+        if GOLDEN.read_bytes() != before:
+            GOLDEN.write_bytes(before)
 
     # CỐ Ý KHÔNG assert `returncode == 0`. Bất biến cần canh là **thước bất
     # động**, không phải "lệnh chạy trót lọt". Coder chọn fail-fast: không cờ
@@ -89,14 +89,14 @@ def test_gen_dataset_khong_co_co_thi_khong_duoc_dung_toi_golden_set():
     # thiết kế đó thoả bất biến này một cách mạnh hơn cả "chạy nhưng không
     # ghi". Ràng test vào returncode sẽ biến một lựa chọn thiết kế hợp lệ
     # thành đỏ oan, đúng kiểu test cản trở bản vá đúng.
-    assert sau == truoc, (
+    assert after == before, (
         "gen_dataset ĐÃ GHI ĐÈ eval/golden_set.jsonl dù không có cờ "
         f"`{CO_CHO_PHEP}`.\n"
         "Đây là đường phá thước của sự cố 14→15/08: bộ case bị sinh lại, mọi "
         "nhãn thêm tay (vd `must_offer_before_creating_ticket` của 4 case B2) "
         "biến mất, và cặp đo trước/sau thành vô nghĩa mà không ai nhận ra.\n"
         "(Test đã tự khôi phục file — không để lại hậu quả.)\n"
-        f"[exit={ket_qua.returncode}] {(ket_qua.stderr or ket_qua.stdout)[-300:]}"
+        f"[exit={outcome.returncode}] {(outcome.stderr or outcome.stdout)[-300:]}"
     )
 
 
@@ -114,16 +114,16 @@ def test_gen_dataset_co_co_thi_duoc_phep_ghi_de():
             "đã báo đúng tình trạng này rồi, không cần đỏ thêm lần nữa cho cùng một nguyên nhân."
         )
 
-    truoc = GOLDEN.read_bytes()
+    before = GOLDEN.read_bytes()
     try:
-        ket_qua = _chay_gen_dataset(CO_CHO_PHEP)
-        sau = GOLDEN.read_bytes()
+        outcome = _chay_gen_dataset(CO_CHO_PHEP)
+        after = GOLDEN.read_bytes()
     finally:
-        if GOLDEN.read_bytes() != truoc:
-            GOLDEN.write_bytes(truoc)
+        if GOLDEN.read_bytes() != before:
+            GOLDEN.write_bytes(before)
 
-    assert ket_qua.returncode == 0, f"gen_dataset lỗi khi có cờ: {ket_qua.stderr[-400:]}"
-    assert sau != truoc or b"golden" in ket_qua.stdout.encode(), (
+    assert outcome.returncode == 0, f"gen_dataset lỗi khi có cờ: {outcome.stderr[-400:]}"
+    assert after != before or b"golden" in outcome.stdout.encode(), (
         f"Có cờ `{CO_CHO_PHEP}` mà golden_set vẫn không được ghi — lệnh cấm chặt quá "
         "tay, người cần reseed sẽ buộc phải gỡ nó."
     )
@@ -141,21 +141,21 @@ def test_sinh_lai_du_lieu_thuong_van_chay_duoc_qua_eval_out_tam():
     Đây là mặt thứ ba của cùng một ràng buộc, cạnh "cấm khi không cố ý" và
     "cho phép khi cố ý": **đường an toàn phải là đường DỄ ĐI NHẤT**.
     """
-    truoc = GOLDEN.read_bytes()
+    before = GOLDEN.read_bytes()
     with tempfile.TemporaryDirectory(prefix="fin05_evalout_") as tmp_eval:
         try:
-            ket_qua = _chay_gen_dataset("--eval-out", tmp_eval)
-            sau = GOLDEN.read_bytes()
+            outcome = _chay_gen_dataset("--eval-out", tmp_eval)
+            after = GOLDEN.read_bytes()
             sinh_ra = sorted(p.name for p in Path(tmp_eval).glob("*.jsonl"))
         finally:
-            if GOLDEN.read_bytes() != truoc:
-                GOLDEN.write_bytes(truoc)
+            if GOLDEN.read_bytes() != before:
+                GOLDEN.write_bytes(before)
 
-    assert ket_qua.returncode == 0, (
+    assert outcome.returncode == 0, (
         "Sinh dataset với `--eval-out` trỏ thư mục tạm PHẢI chạy được — đây là "
-        f"đường an toàn cho nhu cầu thường ngày. stderr: {ket_qua.stderr[-400:]}"
+        f"đường an toàn cho nhu cầu thường ngày. stderr: {outcome.stderr[-400:]}"
     )
-    assert sau == truoc, "Đã trỏ --eval-out ra ngoài mà thước vẫn bị đụng."
+    assert after == before, "Đã trỏ --eval-out ra ngoài mà thước vẫn bị đụng."
     assert "golden_set.jsonl" in sinh_ra, (
         f"--eval-out không sinh ra golden_set trong thư mục được chỉ định: {sinh_ra}"
     )

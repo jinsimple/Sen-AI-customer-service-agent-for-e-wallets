@@ -1,13 +1,13 @@
-"""Live chat thật (WebSocket) — nâng cấp CTRL-001 từ "gắn cờ ticket" bất đồng
-bộ lên "chat 2 chiều thời gian thực" (kế hoạch 2026-08-11). Mọi phiên chat
-LUÔN gắn 1 ticket có sẵn (`ChatSession.ticket_id` NOT NULL) — đúng tinh thần
-"escalation path, không phải kênh song song với AI" đã chốt: khách phải đã
-được `flag_human_handoff`/AI tạo ticket trước, live chat chỉ nâng cấp cách
-CSKH xử lý ticket đó, không tạo luồng nghiệp vụ riêng.
+"""Real live chat (WebSocket) — upgrades CTRL-001 from asynchronous "flag the ticket" to
+"real-time two-way chat" (plan of 2026-08-11). Every chat session is ALWAYS attached to an
+existing ticket (`ChatSession.ticket_id` NOT NULL) — in line with the agreed principle
+"an escalation path, not a channel parallel to the AI": the customer must already have
+been `flag_human_handoff`-ed / had a ticket created by the AI; live chat only upgrades how
+CSKH handles that ticket, it does not create a separate business flow.
 
-Định tuyến claim-based đơn giản (không round-robin/ML) — `claim_session()`
-dùng UPDATE có điều kiện (`claimed_by IS NULL`) làm optimistic concurrency,
-đủ cho quy mô ~4 CSKH + 2 supervisor / ~50 phiên đồng thời đã khảo sát.
+Simple claim-based routing (no round-robin/ML) — `claim_session()` uses a conditional
+UPDATE (`claimed_by IS NULL`) as optimistic concurrency, enough for the surveyed scale of
+~4 CSKH + 2 supervisors / ~50 concurrent sessions.
 """
 from __future__ import annotations
 
@@ -23,9 +23,9 @@ from src.tools.masking import che_pii_van_ban
 
 
 def open_chat_session(session: Session, *, ticket_id: str, customer_id: str, now: dt.datetime | None = None) -> dict[str, Any]:
-    """Tạo phiên chat mới cho 1 ticket, hoặc tái dùng phiên `waiting`/`active`
-    đã có cho ĐÚNG ticket đó (khách bấm lại nút mở chat không tạo trùng phiên
-    — cùng nguyên tắc chống trùng đã áp dụng cho create_ticket/flag_human_handoff)."""
+    """Create a new chat session for a ticket, or reuse an existing `waiting`/`active` session
+    for EXACTLY that ticket (a customer re-clicking "open chat" does not create a duplicate
+    session — same de-duplication principle as create_ticket/flag_human_handoff)."""
     now = now or dt.datetime.utcnow()
 
     ticket = session.get(Ticket, ticket_id)
@@ -58,26 +58,26 @@ def open_chat_session(session: Session, *, ticket_id: str, customer_id: str, now
 def claim_session(
     session: Session, *, chat_session_id: str, staff_id: str, is_cskh: bool = False, now: dt.datetime | None = None
 ) -> dict[str, Any] | None:
-    """Optimistic-concurrency claim — chỉ thành công nếu CHƯA ai nhận
-    (`claimed_by IS NULL`). Trả None nếu đã bị người khác nhận trước (caller
-    tự xử lý thông báo "đã có người nhận"), không raise — đây là tình huống
-    bình thường khi 2 CSKH cùng bấm nhận 1 lúc, không phải lỗi hệ thống.
+    """Optimistic-concurrency claim — succeeds only if NOBODY has claimed it yet
+    (`claimed_by IS NULL`). Returns None if someone else claimed it first (the caller shows
+    "already taken"), does not raise — this is a normal situation when 2 CSKH agents click
+    claim at the same moment, not a system error.
 
-    CP10b (BOLA, 05/09) — claim phiên chat qua "Mở & nhận" TRƯỚC bản vá này
-    chỉ set `ChatSession.claimed_by`, hoàn toàn tách biệt khỏi `claim_ticket()`
-    (route /tickets/{id}/claim, ADR-064). Cổng chặn BOLA
-    `_cskh_bi_chan_boi_claim` chỉ đọc `Ticket.claimed_by` — luôn NULL qua
-    đường này — nên CSKH thứ hai mở THẲNG cùng ticket không hề bị chặn dù
-    ticket "trông như" đã có người nhận trên dashboard. Từ bản vá này, CSKH
-    claim phiên chat CŨNG claim ticket (cùng ngữ nghĩa "Nhận vé", cùng mẫu
-    atomic `claimed_by IS NULL`) — claim Ticket TRƯỚC, chỉ claim ChatSession
-    nếu thắng (hoặc đã là chính mình), tránh phải rollback 2 tài nguyên nếu
-    claim nửa chừng thất bại.
+    CP10b (BOLA, 05/09) — BEFORE this fix, claiming a chat session via "Open & claim" only
+    set `ChatSession.claimed_by`, completely separate from `claim_ticket()`
+    (route /tickets/{id}/claim, ADR-064). The BOLA guard
+    `_agent_blocked_by_claim` only reads `Ticket.claimed_by` — always NULL via
+    this path — so a second CSKH agent opening the SAME ticket directly was never blocked,
+    even though the ticket "looked" claimed on the dashboard. Since this fix, a CSKH agent
+    claiming the chat session ALSO claims the ticket (same "Claim ticket" semantics, same
+    atomic `claimed_by IS NULL` pattern) — claim the Ticket FIRST and only claim the
+    ChatSession if that wins (or it is already ours), avoiding a two-resource rollback if
+    the claim fails halfway.
 
-    `is_cskh=False` (Sếp) CỐ Ý bỏ qua đoạn khoá Ticket — Sếp vốn không nằm
-    trong mô hình khoá-theo-claim (`_cskh_bi_chan_boi_claim` luôn bỏ qua Sếp
-    vô điều kiện), nên claim phiên chat của Sếp không được phép khoá ticket
-    khỏi CSKH khác — đó sẽ là hành vi MỚI ngoài ý muốn, không phải vá lỗi."""
+    `is_cskh=False` (supervisor) DELIBERATELY skips the Ticket lock — supervisors are not part
+    of the lock-by-claim model (`_agent_blocked_by_claim` always skips supervisors
+    unconditionally), so a supervisor claiming a chat session must not lock the ticket away
+    from other CSKH agents — that would be NEW unintended behaviour, not a bug fix."""
     now = now or dt.datetime.utcnow()
     chat_session = session.get(ChatSession, chat_session_id)
 
@@ -89,7 +89,7 @@ def claim_session(
         )
         ticket = session.get(Ticket, chat_session.ticket_id)
         if ticket.claimed_by != staff_id:
-            return None  # vé đã thuộc CSKH khác — không cho cướp qua đường chat
+            return None  # ticket already belongs to another CSKH agent — no hijacking via the chat path
 
     result = session.execute(
         update(ChatSession)
@@ -116,9 +116,9 @@ def close_session(session: Session, *, chat_session_id: str, now: dt.datetime | 
 
 
 def transfer_session(session: Session, *, chat_session_id: str) -> dict[str, Any]:
-    """Chuyển ca (shift handoff) — gỡ claimed_by, quay lại hàng chờ. KHÔNG
-    cần cơ chế note bàn giao riêng: transcript (messages) + ngữ cảnh AI
-    (qua ticket_id) đã đủ để CSKH tiếp theo thấy toàn bộ ngay lập tức."""
+    """Shift handoff — clears claimed_by, back to the queue. NO separate handoff-note
+    mechanism needed: the transcript (messages) + AI context (via ticket_id) are enough for
+    the next CSKH agent to see everything immediately."""
     chat_session = session.get(ChatSession, chat_session_id)
     if chat_session is None:
         raise ToolError(f"chat_session_id không tồn tại: {chat_session_id}")
@@ -153,18 +153,17 @@ def record_message(
     )
     session.add(message)
     session.flush()
-    # M3 (PO thật chốt 25/08) — LƯU ĐỦ, CHE Ở TẦNG ĐỌC.
-    # `Message.content` phía trên giữ NGUYÊN VĂN (đã mã hoá at-rest qua
-    # EncryptedText); chỉ giá trị TRẢ VỀ bị che. Giá trị trả về này là một
-    # đường ĐỌC thật, không phải thứ trang trí: api/live_chat_ws.py:583
-    # broadcast thẳng nó cho cả hai đầu phiên chat.
+    # M3 (fixed by the real PO 25/08) — STORE IN FULL, MASK AT READ TIME.
+    # `Message.content` above keeps the VERBATIM text (encrypted at rest via
+    # EncryptedText); only the RETURNED value is masked. That returned value is a real READ path,
+    # not decoration: api/live_chat_ws.py:583 broadcasts it directly to both ends of the chat.
     #
-    # 🔴 ĐỪNG ĐỔI SANG CHE TRƯỚC `session.add`. Xung đột giữa test P0 (mô tả
-    # "che trước khi lưu") và BR-07 (`src/tools/masking.py`, cấm lưu bản đã
-    # che) ĐÃ ĐƯỢC PO THẬT PHÂN XỬ: BR-07 THẮNG. Lý do: khung chat không có
-    # bản đầy đủ ở đâu khác, che lúc ghi là mất vĩnh viễn — kể cả khi sau này
-    # cần đúng câu ấy để phân xử một khiếu nại.
-    # Hồ sơ: docs/nhat-ky/2026-08-25-P0-live-chat-PII-ba-muc-che-cho-PO-chon.md
+    # 🔴 DO NOT SWITCH TO MASKING BEFORE `session.add`. The conflict between the P0 test
+    # (describing "mask before storing") and BR-07 (`src/tools/masking.py`, which forbids storing
+    # masked copies) WAS ADJUDICATED BY THE REAL PO: BR-07 WINS. Reason: the chat window has no
+    # full copy anywhere else; masking on write loses it forever — even if that exact sentence is
+    # later needed to adjudicate a complaint.
+    # Record: docs/nhat-ky/2026-08-25-P0-live-chat-PII-ba-muc-che-cho-PO-chon.md
     return {
         "message_id": message.message_id,
         "chat_session_id": chat_session_id,
@@ -188,9 +187,9 @@ def submit_csat(session: Session, *, chat_session_id: str, score: int, now: dt.d
 
 
 def get_handoff_context(session: Session, *, ticket_id: str) -> dict[str, Any]:
-    """Bàn giao TOÀN BỘ ngữ cảnh AI đã điều tra cho CSKH ngay khi nhận ca —
-    tránh khách phải lặp lại thông tin (yêu cầu nghiệp vụ đã chốt). Chỉ đọc
-    dữ liệu đã có (Ticket/Complaint/InvestigationLog), không suy diễn thêm."""
+    """Hand over ALL the context the AI has investigated to CSKH as soon as the case is
+    claimed — so the customer doesn't have to repeat themselves (agreed business requirement).
+    Reads existing data only (Ticket/Complaint/InvestigationLog), no extra inference."""
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
         raise ToolError(f"ticket_id không tồn tại: {ticket_id}")

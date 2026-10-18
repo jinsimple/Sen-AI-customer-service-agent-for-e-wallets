@@ -162,9 +162,9 @@ tính tiền **ngoài hạn mức A3**.
 
 **Bài học không phải "tôi bất cẩn" mà là một lỗ có thật trong ba lớp giữ hoá đơn:**
 ```
-lớp ①  FIN05_CHO_PHEP_TON_TIEN   là `skipif` NẰM TRONG FILE TEST
+lớp ①  FIN05_ALLOW_PAID_CALLS   là `skipif` NẰM TRONG FILE TEST
 lớp ②  .DANG-DONG-BANG-LLM       PO thật quyết 18/08: bỏ hẳn — video demo quay xong
-lớp ③  PHAN_LUONG_BAT            chỉ định tuyến lượt CHAT
+lớp ③  TRIAGE_ENABLED            chỉ định tuyến lượt CHAT
 ```
 Cả ba **không lớp nào chặn một script gọi thẳng tool**. Lớp ① sống trong `tests/`; script nháp
 không đi qua `tests/`. Sau quyết định 18/08 thì lớp ② đã mất, nên đây **không còn là hai lớp mà là

@@ -192,18 +192,18 @@ trigger/append-only/hash-chain thật"*). Không đối chiếu lại nội dung
 
 ## P3 — cạnh, đáng ghi nhưng hẹp phạm vi (1)
 
-### P3-1 · `PHAN_LUONG_BAT` mặc định khác hai cờ cùng họ — **[ĐỌC MÃ, xác nhận từng dòng]**
+### P3-1 · `TRIAGE_ENABLED` mặc định khác hai cờ cùng họ — **[ĐỌC MÃ, xác nhận từng dòng]**
 
 ```
-config.py:86   PHAN_LUONG_BAT       = os.environ.get("PHAN_LUONG_BAT", "").…      → mặc định TẮT
-config.py:103  CONG_T0_BAT          = os.environ.get("CONG_T0_BAT", "1").…        → mặc định BẬT
-config.py:119  CONG_OTP_NHOM_B_BAT  = os.environ.get("CONG_OTP_NHOM_B_BAT", "1").…→ mặc định BẬT
+config.py:86   TRIAGE_ENABLED       = os.environ.get("TRIAGE_ENABLED", "").…      → mặc định TẮT
+config.py:103  T0_GATE_ENABLED          = os.environ.get("T0_GATE_ENABLED", "1").…        → mặc định BẬT
+config.py:119  OTP_GATE_GROUP_B_ENABLED  = os.environ.get("OTP_GATE_GROUP_B_ENABLED", "1").…→ mặc định BẬT
 ```
 
-`docker-compose.yml:120` ghi đè `PHAN_LUONG_BAT: ${PHAN_LUONG_BAT:-1}` — mọi ngăn dựng qua
+`docker-compose.yml:120` ghi đè `TRIAGE_ENABLED: ${TRIAGE_ENABLED:-1}` — mọi ngăn dựng qua
 compose đều nhận mặc định BẬT, đúng ý PO đã chốt 17/08. **Nhưng đây là MỘT CHỖ DUY NHẤT giữ
 mặc định đó**: `Makefile:4` (`make run`) gọi thẳng `uvicorn`, không qua khối
-`environment:` này — chạy `make run` ngoài Docker, `PHAN_LUONG_BAT` về mặc định TẮT trong
+`environment:` này — chạy `make run` ngoài Docker, `TRIAGE_ENABLED` về mặc định TẮT trong
 mã, trong khi hai cờ cùng họ vẫn BẬT. Phạm vi hẹp (chỉ đường chạy ngoài compose), nhưng là
 đúng hình dạng "một chỗ là đủ cho cả ba ngăn xếp" mà chính comment tại `docker-compose.yml`
 đã tự cảnh báo cho một biến khác — rủi ro có thật nếu có thêm một đường chạy mới (compose

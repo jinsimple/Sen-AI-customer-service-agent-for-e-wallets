@@ -79,7 +79,7 @@ def test_thieu_bien_LLM_MODEL_POOL_hanh_vi_cu_mot_model():
     """Ca "thiếu biến" — bể chỉ còn đúng 1 phần tử, bằng LLM_MODEL đang cấu
     hình (không phải một tên hardcode tôi tự đoán — so sánh động với chính
     src.config.LLM_MODEL của lần chạy đó, qua cùng subprocess)."""
-    ket_qua = subprocess.run(
+    outcome = subprocess.run(
         [sys.executable, "-c",
          "from src.agents import llm_pool; from src import config; "
          "print(','.join(llm_pool.LLM_MODEL_POOL)); print(config.LLM_MODEL)"],
@@ -87,10 +87,10 @@ def test_thieu_bien_LLM_MODEL_POOL_hanh_vi_cu_mot_model():
         env={**os.environ, **_BASE_ENV, "LLM_MODEL_POOL": ""},
         capture_output=True, text=True, timeout=30,
     )
-    assert ket_qua.returncode == 0, f"stderr:\n{ket_qua.stderr}"
-    dong = ket_qua.stdout.strip().splitlines()
-    assert len(dong) == 2, f"stdout bất thường:\n{ket_qua.stdout}"
-    be_str, llm_model = dong
+    assert outcome.returncode == 0, f"stderr:\n{outcome.stderr}"
+    line = outcome.stdout.strip().splitlines()
+    assert len(line) == 2, f"stdout bất thường:\n{outcome.stdout}"
+    be_str, llm_model = line
     assert be_str == llm_model, (
         f"LLM_MODEL_POOL rỗng phải cho bể đúng 1 phần tử = LLM_MODEL hiện tại "
         f"({llm_model!r}), đo được {be_str!r}"
@@ -109,35 +109,35 @@ def _be_gia_lap(monkeypatch):
 
 
 def test_model_dau_luot_theo_dung_thu_tu_uu_tien():
-    assert llm_pool.model_dau_luot() == "model-a"
-    assert llm_pool.model_dau_luot(da_thu={"model-a"}) == "model-b"
-    assert llm_pool.model_dau_luot(da_thu={"model-a", "model-b"}) == "model-c"
+    assert llm_pool.turn_start_model() == "model-a"
+    assert llm_pool.turn_start_model(tried={"model-a"}) == "model-b"
+    assert llm_pool.turn_start_model(tried={"model-a", "model-b"}) == "model-c"
 
 
 def test_be_can_toan_phan_qua_da_thu_tra_ve_none():
-    assert llm_pool.model_dau_luot(da_thu={"model-a", "model-b", "model-c"}) is None
+    assert llm_pool.turn_start_model(tried={"model-a", "model-b", "model-c"}) is None
 
 
 def test_danh_dau_can_khien_model_dang_can_dung_va_bi_model_dau_luot_bo_qua():
-    llm_pool.danh_dau_can("model-a")
-    assert llm_pool.model_dang_can("model-a") is True
-    assert llm_pool.model_dang_can("model-b") is False
+    llm_pool.mark_exhausted("model-a")
+    assert llm_pool.exhausted_model("model-a") is True
+    assert llm_pool.exhausted_model("model-b") is False
     # Không truyền da_thu — model_dau_luot phải TỰ bỏ qua model đã đánh dấu
     # cạn qua Redis, không chỉ qua tập da_thu do người gọi truyền tay.
-    assert llm_pool.model_dau_luot() == "model-b"
+    assert llm_pool.turn_start_model() == "model-b"
 
 
 def test_ca_be_bi_redis_danh_dau_can_het_thi_model_dau_luot_tra_none():
-    llm_pool.danh_dau_can("model-a")
-    llm_pool.danh_dau_can("model-b")
-    llm_pool.danh_dau_can("model-c")
-    assert llm_pool.model_dau_luot() is None, "cả bể đã cạn qua Redis (không dùng da_thu) vẫn phải trả None"
+    llm_pool.mark_exhausted("model-a")
+    llm_pool.mark_exhausted("model-b")
+    llm_pool.mark_exhausted("model-c")
+    assert llm_pool.turn_start_model() is None, "cả bể đã cạn qua Redis (không dùng da_thu) vẫn phải trả None"
 
 
 def test_danh_dau_can_dat_TTL_khong_song_vinh_vien():
     """Cạn quota là tạm thời (nhà cung cấp reset hạn mức) — đánh dấu vĩnh
     viễn là bug, model không bao giờ được thử lại nữa dù đã hồi hạn mức."""
-    llm_pool.danh_dau_can("model-a")
+    llm_pool.mark_exhausted("model-a")
     ttl = get_default_client().ttl("model_can:model-a")
     assert ttl is not None and ttl > 0, f"model_can:model-a phải có TTL dương, đo được {ttl!r}"
 
@@ -153,6 +153,6 @@ def test_trang_thai_can_doc_lai_duoc_qua_ham_cong_khai_khong_qua_bo_nho_python()
     (4 worker uvicorn thật, 4 tiến trình hệ điều hành riêng). Muốn chứng
     minh đủ, cần một ca tích hợp chạy trên ngăn xếp có `UVICORN_WORKERS=4`
     thật, đo ở tầng khác — ngoài phạm vi unit test này."""
-    llm_pool.danh_dau_can("model-a")
+    llm_pool.mark_exhausted("model-a")
     assert get_default_client().exists("model_can:model-a")
-    assert llm_pool.model_dang_can("model-a") is True
+    assert llm_pool.exhausted_model("model-a") is True

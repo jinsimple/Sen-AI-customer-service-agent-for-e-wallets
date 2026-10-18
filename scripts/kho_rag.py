@@ -181,11 +181,11 @@ def nhan() -> None:
     with SessionLocal() as s:
         n = s.query(PolicyChunk).count()
         d = s.query(PolicyDocument).count()
-    tt, pb = store.trang_thai_kho()
+    tt, pb = store.store_status()
     print(f"  kho RAG: {n} chunk (Postgres) · {d} doc · băm-chuẩn-hoá(md5,12) {_bam_kho()}")
     print(f"  đường dẫn Chroma: {RAG_INDEX_DIR}")
-    print(f"  chuẩn hoá: kho={pb if pb is not None else '(không có dấu)'} · code={store.CHUAN_HOA_VERSION} · trạng thái={tt}")
-    print(f"  model embedding: {store.RAG_EMBEDDING_MODEL} · collection {store._ten_collection()}")
+    print(f"  chuẩn hoá: kho={pb if pb is not None else '(không có dấu)'} · code={store.NORMALIZATION_VERSION} · trạng thái={tt}")
+    print(f"  model embedding: {store.RAG_EMBEDDING_MODEL} · collection {store._collection_name()}")
     # NHÃN VẬT phải mang tên model nhúng: hai model = hai không gian vector,
     # số đo KHÔNG so chéo được. Thiếu dòng này thì một bảng trước/sau bắc qua
     # hai kho trông y hệt một bảng hợp lệ.
@@ -193,35 +193,35 @@ def nhan() -> None:
 
 def kiem() -> int:
     nhan()
-    tt, pb = store.trang_thai_kho()
+    tt, pb = store.store_status()
     with SessionLocal() as s:
         n_pg = s.query(PolicyChunk).count()
     # ĐỐI CHIẾU HAI NGUỒN. Postgres nói có chunk mà Chroma nói trống = KHÔNG
     # PHẢI "kho trống", mà là ĐANG ĐỌC HAI KHO KHÁC NHAU. Bản trước in cả hai
     # số cạnh nhau ("418 chunk" rồi "kho chưa có chunk nào") mà không đối
     # chiếu — người đọc phải tự nhận ra mâu thuẫn. Giờ máy nhận ra.
-    if tt == store.TRANG_THAI_TRONG and n_pg > 0:
+    if tt == store.STATUS_EMPTY and n_pg > 0:
         print(f"  [MÂU THUẪN] Postgres có {n_pg} chunk nhưng Chroma ở {RAG_INDEX_DIR} trống.")
         print("              Hai nguồn không cùng nói về một kho — KHÔNG kết luận gì.")
         print("              Gần như chắc chắn đang chạy sai nơi (host vs container).")
         return 2
-    if tt == store.TRANG_THAI_TRONG:
+    if tt == store.STATUS_EMPTY:
         print("  [TRỐNG] Kho chưa có chunk nào — chạy `nap-lai`.")
         return 1
-    if tt == store.TRANG_THAI_KHONG_DAU:
+    if tt == store.STATUS_NO_STAMP:
         print("  [CŨ]    Kho CÓ nội dung nhưng KHÔNG có dấu phiên bản — dựng trước đòn 2.")
         print("          Index còn dấu tiếng Việt, query đã bỏ dấu ⟹ LỆCH MỘT VẾ.")
         print("          Search vẫn trả đủ k kết quả, chỉ là KẾT QUẢ SAI. Không triệu chứng.")
         print("          Chạy: python scripts/kho_rag.py nap-lai")
         return 1
-    if tt == store.TRANG_THAI_LECH_MODEL:
+    if tt == store.STATUS_MODEL_DRIFT:
         print("  [LỆCH MODEL] Kho dựng bằng MODEL EMBEDDING khác với code hiện tại.")
         print("               Vector trong kho vô nghĩa với query mới — search vẫn trả")
         print("               đủ k kết quả, chỉ là kết quả SAI. Không lỗi, không log.")
         print("               Chạy: python scripts/kho_rag.py nap-lai")
         return 1
-    if tt == store.TRANG_THAI_LECH:
-        print(f"  [LỆCH]  Kho ở phiên bản {pb}, code ở {store.CHUAN_HOA_VERSION}.")
+    if tt == store.STATUS_DRIFT:
+        print(f"  [LỆCH]  Kho ở phiên bản {pb}, code ở {store.NORMALIZATION_VERSION}.")
         print("          Chạy: python scripts/kho_rag.py nap-lai")
         return 1
     # Cổng CUỐI, sau mọi cổng khác — vì đây là ca mà mọi cổng khác đều xanh.
@@ -313,18 +313,18 @@ def nap_vector() -> None:
 
     col = store._get_collection()
     if col.count() > 0:
-        print(f"  Collection {store._ten_collection()} ĐÃ có {col.count()} vector.")
+        print(f"  Collection {store._collection_name()} ĐÃ có {col.count()} vector.")
         print("  KHÔNG ghi đè — xoá tường minh trước nếu thật sự muốn nạp lại.")
         raise SystemExit(1)
 
-    print(f"  nhúng {len(rows)} chunk bằng {store.RAG_EMBEDDING_MODEL} -> {store._ten_collection()}")
+    print(f"  nhúng {len(rows)} chunk bằng {store.RAG_EMBEDDING_MODEL} -> {store._collection_name()}")
     theo_doc: dict[str, list] = {}
     for cid, did, text in rows:
         theo_doc.setdefault(did, []).append((cid, text))
     for did, ds in theo_doc.items():
         store.add_chunks(did, [c for c, _ in ds], [t for _, t in ds])
         print(f"     {did}: {len(ds)} chunk")
-    store._dong_dau(col)
+    store._stamp(col)
     print()
     nhan()
 
@@ -335,12 +335,12 @@ def nap_lai() -> None:
     if not RAG_INDEX_DIR.parent.exists():
         print(f"  [SAI CHỖ] {RAG_INDEX_DIR.parent} không tồn tại — chạy trong container.")
         raise SystemExit(2)
-    nguon = _chon_nguon()
-    if not nguon:
+    source = _chon_nguon()
+    if not source:
         print(f"  KHÔNG có tài liệu nào trong {THU_MUC_NGUON} — dừng, không xoá kho hiện có.")
         raise SystemExit(1)
     bo_qua = sorted(p.name for p in THU_MUC_NGUON.iterdir()
-                    if p.suffix.lower() == ".pdf" and p not in nguon)
+                    if p.suffix.lower() == ".pdf" and p not in source)
     if bo_qua:
         print(f"  bỏ qua (có bản .docx sạch hơn): {', '.join(bo_qua)}")
     with SessionLocal() as s:
@@ -348,10 +348,10 @@ def nap_lai() -> None:
             print(f"  xoá: {d.filename}")
             delete_document(s, d.doc_id)
         s.commit()
-        for f in nguon:
+        for f in source:
             doc = ingest_document(
                 s, file_bytes=f.read_bytes(), filename=f.name, uploaded_by="USR-PA01",
-                nguon_nap="script_noi_bo",
+                load_source="script_noi_bo",
             )
             print(f"  nạp: {f.name} -> {doc.doc_id}")
         s.commit()

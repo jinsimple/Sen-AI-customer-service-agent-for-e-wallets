@@ -77,10 +77,10 @@ def doc_hoi_thoai(thread_id: str) -> list[dict]:
                               "kiểm lại thread_id, hoặc thread thuộc ngăn Postgres khác.")
 
         messages = tup.checkpoint.get("channel_values", {}).get("messages", [])
-        ban_ghi = []
+        record_row = []
         for thu_tu, msg in enumerate(messages):
             tool_calls = getattr(msg, "tool_calls", None) or []
-            ban_ghi.append({
+            record_row.append({
                 "thu_tu": thu_tu,
                 "vai": getattr(msg, "type", msg.__class__.__name__),
                 "noi_dung": msg.content,
@@ -91,7 +91,7 @@ def doc_hoi_thoai(thread_id: str) -> list[dict]:
                 "ten_tool": getattr(msg, "name", None),
                 "tool_call_id": getattr(msg, "tool_call_id", None),
             })
-        return ban_ghi
+        return record_row
     finally:
         pool.close()
 
@@ -102,16 +102,16 @@ def main() -> None:
     ap.add_argument("--out", default=None, help="ghi JSON ra file này thay vì stdout")
     args = ap.parse_args()
 
-    ban_ghi = doc_hoi_thoai(args.thread_id)
-    noi_dung_json = json.dumps(ban_ghi, ensure_ascii=False, indent=2)
+    record_row = doc_hoi_thoai(args.thread_id)
+    noi_dung_json = json.dumps(record_row, ensure_ascii=False, indent=2)
 
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             f.write(noi_dung_json)
-        print(f"Đã ghi {len(ban_ghi)} bản ghi vào {args.out}", file=sys.stderr)
+        print(f"Đã ghi {len(record_row)} bản ghi vào {args.out}", file=sys.stderr)
     else:
         print(noi_dung_json)
-        print(f"--- {len(ban_ghi)} bản ghi ---", file=sys.stderr)
+        print(f"--- {len(record_row)} bản ghi ---", file=sys.stderr)
 
 
 if __name__ == "__main__":

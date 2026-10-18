@@ -23,15 +23,15 @@ BO = json.loads(FILE.read_text(encoding="utf-8"))
 
 def test_bam_nhan_khop_noi_dung():
     """Nhãn BẤT ĐỘNG từ giây công bố băm — test này là thứ thi hành điều đó."""
-    ghi = BO["bam_nhan"]
+    write = BO["bam_nhan"]
     # bỏ CẢ HAI khoá — `thuat_toan_bam` cố ý nằm NGOÀI phần được băm, để lời
     # khai thuật toán thêm vào được mà KHÔNG đổi băm đã công bố.
     d = {k: v for k, v in BO.items() if k not in ("bam_nhan", "thuat_toan_bam")}
     tinh = hashlib.sha256(
         json.dumps(d, ensure_ascii=False, indent=1, sort_keys=True).encode()
     ).hexdigest()[:12]
-    assert ghi == tinh, (
-        f"băm ghi {ghi} ≠ băm tính lại {tinh}. Bộ ca đã đổi sau khi công bố băm.\n"
+    assert write == tinh, (
+        f"băm ghi {write} ≠ băm tính lại {tinh}. Bộ ca đã đổi sau khi công bố băm.\n"
         "Nếu đổi là cố ý: ghi băm cũ vào bam_cu_da_thay rồi băm lại (tiền lệ v4)."
     )
 
@@ -48,9 +48,9 @@ def test_don_vi_dem_dung_nhu_LOI_KHAI():
 
 
 def test_moi_ca_co_nhan_hop_le_va_KHONG_bo_trong():
-    hop_le = {"nhe", "day_du"}
-    xau = [c["id"] for c in BO["ca"] if c.get("ky_vong") not in hop_le]
-    assert not xau, f"ca có nhãn ngoài {hop_le}: {xau}"
+    valid = {"nhe", "day_du"}
+    xau = [c["id"] for c in BO["ca"] if c.get("ky_vong") not in valid]
+    assert not xau, f"ca có nhãn ngoài {valid}: {xau}"
     thieu = [c["id"] for c in BO["ca"] if not str(c.get("vi_sao", "")).strip()]
     assert not thieu, f"ca không nêu LÝ DO của nhãn: {thieu} — nhãn không bác được"
 
@@ -102,16 +102,16 @@ def test_bam_phai_khai_TEN_THUAT_TOAN():
 
     > **`1edd51dff555` không phải một băm. `md5:1edd51dff555` mới là.**
     """
-    khai = str(BO.get("thuat_toan_bam", "")).strip()
-    assert khai, (
+    declared = str(BO.get("thuat_toan_bam", "")).strip()
+    assert declared, (
         "có `bam_nhan` mà KHÔNG khai thuật toán. Một chuỗi hex không tự khai "
         "nguồn gốc — người sau sẽ băm lại bằng thuật toán khác và thấy lệch, "
         "hoặc tệ hơn: thấy giống rồi tin nhầm."
     )
-    assert any(x in khai.lower() for x in ("sha256", "md5", "sha1", "blake")), (
-        f"lời khai không nêu TÊN thuật toán: {khai!r}"
+    assert any(x in declared.lower() for x in ("sha256", "md5", "sha1", "blake")), (
+        f"lời khai không nêu TÊN thuật toán: {declared!r}"
     )
-    assert "bam_nhan" in khai and "thuat_toan_bam" in khai, (
+    assert "bam_nhan" in declared and "thuat_toan_bam" in declared, (
         "lời khai phải nêu RÕ khoá nào bị loại trước khi băm — thiếu, người "
         "sau không tái lập được con số dù biết thuật toán."
     )

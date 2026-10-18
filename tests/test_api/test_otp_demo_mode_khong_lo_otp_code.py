@@ -17,7 +17,7 @@ Patch `src.api.main.OTP_DEMO_MODE` (KHÔNG phải biến môi trường) — c�
 `import` theo GIÁ TRỊ vào `main.py` (`from src.config import (..., OTP_DEMO_MODE,
 ...)`, dòng 87), nên sửa env var lúc chạy test không đổi được giá trị đã
 cache trong module. `monkeypatch.setattr` đúng chỗ nó được ĐỌC, không phải
-đúng chỗ nó được ĐỊNH NGHĨA — cùng khuôn `PHAN_LUONG_BAT`/`OTEL_EXPORTER_...`
+đúng chỗ nó được ĐỊNH NGHĨA — cùng khuôn `TRIAGE_ENABLED`/`OTEL_EXPORTER_...`
 (cờ đọc lúc import) đã ghi chú ở `docker-compose.yml`.
 """
 from __future__ import annotations

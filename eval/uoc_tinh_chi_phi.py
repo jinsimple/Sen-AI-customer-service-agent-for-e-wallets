@@ -116,7 +116,7 @@ def loi_goi_moi_luot(mau: list[str]) -> tuple[float, int, str]:
     tự chuyển sang dùng số thật — một lượt có lời gọi không sinh tool call, hoặc
     có retry, sẽ cao hơn ước lượng này.
     """
-    that, uoc = [], []
+    real, uoc = [], []
     # (giữ nguyên phần thu thập; hàm trả THÊM p95 ở bản dưới)
     for m in mau:
         for p_ in sorted(glob.glob(m)):
@@ -127,10 +127,10 @@ def loi_goi_moi_luot(mau: list[str]) -> tuple[float, int, str]:
             for x in (d if isinstance(d, list) else []):
                 u = x.get("usage") or {}
                 if isinstance(u, dict) and u.get("so_luot_goi_model"):
-                    that.append(u["so_luot_goi_model"])
+                    real.append(u["so_luot_goi_model"])
                 elif x.get("tool_calls") is not None:
                     uoc.append(len(x["tool_calls"]) + 1)
-    ds, nhan = (that, "ĐO THẬT (so_luot_goi_model)") if that else (
+    ds, nhan = (real, "ĐO THẬT (so_luot_goi_model)") if real else (
         (uoc, "ước lượng cận dưới (tool_calls + 1)") if uoc else ([1.0], "KHÔNG ĐO ĐƯỢC"))
     ds = sorted(ds)
     return statistics.mean(ds), ds[int(len(ds) * 0.95)], len(ds), nhan
@@ -155,7 +155,7 @@ def main() -> None:
     a = ap.parse_args()
 
     bg = doc_bang_gia()
-    us = gom_usage(a.nguon)
+    us = gom_usage(a.source)
     if not us:
         raise SystemExit("🔴 không tìm thấy bản ghi `usage` nào — kiểm lại --nguon")
 
@@ -168,7 +168,7 @@ def main() -> None:
     print("=" * 74)
     print(f"  {len(us)} lượt đo · input trung vị {statistics.median(vao):,.0f} token"
           f" · output trung vị {statistics.median(ra):,.0f}")
-    print(f"  nguồn: {', '.join(pathlib.Path(p).name for m in a.nguon for p in sorted(glob.glob(m)))[:90]}")
+    print(f"  nguồn: {', '.join(pathlib.Path(p).name for m in a.source for p in sorted(glob.glob(m)))[:90]}")
 
     mau = {"input_tokens": statistics.median(vao),
            "output_tokens": statistics.median(ra),
@@ -218,7 +218,7 @@ def main() -> None:
     for ten, b in bg["bo_do"].items():
         d = "".join(f"{tien_mot_luot(mau, g) * b['so_luot']:>13.3f}" for g in bg["gia"].values())
         print(f"{ten:<24}{b['so_luot']:>6}{d}")
-    lg_tb, lg_p95, n_lg, nhan_lg = loi_goi_moi_luot(a.nguon)
+    lg_tb, lg_p95, n_lg, nhan_lg = loi_goi_moi_luot(a.source)
     vao_p95 = sorted(vao)[int(len(vao) * 0.95)]
     print(f"\n  lời gọi model mỗi lượt: trung bình {lg_tb:.2f} · p95 {lg_p95}"
           f"   ({nhan_lg}, n={n_lg})")

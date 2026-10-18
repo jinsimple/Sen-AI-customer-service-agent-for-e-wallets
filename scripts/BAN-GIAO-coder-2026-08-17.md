@@ -185,7 +185,7 @@ rơi vào livelock hoặc lượt vô nghĩa. **Tester mất 2 lượt đo vì c
 
 ### Cờ đọc lúc import ⟹ đổi cờ = RECREATE
 
-`PHAN_LUONG_BAT`, `SUY_LUAN_BAT` đọc lúc `import src.config`. `docker exec -e`
+`TRIAGE_ENABLED`, `REASONING_ENABLED` đọc lúc `import src.config`. `docker exec -e`
 chỉ đổi **tiến trình con**, KHÔNG chạm uvicorn đang phục vụ.
 
 ⟹ **Xác minh cơ chế**: phải qua HTTP thật. **Chạy phép đo** bằng
@@ -315,7 +315,7 @@ lên kế hoạch đo.
   được**. `golden_set` có **0/120** lượt đơn (dựng để ép agent ⟹ loại lượt đơn
   **theo thiết kế**); lấy nó tính `f` sẽ ra ~0% và **bác oan** đòn bẩy tốt nhất.
 · Tần suất livelock trên traffic thật (1/13 là mẫu nhỏ).
-· Chất lượng khi `SUY_LUAN_BAT=0` — R3 ghi **4** dòng `investigation_logs` vs
+· Chất lượng khi `REASONING_ENABLED=0` — R3 ghi **4** dòng `investigation_logs` vs
   R1 **1** dòng. Chưa ai chấm. **Đừng đọc thành "tra kỹ hơn" hay "lan man hơn"**
   — `ToolResult` +4 **y hệt** cả ba vòng, chỉ khác tầng ghi chép.
 
@@ -342,10 +342,10 @@ ra dòng nào ở đây?"** trước khi hỏi "số này nói gì".
 
 ## Cơ chế tự canh đã dựng hôm nay — đừng gỡ
 
-    src/dau_ma_nguon.py        băm nội dung src/, TỰ TÍNH trong Dockerfile (không build-arg)
-                               `.bam_ma_nguon` rỗng/hỏng ⟹ TỪ CHỐI khởi động (fail-closed)
+    src/build_stamp.py        băm nội dung src/, TỰ TÍNH trong Dockerfile (không build-arg)
+                               `.source_hash` rỗng/hỏng ⟹ TỪ CHỐI khởi động (fail-closed)
     ma_nguon_lech_anh          sự kiện ERROR lúc khởi động nếu mã chạy ≠ mã trong ảnh
-    src/observability/so_usage.py  sổ JSONL trên volume, mang `bam_ma_nguon` + `base_url`
+    src/observability/usage_ledger.py  sổ JSONL trên volume, mang `bam_ma_nguon` + `base_url`
     kiểm mạch lạc ngân sách    OPENAI_TIMEOUT×(RETRIES+1) ≤ AGENT_TURN_TIMEOUT, fail-fast
     _agent_turn_limiter ttl    DẪN XUẤT từ AGENT_TURN_TIMEOUT (trước là hằng số 90 chết)
     scripts/xuat_luat_phan_luong.py  sinh bản luật cho tester TỪ src/ (một nguồn, một dẫn xuất)

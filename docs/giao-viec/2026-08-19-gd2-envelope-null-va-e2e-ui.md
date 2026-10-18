@@ -22,7 +22,7 @@ hạnh phúc (:1230) trả mảng. Frontend `types.ts:280` khai `tool_calls: Age
 **Vì sao GĐ1 không bắt được — ghi để không tự trách nhầm chỗ:** lỗi nằm ở HỢP ĐỒNG ENVELOPE
 backend↔frontend, chỉ hiện khi đi đúng đường người dùng (trình duyệt→caddy→BFF→backend→client parse).
 Verify GĐ1 đi đường API trần; cổng 46 ca đo bộ lọc, không đo hợp đồng envelope; `schemas.py` không
-ép kiểu `tool_calls` nên server cứ 200. Tổ hợp "UI + đường nhẹ" chưa từng chạy vì `PHAN_LUONG_BAT=1`
+ép kiểu `tool_calls` nên server cứ 200. Tổ hợp "UI + đường nhẹ" chưa từng chạy vì `TRIAGE_ENABLED=1`
 mới bật trên fin05 từ 18/08 — lỗi NẰM SẴN từ commit `1e42146` (T1), không phải hồi quy của GĐ1.
 
 ## 2. HAI CHUẨN MỚI — PO THẬT RA LỆNH 19/08, ÁP VĨNH VIỄN

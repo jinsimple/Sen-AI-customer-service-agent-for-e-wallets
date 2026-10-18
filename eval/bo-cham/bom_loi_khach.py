@@ -99,7 +99,7 @@ def _kiem_tra_CA_CU_MO_HO() -> None:
 
 def _xay_bang_bom(utterances: dict[str, list[str]]) -> dict[int, tuple[str, str]]:
     """ca_cu -> (agent_text_chuan_hoa, van_ban_bom)."""
-    bang: dict[int, tuple[str, str]] = {}
+    table_rows: dict[int, tuple[str, str]] = {}
     for ca in CASES:
         if ca["khach"] is not None:
             continue
@@ -123,22 +123,22 @@ def _xay_bang_bom(utterances: dict[str, list[str]]) -> dict[int, tuple[str, str]
             assert len(u) == 1, f"{sid} có {len(u)} lượt, script chỉ xử lý CỨNG 1 lượt trừ UXQA-004"
             bom = u[0]
 
-        bang[ca_cu] = (agent_chuan, bom)
-    return bang
+        table_rows[ca_cu] = (agent_chuan, bom)
+    return table_rows
 
 
 def main() -> int:
     _kiem_tra_CA_CU_MO_HO()
     utterances = _doc_utterances()
-    bang = _xay_bang_bom(utterances)
+    table_rows = _xay_bang_bom(utterances)
 
-    noi_dung = MD.read_text(encoding="utf-8")
-    khoi = re.split(r"(?=^## L\d+$)", noi_dung, flags=re.MULTILINE)
+    content_text = MD.read_text(encoding="utf-8")
+    khoi = re.split(r"(?=^## L\d+$)", content_text, flags=re.MULTILINE)
 
     # agent_text_chuan_hoa -> van_ban_bom, để tra theo NỘI DUNG khối trong md
     tra_theo_agent: dict[str, str] = {}
     trung_lap: set[str] = set()
-    for _ca_cu, (agent_chuan, bom) in bang.items():
+    for _ca_cu, (agent_chuan, bom) in table_rows.items():
         if agent_chuan in tra_theo_agent:
             trung_lap.add(agent_chuan)
         tra_theo_agent[agent_chuan] = bom

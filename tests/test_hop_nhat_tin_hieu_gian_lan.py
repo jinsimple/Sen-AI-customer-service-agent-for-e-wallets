@@ -48,7 +48,7 @@ pytest.importorskip(
     "src.services.complaint_intake",
     reason="hop_nhat_tin_hieu_gian_lan chưa land — xem docstring, đỏ ĐÚNG LÝ DO",
 )
-from src.services.complaint_intake import hop_nhat_tin_hieu_gian_lan  # noqa: E402
+from src.services.complaint_intake import merge_fraud_signals  # noqa: E402
 
 
 def _tao_ve_voi_fs06(session: Session, *, thread_id: str) -> Complaint:
@@ -81,13 +81,13 @@ def test_hop_nhat_giu_nguyen_fs06_khi_goi_lai_voi_tx_none(sample_db: Session):
     thread_id = "THREAD-HOP-NHAT-1"
     _tao_ve_voi_fs06(sample_db, thread_id=thread_id)
 
-    gop = hop_nhat_tin_hieu_gian_lan(
+    merged_items = merge_fraud_signals(
         sample_db, thread_id=thread_id, utterance_text="tôi tự gõ nhầm, không ai hướng dẫn cả"
     )
 
-    assert gop is not None, "thread ĐÃ có vé (vừa seed) — không được trả None"
-    assert "FS-06" in gop, (
-        f"MẤT FS-06 sau hợp nhất: {gop!r}. Đây đúng lỗ PO cảnh báo — kết quả "
+    assert merged_items is not None, "thread ĐÃ có vé (vừa seed) — không được trả None"
+    assert "FS-06" in merged_items, (
+        f"MẤT FS-06 sau hợp nhất: {merged_items!r}. Đây đúng lỗ PO cảnh báo — kết quả "
         "evaluate(tx=None) đã GÁN ĐÈ thay vì UNION với complaint.fraud_signals cũ."
     )
 
@@ -98,10 +98,10 @@ def test_hop_nhat_idempotent_goi_hai_lan_khong_phinh_khong_trung(sample_db: Sess
     thread_id = "THREAD-HOP-NHAT-2"
     _tao_ve_voi_fs06(sample_db, thread_id=thread_id)
 
-    lan_1 = hop_nhat_tin_hieu_gian_lan(
+    lan_1 = merge_fraud_signals(
         sample_db, thread_id=thread_id, utterance_text="có người gọi điện hướng dẫn tôi chuyển"
     )
-    lan_2 = hop_nhat_tin_hieu_gian_lan(
+    lan_2 = merge_fraud_signals(
         sample_db, thread_id=thread_id, utterance_text="có người gọi điện hướng dẫn tôi chuyển"
     )
     assert lan_1 == lan_2, (
@@ -121,14 +121,14 @@ def test_hop_nhat_cau_phu_dinh_khong_gan_oan_fs13_va_khong_mat_fs06(sample_db: S
     thread_id = "THREAD-HOP-NHAT-3"
     _tao_ve_voi_fs06(sample_db, thread_id=thread_id)
 
-    gop = hop_nhat_tin_hieu_gian_lan(
+    merged_items = merge_fraud_signals(
         sample_db, thread_id=thread_id, utterance_text="không có ai gọi cả, tôi tự bấm nhầm thôi"
     )
 
-    assert gop is not None
-    assert "FS-06" in gop, f"MẤT FS-06 ở ca phủ định: {gop!r}"
-    assert "FS-13" not in gop, (
-        f"GẮN OAN FS-13 cho câu PHỦ ĐỊNH 'không có ai gọi cả': {gop!r}. "
+    assert merged_items is not None
+    assert "FS-06" in merged_items, f"MẤT FS-06 ở ca phủ định: {merged_items!r}"
+    assert "FS-13" not in merged_items, (
+        f"GẮN OAN FS-13 cho câu PHỦ ĐỊNH 'không có ai gọi cả': {merged_items!r}. "
         "Bộ dò khẳng định phải xét phủ định TRƯỚC — câu này chứa chữ 'có' "
         "nhưng đang PHỦ ĐỊNH, không phải xác nhận có người hướng dẫn."
     )
@@ -138,7 +138,7 @@ def test_hop_nhat_thread_chua_co_ve_tra_ve_none(sample_db: Session):
     """Biên đã khai trong chữ ký hàm (`-> list[str] | None`) — thread không
     có complaint nào phải trả `None`, KHÔNG phải ném lỗi hay trả `[]` (hai
     trạng thái khác nhau: 'không có gì để hợp nhất' vs 'hợp nhất ra rỗng')."""
-    gop = hop_nhat_tin_hieu_gian_lan(
+    merged_items = merge_fraud_signals(
         sample_db, thread_id="THREAD-KHONG-TON-TAI", utterance_text="câu bất kỳ"
     )
-    assert gop is None
+    assert merged_items is None

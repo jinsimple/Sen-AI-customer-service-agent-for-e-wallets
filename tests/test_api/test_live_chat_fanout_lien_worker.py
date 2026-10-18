@@ -73,7 +73,7 @@ async def _bom_pubsub_sang(pubsub, mgr: ConnectionManager, bo_qua_tieng_vong: bo
         data = json.loads(msg["data"])
         if bo_qua_tieng_vong and data.get("src") == mod._INSTANCE_ID:
             continue
-        await mgr._giao_tu_pubsub(data.get("kind", ""), data.get("target"), data.get("payload") or {})
+        await mgr._deliver_from_pubsub(data.get("kind", ""), data.get("target"), data.get("payload") or {})
 
 
 @pytest.mark.asyncio

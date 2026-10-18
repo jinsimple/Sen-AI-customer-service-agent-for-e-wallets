@@ -263,7 +263,7 @@ fin05do-backend-1    6335a5b899e3     7a79e7d          0       4
 lần nữa (`6161cd9`) trong lúc dựng — **vì docs**. Nhãn mới **đứng yên**. Tính
 chất ③ tự nghiệm thu ngay trong lượt land nó.
 
-Đọc mã (`src/dau_ma_nguon.py`, `main.py:1461-1493`): dùng lại **nguyên thuật
+Đọc mã (`src/build_stamp.py`, `main.py:1461-1493`): dùng lại **nguyên thuật
 toán** của `dau_thuoc()`, chạy ở `@app.on_event("startup")`, **FAIL-VISIBLE
 không fail-fast**, và bỏ qua khi chạy ngoài Docker. Hai giới hạn tech-lead khai
 trong docstring **đều đúng và đều quan trọng** — đặc biệt: **phép kiểm này KHÔNG

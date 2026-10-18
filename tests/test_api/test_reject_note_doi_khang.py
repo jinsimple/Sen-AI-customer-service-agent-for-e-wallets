@@ -106,18 +106,18 @@ def _note_trong_db(sample_db, resolution_id: str) -> str:
     """
     sample_db.expire_all()
     res = sample_db.get(Resolution, resolution_id)
-    gia_tri = getattr(res, "note", _CHUA_CO_FIELD)
-    assert gia_tri is not _CHUA_CO_FIELD, (
+    val = getattr(res, "note", _CHUA_CO_FIELD)
+    assert val is not _CHUA_CO_FIELD, (
         "Resolution KHÔNG có cột `note` — field chưa được code. Test nhóm A "
         "không thể kiểm scrub trên một cột không tồn tại; nếu để nó 'xanh' thì "
         "đó là xanh rỗng."
     )
-    assert gia_tri, (
+    assert val, (
         "Cột `note` tồn tại nhưng RỖNG sau khi từ chối có kèm ghi chú — hoặc "
         "route không lưu, hoặc scrub xoá sạch nội dung. Cả hai đều phải đỏ: "
         "assert 'PII không có trong chuỗi rỗng' không chứng minh được gì."
     )
-    return gia_tri
+    return val
 
 
 # ==========================================================================
@@ -138,8 +138,8 @@ def test_02_note_chua_sdt_dinh_dang_la_bi_che(client, sample_db):
     resp = _tu_choi(client, rid, note="Liên hệ +84 91 234 56 78 hoặc 091-234-5678 để đối chiếu.")
     assert resp.status_code == 200, resp.text
     trong_db = _note_trong_db(sample_db, rid)
-    for mau in ("+84 91 234 56 78", "091-234-5678"):
-        assert mau not in trong_db, f"Định dạng SĐT '{mau}' lọt vào DB"
+    for pattern in ("+84 91 234 56 78", "091-234-5678"):
+        assert pattern not in trong_db, f"Định dạng SĐT '{pattern}' lọt vào DB"
 
 
 def test_03_note_chua_cccd_12_so_bi_che(client, sample_db):
@@ -251,10 +251,10 @@ def test_10_note_khong_lot_vao_tool_khach_ke_ca_duong_vao_prompt_llm(client, sam
 
     for tool in build_customer_tools(sample_db, user_id="USR-0119"):
         try:
-            ket_qua = tool.invoke({})
+            outcome = tool.invoke({})
         except Exception:
             continue  # tool cần tham số khác — đường REST ở trên đã phủ
-        assert NOTE_MOC not in str(ket_qua), (
+        assert NOTE_MOC not in str(outcome), (
             f"`note` rò qua tool '{getattr(tool, 'name', tool)}' — ĐÂY LÀ ĐƯỜNG VÀO PROMPT LLM"
         )
 

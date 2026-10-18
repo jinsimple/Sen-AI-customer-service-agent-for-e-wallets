@@ -65,11 +65,11 @@ def _trich_bang() -> dict[str, list[str]]:
     for dong in m.group(1).splitlines():
         if not dong.startswith("|"):
             continue
-        cot = [c.strip() for c in dong.strip("|").split("|")]
-        if len(cot) < 2 or not cot[0].startswith("`"):
+        column = [c.strip() for c in dong.strip("|").split("|")]
+        if len(column) < 2 or not column[0].startswith("`"):
             continue
-        vai = cot[0].strip("`")
-        pattern = re.findall(r"`([^`]+)`", cot[1])
+        vai = column[0].strip("`")
+        pattern = re.findall(r"`([^`]+)`", column[1])
         vung.setdefault(vai, []).extend(pattern)
     return vung
 
@@ -85,15 +85,15 @@ def _khop(duong_dan: str, pattern: str) -> bool:
 
 
 def _vai_khop(duong_dan: str, vung: dict[str, list[str]]) -> set[str]:
-    ket_qua = {vai for duong, vai in _NGOAI_LE_TAY if duong == duong_dan}
-    if ket_qua:
-        return ket_qua
+    outcome = {vai for route, vai in _NGOAI_LE_TAY if route == duong_dan}
+    if outcome:
+        return outcome
     for vai, patterns in vung.items():
         for p in patterns:
             if _khop(duong_dan, p):
-                ket_qua.add(vai)
+                outcome.add(vai)
                 break
-    return ket_qua
+    return outcome
 
 
 def main() -> int:

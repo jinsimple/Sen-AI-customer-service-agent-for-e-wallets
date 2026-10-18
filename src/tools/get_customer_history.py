@@ -1,10 +1,10 @@
-"""Tool 2/5 — `get_customer_history` (PRD §6, Data Brief §6.3 hàng 2).
+"""Tool 2/5 — `get_customer_history` (PRD §6, Data Brief §6.3 row 2).
 
-Test bắt buộc: gọi bằng `user_id` của khách A KHÔNG BAO GIỜ trả về dữ liệu
-khách B — test phân quyền, không chỉ test chức năng (đây là chỗ một agent
-bị dụ "cho tôi xem lịch sử của X" bằng số điện thoại đoán mò dễ rò rỉ nhất).
-Mọi query trong hàm này lọc CHẶT theo đúng `user_id` truyền vào — không có
-đường nào để tham số khác (vd `phone`) mở rộng sang user khác.
+Required test: calling with customer A's `user_id` NEVER returns customer B's data —
+an authorisation test, not just a functional one (this is where an agent tricked into
+"show me X's history" with a guessed phone number would most easily leak).
+Every query in this function is filtered STRICTLY by the `user_id` passed in — there is no
+path for another parameter (e.g. `phone`) to widen it to another user.
 """
 from __future__ import annotations
 
@@ -30,28 +30,27 @@ def get_customer_history(
     limit_complaints: int = 10,
     amount: int | None = None,
 ) -> dict[str, Any]:
-    """`amount`: lọc gần đúng theo số tiền khách mô tả (sai số ±2%, đủ bù làm
-    tròn "270k"/"270.000đ") — dùng khi khách chỉ mô tả mơ hồ (số tiền + thời
-    gian gần đúng, không có mã giao dịch). KHÔNG có filter này, khách hàng
-    hoạt động nhiều (dataset thật: trung vị ~232 giao dịch/user) sẽ dễ bị
-    giao dịch cũ đẩy khỏi top `limit_transactions` dù vẫn còn trong `days`
-    ngày — phát hiện thật qua eval/run_golden_set.py (agent không tự tìm ra
-    giao dịch, phải hỏi lại dù đã có đủ mô tả).
+    """`amount`: approximate filter on the amount the customer described (±2% tolerance, enough
+    to absorb rounding like "270k"/"270.000đ") — used when the customer only gives a vague
+    description (approximate amount + time, no transaction ID). WITHOUT this filter, a very
+    active customer (real dataset: median ~232 transactions/user) easily has the transaction
+    pushed out of the top `limit_transactions` by older ones even though it is still within
+    `days` — a real finding from eval/run_golden_set.py (the agent failed to find the
+    transaction and had to ask again despite having a full description).
 
-    Có `amount` → kết quả kèm thêm `amount_match` (status found/multiple_matches/
-    not_found, giống hệt pattern của lookup_transaction) — TÍN HIỆU CẤU TRÚC rõ
-    ràng để agent rẽ nhánh, không phải để agent tự đọc danh sách rồi suy luận có
-    mơ hồ hay không. Lý do đổi từ chỉ dựa vào hướng dẫn trong prompt: thực nghiệm
-    qua eval/run_golden_set.py cho thấy hướng dẫn prompt đơn thuần ("nếu có nhiều
-    khớp thì hỏi lại") KHÔNG được tuân theo ổn định ở quy mô lớn (chuẩn ngành —
-    xem OpenAI agent safety guide: "design workflows so ambiguous data never
-    directly drives agent behavior", nên đẩy phát hiện mơ hồ xuống tầng tool,
-    không chỉ dựa vào lời văn)."""
-    # Hàm này KHÔNG nhận correlation_id — log vẫn tự gắn được đúng correlation_id
-    # + user_id của request đang xử lý qua contextvars (src/observability/
-    # context.py), chứng minh cơ chế "gắn 1 lần ở entry point, hàm con tự thừa
-    # hưởng" hoạt động đúng ngay cả ở tầng sâu nhất (tool), không cần sửa chữ
-    # ký hàm để truyền tay.
+    With `amount` → the result also includes `amount_match` (status found/multiple_matches/
+    not_found, same pattern as lookup_transaction) — an explicit STRUCTURAL SIGNAL for the
+    agent to branch on, rather than having the agent read the list and reason about whether it
+    is ambiguous. Why we moved away from prompt instructions alone: experiments with
+    eval/run_golden_set.py showed that a plain prompt instruction ("if there are several
+    matches, ask again") is NOT followed reliably at scale (industry practice —
+    see the OpenAI agent safety guide: "design workflows so ambiguous data never
+    directly drives agent behavior", so ambiguity detection is pushed down to the tool layer
+    rather than relying on wording)."""
+    # This function does NOT receive correlation_id — the log still gets the correct
+    # correlation_id + user_id of the in-flight request via contextvars (src/observability/
+    # context.py), proving that "bind once at the entry point, callees inherit" works even at the
+    # deepest layer (tools), with no signature changes to thread it through.
     _logger.info("get_customer_history_called", extra={"days": days, "has_amount": amount is not None})
 
     user = session.get(User, user_id)
@@ -70,20 +69,22 @@ def get_customer_history(
     if amount is not None:
         tolerance = max(round(amount * 0.02), 1)
         amount_stmt = txn_stmt.where(Transaction.amount.between(amount - tolerance, amount + tolerance))
-        # KHÔNG áp limit_transactions ở đây — amount đã tự thu hẹp kết quả rồi,
-        # giới hạn thêm sẽ làm mất đúng những ứng viên cần liệt kê đủ để agent
-        # hỏi lại (giống lookup_transaction không giới hạn số candidates trả về).
+        # limit_transactions is NOT applied here — amount already narrows the results; an extra
+        # limit would drop exactly the candidates that must all be listed for the agent to ask back
+        # (just as lookup_transaction does not cap the number of candidates returned).
         amount_matches = list(session.scalars(amount_stmt.order_by(Transaction.created_at.desc()))) if wallet_ids else []
         if len(amount_matches) == 0:
             amount_match = {"status": "not_found"}
         elif len(amount_matches) == 1:
-            # scope PHẢI có ở đây (không chỉ trans_id) — thiếu trường này khiến
-            # agent phải tự đoán scope khi tạo ticket qua nhánh amount_match=found
-            # (khác nhánh multiple_matches bên dưới vốn đã có sẵn scope cho từng
-            # candidate). Phát hiện thật qua functional_qa_set.jsonl: các case
-            # money_not_received/double_charge tra ra giao dịch qua amount_match
-            # (không qua lookup_transaction) đều bị lệch scope vì thiếu dữ liệu
-            # này, không phải lỗi suy luận của agent.
+            # scope MUST be present here (not just trans_id) — without it the agent has to guess the
+            # scope when creating a ticket via the amount_match=found branch (unlike the
+            # multiple_matches
+            # branch below, which already carries scope per candidate). A real finding from
+            # functional_qa_set.jsonl: money_not_received/double_charge cases that found the
+            # transaction
+            # via amount_match (not via lookup_transaction) all had the wrong scope because this
+            # field was
+            # missing — not because of an agent reasoning error.
             match = amount_matches[0]
             amount_match = {
                 "status": "found",
@@ -148,22 +149,22 @@ def get_customer_history(
         ],
     }
 
-    # T3 — GHI ĐẦY ĐỦ, TRẢ RÚT GỌN. Hai việc khác nhau, cố ý tách:
+    # T3 — RECORD IN FULL, RETURN TRIMMED. Two different jobs, deliberately separated:
     #
-    # `record_tool_result` nhận `result` NGUYÊN VẸN -> truy vết không suy suyển.
-    # Ràng buộc cứng 3 bắt mọi số agent nói phải tra được về `tool_results`;
-    # nếu cắt trước khi ghi thì chính bản ghi làm chứng cũng cụt, và ta phá
-    # đúng thứ mình đang bảo vệ.
+    # `record_tool_result` receives the UNTOUCHED `result` -> traceability is intact.
+    # Hard constraint 3 requires every number the agent states to trace back to `tool_results`;
+    # trimming before recording would truncate the very evidence record, destroying exactly what
+    # we are protecting.
     #
-    # Chỉ BẢN TRẢ VỀ cho LLM bị cắt. Đo được: `complaints` chiếm 13.349/16.722
-    # ký tự (79,8%) của tool này, mà tool này chiếm 41% toàn prompt — và mỗi
-    # bước ReAct gửi lại TOÀN BỘ, nên một lượt 8 bước trả giá 8 lần.
+    # Only the COPY RETURNED to the LLM is trimmed. Measured: `complaints` takes 13,349/16,722
+    # characters (79.8%) of this tool's output, and this tool is 41% of the whole prompt — and
+    # each ReAct step re-sends EVERYTHING, so an 8-step turn pays 8 times.
     #
-    # ⚠️ `complaints_tong` là BẮT BUỘC, không phải trang trí. Cắt im lặng để
-    # LLM thấy 10 bản ghi sẽ khiến nó tưởng khách có 10 khiếu nại và NÓI RA
-    # con số đó — tự chế một số sai từ dữ liệu đúng. Đúng thứ ràng buộc cứng 3
-    # cấm. Con số thật phải đi cùng phần bị cắt, và nó có mặt ở CẢ hai bản nên
-    # LLM trích `complaints_tong` vẫn tra ngược được.
+    # ⚠️ `complaints_tong` (total) is MANDATORY, not decoration. Silently trimming so the LLM sees
+    # 10 records would make it believe the customer has 10 complaints and SAY that number —
+    # manufacturing a wrong figure out of correct data. Exactly what hard constraint 3 forbids.
+    # The real count must travel with the trimmed part, and it is present in BOTH copies, so an
+    # LLM quoting `complaints_tong` can still be traced back.
     tool_result_id = record_tool_result(session, "get_customer_history", result)
     return {
         **result,

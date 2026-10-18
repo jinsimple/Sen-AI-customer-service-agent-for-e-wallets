@@ -35,7 +35,7 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.agents.tools.customer_tools import _phan_loai_tier
+from src.agents.tools.customer_tools import _classify_tier
 from src.config import DATABASE_URL
 from src.db.models import (
     BankAccount,
@@ -82,14 +82,14 @@ def dem(s: Session) -> dict[str, int]:
     🔴 Đếm THẬT từng bảng, không lấy hiệu số — hai câu lệnh khác nhau cho hai
     đầu là hai phép đo, không phải một hiệu số.
     """
-    bang = {
+    table_rows = {
         "users": User, "wallets": Wallet, "bank_accounts": BankAccount,
         "transactions": Transaction, "complaints": Complaint, "tickets": Ticket,
         "resolutions": Resolution, "investigation_logs": InvestigationLog,
         "tool_results": ToolResult, "chat_sessions": ChatSession,
         "messages": Message, "escalations": Escalation,
     }
-    d = {t: s.scalar(select(func.count()).select_from(m)) for t, m in bang.items()}
+    d = {t: s.scalar(select(func.count()).select_from(m)) for t, m in table_rows.items()}
     d["_otp_disclosed_true"] = s.scalar(
         select(func.count()).select_from(Complaint).where(Complaint.otp_disclosed.is_(True))
     )
@@ -322,19 +322,19 @@ def dung_du_lieu(s: Session) -> tuple[list, dict[str, int]]:
     # chính là thứ tester đã TỪ CHỐI làm với `messages.role`.
     tu_choi = [
         dict(n="01", hau_to="A", act="refund_to_wallet", amount=2_500_000,
-             by=CSKH_B, rj=SUPERVISOR, ly_do="sai_so_lieu",
+             by=CSKH_B, rj=SUPERVISOR, reason_text="sai_so_lieu",
              ly="Đề xuất hoàn 2.500.000đ cho giao dịch TXN202608189000001.",
              cite=["TR-DEMO-0001"],
              note="Số tiền đề xuất 2.500.000đ không khớp số tiền giao dịch "
                   "2.000.000đ đọc được ở TR-DEMO-0001."),
         dict(n="02", hau_to="A", act="ledger_adjustment", amount=5_000_000,
-             by=CSKH_A, rj=SUPERVISOR, ly_do="sai_phan_loai",
+             by=CSKH_A, rj=SUPERVISOR, reason_text="sai_phan_loai",
              ly="Đề xuất điều chỉnh sổ cho khoản nạp 5.000.000đ chưa về ví.",
              cite=["TR-DEMO-0005"],
              note="Đây là ca tiền chưa về từ ngân hàng, không phải sai lệch sổ "
                   "nội bộ. Phân loại lại rồi trình lại."),
         dict(n="03", hau_to="B", act="refund_to_bank", amount=3_500_000,
-             by=CSKH_A, rj=SUPERVISOR, ly_do="sai_chinh_sach",
+             by=CSKH_A, rj=SUPERVISOR, reason_text="sai_chinh_sach",
              ly="Đề xuất hoàn cả hai lệnh rút 3.500.000đ về tài khoản TCB.",
              cite=["TR-DEMO-0008", "TR-DEMO-0009"],
              note="Hoàn cả hai lệnh là hoàn vượt số tiền khách bị trừ dư. "
@@ -376,7 +376,7 @@ def dung_du_lieu(s: Session) -> tuple[list, dict[str, int]]:
         created_by=CSKH_B, approved_by=None, approved_at=None,
         reject_reason="khac", rejected_by=SUPERVISOR,
         rejected_at=T0 + dt.timedelta(days=1, hours=7),
-        note=_note_03c, note_flagged=bool(_phan_loai_tier(_note_03c)),
+        note=_note_03c, note_flagged=bool(_classify_tier(_note_03c)),
         created_at=T0 + dt.timedelta(days=1, hours=5),
     ))
 
@@ -473,7 +473,7 @@ def dung_du_lieu(s: Session) -> tuple[list, dict[str, int]]:
                ("staff", "Chào bạn, mình là Dũng - chuyên viên. Mình đang tiếp nhận vụ này.")],
     }
     tt_chat = {"01": ("closed", 5), "02": ("active", None), "03": ("closed", 3), "04": ("active", None)}
-    for n, luot in hoi_thoai.items():
+    for n, turn in hoi_thoai.items():
         tt, csat = tt_chat[n]
         them(ChatSession, "chat_session_id", ChatSession(
             chat_session_id=f"CHS-DEMO-{n}", ticket_id=f"TCK-DEMO-{n}",
@@ -485,10 +485,10 @@ def dung_du_lieu(s: Session) -> tuple[list, dict[str, int]]:
             csat_score=csat,
             csat_submitted_at=T0 + dt.timedelta(days=2) if csat else None,
         ))
-        for i, (vai, noi_dung) in enumerate(luot, start=1):
+        for i, (vai, content_text) in enumerate(turn, start=1):
             them(Message, "message_id", Message(
                 message_id=f"MSG-DEMO-{n}-{i:02d}", chat_session_id=f"CHS-DEMO-{n}",
-                ticket_id=f"TCK-DEMO-{n}", role=vai, content=noi_dung, tool_call_ids=[],
+                ticket_id=f"TCK-DEMO-{n}", role=vai, content=content_text, tool_call_ids=[],
                 created_at=T0 + dt.timedelta(days=1, minutes=i * 3),
             ))
 
@@ -500,13 +500,13 @@ def dung_du_lieu(s: Session) -> tuple[list, dict[str, int]]:
         customer_id="USR-DEMO-03", status="waiting", claimed_by=None,
         started_at=T0 + dt.timedelta(days=2, hours=1),
     ))
-    for i, (vai, noi_dung) in enumerate([
+    for i, (vai, content_text) in enumerate([
         ("customer", "Tôi đã gửi sao kê TCB như anh chị dặn, cho tôi hỏi tiến độ ạ."),
         ("customer", "Alo, có ai ở đây không ạ?"),
     ], start=1):
         them(Message, "message_id", Message(
             message_id=f"MSG-DEMO-03B-{i:02d}", chat_session_id="CHS-DEMO-03B",
-            ticket_id="TCK-DEMO-03", role=vai, content=noi_dung, tool_call_ids=[],
+            ticket_id="TCK-DEMO-03", role=vai, content=content_text, tool_call_ids=[],
             created_at=T0 + dt.timedelta(days=2, hours=1, minutes=i * 4),
         ))
 
@@ -544,7 +544,7 @@ def tu_kiem_maker_checker(s: Session) -> None:
 
 def kiem_sau_khi_ghi(s: Session) -> None:
     """Ba phép kiểm TRONG CÙNG giao dịch — sai thì `raise` để rollback."""
-    from src.db.crypto_types import _co_hinh_dang_fernet
+    from src.db.crypto_types import _looks_like_fernet
 
     # ① chuỗi bằng chứng: mọi id được trích dẫn phải TRA ĐƯỢC
     co = {r[0] for r in s.execute(select(ToolResult.tool_result_id))}
@@ -559,7 +559,7 @@ def kiem_sau_khi_ghi(s: Session) -> None:
     for (cid, tho) in s.execute(_t(
         "select complaint_id, description_raw from complaints where complaint_id like 'CMP-DEMO-%'"
     )):
-        if not _co_hinh_dang_fernet(tho):
+        if not _looks_like_fernet(tho):
             raise RuntimeError(f"{cid}.description_raw KHÔNG mã hoá — đã ghi bằng SQL thô?")
     print("  ✅ description_raw của 4 khiếu nại demo đều có hình dạng Fernet")
 

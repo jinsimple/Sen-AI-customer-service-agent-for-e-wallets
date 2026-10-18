@@ -13,10 +13,10 @@ Không có gì báo đỏ. Tester gọi đúng tên nó: *"luật đổi dưới
 lần đo"*. Lần đó chưa hại vì R1 chưa chạy; xen giữa R1 và R2 thì phép so chết
 mà không ai thấy.
 
-⟹ Bản xuất **sinh từ `src/agents/phan_luong.py`**, không gõ lại. Một nguồn, một
+⟹ Bản xuất **sinh từ `src/agents/triage.py`**, không gõ lại. Một nguồn, một
 dẫn xuất. File xuất tự mang băm của **cả hai** để không ai phải đoán.
 
-CỐ Ý KHÔNG làm bản xuất thành `import src.agents.phan_luong`: nếu tester chạy
+CỐ Ý KHÔNG làm bản xuất thành `import src.agents.triage`: nếu tester chạy
 được import đó thì họ đang chạy `src/` đang có trên đĩa, và **hai lần chạy cách
 nhau một commit sẽ là hai vật khác nhau mà không lộ ra**. File tĩnh + băm thì lộ.
 """
@@ -27,7 +27,7 @@ import hashlib
 import sys
 from pathlib import Path
 
-GOC = Path(__file__).resolve().parent.parent / "src" / "agents" / "phan_luong.py"
+GOC = Path(__file__).resolve().parent.parent / "src" / "agents" / "triage.py"
 
 # Cắt từ hằng số đầu tiên tới hết — bỏ phần import và docstring module, thêm
 # lại phần chạy được. Mốc cắt là MỘT dòng cố định; nếu nó biến mất thì script
@@ -39,9 +39,9 @@ DAU = '''#!/usr/bin/env python3
 """SINH TỰ ĐỘNG bởi scripts/xuat_luat_phan_luong.py — ĐỪNG SỬA TAY.
 
 Sửa tay ở đây là tạo lại đúng sự cố hai-băm mà file này sinh ra để chống.
-Nguồn: src/agents/phan_luong.py
+Nguồn: src/agents/triage.py
 
-    bam_nguon = {bam_nguon}   (md5-toan-file-12 của src/agents/phan_luong.py)
+    bam_nguon = {bam_nguon}   (md5-toan-file-12 của src/agents/triage.py)
     bam_ban_xuat: in ra khi chạy
 """
 from __future__ import annotations
@@ -112,15 +112,15 @@ def main() -> int:
     ap.add_argument("--ra", required=True)
     a = ap.parse_args()
 
-    goc = GOC.read_text(encoding="utf-8")
-    if MOC not in goc:
+    original = GOC.read_text(encoding="utf-8")
+    if MOC not in original:
         print(f"KHÔNG tìm thấy mốc cắt {MOC!r} trong {GOC} — luật đã đổi cấu trúc. "
               f"DỪNG, không đoán: một bản xuất thiếu mệnh đề vẫn chạy và vẫn cho ra số.",
               file=sys.stderr)
         return 2
 
     bam_nguon = hashlib.md5(GOC.read_bytes()).hexdigest()[:12]
-    than = goc[goc.index(MOC):]
+    than = original[original.index(MOC):]
     # `BAM_LUAT` trong src tự băm CHÍNH file src; trong bản xuất nó sẽ băm nhầm
     # bản xuất. Gỡ hẳn để không có hai thứ cùng tên nói hai chuyện.
     than = "\n".join(d for d in than.splitlines()

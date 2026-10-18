@@ -1,12 +1,12 @@
-"""Pydantic request bodies cho các endpoint tool — validation tầng biên,
-trước khi chạm tới logic nghiệp vụ trong src/tools/.
+"""Pydantic request bodies for the tool endpoints — boundary validation, before touching
+the business logic in src/tools/.
 
-Vá bảo mật: KHÔNG còn field nào mang danh tính người gọi (user_id,
+Security fix: there is NO LONGER any field carrying the caller's identity (user_id,
 requesting_user_id, approved_by, rejected_by, created_by, requested_by).
-Trước đây client tự khai các field này trong body — nghĩa là ai gọi API
-cũng mạo danh được bất kỳ user nào (VD tự xưng approved_by = một sếp bất kỳ
-để duyệt hoàn tiền). Danh tính giờ LUÔN lấy từ JWT đã ký (src/auth.py,
-`Depends(get_current_user)` ở src/api/main.py), không có đường nào khác."""
+Previously the client declared these fields in the body — meaning anyone calling the API
+could impersonate any user (e.g. claim approved_by = some supervisor to approve a refund).
+Identity now ALWAYS comes from the signed JWT (src/auth.py,
+`Depends(get_current_user)` in src/api/main.py), with no other path."""
 from __future__ import annotations
 
 import datetime as dt
@@ -34,14 +34,15 @@ class GetCustomerHistoryRequest(BaseModel):
 class CreateTicketRequest(BaseModel):
     complaint_type: str
     scope: str
-    # A2 — trần 2.000 ký tự (ADR-025 QĐ 5). Ép ở ĐÂY là lớp CHÍNH XÁC duy nhất
-    # theo KÝ TỰ; tầng DB không làm được vì cột đã mã hoá (xem models.py).
+    # A2 — 2,000-character cap (ADR-025 decision 5). Enforcing it HERE is the only layer that
+    # is ACCURATE per CHARACTER; the DB layer can't do it because the column is encrypted
+    # (see models.py).
     description_raw: str = Field(max_length=2000)
     trans_id: str | None = None
     otp_disclosed: bool = False
-    # Không nhận fraud_signals từ caller — tầng service (complaint_intake.py)
-    # tự tính từ dữ liệu DB qua fraud_engine.py (Data Brief §4.2: "do tầng
-    # service tính, không phải do agent tự điền").
+    # fraud_signals is not accepted from the caller — the service layer (complaint_intake.py)
+    # computes them from DB data via fraud_engine.py (Data Brief §4.2: "computed by the service
+    # layer, not filled in by the agent").
 
 
 class ProposeResolutionRequest(BaseModel):
@@ -54,12 +55,12 @@ class ProposeResolutionRequest(BaseModel):
 
 
 class ApproveResolutionRequest(BaseModel):
-    """AUTH5-04/05/05B (đợt nâng cấp Auth Flow 2026-08-12) — sếp phải xin OTP
-    riêng cho ĐÚNG resolution_id này (POST .../request-approval-otp) trước,
-    rồi mới duyệt được — không dùng chung OTP đã xác thực cho case khác.
+    """AUTH5-04/05/05B (Auth Flow upgrade 2026-08-12) — the supervisor must first request an
+    OTP for EXACTLY this resolution_id (POST .../request-approval-otp) before approving —
+    an OTP already verified for another case cannot be reused.
 
-    `session_id` (vá race condition, 2026-08-13 — cùng lý do OtpVerifyRequest)
-    — tra thẳng theo khoá chính AuthSession, không còn "mới nhất theo
+    `session_id` (race-condition fix, 2026-08-13 — same reason as OtpVerifyRequest)
+    — looked up directly by the AuthSession primary key, no longer "latest by
     resolution_id"."""
 
     session_id: str
@@ -67,26 +68,26 @@ class ApproveResolutionRequest(BaseModel):
 
 
 class RejectResolutionRequest(BaseModel):
-    """ADR-019 — từ chối PHẢI kèm lý do có cấu trúc.
+    """ADR-019 — a rejection MUST include a structured reason.
 
-    Dùng `Literal` chứ không phải `str`: giá trị sai bị chặn ngay ở tầng schema
-    với thông báo liệt kê đủ lựa chọn, thay vì để CHECK constraint ném
-    IntegrityError 500 xuống người dùng. Hai lớp cùng canh một luật là CÓ CHỦ
-    ĐÍCH — schema lo trải nghiệm, CHECK lo toàn vẹn kể cả khi có ai ghi thẳng
-    vào DB (lý do đầy đủ ở ADR-019).
+    `Literal` rather than `str`: a wrong value is blocked right at the schema layer with a
+    message listing all options, instead of letting a CHECK constraint throw an
+    IntegrityError 500 at the user. Two layers guarding the same rule is DELIBERATE —
+    the schema handles user experience, the CHECK handles integrity even if someone writes
+    straight to the DB (full reasoning in ADR-019).
 
-    `note` (ADR-024, TM-03 sign-off security) — ghi chú tự do khi từ chối.
-    Scrub PII + cờ injection thật diễn ra ở route (`src/api/main.py`), KHÔNG ở
-    đây: schema chỉ lo hình dạng (độ dài, có/thiếu), không chạm dữ liệu nhạy
-    cảm trước khi tới tầng scrub.
+    `note` (ADR-024, TM-03 security sign-off) — free-text note on rejection.
+    PII scrubbing + the real injection flag happen in the route (`src/api/main.py`), NOT
+    here: the schema only cares about shape (length, present/missing) and never touches
+    sensitive data before it reaches the scrub layer.
 
-    `max_length=500` bắt lỗi 501 ký tự ở TẦNG SCHEMA (422, thông báo rõ ràng)
-    thay vì để CHECK constraint tầng DB ném IntegrityError 500 — cùng triết lý
-    "schema lo trải nghiệm, CHECK lo toàn vẹn" đã áp cho `reason` ở trên.
+    `max_length=500` catches a 501-character note at the SCHEMA LAYER (422, clear message)
+    rather than letting the DB-layer CHECK constraint throw IntegrityError 500 — the same
+    "schema handles UX, CHECK handles integrity" philosophy applied to `reason` above.
 
-    Chuẩn hoá rỗng/toàn-khoảng-trắng THÀNH thiếu (`None`) trước khi áp luật
-    "bắt buộc khi reason='khac'": đây là đường lách kinh điển — một validator
-    chỉ kiểm `note is not None` thì một dấu cách là qua được.
+    Empty/whitespace-only is normalised INTO missing (`None`) before applying the rule
+    "required when reason='khac' (other)": this is the classic bypass — a validator that only
+    checks `note is not None` lets a single space through.
     """
 
     reason: Literal[
@@ -101,7 +102,7 @@ class RejectResolutionRequest(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
-    def _note_bat_buoc_khi_khac(self) -> RejectResolutionRequest:
+    def _note_required_when_other(self) -> RejectResolutionRequest:
         if self.note is not None and not self.note.strip():
             self.note = None
         if self.reason == "khac" and not self.note:
@@ -119,21 +120,20 @@ class EscalateTicketRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """Đăng nhập bằng mật khẩu thật (quyết định 2026-08-12 — thay luồng
-    phone+role chọn tay trước đó). KHÔNG còn field `role` — vai trò lấy từ
-    chính user tìm được qua `phone` trong DB, không do client tự khai (đúng
-    nguyên tắc "danh tính không bao giờ tự khai" đã áp dụng xuyên suốt file
-    này)."""
+    """Login with a real password (decision 2026-08-12 — replaced the earlier hand-picked
+    phone+role flow). There is NO `role` field any more — the role comes from the user found
+    via `phone` in the DB, not declared by the client (the "identity is never self-declared"
+    principle applied throughout this file)."""
 
     phone: str
     password: str
 
 
 class RefreshTokenRequest(BaseModel):
-    """AUTH5-02/03 (đợt nâng cấp Auth Flow 2026-08-12) — refresh_token KHÔNG
-    phải JWT (chuỗi ngẫu nhiên, xem src/auth.py::mint_refresh_token), gửi
-    trong body vì backend không có quyền truy cập cookie trình duyệt (kiến
-    trúc BFF — chỉ Next.js route handler đọc cookie httpOnly rồi forward)."""
+    """AUTH5-02/03 (Auth Flow upgrade 2026-08-12) — refresh_token is NOT a JWT (a random
+    string, see src/auth.py::mint_refresh_token), sent in the body because the backend has no
+    access to browser cookies (BFF architecture — only the Next.js route handler reads the
+    httpOnly cookie and forwards it)."""
 
     refresh_token: str
 
@@ -143,18 +143,17 @@ class RequestMoreInfoRequest(BaseModel):
 
 
 class OtpVerifyRequest(BaseModel):
-    """AUTH5-01 (đợt nâng cấp Auth Flow 2026-08-12) — `security_answer` đã bỏ:
-    câu hỏi bảo mật không còn là authenticator (NIST SP 800-63B-4), mã OTP là
-    yếu tố step-up duy nhất.
+    """AUTH5-01 (Auth Flow upgrade 2026-08-12) — `security_answer` was removed:
+    security questions are no longer an authenticator (NIST SP 800-63B-4); the OTP code is
+    the only step-up factor.
 
-    `session_id` (vá race condition, 2026-08-13) — bắt buộc, phải khớp ĐÚNG
-    AuthSession trả về từ /auth/otp/request vừa gọi. Trước đây verify chỉ tra
-    "AuthSession mới nhất của user" — dưới tải đồng thời thật (FastAPI chạy
-    route sync trong threadpool, nhiều thread cùng ghi SQLite WAL), 1 request
-    verify có thể đọc phải snapshot CŨ chưa thấy AuthSession vừa tạo, so
-    nhầm với mã OTP của phiên trước đó và từ chối nhầm mã đúng. Tra thẳng
-    theo session_id (khoá chính) loại bỏ hoàn toàn sự mơ hồ này — không phụ
-    thuộc "mới nhất theo thời gian" nữa."""
+    `session_id` (race-condition fix, 2026-08-13) — mandatory, must match EXACTLY the
+    AuthSession returned by the /auth/otp/request just called. Previously verify only looked
+    up "the user's latest AuthSession" — under real concurrent load (FastAPI runs sync routes
+    in a threadpool, several threads writing to SQLite WAL), a verify request could read an
+    OLD snapshot that didn't yet see the newly created AuthSession, compare against the
+    previous session's OTP and wrongly reject a correct code. Looking up by session_id
+    (primary key) removes that ambiguity entirely — no more reliance on "latest by time"."""
 
     session_id: str
     otp_code: str
@@ -162,54 +161,53 @@ class OtpVerifyRequest(BaseModel):
 
 class AgentChatRequest(BaseModel):
     # max_length=4000 (CONSUME-001, FIN05_QA_TestCases.jsonl, OWASP LLM10:2025
-    # Unbounded Consumption) — trước đây KHÔNG giới hạn gì, 1 message dài bất
-    # thường (vd flood hàng chục nghìn ký tự) vẫn được chuyển thẳng vào ngữ
-    # cảnh LLM, tốn token/tiền không kiểm soát. 4000 ký tự đủ rộng cho hội
-    # thoại CSKH thật (khiếu nại dài nhất trong dataset mẫu chưa tới 500 ký
-    # tự), FastAPI/Pydantic tự trả 422 rõ ràng khi vượt — không cần code tay.
+    # Unbounded Consumption) — previously there was NO limit; one abnormally long message
+    # (e.g. a flood of tens of thousands of characters) went straight into the LLM context,
+    # burning tokens/money uncontrollably. 4,000 characters is ample for real customer-service
+    # conversations (the longest complaint in the sample dataset is under 500 characters), and
+    # FastAPI/Pydantic return a clear 422 when exceeded — no hand-written code needed.
     message: str = Field(max_length=4000)
-    # Cờ TƯỜNG MINH từ frontend (scratchpad/nhap-cong-thu-slot-sau-otp.md
-    # mục 1) — báo lượt này là ChatClient.tsx::submitOtp() TỰ GỬI LẠI câu đã
-    # bị chặn OTP, KHÔNG suy từ khoảng cách thời gian giữa otp_verified_at
-    # và lúc tin nhắn tới (một câu KHÁC hẳn gõ ngay sau OTP sẽ bị áp nhầm
-    # nếu đo bằng mốc giờ). Mặc định False giữ nguyên hành vi cho mọi client
-    # cũ/test chưa gửi trường này.
+    # EXPLICIT flag from the frontend (scratchpad/nhap-cong-thu-slot-sau-otp.md
+    # item 1) — signals that this turn is ChatClient.tsx::submitOtp() AUTOMATICALLY RE-SENDING the
+    # message that was blocked by OTP, rather than inferring it from the time gap between
+    # otp_verified_at and the message's arrival (a COMPLETELY different message typed right after
+    # OTP would be misclassified if measured by timestamps). Default False preserves behaviour for
+    # every old client/test that doesn't send this field.
     vua_xac_thuc_de_gui_lai: bool = False
 
 
 class PolicySearchRequest(BaseModel):
-    """Trước bản này chỉ có `query`, và endpoint KHÔNG truyền `k` — mọi lượt
-    trả đúng `RAG_SEARCH_TOP_K`=4 bất kể client gửi gì.
+    """Before this version there was only `query`, and the endpoint did NOT pass `k` — every
+    call returned exactly `RAG_SEARCH_TOP_K`=4 regardless of what the client sent.
 
-    Con số 4 là chủ đích. Việc BỎ QUA `k` của client thì không: Pydantic mặc
-    định **im lặng vứt field lạ**, nên client gửi `{"query":..., "k":3}` nhận
-    về 4 kết quả kèm HTTP 200, không một cảnh báo nào. Cả bộ đo của tester lẫn
-    các lượt probe của chính tech-lead đều gửi `k` và đọc "4 kết quả" mà không
-    ai hỏi tại sao — cùng họ với `bo_qua_thieu_chunk`: một nhánh im lặng trông
-    y hệt một kết quả hợp lệ.
+    The number 4 is intentional. IGNORING the client's `k` was not: Pydantic by default
+    **silently drops unknown fields**, so a client sending `{"query":..., "k":3}` got
+    4 results with HTTP 200 and not a single warning. Both the tester's measurement suite and
+    the tech-lead's own probes sent `k` and read "4 results" without anyone asking why — same
+    family as `skipped_missing_chunk`: a silent branch that looks exactly like a valid result.
 
-    `extra="forbid"` diệt cả HỌ lỗi đó cho model này, không riêng ca `k`: sai
-    tên trường từ nay là 422, không phải một con số sai âm thầm.
+    `extra="forbid"` kills that whole FAMILY of bugs for this model, not just the `k` case:
+    a wrong field name is now a 422, not a silently wrong number.
 
-    Trần `le=8`: `k` do client đặt đi thẳng vào truy vấn vector, không giới hạn
-    thì một request lẻ kéo được cả kho ra.
+    Cap `le=8`: the client-supplied `k` goes straight into the vector query; without a cap a
+    single request could pull out the whole store.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     query: str
     top_k: int = Field(default=RAG_SEARCH_TOP_K, ge=1, le=8)
-    # ADR-062 — Lớp 1 (scope-filter, ADR-061) cần biết CSKH đang tra chính
-    # sách CHO vé nào để lọc đúng phạm vi giao dịch. Optional: KHÔNG truyền
-    # = hành vi CŨ (không lọc scope), client cũ không vỡ. Route tự tra
-    # `Complaint.scope` — không tin `scope` do client tự khai (client không
-    # được phép TỰ NÓI phạm vi, chỉ được NÓI đang tra vé nào).
+    # ADR-062 — Layer 1 (scope filter, ADR-061) needs to know which ticket CSKH is looking up
+    # policy FOR, to filter by the right transaction scope. Optional: NOT passing it
+    # = the OLD behaviour (no scope filtering), old clients don't break. The route looks up
+    # `Complaint.scope` itself — it never trusts a client-declared `scope` (the client may not
+    # STATE the scope itself, only STATE which ticket it is looking up).
     complaint_id: str | None = None
 
 
 class LiveChatWsTicketRequest(BaseModel):
-    """Live chat (2026-08-11) — khách bấm "gặp người thật" cho 1 ticket ĐÃ
-    có sẵn (human_handoff_requested, tạo qua request_human_handoff)."""
+    """Live chat (2026-08-11) — the customer clicks "talk to a human" for an EXISTING ticket
+    (human_handoff_requested, created via request_human_handoff)."""
     ticket_id: str
 
 

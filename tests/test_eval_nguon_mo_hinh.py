@@ -102,8 +102,8 @@ def test_banner_kem_theo_o_dau_bao_cao_khong_bi_chon_vui(write_report, tmp_path,
     out_path = tmp_path / "report.md"
     # `results=[]` — 0 case, đủ để kiểm banner mà không cần chạy agent thật.
     write_report([], out_path, info)
-    noi_dung = out_path.read_text(encoding="utf-8")
-    dau_bao_cao = "\n".join(noi_dung.splitlines()[:5])
+    content_text = out_path.read_text(encoding="utf-8")
+    dau_bao_cao = "\n".join(content_text.splitlines()[:5])
     assert "KHÔNG DÙNG ĐƯỢC" in dau_bao_cao, (
         f"Banner tự khai không nằm trong 5 dòng đầu báo cáo — dễ bị người đọc "
         f"lướt bỏ qua. 5 dòng đầu thật:\n{dau_bao_cao}"

@@ -116,10 +116,10 @@ async def main(n_sessions):
             await asyncio.sleep(3)
     tong = sum(len(r.get("mat_tin", [])) for r in results)
     lap = sum(len(r.get("lap_tin", [])) for r in results)
-    loi = [r for r in results if r.get("loi")]
+    err = [r for r in results if r.get("loi")]
     chan = [r["phien"] for r in results if r.get("bi_rate_limit")]
     print(f"\nTỔNG: {n_sessions} phiên × {ROUNDS} tin/chiều = {n_sessions*ROUNDS*2} tin · "
-          f"MẤT {tong} · LẶP {lap} · phiên lỗi {len(loi)} · phiên đụng rate-limit {chan}")
+          f"MẤT {tong} · LẶP {lap} · phiên lỗi {len(err)} · phiên đụng rate-limit {chan}")
     if chan:
         print("  (phiên đụng rate-limit KHÔNG tính là mất tin — 60 tin/giờ/người là đúng thiết kế)")
 

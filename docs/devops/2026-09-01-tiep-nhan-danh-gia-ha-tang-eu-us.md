@@ -52,7 +52,7 @@ chạy lại `python scripts/export_project_knowledge.py` không thuộc vùng g
 | P1-5 | Có trace (Jaeger), không có ngưỡng cảnh báo tự động | Không đổi — vẫn không thấy Prometheus/Grafana/tương đương trong `docker-compose.yml`. Phát hiện sự cố vẫn phụ thuộc người tự đọc log — đúng mẫu hình đã gây sự cố P1-6 dưới đây (không ai canh RAM tới khi mất lượt trả tiền thật). |
 | P1-6 | Không service backend nào đặt `mem_limit`/`mem_reservation` | `grep -n "mem_limit\|mem_reservation" docker-compose.yml` → **0 kết quả**. **Vẫn treo y hệt 25/08**, dù đã từng gây mất 4 lượt agent trả tiền thật do OOM-kill không kiểm soát. Đây là mục P1 rẻ nhất/rủi ro thật nhất còn tồn đọng lâu nhất trong toàn bộ danh sách — khuyến nghị Lead ưu tiên ngay sau buổi quay. |
 | P2-1 → P2-5 | Runner CI dùng chung FIFO · TLS không ghim version/cipher · 72 volume mồ côi/27GB cache · không lịch lưu trữ/xoá dữ liệu · audit log không chống sửa | Không có dữ kiện mới trong 10 commit gần nhất thay đổi bất kỳ mục nào — giữ nguyên trạng 25/08. P2-4 nay có thêm bằng chứng chéo từ báo cáo bảo mật hôm nay: `contracts/authority-matrix.yaml` vẫn 0 route export/xoá dữ liệu (Điều 15/17 Luật 91/2025) — cùng một khoảng trống nhìn từ hai góc (hạ tầng lưu trữ vs. route ứng dụng). |
-| P3-1 | `PHAN_LUONG_BAT` mặc định khác nhau giữa `make run` và Docker compose | Không đổi. |
+| P3-1 | `TRIAGE_ENABLED` mặc định khác nhau giữa `make run` và Docker compose | Không đổi. |
 
 ## 3. Trạng thái đóng băng hiện tại — điều Lead PHẢI biết trước khi giao việc
 

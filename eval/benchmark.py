@@ -107,7 +107,7 @@ K_SOI = 8  # trần `top_k` của API; chỉ dùng cho DẢI CHẨN ĐOÁN, khô
 HANG_CHAN_DOAN = (1, 3, 4, 8)
 
 
-def bo_dau(s: str) -> str:
+def strip_diacritics(s: str) -> str:
     """Bỏ dấu tiếng Việt. PHẢI áp cho CẢ HAI vế khi so từ khoá.
 
     Sản phẩm bỏ dấu ở cả lúc index lẫn lúc tra. Bộ chấm chỉ bỏ một vế là đang đo
@@ -207,7 +207,7 @@ def dan_nhan(so_ca: int) -> dict:
         build = "🔴 KHÔNG ĐỌC ĐƯỢC BUILD_COMMIT — image CŨ, số đo trên stack này KHÔNG dùng được"
     nhan["stack"] = f"{ten_stack} · build {build}"
     for ten, c in (("backend", "fin05-backend-1"), ("frontend", "fin05-frontend-1")):
-        dang_chay = bool(_chay(["docker", "ps", "-q", "-f", f"name={c}"]))
+        running = bool(_chay(["docker", "ps", "-q", "-f", f"name={c}"]))
         nhan[f"{ten}_image"] = (_chay(["docker", "inspect", c, "--format", "{{.Image}}"]) or "?")[7:19]
         # Container KHÔNG chạy thì `StartedAt` là `0001-01-01T00:00:00` — một
         # NGÀY HỢP LỆ VỀ HÌNH THỨC cho một trạng thái không tồn tại. Nhãn in ra
@@ -216,7 +216,7 @@ def dan_nhan(so_ca: int) -> dict:
         # hợp lệ vào chỗ đáng lẽ phải kêu.
         nhan[f"{ten}_started"] = (
             _chay(["docker", "inspect", c, "--format", "{{.State.StartedAt}}"])[:19]
-            if dang_chay else "🔴 CONTAINER KHÔNG CHẠY")
+            if running else "🔴 CONTAINER KHÔNG CHẠY")
     # NHÃN KHO — thêm 16/08 sau khi thiếu nó suýt làm tôi báo cáo sai.
     # Hai lượt chấm cùng ra 35,7% được coi là "cùng một phép đo lặp lại", trong
     # khi kho đã đổi 362 chunk/2 doc → 419 chunk/4 doc giữa hai lượt (đòn 4).
@@ -374,8 +374,8 @@ def _tra_agent(c, q: str) -> tuple[list[str], bool]:
         if "policy" not in str(t.get("tool_name", "")).lower():
             continue
         co_goi = True
-        kq = t.get("result")
-        muc = kq.get("results") if isinstance(kq, dict) else kq
+        res = t.get("result")
+        muc = res.get("results") if isinstance(res, dict) else res
         for m in (muc or []):
             doan.append(m.get("text", "") if isinstance(m, dict) else str(m))
     return doan[:K], co_goi
@@ -404,13 +404,13 @@ def do_truy_hoi(ca: list[dict], che_do: str = "lap") -> dict:
     KHÔNG phải phần bug 19/08 đang vá.
     """
     httpx = __import__("httpx")
-    duong = [x for x in ca if x["ky_vong"] == "co_trong_kho"]
+    route = [x for x in ca if x["ky_vong"] == "co_trong_kho"]
     am = [x for x in ca if x["ky_vong"] != "co_trong_kho"]
     c = _dang_nhap(httpx)
     canary_kho(c)
     ket = {"co_dau": [], "khong_dau": []}
     khong_goi_tool: list[str] = []  # ca id — chỉ có ý nghĩa khi che_do == "moc"
-    for x in duong:
+    for x in route:
         for kieu_dau, khoa in (("co_dau", "query_co_dau"), ("khong_dau", "query_khong_dau")):
             if che_do == "moc":
                 doan, co_goi = _tra_agent(c, x[khoa])
@@ -418,23 +418,23 @@ def do_truy_hoi(ca: list[dict], che_do: str = "lap") -> dict:
                     khong_goi_tool.append(x["id"])
             else:
                 doan = _tra(c, x[khoa], K_SOI)
-            gop = bo_dau(" ".join(doan[:K]))
+            gop = strip_diacritics(" ".join(doan[:K]))
             # LUẬT ĐẶC TRƯNG (PO duyệt 16/08): chỉ `tu_khoa_dac_trung` mới cho ĐẠT.
             # `tu_khoa_phu` in ra để đọc, KHÔNG có quyền chấm — vì ca đạt nhờ từ
             # chung ("hạn mức", "ngân hàng") khớp được cả chunk BÊN CẠNH lẫn dòng
             # mục lục, tạo PASS GIẢ im lặng (xem RAG-04, và 9 ca rà ngày 16/08).
             hang = next(
                 (i + 1 for i, d in enumerate(doan)   # hạng soi tới K_SOI=8 (chỉ tới K nếu che_do=moc, xem docstring)
-                 if any(bo_dau(tk) in bo_dau(d) for tk in x["tu_khoa_dac_trung"])), 0
+                 if any(strip_diacritics(tk) in strip_diacritics(d) for tk in x["tu_khoa_dac_trung"])), 0
             )
-            dat = any(bo_dau(tk) in gop for tk in x["tu_khoa_dac_trung"])
-            phu = [tk for tk in x["tu_khoa_phu"] if bo_dau(tk) in gop]
+            dat = any(strip_diacritics(tk) in gop for tk in x["tu_khoa_dac_trung"])
+            phu = [tk for tk in x["tu_khoa_phu"] if strip_diacritics(tk) in gop]
             ket[kieu_dau].append(
                 {"id": x["id"], "dat": dat, "so_doan": len(doan), "phu_khop": phu,
                  "hang": hang, "tai_lieu": (x.get("nguon") or {}).get("tai_lieu", "?")}
             )
     c.close()
-    return {"duong": ket, "so_am_ban": len(am), "so_duong": len(duong), "khong_goi_tool": khong_goi_tool}
+    return {"duong": ket, "so_am_ban": len(am), "so_duong": len(route), "khong_goi_tool": khong_goi_tool}
 
 
 def mrr_ndcg(r: list[dict], k: int) -> tuple[float, float]:
@@ -463,11 +463,11 @@ def mrr_ndcg(r: list[dict], k: int) -> tuple[float, float]:
     return mrr, ndcg
 
 
-def in_truy_hoi(kq: dict) -> float:
+def in_truy_hoi(res: dict) -> float:
     print(f"\n── TRỤC TRUY HỒI (Recall@{K}, trung bình HAI chế độ gõ) ──")
     ti = {}
     for che_do in ("co_dau", "khong_dau"):
-        r = kq["duong"][che_do]
+        r = res["duong"][che_do]
         dat = sum(1 for x in r if x["dat"])
         ti[che_do] = dat / len(r) if r else 0.0
         hong = [x["id"] for x in r if not x["dat"]]
@@ -476,7 +476,7 @@ def in_truy_hoi(kq: dict) -> float:
         if gia:
             print(f"  {'':11} ↳ {len(gia)} ca TRƯỢT nhưng vẫn khớp từ-khoá-phụ "
                   f"(= PASS GIẢ dưới thước cũ): {', '.join(gia)}")
-    r = kq["duong"]["co_dau"]
+    r = res["duong"]["co_dau"]
     print("  dải chẩn đoán (co_dau) — hạng của chunk đúng:")
     for k in HANG_CHAN_DOAN:
         n = sum(1 for x in r if 0 < x["hang"] <= k)
@@ -496,7 +496,7 @@ def in_truy_hoi(kq: dict) -> float:
           f"/{len(r) - len(tos)}")
     tb = (ti["co_dau"] + ti["khong_dau"]) / 2
     print(f"  {'TRUNG BÌNH':11} {tb*100:5.1f}%   → điểm trục = 20 × {tb:.4f} = {20*tb:.2f}")
-    print(f"\n  ({kq['so_am_ban']} ca ÂM BẢN KHÔNG chấm ở trục này — retrieval luôn trả k chunk,")
+    print(f"\n  ({res['so_am_ban']} ca ÂM BẢN KHÔNG chấm ở trục này — retrieval luôn trả k chunk,")
     print("   nó không có khái niệm 'không tìm thấy'. Chúng đo AGENT, thuộc trục khác.)")
     return 20 * tb
 
@@ -621,13 +621,13 @@ def main() -> int:
         # KHÔNG gọi cong_dong_bang() ở đây — _tra_agent() đã tự gọi nó cho
         # MỖI lượt bên trong do_truy_hoi(), gọi thêm ở đây là trùng lặp vô ích.
 
-    kq = do_truy_hoi(ca, che_do=a.che_do)
-    diem = in_truy_hoi(kq)
+    res = do_truy_hoi(ca, che_do=a.che_do)
+    diem = in_truy_hoi(res)
 
-    if kq.get("khong_goi_tool"):
-        print(f"\n  🔴 {len(kq['khong_goi_tool'])} lượt agent KHÔNG gọi tool policy-search "
-              f"(chế độ hỏng khác hẳn 'gọi tool nhưng truy hồi trượt'): {kq['khong_goi_tool'][:10]}"
-              + (" …" if len(kq["khong_goi_tool"]) > 10 else ""))
+    if res.get("khong_goi_tool"):
+        print(f"\n  🔴 {len(res['khong_goi_tool'])} lượt agent KHÔNG gọi tool policy-search "
+              f"(chế độ hỏng khác hẳn 'gọi tool nhưng truy hồi trượt'): {res['khong_goi_tool'][:10]}"
+              + (" …" if len(res["khong_goi_tool"]) > 10 else ""))
 
     truoc = GOC / "eval" / "results" / "benchmark_lan_truoc.json"
     if truoc.exists():
@@ -640,7 +640,7 @@ def main() -> int:
     truoc.write_text(json.dumps({**nhan, "diem_truy_hoi": diem}, ensure_ascii=False, indent=2))
 
     if a.khoi_spec:
-        r = kq["duong"]["co_dau"]
+        r = res["duong"]["co_dau"]
         tos = [x for x in r if x["tai_lieu"] == "MoMo_ToS"]
         in_khoi_spec(nhan, [
             ("An toàn (30)", 30.0, 30, "invariants + adversarial + over-block"),

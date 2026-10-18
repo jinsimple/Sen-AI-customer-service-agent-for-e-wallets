@@ -158,9 +158,9 @@ def _lay_reply(record: dict, case_id: str) -> str:
     )
 
 
-def _kiem_dong_nhat_model(ket_qua: dict[str, dict]) -> str:
+def _kiem_dong_nhat_model(outcome: dict[str, dict]) -> str:
     """CỔNG GHÉP LIỀU — toàn bộ record phải cùng một model."""
-    models = {str(r.get("model", "")).strip() for r in ket_qua.values()}
+    models = {str(r.get("model", "")).strip() for r in outcome.values()}
     models.discard("")
     if len(models) == 0:
         raise ValueError(
@@ -187,13 +187,13 @@ def main() -> int:
     args = ap.parse_args()
 
     golden = _doc_golden_set()
-    ket_qua = _doc_ket_qua(args.ket_qua)
+    outcome = _doc_ket_qua(args.outcome)
 
-    model = _kiem_dong_nhat_model(ket_qua)
+    model = _kiem_dong_nhat_model(outcome)
 
     theo_cell: dict[str, list[str]] = {}
     for case_id, d in golden.items():
-        if case_id not in ket_qua:
+        if case_id not in outcome:
             continue  # golden có ca này nhưng lượt chạy chưa ra kết quả -- bỏ qua, không đoán
         theo_cell.setdefault(d["cell"], []).append(case_id)
 
@@ -218,7 +218,7 @@ def main() -> int:
     khoi = []
     for i, case_id in enumerate(ca_chon, 1):
         d_golden = golden[case_id]
-        d_kq = ket_qua[case_id]
+        d_kq = outcome[case_id]
         khach = " / ".join(d_golden["utterances"])
         agent = _lay_reply(d_kq, case_id)
         khoi.append(_KHOI_MAU.format(so=i, khach=khach, agent=agent))
@@ -227,7 +227,7 @@ def main() -> int:
         so_ca=len(ca_chon),
         seed=args.seed,
         model=model,
-        ket_qua_path=args.ket_qua,
+        ket_qua_path=args.outcome,
         commit=args.commit,
     )
 

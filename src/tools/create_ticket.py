@@ -1,13 +1,13 @@
-"""Tool 3/5 — `create_ticket` (PRD §6, Data Brief §6.3 hàng 3).
+"""Tool 3/5 — `create_ticket` (PRD §6, Data Brief §6.3 row 3).
 
-Test bắt buộc: từ chối nếu `trans_id` không tồn tại, TRỪ đúng trường hợp
-not_found được cho phép (khách khiếu nại nhưng agent chưa tra ra giao dịch
-nào khớp — `complaints.trans_id` NULL, Data Brief §4.2).
+Required tests: reject if `trans_id` does not exist, EXCEPT the one allowed not_found case
+(the customer complains but the agent has not found any matching transaction —
+`complaints.trans_id` is NULL, Data Brief §4.2).
 
-Luôn tạo Complaint + Ticket trong cùng một transaction. `assigned_role`
-luôn là 'cskh' — AI không bao giờ vượt cấp thẳng lên supervisor, mọi kết
-quả điều tra phải qua CSKH tiếp nhận trước (business_rules.md nguyên tắc
-Brief §6.5 / thiết kế đã sửa ở FIN-05 §4 quyết định 1-2).
+Complaint + Ticket are always created in the same transaction. `assigned_role`
+is always 'cskh' — the AI never escalates straight to a supervisor; every investigation
+result must first be taken in by CSKH (business_rules.md principle
+Brief §6.5 / the corrected design in FIN-05 §4 decisions 1-2).
 """
 from __future__ import annotations
 
@@ -17,10 +17,10 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.db.models import Complaint, Ticket, Transaction, User
-from src.services.notifications import notify_ve_moi
+from src.services.notifications import notify_new_ticket
 from src.tools.base import ToolError, _new_id, record_tool_result
 from src.tools.fraud_policy import evaluate_escalation
-from src.tools.lookup_transaction import la_mot_ben_cua_giao_dich
+from src.tools.lookup_transaction import is_party_to_transaction
 from src.tools.sla import compute_sla_due_at
 
 VALID_COMPLAINT_TYPES = {"wrong_recipient", "money_not_received", "double_charge", "refund", "other"}
@@ -38,9 +38,9 @@ def create_ticket(
     otp_disclosed: bool = False,
     fraud_signals: list[str] | None = None,
     now: dt.datetime | None = None,
-    # ADR-044 — ghi thẳng vào Complaint.thread_id lúc INSERT. None hợp lệ
-    # (NULLABLE VĨNH VIỄN) — caller không có phiên chat (REST trực tiếp,
-    # test cũ) không truyền được giá trị này, không phải lỗi.
+    # ADR-044 — written straight into Complaint.thread_id on INSERT. None is valid
+    # (PERMANENTLY NULLABLE) — callers without a chat session (direct REST, old tests) cannot
+    # pass this value; that is not an error.
     thread_id: str | None = None,
 ) -> dict[str, Any]:
     if complaint_type not in VALID_COMPLAINT_TYPES:
@@ -51,22 +51,23 @@ def create_ticket(
         raise ToolError(f"user_id không tồn tại: {user_id}")
 
     if trans_id is not None:
-        # (từ chối nếu trans_id không tồn tại) — not_found hợp lệ chỉ khi
-        # trans_id là None, tức agent đã tra và không ra kết quả nào.
+        # (reject if trans_id does not exist) — not_found is valid only when
+        # trans_id is None, i.e. the agent looked it up and found nothing.
         txn = session.get(Transaction, trans_id)
         if txn is None:
             raise ToolError(
                 f"trans_id không tồn tại: {trans_id} — nếu đây là case không tra ra "
                 "giao dịch, gọi lại với trans_id=None thay vì đoán một mã"
             )
-        # C4/BOLA (ADR-021) — tồn tại là CHƯA ĐỦ, phải THUỘC VỀ người khiếu nại.
-        # Siết vô điều kiện được vì contract cho route /tools/create_ticket đúng
-        # một vai `customer`; và vì cả đường REST lẫn đường AI cùng đi qua hàm
-        # này, một chỗ sửa phủ cả hai. Không kiểm thì một khách tạo được ticket
-        # tham chiếu giao dịch của khách KHÁC — không lộ số liệu (tool không trả
-        # chi tiết) nhưng CSKH có thể xử lý nhầm trên dữ liệu không thuộc người
-        # khiếu nại, và đó là nhiễu vào chính hồ sơ kiểm toán.
-        if not la_mot_ben_cua_giao_dich(session, txn, user_id):
+        # C4/BOLA (ADR-021) — existing is NOT ENOUGH, it must BELONG to the complainant.
+        # This can be enforced unconditionally because the contract allows exactly one role
+        # (`customer`) on route /tools/create_ticket; and since both the REST path and the AI path
+        # go
+        # through this function, one fix covers both. Without the check a customer could create a
+        # ticket referencing ANOTHER customer's transaction — no figures leak (the tool returns no
+        # details), but CSKH could act on data that does not belong to the complainant, and that is
+        # noise in the audit record itself.
+        if not is_party_to_transaction(session, txn, user_id):
             raise ToolError(
                 f"trans_id không thuộc về người khiếu nại: {trans_id} — chỉ tạo hồ sơ "
                 "cho giao dịch mà chính khách là một bên"
@@ -109,9 +110,9 @@ def create_ticket(
     session.add(ticket)
     session.flush()
 
-    # ADR-063 — fan-out CÙNG transaction: vé rollback thì thông báo rollback
-    # theo, không có thông báo "ma" cho vé chưa từng thành hình.
-    notify_ve_moi(session, ticket_id=ticket_id)
+    # ADR-063 — fan-out in the SAME transaction: if the ticket rolls back, so does the
+    # notification — no "ghost" notifications for a ticket that never materialised.
+    notify_new_ticket(session, ticket_id=ticket_id)
 
     result = {
         "complaint_id": complaint_id,

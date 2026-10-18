@@ -1871,7 +1871,7 @@ không liệt kê theo trí nhớ.
 
 **Đã kiểm, KHÔNG đưa vào bảng trên (loại có chủ đích):**
 - `tests/test_security/test_jwt_revocation.py`, `tests/test_security/test_security_answer_hash.py` — cũng mang `@pytest.mark.security_finding`, nhưng chạy trực tiếp [ĐO 20/08] cả hai **ĐANG XANH** — finding đã vá, marker là dấu vết lịch sử, không phải cổng đang cố ý đỏ.
-- `tests/test_agents/test_f31_f32_duong_agent_that.py` — [ĐO 20/08] `5 skipped`, không phải đỏ — bị `skipif` bởi cổng chi phí (`FIN05_CHO_PHEP_TON_TIEN`), khác loại với "cố ý đỏ chờ vá".
+- `tests/test_agents/test_f31_f32_duong_agent_that.py` — [ĐO 20/08] `5 skipped`, không phải đỏ — bị `skipif` bởi cổng chi phí (`FIN05_ALLOW_PAID_CALLS`), khác loại với "cố ý đỏ chờ vá".
 
 Gặp một cổng đỏ không rõ mới/cũ mà không có ở đây: tra `git log -- <file>` +
 `grep -rl <tên file> docs/` trước khi đoán, rồi **thêm một dòng vào bảng

@@ -49,7 +49,7 @@ import uuid
 import pytest
 
 try:
-    from src.agents.output_filter import loc_dau_ra
+    from src.agents.output_filter import filter_output
 except ImportError:
     pytest.skip(
         "Bộ lọc đầu ra chưa import được từ host — 'chưa đo được', KHÔNG phải 'đạt'.",
@@ -78,22 +78,22 @@ _KET_QUA_TOOL_LUOT_NAY: list[dict] = [
 ]
 
 
-def _rap_nguon(ket_qua: list[dict]) -> str:
-    return "\n".join(json.dumps(r, ensure_ascii=False) for r in ket_qua)
+def _rap_nguon(outcome: list[dict]) -> str:
+    return "\n".join(json.dumps(r, ensure_ascii=False) for r in outcome)
 
 
 _NGUON = _rap_nguon(_KET_QUA_TOOL_LUOT_NAY)
 _KHACH = "Cho mình xem hai giao dịch gần đây với."  # không chứa chữ số nào
 
 
-def _goi(reply: str, nguon: str = _NGUON, khach: str = _KHACH):
-    moi, nhom = loc_dau_ra(
+def _goi(reply: str, source: str = _NGUON, khach: str = _KHACH):
+    fresh, phrase_group = filter_output(
         reply,
-        nguon=nguon,
-        tin_nhan_khach=khach,
+        source=source,
+        customer_message=khach,
         thread_id=f"O3GATE-{uuid.uuid4().hex[:12]}",
     )
-    return moi, nhom
+    return fresh, phrase_group
 
 
 # ===========================================================================
@@ -110,9 +110,9 @@ def _goi(reply: str, nguon: str = _NGUON, khach: str = _KHACH):
     ],
 )
 def test_ngay_cham_gach_khoang_trang_phai_qua(reply: str):
-    moi, nhom = _goi(reply)
-    assert moi == reply, (
-        f"CHẶN OAN ngày hợp lệ (nhóm={nhom}). Cơ chế lỗi #1 của brief: "
+    fresh, phrase_group = _goi(reply)
+    assert fresh == reply, (
+        f"CHẶN OAN ngày hợp lệ (nhóm={phrase_group}). Cơ chế lỗi #1 của brief: "
         "dấu phân cách văn xuôi bị dán thành dãy ma ≥7 chữ số."
     )
 
@@ -124,9 +124,9 @@ def test_ngay_cham_gach_khoang_trang_phai_qua(reply: str):
 # ===========================================================================
 def test_hai_so_tien_hop_le_canh_nhau_phai_qua():
     reply = "Hai khoản gần nhất của bạn là 1.100.000, 262.000 — cả hai đều đã hoàn tất."
-    moi, nhom = _goi(reply)
-    assert moi == reply, (
-        f"CHẶN OAN hai số tiền đều có trong nguồn (nhóm={nhom}). "
+    fresh, phrase_group = _goi(reply)
+    assert fresh == reply, (
+        f"CHẶN OAN hai số tiền đều có trong nguồn (nhóm={phrase_group}). "
         "Cơ chế lỗi #2 của brief: dán qua ', ' thành 1100000262000."
     )
 
@@ -136,8 +136,8 @@ def test_hai_so_tien_hop_le_canh_nhau_phai_qua():
 # ===========================================================================
 def test_so_bay_chu_so_lien_khong_co_trong_nguon_phai_chan():
     reply = "Số dư hiện tại của bạn là 9876543 đồng."
-    moi, nhom = _goi(reply)
-    assert moi != reply, (
+    fresh, phrase_group = _goi(reply)
+    assert fresh != reply, (
         "Số 9876543 (7 chữ số, viết liền) không truy vết được về nguồn nào "
         "mà vẫn QUA — chiều bắt-bịa của O3 đã bị nới (bẫy B↔F brief cảnh báo)."
     )
@@ -152,8 +152,8 @@ def test_sdt_da_bi_scrub_khoi_tool_result_phai_chan():
     đúng số bị che. Brief mục 2-QA/QC dòng 4 đòi CHẶN, không thoả hiệp.
     """
     reply = "Số điện thoại nhận OTP của bạn là 0912345678 nhé."
-    moi, nhom = _goi(reply)
-    assert moi != reply, (
+    fresh, phrase_group = _goi(reply)
+    assert fresh != reply, (
         "SĐT đầy đủ 0912345678 QUA trong khi nguồn chỉ có bản che 091*****78 — "
         "mảnh số của bản che đang được dùng làm xuất xứ cho số nguyên vẹn."
     )
@@ -161,8 +161,8 @@ def test_sdt_da_bi_scrub_khoi_tool_result_phai_chan():
 
 def test_token_dinh_danh_noi_bo_khong_co_trong_nguon_phai_chan():
     reply = "Hồ sơ của bạn mang mã tham chiếu nội bộ TR-8F3A2B91, mình đã kiểm tra rồi."
-    moi, nhom = _goi(reply)
-    assert moi != reply, (
+    fresh, phrase_group = _goi(reply)
+    assert fresh != reply, (
         "Token chữ-số TR-8F3A2B91 không có trong nguồn nào mà vẫn QUA — "
         "kênh _TOKEN_MA (so khớp tuyệt đối) không còn canh."
     )
@@ -172,9 +172,9 @@ def test_doi_chung_duong_token_co_trong_nguon_phai_qua():
     """Đối chứng dương của họ token: chặn ở trên phải vì THIẾU XUẤT XỨ,
     không phải vì bộ lọc chặn mọi token chữ-số."""
     reply = "Mã giao dịch của bạn là TXN20260801000596, đã hoàn tất từ 01/08."
-    moi, nhom = _goi(reply)
-    assert moi == reply, (
-        f"Token có thật trong nguồn cũng bị chặn (nhóm={nhom}) — "
+    fresh, phrase_group = _goi(reply)
+    assert fresh == reply, (
+        f"Token có thật trong nguồn cũng bị chặn (nhóm={phrase_group}) — "
         "nếu ca này đỏ cùng ca trên thì bộ lọc đang chặn theo HÌNH DẠNG, "
         "không theo XUẤT XỨ, và hai ca của họ token không nói được gì về nhau."
     )
@@ -215,9 +215,9 @@ def test_nguon_da_gom_payload_luot_truoc_thi_tang_loc_khong_chan():
         + [{"status": "success", "transaction_id": "TXN20260715000111", "amount": 5450000}]
     )
     reply = "Như mình đã tra giúp bạn lúc nãy, khoản TXN20260715000111 là 5.450.000 đồng."
-    moi, nhom = _goi(reply, nguon=nguon_gom_lich_su)
-    assert moi == reply, (
-        f"Nguồn đã chứa kết quả tool lượt trước mà tầng lọc vẫn chặn (nhóm={nhom}) "
+    fresh, phrase_group = _goi(reply, source=nguon_gom_lich_su)
+    assert fresh == reply, (
+        f"Nguồn đã chứa kết quả tool lượt trước mà tầng lọc vẫn chặn (nhóm={phrase_group}) "
         "— lọc đang phân biệt 'lượt' bằng thứ gì đó ngoài kênh nguon."
     )
 
@@ -258,10 +258,10 @@ def _ham_rap_nguon_o3():
             f"Không import được src.agents.graph từ host ({type(e).__name__}: {e}) "
             "— các ca dùng seam KHÔNG ĐO ĐƯỢC, không phải đạt."
         )
-    ham = getattr(g, "rap_nguon_o3", None)
+    ham = getattr(g, "assemble_o3_source", None)
     if not callable(ham):
         pytest.skip(
-            "src.agents.graph.rap_nguon_o3 chưa tồn tại — hợp đồng do Lead khai "
+            "src.agents.graph.assemble_o3_source chưa tồn tại — hợp đồng do Lead khai "
             "19/08 chưa land trong cây làm việc. KHÔNG ĐO ĐƯỢC, không phải đạt."
         )
     return ham
@@ -270,19 +270,19 @@ def _ham_rap_nguon_o3():
 def _rap_qua_seam(all_messages, tool_calls_out=()) -> str:
     ham = _ham_rap_nguon_o3()
     try:
-        kq = ham(all_messages, list(tool_calls_out))
+        res = ham(all_messages, list(tool_calls_out))
     except TypeError as e:
         pytest.skip(
             f"rap_nguon_o3 không nhận (all_messages, tool_calls_out) như hợp đồng "
             f"đã khai ({e}) — chữ ký đã đổi, cần Coder khai lại qua Lead. "
             "KHÔNG ĐO ĐƯỢC, không phải đạt."
         )
-    if not isinstance(kq, str):
+    if not isinstance(res, str):
         pytest.skip(
-            f"rap_nguon_o3 trả về {type(kq).__name__}, không phải chuỗi JSON như "
+            f"rap_nguon_o3 trả về {type(res).__name__}, không phải chuỗi JSON như "
             "hợp đồng đã khai — KHÔNG ĐO ĐƯỢC, không phải đạt."
         )
-    return kq
+    return res
 
 
 def _lich_su_hoi_thoai():
@@ -329,20 +329,20 @@ _KHACH_LUOT_SAU = "Vậy khoản giữa tháng 7 đó bao nhiêu tiền nhỉ?"
 
 
 def test_ca3_so_tu_ket_qua_tool_luot_truoc_phai_qua():
-    nguon = _rap_qua_seam(_lich_su_hoi_thoai())
+    source = _rap_qua_seam(_lich_su_hoi_thoai())
     reply = "Khoản TXN20260715000111 của bạn là 5.450.000 đồng nhé."
-    moi, nhom = _goi(reply, nguon=nguon, khach=_KHACH_LUOT_SAU)
-    assert moi == reply, (
-        f"CHẶN OAN (nhóm={nhom}): kết quả tool THÀNH CÔNG của lượt trước không "
+    fresh, phrase_group = _goi(reply, source=source, khach=_KHACH_LUOT_SAU)
+    assert fresh == reply, (
+        f"CHẶN OAN (nhóm={phrase_group}): kết quả tool THÀNH CÔNG của lượt trước không "
         "vào kênh nguồn — đúng cơ chế lỗi #3 của brief, bản vá A chưa phủ."
     )
 
 
 def test_ca6_echo_so_bia_trong_payload_loi_khong_phai_nguon_phai_chan():
-    nguon = _rap_qua_seam(_lich_su_hoi_thoai())
+    source = _rap_qua_seam(_lich_su_hoi_thoai())
     reply = "Mình kiểm tra rồi, giao dịch 8887776655 của bạn đang được xử lý."
-    moi, _nhom = _goi(reply, nguon=nguon, khach=_KHACH_LUOT_SAU)
-    assert moi != reply, (
+    fresh, _nhom = _goi(reply, source=source, khach=_KHACH_LUOT_SAU)
+    assert fresh != reply, (
         "Số 8887776655 do model TỰ BỊA làm tham số, chỉ tồn tại trong echo của "
         "payload LỖI, mà vẫn QUA — kênh nguồn đang gom cả nhánh lỗi. Đặc tả "
         "PO-agent 19/08: kết quả tool THÀNH CÔNG mới là nguồn hợp lệ."
@@ -350,10 +350,10 @@ def test_ca6_echo_so_bia_trong_payload_loi_khong_phai_nguon_phai_chan():
 
 
 def test_loi_agent_cu_trong_lich_su_khong_phai_nguon_phai_chan():
-    nguon = _rap_qua_seam(_lich_su_hoi_thoai())
+    source = _rap_qua_seam(_lich_su_hoi_thoai())
     reply = "Như mình nói lúc nãy, mã nội bộ của khoản đó là 7654321."
-    moi, _nhom = _goi(reply, nguon=nguon, khach=_KHACH_LUOT_SAU)
-    assert moi != reply, (
+    fresh, _nhom = _goi(reply, source=source, khach=_KHACH_LUOT_SAU)
+    assert fresh != reply, (
         "Dãy 7654321 chỉ tồn tại trong AIMessage cũ (lời agent) mà vẫn QUA — "
         "kênh nguồn đang gom nhầm AIMessage, đúng điểm Review được giao soi "
         "(brief mục 2-Review): lời agent KHÔNG phải nguồn hợp lệ."
@@ -407,14 +407,14 @@ def _lich_su_voi_payload_meo(payload_content: str, tool_call_id: str = "call_x")
     ],
 )
 def test_payload_meo_mo_khong_duoc_lam_nguon(payload_content: str, day_so: str, id_ca: str):
-    noi_dung = payload_content
+    content_text = payload_content
     if id_ca == "ca7_json_hong":
         # dãy số nằm trong phần chuỗi thô, sau chỗ JSON đã hỏng
-        noi_dung = payload_content + f'0777", "amount": {day_so}'
-    nguon = _rap_qua_seam(_lich_su_voi_payload_meo(noi_dung))
+        content_text = payload_content + f'0777", "amount": {day_so}'
+    source = _rap_qua_seam(_lich_su_voi_payload_meo(content_text))
     reply = f"Giao dịch của bạn có giá trị {day_so} đồng nhé."
-    moi, _nhom = _goi(reply, nguon=nguon, khach="Vậy số đó là bao nhiêu nhỉ?")
-    assert moi != reply, (
+    fresh, _nhom = _goi(reply, source=source, khach="Vậy số đó là bao nhiêu nhỉ?")
+    assert fresh != reply, (
         f"Dãy {day_so} chỉ tồn tại trong payload MÉO ({id_ca}) mà vẫn QUA — "
         "Đ1 đang thi hành dạng deny-list (`status == \"error\"`), fail-OPEN. "
         "Đặc tả Lead 19/08: allow-list {found, not_found, multiple_matches}."
@@ -467,11 +467,11 @@ def test_doi_chung_duong_ba_status_hop_le_phai_qua(status: str, payload: dict, d
         ToolMessage(content=json.dumps(payload, ensure_ascii=False), tool_call_id="call_ok", name="lookup_transaction"),
         HumanMessage(content="Số tiền là bao nhiêu nhỉ?"),
     ]
-    nguon = _rap_qua_seam(messages)
+    source = _rap_qua_seam(messages)
     reply = f"Giao dịch bạn hỏi là {day_so} nhé."
-    moi, nhom = _goi(reply, nguon=nguon, khach=cau_khach)
-    assert moi == reply, (
-        f"CHẶN OAN trên nhánh status={status} (nhóm={nhom}) — allow-list đang "
+    fresh, phrase_group = _goi(reply, source=source, khach=cau_khach)
+    assert fresh == reply, (
+        f"CHẶN OAN trên nhánh status={status} (nhóm={phrase_group}) — allow-list đang "
         "loại cả payload HỢP LỆ, hoặc bản vá A không gom được lịch sử. Nếu ca "
         "này đỏ thì ⑦⑧⑨ xanh không chứng minh được gì."
     )
@@ -512,11 +512,11 @@ def test_ca11_get_customer_history_thanh_cong_khong_status_top_level_phai_qua():
                     tool_call_id="call_gch", name="get_customer_history"),
         HumanMessage(content="Giao dịch gần nhất là bao nhiêu vậy?"),
     ]
-    nguon = _rap_qua_seam(messages)
+    source = _rap_qua_seam(messages)
     reply = "Giao dịch gần nhất TXN20260818000999 của bạn là 4.750.000 đồng nhé."
-    moi, nhom = _goi(reply, nguon=nguon, khach=cau_khach)
-    assert moi == reply, (
-        f"CHẶN OAN (nhóm={nhom}): payload get_customer_history THÀNH CÔNG "
+    fresh, phrase_group = _goi(reply, source=source, khach=cau_khach)
+    assert fresh == reply, (
+        f"CHẶN OAN (nhóm={phrase_group}): payload get_customer_history THÀNH CÔNG "
         "(không có `status` top-level, đúng hình dạng thật) không vào được "
         "kênh nguồn — đây chính là tool đứng sau câu verify demo."
     )
@@ -541,11 +541,11 @@ def test_ca12_create_ticket_thanh_cong_khong_status_top_level_phai_qua():
                     tool_call_id="call_ct", name="create_ticket"),
         HumanMessage(content="Mã hồ sơ của tôi là gì vậy?"),
     ]
-    nguon = _rap_qua_seam(messages)
+    source = _rap_qua_seam(messages)
     reply = "Mã hồ sơ của bạn là TCK20260819000321, mình đã ghi nhận rồi nhé."
-    moi, nhom = _goi(reply, nguon=nguon, khach=cau_khach)
-    assert moi == reply, (
-        f"CHẶN OAN (nhóm={nhom}): payload create_ticket THÀNH CÔNG (không có "
+    fresh, phrase_group = _goi(reply, source=source, khach=cau_khach)
+    assert fresh == reply, (
+        f"CHẶN OAN (nhóm={phrase_group}): payload create_ticket THÀNH CÔNG (không có "
         "`status` top-level, đúng hình dạng thật) không vào được kênh nguồn."
     )
 
@@ -567,11 +567,11 @@ def test_ca13_request_human_handoff_thanh_cong_khong_status_top_level_phai_qua()
                     tool_call_id="call_hh", name="request_human_handoff"),
         HumanMessage(content="Mã hồ sơ để mình theo dõi là gì vậy?"),
     ]
-    nguon = _rap_qua_seam(messages)
+    source = _rap_qua_seam(messages)
     reply = "Mã hồ sơ để bạn theo dõi là TCK20260819000322 nhé."
-    moi, nhom = _goi(reply, nguon=nguon, khach=cau_khach)
-    assert moi == reply, (
-        f"CHẶN OAN (nhóm={nhom}): payload request_human_handoff THÀNH CÔNG "
+    fresh, phrase_group = _goi(reply, source=source, khach=cau_khach)
+    assert fresh == reply, (
+        f"CHẶN OAN (nhóm={phrase_group}): payload request_human_handoff THÀNH CÔNG "
         "(không có `status` top-level, đúng hình dạng thật) không vào được "
         "kênh nguồn."
     )
@@ -598,14 +598,14 @@ def test_ca13_request_human_handoff_thanh_cong_khong_status_top_level_phai_qua()
 _GIA_TRI_TOT_O3 = {"found", "not_found", "multiple_matches"}
 
 
-def _goi_tool_va_quan_sat(tools: dict, ten: str, dau_vao: dict):
+def _goi_tool_va_quan_sat(tools: dict, name_text: str, dau_vao: dict):
     """Gọi .invoke() thật, không giả định raise hay return — ghi lại CẢ HAI
     khả năng để assertion tự chọn, đúng nếp Luật H (ba trạng thái)."""
     try:
-        kq = tools[ten].invoke(dau_vao)
+        res = tools[name_text].invoke(dau_vao)
     except Exception as e:  # noqa: BLE001 — quan sát hành vi thật của tool
         return {"_ngoai_le": f"{type(e).__name__}: {e}"}
-    return kq if isinstance(kq, dict) else {"_khong_phai_dict": kq}
+    return res if isinstance(res, dict) else {"_khong_phai_dict": res}
 
 
 def test_ca10_moi_nhanh_loi_that_khong_lam_lot_gia_tri_tot_vao_nguon(sample_db):
@@ -624,10 +624,10 @@ def test_ca10_moi_nhanh_loi_that_khong_lam_lot_gia_tri_tot_vao_nguon(sample_db):
         ("lookup_transaction", {}),  # contract: thiếu cả trans_id/rec_code/phone+amount → error
     ]
     loi_thieu_error = []
-    for ten, dau_vao in ca_khop_code:
-        kq = _goi_tool_va_quan_sat(tools_a, ten, dau_vao)
-        if kq.get("status") != "error":
-            loi_thieu_error.append((ten, dau_vao, kq))
+    for name_text, dau_vao in ca_khop_code:
+        res = _goi_tool_va_quan_sat(tools_a, name_text, dau_vao)
+        if res.get("status") != "error":
+            loi_thieu_error.append((name_text, dau_vao, res))
     assert not loi_thieu_error, (
         "Tool khai KHỚP code trong contract nhưng nhánh lỗi không trả đúng "
         f"status=='error': {loi_thieu_error}"
@@ -661,10 +661,10 @@ def test_ca10_moi_nhanh_loi_that_khong_lam_lot_gia_tri_tot_vao_nguon(sample_db):
         ("request_human_handoff", {"reason": ""}),
     ]
     lot_gia_tri_tot = []
-    for ten, dau_vao in ca_lech_contract:
-        kq = _goi_tool_va_quan_sat(tools_a, ten, dau_vao)
-        if kq.get("status") in _GIA_TRI_TOT_O3:
-            lot_gia_tri_tot.append((ten, dau_vao, kq))
+    for name_text, dau_vao in ca_lech_contract:
+        res = _goi_tool_va_quan_sat(tools_a, name_text, dau_vao)
+        if res.get("status") in _GIA_TRI_TOT_O3:
+            lot_gia_tri_tot.append((name_text, dau_vao, res))
     assert not lot_gia_tri_tot, (
         "VI PHẠM AN TOÀN Đ1: nhánh lỗi của tool trả một trong ba giá trị TỐT "
         f"({_GIA_TRI_TOT_O3}) — allow-list sẽ coi đây là nguồn hợp lệ: {lot_gia_tri_tot}"
@@ -690,8 +690,8 @@ def test_doi_chung_duong_so_bia_thuan_mot_loai_phan_cach_van_chan():
     phân cách → PHẢI CHẶN và PHẢI xanh thật. Thiếu ca này thì ⑭ không phân
     biệt được "lỗ trộn phân cách" với "chiều bắt-bịa chết hẳn hoàn toàn"."""
     reply = "Mình hoàn 2.500.000 cho bạn nhé."
-    moi, _nhom = _goi(reply)
-    assert moi != reply, (
+    fresh, _nhom = _goi(reply)
+    assert fresh != reply, (
         "Số bịa 2.500.000 (thuần phân cách chấm, không có trong nguồn) vẫn "
         "QUA — nếu ca này đỏ CÙNG ⑭ thì chiều bắt-bịa đã chết hẳn, không "
         "phải riêng lỗ trộn phân cách."
@@ -710,8 +710,8 @@ def test_doi_chung_duong_so_bia_thuan_mot_loai_phan_cach_van_chan():
 )
 def test_ca14_so_bia_phan_cach_tron_khong_bi_chan():
     reply = "Mình hoàn 2.500 000 cho bạn nhé."
-    moi, _nhom = _goi(reply)
-    assert moi != reply, (
+    fresh, _nhom = _goi(reply)
+    assert fresh != reply, (
         "Số bịa 2.500 000 (phân cách TRỘN chấm+space, không có trong nguồn) "
         "QUA oan — GIỚI HẠN CÒN LẠI đã khai, xem reason ở xfail marker."
     )

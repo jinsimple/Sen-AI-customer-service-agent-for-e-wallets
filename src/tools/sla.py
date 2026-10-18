@@ -1,6 +1,6 @@
-"""BR-01/BR-02/BR-04/BR-05 — tính `sla_due_at` theo mốc PHÁP LÝ, không bao
-giờ theo cam kết dịch vụ nội bộ BR-03 (xem business_rules.md, verified=false
-— chưa đối chiếu văn bản gốc, chỉ mở khoá việc build).
+"""BR-01/BR-02/BR-04/BR-05 — compute `sla_due_at` from the LEGAL deadline, never
+from the internal service commitment BR-03 (see business_rules.md, verified=false
+— not yet checked against the original regulation; only unblocks the build).
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from src.config import SLA_LEGAL_BANK_BUSINESS_DAYS, SLA_LEGAL_GENERAL_DAYS
 
 
 def add_business_days(start: dt.datetime, n_days: int) -> dt.datetime:
-    """BR-05: ngày làm việc = T2-T6, bỏ qua ngày lễ VN (bản demo bỏ qua lễ)."""
+    """BR-05: business days = Mon-Fri, Vietnamese public holidays ignored (demo build skips holidays)."""
     current = start
     added = 0
     while added < n_days:
@@ -22,7 +22,7 @@ def add_business_days(start: dt.datetime, n_days: int) -> dt.datetime:
 
 def compute_sla_due_at(created_at: dt.datetime, scope: str) -> dt.datetime:
     if scope in ("from_bank", "to_bank"):
-        # BR-01: giao dịch chạm ngân hàng — trần tra soát 4 ngày làm việc.
+        # BR-01: bank-touching transactions — investigation ceiling of 4 business days.
         return add_business_days(created_at, SLA_LEGAL_BANK_BUSINESS_DAYS)
-    # BR-02: khiếu nại nói chung (nội bộ ví-ví) — trần 30 ngày.
+    # BR-02: general complaints (internal wallet-to-wallet) — 30-day ceiling.
     return created_at + dt.timedelta(days=SLA_LEGAL_GENERAL_DAYS)

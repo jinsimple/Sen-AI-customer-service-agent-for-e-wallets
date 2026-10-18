@@ -67,21 +67,21 @@ def cham_co_mat(case: dict, reply: str) -> dict:
     """Chấm MỘT ca trên HAI trục có tín hiệu thật. Trả None cho trục không
     áp dụng được (không phải FAIL — là 'không có gì để chấm')."""
     exp = case.get("expected") or {}
-    ket_qua: dict = {"case_id": case["case_id"], "ma_ve": None, "can_cu": None}
+    outcome: dict = {"case_id": case["case_id"], "ma_ve": None, "can_cu": None}
 
     # ── ① MÃ VÉ — chỉ chấm khi có cờ rõ, ưu tiên must_create_manual_ticket
     # (dương tính cụ thể) trước hai cờ "chưa nên có vé" ──
     co_ve = bool(_MAU_TICKET.search(reply))
     if exp.get("must_create_manual_ticket") is True:
-        ket_qua["ma_ve"] = {
+        outcome["ma_ve"] = {
             "ap_dung": "must_create_manual_ticket",
             "dat": co_ve,
             "ly_do": None if co_ve else "Kỳ vọng có mã vé (TCK-...), reply không có.",
         }
     elif exp.get("must_ask_clarifying_question") is True or exp.get("must_offer_before_creating_ticket") is True:
-        nguon = "must_ask_clarifying_question" if exp.get("must_ask_clarifying_question") else "must_offer_before_creating_ticket"
-        ket_qua["ma_ve"] = {
-            "ap_dung": nguon,
+        source = "must_ask_clarifying_question" if exp.get("must_ask_clarifying_question") else "must_offer_before_creating_ticket"
+        outcome["ma_ve"] = {
+            "ap_dung": source,
             "dat": not co_ve,
             "ly_do": None if not co_ve else "Kỳ vọng CHƯA có mã vé (cần hỏi lại/xác nhận trước), reply đã có.",
         }
@@ -91,14 +91,14 @@ def cham_co_mat(case: dict, reply: str) -> dict:
     can_cu_can = exp.get("must_cite_trans_ids") or []
     if can_cu_can:
         thieu = [t for t in can_cu_can if t not in reply]
-        ket_qua["can_cu"] = {
+        outcome["can_cu"] = {
             "can": can_cu_can,
             "dat": not thieu,
             "thieu": thieu,
         }
     # else: rỗng (2 ca must_ask_clarifying_question) -> giữ None, không chấm
 
-    return ket_qua
+    return outcome
 
 
 def _in_mau_so(ca_theo_id: dict) -> None:
@@ -123,8 +123,8 @@ def _tu_kiem_do_duoc_thieu_ve() -> bool:
         "expected": {"must_create_manual_ticket": True},
     }
     reply_thieu = "Mình đã ghi nhận phản ánh của bạn, bộ phận liên quan sẽ xử lý."
-    kq = cham_co_mat(ca, reply_thieu)
-    return kq["ma_ve"] is not None and kq["ma_ve"]["dat"] is False
+    res = cham_co_mat(ca, reply_thieu)
+    return res["ma_ve"] is not None and res["ma_ve"]["dat"] is False
 
 
 def _tu_kiem_do_duoc_thieu_can_cu() -> bool:
@@ -133,8 +133,8 @@ def _tu_kiem_do_duoc_thieu_can_cu() -> bool:
         "expected": {"must_cite_trans_ids": ["TXN20260101000099"]},
     }
     reply_thieu = "Mình đã kiểm tra và ghi nhận phản ánh của anh, bộ phận liên quan sẽ xử lý."
-    kq = cham_co_mat(ca, reply_thieu)
-    return kq["can_cu"] is not None and kq["can_cu"]["dat"] is False
+    res = cham_co_mat(ca, reply_thieu)
+    return res["can_cu"] is not None and res["can_cu"]["dat"] is False
 
 
 def main() -> int:
@@ -180,19 +180,19 @@ def main() -> int:
         reply = reply_theo_id.get(case_id)
         if reply is None:
             continue
-        kq = cham_co_mat(case, reply)
-        if kq["ma_ve"] is not None:
-            if kq["ma_ve"]["dat"]:
+        res = cham_co_mat(case, reply)
+        if res["ma_ve"] is not None:
+            if res["ma_ve"]["dat"]:
                 dat_1_dem += 1
             else:
                 thieu_1 += 1
-                vi_pham.append(f"  [① {case_id}] {kq['ma_ve']['ly_do']}")
-        if kq["can_cu"] is not None:
-            if kq["can_cu"]["dat"]:
+                vi_pham.append(f"  [① {case_id}] {res['ma_ve']['ly_do']}")
+        if res["can_cu"] is not None:
+            if res["can_cu"]["dat"]:
                 dat_2_dem += 1
             else:
                 thieu_2 += 1
-                vi_pham.append(f"  [② {case_id}] thiếu trích: {kq['can_cu']['thieu']}")
+                vi_pham.append(f"  [② {case_id}] thiếu trích: {res['can_cu']['thieu']}")
 
     print(f"  ① mã vé : {dat_1_dem} đạt · {thieu_1} thiếu (trên {dat_1_dem + thieu_1} ca có chấm)")
     print(f"  ② căn cứ: {dat_2_dem} đạt · {thieu_2} thiếu (trên {dat_2_dem + thieu_2} ca có chấm)")

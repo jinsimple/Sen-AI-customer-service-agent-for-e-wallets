@@ -272,9 +272,9 @@ def test_nen_ghi_trong_test_khop_thuc_te(kich_thich):
     theo ngày/giờ (phát hiện 17/08). Lệch hơn thế là prompt đã đổi thật, và
     docstring cần cập nhật cùng lúc với ngưỡng.
     """
-    for ten in ("system", "tool"):
-        lech = abs(kich_thich[ten] - NEN[ten]) / NEN[ten]
+    for name_text in ("system", "tool"):
+        lech = abs(kich_thich[name_text] - NEN[name_text]) / NEN[name_text]
         assert lech <= 0.02, (
-            f"nền `{ten}` ghi {NEN[ten]:,}, thực tế {kich_thich[ten]:,} "
+            f"nền `{name_text}` ghi {NEN[name_text]:,}, thực tế {kich_thich[name_text]:,} "
             f"(lệch {lech:.1%}). Cập nhật NEN và lý lẽ biên độ trong docstring."
         )

@@ -62,8 +62,8 @@ class _AgentNemLoi:
     class _State:
         values: dict = {}
 
-    def __init__(self, loi: Exception):
-        self._loi = loi
+    def __init__(self, err: Exception):
+        self._loi = err
 
     def get_state(self, config):
         return self._State()
@@ -123,15 +123,15 @@ def test_xoay_dung_thu_tu_uu_tien_khi_gap_loi_quota(sample_db, monkeypatch):
         graph_module, "_build_agent",
         _fake_build_agent(loi_theo_model={MODEL_A: _loi_quota()}),
     )
-    ket_qua = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
+    outcome = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
 
-    assert ket_qua.get("model") == MODEL_B, (
+    assert outcome.get("model") == MODEL_B, (
         f"model đã trả lời phải là {MODEL_B!r} (model B thật sự invoke thành công), "
-        f"đo được {ket_qua.get('model')!r}"
+        f"đo được {outcome.get('model')!r}"
     )
-    assert ket_qua.get("models_da_thu") == [MODEL_A, MODEL_B], (
+    assert outcome.get("models_da_thu") == [MODEL_A, MODEL_B], (
         f"models_da_thu phải liệt kê ĐÚNG THỨ TỰ đã thử kể cả lần hỏng, "
-        f"đo được {ket_qua.get('models_da_thu')!r}"
+        f"đo được {outcome.get('models_da_thu')!r}"
     )
 
 
@@ -149,14 +149,14 @@ def test_khong_xoay_tren_loi_khong_phai_quota(sample_db, monkeypatch):
         graph_module, "_build_agent",
         _fake_build_agent(loi_theo_model={MODEL_A: _loi_khong_phai_quota()}),
     )
-    ket_qua = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
+    outcome = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
 
     # Đường lỗi-không-phải-quota đã có tiền lệ trả tool_calls là MẢNG (GĐ2).
     # Nếu bị coi nhầm là tín hiệu quota, models_da_thu sẽ có 2 phần tử thay
     # vì đường lỗi cũ (không xoay) không tạo trường này hoặc chỉ có 1.
-    models_da_thu = ket_qua.get("models_da_thu")
-    assert models_da_thu is None or models_da_thu == [MODEL_A], (
-        f"lỗi không-phải-quota KHÔNG được kích hoạt xoay, đo được models_da_thu={models_da_thu!r}"
+    tried_models = outcome.get("models_da_thu")
+    assert tried_models is None or tried_models == [MODEL_A], (
+        f"lỗi không-phải-quota KHÔNG được kích hoạt xoay, đo được models_da_thu={tried_models!r}"
     )
 
 
@@ -170,13 +170,13 @@ def test_status_code_uu_tien_hon_khop_chuoi(sample_db, monkeypatch):
         graph_module, "_build_agent",
         _fake_build_agent(loi_theo_model={MODEL_A: _loi_quota_chuoi_la_nhung_status_code_403()}),
     )
-    ket_qua = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
+    outcome = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
 
-    assert ket_qua.get("model") == MODEL_B, (
+    assert outcome.get("model") == MODEL_B, (
         "status_code=403 phải được coi là tín hiệu quota DÙ chuỗi lỗi lạ — "
-        f"đo được model={ket_qua.get('model')!r}, models_da_thu={ket_qua.get('models_da_thu')!r}"
+        f"đo được model={outcome.get('model')!r}, models_da_thu={outcome.get('models_da_thu')!r}"
     )
-    assert ket_qua.get("models_da_thu") == [MODEL_A, MODEL_B]
+    assert outcome.get("models_da_thu") == [MODEL_A, MODEL_B]
 
 
 def test_khong_xoay_thi_models_da_thu_dung_mot_phan_tu(sample_db, monkeypatch):
@@ -187,11 +187,11 @@ def test_khong_xoay_thi_models_da_thu_dung_mot_phan_tu(sample_db, monkeypatch):
     import src.agents.graph as graph_module
 
     monkeypatch.setattr(graph_module, "_build_agent", _fake_build_agent(loi_theo_model={}))
-    ket_qua = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
+    outcome = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
 
-    assert ket_qua.get("model") == MODEL_A
-    assert ket_qua.get("models_da_thu") == [MODEL_A], (
-        f"lượt không xoay phải có models_da_thu đúng 1 phần tử, đo được {ket_qua.get('models_da_thu')!r}"
+    assert outcome.get("model") == MODEL_A
+    assert outcome.get("models_da_thu") == [MODEL_A], (
+        f"lượt không xoay phải có models_da_thu đúng 1 phần tử, đo được {outcome.get('models_da_thu')!r}"
     )
 
 
@@ -214,12 +214,12 @@ def test_be_can_toan_phan_moi_model_deu_loi_quota(sample_db, monkeypatch):
             MODEL_A: _loi_quota(), MODEL_B: _loi_quota(), MODEL_C: _loi_quota(),
         }),
     )
-    ket_qua = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
+    outcome = graph_module.run_agent_turn(sample_db, user_id="USR-A", message=CAU)
 
-    assert set(ket_qua.get("models_da_thu") or []) == {MODEL_A, MODEL_B, MODEL_C}, (
+    assert set(outcome.get("models_da_thu") or []) == {MODEL_A, MODEL_B, MODEL_C}, (
         f"bể cạn toàn phần phải để lại dấu vết ĐÃ THỬ CẢ BA model trong "
-        f"models_da_thu, đo được {ket_qua.get('models_da_thu')!r}"
+        f"models_da_thu, đo được {outcome.get('models_da_thu')!r}"
     )
-    assert ket_qua.get("model") is None, (
-        f"không model nào trả lời thành công ⟹ model phải là None, đo được {ket_qua.get('model')!r}"
+    assert outcome.get("model") is None, (
+        f"không model nào trả lời thành công ⟹ model phải là None, đo được {outcome.get('model')!r}"
     )

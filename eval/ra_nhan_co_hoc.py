@@ -51,7 +51,7 @@ GOC = pathlib.Path(__file__).resolve().parent.parent
 BASE = "https://localhost"
 
 
-def bo_dau(s: str) -> str:
+def strip_diacritics(s: str) -> str:
     """Y HỆT `benchmark.bo_dau` — kể cả gộp khoảng trắng.
 
     Phải giống hệt, không phải "tương đương": rà bằng một chuẩn hoá KHÁC chuẩn
@@ -107,7 +107,7 @@ def main() -> int:
                     if r.status_code == 200:
                         gom.update(y.get("text", "") for y in (r.json().get("results") or []))
             c.close()
-            kho = bo_dau(" ||| ".join(gom))
+            kho = strip_diacritics(" ||| ".join(gom))
         except Exception as e:  # noqa: BLE001
             print(f"  ⚠️  không tra được kho ({type(e).__name__}) — bỏ qua cửa 'có trong kho'")
 
@@ -127,26 +127,26 @@ def main() -> int:
             dem["khong_co_nhan"] += 1
             chi_tiet.append((cid, "KHÔNG CÓ TRƯỜNG NHÃN NÀO", ""))
             continue
-        loi = []
+        err = []
         if not any(dac_trung(s) for s in nhan):
             dem["khong_dac_trung"] += 1
-            loi.append("không chuỗi nào ĐẶC TRƯNG (thiếu số/viết-hoa/cụm≥3 từ)")
+            err.append("không chuỗi nào ĐẶC TRƯNG (thiếu số/viết-hoa/cụm≥3 từ)")
         # "vỡ khi chuẩn hoá": chuỗi chứa khoảng trắng thừa hoặc xuống dòng ⟹ sau
         # khi gộp nó KHÁC chính nó, tức nhãn viết ra đã không khớp được với text
         # đã chuẩn hoá. Đây đúng lớp lỗi `bo_dau` không gộp \s+.
-        if any(bo_dau(s) != bo_dau(re.sub(r"\s+", " ", s.strip())) for s in nhan):
+        if any(strip_diacritics(s) != strip_diacritics(re.sub(r"\s+", " ", s.strip())) for s in nhan):
             dem["vo_khi_chuan_hoa"] += 1
-            loi.append("chuỗi đổi hình sau chuẩn hoá")
+            err.append("chuỗi đổi hình sau chuẩn hoá")
         # ⚠️ PHÉP DÒ YẾU, cố ý gọi là "NGHI" chứ không phải "lỗi": tra bằng chính
         # chuỗi nhãn thì truy vấn ngắn embed kém, và chuỗi CÓ THẬT trong kho vẫn
         # không ra (đã trả giá: `PCI DSS` — 15 ca bị tôi nghi oan, kiểm lại
         # 15/15 đều có thật). "Không tìm thấy bằng cách A" != "không tồn tại".
-        if kho and not any(bo_dau(s) in kho for s in nhan):
+        if kho and not any(strip_diacritics(s) in kho for s in nhan):
             dem["nghi_khong_trong_kho"] += 1
-            loi.append("NGHI không có trong kho — phép dò YẾU, phải kiểm lại bằng "
+            err.append("NGHI không có trong kho — phép dò YẾU, phải kiểm lại bằng "
                        "đường độc lập trước khi sửa nhãn")
-        if loi:
-            chi_tiet.append((cid, " · ".join(loi), " | ".join(repr(s) for s in nhan)))
+        if err:
+            chi_tiet.append((cid, " · ".join(err), " | ".join(repr(s) for s in nhan)))
         else:
             dem["ok"] += 1
 

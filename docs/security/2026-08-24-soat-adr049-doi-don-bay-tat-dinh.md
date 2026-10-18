@@ -2,19 +2,19 @@
 
 > ADR-049 hiện mới ở mức **chẩn đoán + đề xuất chiến lược** (`docs/DECISIONS.md:2904-2953`), CHƯA
 > có thiết kế cụ thể (Lead đang viết nháp). Hồ sơ này soát Ở MỨC CHIẾN LƯỢC — nói rõ chỗ nào SUY TỪ
-> MÔ TẢ (chưa có mã để đo) và chỗ nào ĐO ĐƯỢC từ hạ tầng hiện có (`phan_luong.py`, đã đọc toàn văn).
+> MÔ TẢ (chưa có mã để đo) và chỗ nào ĐO ĐƯỢC từ hạ tầng hiện có (`triage.py`, đã đọc toàn văn).
 > Sẽ soát lại ở mức THIẾT KẾ CỤ THỂ khi Lead chuyển nháp.
 
 ## ① Đòn bẩy tất định có đổi con số ~300 vé/phiên (`8b83518`) không — CÓ, nhưng KHÔNG theo cách "phá trần"
 
-**[ĐO] đọc toàn văn `src/agents/phan_luong.py`** — hạ tầng ADR-049 tự nhận là "đúng cơ chế cổng
+**[ĐO] đọc toàn văn `src/agents/triage.py`** — hạ tầng ADR-049 tự nhận là "đúng cơ chế cổng
 `thu_slot` (1B)": lớp này **CHỈ TRẢ VỀ MỘT TUYẾN ĐỊNH TUYẾN** (`(route, reason)`), tự khai ranh giới
 cứng ngay đầu file: *"Lớp này KHÔNG quyết định nghiệp vụ... Đường nhẹ KHÔNG tạo bản ghi nghiệp vụ
 nào. Bất biến đo được: đường nhẹ ⟹ Δcomplaints = Δtickets = 0."* Nó KHÔNG tự gọi `create_ticket` —
 nó chỉ đổi ngữ cảnh/hướng dẫn cho LƯỢT MODEL kế tiếp.
 
 **Suy ra (chưa có thiết kế ADR-049 để đo trực tiếp, đây là suy luận từ đúng khuôn tiền lệ):** nếu
-ADR-049 đi đúng khuôn `phan_luong.py` hiện có — tức là một bộ NHẬN DIỆN tất định (regex/danh sách
+ADR-049 đi đúng khuôn `triage.py` hiện có — tức là một bộ NHẬN DIỆN tất định (regex/danh sách
 cho phép, không LLM) đổi ĐƯỜNG ĐI của lượt (ép prompt/context mạnh hơn cho lượt đó), **LLM vẫn là
 bên thực sự gọi `create_ticket`** — thì toàn bộ hàng rào tôi liệt kê ở `8b83518` (OTP-freshness,
 `20/minute` theo IP, concurrency limiter, anti-livelock) **KHÔNG đổi**, vì các hàng rào đó nằm ở
@@ -27,7 +27,7 @@ CHƯA ĐO, vì hôm nay việc "thuyết phục model" là xác suất (đúng l
 MẠNH đang thắng một tín hiệu YẾU, tức pha thuyết phục KHÔNG ổn định). Một bộ nhận diện tất định,
 theo đúng mục đích nó được đề xuất để làm (thắng được sáu luật cạnh tranh), sẽ đẩy **tỉ lệ thực
 đạt được trần đó tiến gần 100%** — đúng câu PO-agent hỏi: kẻ lạm dụng không cần "thuyết phục" nữa,
-chỉ cần lặp đúng một khuôn câu đã học được (và khuôn đó, theo đúng nguyên tắc `phan_luong.py` đang
+chỉ cần lặp đúng một khuôn câu đã học được (và khuôn đó, theo đúng nguyên tắc `triage.py` đang
 dùng, là **danh sách CHO PHÉP đóng** — về LÝ THUYẾT liệt kê được hết, khác hẳn không gian câu tự
 nhiên vô hạn mà một LLM phải "bị thuyết phục").
 
@@ -63,7 +63,7 @@ role trá hình.**
 
 **Nhưng có một câu hỏi kiến trúc CHƯA trả lời được vì thiết kế cụ thể chưa tồn tại — đúng chỗ cần
 nói rõ "đây là suy luận, không phải đo":** ADR-049 có định (a) chỉ đổi NGỮ CẢNH/HƯỚNG DẪN cho lượt
-model kế tiếp — LLM vẫn tự quyết định gọi `create_ticket` (đúng khuôn `phan_luong.py` hiện có), hay
+model kế tiếp — LLM vẫn tự quyết định gọi `create_ticket` (đúng khuôn `triage.py` hiện có), hay
 (b) khi khớp mẫu tất định thì HỆ THỐNG tự gọi thẳng `create_ticket` từ code, bỏ qua bước LLM ra
 quyết định tool-call? Bản ADR hiện tại không nói rõ — và hai lựa chọn này khác nhau NHIỀU hơn một
 chi tiết cài đặt:

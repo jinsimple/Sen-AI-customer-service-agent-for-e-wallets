@@ -1,12 +1,12 @@
-"""Tool 5/5 — `escalate_ticket` (PRD §6, Data Brief §6.3 hàng 5).
+"""Tool 5/5 — `escalate_ticket` (PRD §6, Data Brief §6.3 row 5).
 
-Test bắt buộc: bắt buộc có `reason`; ghi log ai/khi nào; `target` phải hợp
-lệ theo ma trận thẩm quyền (PRD §3 / scenarios.yaml `authority_map`).
+Required tests: `reason` is mandatory; who/when is logged; `target` must be valid
+according to the authority matrix (PRD §3 / scenarios.yaml `authority_map`).
 
-Với case nghi gian lận (§4.5.4): `reason` PHẢI là mã tín hiệu
-(`"FS-03, FS-05"`), không phải câu kết luận — đây là quy tắc ở tầng gọi
-hàm (agent), hàm này chỉ ép `reason` không rỗng, không kiểm được nội dung
-có phải mã tín hiệu hay không (việc đó là test T5 ở tầng eval).
+For suspected-fraud cases (§4.5.4): `reason` MUST be signal codes
+(`"FS-03, FS-05"`), not a conclusion sentence — that rule lives at the calling layer
+(the agent). This function only enforces a non-empty `reason`; it cannot check whether
+the content is a signal code (that is test T5 at the eval layer).
 """
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def escalate_ticket(
     )
     session.add(escalation)
 
-    # Ghi nhận trên chính ticket để CSKH/sếp thấy ngay trạng thái mới nhất.
+    # Recorded on the ticket itself so CSKH/supervisor see the latest state immediately.
     ticket.updated_at = now
     session.flush()
 

@@ -150,15 +150,15 @@ def _doc_id_moi_collection() -> dict[str, list[str]]:
             "KHÔNG ĐO ĐƯỢC (không phải 'kho sạch'): không liệt kê được collection "
             f"trong container {CONTAINER} — {(r.stderr or r.stdout)[:300]}"
         )
-    ra = json.loads(r.stdout.strip().splitlines()[-1])
-    if "__khong_do_duoc__" in ra:
+    out_items = json.loads(r.stdout.strip().splitlines()[-1])
+    if "__khong_do_duoc__" in out_items:
         pytest.fail(
-            "KHÔNG ĐO ĐƯỢC (KHÔNG phải 'kho sạch'): " + ra["__khong_do_duoc__"]
+            "KHÔNG ĐO ĐƯỢC (KHÔNG phải 'kho sạch'): " + out_items["__khong_do_duoc__"]
             + " — soi một index khi có nhiều index là soi nhầm chỗ, đúng lớp lỗi "
             "vừa vá ngày 18/08."
         )
-    ra.pop("__duong__", None)
-    return ra
+    out_items.pop("__duong__", None)
+    return out_items
 
 
 def _ten_theo_doc_id() -> dict[str, str]:
@@ -171,16 +171,16 @@ def _ten_theo_doc_id() -> dict[str, str]:
     )
     if r.returncode != 0:
         pytest.fail(f"KHÔNG ĐO ĐƯỢC: không đọc được policy_documents — {(r.stderr or r.stdout)[:300]}")
-    ten = {}
-    for dong in r.stdout.strip().splitlines():
-        if "|" in dong:
-            d, f = dong.split("|", 1)
-            ten[d.strip()] = f.strip()
-    return ten
+    name_text = {}
+    for line in r.stdout.strip().splitlines():
+        if "|" in line:
+            d, f = line.split("|", 1)
+            name_text[d.strip()] = f.strip()
+    return name_text
 
 
 def _tim_lot(
-    kho: dict[str, list[str]], ten: dict[str, str], mau_cam: set[str]
+    kho: dict[str, list[str]], name_text: dict[str, str], mau_cam: set[str]
 ) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
     """LOGIC THUẦN — trả **(lọt, mồ_côi)**, mỗi cái là {collection: {...}}.
 
@@ -204,10 +204,10 @@ def _tim_lot(
     mo_coi: dict[str, set[str]] = {}
     for col, doc_ids in kho.items():
         for d in doc_ids:
-            if d not in ten:
+            if d not in name_text:
                 mo_coi.setdefault(col, set()).add(d)
-            elif any(x in ten[d] for x in mau_cam):
-                lot.setdefault(col, set()).add(ten[d])
+            elif any(x in name_text[d] for x in mau_cam):
+                lot.setdefault(col, set()).add(name_text[d])
     return lot, mo_coi
 
 
@@ -231,10 +231,10 @@ def _tai_lieu_trong_kho() -> set[str]:
             "KHÔNG ĐO ĐƯỢC (KHÔNG phải 'kho sạch'): mọi collection đều rỗng — "
             + ", ".join(f"{c}={len(ds)}" for c, ds in sorted(kho.items()))
         )
-    ten = _ten_theo_doc_id()
-    thieu = tong - set(ten)
+    name_text = _ten_theo_doc_id()
+    thieu = tong - set(name_text)
     assert not thieu, f"index có doc_id không có hàng trong policy_documents: {sorted(thieu)}"
-    return {ten[d] for d in tong}
+    return {name_text[d] for d in tong}
 
 
 @pytest.mark.xfail(
@@ -252,8 +252,8 @@ def test_dac_ta_danh_muc_nguon_ton_tai():
     """Có nguồn sự thật cho câu hỏi 'tài liệu nào được phục vụ khách'."""
     p = _tim_danh_muc()
     assert p is not None, "không tìm thấy danh mục nguồn được duyệt"
-    noi_dung = p.read_text(encoding="utf-8").strip()
-    assert noi_dung, f"{p.name} tồn tại nhưng RỖNG — một danh mục rỗng chặn được đúng con số không"
+    content_text = p.read_text(encoding="utf-8").strip()
+    assert content_text, f"{p.name} tồn tại nhưng RỖNG — một danh mục rỗng chặn được đúng con số không"
 
 
 @pytest.mark.skipif(
@@ -281,9 +281,9 @@ def test_kho_chi_chua_tai_lieu_duoc_duyet():
     assert ten_duyet, f"{p.name} không khai được nguồn nào — xem lại khoá 'nguon_duoc_duyet'"
 
     trong_kho = _tai_lieu_trong_kho()
-    la = trong_kho - ten_duyet
-    assert not la, (
-        f"KHO CHỨA TÀI LIỆU NGOÀI DANH MỤC: {sorted(la)}\n"
+    tokens_left = trong_kho - ten_duyet
+    assert not tokens_left, (
+        f"KHO CHỨA TÀI LIỆU NGOÀI DANH MỤC: {sorted(tokens_left)}\n"
         f"  đã duyệt : {sorted(ten_duyet)}\n"
         f"  trong kho: {sorted(trong_kho)}\n"
         "Agent sẽ trích chúng như chính sách thật (ràng buộc cứng 3). "
@@ -341,7 +341,7 @@ def test_doi_chung_cong_biet_keu_khi_kho_ban():
     một cái (và đúng cái rỗng). Một cổng dừng ở collection đầu tiên sẽ XANH ở ca
     này, và đó là điều cần bắt.
     """
-    ten = {
+    name_text = {
         "DOC-sach01": "MoMo_FAQ_Giao_dich.md",
         "DOC-ban01": "business_rules.md",
     }
@@ -349,19 +349,19 @@ def test_doi_chung_cong_biet_keu_khi_kho_ban():
         "policy_faq__model-a": ["DOC-sach01"],
         "policy_faq__model-b": ["DOC-sach01", "DOC-ban01"],
     }
-    lot, mo_coi = _tim_lot(kho_ban, ten, DA_LOT)
+    lot, mo_coi = _tim_lot(kho_ban, name_text, DA_LOT)
     assert lot == {"policy_faq__model-b": {"business_rules.md"}}, (
         f"cổng KHÔNG kêu đúng chỗ khi kho bẩn ở collection thứ hai: {lot}"
     )
     assert mo_coi == {}, f"báo mồ côi oan trên dữ liệu tra được hết: {mo_coi}"
 
     # Luật 2 — và nó KHÔNG chặn nhầm kho sạch.
-    sach, _ = _tim_lot({"policy_faq__model-a": ["DOC-sach01"]}, ten, DA_LOT)
-    assert sach == {}, f"cổng kêu oan trên kho sạch: {sach}"
+    clean_text, _ = _tim_lot({"policy_faq__model-a": ["DOC-sach01"]}, name_text, DA_LOT)
+    assert clean_text == {}, f"cổng kêu oan trên kho sạch: {clean_text}"
 
     # TRẠNG THÁI THỨ BA: `doc_id` không tra được tên phải rơi vào rổ RIÊNG,
     # không được im thành "sạch" mà cũng không được kêu thành "bẩn".
-    lot_mc, mo_coi_mc = _tim_lot({"c": ["DOC-khong-co-trong-db"]}, ten, DA_LOT)
+    lot_mc, mo_coi_mc = _tim_lot({"c": ["DOC-khong-co-trong-db"]}, name_text, DA_LOT)
     assert lot_mc == {}, "mồ côi bị đếm nhầm thành tài liệu nội bộ lọt"
     assert mo_coi_mc == {"c": {"DOC-khong-co-trong-db"}}, (
         f"doc_id không tra được tên bị nuốt mất — kho thủng mà cổng im: {mo_coi_mc}"

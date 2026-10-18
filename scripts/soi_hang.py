@@ -58,7 +58,7 @@ def _nhan_kho() -> dict:
     for t in texts:
         h.update(t.encode())
         h.update(b"\x00")
-    tt, pb = store.trang_thai_kho()
+    tt, pb = store.store_status()
     return {
         "so_chunk": len(texts),
         "so_doc": so_doc,
@@ -77,8 +77,8 @@ def main() -> int:
     ap.add_argument("--ra", default=None, help="ghi JSONL ra file; mặc định stdout")
     a = ap.parse_args()
 
-    nguon = sys.stdin if a.truy_van == "-" else open(a.truy_van, encoding="utf-8")
-    truy_van = [x.strip() for x in nguon if x.strip()]
+    source = sys.stdin if a.truy_van == "-" else open(a.truy_van, encoding="utf-8")
+    truy_van = [x.strip() for x in source if x.strip()]
     if not truy_van:
         print("KHÔNG có truy vấn nào — dừng, không ghi file rỗng.", file=sys.stderr)
         return 2
@@ -87,7 +87,7 @@ def main() -> int:
     # Nhãn ra STDERR: stdout phải là JSONL thuần để `| jq` chạy được. Nhãn vẫn
     # là dòng đầu tiên người chạy nhìn thấy.
     print(json.dumps({"nhan_kho": nhan}, ensure_ascii=False), file=sys.stderr)
-    if nhan["trang_thai"] != store.TRANG_THAI_KHOP:
+    if nhan["trang_thai"] != store.STATUS_MATCH:
         print(
             f"KHO KHÔNG KHỚP CODE (trạng thái={nhan['trang_thai']}) — số đo sẽ "
             f"thuộc về một kho khác. Chạy `kho_rag.py kiem`.",
@@ -106,18 +106,18 @@ def main() -> int:
             # hoá ở đây — lệch một vế thì không có triệu chứng nào, search vẫn
             # trả đủ k, chỉ là kết quả thuộc về một sản phẩm khác.
             hits = store.search(q, k=a.k)
-            kq = []
+            res = []
             for i, (cid, d) in enumerate(hits, 1):
                 doc_id, text = ch.get(cid, (None, None))
                 if text is None:
                     # Chroma trả chunk_id mà Postgres không có = hai nguồn đang
                     # nói về hai kho khác nhau. KHÔNG bỏ qua im lặng (đúng lỗi
                     # `bo_qua_thieu_chunk` đã bắt được): ghi ra để tester thấy.
-                    kq.append({"hang": i, "chunk_id": cid, "tai_lieu": None,
+                    res.append({"hang": i, "chunk_id": cid, "tai_lieu": None,
                                "khoang_cach": d, "text": None,
                                "canh_bao": "chunk_id KHÔNG có trong Postgres"})
                     continue
-                kq.append({
+                res.append({
                     "hang": i,
                     "chunk_id": cid,
                     "tai_lieu": ten.get(doc_id),
@@ -125,8 +125,8 @@ def main() -> int:
                     "text": text,
                 })
             ra.write(json.dumps(
-                {"truy_van": q, "so_doan": len(kq), "don_vi_khoang_cach": "L2_binh_phuong_nho_la_gan",
-                 "nhan_kho": nhan["bam_noi_dung"], "ket_qua": kq},
+                {"truy_van": q, "so_doan": len(res), "don_vi_khoang_cach": "L2_binh_phuong_nho_la_gan",
+                 "nhan_kho": nhan["bam_noi_dung"], "ket_qua": res},
                 ensure_ascii=False) + "\n")
     if a.ra:
         ra.close()

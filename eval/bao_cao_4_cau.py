@@ -94,8 +94,8 @@ def cau_2_siet_nham(bg: list[dict]) -> None:
     if chan:
         dem: Counter[str] = Counter(n for _, _, nhom in chan for n in nhom)
         print(f"     theo nhóm: {dict(dem)}")
-        for cid, luot, nhom in chan[:10]:
-            print(f"     · {cid} lượt {luot} {nhom}")
+        for cid, turn, nhom in chan[:10]:
+            print(f"     · {cid} lượt {turn} {nhom}")
     print("\n  ĐỌC CẶP SỐ NÀY CÙNG NHAU, ĐỪNG ĐỌC RIÊNG:")
     print("  Đã đo được rằng thay sạch mọi reply bằng câu an toàn vẫn cho 18/18 ĐẠT.")
     print("  Nên 'x/18 ĐẠT' MỘT MÌNH không phân biệt được 'không hồi quy' với 'bộ lọc")
@@ -111,18 +111,18 @@ def cau_2_siet_nham(bg: list[dict]) -> None:
 
 def cau_3_fallback(bg: list[dict]) -> None:
     print("\n── CÂU 3 · timeout vs recursion [DỮ LIỆU — mua vĩnh viễn] " + "─" * 11)
-    ly_do = [(r["case_id"], i + 1, ld, (r.get("thoi_gian_theo_luot") or [None] * 99)[i])
+    reason_text = [(r["case_id"], i + 1, ld, (r.get("thoi_gian_theo_luot") or [None] * 99)[i])
              for r in bg
              for i, ld in enumerate(r.get("ly_do_fallback_theo_luot") or []) if ld]
-    if not ly_do:
+    if not reason_text:
         print("  Không lượt nào rơi vào fallback — không có gì để phân rã.")
         print("  (Đây là kết quả HỢP LỆ, không phải 'chưa đo được': trường có mặt,")
         print("   giá trị None ở mọi lượt nghĩa là mọi lượt đi đường chính.)")
         return
-    dem = Counter(ld for _, _, ld, _ in ly_do)
-    print(f"  {len(ly_do)} lượt fallback · {dict(dem)}")
-    for cid, luot, ld, t in ly_do:
-        print(f"     · {cid} lượt {luot}: {ld}  ({t}s)")
+    dem = Counter(ld for _, _, ld, _ in reason_text)
+    print(f"  {len(reason_text)} lượt fallback · {dict(dem)}")
+    for cid, turn, ld, t in reason_text:
+        print(f"     · {cid} lượt {turn}: {ld}  ({t}s)")
     print("\n  ĐỌC: 'timeout' -> vấn đề HIỆU NĂNG, nâng trần thời gian có tác dụng.")
     print("       'recursion_limit' -> agent đi đủ 20 bước không kết luận được =")
     print("       vòng lặp tra cứu. Nâng trần thời gian VÔ ÍCH, phải sửa cách agent")

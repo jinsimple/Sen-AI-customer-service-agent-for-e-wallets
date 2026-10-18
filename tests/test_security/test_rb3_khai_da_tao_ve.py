@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents.output_filter import khai_da_tao_ve
+from src.agents.output_filter import claims_ticket_created
 
 _CA_KHONG_CHAN = [
     ("ghi_nhan_thong_tin_khong_phai_khieu_nai",
@@ -62,9 +62,9 @@ _CA_PHAI_CHAN = [
 
 @pytest.mark.parametrize("cid,reply", _CA_KHONG_CHAN, ids=[c[0] for c in _CA_KHONG_CHAN])
 def test_rb3_khong_duoc_chan_nham(cid, reply):
-    assert khai_da_tao_ve(reply) is False, f"[{cid}] bắt oan: {reply!r}"
+    assert claims_ticket_created(reply) is False, f"[{cid}] bắt oan: {reply!r}"
 
 
 @pytest.mark.parametrize("cid,reply", _CA_PHAI_CHAN, ids=[c[0] for c in _CA_PHAI_CHAN])
 def test_rb3_phai_chan(cid, reply):
-    assert khai_da_tao_ve(reply) is True, f"[{cid}] bỏ sót: {reply!r}"
+    assert claims_ticket_created(reply) is True, f"[{cid}] bỏ sót: {reply!r}"

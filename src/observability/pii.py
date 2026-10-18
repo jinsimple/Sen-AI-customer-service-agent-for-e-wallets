@@ -1,98 +1,95 @@
-"""PII scrubbing — BẮT BUỘC chạy TRƯỚC KHI dữ liệu được log hay gửi lên
-backend trace (Jaeger) — Giai đoạn 3 checklist observability. Áp dụng cho mọi
-văn bản tự do có thể chứa PII trước khi đưa vào JSON log hay span attribute:
-tin nhắn khách hàng, reply agent, args/kết quả tool.
+"""PII scrubbing — MUST run BEFORE data is logged or sent to the trace backend (Jaeger)
+— phase 3 of the observability checklist. Applies to all free text that may contain PII
+before it goes into a JSON log or span attribute: customer messages, agent replies,
+tool args/results.
 
-🔴 HAI REGISTRY TƯỜNG MINH, không phải một registry lọc-sau (Bảo Mật GĐ4
-19/08, mốc xem lại: đọc kèm docs/security/2026-08-19-gd4-dinh-hang-scrub-
+🔴 TWO EXPLICIT REGISTRIES, not one filter-afterwards registry (Security phase 4,
+19/08; review anchor: read together with docs/security/2026-08-19-gd4-dinh-hang-scrub-
 pii-model-input.md + docs/giao-viec/2026-08-19-gd4-po-test-4-loi-ui.md).
-`scrub_pii()` nhận tham số `muc_dich` BẮT BUỘC (không mặc định):
+`scrub_pii()` takes a MANDATORY `purpose` parameter (no default):
 
-  - `"model_input"` — dữ liệu ĐI RA nhà cung cấp LLM (`graph.py:787`).
-    Registry HẸP: KHÔNG nạp SpacyRecognizer/DateRecognizer/PhoneRecognizer
-    (generic)/MedicalLicenseRecognizer — chỉ giữ VN_PHONE_NUMBER/VN_ID_NUMBER
-    (regex tự viết) + underthesea PERSON_VN + catalog Presidio còn lại
-    (Email/Iban/Crypto/Ip/Url/MacAddress). QA/QC đo corpus 124 câu
-    (golden_set.jsonl, 19/08): tỉ lệ bóp méo 50,0% → 5,6% sau khi bỏ ba
-    recognizer trên — PhoneRecognizer chung khớp CHUỖI SỐ BẤT KỲ giống điện
-    thoại (khác VN_PHONE_NUMBER hẹp), DateRecognizer khớp YYYYMMDD trùng
-    khuôn mã giao dịch nội bộ (`TXN20260810...`), Spacy đoán PERSON/LOCATION/
-    ORGANIZATION theo ngữ cảnh — cả ba là nguồn bóp méo chính, không phải
-    edge-case hiếm.
-  - `"log"` — MỌI nơi khác (trace/span attribute, `resolutions.note` CSKH
-    gõ). Registry ĐẦY ĐỦ, giữ NGUYÊN như thiết kế gốc — over-redact ở đây là
-    CHÍNH SÁCH ĐÃ CHỐT (xem "PHÁT HIỆN THẬT" bên dưới), KHÔNG bị nới bởi
-    quyết định trên.
+  - `"model_input"` — data GOING OUT to the LLM provider (`graph.py:787`).
+    NARROW registry: does NOT load SpacyRecognizer/DateRecognizer/PhoneRecognizer
+    (generic)/MedicalLicenseRecognizer — keeps only VN_PHONE_NUMBER/VN_ID_NUMBER
+    (hand-written regex) + underthesea PERSON_VN + the rest of the Presidio catalog
+    (Email/Iban/Crypto/Ip/Url/MacAddress). QA/QC measured a 124-sentence corpus
+    (golden_set.jsonl, 19/08): the distortion rate went from 50.0% → 5.6% after dropping
+    those three recognizers — the generic PhoneRecognizer matches ANY phone-like DIGIT STRING
+    (unlike the narrow VN_PHONE_NUMBER), DateRecognizer matches YYYYMMDD, which collides
+    with the internal transaction ID format (`TXN20260810...`), and Spacy guesses
+    PERSON/LOCATION/ORGANIZATION from context — all three were the main sources of
+    distortion, not rare edge cases.
+  - `"log"` — EVERYWHERE else (trace/span attributes, the `resolutions.note` typed by CSKH).
+    FULL registry, kept EXACTLY as originally designed — over-redaction here is an
+    ESTABLISHED POLICY (see "REAL FINDINGS" below), NOT loosened by the decision above.
 
-VÌ SAO HAI REGISTRY TÁCH BIỆT (dựng riêng, không nạp-hết-rồi-lọc-kết-quả):
-hai lỗ đã vá cùng ngày (Spacy quên áp `_plausible_person_span`, MEDICAL_
-LICENSE lẫn vào registry) đều cùng hình dạng "quên lọc cho một nhánh cụ
-thể". Registry KHÔNG NẠP recognizer thừa ngay từ lúc dựng thì không có gì
-để quên lọc ở bước sau — loại rủi ro đó tận gốc thay vì thêm một lớp kiểm
-tra runtime nữa (dễ quên y hệt hai lần trước).
+WHY TWO SEPARATE REGISTRIES (built separately, not load-everything-then-filter-results):
+the two holes fixed on the same day (Spacy forgetting to apply `_plausible_person_span`,
+MEDICAL_LICENSE slipping into the registry) both had the same shape: "forgot to filter for
+one particular branch". A registry that NEVER LOADS the extra recognizers in the first place
+has nothing to forget to filter later — removing that kind of risk at the root instead of
+adding yet another runtime check (just as easy to forget as the previous two).
 
-"Tuần" (quyết (b), Bảo Mật + Lead 19/08): VẪN giữ trong stoplist chặn NER
-dù đây LÀ tên người Việt thật hợp lệ — tần suất dùng làm từ-chỉ-thời-gian
-("tuần sau", "tuần trước") cao hơn nhiều tần suất dùng làm tên riêng trong
-văn cảnh CSKH ví điện tử. Đây là ĐÁNH ĐỔI CÓ KHAI, không phải bug: khách tên
-"Tuần" nói "Mình là Tuần" sẽ KHÔNG được che (xem `_TU_THUONG_BI_NHAN_NHAM_
-LA_TEN` để biết rào cần tự hỏi trước khi thêm từ mới vào danh sách này).
+"Tuần" (decision (b), Security + Lead 19/08): STILL kept in the NER stoplist even though it
+IS a valid real Vietnamese personal name — it is used as a time word ("tuần sau" = next week,
+"tuần trước" = last week) far more often than as a proper name in e-wallet customer-service
+contexts. This is a DECLARED TRADE-OFF, not a bug: a customer named "Tuần" saying
+"Mình là Tuần" (I'm Tuần) will NOT be masked (see `_WORDS_MISTAKEN_FOR_NAMES` for the
+check you must ask yourself before adding a new word to that list).
 
-Dùng **Microsoft Presidio** (`presidio-analyzer`) làm engine chính — quyết
-định 2026-08-10, thay cho quyết định trước đó (spaCy gọi thẳng): sản phẩm
-nhận diện khách hàng sẽ mở rộng thêm nhiều loại PII theo thời gian (số thẻ,
-IBAN, ví crypto, IP...), Presidio có sẵn catalog recognizer cho các loại đó —
-thêm 1 loại PII mới về sau chỉ cần đăng ký thêm 1 `PatternRecognizer`, không
-phải tự viết regex quét thủ công từng loại. Presidio tự dùng spaCy làm NLP
-engine bên trong (vẫn model `xx_ent_wiki_sm` đã verify trước đó), gắn thêm
-sẵn EmailRecognizer/PhoneRecognizer/IbanRecognizer/CryptoRecognizer/
-IpRecognizer/UrlRecognizer/DateRecognizer — không cần tự viết cho các loại
-"tương lai" đó nữa.
+**Microsoft Presidio** (`presidio-analyzer`) is the main engine — decided 2026-08-10,
+replacing the earlier decision (calling spaCy directly): the product's customer PII detection
+will expand to more PII types over time (card numbers, IBAN, crypto wallets, IP...), and
+Presidio ships a recognizer catalog for those — adding a new PII type later just means
+registering one more `PatternRecognizer`, instead of hand-writing a regex scan for each.
+Presidio itself uses spaCy as its internal NLP engine (still the `xx_ent_wiki_sm` model
+verified earlier), and comes with EmailRecognizer/PhoneRecognizer/IbanRecognizer/
+CryptoRecognizer/IpRecognizer/UrlRecognizer/DateRecognizer — no need to hand-write those
+"future" types any more.
 
-CHỈ dùng `presidio-analyzer` (phát hiện), KHÔNG dùng `presidio-anonymizer`
-(che/thay thế) — lý do thật phát hiện lúc cài: `presidio-anonymizer` ép
-`cryptography<49.0.0`, ĐÈ xuống bản có 3 CVE đã biết (PYSEC-2026-3552/3553/
-3554), trong khi dự án đang dùng `cryptography>=50.0.0` cho mã hoá field tại
-chỗ (`src/db/crypto_types.py`). Tự làm phần thay thế ký tự (đã có sẵn, verify
-kỹ) rẻ hơn nhiều so với đánh đổi 1 lỗ hổng đã biết trong thư viện mã hoá cốt
-lõi — không đáng.
+ONLY `presidio-analyzer` (detection) is used, NOT `presidio-anonymizer` (masking/replacement)
+— the real reason, found during installation: `presidio-anonymizer` pins
+`cryptography<49.0.0`, DOWNGRADING to a version with 3 known CVEs (PYSEC-2026-3552/3553/
+3554), while the project uses `cryptography>=50.0.0` for field encryption at rest
+(`src/db/crypto_types.py`). Doing the character replacement ourselves (already present and
+carefully verified) is far cheaper than accepting a known vulnerability in the core crypto
+library — not worth it.
 
-Vẫn giữ 1 `PatternRecognizer` tự viết cho SĐT/CCCD/CMND/số tài khoản VN
-(Presidio không có sẵn recognizer riêng cho định dạng VN) — đăng ký CHUNG vào
-1 `AnalyzerEngine` với các recognizer có sẵn, không phải 2 tầng tách rời như
-thiết kế trước.
+A hand-written `PatternRecognizer` is still kept for Vietnamese phone/ID-card/old-ID/bank
+account numbers (Presidio has no dedicated recognizer for Vietnamese formats) — registered
+TOGETHER in one `AnalyzerEngine` with the built-in recognizers, not as 2 separate tiers as
+in the previous design.
 
-**NER tên người tiếng Việt (quyết định 2026-08-11, sau khi phát hiện gap
-thật ở bản trước):** `SpacyRecognizer` bên trong Presidio dùng model đa ngôn
-ngữ nhỏ (`xx_ent_wiki_sm`) — KHÔNG chuyên tiếng Việt, bỏ sót nhiều tên người
-tiếng Việt (case cụ thể: "Anh Lê Hoàng Nam..." — xem lịch sử
-tests/test_observability/test_pii.py). Thêm `_VietnameseNameRecognizer`
-(`EntityRecognizer` tự viết, gọi `underthesea.ner()`) làm lớp BỔ SUNG cho
-`SpacyRecognizer`, KHÔNG thay thế — 2 recognizer chạy song song, kết quả gộp
-qua `_merge_overlapping` sẵn có. underthesea bắt được case spaCy bỏ sót,
-nhưng PHÁT HIỆN THẬT lúc verify: gán nhãn B-PER (sai) cho vài chuỗi không
-phải tên người — mã giao dịch có tiền tố+số (`TXN20260810000123`) và viết
-tắt toàn hoa (`CCCD`). Lọc 2 loại false-positive này bằng quy tắc đơn giản,
-không phải danh sách tiền tố cứng (tên người tiếng Việt thật không chứa chữ
-số, và không toàn hoa) — xem `_plausible_person_span()`.
+**Vietnamese personal-name NER (decision 2026-08-11, after finding a real gap in the
+previous version):** the `SpacyRecognizer` inside Presidio uses a small multilingual model
+(`xx_ent_wiki_sm`) — NOT specialised for Vietnamese, missing many Vietnamese names (concrete
+case: "Anh Lê Hoàng Nam..." — see the history of tests/test_observability/test_pii.py). A
+`_VietnameseNameRecognizer` (a hand-written `EntityRecognizer` calling `underthesea.ner()`)
+was added as a COMPLEMENT to `SpacyRecognizer`, NOT a replacement — the 2 recognizers run in
+parallel and results are merged via the existing `_merge_overlapping`. underthesea catches
+cases spaCy misses, but a REAL FINDING during verification: it labels B-PER (wrongly) on a
+few strings that aren't names — prefixed numeric transaction IDs (`TXN20260810000123`) and
+all-caps abbreviations (`CCCD`). These 2 false-positive kinds are filtered with simple rules,
+not a hard-coded prefix list (real Vietnamese names contain no digits and are not all caps)
+— see `_plausible_person_span()`.
 
-PHÁT HIỆN THẬT khi verify (xem tests/test_observability/test_pii.py) — ghi
-lại trung thực, không tô hồng:
-  - `SpacyRecognizer` gán SAI NHÃN loại thực thể cho tên người (ra
-    LOCATION/ORGANIZATION thay vì PERSON) khá thường xuyên. Vì mục tiêu là
-    CHE (không phải phân loại), scrubber che theo ĐÚNG loại Presidio trả về
-    (không ép về PERSON) — chấp nhận over-redact, không nới lỏng để giảm
-    false positive, đúng nguyên tắc checklist Giai đoạn 3.
-  - underthesea vẫn bỏ sót một số tên (case "Trần Thị Bích" — nhưng case này
-    ĐÃ được `SpacyRecognizer` bắt riêng, nên pipeline gộp vẫn che đúng; đây
-    là ví dụ cụ thể cho lý do giữ CẢ HAI recognizer thay vì thay thế nhau).
-    Chưa có case nào cả 2 recognizer cùng bỏ sót được ghi nhận tại thời điểm
-    này — nếu phát sinh, cập nhật ghi chú này, không âm thầm giữ nguyên.
-  - Graceful-degrade: thiếu `presidio-analyzer`/`underthesea` (chưa cài) hoặc
-    model NER thất bại lúc load → rơi về CHỈ lớp regex VN (SĐT/CCCD/email cơ
-    bản tự viết) thay vì crash toàn app. `_VietnameseNameRecognizer` load lỗi
-    riêng không kéo sập cả `AnalyzerEngine` — vẫn còn `SpacyRecognizer` +
-    catalog Presidio khác hoạt động bình thường.
+REAL FINDINGS during verification (see tests/test_observability/test_pii.py) — recorded
+honestly, without sugar-coating:
+  - `SpacyRecognizer` quite often assigns the WRONG entity type to personal names (LOCATION/
+    ORGANIZATION instead of PERSON). Since the goal is MASKING (not classification), the
+    scrubber masks using EXACTLY the type Presidio returns (without forcing PERSON) —
+    over-redaction accepted, not loosened to reduce false positives, per the phase-3
+    checklist principle.
+  - underthesea still misses some names (case "Trần Thị Bích" — but that case IS caught
+    separately by `SpacyRecognizer`, so the merged pipeline still masks it correctly; a
+    concrete example of why BOTH recognizers are kept rather than one replacing the other).
+    No case where both recognizers miss has been recorded so far — if one appears, update
+    this note rather than silently leaving it.
+  - Graceful degradation: missing `presidio-analyzer`/`underthesea` (not installed) or an NER
+    model failing to load → falls back to ONLY the Vietnamese regex layer (hand-written
+    basic phone/ID/email) instead of crashing the app. A failure loading
+    `_VietnameseNameRecognizer` alone does not bring down the whole `AnalyzerEngine` —
+    `SpacyRecognizer` + the rest of the Presidio catalog keep working normally.
 """
 from __future__ import annotations
 
@@ -103,169 +100,169 @@ from typing import Literal
 
 _logger = logging.getLogger("fin05.observability.pii")
 
-# "model_input" = registry HẸP (D'), dữ liệu đi ra nhà cung cấp LLM.
-# "log" = registry ĐẦY ĐỦ, mọi nơi khác (trace/span, resolutions.note).
-MucDichScrub = Literal["model_input", "log"]
+# "model_input" = NARROW registry (D'), data going out to the LLM provider.
+# "log" = FULL registry, everywhere else (trace/span, resolutions.note).
+ScrubPurpose = Literal["model_input", "log"]
 
-# --- Regex fallback (KHÔNG cần Presidio) — dùng khi presidio-analyzer chưa
-# cài/lỗi load, giữ tối thiểu 3 loại PII cấu trúc rõ nhất. -------------------
+# --- Regex fallback (NO Presidio needed) — used when presidio-analyzer isn't installed /
+# fails to load; keeps the 3 most clearly structured PII types at minimum. ---------------
 _FALLBACK_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _FALLBACK_PHONE_RE = re.compile(r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)")
 _FALLBACK_ID_RE = re.compile(r"(?<![\w-])\d{9,19}(?!\d)")
 
 
 def scrub_regex(text: str) -> str:
-    """Chỉ lớp regex — dùng riêng trong test để CHỨNG MINH vì sao cần lớp NER
-    (tên người tự do sẽ LỌT qua lớp này), và làm fallback khi Presidio không
-    khả dụng. KHÔNG dùng trực tiếp cho log thật (dùng `scrub_pii`)."""
+    """Regex layer only — used in tests specifically to PROVE why the NER layer is needed
+    (free-form personal names will SLIP through this layer), and as a fallback when Presidio
+    is unavailable. DO NOT use directly for real logs (use `scrub_pii`)."""
     out = _FALLBACK_EMAIL_RE.sub("[EMAIL]", text)
     out = _FALLBACK_PHONE_RE.sub("[PHONE]", out)
     out = _FALLBACK_ID_RE.sub("[ID_NUMBER]", out)
     return out
 
 
-# SĐT/CCCD/CMND/số tài khoản VN — Presidio không có sẵn recognizer riêng cho
-# định dạng VN, đăng ký thêm vào registry chung. Cùng pattern đã verify ở
-# bản trước (giữ nguyên ID nội bộ có tiền tố chữ như TXN.../TCK... không bị
-# che — đó là mã tra cứu, không phải PII).
+# Vietnamese phone/ID-card/old-ID/bank account numbers — Presidio has no dedicated
+# recognizer for Vietnamese formats, so they are registered into the shared registry. Same
+# pattern verified in the previous version (internal IDs with letter prefixes like
+# TXN.../TCK... are left unmasked — they are lookup codes, not PII).
 #
-# Trần trên 14 -> 19 (ADR-024, đo khi làm scrub-tại-điểm-ghi cho `resolutions.
-# note`): "thẻ 9704123456789012" (16 số) lọt nguyên vẹn qua bản trần-14 — không
-# recognizer nào của Presidio bắt số thẻ không đúng định dạng Luhn/BIN chuẩn
-# quốc tế thay nó. 19 là độ dài tối đa của số thẻ theo ISO/IEC 7812; số tài
-# khoản ngân hàng VN (tới 14 số) vẫn nằm trong khoảng cũ nên không đổi hành vi.
+# Upper bound 14 -> 19 (ADR-024, measured while building scrub-at-write for
+# `resolutions.note`): "thẻ 9704123456789012" (card, 16 digits) slipped through the 14-digit
+# version intact — no Presidio recognizer catches card numbers that don't follow the
+# international Luhn/BIN format. 19 is the maximum card-number length under ISO/IEC 7812;
+# Vietnamese bank account numbers (up to 14 digits) stay within the old range, so behaviour
+# is unchanged for them.
 _VN_PHONE_REGEX = r"(?<![\w-])(?:\+84|0)\d{9}(?!\d)"
 _VN_ID_REGEX = r"(?<![\w-])\d{9,19}(?!\d)"
 
-# Nhãn NER "tự do" — đoán loại thực thể từ NGỮ CẢNH (SpacyRecognizer/
-# underthesea), khác nhãn PHI-NER khớp theo REGEX có cấu trúc (VN_PHONE_
-# NUMBER/VN_ID_NUMBER/EMAIL_ADDRESS/IBAN_CODE/...). Chỉ nhóm NÀY mới được áp
-# `_plausible_person_span` (Bảo Mật 19/08) — "MISC" là nhãn spaCy chưa map
-# được của Presidio (log cảnh báo "Entity MISC is not mapped..." đã thấy
-# trong sổ), vẫn là một dự đoán NER, không phải khớp cấu trúc, nên vẫn thuộc
-# nhóm này.
-_NHAN_NER_TU_DO = {"PERSON", "LOCATION", "ORGANIZATION", "PERSON_VN", "MISC"}
+# "Free" NER labels — the entity type is guessed from CONTEXT (SpacyRecognizer/
+# underthesea), unlike NON-NER labels matched by structured REGEX (VN_PHONE_NUMBER/
+# VN_ID_NUMBER/EMAIL_ADDRESS/IBAN_CODE/...). Only THIS group may have
+# `_plausible_person_span` applied (Security 19/08) — "MISC" is a spaCy label Presidio
+# hasn't mapped (the warning "Entity MISC is not mapped..." has been seen in the logs); it is
+# still an NER guess, not a structural match, so it belongs in this group.
+_FREE_NER_LABELS = {"PERSON", "LOCATION", "ORGANIZATION", "PERSON_VN", "MISC"}
 
 
-# Đại từ nhân xưng + xưng hô tiếng Việt — KHÔNG phải tên người, dù NER hay
-# gán nhãn B-PER. Phát hiện thật 2026-08-13 lúc đo scrub trên tin nhắn khách:
-# "tôi chuyển 5tr cho số 09..." bị biến thành "[PERSON] chuyển ..." làm agent
-# mất luôn chủ ngữ của câu. Đây là danh sách ĐÓNG (đại từ tiếng Việt là tập
-# hữu hạn, không sinh thêm), khác với quy tắc chung ở _plausible_person_span.
-_DAI_TU_KHONG_PHAI_TEN = {
+# Vietnamese personal pronouns + forms of address — NOT personal names, even if NER labels
+# them B-PER. Real finding 2026-08-13 while measuring scrubbing on customer messages:
+# "tôi chuyển 5tr cho số 09..." (I transferred 5M to number 09...) became "[PERSON] chuyển ..."
+# and the agent lost the subject of the sentence. This is a CLOSED list (Vietnamese pronouns
+# are a finite set that doesn't grow), unlike the general rule in _plausible_person_span.
+_PRONOUNS_NOT_NAMES = {
     "tôi", "tui", "mình", "em", "anh", "chị", "cô", "chú", "bác", "ông", "bà",
     "con", "cháu", "bạn", "cậu", "tớ", "ta", "họ", "nó", "ai",
 }
 
 
-def _cat_gon_dai_tu(text: str, start: int, end: int, label: str) -> tuple[int, int, str] | None:
-    """Cắt đại từ/động từ thừa ở HAI ĐẦU span nhãn PERSON, trả None nếu rỗng.
+def _trim_pronouns(text: str, start: int, end: int, label: str) -> tuple[int, int, str] | None:
+    """Trim extra pronouns/verbs at BOTH ENDS of a PERSON span; return None if empty.
 
-    VÌ SAO CẦN (đo thật 2026-08-13 trên tin nhắn khách):
-    NER tiếng Việt gán nhãn cho CỤM NHIỀU TỪ, không phải đúng tên: "tôi bị"
-    -> PERSON, "anh bị trừ" -> PERSON, "chị" -> ORGANIZATION. Che nguyên cụm
-    làm câu mất chủ ngữ ("[PERSON] trừ tiền 2 lần") — agent không còn hiểu ai
-    làm gì. Lọc theo chuỗi khớp chính xác KHÔNG ăn vì span là "tôi bị" chứ
-    không phải "tôi".
+    WHY IT IS NEEDED (measured 2026-08-13 on customer messages):
+    Vietnamese NER labels MULTI-WORD PHRASES, not exactly the name: "tôi bị" (I got)
+    -> PERSON, "anh bị trừ" (you got charged) -> PERSON, "chị" (sister/you) -> ORGANIZATION.
+    Masking the whole phrase strips the sentence of its subject ("[PERSON] charged twice") —
+    the agent can no longer tell who did what. Filtering by exact string match DOESN'T work
+    because the span is "tôi bị", not "tôi".
 
-    Cắt gọn thay vì bỏ cả span để giữ đúng hai chiều: "anh Huy" -> vẫn che
-    "Huy" (tên thật) nhưng trả lại "anh" cho câu.
+    Trimming rather than dropping the whole span preserves both directions: "anh Huy" ->
+    still masks "Huy" (the real name) but gives "anh" back to the sentence.
 
-    CHỈ áp dụng cho nhãn người — không đụng SĐT/CCCD/email (đó là PII cứng,
-    không có chuyện cắt gọn).
+    Applies ONLY to person labels — never touches phone/ID/email (those are hard PII, there
+    is no trimming them).
     """
     if "PERSON" not in label.upper() and "ORGANIZATION" not in label.upper():
         return (start, end, label)
 
     span = text[start:end]
-    # Cắt từ đầu
+    # Trim from the start
     while True:
         m = re.match(r"^\s*(\w+)", span)
-        if not m or m.group(1).lower() not in _DAI_TU_KHONG_PHAI_TEN:
+        if not m or m.group(1).lower() not in _PRONOUNS_NOT_NAMES:
             break
         start += m.end()
         span = text[start:end]
-    # Cắt từ cuối: bỏ token cuối nếu là đại từ hoặc từ nối thường gặp
+    # Trim from the end: drop the last token if it is a pronoun or a common connector
     while True:
         m = re.search(r"(\w+)\s*$", span)
-        if not m or m.group(1).lower() not in _DAI_TU_KHONG_PHAI_TEN | _TU_NOI_THUONG_GAP:
+        if not m or m.group(1).lower() not in _PRONOUNS_NOT_NAMES | _COMMON_CONNECTORS:
             break
         end -= len(span) - m.start()
         span = text[start:end]
 
     span = text[start:end].strip()
-    if not span or span.lower() in _DAI_TU_KHONG_PHAI_TEN | _TU_NOI_THUONG_GAP:
+    if not span or span.lower() in _PRONOUNS_NOT_NAMES | _COMMON_CONNECTORS:
         return None
-    # Căn lại biên sau khi strip
-    lech_trai = len(text[start:end]) - len(text[start:end].lstrip())
-    return (start + lech_trai, start + lech_trai + len(span), label)
+    # Re-align the boundaries after stripping
+    left_offset = len(text[start:end]) - len(text[start:end].lstrip())
+    return (start + left_offset, start + left_offset + len(span), label)
 
 
-# Động từ/từ nối hay bị NER gộp nhầm vào span tên người trong câu khiếu nại.
-_TU_NOI_THUONG_GAP = {"bị", "trừ", "là", "cho", "của", "đã", "được", "vừa", "chuyển", "nhận"}
+# Verbs/connectors that NER often wrongly merges into personal-name spans in complaint sentences.
+_COMMON_CONNECTORS = {"bị", "trừ", "là", "cho", "của", "đã", "được", "vừa", "chuyển", "nhận"}
 
 
-# Từ tiếng Việt THÔNG THƯỜNG (không phải đại từ) từng bị NER gán nhầm nhãn
-# người/tổ chức — phát hiện thật 19/08 (PO thật test kịch bản A): "Mã giao
-# dịch..." bị gán B-PER, agent nhận "[PERSON_VN] giao dịch..." mất luôn chủ
-# ngữ. 🔴 DANH SÁCH MỞ — khác `_DAI_TU_KHONG_PHAI_TEN` (đại từ là tập HỮU HẠN,
-# liệt kê hết được): "từ thường bị NER nhận nhầm" thì KHÔNG hữu hạn, sẽ còn
-# phát sinh case mới ngoài "mã". Phát hiện case mới -> THÊM VÀO ĐÂY, không âm
-# thầm bỏ qua (đúng cam kết đã viết cho _DAI_TU_KHONG_PHAI_TEN ở trên, Bảo
-# Mật 19/08 nhắc lại rõ trong docs/security/2026-08-19-gd4-dinh-hang-scrub-
-# pii-model-input.md).
-# CẬP NHẬT 19/08 (chiều): PO-agent [ĐO] "Giao dịch bị treo mấy ngày rồi" ->
-# "ngày" gán LOCATION — câu KHÔNG mã, KHÔNG số, KHÔNG tên, chứng minh đây
-# không phải phạm vi hẹp "mã giao dịch" mà là NER bóp méo từ tiếng Việt đời
-# thường nói chung. Coder tự đo thêm, thấy "tuần" (viết hoa đầu câu) cũng gán
-# PERSON — thêm CẢ HAI, đúng cam kết ở trên. QA/QC đang dựng corpus đo tỉ lệ
-# trước/sau trên golden_set.jsonl — case mới từ đó sẽ vào đây tiếp.
+# ORDINARY Vietnamese words (not pronouns) that NER has wrongly labelled as a person/
+# organisation — real finding 19/08 (the real PO testing scenario A): "Mã giao dịch..."
+# (Transaction ID...) was labelled B-PER, and the agent received "[PERSON_VN] giao dịch...",
+# losing the subject. 🔴 AN OPEN LIST — unlike `_PRONOUNS_NOT_NAMES` (pronouns are a FINITE set
+# that can be fully enumerated): "words NER commonly mistakes" is NOT finite; new cases beyond
+# "mã" will keep appearing. Find a new case -> ADD IT HERE, don't silently skip it (the same
+# commitment written for _PRONOUNS_NOT_NAMES above, restated clearly by Security 19/08 in
+# docs/security/2026-08-19-gd4-dinh-hang-scrub-pii-model-input.md).
+# UPDATE 19/08 (afternoon): PO-agent [MEASURED] "Giao dịch bị treo mấy ngày rồi" (the
+# transaction has been stuck for days) -> "ngày" (day) labelled LOCATION — a sentence with NO
+# code, NO number, NO name, proving this is not limited to "transaction ID" but is NER
+# distorting everyday Vietnamese words in general. Coder measured further and found "tuần"
+# (week, capitalised at sentence start) also labelled PERSON — BOTH added, per the commitment
+# above. QA/QC is building a corpus measuring before/after rates on golden_set.jsonl — new
+# cases from it will be added here.
 #
-# 🔴 RÀO trước khi thêm từ MỚI vào danh sách này (Bảo Mật + Lead 19/08, sau
-# khi phát hiện "tuần" CŨNG là một tên người Việt hợp lệ, không chỉ từ chỉ
-# thời gian): tự hỏi "từ này có khả dĩ là tên người Việt thật không?" — nếu
-# CÓ, đây là một ĐÁNH ĐỔI (đánh mất khả năng che một cái tên hiếm để đổi lấy
-# không bóp méo một từ thông dụng), KHÔNG PHẢI miễn phí. Thêm từ vẫn ĐÚNG nếu
-# tần suất dùng-làm-từ-thường >> tần suất dùng-làm-tên-riêng trong văn cảnh
-# CSKH ví điện tử (đúng trường hợp "mã"/"ngày"/"tuần") — nhưng PHẢI khai rõ
-# đánh đổi đó ngay tại dòng thêm từ, không âm thầm thêm như một fix vô hại.
-_TU_THUONG_BI_NHAN_NHAM_LA_TEN = {"mã", "ngày", "tuần"}
+# 🔴 GATE before adding a NEW word to this list (Security + Lead 19/08, after discovering that
+# "tuần" IS ALSO a valid Vietnamese personal name, not just a time word): ask yourself "could
+# this word plausibly be a real Vietnamese name?" — if YES, this is a TRADE-OFF (losing the
+# ability to mask a rare name in exchange for not distorting a common word), NOT free. Adding
+# the word is still RIGHT if its use as an ordinary word >> its use as a proper name in
+# e-wallet customer-service contexts (exactly the case for "mã"/"ngày"/"tuần") — but the
+# trade-off MUST be declared right on the line adding the word, not added silently as a
+# harmless fix.
+_WORDS_MISTAKEN_FOR_NAMES = {"mã", "ngày", "tuần"}
 
 
 def _plausible_person_span(span: str) -> bool:
-    """Lọc false-positive THẬT phát hiện lúc verify underthesea.ner() trên dữ
-    liệu của dự án: mã giao dịch/ticket nội bộ (vd `TXN20260810000123`, tiền
-    tố new_id() + số, xem src/tools/base.py::new_id) và viết tắt toàn hoa (vd
-    `CCCD`) đôi lúc bị gán nhãn B-PER sai. Tên người tiếng Việt thật KHÔNG
-    chứa chữ số và KHÔNG viết toàn hoa — quy tắc chung, không phải danh sách
-    tiền tố ID cứng (không cần cập nhật khi có prefix ID mới).
+    """Filters REAL false positives found while verifying underthesea.ner() on the project's
+    data: internal transaction/ticket IDs (e.g. `TXN20260810000123`, new_id() prefix +
+    digits, see src/tools/base.py::new_id) and all-caps abbreviations (e.g. `CCCD`) are
+    sometimes wrongly labelled B-PER. Real Vietnamese names contain NO digits and are NOT
+    written in all caps — a general rule, not a hard-coded ID prefix list (no update needed
+    when a new ID prefix appears).
 
-    Bảo Mật 19/08 (df186c0): trước đây hàm này CHỈ áp cho `underthesea.ner()`
-    (`_underthesea_person_spans` dưới) — `SpacyRecognizer` của Presidio chạy
-    KHÔNG lọc, nên "TXN...352" gán LOCATION/MISC lọt nguyên vẹn thành
-    `[LOCATION]`. `scrub_pii()` giờ áp hàm này cho MỌI recognizer trả nhãn NER
-    TỰ DO (xem `_NHAN_NER_TU_DO`), không riêng underthesea — ĐÂY LÀ SỬA MỘT MÔ
-    TẢ SAI BẢN CHẤT, không phải nới lỏng: quy tắc chỉ loại span CHƯA TỪNG LÀ
-    PII (có số/toàn hoa/đại từ/từ thường gặp), không đụng quyết định "che
-    theo đúng loại Presidio trả về dù có thể sai LOẠI" cho PII THẬT."""
+    Security 19/08 (df186c0): previously this function was ONLY applied to `underthesea.ner()`
+    (`_underthesea_person_spans` below) — Presidio's `SpacyRecognizer` ran UNFILTERED, so
+    "TXN...352" labelled LOCATION/MISC slipped through intact as `[LOCATION]`. `scrub_pii()`
+    now applies this function to EVERY recognizer returning a FREE NER label (see
+    `_FREE_NER_LABELS`), not just underthesea — THIS CORRECTS A FUNDAMENTALLY WRONG
+    DESCRIPTION, it is not a loosening: the rule only drops spans that WERE NEVER PII (digits/
+    all caps/pronouns/common words), and doesn't touch the decision to "mask with exactly the
+    type Presidio returns even if the TYPE may be wrong" for REAL PII."""
     if any(ch.isdigit() for ch in span):
         return False
     if span.isupper():
         return False
-    sach = span.strip().lower()
-    if sach in _DAI_TU_KHONG_PHAI_TEN:
+    clean_text = span.strip().lower()
+    if clean_text in _PRONOUNS_NOT_NAMES:
         return False
-    if sach in _TU_THUONG_BI_NHAN_NHAM_LA_TEN:
+    if clean_text in _WORDS_MISTAKEN_FOR_NAMES:
         return False
     return True
 
 
 def _underthesea_person_spans(text: str) -> list[tuple[int, int, str]]:
-    """underthesea.ner() trả token (có thể ghép nhiều từ, vd 'Lê Hoàng Nam')
-    dưới dạng chuỗi CON của text gốc (không word-segment bằng dấu '_') — map
-    lại offset ký tự bằng con trỏ tuần tự (`str.find` từ vị trí sau token
-    trước), đúng thứ tự token trả về. Bỏ qua token không tìm thấy (không nên
-    xảy ra trong thực nghiệm, nhưng an toàn hơn là tính sai offset)."""
+    """underthesea.ner() returns tokens (possibly multi-word, e.g. 'Lê Hoàng Nam')
+    as SUBSTRINGS of the original text (no word segmentation with '_') — character offsets
+    are mapped back with a sequential cursor (`str.find` from the position after the previous
+    token), in the order the tokens are returned. Tokens not found are skipped (shouldn't
+    happen in practice, but safer than computing a wrong offset)."""
     from underthesea import ner as underthesea_ner
 
     spans: list[tuple[int, int, str]] = []
@@ -282,17 +279,17 @@ def _underthesea_person_spans(text: str) -> list[tuple[int, int, str]]:
 
 
 class _VietnameseNameRecognizer:
-    """`presidio_analyzer.EntityRecognizer` tự viết bọc `underthesea.ner()` —
-    lớp NER tiếng Việt chuyên biệt BỔ SUNG cho `SpacyRecognizer` (đa ngôn ngữ,
-    xem docstring module), không thay thế. Đăng ký riêng, tách khỏi try/except
-    chính của `_load_analyzer()` — thiếu `underthesea`/lỗi load KHÔNG được
-    kéo sập toàn bộ AnalyzerEngine (vẫn còn SpacyRecognizer + catalog khác)."""
+    """A hand-written `presidio_analyzer.EntityRecognizer` wrapping `underthesea.ner()` —
+    a specialised Vietnamese NER layer COMPLEMENTING `SpacyRecognizer` (multilingual,
+    see the module docstring), not replacing it. Registered separately, outside the main
+    try/except of `_load_analyzer()` — a missing `underthesea`/load failure MUST NOT bring
+    down the whole AnalyzerEngine (SpacyRecognizer + the rest of the catalog remain)."""
 
     def __new__(cls):
         from presidio_analyzer import EntityRecognizer, RecognizerResult
 
         class _Impl(EntityRecognizer):
-            def load(self) -> None:  # underthesea tự lazy-load model bên trong
+            def load(self) -> None:  # underthesea lazy-loads its model internally
                 pass
 
             def analyze(self, text, entities, nlp_artifacts=None):
@@ -304,41 +301,40 @@ class _VietnameseNameRecognizer:
         return _Impl(supported_entities=["PERSON_VN"], supported_language="vi", name="VietnameseNameRecognizer")
 
 
-# Recognizer chỉ loại KHỎI ĐƯỜNG model_input — đoán PII từ NGỮ CẢNH (Spacy)
-# hoặc khớp CHUỖI SỐ CHUNG dễ trùng mã giao dịch nội bộ (Date: YYYYMMDD ~
-# TXN20260810...; Phone: chuỗi số bất kỳ giống điện thoại, KHÁC VN_PHONE_
-# NUMBER hẹp tự viết bên dưới). Đường log/trace KHÔNG loại các recognizer
-# này — over-redact ở log là CHÍNH SÁCH ĐÃ CHỐT (xem docstring đầu file),
-# không phải sơ suất quên áp cùng một danh sách.
-_LOAI_KHOI_MODEL_INPUT = ("SpacyRecognizer", "DateRecognizer", "PhoneRecognizer")
+# Recognizers excluded ONLY FROM THE model_input PATH — they guess PII from CONTEXT (Spacy)
+# or match GENERIC DIGIT STRINGS that easily collide with internal transaction IDs (Date:
+# YYYYMMDD ~ TXN20260810...; Phone: any phone-like digit string, UNLIKE the narrow
+# hand-written VN_PHONE_NUMBER below). The log/trace path does NOT exclude these recognizers —
+# over-redaction in logs is an ESTABLISHED POLICY (see the module docstring), not an oversight
+# of forgetting to apply the same list.
+_EXCLUDE_FROM_MODEL_INPUT = ("SpacyRecognizer", "DateRecognizer", "PhoneRecognizer")
 
 
-def _dung_registry(nlp_engine, *, la_model_input: bool):
-    """MỘT nguồn cấu hình cho CẢ HAI registry (model_input/log) — tham số
-    `la_model_input` điều khiển recognizer nào KHÔNG được nạp, không phải
-    hai hàm chép lại cùng danh sách recognizer hai lần (Bảo Mật 19/08: nạp-
-    hết-rồi-lọc-kết-quả từng là chỗ quên lọc, một nguồn cấu hình duy nhất
-    thì không có bản sao nào để lệch nhau)."""
+def _build_registry(nlp_engine, *, is_model_input: bool):
+    """ONE configuration source for BOTH registries (model_input/log) — the
+    `is_model_input` parameter controls which recognizers are NOT loaded, rather than two
+    functions copying the same recognizer list twice (Security 19/08: load-everything-then-
+    filter-results was where the filtering got forgotten; with a single configuration source
+    there are no copies to drift apart)."""
     from presidio_analyzer import Pattern, PatternRecognizer, RecognizerRegistry
 
     registry = RecognizerRegistry(supported_languages=["vi"])
-    # Catalog có sẵn của Presidio cho "vi" — Email/Phone/Iban/Crypto/Ip/
-    # Url/Date/MedicalLicense/MacAddress + SpacyRecognizer (NER tên
-    # người/tổ chức/địa danh) — đây chính là phần "tương lai có thêm
-    # nhiều loại PII khác" không cần tự viết regex riêng cho từng loại.
+    # Presidio's built-in catalog for "vi" — Email/Phone/Iban/Crypto/Ip/
+    # Url/Date/MedicalLicense/MacAddress + SpacyRecognizer (NER for person/
+    # organisation/location names) — this is exactly the "more PII types in the future" part that
+    # needs no hand-written regex per type.
     registry.load_predefined_recognizers(languages=["vi"], nlp_engine=nlp_engine)
-    # Bảo Mật 19/08 (QA/QC đo corpus golden_set.jsonl: 49,2% lượt bị bóp
-    # méo): `MEDICAL_LICENSE` định nghĩa BẰNG CHỮ SỐ — filter shape hiện
-    # có ("có số ⟹ không phải PII") áp lên nó là TỰ TRIỆT TIÊU chính nó,
-    # không có cách vá bằng shape-filter. Bối cảnh CSKH ví Việt, khách
-    # nhắc số giấy phép y tế Mỹ ≈ 0 — recognizer chỉ còn sinh dương tính
-    # giả trên mã giao dịch/số tài khoản. Loại THỐNG NHẤT cả log/trace lẫn
-    # model-input (khác quyết định giữ nguyên với Spacy PERSON/LOCATION —
-    # ở đây KHÔNG có PII thật phía sau để đánh đổi khi loại bỏ).
+    # Security 19/08 (QA/QC measured the golden_set.jsonl corpus: 49.2% of turns distorted):
+    # `MEDICAL_LICENSE` is defined IN DIGITS — the existing shape filter ("has digits ⟹ not PII")
+    # applied to it would CANCEL ITSELF OUT; there is no way to fix it with a shape filter.
+    # In a Vietnamese e-wallet customer-service context, customers mentioning a US medical
+    # licence number ≈ 0 — the recognizer only produced false positives on transaction IDs/account
+    # numbers. Removed UNIFORMLY from both log/trace and model-input (unlike the decision to keep
+    # Spacy PERSON/LOCATION — here there is NO real PII behind it to trade off when removing it).
     registry.remove_recognizer("MedicalLicenseRecognizer")
-    if la_model_input:
-        for ten in _LOAI_KHOI_MODEL_INPUT:
-            registry.remove_recognizer(ten)
+    if is_model_input:
+        for name_text in _EXCLUDE_FROM_MODEL_INPUT:
+            registry.remove_recognizer(name_text)
     registry.add_recognizer(
         PatternRecognizer(
             supported_entity="VN_PHONE_NUMBER",
@@ -355,15 +351,15 @@ def _dung_registry(nlp_engine, *, la_model_input: bool):
     )
     try:
         registry.add_recognizer(_VietnameseNameRecognizer())
-    except Exception as e:  # thiếu underthesea — KHÔNG kéo sập cả analyzer
+    except Exception as e:  # underthesea missing — does NOT bring down the whole analyzer
         _logger.warning(
             "pii_underthesea_unavailable_spacy_only",
-            extra={"error": repr(e), "la_model_input": la_model_input},
+            extra={"error": repr(e), "la_model_input": is_model_input},
         )
     return registry
 
 
-def _dung_nlp_engine():
+def _build_nlp_engine():
     from presidio_analyzer.nlp_engine import NlpEngineProvider
 
     return NlpEngineProvider(
@@ -376,32 +372,32 @@ def _dung_nlp_engine():
 
 @functools.lru_cache(maxsize=1)
 def _load_analyzer_model_input():
-    """Lazy singleton — registry HẸP cho đường GỬI MODEL (`graph.py:787`).
-    KHÔNG nạp `_LOAI_KHOI_MODEL_INPUT` (xem hằng số) ngay từ lúc dựng, không
-    phải nạp-rồi-lọc-mỗi-lần-gọi. Trả None nếu presidio-analyzer/spaCy/model
-    chưa sẵn sàng — PHẢI graceful-degrade về regex fallback, không crash app.
+    """Lazy singleton — NARROW registry for the SEND-TO-MODEL path (`graph.py:787`).
+    `_EXCLUDE_FROM_MODEL_INPUT` (see the constant) is NOT loaded at build time at all, rather
+    than loaded-then-filtered on every call. Returns None if presidio-analyzer/spaCy/the model
+    isn't ready — MUST degrade gracefully to the regex fallback, never crash the app.
     """
     try:
-        nlp_engine = _dung_nlp_engine()
-        registry = _dung_registry(nlp_engine, la_model_input=True)
+        nlp_engine = _build_nlp_engine()
+        registry = _build_registry(nlp_engine, is_model_input=True)
         from presidio_analyzer import AnalyzerEngine
 
         return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["vi"])
-    except Exception as e:  # thiếu presidio-analyzer, thiếu spaCy, hoặc thiếu model
+    except Exception as e:  # presidio-analyzer missing, spaCy missing, or model missing
         _logger.warning("pii_presidio_unavailable_fallback_regex_only", extra={"error": repr(e), "muc_dich": "model_input"})
         return None
 
 
 @functools.lru_cache(maxsize=1)
 def _load_analyzer_log():
-    """Lazy singleton — registry ĐẦY ĐỦ cho đường LOG/TRACE (mọi call site
-    khác `graph.py:787`) — giữ NGUYÊN mọi recognizer kể cả Spacy/Date/Phone
-    (trừ MedicalLicense, loại thống nhất cả hai đường — xem `_dung_registry`).
-    Trả None nếu presidio-analyzer/spaCy/model chưa sẵn sàng — graceful-
-    degrade về regex fallback."""
+    """Lazy singleton — FULL registry for the LOG/TRACE path (every call site other than
+    `graph.py:787`) — keeps EVERY recognizer including Spacy/Date/Phone
+    (except MedicalLicense, removed uniformly from both paths — see `_build_registry`).
+    Returns None if presidio-analyzer/spaCy/the model isn't ready — degrades gracefully to
+    the regex fallback."""
     try:
-        nlp_engine = _dung_nlp_engine()
-        registry = _dung_registry(nlp_engine, la_model_input=False)
+        nlp_engine = _build_nlp_engine()
+        registry = _build_registry(nlp_engine, is_model_input=False)
         from presidio_analyzer import AnalyzerEngine
 
         return AnalyzerEngine(nlp_engine=nlp_engine, registry=registry, supported_languages=["vi"])
@@ -411,10 +407,11 @@ def _load_analyzer_log():
 
 
 def _merge_overlapping(spans: list[tuple[int, int, str]]) -> list[tuple[int, int, str]]:
-    """Presidio có thể trả nhiều recognizer TRÙNG/CHỒNG lấn 1 vùng ký tự (vd
-    EMAIL_ADDRESS chồng URL trên phần domain) — gộp thành 1 khối để tránh xử
-    lý 2 lần đè lên nhau làm hỏng offset khi thay chuỗi. Gộp nhãn loại lại
-    (an toàn hơn chọn 1 loại) — đúng nguyên tắc "che nhầm còn hơn để lọt"."""
+    """Presidio may return several recognizers DUPLICATING/OVERLAPPING one character region
+    (e.g. EMAIL_ADDRESS overlapping URL on the domain part) — merged into one block to avoid
+    processing twice on top of each other, which would corrupt offsets during replacement.
+    Type labels are merged (safer than picking one type) — per the principle "better to mask
+    by mistake than to leak"."""
     if not spans:
         return []
     spans = sorted(spans, key=lambda s: s[0])
@@ -428,23 +425,23 @@ def _merge_overlapping(spans: list[tuple[int, int, str]]) -> list[tuple[int, int
     return merged
 
 
-def scrub_pii(text: str | None, *, muc_dich: MucDichScrub) -> str | None:
-    """DÙNG HÀM NÀY cho mọi log/span attribute HOẶC văn bản gửi ra ngoài có
-    khả năng chứa PII của khách/agent. Presidio (đủ khả dụng) hoặc regex
-    fallback (xem docstring module).
+def scrub_pii(text: str | None, *, purpose: ScrubPurpose) -> str | None:
+    """USE THIS FUNCTION for every log/span attribute OR outgoing text that may contain
+    customer/agent PII. Presidio (when available) or the regex fallback (see the module
+    docstring).
 
-    `muc_dich` BẮT BUỘC, KHÔNG mặc định — hai lỗ đã vá 19/08 (Spacy quên áp
-    filter, MEDICAL_LICENSE lẫn vào registry) đều là "quên chọn đúng nhánh";
-    một tham số bắt buộc buộc mọi call site MỚI phải tự hỏi câu đó, không
-    thể vô tình rơi vào nhánh sai vì quên truyền.
-      - `"model_input"`: dữ liệu ĐI RA nhà cung cấp LLM — registry HẸP (D',
-        xem docstring module).
-      - `"log"`: mọi nơi khác (trace/span, `resolutions.note`) — registry
-        ĐẦY ĐỦ, hành vi KHÔNG đổi so với trước GĐ4."""
+    `purpose` is MANDATORY, with NO default — the two holes fixed on 19/08 (Spacy forgetting
+    the filter, MEDICAL_LICENSE slipping into the registry) were both "forgot to choose the
+    right branch"; a mandatory parameter forces every NEW call site to ask that question, and
+    nobody can accidentally land in the wrong branch by forgetting to pass it.
+      - `"model_input"`: data GOING OUT to the LLM provider — NARROW registry (D',
+        see the module docstring).
+      - `"log"`: everywhere else (trace/span, `resolutions.note`) — FULL registry,
+        behaviour UNCHANGED from before phase 4."""
     if not text:
         return text
 
-    analyzer = _load_analyzer_model_input() if muc_dich == "model_input" else _load_analyzer_log()
+    analyzer = _load_analyzer_model_input() if purpose == "model_input" else _load_analyzer_log()
     if analyzer is None:
         return scrub_regex(text)
 
@@ -453,20 +450,20 @@ def scrub_pii(text: str | None, *, muc_dich: MucDichScrub) -> str | None:
         return text
 
     raw_spans = [(r.start, r.end, r.entity_type) for r in results]
-    # Bảo Mật 19/08 (df186c0): áp `_plausible_person_span` cho MỌI recognizer
-    # trả nhãn NER TỰ DO (đoán theo ngữ cảnh — PERSON/LOCATION/ORGANIZATION/
-    # MISC của SpacyRecognizer, PERSON_VN của underthesea), KHÔNG riêng
-    # underthesea như trước. CỐ Ý KHÔNG áp cho nhãn PHI-NER (VN_PHONE_NUMBER/
-    # VN_ID_NUMBER/EMAIL_ADDRESS/IBAN_CODE/...): các recognizer đó match theo
-    # REGEX có cấu trúc — số/chữ hoa là TÍN HIỆU ĐÚNG của chúng, không phải
-    # nhiễu như với NER. Áp nhầm sang nhóm này sẽ tự vô hiệu hoá chính
-    # recognizer đang bảo vệ PII thật (số điện thoại/CCCD toàn chữ số).
+    # Security 19/08 (df186c0): `_plausible_person_span` is applied to EVERY recognizer
+    # returning a FREE NER label (context-guessed — PERSON/LOCATION/ORGANIZATION/
+    # MISC from SpacyRecognizer, PERSON_VN from underthesea), not just underthesea as before.
+    # DELIBERATELY NOT applied to NON-NER labels (VN_PHONE_NUMBER/
+    # VN_ID_NUMBER/EMAIL_ADDRESS/IBAN_CODE/...): those recognizers match by structured
+    # REGEX — digits/capitals are their CORRECT signal, not noise as with NER. Applying it to this
+    # group by mistake would disable the very recognizers protecting real PII (all-digit phone
+    # numbers/ID cards).
     raw_spans = [
         (start, end, label)
         for start, end, label in raw_spans
-        if label not in _NHAN_NER_TU_DO or _plausible_person_span(text[start:end])
+        if label not in _FREE_NER_LABELS or _plausible_person_span(text[start:end])
     ]
-    raw_spans = [s for s in (_cat_gon_dai_tu(text, *s) for s in raw_spans) if s]
+    raw_spans = [s for s in (_trim_pronouns(text, *s) for s in raw_spans) if s]
     if not raw_spans:
         return text
 

@@ -120,18 +120,18 @@ def test_record_message_masks_phone_and_bank_account_but_keeps_amount(sample_db)
     )
     sample_db.commit()
 
-    noi_dung = saved["content"]
-    assert "0987654321" not in noi_dung, f"SĐT thô vẫn còn trong đường đọc: {noi_dung!r}"
-    assert noi_dung.startswith("Gọi mình 098") and noi_dung[noi_dung.index("098") + 3] == "*", (
-        f"SĐT phải che dạng giữ 3 đầu — không thấy mẫu che ngay sau '098': {noi_dung!r}"
+    content_text = saved["content"]
+    assert "0987654321" not in content_text, f"SĐT thô vẫn còn trong đường đọc: {content_text!r}"
+    assert content_text.startswith("Gọi mình 098") and content_text[content_text.index("098") + 3] == "*", (
+        f"SĐT phải che dạng giữ 3 đầu — không thấy mẫu che ngay sau '098': {content_text!r}"
     )
-    assert noi_dung.count("4321") >= 1 and "4321." not in noi_dung.split("STK")[0], (
-        f"SĐT phải giữ 4 số cuối '4321' sau khi che: {noi_dung!r}"
+    assert content_text.count("4321") >= 1 and "4321." not in content_text.split("STK")[0], (
+        f"SĐT phải giữ 4 số cuối '4321' sau khi che: {content_text!r}"
     )
-    assert "88000000000001" not in noi_dung, f"STK thô vẫn còn trong đường đọc: {noi_dung!r}"
-    assert "0001" in noi_dung, f"STK phải giữ 4 số cuối '0001' sau khi che: {noi_dung!r}"
-    assert "1500000000 đồng" in noi_dung, (
-        f"Số tiền BỊ ĂN MẤT khi che — đúng lỗi M3 được chọn để tránh: {noi_dung!r}"
+    assert "88000000000001" not in content_text, f"STK thô vẫn còn trong đường đọc: {content_text!r}"
+    assert "0001" in content_text, f"STK phải giữ 4 số cuối '0001' sau khi che: {content_text!r}"
+    assert "1500000000 đồng" in content_text, (
+        f"Số tiền BỊ ĂN MẤT khi che — đúng lỗi M3 được chọn để tránh: {content_text!r}"
     )
 
 

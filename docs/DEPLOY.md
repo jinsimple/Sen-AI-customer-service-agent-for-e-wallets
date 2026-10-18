@@ -84,7 +84,7 @@ số lần, mỗi lần đều là một commit mới, không phải viết đè
 ```powershell
 # build_commit trong /health PHẢI khớp commit vừa revert-và-push, không phải
 # commit gây lỗi — so ĐÚNG loại với ĐÚNG loại, đừng lấy build_commit so với
-# build_src_hash (hai nhãn khác nhau, xem src/dau_ma_nguon.py)
+# build_src_hash (hai nhãn khác nhau, xem src/build_stamp.py)
 git rev-parse --short HEAD
 curl.exe -s https://app.adaptivealgo.uk/health | ConvertFrom-Json | Select-Object build_commit, build_src_hash
 # Mở https://app.adaptivealgo.uk TỪ MỘT MÁY KHÁC (không phải máy vừa deploy), xác nhận
@@ -537,13 +537,13 @@ hơn một nửa số user hiện có mà chỉ cách 1 giờ thì đáng nghi).
 
 ### 🔴 Trần chi tiêu LLM hằng ngày — chưa đặt, cần trước khi chia sẻ công khai
 
-**[ĐO 25/08, đọc mã, không suy từ trí nhớ]** `TRAN_TOKEN_LLM_MOI_NGAY` (`src/config.py:368`) —
+**[ĐO 25/08, đọc mã, không suy từ trí nhớ]** `LLM_DAILY_TOKEN_CAP` (`src/config.py:368`) —
 rỗng/thiếu ⟹ **không giới hạn**. Đơn vị: **token model CHAT nguyên**, KHÔNG gồm embedding
 (khác nhà cung cấp — `src/config.py` giải thích tại chỗ vì sao cộng chung vô nghĩa). Đọc lúc
 **IMPORT** ⟹ đổi giá trị bắt buộc **RECREATE container**, `docker exec -e` không đủ (cùng bẫy
-đã ghi ở `PHAN_LUONG_BAT`).
+đã ghi ở `TRIAGE_ENABLED`).
 
-**Điều gì xảy ra khi chạm trần — đã đọc hết đường đi, không đoán:** `cong_ra_ngoai.py` chặn ở
+**Điều gì xảy ra khi chạm trần — đã đọc hết đường đi, không đoán:** `egress_gate.py` chặn ở
 tầng transport (`GoiRaNgoaiBiChanError`), SDK nhà cung cấp bọc thành `openai.APIConnectionError`
 (kế thừa `APIError`), `graph.py` bắt ở nhánh `except APIError` — khách **KHÔNG BAO GIỜ nhận
 500**, nhận câu mềm *"hệ thống đang bận nên mình chưa xử lý kịp, bạn nhắn lại giúp mình sau ít
@@ -553,7 +553,7 @@ phút nhé"*. Ở tầng vận hành, log mức `warning` (không phải `error`
 🔴 **Một khoảng trống hành vi, khai ra chứ không giấu — thuộc `src/`, không tự sửa (vùng
 tech-lead):** câu trả lời mềm ở trên hứa *"sau ít phút"* — đúng cho lỗi nhà cung cấp thoáng
 qua, **SAI** cho ca chạm trần chi tiêu: trần reset lúc **00:00 UTC**, có thể còn hàng giờ, không
-phải "vài phút". Hàm `la_bi_chan()` (`cong_ra_ngoai.py:96`) được viết sẵn CHÍNH ĐỂ phân biệt ca
+phải "vài phút". Hàm `la_bi_chan()` (`egress_gate.py:96`) được viết sẵn CHÍNH ĐỂ phân biệt ca
 này ("PHẢI DÙNG HÀM NÀY" — trích docstring) nhưng **0 lời gọi trong `src/`** — chưa được nối vào
 `graph.py`. Không chặn việc đặt trần (khách vẫn được trả lời mềm, không 500), nhưng đề xuất
 tech-lead nối `la_bi_chan()` vào nhánh `except APIError` để câu trả lời đúng lý do, tránh khách
@@ -603,7 +603,7 @@ giả định:**
 | 300 | 24.914.400 | 49.946.400 | $9,97 – $59,94 |
 | 500 | 41.524.000 | 83.244.000 | $16,61 – $99,89 |
 
-🟢 **[PO THẬT CHỐT 26/08, nguyên văn "5 triệu thôi bạn ơi"] `TRAN_TOKEN_LLM_MOI_NGAY=5000000`.**
+🟢 **[PO THẬT CHỐT 26/08, nguyên văn "5 triệu thôi bạn ơi"] `LLM_DAILY_TOKEN_CAP=5000000`.**
 Thấp hơn cả năm mức đề xuất ở bảng trên (bảng để nguyên làm bối cảnh, không bôi đậm hàng nào —
 PO không chọn một trong các mức, mà chọn thận trọng hơn toàn bộ dải) — quyết định đã chốt,
 không hỏi lại (`CLAUDE.md §5`). Con số này rơi TRONG khoảng SÀN–TRẦN của đúng hàng **50**
@@ -621,7 +621,7 @@ Cuối ngày: chuỗi `PermissionDeniedError` (HTTP 403) liên tiếp, `model=No
 đã cạn hạn mức phía DashScope, không riêng một model lẻ.
 ```
 ⟹ **Hạn mức nhà cung cấp cạn ở khoảng ~881.000 token/ngày trên MỘT ngăn** — thấp hơn trần
-`TRAN_TOKEN_LLM_MOI_NGAY=5.000.000` **tới 5,7 lần**. Kể cả trần này bật từ trước, **nó không kịp
+`LLM_DAILY_TOKEN_CAP=5.000.000` **tới 5,7 lần**. Kể cả trần này bật từ trước, **nó không kịp
 kêu** trước khi tài khoản DashScope tự chặn.
 
 🔴 **Đừng đọc thành "vậy đặt trần vô nghĩa" — SAI, nó vẫn đúng việc của nó:** chặn chi tiêu ngoài
@@ -676,12 +676,12 @@ còn mở.
 only"** — hiện TẤT CẢ đang BẬT. Đây chính là lý do hết quota trả về `403` **im lặng, không mất
 tiền** (đúng thứ mục quota phía trên mô tả). Khi PO thật chuyển sang cho người dùng thật dùng
 token mua (đúng lộ trình vừa nói), công tắc đó sẽ bị gạt TẮT — và từ giây phút đó, **hết quota
-free = tính tiền thật**, không còn mốc dừng tự nhiên nào ngoài `TRAN_TOKEN_LLM_MOI_NGAY` của
+free = tính tiền thật**, không còn mốc dừng tự nhiên nào ngoài `LLM_DAILY_TOKEN_CAP` của
 chính hệ thống.
 
 ```
 TRƯỚC KHI GẠT "Free quota only" SANG TẮT, BẮT BUỘC:
-  1. TRAN_TOKEN_LLM_MOI_NGAY đã đặt THẬT trên máy production và ĐÃ VERIFY có hiệu lực
+  1. LLM_DAILY_TOKEN_CAP đã đặt THẬT trên máy production và ĐÃ VERIFY có hiệu lực
      (RECREATE, không phải restart — xem lệnh ở mục "Trần chi tiêu LLM hằng ngày" phía trên).
   2. Biết trước con số: 1 lượt chat ≈ 12.242 token [ĐO 25/08, tự kiểm độc lập qua
      usage.jsonl thật, n=72 — xem mục quota phía trên].
@@ -694,7 +694,7 @@ Thiếu bước 1 ⟹ gạt công tắc = mở ví ra Internet công cộng, KH�
 đang là giả định, chưa phải sự thật đã kiểm. Cách xác nhận (đã landed sẵn ở mục "Trần chi tiêu
 LLM hằng ngày" phía trên, PO thật tự chạy):
 ```powershell
-docker compose exec backend printenv TRAN_TOKEN_LLM_MOI_NGAY
+docker compose exec backend printenv LLM_DAILY_TOKEN_CAP
 ```
 In ra `5000000` ⟹ bước 1 đã xong. Rỗng/không in gì ⟹ **CHƯA**, và tắt "Free quota only" lúc này
 là mở ví không đáy thật sự. Ai đọc mục này trên máy production: chạy lệnh trên, dán kết quả lại
@@ -730,22 +730,22 @@ câu như khi ta tự chặn ở 5.000.000. Phân biệt bằng cách đọc b�
 ```
 
 **Cách đặt CẢ HAI biến trên máy Windows, cùng một lần gõ + xác nhận đã có hiệu lực** (gộp
-`TRAN_TOKEN_LLM_MOI_NGAY` với `BAO_VE_CSDL` — cùng tệp `.env`, PO chỉ cần mở lên một lần):
+`LLM_DAILY_TOKEN_CAP` với `BAO_VE_CSDL` — cùng tệp `.env`, PO chỉ cần mở lên một lần):
 
 ```powershell
 # 1. Thêm HAI dòng vào .env thật trên máy Windows (KHÔNG phải .env.example)
-#    TRAN_TOKEN_LLM_MOI_NGAY=5000000
+#    LLM_DAILY_TOKEN_CAP=5000000
 #    BAO_VE_CSDL=true
 
-# 2. RECREATE backend — bắt buộc cho TRAN_TOKEN_LLM_MOI_NGAY (biến đọc lúc
+# 2. RECREATE backend — bắt buộc cho LLM_DAILY_TOKEN_CAP (biến đọc lúc
 #    import, restart KHÔNG đủ). BAO_VE_CSDL không cần recreate container nào
 #    (chỉ đổi cách `docker compose` quản lý volume, có hiệu lực ngay ở lần
 #    `up` kế tiếp — vd lần chạy deploy_home.ps1 sau) nhưng gộp vào MỘT lệnh
 #    `up` cho gọn, không hại gì khi recreate cả hai cùng lúc:
 docker compose up -d --force-recreate backend
 
-# 3. Xác nhận TRAN_TOKEN_LLM_MOI_NGAY đã vào ĐÚNG container
-docker compose exec backend printenv TRAN_TOKEN_LLM_MOI_NGAY
+# 3. Xác nhận LLM_DAILY_TOKEN_CAP đã vào ĐÚNG container
+docker compose exec backend printenv LLM_DAILY_TOKEN_CAP
 #   phải in ra 5000000 — rỗng nghĩa là chưa recreate đúng cách
 
 # 4. Xác nhận BAO_VE_CSDL đã có hiệu lực — tìm dòng `external: true`, KHÔNG

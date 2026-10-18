@@ -3,7 +3,7 @@
 > ⚠️ **Chạy TỪ HOST, cần `docker` CLI.** Bộ này điều khiển container qua
 > `docker exec`; chạy nó *bên trong* container thì `FileNotFoundError: docker`.
 > ⚠️ **TỐN TIỀN** — 3 lượt LLM ≈ 42K token. Mặc định TẮT, bật bằng
-> `FIN05_CHO_PHEP_TON_TIEN=1`.
+> `FIN05_ALLOW_PAID_CALLS=1`.
 
 Viết **TRƯỚC khi coder vá prompt**, bởi vai không đọc `src/` — để ca kiểm không
 phản chiếu bản vá.
@@ -94,7 +94,7 @@ import pytest
 
 from tests._docker_co_mat import container_song
 from tests._dong_bang import LY_DO, dang_dong_bang
-from tests._ton_tien import duoc_phep_ton_tien, ly_do
+from tests._ton_tien import duoc_phep_ton_tien, reason_text
 
 CT = "fin05do-backend-1"
 PG = "fin05do-postgres-1"
@@ -120,13 +120,13 @@ pytestmark = [
     # "tốn tiền" trước khi thấy "thiếu container", vì cái đầu là quyết định
     # còn cái sau chỉ là điều kiện kỹ thuật.
     pytest.mark.skipif(not duoc_phep_ton_tien(),
-                       reason=ly_do(42_000, "3 lượt chat thật qua /agent/chat")),
+                       reason=reason_text(42_000, "3 lượt chat thật qua /agent/chat")),
     pytest.mark.skipif(not _song(), reason=f"cần ngăn xếp ĐO DÙNG RIÊNG {CT} (Luật 15)"),
     pytest.mark.skipif(dang_dong_bang(), reason=LY_DO),
 ]
 
 
-def _dem() -> dict[str, int]:
+def _counters() -> dict[str, int]:
     sql = " UNION ALL ".join(f"SELECT '{b}',count(*) FROM {b}" for b in BANG)
     r = subprocess.run(["docker", "exec", PG, "psql", "-U", "fin05", "-d", "fin05", "-tAc", sql],
                        capture_output=True, text=True, timeout=60)
@@ -157,7 +157,7 @@ def _login() -> str:
     của `/auth/otp/request` trả thẳng `otp_code` (quy ước môi trường test/dev,
     không phải đường vòng tôi tự chế).
     """
-    ma = (
+    code = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
@@ -169,32 +169,32 @@ def _login() -> str:
         "assert r.json().get('otp_verified') is True, 'OTP verify thất bại: '+r.text;"
         "print(r.json()['access_token'])"
     )
-    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", code],
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"đăng nhập hỏng: {(r.stderr or r.stdout)[-400:]}"
     return r.stdout.strip().splitlines()[-1]
 
 
-def _chat(cau: str, token: str, thread: str) -> dict:
+def _chat(sentence: str, token: str, thread: str) -> dict:
     # `thread_id` vẫn gửi trong body — vô hại, nhưng KHÔNG còn là cơ chế nối
     # lượt thật (xem `_login()`). Nối lượt thật = dùng LẠI cùng `token`.
-    ma = (
+    code = (
         "import httpx,json;"
         f"c=httpx.Client(timeout=300);"
         f"h={{'Authorization':'Bearer '+{token!r}}};"
-        f"r=c.post('{API}/agent/chat',json={{'message':{cau!r},'thread_id':{thread!r}}},headers=h);"
+        f"r=c.post('{API}/agent/chat',json={{'message':{sentence!r},'thread_id':{thread!r}}},headers=h);"
         "print(json.dumps({'http':r.status_code,'than':r.json()},ensure_ascii=False))"
     )
-    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", code],
                        capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, f"gọi chat hỏng: {(r.stderr or r.stdout)[-400:]}"
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
-def _mot_luot(cau: str, token: str, thread: str) -> dict:
-    t = _dem()
-    j = _chat(cau, token, thread)
-    s = _dem()
+def _mot_luot(sentence: str, token: str, thread: str) -> dict:
+    t = _counters()
+    j = _chat(sentence, token, thread)
+    s = _counters()
     tc = [x.get("tool_name") for x in (j["than"].get("tool_calls") or [])]
     return {"tra": j, "delta": {k: s[k] - t[k] for k in t}, "tool": tc,
             "reply": j["than"].get("reply") or ""}
@@ -204,10 +204,10 @@ def _mot_luot(cau: str, token: str, thread: str) -> dict:
 def ba_luot() -> dict:
     th = f"A2-{uuid.uuid4().hex[:8]}"
     tok_ab = _login()  # MỘT lần đăng nhập cho A+B — cùng iat ⟹ cùng thread thật
-    ra = {"A": _mot_luot(CAU_HOI, tok_ab, th), "B": _mot_luot(CAU_DONG_Y, tok_ab, th)}
+    out_items = {"A": _mot_luot(CAU_HOI, tok_ab, th), "B": _mot_luot(CAU_DONG_Y, tok_ab, th)}
     tok_c = _login()  # cố ý đăng nhập RIÊNG cho C — thread mới có chủ đích
-    ra["C"] = _mot_luot(CAU_DONG_Y_TU_DAU, tok_c, f"A2c-{uuid.uuid4().hex[:8]}")
-    return ra
+    out_items["C"] = _mot_luot(CAU_DONG_Y_TU_DAU, tok_c, f"A2c-{uuid.uuid4().hex[:8]}")
+    return out_items
 
 
 def test_luot_HOI_khong_tao_ve(ba_luot):

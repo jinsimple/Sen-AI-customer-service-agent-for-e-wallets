@@ -48,14 +48,14 @@ def co_docker() -> bool:
         return False
 
 
-def container_song(ten: str) -> bool:
+def container_song(name_text: str) -> bool:
     """Container `ten` có đang chạy không. **Không bao giờ ném.**
 
     Trả `False` khi thiếu `docker` — nên nơi gọi chỉ cần **một** điều kiện
     `skipif`, không phải hai điều kiện lồng nhau mà ai đó sẽ quên một nửa.
     """
     try:
-        r = subprocess.run(["docker", "ps", "-q", "-f", f"name={ten}"],
+        r = subprocess.run(["docker", "ps", "-q", "-f", f"name={name_text}"],
                            capture_output=True, text=True, timeout=30)
     except (FileNotFoundError, OSError, subprocess.SubprocessError):
         return False

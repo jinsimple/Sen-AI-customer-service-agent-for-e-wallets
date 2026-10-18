@@ -40,29 +40,29 @@ _CVE_LIEN_QUAN = "PYSEC-2026-311, CVE-2026-45830, CVE-2026-45833, CVE-2026-45831
 _DOCKER_COMPOSE_FILES = ("docker-compose.yml", "docker-compose.do.yml", "docker-compose.ttl-test.yml")
 
 
-def _dung_persistent_client(noi_dung: str) -> bool:
-    return "chromadb.PersistentClient(" in noi_dung
+def _dung_persistent_client(content_text: str) -> bool:
+    return "chromadb.PersistentClient(" in content_text
 
 
-def _dung_http_client(noi_dung: str) -> bool:
-    return "chromadb.HttpClient(" in noi_dung
+def _dung_http_client(content_text: str) -> bool:
+    return "chromadb.HttpClient(" in content_text
 
 
-def _co_dich_vu_chroma_server(noi_dung: str) -> list[tuple[int, str]]:
+def _co_dich_vu_chroma_server(content_text: str) -> list[tuple[int, str]]:
     """Tìm dòng khai báo SERVICE/IMAGE tên chroma trong docker-compose —
     KHÔNG bắt oan khai báo VOLUME (`chroma_data:` dưới mục `volumes:`, đang
     có thật và hợp lệ — đó là nơi PersistentClient ghi index xuống đĩa)."""
     vi_pham = []
-    for lineno, dong in enumerate(noi_dung.splitlines(), start=1):
-        if re.match(r"^\s{2}chroma:\s*$", dong):
-            vi_pham.append((lineno, dong))
-        elif re.search(r"image:\s*\S*chroma\S*", dong, re.IGNORECASE):
-            vi_pham.append((lineno, dong))
+    for lineno, line in enumerate(content_text.splitlines(), start=1):
+        if re.match(r"^\s{2}chroma:\s*$", line):
+            vi_pham.append((lineno, line))
+        elif re.search(r"image:\s*\S*chroma\S*", line, re.IGNORECASE):
+            vi_pham.append((lineno, line))
     return vi_pham
 
 
-def _co_trust_remote_code(noi_dung: str) -> bool:
-    return "trust_remote_code" in noi_dung
+def _co_trust_remote_code(content_text: str) -> bool:
+    return "trust_remote_code" in content_text
 
 
 # ============================================================================
@@ -71,14 +71,14 @@ def _co_trust_remote_code(noi_dung: str) -> bool:
 
 
 def test_rag_store_dung_che_do_nhung_khong_dung_may_chu():
-    noi_dung = (ROOT_DIR / "src" / "rag" / "store.py").read_text(encoding="utf-8")
-    assert _dung_persistent_client(noi_dung), (
+    content_text = (ROOT_DIR / "src" / "rag" / "store.py").read_text(encoding="utf-8")
+    assert _dung_persistent_client(content_text), (
         "src/rag/store.py KHÔNG còn thấy chromadb.PersistentClient — tiền đề "
         f"'chạy chế độ nhúng' của bản ignore ({_CVE_LIEN_QUAN}) có thể đã đổi. "
         "Xem lại tests/test_security/test_dependency_audit.py::_KNOWN_ACCEPTED_VULN_IDS "
         "trước khi coi các CVE này vẫn được miễn trừ."
     )
-    assert not _dung_http_client(noi_dung), (
+    assert not _dung_http_client(content_text), (
         "src/rag/store.py giờ dùng chromadb.HttpClient (CHẾ ĐỘ MÁY CHỦ) — "
         f"{_CVE_LIEN_QUAN} KHÔNG còn được miễn trừ, chúng khai thác được đúng ở "
         "chế độ này. Xem lại bản ignore trong test_dependency_audit.py NGAY."
@@ -107,10 +107,10 @@ def test_khong_co_trust_remote_code_trong_ma_san_pham():
     vi_pham = []
     for p in (ROOT_DIR / "src").rglob("*.py"):
         try:
-            noi_dung = p.read_text(encoding="utf-8")
+            content_text = p.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        if _co_trust_remote_code(noi_dung):
+        if _co_trust_remote_code(content_text):
             vi_pham.append(str(p.relative_to(ROOT_DIR)))
     assert not vi_pham, (
         f"Tìm thấy 'trust_remote_code' trong src/ ({', '.join(vi_pham)}) — "

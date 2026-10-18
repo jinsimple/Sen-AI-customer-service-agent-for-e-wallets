@@ -50,7 +50,7 @@ rồi tình cờ đụng vào nguồn build.
 trong **scratchpad của một phiên KHÁC** (`17d3f149-…`), `build: context: .` trỏ vào
 chính bản sao đó — **đông cứng lúc 24/08 22:04**, không phải `dev/learning-loop`. Băm
 src/ bản đó `7636400be9c4` — **0 dòng nào của đợt "OTP trước token"** (④⑤⑦⑨⑫b, mọi cờ
-`CONG_T0_BAT`/`CONG_OTP_NHOM_B_BAT`/`da_bi_otp_chan` đều KHÔNG có).
+`T0_GATE_ENABLED`/`OTP_GATE_GROUP_B_ENABLED`/`da_bi_otp_chan` đều KHÔNG có).
 
 - 🔴 **BUỔI TỐN PHÍ DỪNG** — QA/QC đã báo dừng hẳn, không chạm ngăn này dưới bất kỳ
   hình thức nào cho tới khi có ngăn mới.
@@ -85,8 +85,8 @@ src/ bản đó `7636400be9c4` — **0 dòng nào của đợt "OTP trước tok
   tự verify băm ảnh = `691dd9c40578` trước khi báo Lead mở buổi.
 - ✅ **SẴN SÀNG, xác nhận bằng backend tự khai** (`GET /health` trong ngăn, không phải
   lời khai): `build_src_hash=691dd9c40578` = cây làm việc, `build_commit=a74059c` xuất
-  thật (không rơi về "khong-ro"). 5/5 mã đợt này có mặt (`CONG_T0_BAT` ·
-  `CONG_OTP_NHOM_B_BAT` · `HOI_SANG_LOC_LUA_DAO` · `_FS13_BAN_GIAO` · `da_bi_otp_chan`).
+  thật (không rơi về "khong-ro"). 5/5 mã đợt này có mặt (`T0_GATE_ENABLED` ·
+  `OTP_GATE_GROUP_B_ENABLED` · `HOI_SANG_LOC_LUA_DAO` · `_FS13_BAN_GIAO` · `da_bi_otp_chan`).
   6/6 container Up/healthy. Không ngăn nào khác bị khởi động lại (`StartedAt` kiểm).
   **Đường vào:** `https://localhost:48443` (UI/API) — 🔴 **PHẢI dùng `localhost`, KHÔNG
   `127.0.0.1`** (chứng chỉ Caddy cấp cho tên, IP làm TLS gãy, trông như ngăn chết) ·

@@ -105,11 +105,11 @@ def test_khong_goi_tool_duoc_ghi_nhan_khi_agent_khong_goi_policy_search():
         _vo_hieu_hoa_dang_nhap_va_canary(monkeypatch)
         monkeypatch.setattr(benchmark, "_tra_agent", lambda c, q: ([], False))
 
-        kq = benchmark.do_truy_hoi(_CASE_MAU, che_do="moc")
+        res = benchmark.do_truy_hoi(_CASE_MAU, che_do="moc")
 
-        assert kq.get("khong_goi_tool") == ["CASE-MAU-001", "CASE-MAU-001"], (
+        assert res.get("khong_goi_tool") == ["CASE-MAU-001", "CASE-MAU-001"], (
             f"Cả hai biến thể co_dau/khong_dau của CASE-MAU-001 đều phải xuất hiện trong "
-            f"khong_goi_tool khi _tra_agent luôn trả co_goi=False. Đo được: {kq.get('khong_goi_tool')!r}"
+            f"khong_goi_tool khi _tra_agent luôn trả co_goi=False. Đo được: {res.get('khong_goi_tool')!r}"
         )
     finally:
         monkeypatch.undo()

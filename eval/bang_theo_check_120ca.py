@@ -52,19 +52,19 @@ def _gom_ten_check(ten: str) -> str:
 
 def gom_theo_check(records: list[dict]) -> dict[str, list[int]]:
     """Trả {tên_bó: [đạt, tổng]} — gộp TOÀN BỘ file theo tên phép kiểm."""
-    bang: dict[str, list[int]] = {}
+    table_rows: dict[str, list[int]] = {}
     for d in records:
         for item in d.get("checks", []):
             if not isinstance(item, list) or len(item) != 2:
                 continue
-            ten, gia_tri = item
+            ten, val = item
             bo = _gom_ten_check(str(ten))
-            if bo not in bang:
-                bang[bo] = [0, 0]
-            bang[bo][1] += 1
-            if gia_tri is True:
-                bang[bo][0] += 1
-    return bang
+            if bo not in table_rows:
+                table_rows[bo] = [0, 0]
+            table_rows[bo][1] += 1
+            if val is True:
+                table_rows[bo][0] += 1
+    return table_rows
 
 
 def main() -> int:
@@ -74,7 +74,7 @@ def main() -> int:
     args = ap.parse_args()
 
     tat_ca = []
-    with open(args.ket_qua, encoding="utf-8") as f:
+    with open(args.outcome, encoding="utf-8") as f:
         for dong in f:
             dong = dong.strip()
             if dong:

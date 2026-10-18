@@ -72,10 +72,10 @@ def test_multi_worker_chi_duoc_bat_khi_du_ca_hai_co_che_chia_se_state():
     import src.api.live_chat_ws as live_chat_ws
 
     thieu = [
-        n for n in ("_PUBSUB_CHANNEL", "_vong_lap_subscriber")
+        n for n in ("_PUBSUB_CHANNEL", "_subscriber_loop")
         if not hasattr(live_chat_ws, n)
     ] + [
-        n for n in ("_publish", "_giao_tu_pubsub")
+        n for n in ("_publish", "_deliver_from_pubsub")
         if not hasattr(live_chat_ws.ConnectionManager, n)
     ]
     assert not thieu, (

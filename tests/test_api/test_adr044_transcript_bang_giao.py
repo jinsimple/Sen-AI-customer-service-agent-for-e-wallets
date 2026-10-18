@@ -231,7 +231,7 @@ def test_checkpoint_ket_thuc_ngay_sau_toolmessage_bang_giao_khong_co_vach(client
     )
     transcript = body.get("transcript") or []
     assert transcript, "transcript rỗng — ca này cần ÍT NHẤT có lượt để kiểm co_goi_tool, không chỉ kiểm chi_so_bang_giao."
-    assert all(luot.get("co_goi_tool") is False for luot in transcript), (
+    assert all(turn.get("co_goi_tool") is False for turn in transcript), (
         f"Vế Review NHẤN MẠNH (không phải chỉ trùng ca chi_so_bang_giao=None đã có): "
         f"KHÔNG lượt nào được đánh dấu co_goi_tool=True dù tool request_human_handoff đã chạy "
         f"THẬT trong checkpoint — CSKH đọc transcript sẽ không thấy dấu hiệu nào tool đã chạy. "

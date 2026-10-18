@@ -1,18 +1,18 @@
-"""Cổng abstention Lớp 2 (ADR-061, Finding ①) — gọi SIDECAR rerank qua HTTP.
+"""Layer-2 abstention gate (ADR-061, Finding ①) — calls the rerank SIDECAR over HTTP.
 
-VÌ SAO SIDECAR thay vì load model tại chỗ (đã đo, xem ADR-061 cập nhật 04/09):
-backend chạy 4-5 tiến trình uvicorn worker ĐỘC LẬP — load cross-encoder trực
-tiếp ở đây sẽ nhân RAM theo số worker (đo được 3,2-5GB). `rerank_service/`
-là service RIÊNG load model đúng MỘT LẦN, mọi worker gọi chung qua HTTP nội
-bộ (docker network).
+WHY A SIDECAR instead of loading the model in-process (measured, see the ADR-061 update of
+04/09): the backend runs 4-5 INDEPENDENT uvicorn worker processes — loading the
+cross-encoder here would multiply RAM by the worker count (measured 3.2-5 GB).
+`rerank_service/` is a SEPARATE service that loads the model exactly ONCE; all workers
+share it over the internal HTTP (docker network).
 
-🔴 RÀNG BUỘC BẤT DI (ADR-061): sidecar chết/timeout/lỗi mạng KHÔNG ĐƯỢC LÀM
-`search_policy_text` CRASH. Coi như "không có ứng viên nào qua được rerank"
-(danh sách rỗng) ⟹ tầng gọi thấy `results=[]` ⟹ `status=not_found`. Lý do
-chọn fail-closed thay vì "trả kết quả CHƯA lọc khi sidecar hỏng": trả chưa
-lọc lúc sidecar hỏng tái tạo NGUYÊN VẸN Finding ① đúng lúc cần Lớp 2 nhất —
-vi phạm Ràng buộc cứng #3. Đánh đổi chấp nhận: sidecar không ổn định ⟹ tính
-năng kém khả dụng hơn (nhiều not_found hơn), an toàn hơn khả dụng-nhưng-sai.
+🔴 INVARIANT (ADR-061): a dead/timed-out sidecar or a network error MUST NOT CRASH
+`search_policy_text`. It is treated as "no candidate passed rerank" (empty list)
+⟹ the caller sees `results=[]` ⟹ `status=not_found`. Why fail-closed rather than
+"return UNFILTERED results when the sidecar is down": returning unfiltered results then
+recreates Finding ① IN FULL exactly when Layer 2 is needed most — a breach of hard
+constraint #3. Accepted trade-off: an unstable sidecar ⟹ the feature is less available
+(more not_found), which is safer than available-but-wrong.
 """
 from __future__ import annotations
 
@@ -24,27 +24,27 @@ from src.observability.logging_config import get_logger
 _logger = get_logger("fin05.rag")
 
 
-def rerank_va_loc(
-    query: str, ung_vien: list[tuple[str, str]], *, threshold: float | None = None
+def rerank_and_filter(
+    query: str, candidate: list[tuple[str, str]], *, threshold: float | None = None
 ) -> list[tuple[str, float]]:
-    """`ung_vien`: [(chunk_id, text), ...] — ứng viên THÔ từ Chroma.
+    """`candidate`: [(chunk_id, text), ...] — RAW candidates from Chroma.
 
-    Trả về [(chunk_id, score), ...] CHỈ gồm ứng viên score >= ngưỡng, sắp
-    XẾP GIẢM DẦN theo score. Rỗng khi: tất cả ứng viên dưới ngưỡng (đúng
-    thiết kế), HOẶC sidecar không tới được (fallback fail-closed — xem
-    docstring module), HOẶC `RAG_RERANK_SERVICE_URL` chưa cấu hình (tính năng
-    tắt hẳn cho ngăn này, không phải lỗi).
+    Returns [(chunk_id, score), ...] containing ONLY candidates with score >= threshold,
+    SORTED by descending score. Empty when: every candidate is below the threshold (by
+    design), OR the sidecar is unreachable (fail-closed fallback — see the module
+    docstring), OR `RAG_RERANK_SERVICE_URL` is not configured (feature fully disabled for
+    this stack, not an error).
 
-    `threshold`: `None` (mặc định) dùng `RAG_RERANK_THRESHOLD` (đường agent,
-    5 tool `build_customer_tools` — KHÔNG đổi). Truyền tường minh khi caller
-    cần ngưỡng khác (xem `search_policy_text` — đường CSKH `/policy-search`
-    dùng `RAG_RERANK_THRESHOLD_CSKH`, PO chốt 05/09: excerpt cho NGƯỜI đọc,
-    không phải AI khẳng định, nên đổi được recall/precision trade-off ĐỘC
-    LẬP với đường agent).
+    `threshold`: `None` (default) uses `RAG_RERANK_THRESHOLD` (the agent path, the
+    5 tools of `build_customer_tools` — UNCHANGED). Pass it explicitly when the caller needs
+    a different threshold (see `search_policy_text` — the CSKH `/policy-search` path uses
+    `RAG_RERANK_THRESHOLD_CSKH`, fixed by the PO on 05/09: excerpts for a HUMAN reader, not
+    AI assertions, so the recall/precision trade-off can be tuned INDEPENDENTLY of the
+    agent path).
     """
     if threshold is None:
         threshold = RAG_RERANK_THRESHOLD
-    if not ung_vien:
+    if not candidate:
         return []
     if not RAG_RERANK_SERVICE_URL:
         _logger.info("rag_rerank_tat", extra={"ly_do": "RAG_RERANK_SERVICE_URL rỗng"})
@@ -52,17 +52,17 @@ def rerank_va_loc(
 
     payload = {
         "query": query,
-        "ung_vien": [{"chunk_id": cid, "text": text} for cid, text in ung_vien],
+        "ung_vien": [{"chunk_id": cid, "text": text} for cid, text in candidate],
     }
-    # 🔴 Review 04/09: bản trước chỉ bọc try/except quanh gọi HTTP + `.json()`
-    # (mạng/timeout/HTTP lỗi) — phần ĐỌC schema response (`item["chunk_id"]`,
-    # `item["score"]`, `data["ket_qua"][0]["score"]` ở dòng log) nằm NGOÀI,
-    # nên sidecar trả 200 với JSON SAI SCHEMA (thiếu key/score không parse
-    # được số) sẽ bắn `KeyError`/`ValueError`/`IndexError` thẳng ra ngoài,
-    # KHÔNG rơi vào fallback fail-closed — đúng vi phạm ràng buộc bất di ở
-    # docstring module. Toàn bộ phần đọc `data` giờ nằm CHUNG một khối bảo vệ
-    # với phần gọi mạng — MỌI lỗi từ lúc gửi request tới lúc đọc xong response
-    # đều fail-closed như nhau, không có khe hở nào giữa hai việc.
+    # 🔴 Review 04/09: the previous version only wrapped try/except around the HTTP call +
+    # `.json()` (network/timeout/HTTP error) — READING the response schema (`item["chunk_id"]`,
+    # `item["score"]`, `data["ket_qua"][0]["score"]` in the log line) sat OUTSIDE it,
+    # so a sidecar returning 200 with WRONG-SCHEMA JSON (missing key / score not parseable as a
+    # number) would raise `KeyError`/`ValueError`/`IndexError` straight out, NOT falling into
+    # the fail-closed fallback — exactly the invariant breach described in the module docstring.
+    # All reading of `data` now lives in the SAME protected block as the network call — EVERY
+    # error from sending the request to finishing reading the response fails closed the same
+    # way, with no gap between the two.
     try:
         resp = httpx.post(
             f"{RAG_RERANK_SERVICE_URL}/rerank",
@@ -72,7 +72,7 @@ def rerank_va_loc(
         resp.raise_for_status()
         data = resp.json()
 
-        qua_nguong = [
+        over_threshold = [
             (item["chunk_id"], float(item["score"]))
             for item in data.get("ket_qua", [])
             if float(item["score"]) >= threshold
@@ -80,19 +80,18 @@ def rerank_va_loc(
         _logger.info(
             "rag_rerank",
             extra={
-                "so_ung_vien": len(ung_vien),
-                "so_qua_nguong": len(qua_nguong),
+                "so_ung_vien": len(candidate),
+                "so_qua_nguong": len(over_threshold),
                 "diem_cao_nhat": data["ket_qua"][0]["score"] if data.get("ket_qua") else None,
                 "nguong": threshold,
             },
         )
-        return qua_nguong
+        return over_threshold
     except Exception as e:
-        # ĐÚNG NHÓM lỗi được fail-closed: mạng/timeout/HTTP lỗi/JSON hỏng/
-        # SCHEMA SAI (key thiếu, score không parse được) — tất cả coi như
-        # "sidecar không tới được/không dùng được", KHÔNG phân biệt loại lỗi
-        # (đơn giản hoá có chủ đích: phân biệt thêm không đổi hành vi, chỉ
-        # đổi chi tiết log).
+        # EXACTLY the group of errors that fail closed: network/timeout/HTTP error/broken JSON/
+        # WRONG SCHEMA (missing key, unparseable score) — all treated as "sidecar unreachable/
+        # unusable", WITHOUT distinguishing error types (deliberate simplification: distinguishing
+        # further would not change behaviour, only log detail).
         _logger.warning(
             "rag_rerank_sidecar_loi",
             extra={"loi": str(e), "loi_kieu": type(e).__name__, "service_url": RAG_RERANK_SERVICE_URL},

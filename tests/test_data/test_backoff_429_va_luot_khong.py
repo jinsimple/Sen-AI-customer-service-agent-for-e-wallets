@@ -103,7 +103,7 @@ def test_het_luot_thu_thi_nem_lai_chu_khong_nuot(monkeypatch):
 # ─────────────────────────── Luật 2 — có quá rộng không ────────────────────
 
 @pytest.mark.parametrize(
-    "loi",
+    "err",
     [
         ValueError("agent trả về payload sai định dạng"),
         KeyError("trans_id"),
@@ -115,7 +115,7 @@ def test_het_luot_thu_thi_nem_lai_chu_khong_nuot(monkeypatch):
     ],
     ids=["ValueError", "KeyError", "IntegrityError_that_cua_MT-F01"],
 )
-def test_loi_thuong_khong_duoc_thu_lai(loi: Exception, monkeypatch):
+def test_loi_thuong_khong_duoc_thu_lai(err: Exception, monkeypatch):
     """Vế sống còn: chỉ 429 mới được thử lại.
 
     Thiếu test này thì một `except Exception: retry` sẽ xanh hết mọi test phía
@@ -126,11 +126,11 @@ def test_loi_thuong_khong_duoc_thu_lai(loi: Exception, monkeypatch):
 
     def ham():
         lan["n"] += 1
-        raise loi
+        raise err
 
-    with pytest.raises(type(loi)):
+    with pytest.raises(type(err)):
         goi_agent_thu_lai(ham)
-    assert lan["n"] == 1, f"{type(loi).__name__} bị thử lại {lan['n']} lần — chỉ 429 mới được thử lại"
+    assert lan["n"] == 1, f"{type(err).__name__} bị thử lại {lan['n']} lần — chỉ 429 mới được thử lại"
 
 
 def test_khong_phai_429_thi_khong_tra_ve_khoang_cho():
@@ -182,8 +182,8 @@ def test_khong_ban_ghi_moi_nao_truot_voi_khong_luot_nao_chay(ban_ghi_adversarial
     from eval.measure_quality import dau_thuoc
 
     thuoc_nay = dau_thuoc()["cham_diem"]
-    moi = [r for r in ban_ghi_adversarial if r.get("_thuoc", {}).get("cham_diem") == thuoc_nay]
-    if not moi:
+    fresh = [r for r in ban_ghi_adversarial if r.get("_thuoc", {}).get("cham_diem") == thuoc_nay]
+    if not fresh:
         pytest.skip(
             "NHÓM D (tests/_suite_day_du.py, không chịu FIN05_SUITE_DAY_DU — "
             "đây là DỮ LIỆU chưa có, không phải hạ tầng/năng lực chưa có: "
@@ -193,7 +193,7 @@ def test_khong_ban_ghi_moi_nao_truot_voi_khong_luot_nao_chay(ban_ghi_adversarial
         )
     xau = [
         (r["_ten_file"], r["case_id"])
-        for r in moi
+        for r in fresh
         if r.get("trang_thai") == "truot" and not (r.get("all_agent_replies") or [])
     ]
     assert not xau, (

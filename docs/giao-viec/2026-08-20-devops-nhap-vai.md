@@ -22,7 +22,7 @@
    ghi **TRƯỚC** khi báo bất kỳ số nào đo trên ảnh đó. *(Sinh từ ca ảnh nghiệm thu bị dựng đè không
    dấu vết, 19/08.)*
 2. 🔴 **Băm nguồn `dau_ma_nguon` là DANH TÍNH của vật, KHÔNG phải image ID, KHÔNG phải commit.**
-   `src/dau_ma_nguon.py` băm nội dung `src/**/*.py`; nhãn đóng vào ảnh tại `/app/.bam_ma_nguon`.
+   `src/build_stamp.py` băm nội dung `src/**/*.py`; nhãn đóng vào ảnh tại `/app/.source_hash`.
    Kiểm danh tính bằng **băm nguồn** (host == container), không bằng `BUILD_COMMIT`.
    *(`build_commit` đã bị chứng minh nói dối theo CẢ HAI chiều, 17/08.)*
 3. 🔴 **DB không được đi TRƯỚC ẢNH.** `docker-entrypoint.sh:17` chạy `alembic upgrade head` **trước**

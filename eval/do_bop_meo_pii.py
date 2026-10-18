@@ -50,8 +50,8 @@ def _doc_utterances():
             if not dong:
                 continue
             d = json.loads(dong)
-            for cau in d.get("utterances", []):
-                yield d["case_id"], cau
+            for sentence in d.get("utterances", []):
+                yield d["case_id"], sentence
 
 
 def main() -> int:
@@ -68,10 +68,10 @@ def main() -> int:
         return 2
 
     bi_bop_meo = []
-    for case_id, cau in tat_ca:
-        ra = scrub_pii(cau, muc_dich="model_input")
+    for case_id, sentence in tat_ca:
+        ra = scrub_pii(sentence, purpose="model_input")
         if _MAU_NHAN.search(ra):
-            bi_bop_meo.append((case_id, cau, ra))
+            bi_bop_meo.append((case_id, sentence, ra))
 
     tu_so = len(bi_bop_meo)
     mau_so = len(tat_ca)
@@ -83,8 +83,8 @@ def main() -> int:
 
     if bi_bop_meo:
         print("\nVí dụ (tối đa 5 câu đầu bị bóp méo):")
-        for case_id, goc, ra in bi_bop_meo[:5]:
-            print(f"  [{case_id}] gốc={goc!r}\n           sau={ra!r}")
+        for case_id, original, ra in bi_bop_meo[:5]:
+            print(f"  [{case_id}] gốc={original!r}\n           sau={ra!r}")
 
     if ty_le > _NGUONG_PRD_17:
         print(

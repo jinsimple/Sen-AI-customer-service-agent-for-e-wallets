@@ -47,7 +47,7 @@ mã hoá KHOÁ KHÁC    -> 🔴 NÉM `KhongGiaiMaDuocError`          (đang: tr�
 
 **Vì sao ném chứ không trả cờ:** trả bản mã là **bịa nội dung** — ràng buộc cứng 3. Trả `None` thì
 lẫn với `NULL` hợp lệ. Chỉ có ném mới không thể bị nơi gọi vô tình bỏ qua. Cùng nếp fail-closed
-đã dùng cho `dau_ma_nguon` (`.bam_ma_nguon` rỗng ⟹ TỪ CHỐI khởi động).
+đã dùng cho `dau_ma_nguon` (`.source_hash` rỗng ⟹ TỪ CHỐI khởi động).
 
 **Vì sao vế "chưa mã hoá" phải ĐẾM ĐƯỢC:** nó là **điều kiện tiên quyết** của bước nạp lại 738
 dòng (`migrations/`, chưa tồn tại). Không có số đếm thì script nạp lại chạy xong không ai biết nó

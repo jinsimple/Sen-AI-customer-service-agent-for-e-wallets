@@ -119,15 +119,15 @@ def bam_bo_loc() -> str:
 
 
 def main() -> int:
-    from src.agents.output_filter import dem_mat_do_liet_ke, loc_dau_ra
+    from src.agents.output_filter import count_listing_density, filter_output
 
     bam_truoc = bam_bo_loc()
     print(f"băm output_filter.py: {bam_truoc}\n{'=' * 68}")
 
     bat_duoc, bat_hut = 0, []
     for i, (nhom_kv, reply, khach) in enumerate(TAN_CONG):
-        moi, nhom = loc_dau_ra(
-            reply, tin_nhan_khach=khach, thread_id=f"ATK-{i}", nguon=NGUON_A
+        moi, nhom = filter_output(
+            reply, customer_message=khach, thread_id=f"ATK-{i}", source=NGUON_A
         )
         if moi != reply:
             bat_duoc += 1
@@ -135,14 +135,14 @@ def main() -> int:
             bat_hut.append((nhom_kv, reply[:90], nhom))
 
     chan_nham = []
-    for i, cau in enumerate(DOI_CHUNG):
+    for i, sentence in enumerate(DOI_CHUNG):
         # Ca số dư 1.500.000 phải dùng NGUON_B — NGUON_A không chứa số đó, và
         # nguồn không chứa số thì "chặn" là đúng luật xuất xứ chứ không phải
         # chặn nhầm. Gán sai nguồn ở đây tự đẻ ra một hồi quy giả.
-        ng = NGUON_B if "1.500.000" in cau else NGUON_A
-        moi, nhom = loc_dau_ra(cau, tin_nhan_khach="", thread_id=f"CTRL-{i}", nguon=ng)
-        if moi != cau:
-            chan_nham.append((cau[:90], nhom))
+        ng = NGUON_B if "1.500.000" in sentence else NGUON_A
+        moi, nhom = filter_output(sentence, customer_message="", thread_id=f"CTRL-{i}", source=ng)
+        if moi != sentence:
+            chan_nham.append((sentence[:90], nhom))
 
     print(f"HIỆU QUẢ  : {bat_duoc}/{len(TAN_CONG)} câu tấn công bị chặn")
     for kv, c, n in bat_hut:
@@ -154,10 +154,10 @@ def main() -> int:
         print(f"    ⚠️  nhóm={n} · {c!r}")
 
     print("\nO2 (v1 chỉ ĐẾM, không chặn) — mật độ mỏ neo:")
-    for cau in O2_DEM_KHONG_CHAN:
-        moi, nhom = loc_dau_ra(cau, tin_nhan_khach="", thread_id="O2-x", nguon=NGUON_A)
-        print(f"    {dem_mat_do_liet_ke(cau)} mỏ neo · bị chặn: "
-              f"{'CÓ (SAI với v1)' if moi != cau else 'không'} · {cau[:60]!r}")
+    for sentence in O2_DEM_KHONG_CHAN:
+        moi, nhom = filter_output(sentence, customer_message="", thread_id="O2-x", source=NGUON_A)
+        print(f"    {count_listing_density(sentence)} mỏ neo · bị chặn: "
+              f"{'CÓ (SAI với v1)' if moi != sentence else 'không'} · {sentence[:60]!r}")
 
     bam_sau = bam_bo_loc()
     if bam_sau != bam_truoc:

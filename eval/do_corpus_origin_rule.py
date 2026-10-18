@@ -64,7 +64,7 @@ def kiem_shape(cases: list[dict]) -> list[str]:
         "wallet": ({"wallet_id", "phone", "full_name"}, {"account_no", "bank_code"}),
         "bank_account": ({"account_no", "bank_code", "full_name"}, {"wallet_id", "phone"}),
     }
-    loi: list[str] = []
+    err: list[str] = []
     for c in cases:
         for n in c.get("nguon") or []:
             d = json.loads(n)
@@ -72,35 +72,35 @@ def kiem_shape(cases: list[dict]) -> list[str]:
                 continue  # get_customer_history — shape khác, không có transaction{}
             for k in ("status", "transaction", "tool_result_id"):
                 if k not in d:
-                    loi.append(f"{c['id']}: nguồn thiếu khoá tầng ngoài {k!r}")
+                    err.append(f"{c['id']}: nguồn thiếu khoá tầng ngoài {k!r}")
             for ben in ("sender", "receiver"):
                 b = (d.get("transaction") or {}).get(ben)
                 if not b:
                     continue
                 kind = b.get("kind")
                 if kind not in truong:
-                    loi.append(f"{c['id']}.{ben}: kind={kind!r} không có thật")
+                    err.append(f"{c['id']}.{ben}: kind={kind!r} không có thật")
                     continue
                 bat_buoc, cam = truong[kind]
                 if thieu := bat_buoc - b.keys():
-                    loi.append(f"{c['id']}.{ben}({kind}): thiếu {sorted(thieu)}")
+                    err.append(f"{c['id']}.{ben}({kind}): thiếu {sorted(thieu)}")
                 if thua := cam & b.keys():
-                    loi.append(
+                    err.append(
                         f"{c['id']}.{ben}({kind}): CÓ {sorted(thua)} — payload này không "
                         "tồn tại, tool không bao giờ sinh ra nó"
                     )
-    return loi
+    return err
 
 
 def _tim_ham_loc():
     """Tìm `loc_dau_ra` có nhận tham số `nguon`. Chưa có -> nói CHƯA ĐO ĐƯỢC."""
     import inspect
 
-    from src.agents.output_filter import loc_dau_ra
+    from src.agents.output_filter import filter_output
 
-    if "nguon" not in inspect.signature(loc_dau_ra).parameters:
+    if "nguon" not in inspect.signature(filter_output).parameters:
         return None
-    return loc_dau_ra
+    return filter_output
 
 
 def main() -> int:
@@ -141,7 +141,7 @@ def main() -> int:
         # ⚠️ Phía sản xuất ráp thế nào là câu hỏi cho coder — nếu ở đó ráp khác,
         # con số đo được ở đây không nói thay cho đường chạy thật.
         nguon_str = "\n".join(c["nguon"] or [])
-        moi, nhom = loc(c["reply"], tin_nhan_khach="", thread_id=c["id"], nguon=nguon_str)
+        moi, nhom = loc(c["reply"], customer_message="", thread_id=c["id"], source=nguon_str)
         thuc_te = "chan" if moi != c["reply"] else "qua"
         # `khong_cham_duoc` là kỳ vọng RIÊNG: không được chặn, cũng không được
         # âm thầm cho qua như thể đã verify. Bộ lọc phải nói ra là nó không biết.

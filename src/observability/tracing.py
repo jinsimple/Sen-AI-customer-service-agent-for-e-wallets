@@ -1,13 +1,13 @@
-"""OpenTelemetry setup — Giai đoạn 1+4 checklist observability. Chọn OTel
-(không phải Langfuse) vì đây là chuẩn quốc tế trung lập (CNCF), tự host được
-(Jaeger, docker-compose.yml service `jaeger`) — dữ liệu KHÔNG rời khỏi hạ
-tầng nội bộ, phù hợp dữ liệu giao dịch/khách hàng của ví điện tử (xem quyết
-định 2026-08-10).
+"""OpenTelemetry setup — phases 1+4 of the observability checklist. OTel was chosen
+(over Langfuse) because it is a vendor-neutral international standard (CNCF) and can be
+self-hosted (Jaeger, docker-compose.yml service `jaeger`) — data NEVER leaves the
+internal infrastructure, which suits e-wallet transaction/customer data (see the
+2026-08-10 decision).
 
-`configure_tracing()` PHẢI graceful-degrade khi collector (Jaeger) không sống
-— BatchSpanProcessor tự nuốt lỗi export ở background thread theo đúng spec
-OTel (xem test_tracing.py::test_tracing_does_not_crash_when_collector_unreachable),
-KHÔNG được để thiếu observability backend làm sập tính năng nghiệp vụ chính."""
+`configure_tracing()` MUST degrade gracefully when the collector (Jaeger) is down
+— BatchSpanProcessor swallows export errors on its background thread, as the OTel spec
+requires (see test_tracing.py::test_tracing_does_not_crash_when_collector_unreachable).
+A missing observability backend must NEVER take down core business features."""
 from __future__ import annotations
 
 import os
@@ -25,8 +25,8 @@ _configured = False
 
 
 def configure_tracing() -> None:
-    """Idempotent. Endpoint đọc từ `OTEL_EXPORTER_OTLP_ENDPOINT` (mặc định
-    `localhost:4317` — cổng OTLP gRPC của Jaeger, xem docker-compose.yml)."""
+    """Idempotent. Endpoint is read from `OTEL_EXPORTER_OTLP_ENDPOINT` (default
+    `localhost:4317` — Jaeger's OTLP gRPC port, see docker-compose.yml)."""
     global _configured
     if _configured:
         return
@@ -34,8 +34,8 @@ def configure_tracing() -> None:
     resource = Resource.create({SERVICE_NAME: _SERVICE_NAME, SERVICE_VERSION: _SERVICE_VERSION})
     provider = TracerProvider(resource=resource)
     exporter = OTLPSpanExporter(endpoint=endpoint, insecure=True)
-    # BatchSpanProcessor — gửi theo lô (không fire-and-forget từng span), đúng
-    # Giai đoạn 4: tránh overhead network dồn dập khi traffic cao.
+    # BatchSpanProcessor — exports in batches (not fire-and-forget per span), per
+    # phase 4: avoids bursts of network overhead under high traffic.
     provider.add_span_processor(BatchSpanProcessor(exporter))
     trace.set_tracer_provider(provider)
     _configured = True

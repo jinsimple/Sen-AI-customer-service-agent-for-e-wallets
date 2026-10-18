@@ -1,19 +1,19 @@
-"""Nối `scripts/fraud_engine.py` (script thuần, không chạm DB) vào tool
-`create_ticket` (§4.1 FIN05-Backend-Handoff.md).
+"""Wires `scripts/fraud_engine.py` (a pure script, no DB access) into the
+`create_ticket` tool (§4.1 FIN05-Backend-Handoff.md).
 
-Data Brief §4.2: `complaints.fraud_signals` "do tầng service tính từ dữ
-liệu, không phải do agent tự điền" — đây là tầng service đó. Tool
-`create_ticket` giữ mỏng, không tự tính tín hiệu; nơi DUY NHẤT chuyển dữ
-liệu từ DB (SQLAlchemy rows) sang định dạng `LedgerIndex` (list[dict] như
-JSONL) mà `fraud_engine.py` cần là ở đây.
+Data Brief §4.2: `complaints.fraud_signals` is "computed by the service layer from data,
+not filled in by the agent" — this is that service layer. The `create_ticket` tool stays
+thin and computes no signals itself; this is the ONLY place that converts DB data
+(SQLAlchemy rows) into the `LedgerIndex` format (list[dict] like JSONL) that
+`fraud_engine.py` needs.
 
-Dùng `FraudEngine.evaluate()` để tính TOÀN BỘ tín hiệu (tái dùng nguyên
-engine đã qua 16 nhóm kiểm định dataset, không viết lại — mã khác ngoài
-FS-06 vẫn được lưu vào `complaints.fraud_signals`, dữ liệu thừa không sao).
-Quyết định escalate/priority sau đó do `src.tools.fraud_policy.evaluate_escalation()`
-quyết — phạm vi MVP chỉ `FS-06` (PRD §5). KHÔNG dùng `FraudEngine.decide()`
-— đó là chính sách 2 tầng cũ của dataset gốc, chỉ còn dùng nội bộ ở
-`scripts/validate_dataset.py` để tự kiểm định dataset, không áp cho sản phẩm.
+Uses `FraudEngine.evaluate()` to compute ALL signals (reusing the engine as-is after it
+passed 16 dataset validation groups, not rewritten — codes other than FS-06 are still stored
+in `complaints.fraud_signals`; surplus data is harmless).
+The escalate/priority decision is then made by `src.tools.fraud_policy.evaluate_escalation()`
+— MVP scope is `FS-06` only (PRD §5). `FraudEngine.decide()` is NOT used
+— that is the old 2-tier policy of the original dataset, now only used internally by
+`scripts/validate_dataset.py` to self-validate the dataset, never applied to the product.
 """
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ from src.config import DATA_SCHEMA_DIR
 from src.db.models import AuthSession, BankAccount, Complaint, Ticket, Transaction, User, Wallet
 from src.tools.create_ticket import create_ticket as _create_ticket
 
-# A2 (ADR-025 QĐ 5) — ≈300-400 từ tiếng Việt: đủ tường thuật chi tiết một vụ,
-# gấp nhiều lần khiếu nại điển hình, chặn được flood 20.000 ký tự.
+# A2 (ADR-025 decision 5) — ≈300-400 Vietnamese words: enough to narrate one case in
+# detail, many times a typical complaint, while blocking a 20,000-character flood.
 MAX_DESCRIPTION_CHARS = 2000
 
 
@@ -47,10 +47,10 @@ def _rows_as_dicts(session: Session, model: Any) -> list[dict]:
 
 
 def _build_engine(session: Session) -> FraudEngine:
-    """Nạp toàn bộ dữ liệu nền hiện có trong DB thành LedgerIndex. Quy mô demo
-    (60k transactions, vài trăm dòng các bảng khác) nên nạp lại mỗi lần gọi
-    là đủ nhanh — không cần cache, tránh rủi ro đọc dữ liệu cũ sau khi có
-    ticket/complaint mới."""
+    """Load all existing reference data from the DB into a LedgerIndex. At demo scale
+    (60k transactions, a few hundred rows in other tables) reloading on every call is fast
+    enough — no cache needed, avoiding the risk of reading stale data after a new
+    ticket/complaint."""
     idx = LedgerIndex(
         _rows_as_dicts(session, User),
         _rows_as_dicts(session, Wallet),
@@ -73,29 +73,28 @@ def create_ticket_with_fraud_check(
     trans_id: str | None = None,
     otp_disclosed: bool = False,
     now: dt.datetime | None = None,
-    # ADR-044 — thread_id HIỆU LỰC của lượt sinh ra complaint này, ghi vào
-    # Complaint.thread_id lúc TẠO (NULLABLE VĨNH VIỄN nếu None — caller cũ/
-    # REST không có phiên chat). Luồn tới _create_ticket, KHÔNG tự suy đoán.
+    # ADR-044 — the EFFECTIVE thread_id of the turn that produced this complaint, written into
+    # Complaint.thread_id at CREATION (PERMANENTLY NULLABLE if None — old callers/REST without a
+    # chat session). Threaded through to _create_ticket, NEVER inferred.
     thread_id: str | None = None,
 ) -> dict[str, Any]:
-    """Tính tín hiệu gian lận từ dữ liệu DB rồi tạo ticket — thay vì để agent
-    tự truyền `fraud_signals` tay (rủi ro agent quên/bịa tín hiệu). Đây là
-    entrypoint agent/API nên gọi thay cho `create_ticket` trực tiếp khi
-    `trans_id` có giá trị; case not_found (`trans_id=None`) vẫn tính được
-    FS-09/FS-10/FS-11 (không cần giao dịch) rồi mới tạo ticket.
+    """Compute fraud signals from DB data, then create the ticket — instead of letting the agent
+    pass `fraud_signals` by hand (risk of the agent forgetting/fabricating signals). This is
+    the entry point the agent/API should call instead of `create_ticket` directly when
+    `trans_id` has a value; the not_found case (`trans_id=None`) can still compute
+    FS-09/FS-10/FS-11 (no transaction needed) before creating the ticket.
     """
     now = now or dt.datetime.utcnow()
 
-    # A2 — trần 2.000 ký tự, ép ở ĐÂY vì đây là điểm HỘI TỤ của cả hai đường
-    # ghi: REST (`main.py:538`) và AGENT (`customer_tools.py:620`). Đặt trần
-    # chỉ ở `CreateTicketRequest` là hụt đường agent — tool `create_ticket`
-    # KHÔNG có `args_schema`, nó dùng type hint trần nên Pydantic không áp
-    # ràng buộc nào. Đúng bài học ADR-019/024: validate-chỉ-ở-route không bảo
-    # vệ được cửa thứ hai.
+    # A2 — 2,000-character cap, enforced HERE because this is where BOTH write paths CONVERGE:
+    # REST (`main.py:538`) and AGENT (`customer_tools.py:620`). Putting the cap only on
+    # `CreateTicketRequest` misses the agent path — the `create_ticket` tool has NO `args_schema`;
+    # it uses bare type hints, so Pydantic applies no constraints. Exactly the ADR-019/024 lesson:
+    # validating only at the route does not protect the second door.
     #
-    # TỪ CHỐI chứ không CẮT BỚT: cắt là sửa lời khai của khách — trái ràng
-    # buộc cứng 3 và làm hỏng giá trị chứng cứ, đúng lý do nhóm A không được
-    # che lúc ghi.
+    # REJECT rather than TRUNCATE: truncating means altering the customer's statement — against
+    # hard constraint 3 and damaging its evidentiary value, the same reason group A must not be
+    # masked on write.
     if len(description_raw) > MAX_DESCRIPTION_CHARS:
         raise ValueError(
             f"description_raw {len(description_raw)} ký tự, vượt trần "
@@ -104,10 +103,10 @@ def create_ticket_with_fraud_check(
         )
 
     engine = _build_engine(session)
-    # QUAN TRỌNG: lấy tx từ engine.idx.tx_by_id (không tự query Transaction
-    # riêng) — LedgerIndex gắn khoá "_created" ngay trên object trong lúc
-    # dựng chỉ mục; evaluate()/receiver_first_time() đọc "_created" từ chính
-    # object đó, dựng dict tách rời sẽ thiếu khoá này và vỡ KeyError.
+    # IMPORTANT: take tx from engine.idx.tx_by_id (do not query Transaction separately) —
+    # LedgerIndex attaches the "_created" key on the object itself while building the index;
+    # evaluate()/receiver_first_time() read "_created" from that same object, so a detached dict
+    # would lack the key and break with KeyError.
     tx_dict = engine.idx.tx_by_id.get(trans_id) if trans_id is not None else None
 
     fired = engine.evaluate(
@@ -116,7 +115,7 @@ def create_ticket_with_fraud_check(
         complaint_at=now,
         utterance_text=description_raw,
         otp_disclosed=otp_disclosed,
-        refund_dest_ref=None,  # chưa xác định ở bước tạo ticket, chỉ có tại propose_resolution
+        refund_dest_ref=None,  # not determined at ticket-creation time, only available at propose_resolution
     )
 
     return _create_ticket(
@@ -133,38 +132,38 @@ def create_ticket_with_fraud_check(
     )
 
 
-def hop_nhat_tin_hieu_gian_lan(
+def merge_fraud_signals(
     session: Session,
     *,
     thread_id: str,
     utterance_text: str,
-    them_ma: list[str] | None = None,
+    add_code: list[str] | None = None,
 ) -> list[str] | None:
-    """MẢNH 4 (⑨/FS-13) — chấm tín hiệu gian lận trên MỘT LƯỢT SAU và HỢP NHẤT
-    vào khiếu nại đã tạo của chính thread đó.
+    """PIECE 4 (⑨/FS-13) — score fraud signals on a LATER TURN and MERGE them into the
+    complaint already created for that same thread.
 
-    Trước bản này, `engine.evaluate()` chỉ được gọi ĐÚNG MỘT LẦN, với
-    `utterance_text=description_raw` lúc TẠO VÉ. Hệ quả đo được: FS-13 dù có
-    tồn tại cũng chỉ bắt được ca khách TỰ KHAI "có người hướng dẫn" ngay trong
-    mô tả đầu — mà khách gọi việc của mình là "chuyển nhầm" thì không bao giờ
-    chạm tới nó. Tức tín hiệu chỉ bật khi ta đã không cần nó.
+    Before this version, `engine.evaluate()` was called EXACTLY ONCE, with
+    `utterance_text=description_raw` at TICKET CREATION. Measured consequence: even if FS-13
+    existed, it could only catch customers who SELF-REPORTED "someone was guiding me" in their
+    very first description — and a customer who calls what happened a "wrong transfer" would
+    never trigger it. The signal only fired when we no longer needed it.
 
-    Trả danh sách tín hiệu SAU hợp nhất, hoặc `None` nếu không tìm thấy khiếu
-    nại nào của thread (không phải lỗi — thread chưa tạo vé).
+    Returns the signal list AFTER merging, or `None` if no complaint is found for the thread
+    (not an error — the thread hasn't created a ticket yet).
 
-    🔴 HỢP NHẤT, TUYỆT ĐỐI KHÔNG GHI ĐÈ. Lượt sau gọi `evaluate()` với
-    `tx=None`, nên FS-01…08/FS-12 KHÔNG tính lại được (chúng cần giao dịch).
-    Gán thẳng `complaint.fraud_signals = fired_moi` sẽ XOÁ SẠCH tín hiệu bắt
-    lúc tạo vé — **kể cả FS-06, tín hiệu DUY NHẤT đang escalate** — và xoá
-    không lỗi, không log, không ai biết. Union là idempotent: gọi lại bao
-    nhiêu lần cũng cho cùng kết quả.
+    🔴 MERGE, NEVER OVERWRITE. The later turn calls `evaluate()` with `tx=None`, so
+    FS-01…08/FS-12 CANNOT be recomputed (they need a transaction). Directly assigning
+    `complaint.fraud_signals = fired_moi` would WIPE OUT the signals caught at ticket
+    creation — **including FS-06, the ONLY signal that escalates** — silently, with no error,
+    no log, nobody noticing. A union is idempotent: calling it any number of times yields the
+    same result.
 
-    Khoá theo `Complaint.thread_id` (ADR-044), KHÔNG đoán theo mốc thời gian.
-    ⚠️ KHAI GIỚI HẠN: một thread có thể mang nhiều khiếu nại; hàm này chọn cái
-    MỚI NHẤT theo `created_at`. Ở đường gọi hiện tại điều đó là chính xác theo
-    cấu trúc — cổng ⑨ bắn TỐI ĐA MỘT LẦN mỗi thread, ngay sau một `create_ticket`
-    — nên "mới nhất" chính là vé vừa tạo. Nếu sau này có đường gọi khác, phải
-    đọc lại câu này trước khi dùng.
+    Keyed by `Complaint.thread_id` (ADR-044), NEVER guessed from timestamps.
+    ⚠️ DECLARED LIMITATION: one thread may carry several complaints; this function picks the
+    LATEST by `created_at`. On the current call path that is structurally correct — gate ⑨
+    fires AT MOST ONCE per thread, right after a `create_ticket` — so "latest" is exactly the
+    ticket just created. If another call path appears later, re-read this sentence before
+    using it.
     """
     complaint = session.scalar(
         select(Complaint)
@@ -178,17 +177,17 @@ def hop_nhat_tin_hieu_gian_lan(
     engine = _build_engine(session)
     fired = engine.evaluate(
         user_id=complaint.user_id,
-        tx=None,  # lượt sau không gắn với một giao dịch cụ thể nào
+        tx=None,  # the later turn is not tied to any specific transaction
         complaint_at=complaint.created_at,
         utterance_text=utterance_text,
-        otp_disclosed=False,  # đã tính lúc tạo vé; KHÔNG hạ cờ cũ ở đây
+        otp_disclosed=False,  # already computed at ticket creation; DO NOT lower old flags here
     )
-    cu = list(complaint.fraud_signals or [])
-    gop = sorted(set(cu) | set(fired) | set(them_ma or []))
-    if gop != sorted(set(cu)):
-        complaint.fraud_signals = gop
+    prev = list(complaint.fraud_signals or [])
+    merged_items = sorted(set(prev) | set(fired) | set(add_code or []))
+    if merged_items != sorted(set(prev)):
+        complaint.fraud_signals = merged_items
         session.flush()
-    return gop
+    return merged_items
 
 
 def flag_human_handoff(
@@ -198,25 +197,25 @@ def flag_human_handoff(
     reason: str,
     ticket_id: str | None = None,
     now: dt.datetime | None = None,
-    # ADR-044 — CHỈ dùng khi tạo ticket MỚI (nhánh ticket_id=None dưới), luồn
-    # xuống create_ticket_with_fraud_check. PO-agent 19/08: đường tạo vé
-    # KHÔNG chỉ có tool create_ticket — flag_human_handoff cũng tự tạo vé khi
-    # khách xin gặp người mà chưa có ticket, thiếu thread_id ở ĐÂY thì đúng
-    # loại vé CẦN transcript nhất (bàn giao) lại KHÔNG có transcript.
+    # ADR-044 — used ONLY when creating a NEW ticket (the ticket_id=None branch below), threaded
+    # down to create_ticket_with_fraud_check. PO-agent 19/08: the ticket-creation path is NOT only
+    # the create_ticket tool — flag_human_handoff also creates a ticket when the customer asks for
+    # a human without having one; missing thread_id HERE would mean the kind of ticket that NEEDS a
+    # transcript most (handoff) would have NO transcript.
     thread_id: str | None = None,
 ) -> dict[str, Any]:
-    """CTRL-001 (FIN05_QA_TestCases.jsonl, 2026-08-11) — khách chủ động yêu
-    cầu gặp người thật (ISO/IEC 25059 'user controllability'). Kiến trúc
-    CSKH vẫn bất đồng bộ (dashboard, không phải live chat) — hàm này tạo/
-    đánh dấu 1 Ticket THẬT với `human_handoff_requested=True` để CSKH thấy
-    và ưu tiên xử lý, KHÔNG giả vờ có người đang chat trực tiếp ngay lúc này.
+    """CTRL-001 (FIN05_QA_TestCases.jsonl, 2026-08-11) — the customer actively asks to talk
+    to a real person (ISO/IEC 25059 'user controllability'). The CSKH architecture is still
+    asynchronous (dashboard, not live chat) — this function creates/flags a REAL Ticket with
+    `human_handoff_requested=True` so CSKH can see and prioritise it, WITHOUT pretending a
+    person is chatting live right now.
 
-    `ticket_id`: nếu agent ĐÃ tạo ticket cho đúng vấn đề đang nói trong hội
-    thoại này (tránh tạo trùng, cùng nguyên tắc đã áp dụng cho create_ticket)
-    — chỉ set cờ lên ticket đó, PHẢI thuộc đúng `user_id` (chặn agent bị dụ
-    flag nhầm ticket của người khác qua tham số này).
-    Không có `ticket_id` — tạo ticket MỚI, complaint_type='other' (khách yêu
-    cầu người thật không nhất thiết mô tả 1 trong 4 loại khiếu nại cụ thể).
+    `ticket_id`: if the agent HAS ALREADY created a ticket for exactly the issue being
+    discussed in this conversation (avoiding duplicates, same principle as create_ticket)
+    — only set the flag on that ticket, which MUST belong to `user_id` (stops an agent tricked
+    into flagging someone else's ticket via this parameter).
+    No `ticket_id` — create a NEW ticket, complaint_type='other' (a customer asking for a
+    human doesn't necessarily describe one of the 4 specific complaint types).
     """
     now = now or dt.datetime.utcnow()
 
@@ -228,11 +227,12 @@ def flag_human_handoff(
         if complaint is None or complaint.user_id != user_id:
             raise ValueError(f"ticket_id không thuộc user_id đang chat: {ticket_id}")
         ticket.human_handoff_requested = True
-        # ADR-044 mục 4 — mốc BÀN GIAO thật, KHÔNG PHẢI lúc ticket được tạo
-        # (ticket.created_at đã có, khác hẳn ý nghĩa). UI vẽ vạch phân cách
-        # hội thoại tại mốc này. `updated_at` cũng đổi theo quy ước có sẵn
-        # của cột đó (mọi lần sửa ticket), hai cột phục vụ hai câu hỏi khác
-        # nhau ("sửa lần cuối khi nào" vs "bàn giao khi nào") — không gộp.
+        # ADR-044 item 4 — the real HANDOFF timestamp, NOT when the ticket was created
+        # (ticket.created_at already exists, with a completely different meaning). The UI draws a
+        # conversation divider at this timestamp. `updated_at` also changes per that column's
+        # existing
+        # convention (every ticket edit); the two columns answer two different questions
+        # ("when was it last edited" vs "when was it handed off") — not merged.
         ticket.handoff_at = now
         ticket.updated_at = now
         session.flush()
@@ -242,23 +242,23 @@ def flag_human_handoff(
         session,
         user_id=user_id,
         complaint_type="other",
-        # 🔴 TRƯỚC 17/08 đây là "internal_wallet" — một HẰNG SỐ CỨNG, tức
-        # đường này BỊA ra một trong ba phạm vi thật mà không tra giao dịch nào.
+        # 🔴 BEFORE 17/08 this was "internal_wallet" — a HARD-CODED CONSTANT, i.e. this path
+        # FABRICATED one of the three real scopes without looking up any transaction.
         #
-        # tester bắt được bằng hiệu số CSDL của đúng một lượt hết-giờ trên ngăn
-        # xếp đo: `tool_results` 0->1 (chỉ MỘT dòng, và là create_ticket),
-        # `investigation_logs` 0->0, `trans_id` rỗng — vậy mà
-        # `scope=internal_wallet`. Không giao dịch nào được tra.
+        # The tester caught it via a DB diff of a single timed-out turn on the measurement stack:
+        # `tool_results` 0->1 (only ONE row, and it was create_ticket),
+        # `investigation_logs` 0->0, `trans_id` empty — and yet
+        # `scope=internal_wallet`. No transaction had been looked up.
         #
-        # Giá trị 'unknown' được thêm vào CHECK constraint ngày 11/08 CHO ĐÚNG
-        # CA NÀY (xem models.py): "trước đây agent bị ép đoán bừa 1 trong 3 giá
-        # trị thật... cho phép CSKH tự xác định thủ công thay vì AI bịa". Cơ chế
-        # có sẵn từ sáu ngày trước; đường fallback này chưa bao giờ được cập
-        # nhật theo — bản vá áp cho đường AGENT mà bỏ sót đường CODE.
+        # The value 'unknown' was added to the CHECK constraint on 11/08 FOR EXACTLY THIS CASE
+        # (see models.py): "previously the agent was forced to guess one of the 3 real values...
+        # let CSKH determine it manually instead of the AI fabricating". The mechanism had existed
+        # for
+        # six days; this fallback path was never updated — the fix was applied to the AGENT path and
+        # missed the CODE path.
         #
-        # Áp cho CẢ HAI người gọi (graph.py hết-giờ · request_human_handoff):
-        # không đường nào trong hai đường đó tra giao dịch, nên mọi giá trị
-        # phạm vi cụ thể ở đây đều là bịa.
+        # Applies to BOTH callers (graph.py timeout · request_human_handoff):
+        # neither path looks up a transaction, so any specific scope value here would be fabricated.
         scope="unknown",
         description_raw=reason,
         trans_id=None,
@@ -267,10 +267,10 @@ def flag_human_handoff(
     )
     ticket = session.get(Ticket, created["ticket_id"])
     ticket.human_handoff_requested = True
-    # ADR-044 mục 4 — vé MỚI sinh ra TỪ chính lượt bàn giao này (không có
-    # ticket_id cũ để gắn cờ lên), nên handoff_at == created_at CÙNG giá trị
-    # `now` — đúng, không phải trùng hợp: bàn giao và tạo vé xảy ra "đồng
-    # thời" về mặt nghiệp vụ trong nhánh này.
+    # ADR-044 item 4 — a NEW ticket born FROM this very handoff turn (no existing
+    # ticket_id to flag), so handoff_at == created_at with the SAME value
+    # `now` — correct, not a coincidence: handoff and ticket creation happen "simultaneously" in
+    # business terms on this branch.
     ticket.handoff_at = now
     session.flush()
     return {**created, "human_handoff_requested": True, "created_new_ticket": True}

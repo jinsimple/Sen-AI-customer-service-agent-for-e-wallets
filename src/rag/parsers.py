@@ -1,14 +1,13 @@
-"""Trích text từ file chính sách/FAQ do partner_admin upload
+"""Extract text from policy/FAQ files uploaded by partner_admin
 (POST /policy-docs, src/api/main.py).
 
-Chỉ hỗ trợ .md/.txt/.pdf/.docx — CỐ Ý không hỗ trợ .doc nhị phân cũ (OLE):
-không có parser Python thuần an toàn cho định dạng này, ép dùng công cụ hệ
-thống (antiword/LibreOffice headless) để mở file người dùng tải lên đi ngược
-lại tinh thần "bảo mật RAG cấp cao" của tính năng này. Người upload cần lưu
-lại thành .docx trước.
+Only .md/.txt/.pdf/.docx are supported — legacy binary .doc (OLE) is DELIBERATELY
+unsupported: there is no safe pure-Python parser for that format, and forcing system tools
+(antiword/headless LibreOffice) to open user-uploaded files runs against the "hardened RAG
+security" spirit of this feature. Uploaders need to re-save as .docx first.
 
-Luôn kiểm magic bytes THẬT trước khi parse — không tin đuôi file client tự
-khai, chặn kiểu tấn công đổi đuôi file để né validate.
+Always check the REAL magic bytes before parsing — never trust the file extension declared
+by the client; this blocks extension-swapping attacks that try to dodge validation.
 """
 from __future__ import annotations
 
@@ -19,60 +18,60 @@ import unicodedata
 from src.tools.base import ToolError
 
 _PDF_MAGIC = b"%PDF-"
-_ZIP_MAGIC = b"PK\x03\x04"  # .docx là 1 file zip (Office Open XML)
+_ZIP_MAGIC = b"PK\x03\x04"  # .docx is a zip file (Office Open XML)
 
 _ALLOWED_TEXT_EXTENSIONS = (".md", ".txt")
 
 
 class UnsupportedDocumentError(ToolError):
-    """File không đúng định dạng hỗ trợ hoặc đuôi file không khớp nội dung thật."""
+    """File is not a supported format, or its extension does not match its real content."""
 
 
-_NGUYEN_AM = set("aeiouy")
+_VOWELS = set("aeiouy")
 
 
-def _bo_dau(s: str) -> str:
+def _strip_diacritics(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
 
-def _co_nguyen_am(s: str) -> bool:
-    return any(c in _NGUYEN_AM for c in _bo_dau(s).lower())
+def _has_vowel(s: str) -> bool:
+    return any(c in _VOWELS for c in _strip_diacritics(s).lower())
 
 
-def _ghep_am_tiet_vo(text: str) -> str:
-    """Vá lỗi trích xuất PDF chèn khoảng trắng GIỮA một âm tiết tiếng Việt.
+def _join_broken_syllables(text: str) -> str:
+    """Repair PDF extraction that inserts whitespace INSIDE a Vietnamese syllable.
 
-    Kho RAG thật chứa `"Giao D ịch"`, `"liên k ết"`, `"th ực"` — khoảng trắng
-    do pypdf chèn khi ghép glyph có dấu. Nó phá CẢ HAI tầng truy hồi cùng lúc:
-    embedding thấy hai token rác thay vì một từ, và khớp từ khoá trượt hoàn
-    toàn. Đo trên kho thật: **414 chỗ** trong 254.196 ký tự.
+    The real RAG store contained `"Giao D ịch"`, `"liên k ết"`, `"th ực"` — whitespace
+    inserted by pypdf when composing accented glyphs. It breaks BOTH retrieval layers at once:
+    embeddings see two junk tokens instead of one word, and keyword matching misses
+    completely. Measured on the real store: **414 occurrences** in 254,196 characters.
 
-    LUẬT GHÉP — hai điều kiện ĐỒNG THỜI, và cả hai đều cần:
-      (1) mảnh TRƯỚC là cụm PHỤ ÂM THUẦN 1-3 ký tự (không chứa nguyên âm).
-          Âm tiết tiếng Việt LUÔN có nguyên âm, nên một token toàn phụ âm
-          không bao giờ là một từ hoàn chỉnh — nó chỉ có thể là mảnh vỡ.
-      (2) mảnh SAU bắt đầu bằng NGUYÊN ÂM — tức nó là phần VẦN của âm tiết.
+    JOIN RULE — two conditions that must hold SIMULTANEOUSLY, and both are needed:
+      (1) the PRECEDING fragment is a PURE CONSONANT cluster of 1-3 characters (no vowel).
+          A Vietnamese syllable ALWAYS contains a vowel, so an all-consonant token is never
+          a complete word — it can only be a fragment.
+      (2) the FOLLOWING fragment starts with a VOWEL — i.e. it is the rhyme part of the syllable.
 
-    Vì sao cần cả (2), đo mới thấy: chỉ dùng (1) thì ghép nhầm **143 chỗ** viết
-    tắt hợp lệ — `NH TMCP` -> `NHTMCP`, `SMS Banking` -> `SMSBanking`,
-    `JCB Debit`, `TK ngân`, `x Rộng`. Thêm (2) loại sạch cả 143 mà vẫn giữ
-    nguyên 414 ca ghép đúng.
+    Why (2) is needed, found by measuring: using (1) alone wrongly joins **143 valid
+    abbreviations** — `NH TMCP` -> `NHTMCP`, `SMS Banking` -> `SMSBanking`,
+    `JCB Debit`, `TK ngân`, `x Rộng`. Adding (2) removes all 143 while keeping all
+    414 correct joins.
 
-    KHÔNG dùng từ điển: một danh sách từ viết tay sẽ thiếu đúng từ người ta
-    sắp gõ (Luật 18/ADR-023). Luật này dựa vào TÍNH CHẤT ÂM VỊ của tiếng Việt,
-    không dựa vào việc liệt kê.
+    NO dictionary: a hand-written word list will miss exactly the word someone is about to
+    type (Rule 18/ADR-023). This rule relies on Vietnamese PHONOLOGICAL PROPERTIES, not on
+    enumeration.
     """
 
-    def _thay(m: re.Match[str]) -> str:
-        truoc, sau = m.group(1), m.group(2)
-        if _co_nguyen_am(truoc):
+    def _substitute(m: re.Match[str]) -> str:
+        before, after = m.group(1), m.group(2)
+        if _has_vowel(before):
             return m.group(0)
-        dau_sau = _bo_dau(sau)[:1].lower()
-        if dau_sau not in _NGUYEN_AM:
+        trailing_marker = _strip_diacritics(after)[:1].lower()
+        if trailing_marker not in _VOWELS:
             return m.group(0)
-        return truoc + sau
+        return before + after
 
-    return re.sub(r"\b([A-Za-zĐđ]{1,3}) ([a-zA-ZÀ-ỹĐđ]{1,12})\b", _thay, text)
+    return re.sub(r"\b([A-Za-zĐđ]{1,3}) ([a-zA-ZÀ-ỹĐđ]{1,12})\b", _substitute, text)
 
 
 # DON 3 — LOAI DONG MUC LUC KHOI INDEX.
@@ -92,29 +91,29 @@ def _ghep_am_tiet_vo(text: str) -> str:
 #   co "..." nhung KHONG ket so    4 dong  -> GIU, deu la than bai that
 #                                             (vd "10.000d,...")
 # Chi dieu kien (1) se loai nham 4 dong do. Dieu kien (2) la thu phan biet.
-_DONG_MUC_LUC = re.compile(r"\.{5,}\s*\d+\s*$")
+_TOC_LINE = re.compile(r"\.{5,}\s*\d+\s*$")
 
 
-def _bo_dong_muc_luc(text: str) -> str:
-    """Bo dong muc luc; GIU nguyen moi dong khac va cau truc xuong dong.
+def _drop_toc_lines(text: str) -> str:
+    """Drop table-of-contents lines; KEEP every other line and the line-break structure.
 
-    ĐÍNH CHÍNH số đo (commit 0c965a7 ghi SAI, không sửa lịch sử được):
-        mốc TRƯỚC  20/35 — KHÔNG phải 19/35. 19/35 có trước khi tester sửa
-                   nhãn sai của ca RAG-08 ở 675282e; tôi đo "sau" bằng thước
-                   mới nhưng so với mốc "trước" đo bằng thước cũ.
-        sau đòn 3  21/35  ⟹ delta ròng +1, không phải +2.
+    CORRECTION of the measurement (commit 0c965a7 recorded it WRONG; history can't be edited):
+        BEFORE baseline  20/35 — NOT 19/35. 19/35 predates the tester fixing the wrong label
+                         of case RAG-08 in 675282e; I measured "after" with the new
+                         yardstick but compared against a "before" measured with the old one.
+        after fix 3      21/35  ⟹ net delta +1, not +2.
 
-    Trong đó có ca RAG-04 chuyển ĐẠT -> trượt. Đo lại: chunk duy nhất trong
-    top-10 khớp từ khoá của ca là một DÒNG TIÊU ĐỀ MỤC LỤC, và nó khớp bằng
-    từ khoá yếu `nhận tiền` chứ không phải `50.000.000`. Đáp án thật của FAQ 7
-    không có mặt. Tức RAG-04 chưa bao giờ truy hồi đúng — đòn 3 làm lộ một
-    PASS GIẢ, không gây hồi quy. Ghi ra thay vì gộp vào delta.
+    That includes case RAG-04 moving PASS -> fail. Re-measured: the only chunk in the
+    top-10 matching the case's keywords was a TABLE-OF-CONTENTS HEADING LINE, and it matched
+    on the weak keyword `nhận tiền` (receive money), not on `50.000.000`. The real answer of
+    FAQ 7 was absent. So RAG-04 never retrieved correctly — fix 3 exposed a FALSE PASS, it
+    did not cause a regression. Recorded rather than folded into the delta.
 
-    Hệ quả rộng hơn (tester audit tiếp, PO chốt ở STATE 78ecc79): 9/21 ca đang
-    ĐẠT là đạt nhờ từ khoá chung. 60% là GIỚI HẠN TRÊN, cận dưới 34,3%.
-    Con số của hàm này chỉ đáng tin tới mức thước chấm đáng tin.
+    Wider consequence (further tester audit, fixed by the PO in STATE 78ecc79): 9/21 currently
+    PASSING cases pass thanks to generic keywords. 60% is an UPPER BOUND; the lower bound is
+    34.3%. This function's numbers are only as trustworthy as the yardstick.
     """
-    return "\n".join(d for d in text.split("\n") if not _DONG_MUC_LUC.search(d.strip()))
+    return "\n".join(d for d in text.split("\n") if not _TOC_LINE.search(d.strip()))
 
 
 def _extension(filename: str) -> str:
@@ -128,63 +127,64 @@ def _extract_pdf(content: bytes) -> str:
     try:
         reader = PdfReader(io.BytesIO(content))
         pages = [page.extract_text() or "" for page in reader.pages]
-    except Exception as e:  # pypdf raises nhiều loại lỗi khác nhau tuỳ file hỏng
+    except Exception as e:  # pypdf raises many different exception types depending on how the file is broken
         raise UnsupportedDocumentError(f"Không đọc được nội dung PDF: {e}") from e
     text = "\n\n".join(p.strip() for p in pages if p.strip())
     if not text.strip():
         raise UnsupportedDocumentError("PDF không có text trích xuất được (có thể là bản scan ảnh)")
-    # Vá âm tiết vỡ NGAY TẠI ĐIỂM TRÍCH — trước khi text đi vào chia chunk và
-    # embedding. Vá muộn hơn (lúc truy vấn) không cứu được: vector đã sai rồi.
-    # Thu tu CO CHU DICH: ghep am tiet vo TRUOC, roi moi bo muc luc.
-    # Nguoc lai thi dong muc luc bi tu-vo se khong khop mau va lot vao index.
-    return _bo_dong_muc_luc(_ghep_am_tiet_vo(text))
+    # Repair broken syllables RIGHT AT THE EXTRACTION POINT — before the text goes into chunking
+    # and embedding. Repairing later (at query time) can't save it: the vector is already wrong.
+    # The order is DELIBERATE: join broken syllables FIRST, then drop TOC lines.
+    # The other way round, TOC lines with broken words would not match the pattern and leak into
+    # the index.
+    return _drop_toc_lines(_join_broken_syllables(text))
 
 
-def _hang_bang_thanh_dong(bang) -> list[str]:
-    """Mỗi HÀNG bảng -> MỘT dòng tự mô tả, mang theo tên cột.
+def _table_row_to_line(table_rows) -> list[str]:
+    """Each table ROW -> ONE self-describing line carrying the column names.
 
-    Vì sao không nối phẳng: bản PDF của đúng bảng này bị pypdf nghiền thành
-    cháo (`NH TMCP Ngoại Thương VCB Tất cả NH TMCP Bản Việt VCCB 2,000,000...`)
-    — 23 ngân hàng dính liền một khối, không hàng nào tra riêng được. Đo được:
-    tester tìm thấy ~20 đoạn gần-trùng khiến 31,5% kho không bao giờ nổi lên
-    top-3, và nhóm đó CHÍNH LÀ bảng này.
+    Why not flatten: the PDF version of this very table was mashed by pypdf into porridge
+    (`NH TMCP Ngoại Thương VCB Tất cả NH TMCP Bản Việt VCCB 2,000,000...`)
+    — 23 banks stuck together in one block, no row retrievable on its own. Measured:
+    the tester found ~20 near-duplicate passages causing 31.5% of the store never to surface
+    in the top-3, and that group WAS this table.
 
-    Kèm tên cột vào từng ô để hàng đứng một mình vẫn đọc được: chunk có thể bị
-    cắt rời khỏi hàng tiêu đề, lúc đó "VCB · Tất cả" là vô nghĩa còn
-    "Tên viết tắt: VCB · Hạn mức: Tất cả" thì không.
+    Column names are attached to every cell so a row standing alone is still readable: a chunk
+    may be cut away from the header row, and then "VCB · Tất cả" is meaningless whereas
+    "Tên viết tắt: VCB · Hạn mức: Tất cả" (Short name: VCB · Limit: All) is not.
     """
-    hang = bang.rows
-    if not hang:
+    row_item = table_rows.rows
+    if not row_item:
         return []
-    cot = [c.text.strip() for c in hang[0].cells]
-    ra: list[str] = []
-    for h in hang[1:]:
+    column = [c.text.strip() for c in row_item[0].cells]
+    out_items: list[str] = []
+    for h in row_item[1:]:
         o = [c.text.strip() for c in h.cells]
         if not any(o):
             continue
-        ra.append(" · ".join(f"{cot[i]}: {v}" if i < len(cot) and cot[i] else v
+        out_items.append(" · ".join(f"{column[i]}: {v}" if i < len(column) and column[i] else v
                              for i, v in enumerate(o) if v))
-    return ra
+    return out_items
 
 
 def _extract_docx(content: bytes) -> str:
-    """Giữ CẤU TRÚC của DOCX thay vì đổ phẳng.
+    """Preserve the STRUCTURE of DOCX instead of flattening it.
 
-    Bản trước: `"\\n".join(p.text for p in doc.paragraphs)`. Hai thứ bị vứt:
-      1. style heading — mất biên đoạn tự nhiên (239 Heading 3 = ~1 mỗi FAQ,
-         và tiêu đề đã mang sẵn tên thực thể: "44. Cách liên kết MoMo với tài
-         khoản ngân hàng Việt Nam Phương Đông (OCB)")
-      2. `doc.tables` — python-docx KHÔNG đưa ô bảng vào `doc.paragraphs`, nên
-         bảng 23 hàng hạn mức ngân hàng trước nay không hề vào kho qua đường
-         DOCX. Im lặng, không lỗi.
+    Previous version: `"\\n".join(p.text for p in doc.paragraphs)`. Two things were discarded:
+      1. heading styles — losing natural section boundaries (239 Heading 3 = ~1 per FAQ,
+         and the headings already carry the entity name: "44. Cách liên kết MoMo với tài
+         khoản ngân hàng Việt Nam Phương Đông (OCB)" — How to link MoMo with an OCB account)
+      2. `doc.tables` — python-docx does NOT include table cells in `doc.paragraphs`, so the
+         23-row bank limit table had never entered the store via the DOCX path.
+         Silently, with no error.
 
-    Heading được tách bằng DÒNG TRỐNG hai đầu vì `RecursiveCharacterTextSplitter`
-    (src/rag/ingest.py) ưu tiên cắt ở `\\n\\n` — đó là cách duy nhất extractor
-    tác động được tới biên chunk mà không phải sửa bộ chia.
+    Headings are separated by BLANK LINES on both sides because `RecursiveCharacterTextSplitter`
+    (src/rag/ingest.py) prefers to split at `\\n\\n` — the only way the extractor can
+    influence chunk boundaries without modifying the splitter.
 
-    TƯƠNG THÍCH NGƯỢC (điều kiện PO cho 4b): file .docx thường — không heading,
-    không bảng — cho ra ĐÚNG chuỗi như bản cũ, vì cả hai nhánh mới đều không
-    kích hoạt. Đường upload của partner_admin không đổi hành vi.
+    BACKWARD COMPATIBLE (the PO's condition for 4b): a plain .docx — no headings,
+    no tables — produces EXACTLY the same string as before, because neither new branch
+    activates. The partner_admin upload path does not change behaviour.
     """
     from docx import Document
     from docx.table import Table
@@ -195,24 +195,24 @@ def _extract_docx(content: bytes) -> str:
     except Exception as e:
         raise UnsupportedDocumentError(f"Không đọc được nội dung DOCX: {e}") from e
 
-    # Duyệt THÂN tài liệu để giữ đúng thứ tự văn bản/bảng xen kẽ —
-    # `doc.paragraphs` và `doc.tables` là hai danh sách rời, ghép lại sẽ dồn
-    # hết bảng xuống cuối, cắt đứt bảng khỏi đoạn văn giới thiệu nó.
-    phan: list[str] = []
+    # Walk the document BODY to preserve the interleaved order of text and tables —
+    # `doc.paragraphs` and `doc.tables` are two separate lists; concatenating them would push all
+    # tables to the end, cutting each table off from the paragraph introducing it.
+    part: list[str] = []
     for con in doc.element.body.iterchildren():
         if con.tag.endswith("}p"):
             p = Paragraph(con, doc)
             if not p.text.strip():
                 continue
-            ten_style = (p.style.name or "") if p.style is not None else ""
-            if ten_style.startswith("Heading"):
-                phan.append("\n" + p.text.strip())
+            style_name = (p.style.name or "") if p.style is not None else ""
+            if style_name.startswith("Heading"):
+                part.append("\n" + p.text.strip())
             else:
-                phan.append(p.text.strip())
+                part.append(p.text.strip())
         elif con.tag.endswith("}tbl"):
-            phan.extend(_hang_bang_thanh_dong(Table(con, doc)))
+            part.extend(_table_row_to_line(Table(con, doc)))
 
-    text = "\n".join(phan).strip()
+    text = "\n".join(part).strip()
     if not text.strip():
         raise UnsupportedDocumentError("DOCX không có nội dung text nào")
     return text
@@ -229,9 +229,9 @@ def _extract_plain_text(content: bytes) -> str:
 
 
 def extract_text(filename: str, content: bytes) -> str:
-    """Điểm vào duy nhất — dispatch theo đuôi file, xác minh magic bytes thật
-    trước khi parse, ném UnsupportedDocumentError với thông báo rõ ràng cho
-    mọi trường hợp không parse được (agent/API hiển thị lại cho người upload)."""
+    """Single entry point — dispatches by file extension, verifies the real magic bytes
+    before parsing, and raises UnsupportedDocumentError with a clear message in every
+    unparseable case (the agent/API shows it back to the uploader)."""
     ext = _extension(filename)
 
     if ext in _ALLOWED_TEXT_EXTENSIONS:

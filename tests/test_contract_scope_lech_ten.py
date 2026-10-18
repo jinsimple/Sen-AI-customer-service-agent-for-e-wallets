@@ -71,7 +71,7 @@ def _scopes_contract() -> dict[str, dict]:
     return s
 
 
-def _gia_tri_trong_CHECK(ten: str) -> set[str]:
+def _gia_tri_trong_CHECK(name_text: str) -> set[str]:
     """Đọc CHECK theo TÊN, qua helper AST có sẵn của bộ invariant.
 
     Tra theo **danh tính**, không theo **vị trí**. Bản đầu của hàm này dùng
@@ -82,10 +82,10 @@ def _gia_tri_trong_CHECK(ten: str) -> set[str]:
     """
     from tests.test_invariants import _check_constraints
 
-    bt = _check_constraints().get(ten)
-    assert bt, f"không tìm thấy CheckConstraint tên {ten!r}"
+    bt = _check_constraints().get(name_text)
+    assert bt, f"không tìm thấy CheckConstraint tên {name_text!r}"
     m = re.search(r"IN\s*\(([^)]*)\)", bt)
-    assert m, f"{ten} không có dạng 'IN (...)': {bt[:120]}"
+    assert m, f"{name_text} không có dạng 'IN (...)': {bt[:120]}"
     return {x.strip().strip("'\"") for x in m.group(1).split(",") if x.strip()}
 
 
@@ -123,10 +123,10 @@ def test_scope_gan_rang_buoc_RIENG_thi_chi_o_bang_do():
              for v in _scopes_contract().values() if v.get("rang_buoc_db")}
     assert rieng, "không scope nào khai `rang_buoc_db` — nếu đúng vậy, xoá test này"
     khac = _gia_tri_trong_CHECK(CHECK_TRANSACTIONS)
-    for gt, ten in rieng.items():
-        assert ten == CHECK_COMPLAINTS, f"`{gt}` khai ràng buộc lạ: {ten}"
+    for gt, name_text in rieng.items():
+        assert name_text == CHECK_COMPLAINTS, f"`{gt}` khai ràng buộc lạ: {name_text}"
         assert gt not in khac, (
-            f"`{gt}` khai CHỈ hợp lệ ở {ten}, nhưng nó CÓ trong {CHECK_TRANSACTIONS}. "
+            f"`{gt}` khai CHỈ hợp lệ ở {name_text}, nhưng nó CÓ trong {CHECK_TRANSACTIONS}. "
             "Contract và CHECK bất đồng về PHẠM VI của giá trị, không chỉ về tập giá trị."
         )
 
@@ -141,6 +141,6 @@ def test_scope_KHONG_gan_rang_buoc_thi_co_o_CA_HAI_bang():
     """
     chung = {v["gia_tri_ma"] for v in _scopes_contract().values() if not v.get("rang_buoc_db")}
     assert chung, "mọi scope đều khai rang_buoc_db — bất thường, đọc lại contract"
-    for ten in (CHECK_COMPLAINTS, CHECK_TRANSACTIONS):
-        thieu = chung - _gia_tri_trong_CHECK(ten)
-        assert not thieu, f"scope dùng chung {sorted(thieu)} VẮNG ở {ten}"
+    for name_text in (CHECK_COMPLAINTS, CHECK_TRANSACTIONS):
+        thieu = chung - _gia_tri_trong_CHECK(name_text)
+        assert not thieu, f"scope dùng chung {sorted(thieu)} VẮNG ở {name_text}"

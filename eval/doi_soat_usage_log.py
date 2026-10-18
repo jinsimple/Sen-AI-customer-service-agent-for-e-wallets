@@ -137,31 +137,31 @@ def main() -> int:
         print(f"🔴 Container {a.container!r} không trả về gì — kiểm tên container đúng chưa.")
         return 2
     try:
-        ket_qua = json.loads(dong_cuoi[-1])
+        outcome = json.loads(dong_cuoi[-1])
     except json.JSONDecodeError:
         print(f"🔴 Không đọc được JSON kết quả:\n{r.stdout}")
         return 2
 
-    if ket_qua.get("loi") == "khong_thay_usage_jsonl":
+    if outcome.get("loi") == "khong_thay_usage_jsonl":
         print(f"🔴 Không thấy /app/logs/usage.jsonl trong container {a.container!r}.")
         return 2
 
     print(f"Container: {a.container}")
-    print(f"Thread THẬT (checkpoints): {ket_qua['tong_thread_that']}")
-    print(f"Thread CÓ log (usage.jsonl): {ket_qua['tong_thread_co_log']}")
-    print(f"Tổng dòng usage.jsonl: {ket_qua['tong_dong_usage']}")
+    print(f"Thread THẬT (checkpoints): {outcome['tong_thread_that']}")
+    print(f"Thread CÓ log (usage.jsonl): {outcome['tong_thread_co_log']}")
+    print(f"Tổng dòng usage.jsonl: {outcome['tong_dong_usage']}")
 
     # [PO 25/08, đính chính] "không có dòng sổ" ≠ "mất bản ghi" — một thread
     # mà agent CHƯA TỪNG trả lời (chỉ có câu khách) đúng đắn không có dòng
     # sổ, đếm nó vào "mất" là báo động giả DO CHÍNH CỔNG SINH RA. Phân loại
     # bằng cách giải mã checkpoint (có AIMessage hay không) trước khi báo.
-    mat = ket_qua["thread_mat_that"]
-    binh_thuong = ket_qua["thread_binh_thuong_khong_tinh"]
-    chua_ro = ket_qua["thread_chua_ro"]
+    mat = outcome["thread_mat_that"]
+    binh_thuong = outcome["thread_binh_thuong_khong_tinh"]
+    chua_ro = outcome["thread_chua_ro"]
     ok = True
     if mat:
         ok = False
-        ti_le = len(mat) / ket_qua["tong_thread_that"] * 100 if ket_qua["tong_thread_that"] else 0
+        ti_le = len(mat) / outcome["tong_thread_that"] * 100 if outcome["tong_thread_that"] else 0
         print(f"\n🔴 {len(mat)} LƯỢT ĐÃ TỐN TIỀN MÀ KHÔNG CÓ BẢN GHI ({ti_le:.0f}% tổng thread"
               f" — CHỈ tính thread CÓ AIMessage, đã loại thread agent chưa từng chạy):")
         for t in mat:
@@ -175,7 +175,7 @@ def main() -> int:
         print(f"  🟡 {len(chua_ro)} thread CHƯA RÕ (blob rỗng/giải mã lỗi, không gộp vào mất "
               f"lẫn bình thường — cần xem tay): {', '.join(chua_ro)}")
 
-    vp = ket_qua["vi_pham_bat_bien"]
+    vp = outcome["vi_pham_bat_bien"]
     if vp:
         ok = False
         print(f"\n🔴 {len(vp)} DÒNG VI PHẠM BẤT BIẾN so_luot_goi_model = so_tool_call + 1:")

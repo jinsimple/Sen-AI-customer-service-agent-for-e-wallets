@@ -49,7 +49,7 @@ ràng buộc bị bỏ qua; hai cái cùng kết quả hôm nay, **chỉ cái th
 > ```
 > **Bốn lần, bốn chỗ, ba người, một ngày** — và lần thứ tư **không ai nhắc**. Dấu hiệu luật đã
 > thành phản xạ chứ chưa phải một dòng trong sổ.
-> Kết quả: `sssssss` — **7 skipped, không một ca nào chạy** ⟹ cờ `FIN05_CHO_PHEP_TON_TIEN` có tác
+> Kết quả: `sssssss` — **7 skipped, không một ca nào chạy** ⟹ cờ `FIN05_ALLOW_PAID_CALLS` có tác
 > dụng thật, **bẫy ngược của tester (nếu chúng CHẠY thì cờ bị đặt sẵn) KHÔNG bung.**
 
 **🔴 ⑤ — XANH, ghi "CHƯA GIẢI THÍCH", KHÔNG ghi "đã vá".** `test_injection.py -k traversal` →
@@ -1400,7 +1400,7 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
 
 ## ⚡ ĐỢT TỐI ƯU TOKEN 17/08 (T1-T5) — ĐÃ LÀM VÀ ĐÃ ĐO (bổ sung muộn: đợt này diễn ra trong tin nhắn/code, STATE ghi thiếu — lỗi PO-agent)
 - **T1 PHÂN LUỒNG: ĐÃ LAND + ĐO.** Luật 0-token (regex danh-sách-cho-phép, `md5:4e50e609e085`), sau cờ
-  `PHAN_LUONG_BAT` mặc định OFF. Đường nhẹ = template, 0 LLM, 0 bản ghi (`Δcomplaints=Δtickets=0`,
+  `TRIAGE_ENABLED` mặc định OFF. Đường nhẹ = template, 0 LLM, 0 bản ghi (`Δcomplaints=Δtickets=0`,
   4 test Δ xanh trên HTTP thật). Cổng: 124/124 âm · 14/14 âm-ngắn · 15/20 dương · ĐC-1..5 đạt
   (định nghĩa chuẩn: `docs/giao-viec/2026-08-17-dinh-nghia-cong-DC-phan-luong.md`).
 - **Chuỗi R (k=1, cùng ảnh `86b652d18e26`, kho 378):**
@@ -1413,7 +1413,7 @@ Cập nhật: **2026-08-15 (phiên Đợt 2 + bàn giao P-226)** · PO-agent đi
   hai lần chạy y hệt** (14 vs 11) ⟹ "−32% nhờ tắt thinking" sáng 17/08 bác còn **−11% k=1**; hiệu
   ứng <3 lời gọi = không kết luận được. R3: ToolResult +4 y hệt cả ba vòng (tra như nhau, khác tầng
   ghi), bớt gọi `create_ticket` thừa, nhanh 2,2×.
-- **T3 `SUY_LUAN_BAT`: đã land** (mặc định = giữ thinking; sổ ghi trạng thái THẬT từ payload).
+- **T3 `REASONING_ENABLED`: đã land** (mặc định = giữ thinking; sổ ghi trạng thái THẬT từ payload).
   **T2 (hạ độ phân giải current_time): CHƯA làm** — thiết kế trước, đã bác phương án dời-chỗ bằng đo
   (85,0→86,3%). **T4: cố ý không làm** (đường nhẹ = 0 model). **T5: có sẵn.**
 - **Finding từ chuỗi R:** lượt-4 tạo vé TRƯỚC đồng ý = model TUÂN prompt (tiền đề bước 4 toàn

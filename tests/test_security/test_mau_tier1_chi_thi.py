@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents.tools.customer_tools import _phan_loai_tier
+from src.agents.tools.customer_tools import _classify_tier
 
 # ===========================================================================
 # BẢNG MÃ — nguồn: tech-lead, 15/08 (KHÔNG phải tôi tự dò)
@@ -207,7 +207,7 @@ def test_chuoi_tan_cong_xep_dung_tier(chuoi: str, tier_ky_vong: str):
         bị đánh dấu, mất độ phủ mà không mua được gì (FP đo ra là 0/1814)
     Một assert dạng "có bị bắt không" sẽ XANH cho cả hai lỗi đó.
     """
-    thuc_te = _phan_loai_tier(chuoi)
+    thuc_te = _classify_tier(chuoi)
     assert thuc_te == tier_ky_vong, (
         f"{chuoi!r} xếp {thuc_te!r}, đặc tả nói {tier_ky_vong!r}.\n"
         "Nguồn hiện hành: PHÂN XỬ F-28d `e050905` (nhánh EN tier-1 đòi MỎ NEO "
@@ -264,7 +264,7 @@ def test_cum_tier1_khac_cua_f25_van_o_tier1(chuoi: str):
     THỂ xuất hiện trong chính sách hợp lệ, tức mất phần rẻ nhất và chắc nhất
     của cả lớp.
     """
-    assert _phan_loai_tier(chuoi) == TIER_1, (
+    assert _classify_tier(chuoi) == TIER_1, (
         f"Cụm F-25 §3(a) nêu đích danh cho tier-1 nay KHÔNG còn ở tier-1: {chuoi!r}"
     )
 
@@ -284,7 +284,7 @@ def test_bao_cao_ho_dong_tu_khac(capsys):
     security. Assert vào đây là tôi tự trả lời hộ một câu hỏi thiết kế bằng
     cách để nó đỏ. In số ra thì người quyết có dữ liệu; assert thì tôi đã quyết.
     """
-    bat = [c for c in CUNG_Y_DINH_KHAC_DONG_TU if _phan_loai_tier(c) == TIER_1]
+    bat = [c for c in CUNG_Y_DINH_KHAC_DONG_TU if _classify_tier(c) == TIER_1]
     with capsys.disabled():
         print(
             f"\n    [CỔNG-A] cùng ý định, khác động từ: tier-1 bắt "
@@ -301,4 +301,4 @@ def test_cau_lanh_khong_bi_bat_nham(chuoi: str):
     chính sách hợp lệ**, tức người dùng mất câu trả lời thật vì một cảnh giác
     quá tay.
     """
-    assert _phan_loai_tier(chuoi) != TIER_1, f"Câu LÀNH bị xếp tier-1: {chuoi!r}"
+    assert _classify_tier(chuoi) != TIER_1, f"Câu LÀNH bị xếp tier-1: {chuoi!r}"

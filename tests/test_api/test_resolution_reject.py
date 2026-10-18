@@ -80,15 +80,15 @@ def _dat_trang_thai(sample_db, resolution_id: str, status: str) -> None:
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("nguon", ["draft", "approved", "rejected"])
-def test_sec_a_reject_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, nguon):
+@pytest.mark.parametrize("source", ["draft", "approved", "rejected"])
+def test_sec_a_reject_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, source):
     """Contract chỉ có MỘT transition tới `rejected`, từ `pending_approval`.
 
     Ca nặng nhất là `approved → rejected`: lật ngược một quyết định đã duyệt
     mà không để lại vết của việc lật.
     """
     resolution_id = _make_resolution(sample_db)
-    _dat_trang_thai(sample_db, resolution_id, nguon)
+    _dat_trang_thai(sample_db, resolution_id, source)
 
     resp = client.post(
         f"/resolutions/{resolution_id}/reject",
@@ -96,10 +96,10 @@ def test_sec_a_reject_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, n
         headers=_auth("supervisor", "USR-SUP"),
     )
     assert resp.status_code == 400, (
-        f"reject từ '{nguon}' trả {resp.status_code}, phải là 400. "
+        f"reject từ '{source}' trả {resp.status_code}, phải là 400. "
         f"Contract chỉ cho pending_approval → rejected. Body: {resp.text[:200]}"
     )
-    assert sample_db.get(Resolution, resolution_id).status == nguon, (
+    assert sample_db.get(Resolution, resolution_id).status == source, (
         "Trạng thái bị đổi dù request bị từ chối — rollback không sạch."
     )
 
@@ -175,8 +175,8 @@ def test_sec_a_cskh_khong_duoc_reject(client, sample_db):
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("nguon", ["draft", "approved", "rejected"])
-def test_sec_b_approve_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, nguon):
+@pytest.mark.parametrize("source", ["draft", "approved", "rejected"])
+def test_sec_b_approve_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, source):
     """`draft → approved` là đường tắt bỏ qua bước trình duyệt; `rejected →
     approved` là lật ngược một lần từ chối. Cả hai đều không có trong contract.
 
@@ -197,7 +197,7 @@ def test_sec_b_approve_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, 
     # cấp cho resolution đang chờ duyệt. Ta cần OTP hợp lệ để loại trừ tầng
     # OTP khỏi phép thử, cô lập đúng thứ đang đo là guard TRẠNG THÁI.
     otp = client.post(f"/resolutions/{resolution_id}/request-approval-otp", headers=headers).json()
-    _dat_trang_thai(sample_db, resolution_id, nguon)
+    _dat_trang_thai(sample_db, resolution_id, source)
 
     resp = client.post(
         f"/resolutions/{resolution_id}/approve",
@@ -205,10 +205,10 @@ def test_sec_b_approve_tu_trang_thai_khac_pending_bi_tu_choi(client, sample_db, 
         headers=headers,
     )
     assert resp.status_code == 400, (
-        f"approve từ '{nguon}' với OTP HỢP LỆ trả {resp.status_code}, phải là 400. "
+        f"approve từ '{source}' với OTP HỢP LỆ trả {resp.status_code}, phải là 400. "
         f"Contract chỉ cho pending_approval → approved (CỬA DUY NHẤT, ADR-002). "
         f"Body: {resp.text[:200]}"
     )
-    assert sample_db.get(Resolution, resolution_id).status == nguon, (
+    assert sample_db.get(Resolution, resolution_id).status == source, (
         "Trạng thái bị đổi dù request thất bại."
     )

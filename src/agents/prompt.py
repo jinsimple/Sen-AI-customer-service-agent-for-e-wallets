@@ -1,6 +1,9 @@
-"""System prompt cho agent khách hàng — encode đúng 5 ràng buộc Brief §7 và
-tone PRD §15.2. Sửa nội dung ở đây khi cần tinh chỉnh hành vi agent, không
-sửa rải rác trong graph.py."""
+"""System prompt for the customer-facing agent — encodes the 5 constraints of Brief §7 and
+the tone of PRD §15.2. Edit the content here when tuning agent behaviour; do not
+scatter edits across graph.py.
+
+Note for reviewers: the prompt text is intentionally in Vietnamese — the agent serves
+Vietnamese e-wallet customers. An English rendering lives in docs/en/agent-prompt.md."""
 from __future__ import annotations
 
 import datetime as dt
@@ -72,44 +75,45 @@ Khách yêu cầu RÕ RÀNG được nói chuyện/chuyển cho nhân viên CSKH
 
 
 def build_system_prompt(*, current_time: dt.datetime, customer_name: str | None = None) -> str:
-    """`customer_name` CỐ Ý bị bỏ qua — giữ tham số chỉ để không vỡ caller cũ.
+    """`customer_name` is DELIBERATELY ignored — the parameter is kept only so old callers don't break.
 
-    Rà soát 2026-08-13: họ tên thật của khách được nhét vào system prompt, tức
-    rời hệ thống lên OpenAI ở MỌI vòng gọi LLM. Agent không cần biết khách tên
-    gì để điều tra giao dịch — xưng "quý khách" là đủ, chất lượng không đổi.
+    Review 2026-08-13: the customer's real full name was injected into the system prompt,
+    i.e. it left the system for OpenAI on EVERY LLM call. The agent does not need the
+    customer's name to investigate a transaction — addressing them as "quý khách" (valued
+    customer) is enough, with no loss in quality.
 
-    Bỏ đi giải quyết cùng lúc hai việc: (1) tối thiểu hoá dữ liệu cá nhân theo
-    OWASP LLM02:2025 + Luật 91/2025/QH15 (số điều cụ thể CHƯA xác minh trên
-    bản luật mới, không gán số điều cũ của NĐ 13/2023), (2) bớt token ở phần
-    gửi lại mỗi vòng.
+    Dropping it solves two things at once: (1) personal-data minimisation per
+    OWASP LLM02:2025 + Law 91/2025/QH15 (specific article numbers NOT yet verified against
+    the new law; old Decree 13/2023 article numbers are not reused), (2) fewer tokens in the
+    part re-sent every round.
 
-    Xem tests/test_security/test_pii_khong_ro_ri_len_llm.py và ADR-010.
+    See tests/test_security/test_pii_khong_ro_ri_len_llm.py and ADR-010.
     """
     return _TEMPLATE.format(
-        customer_name="quý khách",  # PII-OK: hằng số, không phải dữ liệu khách
+        customer_name="quý khách",  # PII-OK: constant, not customer data
         current_date=current_time.strftime("%d/%m/%Y"),
         current_time=current_time.strftime("%H:%M"),
         max_rounds=CLARIFY_QUESTION_MAX_ROUNDS,
     )
 
 
-def bam_mau_prompt() -> str:
-    """Băm của MẪU prompt (chưa render) — danh tính phiên bản chỉ dẫn.
+def hash_prompt_template() -> str:
+    """Hash of the prompt TEMPLATE (unrendered) — the version identity of the instructions.
 
-    Vì sao cần: `build_system_prompt()` chèn ngày/giờ, nên prompt ĐÃ RENDER đổi
-    mỗi phút. Hai đợt đo cách nhau vài giờ nhận hai chuỗi khác nhau, và cặp
-    đối chứng hỏng KHÔNG TRIỆU CHỨNG — không lỗi, không cảnh báo, chỉ là hai
-    vật khác nhau bị coi là một.
+    Why: `build_system_prompt()` injects the date/time, so the RENDERED prompt changes every
+    minute. Two measurement runs a few hours apart receive two different strings, and the
+    control pair breaks WITHOUT SYMPTOMS — no error, no warning, just two different things
+    treated as one.
 
-    Băm MẪU thì bất biến theo thời gian và chỉ đổi khi có người sửa chỉ dẫn —
-    đúng thứ người ta muốn nói khi hỏi "hai lượt này có cùng một prompt không".
+    Hashing the TEMPLATE is time-invariant and only changes when someone edits the
+    instructions — exactly what people mean by "did these two turns use the same prompt".
 
-    Đóng dấu mốc-thời-gian cũng giải được, nhưng yếu hơn: nó bắt người đọc tự
-    suy từ hai mốc ra "cùng mẫu hay khác mẫu", trong khi băm trả lời thẳng.
-    Và mốc thời gian không phát hiện được việc ai đó SỬA mẫu.
+    Timestamping would also work, but is weaker: it forces the reader to infer "same template
+    or not" from two timestamps, whereas a hash answers directly. And a timestamp cannot
+    detect someone EDITING the template.
 
-    Cùng họ `BUILD_COMMIT`: một thứ trông tĩnh mà thực ra động thì phải TỰ KHAI
-    danh tính, đừng bắt người dùng nhớ hộ.
+    Same family as `BUILD_COMMIT`: anything that looks static but is actually dynamic must
+    DECLARE its own identity rather than relying on the user to remember it.
     """
     import hashlib
 

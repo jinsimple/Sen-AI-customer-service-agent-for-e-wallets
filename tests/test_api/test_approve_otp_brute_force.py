@@ -105,9 +105,9 @@ def test_f12_ma_sai_lam_tang_failed_attempts(client, sample_db):
     resp = _thu_duyet(client, rid, ch["session_id"], MA_SAI)
     assert resp.status_code >= 400, f"Mã sai mà duyệt được: {resp.status_code} {resp.text[:200]}"
 
-    sau = _challenge(sample_db, ch["session_id"])
-    assert sau.failed_attempts >= 1, (
-        f"`failed_attempts` vẫn = {sau.failed_attempts} sau 1 lần gửi mã sai. "
+    after = _challenge(sample_db, ch["session_id"])
+    assert after.failed_attempts >= 1, (
+        f"`failed_attempts` vẫn = {after.failed_attempts} sau 1 lần gửi mã sai. "
         "Không đếm thì không thể khoá — đây là gốc của F-12."
     )
 
@@ -134,10 +134,10 @@ def test_f12_khoa_sau_nguong_va_khong_tu_mo_lai(client, sample_db):
         resp = _thu_duyet(client, rid, ch["session_id"], MA_SAI)
         assert resp.status_code >= 400, f"Lần {lan + 1} mã sai mà duyệt được: {resp.text[:200]}"
 
-    sau = _challenge(sample_db, ch["session_id"])
-    assert sau.locked_at is not None, (
+    after = _challenge(sample_db, ch["session_id"])
+    assert after.locked_at is not None, (
         f"Sau {OTP_MAX_FAILED_ATTEMPTS + 1} lần sai, `locked_at` vẫn NULL "
-        f"(failed_attempts={sau.failed_attempts}) — challenge KHÔNG hề bị khoá. "
+        f"(failed_attempts={after.failed_attempts}) — challenge KHÔNG hề bị khoá. "
         "403 mà route đang trả chỉ có nghĩa 'mã sai', không phải 'đã khoá'."
     )
 
@@ -189,12 +189,12 @@ def test_f12_hai_muoi_lan_gui_ma_sai_khong_lot_lan_nao(client, sample_db):
     # Lại KHÔNG đếm mã HTTP (403 ở đây là "mã sai", không phải "đã khoá" — xem
     # docstring test trên). Bằng chứng duy nhất không thể vô tình thoả mãn:
     # hệ thống đã ĐẾM đủ và đã KHOÁ sau 20 lần dò liên tiếp.
-    sau = _challenge(sample_db, ch["session_id"])
-    assert sau.failed_attempts >= OTP_MAX_FAILED_ATTEMPTS, (
-        f"20 lần dò liên tiếp mà `failed_attempts` chỉ = {sau.failed_attempts}. "
+    after = _challenge(sample_db, ch["session_id"])
+    assert after.failed_attempts >= OTP_MAX_FAILED_ATTEMPTS, (
+        f"20 lần dò liên tiếp mà `failed_attempts` chỉ = {after.failed_attempts}. "
         "Đây chính là phép đo của security: gửi mã sai liên tiếp, không gì đếm lại."
     )
-    assert sau.locked_at is not None or 429 in ma_loi, (
+    assert after.locked_at is not None or 429 in ma_loi, (
         f"20 lần dò liên tiếp: KHÔNG bị khoá (`locked_at` NULL) và KHÔNG lần nào 429. "
         f"Phân bố mã trả về: {ma_loi}. Hệ thống đang cho dò 6 chữ số không giới hạn "
         "trên một lệnh chạm tiền."

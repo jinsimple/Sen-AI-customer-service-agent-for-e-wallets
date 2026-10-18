@@ -372,8 +372,8 @@ def write_report(results: list[dict], out_path: Path, nguon_mo_hinh: dict) -> No
             "",
             f"- Theo nhóm: `{dem_nhom}`",
         ]
-        for cid, luot, nhom in bi_chan[:15]:
-            lines.append(f"- {cid} lượt {luot} · {nhom}")
+        for cid, turn, nhom in bi_chan[:15]:
+            lines.append(f"- {cid} lượt {turn} · {nhom}")
         lines.append("")
 
     # ① — bảng ĐẦY ĐỦ mọi case ĐO ĐƯỢC, kể cả case passed=true. Đây chính là

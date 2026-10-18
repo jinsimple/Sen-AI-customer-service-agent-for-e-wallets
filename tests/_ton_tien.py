@@ -11,7 +11,7 @@ mà không ai định làm thế.
 > **Cổng đặt theo "có chạy được không" trả lời sai câu hỏi. Câu đúng là "có
 > ĐỊNH chạy không".** Điều kiện khả thi ≠ điều kiện cho phép.
 
-Coder chỉ ra nó cùng hình dạng với `PHAN_LUONG_BAT` — **và ngược dấu**: thứ an
+Coder chỉ ra nó cùng hình dạng với `TRIAGE_ENABLED` — **và ngược dấu**: thứ an
 toàn được mặc định bật, thứ **tốn tiền** phải mặc định **tắt**. Cùng nguyên tắc
 danh-sách-cho-phép đã xuất hiện năm lần hôm nay, lần này ở trục **chi phí**.
 
@@ -25,16 +25,16 @@ from __future__ import annotations
 
 import os
 
-CO = "FIN05_CHO_PHEP_TON_TIEN"
+CO = "FIN05_ALLOW_PAID_CALLS"
 
 
 def duoc_phep_ton_tien() -> bool:
     return os.environ.get(CO, "").strip() not in ("", "0", "false", "False")
 
 
-def ly_do(uoc_token: int, mo_ta: str) -> str:
+def reason_text(uoc_token: int, description: str) -> str:
     return (
-        f"TEST TỐN TIỀN — ước ~{uoc_token:,} token ({mo_ta}). Mặc định TẮT.\n"
+        f"TEST TỐN TIỀN — ước ~{uoc_token:,} token ({description}). Mặc định TẮT.\n"
         f"Bật: {CO}=1\n"
         "Mặc định tắt vì cổng cũ đặt theo 'hạ tầng có sống không' — mà hạ tầng "
         "luôn sống trong lúc làm việc, nên nó thành mặc-định-BẬT. Điều kiện khả "

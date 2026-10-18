@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import pytest
 
-NGUONG_LIET_KE = 3  # ≥3 mỏ neo khác nhau trong MỘT reply = hành vi liệt kê
+LISTING_THRESHOLD = 3  # ≥3 mỏ neo khác nhau trong MỘT reply = hành vi liệt kê
 
 # --- 5 ca ÂM TÍNH (security §4) — không câu nào được đạt ngưỡng -------------
 AM_TINH = [
@@ -75,7 +75,7 @@ def _ham_dem_mo_neo():
     import importlib
 
     for mod, ham in (
-        ("src.agents.output_filter", "dem_mat_do_liet_ke"),
+        ("src.agents.output_filter", "count_listing_density"),
         ("src.agents.output_filter", "dem_mo_neo"),
         ("src.agents.spotlight", "dem_mo_neo"),
         ("src.observability.pii", "dem_mo_neo"),
@@ -104,8 +104,8 @@ def test_cau_hop_le_khong_dat_nguong_liet_ke(reply: str, mo_neo_ky_vong: int):
     sẽ đỏ vì lý do không liên quan tới thứ nó canh.
     """
     dem = _ham_dem_mo_neo()(reply)
-    assert dem < NGUONG_LIET_KE, (
-        f"Câu HỢP LỆ bị đếm {dem} mỏ neo (≥{NGUONG_LIET_KE} = ngưỡng liệt kê):\n"
+    assert dem < LISTING_THRESHOLD, (
+        f"Câu HỢP LỆ bị đếm {dem} mỏ neo (≥{LISTING_THRESHOLD} = ngưỡng liệt kê):\n"
         f"  {reply!r}\n"
         f"  (security ước lượng {mo_neo_ky_vong} mỏ neo)\n"
         "Đây là câu agent ĐƯỢC PHÉP — có ca còn là câu agent ĐƯỢC LỆNH phải nói."
@@ -119,8 +119,8 @@ def test_cau_liet_ke_that_phai_dat_nguong():
     vượt ngưỡng" là điều đúng sẵn với một bộ đếm hỏng.
     """
     dem = _ham_dem_mo_neo()(DUONG_TINH)
-    assert dem >= NGUONG_LIET_KE, (
-        f"Câu LIỆT KÊ thật chỉ được đếm {dem} mỏ neo, dưới ngưỡng {NGUONG_LIET_KE} "
+    assert dem >= LISTING_THRESHOLD, (
+        f"Câu LIỆT KÊ thật chỉ được đếm {dem} mỏ neo, dưới ngưỡng {LISTING_THRESHOLD} "
         "— bộ đếm không nhận ra chính hành vi nó sinh ra để đo."
     )
 
@@ -132,8 +132,8 @@ def test_o2_v1_chi_dem_khong_chan_cau():
     chuyển từ đếm sang chặn là một QUYẾT ĐỊNH cần dữ liệu phân phối, không phải
     một bước tự nhiên của việc hoàn thiện code.
     """
-    ket_qua = _ham_dem_mo_neo()(DUONG_TINH)
-    assert isinstance(ket_qua, int), (
-        f"Bộ đếm O2 v1 phải trả về SỐ ĐẾM, nhận {type(ket_qua).__name__} — "
+    outcome = _ham_dem_mo_neo()(DUONG_TINH)
+    assert isinstance(outcome, int), (
+        f"Bộ đếm O2 v1 phải trả về SỐ ĐẾM, nhận {type(outcome).__name__} — "
         "nếu nó đã trả về câu đã sửa/đã chặn thì O2 đã âm thầm chuyển sang chế độ CHẶN."
     )

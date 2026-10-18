@@ -64,8 +64,8 @@ def _khoa_duoc_ghi(duong_dan: Path, ten_ham: str) -> set[str]:
 )
 def test_raw_luu_payload_tool_day_du(tep: str, ham: str):
     """Cả hai bộ đo phải ghi `tool_calls_day_du` vào bản ghi raw."""
-    khoa = _khoa_duoc_ghi(_GOC / "eval" / tep, ham)
-    assert "tool_calls_day_du" in khoa, (
+    key_name = _khoa_duoc_ghi(_GOC / "eval" / tep, ham)
+    assert "tool_calls_day_du" in key_name, (
         f"eval/{tep}::{ham}() không ghi `tool_calls_day_du` vào raw.\n"
         "Thiếu nó thì luật xuất xứ và `so_lieu_dung_tham_chieu` KHÔNG chấm lại "
         "được trên bản ghi cũ — mọi lần kiểm phải chạy agent thật, tốn TPM."
@@ -84,8 +84,8 @@ def test_van_giu_truong_ten_tool_cu(tep: str, ham: str):
     vẫn xanh ở test trên, và mọi file raw đã lưu bỗng mang một khoá hai nghĩa.
     Hai trường cùng tồn tại là chủ đích, không phải trùng lặp cần gộp.
     """
-    khoa = _khoa_duoc_ghi(_GOC / "eval" / tep, ham)
-    assert "tool_calls" in khoa, (
+    key_name = _khoa_duoc_ghi(_GOC / "eval" / tep, ham)
+    assert "tool_calls" in key_name, (
         f"eval/{tep}::{ham}() không còn ghi `tool_calls` (danh sách TÊN). "
         "File raw cũ dùng khoá này; bỏ nó đi là làm gãy mọi phép đọc lịch sử."
     )

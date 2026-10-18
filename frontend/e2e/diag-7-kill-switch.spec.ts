@@ -4,8 +4,8 @@ import { forgeOtpVerifiedAt, setForgedSessionCookie } from "./helpers/otp-forge"
 import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session";
 
 // TẠM THỜI, KHÔNG COMMIT — chẩn đoán ⑦ một lần, buổi tốn phí 25/08.
-// Tiêu chí MỚI (Coder + Lead duyệt 25/08): tắt PHAN_LUONG_BAT + CONG_T0_BAT
-// (CONG_OTP_NHOM_B_BAT vẫn bật, cố ý) ⟹ KHÔNG được xuất hiện duong=nhe /
+// Tiêu chí MỚI (Coder + Lead duyệt 25/08): tắt TRIAGE_ENABLED + T0_GATE_ENABLED
+// (OTP_GATE_GROUP_B_ENABLED vẫn bật, cố ý) ⟹ KHÔNG được xuất hiện duong=nhe /
 // thu_slot / otp_resend_thu_slot trong sổ. duong=can_otp VẪN là bình thường
 // (④ đang sống, không thuộc hai cờ vừa tắt).
 
@@ -43,7 +43,7 @@ test("chẩn đoán ⑦ — không được có nhe/thu_slot/otp_resend_thu_slot
   const responses = hook(page);
   const input = page.getByPlaceholder("Nhập tin nhắn...");
 
-  // Probe 1 — câu xã giao thuần, BÌNH THƯỜNG kích "nhe" khi PHAN_LUONG_BAT=1.
+  // Probe 1 — câu xã giao thuần, BÌNH THƯỜNG kích "nhe" khi TRIAGE_ENABLED=1.
   await input.fill("alo");
   await input.press("Enter");
   await expect.poll(() => responses.length, { timeout: 20_000 }).toBeGreaterThan(0);
@@ -62,7 +62,7 @@ test("chẩn đoán ⑦ — không được có nhe/thu_slot/otp_resend_thu_slot
   }
 
   // Probe 3 — gửi lại CÙNG câu thiếu tiền sau OTP: bình thường sẽ là
-  // otp_resend_thu_slot (T0) khi CONG_T0_BAT=1; PHẢI đổi thành day_du khi =0.
+  // otp_resend_thu_slot (T0) khi T0_GATE_ENABLED=1; PHẢI đổi thành day_du khi =0.
   const before = responses.length;
   await input.fill("tôi bị trừ tiền");
   await input.press("Enter");

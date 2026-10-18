@@ -1,12 +1,12 @@
-"""Client Redis dùng chung — revocation store JWT refresh token (src/auth.py),
-rate-limit đồng bộ (login/OTP/live-chat, đợt nâng cấp Auth Flow 2026-08-12).
+"""Shared Redis client — JWT refresh-token revocation store (src/auth.py) and
+synchronised rate limiting (login/OTP/live-chat, Auth Flow upgrade 2026-08-12).
 
-Hỗ trợ `REDIS_URL=fake://...` -> fakeredis.FakeStrictRedis, dùng cho CI/test
-không cần Redis thật (đúng convention playbooks/production-packaging-checklist.md
-"REDIS_URL: fake://"). Redis thật bật `socket_keepalive` + `health_check_interval`
-(cùng checklist, mục "Reliability & Scaling") — mạng nội bộ cloud (NAT/proxy) âm
-thầm đóng connection nhàn rỗi, thiếu 2 cờ này thì request sau dùng lại socket
-chết -> lỗi ngẫu nhiên trên production dù local chạy hoàn hảo.
+Supports `REDIS_URL=fake://...` -> fakeredis.FakeStrictRedis, for CI/tests that need
+no real Redis (per playbooks/production-packaging-checklist.md convention
+"REDIS_URL: fake://"). Real Redis enables `socket_keepalive` + `health_check_interval`
+(same checklist, "Reliability & Scaling") — cloud internal networks (NAT/proxy) silently
+close idle connections; without these two flags the next request reuses a dead socket
+-> random production errors even though everything works perfectly locally.
 """
 from __future__ import annotations
 
@@ -26,10 +26,10 @@ def get_redis_client(redis_url: str | None = None) -> Redis:
     if url.startswith("fake://"):
         import fakeredis
 
-        # server= giữ cùng 1 fakeredis.FakeServer cho mọi client cùng URL trong
-        # 1 process — nếu không, mỗi get_redis_client() mới tự tạo 1 "server"
-        # riêng biệt, dữ liệu ghi ở nơi này không đọc được ở nơi khác dù cùng
-        # URL (mỗi lần gọi lại tạo ra 1 kho dữ liệu giả lập mới, rỗng).
+        # server= keeps the same fakeredis.FakeServer for every client with the same URL in
+        # one process — otherwise each new get_redis_client() creates its own separate "server",
+        # and data written in one place cannot be read in another despite the same URL (every call
+        # would create a new, empty fake data store).
         return fakeredis.FakeStrictRedis.from_url(
             url.replace("fake://", "redis://"), server=_fake_server(), decode_responses=True
         )
@@ -52,8 +52,8 @@ def _fake_server():
 
 
 def get_default_client() -> Redis:
-    """Singleton dùng ở request path thật (khác get_redis_client(), vốn dùng để
-    test tự inject URL/instance riêng qua dependency override)."""
+    """Singleton used on the real request path (unlike get_redis_client(), which tests
+    use to inject their own URL/instance via dependency override)."""
     global _client
     if _client is None:
         _client = get_redis_client()

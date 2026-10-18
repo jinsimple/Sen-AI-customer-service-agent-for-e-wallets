@@ -58,15 +58,15 @@ import pytest
 BAT_DAY_DU = os.environ.get("FIN05_SUITE_DAY_DU") == "1"
 
 
-def can_ha_tang(ly_do: str, cach_dung: str | None = None, *, allow_module_level: bool = False) -> None:
+def can_ha_tang(reason_text: str, cach_dung: str | None = None, *, allow_module_level: bool = False) -> None:
     """NHÓM A — gọi thay `pytest.skip(...)` đúng chỗ hạ tầng vắng lúc chạy.
 
     Xem docstring module này để biết chỗ nào ĐƯỢC và KHÔNG ĐƯỢC gọi hàm này.
     """
     if not BAT_DAY_DU:
-        pytest.skip(ly_do, allow_module_level=allow_module_level)
+        pytest.skip(reason_text, allow_module_level=allow_module_level)
         return
-    thong_bao = f"🔴 KHÔNG CHẠY ĐƯỢC (FIN05_SUITE_DAY_DU=1) — {ly_do}"
+    thong_bao = f"🔴 KHÔNG CHẠY ĐƯỢC (FIN05_SUITE_DAY_DU=1) — {reason_text}"
     if cach_dung:
         thong_bao += f"\n   Cách dựng: {cach_dung}"
     pytest.fail(thong_bao, pytrace=False)

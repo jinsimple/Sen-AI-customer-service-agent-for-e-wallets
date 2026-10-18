@@ -196,8 +196,8 @@ def test_backfill_khong_lam_mat_dong_hay_doi_noi_dung():
     nay = _do_lai(ds_id)
 
     hong = []
-    for bang, cot, _t in COT:
-        k = f"{bang}.{cot}"
+    for table_rows, column, _t in COT:
+        k = f"{table_rows}.{column}"
         a, b = nen[k], nay[k]
         if b.get("tong") != b.get("so_id_yeu_cau"):
             hong.append(f"  {k}: HỤT DÒNG — yêu cầu {b.get('so_id_yeu_cau')} ID, "

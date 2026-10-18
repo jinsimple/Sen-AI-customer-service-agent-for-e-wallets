@@ -1,30 +1,31 @@
-"""Tín hiệu cảm xúc ES-xx — TẦNG SERVICE, luật tất định (ADR-022, PO ký 15/08).
+"""ES-xx emotion signals — SERVICE LAYER, deterministic rules (ADR-022, signed by the PO 15/08).
 
-CHƯA NỐI VÀO ĐƯỜNG NÓNG. File này chỉ tính tín hiệu; việc đưa `goi_y_handoff`
-vào envelope và nâng ưu tiên ticket là bước riêng, làm sau khi tester xong lượt
-đo nền (cần cặp trước/sau sạch).
+NOT YET WIRED INTO THE HOT PATH. This file only computes signals; adding `goi_y_handoff`
+(handoff suggestion) to the envelope and raising ticket priority is a separate step, done
+after the tester finishes the baseline measurement round (a clean before/after pair is
+needed).
 
-Ba ràng buộc kế thừa từ ADR-022, nhắc lại vì chúng quyết định toàn bộ thiết kế:
-  · KHÔNG gọi LLM. Không thêm một lượt nào vào đường nóng.
-  · KHÔNG đi vào prompt. Agent không bao giờ NÓI ra rằng nó thấy khách đang bực
-    — đó sẽ là agent khẳng định một kết luận tâm lý về một con người dựa trên bộ
-    phân loại có thể sai (tinh thần ràng buộc cứng 3).
-  · KHÔNG lưu nhãn. Chỉ bộ đếm số, ở Redis, có TTL (xem thread_signals.py).
+Three constraints inherited from ADR-022, repeated because they drive the whole design:
+  · NO LLM calls. Not a single extra round trip on the hot path.
+  · NOT in the prompt. The agent never SAYS it sees the customer is upset
+    — that would be the agent asserting a psychological conclusion about a person based on a
+    classifier that may be wrong (the spirit of hard constraint 3).
+  · NO stored labels. Only numeric counters, in Redis, with a TTL (see thread_signals.py).
 
-CÁI BẪY LỚN NHẤT CỦA MIỀN NÀY — TỪ VỰNG NGHIỆP VỤ TRÙNG TỪ VỰNG GIẬN DỮ
-----------------------------------------------------------------------
-Đây là một agent xử lý KHIẾU NẠI GIAN LẬN. Câu "em bị lừa đảo", "bị mất tiền",
-"bị trừ tiền oan" là MÔ TẢ VỤ VIỆC — chúng xuất hiện ở gần như mọi hội thoại
-hợp lệ, kể cả khi khách hoàn toàn bình tĩnh. Nhét những từ đó vào từ điển giận
-dữ thì ES-01 bật ở hầu hết case thật, và tín hiệu mất sạch ý nghĩa: một tín hiệu
-luôn bật thì không phải tín hiệu.
+THE BIGGEST TRAP IN THIS DOMAIN — BUSINESS VOCABULARY OVERLAPS ANGRY VOCABULARY
+------------------------------------------------------------------------------
+This is an agent handling FRAUD COMPLAINTS. Phrases like "em bị lừa đảo" (I was scammed),
+"bị mất tiền" (lost money), "bị trừ tiền oan" (wrongly charged) are DESCRIPTIONS OF THE CASE
+— they appear in almost every legitimate conversation, even when the customer is completely
+calm. Putting those words into an anger dictionary would make ES-01 fire on most real cases,
+and the signal would lose all meaning: a signal that is always on is not a signal.
 
-Nên từ điển ở đây CỐ Ý chỉ gồm ngôn ngữ hướng vào DỊCH VỤ/NGƯỜI PHỤC VỤ ("làm
-ăn kiểu gì", "vô trách nhiệm", "quá đáng"), không gồm ngôn ngữ mô tả SỰ VIỆC.
-Đây đúng lớp lỗi mà bộ lọc injection hiện tại đang mắc theo chiều ngược lại —
-mẫu `tu dong hoan tien` chặn luôn cả câu chính sách thật. Cùng một bài học: khi
-từ vựng tấn công/giận dữ trùng từ vựng nghiệp vụ, danh sách từ phải chọn theo
-ĐỐI TƯỢNG được nói tới, không theo chủ đề.
+So the dictionary here DELIBERATELY contains only language aimed at the SERVICE/STAFF
+("what kind of business is this", "irresponsible", "outrageous"), not language describing
+the EVENT. This is exactly the bug class the current injection filter suffers from in the
+opposite direction — the `tu dong hoan tien` (automatic refund) pattern also blocks real
+policy sentences. Same lesson: when attack/anger vocabulary overlaps business vocabulary,
+the word list must be chosen by the TARGET being addressed, not by topic.
 """
 from __future__ import annotations
 
@@ -33,26 +34,26 @@ import unicodedata
 
 from src.services import thread_signals
 
-# Ngưỡng N của ES-01 — PO thật chốt 15/08 làm GIÁ TRỊ LÀM VIỆC, canh lại sau khi
-# bộ đa-lượt của tester có số. Để ở đây (không rải rác trong logic) để lần chỉnh
-# sau chỉ sửa một chỗ.
-ES01_SO_LUOT_LIEN_TIEP = 3
+# ES-01 threshold N — fixed by the real PO on 15/08 as a WORKING VALUE, to be retuned once
+# the tester's multi-turn suite has numbers. Kept here (not scattered through the logic) so
+# the next adjustment touches one place only.
+ES01_CONSECUTIVE_TURNS = 3
 
 ES01 = "ES-01"
 ES02 = "ES-02"
 
 
-def _bo_dau(text: str) -> str:
-    """Cùng cách `_strip_diacritics` của customer_tools/fraud_engine — so khớp
-    trên bản bỏ dấu để không phụ thuộc người gõ có dấu hay không. Bài học
-    ADV-041: mẫu viết CÓ dấu thì câu gõ KHÔNG dấu lọt sạch."""
+def _strip_diacritics(text: str) -> str:
+    """Same approach as `_strip_diacritics` in customer_tools/fraud_engine — match on the
+    diacritic-stripped form so it doesn't depend on whether the user typed accents. Lesson
+    ADV-041: a pattern written WITH diacritics lets text typed WITHOUT them slip through."""
     text = text.lower().replace("đ", "d")
     return "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
 
 
-# Ngôn ngữ hướng vào DỊCH VỤ/NGƯỜI PHỤC VỤ. KHÔNG có "lua dao", "mat tien",
-# "tru tien oan"... — đó là mô tả vụ việc, xem docstring.
-_MAU_BUC_XUC = [
+# Language aimed at the SERVICE/STAFF. NO "lua dao" (scam), "mat tien" (lost money),
+# "tru tien oan" (wrongly charged)... — those describe the case, see the docstring.
+_FRUSTRATION_PATTERNS = [
     r"lam an (kieu gi|nhu the nao|the nay)",
     r"vo trach nhiem",
     r"qua dang",
@@ -65,10 +66,10 @@ _MAU_BUC_XUC = [
     r"khong ai (giai quyet|tra loi|xu ly)",
 ]
 
-# ES-02 — khủng hoảng NGHIỆP VỤ. PO thật chốt: KHÔNG phủ tổn thương tâm lý.
-# Nếu ai định thêm mẫu cho nhóm đó, dừng lại và đọc `khong_bao_gom` trong
-# contracts/resolution-state-machine.yaml trước.
-_MAU_KHUNG_HOANG = [
+# ES-02 — BUSINESS crisis. Fixed by the real PO: does NOT cover psychological distress.
+# If you are about to add patterns for that group, stop and read `khong_bao_gom`
+# (not included) in contracts/resolution-state-machine.yaml first.
+_CRISIS_PATTERNS = [
     r"(bo|xoa|go|khong dung) (vi|app|ung dung) (nay )?(nua|luon)",
     r"dong (tai khoan|vi)",
     r"chuyen sang (vi|app|ngan hang) khac",
@@ -78,62 +79,63 @@ _MAU_KHUNG_HOANG = [
     r"phan anh len (ngan hang nha nuoc|cong an|bao ve nguoi tieu dung)",
 ]
 
-_RE_BUC_XUC = [re.compile(p) for p in _MAU_BUC_XUC]
-_RE_KHUNG_HOANG = [re.compile(p) for p in _MAU_KHUNG_HOANG]
+_RE_FRUSTRATION = [re.compile(p) for p in _FRUSTRATION_PATTERNS]
+_RE_CRISIS = [re.compile(p) for p in _CRISIS_PATTERNS]
 
-# DẤU HIỆU CƯỜNG ĐỘ (viết hoa cả câu, "!!!") — ĐÃ CÂN NHẮC VÀ BỎ Ở v1, ghi lại
-# để phiên sau không tưởng là thiếu sót rồi thêm vào:
-#   · Một mình chúng KHÔNG nói lên giận dữ. Rất nhiều người gõ hoa cả câu vì
-#     thói quen bàn phím điện thoại, và người lớn tuổi hay dùng "!!!" như dấu
-#     kết câu bình thường. Dùng làm tín hiệu độc lập là dán nhãn theo cách gõ.
-#   · Đi KÈM mẫu trách móc thì cũng không thêm thông tin: mẫu đã đủ để tính
-#     lượt đó là tiêu cực mạnh rồi, cường độ chỉ làm điều kiện chặt hơn mà
-#     không rõ chặt như thế có đúng hơn không — mà "không rõ có đúng hơn không"
-#     thì chưa đủ căn cứ để đưa vào một tín hiệu định tuyến.
-# Nếu sau này bộ đa-lượt của tester cho thấy ES-01 bật quá sớm, cường độ là
-# tham số đầu tiên nên thử — nhưng phải có SỐ trước, không thêm theo cảm tính.
+# INTENSITY MARKERS (all-caps sentences, "!!!") — CONSIDERED AND DROPPED in v1; recorded
+# so a later session doesn't think it was an oversight and add them:
+#   · On their own they DO NOT indicate anger. Many people type in all caps out of phone
+#     keyboard habit, and older people often use "!!!" as a normal sentence ending. Using them
+#     as an independent signal labels people by typing style.
+#   · ALONGSIDE a reproach pattern they add no information either: the pattern is already
+#     enough to count the turn as strongly negative; intensity only makes the condition
+#     stricter without it being clear that stricter is more correct — and "not clear it is
+#     more correct" is not enough basis for a routing signal.
+# If the tester's multi-turn suite later shows ES-01 firing too early, intensity is the first
+# parameter to try — but there must be NUMBERS first, not additions by gut feeling.
 
 
-def luot_co_buc_xuc(tin_nhan: str) -> bool:
-    """Một LƯỢT có mang nhãn tiêu cực mạnh không. KHÔNG phải ES-01 —
-    ES-01 cần ≥N lượt LIÊN TIẾP, xem `danh_gia_luot`."""
-    if not tin_nhan:
+def turn_has_frustration(message_text: str) -> bool:
+    """Whether ONE turn carries a strongly negative label. NOT ES-01 —
+    ES-01 needs ≥N CONSECUTIVE turns, see `evaluate_turn`."""
+    if not message_text:
         return False
-    sach = _bo_dau(tin_nhan)
-    return any(r.search(sach) for r in _RE_BUC_XUC)
+    clean_text = _strip_diacritics(message_text)
+    return any(r.search(clean_text) for r in _RE_FRUSTRATION)
 
 
-def luot_co_khung_hoang(tin_nhan: str) -> bool:
-    """ES-02 bật ngay trong MỘT lượt — doạ rời dịch vụ/kiện/đăng công khai
-    không cần leo thang, nó đã là đỉnh."""
-    if not tin_nhan:
+def turn_has_crisis(message_text: str) -> bool:
+    """ES-02 fires within ONE turn — threatening to leave/sue/post publicly
+    needs no escalation, it is already the peak."""
+    if not message_text:
         return False
-    return any(r.search(_bo_dau(tin_nhan)) for r in _RE_KHUNG_HOANG)
+    return any(r.search(_strip_diacritics(message_text)) for r in _RE_CRISIS)
 
 
-def danh_gia_luot(tin_nhan: str, thread_id: str) -> set[str]:
-    """Tính tín hiệu ES cho MỘT lượt của khách. Trả về tập mã đang bật.
+def evaluate_turn(message_text: str, thread_id: str) -> set[str]:
+    """Compute the ES signals for ONE customer turn. Returns the set of active codes.
 
-    Đây là nơi ngữ nghĩa "LIÊN TIẾP" của ES-01 được thực thi: lượt KHÔNG bức xúc
-    thì `dat_lai()` bộ đếm. Thiếu dòng đó, thứ đếm được sẽ là "tổng số lượt bực
-    trong hội thoại" — khách bực rồi nguôi rồi bực lại vẫn chạm ngưỡng 3 trong
-    khi họ không hề leo thang, và ES-01 mất đúng ý nghĩa của cái tên nó mang.
+    This is where the "CONSECUTIVE" semantics of ES-01 are enforced: a turn WITHOUT
+    frustration calls `reset()` on the counter. Without that line, what gets counted is
+    "total frustrated turns in the conversation" — a customer who gets upset, calms down and
+    gets upset again still hits the threshold of 3 while not escalating at all, and ES-01
+    loses exactly the meaning of its name.
 
-    KHÔNG raise trong mọi trường hợp: thread_signals đã fail-open, và hàm này
-    nằm trên đường nóng của lượt chat.
+    NEVER raises: thread_signals already fails open, and this function sits on the chat
+    turn's hot path.
     """
-    dang_bat: set[str] = set()
+    is_enabled: set[str] = set()
 
-    if luot_co_buc_xuc(tin_nhan):
-        if thread_signals.tang(ES01, thread_id) >= ES01_SO_LUOT_LIEN_TIEP:
-            dang_bat.add(ES01)
+    if turn_has_frustration(message_text):
+        if thread_signals.bump(ES01, thread_id) >= ES01_CONSECUTIVE_TURNS:
+            is_enabled.add(ES01)
     else:
-        thread_signals.dat_lai(ES01, thread_id)
+        thread_signals.reset(ES01, thread_id)
 
-    # ES-02 KHÔNG dùng bộ đếm: doạ rời dịch vụ/kiện/đăng công khai đã là đỉnh
-    # ngay ở lượt đầu, không cần leo thang. Đếm nó là bắt khách phải doạ ba lần
-    # mới được nghe.
-    if luot_co_khung_hoang(tin_nhan):
-        dang_bat.add(ES02)
+    # ES-02 does NOT use the counter: threatening to leave/sue/post publicly is already the peak
+    # on the very first turn, no escalation needed. Counting it would force the customer to
+    # threaten three times before being heard.
+    if turn_has_crisis(message_text):
+        is_enabled.add(ES02)
 
-    return dang_bat
+    return is_enabled

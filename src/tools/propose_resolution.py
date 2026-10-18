@@ -1,13 +1,13 @@
-"""Tool 4/5 — `propose_resolution` (PRD §6, Data Brief §6.3 hàng 4).
+"""Tool 4/5 — `propose_resolution` (PRD §6, Data Brief §6.3 row 4).
 
-Test bắt buộc: kết quả luôn ở trạng thái CHỜ DUYỆT; không có tham số nào
-cho phép đặt thẳng `approved` (BR-10). Đây là chỗ chặn quan trọng nhất của
-toàn hệ thống — hàm này CỐ Ý không nhận tham số `status`, để không có cách
-nào, kể cả do lỗi lập trình gọi sai, tạo ra một resolution đã duyệt sẵn.
+Required test: the result is always PENDING APPROVAL; no parameter allows setting
+`approved` directly (BR-10). This is the most important block in the entire system — this
+function DELIBERATELY takes no `status` parameter, so there is no way, not even through a
+programming mistake, to create a pre-approved resolution.
 
-Guardrail phụ (không có trong test spec gốc nhưng hợp lý để thêm — chống
-bịa số liệu T4 ở tầng ghi, không chỉ tầng đọc): `cited_tool_result_ids`
-phải trỏ tới tool_results CÓ THẬT trong DB, nếu không từ chối tạo.
+Secondary guardrail (not in the original test spec but sensible — anti-fabrication T4 at
+the write layer, not only the read layer): `cited_tool_result_ids`
+must point to tool_results that REALLY EXIST in the DB; otherwise creation is refused.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.db.models import Complaint, Resolution, Ticket, ToolResult, Transaction
-from src.services.notifications import notify_cho_duyet
+from src.services.notifications import notify_pending_approval
 from src.tools.base import ToolError, new_id, record_tool_result
 
 VALID_ACTION_TYPES = {
@@ -28,31 +28,31 @@ VALID_ACTION_TYPES = {
     "manual_review",
 }
 
-# Hai hướng xử lý CHẠM TIỀN THẬT — số tiền phải chịu kiểm, khác
-# ledger_adjustment (điều chỉnh sổ cái, mốc so sánh không nhất thiết là số
-# tiền giao dịch gốc) và no_action/manual_review (không có số tiền).
-_ACTION_TYPES_HOAN_TIEN = {"refund_to_wallet", "refund_to_bank"}
+# The two actions that TOUCH REAL MONEY — the amount must be checked, unlike
+# ledger_adjustment (a ledger correction whose reference need not be the original transaction
+# amount) and no_action/manual_review (no amount at all).
+_REFUND_ACTION_TYPES = {"refund_to_wallet", "refund_to_bank"}
 
 
-def _kiem_so_tien_hoan(session: Session, *, ticket_id: str, amount: int | None) -> None:
-    """Chặn số tiền hoàn vô nghĩa NGAY TẠI TẦNG GHI (V3.2, hotfix 14/08).
+def _check_refund_amount(session: Session, *, ticket_id: str, amount: int | None) -> None:
+    """Block meaningless refund amounts RIGHT AT THE WRITE LAYER (V3.2, hotfix 14/08).
 
-    Phát hiện thật: DB có `RES-b8d2c7798d53` đề xuất hoàn **6 đồng** cho một
-    giao dịch 107.000đ — ô nhập số tiền đang là ô TỰ DO, không gắn với giao
-    dịch nào. Đó là số tiền không truy vết được về bất kỳ kết quả tool nào,
-    tức trái tinh thần ràng buộc cứng 3, và nó đi thẳng tới màn duyệt của sếp.
+    Real finding: the DB had `RES-b8d2c7798d53` proposing a refund of **6 dong** for a
+    107,000đ transaction — the amount field was FREE-FORM, not tied to any transaction.
+    That amount could not be traced to any tool result, i.e. it violated the spirit of hard
+    constraint 3, and it went straight to the supervisor's approval screen.
 
-    Đặt ở tầng tool (không phải ở route hay ở form) vì đây là nơi DUY NHẤT mọi
-    đường ghi resolution đi qua — CSKH bấm nút trên webapp và bất kỳ nơi gọi
-    nào sau này đều bị kiểm cùng một luật, cùng tinh thần với `cited_tool_
-    result_ids` phải trỏ tới tool_result có thật ở ngay dưới.
+    Placed in the tool layer (not the route or the form) because this is the ONLY place
+    every resolution write passes through — CSKH clicking the button in the web app and any
+    future caller are all checked by the same rule, in the same spirit as
+    `cited_tool_result_ids` having to point at a real tool_result just below.
 
-    Mốc so sánh là số tiền giao dịch gắn với ticket (ticket → complaint →
-    transaction). Khiếu nại KHÔNG xác định được giao dịch (`complaint.trans_id
-    IS NULL` — đường `not_found`) thì không có trần để so: vẫn ép `amount > 0`
-    nhưng KHÔNG chặn theo trần, vì chặn ở đây sẽ khoá luôn những case hợp lệ
-    mà agent chưa tra ra giao dịch. Nói rõ giới hạn này thay vì giả vờ đã phủ
-    kín.
+    The reference is the transaction amount tied to the ticket (ticket → complaint →
+    transaction). A complaint with NO identified transaction (`complaint.trans_id
+    IS NULL` — the `not_found` path) has no ceiling to compare against: `amount > 0` is still
+    enforced but there is NO ceiling check, because blocking here would also lock out valid
+    cases where the agent has not found the transaction yet. This limitation is stated
+    explicitly rather than pretending full coverage.
     """
     if amount is None or amount <= 0:
         raise ToolError(
@@ -67,7 +67,7 @@ def _kiem_so_tien_hoan(session: Session, *, ticket_id: str, amount: int | None) 
         .one_or_none()
     )
     if trans is None:
-        return  # khiếu nại chưa xác định được giao dịch — không có trần để so
+        return  # complaint with no identified transaction — no ceiling to compare against
 
     if amount > trans.amount:
         raise ToolError(
@@ -85,13 +85,13 @@ def propose_resolution(
     amount: int | None = None,
     destination_ref: str | None = None,
     cited_tool_result_ids: list[str] | None = None,
-    # F-17 — KHÔNG có giá trị mặc định, CÓ CHỦ ĐÍCH. Trước đây `= None` khiến
-    # mọi nơi gọi quên truyền vẫn chạy êm và sinh ra resolution `created_by
-    # IS NULL` — mà chính NULL là vế làm CHECK maker-checker (BR-12) bỏ qua
-    # dòng đó. Nói cách khác: quên một tham số là tự cấp cho bản ghi quyền
-    # miễn nhiễm ràng buộc HITL, im lặng, ở CẢ HAI tầng chặn.
-    # Bỏ default biến "quên" từ lỗ hổng thành `TypeError` ngay lúc import/test.
-    # Cùng nguyên tắc fail-fast với secret không có default trong config.
+    # F-17 — NO default value, ON PURPOSE. Previously `= None` let every caller that forgot to
+    # pass it run smoothly and produce resolutions with `created_by
+    # IS NULL` — and that very NULL is what makes the maker-checker CHECK (BR-12) skip the row.
+    # In other words: forgetting one parameter silently granted the record immunity from the
+    # HITL constraint, at BOTH enforcement layers.
+    # Removing the default turns "forgetting" from a vulnerability into a `TypeError` at
+    # import/test time. Same fail-fast principle as secrets having no default in config.
     created_by: str | None,
 ) -> dict[str, Any]:
     if action_type not in VALID_ACTION_TYPES:
@@ -101,8 +101,8 @@ def propose_resolution(
     if not rationale or not rationale.strip():
         raise ToolError("rationale bắt buộc — mọi đề xuất phải có căn cứ bằng lời")
 
-    if action_type in _ACTION_TYPES_HOAN_TIEN:
-        _kiem_so_tien_hoan(session, ticket_id=ticket_id, amount=amount)
+    if action_type in _REFUND_ACTION_TYPES:
+        _check_refund_amount(session, ticket_id=ticket_id, amount=amount)
 
     cited_tool_result_ids = cited_tool_result_ids or []
     for tr_id in cited_tool_result_ids:
@@ -121,9 +121,9 @@ def propose_resolution(
         destination_ref=destination_ref,
         rationale=rationale,
         cited_tool_result_ids=cited_tool_result_ids,
-        status="pending_approval",  # KHÔNG nhận tham số ngoài — BR-10
-        # Danh tính người đề xuất LUÔN từ JWT ở tầng route, không bao giờ từ
-        # body — chuẩn bị cho CHECK maker-checker của ADR-020.
+        status="pending_approval",  # takes NO status parameter — BR-10
+        # The proposer's identity ALWAYS comes from the JWT at the route layer, never from the
+        # body — groundwork for the maker-checker CHECK of ADR-020.
         created_by=created_by,
         approved_by=None,
         approved_at=None,
@@ -132,8 +132,8 @@ def propose_resolution(
     session.add(resolution)
     session.flush()
 
-    # ADR-063 — fan-out CÙNG transaction, đúng khuôn create_ticket.py.
-    notify_cho_duyet(session, ticket_id=ticket_id)
+    # ADR-063 — fan-out in the SAME transaction, same pattern as create_ticket.py.
+    notify_pending_approval(session, ticket_id=ticket_id)
 
     result = {
         "resolution_id": resolution_id,

@@ -48,7 +48,7 @@ import sys
 from sqlalchemy import create_engine, text
 
 from src.config import DATABASE_URL
-from src.db.crypto_types import _co_hinh_dang_fernet, _fernet
+from src.db.crypto_types import _looks_like_fernet, _fernet
 
 BANG = "complaints"
 COT = "description_raw"
@@ -70,7 +70,7 @@ def dem(conn) -> dict[str, int]:
         ket["tong"] += 1
         if v is None:
             continue
-        if _co_hinh_dang_fernet(v):
+        if _looks_like_fernet(v):
             ket["da_ma_hoa"] += 1
         else:
             ket["plaintext"] += 1
@@ -99,7 +99,7 @@ def main() -> int:
         # Đọc RAW, phân loại, chỉ động vào dòng KHÔNG có hình dạng Fernet.
         can_sua: list[tuple[str, str]] = []
         for kh, v in conn.execute(text(f"SELECT {KHOA}, {COT} FROM {BANG}")):
-            if v is None or _co_hinh_dang_fernet(v):
+            if v is None or _looks_like_fernet(v):
                 continue
             can_sua.append((kh, _fernet.encrypt(v.encode()).decode()))
 

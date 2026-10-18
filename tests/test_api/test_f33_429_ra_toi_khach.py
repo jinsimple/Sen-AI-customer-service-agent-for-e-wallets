@@ -100,25 +100,25 @@ def _ep_429(c) -> list:
     Dùng đúng câu D3 của bộ lệnh (nặng nhất) trong MỘT phiên để lịch sử cộng
     dồn — cách rẻ nhất để chạm trần, và cũng là cách khách hàng thật chạm nó.
     """
-    cau = ("Tháng này tôi tiêu bao nhiêu qua ví, khoản nào lớn nhất, "
+    sentence = ("Tháng này tôi tiêu bao nhiêu qua ví, khoản nào lớn nhất, "
            "và có khoản nào trùng lặp không?")
-    la = []
+    tokens_left = []
     for _ in range(30):
-        r = c.post(f"{BASE}/api/agent-chat", json={"message": cau})
+        r = c.post(f"{BASE}/api/agent-chat", json={"message": sentence})
         if r.status_code != 200:
-            la.append(r)
+            tokens_left.append(r)
             break
-    return la
+    return tokens_left
 
 
 @can_dot_han_muc
 def test_f33_429_khong_ra_toi_khach_thanh_500(khach):
     """Lớp 1: lỗi tạm thời của nhà cung cấp KHÔNG được thành 500."""
-    la = _ep_429(khach)
-    if not la:
+    tokens_left = _ep_429(khach)
+    if not tokens_left:
         pytest.skip("30 lượt liên tiếp vẫn 200 — không ép được 429 lúc này, "
                     "không kết luận gì (khác với 'đã vá')")
-    r = la[0]
+    r = tokens_left[0]
     assert r.status_code != 500, (
         f"F-33: nhà cung cấp trả 429 (lỗi TẠM THỜI, có kèm số giây chờ), "
         f"khách nhận 500 'Internal Server Error'.\n"
@@ -174,15 +174,15 @@ def test_f33b_429_cham_khong_duoc_de_ra_ticket(khach):
     CSKH thật**. Người thật mở nó ra, không tìm thấy khiếu nại nào, mất thời gian
     thật. Nặng hơn một màn hình lỗi.
     """
-    truoc = _dem_ticket()
-    la = _ep_429(khach)
-    sau = _dem_ticket()
-    if not la:
+    before = _dem_ticket()
+    tokens_left = _ep_429(khach)
+    after = _dem_ticket()
+    if not tokens_left:
         pytest.skip("không ép được 429 lúc này — không kết luận gì")
-    assert sau == truoc, (
-        f"F-33b: một lượt 429 đẻ ra {sau - truoc} ticket.\n"
-        f"  ticket trước {truoc} · sau {sau}\n"
-        f"  phản hồi khách nhận: {la[0].status_code} {la[0].text[:160]}\n"
+    assert after == before, (
+        f"F-33b: một lượt 429 đẻ ra {after - before} ticket.\n"
+        f"  ticket trước {before} · sau {after}\n"
+        f"  phản hồi khách nhận: {tokens_left[0].status_code} {tokens_left[0].text[:160]}\n"
         "Ticket này vào hàng chờ CSKH thật và không tương ứng khiếu nại nào."
     )
 
@@ -211,11 +211,11 @@ def test_f33c_ban_ghi_phan_biet_duoc_nguyen_nhan_fallback():
 @can_dot_han_muc
 def test_f33_co_cau_xin_loi_thay_vi_ma_loi_tran_trui(khach):
     """Lớp 3: hết khe thì phải là câu tiếng Việt tử tế, không phải mã lỗi."""
-    la = _ep_429(khach)
-    if not la:
+    tokens_left = _ep_429(khach)
+    if not tokens_left:
         pytest.skip("không ép được 429 lúc này")
-    than = la[0].text.lower()
-    assert any(t in than for t in ("xin lỗi", "vui lòng thử lại", "đang bận", "quá tải")), (
+    body = tokens_left[0].text.lower()
+    assert any(t in body for t in ("xin lỗi", "vui lòng thử lại", "đang bận", "quá tải")), (
         f"F-33: khách nhận một mã lỗi trần trụi, không có câu nào giải thích.\n"
-        f"  thân phản hồi: {la[0].text[:200]}"
+        f"  thân phản hồi: {tokens_left[0].text[:200]}"
     )

@@ -26,12 +26,12 @@ def ban_ghi_adversarial() -> list[dict]:
     files = sorted(_THU_MUC_KET_QUA.glob("adversarial_run_*_raw.json"))
     if not files:
         pytest.skip("Chưa có bản ghi adversarial nào trong eval/results/ — chưa đo được.")
-    ban_ghi: list[dict] = []
+    record_row: list[dict] = []
     for f in files:
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             pytest.fail(f"{f.name} hỏng định dạng JSON ({e}) — bản ghi hỏng thì không kiểm được gì.")
         for r in d:
-            ban_ghi.append({**r, "_ten_file": f.name})
-    return ban_ghi
+            record_row.append({**r, "_ten_file": f.name})
+    return record_row

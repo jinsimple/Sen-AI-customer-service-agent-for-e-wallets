@@ -1,10 +1,10 @@
 """FIN-05 — SQLAlchemy 2.0 models.
 
-Nguồn sự thật cho schema: docs/FIN05-Data-Brief.md §4.1 (ERD) và §4.2 (định
-nghĩa bảng). Mọi thay đổi ở đây PHẢI đồng bộ ngược lại tài liệu đó — đây là
-nơi các bất biến I1-I7 (§6.2) và ràng buộc HITL (BR-10, BR-11) được ép ở
-tầng DB, không chỉ ở tầng prompt (xem Data Brief §6.6 "guardrail được test
-ở tầng service/DB, không phải tầng prompt").
+Source of truth for the schema: docs/FIN05-Data-Brief.md §4.1 (ERD) and §4.2 (table
+definitions). Every change here MUST be synced back to that document — this is where the
+invariants I1-I7 (§6.2) and the HITL constraints (BR-10, BR-11) are enforced at the DB
+layer, not only at the prompt layer (see Data Brief §6.6 "guardrails are tested at the
+service/DB layer, not the prompt layer").
 """
 from __future__ import annotations
 
@@ -31,16 +31,16 @@ class Base(DeclarativeBase):
 
 
 # ---------------------------------------------------------------------------
-# Identity & tài khoản
+# Identity & accounts
 # ---------------------------------------------------------------------------
 
 
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
-        # partner_admin — role riêng cho đối tác ví điện tử, tách khỏi
-        # supervisor (sếp CSKH nội bộ). CHỈ role này được upload/xoá tài liệu
-        # chính sách/FAQ (src/rag/, src/api/main.py::/policy-docs).
+        # partner_admin — a separate role for the e-wallet partner, distinct from
+        # supervisor (internal CSKH lead). ONLY this role may upload/delete
+        # policy/FAQ documents (src/rag/, src/api/main.py::/policy-docs).
         CheckConstraint(
             "role IN ('customer','cskh','supervisor','partner_admin')", name="ck_users_role"
         ),
@@ -54,12 +54,11 @@ class User(Base):
     kyc_level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     security_question: Mapped[str | None] = mapped_column(Text, nullable=True)
     security_answer_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Đăng nhập bằng mật khẩu (quyết định 2026-08-12, thay luồng phone+role
-    # chọn tay trước đó) — argon2id có salt (cùng thư viện/pattern đã dùng
-    # cho security_answer_hash, xem scripts/gen_dataset.py). Nullable vì lý
-    # do kỹ thuật migration (thêm cột vào bảng đã có dữ liệu), nhưng THỰC TẾ
-    # luôn được seed đầy đủ — verify_otp không có "user không mật khẩu" nào
-    # được tạo mới sau đợt này.
+    # Password login (decision 2026-08-12, replacing the earlier hand-picked phone+role
+    # flow) — salted argon2id (same library/pattern used
+    # for security_answer_hash, see scripts/gen_dataset.py). Nullable for technical migration
+    # reasons (adding a column to a table that already has data), but IN PRACTICE
+    # it is always fully seeded — verify_otp creates no "password-less users" after this change.
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
 
@@ -86,9 +85,9 @@ class BankAccount(Base):
     bank_account_id: Mapped[str] = mapped_column(String, primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     bank_code: Mapped[str] = mapped_column(String, nullable=False)
-    # Mã hoá trong suốt ở tầng ORM (src/db/crypto_types.py) — bản đầy đủ vẫn
-    # cần lưu (BR-07, chủ TK có quyền xem đủ số của chính mình), nhưng file
-    # SQLite trên đĩa giờ chỉ chứa ciphertext, không phải số TK dạng thô.
+    # Transparently encrypted at the ORM layer (src/db/crypto_types.py) — the full number must
+    # still be stored (BR-07, account holders may see their own full number), but the SQLite file
+    # on disk now only contains ciphertext, not raw account numbers.
     account_no: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     card_last4: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="active")
@@ -96,7 +95,7 @@ class BankAccount(Base):
 
 
 # ---------------------------------------------------------------------------
-# Giao dịch — bảng lõi
+# Transactions — core table
 # ---------------------------------------------------------------------------
 
 _SCOPE_DIRECTION_CHECK = """
@@ -133,7 +132,7 @@ class Transaction(Base):
         ),
         CheckConstraint("amount > 0", name="ck_transactions_amount_positive"),
         CheckConstraint("fee >= 0", name="ck_transactions_fee_nonneg"),
-        # I2 — mỗi scope khớp đúng một tổ hợp bên gửi/bên nhận (Data Brief §4.2/§6.2)
+        # I2 — each scope matches exactly one sender/receiver combination (Data Brief §4.2/§6.2)
         CheckConstraint(_SCOPE_DIRECTION_CHECK, name="ck_transactions_scope_direction_i2"),
     )
 
@@ -183,7 +182,7 @@ class TransactionEvent(Base):
 
 
 # ---------------------------------------------------------------------------
-# Khiếu nại → ticket → điều tra → đề xuất → duyệt
+# Complaint → ticket → investigation → proposal → approval
 # ---------------------------------------------------------------------------
 
 
@@ -191,50 +190,57 @@ class Complaint(Base):
     __tablename__ = "complaints"
     __table_args__ = (
         CheckConstraint(
-            # 'other' (2026-08-11, CTRL-001 FIN05_QA_TestCases.jsonl) — khách
-            # yêu cầu gặp người thật KHÔNG kèm mô tả khớp 1 trong 4 loại khiếu
-            # nại giao dịch cụ thể (vd hỏi han chung, chưa mô tả vấn đề gì) —
-            # vẫn cần 1 Complaint/Ticket thật để CSKH nhận diện & xử lý, không
-            # ép agent tự đoán bừa 1 trong 4 loại không khớp thực tế.
+            # 'other' (2026-08-11, CTRL-001 FIN05_QA_TestCases.jsonl) — a customer asking for a real
+            # person WITHOUT a description matching one of the 4 specific transaction complaint
+            # types
+            # (e.g. a general enquiry, no problem described yet) —
+            # still needs a real Complaint/Ticket so CSKH can identify & handle it, rather than
+            # forcing
+            # the agent to guess one of 4 types that don't fit reality.
             "type IN ('wrong_recipient','money_not_received','double_charge','refund','other')",
             name="ck_complaints_type",
         ),
         CheckConstraint(
-            # 'unknown' (2026-08-11, phát hiện qua functional_qa_set.jsonl case
-            # NOTFOUND) — sau khi đã hỏi hết {CLARIFY_QUESTION_MAX_ROUNDS} lượt +
-            # 1 câu hỏi phạm vi mà khách vẫn không xác định được (vd khách không
-            # rành ví-ví/ngân hàng khác nhau thế nào), trước đây agent bị ép đoán
-            # bừa 1 trong 3 giá trị thật — song song với 'other' của complaint_type
-            # ở trên, cho phép CSKH tự xác định thủ công thay vì AI bịa.
+            # 'unknown' (2026-08-11, found via functional_qa_set.jsonl case
+            # NOTFOUND) — after asking all {CLARIFY_QUESTION_MAX_ROUNDS} rounds +
+            # 1 scope question and the customer still can't tell (e.g. a customer unfamiliar with
+            # how
+            # wallet-to-wallet differs from bank transfers), the agent used to be forced to guess
+            # one of
+            # the 3 real values — mirroring 'other' for complaint_type above, this lets CSKH
+            # determine it
+            # manually instead of the AI fabricating it.
             "scope IN ('internal_wallet','from_bank','to_bank','unknown')", name="ck_complaints_scope"
         ),
         CheckConstraint(
             "priority IN ('low','normal','high','critical')", name="ck_complaints_priority"
         ),
         CheckConstraint(
-            # A2 — LƯỚI CHẶN CUỐI, KHÔNG PHẢI TRẦN NGHIỆP VỤ.
+            # A2 — A FINAL SAFETY NET, NOT THE BUSINESS LIMIT.
             #
-            # Trần nghiệp vụ là 2.000 KÝ TỰ, ép ở `complaint_intake.
-            # MAX_DESCRIPTION_CHARS` (điểm hội tụ REST + agent) và
-            # `CreateTicketRequest`. Con số 12.000 dưới đây đếm CIPHERTEXT,
-            # KHÔNG quy đổi ra 2.000 ký tự được — đừng ai "sửa cho khớp".
+            # The business limit is 2,000 CHARACTERS, enforced in `complaint_intake.
+            # MAX_DESCRIPTION_CHARS` (where REST + agent converge) and
+            # `CreateTicketRequest`. The 12,000 below counts CIPHERTEXT and
+            # CANNOT be converted into 2,000 characters — nobody should "fix it to match".
             #
-            # Vì sao không quy đổi được: Fernet nở theo BYTE utf-8 còn trần
-            # nghiệp vụ tính theo KÝ TỰ, mà số byte mỗi ký tự thì thay đổi.
-            # Đo thật trên đúng 2.000 ký tự:
-            #     ASCII thuần              2.764  (x1.38)
-            #     tiếng Việt điển hình     3.596  (x1.80)
-            #     tiếng Việt DÀY dấu       5.708  (x2.85)
-            #     emoji 4 byte            10.764  (x5.38)
-            # Bound 4.000 (suy từ tỉ lệ x1.9 đo ở 500 ký tự) CHẶN NHẦM hai ca
-            # cuối — đó là lý do con số ở đây là 12.000 chứ không phải 4.000.
+            # Why it can't be converted: Fernet grows by utf-8 BYTES while the business limit counts
+            # CHARACTERS, and bytes per character vary.
+            # Measured on exactly 2,000 characters:
+            #     pure ASCII                  2,764  (x1.38)
+            #     typical Vietnamese          3,596  (x1.80)
+            #     DIACRITIC-HEAVY Vietnamese  5,708  (x2.85)
+            #     4-byte emoji               10,764  (x5.38)
+            # A bound of 4,000 (inferred from the x1.9 ratio measured at 500 characters) WRONGLY
+            # BLOCKS
+            # the last two cases — that is why the number here is 12,000, not 4,000.
             #
-            # Cái giá, ghi rõ để không ai tưởng lớp này chặt hơn thực tế:
-            # 12.000 ciphertext ≈ 8.700 ký tự ASCII lọt qua tầng DB. Lớp này
-            # CHỈ chặn thảm hoạ (flood 20.000 ký tự ⟹ ~27.600, trượt). Độ
-            # chính xác nằm ở tầng service, không nằm ở đây — đây là chỗ
-            # nguyên tắc "ép ở tầng DB" của ADR-024 KHÔNG chuyển sang được,
-            # và ADR-025 QĐ 5 chấp nhận đánh đổi đó một cách có ý thức.
+            # The cost, stated so nobody thinks this layer is stricter than it is:
+            # 12,000 ciphertext ≈ 8,700 ASCII characters get past the DB layer. This layer
+            # ONLY stops catastrophes (a 20,000-character flood ⟹ ~27,600, rejected). Precision
+            # lives in
+            # the service layer, not here — this is where ADR-024's "enforce at the DB layer"
+            # principle
+            # does NOT carry over, and ADR-025 decision 5 accepts that trade-off consciously.
             "length(description_raw) <= 12000",
             name="ck_complaints_description_raw_tran_tho",
         ),
@@ -247,41 +253,41 @@ class Complaint(Base):
     scope: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="investigating")
     priority: Mapped[str] = mapped_column(String, nullable=False, default="normal")
-    # A1 — LỜI KHAI CỦA KHÁCH, mã hoá at-rest. Đây là cửa untrusted duy nhất
-    # còn plaintext sau khi chat content (:475) và RAG (:513) đã dùng
-    # EncryptedText: không phải cơ chế mới, là bù cho ngang chuẩn đã có.
+    # A1 — THE CUSTOMER'S STATEMENT, encrypted at rest. This was the only untrusted entry
+    # point still in plaintext after chat content (:475) and RAG (:513) adopted
+    # EncryptedText: not a new mechanism, just bringing it up to the existing standard.
     #
-    # KHÔNG scrub tại điểm ghi (khác hẳn `resolutions.note`/ADR-024): note là
-    # văn bản NHÂN VIÊN gõ, còn đây là LỜI KHAI KHÁCH — che lúc ghi là mất bản
-    # gốc, mất giá trị chứng cứ nếu khiếu nại đi tới NHNN/toà. Cơ chế che cho
-    # nhóm A nằm ở tầng ĐỌC, chờ ADR-025.
+    # NO scrubbing at write time (unlike `resolutions.note`/ADR-024): note is text typed by
+    # STAFF, whereas this is the CUSTOMER'S STATEMENT — masking on write loses the original and
+    # its evidentiary value if the complaint goes to the State Bank of Vietnam/court. Masking for
+    # group A lives at the READ layer, pending ADR-025.
     #
-    # A1-04 — KHÔNG BACKFILL, VÀ ĐÂY LÀ QUYẾT ĐỊNH GHI RA, không phải hệ quả
-    # im lặng của impl. Hàng `complaints` ghi TRƯỚC 2026-08-15 nằm PLAINTEXT
-    # vĩnh viễn trên đĩa. Đường `InvalidToken` chỉ khiến chúng ĐỌC ĐƯỢC —
-    # "đọc được" và "được mã hoá at-rest" là hai chuyện khác nhau, đừng đọc
-    # cái trước thành cái sau.
-    # Chấp nhận được HÔM NAY vì dữ liệu hiện có là seed/test và pilot đã hoãn.
-    # Khi có dữ liệu khách THẬT, backfill là một quyết định RIÊNG phải ra
-    # trước khi mở pilot — không tự động xảy ra nhờ bản vá này.
+    # A1-04 — NO BACKFILL, AND THIS IS A RECORDED DECISION, not a silent side effect of the
+    # implementation. `complaints` rows written BEFORE 2026-08-15 remain PLAINTEXT on disk
+    # permanently. The `InvalidToken` path only makes them READABLE —
+    # "readable" and "encrypted at rest" are two different things; don't read the former as the
+    # latter.
+    # Acceptable TODAY because existing data is seed/test and the pilot has been postponed.
+    # Once there is REAL customer data, backfill is a SEPARATE decision that must be made
+    # before opening the pilot — it does not happen automatically thanks to this fix.
     #
-    # KHÔNG có CHECK độ dài ở tầng DB (khác ADR-024 Quyết định 1) — không phải
-    # bỏ quên: cột đã mã hoá thì `length()` đo CIPHERTEXT, mà tỉ lệ nở KHÔNG
-    # cố định (đo thật: x1.90 ở 500 ký tự tiếng Việt có dấu → x1.72 ở 20.000,
-    # vì Fernet nở theo BYTE utf-8 còn trần nghiệp vụ tính theo KÝ TỰ). Một
-    # CHECK trên ciphertext không diễn đạt được trần theo ký tự. Trần thật ép
-    # ở tầng schema (`CreateTicketRequest`), xem A2.
+    # NO length CHECK at the DB layer (unlike ADR-024 decision 1) — not an oversight: on an
+    # encrypted column `length()` measures CIPHERTEXT, and the growth ratio is NOT
+    # fixed (measured: x1.90 at 500 accented Vietnamese characters → x1.72 at 20,000,
+    # because Fernet grows by utf-8 BYTES while the business limit counts CHARACTERS). A
+    # CHECK on ciphertext cannot express a per-character limit. The real limit is enforced at the
+    # schema layer (`CreateTicketRequest`), see A2.
     description_raw: Mapped[str] = mapped_column(EncryptedText, nullable=False)
-    # Tính từ tầng service (fraud_engine.py), KHÔNG do agent tự điền — Data Brief §4.2.
+    # Computed by the service layer (fraud_engine.py), NOT filled in by the agent — Data Brief §4.2.
     fraud_signals: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     otp_disclosed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
-    # ADR-044 — phiên LangGraph checkpointer sinh ra complaint này (`f"{user_id}:
-    # {iat}"`, xem src/api/main.py). NULLABLE VĨNH VIỄN, KHÔNG backfill — complaint
-    # tạo TRƯỚC cột này không có cách nào suy ngược đúng thread (một user đăng
-    # nhập nhiều lần = nhiều thread cho cùng user_id, đoán theo mốc thời gian là
-    # heuristic đội lốt sự thật). KHÔNG FK — định danh phiên checkpointer, không
-    # phải khoá ngoại DB. Ghi TẠI THỜI ĐIỂM TẠO complaint, luồn qua bốn tầng:
+    # ADR-044 — the LangGraph checkpointer session that produced this complaint (`f"{user_id}:
+    # {iat}"`, see src/api/main.py). PERMANENTLY NULLABLE, NO backfill — complaints created BEFORE
+    # this column have no way of correctly reconstructing their thread (one user logging in many
+    # times = many threads for the same user_id; guessing by timestamp is a heuristic disguised as
+    # fact). NO FK — it identifies a checkpointer session, not a DB foreign key. Written AT
+    # complaint CREATION time, threaded through four layers:
     # run_agent_turn → build_customer_tools → tool create_ticket → complaint_intake.
     thread_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
@@ -305,31 +311,30 @@ class Ticket(Base):
     hitl_status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     sla_due_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
     partner_wait_status: Mapped[str] = mapped_column(String, nullable=False, default="n/a")
-    # CTRL-001 (2026-08-11) — khách chủ động yêu cầu gặp người thật (không
-    # phải mọi ticket khẩn cấp/ưu tiên đều do khách yêu cầu — tách riêng
-    # khỏi priority/fraud_signals, đúng tinh thần ISO/IEC 25059 "user
-    # controllability"). CSKH dashboard lọc/đánh dấu riêng cờ này.
+    # CTRL-001 (2026-08-11) — the customer actively asks to talk to a real person (not every
+    # urgent/prioritised ticket is customer-requested — kept separate from
+    # priority/fraud_signals, in the spirit of ISO/IEC 25059 "user
+    # controllability"). The CSKH dashboard filters/marks this flag separately.
     human_handoff_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False)
-    # ADR-044 — mốc `flag_human_handoff()` chạy thật (KHÔNG phải lúc ticket được
-    # tạo). Đặt ở Ticket chứ không Complaint: một complaint có thể sinh nhiều
-    # ticket, bàn giao gắn với MỘT ticket cụ thể. NULLABLE: ticket không qua
-    # đường bàn giao (đa số) không có mốc này. UI vẽ vạch phân cách hội thoại
-    # tại mốc này — trên vạch là thứ gây ra bàn giao, dưới vạch là thứ xảy ra
-    # sau (transcript đọc LIVE, có thể trôi tiếp sau khi khách đã xin gặp người).
+    # ADR-044 — the moment `flag_human_handoff()` actually ran (NOT when the ticket was
+    # created). Lives on Ticket rather than Complaint: one complaint may produce several
+    # tickets, and a handoff belongs to ONE specific ticket. NULLABLE: tickets that never went
+    # through the handoff path (most of them) have no such timestamp. The UI draws a conversation
+    # divider at this timestamp — above the line is what caused the handoff, below it what happened
+    # after (the transcript is read LIVE and may continue after the customer asked for a human).
     handoff_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
-    # ADR-064(b) — CSKH "nhận vé" chủ động (POST /tickets/{id}/claim), KHÔNG
-    # tự động. NULL = còn trong pool chung, mọi CSKH thấy+claim được. Không
-    # FK ràng buộc CASCADE gì đặc biệt — user bị xoá (không xảy ra trong sản
-    # phẩm, không có route xoá user) thì để NULL đứng yên, không phải trục
-    # ưu tiên xử lý ở đây.
+    # ADR-064(b) — CSKH "claim ticket" is explicit (POST /tickets/{id}/claim), NOT
+    # automatic. NULL = still in the shared pool, any CSKH agent can see+claim it. No special
+    # CASCADE FK constraint — if a user were deleted (which doesn't happen in the product; there is
+    # no delete-user route) the value simply stays NULL; not a priority axis here.
     claimed_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     claimed_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ToolResult(Base):
-    """Nguồn sự thật duy nhất để đối chiếu chống bịa số liệu (T4, Data Brief §6.5)."""
+    """The single source of truth for anti-fabrication cross-checking (T4, Data Brief §6.5)."""
 
     __tablename__ = "tool_results"
 
@@ -356,8 +361,8 @@ class InvestigationLog(Base):
 
 
 class Resolution(Base):
-    """BR-10: agent chỉ đề xuất — luôn draft/pending_approval, không có đường ghi
-    thẳng approved. approved ⟹ approved_by NOT NULL, ép bằng CHECK ở đây."""
+    """BR-10: the agent only proposes — always draft/pending_approval, there is no path that
+    writes approved directly. approved ⟹ approved_by NOT NULL, enforced by a CHECK here."""
 
     __tablename__ = "resolutions"
     __table_args__ = (
@@ -374,11 +379,12 @@ class Resolution(Base):
             "(status != 'approved') OR (approved_by IS NOT NULL AND approved_at IS NOT NULL)",
             name="ck_resolutions_approved_requires_approver_br10",
         ),
-        # ADR-019 · INV-14 — ĐỐI XỨNG với BR-10 ở trên, cho nhánh từ chối.
-        # Nhãn phán đoán của sếp là dữ liệu dùng để CHẤM ĐIỂM agent về sau, nên
-        # nó phải được ép ở tầng DB chứ không ở route: một UPDATE viết thẳng SQL
-        # hay một route mới quên kiểm tra đều bị chính database từ chối. Thiếu
-        # chỗ này thì tập dữ liệu học sẽ thủng đúng ở những nơi khó phát hiện.
+        # ADR-019 · INV-14 — SYMMETRIC with BR-10 above, for the rejection branch.
+        # The supervisor's judgement label is data used to SCORE the agent later, so
+        # it must be enforced at the DB layer, not in the route: a raw SQL UPDATE or a new route
+        # that
+        # forgets to check are both rejected by the database itself. Without this, the learning
+        # dataset would have holes exactly where they are hardest to detect.
         CheckConstraint(
             "reject_reason IN ('sai_so_lieu','sai_phan_loai','thieu_can_cu',"
             "'sai_chinh_sach','trung_case','khach_rut','khac')",
@@ -389,34 +395,36 @@ class Resolution(Base):
             "AND rejected_by IS NOT NULL AND rejected_at IS NOT NULL)",
             name="ck_resolutions_rejected_requires_reason_br11",
         ),
-        # BR-12 maker-checker (ADR-020). Điều kiện `created_by IS NULL` là BẮT
-        # BUỘC, không phải nới lỏng: cột đó nullable vĩnh viễn cho resolution có
-        # trước nó (migration b2c3d4e5f6a7 — đoán tên người vào sổ kiểm toán còn
-        # tệ hơn để trống), nên CHECK vô điều kiện sẽ vỡ ngay trên dữ liệu cũ.
-        # Khi `approved_by` còn NULL thì `approved_by != created_by` cho NULL,
-        # và CHECK coi NULL là THOẢ — nên không cần thêm vế cho resolution chưa
-        # duyệt.
-        # Biểu thức viết DÀI CÓ CHỦ ĐÍCH (dạng "C" security chốt sau khi dựng
-        # bảng chân trị 6 ca). Ba cách viết đều ĐÚNG như nhau; chọn cách này vì:
-        #  · dạng ngắn `approved_by != created_by` đúng nhờ logic BA TRỊ của SQL
-        #    (NULL != x cho NULL, mà CHECK coi NULL là thoả) — đúng, nhưng đúng
-        #    theo kiểu người đọc sau phải tự dựng lại lập luận trong đầu, và rất
-        #    dễ bị "rút gọn" nhầm. Ràng buộc cứng không nên dựa vào suy luận tinh
-        #    tế mà mỗi người phải làm lại.
-        #  · dạng `IS DISTINCT FROM` cần SQLite >= 3.39; test chạy SQLite ở CI và
-        #    trên máy người khác, không xác minh được bản ở mọi nơi.
-        # Cách này chỉ dùng `IS NULL` và `!=` — chạy giống hệt nhau ở mọi backend.
+        # BR-12 maker-checker (ADR-020). The `created_by IS NULL` condition is
+        # MANDATORY, not a loosening: that column is permanently nullable for resolutions that
+        # predate it (migration b2c3d4e5f6a7 — guessing a name into the audit record is worse than
+        # leaving it blank), so an unconditional CHECK would break immediately on old data.
+        # While `approved_by` is still NULL, `approved_by != created_by` yields NULL,
+        # and CHECK treats NULL as SATISFIED — so no extra clause is needed for unapproved
+        # resolutions.
+        # The expression is written LONG ON PURPOSE (form "C", which security fixed after building a
+        # 6-case truth table). All three forms are EQUALLY correct; this one was chosen because:
+        #  · the short form `approved_by != created_by` is correct thanks to SQL's THREE-VALUED
+        # logic
+        #    (NULL != x yields NULL, and CHECK treats NULL as satisfied) — correct, but correct in a
+        #    way that forces every later reader to rebuild the reasoning in their head, and it is
+        # very
+        #    easy to "simplify" by mistake. A hard constraint should not rely on subtle reasoning
+        # that
+        #    each person has to redo.
+        #  · the `IS DISTINCT FROM` form needs SQLite >= 3.39; tests run SQLite in CI and on other
+        #    people's machines, and the version can't be verified everywhere.
+        # This form uses only `IS NULL` and `!=` — it behaves identically on every backend.
         CheckConstraint(
             "(created_by IS NULL) OR ("
             "(approved_by IS NULL OR approved_by != created_by) AND "
             "(rejected_by IS NULL OR rejected_by != created_by))",
             name="ck_resolutions_maker_checker_br12",
         ),
-        # ADR-024/INV-17 — đối xứng br11 ở trên. `khac` = "lý do khác", không
-        # có note thì bản ghi kiểm toán rỗng nghĩa: người đọc lại sau này không
-        # biết vì sao case bị từ chối. `length(trim(note)) > 0` chặn cả NULL
-        # lẫn chuỗi toàn khoảng trắng — validate-chỉ-ở-route không chặn được
-        # UPDATE viết thẳng SQL, đúng bài học ADR-019 lặp lại.
+        # ADR-024/INV-17 — symmetric with br11 above. `khac` = "other reason"; without a note
+        # the audit record is meaningless: a later reader wouldn't know why the case was rejected.
+        # `length(trim(note)) > 0` blocks both NULL and whitespace-only strings — validating only in
+        # the route can't stop a raw SQL UPDATE, the ADR-019 lesson repeated.
         CheckConstraint(
             "(reject_reason != 'khac') OR (note IS NOT NULL AND length(trim(note)) > 0)",
             name="ck_resolutions_note_bat_buoc_khi_khac",
@@ -433,22 +441,22 @@ class Resolution(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
     approved_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     approved_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
-    # ADR-019 — nhãn phán đoán chuyên gia tại luồng từ chối. Nullable ở tầng
-    # cột (resolution chưa bị từ chối thì không có gì để ghi); tính bắt buộc
-    # được ép theo ĐIỀU KIỆN qua CHECK br11 ở trên, đúng cách BR-10 đã làm.
-    # ADR-020 (dự thảo) chuẩn bị sẵn cột maker-checker: ai ĐỀ XUẤT, để sau này
-    # ép được `approved_by != created_by`. Nullable VĨNH VIỄN cho dữ liệu cũ —
-    # resolution tạo trước cột này không có cách nào biết người đề xuất, và bịa
-    # một cái tên vào bản ghi kiểm toán còn tệ hơn để trống.
+    # ADR-019 — the expert's judgement label on the rejection path. Nullable at the column
+    # level (a resolution not yet rejected has nothing to record); the requirement is enforced
+    # CONDITIONALLY via the br11 CHECK above, exactly as BR-10 did.
+    # ADR-020 (draft) prepares the maker-checker column in advance: who PROPOSED it, so that
+    # `approved_by != created_by` can be enforced later. PERMANENTLY nullable for old data —
+    # resolutions created before this column have no way of knowing the proposer, and fabricating
+    # a name into the audit record is worse than leaving it blank.
     created_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     reject_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     rejected_by: Mapped[str | None] = mapped_column(ForeignKey("users.user_id"), nullable=True)
     rejected_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
-    # ADR-024 (TM-03 sign-off security) — ghi chú tự do của SUPERVISOR khi từ
-    # chối. KHÁC `InvestigationLog.agent_note` (ghi chú của AGENT lúc điều
-    # tra) dù trùng tên biến — đừng đọc nhầm cột này thành cột kia, hai cột
-    # khác bảng, khác rủi ro (note ở đây là văn bản NHÂN VIÊN gõ tay, qua
-    # scrub PII TẠI ĐIỂM GHI trước khi tới đây — xem route reject).
+    # ADR-024 (TM-03 security sign-off) — the SUPERVISOR's free-text note when rejecting.
+    # DIFFERENT from `InvestigationLog.agent_note` (the AGENT's note during investigation) despite
+    # the similar name — don't confuse one column for the other; they are in different tables with
+    # different risks (the note here is text typed by STAFF, PII-scrubbed AT WRITE TIME before it
+    # gets here — see the reject route).
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     note_flagged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
@@ -465,7 +473,7 @@ class Escalation(Base):
     escalation_id: Mapped[str] = mapped_column(String, primary_key=True)
     ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.ticket_id"), nullable=False)
     target: Mapped[str] = mapped_column(String, nullable=False)
-    reason: Mapped[str] = mapped_column(Text, nullable=False)  # NOT NULL — mã tín hiệu, không phải kết luận
+    reason: Mapped[str] = mapped_column(Text, nullable=False)  # NOT NULL — signal codes, not conclusions
     created_by: Mapped[str] = mapped_column(ForeignKey("users.user_id"), nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
     partner_response_status: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -473,18 +481,18 @@ class Escalation(Base):
 
 
 # ---------------------------------------------------------------------------
-# Xác thực & hội thoại
+# Authentication & conversations
 # ---------------------------------------------------------------------------
 
 
 class AuthSession(Base):
-    """`resolution_id IS NULL` = challenge OTP step-up của khách hàng (luồng
-    gốc). `resolution_id IS NOT NULL` = challenge OTP riêng cho 1 lần sếp
-    duyệt tài chính cụ thể (đợt nâng cấp Auth Flow 2026-08-12, AUTH5-04/05/
-    05B) — tái dùng nguyên cơ chế failed_attempts/locked_at đã có thay vì
-    tạo bảng mới. `amount_snapshot` chụp lại `Resolution.amount` NGAY LÚC
-    xin OTP — PSD2 dynamic linking: nếu CSKH sửa số tiền sau đó, snapshot
-    lệch với số tiền hiện tại của resolution, buộc xin OTP mới (AUTH5-05B)."""
+    """`resolution_id IS NULL` = the customer's step-up OTP challenge (the original
+    flow). `resolution_id IS NOT NULL` = a dedicated OTP challenge for one specific financial
+    approval by a supervisor (Auth Flow upgrade 2026-08-12, AUTH5-04/05/05B) — reusing the
+    existing failed_attempts/locked_at mechanism instead of creating a new table.
+    `amount_snapshot` captures `Resolution.amount` AT THE MOMENT the OTP is requested — PSD2
+    dynamic linking: if CSKH edits the amount afterwards, the snapshot no longer matches the
+    resolution's current amount, forcing a new OTP (AUTH5-05B)."""
 
     __tablename__ = "auth_sessions"
 
@@ -501,12 +509,12 @@ class AuthSession(Base):
 
 
 class ChatSession(Base):
-    """Live chat (2026-08-11) — 1 phiên chat 2 chiều thời gian thực giữa
-    khách và CSKH, LUÔN gắn 1 ticket có sẵn (ticket_id NOT NULL) — đúng tinh
-    thần "escalation path, không phải kênh song song với AI" đã chốt, và
-    đảm bảo luôn có Complaint/InvestigationLog để bàn giao ngữ cảnh AI đã
-    điều tra cho CSKH nhận ca. claimed_by NULL = đang chờ, có giá trị = CSKH
-    nào đó đã nhận (claim-based routing, không round-robin/ML)."""
+    """Live chat (2026-08-11) — one real-time two-way chat session between a customer and
+    CSKH, ALWAYS attached to an existing ticket (ticket_id NOT NULL) — in line with the
+    agreed principle "an escalation path, not a channel parallel to the AI", and guaranteeing
+    there is always a Complaint/InvestigationLog to hand over the AI's investigation context
+    to the CSKH agent taking the case. claimed_by NULL = waiting; a value = some CSKH agent
+    has claimed it (claim-based routing, no round-robin/ML)."""
 
     __tablename__ = "chat_sessions"
     __table_args__ = (
@@ -527,12 +535,12 @@ class ChatSession(Base):
 
 
 class Message(Base):
-    """Trước 2026-08-11 bảng này tồn tại nhưng chưa từng dùng (0 dòng dữ
-    liệu, session_id FK sai đối tượng auth_sessions = phiên ĐĂNG NHẬP thay
-    vì phiên CHAT) — tái dùng lại cho live chat, đổi FK sang ChatSession.
-    content dùng EncryptedText (mã hoá at-rest, cùng khoá với
-    PolicyChunk.text) — transcript chat có thể chứa SĐT/số tài khoản/số
-    tiền, không được lưu plaintext."""
+    """Before 2026-08-11 this table existed but had never been used (0 rows; the session_id FK
+    pointed at the wrong object, auth_sessions = LOGIN sessions instead of CHAT sessions) —
+    repurposed for live chat, with the FK switched to ChatSession.
+    content uses EncryptedText (encrypted at rest, same key as
+    PolicyChunk.text) — chat transcripts may contain phone/account numbers/amounts and must
+    not be stored in plaintext."""
 
     __tablename__ = "messages"
     __table_args__ = (
@@ -551,10 +559,10 @@ class Message(Base):
 
 
 # ---------------------------------------------------------------------------
-# RAG chính sách/FAQ (src/rag/) — đối tác ví (role partner_admin) upload,
-# agent + CSKH tra cứu. Nội dung tài liệu (PolicyChunk.text) mã hoá tại chỗ
-# (EncryptedText) — vector store (Chroma, data/rag_index/) chỉ giữ embedding +
-# chunk_id, KHÔNG giữ text thật (xem src/rag/store.py).
+# Policy/FAQ RAG (src/rag/) — uploaded by the e-wallet partner (role partner_admin),
+# searched by the agent + CSKH. Document content (PolicyChunk.text) is encrypted in place
+# (EncryptedText) — the vector store (Chroma, data/rag_index/) holds only embeddings +
+# chunk_ids, NOT the real text (see src/rag/store.py).
 # ---------------------------------------------------------------------------
 
 
@@ -573,24 +581,25 @@ class PolicyDocument(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="processing")
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # ADR-065 (05/09) — toàn văn GỐC, đọc TRƯỚC khi cắt chunk (xem
-    # src/rag/ingest.py). PolicyChunk.text chỉ lưu từng đoạn ĐÃ CẮT VÀ CHỒNG
-    # LẤN (overlap=150) — ghép lại theo chunk_index KHÔNG tái tạo đúng văn
-    # bản gốc, nên trang đọc toàn văn (deep-link từ /policy-search) cần cột
-    # riêng này, không đoán ghép từ chunk. NULLABLE VĨNH VIỄN cho 4 tài liệu
-    # index TRƯỚC cột này tồn tại (backfill là việc vận hành riêng, không
-    # phải điều kiện của migration).
+    # ADR-065 (05/09) — the ORIGINAL full text, read BEFORE chunking (see
+    # src/rag/ingest.py). PolicyChunk.text only stores CHUNKED AND OVERLAPPING passages
+    # (overlap=150) — re-joining by chunk_index does NOT reproduce the original text, so the
+    # full-text reading page (deep-linked from /policy-search) needs this separate column rather
+    # than guessing from chunks. PERMANENTLY NULLABLE for the 4 documents indexed BEFORE this
+    # column existed (backfill is a separate operational task, not a migration requirement).
     full_text: Mapped[str | None] = mapped_column(EncryptedText, nullable=True)
 
 
 class PolicyChunk(Base):
     __tablename__ = "policy_chunks"
     __table_args__ = (
-        # ADR-061 nháp (03/09) — Finding ① lớp 1. NULL = chưa gán (mặc định
-        # tài liệu mới, và toàn bộ 378 chunk hiện có tới khi BA review xong
-        # bản nháp auto-phân-loại). KHÔNG đọc cột này ở đâu trong search_policy
-        # cho tới khi ADR duyệt chính thức — thêm cột trước để tách bạch
-        # "chuẩn bị schema" khỏi "đổi hành vi", hai việc khác quy trình duyệt.
+        # ADR-061 draft (03/09) — Finding ① layer 1. NULL = unassigned (the default for new
+        # documents, and for all 378 existing chunks until BA finishes reviewing the
+        # auto-classification
+        # draft). This column is NOT read anywhere in search_policy until the ADR is formally
+        # approved
+        # — the column is added first to separate "preparing the schema" from "changing behaviour",
+        # two things with different approval processes.
         CheckConstraint(
             "scope IN ('internal_wallet','from_bank','to_bank','unknown')",
             name="ck_policy_chunks_scope",
@@ -600,20 +609,20 @@ class PolicyChunk(Base):
     chunk_id: Mapped[str] = mapped_column(String, primary_key=True)
     doc_id: Mapped[str] = mapped_column(ForeignKey("policy_documents.doc_id"), nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    # Mã hoá trong suốt (Fernet, giống BankAccount.account_no) — "bảo mật RAG
-    # cấp cao": file SQLite trên đĩa không chứa nội dung chính sách dạng thô.
+    # Transparently encrypted (Fernet, like BankAccount.account_no) — "hardened RAG
+    # security": the SQLite file on disk contains no raw policy content.
     text: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     scope: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, nullable=False, default=dt.datetime.utcnow)
 
 
 class Notification(Base):
-    """ADR-063 — chuông thông báo. Fan-out: MỘT hàng/người nhận (không phải
-    một hàng gắn danh sách người nhận) — `read_at` riêng từng người nên phải
-    tách hàng theo người TỪ ĐẦU, không gộp rồi lọc lúc đọc. Nội dung hiển thị
-    CHỈ suy ra được từ `event_type` + `ticket_id` — KHÔNG có cột số
-    tiền/PII/SĐT nào trong bảng này, đúng Ràng buộc cứng #3 + PDPA (đây là
-    ràng buộc ở TẦNG SCHEMA, không chỉ ở tầng code hiển thị)."""
+    """ADR-063 — notification bell. Fan-out: ONE row per recipient (not one row carrying a
+    list of recipients) — `read_at` is per person, so rows must be split per person FROM THE
+    START rather than merged and filtered at read time. Displayed content can ONLY be derived
+    from `event_type` + `ticket_id` — there is NO amount/PII/phone column in this table,
+    honouring hard constraint #3 + PDPA (a constraint at the SCHEMA LAYER, not just the
+    display code)."""
 
     __tablename__ = "notifications"
     __table_args__ = (

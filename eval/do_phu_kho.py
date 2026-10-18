@@ -73,7 +73,7 @@ def dang_bi_loai_co_y(p: str) -> bool:
     return bool(MUC_LUC.match(t) or RAC_URL.search(t))
 
 
-def bo_dau(s: str) -> str:
+def strip_diacritics(s: str) -> str:
     s = unicodedata.normalize("NFD", s)
     s = "".join(c for c in s if unicodedata.category(c) != "Mn")
     return re.sub(r"\s+", " ", s.replace("đ", "d").replace("Đ", "D").lower())
@@ -106,7 +106,7 @@ def do_mot(ten: str, f: pathlib.Path, c) -> dict:
             da_gom.update(y.get("text", "") for y in (r.json().get("results") or []))
         if i % 40 == 0:
             print(f"   …gom {i}/{len(goi[::3])} · {len(da_gom)} chunk", flush=True)
-    gom = bo_dau(" ||| ".join(da_gom))
+    gom = strip_diacritics(" ||| ".join(da_gom))
 
     muc, hien, hoi_le = "0", {}, 0
     for i, p in enumerate(paras):
@@ -116,13 +116,13 @@ def do_mot(ten: str, f: pathlib.Path, c) -> dict:
         if len(re.sub(r"\s+", "", p)) < NGAN_NHAT or dang_bi_loai_co_y(p):
             continue
         lat = lat_dac_trung(p)
-        co = bo_dau(lat) in gom
+        co = strip_diacritics(lat) in gom
         if not co:  # CHƯA THẤY != VẮNG — hỏi thẳng kho bằng chính đoạn đó
             hoi_le += 1
             r = c.post(f"{BASE}/api/policy-search", json={"query": re.sub(r"\s+", " ", p)[:300]})
             if r.status_code == 200:
                 doan = " ".join(y.get("text", "") for y in (r.json().get("results") or []))
-                co = bo_dau(lat) in bo_dau(doan)
+                co = strip_diacritics(lat) in strip_diacritics(doan)
         o = hien.setdefault(muc, {"co": 0, "tong": 0, "thieu": []})
         o["co"] += co
         o["tong"] += 1

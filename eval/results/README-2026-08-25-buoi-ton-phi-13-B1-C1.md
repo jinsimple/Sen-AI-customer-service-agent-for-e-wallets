@@ -6,7 +6,7 @@
 ## Lần 1 — `golden_run_20260825_041609.md` — 🔴 KHÔNG PHẢI FINDING SẢN PHẨM
 
 `0/2 Blocker`, nhưng đọc bảng trực tiếp SẼ SAI: cả hai ca ghi `Reply: ''`,
-`Tool đã gọi: (không)`, vi phạm `LỖI CHẠY CASE: ...` — vì `FIN05_CHO_PHEP_GOI_RA_NGOAI`
+`Tool đã gọi: (không)`, vi phạm `LỖI CHẠY CASE: ...` — vì `FIN05_ALLOW_EGRESS`
 chưa bật, lượt gọi ra ngoài bị **chặn ở tầng transport TRƯỚC khi tới model**.
 **Không tốn tiền** (chưa ra khỏi máy) — an toàn.
 
@@ -159,7 +159,7 @@ hoàn chỉnh, tốn tiền thật — nhưng 0 dòng trong `usage.jsonl`.
 
 **[PO 25/08] Truy gốc, loại trừ theo thứ tự:**
 ```
-① bộ ghi hỏng?          src/observability/so_usage.py: Lock + open("a") + 1 write
+① bộ ghi hỏng?          src/observability/usage_ledger.py: Lock + open("a") + 1 write
                         ngắn (< PIPE_BUF, append nguyên tử theo POSIX)  →  LÀNH
 ② đường ra quên ghi?    run_agent_turn: 10 return, 9/9 gọi _ghi_so ngay trước
                         (cái thứ 10 nằm trong hàm con)                  →  LÀNH
@@ -186,13 +186,13 @@ hoàn chỉnh, tốn tiền thật — nhưng 0 dòng trong `usage.jsonl`.
 Tổng token các dòng sống sót: 207.741. Trung bình một lượt `day_du` CÓ gọi tool: ~10.430
 token/lời gọi tool (giữ nguyên số PO xác nhận, không tính lại vì mẫu đã biết lệch).
 
-**Việc:** dừng thu mẫu số ngay khi phát hiện (đã dừng). KHÔNG sửa `src/observability/so_usage.py`
+**Việc:** dừng thu mẫu số ngay khi phát hiện (đã dừng). KHÔNG sửa `src/observability/usage_ledger.py`
 — bộ ghi lành, sửa nhầm bệnh. Việc gom/tắt 5 ngăn xếp không dùng để tránh OOM lần sau là quyết
 định hạ tầng, ngoài phạm vi ghi của QA/QC — đã có PO tự nhận và ghi nợ.
 
 **🔴 CAVEAT THỨ HAI, ĐỘC LẬP — [PO đo, 25/08, ghi lại theo Luật P — không xoá số cũ, chỉ bổ
 sung lý do KHÔNG dùng được]:** ngoài chuyện mất 24% bản ghi ở trên, chính ngăn `fin05-dot-otp`
-lúc lấy mẫu này đang chạy với **`PHAN_LUONG_BAT=0` VÀ `CONG_T0_BAT=0`** (xác nhận bằng `env` thật
+lúc lấy mẫu này đang chạy với **`TRIAGE_ENABLED=0` VÀ `T0_GATE_ENABLED=0`** (xác nhận bằng `env` thật
 trong tiến trình đang phục vụ) — dựng có chủ đích cho nghiệm thu ⑦ (ép mọi lượt về `day_du` để
 đọc sổ), không phải bug. Hệ quả: **`65% day_du` (13/20) không phản ánh hành vi thật của sản
 phẩm** — nó phản ánh hành vi của một hệ đã tắt tay cả hai cổng định tuyến tất định. Phân bố này
@@ -201,8 +201,8 @@ tuyến tắt (đây). Không tính lại số — mẫu này coi như không d�
 thật, đợi mẫu mới trên ngăn có cờ bật tường minh.
 
 **🔴 Phát hiện cấu hình đáng nhớ hơn cả mẫu số — [PO đo, 25/08]:** `src/config.py` đặt
-`PHAN_LUONG_BAT` mặc định **TẮT** khi biến môi trường không được set (`os.environ.get(...,  "")`
-→ falsy), trong khi `CONG_T0_BAT` mặc định **BẬT** (`"1"`). Dựng một ngăn "sạch" không khai báo
+`TRIAGE_ENABLED` mặc định **TẮT** khi biến môi trường không được set (`os.environ.get(...,  "")`
+→ falsy), trong khi `T0_GATE_ENABLED` mặc định **BẬT** (`"1"`). Dựng một ngăn "sạch" không khai báo
 biến này thì cổng định tuyến — trung tâm của cả đợt "OTP trước token" — **im lặng không chạy**,
 không có cảnh báo nào. Mọi buổi chạy thật từ nay cần kiểm **CẢ HAI** độc lập trước khi tin kết
 quả: ① ảnh có đúng mã (so băm cây làm việc ↔ container) VÀ ② cờ có đang bật (đọc `env` thật

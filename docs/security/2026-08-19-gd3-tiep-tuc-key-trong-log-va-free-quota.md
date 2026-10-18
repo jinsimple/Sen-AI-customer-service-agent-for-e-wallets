@@ -104,7 +104,7 @@ thể bỏ qua vì "console đã xác nhận".
 KHÔNG kiểm soát được từ hệ thống ta, có thể bị gỡ bởi một thao tác console không để lại dấu vết nào
 trong repo — không được trích dẫn như một lớp phòng vệ chi phí trong bất kỳ đánh giá bảo mật/tuân
 thủ nào."** Lớp phòng vệ THẬT mà ta SỞ HỮU là: `_agent_turn_limiter` (chặn đồng thời, `main.py`) +
-chốt chặn tầng transport (`cong_ra_ngoai.py`) + cầu dao GĐ3 đã đề xuất trước đó (≥N model cạn/60s →
+chốt chặn tầng transport (`egress_gate.py`) + cầu dao GĐ3 đã đề xuất trước đó (≥N model cạn/60s →
 ngừng xoay). Đây là những thứ có DIFF, có TEST, có thể ĐO — đúng hình dạng "bảo đảm có khai" Luật R
 đòi hỏi, khác hẳn một công tắc trên console người khác quản lý.
 

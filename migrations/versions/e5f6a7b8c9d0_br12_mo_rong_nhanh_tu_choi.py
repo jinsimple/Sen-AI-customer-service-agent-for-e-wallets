@@ -48,15 +48,15 @@ _MOI = (
 )
 
 
-def _kiem_truoc_khi_ep(conn, cot: str) -> None:
+def _kiem_truoc_khi_ep(conn, column: str) -> None:
     vi_pham = conn.execute(
         sa.text(
-            f"SELECT count(*) FROM resolutions WHERE created_by IS NOT NULL AND {cot} = created_by"
+            f"SELECT count(*) FROM resolutions WHERE created_by IS NOT NULL AND {column} = created_by"
         )
     ).scalar()
     if vi_pham:
         raise RuntimeError(
-            f"BR-12: {vi_pham} resolution có {cot} = created_by. Phải xử lý từng ca "
+            f"BR-12: {vi_pham} resolution có {column} = created_by. Phải xử lý từng ca "
             "(ai thật sự quyết định?) trước khi ép — KHÔNG sửa dữ liệu hàng loạt "
             "cho constraint chạy qua."
         )

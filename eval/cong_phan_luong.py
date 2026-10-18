@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CỔNG cho cờ `PHAN_LUONG_BAT` — chạy lại được, 0 lượt LLM.
+"""CỔNG cho cờ `TRIAGE_ENABLED` — chạy lại được, 0 lượt LLM.
 
     python eval/cong_phan_luong.py --luat <đường dẫn quy_tac_phan_luong.py>
 
@@ -70,7 +70,7 @@ def _bam_tep(p: pathlib.Path) -> str:
 def _dang_dirty(p: pathlib.Path) -> bool:
     """`git status --porcelain -- <p>` khác rỗng ⟹ file có sửa CHƯA COMMIT.
 
-    24/08 — vấp thật: chạy cổng trên `phan_luong.py` đang là WIP (chưa commit)
+    24/08 — vấp thật: chạy cổng trên `triage.py` đang là WIP (chưa commit)
     của Coder, ra 10/10 đẹp bất ngờ — con số đó không có vật nào đứng sau, vì
     bản WIP có thể đổi trước khi commit. Cảnh báo, KHÔNG chặn: chạy thử trên
     WIP là hợp lệ (chính người viết code cần thế lúc dev), chỉ là kết quả phải
@@ -105,8 +105,8 @@ def _nap_luat(p: pathlib.Path):
     return m
 
 
-def _nhanh(ly_do: str) -> str:
-    dg = ly_do.lower()
+def _nhanh(reason_text: str) -> str:
+    dg = reason_text.lower()
     if "chữ số" in dg:
         return "CHỮ SỐ"
     if "dài" in dg:
@@ -115,10 +115,10 @@ def _nhanh(ly_do: str) -> str:
         return "TOKEN NGOÀI TẬP"
     if "xã giao" in dg:
         return "mọi token xã giao"
-    return f"khác({ly_do[:24]})"
+    return f"khác({reason_text[:24]})"
 
 
-def _nhanh_luat_co(nguon: str) -> set[str]:
+def _nhanh_luat_co(source: str) -> set[str]:
     """Nhánh nào luật THỰC SỰ có — đọc từ nguồn, không từ danh sách tôi nhớ.
 
     🔴 Bản đầu dùng một danh sách CỨNG ba nhánh, nên sau khi `DAI_TOI_DA` bị
@@ -127,27 +127,27 @@ def _nhanh_luat_co(nguon: str) -> set[str]:
     tức nó phá đúng thứ Luật E dựng ra.
     """
     co = set()
-    if "CO_CHU_SO" in nguon:
+    if "CO_CHU_SO" in source:
         co.add("CHỮ SỐ")
-    if "DAI_TOI_DA" in nguon:
+    if "DAI_TOI_DA" in source:
         co.add("ĐỘ DÀI")
-    if "XA_GIAO" in nguon:
+    if "XA_GIAO" in source:
         co.add("TOKEN NGOÀI TẬP")
     return co
 
 
-def cham(ten, cau_nhan, phan_luong, nhanh_co=None) -> tuple[bool, str]:
+def cham(ten, cau_nhan, triage, nhanh_co=None) -> tuple[bool, str]:
     """Trả (đạt, báo cáo). `cau_nhan` = list[(câu, nhãn kỳ vọng)]."""
     dem = collections.Counter()
     sai = []
-    for cau, mong in cau_nhan:
+    for sentence, mong in cau_nhan:
         # `*_` chấp nhận cả tuple 2 phần tử (nhe/day_du hiện có) lẫn 4 phần tử
         # (nhánh thu_slot theo thiết kế 1B — thêm slot_hien_co/slot_thieu) —
         # cổng chỉ đọc hai phần tử đầu, không phá vỡ khi arity đổi.
-        duong, ly_do, *_ = phan_luong(cau)
-        dem[_nhanh(ly_do)] += 1
-        if duong != mong:
-            sai.append((cau, mong, duong, ly_do))
+        route, reason_text, *_ = triage(sentence)
+        dem[_nhanh(reason_text)] += 1
+        if route != mong:
+            sai.append((sentence, mong, route, reason_text))
     n = len(cau_nhan)
     d = n - len(sai)
     ra = [f"\n  {ten}: {d}/{n}"]
@@ -155,8 +155,8 @@ def cham(ten, cau_nhan, phan_luong, nhanh_co=None) -> tuple[bool, str]:
     chua_chay = sorted(k for k in (nhanh_co or set()) if dem[k] == 0)
     if chua_chay:
         ra.append(f"    ⚠️  nhánh CHƯA KHAI HOẢ lần nào: {chua_chay} — chưa được kiểm (Luật E)")
-    for cau, mong, thuc, ly in sai[:8]:
-        ra.append(f"    ✗ {cau!r}  mong {mong} · được {thuc} · vì {ly}")
+    for sentence, mong, thuc, ly in sai[:8]:
+        ra.append(f"    ✗ {sentence!r}  mong {mong} · được {thuc} · vì {ly}")
     return not sai, "\n".join(ra)
 
 
@@ -199,22 +199,22 @@ def main() -> int:
     # bộ ca ÂM gốc: nhãn ngầm — MỌI câu đều phải đi day_du
     p = GOC / "eval" / "golden_set.jsonl"
     if p.exists():
-        cau = []
+        sentence = []
         for dg in p.read_text(encoding="utf-8").splitlines():
             if not dg.strip():
                 continue
             x = json.loads(dg)
             u = x.get("utterances") or ([x["utterance"]] if "utterance" in x else [])
-            cau += [(c, "day_du") for c in u if isinstance(c, str) and c.strip()]
-        bo.append((f"âm gốc {len(cau)} CÂU [{_bam_tep(p)}]", cau))
-        print(f"\n  ⚠️  ĐƠN VỊ ĐẾM: golden_set.jsonl có 120 CA nhưng {len(cau)} CÂU. "
+            sentence += [(c, "day_du") for c in u if isinstance(c, str) and c.strip()]
+        bo.append((f"âm gốc {len(sentence)} CÂU [{_bam_tep(p)}]", sentence))
+        print(f"\n  ⚠️  ĐƠN VỊ ĐẾM: golden_set.jsonl có 120 CA nhưng {len(sentence)} CÂU. "
               "Cổng chấm theo CÂU.")
 
     nhanh_co = _nhanh_luat_co(p_luat.read_text(encoding="utf-8"))
     print(f"  nhánh luật CÓ: {sorted(nhanh_co)}")
     tat_ca_dat = True
     for ten, cn in bo:
-        dat, bc = cham(ten, cn, luat.phan_luong, nhanh_co)
+        dat, bc = cham(ten, cn, luat.triage, nhanh_co)
         print(bc)
         tat_ca_dat &= dat
 
@@ -236,7 +236,7 @@ def main() -> int:
         # còn tăng), tự nói sai số ca đang thật sự có. Đếm sống, không đoán.
         print(f"\n  ── 1B.3 — {len(d_slot['ca'])} ca (thu_slot) [{ghi}] ──")
         cn = [(c["cau"], c["ky_vong"]) for c in d_slot["ca"]]
-        _, bc = cham(f"{len(cn)} ca", cn, luat.phan_luong, None)
+        _, bc = cham(f"{len(cn)} ca", cn, luat.triage, None)
         print(bc)
         print("  ⚠️  KHÔNG gộp vào cổng chính — trước 1B.2, ca kỳ vọng `thu_slot` "
               "ĐỎ ĐÚNG LÝ DO (nhánh chưa tồn tại). Đối xử như A2: land trước, xanh sau khi vá.")
@@ -259,7 +259,7 @@ def main() -> int:
     # trước khi thấy luật.
     _d = json.loads((GOC / "eval/bo_ca_luot_don.json").read_text(encoding="utf-8"))
     xa_giao = [c["cau"] for c in _d["ca"] if c["nhom"].startswith("①")]
-    sai1 = [c for c in xa_giao if luat.phan_luong(c)[0] != "nhe"]
+    sai1 = [c for c in xa_giao if luat.triage(c)[0] != "nhe"]
     dc["ĐC-1"] = (not sai1, f"{len(xa_giao)-len(sai1)}/{len(xa_giao)} câu xã giao đi nhẹ"
                   + (f" · TRƯỢT: {sai1[:3]}" if sai1 else ""))
 
@@ -272,7 +272,7 @@ def main() -> int:
     hong3 = []
     for v, ten in quai:
         try:
-            d, _ = luat.phan_luong(v)
+            d, _ = luat.triage(v)
             if d != "day_du":
                 hong3.append(f"{ten} → {d} (phải day_du)")
         except Exception as e:
@@ -283,7 +283,7 @@ def main() -> int:
     # ĐC-4 — câu lạ / không phân định được ⟹ ĐẦY ĐỦ.
     la = ["asdkjhasd", "xin chào ạaaaa bqzxk", "test test 123 abc xyz",
           "ủa gì vậy trời", "hmm thế à ừ nhỉ sao lại thế được nhỉ"]
-    sai4 = [c for c in la if luat.phan_luong(c)[0] != "day_du"]
+    sai4 = [c for c in la if luat.triage(c)[0] != "day_du"]
     dc["ĐC-4"] = (not sai4, f"{len(la)-len(sai4)}/{len(la)} câu lạ → day_du"
                   + (f" · LỌT: {sai4}" if sai4 else ""))
 
@@ -303,7 +303,7 @@ def main() -> int:
     # nhẹ, câu ÂM không phải xã giao thì không được đi nhẹ) — giữ nguyên khả
     # năng bắt "router không làm gì" (mọi câu ÂM lọt qua nhẹ), bỏ giả định sai
     # "chỉ có MỘT đường không-nhẹ".
-    ket_am = [(c, luat.phan_luong(c)[0]) for ten, cn in bo if "âm" in ten for c, _ in cn]
+    ket_am = [(c, luat.triage(c)[0]) for ten, cn in bo if "âm" in ten for c, _ in cn]
     n_am = len(ket_am)
     di_nhe = [c for c, d in ket_am if d == "nhe"]
     dem_duong = collections.Counter(d for _, d in ket_am)
@@ -340,7 +340,7 @@ def main() -> int:
     vi_pham_dc6 = []
     n_thu_slot = 0
     for c in tat_ca_cau:
-        if luat.phan_luong(c)[0] != "thu_slot":
+        if luat.triage(c)[0] != "thu_slot":
             continue
         n_thu_slot += 1
         co_cam_xuc = any(tk in c.lower() for tk in _tu_cam_xuc)
@@ -357,7 +357,7 @@ def main() -> int:
 
     # ĐC-7 — 24/08, PO-agon giao sau khi phát hiện ĐỢT 1A và ĐỢT 1B đặt hai
     # luật NGƯỢC NHAU về cùng một hành vi: R1 (1A, đặc tả chuyên gia) đòi
-    # "reply khi thiếu slot chỉ chứa MỘT yêu cầu thông tin"; `phan_luong.py`
+    # "reply khi thiếu slot chỉ chứa MỘT yêu cầu thông tin"; `triage.py`
     # (1B) LÚC PHÁT HIỆN có hằng số `HOI_THIEU_CA_HAI` hỏi BA thứ (thời gian +
     # số tiền + mã) trong MỘT tin. Không ai thấy cả ngày vì R1 đo trên đường
     # LLM (test 1A), còn cổng này đo trên đường tất định (1B) — hai bộ đo
@@ -403,7 +403,7 @@ def main() -> int:
     _cap_duoc_phep_hoi_chung = frozenset({"so_tien", "thoi_gian"})
     hang_so_hoi = {
         n: v for n in dir(luat)
-        if n.startswith("HOI_") and isinstance((v := getattr(luat, n)), str) and len(v) > 10
+        if n.startswith("ASK_") and isinstance((v := getattr(luat, n)), str) and len(v) > 10
     }
     vi_pham_dc7 = []
     for ten, mau in hang_so_hoi.items():

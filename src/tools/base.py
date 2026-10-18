@@ -1,11 +1,11 @@
-"""Hạ tầng dùng chung cho 5 tool ở PRD §6 / Data Brief §6.3.
+"""Shared infrastructure for the 5 tools in PRD §6 / Data Brief §6.3.
 
-Mọi tool PHẢI gọi `record_tool_result` trước khi return — đây là cách duy
-nhất để T4 (chống bịa số liệu, Data Brief §6.5) có một nguồn sự thật để đối
-chiếu: nếu agent nói ra một con số, con số đó phải truy được về một
-`tool_result_id` sinh từ đây. record_tool_result lưu đúng NHỮNG GÌ TOOL TRẢ
-VỀ CHO AGENT (đã masking nếu có) — không lưu bản đầy đủ chưa che, vì bản
-đầy đủ đã có sẵn trong bảng gốc (BR-07).
+Every tool MUST call `record_tool_result` before returning — this is the only way
+T4 (no fabricated figures, Data Brief §6.5) has a source of truth to check against:
+if the agent states a number, that number must trace back to a `tool_result_id`
+produced here. record_tool_result stores exactly WHAT THE TOOL RETURNED TO THE AGENT
+(already masked, if applicable) — not the full unmasked version, since the full version
+already lives in the source table (BR-07).
 """
 from __future__ import annotations
 
@@ -20,10 +20,10 @@ from src.db.models import ToolResult
 
 
 class ToolError(Exception):
-    """Lỗi nghiệp vụ do tool chủ động từ chối (vd thiếu reason, ticket không tồn tại).
+    """Business error where the tool deliberately refuses (e.g. missing reason, ticket not found).
 
-    Khác với lỗi hệ thống — đây là lỗi mà agent PHẢI xử lý được (báo lại
-    khách/nhân viên), không phải bug.
+    Unlike a system error — this is an error the agent MUST be able to handle (report back
+    to the customer/staff), not a bug.
     """
 
 
@@ -31,7 +31,7 @@ def new_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex[:12]}"
 
 
-# Alias giữ tương thích ngược cho code cũ import _new_id.
+# Alias kept for backward compatibility with old code importing _new_id.
 _new_id = new_id
 
 

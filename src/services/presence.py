@@ -1,6 +1,7 @@
-"""ADR-063 — presence CSKH/Sếp qua Redis TTL. KHÔNG giữ state trong process —
-backend chạy nhiều worker độc lập (multiprocessing), state trong biến process
-sẽ chỉ đúng cho ĐÚNG worker nhận request đó, sai cho N-1 worker còn lại.
+"""ADR-063 — CSKH/supervisor presence via Redis TTL. NO state is kept in-process —
+the backend runs several independent workers (multiprocessing); state held in a process
+variable would only be correct for the ONE worker that received the request and wrong for
+the other N-1.
 """
 from __future__ import annotations
 
@@ -27,12 +28,12 @@ def online_user_ids(candidate_user_ids: list[str]) -> set[str]:
     return {uid for uid in candidate_user_ids if r.exists(f"{_PREFIX}{uid}")}
 
 
-def so_ve_dang_xu_ly(session: Session, *, user_id: str) -> int:
-    """ADR-063 — công thức PO chốt: phiên live-chat đang `active` CSKH này
-    nhận + resolution CSKH này đề xuất còn `pending_approval`. Vé là kho
-    CHUNG (không `claimed_by` trên Complaint) nên đây là ước lượng khối
-    lượng công việc TRỰC TIẾP đo được, không phải sở hữu vé."""
-    so_chat = (
+def open_ticket_count(session: Session, *, user_id: str) -> int:
+    """ADR-063 — formula fixed by the PO: live-chat sessions in `active` state claimed by
+    this agent + resolutions proposed by this agent still in `pending_approval`. The ticket pool
+    is SHARED (no `claimed_by` on Complaint), so this is a DIRECTLY measurable workload
+    estimate, not ticket ownership."""
+    chat_count = (
         session.scalar(
             select(func.count())
             .select_from(ChatSession)
@@ -40,7 +41,7 @@ def so_ve_dang_xu_ly(session: Session, *, user_id: str) -> int:
         )
         or 0
     )
-    so_resolution = (
+    resolution_count = (
         session.scalar(
             select(func.count())
             .select_from(Resolution)
@@ -48,4 +49,4 @@ def so_ve_dang_xu_ly(session: Session, *, user_id: str) -> int:
         )
         or 0
     )
-    return so_chat + so_resolution
+    return chat_count + resolution_count

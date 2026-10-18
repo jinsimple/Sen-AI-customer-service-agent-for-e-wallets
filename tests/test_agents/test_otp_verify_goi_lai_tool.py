@@ -3,7 +3,7 @@ vẫn nói/hành xử như CHƯA xác thực ngay lượt kế tiếp.
 
 > ⚠️ **Chạy TỪ HOST, cần `docker` CLI.** Cùng khuôn `test_a2_dong_y_truoc_khi_tao_ve.py`.
 > ⚠️ **TỐN TIỀN** — tối đa 4 lượt LLM thật (2 ca × 2 lượt). Mặc định TẮT, bật
-> bằng `FIN05_CHO_PHEP_TON_TIEN=1`.
+> bằng `FIN05_ALLOW_PAID_CALLS=1`.
 
 ## Root cause THẬT (Coder, 24/08, commit `5e8deb6`) — khác giả thuyết ban đầu
 
@@ -42,7 +42,7 @@ import pytest
 
 from tests._docker_co_mat import container_song
 from tests._dong_bang import LY_DO, dang_dong_bang
-from tests._ton_tien import duoc_phep_ton_tien, ly_do
+from tests._ton_tien import duoc_phep_ton_tien, reason_text
 
 CT = "fin05do-backend-1"
 API = "http://localhost:8010"
@@ -58,7 +58,7 @@ def _song() -> bool:
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(not duoc_phep_ton_tien(),
-                       reason=ly_do(60_000, "tối đa 4 lượt chat thật qua /agent/chat, 2 ca")),
+                       reason=reason_text(60_000, "tối đa 4 lượt chat thật qua /agent/chat, 2 ca")),
     pytest.mark.skipif(not _song(), reason=f"cần ngăn xếp ĐO DÙNG RIÊNG {CT} (Luật 15)"),
     pytest.mark.skipif(dang_dong_bang(), reason=LY_DO),
 ]
@@ -68,13 +68,13 @@ def _login_khong_otp() -> str:
     """Đăng nhập, CỐ Ý KHÔNG xác thực OTP — token có otp_verified_at=None,
     đúng trạng thái khách MỚI bắt đầu hành trình, chưa chạm dữ liệu nhạy cảm
     lần nào. Tái hiện đúng kịch bản gốc: tool phải lỗi OTP Ở LƯỢT ĐẦU."""
-    ma = (
+    code = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
         "print(r.json()['access_token'])"
     )
-    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", code],
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"đăng nhập hỏng: {(r.stderr or r.stdout)[-400:]}"
     return r.stdout.strip().splitlines()[-1]
@@ -85,7 +85,7 @@ def _xac_thuc_otp(login_token: str) -> str:
     otp_verified. Tách riêng khỏi `_login_khong_otp()` để test tự kiểm soát
     ĐÚNG THỜI ĐIỂM xác thực (giữa lượt 1 lỗi OTP và lượt 2 gửi lại) — đúng
     thứ tự sự kiện thật đã gây ra bug."""
-    ma = (
+    code = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"h={{'Authorization':'Bearer '+{login_token!r}}};"
@@ -95,24 +95,24 @@ def _xac_thuc_otp(login_token: str) -> str:
         "assert r.json().get('otp_verified') is True, 'OTP verify thất bại: '+r.text;"
         "print(r.json()['access_token'])"
     )
-    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", code],
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"OTP verify hỏng: {(r.stderr or r.stdout)[-400:]}"
     return r.stdout.strip().splitlines()[-1]
 
 
-def _chat(cau: str, token: str, thread: str) -> dict:
+def _chat(sentence: str, token: str, thread: str) -> dict:
     # thread_id trong body vô hại nhưng KHÔNG phải cơ chế nối lượt thật —
     # nối lượt thật = dùng LẠI cùng token (main.py suy thread từ user_id:iat
     # của JWT, ADR-044) — đúng khuôn test_a2_dong_y_truoc_khi_tao_ve.py.
-    ma = (
+    code = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"h={{'Authorization':'Bearer '+{token!r}}};"
-        f"r=c.post('{API}/agent/chat',json={{'message':{cau!r},'thread_id':{thread!r}}},headers=h);"
+        f"r=c.post('{API}/agent/chat',json={{'message':{sentence!r},'thread_id':{thread!r}}},headers=h);"
         "print(json.dumps({'http':r.status_code,'than':r.json()},ensure_ascii=False))"
     )
-    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", code],
                        capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, f"gọi chat hỏng: {(r.stderr or r.stdout)[-400:]}"
     j = json.loads(r.stdout.strip().splitlines()[-1])
@@ -130,8 +130,8 @@ def _co_loi_otp(tool_calls_day_du: list[dict]) -> bool:
     đọc TRỰC TIẾP payload thật (result.status/message), không đoán từ câu
     chữ reply."""
     for tc in tool_calls_day_du:
-        ket_qua = tc.get("result") or {}
-        if isinstance(ket_qua, dict) and ket_qua.get("status") == "error" and "OTP" in str(ket_qua.get("message", "")):
+        outcome = tc.get("result") or {}
+        if isinstance(outcome, dict) and outcome.get("status") == "error" and "OTP" in str(outcome.get("message", "")):
             return True
     return False
 

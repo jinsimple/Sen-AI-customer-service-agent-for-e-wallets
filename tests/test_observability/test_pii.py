@@ -42,14 +42,14 @@ def test_regex_only_lets_free_form_name_leak():
 
 def test_hybrid_catches_name_that_regex_alone_missed():
     text = "Tôi chuyển nhầm cho Trần Thị Bích 270.000 đồng vào chiều qua."
-    out = scrub_pii(text, muc_dich="log")
+    out = scrub_pii(text, purpose="log")
     assert "Trần Thị Bích" not in out
     assert out != text, "Phải có ít nhất 1 chỗ bị che (nhãn cụ thể không quan trọng, xem docstring)"
 
 
 def test_hybrid_still_catches_structured_pii_too():
     text = "Anh Phạm Minh Tuấn, SĐT 0901234567, CCCD 001234567890 vừa gọi."
-    out = scrub_pii(text, muc_dich="log")
+    out = scrub_pii(text, purpose="log")
     assert "Phạm Minh Tuấn" not in out
     assert "0901234567" not in out
     assert "001234567890" not in out
@@ -63,7 +63,7 @@ def test_underthesea_catches_case_spacy_alone_used_to_miss():
     underthesea/dependency liên quan có vấn đề — không phải quay lại trạng
     thái "known gap" cũ mà cần điều tra lại."""
     text = "Anh Lê Hoàng Nam vừa gọi điện phàn nàn về phí giao dịch."
-    out = scrub_pii(text, muc_dich="log")
+    out = scrub_pii(text, purpose="log")
     assert "Lê Hoàng Nam" not in out
 
 
@@ -71,7 +71,7 @@ def test_underthesea_catches_compound_name_with_title():
     """Tên ghép dài + có chức danh xen giữa — case khác hẳn case trên, kiểm
     underthesea cụ thể (không tái dùng case đã biết)."""
     text = "Chị Nguyễn Thị Thanh Hường - Trưởng phòng CSKH - đã duyệt hồ sơ."
-    out = scrub_pii(text, muc_dich="log")
+    out = scrub_pii(text, purpose="log")
     assert "Nguyễn Thị Thanh Hường" not in out
 
 
@@ -83,7 +83,7 @@ def test_underthesea_does_not_false_positive_on_internal_ids_or_abbreviations():
     nội bộ (đây là guarantee đã có từ trước, thêm underthesea không được phá
     vỡ)."""
     text = "Giao dịch TXN20260810000123 và ticket TCK-abc123def456 đã tạo."
-    out = scrub_pii(text, muc_dich="log")
+    out = scrub_pii(text, purpose="log")
     assert "TXN20260810000123" in out
     assert "TCK-abc123def456" in out
 
@@ -97,7 +97,7 @@ def test_underthesea_still_documented_gap_when_both_recognizers_miss():
     tại đây thay vì im lặng bỏ qua — hiện tại xác nhận pipeline gộp vẫn che
     đúng case đã biết underthesea một mình bỏ sót."""
     text = "Tôi chuyển nhầm cho Trần Thị Bích 270.000 đồng vào chiều qua."
-    out = scrub_pii(text, muc_dich="log")
+    out = scrub_pii(text, purpose="log")
     assert "Trần Thị Bích" not in out
 
 
@@ -107,7 +107,7 @@ def test_presidio_catches_pii_types_beyond_original_scope():
     CCCD/tên) — verify bằng 1 loại KHÔNG hề nằm trong bộ regex tự viết trước
     đó: địa chỉ ví crypto (CryptoRecognizer có sẵn trong catalog Presidio)."""
     text = "Ví bitcoin của tôi là 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2 bị mất tiền."
-    out = scrub_pii(text, muc_dich="log")
+    out = scrub_pii(text, purpose="log")
     assert "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2" not in out
 
 
@@ -119,6 +119,6 @@ def test_scrub_pii_falls_back_to_regex_when_presidio_unavailable(monkeypatch):
 
     monkeypatch.setattr(pii_module, "_load_analyzer_log", lambda: None)
     text = "SĐT của tôi là 0901234567, email a@b.com."
-    out = pii_module.scrub_pii(text, muc_dich="log")
+    out = pii_module.scrub_pii(text, purpose="log")
     assert "0901234567" not in out
     assert "a@b.com" not in out

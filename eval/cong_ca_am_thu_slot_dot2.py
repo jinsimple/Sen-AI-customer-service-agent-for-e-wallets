@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """CỔNG ĐỐI CHỨNG ÂM cho `thu_slot` — đợt "OTP trước token", hạng mục ② (24/08).
 
-    python eval/cong_ca_am_thu_slot_dot2.py --luat <đường dẫn phan_luong.py>
+    python eval/cong_ca_am_thu_slot_dot2.py --luat <đường dẫn triage.py>
 
 Nguồn đặc tả: `docs/giao-viec/2026-08-24-dot-otp-truoc-token.md` §3 Đ1 + §4.
 Bộ ca: `eval/bo_ca_am_thu_slot_dot2.json`.
@@ -71,7 +71,7 @@ def _nap_luat(p: pathlib.Path):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--luat", required=True, help="đường dẫn phan_luong.py (khuyên dùng bản ĐÃ COMMIT)")
+    ap.add_argument("--luat", required=True, help="đường dẫn triage.py (khuyên dùng bản ĐÃ COMMIT)")
     ap.add_argument("--bo-qua-bam", action="store_true", help="CHỈ để dò lỗi lúc soạn bộ ca")
     a = ap.parse_args()
 
@@ -96,12 +96,12 @@ def main() -> int:
 
     sai = []
     for c in d["ca"]:
-        duong, ly_do, *_ = luat.phan_luong(c["cau"])
-        ok = duong == c["ky_vong"]
+        route, reason_text, *_ = luat.triage(c["cau"])
+        ok = route == c["ky_vong"]
         trang = "✅" if ok else "🔴"
         print(f"  {trang} {c['id']:16s} [{c['truc']}]")
         print(f"       câu:    {c['cau']!r}")
-        print(f"       mong:   {c['ky_vong']}  ·  thực: {duong}  ·  lý_do: {ly_do}")
+        print(f"       mong:   {c['ky_vong']}  ·  thực: {route}  ·  lý_do: {reason_text}")
         if not ok:
             sai.append(c["id"])
 

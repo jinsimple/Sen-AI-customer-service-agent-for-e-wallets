@@ -76,7 +76,7 @@ thuần tuý thì nó trông như một thắng lợi.** Token thấp không đ�
 ```
 băm src/ cây làm việc      691dd9c40578
 băm src/ fin05-dot-otp     691dd9c40578    ✅ KHỚP
-5/5 mã của đợt có mặt      DUONG_CAN_OTP · CONG_OTP_NHOM_B_BAT ·
+5/5 mã của đợt có mặt      DUONG_CAN_OTP · OTP_GATE_GROUP_B_ENABLED ·
                            HOI_THOI_GIAN_VA_SO_TIEN · da_bi_otp_chan ·
                            la_tra_loi_khang_dinh
 6 container riêng, không đụng 26 container của ngăn khác
@@ -266,7 +266,7 @@ tự tick. Nếp: **vai land xong tự tick + commit**, đừng để người �
 
 | vai | dấu vết mới |
 |---|---|
-| Coder | ✅ **④ LAND `46b071a` 00:28** — mốc lớn nhất đợt · 🔄 `graph.py`+`phan_luong.py` đang sửa *(⑤)* |
+| Coder | ✅ **④ LAND `46b071a` 00:28** — mốc lớn nhất đợt · 🔄 `graph.py`+`triage.py` đang sửa *(⑤)* |
 | QA/QC | ✅ `a4add5b` 00:24 *(⑨ đặc tả ca đối chứng)* · `3368af2` 00:34 *(ĐC-7 + R1 cho phép hỏi CHUNG một tin — thi hành Q2)* |
 | Lead | ✅ `95f9504` 00:31 *(tick ④, kèm phát hiện cổng ngân sách token)* |
 | Review | ⏳ chưa soát ④ — PO vừa nhắc |
@@ -292,7 +292,7 @@ Còn chờ ⑥ đo trên UI thật để nói "đã đóng".
 
 | vai | dấu vết mới nhất |
 |---|---|
-| Coder | 🔄 `graph.py` 00:22 · `phan_luong.py` 00:20 · `config.py` 00:20 — **đang land ④** |
+| Coder | 🔄 `graph.py` 00:22 · `triage.py` 00:20 · `config.py` 00:20 — **đang land ④** |
 | Lead | ✅ `db1de2f` 00:19 *(3 quyết định tiền-land ④)* · `72f5589` 00:20 *(⑨ ghi rõ ai gỡ)* |
 | QA/QC | ✅ `884a34b` 00:17 — **⑬ 2/3 nhánh**, fixture thật đã kiểm DB |
 | Review | ✅ sửa chỗ neo chốt không-bắn *(PO nhận, `82da946`)* |
@@ -335,7 +335,7 @@ khác mà không đòi dữ liệu của họ. Nếu trục này cũng không t�
 ba** — lúc đó là đúng hình dạng A2, câu trả lời là đổi cơ chế.
 
 ✅ **58,4% ở §7 phiếu KHÔNG SAI — không niêm.** Coder tự bác nghi vấn của chính mình bằng
-hai lý do độc lập: `_CO_CHU_SO` (`phan_luong.py:88`) là regex **khác** `_SO_TIEN` (dòng 203);
+hai lý do độc lập: `_CO_CHU_SO` (`triage.py:88`) là regex **khác** `_SO_TIEN` (dòng 203);
 và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định hoãn tối ưu nhánh "có chữ số"
 đứng trên nền đúng.
 
@@ -419,16 +419,16 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
 ## Nhóm A — Đo lường (chặn mọi thứ sau nó)
 
 - [x] **①** Ghim cờ định tuyến vào phép đo — **QA/QC** · `eval/`
-  - Báo cáo eval in `PHAN_LUONG_BAT` lúc chạy **và** cột `duong` mỗi ca
+  - Báo cáo eval in `TRIAGE_ENABLED` lúc chạy **và** cột `duong` mỗi ca
   - *Xong khi:* đọc được *"ca này đi `thu_slot`, không chạm model"* **mà không phải mở code**
   - *Đóng:* **Đ2**
   - **VẬT CHỨNG:** commit `<xem log>`, 3 file sửa:
-    - `eval/_harness.py` — thêm `cau_hinh_dinh_tuyen_luc_chay()` (đọc `os.environ["PHAN_LUONG_BAT"]`
+    - `eval/_harness.py` — thêm `cau_hinh_dinh_tuyen_luc_chay()` (đọc `os.environ["TRIAGE_ENABLED"]`
       trực tiếp, KHÔNG qua `src/config.py`, để không che khoảng lệch Đ2 mô tả) + `duong_theo_luot`
       (đọc `result.get("duong")` mỗi lượt, cùng quy ước với `loc_dau_ra_theo_luot`/`ly_do_fallback_theo_luot`
       đã có) trong cả `run_case_adversary()` và `run_case_turns_adaptive()`
     - `eval/run_golden_set.py` + `eval/run_adversarial_set.py` — mỗi report giờ in
-      (a) `PHAN_LUONG_BAT` lúc chạy ở header + stderr, (b) phân bố đường đi toàn corpus
+      (a) `TRIAGE_ENABLED` lúc chạy ở header + stderr, (b) phân bố đường đi toàn corpus
       (đếm lượt), (c) bảng ĐẦY ĐỦ mọi ca `case_id | đường đi từng lượt | có chạm model?`
       — kể cả ca `passed=true`, đúng chỗ N2 cần (ADV-036/038 "xanh vì O1-O5" ≠ "xanh vì câu lạc đề")
   - **Đã kiểm:** `python3 -m py_compile` sạch cả 3 file · khoá `duong_theo_luot` nhất quán
@@ -437,7 +437,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     test hộp đen ĐÃ CÓ (`tests/test_bat_bien_dinh_tuyen_duong_nhe.py` — `o["tra"]["than"]["duong"]`,
     `tests/test_1b4_s7_s8_tich_hop.py` — `.get("duong")` phẳng), không đọc `src/agents/graph.py`.
   - **CHƯA kiểm:** một lượt `run_golden_set.py --sample 1` thật (tốn LLM thật, thuộc lớp giữ hoá đơn
-    A3/`FIN05_CHO_PHEP_TON_TIEN`) — báo Lead/PO trước khi ai chạy để xác nhận báo cáo markdown in
+    A3/`FIN05_ALLOW_PAID_CALLS`) — báo Lead/PO trước khi ai chạy để xác nhận báo cáo markdown in
     đúng bảng/dòng như thiết kế trên dữ liệu thật, không chỉ trên kiểm tra cú pháp + đơn vị cô lập.
 
 - [x] **②** Bộ ca đối chứng **ÂM** cho cổng `thu_slot` — **QA/QC** · `tests/` hoặc `eval/`
@@ -448,7 +448,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
   - **③ KHÔNG được khởi động trước khi mục này đỏ**
   - **VẬT CHỨNG:** `eval/bo_ca_am_thu_slot_dot2.json` (7 ca, băm `9e25ebd5aaea`) +
     `eval/cong_ca_am_thu_slot_dot2.py`. Chạy trên bản **ĐÃ COMMIT** tại HEAD `b6944a6`
-    (`src/agents/phan_luong.py` đang dirty ở WIP của Coder — tách riêng, không đo bản dirty):
+    (`src/agents/triage.py` đang dirty ở WIP của Coder — tách riêng, không đo bản dirty):
     `python3 eval/cong_ca_am_thu_slot_dot2.py --luat <bản blob HEAD b6944a6>` →
     **🔴 ĐỎ 3/6 trục âm**: `DOT2-AM-01` (câu hỏi chính sách, chứa "nhầm" trần) ·
     `DOT2-AM-03` (= ADV-036 nguyên văn, ép lộ thông tin bên thứ ba) ·
@@ -459,7 +459,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     ⚠️ Số 3/6 không trùng "6/11" của Đ1 trong phiếu — bộ ca này là bộ ĐỘC LẬP mới dựng từ
     đặc tả, không phải chấm lại corpus gốc Đ1 (corpus gốc không nằm trong một file duy nhất).
   - ✅ **PO KIỂM ĐỘC LẬP 25/08** — chạy lại chính cổng ấy, không relay lời khai:
-    `python3 eval/cong_ca_am_thu_slot_dot2.py --luat src/agents/phan_luong.py`
+    `python3 eval/cong_ca_am_thu_slot_dot2.py --luat src/agents/triage.py`
     → **tái lập đúng 3 ca đỏ, đúng tên**: `DOT2-AM-01` · `DOT2-AM-03` · `DOT2-AM-04`;
     ba trục còn lại + ca dương xanh. Băm bộ ca khớp `9e25ebd5aaea`, băm luật `9d3af69f8695`.
   - 🔴 **BẰNG CHỨNG NẶNG NHẤT, nay tái lập được:** `DOT2-AM-03` là **`ADV-036` nguyên văn**
@@ -478,7 +478,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
 
 ## Nhóm B — Vá cổng định tuyến
 
-- [~] **③** Siết ba từ — **Coder** · `src/agents/phan_luong.py` · 🔴 hạ lại từ `[x]`, xem đính chính bên dưới
+- [~] **③** Siết ba từ — **Coder** · `src/agents/triage.py` · 🔴 hạ lại từ `[x]`, xem đính chính bên dưới
   - Gỡ `"nhầm"` + `"bị"` trần khỏi `_TIN_HIEU_KHIEU_NAI`; `"nhận"` → cụm đủ dài
   - 🔴 **CẤM thêm danh sách từ loại trừ** — danh sách loại trừ luôn thiếu một chữ
   - Land xong **khai băm luật mới**
@@ -589,7 +589,7 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     `HOI_THOI_GIAN_VA_SO_TIEN` = *"Dạ bạn cho mình xin số tiền và thời điểm giao dịch
     (hôm nay/hôm qua, sáng/chiều/tối) giúp mình nhé."*
     → hỏi **cả hai trong MỘT tin** ✅ · **KHÔNG** còn mã giao dịch ✅ — đúng Q2
-  - `4b80f3e` chuyển hằng số sang `phan_luong.py` — Coder tự khai *"ĐỔI TÊN KHÔNG ĐỦ"*
+  - `4b80f3e` chuyển hằng số sang `triage.py` — Coder tự khai *"ĐỔI TÊN KHÔNG ĐỦ"*
 - [x] **⑥** Ca E2E trên UI cho bất biến *"0 token trước OTP"* — **QA/QC** · `frontend/e2e/`
   - Đo trên envelope `/agent/chat` *(mang `duong` + `usage.total_tokens`)*
   - **Ba trạng thái:** `0` ≠ `null` ≠ `>0`
@@ -639,11 +639,11 @@ và cả hai lệch về phía **bỏ sót**, không bắt oan. Quyết định 
     diff `eval/cong_phan_luong.py` trước/sau, rỗng.
   - 🟡 **Nợ vế "trong sổ"** — cần 1 lượt thật (tốn hoá đơn), Coder không tự tiêu.
     **[Lead 25/08] DUYỆT đề xuất gộp vào buổi gõ UI ⑥ của QA/QC** thay vì mở buổi riêng —
-    QA/QC ghi kèm khi chạy ⑥: tắt `PHAN_LUONG_BAT` + `CONG_T0_BAT`, xác nhận mọi lượt
+    QA/QC ghi kèm khi chạy ⑥: tắt `TRIAGE_ENABLED` + `T0_GATE_ENABLED`, xác nhận mọi lượt
     `duong=day_du` trong `usage.jsonl`/envelope. ⑦ giữ `[~]` tới khi có số đo đó.
   - **[ĐO 25/08, QA/QC — TIÊU CHÍ ĐÃ ĐỔI, Lead+Coder duyệt]** Câu gốc "mọi lượt `day_du`"
-    SAI từ khi ④ ra đời (cổng riêng, cờ `CONG_OTP_NHOM_B_BAT` KHÔNG nằm trong 2 cờ đang tắt
-    — cố ý). Tiêu chí đúng: tắt `PHAN_LUONG_BAT`+`CONG_T0_BAT` ⟹ KHÔNG được có `duong=nhe`/
+    SAI từ khi ④ ra đời (cổng riêng, cờ `OTP_GATE_GROUP_B_ENABLED` KHÔNG nằm trong 2 cờ đang tắt
+    — cố ý). Tiêu chí đúng: tắt `TRIAGE_ENABLED`+`T0_GATE_ENABLED` ⟹ KHÔNG được có `duong=nhe`/
     `thu_slot`/`otp_resend_thu_slot` trong sổ; `duong=can_otp` vẫn bình thường (④ sống).
     `frontend/e2e/diag-7-kill-switch.spec.ts` (tạm, chẩn đoán một lần) — 3 probe qua UI
     thật trên `fin05-dot-otp` (đã recreate, KHÔNG rebuild — Coder xác nhận băm src/ không
@@ -1473,7 +1473,7 @@ cái mới, **không tranh cãi một câu nào**.
 ⚠️ **Hạ tầng:** PO thật duyệt dọn — dừng 4 ngăn cũ *(không xoá)* + xoá 27,3 GB build cache.
 `RAM Docker 5,92 → 2,46/7,75 GB` · `ổ cứng +25 GB`. **Buổi chạy KHÔNG sập** *(đỉnh 1,573 GiB)*.
 
-**#22 — 13:40, không đổi trạng thái.** Coder đang viết lượt 4 *(nay chạm **cả** `phan_luong.py` lẫn
+**#22 — 13:40, không đổi trạng thái.** Coder đang viết lượt 4 *(nay chạm **cả** `triage.py` lẫn
 `graph.py`, chưa commit)*. Cả đội **cố ý đứng yên**: QA/QC + Review chờ ảnh, PO chờ Coder. 🔴 **Cây
 làm việc phải đứng yên tới khi dựng xong** *(Luật Đ′ bản sửa)*.
 [ĐO] sau lần dựng lại: backend **749 MiB**, `OOMKilled=false`, máy **còn 2,70 GiB**. ⚠️ Lần OOM
@@ -1490,7 +1490,7 @@ cây làm việc ⟹ **⑪ chưa hề có mặt trong hệ đang chạy**.
 sự gây hại: ảnh tụt sau repo** — đã xảy ra **hai lần trong một ngày**.
 ⟹ Phép đo đúng: **so băm tệp cây-làm-việc ↔ tệp trong container.** Ba dòng shell.
 
-**② 🔴🔴 NGĂN ĐANG CHẠY ĐÃ TẮT CẢ HAI CỔNG TẤT ĐỊNH** — `PHAN_LUONG_BAT=0`, `CONG_T0_BAT=0`, đặt
+**② 🔴🔴 NGĂN ĐANG CHẠY ĐÃ TẮT CẢ HAI CỔNG TẤT ĐỊNH** — `TRIAGE_ENABLED=0`, `T0_GATE_ENABLED=0`, đặt
 trong override. **Cố ý**, dựng cho nghiệm thu ⑦ *(ép mọi lượt về `day_du` để đọc sổ)* — **không ai
 sai**. Nhưng chạy kịch bản trên đó = chạy với **toàn bộ cổng tắt**, rồi kết luận *"④ ⑤ không hoạt
 động"*. ⚠️ Nó cũng cho phân bố **`65% day_du`** một **lý do thứ hai** để không dùng được, **độc lập**
@@ -1498,8 +1498,8 @@ với việc mất 24% bản ghi.
 
 **③ 🔴 CÁI BẪY CÒN NGUYÊN CHO MỌI BUỔI SAU:**
 ```python
-config.py:86   PHAN_LUONG_BAT = os.environ.get("PHAN_LUONG_BAT", "")  → MẶC ĐỊNH **TẮT**
-config.py:103  CONG_T0_BAT    = os.environ.get("CONG_T0_BAT", "1")    → mặc định BẬT
+config.py:86   TRIAGE_ENABLED = os.environ.get("TRIAGE_ENABLED", "")  → MẶC ĐỊNH **TẮT**
+config.py:103  T0_GATE_ENABLED    = os.environ.get("T0_GATE_ENABLED", "1")    → mặc định BẬT
 ```
 **Cổng định tuyến — trung tâm cả đợt — MẶC ĐỊNH KHÔNG CHẠY.** Ngăn "sạch" không đặt biến gì thì nó
 **im lặng bằng TẮT**, không gì kêu lên. 🔴 **Mã có mặt, cờ tắt — trông Y HỆT mã hỏng.**
@@ -1512,7 +1512,7 @@ config.py:103  CONG_T0_BAT    = os.environ.get("CONG_T0_BAT", "1")    → mặc 
 ```
 
 **④ LUẬT Đ′ CHƯA ĐỦ — PO tự vấp ngay sau khi lập nó.** PO dựng lại ảnh trong lúc Coder **đang viết
-dở lượt 4** vào `phan_luong.py` ⟹ **ảnh chụp một cây đang chuyển động**, thiếu đúng phần đó. PO có
+dở lượt 4** vào `triage.py` ⟹ **ảnh chụp một cây đang chuyển động**, thiếu đúng phần đó. PO có
 báo QA/QC nhưng **không báo Coder** — vì lúc kiểm thì tệp **còn khớp**, nó đổi **sau đó**.
 ⟹ **Dựng ảnh đòi cây làm việc ĐỨNG YÊN TRONG SUỐT lúc dựng**, không phải *"báo một tiếng rồi ai làm
 việc nấy"*.

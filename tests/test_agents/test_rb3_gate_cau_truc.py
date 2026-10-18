@@ -21,7 +21,7 @@ import json
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from src.agents.graph import _co_de_xuat_tao_ve
+from src.agents.graph import _has_ticket_proposal
 
 
 def _ai_tool_call(name: str, args: dict, call_id: str) -> AIMessage:
@@ -40,9 +40,9 @@ def test_luot_chi_lookup_khong_tinh_la_de_xuat_tao_ve():
         _ai_tool_call("lookup_transaction", {"trans_id": "TXN20260728000108"}, "call_1"),
         _tool_result("call_1", {"status": "found", "transaction": {"trans_id": "TXN20260728000108"}}),
     ]
-    co_goi_tool, co_de_xuat_tao_ve = _co_de_xuat_tao_ve(messages)
-    assert co_goi_tool is True
-    assert co_de_xuat_tao_ve is False
+    called_tool, has_ticket_proposal = _has_ticket_proposal(messages)
+    assert called_tool is True
+    assert has_ticket_proposal is False
 
 
 def test_orphaned_create_ticket_van_tinh_la_de_xuat_tao_ve_mt_z01():
@@ -55,9 +55,9 @@ def test_orphaned_create_ticket_van_tinh_la_de_xuat_tao_ve_mt_z01():
         _ai_tool_call("create_ticket", {"complaint_type": "wrong_recipient"}, "call_orphan"),
         # KHÔNG có ToolMessage nào cho call_orphan — đúng dạng mồ côi thật.
     ]
-    co_goi_tool, co_de_xuat_tao_ve = _co_de_xuat_tao_ve(messages)
-    assert co_goi_tool is True
-    assert co_de_xuat_tao_ve is True
+    called_tool, has_ticket_proposal = _has_ticket_proposal(messages)
+    assert called_tool is True
+    assert has_ticket_proposal is True
 
 
 def test_request_human_handoff_orphan_cung_tinh_la_de_xuat_tao_ve():
@@ -65,9 +65,9 @@ def test_request_human_handoff_orphan_cung_tinh_la_de_xuat_tao_ve():
         HumanMessage(content="Cho tôi gặp người thật"),
         _ai_tool_call("request_human_handoff", {}, "call_2"),
     ]
-    co_goi_tool, co_de_xuat_tao_ve = _co_de_xuat_tao_ve(messages)
-    assert co_goi_tool is True
-    assert co_de_xuat_tao_ve is True
+    called_tool, has_ticket_proposal = _has_ticket_proposal(messages)
+    assert called_tool is True
+    assert has_ticket_proposal is True
 
 
 def test_khong_goi_tool_nao_khong_duoc_mien_tru():
@@ -79,9 +79,9 @@ def test_khong_goi_tool_nao_khong_duoc_mien_tru():
         HumanMessage(content="Tôi bị chuyển nhầm tiền"),
         AIMessage(content="Đã tạo hồ sơ khiếu nại thành công với mã CMP-00003.", tool_calls=[]),
     ]
-    co_goi_tool, co_de_xuat_tao_ve = _co_de_xuat_tao_ve(messages)
-    assert co_goi_tool is False
-    assert co_de_xuat_tao_ve is False
+    called_tool, has_ticket_proposal = _has_ticket_proposal(messages)
+    assert called_tool is False
+    assert has_ticket_proposal is False
 
 
 def test_ket_hop_lookup_va_create_ticket_cung_luot():
@@ -95,6 +95,6 @@ def test_ket_hop_lookup_va_create_ticket_cung_luot():
         _ai_tool_call("create_ticket", {"complaint_type": "wrong_recipient"}, "call_2"),
         _tool_result("call_2", {"ticket_id": "TCK-abc123"}),
     ]
-    co_goi_tool, co_de_xuat_tao_ve = _co_de_xuat_tao_ve(messages)
-    assert co_goi_tool is True
-    assert co_de_xuat_tao_ve is True
+    called_tool, has_ticket_proposal = _has_ticket_proposal(messages)
+    assert called_tool is True
+    assert has_ticket_proposal is True

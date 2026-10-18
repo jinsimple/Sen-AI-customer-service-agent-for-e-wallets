@@ -105,7 +105,7 @@ def _kho_dang_song() -> bool:
     return container_song(POSTGRES)
 
 
-def phan_loai(gia_tri: str | None) -> str:
+def phan_loai(val: str | None) -> str:
     """LOGIC THUẦN — `'ma_hoa' | 'tran' | 'khong_do_duoc'`.
 
     Tách khỏi phần đọc hạ tầng để chứng minh được nửa *"KÊU lúc bất thường"*
@@ -117,12 +117,12 @@ def phan_loai(gia_tri: str | None) -> str:
     đã được mã hoá. Gộp nó vào "trần" thổi phồng con số; gộp vào "mã hoá" giấu
     mất một cột rỗng đáng ngờ. Luôn là BA trạng thái (Luật H).
     """
-    if gia_tri is None or not gia_tri.strip():
+    if val is None or not val.strip():
         return "khong_do_duoc"
-    return "ma_hoa" if gia_tri.startswith(TIEN_TO_FERNET) else "tran"
+    return "ma_hoa" if val.startswith(TIEN_TO_FERNET) else "tran"
 
 
-def _dem(bang: str, cot: str, container: str = POSTGRES) -> dict[str, int]:
+def _counters(table_rows: str, column: str, container: str = POSTGRES) -> dict[str, int]:
     """Phân bố `{ma_hoa, tran, khong_do_duoc}` trên TOÀN BẢNG.
 
     🔴 KHÔNG `LIMIT`. ADR-032 ghi lại chính xác cách sự cố này lọt: security
@@ -131,9 +131,9 @@ def _dem(bang: str, cot: str, container: str = POSTGRES) -> dict[str, int]:
     hình nằm trong chính công cụ truy vấn. Hỏi MẪU SỐ thì bức tranh lật ngược.
     """
     sql = (
-        f"SELECT CASE WHEN {cot} IS NULL OR btrim({cot}) = '' THEN 'khong_do_duoc' "
-        f"WHEN {cot} LIKE '{TIEN_TO_FERNET}%' THEN 'ma_hoa' ELSE 'tran' END AS loai, "
-        f"count(*) FROM {bang} GROUP BY 1;"
+        f"SELECT CASE WHEN {column} IS NULL OR btrim({column}) = '' THEN 'khong_do_duoc' "
+        f"WHEN {column} LIKE '{TIEN_TO_FERNET}%' THEN 'ma_hoa' ELSE 'tran' END AS loai, "
+        f"count(*) FROM {table_rows} GROUP BY 1;"
     )
     return {h[0]: int(h[1]) for h in _psql(sql, container) if len(h) == 2}
 
@@ -163,8 +163,8 @@ def test_doi_chung_phan_loai():
 
 
 @pytest.mark.skipif(not _kho_dang_song(), reason=f"container {POSTGRES} không chạy")
-@pytest.mark.parametrize(("bang", "cot"), COT_NHOM_A, ids=lambda x: x)
-def test_cot_nhom_a_khong_co_dong_nao_nam_plaintext(bang, cot):
+@pytest.mark.parametrize(("table_rows", "column"), COT_NHOM_A, ids=lambda x: x)
+def test_cot_nhom_a_khong_co_dong_nao_nam_plaintext(table_rows, column):
     """(a) NEO ĐẶC TẢ — mỗi cột Nhóm A phải 100% mang hình dạng mã hoá.
 
     🟢 **18/08 — GỠ NHÃN `security_finding`.** Backfill đã chạy (`5939b6a`) và
@@ -190,16 +190,16 @@ def test_cot_nhom_a_khong_co_dong_nao_nam_plaintext(bang, cot):
 
     `production` **chưa ai đo**. Bốn quần thể, đừng gộp.
     """
-    phan_bo = _dem(bang, cot)
+    phan_bo = _counters(table_rows, column)
     tong = sum(phan_bo.values())
     if tong == 0:
         pytest.fail(
-            f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'sạch'): {bang}.{cot} không có dòng nào "
+            f"KHÔNG ĐO ĐƯỢC (KHÔNG phải 'sạch'): {table_rows}.{column} không có dòng nào "
             f"trên {POSTGRES} — một bảng rỗng không chứng minh được gì"
         )
     tran = phan_bo.get("tran", 0)
     assert tran == 0, (
-        f"🔴 CỘT NHÓM A CÓ DÒNG NẰM TRẦN TRÊN ĐĨA: {bang}.{cot}\n"
+        f"🔴 CỘT NHÓM A CÓ DÒNG NẰM TRẦN TRÊN ĐĨA: {table_rows}.{column}\n"
         f"  trần          {tran}\n"
         f"  mã hoá        {phan_bo.get('ma_hoa', 0)}\n"
         f"  không đo được {phan_bo.get('khong_do_duoc', 0)}\n"
@@ -244,7 +244,7 @@ def test_doi_chung_cong_keu_tren_quan_the_chua_nap_lai():
     chứ không im lặng xanh — mất quần thể bẩn nghĩa là mất khả năng chứng minh
     cổng biết đỏ, và điều đó phải **hiện ra**, không được lặng lẽ thành "đạt".
     """
-    phan_bo = _dem("complaints", "description_raw", TTL)
+    phan_bo = _counters("complaints", "description_raw", TTL)
     tran = phan_bo.get("tran", 0)
     if tran == 0:
         pytest.fail(
@@ -269,15 +269,15 @@ def test_khong_cot_van_ban_nao_pha_tron_ma_hoa_voi_tran():
     biết vẫn hỏng là **bộ dò hỏng**, không phải CSDL sạch.
     """
     pha_tron = {}
-    for bang, cot in _cot_van_ban():
-        phan_bo = _dem(bang, cot)
+    for table_rows, column in _cot_van_ban():
+        phan_bo = _counters(table_rows, column)
         if phan_bo.get("ma_hoa", 0) > 0 and phan_bo.get("tran", 0) > 0:
-            pha_tron[f"{bang}.{cot}"] = phan_bo
+            pha_tron[f"{table_rows}.{column}"] = phan_bo
 
     da_biet = "complaints.description_raw"
     if da_biet not in pha_tron:
         # Có thể backfill đã chạy — nhưng ta KHÔNG được tự kết luận thế.
-        phan_bo_da_biet = _dem("complaints", "description_raw")
+        phan_bo_da_biet = _counters("complaints", "description_raw")
         if phan_bo_da_biet.get("tran", 0) > 0:
             pytest.fail(
                 f"BỘ DÒ HỎNG: {da_biet} có {phan_bo_da_biet['tran']} dòng trần "

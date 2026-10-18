@@ -1,4 +1,4 @@
-"""Engine + session factory dùng chung cho seed script, tools, và API."""
+"""Engine + session factory shared by the seed script, tools and the API."""
 from __future__ import annotations
 
 import os
@@ -21,34 +21,33 @@ def get_engine(database_url: str | None = None) -> Engine:
 
     url = database_url or DATABASE_URL
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    # pool_pre_ping — phát hiện thật (FIN05-StressTest-Plan-v4 6.3): THIẾU cờ
-    # này là đúng gotcha "Redis/DB client bật socket_keepalive +
-    # health_check_interval" đã đúc kết trong checklist đóng gói production —
-    # container Postgres restart/mạng nội bộ cloud âm thầm đóng connection
-    # nhàn rỗi, pool KHÔNG biết, request tiếp theo tái dùng connection chết
-    # -> `OperationalError: server closed the connection unexpectedly` ngẫu
-    # nhiên trên production dù local chạy hoàn hảo (SQLite không có khái
-    # niệm "connection chết qua mạng" nên không lộ ra lúc dev). `pool_pre_ping`
-    # tự SELECT 1 kiểm tra trước khi phát connection từ pool, âm thầm tái kết
-    # nối nếu chết — không tăng round-trip đáng kể (chỉ 1 lần/connection lấy
-    # từ pool, không phải 1 lần/query).
-    # Kích thước pool — TÍNH TOÁN, không để mặc định (5 + 10 overflow = 15).
+    # pool_pre_ping — real finding (FIN05-StressTest-Plan-v4 6.3): MISSING this flag is
+    # exactly the "Redis/DB client must enable socket_keepalive + health_check_interval" gotcha
+    # captured in the production packaging checklist — a Postgres container restart or the cloud
+    # internal network silently closes idle connections, the pool does NOT know, and the next
+    # request reuses a dead connection
+    # -> random `OperationalError: server closed the connection unexpectedly` in production even
+    # though local runs are perfect (SQLite has no notion of "connection died over the network",
+    # so it never shows up in dev). `pool_pre_ping` issues SELECT 1 before handing out a pooled
+    # connection and silently reconnects if it is dead — negligible extra round-trips (once per
+    # connection checkout, not once per query).
+    # Pool size — CALCULATED, not left at the default (5 + 10 overflow = 15).
     #
-    # Từ 2026-08-13 backend chạy nhiều worker (ADR-014/015). Mỗi worker mở pool
-    # RIÊNG, nên tổng kết nối tới Postgres là:
+    # Since 2026-08-13 the backend runs several workers (ADR-014/015). Each worker opens its OWN
+    # pool, so the total number of Postgres connections is:
     #     workers x (DB_POOL_SIZE + DB_MAX_OVERFLOW + CHECKPOINT_POOL_MAX)
-    # Postgres mặc định max_connections=100 (đã kiểm bằng SHOW max_connections).
-    # Với mặc định dưới đây: 4 x (10 + 5 + 5) = 80 < 100, còn chỗ cho psql/
-    # migration/monitoring. Tăng worker mà quên tính lại chỗ này sẽ ra lỗi
-    # "FATAL: sorry, too many clients already" — lỗi chỉ lộ ra khi tải cao,
-    # đúng lúc không muốn gặp nhất.
+    # Postgres defaults to max_connections=100 (verified with SHOW max_connections).
+    # With the defaults below: 4 x (10 + 5 + 5) = 80 < 100, leaving room for psql/
+    # migrations/monitoring. Adding workers without recomputing this yields
+    # "FATAL: sorry, too many clients already" — an error that only appears under high load,
+    # exactly when you least want it.
     pool_kwargs = {}
     if not url.startswith("sqlite"):
         pool_kwargs = {
             "pool_size": int(os.environ.get("DB_POOL_SIZE", "10")),
             "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "5")),
-            # Trả connection nhàn rỗi về sau 30 phút — tránh giữ chỗ vô hạn
-            # trong max_connections khi tải xuống thấp.
+            # Return idle connections after 30 minutes — avoids holding max_connections slots
+            # indefinitely when load drops.
             "pool_recycle": 1800,
         }
     eng = create_engine(
@@ -56,21 +55,19 @@ def get_engine(database_url: str | None = None) -> Engine:
     )
 
     if url.startswith("sqlite"):
-        # SQLite không bật FK constraint mặc định — I1 (toàn vẹn khoá ngoại)
-        # cần cờ này để CHECK/FK thật sự chặn, không chỉ là trang trí.
+        # SQLite does not enable FK constraints by default — I1 (foreign-key integrity)
+        # needs this flag so CHECK/FK actually block, rather than being decoration.
         #
-        # journal_mode=WAL + busy_timeout — phát hiện thật (FIN05-StressTest-
-        # Plan-v4 GAP): chạy e2e với nhiều BrowserContext đồng thời (khách +
-        # CSKH + sếp, mỗi context tự gọi OTP/tool-call ghi DB) liên tục dính
-        # `sqlite3.OperationalError: database is locked` — xác nhận qua log
-        # backend thật (20 lần lặp lại), không phải suy đoán. Chế độ mặc định
-        # của SQLite (rollback journal, "delete") khoá ĐỘC QUYỀN cả file khi
-        # có 1 transaction đang ghi, chặn luôn cả những connection khác chỉ
-        # ĐỌC — WAL cho phép đọc đồng thời trong lúc có 1 writer đang chạy.
-        # `busy_timeout` bổ sung: nếu 2 writer THẬT SỰ trùng thời điểm (WAL
-        # không giải quyết được ca này), SQLite tự đợi rồi thử lại thay vì
-        # trả lỗi ngay lập tức. Chỉ áp dụng nhánh SQLite — production dùng
-        # Postgres (DATABASE_URL khác), không ảnh hưởng.
+        # journal_mode=WAL + busy_timeout — real finding (FIN05-StressTest-Plan-v4 GAP): running
+        # e2e with several concurrent BrowserContexts (customer + CSKH + supervisor, each calling
+        # OTP/tool endpoints that write to the DB) kept hitting
+        # `sqlite3.OperationalError: database is locked` — confirmed in real backend logs
+        # (20 repetitions), not guessed. SQLite's default mode (rollback journal, "delete") takes an
+        # EXCLUSIVE lock on the whole file while one transaction is writing, blocking even
+        # connections that only READ — WAL allows concurrent reads while one writer runs.
+        # `busy_timeout` complements it: if 2 writers REALLY collide (which WAL cannot solve),
+        # SQLite waits and retries instead of failing immediately. Applies only to the SQLite
+        # branch — production uses Postgres (different DATABASE_URL), unaffected.
         @event.listens_for(eng, "connect")
         def _set_sqlite_pragma(dbapi_connection, connection_record):  # noqa: ANN001
             cursor = dbapi_connection.cursor()

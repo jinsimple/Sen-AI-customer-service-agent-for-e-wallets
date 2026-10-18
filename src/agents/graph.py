@@ -1,9 +1,9 @@
-"""LangGraph agent cho luồng khiếu nại lõi (PRD §6) — entrypoint duy nhất
-`run_agent_turn()`, gọi từ `POST /agent/chat` (src/api/main.py).
+"""LangGraph agent for the core complaint flow (PRD §6) — the single entry point
+`run_agent_turn()`, called from `POST /agent/chat` (src/api/main.py).
 
-Lưu ý API: `langgraph.prebuilt.create_react_agent` đã deprecated ở bản
-langgraph 1.2.10/langchain 1.3.14 đang cài — dùng `langchain.agents.create_agent`
-thay thế (tham số prompt tên là `system_prompt`, không phải `prompt`)."""
+API note: `langgraph.prebuilt.create_react_agent` is deprecated in the installed
+langgraph 1.2.10/langchain 1.3.14 — `langchain.agents.create_agent` is used instead
+(the prompt parameter is named `system_prompt`, not `prompt`)."""
 from __future__ import annotations
 
 import datetime as dt
@@ -35,32 +35,32 @@ from sqlalchemy.orm import Session
 
 from src.agents import llm_pool
 from src.agents.nodes.investigation_log import write_investigation_logs_for_ticket
-from src.agents.output_filter import khai_da_tao_ve, loc_dau_ra, tin_hieu_lo_chi_thi
-from src.agents.phan_luong import (
-    BAM_LUAT,
-    DUONG_DAY_DU,
-    DUONG_NHE,
-    DUONG_THU_SLOT,
-    HOI_SANG_LOC_LUA_DAO,
-    HOI_THIEU_SO_TIEN,
-    HOI_THOI_GIAN_VA_SO_TIEN,
-    TEN_TIN_HIEU_1B,
-    TRA_LOI_NHE,
-    co_du_de_thu_hep,
-    la_ca_chuyen_nham,
-    la_khieu_nai_ca_nhan,
-    la_tra_loi_khang_dinh,
-    phan_luong,
+from src.agents.output_filter import claims_ticket_created, filter_output, instruction_leak_signal
+from src.agents.triage import (
+    RULES_HASH,
+    ROUTE_FULL,
+    ROUTE_LIGHT,
+    ROUTE_SLOT_FILL,
+    ASK_SCAM_SCREENING,
+    ASK_MISSING_AMOUNT,
+    ASK_TIME_AND_AMOUNT,
+    SIGNAL_1B_SLOT_ASKED,
+    LIGHT_REPLIES,
+    enough_to_narrow,
+    is_wrong_transfer_case,
+    is_personal_complaint,
+    is_affirmative_reply,
+    triage,
 )
-from src.agents.prompt import bam_mau_prompt, build_system_prompt
+from src.agents.prompt import hash_prompt_template, build_system_prompt
 from src.agents.tools.customer_tools import TurnGuard, _otp_fresh, build_customer_tools
 from src.config import (
     AGENT_TURN_TIMEOUT_SECONDS,
-    CONG_OTP_NHOM_B_BAT,
-    CONG_T0_BAT,
+    OTP_GATE_GROUP_B_ENABLED,
+    T0_GATE_ENABLED,
     DATABASE_URL,
     DB_KIND,
-    KENH_HO_TRO_KHAC,
+    OTHER_SUPPORT_CHANNELS,
     LLM_API_KEY,
     LLM_BASE_URL,
     LLM_MAX_TOKENS,
@@ -68,319 +68,325 @@ from src.config import (
     OPENAI_MAX_RETRIES,
     OPENAI_TIMEOUT_SECONDS,
     OTP_VIEW_MAX_MINUTES,
-    PHAN_LUONG_BAT,
-    SUY_LUAN_BAT,
+    TRIAGE_ENABLED,
+    REASONING_ENABLED,
 )
-from src.cong_ra_ngoai import (
-    cong_chi_tieu,
-    ghi_nhan_chi_tieu_khong_doc_duoc,
-    http_client_dung_chung,
-    la_bi_chan,
+from src.egress_gate import (
+    spend_gate,
+    record_unreadable_spend,
+    shared_http_client,
+    is_blocked,
 )
-from src.dau_ma_nguon import CACH_BAM, nhan_luc_dung
+from src.build_stamp import HASH_METHOD, build_time_stamp
 from src.db.models import Complaint, Ticket, User
 from src.observability.langchain_callback import OTelTracingCallbackHandler
 from src.observability.pii import scrub_pii
-from src.observability.so_usage import ghi_usage
+from src.observability.usage_ledger import record_usage
 from src.observability.tracing import get_tracer
-from src.services.complaint_intake import flag_human_handoff, hop_nhat_tin_hieu_gian_lan
-from src.services.emotion_signals import danh_gia_luot
-from src.services.thread_signals import dat_lai as xoa_tin_hieu
-from src.services.thread_signals import doc_gia_tri, luu_gia_tri
-from src.services.thread_signals import doc_hoac_khong_ro as doc_tin_hieu
-from src.services.thread_signals import tang as tang_tin_hieu
+from src.services.complaint_intake import flag_human_handoff, merge_fraud_signals
+from src.services.emotion_signals import evaluate_turn
+from src.services.thread_signals import reset as clear_signal
+from src.services.thread_signals import read_value, store_value
+from src.services.thread_signals import read_or_unknown as read_signal
+from src.services.thread_signals import bump as incr_signal
 from src.tools.base import ToolError
 
 _tracer = get_tracer("fin05.agent")
 _logger = logging.getLogger("fin05.agents.graph")
 
 # CONSUME-002 (FIN05_QA_TestCases.jsonl, OWASP LLM10:2025 Unbounded
-# Consumption) — mặc định thật của langgraph đang cài (xác nhận trực tiếp
-# `langgraph._internal._config.DEFAULT_RECURSION_LIMIT`) là 10007 bước, thực
-# chất tương đương KHÔNG có giới hạn (đốt hết ngân sách OpenAI/timeout rất
-# lâu trước khi chạm ngưỡng đó nếu agent kẹt vòng lặp gọi tool mơ hồ liên
-# tục). 20 đủ cho vài vòng ReAct thật (LLM suy luận + gọi tool xen kẽ), thấp
-# hơn nhiều để chặn lặp vô hạn.
+# Consumption) — the real default of the installed langgraph (verified directly in
+# `langgraph._internal._config.DEFAULT_RECURSION_LIMIT`) is 10007 steps, effectively equivalent
+# to NO limit (the OpenAI budget/timeout would be exhausted long before reaching it if the agent
+# got stuck in a loop of ambiguous tool calls). 20 is enough for a few real ReAct rounds (LLM
+# reasoning + interleaved tool calls), far lower to stop infinite loops.
 _AGENT_RECURSION_LIMIT = 20
 
 
-class TraLoiRongError(RuntimeError):
-    """Model trả nội dung rỗng vì HẾT TRẦN TOKEN — lỗi cấu hình của TA.
+class EmptyReplyError(RuntimeError):
+    """The model returned empty content because it HIT THE TOKEN CAP — OUR configuration error.
 
-    Có lớp riêng để bộ đo phân biệt được nó với mọi lỗi khác. Nuốt nó thành
-    một câu trả lời rỗng nghĩa là thước sẽ ghi "model trả lời kém" cho một
-    lỗi hạ tầng của chính ta — tính nhầm lỗi của mình thành lỗi nhà cung cấp.
+    A dedicated class so the measurement suite can tell it apart from every other error.
+    Swallowing it into an empty answer would make the yardstick record "the model answered
+    poorly" for an infrastructure error of our own — miscounting our mistake as the provider's.
     """
 
-# JSON schema của 5 tool gửi kèm MỌI lượt gọi model — hằng số, đo 2026-08-16.
-# Đổi khi thêm/bớt tool. Xem giải thích ở chỗ dựng `usage["input_chars"]`.
+# The JSON schemas of the 5 tools sent with EVERY model call — a constant, measured 2026-08-16.
+# Update when adding/removing tools. See the explanation where `usage["input_chars"]` is built.
 _CHARS_TOOL_SCHEMA = 6773
 
-# Số tool bind ở lần dựng agent gần nhất trong tiến trình này. Ghi bởi tầng
-# DỰNG REQUEST, không phải bởi tầng quyết định — xem chú thích tại chỗ gán.
-_SO_TOOL_GUI = 0
+# Number of tools bound in the most recent agent build in this process. Written by the
+# REQUEST-BUILDING layer, not the decision layer — see the comment where it is assigned.
+_TOOLS_SENT_COUNT = 0
 
-# Suy luận có BẬT ở lần dựng model gần nhất không — đọc ngược từ đối tượng
-# model, không từ config. Xem chú thích tại chỗ gán.
-_SUY_LUAN_GUI = True
+# Whether reasoning was ON in the most recent model build — read back from the model object,
+# not from config. See the comment where it is assigned.
+_REASONING_SENT = True
 
-# ═══ CỔNG THU SLOT SAU KHI XÁC THỰC OTP GIỮA HỘI THOẠI ═══════════════════
-# (scratchpad/nhap-cong-thu-slot-sau-otp.md, Lead 24/08, PO thật đề xuất,
-# PO-agent duyệt cả 4 mục)
+# ═══ SLOT-COLLECTION GATE AFTER MID-CONVERSATION OTP VERIFICATION ═══════════════
+# (scratchpad/nhap-cong-thu-slot-sau-otp.md, Lead 24/08, proposed by the real PO,
+# all 4 items approved by the PO-agent)
 #
-# VẤN ĐỀ: sau khi khách xác thực OTP giữa hội thoại, frontend TỰ GỬI LẠI câu
-# đã bị chặn (ChatClient.tsx::submitOtp() -> pendingStarterRef). `5e8deb6`
-# dạy model GỌI LẠI tool thay vì lặp kết luận cũ từ trí nhớ — vá TRIỆU
-# CHỨNG, giữ nguyên làm LƯỚI ĐỠ (model không nghe luật thì vẫn có lưới này
-# nếu resend đã đủ slot). Cổng này BỎ HẲN tình huống phải trông cậy vào việc
-# model "nhớ đúng": hỏi thêm slot bằng cơ chế TẤT ĐỊNH trước, rồi gọi model
-# ĐÚNG MỘT lần với đủ dữ liệu.
+# THE PROBLEM: after the customer verifies OTP mid-conversation, the frontend AUTOMATICALLY
+# RE-SENDS the message that was blocked (ChatClient.tsx::submitOtp() -> pendingStarterRef).
+# `5e8deb6` taught the model to CALL the tool AGAIN instead of repeating an old conclusion from
+# memory — a SYMPTOM fix, kept as a SAFETY NET (if the model ignores the rule, the net still
+# holds when the resend already has enough slots). This gate REMOVES ENTIRELY the situation of
+# relying on the model "remembering correctly": it asks for the missing slot via a DETERMINISTIC
+# mechanism first, then calls the model EXACTLY ONCE with complete data.
 #
-# KHOÁ RIÊNG, TUYỆT ĐỐI KHÔNG dùng chung `TEN_TIN_HIEU_1B` — Lead phản biện
-# khung PO-agent nghiêng về ban đầu ("reset mốc S7 = điểm bắt đầu mới"):
-# reset ĐÚNG KHOÁ S7 sẽ cho 1B bắn LẦN THỨ HAI trong cùng hội thoại ở một
-# lượt sau KHÔNG liên quan gì cổng này — đúng thứ S7 (giới hạn 1 lần/hội
-# thoại của 1B) sinh ra để cấm. Khoá dưới đây ĐỘC LẬP hoàn toàn với 1B; đừng
-# "tối ưu" bằng cách gộp hai khoá dù tên nghe giống nhau.
-_TEN_TIN_HIEU_OTP_RESEND = "otp_resend_da_hoi"
+# A SEPARATE KEY, NEVER shared with `SIGNAL_1B_SLOT_ASKED` — the Lead pushed back on the frame
+# the PO-agent initially leaned towards ("reset the S7 marker = a fresh starting point"):
+# resetting the S7 KEY ITSELF would let 1B fire A SECOND TIME in the same conversation on a later
+# turn UNRELATED to this gate — exactly what S7 (1B's once-per-conversation limit) exists to
+# forbid. The key below is COMPLETELY INDEPENDENT of 1B; don't "optimise" by merging the two keys
+# even though their names sound alike.
+_SIGNAL_OTP_RESEND_ASKED = "otp_resend_da_hoi"
 
-# ⑭ (25/08) — BẰNG CHỨNG PHÍA SERVER rằng thread này TỪNG bị cổng OTP chặn.
-# KHÁC hẳn `_TEN_TIN_HIEU_OTP_RESEND` ở trên (thứ đó ghi "T0 ĐÃ HỎI rồi"). Hai
-# khoá, hai câu hỏi khác nhau — đừng gộp dù tên nghe gần nhau.
-_TEN_TIN_HIEU_DA_BI_OTP_CHAN = "da_bi_otp_chan"
+# ⑭ (25/08) — SERVER-SIDE EVIDENCE that this thread WAS once blocked by the OTP gate.
+# COMPLETELY DIFFERENT from `_SIGNAL_OTP_RESEND_ASKED` above (that one records "T0 HAS ALREADY
+# ASKED"). Two keys, two different questions — don't merge them even though the names sound close.
+_SIGNAL_OTP_BLOCKED = "da_bi_otp_chan"
 
-# ⑨ — "đã hỏi câu sàng lọc lừa đảo cho thread này rồi". Một lần/hội thoại.
-_TEN_TIN_HIEU_DA_HOI_SANG_LOC = "da_hoi_sang_loc"
-# ⑨-lượt-4 — hai tín hiệu ĐỊNH VỊ LƯỢT. Tách riêng vì chúng trả lời hai câu
-# khác nhau: "thread này có phải ca chuyển nhầm không" và "đã tra được giao
-# dịch chưa". Gộp là mất khả năng bắn ĐÚNG LƯỢT.
-_TEN_TIN_HIEU_CA_CHUYEN_NHAM = "ca_chuyen_nham"
-_TEN_TIN_HIEU_DA_TRA_DUOC_GD = "da_tra_duoc_gd"
+# ⑨ — "the scam-screening question has already been asked in this thread". Once per conversation.
+_SIGNAL_SCREENING_ASKED = "da_hoi_sang_loc"
+# ⑨-turn-4 — two TURN-LOCATING signals. Kept separate because they answer two different
+# questions: "is this thread a wrong-transfer case" and "has the transaction been found yet".
+# Merging them loses the ability to fire on EXACTLY THE RIGHT TURN.
+_SIGNAL_WRONG_TRANSFER_CASE = "ca_chuyen_nham"
+_SIGNAL_TXN_FOUND = "da_tra_duoc_gd"
 
-# GATE mục 4 (04/09, PO chốt fail-closed) — HAI tín hiệu MỚI, khác hẳn ba cái
-# trên: ba cái trên khoá theo THREAD (một lần/hội thoại), hai cái dưới đây
-# khoá theo TRANS_ID (một lần/GIAO DỊCH) — đúng yêu cầu PO "mỗi ca chuyển
-# nhầm riêng biệt phải sàng lọc riêng", không dùng chung 1 lần cho cả thread.
+# GATE item 4 (04/09, the PO fixed fail-closed) — TWO NEW signals, completely different from
+# the three above: those three are keyed per THREAD (once per conversation), the two below are
+# keyed per TRANS_ID (once per TRANSACTION) — exactly the PO's requirement "each separate
+# wrong-transfer case must be screened separately", not once for the whole thread.
 #
-# `_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC` (khoá theo THREAD, giá trị là CHUỖI
-# trans_id, dùng `luu_gia_tri`/`doc_gia_tri`): "câu hỏi vừa bắn ở lượt N là
-# HỎI VỀ giao dịch nào" — cầu nối bắt buộc vì lượt bắn câu hỏi (⑨, biết
-# trans_id) và lượt nhận câu trả lời (MẢNH 4, chỉ có text tự do của khách,
-# không tự nhiên biết đang trả lời cho giao dịch nào) là HAI LƯỢT KHÁC NHAU.
-_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC = "trans_id_cho_sang_loc"
-# `_TEN_TIN_HIEU_SANG_LOC_XONG` (khoá theo TRANS_ID, đếm — dùng
-# `tang_tin_hieu`/`doc_tin_hieu`): "giao dịch này ĐÃ hỏi VÀ ĐÃ nhận câu trả
-# lời sàng lọc" — `create_ticket` (customer_tools.py) đọc tín hiệu này qua
-# ĐÚNG `trans_id` sắp tạo vé để quyết cho qua hay chặn. KHÔNG BAO GIỜ xoá:
-# khác `_TEN_TIN_HIEU_DA_HOI_SANG_LOC` (xoá sau mỗi vòng hỏi-đáp để hỏi lại
-# được cho ca SAU), tín hiệu này phải sống VĨNH VIỄN cho đúng trans_id đó —
-# một giao dịch chỉ cần sàng lọc ĐÚNG MỘT LẦN, hỏi lại là hỏng theo cách
-# khác (khách bị hỏi lặp một câu đã trả lời).
-_TEN_TIN_HIEU_SANG_LOC_XONG = "sang_loc_xong"
+# `_SIGNAL_TRANS_ID_PENDING_SCREENING` (keyed per THREAD, the value is the trans_id STRING, using
+# `store_value`/`read_value`): "which transaction was the question fired on turn N ABOUT" — a
+# mandatory bridge, because the turn firing the question (⑨, which knows the trans_id) and the
+# turn receiving the answer (PIECE 4, which only has the customer's free text and doesn't
+# naturally know which transaction it answers) are TWO DIFFERENT TURNS.
+_SIGNAL_TRANS_ID_PENDING_SCREENING = "trans_id_cho_sang_loc"
+# `_SIGNAL_SCREENING_DONE` (keyed per TRANS_ID, a counter — using
+# `incr_signal`/`read_signal`): "this transaction HAS been asked AND HAS received a screening
+# answer" — `create_ticket` (customer_tools.py) reads this signal via EXACTLY the `trans_id` about
+# to get a ticket, to decide whether to allow or block. NEVER deleted:
+# unlike `_SIGNAL_SCREENING_ASKED` (deleted after each question-answer round so it can be asked
+# again for a LATER case), this signal must live FOREVER for that exact trans_id —
+# a transaction only needs screening EXACTLY ONCE; asking again breaks things in a different way
+# (the customer being asked repeatedly a question they already answered).
+_SIGNAL_SCREENING_DONE = "sang_loc_xong"
 
-# ADR-057 (docs/DECISIONS.md, 01/09) — CHUYỂN NGƯỜI SỚM cho "tầng đắt".
-# Đếm SỐ LƯỢT (không phải điều kiện một-lần như ⑨) — tăng mỗi lượt còn ở
-# trạng thái "tầng đắt, chưa xác định giao dịch", đọc lại ở gate áp dụng
-# bên dưới (gần CTC1). Đặt CẠNH NHAU, KHÔNG GỘP với các tín hiệu ⑨ phía
-# trên — hai bộ tín hiệu trả lời hai câu khác nhau.
-_TEN_TIN_HIEU_LUOT_TANG_DAT = "luot_tang_dat"
-# 🔴 N TẠM CHỌN, căn cứ YẾU (ADR-057 tự khai: số từ MỘT lượt đo, nhiễu đã
-# chứng minh lớn — 22/75 ca đổi kết quả khi chạy lại cùng mã, xem ADR-056).
-# ĐỔI N = đổi ĐÚNG hằng số này — không rải số 2 ở chỗ khác.
-_N_LUOT_CHUYEN_NGUOI_TANG_DAT = 2
-# "Tầng đắt" — refund + wrong_recipient, kém nhất trong 4 loại khiếu nại
-# (14,0%/17,1% so với 26,7%/38,1%), và tiền ĐÃ NẰM TRONG TAY NGƯỜI KHÁC —
-# sai ở đây là để khách chờ một thứ không bao giờ tới, khác 2 loại còn lại
-# (lượt sau còn sửa được). Giá trị enum khớp CheckConstraint
-# `ck_complaints_type` (src/db/models.py) — không tự đặt tên khác.
-_LOAI_KHIEU_NAI_TANG_DAT = frozenset({"refund", "wrong_recipient"})
-DUONG_OTP_RESEND_THU_SLOT = "otp_resend_thu_slot"
-DUONG_CAN_OTP = "can_otp"
-DUONG_FS13_BAN_GIAO = "fs13_ban_giao"
+# ADR-057 (docs/DECISIONS.md, 01/09) — EARLY HANDOFF for the "expensive tier".
+# Counts TURNS (not a once-only condition like ⑨) — incremented on every turn still in the state
+# "expensive tier, transaction not yet identified", read back at the gate applied below (near
+# CTC1). Placed NEXT TO, NOT MERGED with, the ⑨ signals above — the two signal sets answer two
+# different questions.
+_SIGNAL_ESCALATION_TURNS = "luot_tang_dat"
+# 🔴 N IS PROVISIONAL, on WEAK grounds (ADR-057 itself declares: the number comes from ONE
+# measurement run, and the noise was shown to be large — 22/75 cases changed results when re-run
+# on the same code, see ADR-056).
+# CHANGING N = changing EXACTLY this constant — don't scatter the number 2 elsewhere.
+_ESCALATION_HANDOFF_TURNS = 2
+# The "expensive tier" — refund + wrong_recipient, the weakest of the 4 complaint types
+# (14.0%/17.1% versus 26.7%/38.1%), and the money is ALREADY IN SOMEONE ELSE'S HANDS —
+# a mistake here leaves the customer waiting for something that never comes, unlike the other 2
+# types (a later turn can still correct it). The enum values match the CheckConstraint
+# `ck_complaints_type` (src/db/models.py) — no other names invented.
+_ESCALATING_COMPLAINT_TYPES = frozenset({"refund", "wrong_recipient"})
+ROUTE_OTP_RESEND_SLOT_FILL = "otp_resend_thu_slot"
+ROUTE_NEEDS_OTP = "can_otp"
+FS13_HANDOFF_ROUTE = "fs13_ban_giao"
 
-# Câu thay khi cổng ràng buộc cứng 3 bắt được lời khai không có vé thật.
-# 🔴 KHÔNG hứa gì, KHÔNG nêu mã nào, và nói THẬT là chưa tạo được — bịa một
-# lời trấn an ở đây là lặp lại đúng lỗi vừa chặn. Chỉ đường sang bước khách
-# LÀM ĐƯỢC, để họ không ngồi chờ một hồ sơ không tồn tại.
-_CHUA_TAO_DUOC_VE = (
+# The replacement reply when the hard-constraint-3 gate catches a claim with no real ticket.
+# 🔴 NO promises, NO codes stated, and it TRUTHFULLY says the case wasn't created — fabricating
+# reassurance here would repeat exactly the error just blocked. It only points to a step the
+# customer CAN take, so they don't sit waiting for a case that doesn't exist.
+_TICKET_NOT_CREATED_REPLY = (
     "Mình xin lỗi — hồ sơ khiếu nại CHƯA được tạo, mình báo thật để bạn không "
     "chờ nhầm. Bạn nhắn lại giúp mình để tạo lại, hoặc mình chuyển bạn sang "
     "chuyên viên hỗ trợ trực tiếp nhé."
 )
 
 
-def _cau_tra_loi_cong_tra_truoc(ket_qua: dict[str, Any]) -> str:
-    """Câu TẤT ĐỊNH thay cho lượt bị cổng CTC1 chặn (xem chỗ áp dụng bên
-    dưới) — dựng thẳng từ kết quả THẬT của `get_customer_history`, không
-    giao model diễn đạt lại (cùng lệ ADR-048 đã áp cho ⑧/⑨/_CHUA_TAO_DUOC_VE:
-    một dòng tất định an toàn hơn đặt cược vào việc model nghe lời prompt).
+def _gate_reply_before_lookup(outcome: dict[str, Any]) -> str:
+    """The DETERMINISTIC reply replacing a turn blocked by the CTC1 gate (see where it is applied
+    below) — built directly from the REAL result of `get_customer_history`, not handed to the
+    model to rephrase (the same rule as ADR-048 applied to ⑧/⑨/_TICKET_NOT_CREATED_REPLY:
+    one deterministic line is safer than betting on the model obeying the prompt).
 
-    Liệt kê tối đa 5 giao dịch gần nhất — đây là DỮ LIỆU CỦA CHÍNH KHÁCH
-    đang chat (đã xác thực OTP để tool này chạy được), không phải PII bên
-    thứ ba, nên không cần che theo BR-07.
+    Lists at most the 5 most recent transactions — this is the CHATTING CUSTOMER'S OWN DATA
+    (OTP-verified so this tool could run), not third-party PII, so no masking under BR-07 is
+    needed.
 
-    🔴 PO bắt được (đọc diff trước khi hàm này chạy lần đầu): prompt.py:21
-    BẮT BUỘC câu đầu tiên khi sắp nêu kết quả tra cứu phải mở bằng "Mình
-    hiểu..."/"Mình biết...", TUYỆT ĐỐI không mở bằng dữ kiện tra được kiểu
-    "Mình đã tra cứu...". Bản đầu của hàm này vi phạm gần nguyên văn — không
-    cổng tự động nào bắt được (grep _harness.py/output_filter.py không có
-    luật này), nên đây là hồi quy chất lượng đi lọt qua toàn bộ phép đo mà
-    không ai biết. Áp câu mở "Mình hiểu bạn đang sốt ruột." cho CẢ hai
-    nhánh — nhánh rỗng càng cần vì khách dễ hụt hẫng nhất."""
-    giao_dich = ket_qua.get("recent_transactions") or []
-    if not giao_dich:
+    🔴 Caught by the PO (reading the diff before this function first ran): prompt.py:21
+    REQUIRES the first sentence when about to state lookup results to open with "Mình
+    hiểu..."/"Mình biết..." (I understand.../I know...), NEVER opening with the looked-up facts
+    like "Mình đã tra cứu..." (I've looked up...). The first version of this function violated
+    that almost verbatim — no automated gate caught it (grepping _harness.py/output_filter.py
+    shows no such rule), so it was a quality regression slipping past every measurement with
+    nobody knowing. The opener "Mình hiểu bạn đang sốt ruột." (I understand you're anxious.) is
+    applied to BOTH branches — the empty branch needs it most, since that is where the customer
+    is most likely to feel let down."""
+    txn = outcome.get("recent_transactions") or []
+    if not txn:
         return (
             "Mình hiểu bạn đang sốt ruột. Mình đã tra lịch sử giao dịch gần đây của "
             "bạn nhưng chưa thấy giao dịch nào trong 90 ngày qua. Bạn cho mình mã "
             "giao dịch, số điện thoại người nhận, hoặc số tiền + thời điểm cụ thể để "
             "mình tra kỹ hơn nhé."
         )
-    dong = []
-    for t in giao_dich[:5]:
-        so_tien = f"{t['amount']:,}".replace(",", ".") + "đ" if t.get("amount") is not None else "?"
-        chieu = "chuyển đi" if t.get("direction") == "out" else "nhận vào"
-        thoi_diem = (t.get("created_at") or "")[:16].replace("T", " ")
-        dong.append(f"- {t.get('trans_id', '?')}: {so_tien} ({chieu}) lúc {thoi_diem}")
-    danh_sach = "\n".join(dong)
+    line = []
+    for t in txn[:5]:
+        amount_value = f"{t['amount']:,}".replace(",", ".") + "đ" if t.get("amount") is not None else "?"
+        direction = "chuyển đi" if t.get("direction") == "out" else "nhận vào"
+        moment = (t.get("created_at") or "")[:16].replace("T", " ")
+        line.append(f"- {t.get('trans_id', '?')}: {amount_value} ({direction}) lúc {moment}")
+    items = "\n".join(line)
     return (
         "Mình hiểu bạn đang sốt ruột. Mình đã tra lịch sử giao dịch gần đây của "
-        f"bạn, thấy:\n{danh_sach}\n\n"
+        f"bạn, thấy:\n{items}\n\n"
         "Bạn cho mình biết đây có phải giao dịch bạn đang hỏi không (hoặc gửi mã "
         "giao dịch cụ thể nếu không có trong danh sách) để mình tra tiếp nhé."
     )
 
 
-# Slot mục tiêu là MÃ GIAO DỊCH HOẶC MỐC THỜI GIAN — KHÁC 1B (số tiền là
-# slot bắt buộc của 1B). Lý do: 1B áp cho lượt ĐẦU TIÊN chưa biết gì; cổng
-# này áp cho điểm khách đã mô tả đủ để model quyết định gọi tool (đó là lý
-# do tool chạy và bị OTP chặn) — cái còn thiếu là thứ giúp tool THU HẸP
-# xuống một kết quả, đúng vai trò mã/ngày (số tiền nhiều khả năng ĐÃ có
-# trong câu, vì đó là chi tiết khách hay kể đầu tiên).
+# The target slot is a TRANSACTION ID OR A TIME ANCHOR — UNLIKE 1B (where the amount is the
+# mandatory slot). Reason: 1B applies to the FIRST turn, when nothing is known; this gate applies
+# at the point where the customer has described enough for the model to decide to call a tool
+# (that is why the tool ran and was blocked by OTP) — what's missing is what helps the tool NARROW
+# it down to one result, exactly the role of an ID/date (the amount is most likely ALREADY in the
+# sentence, since it is the detail customers tend to mention first).
 
-# ── ⑧ · K3 — HAI CÂU CHỐNG MẠO DANH CSKH ────────────────────────────────────
-# Phiếu "OTP trước token" ⑧. Hằng số, 0 token, KHÔNG giao model diễn đạt —
-# cùng lệ ADR-048 ("một dòng TẤT ĐỊNH chèn sau khi tool trả về; không đặt cược
-# an toàn vào việc model nghe lời").
+# ── ⑧ · K3 — TWO ANTI-IMPERSONATION SENTENCES ─────────────────────────────────────
+# The "OTP before token" ticket ⑧. Constants, 0 tokens, NOT handed to the model to phrase —
+# the same rule as ADR-048 ("one DETERMINISTIC line inserted after the tool returns; don't bet
+# safety on the model obeying").
 #
-# 🔴 K3 đo được: dự án ép rất chặt việc bot KHÔNG hỏi OTP giao dịch, nhưng
-# chưa chỗ nào bắt bot NÓI CHO KHÁCH BIẾT nó sẽ không bao giờ hỏi. Khách vừa
-# bị lừa một lần rồi thì lần thứ hai kẻ giả CSKH gọi tới, thứ duy nhất bảo vệ
-# họ là việc họ ĐÃ ĐƯỢC NGHE câu này từ CSKH thật.
+# 🔴 K3 measured: the project enforces very strictly that the bot NEVER asks for a transaction
+# OTP, but nowhere forced the bot to TELL THE CUSTOMER it will never ask. For a customer who has
+# just been scammed once, when a fake CSKH agent calls a second time, the only thing protecting
+# them is having HEARD this sentence from the real CSKH.
 #
-# ⚠️ ĐỔI XƯNG HÔ so với nguyên văn phiếu — khai để không ai tưởng chép sót:
-# phiếu viết "chị" vì trích thẳng kịch bản chuyên gia (khách trong kịch bản là
-# nữ). Hằng số này bắn cho MỌI khách, và hệ thống KHÔNG biết giới tính khách
-# (`customer_name` cố ý không đưa lên LLM, PII-OK ở dưới). Dùng "bạn"/"mình"
-# — đúng xưng hô mọi hằng số khác của module này đã dùng. Nội dung, thứ tự vế
-# và điểm gắn giữ nguyên 100% theo phiếu.
+# ⚠️ FORM OF ADDRESS CHANGED from the ticket's verbatim text — declared so nobody thinks it was
+# miscopied: the ticket wrote "chị" (older sister/ma'am) because it quoted the expert script
+# directly (the customer in the script is a woman). This constant fires for EVERY customer, and
+# the system DOES NOT know the customer's gender (`customer_name` is deliberately not sent to the
+# LLM, PII-OK below). "bạn"/"mình" (you/I) are used — exactly the form of address every other
+# constant in this module uses. Content, clause order and insertion point are kept 100% as in
+# the ticket.
 #
-# 🔴 CHÈN SAU `loc_dau_ra()`, CÓ CHỦ ĐÍCH — không phải tiện tay.
+# 🔴 INSERTED AFTER `filter_output()`, DELIBERATELY — not out of convenience.
 #
-# [ĐO 24/08] chạy `loc_dau_ra()` thẳng trên CẢ HAI hằng số: **cả hai QUA
-# ĐƯỢC**, không nhóm O nào khớp. Nói cách khác, hôm nay dời điểm chèn lên
-# trước bộ lọc KHÔNG gây hỏng — tôi đã viết ngược điều này ở bản nháp, phép
-# đo bác lại, giữ lại số đo thay vì lập luận.
+# [MEASURED 24/08] running `filter_output()` directly on BOTH constants: **both PASS**, no O
+# group matches. In other words, today moving the insertion point before the filter would NOT
+# break anything — I wrote the opposite in the draft, the measurement refuted it, and the
+# measurement is kept rather than the argument.
 #
-# Vẫn chèn SAU, vì lý do khác và bền hơn:
-#   ① Hai câu này là văn bản của TA, đã soát, KHÔNG chứa chữ số nào — cho bộ
-#     lọc kiểm chúng là tốn công kiểm thứ đã biết đúng.
-#   ② Biên an toàn MỎNG theo hướng có thật: câu thứ hai chứa "sẽ" (đã nằm
-#     trong `_O4_DONG_TU`) đứng cùng mệnh đề với "lấy lại tiền". Nó chưa khớp
-#     CHỈ vì `_O4_TIEN` hiện không có cụm "lấy lại tiền" (có "nhận lại tiền").
-#     Thêm đúng một cụm vào `_O4_TIEN` — việc O4 hoàn toàn có thể làm sau này
-#     — là bản vá an toàn tự xoá chính nó, IM LẶNG, không cổng nào đỏ.
-# ⟹ Chèn sau bộ lọc làm ② không thể xảy ra, thay vì canh chừng nó mãi.
-CANH_BAO_OTP_PHIEN = (
+# Still inserted AFTER, for a different and more durable reason:
+#   ① These two sentences are OUR text, already reviewed, containing NO digits — having the
+#     filter check them is spending effort checking something known to be correct.
+#   ② The safety margin is THIN in a real direction: the second sentence contains "sẽ" (will —
+#     already in `_O4_VERBS`) in the same clause as "lấy lại tiền" (get the money back). It
+#     doesn't match ONLY because `_O4_MONEY` currently lacks the phrase "lấy lại tiền" (it has
+#     "nhận lại tiền"). Adding exactly one phrase to `_O4_MONEY` — something O4 could perfectly
+#     well do later — would make this safety fix delete itself, SILENTLY, with no gate going red.
+# ⟹ Inserting after the filter makes ② impossible, rather than guarding against it forever.
+SESSION_OTP_WARNING = (
     "Mình nói rõ để bạn yên tâm: đây là mã xác thực phiên hỗ trợ, không phải "
     "mã OTP giao dịch — mình không bao giờ hỏi mã OTP giao dịch hay mật khẩu "
     "ví của bạn."
 )
-# 🔴 THÊM HAI DẠNG 25/08 (Review tìm, PO xếp "làm ngay"). Bản đầu chỉ có BA lưới
-# (OTP · mật khẩu · chuyển tiền). Thiếu **phí xử lý/xác minh** và **cài app điều
-# khiển từ xa** — hai chiêu phổ biến nhất ở ví điện tử VN.
+# 🔴 TWO FORMS ADDED 25/08 (found by the review, ranked "do it now" by the PO). The first
+# version had only THREE nets (OTP · password · money transfer). It lacked **processing/
+# verification fees** and **installing a remote-control app** — the two most common scams on
+# Vietnamese e-wallets.
 #
-# Vì sao thiếu ĐÚNG hai cái đó lại nguy nhất: **chính ta vừa dựng sân khấu cho
-# chúng.** Bot vừa nói với một người NGHI BỊ LỪA rằng *"sẽ có chuyên viên liên hệ
-# lại"* — khách nay ĐANG CHỜ một cuộc gọi và không phân biệt được thật giả.
-#   · "nộp phí xác minh 50k là em đẩy lệnh hoàn tiền ngay"  ← khách ĐANG CHỜ hoàn
-#     tiền, số tiền NHỎ ⟹ hàng rào tâm lý thấp nhất
-#   · "anh cài app này để em vào máy hỗ trợ"                ← khách ĐANG MONG được hỗ trợ
-# Ba chiêu đã có đều đòi khách làm một việc NGHE ĐÃ ĐÁNG NGỜ. Hai chiêu này nghe
-# HOÀN TOÀN HỢP LÝ trong đúng bối cảnh ta vừa tạo ra.
+# Why missing EXACTLY those two is the most dangerous: **we ourselves had just set the stage for
+# them.** The bot had just told someone who SUSPECTS A SCAM that *"a specialist will contact you"*
+# — the customer is now WAITING for a call and can't tell real from fake.
+#   · "pay a 50k verification fee and I'll push the refund through right away"  ← the customer
+#     IS WAITING for a refund, the amount is SMALL ⟹ the lowest psychological barrier
+#   · "install this app so I can get into your phone to help"                  ← the customer
+#     IS HOPING for help
+# The three existing scams all ask the customer to do something that ALREADY SOUNDS suspicious.
+# These two sound COMPLETELY REASONABLE in exactly the context we had just created.
 #
-# Gộp thành MỘT câu, không tách dòng: cảnh báo dài thì khách không đọc — và một
-# cảnh báo không được đọc hỏng y như không có.
-# Mệnh đề cuối ("kể cả khi họ nói là để lấy lại tiền cho bạn") vô hiệu hoá đúng
-# CÁI CỚ mà cả năm chiêu đều mượn, thay vì liệt kê thêm chiêu thứ sáu.
-CANH_BAO_KHONG_AI_GOI_DIEN = (
+# Merged into ONE sentence, not split into lines: customers don't read long warnings — and an
+# unread warning fails exactly like no warning.
+# The final clause ("even if they say it's to get your money back") neutralises exactly THE
+# PRETEXT all five scams borrow, rather than listing a sixth scam.
+WARNING_NOBODY_WILL_CALL = (
     "Một lưu ý để bạn giữ an toàn: sẽ không có ai từ ví gọi điện yêu cầu bạn "
     "chuyển tiền, nộp phí xử lý, cài ứng dụng điều khiển từ xa, hay cung cấp "
     "mật khẩu và mã OTP — kể cả khi họ nói là để lấy lại tiền cho bạn."
 )
 
-# ④ · câu của cổng OTP tất định. Ghép sẵn câu chống mạo danh ⑧ (K3) — ĐÂY mới là
-# "lượt 1" mà phiếu nói tới: điểm đầu tiên khách được yêu cầu xác thực. Ghép ngay
-# ở hằng số chứ không qua `_them_canh_bao_mao_danh()`: đường này KHÔNG đi qua bộ
-# lọc nên không có chỗ "chèn sau", và ghép cứng làm nó hiển nhiên khi đọc.
-_CAN_XAC_THUC_OTP = (
+# ④ · the deterministic OTP gate's sentence. The anti-impersonation sentence ⑧ (K3) is
+# pre-joined — THIS is the "turn 1" the ticket refers to: the first point where the customer is
+# asked to verify. Joined directly in the constant rather than via `_add_impersonation_warning()`:
+# this path does NOT go through the filter, so there is no "insert after" point, and hard-joining
+# makes it obvious when reading.
+_NEEDS_OTP_VERIFICATION = (
     "Dạ để tra cứu giao dịch của bạn thì mình cần bạn xác thực OTP phiên làm "
-    "việc trước nhé.\n\n" + CANH_BAO_OTP_PHIEN
+    "việc trước nhé.\n\n" + SESSION_OTP_WARNING
 )
 
-# ① (PO thật thu hẹp 25/08) — khách XÁC NHẬN có người hướng dẫn chuyển khoản.
-# PO nguyên văn: *"không cần làm sâu, chỉ cần BÁO SẼ CÓ CHUYÊN GIA LIÊN HỆ là đủ."*
+# ① (narrowed by the real PO 25/08) — the customer CONFIRMS someone was guiding them through the
+# transfer. The PO verbatim: *"no need to go deep, just SAY A SPECIALIST WILL CONTACT YOU, that's
+# enough."*
 #
-# Hai việc, không hơn:
-#   ① NGỪNG đường khuyên chuyển-nhầm — đạt bằng cách KHÔNG gọi model lượt này.
-#      Cấm bằng lời thì model vẫn có thể nói; không chạy thì nó không nói được.
-#   ② báo sẽ có chuyên viên liên hệ + bàn giao người thật.
+# Two things, no more:
+#   ① STOP the wrong-transfer advice path — achieved by NOT calling the model this turn.
+#      Forbidding it in words still lets the model say it; not running it means it can't.
+#   ② say a specialist will contact them + hand over to a human.
 #
-# 🔴 CÂU K3 GHÉP VÀO ĐÂY LÀ BẮT BUỘC, KHÔNG PHẢI TRANG TRÍ. Ta vừa nói với một
-# người NGHI BỊ LỪA rằng "sẽ có người liên hệ lại" — đó chính là câu kẻ lừa đảo
-# cần để gọi lần hai ("em ở bộ phận xử lý khiếu nại đây"). Báo sẽ có người gọi
-# mà không kèm câu này là tự tay dọn đường cho vòng lừa thứ hai.
-_FS13_BAN_GIAO = (
+# 🔴 THE K3 SENTENCE JOINED HERE IS MANDATORY, NOT DECORATION. We have just told someone who
+# SUSPECTS A SCAM that "someone will contact you" — exactly the line a scammer needs for a second
+# call ("I'm from the complaints department"). Saying someone will call without this sentence is
+# clearing the way for the second round of the scam ourselves.
+_FS13_HANDOFF = (
     "Cảm ơn bạn đã cho mình biết. Trường hợp này mình chuyển ngay cho chuyên "
     "viên hỗ trợ xử lý trực tiếp, sẽ có người liên hệ lại với bạn.\n\n"
-    + CANH_BAO_KHONG_AI_GOI_DIEN
+    + WARNING_NOBODY_WILL_CALL
 )
 
-# Neo nhận diện "câu này đã có sẵn trong lời model" — tránh nói hai lần. Chọn
-# cụm ĐỦ DÀI và ĐẶC HIỆU (đúng bài học "sao"/"mất" của 1B): "OTP" trần khớp cả
-# câu model đang giải thích chuyện khác.
-_NEO_DA_CO_CANH_BAO = (
+# Anchor recognising "this sentence is already in the model's reply" — avoids saying it twice.
+# A SUFFICIENTLY LONG and SPECIFIC phrase is chosen (the 1B "sao"/"mất" lesson): a bare "OTP"
+# would also match sentences where the model is explaining something else.
+_ALREADY_WARNED_ANCHOR = (
     "không bao giờ hỏi mã otp giao dịch",
     "không có ai từ ví gọi điện",
 )
 
 
-def _them_canh_bao_mao_danh(reply: str, *, co_loi_otp: bool, ticket_id: str | None) -> str:
-    """Chèn câu chống mạo danh vào CUỐI `reply` — hàm THUẦN, dễ kiểm.
+def _add_impersonation_warning(reply: str, *, has_otp_error: bool, ticket_id: str | None) -> str:
+    """Append the anti-impersonation sentence to the END of `reply` — a PURE function, easy to test.
 
-    `co_loi_otp`: lượt này có tool nào bị cổng OTP chặn không (khách đang ở
-    đúng thời điểm được yêu cầu xác thực — điểm gắn "lượt 1" của phiếu).
-    `ticket_id`: có mã hồ sơ để báo không (điểm gắn "lượt 8").
+    `has_otp_error`: whether any tool this turn was blocked by the OTP gate (the customer is at
+    exactly the moment they are asked to verify — the ticket's "turn 1" insertion point).
+    `ticket_id`: whether there is a case ID to report (the "turn 8" insertion point).
 
-    KHÔNG chèn nếu model đã tự nói ý đó — nói hai lần làm câu cảnh báo trông
-    như văn bản máy dán vào, và khách sẽ học cách bỏ qua nó.
+    NOT inserted if the model already said it itself — saying it twice makes the warning look
+    like machine-pasted text, and customers learn to ignore it.
     """
     if not isinstance(reply, str):
         return reply
-    thap = reply.lower()
-    them: list[str] = []
-    if co_loi_otp and _NEO_DA_CO_CANH_BAO[0] not in thap:
-        them.append(CANH_BAO_OTP_PHIEN)
-    if ticket_id is not None and _NEO_DA_CO_CANH_BAO[1] not in thap:
-        them.append(CANH_BAO_KHONG_AI_GOI_DIEN)
-    if not them:
+    low = reply.lower()
+    extra_items: list[str] = []
+    if has_otp_error and _ALREADY_WARNED_ANCHOR[0] not in low:
+        extra_items.append(SESSION_OTP_WARNING)
+    if ticket_id is not None and _ALREADY_WARNED_ANCHOR[1] not in low:
+        extra_items.append(WARNING_NOBODY_WILL_CALL)
+    if not extra_items:
         return reply
-    return (reply.rstrip() + "\n\n" + "\n\n".join(them)).strip()
+    return (reply.rstrip() + "\n\n" + "\n\n".join(extra_items)).strip()
 
 
-# Kích thước lược đồ tool ĐO ĐƯỢC ở lần dựng gần nhất — thay hằng số gõ tay.
-_CHARS_TOOL_SCHEMA_THAT = _CHARS_TOOL_SCHEMA
+# The MEASURED size of the tool schemas at the most recent build — replacing a hand-typed constant.
+_CHARS_TOOL_SCHEMA_REAL = _CHARS_TOOL_SCHEMA
 
-def _giay_cho_lai(loi: Exception) -> float | None:
+def _retry_wait_seconds(err: Exception) -> float | None:
     """Moi so giay nha cung cap BAO, khong tu doan.
 
     OpenAI tra nguyen van "Please try again in 1.381s" trong than loi. Doc
@@ -390,320 +396,348 @@ def _giay_cho_lai(loi: Exception) -> float | None:
     Khong tra duoc thi tra None, va cau tra loi noi "sau it giay" thay vi mot
     con so gia.
     """
-    m = re.search(r"try again in ([0-9.]+)s", str(loi))
+    m = re.search(r"try again in ([0-9.]+)s", str(err))
     return float(m.group(1)) if m else None
 
 
-# ═══ Phân loại lỗi NHÀ CUNG CẤP ════════════════════════════════════════════
+# ═══ Classifying PROVIDER errors ═══════════════════════════════════════════
 #
-# `APIError` là ranh giới CHÍNH XÁC của họ này: mọi lỗi nhà cung cấp đều kế
-# thừa nó (đã kiểm cây thừa kế trên openai==3.0.0 đang chạy: 401/403/400/404/
-# 429/5xx đi qua APIStatusError, timeout/rớt mạng đi qua APIConnectionError,
-# cả hai đều dưới APIError), và KHÔNG lỗi nào của ta lọt vào. Bắt rộng hơn
-# (`Exception`) sẽ nuốt cả bug của chính mình thành "hệ thống bận".
+# `APIError` is the EXACT boundary of this family: every provider error inherits from it
+# (inheritance tree checked on the running openai==3.0.0: 401/403/400/404/
+# 429/5xx go through APIStatusError, timeouts/network drops through APIConnectionError, both
+# under APIError), and NONE of our own errors fall into it. Catching more broadly
+# (`Exception`) would swallow our own bugs as "system busy".
 #
-# VÌ SAO CẦN: trước bản này `except` khoá vào ĐÚNG MỘT TÊN — `RateLimitError`.
-# Nhưng thứ cần xử lý không phải một tên, mà là TRẠNG THÁI "nhà cung cấp không
-# phục vụ lượt này". 429 chỉ là một trong các cách họ từ chối; 6 lớp còn lại
-# rơi thẳng ra HTTP 500 trần. tester quan sát được trên đường thật khi hạn mức
-# Qwen cạn giữa buổi: hết giờ -> 200 + vé fallback, nhưng 403 -> 500, không vé,
-# không gì cả.
+# WHY IT IS NEEDED: before this version `except` was locked to EXACTLY ONE NAME — `RateLimitError`.
+# But what needs handling is not a name, it is the STATE "the provider won't serve this turn".
+# 429 is only one of the ways they refuse; the other 6 classes fell straight out as a bare HTTP
+# 500. The tester observed it on the real path when the Qwen quota ran out mid-session: timeout ->
+# 200 + a fallback ticket, but 403 -> 500, no ticket, nothing at all.
 #
-# ⚠️ TUYỆT ĐỐI KHÔNG nối họ này vào nhánh fallback-TẠO-VÉ bên dưới. Lý do đã
-# đúng với 429 (chú thích ở nhánh đó), và MẠNH HƠN với 401/403: hết hạn mức là
-# hỏng TOÀN CỤC, nó đánh mọi khách cùng lúc ⟹ tạo vé nghĩa là một vé cho mỗi
-# khách đang online. Trong buổi 150 người đó là 150 vé ma trong một phút, cho
-# những khiếu nại KHÔNG TỒN TẠI — và làm loãng đúng hàng chờ mà vé "AI bó tay"
-# cần được nhìn thấy.
+# ⚠️ NEVER wire this family into the fallback-CREATE-TICKET branch below. The reason already held
+# for 429 (see the comment on that branch), and is STRONGER for 401/403: an exhausted quota is a
+# GLOBAL failure hitting every customer at once ⟹ creating tickets would mean one ticket per online
+# customer. In the 150-user session that would be 150 ghost tickets in one minute, for complaints
+# that DON'T EXIST — diluting exactly the queue where "AI gave up" tickets need to be visible.
 
-# Bốn lớp mà KHÁCH THỬ LẠI BAO NHIÊU LẦN CŨNG KHÔNG HẾT — phải có người xử.
-# 400/404 là lỗi CỦA TA (sai model/tham số), không phải sự cố nhà cung cấp;
-# xếp chung ở đây vì đứng từ phía khách chúng giống hệt nhau: chờ không hết.
-_LOI_CAN_CAN_THIEP = (
-    AuthenticationError,      # 401 khoá sai / vừa xoay / hết hạn
-    PermissionDeniedError,    # 403 hết hạn mức HOẶC sai quyền
-    BadRequestError,          # 400 lỗi của ta
-    NotFoundError,            # 404 lỗi của ta
+# Four classes that NO NUMBER OF CUSTOMER RETRIES will clear — a human must handle them.
+# 400/404 are OUR errors (wrong model/parameters), not provider incidents;
+# grouped here because from the customer's side they look identical: waiting won't fix them.
+_ERRORS_NEEDING_INTERVENTION = (
+    AuthenticationError,      # 401 wrong key / just rotated / expired
+    PermissionDeniedError,    # 403 quota exhausted OR insufficient permission
+    BadRequestError,          # 400 our error
+    NotFoundError,            # 404 our error
 )
 
-# Dấu hiệu "hết tiền" trong thân thông báo. CỐ Ý chỉ dùng cho MỘT trường log,
-# không bao giờ cho thứ khách nhìn thấy:
-#   `403 free quota exhausted` của DashScope CÙNG LỚP PermissionDeniedError với
-#   403 sai quyền. Tách hai ca bắt buộc phải so chuỗi -> mong manh theo từng
-#   nhà cung cấp, và hỏng IM LẶNG khi họ đổi câu chữ.
-#   Luật: một phép phân biệt MONG MANH chỉ được điều khiển hậu quả RẺ. Sai ở
-#   đây tốn một nhãn log lệch (tự lộ ngay khi người vận hành mở ra xem). Nếu
-#   nó điều khiển "khách thấy gì" thì một lần đổi câu chữ = khách nhận 500.
-_DAU_HIEU_HET_HAN_MUC = ("quota", "exhaust", "insufficient", "balance", "arrear", "unpurchased")
+# "Out of money" markers in the message body. DELIBERATELY used for ONE log field only,
+# never for anything the customer sees:
+#   DashScope's `403 free quota exhausted` is the SAME PermissionDeniedError CLASS as a
+#   wrong-permission 403. Separating the two requires string comparison -> fragile per provider,
+#   and it breaks SILENTLY when they change their wording.
+#   Rule: a FRAGILE distinction may only drive CHEAP consequences. A mistake here costs one
+#   mislabelled log field (exposing itself as soon as an operator looks). If it drove "what the
+#   customer sees", one wording change = customers get a 500.
+_QUOTA_EXHAUSTED_HINTS = ("quota", "exhaust", "insufficient", "balance", "arrear", "unpurchased")
 
 
-def _mo_ta_loi_nha_cung_cap(loi: APIError, *, model: str = LLM_MODEL) -> dict[str, object]:
-    """Trường để hồi cứu sự cố. KHÔNG chứa thân thông báo thô.
+def _describe_provider_error(err: APIError, *, model: str = LLM_MODEL) -> dict[str, object]:
+    """Fields for incident forensics. Contains NO raw message body.
 
-    Thân thô có thể mang khoá hoặc định danh nội bộ; ta chỉ rút ra một cờ
-    boolean từ nó. Đủ để người vận hành biết "hết tiền hay sai khoá", không đủ
-    để rò thứ gì ra log.
+    The raw body may carry keys or internal identifiers; we only extract a boolean flag from
+    it. Enough for an operator to know "out of money or wrong key", not enough to leak anything
+    into the log.
 
-    `model`: model ĐANG ĐƯỢC THỬ khi lỗi này xảy ra (GĐ3 — vòng xoay truyền
-    tường minh). Mặc định `LLM_MODEL` chỉ để không vỡ caller cũ không xoay.
+    `model`: the model BEING TRIED when this error happened (phase 3 — the rotation passes it
+    explicitly). Defaults to `LLM_MODEL` only so old non-rotating callers don't break.
     """
-    than = (str(getattr(loi, "message", "") or str(loi))).lower()
-    # `la_bi_chan(loi)`: chốt chặn của CHÍNH TA (trần chi tiêu/cờ cho phép,
-    # `src/cong_ra_ngoai.py`) bị SDK bọc thành `APIConnectionError` — KHÔNG
-    # nằm trong `_LOI_CAN_CAN_THIEP` (tuple đó chỉ phân loại lỗi NHÀ CUNG
-    # CẤP). Thiếu vế này, một lượt bị TA tự chặn nhận nhầm câu "bận, nhắn lại
-    # sau ít phút" (sai — trần reset 00:00 UTC, có thể còn hàng giờ) và KHÔNG
-    # được chỉ sang `KENH_HO_TRO_KHAC` — đúng bẫy chính hai chú thích ở nhánh
-    # trả lời bên dưới mô tả, chỉ khác nguồn lỗi. `la_bi_chan()` tồn tại sẵn
-    # để bắc cầu đúng chỗ này (đọc `__cause__`, không phải `isinstance` trên
-    # `APIConnectionError` — lỗi mạng thật cũng là `APIConnectionError`, gộp
-    # nhầm sẽ lại đúng lỗi Luật H mà `la_bi_chan()` sinh ra để tránh).
-    _tu_chan = la_bi_chan(loi)
+    body = (str(getattr(err, "message", "") or str(err))).lower()
+    # `is_blocked(err)`: OUR OWN block (spending cap/allow flag,
+    # `src/egress_gate.py`) is wrapped by the SDK into `APIConnectionError` — it is NOT in
+    # `_ERRORS_NEEDING_INTERVENTION` (that tuple only classifies PROVIDER errors). Without this
+    # clause, a turn WE blocked ourselves would wrongly get "busy, please message again in a few
+    # minutes" (wrong — the cap resets at 00:00 UTC, possibly hours away) and would NOT be pointed
+    # to
+    # `OTHER_SUPPORT_CHANNELS` — exactly the trap the two comments on the reply branch below
+    # describe, just from a different error source. `is_blocked()` already exists to bridge exactly
+    # this spot (it reads `__cause__`, not `isinstance` on `APIConnectionError` — real network
+    # errors
+    # are also `APIConnectionError`; merging them would recreate the very Rule H bug `is_blocked()`
+    # exists to avoid).
+    _self_blocked = is_blocked(err)
     return {
-        "lop_loi": type(loi).__name__,
-        "ma_trang_thai": getattr(loi, "status_code", None),
-        # GĐ3 — GIẢ ĐỊNH, không phải bất biến: mọi model trong LLM_MODEL_POOL
-        # dùng CHUNG `LLM_BASE_URL` (đúng cho bể deepseek hôm nay, cùng tài
-        # khoản DashScope). Nếu sau này bể có model KHÁC base_url, trường này
-        # sẽ sai theo đúng kiểu lỗi vừa vá cho `model` — hồi cứu ĐÚNG model
-        # NHƯNG SAI nhà cung cấp. Ghi ra để người thêm model-khác-base_url
-        # biết phải sửa CHỖ NÀY, không phát hiện lại từ đầu.
+        "lop_loi": type(err).__name__,
+        "ma_trang_thai": getattr(err, "status_code", None),
+        # Phase 3 — an ASSUMPTION, not an invariant: every model in LLM_MODEL_POOL shares the SAME
+        # `LLM_BASE_URL` (true for today's deepseek pool, the same DashScope account). If the pool
+        # later
+        # gets a model with a DIFFERENT base_url, this field will be wrong in exactly the way just
+        # fixed
+        # for `model` — forensics with the RIGHT model BUT the WRONG provider. Written down so
+        # whoever
+        # adds a different-base_url model knows to fix THIS SPOT rather than rediscovering it.
         "nha_cung_cap": LLM_BASE_URL or "openai",
         "model": model,
-        "can_can_thiep": isinstance(loi, _LOI_CAN_CAN_THIEP) or _tu_chan,
-        # Giữ NGUỒN tách bạch khỏi HẬU QUẢ — "cần can thiệp" gộp cả lỗi nhà
-        # cung cấp lẫn tự chặn vì khách thấy cùng một câu, nhưng người trực
-        # sự cố cần phân biệt được "hết hạn mức bên NCC" với "trần của CHÍNH
-        # TA đang chặn" mà không phải đoán từ `lop_loi=APIConnectionError`.
-        "tu_chan": _tu_chan,
-        "co_dau_hieu_het_han_muc": any(d in than for d in _DAU_HIEU_HET_HAN_MUC),
-        # `request_id` của nhà cung cấp: CHÍNH thứ bộ phận hỗ trợ của họ hỏi khi
-        # ta khiếu nại hoá đơn/hạn mức — không có nó thì hồi cứu với họ là bất
-        # khả (security ④). Không phải bí mật, không phải PII. CHỈ dùng trong hồ
-        # sơ nội bộ, KHÔNG bao giờ đưa ra khách.
-        "request_id_ncc": getattr(loi, "request_id", None),
+        "can_can_thiep": isinstance(err, _ERRORS_NEEDING_INTERVENTION) or _self_blocked,
+        # Keep the SOURCE separate from the CONSEQUENCE — "needs intervention" groups provider
+        # errors
+        # together with self-blocking because the customer sees the same sentence, but the on-call
+        # engineer
+        # must be able to tell "provider quota exhausted" from "OUR OWN cap is blocking" without
+        # guessing
+        # from `lop_loi=APIConnectionError` (error class).
+        "tu_chan": _self_blocked,
+        "co_dau_hieu_het_han_muc": any(d in body for d in _QUOTA_EXHAUSTED_HINTS),
+        # The provider's `request_id`: EXACTLY what their support team asks for when we dispute a
+        # bill/quota — without it forensics with them is impossible (security ④). Not a secret, not
+        # PII.
+        # ONLY used in internal records, NEVER shown to customers.
+        "request_id_ncc": getattr(err, "request_id", None),
     }
 
 
-def _ghi_so(kq: dict, thread_id: str | None, user_id: str) -> None:
-    """Ghi MỘT dòng sổ usage cho MỌI đường ra của `run_agent_turn`.
+def _write_ledger(res: dict, thread_id: str | None, user_id: str) -> None:
+    """Write ONE usage-ledger line for EVERY exit path of `run_agent_turn`.
 
-    Đặt ở một hàm vì bài học vừa trả giá: bản đầu tôi gắn `ghi_usage` ngay
-    trước `return` cuối cùng — và MỌI đường fallback (429 · lỗi nhà cung cấp ·
-    hết giờ · recursion) `return` SỚM, không bao giờ tới đó. Sổ kế toán vắng
-    mặt đúng những lượt HỎNG, tức nó đếm thiếu số lượt và đọc thành "ít lượt
-    hơn thực tế" chứ không thành một khoảng trống nhìn thấy được.
+    Put in one function because of a lesson just paid for: my first version attached
+    `record_usage` right before the final `return` — and EVERY fallback path (429 · provider
+    error · timeout · recursion) `return`s EARLY, never reaching it. The ledger was missing
+    exactly the FAILED turns, i.e. it under-counted turns and read as "fewer turns than reality"
+    rather than as a visible gap.
 
-    Cùng hình dạng với ca `flag_human_handoff` sáng nay: một cơ chế đúng, gắn
-    đúng chỗ nó được nghĩ ra, và không ai đi tìm chỗ thứ hai cùng lớp. Ở đây
-    "chỗ thứ hai" là bốn `return` khác.
+    The same shape as this morning's `flag_human_handoff` case: a correct mechanism, attached in
+    exactly the place it was conceived, and nobody went looking for the second spot of the same
+    class. Here the "second spot" was four other `return`s.
 
-    `ly_do_fallback` lấy TỪ CHÍNH dict trả về, không dựng lại — hai nguồn sẽ
-    lệch nhau, và lệch trong im lặng.
+    `ly_do_fallback` (fallback reason) is taken FROM the returned dict itself, not rebuilt — two
+    sources would drift, and drift silently.
     """
-    u = kq.get("usage") or {}
-    # GĐ3 — trần chi tiêu tối giản (876a240). Gọi VÔ ĐIỀU KIỆN — hàm tự bỏ
-    # qua khi `total_tokens is None` (đường fallback "không đọc được"), nên
-    # đặt Ở ĐÂY (chạy trên CẢ 5 đường ra) đúng bằng thiết kế của chính hàm
-    # này, không phải một lựa chọn riêng cho GĐ3. KHÔNG cộng lượt embedding —
-    # xem docstring cong_chi_tieu().
-    cong_chi_tieu(u.get("total_tokens"))
-    # Lead đo 19/08: cờ `token_khong_doc_duoc` được GHI vào sổ usage.jsonl
-    # nhưng không ai ĐỌC nó — trạng thái ghi-mà-không-ai-theo-dõi có cùng tác
-    # dụng với không ghi. Đếm riêng (LƯỢT, không phải token — token đúng là
-    # thứ không đọc được) để điểm mù của trần trở thành một con số đọc được.
+    u = res.get("usage") or {}
+    # Phase 3 — the minimal spending cap (876a240). Called UNCONDITIONALLY — the function skips
+    # itself when `total_tokens is None` (the "unreadable" fallback path), so placing it HERE
+    # (running
+    # on ALL 5 exit paths) is exactly that function's own design, not a separate phase-3 choice. It
+    # does
+    # NOT add embedding calls — see the spend_gate() docstring.
+    spend_gate(u.get("total_tokens"))
+    # Lead measured 19/08: the `token_khong_doc_duoc` (token unreadable) flag is WRITTEN to
+    # usage.jsonl but nobody READS it — state written but never watched has the same effect as not
+    # writing it. Counted separately (TURNS, not tokens — tokens are exactly what couldn't be read)
+    # so
+    # the cap's blind spot becomes a readable number.
     if u.get("token_khong_doc_duoc"):
-        ghi_nhan_chi_tieu_khong_doc_duoc()
-    ghi_usage({
+        record_unreadable_spend()
+    record_usage({
         "ts": dt.datetime.utcnow().isoformat() + "Z",
         "thread_id": thread_id or user_id,
-        # GĐ3 (876a240) — model THẬT đã trả lời/đang thử lượt này, ĐỌC TỪ
-        # `kq` (mỗi đường trả về của run_agent_turn tự khai field này), KHÔNG
-        # phải hằng số toàn cục `LLM_MODEL`. Sau khi xoay, model trả lời có
-        # thể KHÁC model đã ghim — một hằng số ở đây sẽ ghi sai NGAY LƯỢT
-        # XOAY ĐẦU TIÊN, và sổ này là "chứng từ đối soát hoá đơn" (PO
-        # 876a240) — sai ở đây là mù hoàn toàn khi cần đối soát.
-        "model": kq.get("model"),
-        "models_da_thu": kq.get("models_da_thu"),
-        # ĐO Ở ĐÂU. tester phải loại trừ ngăn xếp ttl bằng đường gián tiếp vì
-        # "không bản ghi nào ghi URL của lượt đo" — cùng họ với mốc-thời-gian
-        # của security. Một con số không tự khai NÓ ĐO Ở ĐÂU thì lần sau lại
-        # phải điều tra như lần này.
+        # Phase 3 (876a240) — the model that REALLY answered/was being tried this turn, READ FROM
+        # `res` (every return path of run_agent_turn declares this field itself), NOT the global
+        # constant
+        # `LLM_MODEL`. After rotation, the answering model may DIFFER from the pinned model — a
+        # constant
+        # here would record the wrong model ON THE VERY FIRST ROTATED TURN, and this ledger is the
+        # "evidence for invoice reconciliation" (PO 876a240) — a mistake here means total blindness
+        # when
+        # reconciliation is needed.
+        "model": res.get("model"),
+        "models_da_thu": res.get("models_da_thu"),
+        # WHERE IT WAS MEASURED. The tester had to rule out the ttl stack indirectly because "no
+        # record
+        # captured the URL of the measured turn" — the same family as security's timestamp issue. A
+        # number
+        # that doesn't declare WHERE IT WAS MEASURED will need investigating all over again next
+        # time.
         "base_url": LLM_BASE_URL or "openai",
-        # VẬT nào sinh ra số này — KÈM cách băm, vì một chuỗi 12 hex không tự
-        # khai nguồn gốc của nó. 17/08 đã mất một vòng vì tôi so md5 với sha256
-        # của người khác rồi kết luận ".env đổi 4 lần". Sổ này được đọc lại sau
-        # nhiều tháng, là chỗ tệ nhất để bỏ nhãn.
-        "bam_ma_nguon": nhan_luc_dung(),
-        "cach_bam": CACH_BAM,
+        # WHICH OBJECT produced this number — WITH the hash method, because a 12-hex string doesn't
+        # declare its own origin. On 17/08 a whole round was lost because I compared md5 with
+        # someone
+        # else's sha256 and concluded ".env changed 4 times". This ledger is re-read months later —
+        # the
+        # worst place to drop labels.
+        "bam_ma_nguon": build_time_stamp(),
+        "cach_bam": HASH_METHOD,
         "so_luot_goi_model": u.get("so_luot_goi_model"),
         "input_tokens": u.get("input_tokens"),
         "output_tokens": u.get("output_tokens"),
-        # Review đo 19/08: field này TỪNG KHÔNG BAO GIỜ ra được `usage.jsonl`
-        # — có mặt trong `kq["usage"]["total_tokens"]` (dùng cho `cong_chi_tieu`)
-        # nhưng chưa từng được liệt vào dict truyền cho `ghi_usage`, ở BẤT KỲ
-        # phiên bản nào (không phải chuyện schema cũ/mới — claim ban đầu của
-        # tôi SAI, Review sửa). Không có dòng này thì sổ "chứng từ đối soát"
-        # không cách nào lộ ra một lượt đã bị guard None-vs-0 (:1318) chạm tới.
+        # Review measured 19/08: this field NEVER made it into `usage.jsonl`
+        # — it existed in `res["usage"]["total_tokens"]` (used for `spend_gate`) but was never
+        # listed in the
+        # dict passed to `record_usage`, in ANY version (not an old/new schema issue — my original
+        # claim
+        # was WRONG, the review corrected it). Without this line the "reconciliation evidence"
+        # ledger has no
+        # way to reveal a turn touched by the None-vs-0 guard (:1318).
         "total_tokens": u.get("total_tokens"),
         "token_khong_doc_duoc": u.get("token_khong_doc_duoc"),
         "cached_input_tokens": u.get("cached_input_tokens"),
         "reasoning_tokens": u.get("reasoning_tokens"),
         "input_chars": u.get("input_chars"),
-        # 🔴 ĐƠN VỊ: đếm theo **LƯỢT NÀY**, KHÔNG theo cả hội thoại. Nguồn là
-        # `tool_calls_out`, dựng từ `turn_messages = all_messages[prev_len:]`
-        # — chỉ phần SAU lát cắt checkpoint. Hội thoại "tra ở lượt N, thuật lại
-        # ở lượt N+1" cho `1` rồi `0`, và **cả hai đều ĐÚNG**.
-        # [ĐO 25/08] ba phiên cùng đọc trường này như số THEO HỘI THOẠI và mất
-        # nhiều vòng cho một mâu thuẫn không tồn tại. Trường không sai, không
-        # thiếu, không im lặng — nó chỉ **KHÔNG TỰ KHAI ĐƠN VỊ**.
+        # 🔴 UNIT: counted for **THIS TURN**, NOT the whole conversation. The source is
+        # `tool_calls_out`, built from `turn_messages = all_messages[prev_len:]`
+        # — only the part AFTER the checkpoint slice. A conversation "looked up on turn N, recounted
+        # on
+        # turn N+1" gives `1` then `0`, and **both are CORRECT**.
+        # [MEASURED 25/08] three sessions all read this field as a PER-CONVERSATION number and lost
+        # several
+        # rounds over a contradiction that didn't exist. The field isn't wrong, isn't missing, isn't
+        # silent
+        # — it just **DOESN'T DECLARE ITS UNIT**.
         #
-        # 🔴 ĐỌC KÈM — vì sao đừng dựng bất biến giữa hai trường này:
-        # `so_tool_call` và `so_luot_goi_model` rút từ **CÙNG một
-        # `turn_messages`**. Một bất biến buộc quan hệ giữa chúng (vd
-        # `so_luot_goi_model == so_tool_call + 1`) **KHÔNG kiểm hai nguồn** —
-        # nó kiểm hai cách suy từ MỘT danh sách. Danh sách thiếu ⟹ cả hai cùng
-        # tụt ⟹ quan hệ **VẪN KHÍT**, và bất biến im lặng đúng lúc đáng kêu
-        # nhất. Cùng họ `if tm is None: continue` (lời gọi mồ côi, đã vá
-        # `466c59a`): cơ chế không sai, nó chỉ KHÔNG NHÌN THẤY thứ đã rơi.
-        "so_tool_call": len(kq.get("tool_calls") or []),
-        "ly_do_fallback": kq.get("ly_do_fallback"),
-        # Ba trường TRIỆU CHỨNG, luôn có mặt (None ở lượt thường) — khoá thiếu
-        # và khoá null đọc khác nhau ở mọi công cụ phân tích, và "thiếu khoá"
-        # sẽ bị đọc thành "chưa bao giờ hỏng".
-        "lop_loi_ncc": (kq.get("trieu_chung") or {}).get("lop_loi_ncc"),
-        "ma_trang_thai_ncc": (kq.get("trieu_chung") or {}).get("ma_trang_thai_ncc"),
-        "giay_da_troi": (kq.get("trieu_chung") or {}).get("giay_da_troi"),
-        "duong": kq.get("duong"),
+        # 🔴 READ TOGETHER — why not to build an invariant between these two fields:
+        # `so_tool_call` (tool-call count) and `so_luot_goi_model` (model-call count) are derived
+        # from **THE
+        # SAME `turn_messages`**. An invariant tying them together (e.g.
+        # `so_luot_goi_model == so_tool_call + 1`) **DOES NOT check two sources** —
+        # it checks two ways of deriving from ONE list. A list missing items ⟹ both drop together ⟹
+        # the
+        # relation **STILL HOLDS**, and the invariant stays silent exactly when it should shout. The
+        # same
+        # family as `if tm is None: continue` (orphaned calls, fixed in `466c59a`): the mechanism
+        # isn't
+        # wrong, it just DOESN'T SEE what has fallen out.
+        "so_tool_call": len(res.get("tool_calls") or []),
+        "ly_do_fallback": res.get("ly_do_fallback"),
+        # Three SYMPTOM fields, always present (None on normal turns) — a missing key and a null key
+        # are read differently by every analysis tool, and "missing key" would be read as "never
+        # failed".
+        "lop_loi_ncc": (res.get("trieu_chung") or {}).get("lop_loi_ncc"),
+        "ma_trang_thai_ncc": (res.get("trieu_chung") or {}).get("ma_trang_thai_ncc"),
+        "giay_da_troi": (res.get("trieu_chung") or {}).get("giay_da_troi"),
+        "duong": res.get("duong"),
         "so_tool_schema_gui": u.get("so_tool_schema_gui"),
-        # TRẠNG THÁI THẬT của lượt, không phải giá trị cờ config — nếu không có
-        # trường này thì dòng R2 và R3 trong sổ KHÔNG phân biệt được khi đọc
-        # lại sau nhiều tháng, mà sổ sinh ra để được đọc lại sau nhiều tháng.
+        # The REAL STATE of the turn, not the config flag value — without this field, R2 and R3
+        # lines in
+        # the ledger CAN'T be distinguished when re-read months later, and the ledger exists to be
+        # re-read
+        # months later.
         "suy_luan_gui": u.get("suy_luan_gui"),
-        "co_ticket": bool(kq.get("ticket_id")),
+        "co_ticket": bool(res.get("ticket_id")),
     })
 
 
-def _ly_do_fallback(loi: Exception) -> str:
-    """Phân loại vì sao rơi vào fallback. Trả chuỗi, không bao giờ None.
+def _fallback_reason(err: Exception) -> str:
+    """Classify why the turn fell back. Returns a string, never None.
 
-    Nhánh mặc định `"khac"` là CÓ CHỦ ĐÍCH dù hôm nay nó không bao giờ bắn (chỉ
-    có đúng một `except` dẫn tới fallback). Nó tồn tại cho NGÀY ai đó thêm đường
-    fallback thứ ba mà quên khai: tester nhận được một giá trị lạ nhìn thấy ngay,
-    thay vì một khoảng trống mà họ sẽ đọc nhầm thành "lượt bình thường".
+    The default branch `"khac"` (other) is DELIBERATE even though it never fires today (there is
+    exactly one `except` leading to fallback). It exists for the DAY someone adds a third fallback
+    path and forgets to declare it: the tester gets an odd value that is visible immediately,
+    instead of a gap they would misread as "a normal turn".
 
-    LƯU Ý cho người đọc biên bản: 429 quá tải HIỆN ĐANG đội lốt `"timeout"` —
-    thời gian ngủ theo `retry_after` ăn vào ngân sách AGENT_TURN_TIMEOUT_SECONDS
-    nên một lỗi tự-phục-hồi-được hiện ra như hết giờ. Tách nó cần một giá trị
-    `"qua_tai"` và phải bắt RateLimitError ở tầng này — việc riêng, đã vào hồ sơ
-    pilot, KHÔNG làm ở commit này.
+    NOTE for report readers: 429 overload CURRENTLY masquerades as `"timeout"` —
+    sleeping per `retry_after` eats into the AGENT_TURN_TIMEOUT_SECONDS budget, so a
+    self-recovering error shows up as a timeout. Separating it needs a `"qua_tai"` (overload)
+    value and catching RateLimitError at this layer — a separate job, already in the pilot
+    backlog, NOT done in this commit.
     """
-    if isinstance(loi, FutureTimeoutError):
+    if isinstance(err, FutureTimeoutError):
         return "timeout"
-    if isinstance(loi, GraphRecursionError):
+    if isinstance(err, GraphRecursionError):
         return "recursion_limit"
     return "khac"
 
 
-def _trieu_chung_loi(loi: BaseException | None) -> dict[str, object]:
-    """TRIỆU CHỨNG của lỗi, tách khỏi KẾT LUẬN về lỗi (Luật H).
+def _error_symptom(err: BaseException | None) -> dict[str, object]:
+    """The SYMPTOM of the error, separated from the CONCLUSION about it (Rule H).
 
-    Vì sao cần, bằng ca thật: sổ ghi `ly_do_fallback = "nha_cung_cap_can_can_thiep"`.
-    Đó là một KẾT LUẬN — nó nói *phải làm gì*, không nói *nhà cung cấp đã trả
-    lời gì*. Hai sự cố khác hẳn nhau (`401` khoá sai · `403` hết hạn ngạch ·
-    `404` sai tên model) đổ chung vào một nhãn, và cách xử ba ca đó KHÁC NHAU
-    hoàn toàn — một cái nạp tiền, một cái sửa khoá, một cái sửa cấu hình.
-    Người trực sự cố đọc sổ sẽ không phân biệt được, và sẽ đi thử cả ba.
+    Why it is needed, with a real case: the ledger recorded
+    `ly_do_fallback = "nha_cung_cap_can_can_thiep"` (provider needs intervention).
+    That is a CONCLUSION — it says *what must be done*, not *what the provider answered*. Totally
+    different incidents (`401` wrong key · `403` quota exhausted · `404` wrong model name) all
+    pour into one label, and handling those three cases is COMPLETELY DIFFERENT — one needs a
+    top-up, one a key fix, one a config fix.
+    An on-call engineer reading the ledger can't tell them apart and will try all three.
 
-    ⟹ Mã trạng thái đi VÀO SỔ, cạnh kết luận, không thay thế nó. Hai trường,
-    hai câu hỏi: *"nhà cung cấp nói gì"* và *"ai phải làm gì"*.
+    ⟹ The status code goes INTO THE LEDGER, next to the conclusion, not replacing it. Two
+    fields, two questions: *"what did the provider say"* and *"who must do what"*.
 
-    🔴 `None` ở đây nghĩa **KHÔNG ĐỌC ĐƯỢC** (lỗi không mang mã trạng thái —
-    hết giờ, vòng lặp), KHÔNG phải "mã 0". Cùng quy ước với `input_tokens`.
+    🔴 `None` here means **UNREADABLE** (the error carries no status code —
+    timeouts, loops), NOT "code 0". The same convention as `input_tokens`.
     """
-    if loi is None:
+    if err is None:
         return {"lop_loi_ncc": None, "ma_trang_thai_ncc": None}
-    ma = getattr(loi, "status_code", None)
+    code = getattr(err, "status_code", None)
     return {
-        "lop_loi_ncc": type(loi).__name__,
-        # ép về int hoặc None — vài SDK trả chuỗi, và một chuỗi lọt vào sổ sẽ
-        # làm mọi phép lọc `>= 500` im lặng trả rỗng thay vì báo lỗi.
-        "ma_trang_thai_ncc": int(ma) if isinstance(ma, (int, str)) and str(ma).isdigit() else None,
+        "lop_loi_ncc": type(err).__name__,
+        # coerced to int or None — some SDKs return strings, and a string slipping into the ledger
+        # would make every `>= 500` filter silently return empty instead of erroring.
+        "ma_trang_thai_ncc": int(code) if isinstance(code, (int, str)) and str(code).isdigit() else None,
     }
 
 
-_TEN_TOOL_TAO_VE = ("create_ticket", "request_human_handoff")
+_TICKET_CREATING_TOOLS = ("create_ticket", "request_human_handoff")
 
 
-def _co_de_xuat_tao_ve(turn_messages: list) -> tuple[bool, bool]:
-    """RB3 false-positive LẦN BA (05/09, QA tái lập 2/2 lần) — khách hỏi
-    "chưa nhận được tiền", lượt CHỈ gọi `lookup_transaction`, model tóm tắt
-    kết quả rồi HỎI Ý khách trước khi tạo hồ sơ ("...được không ạ?") — CHƯA
-    hề đề xuất tạo vé lượt này. `khai_da_tao_ve()` vẫn trả `True` vì đúng
-    CHIỀU RỦI RO ĐÃ KHAI của nó (mã/"thành công" xét REPLY-GLOBAL, xem
-    docstring hàm đó): "Mã giao dịch" (mã GD, không phải mã vé) + "đã ghi
-    nhận" (nói TIỀN đã ghi nhận chuyển, không phải hồ sơ) rơi đúng 2 mảnh
-    ghép của nhánh MỀM, dù không mảnh nào nói về việc TẠO HỒ SƠ thật.
+def _has_ticket_proposal(turn_messages: list) -> tuple[bool, bool]:
+    """RB3 false positive, THIRD TIME (05/09, QA reproduced 2/2 times) — the customer asked
+    "chưa nhận được tiền" (money not received), the turn ONLY called `lookup_transaction`, and the
+    model summarised the result and then ASKED the customer before creating a case ("...được
+    không ạ?" — is that OK?) — it had NOT proposed creating a ticket this turn at all.
+    `claims_ticket_created()` still returned `True` because of exactly its DECLARED RISK
+    DIRECTION (code/"success" checked REPLY-GLOBALLY, see that function's docstring): "Mã giao
+    dịch" (a transaction ID, not a ticket code) + "đã ghi nhận" (recorded — saying the MONEY
+    TRANSFER was recorded, not a case) fell exactly into the 2 pieces of the SOFT branch, though
+    neither piece was about actually CREATING A CASE.
 
-    Hàm THUẦN, tách riêng để test KHÔNG cần gọi LLM (cùng khuôn
+    A PURE function, separated so it can be tested WITHOUT calling the LLM (same pattern as
     `write_investigation_logs_for_ticket`,
-    tests/test_agents/test_investigation_log.py — hàm nhận thẳng
-    `all_messages`, không tự chạy graph) — nhận `turn_messages` (message
-    LangChain thô của lượt hiện tại), trả 2 cờ:
-      - `co_goi_tool`: lượt này có gọi tool NÀO không (bất kỳ loại).
-      - `co_de_xuat_tao_ve`: trong số đó, có `create_ticket`/
-        `request_human_handoff` không — ĐỌC RAW `AIMessage.tool_calls`,
-        tính CẢ lời gọi MỒ CÔI (không có `ToolMessage` phản hồi). Review
-        05/09 tự đối chiếu lại ca gốc 25/08 (MT-Z01) xác nhận nó THỰC RA CÓ
-        `create_ticket` mồ côi trong tool_calls thô — chú thích cũ ở nhánh
-        `request_human_handoff` (phía trên trong `run_agent_turn`) từng
-        khai nhầm là "0 tool_call", đã đính chính tại chỗ. Đọc raw thay vì
-        `tool_calls_out` (đã lọc bỏ mồ côi) là ĐIỀU KIỆN AN TOÀN BẮT BUỘC —
-        đọc `tool_calls_out` sẽ khiến ca MT-Z01 không còn thoả điều kiện
-        "có ý định tạo vé", mở lại đúng lỗ ràng buộc cứng #3 mà RB3 sinh ra
-        để đóng.
+    tests/test_agents/test_investigation_log.py — the function takes `all_messages` directly and
+    doesn't run the graph itself) — it receives `turn_messages` (raw LangChain messages of the
+    current turn) and returns 2 flags:
+      - `called_tool`: whether this turn called ANY tool (of any kind).
+      - `has_ticket_proposal`: whether, among them, there is a `create_ticket`/
+        `request_human_handoff` — READING RAW `AIMessage.tool_calls`,
+        INCLUDING ORPHANED calls (with no `ToolMessage` reply). The review on
+        05/09 re-checked the original case of 25/08 (MT-Z01) and confirmed it ACTUALLY DID have an
+        orphaned `create_ticket` in the raw tool_calls — the old comment in the
+        `request_human_handoff` branch (above, in `run_agent_turn`) wrongly declared it as
+        "0 tool_call" and has been corrected in place. Reading raw rather than
+        `tool_calls_out` (which filters out orphans) is a MANDATORY SAFETY CONDITION —
+        reading `tool_calls_out` would make case MT-Z01 no longer satisfy the condition
+        "intends to create a ticket", reopening exactly the hard-constraint-#3 hole RB3 was
+        created to close.
     """
-    co_goi_tool = False
-    co_de_xuat_tao_ve = False
+    called_tool = False
+    has_ticket_proposal = False
     for m in turn_messages:
         if not (isinstance(m, AIMessage) and m.tool_calls):
             continue
         for call in m.tool_calls:
-            co_goi_tool = True
-            if call["name"] in _TEN_TOOL_TAO_VE:
-                co_de_xuat_tao_ve = True
-    return co_goi_tool, co_de_xuat_tao_ve
+            called_tool = True
+            if call["name"] in _TICKET_CREATING_TOOLS:
+                has_ticket_proposal = True
+    return called_tool, has_ticket_proposal
 
 
-def _reply_goc_cho_eval(reply_goc: str, nhom_khop: list[str]) -> dict:
-    """Câu TRƯỚC KHI LỌC — chỉ khi bật cờ, chỉ khi thật sự có chặn.
+def _raw_reply_for_eval(raw_reply: str, matched_group: list[str]) -> dict:
+    """The sentence BEFORE FILTERING — only when the flag is on, only when something was blocked.
 
-    Vì sao tester cần: `loc_dau_ra=["O3"]` cho biết bộ lọc ĐÃ chặn, nhưng không
-    cho biết chặn ĐÚNG hay siết NHẦM. Không đọc được thứ bị nuốt thì mọi ca bị
-    chặn đều "đạt" theo bộ chấm (câu an toàn không vi phạm bất biến nào), và
-    lượt "sau" trông đẹp hơn lượt "trước" trong khi bộ lọc có thể đang siết nhầm
-    hàng loạt — confound hướng-có-lợi, loại nguy hiểm nhất.
+    Why the tester needs it: `loc_dau_ra=["O3"]` says the filter DID block, but not whether it
+    blocked CORRECTLY or over-tightened. Without being able to read what was swallowed, every
+    blocked case "passes" according to the grader (the safe sentence violates no invariant), and
+    the "after" run looks better than the "before" run while the filter may be over-blocking en
+    masse — a confound in the favourable direction, the most dangerous kind.
 
-    Vì sao KHÔNG bật mặc định: câu này chính là thứ bộ lọc tồn tại để không cho
-    ra ngoài. Ship nó trong envelope production là tự mở lại đúng cái cửa vừa
-    đóng, và nó sẽ chảy tiếp vào log/trace/bên thứ ba. Fail-closed: thiếu biến
-    môi trường thì KHÔNG trả.
+    Why NOT on by default: this sentence is exactly what the filter exists to keep from getting
+    out. Shipping it in the production envelope would reopen the very door just closed, and it
+    would flow on into logs/traces/third parties. Fail-closed: without the environment variable,
+    it is NOT returned.
     """
-    if os.environ.get("FIN05_EVAL_GIU_REPLY_GOC") != "1" or not nhom_khop:
+    if os.environ.get("FIN05_EVAL_KEEP_RAW_REPLY") != "1" or not matched_group:
         return {}
-    return {"reply_truoc_loc": reply_goc}
+    return {"reply_truoc_loc": raw_reply}
 
 
-def _nang_uu_tien_theo_cam_xuc(session: Session, *, ticket_id: str) -> None:
-    """ES bật -> nâng `complaints.priority`, TRẦN LÀ `high`. CHỈ NÂNG.
+def _raise_priority_by_emotion(session: Session, *, ticket_id: str) -> None:
+    """ES fires -> raise `complaints.priority`, CAPPED AT `high`. ONLY RAISES.
 
-    KHÔNG BAO GIỜ lên `critical`: mức đó thuộc về FS-06 (nghi gian lận). Cho bức
-    xúc leo lên cùng mức nghi gian lận là làm hỏng ĐÚNG hàng đợi quan trọng nhất
-    — người trực hết phân biệt được "khẩn vì rủi ro tiền" với "khẩn vì khách
-    đang giận", và họ sẽ mất niềm tin vào chính cái nhãn critical.
+    NEVER up to `critical`: that level belongs to FS-06 (suspected fraud). Letting frustration
+    climb to the same level as suspected fraud would ruin EXACTLY the most important queue —
+    on-call staff could no longer tell "urgent because of money risk" from "urgent because the
+    customer is angry", and they'd lose trust in the critical label itself.
 
-    KHÔNG BAO GIỜ HẠ: ES tắt ở lượt sau không có nghĩa vấn đề nhẹ đi. Hạ xuống
-    là xoá dấu vết một lần khách đã căng, mà CSKH cần thấy điều đó khi mở hồ sơ.
+    NEVER LOWERS: ES switching off on a later turn doesn't mean the problem got lighter. Lowering
+    it would erase the trace of a time the customer was strained, which CSKH need to see when
+    opening the case.
     """
     ticket = session.get(Ticket, ticket_id)
     if ticket is None:
@@ -716,40 +750,38 @@ def _nang_uu_tien_theo_cam_xuc(session: Session, *, ticket_id: str) -> None:
 
 
 def _build_checkpointer():
-    """Nơi lưu bộ nhớ hội thoại của agent — quyết định KIẾN TRÚC, không chỉ kỹ thuật.
+    """Where the agent's conversation memory is stored — an ARCHITECTURAL decision, not just a
+    technical one.
 
-    TRƯỚC 2026-08-13: `MemorySaver()` giữ toàn bộ hội thoại trong RAM của MỘT
-    process. Hệ quả kéo dài suốt dự án:
-      - Backend BẮT BUỘC chạy đúng 1 worker (ghi rõ trong Dockerfile). Máy 10
-        vCPU chỉ dùng được 1 — lãng phí 90% năng lực, và 150 người dùng đồng
-        thời chia chung một event loop duy nhất.
-      - Restart backend = MỌI khách mất sạch ngữ cảnh giữa chừng. Với buổi test
-        150 người, một lần deploy/crash là hỏng cả buổi.
+    BEFORE 2026-08-13: `MemorySaver()` kept every conversation in the RAM of ONE process.
+    Consequences lasting throughout the project:
+      - The backend HAD TO run exactly 1 worker (stated in the Dockerfile). A 10-vCPU machine
+        could only use 1 — wasting 90% of capacity, with 150 concurrent users sharing a single
+        event loop.
+      - Restarting the backend = EVERY customer losing their context mid-conversation. For the
+        150-user test session, one deploy/crash would ruin the whole session.
 
-    PostgresSaver đưa state ra ngoài process (đúng nguyên tắc "stateless
-    processes" của 12-Factor), mở đường cho multi-worker VÀ giúp hội thoại sống
-    sót qua restart.
+    PostgresSaver moves state out of the process (the 12-Factor "stateless processes" principle),
+    opening the way to multi-worker AND letting conversations survive restarts.
 
-    FALLBACK CÓ CHỦ ĐÍCH, KHÔNG IM LẶNG: test chạy trên SQLite (conftest tạo
-    engine tạm riêng mỗi test) — PostgresSaver không chạy được ở đó. Rơi về
-    MemorySaver khi DB không phải Postgres là ĐÚNG cho test, nhưng phải GHI LOG
-    rõ ràng, không lặp lại bài học DATABASE_URL (ADR-013): một fallback im lặng
-    từng làm hệ thống âm thầm tách đôi database.
+    A DELIBERATE, NON-SILENT FALLBACK: tests run on SQLite (conftest creates a separate temporary
+    engine per test) — PostgresSaver can't run there. Falling back to MemorySaver when the DB
+    isn't Postgres is RIGHT for tests, but it must LOG clearly, not repeat the DATABASE_URL lesson
+    (ADR-013): a silent fallback once quietly split the system into two databases.
 
-    🔴 RACE dưới multi-worker trên DB RỖNG [ĐO DevOps 20/08]: hàm này chạy lại
-    ở MỖI process import `graph` — tức MỖI uvicorn worker (module-level
-    singleton, không phải chạy một lần cho cả app). `saver.setup()` bên dưới
-    CHỈ idempotent khi tuần tự; N worker cùng gọi CREATE TABLE lần đầu (chưa
-    ai thấy bảng tồn tại) đụng `UniqueViolation` trên `pg_type` (Postgres tự
-    đăng ký row type cho mỗi bảng mới). Bắt buộc: entrypoint phải "hâm nóng"
-    lược đồ MỘT LẦN, TUẦN TỰ, TRƯỚC khi spawn worker nào — vd
-    `python -c "import src.agents.graph as g; g.close_checkpointer()"` ngay
-    sau `alembic upgrade head`. Sau bước đó, `saver.setup()` ở mỗi worker mới
-    thật sự là no-op (lược đồ đã có, không còn CREATE nào để đua) — ĐÚNG như
-    chú thích "idempotent" ở dòng gọi `saver.setup()` bên dưới, nhưng chỉ khi
-    có bước hâm nóng này đi trước, không phải tính chất tự thân của nó.
+    🔴 A RACE under multi-worker on an EMPTY DB [MEASURED by DevOps 20/08]: this function re-runs
+    in EVERY process importing `graph` — i.e. EVERY uvicorn worker (a module-level singleton, not
+    run once for the whole app). `saver.setup()` below is ONLY idempotent when sequential; N
+    workers calling CREATE TABLE for the first time together (nobody sees the table existing yet)
+    hit `UniqueViolation` on `pg_type` (Postgres registers a row type for every new table).
+    Required: the entrypoint must "warm up" the schema ONCE, SEQUENTIALLY, BEFORE spawning any
+    worker — e.g. `python -c "import src.agents.graph as g; g.close_checkpointer()"` right after
+    `alembic upgrade head`. After that step, `saver.setup()` in each worker really is a no-op (the
+    schema exists, no CREATE left to race over) — EXACTLY as the "idempotent" comment on the
+    `saver.setup()` line below says, but only when this warm-up step comes first, not as an
+    inherent property.
 
-    Xem ADR-014.
+    See ADR-014.
     """
     if DB_KIND != "postgresql":
         _logger.warning(
@@ -763,204 +795,201 @@ def _build_checkpointer():
     from langgraph.checkpoint.postgres import PostgresSaver
     from psycopg_pool import ConnectionPool
 
-    # DATABASE_URL ở dạng SQLAlchemy (postgresql+psycopg2://) — psycopg3 mà
-    # langgraph dùng cần dạng chuẩn (postgresql://). Đổi ở đây thay vì bắt
-    # người vận hành khai 2 biến dễ lệch nhau.
+    # DATABASE_URL in SQLAlchemy form (postgresql+psycopg2://) — the psycopg3 used by langgraph
+    # needs the standard form (postgresql://). Converted here rather than making operators declare 2
+    # variables that can easily drift.
     conninfo = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql://", 1)
     pool = ConnectionPool(
         conninfo=conninfo,
         max_size=_CHECKPOINT_POOL_MAX,
-        # autocommit BẮT BUỘC: PostgresSaver tự quản giao dịch của nó, để
-        # psycopg mở transaction ngầm sẽ giữ khoá và treo khi nhiều worker ghi.
+        # autocommit is MANDATORY: PostgresSaver manages its own transactions; letting psycopg open
+        # implicit transactions holds locks and hangs when several workers write.
         kwargs={"autocommit": True, "prepare_threshold": 0},
         open=True,
     )
     saver = PostgresSaver(pool)
-    saver.setup()  # idempotent CHỈ khi entrypoint đã hâm nóng lược đồ trước — xem docstring hàm này
+    saver.setup()  # idempotent ONLY when the entrypoint has warmed up the schema first — see this function's docstring
     global _CHECKPOINT_POOL
-    _CHECKPOINT_POOL = pool  # giữ tham chiếu để đóng sạch lúc shutdown
+    _CHECKPOINT_POOL = pool  # keep a reference so it can be closed cleanly at shutdown
     _logger.info("checkpointer_postgres", extra={"pool_max": _CHECKPOINT_POOL_MAX})
     return saver
 
 
 def close_checkpointer() -> None:
-    """Đóng pool của checkpointer — gọi từ FastAPI shutdown (src/api/main.py).
+    """Close the checkpointer's pool — called from FastAPI shutdown (src/api/main.py).
 
-    ConnectionPool của psycopg chạy thread nền; không đóng tường minh thì lúc
-    interpreter thoát sẽ ném `PythonFinalizationError: cannot join thread at
-    interpreter shutdown` (đã gặp thật lúc verify). Với server chạy dài thì
-    lỗi này chỉ bẩn log lúc tắt, nhưng graceful shutdown là yêu cầu bắt buộc
-    của checklist đóng gói production — và pool không đóng còn giữ kết nối
-    Postgres cho tới khi TCP timeout, ăn vào max_connections khi deploy liên tục.
+    psycopg's ConnectionPool runs background threads; without an explicit close the interpreter
+    raises `PythonFinalizationError: cannot join thread at interpreter shutdown` on exit (really
+    encountered while verifying). For a long-running server this error only dirties the shutdown
+    log, but graceful shutdown is a mandatory item of the production packaging checklist — and an
+    unclosed pool keeps Postgres connections until the TCP timeout, eating into max_connections
+    during continuous deploys.
     """
     global _CHECKPOINT_POOL
     if _CHECKPOINT_POOL is not None:
         try:
             _CHECKPOINT_POOL.close()
             _logger.info("checkpointer_pool_closed")
-        except Exception as e:  # noqa: BLE001 — shutdown không được ném lỗi ra ngoài
+        except Exception as e:  # noqa: BLE001 — shutdown must not raise errors outward
             _logger.warning("checkpointer_pool_close_failed", extra={"loi": repr(e)})
         finally:
             _CHECKPOINT_POOL = None
 
 
-# Pool riêng cho checkpointer, TÁCH khỏi pool của SQLAlchemy: hai thứ này có
-# nhịp truy cập khác nhau (checkpoint ghi mỗi bước ReAct, ORM đọc/ghi nghiệp vụ)
-# và gộp chung sẽ làm nghẽn lẫn nhau. Tổng kết nối = workers x (pool ORM + pool
-# này) phải nhỏ hơn max_connections của Postgres (mặc định 100).
+# A separate pool for the checkpointer, SEPARATE from SQLAlchemy's pool: the two have
+# different access rhythms (checkpoints write on every ReAct step, the ORM reads/writes business
+# data) and sharing would make them congest each other. Total connections = workers x (ORM pool +
+# this pool) must stay below Postgres's max_connections (default 100).
 _CHECKPOINT_POOL_MAX = int(os.environ.get("CHECKPOINT_POOL_MAX", "5"))
-_CHECKPOINT_POOL = None  # gán trong _build_checkpointer(), đóng ở close_checkpointer()
+_CHECKPOINT_POOL = None  # assigned in _build_checkpointer(), closed in close_checkpointer()
 
-# Singleton module-level: agent được build lại mỗi request (session/tools gắn
-# với request đó), nhưng checkpointer dùng chung 1 instance nên lịch sử hội
-# thoại nối tiếp được qua nhiều request cùng thread_id.
+# Module-level singleton: the agent is rebuilt per request (session/tools bound to that
+# request), but the checkpointer is one shared instance so conversation history continues across
+# requests with the same thread_id.
 _CHECKPOINTER = _build_checkpointer()
 
 
-def doc_transcript_bang_giao(thread_id: str) -> dict[str, object] | None:
-    """ADR-044 — đọc hội thoại bot↔khách của MỘT thread cho route
-    `GET /tickets/{ticket_id}/transcript` (src/api/main.py). Đọc qua
-    `checkpointer.get_tuple()` — KHÔNG parse thẳng bảng `checkpoint_*`
-    (chi tiết triển khai của LangGraph, đổi giữa các phiên bản, ADR-044
-    mục 5).
+def read_handoff_transcript(thread_id: str) -> dict[str, object] | None:
+    """ADR-044 — reads the bot↔customer conversation of ONE thread for the route
+    `GET /tickets/{ticket_id}/transcript` (src/api/main.py). Read via
+    `checkpointer.get_tuple()` — NEVER parsing the `checkpoint_*` tables directly
+    (a LangGraph implementation detail that changes between versions, ADR-044
+    item 5).
 
-    Trả `None` khi thread_id KHÔNG có checkpoint nào — route phía trên tự
-    diễn giải thành "không tra được" kèm lý do, hàm này KHÔNG tự bịa lý do
-    (tách rõ trách nhiệm: hàm này chỉ đọc, route quyết định thông điệp).
+    Returns `None` when the thread_id has NO checkpoint — the route above interprets that as
+    "couldn't look it up" with a reason; this function does NOT invent a reason itself
+    (clear separation of responsibility: this function only reads, the route decides the
+    message).
 
-    PII: checkpoint lưu bản ĐÃ SCRUB (`HumanMessage` dựng từ `scrub_pii(...,
-    muc_dich="model_input")` tại :790) — hàm này KHÔNG scrub lại, đúng
-    ADR-044 mục "PII — GIẢI XONG bằng phép đo". Nhãn che SAI (vd
-    `[PERSON_VN]` thay từ khách gõ thật, trước bản vá D') vẫn còn nguyên
-    trong checkpoint CŨ — route/UI phải tự khai điều này, hàm này không
-    sửa ngược bằng chứng.
+    PII: checkpoints store the SCRUBBED version (`HumanMessage` built from `scrub_pii(...,
+    purpose="model_input")` at :790) — this function does NOT scrub again, per ADR-044 item
+    "PII — SOLVED by measurement". WRONG masking labels (e.g. `[PERSON_VN]` replacing words the
+    customer really typed, before fix D') remain intact in OLD checkpoints — the route/UI must
+    declare this itself; this function doesn't retroactively edit evidence.
 
-    Trả `{"luot": [...], "chi_so_bang_giao": int | None}`.
-      - `luot`: mỗi lượt là `vai` ("khach"/"bot") + `noi_dung` + `co_goi_tool`
-        (bot đã gọi tool ngay trước khi sinh câu trả lời này hay chỉ là lời
-        thoại suông — CSKH cần phân biệt câu nào dựa trên dữ liệu thật).
-      - `chi_so_bang_giao`: chỉ số (0-based) của LƯỢT CUỐI CÙNG "phía trên
-        vạch" — tức lượt bot xác nhận NGAY SAU khi tool `request_human_
-        handoff` chạy. UI vẽ vạch phân cách ngay sau lượt này. `None` nếu
-        hội thoại KHÔNG có lần gọi `request_human_handoff` nào (transcript
-        đọc được nhưng chưa từng bàn giao — vd CSKH tự mở vé, không qua
-        yêu cầu của khách). KHÔNG dùng `handoff_at` (mốc DB) để suy ra vị
-        trí này — không có timestamp per-message để so khớp, dùng đúng SỰ
-        KIỆN sinh ra bàn giao (lời gọi tool) chính xác hơn một phép so mốc
-        thời gian gián tiếp.
+    Returns `{"luot": [...], "chi_so_bang_giao": int | None}` (turns, handoff index).
+      - `luot`: each turn is `vai` (role: "khach"/"bot" — customer/bot) + `noi_dung` (content) +
+        `co_goi_tool` (whether the bot called a tool right before generating this reply or it is
+        just plain talk — CSKH need to tell which replies are based on real data).
+      - `chi_so_bang_giao`: the (0-based) index of the LAST turn "above the line" — i.e. the bot
+        turn confirming RIGHT AFTER the `request_human_handoff` tool ran. The UI draws the divider
+        right after this turn. `None` if the conversation has NO `request_human_handoff` call
+        (the transcript is readable but there was never a handoff — e.g. CSKH opened the ticket
+        themselves, not at the customer's request). `handoff_at` (the DB timestamp) is NOT used
+        to infer this position — there is no per-message timestamp to match against; using the
+        very EVENT that produced the handoff (the tool call) is more precise than an indirect
+        timestamp comparison.
 
-        HAI ca đặc biệt cùng cho `chi_so_bang_giao=None` dù `handoff_at` (DB)
-        có giá trị — route/UI xử lý GIỐNG NHAU (hiện note thay vì vạch), nhưng
-        NGUYÊN NHÂN khác nhau, đừng gộp khi đọc/giải thích lại:
+        TWO special cases both give `chi_so_bang_giao=None` even though `handoff_at` (DB) has a
+        value — the route/UI handle them THE SAME WAY (showing a note instead of a divider), but
+        the CAUSES differ; don't merge them when reading/re-explaining:
 
-        (a) ĐÃ KHAI 19/08 (PO-agent phát hiện, không phải bug): vé sinh từ
-            nhánh timeout/bỏ lượt — `flag_human_handoff(...)` gọi THẲNG,
-            KHÔNG qua tool `request_human_handoff` mà LLM gọi. Transcript
-            KHÔNG có `ToolMessage` tên đó ở đâu cả — tự nhất quán, không một
-            dấu vết nào của bàn giao trong hội thoại.
+        (a) DECLARED 19/08 (found by the PO-agent, not a bug): the ticket came from the
+            timeout/abandoned-turn branch — `flag_human_handoff(...)` called DIRECTLY,
+            NOT via the `request_human_handoff` tool the LLM calls. The transcript has NO
+            `ToolMessage` of that name anywhere — self-consistent, not a single trace of the
+            handoff in the conversation.
 
-        (b) ĐÃ KHAI 20/08 (Review phát hiện khi soát toàn chuỗi): tool
-            `request_human_handoff` ĐƯỢC LLM gọi THẬT (`ToolMessage` có mặt
-            trong checkpoint), nhưng nó là message CUỐI CÙNG — lượt bị cắt
-            (timeout/lỗi) ngay sau khi tool chạy xong, TRƯỚC khi model kịp
-            sinh `AIMessage` xác nhận có nội dung. Vòng lặp dưới đây kết thúc
-            với cờ `vua_goi_handoff=True` còn treo, chưa từng được gán vào
-            `chi_so_bang_giao` vì không có lượt bot nào đứng sau để nhận nó.
-            KHÁC ca (a) ở chỗ: có BẰNG CHỨNG THẬT tool đã chạy, nhưng bằng
-            chứng đó không bao giờ gắn được vào một lượt hiển thị (`co_goi_
-            tool` chỉ gắn cho AIMessage kế tiếp — ở đây không có) — CSKH
-            không thấy badge nào cho đúng lần gọi này, kể cả khi các lượt
-            TRƯỚC đó trong cùng hội thoại có badge cho tool khác. Không vá
-            bằng cách đoán vị trí vạch — sẽ thay một khoảng trống trung thực
-            bằng một phỏng đoán."""
+        (b) DECLARED 20/08 (found by the review while checking the whole chain): the
+            `request_human_handoff` tool WAS REALLY called by the LLM (the `ToolMessage` is
+            present in the checkpoint), but it is the LAST message — the turn was cut off
+            (timeout/error) right after the tool finished, BEFORE the model could generate a
+            confirming `AIMessage` with content. The loop below ends with the flag
+            `just_called_handoff=True` still pending, never assigned to `chi_so_bang_giao`
+            because there is no bot turn after it to receive it.
+            DIFFERENT from case (a) in that there IS REAL EVIDENCE the tool ran, but that
+            evidence can never be attached to a displayed turn (`co_goi_tool` only attaches to
+            the next AIMessage — there is none here) — CSKH see no badge for exactly this call,
+            even when EARLIER turns in the same conversation have badges for other tools. Not
+            "fixed" by guessing the divider position — that would replace an honest gap with a
+            guess."""
     tuple_ = _CHECKPOINTER.get_tuple({"configurable": {"thread_id": thread_id}})
     if tuple_ is None:
         return None
     messages = (tuple_.checkpoint.get("channel_values") or {}).get("messages") or []
 
-    luot: list[dict[str, object]] = []
-    co_tool_tu_luot_truoc = False
-    vua_goi_handoff = False
-    chi_so_bang_giao: int | None = None
+    turn: list[dict[str, object]] = []
+    has_tool_from_prev_turn = False
+    just_called_handoff = False
+    handoff_index: int | None = None
     for m in messages:
         if isinstance(m, ToolMessage):
-            co_tool_tu_luot_truoc = True
+            has_tool_from_prev_turn = True
             if m.name == "request_human_handoff":
-                vua_goi_handoff = True
+                just_called_handoff = True
             continue
         if isinstance(m, HumanMessage):
-            luot.append({"vai": "khach", "noi_dung": str(m.content), "co_goi_tool": False})
-            co_tool_tu_luot_truoc = False
+            turn.append({"vai": "khach", "noi_dung": str(m.content), "co_goi_tool": False})
+            has_tool_from_prev_turn = False
         elif isinstance(m, AIMessage):
-            noi_dung = str(m.content or "")
-            if not noi_dung.strip():
-                # AIMessage rỗng nội dung (chỉ mang tool_calls, chưa có lời
-                # thoại) — không phải một LƯỢT hội thoại, bỏ qua. Cờ
-                # co_tool_tu_luot_truoc đã lên True ở nhánh ToolMessage phía
-                # trên khi tool đó thực thi xong.
+            content_text = str(m.content or "")
+            if not content_text.strip():
+                # An AIMessage with empty content (carrying only tool_calls, no speech yet) — not a
+                # conversation TURN, skipped. The flag has_tool_from_prev_turn was already set to
+                # True in the
+                # ToolMessage branch above when that tool finished executing.
                 continue
-            luot.append({"vai": "bot", "noi_dung": noi_dung, "co_goi_tool": co_tool_tu_luot_truoc})
-            co_tool_tu_luot_truoc = False
-            if vua_goi_handoff:
-                chi_so_bang_giao = len(luot) - 1
-                vua_goi_handoff = False
-    return {"luot": luot, "chi_so_bang_giao": chi_so_bang_giao}
+            turn.append({"vai": "bot", "noi_dung": content_text, "co_goi_tool": has_tool_from_prev_turn})
+            has_tool_from_prev_turn = False
+            if just_called_handoff:
+                handoff_index = len(turn) - 1
+                just_called_handoff = False
+    return {"luot": turn, "chi_so_bang_giao": handoff_index}
 
-# Sentinel — phân biệt "không truyền otp_verified_at" (backward-compat: coi như
-# vừa xác thực XONG, dùng bởi eval harness/test hiện có vốn giả định "khách đã
-# xác thực OTP trước khi vào chat") với "truyền None thật" (current_user thật
-# CHƯA TỪNG xác thực — /agent/chat luôn truyền tường minh, xem src/api/main.py).
-# Tính "now" lúc GỌI HÀM (không phải lúc module nạp) để không lệch thời gian
-# nếu test suite chạy lâu.
+# Sentinel — distinguishes "otp_verified_at not passed" (backward compat: treated as JUST
+# verified, used by the eval harness/existing tests that assume "the customer verified OTP before
+# entering the chat") from "None really passed" (the real current_user has NEVER verified —
+# /agent/chat always passes it explicitly, see src/api/main.py).
+# "now" is computed at CALL time (not at module load) to avoid time drift if the test suite runs
+# for a long time.
 _ALWAYS_FRESH = object()
 
 
-# ---------------------------------------------------------------- nguồn O3
-# Nhánh LỖI của tool bị loại khỏi nguồn (điều kiện Đ1 của Bảo Mật,
+# ---------------------------------------------------------------- O3 source
+# Tool ERROR branches are excluded from the source (Security's condition Đ1,
 # docs/security/2026-08-18-dinh-hang-ban-va-A-o3-toolmessage-lich-su.md §3):
-# nhánh error echo nguyên văn THAM SỐ DO MODEL TỰ ĐẶT (vd
-# `create_ticket.py:42 "complaint_type không hợp lệ: {complaint_type}"`), nên
-# một mã/số agent BỊA ở lượt N-1, tool từ chối, echo nó vào ToolMessage — nếu
-# nhánh đó lọt vào nguồn thì lượt N nhắc lại đúng mã bịa ấy sẽ được O3 coi là
-# "đã truy được về tool", cấp giấy thông hành vĩnh viễn cho một số KHÔNG THẬT.
+# the error branch echoes verbatim the PARAMETERS THE MODEL SET ITSELF (e.g.
+# `create_ticket.py:42 "complaint_type không hợp lệ: {complaint_type}"` — invalid complaint_type),
+# so a code/number the agent FABRICATED on turn N-1, rejected by the tool and echoed into the
+# ToolMessage — if that branch got into the source, then turn N repeating that same fabricated
+# code would be treated by O3 as "traced to a tool", granting a permanent pass to a FAKE number.
 #
-# ĐÃ TỪNG là allow-list `status in {found, not_found, multiple_matches}` —
-# RÚT, vì tiền đề sai: Lead [ĐO] 3/5 tool (get_customer_history · create_ticket
-# · request_human_handoff) KHÔNG có khoá `status` ở TOP-LEVEL trên đường THÀNH
-# CÔNG (status nằm lồng trong từng phần tử, hoặc không tồn tại). Allow-list
-# theo đúng chữ sẽ loại sạch payload thành công của CẢ BA tool đó khỏi nguồn —
-# và `get_customer_history` chính là tool đứng sau câu verify "xem giao dịch
-# gần đây", nên bản vá sẽ KHÔNG chữa được ca nó dựng ra để chữa.
-# `contracts/agent-tools.yaml:65,94,106` cũng khai `output.status` cho CẢ BA
-# tool đó (`get_customer_history`/`create_ticket`/`request_human_handoff`) mà
-# runtime KHÔNG phát — allow-list cũ tin đúng nguồn sự thật của dự án, và
-# nguồn đó LỆCH runtime. Không ai chế ra tiền đề sai từ không khí: đây là hạng
-# mù ADR-027 — checker `test_invariants` so KHAI-BÁO với KHAI-BÁO (contract ↔
-# CHECK constraint/route), chưa bao giờ so contract với PAYLOAD THẬT lúc chạy.
+# It USED TO BE an allow-list `status in {found, not_found, multiple_matches}` —
+# WITHDRAWN, because the premise was wrong: Lead [MEASURED] 3/5 tools (get_customer_history ·
+# create_ticket · request_human_handoff) have NO TOP-LEVEL `status` key on the SUCCESS path
+# (status is nested inside each element, or doesn't exist). The allow-list taken literally would
+# strip the success payloads of ALL THREE tools from the source —
+# and `get_customer_history` is exactly the tool behind the verification query "show my recent
+# transactions", so the fix would NOT cure the very case it was built to cure.
+# `contracts/agent-tools.yaml:65,94,106` also declares `output.status` for ALL THREE of those tools
+# (`get_customer_history`/`create_ticket`/`request_human_handoff`) which the runtime DOESN'T emit —
+# the old allow-list trusted the project's source of truth exactly, and that source DRIFTED from
+# the runtime. Nobody conjured the wrong premise out of thin air: this is the ADR-027 class of
+# blindness — the `test_invariants` checker compares DECLARATIONS with DECLARATIONS (contract ↔
+# CHECK constraint/route) and has never compared the contract with the REAL PAYLOAD at runtime.
 #
-# Deny-list `status == "error"` — vị ngữ này NEO VÀO HÀNH VI QUAN SÁT ĐƯỢC,
-# KHÔNG NEO VÀO CONTRACT (bài học vừa trả giá ở trên).
+# The deny-list `status == "error"` — this predicate is ANCHORED IN OBSERVABLE BEHAVIOUR,
+# NOT IN THE CONTRACT (the lesson just paid for above).
 #
-# [ĐO] 19/08, `grep -rn '"status": "error"' src/agents/tools/customer_tools.py`
-# → 9 điểm trả lỗi (`:597 :601 :637 :819 :840 :873 :919 :947 :997`), 0 payload
-# thành công mang khoá này. `:637` là hằng số `_CHI_THI_DUNG_LAP` DÙNG LẠI, trả
-# về ở `:777` (chỉ thị dừng livelock) — không phải `return {...}` inline, nên
-# nó lọt khỏi BA lần quét độc lập trước đó (Review, Lead, tôi) cùng đếm ra 8:
-# cả ba đều quét theo hình dạng `return {...}`, không theo hình dạng hằng số.
+# [MEASURED] 19/08, `grep -rn '"status": "error"' src/agents/tools/customer_tools.py`
+# → 9 error-return points (`:597 :601 :637 :819 :840 :873 :919 :947 :997`), 0 success payloads
+# carrying this key. `:637` is the REUSED constant `_STOP_LOOP_INSTRUCTION`, returned at `:777`
+# (the livelock stop instruction) — not an inline `return {...}`, so it slipped past THREE earlier
+# independent scans (Review, Lead, me) that all counted 8: all three scanned for the shape
+# `return {...}`, not the shape of a constant.
 #
-# Con số trên là ẢNH CHỤP, SẼ LỆCH LẠI khi có tool thứ 6 hoặc một nhánh lỗi
-# mới (đúng Luật N: một con số ĐẾM phải kèm phép đếm; đúng Luật P: con số làm
-# cũ phải niêm, không phải mốc neo vĩnh viễn). Thứ giữ tính chất này đúng VỀ
-# SAU là ca ⑩ của QA/QC (canh mọi đường trả lỗi thật đều mang `status:"error"`)
-# — KHÔNG phải dòng comment này.
-_TRANG_THAI_LOI_TOOL = "error"
+# That number is a SNAPSHOT and WILL DRIFT again when a 6th tool or a new error branch appears
+# (Rule N: a COUNTED number must come with its counting method; Rule P: a stale number must be
+# sealed, not a permanent anchor). What keeps this property true GOING FORWARD is QA/QC case ⑩
+# (guarding that every real error-return path carries `status:"error"`) — NOT this comment.
+_TOOL_ERROR_STATUS = "error"
 
-# Tool được gom kết quả LỊCH SỬ vào nguồn. Khai TƯỜNG MINH ở đúng một chỗ để
-# thu hẹp phạm vi sau này là sửa một dòng, không phải đọc lại vòng lặp: Bảo Mật
-# đã cân trục "payload có echo tham số model tự đặt không" và chỉ ra nhánh error
-# là kênh rửa số bịa (đóng bằng allow-list trên), nhưng nếu trục ấy được cân lại
-# cho tool GHI thì chỗ sửa là dòng dưới.
-TOOL_GOM_LICH_SU = frozenset({
+# Tools whose HISTORICAL results are gathered into the source. Declared EXPLICITLY in exactly
+# one place so that narrowing the scope later is a one-line edit, not a re-read of the loop:
+# Security weighed the axis "does the payload echo parameters the model set itself" and showed the
+# error branch is a laundering channel for fabricated numbers (closed by the allow-list above),
+# but if that axis is re-weighed for WRITE tools, the line below is where to change it.
+HISTORY_TOOLS = frozenset({
     "lookup_transaction",
     "get_customer_history",
     "create_ticket",
@@ -969,44 +998,44 @@ TOOL_GOM_LICH_SU = frozenset({
 })
 
 
-def rap_nguon_o3(all_messages: list, tool_calls_out: list[dict]) -> str:
-    """Ráp kênh NGUỒN (JSON) cho luật xuất xứ của O3.
+def assemble_o3_source(all_messages: list, tool_calls_out: list[dict]) -> str:
+    """Assembles the SOURCE channel (JSON) for O3's provenance rule.
 
-    Gồm HAI phần, và ranh giới giữa chúng là có chủ đích:
+    TWO parts, and the boundary between them is deliberate:
 
-    · `tool_calls_out` — kết quả tool của LƯỢT NÀY, giữ nguyên hình dạng cũ
-      (gồm cả `args`).
-    · kết quả tool của các LƯỢT TRƯỚC trong cùng hội thoại — CHỈ phần `result`,
-      **không** gom `args`. Ràng buộc cứng 3 đòi số agent nói ra truy được về
-      một kết quả tool CÓ THẬT; `args` là tham số MODEL TỰ ĐẶT, không phải thứ
-      hệ thống trả về. Gom nó là để model tự cấp căn cứ cho chính nó, xuyên
-      lượt — đúng cửa rửa số mà Đ1 đóng, chỉ đi bằng trường khác.
+    · `tool_calls_out` — tool results of THIS TURN, keeping the old shape
+      (including `args`).
+    · tool results of EARLIER TURNS in the same conversation — ONLY the `result` part,
+      **not** `args`. Hard constraint 3 requires every number the agent states to trace back to a
+      REAL tool result; `args` are parameters THE MODEL SET ITSELF, not something the system
+      returned. Gathering them would let the model grant itself evidence across turns — exactly
+      the laundering door Đ1 closed, just through a different field.
 
-    KHÔNG gom `AIMessage`: lời agent không phải nguồn hợp lệ, gom vào là O3 tự
-    chứng thực đầu ra của chính mình.
+    `AIMessage`s are NOT gathered: the agent's words are not a valid source; gathering them would
+    make O3 certify its own output.
 
-    Vì sao cần phần lịch sử (bản vá A): kênh nguồn cũ chỉ nạp payload của lượt
-    hiện tại, nên một lượt agent trả lời từ trí nhớ (không gọi lại tool) làm mọi
-    mã/số đã tra ở lượt trước thành "không truy được" -> O3 chặn OAN. Ràng buộc
-    cứng 3 nói "một kết quả tool có thật", KHÔNG nói "của lượt này".
+    Why the history part is needed (fix A): the old source channel only loaded the current
+    turn's payload, so a turn where the agent answered from memory (without calling the tool
+    again) made every code/number looked up on earlier turns "untraceable" -> O3 blocked WRONGLY.
+    Hard constraint 3 says "a real tool result", NOT "from this turn".
     """
-    lich_su: list[dict] = []
+    history: list[dict] = []
     for m in all_messages:
         if not isinstance(m, ToolMessage):
             continue
-        if getattr(m, "name", None) not in TOOL_GOM_LICH_SU:
+        if getattr(m, "name", None) not in HISTORY_TOOLS:
             continue
         try:
             payload = json.loads(m.content)
         except (json.JSONDecodeError, TypeError, ValueError):
-            continue  # không parse được -> KHÔNG phải nguồn (fail-closed)
+            continue  # unparseable -> NOT a source (fail-closed)
         if not isinstance(payload, dict):
             continue
-        if payload.get("status") == _TRANG_THAI_LOI_TOOL:
+        if payload.get("status") == _TOOL_ERROR_STATUS:
             continue
-        lich_su.append(payload)
+        history.append(payload)
     return json.dumps(
-        {"luot_nay": tool_calls_out, "luot_truoc": lich_su},
+        {"luot_nay": tool_calls_out, "luot_truoc": history},
         ensure_ascii=False,
         default=str,
     )
@@ -1019,21 +1048,24 @@ def _build_agent(
     customer_name: str,
     otp_verified_at: float | None,
     guard: TurnGuard | None = None,
-    # ADR-044 — thread_id HIỆU LỰC của lượt này (đã áp `or user_id` ở caller,
-    # xem run_agent_turn), luồn xuống build_customer_tools để tool
-    # create_ticket ghi vào Complaint.thread_id lúc TẠO. None = caller cũ
-    # (test/eval) không truyền — Complaint.thread_id NULL, đúng thiết kế
-    # "NULLABLE VĨNH VIỄN" của migration a8b9c0d1e2f3, không phải lỗi.
+    # ADR-044 — the EFFECTIVE thread_id of this turn (with `or user_id` already applied by the
+    # caller, see run_agent_turn), threaded down to build_customer_tools so the create_ticket tool
+    # writes it into Complaint.thread_id at CREATION. None = old callers (tests/eval) don't pass it
+    # —
+    # Complaint.thread_id is NULL, exactly the "PERMANENTLY NULLABLE" design of migration
+    # a8b9c0d1e2f3, not an error.
     thread_id: str | None = None,
-    # GĐ3 (876a240) — tên MODEL cho lượt này, KHÔNG phải hằng số toàn cục.
-    # Mặc định `LLM_MODEL` giữ NGUYÊN hành vi cũ cho mọi caller không truyền
-    # (test/eval hiện có). Vòng xoay nằm INLINE trong `run_agent_turn` (không
-    # phải một hàm riêng `_chay_luot_voi_xoay` — tên đó từng khai cho QA/QC
-    # qua tin nhắn 19/08 rồi KHÔNG triển khai đúng như vậy, xem sửa sai đã báo
-    # Lead/QA/QC cùng ngày), truyền tường minh từng phần tử của
-    # `LLM_MODEL_POOL` — đây là ĐIỂM SPY QA/QC dùng để giả lập lỗi quota mà
-    # không tốn token thật (patch theo giá trị `model` nhận được để phân biệt
-    # lần gọi thứ mấy).
+    # Phase 3 (876a240) — the MODEL name for this turn, NOT a global constant.
+    # The default `LLM_MODEL` keeps the old behaviour UNCHANGED for every caller that doesn't pass
+    # it
+    # (existing tests/eval). The rotation lives INLINE in `run_agent_turn` (not a separate function
+    # `_chay_luot_voi_xoay` — that name was once announced to QA/QC in a message on 19/08 and then
+    # NOT
+    # implemented that way; the correction was reported to Lead/QA/QC the same day), passing each
+    # element of `LLM_MODEL_POOL` explicitly — this is the SPY POINT QA/QC use to simulate quota
+    # errors
+    # without spending real tokens (patching by the `model` value received to tell which call it
+    # is).
     model: str = LLM_MODEL,
 ):
     chat_model = ChatOpenAI(
@@ -1042,60 +1074,68 @@ def _build_agent(
         # tri dac biet can xu ly rieng.
         #
         # `http_client` DUNG CHUNG voi duong embedding (src/rag/store.py) —
-        # xem src/cong_ra_ngoai.py. Day la noi DUY NHAT moi loi goi ra nha cung
+        # xem src/egress_gate.py. Day la noi DUY NHAT moi loi goi ra nha cung
         # cap di qua, nen no la cho duy nhat co cho chot chan + bo dem. Dat o
         # tang nay con thay ca luot SDK TU RETRY (max_retries duoi day): dem o
         # tang tren SDK ghi 1 cho 3 lan ban ra day.
-        http_client=http_client_dung_chung(),
+        http_client=shared_http_client(),
         model=model,
         temperature=0.2,
         api_key=LLM_API_KEY,
-        # GĐ3: mọi model trong LLM_MODEL_POOL dùng CHUNG base_url/api_key —
-        # cùng tài khoản DashScope, không đổi biên dữ-liệu-rời-hạ-tầng (Bảo
-        # Mật đã xác nhận cho bể deepseek). Đổi nhà cung cấp GIỮA các model
-        # trong MỘT bể ngoài phạm vi GĐ3.
+        # Phase 3: every model in LLM_MODEL_POOL shares the SAME base_url/api_key —
+        # the same DashScope account, not changing the data-leaves-our-infrastructure boundary
+        # (confirmed by
+        # Security for the deepseek pool). Switching providers BETWEEN models within ONE pool is
+        # outside the
+        # scope of phase 3.
         base_url=LLM_BASE_URL,
-        # Chỉ truyền khi CÓ đặt — `max_tokens=None` và "không truyền" khác nhau
-        # ở một số client. Xem LLM_MAX_TOKENS trong config.py.
+        # Only passed when SET — `max_tokens=None` and "not passed" differ in some clients. See
+        # LLM_MAX_TOKENS in config.py.
         **({"max_tokens": LLM_MAX_TOKENS} if LLM_MAX_TOKENS else {}),
         timeout=OPENAI_TIMEOUT_SECONDS,
         max_retries=OPENAI_MAX_RETRIES,
-        # T3 · chỉ TRUYỀN khi TẮT. Không truyền gì khi bật = hành vi cũ y hệt,
-        # không phải "truyền enable_thinking=True" (hai thứ đó khác nhau ở một
-        # số nhà cung cấp, và ta không có lý do để thử).
-        **({} if SUY_LUAN_BAT else {"extra_body": {"enable_thinking": False}}),
+        # T3 · only PASSED when OFF. Passing nothing when on = exactly the old behaviour, not
+        # "passing enable_thinking=True" (the two differ at some providers, and we have no reason to
+        # experiment).
+        **({} if REASONING_ENABLED else {"extra_body": {"enable_thinking": False}}),
     )
-    # Đọc NGƯỢC ra từ đối tượng vừa dựng, KHÔNG đọc lại biến config: nếu tên
-    # tham số sai thì `extra_body` sẽ không bám vào model, mà biến config vẫn
-    # nói "đã tắt". Quan sát hiện vật, đừng tin lời khai — cùng nguyên tắc dấu
-    # `duong` và `so_tool_schema_gui`.
-    global _SUY_LUAN_GUI
-    _SUY_LUAN_GUI = not bool((getattr(chat_model, "extra_body", None) or {}).get("enable_thinking") is False)
+    # Read BACK from the object just built, NOT from the config variable again: if the parameter
+    # name were wrong, `extra_body` wouldn't stick to the model while the config variable would
+    # still
+    # say "off". Observe the artefact, don't trust the declaration — the same principle as the
+    # `duong`
+    # (route) marker and `so_tool_schema_gui` (tool schemas sent).
+    global _REASONING_SENT
+    _REASONING_SENT = not bool((getattr(chat_model, "extra_body", None) or {}).get("enable_thinking") is False)
     tools = build_customer_tools(
         session, user_id=user_id, otp_verified_at=otp_verified_at, guard=guard, thread_id=thread_id
     )
-    # Số lược đồ tool THẬT SỰ bind vào lời gọi. Lấy từ chính danh sách vừa
-    # dựng, KHÔNG gõ tay — `_CHARS_TOOL_SCHEMA = 6773` phía trên là hằng số
-    # người phải nhớ cập nhật, và ta không thêm cái thứ hai cùng loại.
+    # The number of tool schemas REALLY bound to the call. Taken from the list just built, NOT
+    # typed by hand — `_CHARS_TOOL_SCHEMA = 6773` above is a constant someone has to remember to
+    # update,
+    # and we're not adding a second one of that kind.
     #
-    # Trường này đến từ cơ chế KHÁC với quyết định phân luồng, nên hai thứ
-    # không thể cùng nói dối một lúc: dấu `duong` kẹt ở "day_du" trong khi số
-    # này = 0 là mâu thuẫn tự lộ, và ngược lại.
-    global _SO_TOOL_GUI, _CHARS_TOOL_SCHEMA_THAT
-    _SO_TOOL_GUI = len(tools)
-    # Kích thước lược đồ ĐO TỪ CHÍNH LƯỢC ĐỒ, không gõ tay. `_CHARS_TOOL_SCHEMA
-    # = 6773` phía trên kèm chú thích "đổi khi thêm/bớt tool" — một con số
-    # NGƯỜI PHẢI NHỚ cập nhật, tức nó sẽ hỏng im lặng vào ngày có tool thứ sáu.
-    # Đo payload thật 17/08: 6.773 ký tự — hằng số ĐÚNG hôm nay, và đúng do
-    # người, không do cơ chế.
+    # This field comes from a DIFFERENT mechanism than the triage decision, so the two can't lie at
+    # the
+    # same time: a `duong` marker stuck at "day_du" (full) while this number = 0 is a self-exposing
+    # contradiction, and vice versa.
+    global _TOOLS_SENT_COUNT, _CHARS_TOOL_SCHEMA_REAL
+    _TOOLS_SENT_COUNT = len(tools)
+    # Schema size MEASURED FROM THE SCHEMA ITSELF, not typed by hand. `_CHARS_TOOL_SCHEMA
+    # = 6773` above comes with the comment "update when adding/removing tools" — a number SOMEONE
+    # MUST
+    # REMEMBER to update, i.e. it will break silently on the day a sixth tool arrives.
+    # Real payload measured 17/08: 6,773 characters — the constant is RIGHT today, and right thanks
+    # to
+    # a person, not a mechanism.
     try:
         from langchain_core.utils.function_calling import convert_to_openai_tool
-        _CHARS_TOOL_SCHEMA_THAT = len(json.dumps(
+        _CHARS_TOOL_SCHEMA_REAL = len(json.dumps(
             [convert_to_openai_tool(t) for t in tools], ensure_ascii=False))
-    except Exception:  # noqa: BLE001 — số đo hỏng không được làm chết lượt chat
-        _CHARS_TOOL_SCHEMA_THAT = _CHARS_TOOL_SCHEMA
-    # KHÔNG truyền customer_name — họ tên thật không được rời hệ thống lên LLM
-    # (ADR-010). Giữ tham số ở chữ ký hàm để không vỡ caller cũ.
+    except Exception:  # noqa: BLE001 — a broken measurement must not kill the chat turn
+        _CHARS_TOOL_SCHEMA_REAL = _CHARS_TOOL_SCHEMA
+    # customer_name is NOT passed — the customer's real name must not leave the system for the LLM
+    # (ADR-010). The parameter is kept in the signature so old callers don't break.
     system_prompt = build_system_prompt(current_time=dt.datetime.utcnow())
     return create_agent(chat_model, tools, system_prompt=system_prompt, checkpointer=_CHECKPOINTER)
 
@@ -1109,21 +1149,21 @@ def run_agent_turn(
     otp_verified_at: float | None = _ALWAYS_FRESH,
     vua_xac_thuc_de_gui_lai: bool = False,
 ) -> dict[str, Any]:
-    """`otp_verified_at`: timestamp (epoch giây) lúc xác thực OTP+câu hỏi bảo
-    mật gần nhất (src/auth.py) — truyền THẬT từ current_user.otp_verified_at ở
-    /agent/chat (src/api/main.py), có thể là None nếu khách CHƯA TỪNG xác thực.
-    Không truyền tham số này (mặc định `_ALWAYS_FRESH`) nghĩa là coi như vừa
-    xác thực XONG — để KHÔNG phá vỡ eval/golden_set.jsonl + adversarial_set
-    hiện có: các case đó vốn giả định "khách đã xác thực OTP trước khi vào
-    chat" (đúng câu mở đầu system prompt), không phải kiểm tra luồng OTP —
-    luồng OTP thật được test riêng ở tests/test_api/test_otp.py +
+    """`otp_verified_at`: the timestamp (epoch seconds) of the most recent OTP+security-question
+    verification (src/auth.py) — passed for REAL from current_user.otp_verified_at in
+    /agent/chat (src/api/main.py); may be None if the customer has NEVER verified.
+    Not passing this parameter (default `_ALWAYS_FRESH`) means treating it as JUST verified —
+    so as NOT to break the existing eval/golden_set.jsonl + adversarial_set: those cases assume
+    "the customer verified OTP before entering the chat" (exactly the opening sentence of the
+    system prompt) and aren't testing the OTP flow —
+    the real OTP flow is tested separately in tests/test_api/test_otp.py +
     frontend/e2e/auth.spec.ts.
 
-    `vua_xac_thuc_de_gui_lai`: cờ TƯỜNG MINH từ frontend (KHÔNG suy từ mốc
-    giờ), báo lượt này là ChatClient.tsx::submitOtp() TỰ GỬI LẠI câu đã bị
-    chặn OTP trước đó (`pendingStarterRef`) — xem cổng thu-slot-sau-OTP ngay
-    dưới. `False` mặc định giữ hành vi cũ nguyên vẹn cho mọi caller khác
-    (eval/golden_set, test, mọi lượt chat bình thường)."""
+    `vua_xac_thuc_de_gui_lai` (just verified, re-sending): an EXPLICIT flag from the frontend (NOT
+    inferred from timestamps) signalling that this turn is ChatClient.tsx::submitOtp()
+    AUTOMATICALLY RE-SENDING a message previously blocked by OTP (`pendingStarterRef`) — see the
+    post-OTP slot-collection gate just below. The `False` default keeps the old behaviour intact
+    for every other caller (eval/golden_set, tests, every normal chat turn)."""
     if otp_verified_at is _ALWAYS_FRESH:
         otp_verified_at = dt.datetime.utcnow().timestamp()
 
@@ -1131,130 +1171,153 @@ def run_agent_turn(
     if user is None:
         raise ToolError(f"user_id không tồn tại: {user_id}")
 
-    # Đặt lại đầu MỖI lượt: hai biến này là toàn cục cấp module (ghi ở
-    # `_build_agent`). Không đặt lại thì một `return` sớm xảy ra TRƯỚC khi agent
-    # được dựng sẽ báo giá trị của LƯỢT TRƯỚC — một con số hợp lý và sai.
-    # `None` ở đây là CỐ Ý: nó nói "chưa dựng agent", khác hẳn `0` nghĩa là
-    # "đã dựng, không gửi tool nào".
-    global _SO_TOOL_GUI, _CHARS_TOOL_SCHEMA_THAT
-    _SO_TOOL_GUI = None
-    _CHARS_TOOL_SCHEMA_THAT = None
+    # Reset at the start of EVERY turn: these two variables are module-level globals (written in
+    # `_build_agent`). Without resetting, an early `return` happening BEFORE the agent is built
+    # would
+    # report the PREVIOUS TURN's values — a plausible and wrong number.
+    # `None` here is DELIBERATE: it says "agent not built yet", completely different from `0`
+    # meaning
+    # "built, no tools sent".
+    global _TOOLS_SENT_COUNT, _CHARS_TOOL_SCHEMA_REAL
+    _TOOLS_SENT_COUNT = None
+    _CHARS_TOOL_SCHEMA_REAL = None
 
-    # ── ⑭ · CỜ CLIENT PHẢI CÓ BẰNG CHỨNG PHÍA SERVER ────────────────────────
-    # 🔴 LỖ ĐÃ ĐO (Review tìm, PO tái lập bằng gọi thẳng API, Coder xác nhận lại
-    # bằng đọc mã): `vua_xac_thuc_de_gui_lai` là cờ do CLIENT tự khai, và cả BA
-    # cổng tất định đều dùng nó theo hướng "True ⟹ BỎ QUA".
-    #     :928  T0   True ⟹ vào T0, mà câu có bất kỳ chữ số nào là rơi thẳng xuống model
-    #     :986  ④    `and not vua_xac_thuc_de_gui_lai`  ⟹ bỏ qua
-    #     :1035 T1   `if not vua_xac_thuc_de_gui_lai`   ⟹ bỏ qua
-    # ⟹ MỘT cờ tắt được CẢ BA. Client bất kỳ (curl/Postman) với JWT hợp lệ nhưng
-    # CHƯA OTP, đặt cờ=true trên mọi request, đi thẳng vào lượt model đầy đủ.
+    # ── ⑭ · A CLIENT FLAG MUST HAVE SERVER-SIDE EVIDENCE ────────────────────────────
+    # 🔴 A MEASURED HOLE (found by the review, reproduced by the PO via direct API calls,
+    # re-confirmed
+    # by the Coder by reading the code): `vua_xac_thuc_de_gui_lai` is a flag DECLARED BY THE CLIENT,
+    # and ALL THREE deterministic gates used it as "True ⟹ SKIP".
+    #     :928  T0   True ⟹ enters T0, and a sentence with any digit falls straight through to the
+    # model
+    #     :986  ④    `and not vua_xac_thuc_de_gui_lai`  ⟹ skipped
+    #     :1035 T1   `if not vua_xac_thuc_de_gui_lai`   ⟹ skipped
+    # ⟹ ONE flag switched off ALL THREE. Any client (curl/Postman) with a valid JWT but NO OTP,
+    # setting
+    # the flag=true on every request, went straight into a full model turn.
     #
-    # ✅ KHÔNG lộ dữ liệu — tầng tool đọc `otp_verified_at` từ JWT, không đọc cờ
-    #    này. Ràng buộc cứng 4 KHÔNG thủng.
-    # 🔴 NHƯNG đây đúng kịch bản 49.700–71.600 token mà ④ sinh ra để triệt. Và nó
-    #    KHÔNG chỉ là chi phí: trần thật của hệ là TPM (STATE §6.⓵), mà TPM là
-    #    hạn ngạch DÙNG CHUNG — một client lạm dụng ăn vào phần của MỌI khách
-    #    khác. Đó là KHẢ DỤNG, không phải hoá đơn.
+    # ✅ NO data leaks — the tool layer reads `otp_verified_at` from the JWT, not this flag. Hard
+    #    constraint 4 is NOT breached.
+    # 🔴 BUT this is exactly the 49,700–71,600-token scenario ④ was created to eliminate. And it is
+    #    NOT just cost: the system's real ceiling is TPM (STATE §6.⓵), and TPM is a SHARED quota —
+    # one
+    #    abusive client eats into EVERY other customer's share. That is AVAILABILITY, not the bill.
     #
-    # Bản vá: cờ chỉ có hiệu lực khi server TỰ BIẾT thread này từng bị chặn.
-    # Dùng lại `thread_signals` (không dựng cơ chế thứ hai).
+    # The fix: the flag only takes effect when the server ITSELF KNOWS this thread was once blocked.
+    # Reusing `thread_signals` (no second mechanism built).
     #
-    # 🔴 HƯỚNG AN TOÀN: `doc_tin_hieu` là `doc_hoac_khong_ro` — Redis lỗi trả
-    # None. `None` và `0` ĐỀU coi là KHÔNG có bằng chứng ⟹ cờ bị bỏ qua ⟹ cổng
-    # tất định chạy bình thường. Sai về phía RẺ, không sai về phía đắt. Hỏng
-    # Redis làm khách bị hỏi lại một lượt (phiền), KHÔNG mở cổng cho ai.
+    # 🔴 THE SAFE DIRECTION: `read_signal` is `read_or_unknown` — a Redis error returns None. `None`
+    # and
+    # `0` BOTH count as NO evidence ⟹ the flag is ignored ⟹ the deterministic gates run normally. It
+    # errs on the CHEAP side, not the expensive one. A Redis failure makes the customer get asked
+    # one
+    # more turn (annoying), it does NOT open the gate for anyone.
     #
-    # Vì sao khoá theo thread SỐNG SÓT qua bước xác thực: `/auth/otp/verify` cấp
-    # lại token GIỮ NGUYÊN `iat` gốc (src/auth.py::create_access_token) đúng để
-    # `thread_id = user_id:iat` không đổi giữa chừng hội thoại.
-    _tid_bang_chung = thread_id or user_id
-    _co_bang_chung_bi_chan = doc_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, _tid_bang_chung) not in (None, 0)
-    if vua_xac_thuc_de_gui_lai and not _co_bang_chung_bi_chan:
+    # Why the per-thread key SURVIVES verification: `/auth/otp/verify` re-issues the token KEEPING
+    # the
+    # original `iat` (src/auth.py::create_access_token) precisely so that `thread_id = user_id:iat`
+    # doesn't change mid-conversation.
+    _evidence_tid = thread_id or user_id
+    _has_block_evidence = read_signal(_SIGNAL_OTP_BLOCKED, _evidence_tid) not in (None, 0)
+    if vua_xac_thuc_de_gui_lai and not _has_block_evidence:
         _logger.info(
             "agent_turn_co_resend_khong_co_bang_chung",
-            extra={"user_id": user_id, "thread_id": _tid_bang_chung},
+            extra={"user_id": user_id, "thread_id": _evidence_tid},
         )
-    vua_xac_thuc_de_gui_lai = vua_xac_thuc_de_gui_lai and _co_bang_chung_bi_chan
+    vua_xac_thuc_de_gui_lai = vua_xac_thuc_de_gui_lai and _has_block_evidence
 
-    # ── ⑨ + MẢNH 4 · THU NHẬN CÂU TRẢ LỜI SÀNG LỌC ──────────────────────────
-    # Lượt TRƯỚC đã hỏi câu sàng lọc (tín hiệu thread). Lượt này là câu trả lời.
+    # ── ⑨ + PIECE 4 · COLLECTING THE SCREENING ANSWER ───────────────────────────────
+    # The PREVIOUS turn asked the screening question (thread signal). This turn is the answer.
     #
-    # Đây là mảnh KHÔNG AI TÍNH GIÁ trong phiếu gốc: trước bản này
-    # `engine.evaluate()` chỉ được gọi ĐÚNG MỘT LẦN, với `description_raw` lúc
-    # tạo vé. FS-13 dù tồn tại cũng chỉ bắt được ca khách tự khai ngay trong mô
-    # tả đầu — mà khách gọi việc của mình là "chuyển nhầm" thì không bao giờ
-    # chạm tới. Tức tín hiệu chỉ bật khi ta đã không cần nó.
+    # This is the piece NOBODY COSTED in the original ticket: before this version
+    # `engine.evaluate()` was called EXACTLY ONCE, with `description_raw` at ticket creation. Even
+    # if
+    # FS-13 existed, it could only catch customers self-reporting it in their very first description
+    # —
+    # and a customer calling what happened a "wrong transfer" would never reach it. The signal only
+    # fired when we no longer needed it.
     #
-    # HAI nguồn, hợp nhất:
-    #   ① `la_tra_loi_khang_dinh` — khách nói CÓ. Đó CHÍNH LÀ ngữ nghĩa FS-13,
-    #      suy ra từ NGỮ CẢNH HỎI-ĐÁP, không cần câu trả lời chứa từ khoá nào.
-    #   ② `engine.evaluate()` trên chính câu ấy — bắt câu trả lời giàu hơn
-    #      ("có, người ta gọi điện bảo em chuyển") và cả FS-09.
+    # TWO sources, merged:
+    #   ① `is_affirmative_reply` — the customer says YES. That IS the FS-13 semantics,
+    #      inferred from the QUESTION-ANSWER CONTEXT, with no keyword needed in the answer.
+    #   ② `engine.evaluate()` on that same sentence — catching richer answers
+    #      ("có, người ta gọi điện bảo em chuyển" — yes, someone called and told me to transfer) and
+    #      FS-09 too.
     #
-    # XOÁ tín hiệu sau khi xử: một lần hỏi, một lần thu. Không xoá thì mọi lượt
-    # sau đều chạy lại một truy vấn DB không đổi kết quả.
-    # KHÔNG chặn lượt: đây là GHI NHẬN, không phải cổng. Hỏng thì lượt vẫn chạy.
-    _tid_sl_thu = thread_id or user_id
-    if doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu) not in (None, 0):
+    # The signal is DELETED after processing: one question, one collection. Without deleting it
+    # every
+    # later turn would re-run a DB query with an unchanged result.
+    # Does NOT block the turn: this is RECORDING, not a gate. If it fails, the turn still runs.
+    _slot_tid_try = thread_id or user_id
+    if read_signal(_SIGNAL_SCREENING_ASKED, _slot_tid_try) not in (None, 0):
         try:
-            _gop = hop_nhat_tin_hieu_gian_lan(
+            _merge = merge_fraud_signals(
                 session,
-                thread_id=_tid_sl_thu,
+                thread_id=_slot_tid_try,
                 utterance_text=message,
-                them_ma=["FS-13"] if la_tra_loi_khang_dinh(message) else None,
+                add_code=["FS-13"] if is_affirmative_reply(message) else None,
             )
-            # 🔴 XOÁ SAU KHI MERGE THÀNH CÔNG, không trước (Review bắt, PO chốt).
-            # Bản đầu xoá TRƯỚC `try` — merge ném lỗi thì lượt vẫn chạy (đúng)
-            # nhưng lời khai "có người hướng dẫn em chuyển" MẤT VĨNH VIỄN, không
-            # lượt nào thử lại. Đúng luật bất đối xứng đã viết ở bộ dò khẳng định,
-            # khác miền:
-            #   xoá SAU  ⟹ merge hỏng thì hỏi lại khách một lần.    Phiền.
-            #   xoá TRƯỚC ⟹ merge hỏng thì MẤT lời khai bị lừa đảo. Hỏng thật.
+            # 🔴 DELETED AFTER A SUCCESSFUL MERGE, not before (caught by the review, fixed by the
+            # PO).
+            # The first version deleted it BEFORE the `try` — if the merge raised, the turn still
+            # ran (right)
+            # but the statement "someone guided me through the transfer" was LOST FOREVER, with no
+            # turn ever
+            # retrying. Exactly the asymmetry rule written in the affirmation detector, in a
+            # different domain:
+            #   delete AFTER  ⟹ a failed merge means asking the customer once more.   Annoying.
+            #   delete BEFORE ⟹ a failed merge LOSES a scam-victim statement.         Real damage.
             #
-            # KHÔNG có vòng lặp hỏi mãi: cổng HỎI đòi tín hiệu == 0, mà tín hiệu
-            # chỉ về 0 khi merge XONG. Tín hiệu còn 1 ⟹ không hỏi lại, chỉ thử
-            # merge lại mỗi lượt. Retry bị chặn trên bởi số lượt khách còn chat,
-            # không phải một vòng lặp trong một lượt.
-            xoa_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl_thu)
-            # GATE mục 4 — đánh dấu ĐÚNG giao dịch vừa được hỏi-đáp xong là
-            # "đã sàng lọc", khoá theo trans_id (không theo thread) — đọc lại
-            # ở `create_ticket` (customer_tools.py) trước khi cho tạo vé.
-            # Đánh dấu VÔ ĐIỀU KIỆN ở đây (khách trả lời "có" hay "không" đều
-            # là ĐÃ SÀNG LỌC XONG cho giao dịch này — nội dung câu trả lời chỉ
-            # ảnh hưởng `_gop`/FS-13, không ảnh hưởng việc đã-hỏi-đã-đáp).
-            # Không có trans_id lưu được (Redis lỗi đúng lúc ⑨ ghi, hoặc case
-            # hiếm ⑨ chưa kịp ghi) → KHÔNG đánh dấu gì — fail-closed đúng ý
-            # PO chốt: gate ở create_ticket coi như CHƯA sàng lọc, chặn cho
-            # tới khi có bằng chứng thật.
-            _trans_id_vua_hoi = doc_gia_tri(_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC, _tid_sl_thu)
-            if _trans_id_vua_hoi:
-                tang_tin_hieu(_TEN_TIN_HIEU_SANG_LOC_XONG, _trans_id_vua_hoi)
+            # NO endless asking loop: the ASK gate requires signal == 0, and the signal only returns
+            # to 0 once
+            # the merge is DONE. Signal still 1 ⟹ no re-asking, just retrying the merge each turn.
+            # Retries are
+            # bounded by the number of turns the customer keeps chatting, not a loop within one
+            # turn.
+            clear_signal(_SIGNAL_SCREENING_ASKED, _slot_tid_try)
+            # GATE item 4 — marks EXACTLY the transaction whose question-answer round just completed
+            # as
+            # "screened", keyed per trans_id (not per thread) — read back in `create_ticket`
+            # (customer_tools.py) before allowing a ticket.
+            # Marked UNCONDITIONALLY here (whether the customer answers "yes" or "no", screening IS
+            # DONE for
+            # this transaction — the content of the answer only affects `_merge`/FS-13, not whether
+            # it has
+            # been asked and answered).
+            # No trans_id could be stored (Redis failed exactly when ⑨ wrote it, or the rare case
+            # where ⑨
+            # hadn't written yet) → NOTHING is marked — fail-closed, exactly as the PO decided: the
+            # gate in
+            # create_ticket treats it as NOT screened and blocks until there is real evidence.
+            _just_asked_trans_id = read_value(_SIGNAL_TRANS_ID_PENDING_SCREENING, _slot_tid_try)
+            if _just_asked_trans_id:
+                incr_signal(_SIGNAL_SCREENING_DONE, _just_asked_trans_id)
             _logger.info(
                 "agent_turn_thu_sang_loc_lua_dao",
-                extra={"user_id": user_id, "thread_id": _tid_sl_thu,
-                       "tin_hieu_sau_gop": _gop, "trans_id_sang_loc": _trans_id_vua_hoi},
+                extra={"user_id": user_id, "thread_id": _slot_tid_try,
+                       "tin_hieu_sau_gop": _merge, "trans_id_sang_loc": _just_asked_trans_id},
             )
-            # ① — FS-13 bật ⟹ DỪNG LƯỢT, không gọi model. Bàn giao ở TẦNG
-            # SERVICE (`flag_human_handoff`), KHÔNG qua tool của AI — đúng ràng
-            # buộc cứng 2: leo thang không bao giờ do AI tự gọi.
-            if _gop is not None and "FS-13" in _gop:
-                _tk = None
+            # ① — FS-13 fires ⟹ STOP THE TURN, don't call the model. Handoff happens at the SERVICE
+            # LAYER
+            # (`flag_human_handoff`), NOT through an AI tool — per hard constraint 2: escalation is
+            # never
+            # triggered by the AI itself.
+            if _merge is not None and "FS-13" in _merge:
+                _account = None
                 try:
-                    _tk = flag_human_handoff(
+                    _account = flag_human_handoff(
                         session, user_id=user_id,
                         reason="Khách xác nhận có người hướng dẫn chuyển khoản "
                                "(FS-13) — cần chuyên viên liên hệ trực tiếp.",
-                        thread_id=_tid_sl_thu,
+                        thread_id=_slot_tid_try,
                     ).get("ticket_id")
                 except Exception:  # noqa: BLE001
                     _logger.exception(
                         "agent_turn_fs13_ban_giao_loi",
-                        extra={"user_id": user_id, "thread_id": _tid_sl_thu},
+                        extra={"user_id": user_id, "thread_id": _slot_tid_try},
                     )
-                _kq_fs13 = {
-                    "reply": _FS13_BAN_GIAO,
-                    "tool_calls": [], "ticket_id": _tk, "should_escalate": False,
+                _res_fs13 = {
+                    "reply": _FS13_HANDOFF,
+                    "tool_calls": [], "ticket_id": _account, "should_escalate": False,
                     "model": None, "models_da_thu": [],
                     "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
                               "cached_input_tokens": 0, "reasoning_tokens": 0,
@@ -1265,42 +1328,44 @@ def run_agent_turn(
                     "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                     "goi_y_handoff": True,
                     "ly_do_fallback": None,
-                    "duong": DUONG_FS13_BAN_GIAO,
+                    "duong": FS13_HANDOFF_ROUTE,
                 }
-                _ghi_so(_kq_fs13, thread_id, user_id)
-                return _kq_fs13
-        except Exception:  # noqa: BLE001 — ghi nhận KHÔNG được làm hỏng lượt chat
+                _write_ledger(_res_fs13, thread_id, user_id)
+                return _res_fs13
+        except Exception:  # noqa: BLE001 — recording MUST NOT break the chat turn
             _logger.exception(
                 "agent_turn_thu_sang_loc_loi",
-                extra={"user_id": user_id, "thread_id": _tid_sl_thu},
+                extra={"user_id": user_id, "thread_id": _slot_tid_try},
             )
 
-    # ── T0 · CỔNG THU SLOT SAU KHI XÁC THỰC OTP ─────────────────────────────
-    # Chạy TRƯỚC phan_luong() (1B), độc lập với `PHAN_LUONG_BAT` — quyết định
-    # "gọi model với gì" ở đây khác hẳn quyết định "lượt này cần bộ đồ nghề
-    # nào" của 1B. Khi cờ này bật, lượt này KHÔNG đi qua nhe/thu_slot/day_du
-    # của 1B — resend-sau-OTP luôn là một khiếu nại thật (đó là lý do tool bị
-    # OTP chặn), không bao giờ hợp lệ để đi DUONG_NHE hay bị 1B hỏi lại số
-    # tiền theo slot khác.
-    # 🔴 Đ4 (phiếu "OTP trước token" ⑦) — cổng này nay có CÔNG TẮC RIÊNG
-    # `CONG_T0_BAT` (mặc định BẬT, xem src/config.py). Trước bản vá, tắt
-    # `PHAN_LUONG_BAT` để chữa cháy vẫn để T0 chạy, và KHÔNG tín hiệu nào báo.
-    # Nhận diện trong sổ: `duong=otp_resend_thu_slot` ⟹ T0 đã xử lý lượt này.
-    if CONG_T0_BAT and vua_xac_thuc_de_gui_lai:
-        _tid_hieu_qua_otp = thread_id or user_id
-        if doc_tin_hieu(_TEN_TIN_HIEU_OTP_RESEND, _tid_hieu_qua_otp) == 0 and not co_du_de_thu_hep(message):
-            tang_tin_hieu(_TEN_TIN_HIEU_OTP_RESEND, _tid_hieu_qua_otp)
+    # ── T0 · SLOT-COLLECTION GATE AFTER OTP VERIFICATION ───────────────────────────────
+    # Runs BEFORE triage() (1B), independently of `TRIAGE_ENABLED` — the decision here, "what to
+    # call
+    # the model with", is entirely different from 1B's decision "which toolkit does this turn need".
+    # When this flag is on, this turn does NOT go through 1B's nhe/thu_slot/day_du (light/slot/full)
+    # — a post-OTP resend is always a real complaint (that is why the tool was blocked by OTP),
+    # never
+    # valid for ROUTE_LIGHT or for 1B asking for the amount again under a different slot.
+    # 🔴 Đ4 ("OTP before token" ticket ⑦) — this gate now has its OWN SWITCH
+    # `T0_GATE_ENABLED` (ON by default, see src/config.py). Before the fix, switching off
+    # `TRIAGE_ENABLED` to fight a fire still left T0 running, with NO signal saying so.
+    # How to recognise it in the ledger: `duong=otp_resend_thu_slot` ⟹ T0 handled this turn.
+    if T0_GATE_ENABLED and vua_xac_thuc_de_gui_lai:
+        _effective_tid_otp = thread_id or user_id
+        if read_signal(_SIGNAL_OTP_RESEND_ASKED, _effective_tid_otp) == 0 and not enough_to_narrow(message):
+            incr_signal(_SIGNAL_OTP_RESEND_ASKED, _effective_tid_otp)
             _logger.info(
                 "agent_turn_otp_resend_thu_slot",
-                extra={"user_id": user_id, "thread_id": _tid_hieu_qua_otp},
+                extra={"user_id": user_id, "thread_id": _effective_tid_otp},
             )
-            _kq_otp_resend = {
-                "reply": HOI_THOI_GIAN_VA_SO_TIEN,
+            _res_otp_resend = {
+                "reply": ASK_TIME_AND_AMOUNT,
                 "tool_calls": [],
                 "ticket_id": None,
                 "should_escalate": False,
-                # Cùng nguyên tắc DUONG_NHE/DUONG_THU_SLOT — không gọi model
-                # nào, None/0 là SỰ THẬT, không phải "không đọc được".
+                # Same principle as ROUTE_LIGHT/ROUTE_SLOT_FILL — no model is called, so None/0 is
+                # the TRUTH,
+                # not "unreadable".
                 "model": None,
                 "models_da_thu": [],
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
@@ -1313,57 +1378,65 @@ def run_agent_turn(
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 "goi_y_handoff": False,
                 "ly_do_fallback": None,
-                "duong": DUONG_OTP_RESEND_THU_SLOT,
+                "duong": ROUTE_OTP_RESEND_SLOT_FILL,
             }
-            _ghi_so(_kq_otp_resend, thread_id, user_id)
-            return _kq_otp_resend
-        # Đủ điều kiện (có mã/thời gian) HOẶC đã hỏi rồi ở một lượt resend
-        # trước đó trong hội thoại này (khách xác thực OTP nhiều lần) — KHÔNG
-        # tăng tín hiệu (chỉ tăng ở nhánh hỏi phía trên), rơi thẳng xuống
-        # luồng model đầy đủ bên dưới với `message` NGUYÊN VĂN, bỏ qua 1B.
+            _write_ledger(_res_otp_resend, thread_id, user_id)
+            return _res_otp_resend
+        # Eligible (has an ID/time) OR already asked on an earlier resend turn in this conversation
+        # (the
+        # customer verified OTP several times) — the signal is NOT incremented (only in the asking
+        # branch
+        # above), and the turn falls straight through to the full model flow below with the VERBATIM
+        # `message`, skipping 1B.
 
-    # ── ④ · CỔNG OTP TẤT ĐỊNH CHO NHÓM B ────────────────────────────────────
-    # Bất biến của đợt: KHÔNG lượt nào tốn token trước khi OTP xác thực xong.
-    # Lượt khiếu nại cá nhân mà OTP chưa tươi thì CHẮC CHẮN bị tầng tool chặn —
-    # gọi model cho nó là trả tiền để tự khám phá một sự thật tầng này đã biết.
-    # [ĐO, customer_tools.py:620-629 tự khai] lượt ấy tốn 8 tool call · 46 giây ·
-    # 49.700–71.600 token, và sổ ghi `total_tokens = 0`.
+    # ── ④ · DETERMINISTIC OTP GATE FOR GROUP B ────────────────────────────────────
+    # The invariant of this round: NO turn spends tokens before OTP verification is complete.
+    # A personal-complaint turn whose OTP isn't fresh WILL CERTAINLY be blocked by the tool layer —
+    # calling the model for it means paying to rediscover a fact this layer already knows.
+    # [MEASURED, self-declared in customer_tools.py:620-629] such a turn costs 8 tool calls · 46
+    # seconds · 49,700–71,600 tokens, and the ledger records `total_tokens = 0`.
     #
-    # Q1 (PO chốt): CHỈ áp cho NHÓM B. Câu hỏi chính sách KHÔNG bị chặn —
-    # `search_policy` vốn đã được miễn OTP.
+    # Q1 (decided by the PO): applies ONLY to GROUP B. Policy questions are NOT blocked —
+    # `search_policy` is already exempt from OTP.
     #
-    # 🔴 KHÔNG PHẢI LỚP BẢO MẬT — xem chú thích `CONG_OTP_NHOM_B_BAT` ở
-    # src/config.py. Dùng ngưỡng XEM (12h), CỐ Ý lỏng bằng tầng tool chứ không
-    # chặt hơn. Gỡ chốt ở tool vì "đã có cổng này" là mở ràng buộc cứng 4.
+    # 🔴 NOT A SECURITY LAYER — see the comment on `OTP_GATE_GROUP_B_ENABLED` in
+    # src/config.py. Uses the VIEW threshold (12h), DELIBERATELY as loose as the tool layer, not
+    # stricter. Removing the lock in the tool because "this gate exists" would open hard constraint
+    # 4.
     #
-    # Đặt SAU T0 (lượt resend-sau-OTP đã xác thực rồi, không rơi vào đây) và
-    # TRƯỚC T1 — muộn hơn là đã tiêu mất thứ định tiết kiệm.
+    # Placed AFTER T0 (post-OTP resend turns are already verified and don't land here) and BEFORE T1
+    # — any later and the thing we meant to save would already be spent.
     #
-    # 🔴 AM-01 tạm còn `nhom_b=True` ⟹ một lớp câu hỏi chính sách bị chặn. Đây
-    # là lỗ ĐÃ TRACKED của NHÓM B chảy xuống, KHÔNG phải hồi quy do ④ gây ra;
-    # tự đóng khi ③ vòng 2 (trục thể câu) land. Lead duyệt land trước, 25/08.
+    # 🔴 AM-01 still has `nhom_b=True` for now ⟹ one class of policy questions gets blocked. This is
+    # an ALREADY-TRACKED hole of GROUP B flowing downstream, NOT a regression caused by ④; it closes
+    # itself when ③ round 2 (the sentence-mood axis) lands. Lead approved landing first, 25/08.
     if (
-        CONG_OTP_NHOM_B_BAT
+        OTP_GATE_GROUP_B_ENABLED
         and not vua_xac_thuc_de_gui_lai
-        # TÁI DÙNG `_otp_fresh` của tầng tool — KHÔNG viết định nghĩa thứ hai
-        # về "còn tươi". Hai định nghĩa của cùng một vật sẽ lệch nhau, và lệch
-        # trong im lặng (cùng lý do `bam_ma_nguon` vs `BUILD_COMMIT` đã có).
-        # Cổng này chặn ⟹ tool cũng sẽ chặn: một nguồn, không thể lệch.
+        # REUSES the tool layer's `_otp_fresh` — NO second definition of "fresh" is written. Two
+        # definitions of the same thing will drift, and drift silently (the same reason
+        # `hash_source` vs
+        # `BUILD_COMMIT` exist).
+        # This gate blocks ⟹ the tool would block too: one source, impossible to drift.
         and not _otp_fresh(otp_verified_at, OTP_VIEW_MAX_MINUTES)
-        and la_khieu_nai_ca_nhan(message)
+        and is_personal_complaint(message)
     ):
         _logger.info(
             "agent_turn_can_otp",
             extra={"user_id": user_id, "thread_id": thread_id or user_id,
-                   "bam_luat": BAM_LUAT},
+                   "bam_luat": RULES_HASH},
         )
-        _kq_can_otp = {
-            "reply": _CAN_XAC_THUC_OTP,
-            # 🔴 HỢP ĐỒNG VỚI CLIENT (Lead duyệt 25/08): client mở hộp thoại OTP
-            # bằng `duong === "can_otp"`, KHÔNG bằng câu chữ tiếng Việt của
-            # `reply`. Trước ④, hai đường kích OTP của ChatClient.tsx đều đọc
-            # `tool_calls`/`ticket_id` — mà mọi đường 0-token đều trả rỗng, nên
-            # thêm cổng này mà không thêm khoá là để khách vào ngõ cụt.
+        _res_needs_otp = {
+            "reply": _NEEDS_OTP_VERIFICATION,
+            # 🔴 THE CONTRACT WITH THE CLIENT (Lead approved 25/08): the client opens the OTP dialog
+            # on
+            # `duong === "can_otp"` (route: needs OTP), NOT on the Vietnamese wording of `reply`.
+            # Before ④,
+            # both OTP-triggering paths in ChatClient.tsx read `tool_calls`/`ticket_id` — and every
+            # 0-token
+            # path returns those empty, so adding this gate without adding the key would lead
+            # customers into a
+            # dead end.
             "tool_calls": [],
             "ticket_id": None,
             "should_escalate": False,
@@ -1379,47 +1452,50 @@ def run_agent_turn(
             "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
             "goi_y_handoff": False,
             "ly_do_fallback": None,
-            "duong": DUONG_CAN_OTP,
+            "duong": ROUTE_NEEDS_OTP,
         }
-        # ⑭ — ghi BẰNG CHỨNG: thread này vừa bị cổng OTP chặn thật. Lượt sau
-        # client mới được quyền đặt `vua_xac_thuc_de_gui_lai`.
-        tang_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, thread_id or user_id)
-        _ghi_so(_kq_can_otp, thread_id, user_id)
-        return _kq_can_otp
+        # ⑭ — record the EVIDENCE: this thread was really blocked by the OTP gate just now. Only on
+        # the
+        # next turn may the client set `vua_xac_thuc_de_gui_lai`.
+        incr_signal(_SIGNAL_OTP_BLOCKED, thread_id or user_id)
+        _write_ledger(_res_needs_otp, thread_id, user_id)
+        return _res_needs_otp
 
-    # ── T1 · PHÂN LUỒNG ─────────────────────────────────────────────────────
-    # Sau cờ, MẶC ĐỊNH TẮT. Tắt thì hàm này chạy y hệt trước khi có nhánh này.
+    # ── T1 · TRIAGE ─────────────────────────────────────────────────────────────────
+    # Behind a flag, OFF BY DEFAULT. When off, this function behaves exactly as before this branch
+    # existed.
     #
-    # Đường nhẹ TRẢ NGAY, KHÔNG chạm model, KHÔNG chạm tool, KHÔNG ghi bản ghi
-    # nghiệp vụ nào. Đó là toàn bộ điểm của nó: rẻ hơn mọi model rẻ, vì không
-    # có model nào.
+    # The light path RETURNS IMMEDIATELY, touching NO model, NO tool, writing NO business record.
+    # That
+    # is its whole point: cheaper than any cheap model, because there is no model.
     #
-    # Đặt SAU khi nạp `user` (cần user tồn tại thật) và TRƯỚC mọi thứ khác —
-    # đặt muộn hơn là đã tiêu mất thứ ta định tiết kiệm.
-    if not vua_xac_thuc_de_gui_lai and PHAN_LUONG_BAT:
-        _duong, _ly_do_duong = phan_luong(message)
-        if _duong == DUONG_NHE:
+    # Placed AFTER loading `user` (the user must really exist) and BEFORE everything else —
+    # any later and what we meant to save would already be spent.
+    if not vua_xac_thuc_de_gui_lai and TRIAGE_ENABLED:
+        _route, _route_reason = triage(message)
+        if _route == ROUTE_LIGHT:
             _logger.info(
                 "agent_turn_duong_nhe",
                 extra={"user_id": user_id, "thread_id": thread_id or user_id,
-                       "ly_do": _ly_do_duong, "bam_luat": BAM_LUAT},
+                       "ly_do": _route_reason, "bam_luat": RULES_HASH},
             )
-            _kq_nhe = {
-                "reply": TRA_LOI_NHE,
+            _res_light = {
+                "reply": LIGHT_REPLIES,
                 "tool_calls": [],
                 "ticket_id": None,
                 "should_escalate": False,
-                # GĐ3 — đường nhẹ KHÔNG gọi model nào (định tuyến trước khi
-                # chạm LLM) ⟹ None/rỗng là SỰ THẬT, không phải "không đọc được".
+                # Phase 3 — the light path calls NO model (routing happens before touching the LLM)
+                # ⟹ None/empty is the TRUTH, not "unreadable".
                 "model": None,
                 "models_da_thu": [],
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
                           "cached_input_tokens": 0, "reasoning_tokens": 0,
                           "input_chars": 0, "so_luot_goi_model": 0,
-                          # Hai trường ĐẾM cùng tầng với `so_luot_goi_model`.
-                          # tester sập bẫy hai-tầng: `.get()` trên khoá không
-                          # tồn tại trả None, y hệt khoá tồn tại mang None.
-                          # `duong` GIỮ top-level — nó là NHÃN, không phải số đo.
+                          # Two COUNTING fields at the same level as `so_luot_goi_model`.
+                          # The tester fell into the two-level trap: `.get()` on a missing key
+                          # returns None, exactly like an
+                          # existing key holding None.
+                          # `duong` (route) STAYS top-level — it is a LABEL, not a measurement.
                           "so_tool_schema_gui": 0,
                           "chars_tool_schema_moi_luot": 0,
                           "suy_luan_gui": None},
@@ -1427,51 +1503,61 @@ def run_agent_turn(
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 "goi_y_handoff": False,
                 "ly_do_fallback": None,
-                # Dấu do TẦNG NÀY ghi, từ thứ nó THẬT SỰ gửi đi (không gửi gì).
-                # `so_tool_schema_gui` đến từ một cơ chế KHÁC với quyết định
-                # phân luồng, nên một điểm hỏng không giả được cả hai: dấu kẹt
-                # "day_du" mà số này = 0 là mâu thuẫn tự lộ.
-                "duong": DUONG_NHE,
+                # A marker written by THIS LAYER, from what it REALLY sends (nothing).
+                # `so_tool_schema_gui` comes from a DIFFERENT mechanism than the triage decision, so
+                # a single
+                # failure point can't fake both: a marker stuck at "day_du" while this number = 0 is
+                # a
+                # self-exposing contradiction.
+                "duong": ROUTE_LIGHT,
             }
-            _ghi_so(_kq_nhe, thread_id, user_id)
-            return _kq_nhe
+            _write_ledger(_res_light, thread_id, user_id)
+            return _res_light
 
-        elif _duong == DUONG_THU_SLOT:
-            # 1B — cổng thu slot tất định (docs/giao-viec/2026-08-24-luong-
-            # chatbot-1A-1B.md). Trạng thái "đã hỏi lần nào chưa" sống ở TẦNG
-            # GỌI này (Redis, thread_signals.py) — phan_luong.py là hàm THUẦN,
-            # không side-effect. Tối đa MỘT LẦN hỏi mỗi hội thoại (mục 5): đã
-            # hỏi rồi thì KHÔNG return sớm ở đây nữa, rơi thẳng xuống đường
-            # đầy đủ bên dưới như một lượt day_du bình thường — GHÉP lại lời
-            # kể gốc + câu trả lời của khách là việc của model đọc lịch sử
-            # hội thoại, tầng tất định này không có khả năng ghép ngữ cảnh
-            # liên-lượt (đúng bất biến "phân loại theo TỪNG LƯỢT").
+        elif _route == ROUTE_SLOT_FILL:
+            # 1B — the deterministic slot-collection gate (docs/giao-viec/2026-08-24-luong-
+            # chatbot-1A-1B.md). The "has it been asked yet" state lives in this CALLING LAYER
+            # (Redis,
+            # thread_signals.py) — triage.py is a PURE function with no side effects. At most ONE
+            # ask per
+            # conversation (item 5): once asked, there is NO early return here any more; it falls
+            # straight
+            # through to the full path below like a normal day_du turn — MERGING the original
+            # account + the
+            # customer's answer is the job of the model reading the conversation history; this
+            # deterministic
+            # layer cannot merge cross-turn context (exactly the invariant "classify PER TURN").
             #
-            # 🔴 Review bắt 24/08: dùng `doc_hoac_khong_ro()` (KHÔNG phải
-            # `doc()`) — `== 0` CHỈ đúng khi Redis xác nhận "chưa hỏi thật".
-            # Redis lỗi trả `None`, `None == 0` là `False` ⟹ KHÔNG bắn, rơi
-            # xuống day_du — đúng hướng an toàn của module này ("nghi ngờ
-            # thì đi ĐẦY ĐỦ"). Dùng `doc()` thường (gộp lỗi vào 0) sẽ làm
-            # Redis chết ⟹ gate coi mọi lượt là lần đầu ⟹ bắn lặp lại.
-            _tid_hieu_qua = thread_id or user_id
-            if doc_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua) == 0:
-                tang_tin_hieu(TEN_TIN_HIEU_1B, _tid_hieu_qua)
-                # R1 (1A) chốt 24/08: cổng CHỈ hỏi ĐÚNG MỘT thứ — số tiền là
-                # slot bắt buộc duy nhất (xem chú thích HOI_THIEU_SO_TIEN),
-                # nên không còn cần boc_slot(message) ở đây để chọn mẫu.
-                _reply_slot = HOI_THIEU_SO_TIEN
+            # 🔴 Caught in review 24/08: uses `read_or_unknown()` (NOT `doc()`) — `== 0` is ONLY true
+            # when
+            # Redis confirms "really not asked yet". A Redis error returns `None`, and `None == 0`
+            # is `False`
+            # ⟹ does NOT fire, falls to day_du — exactly this module's safe direction ("when in
+            # doubt, go
+            # FULL"). Using plain `doc()` (merging errors into 0) would make a dead Redis ⟹ the gate
+            # treat
+            # every turn as the first ⟹ fire repeatedly.
+            _effective_tid = thread_id or user_id
+            if read_signal(SIGNAL_1B_SLOT_ASKED, _effective_tid) == 0:
+                incr_signal(SIGNAL_1B_SLOT_ASKED, _effective_tid)
+                # R1 (1A) fixed 24/08: the gate asks for EXACTLY ONE thing — the amount is the only
+                # mandatory slot (see the ASK_MISSING_AMOUNT comment), so extract_slots(message) is
+                # no longer
+                # needed here to choose a template.
+                _reply_slot = ASK_MISSING_AMOUNT
                 _logger.info(
                     "agent_turn_duong_thu_slot",
-                    extra={"user_id": user_id, "thread_id": _tid_hieu_qua,
-                           "ly_do": _ly_do_duong, "bam_luat": BAM_LUAT},
+                    extra={"user_id": user_id, "thread_id": _effective_tid,
+                           "ly_do": _route_reason, "bam_luat": RULES_HASH},
                 )
-                _kq_slot = {
+                _res_slot = {
                     "reply": _reply_slot,
                     "tool_calls": [],
                     "ticket_id": None,
                     "should_escalate": False,
-                    # Cùng nguyên tắc DUONG_NHE — không gọi model nào, None/0
-                    # là SỰ THẬT, không phải "không đọc được".
+                    # Same principle as ROUTE_LIGHT — no model is called, so None/0 is the TRUTH,
+                    # not
+                    # "unreadable".
                     "model": None,
                     "models_da_thu": [],
                     "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
@@ -1484,88 +1570,99 @@ def run_agent_turn(
                     "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                     "goi_y_handoff": False,
                     "ly_do_fallback": None,
-                    # 🔴 Nhãn RIÊNG, KHÔNG dùng chung "nhe" — thiếu nhãn này
-                    # thì không đếm được tần suất cổng bắn/lượt trong
-                    # usage.jsonl, dự báo giảm token (1B.5) không kiểm chứng
-                    # được (yêu cầu PO-agent, mục 1 nháp 1B).
-                    "duong": DUONG_THU_SLOT,
+                    # 🔴 A SEPARATE label, NOT sharing "nhe" (light) — without it the gate's firing
+                    # frequency per
+                    # turn can't be counted in usage.jsonl, and the token-reduction forecast (1B.5)
+                    # can't be verified
+                    # (PO-agent request, item 1 of the 1B draft).
+                    "duong": ROUTE_SLOT_FILL,
                 }
-                _ghi_so(_kq_slot, thread_id, user_id)
-                return _kq_slot
+                _write_ledger(_res_slot, thread_id, user_id)
+                return _res_slot
 
-    # ES-xx (ADR-022) — tính TRƯỚC khi gọi agent, trên tin nhắn khách, ở TẦNG
-    # SERVICE. Không gọi LLM, không đi vào prompt, không thêm bước nào.
+    # ES-xx (ADR-022) — computed BEFORE calling the agent, on the customer's message, at the
+    # SERVICE LAYER. No LLM call, nothing goes into the prompt, no extra step.
     #
-    # Đặt ở ĐÂY chứ không phải sau khi có reply là có chủ đích: tính sau thì vẫn
-    # đúng nghĩa "không vào prompt", nhưng mất khả năng bật gợi ý NGAY ở lượt
-    # đang xảy ra — mà toàn bộ giá trị của ES là đưa người bực sang người thật
-    # SỚM, không phải một lượt sau.
+    # Placed HERE rather than after the reply exists, deliberately: computing it afterwards would
+    # still
+    # honour "not in the prompt", but would lose the ability to raise the suggestion ON the current
+    # turn — and the whole value of ES is moving frustrated people to a human EARLY, not one turn
+    # later.
     #
-    # Cố ý KHÔNG đưa nhãn cảm xúc vào prompt: agent sẽ NÓI RA cảm nhận đó, tức
-    # khẳng định một kết luận tâm lý về một con người dựa trên bộ phân loại có
-    # thể sai — trái tinh thần ràng buộc cứng 3 (mọi điều agent khẳng định phải
-    # truy được về dữ liệu thật; cảm xúc suy đoán không phải dữ liệu thật).
-    tin_hieu_cam_xuc = danh_gia_luot(message, thread_id or user_id)
+    # DELIBERATELY NOT putting the emotion label into the prompt: the agent would SAY that
+    # perception
+    # out loud, i.e. assert a psychological conclusion about a person based on a classifier that may
+    # be
+    # wrong — against the spirit of hard constraint 3 (everything the agent asserts must trace to
+    # real
+    # data; an inferred emotion is not real data).
+    emotion_signal = evaluate_turn(message, thread_id or user_id)
 
-    # 1 guard cho MỖI lượt (không phải global) — bàn giao `session` giữa luồng
-    # chính và luồng nền khi lượt bị bỏ rơi vì timeout, xem TurnGuard (QA-12).
+    # 1 guard PER turn (not global) — hands the `session` over between the main thread and the
+    # background thread when the turn is abandoned on timeout, see TurnGuard (QA-12).
     guard = TurnGuard()
     agent = _build_agent(
-        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at, guard=guard,  # PII-OK: cố ý truyền None, không đưa họ tên lên LLM
+        session, user_id=user_id, customer_name=None, otp_verified_at=otp_verified_at, guard=guard,  # PII-OK: deliberately passing None, not sending the full name to the LLM
         thread_id=thread_id or user_id,
     )
-    # thread_id mặc định = user_id (hành vi thật, không đổi). eval/_harness.py
-    # truyền thread_id riêng biệt mỗi case để cô lập bộ nhớ hội thoại
-    # (checkpointer module-level dùng chung — nếu không cô lập, nhiều case
-    # cùng user_id trong 1 lần chạy eval sẽ nối tiếp hội thoại của nhau).
+    # thread_id defaults to user_id (real behaviour, unchanged). eval/_harness.py passes a
+    # separate thread_id per case to isolate conversation memory (the module-level checkpointer is
+    # shared — without isolation, several cases with the same user_id in one eval run would continue
+    # each other's conversations).
     config = {"configurable": {"thread_id": thread_id or user_id}}
 
-    # `agent` ở trên CHỈ để đọc state trước lượt — KHÔNG phụ thuộc model nào
-    # (checkpoint là lịch sử hội thoại, không phải hiện vật của một model cụ
-    # thể) nên KHÔNG cần rebuild theo từng lần xoay bên dưới.
+    # `agent` above is ONLY for reading state before the turn — it doesn't depend on any model
+    # (a checkpoint is conversation history, not an artefact of a specific model) so it does NOT
+    # need
+    # rebuilding per rotation below.
     state_before = agent.get_state(config)
     prev_len = len(state_before.values.get("messages", [])) if state_before.values else 0
 
-    # GĐ3 (876a240) — BỂ MODEL + XOAY. `models_da_thu` liệt kê MỌI model đã
-    # thử trong lượt này theo thứ tự (kể cả lần bị từ chối) — nhà cung cấp
-    # tính tiền CẢ LẦN THẤT BẠI, "chứng từ đối soát hoá đơn" (876a240) phải
-    # ghi đủ, không chỉ ghi model cuối cùng trả lời.
-    models_da_thu: list[str] = []
-    model_dang_thu = llm_pool.model_dau_luot()
+    # Phase 3 (876a240) — MODEL POOL + ROTATION. `models_da_thu` (models tried) lists EVERY model
+    # tried in this turn in order (including rejected attempts) — providers bill FAILED attempts
+    # too,
+    # and the "invoice reconciliation evidence" (876a240) must record them all, not just the final
+    # answering model.
+    tried_models: list[str] = []
+    trying_model = llm_pool.turn_start_model()
 
-    # Span gốc "agent_turn" — 1 lượt chat là 1 vòng lặp ReAct nhiều bước (LLM
-    # generation + tool call xen kẽ), KHÔNG PHẢI 1 khối duy nhất (Giai đoạn 1
-    # checklist observability). `callbacks=[handler]` (KHÔNG dùng
-    # `.configurable`) tạo span con cho MỖI vòng gọi LLM/tool bên trong, tự
-    # nối cây cha-con qua context OTel hiện hành (span gốc đang active).
+    # Root span "agent_turn" — one chat turn is a multi-step ReAct loop (LLM generation +
+    # interleaved
+    # tool calls), NOT a single block (phase 1 of the observability checklist).
+    # `callbacks=[handler]`
+    # (NOT `.configurable`) creates a child span for EACH LLM/tool round inside, linking the
+    # parent/child tree automatically through the current OTel context (the root span is active).
     with _tracer.start_as_current_span("agent_turn") as root_span:
         root_span.set_attribute("fin05.user_id", user_id)
         root_span.set_attribute("fin05.thread_id", thread_id or user_id)
         root_span.set_attribute("fin05.otp_verified", otp_verified_at is not None)
 
-        # GĐ3 — VÒNG XOAY. Bọc quanh build-agent + invoke, KHÔNG bọc quanh ba
-        # nhánh except hiện có bên dưới: nhánh rotatable (APIError mang tín
-        # hiệu hết hạn ngạch, CÒN model khác trong bể) được xử lý Ở ĐÂY rồi
-        # `continue`; mọi nhánh KHÔNG rotatable (429 · lỗi không-phải-quota ·
-        # bể đã cạn · timeout/recursion) `raise` NGUYÊN VẸN ra ngoài vòng lặp
-        # để BA except hiện có xử lý Y HỆT trước GĐ3 — không đổi hành vi cho
-        # các ca đó, chỉ THÊM một đường rẽ mới trước khi tới chúng.
-        model_da_tra_loi: str | None = None
+        # Phase 3 — THE ROTATION LOOP. Wraps build-agent + invoke, NOT the three existing except
+        # branches below: the rotatable branch (an APIError carrying a quota-exhausted signal, with
+        # OTHER
+        # models STILL in the pool) is handled HERE and then `continue`s; every NON-rotatable branch
+        # (429 ·
+        # non-quota errors · pool exhausted · timeout/recursion) is `raise`d INTACT out of the loop
+        # for the
+        # THREE existing excepts to handle EXACTLY as before phase 3 — no behaviour change for those
+        # cases,
+        # only ADDING a new turn-off before reaching them.
+        answering_model: str | None = None
         try:
             while True:
                 agent = _build_agent(
-                    session, user_id=user_id, customer_name=None,  # PII-OK: luôn None, họ tên không rời hệ thống (ADR-010)
-                    otp_verified_at=otp_verified_at, guard=guard, model=model_dang_thu,
+                    session, user_id=user_id, customer_name=None,  # PII-OK: always None, the full name never leaves the system (ADR-010)
+                    otp_verified_at=otp_verified_at, guard=guard, model=trying_model,
                     thread_id=thread_id or user_id,
                 )
-                models_da_thu.append(model_dang_thu)
+                tried_models.append(trying_model)
 
                 def _invoke():
                     return agent.invoke(
-                        # GĐ4 (Bảo Mật 19/08): muc_dich="model_input" — registry
-                        # HẸP (D'), không nạp Spacy/Date/Phone-generic. Xem
-                        # docstring src/observability/pii.py.
-                        {"messages": [HumanMessage(content=scrub_pii(message, muc_dich="model_input") or message)]},
+                        # Phase 4 (Security 19/08): purpose="model_input" — the NARROW registry
+                        # (D'), not loading
+                        # Spacy/Date/generic Phone. See the src/observability/pii.py docstring.
+                        {"messages": [HumanMessage(content=scrub_pii(message, purpose="model_input") or message)]},
                         config={
                             **config,
                             "callbacks": [OTelTracingCallbackHandler()],
@@ -1573,299 +1670,352 @@ def run_agent_turn(
                         },
                     )
 
-                # AGENT_TURN_TIMEOUT_SECONDS — OPENAI_TIMEOUT_SECONDS chỉ chặn
-                # TỪNG lượt gọi OpenAI riêng lẻ; 1 lượt /agent/chat có thể cần
-                # NHIỀU lượt gọi xen kẽ với tool (ReAct), nên tổng thời gian
-                # vẫn có thể vượt xa (đo thật: 70s cho 1 request) nếu không
-                # chặn RIÊNG ở đây. Chạy trong thread riêng để
-                # `.result(timeout=...)` trả lỗi có kiểm soát cho client kịp
-                # lúc. CỐ Ý KHÔNG dùng `with ThreadPoolExecutor(...) as
-                # executor:` — `__exit__` mặc định gọi `shutdown(wait=True)`,
-                # tức BLOCK tới khi thread dở xong mới thoát `with`, xoá sạch
-                # tác dụng của timeout. `shutdown(wait=False)` khi timeout:
-                # không huỷ được lượt gọi OpenAI đang chạy dở bên dưới (Python
-                # không kill thread được), nhưng trả quyền điều khiển lại cho
-                # client NGAY, không đợi. Một executor MỚI mỗi lần thử — dùng
-                # lại executor cũ sau khi nó đã `shutdown` là lỗi.
+                # AGENT_TURN_TIMEOUT_SECONDS — OPENAI_TIMEOUT_SECONDS only caps EACH individual
+                # OpenAI call;
+                # one /agent/chat turn may need MANY calls interleaved with tools (ReAct), so the
+                # total time can
+                # still go far beyond (measured: 70s for one request) unless capped SEPARATELY here.
+                # Runs in a
+                # separate thread so `.result(timeout=...)` returns a controlled error to the client
+                # in time.
+                # DELIBERATELY NOT using `with ThreadPoolExecutor(...) as executor:` — `__exit__`
+                # calls
+                # `shutdown(wait=True)` by default, i.e. BLOCKS until the unfinished thread
+                # completes before leaving
+                # the `with`, wiping out the timeout's effect entirely. `shutdown(wait=False)` on
+                # timeout: it can't
+                # cancel the OpenAI call still running underneath (Python can't kill threads), but
+                # it returns
+                # control to the client IMMEDIATELY, without waiting. A NEW executor per attempt —
+                # reusing an
+                # executor after it has been `shutdown` is an error.
                 executor = ThreadPoolExecutor(max_workers=1)
-                # Mốc để sổ trả lời được "lượt này CHẠY BAO LÂU rồi mới hỏng".
-                # Thiếu nó thì nhãn `timeout` là một lời khẳng định KHÔNG KIỂM
-                # ĐƯỢC: một lượt bỏ cuộc tức thì và một lượt chạy trọn 45 giây
-                # trông y hệt nhau trong sổ. Có nó thì
-                # `giay_da_troi ≈ AGENT_TURN_TIMEOUT_SECONDS` là bằng chứng
-                # nhãn ĐÚNG, còn `0,4 giây` là bằng chứng nhãn SAI.
-                _bat_dau = time.monotonic()
+                # A timestamp so the ledger can answer "how long did this turn RUN before failing".
+                # Without it the `timeout` label is an UNVERIFIABLE claim: a turn giving up
+                # instantly and a turn
+                # running the full 45 seconds look identical in the ledger. With it,
+                # `giay_da_troi ≈ AGENT_TURN_TIMEOUT_SECONDS` (seconds elapsed) is evidence the
+                # label is RIGHT, and
+                # `0.4 seconds` is evidence it is WRONG.
+                _turn_started_at = time.monotonic()
                 try:
                     result = executor.submit(_invoke).result(timeout=AGENT_TURN_TIMEOUT_SECONDS)
-                    model_da_tra_loi = model_dang_thu
+                    answering_model = trying_model
                     break
                 except RateLimitError:
-                    # 429 KHÔNG BAO GIỜ xoay — nghẽn thoáng qua, không phải
-                    # "hết token" (ràng buộc PO 876a240). Ném nguyên vẹn cho
-                    # except RateLimitError bên ngoài xử lý y hệt trước GĐ3.
+                    # 429 NEVER rotates — it is transient congestion, not "out of tokens" (PO
+                    # constraint 876a240).
+                    # Raised intact for the outer except RateLimitError to handle exactly as before
+                    # phase 3.
                     raise
                 except APIError as e:
                     executor.shutdown(wait=False)
-                    mo_ta = _mo_ta_loi_nha_cung_cap(e, model=model_dang_thu)
-                    # Ràng buộc PO 876a240: ưu tiên `status_code` khi nhà
-                    # cung cấp CÓ trả — 403 luôn coi là quota bất kể câu chữ,
-                    # KHÔNG phụ thuộc thuần vào khớp chuỗi mong manh
-                    # (`co_dau_hieu_het_han_muc`, xem cảnh báo tại chỗ khai
-                    # nó). Chỉ dựa vào chuỗi khi KHÔNG có status_code — một số
-                    # lỗi transport không mang mã trạng thái.
-                    la_quota = mo_ta["ma_trang_thai"] == 403 or (
-                        mo_ta["ma_trang_thai"] is None and bool(mo_ta["co_dau_hieu_het_han_muc"])
+                    description = _describe_provider_error(e, model=trying_model)
+                    # PO constraint 876a240: prefer `status_code` when the provider DOES return one
+                    # — 403 is always
+                    # treated as quota regardless of wording, NOT relying purely on fragile string
+                    # matching
+                    # (`co_dau_hieu_het_han_muc` — has quota-exhausted hint, see the warning where
+                    # it is declared).
+                    # Strings are only relied on when there is NO status_code — some transport
+                    # errors carry no status
+                    # code.
+                    is_quota = description["ma_trang_thai"] == 403 or (
+                        description["ma_trang_thai"] is None and bool(description["co_dau_hieu_het_han_muc"])
                     )
-                    if not la_quota:
-                        raise  # lỗi không-phải-quota — KHÔNG xoay, đường cũ
-                    llm_pool.danh_dau_can(model_dang_thu)
-                    model_ke = llm_pool.model_dau_luot(da_thu=set(models_da_thu))
-                    if model_ke is None:
-                        # BỂ CẠN TOÀN PHẦN — ném NGUYÊN VẸN lỗi quota cuối
-                        # cùng cho except APIError bên ngoài. Đây CHÍNH LÀ
-                        # thông điệp "cần can thiệp" đã có (không hứa mốc thời
-                        # gian, chỉ đường sang kênh khác) — bể cạn toàn phần
-                        # về bản chất LÀ "nhà cung cấp từ chối liên tục",
-                        # không cần một thông điệp/cơ chế thứ hai.
+                    if not is_quota:
+                        raise  # non-quota error — NO rotation, the old path
+                    llm_pool.mark_exhausted(trying_model)
+                    next_model = llm_pool.turn_start_model(tried=set(tried_models))
+                    if next_model is None:
+                        # POOL FULLY EXHAUSTED — the last quota error is raised INTACT for the outer
+                        # except APIError.
+                        # That IS the existing "needs intervention" message (no time promises, only
+                        # pointing to another
+                        # channel) — a fully exhausted pool is by nature "the provider keeps
+                        # refusing"; no second
+                        # message/mechanism is needed.
                         raise
-                    model_dang_thu = model_ke
+                    trying_model = next_model
                     continue
-                # GraphRecursionError/FutureTimeoutError: không có except nào
-                # ở TẦNG NÀY bắt chúng — chúng propagate thẳng ra try bên
-                # ngoài, đúng hành vi cũ (không xoay trên timeout/recursion).
+                # GraphRecursionError/FutureTimeoutError: no except at THIS LAYER catches them —
+                # they propagate
+                # straight to the outer try, the old behaviour (no rotation on timeout/recursion).
         except RateLimitError as e:
-            # 429 quá tải nhà cung cấp. TRƯỚC BẢN NÀY nó không nằm trong tuple
-            # `except` dưới -> rơi thẳng ra ngoài thành HTTP 500, khách nhận
-            # `{"detail":"Internal Server Error"}` trong khi OpenAI đã nói rõ
-            # "try again in 1.381s". Đo thật: tester chạy `--lap 3` là tái hiện.
+            # 429 provider overload. BEFORE THIS VERSION it wasn't in the `except` tuple below -> it
+            # fell
+            # straight out as HTTP 500, and the customer received `{"detail":"Internal Server
+            # Error"}` while
+            # OpenAI had clearly said "try again in 1.381s". Measured: the tester reproduces it by
+            # running
+            # `--lap 3`.
             #
-            # NHÁNH RIÊNG, KHÔNG dùng chung với timeout/recursion bên dưới —
-            # khác nhau ở chỗ QUAN TRỌNG NHẤT: nhánh kia TẠO TICKET bàn giao
-            # người thật, đúng cho ca agent bó tay. 429 thì không: nó là nghẽn
-            # thoáng qua, tự hết sau vài giây. Tạo ticket cho nó nghĩa là mỗi
-            # phút cao điểm đổ một nắm ticket ma lên CSKH cho những khiếu nại
-            # KHÔNG TỒN TẠI — và khách vẫn chưa được trả lời.
+            # A SEPARATE BRANCH, NOT shared with timeout/recursion below — they differ in the MOST
+            # IMPORTANT
+            # way: that branch CREATES A TICKET handing over to a human, right for when the agent
+            # gives up. 429
+            # isn't that: it is transient congestion that clears in a few seconds. Creating tickets
+            # for it would
+            # dump a handful of ghost tickets on CSKH every peak minute for complaints that DON'T
+            # EXIST — and
+            # the customer still wouldn't have an answer.
             #
-            # Không ngủ-rồi-thử-lại ở đây: `openai` SDK đã tự retry
-            # OPENAI_MAX_RETRIES lần theo đúng `Retry-After` của nhà cung cấp
-            # TRƯỚC KHI ném lên tới đây. Ngủ thêm ở tầng này chỉ ăn vào ngân
-            # sách AGENT_TURN_TIMEOUT_SECONDS rồi biến 429 thành timeout —
-            # đúng cái nhầm lẫn `_ly_do_fallback` đã cảnh báo.
+            # No sleep-and-retry here: the `openai` SDK already retried OPENAI_MAX_RETRIES times
+            # following the
+            # provider's `Retry-After` BEFORE raising up to here. Sleeping more at this layer would
+            # only eat
+            # into the AGENT_TURN_TIMEOUT_SECONDS budget and turn the 429 into a timeout — exactly
+            # the confusion
+            # `_fallback_reason` warns about.
             executor.shutdown(wait=False)
-            # ĐÍNH CHÍNH commit 8a30238 (message của nó dễ đọc sai, không sửa
-            # lịch sử được): cụm "không đẻ ticket ma" ở đó mô tả việc nhánh NÀY
-            # tránh làm, KHÔNG phải một bug đã từng xảy ra rồi được chặn. Trước
-            # bản vá, 429 rơi thẳng ra 500 và chưa bao giờ chạm nhánh fallback
-            # -> chưa từng tạo ticket nào qua đường đó.
+            # CORRECTION of commit 8a30238 (its message is easy to misread; history can't be
+            # edited): the
+            # phrase "no ghost tickets" there describes what THIS branch avoids doing, NOT a bug
+            # that once
+            # happened and was then blocked. Before the fix, 429 fell straight out as a 500 and
+            # never touched
+            # the fallback branch -> it never created any ticket via that path.
             #
-            # ⚠️ NHƯNG có một đường ticket-ma THẬT mà nhánh này KHÔNG đóng: khi
-            # SDK ngủ theo `Retry-After` rồi TỔNG vượt AGENT_TURN_TIMEOUT_SECONDS,
-            # ta nhận FutureTimeoutError chứ không phải RateLimitError -> rơi
-            # xuống nhánh dưới -> nhánh ĐÓ CÓ tạo ticket. Tức 429 đủ chậm vẫn đẻ
-            # ticket như cũ. Đã vào sổ là F-33b.
+            # ⚠️ BUT there is a REAL ghost-ticket path this branch does NOT close: when the SDK
+            # sleeps per
+            # `Retry-After` and the TOTAL exceeds AGENT_TURN_TIMEOUT_SECONDS, we get
+            # FutureTimeoutError rather
+            # than RateLimitError -> it falls to the branch below -> THAT branch DOES create a
+            # ticket. So a slow
+            # enough 429 still spawns tickets as before. Logged as F-33b.
             #
-            # AI MỞ F-33b: bịt ở đây là bịt NHẦM CHỖ. Chỗ cần bịt nằm ở nhánh
-            # timeout, hoặc ở tương quan OPENAI_MAX_RETRIES x
-            # AGENT_TURN_TIMEOUT_SECONDS. Và F-33c (lưu `ly_do_fallback` vào bản
-            # ghi) là điều kiện để câu "429 có đẻ ticket không" trả lời được
-            # bằng MỘT truy vấn — hôm nay không trả lời được, vì 15 complaint
-            # fallback trong DB dùng CHUNG một văn bản lý do cho cả timeout lẫn
-            # recursion.
-            giay = _giay_cho_lai(e)
+            # WHOEVER OPENS F-33b: plugging it here is plugging the WRONG SPOT. The spot to fix is
+            # the timeout
+            # branch, or the relationship OPENAI_MAX_RETRIES x AGENT_TURN_TIMEOUT_SECONDS. And F-33c
+            # (storing
+            # `ly_do_fallback` in the record) is the precondition for answering "does 429 spawn
+            # tickets" with
+            # ONE query — it can't be answered today, because the 15 fallback complaints in the DB
+            # share ONE
+            # reason text for both timeout and recursion.
+            seconds = _retry_wait_seconds(e)
             _logger.warning(
                 "agent_turn_qua_tai",
                 extra={
                     "user_id": user_id,
                     "thread_id": thread_id or user_id,
-                    "retry_after_giay": giay,
+                    "retry_after_giay": seconds,
                     "so_lan_sdk_da_thu": OPENAI_MAX_RETRIES,
                 },
             )
             root_span.set_attribute("fin05.qua_tai", True)
-            khuyen = f" sau khoảng {giay:.0f} giây" if giay else " sau ít giây"
-            _kq = {
+            advice = f" sau khoảng {seconds:.0f} giây" if seconds else " sau ít giây"
+            _res = {
                 "reply": (
                     "Xin lỗi bạn, hệ thống đang bận nên mình chưa xử lý kịp. "
-                    f"Bạn nhắn lại giúp mình{khuyen} nhé — tin nhắn của bạn "
+                    f"Bạn nhắn lại giúp mình{advice} nhé — tin nhắn của bạn "
                     "chưa bị mất gì cả."
                 ),
                 "tool_calls": [],
-                # GĐ3 — 429 KHÔNG xoay (ràng buộc PO), nên model_dang_thu ở
-                # đây LUÔN là model DUY NHẤT đã thử cho lượt này.
-                "model": model_dang_thu,
-                "models_da_thu": list(models_da_thu),
+                # Phase 3 — 429 does NOT rotate (PO constraint), so trying_model here is ALWAYS the
+                # ONLY model
+                # tried this turn.
+                "model": trying_model,
+                "models_da_thu": list(tried_models),
                 "ticket_id": None,
                 "should_escalate": False,
                 "usage": {
-                    # `None` = KHÔNG ĐỌC ĐƯỢC, khác hẳn `0` = KHÔNG CÓ.
-                    # Ở nhánh này request ĐÃ ĐƯỢC GỬI nhưng không lời gọi nào
-                    # TRẢ VỀ ⟹ `so_luot_goi_model = 0` là SỰ THẬT. Nhưng nhà
-                    # cung cấp có tính tiền request bị từ chối/bỏ dở hay không
-                    # thì ta KHÔNG kiểm được từ trong hệ thống ⟹ token là None.
-                    # Đặt 0 ở đó là khẳng định một điều ta không biết.
+                    # `None` = UNREADABLE, entirely different from `0` = NONE.
+                    # On this branch the request WAS SENT but no call RETURNED ⟹ `so_luot_goi_model
+                    # = 0` is the TRUTH.
+                    # But whether the provider bills a rejected/abandoned request is something we
+                    # CAN'T check from
+                    # inside the system ⟹ tokens are None.
+                    # Putting 0 there would assert something we don't know.
                     "input_tokens": None,
                     "output_tokens": None,
                     "total_tokens": None,
                     "cached_input_tokens": None,
                     "so_luot_goi_model": 0,
-                    "so_tool_schema_gui": _SO_TOOL_GUI,
-                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
-                    "suy_luan_gui": _SUY_LUAN_GUI,
+                    "so_tool_schema_gui": _TOOLS_SENT_COUNT,
+                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_REAL,
+                    "suy_luan_gui": _REASONING_SENT,
                 },
                 "loc_dau_ra": [],
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 "goi_y_handoff": False,
                 "ly_do_fallback": "qua_tai",
-                # KẾT LUẬN ở trên, TRIỆU CHỨNG ở đây — không cái nào thay được cái nào.
-                "trieu_chung": {**_trieu_chung_loi(e), "giay_da_troi": round(time.monotonic() - _bat_dau, 2)},
-                "duong": DUONG_DAY_DU,
+                # The CONCLUSION above, the SYMPTOM here — neither can replace the other.
+                "trieu_chung": {**_error_symptom(e), "giay_da_troi": round(time.monotonic() - _turn_started_at, 2)},
+                "duong": ROUTE_FULL,
             }
-            _ghi_so(_kq, thread_id, user_id)
-            return _kq
-            executor.shutdown(wait=True)  # thread thật sự đã xong lúc .result() trả về, wait=True không tốn gì thêm
+            _write_ledger(_res, thread_id, user_id)
+            return _res
+            executor.shutdown(wait=True)  # the thread really had finished when .result() returned; wait=True costs nothing extra
         except APIError as e:
-            # Mọi cách từ chối CÒN LẠI của nhà cung cấp. `RateLimitError` đã
-            # được bắt ở trên — nó là CON của APIError, nên thứ tự hai nhánh
-            # này KHÔNG hoán đổi được: đảo lại thì 429 bị nuốt vào đây và mất
-            # thông điệp `retry_after` cụ thể mà nhà cung cấp đã nói rõ.
+            # Every REMAINING way the provider can refuse. `RateLimitError` is already caught above
+            # — it is
+            # a CHILD of APIError, so the order of these two branches can NOT be swapped: reversed,
+            # the 429
+            # would be swallowed here and lose the specific `retry_after` message the provider
+            # clearly gave.
             #
-            # HAI TRỤC ĐỘC LẬP, không phải hai đầu của một trục:
-            #   trục KHÁCH     — mềm 8/8, không bao giờ 500 trần. Kể cả 400/404
-            #                    (bug của ta): khách không đáng nhận 500 vì bug
-            #                    của ta.
-            #   trục VẬN HÀNH  — mức ồn đặt riêng. error cho ca cần người xử,
-            #                    warning cho ca tự hết.
-            # Ghép hai trục làm một sinh ra CẢ HAI lỗi sai: nổ to thì khách
-            # nhận 500 (đúng ca hôm nay), êm thì vận hành không biết khoá sai.
+            # TWO INDEPENDENT AXES, not two ends of one axis:
+            #   CUSTOMER axis    — soft 8/8, never a bare 500. Even for 400/404
+            #                      (our bug): the customer doesn't deserve a 500 for our bug.
+            #   OPERATIONS axis  — the noise level is set separately. error for cases needing a
+            # human,
+            #                      warning for cases that clear themselves.
+            # Merging the two axes produces BOTH errors: loud means the customer gets a 500 (exactly
+            # today's
+            # case), quiet means operations never learn the key is wrong.
             executor.shutdown(wait=False)
-            mo_ta = _mo_ta_loi_nha_cung_cap(e, model=model_dang_thu)
-            can_thiep = bool(mo_ta["can_can_thiep"])
-            # HAI TÊN SỰ KIỆN RIÊNG, không phải một tên với một trường phân
-            # loại. Lý do (security ①): có tên riêng thì `grep` ra được ngay hôm
-            # nay, và ngày ai đó gắn cảnh báo thật thì gắn vào tên — không phải
-            # sửa code. Một tên chung + trường lọc bắt người dựng cảnh báo phải
-            # biết trường đó tồn tại.
+            description = _describe_provider_error(e, model=trying_model)
+            intervention = bool(description["can_can_thiep"])
+            # TWO SEPARATE EVENT NAMES, not one name with a classification field. Reason (security
+            # ①):
+            # with separate names, `grep` finds them today, and the day someone attaches a real
+            # alert, it
+            # attaches to the name — no code change. One shared name + a filter field forces whoever
+            # builds the
+            # alert to know that field exists.
             ten_su_kien = (
-                "agent_turn_ncc_can_can_thiep" if can_thiep else "agent_turn_ncc_thoang_qua"
+                "agent_turn_ncc_can_can_thiep" if intervention else "agent_turn_ncc_thoang_qua"
             )
-            ghi = _logger.error if can_thiep else _logger.warning
-            ghi(
+            write = _logger.error if intervention else _logger.warning
+            write(
                 ten_su_kien,
                 extra={
                     "user_id": user_id,
-                    # correlation_id: nối sự cố với SỐ PHIÊN bị ảnh hưởng mà
-                    # không lưu nội dung nào (security ④).
+                    # correlation_id: links the incident to the NUMBER OF SESSIONS affected without
+                    # storing any
+                    # content (security ④).
                     "thread_id": thread_id or user_id,
-                    **mo_ta,
+                    **description,
                 },
             )
-            # Bề mặt máy-đọc-được THỨ HAI, và là bề mặt DUY NHẤT truy vấn được
-            # hôm nay: span Jaeger. Đã nối sẵn, không cần route mới (thêm route
-            # = đổi contract), không phơi trạng thái vận hành ra `/health` công
-            # khai — `lop_loi_cuoi="AuthenticationError"` trên một endpoint
-            # không xác thực chính là báo cho người ngoài biết khoá ta đang hỏng.
+            # The SECOND machine-readable surface, and the ONLY one queryable today: the Jaeger
+            # span.
+            # Already wired, no new route needed (a new route = a contract change), and no
+            # operational state
+            # exposed on the public `/health` — `lop_loi_cuoi="AuthenticationError"` (last error
+            # class) on an
+            # unauthenticated endpoint would tell outsiders our key is broken.
             root_span.set_attribute("fin05.su_kien", ten_su_kien)
-            root_span.set_attribute("fin05.loi_nha_cung_cap", str(mo_ta["lop_loi"]))
-            root_span.set_attribute("fin05.can_can_thiep", can_thiep)
-            root_span.set_attribute("fin05.het_han_muc", bool(mo_ta["co_dau_hieu_het_han_muc"]))
-            root_span.set_attribute("fin05.tu_chan", bool(mo_ta["tu_chan"]))
-            if can_thiep:
-                # Span ĐỎ, không chỉ là span có tag. Jaeger lọc theo `error=true`
-                # mặc định; một tag tự đặt thì người trực phải biết trước tên nó.
+            root_span.set_attribute("fin05.loi_nha_cung_cap", str(description["lop_loi"]))
+            root_span.set_attribute("fin05.can_can_thiep", intervention)
+            root_span.set_attribute("fin05.het_han_muc", bool(description["co_dau_hieu_het_han_muc"]))
+            root_span.set_attribute("fin05.tu_chan", bool(description["tu_chan"]))
+            if intervention:
+                # A RED span, not just a tagged span. Jaeger filters on `error=true` by default; a
+                # custom tag
+                # would require the on-call engineer to know its name in advance.
                 root_span.set_status(Status(StatusCode.ERROR, ten_su_kien))
                 root_span.record_exception(e)
 
-            # HAI CÂU KHÁC NHAU, và khác nhau ở đúng chỗ có hậu quả. Gộp lại là
-            # bảo khách "thử lại sau ít phút" trong khi sự thật là "hết tiền,
-            # thử lại bao nhiêu lần cũng không hết".
+            # TWO DIFFERENT SENTENCES, differing exactly where there are consequences. Merging them
+            # would
+            # tell the customer "try again in a few minutes" when the truth is "out of money, no
+            # number of
+            # retries will fix it".
             #
-            # Ba điều CẢ HAI câu cố ý KHÔNG nói:
-            #  · không "chưa cho phép truy cập" — agent từng nói vậy rồi xin mã
-            #    giao dịch, đẩy khách đi làm một việc vô ích (quan sát ⑤).
-            #  · không "đã ghi nhận"/"CSKH sẽ liên hệ" — nhánh này KHÔNG tạo vé
-            #    nào. Hứa một bản ghi không tồn tại là loại bịa tệ nhất: khách
-            #    NGỒI CHỜ một cuộc gọi không bao giờ tới.
-            #  · không mã lỗi, không tên nhà cung cấp — vô ích với khách, và lộ
-            #    hạ tầng.
+            # Three things BOTH sentences deliberately DON'T say:
+            #  · not "access not yet granted" — the agent once said that and then asked for a
+            # transaction ID,
+            #    sending the customer off on a pointless task (observation ⑤).
+            #  · not "recorded"/"CSKH will contact you" — this branch creates NO ticket. Promising a
+            # record
+            #    that doesn't exist is the worst kind of fabrication: the customer SITS WAITING for
+            # a call that
+            #    never comes.
+            #  · no error code, no provider name — useless to the customer, and it exposes
+            # infrastructure.
             #
-            # Chuỗi là HẰNG SỐ ở tầng code, KHÔNG nhờ model sinh: model vừa
-            # hỏng mới rơi vào đây, nhờ nó viết câu xin lỗi là phụ thuộc đúng
-            # thứ vừa gãy.
-            # Nhóm CẦN CAN THIỆP: KHÔNG hứa mốc thời gian (thử lại có thể
-            # không giúp gì trong nhiều giờ) VÀ phải chỉ đường sang kênh khác.
-            # Đây là ĐIỀU KIỆN của security ③, không phải tuỳ chọn: ta cố ý
-            # không ghi lại lượt này, mà cái giá của việc mất dấu KHÔNG đồng
-            # đều — mất một khách hỏi phí thì giá ≈ 0, mất một khách đang định
-            # BÁO GIAN LẬN thì giá cao và nhạy thời gian. Ta không phân biệt
-            # được vì agent hỏng TRƯỚC khi phân loại. Lối đi cho người thật là
-            # biện pháp duy nhất còn lại — nó biến "ta mất dấu khách" thành
-            # "khách vẫn còn đường".
+            # The strings are CONSTANTS at the code layer, NOT model-generated: we only get here
+            # because the
+            # model just failed; asking it to write the apology would depend on exactly what just
+            # broke.
+            # The NEEDS-INTERVENTION group: NO time promises (retrying may not help for hours) AND
+            # it must
+            # point to another channel.
+            # This is security's CONDITION ③, not optional: we deliberately don't record this turn,
+            # and the
+            # cost of losing track is NOT uniform — losing a customer asking about fees costs ≈ 0,
+            # losing a
+            # customer about to REPORT FRAUD costs a lot and is time-sensitive. We can't tell them
+            # apart
+            # because the agent failed BEFORE classifying. The path to a human is the only remaining
+            # measure —
+            # it turns "we lost track of the customer" into "the customer still has a way forward".
             reply = (
                 "Xin lỗi bạn, hệ thống đang gặp sự cố kỹ thuật nên tạm thời "
                 "chưa xử lý được yêu cầu này. Nếu việc của bạn cần xử lý ngay, "
-                f"bạn liên hệ {KENH_HO_TRO_KHAC} giúp mình nhé."
-                if can_thiep else
+                f"bạn liên hệ {OTHER_SUPPORT_CHANNELS} giúp mình nhé."
+                if intervention else
                 "Xin lỗi bạn, hệ thống đang bận nên mình chưa xử lý kịp. "
                 "Bạn nhắn lại giúp mình sau ít phút nhé — tin nhắn của bạn "
                 "chưa bị mất gì cả."
             )
-            _kq = {
+            _res = {
                 "reply": reply,
                 "tool_calls": [],
-                # GĐ3 — nhánh này CŨNG là đích của "bể cạn toàn phần" (mọi
-                # model trong LLM_MODEL_POOL đều bị đánh dấu cạn trong lượt
-                # này). `models_da_thu` khi đó có ĐỦ mọi model đã thử, không
-                # chỉ model cuối — đúng yêu cầu "chứng từ đối soát" (876a240).
-                "model": None,  # KHÔNG model nào trả lời thành công ở nhánh này
-                "models_da_thu": list(models_da_thu),
-                "ticket_id": None,          # CỐ Ý: xem chú thích ở _LOI_CAN_CAN_THIEP
+                # Phase 3 — this branch is ALSO the destination for "pool fully exhausted" (every
+                # model in
+                # LLM_MODEL_POOL marked exhausted within this turn). `models_da_thu` then contains
+                # EVERY model
+                # tried, not just the last — exactly the "reconciliation evidence" requirement
+                # (876a240).
+                "model": None,  # NO model answered successfully on this branch
+                "models_da_thu": list(tried_models),
+                "ticket_id": None,          # DELIBERATE: see the comment on _ERRORS_NEEDING_INTERVENTION
                 "should_escalate": False,
                 "usage": {
-                    # `None` = KHÔNG ĐỌC ĐƯỢC, khác hẳn `0` = KHÔNG CÓ.
-                    # Ở nhánh này request ĐÃ ĐƯỢC GỬI nhưng không lời gọi nào
-                    # TRẢ VỀ ⟹ `so_luot_goi_model = 0` là SỰ THẬT. Nhưng nhà
-                    # cung cấp có tính tiền request bị từ chối/bỏ dở hay không
-                    # thì ta KHÔNG kiểm được từ trong hệ thống ⟹ token là None.
-                    # Đặt 0 ở đó là khẳng định một điều ta không biết.
+                    # `None` = UNREADABLE, entirely different from `0` = NONE.
+                    # On this branch the request WAS SENT but no call RETURNED ⟹ `so_luot_goi_model
+                    # = 0` is the TRUTH.
+                    # But whether the provider bills a rejected/abandoned request is something we
+                    # CAN'T check from
+                    # inside the system ⟹ tokens are None.
+                    # Putting 0 there would assert something we don't know.
                     "input_tokens": None,
                     "output_tokens": None,
                     "total_tokens": None,
                     "cached_input_tokens": None,
                     "so_luot_goi_model": 0,
-                    "so_tool_schema_gui": _SO_TOOL_GUI,
-                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
-                    "suy_luan_gui": _SUY_LUAN_GUI,
+                    "so_tool_schema_gui": _TOOLS_SENT_COUNT,
+                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_REAL,
+                    "suy_luan_gui": _REASONING_SENT,
                 },
                 "loc_dau_ra": [],
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
                 "goi_y_handoff": False,
-                # Hai giá trị RIÊNG, không gộp: câu hỏi vận hành "sự cố này tự
-                # hết hay cần người xử" phải trả lời được bằng một truy vấn.
+                # Two SEPARATE values, not merged: the operational question "does this incident
+                # clear itself
+                # or need a human" must be answerable with one query.
                 "ly_do_fallback": (
-                    "nha_cung_cap_can_can_thiep" if can_thiep else "nha_cung_cap_thoang_qua"
+                    "nha_cung_cap_can_can_thiep" if intervention else "nha_cung_cap_thoang_qua"
                 ),
-                # 🔴 Hai nhãn trên là KẾT LUẬN ("ai phải làm gì"). Chúng gộp
-                # `401` khoá sai · `403` hết hạn ngạch · `404` sai tên model
-                # vào MỘT chuỗi — ba sự cố cần ba cách xử khác hẳn nhau.
-                # Mã trạng thái đi kèm ở đây để sổ trả lời được câu thứ hai:
-                # "nhà cung cấp đã nói gì". Giữ NGUYÊN hai nhãn cũ vì có test
-                # đang khẳng định chúng — đổi tên là việc phải đi qua tester.
-                "trieu_chung": {**_trieu_chung_loi(e), "giay_da_troi": round(time.monotonic() - _bat_dau, 2)},
-                "duong": DUONG_DAY_DU,
+                # 🔴 The two labels above are CONCLUSIONS ("who must do what"). They merge
+                # `401` wrong key · `403` quota exhausted · `404` wrong model name into ONE string —
+                # three
+                # incidents needing three completely different fixes.
+                # The status code accompanies them here so the ledger can answer the second
+                # question:
+                # "what did the provider say". The two old labels are KEPT because tests assert them
+                # — renaming is
+                # something that has to go through the tester.
+                "trieu_chung": {**_error_symptom(e), "giay_da_troi": round(time.monotonic() - _turn_started_at, 2)},
+                "duong": ROUTE_FULL,
             }
-            _ghi_so(_kq, thread_id, user_id)
-            return _kq
+            _write_ledger(_res, thread_id, user_id)
+            return _res
         except (GraphRecursionError, FutureTimeoutError) as e:
-            # wait=False luôn an toàn ở đây: nếu thread đã xong (nhánh
-            # GraphRecursionError) thì trả về ngay lập tức; nếu chưa (nhánh
-            # timeout thật) thì không chờ, đúng mục đích.
+            # wait=False is always safe here: if the thread has finished (the GraphRecursionError
+            # branch)
+            # it returns immediately; if not (a real timeout) it doesn't wait, exactly as intended.
             executor.shutdown(wait=False)
-            # Vòng lặp ReAct vượt quá _AGENT_RECURSION_LIMIT HOẶC vượt trần
-            # thời gian tổng (thật sự xảy ra — không phải lý thuyết, xem case
-            # CONSUME-002) — KHÔNG để lỗi rơi ra ngoài thành 500, chuyển hẳn
-            # cho người xử lý thay vì treo vô thời hạn/crash. root_span vẫn
-            # ghi nhận đúng (context manager tự đóng dù có exception), chỉ
-            # không có span con của lượt hỏng.
+            # The ReAct loop exceeded _AGENT_RECURSION_LIMIT OR the total time ceiling (this really
+            # happens — not theory, see case CONSUME-002) — the error must NOT fall out as a 500;
+            # hand over to a
+            # human entirely instead of hanging indefinitely/crashing. root_span still records
+            # correctly (the
+            # context manager closes even on exceptions), there are just no child spans for the
+            # failed turn.
             is_timeout = isinstance(e, FutureTimeoutError)
             _logger.warning(
                 "agent_turn_timeout" if is_timeout else "agent_recursion_limit_reached",
@@ -1873,18 +2023,22 @@ def run_agent_turn(
             )
             root_span.set_attribute("fin05.recursion_limit_reached", not is_timeout)
             root_span.set_attribute("fin05.turn_timeout", is_timeout)
-            # Bàn giao session lại cho luồng này TRƯỚC KHI ghi (QA-12). Đặt cờ
-            # rồi mới giành khoá: tool call dở dang (nếu có) chạy nốt xong mới
-            # nhả khoá, và mọi tool call SAU đó thấy cờ nên từ chối chạm DB —
-            # luồng nền bị bỏ rơi không thể sinh ticket thứ hai cho cùng lượt
-            # chat này nữa (đo thật: 4/4 case từng sinh ticket ma).
+            # Hand the session back to this thread BEFORE writing (QA-12). Set the flag first, then
+            # take
+            # the lock: any in-flight tool call finishes before releasing the lock, and every tool
+            # call AFTER
+            # that sees the flag and refuses to touch the DB — the abandoned background thread can
+            # no longer
+            # create a second ticket for the same chat turn (measured: 4/4 cases used to create
+            # ghost tickets).
             #
-            # Ghi bằng CHÍNH `session` được tiêm, không mở session thứ hai:
-            # mở connection thứ hai vào cùng DB trong khi connection thứ nhất
-            # đang giữ transaction ghi dở là nguyên nhân "database is locked"
-            # (QA-12) — và cũng thừa, vì sau khi giành được khoá thì session
-            # này đã an toàn tuyệt đối. Dùng session được tiêm cũng chính là
-            # thứ giữ QA-10: ticket luôn nằm đúng DB mà caller chỉ định.
+            # Written with THE INJECTED `session` itself, no second session opened:
+            # opening a second connection to the same DB while the first holds an unfinished write
+            # transaction is what causes "database is locked" (QA-12) — and it is unnecessary,
+            # because once
+            # the lock is acquired this session is completely safe. Using the injected session is
+            # also what
+            # preserves QA-10: the ticket always lands in exactly the DB the caller specified.
             guard.abandoned.set()
             with guard.lock:
                 handoff = flag_human_handoff(
@@ -1893,98 +2047,113 @@ def run_agent_turn(
                     reason="Hệ thống AI gặp khó khăn khi xử lý yêu cầu này (vòng lặp tra cứu không ra kết quả rõ ràng) — cần chuyên viên hỗ trợ trực tiếp.",
                     thread_id=thread_id or user_id,
                 )
-                # Commit tường minh: khách vừa được báo mã ticket này, nên nó
-                # PHẢI tồn tại thật, không phụ thuộc caller có commit hay
-                # không (eval harness rollback giữa các case) — báo mã ticket
-                # không tra được chính là bịa số liệu, ràng buộc cứng #3.
+                # Explicit commit: the customer was just told this ticket ID, so it MUST really
+                # exist,
+                # regardless of whether the caller commits (the eval harness rolls back between
+                # cases) — reporting
+                # an untraceable ticket ID is fabricating data, hard constraint #3.
                 session.commit()
-            _kq = {
+            _res = {
                 "reply": "Mình chưa tra được yêu cầu này, để mình chuyển cho chuyên viên hỗ trợ trực tiếp nhé — mã ticket của bạn là "
                 + handoff["ticket_id"]
                 + ".",
-                # GĐ3 — timeout/recursion KHÔNG xoay (ràng buộc PO), nên chỉ
-                # có ĐÚNG MỘT model bị thử cho lượt này.
-                "model": model_dang_thu,
-                "models_da_thu": list(models_da_thu),
-                # `None`, KHÔNG phải `[]`. Đây là bản vá cho một lời nói dối của
-                # dữ liệu: `[]` nghĩa là "không tool nào được gọi", mà ở nhánh
-                # này ta KHÔNG BIẾT — `_invoke` đã ném lỗi nên không có
-                # `result["messages"]` để đọc. Khôi phục từ checkpointer thì
-                # phải đọc trong lúc luồng nền vẫn đang ghi, đúng race đã gây ra
-                # QA-12; không đáng đổi.
-                # Trước bản vá này, tester đọc `[]` như quan sát thật và suýt
-                # kết luận "agent không gọi tool nào" cho những ca đã chạy tool.
-                # `null` = "không khôi phục được", khác hẳn `[]` = "không có".
+                # Phase 3 — timeout/recursion do NOT rotate (PO constraint), so EXACTLY ONE model
+                # was tried
+                # this turn.
+                "model": trying_model,
+                "models_da_thu": list(tried_models),
+                # `None`, NOT `[]`. This fixes a lie told by the data: `[]` means "no tool was
+                # called", while
+                # on this branch we DON'T KNOW — `_invoke` raised, so there is no
+                # `result["messages"]` to read.
+                # Recovering it from the checkpointer would mean reading while the background thread
+                # is still
+                # writing, exactly the race that caused QA-12; not worth it.
+                # Before this fix the tester read `[]` as a real observation and nearly concluded
+                # "the agent called
+                # no tools" for cases that had run tools.
+                # `null` = "couldn't be recovered", entirely different from `[]` = "none".
                 "tool_calls": None,
                 "ticket_id": handoff["ticket_id"],
                 "should_escalate": False,
-                # Bốn số 0 này là "KHÔNG ĐO ĐƯỢC", không phải "đo được 0" —
-                # `_invoke` đã ném lỗi SAU khi model có thể đã chạy và đã tốn
-                # token thật. Cùng loại phân biệt mà `tool_calls: None` ở trên
-                # cố ý giữ. Chưa đổi sang None vì có consumer đang cộng dồn
-                # trực tiếp; nhưng ai dựng test/dashboard chi phí trên trường
-                # này phải biết: lượt fallback ÂM THẦM báo thiếu tiền đã tiêu,
-                # và một assertion `usage == 0` sẽ xanh ở CẢ HAI nghĩa.
+                # These four zeros mean "NOT MEASURABLE", not "measured as 0" —
+                # `_invoke` raised AFTER the model may already have run and spent real tokens. The
+                # same kind of
+                # distinction `tool_calls: None` above deliberately keeps. Not yet changed to None
+                # because a
+                # consumer sums them directly; but anyone building cost tests/dashboards on this
+                # field must know:
+                # fallback turns SILENTLY under-report money spent, and an assertion `usage == 0`
+                # would be green in
+                # BOTH senses.
                 "usage": {
-                    # `None` = KHÔNG ĐỌC ĐƯỢC, khác hẳn `0` = KHÔNG CÓ.
-                    # Ở nhánh này request ĐÃ ĐƯỢC GỬI nhưng không lời gọi nào
-                    # TRẢ VỀ ⟹ `so_luot_goi_model = 0` là SỰ THẬT. Nhưng nhà
-                    # cung cấp có tính tiền request bị từ chối/bỏ dở hay không
-                    # thì ta KHÔNG kiểm được từ trong hệ thống ⟹ token là None.
-                    # Đặt 0 ở đó là khẳng định một điều ta không biết.
+                    # `None` = UNREADABLE, entirely different from `0` = NONE.
+                    # On this branch the request WAS SENT but no call RETURNED ⟹ `so_luot_goi_model
+                    # = 0` is the TRUTH.
+                    # But whether the provider bills a rejected/abandoned request is something we
+                    # CAN'T check from
+                    # inside the system ⟹ tokens are None.
+                    # Putting 0 there would assert something we don't know.
                     "input_tokens": None,
                     "output_tokens": None,
                     "total_tokens": None,
                     "cached_input_tokens": None,
                     "so_luot_goi_model": 0,
-                    "so_tool_schema_gui": _SO_TOOL_GUI,
-                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
-                    "suy_luan_gui": _SUY_LUAN_GUI,
+                    "so_tool_schema_gui": _TOOLS_SENT_COUNT,
+                    "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_REAL,
+                    "suy_luan_gui": _REASONING_SENT,
                 },
-                # Câu fallback do CHÍNH TA viết, không qua LLM -> không cần lọc.
+                # A fallback sentence written by US, not by the LLM -> no filtering needed.
                 "loc_dau_ra": [],
                 "tin_hieu_lo_chi_thi": {"nguyen_tac": 0, "quy_trinh": 0},
-                # Lượt rơi fallback vẫn phải mang tín hiệu: khách bực mà hệ
-                # thống lại lỗi chính là lúc CẦN người thật nhất.
-                "goi_y_handoff": bool(tin_hieu_cam_xuc),
-                # DẤU HIỆU DƯƠNG DỨT KHOÁT của fallback. Tester dùng đúng trường
-                # này để loại ca khỏi phép so-cặp, nên nó gánh phần định nghĩa
-                # tập-loại-trừ của phép đo — KHÔNG được set nhầm ở đường thường.
-                # Trước đây họ phải nhận diện bằng chữ ký chuỗi trong `reply`,
-                # thứ trôi được sau một lần sửa câu chữ.
-                "ly_do_fallback": _ly_do_fallback(e),
-                # `giay_da_troi` là thứ làm nhãn `timeout` KIỂM ĐƯỢC thay vì
-                # phải tin. Không có nó, "timeout" chỉ là tên của một nhánh mã.
-                "trieu_chung": {**_trieu_chung_loi(e), "giay_da_troi": round(time.monotonic() - _bat_dau, 2)},
-                "duong": DUONG_DAY_DU,
+                # A turn that falls back must still carry the signal: a frustrated customer hitting
+                # a system
+                # error is exactly when a human is MOST needed.
+                "goi_y_handoff": bool(emotion_signal),
+                # THE DEFINITIVE POSITIVE MARKER of a fallback. The tester uses exactly this field
+                # to exclude
+                # cases from paired comparisons, so it carries part of the definition of the
+                # measurement's
+                # exclusion set — it must NOT be set by mistake on the normal path.
+                # Previously they had to recognise it by a string signature in `reply`, which could
+                # drift after a
+                # single wording edit.
+                "ly_do_fallback": _fallback_reason(e),
+                # `giay_da_troi` (seconds elapsed) is what makes the `timeout` label VERIFIABLE
+                # instead of
+                # something to take on trust. Without it, "timeout" is just the name of a code
+                # branch.
+                "trieu_chung": {**_error_symptom(e), "giay_da_troi": round(time.monotonic() - _turn_started_at, 2)},
+                "duong": ROUTE_FULL,
             }
-            _ghi_so(_kq, thread_id, user_id)
-            return _kq
+            _write_ledger(_res, thread_id, user_id)
+            return _res
     all_messages = result["messages"]
     turn_messages = all_messages[prev_len:]
 
     reply = ""
-    ly_do_dung = None
+    stop_reason = None
     for m in reversed(turn_messages):
         if isinstance(m, AIMessage) and not m.tool_calls:
             reply = m.content
-            ly_do_dung = (getattr(m, "response_metadata", None) or {}).get("finish_reason")
+            stop_reason = (getattr(m, "response_metadata", None) or {}).get("finish_reason")
             break
 
-    # KÊU khi model trả nội dung RỖNG. Trước bản này `reply` nhận "" và đi
-    # thẳng ra khách: màn hình trắng, HTTP 200, không lỗi, không log.
-    # Ca sinh ra nó: model có reasoning tiêu hết trần token vào phần suy nghĩ
-    # rồi không còn chỗ sinh nội dung. Không vá được bằng đoán trần — vá bằng
-    # cách làm nhánh im lặng KÊU LÊN, rồi mới biết có cần chỉnh trần không.
+    # SHOUT when the model returns EMPTY content. Before this version `reply` received "" and went
+    # straight to the customer: a blank screen, HTTP 200, no error, no log.
+    # The cause: a reasoning model spends its whole token cap on thinking and has no room left to
+    # generate content. Not fixable by guessing the cap — fixed by making the silent branch SHOUT,
+    # and
+    # only then knowing whether the cap needs tuning.
     if not str(reply).strip():
         _logger.warning(
             "agent_reply_rong",
             extra={
                 "user_id": user_id,
                 "thread_id": thread_id or user_id,
-                "model": model_da_tra_loi,
+                "model": answering_model,
                 "so_message_luot_nay": len(turn_messages),
-                "finish_reason": ly_do_dung,
+                "finish_reason": stop_reason,
                 "ghi_chu": "Content rỗng nhưng KHÔNG phải do hết trần — chưa rõ nguyên nhân.",
             },
         )
@@ -1993,8 +2162,8 @@ def run_agent_turn(
     tool_calls_out: list[dict] = []
     ticket_id = None
     should_escalate = None
-    co_loi_otp_trong_luot = False
-    so_goi_mo_coi = 0
+    has_otp_error_in_turn = False
+    orphan_call_count = 0
 
     for m in turn_messages:
         if not (isinstance(m, AIMessage) and m.tool_calls):
@@ -2002,12 +2171,14 @@ def run_agent_turn(
         for call in m.tool_calls:
             tm = tool_msgs_by_id.get(call["id"])
             if tm is None:
-                # 🔴 LỜI GỌI MỒ CÔI — model phát ra `tool_call` mà KHÔNG có
-                # `ToolMessage` kết quả. Bản trước `continue` im lặng ⟹ nó
-                # KHÔNG để lại dấu nào, `so_tool_call=0`, **y hệt "model không
-                # đề xuất gì"**. Hai trạng thái khác hẳn nhau đội chung một vỏ —
-                # đúng họ lỗi dự án đã đặt tên nhiều lần.
-                so_goi_mo_coi += 1
+                # 🔴 ORPHANED CALLS — the model emits a `tool_call` with NO resulting `ToolMessage`.
+                # The
+                # previous version `continue`d silently ⟹ it left NO trace, `so_tool_call=0`,
+                # **exactly like
+                # "the model proposed nothing"**. Two completely different states wearing the same
+                # shell —
+                # exactly the bug family the project has named many times.
+                orphan_call_count += 1
                 _logger.warning(
                     "agent_tool_call_mo_coi",
                     extra={"user_id": user_id, "thread_id": thread_id or user_id,
@@ -2022,83 +2193,98 @@ def run_agent_turn(
             if call["name"] == "create_ticket" and "ticket_id" in payload:
                 ticket_id = payload["ticket_id"]
                 should_escalate = payload.get("should_escalate")
-                # 🔴 ĐỪNG DỰNG LẠI `loai_khieu_nai` Ở ĐÂY. Bản trước móc
-                # `complaint_type` từ `args` tại chỗ này để ⑨ dùng; ⑨ đã CHUYỂN
-                # ĐIỂM MÓC 25/08 sang hai tín hiệu thread (`la_ca_chuyen_nham` +
-                # `_TEN_TIN_HIEU_DA_TRA_DUOC_GD`, xem khối ⑨ · K2 phía dưới) để
-                # câu sàng lọc rơi đúng LƯỢT 4 thay vì lượt 8. Biến ở đây thành
-                # tử thi — không ai đọc, nhưng chú thích cũ vẫn mô tả một cơ chế
-                # đã dời đi, tức nó CHỦ ĐỘNG chỉ sai đường cho người đọc sau.
-                # (Nếu cần `complaint_type` cho việc KHÁC: nó nằm ở `args`,
-                # KHÔNG ở `result` — create_ticket.py:110-118 cố ý không trả.)
+                # 🔴 DON'T REBUILD `loai_khieu_nai` (complaint type) HERE. The previous version
+                # pulled
+                # `complaint_type` out of `args` at this spot for ⑨ to use; ⑨ MOVED ITS HOOK on
+                # 25/08 to two thread
+                # signals (`is_wrong_transfer_case` + `_SIGNAL_TXN_FOUND`, see the ⑨ · K2 block
+                # below) so the
+                # screening question lands on TURN 4 instead of turn 8. The variable here became a
+                # corpse —
+                # nobody reads it, but the old comment still described a mechanism that had moved,
+                # i.e. it
+                # ACTIVELY pointed later readers the wrong way.
+                # (If `complaint_type` is needed for SOMETHING ELSE: it is in `args`,
+                # NOT in `result` — create_ticket.py:110-118 deliberately doesn't return it.)
 
-            # RB3 false-positive (04/09, QA phát hiện, 2/2 ca E2E): vòng lặp
-            # này trước đây CHỈ đọc ticket_id từ create_ticket — mọi
-            # request_human_handoff THÀNH CÔNG (tạo mới HOẶC tái dùng vé cũ,
-            # xem flag_human_handoff trả {"ticket_id":...}) đều bị coi như
-            # "chưa có vé thật", RB3 (khối ngay dưới, ~dòng 2172) ghi đè câu
-            # trả lời ĐÚNG bằng _CHUA_TAO_DUOC_VE. KHÔNG gộp vào nhánh
-            # create_ticket ở trên — request_human_handoff KHÔNG có
-            # should_escalate (khác payload shape), gộp sẽ đọc field không
-            # tồn tại. Nhánh này KHÔNG nới điều kiện RB3
-            # (`ticket_id is None and khai_da_tao_ve(...)` giữ nguyên) — chỉ
-            # thêm một nguồn HỢP LỆ để ticket_id khác None khi tool thật đã
-            # thành công.
+            # RB3 false positive (04/09, found by QA, 2/2 E2E cases): this loop used to read
+            # ticket_id ONLY
+            # from create_ticket — every SUCCESSFUL request_human_handoff (creating a new ticket OR
+            # reusing an
+            # old one, see flag_human_handoff returning {"ticket_id":...}) was treated as "no real
+            # ticket yet",
+            # and RB3 (the block just below, ~line 2172) overwrote the CORRECT answer with
+            # _TICKET_NOT_CREATED_REPLY. NOT merged into the create_ticket branch above —
+            # request_human_handoff has NO should_escalate (a different payload shape); merging
+            # would read a
+            # non-existent field. This branch does NOT loosen the RB3 condition
+            # (`ticket_id is None and claims_ticket_created(...)` stays as is) — it only adds one
+            # VALID source
+            # for ticket_id to be non-None when the real tool has succeeded.
             #
-            # 🔴 ĐÍNH CHÍNH 05/09 (Review tự đối chiếu lại, dòng cũ SAI): ca
-            # MT-Z01 KHÔNG PHẢI "0 tool_call" — `AIMessage.tool_calls` THÔ
-            # lượt đó CÓ `create_ticket`, nhưng là lời gọi MỒ CÔI (không có
-            # `ToolMessage` phản hồi, xem `so_goi_mo_coi` ở vòng lặp phía
-            # trên) nên KHÔNG lọt vào `tool_calls_out`/nhánh này — đó là lý
-            # do đo lúc đó ra `so_tool_call=0` (đếm trên `tool_calls_out` đã
-            # lọc), không phải model hoàn toàn không gọi tool nào. `ticket_id`
-            # vẫn None đúng như cũ (payload không tồn tại thì không đọc được),
-            # nhưng RB3 giờ kích qua tín hiệu THÔ `co_de_xuat_tao_ve_luot_nay`
-            # (xem cổng RB3 phía dưới), không phải qua việc "không có
-            # AIMessage nào mang tool_calls" như dòng cũ khai nhầm.
+            # 🔴 CORRECTION 05/09 (the review re-checked; the old line was WRONG): case
+            # MT-Z01 was NOT "0 tool_call" — that turn's RAW `AIMessage.tool_calls` DID contain
+            # `create_ticket`, but as an ORPHANED call (no `ToolMessage` reply, see
+            # `orphan_call_count` in the
+            # loop above), so it did NOT get into `tool_calls_out`/this branch — that is why the
+            # measurement at
+            # the time said `so_tool_call=0` (counted on the filtered `tool_calls_out`), not that
+            # the model
+            # called no tool at all. `ticket_id` is still None as before (a payload that doesn't
+            # exist can't be
+            # read), but RB3 now fires via the RAW signal `has_ticket_proposal`
+            # (see the RB3 gate below), not via "no AIMessage carrying tool_calls" as the old line
+            # wrongly
+            # claimed.
             if call["name"] == "request_human_handoff" and "ticket_id" in payload:
                 ticket_id = payload["ticket_id"]
 
-            # ⑧ · điểm gắn "lượt 1" — lượt này có tool nào bị CỔNG OTP chặn
-            # không. Đọc GIÁ TRỊ TRẢ VỀ, không bắt exception: hai lỗi OTP
-            # `return` một dict, KHÔNG raise (customer_tools.py:596-613) —
-            # cùng cái bẫy `_CHI_THI_DUNG_LAP` đã ghi lại ở đó.
-            # Khớp theo `loai` TRƯỚC (có cấu trúc, GĐ2.5 dựng riêng để client
-            # khỏi phụ thuộc câu chữ), rồi mới tới neo tiếng Việt cho nhánh
-            # `_OTP_REQUIRED_ERROR` — nhánh CỐ Ý không có `loai` (xem chú
-            # thích tại chỗ), nên neo chuỗi là đường DUY NHẤT còn lại.
+            # ⑧ · the "turn 1" insertion point — whether any tool this turn was blocked by the OTP
+            # GATE.
+            # Reads the RETURN VALUE, doesn't catch exceptions: the two OTP errors
+            # `return` a dict, they do NOT raise (customer_tools.py:596-613) —
+            # the same trap `_STOP_LOOP_INSTRUCTION` recorded there.
+            # Matches on `loai` (kind) FIRST (structured, built in phase 2.5 so the client doesn't
+            # depend on
+            # wording), and only then on the Vietnamese anchor for the
+            # `_OTP_REQUIRED_ERROR` branch — a branch that DELIBERATELY has no `loai` (see the
+            # comment there),
+            # so the string anchor is the ONLY path left.
             if isinstance(payload, dict) and payload.get("status") == "error":
                 if payload.get("loai") == "otp_het_tuoi" or "xác thực" in str(payload.get("message", "")):
-                    co_loi_otp_trong_luot = True
+                    has_otp_error_in_turn = True
 
     if ticket_id is not None:
         write_investigation_logs_for_ticket(session, ticket_id=ticket_id, all_messages=all_messages)
-        if tin_hieu_cam_xuc:
-            _nang_uu_tien_theo_cam_xuc(session, ticket_id=ticket_id)
+        if emotion_signal:
+            _raise_priority_by_emotion(session, ticket_id=ticket_id)
 
-    # Token usage cộng dồn của LƯỢT NÀY (mọi vòng gọi model bên trong, kể cả
-    # vòng gọi tool trung gian) — dùng để đo cost thật (eval/measure_quality.py),
-    # KHÔNG ảnh hưởng contract cũ (chỉ thêm key mới, không đổi key sẵn có).
-    # T1 — `cached_tokens` là thứ DUY NHẤT nói prompt-cache có ăn hay không.
-    # Trước bản này không ai biết cache đang hit 0% hay 50%; suy luận từ tài
-    # liệu OpenAI không thay được số đo (và suy luận đó đã sai một lần: mốc
-    # thời gian HH:MM nằm ở ký tự 233/16.082 khiến prefix ổn định chỉ ~68
-    # token, dưới hẳn ngưỡng 1024 — cache chắc chắn hit 0%).
-    # `input_chars` — đại lượng BẤT BIẾN QUA TOKENIZER.
+    # Accumulated token usage of THIS TURN (every model call inside, including intermediate
+    # tool-calling rounds) — used to measure real cost (eval/measure_quality.py),
+    # NOT affecting the old contract (only new keys added, no existing key changed).
+    # T1 — `cached_tokens` is the ONLY thing telling whether prompt caching works.
+    # Before this version nobody knew whether the cache hit 0% or 50%; inferring from OpenAI's docs
+    # can't replace measurement (and that inference was wrong once: the HH:MM timestamp sat at
+    # character 233/16,082, making the stable prefix only ~68 tokens, far below the 1024 threshold —
+    # the cache certainly hit 0%).
+    # `input_chars` — a quantity that is INVARIANT ACROSS TOKENIZERS.
     #
-    # Vì sao cần: token của hai nhà cung cấp KHÔNG so được với nhau (tokenizer
-    # khác nhau, tiếng Việt là chỗ lệch nhiều nhất), nên chuỗi đo T1->T3 sẽ
-    # ĐỨT ngay khi đổi model. Ký tự thì không đổi.
+    # Why it is needed: two providers' tokens are NOT comparable (different tokenizers, Vietnamese
+    # being where they diverge most), so the T1->T3 measurement chain would BREAK as soon as the
+    # model
+    # changes. Characters don't change.
     #
-    # ⚠️ ĐẾM ĐÚNG NHỮNG GÌ, KHAI RÕ Ở ĐÂY để nó không thành một "chỉ số một
-    # phần trông như đại lượng bất biến":
-    #     CÓ    system prompt (15.094 ký tự) + toàn bộ message của mỗi lượt
-    #           gọi model, cộng dồn qua các bước ReAct — đúng phần biến thiên
-    #     KHÔNG JSON schema của 5 tool = 6.773 ký tự, HẰNG SỐ mỗi lượt gọi
+    # ⚠️ EXACTLY WHAT IS COUNTED, DECLARED HERE so it doesn't become a "partial metric that looks
+    # like
+    # an invariant quantity":
+    #     YES   system prompt (15,094 characters) + every message of each model call,
+    #           accumulated across ReAct steps — exactly the variable part
+    #     NO    the JSON schemas of the 5 tools = 6,773 characters, CONSTANT per call
     #
-    # Phần thiếu là hằng số ĐO ĐƯỢC, không phải ẩn số: ai cần tổng tuyệt đối
-    # thì cộng `6773 × số_luot_goi_model`. Ghi con số ra đây thay vì im lặng
-    # bỏ qua — một khoảng trống có tên thì trừ được, không tên thì không.
+    # The missing part is a MEASURED constant, not an unknown: anyone needing the absolute total
+    # adds
+    # `6773 × so_luot_goi_model`. The number is written here instead of being silently omitted — a
+    # named gap can be subtracted, an unnamed one can't.
     usage = {
         "input_tokens": 0,
         "output_tokens": 0,
@@ -2106,362 +2292,421 @@ def run_agent_turn(
         "cached_input_tokens": 0,
         "reasoning_tokens": 0,
         "input_chars": 0,
-        # ĐẾM LỜI GỌI **ĐÃ TRẢ VỀ**, không phải đã phát — nó chỉ tăng khi một
-        # `AIMessage` có `usage_metadata`, tức chỉ khi nhà cung cấp đã đáp.
-        # Khai ở đây vì tên trường không nói ra điều đó, và một trường không
-        # khai nó đếm gì thì MỌI giá trị của nó đều mơ hồ, kể cả giá trị đúng.
+        # COUNTS CALLS THAT **RETURNED**, not calls emitted — it only increments when an
+        # `AIMessage` has `usage_metadata`, i.e. only when the provider has answered.
+        # Declared here because the field name doesn't say so, and a field that doesn't declare what
+        # it
+        # counts makes EVERY value ambiguous, even the correct ones.
         "so_luot_goi_model": 0,
-        # BA trạng thái của token, KHÔNG hai (Lead đo 19/08: 4 lượt CÓ gọi
-        # model mà tokens vẫn ghi 0 — "đã gọi, nhà cung cấp không báo số",
-        # KHÔNG PHẢI "0 đồng"). `False` = mọi lượt gọi trong turn này đều có
-        # số hợp lệ; `True` = ÍT NHẤT một lượt model đã đáp nhưng không có
-        # total_tokens — cong_chi_tieu() đọc cờ này để KHÔNG cộng 0 im lặng.
+        # THREE token states, NOT two (Lead measured 19/08: 4 turns DID call the model yet tokens
+        # recorded 0 — "called, the provider reported no number", NOT "0 cost"). `False` = every
+        # call in
+        # this turn had a valid number; `True` = AT LEAST one model call answered without
+        # total_tokens —
+        # spend_gate() reads this flag to NOT silently add 0.
         "token_khong_doc_duoc": False,
-        "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_THAT,
-        "so_tool_schema_gui": _SO_TOOL_GUI,
-        "suy_luan_gui": _SUY_LUAN_GUI,
-        # Danh tính CHỈ DẪN của lượt này. Prompt đã render đổi mỗi phút (có
-        # ngày/giờ), nên "cùng một prompt" giữa hai đợt đo là GIẢ ĐỊNH chứ
-        # không phải sự kiện — trừ khi so băm MẪU. Trả sẵn để không ai phải
-        # nhớ ghi, và để một cặp trước/sau bắc qua hai mẫu khác nhau LỘ RA.
-        "bam_mau_prompt": bam_mau_prompt(),
+        "chars_tool_schema_moi_luot": _CHARS_TOOL_SCHEMA_REAL,
+        "so_tool_schema_gui": _TOOLS_SENT_COUNT,
+        "suy_luan_gui": _REASONING_SENT,
+        # The INSTRUCTION identity of this turn. The rendered prompt changes every minute (it
+        # contains
+        # the date/time), so "the same prompt" across two measurement runs is an ASSUMPTION rather
+        # than a
+        # fact — unless the TEMPLATE hash is compared. Returned ready-made so nobody has to remember
+        # to
+        # record it, and so a before/after pair straddling two different templates GETS EXPOSED.
+        "bam_mau_prompt": hash_prompt_template(),
     }
-    _ky_tu_he_thong = len(build_system_prompt(current_time=dt.datetime.utcnow()))
+    _system_prompt_chars = len(build_system_prompt(current_time=dt.datetime.utcnow()))
     for m in turn_messages:
         meta = isinstance(m, AIMessage) and getattr(m, "usage_metadata", None)
         if meta:
-            # Mỗi AIMessage có usage_metadata = MỘT lượt gọi model. Input của
-            # lượt đó là system prompt + mọi message đứng TRƯỚC nó. Dựng lại từ
-            # `all_messages` thay vì chặn ở tầng model: chặn được thì chính xác
-            # hơn, nhưng phải vá vào thư viện — không đáng cho một chỉ số đo.
+            # Each AIMessage with usage_metadata = ONE model call. That call's input is the system
+            # prompt +
+            # every message BEFORE it. Rebuilt from `all_messages` rather than intercepting at the
+            # model layer:
+            # intercepting would be more precise, but would require patching the library — not worth
+            # it for a
+            # measurement metric.
             j = all_messages.index(m)
             usage["so_luot_goi_model"] += 1
-            usage["input_chars"] += _ky_tu_he_thong + sum(
+            usage["input_chars"] += _system_prompt_chars + sum(
                 len(str(getattr(x, "content", "") or "")) for x in all_messages[:j]
             )
             for k in ("input_tokens", "output_tokens", "total_tokens"):
                 usage[k] += meta.get(k, 0) or 0
-            # Model ĐÃ đáp (ta đang trong nhánh `meta` truthy) nhưng không báo
-            # total_tokens -> "không đọc được", không phải "0 đồng" thật. Cờ
-            # NÀY giữ trạng thái thứ ba lại, phép cộng `or 0` ở trên vẫn giữ
-            # nguyên (Lead: đừng đổi vòng lặp, sẽ hỏng lượt vì lỗi ghi sổ).
+            # The model HAS answered (we are in the truthy `meta` branch) but reported no
+            # total_tokens ->
+            # "unreadable", not a real "0 cost". THIS flag preserves the third state, while the `or
+            # 0` sum above
+            # stays as is (Lead: don't change the loop, it would break turns over a ledger-write
+            # error).
             if not meta.get("total_tokens"):
                 usage["token_khong_doc_duoc"] = True
-            # LangChain gom chi tiết provider vào `input_token_details`; OpenAI
-            # đặt phần đã cache ở khoá `cache_read`. Đọc phòng thủ vì tên khoá
-            # là hợp đồng của provider, không phải của ta.
-            # Token SUY NGHĨ của model reasoning nằm ở `output_token_details`,
-            # KHÔNG phải `input_token_details`. Nó được tính vào `output_tokens`
-            # nên hoá đơn không sai — nhưng không tách ra thì không ai biết bao
-            # nhiêu tiền đang trả cho phần khách không bao giờ đọc.
+            # LangChain gathers provider details into `input_token_details`; OpenAI puts the cached
+            # part
+            # under the key `cache_read`. Read defensively because key names are the provider's
+            # contract, not
+            # ours.
+            # A reasoning model's THINKING tokens live in `output_token_details`,
+            # NOT `input_token_details`. They are counted in `output_tokens` so the bill isn't wrong
+            # — but
+            # without separating them nobody knows how much money is being paid for the part
+            # customers never
+            # read.
             usage["reasoning_tokens"] += (meta.get("output_token_details") or {}).get("reasoning", 0) or 0
-            chi_tiet = meta.get("input_token_details") or {}
-            usage["cached_input_tokens"] += chi_tiet.get("cache_read", 0) or 0
+            detail = meta.get("input_token_details") or {}
+            usage["cached_input_tokens"] += detail.get("cache_read", 0) or 0
 
-    # Lead đo 19/08: `meta.get(k, 0) or 0` ở trên bóp "không đọc được" thành 0
-    # NGAY TRONG vòng lặp — nhưng `cong_chi_tieu()` (graph._ghi_so) vốn đã
-    # đúng cho ca này, chỉ là đường `None` của nó không bao giờ tới được vì
-    # usage khởi tạo bằng 0, không phải None (graph.py:1242). Vá Ở ĐÂY, sau
-    # vòng lặp, KHÔNG sửa `cong_chi_tieu`: nếu model ĐÃ đáp (so_luot_goi_model
-    # > 0) mà tổng token vẫn 0 sau khi cộng hết mọi lượt — nghĩa là KHÔNG một
-    # lượt nào báo số, không phải "0 đồng" — trả `None` để rơi đúng nhánh
-    # `cong_chi_tieu_bo_qua_khong_biet` đã có sẵn thay vì bị nuốt ở nhánh
-    # `tokens <= 0` câm lặng của `cong_chi_tieu`.
+    # Lead measured 19/08: `meta.get(k, 0) or 0` above squashes "unreadable" into 0
+    # RIGHT INSIDE the loop — but `spend_gate()` (graph._write_ledger) was already correct for this
+    # case; its `None` path just could never be reached because usage is initialised to 0, not None
+    # (graph.py:1242). Fixed HERE, after the loop, WITHOUT changing `spend_gate`: if the model HAS
+    # answered (so_luot_goi_model > 0) and the token total is still 0 after summing every call —
+    # meaning NO call reported a number, not "0 cost" — return `None` so it lands in the existing
+    # `cong_chi_tieu_bo_qua_khong_biet` (spend gate skipped, unknown) branch instead of being
+    # swallowed
+    # by `spend_gate`'s silent `tokens <= 0` branch.
     if usage["so_luot_goi_model"] > 0 and usage["total_tokens"] == 0:
         usage["input_tokens"] = None
         usage["output_tokens"] = None
         usage["total_tokens"] = None
 
-    # 🔴 Hai GIỚI HẠN Lead khai 19/08 — cả hai là LỰA CHỌN, không phải sót:
+    # 🔴 Two LIMITATIONS the Lead declared 19/08 — both are CHOICES, not omissions:
     #
-    # ① Ca "biết MỘT PHẦN" (nhiều lượt gọi/turn — hình dạng vòng xoay tạo ra):
-    #    model A báo 20.000 token, model B (đã xoay sang) không báo gì. Guard
-    #    trên chỉ bắn khi TỔNG = 0 — ở đây tổng = 20.000 ≠ 0, guard im, phần
-    #    của B KHÔNG BAO GIỜ vào trần. Đánh đổi CÓ Ý: đếm phần biết còn hơn bỏ
-    #    cả lượt. Cờ `token_khong_doc_duoc` (per-call, xem trên) vẫn lên `True`
-    #    nên vẫn TRUY ĐƯỢC qua bộ đếm `so_luot_khong_doc_duoc_hom_nay()` — chỉ
-    #    là phần thiếu không cộng dồn được vào số tiền, vì không có số để cộng.
+    # ① The "PARTIALLY known" case (several calls per turn — the shape rotation produces):
+    #    model A reports 20,000 tokens, model B (rotated to) reports nothing. The guard above only
+    # fires
+    #    when the TOTAL = 0 — here the total = 20,000 ≠ 0, the guard stays silent, and B's share
+    # NEVER
+    #    enters the cap. A DELIBERATE trade-off: counting the known part beats dropping the whole
+    # turn.
+    #    The `token_khong_doc_duoc` flag (per call, see above) still goes `True`, so it is still
+    #    TRACEABLE via the `unreadable_count_today()` counter — the missing part just can't be
+    #    accumulated into the money figure, because there is no number to add.
     #
-    # ② Ca "không biết CHÚT NÀO nhưng có MỘT PHẦN field đã biết": test thật đo
-    #    được — `{"input_tokens":120,"output_tokens":0,"total_tokens":0}` — cả
-    #    BA field về `None`, kể cả `input_tokens=120` nhà cung cấp ĐÃ báo. Đây
-    #    là CHIỀU NGƯỢC của lỗi vừa vá (biến ĐÃ BIẾT thành KHÔNG BIẾT), chấp
-    #    nhận CÓ Ý: một khối usage_metadata báo dở thì tin cả khối cũng khó,
-    #    và giữ input_tokens riêng lẻ không giúp `cong_chi_tieu()` (nó cần
-    #    total_tokens) — không phải bỏ sót.
+    # ② The "KNOWN NOTHING but SOME fields reported" case: a real test measured
+    #    `{"input_tokens":120,"output_tokens":0,"total_tokens":0}` — ALL THREE fields become `None`,
+    #    including `input_tokens=120` that the provider DID report. This is the REVERSE direction of
+    # the
+    #    bug just fixed (turning KNOWN into UNKNOWN), accepted DELIBERATELY: a half-reported
+    #    usage_metadata block is hard to trust as a whole, and keeping input_tokens alone wouldn't
+    # help
+    #    `spend_gate()` (it needs total_tokens) — not an omission.
     #
-    # Cả hai đủ để "trần tối giản" (PO 876a240) chấp nhận sai số nhỏ, có KHAI,
-    # có TRUY ĐƯỢC (bộ đếm `khong_doc_duoc`) — không phải để dựng thêm cơ chế.
+    # Both are acceptable for the "minimal cap" (PO 876a240) as small errors that are DECLARED and
+    # TRACEABLE (the `khong_doc_duoc` counter) — not a reason to build more mechanisms.
 
-    # HAI ca rỗng KHÁC HẲN NHAU, cố ý không gộp:
-    #   rỗng + finish_reason="length" -> model tiêu hết trần token vào phần suy
-    #       nghĩ thầm, không còn chỗ sinh nội dung. Đây là hỏng CẤU HÌNH CỦA TA,
-    #       sửa được bằng LLM_MAX_TOKENS. Phải NỔ: để nó đi tiếp thì bộ đo ghi
-    #       một lỗi hạ tầng của ta thành "model trả lời kém" (Luật 1c).
-    #   rỗng vì lý do khác -> chưa biết. Cảnh báo, không đoán, không nuốt.
-    if not str(reply).strip() and ly_do_dung == "length":
+    # TWO COMPLETELY DIFFERENT empty cases, deliberately not merged:
+    #   empty + finish_reason="length" -> the model spent the whole token cap on hidden thinking,
+    # with
+    #       no room left for content. This is OUR CONFIGURATION failure, fixable via LLM_MAX_TOKENS.
+    #       It must BLOW UP: letting it through would make the measurement suite record an
+    #       infrastructure error of ours as "the model answered poorly" (Rule 1c).
+    #   empty for another reason -> unknown. Warn, don't guess, don't swallow.
+    if not str(reply).strip() and stop_reason == "length":
         _logger.error(
             "agent_reply_rong_het_tran",
             extra={
                 "user_id": user_id,
-                "model": model_da_tra_loi,
-                "finish_reason": ly_do_dung,
+                "model": answering_model,
+                "finish_reason": stop_reason,
                 "reasoning_tokens": usage["reasoning_tokens"],
                 "output_tokens": usage["output_tokens"],
                 "llm_max_tokens": LLM_MAX_TOKENS,
             },
         )
-        raise TraLoiRongError(
-            f"Model {model_da_tra_loi} tra noi dung RONG voi finish_reason=length — "
+        raise EmptyReplyError(
+            f"Model {answering_model} tra noi dung RONG voi finish_reason=length — "
             f"tran token bi phan suy nghi an het ({usage['reasoning_tokens']}/"
             f"{usage['output_tokens']} token dau ra la reasoning). "
             f"Nang LLM_MAX_TOKENS (hien {LLM_MAX_TOKENS})."
         )
 
-    # NGUỒN TRUY VẾT cho luật xuất xứ của O3: mọi mã/dãy số >=7 ký tự agent nói
-    # ra phải có mặt ở một trong hai nơi này — nếu không thì nó ở đâu ra?
-    #   · kết quả tool của lượt này VÀ của các lượt trước (`rap_nguon_o3`)
-    #   · mọi lời KHÁCH đã gõ trong hội thoại — không chỉ lượt hiện tại, vì
-    #     khách có thể đọc mã biên lai ở lượt 1 rồi agent nhắc lại ở lượt 3
-    # Đây là ràng buộc cứng 3 viết thành một phép kiểm chạy được.
-    # TÁCH HAI KÊNH NGUỒN — không gộp thành một chuỗi. Payload tool là JSON nên
-    # dấu phẩy trong đó là DẤU PHÂN CÁCH TRƯỜNG; lời khách là văn xuôi nên dấu
-    # phẩy/chấm là dấu ngăn hàng nghìn. Gộp chung rồi trích bằng một luật thì một
-    # trong hai kênh chắc chắn bị hiểu sai — và hiểu sai ở kênh JSON đẻ ra số
-    # KHÔNG TỒN TẠI trong tập nguồn hợp lệ.
-    nguon_tool = rap_nguon_o3(all_messages, tool_calls_out)
-    loi_khach = " ".join(
+    # THE TRACEABILITY SOURCE for O3's provenance rule: every code/digit sequence of >=7 characters
+    # the agent states must be present in one of these two places — otherwise where did it come
+    # from?
+    #   · tool results of this turn AND of earlier turns (`assemble_o3_source`)
+    #   · everything the CUSTOMER typed in the conversation — not just the current turn, because the
+    #     customer may read out a receipt code on turn 1 and the agent repeat it on turn 3
+    # This is hard constraint 3 written as an executable check.
+    # TWO SEPARATE SOURCE CHANNELS — not merged into one string. Tool payloads are JSON, so commas
+    # in
+    # them are FIELD SEPARATORS; customer text is prose, so commas/dots are thousands separators.
+    # Merging and extracting with one rule would certainly misread one of the two channels — and
+    # misreading the JSON channel produces numbers that DON'T EXIST into the valid source set.
+    tool_source = assemble_o3_source(all_messages, tool_calls_out)
+    customer_text = " ".join(
         m.content for m in all_messages if isinstance(m, HumanMessage) and isinstance(m.content, str)
     )
-    reply_da_loc, nhom_khop = loc_dau_ra(
+    filtered_reply, matched_group = filter_output(
         reply,
-        nguon=nguon_tool,
-        loi_khach=loi_khach,
-        tin_nhan_khach=message,
+        source=tool_source,
+        customer_text=customer_text,
+        customer_message=message,
         thread_id=thread_id or user_id,
     )
-    # O2 ĐẾM-TRƯỚC-CHẶN-SAU (security, docs/security/mo-neo-quy-trinh-cho-O2.md,
-    # PO duyệt) — CHẠY TRÊN `reply` GỐC, không phải `reply_da_loc`. Mật độ liệt
-    # kê là tín hiệu về HÀNH VI của agent (đang đọc lại nội quy hay không), độc
-    # lập với việc O1-O4 có chặn câu đó hay không — trộn hai thứ sẽ làm phân
-    # phối mật độ mù chính câu bị O3/O4 thay bằng CAU_AN_TOAN.
+    # O2 COUNT-FIRST-BLOCK-LATER (security, docs/security/mo-neo-quy-trinh-cho-O2.md,
+    # approved by the PO) — RUNS ON THE ORIGINAL `reply`, not `filtered_reply`. Listing density is a
+    # signal about the agent's BEHAVIOUR (whether it is reciting the rulebook), independent of
+    # whether
+    # O1-O4 blocked that sentence — mixing the two would blind the density distribution to exactly
+    # the
+    # sentences O3/O4 replaced with SAFE_FALLBACK_REPLY.
     #
-    # Trước bản này hàm KHÔNG CÓ call site nào ở đường chạy thật (chỉ tests/ và
-    # eval/) — mệnh đề "đếm trước, nâng lên chặn khi thấy rò" tới giờ rỗng trong
-    # production. Trả qua ENVELOPE (không chỉ ghi Redis) vì cùng lý do ba trường
-    # chẩn đoán bên dưới: eval gọi thẳng graph, Redis là fakeredis per-process,
-    # nên bộ đếm vô hình với người đo nếu chỉ ghi Redis.
-    # ⑭ — đường THỨ HAI sinh bằng chứng: lượt này model đã chạy và TOOL bị cổng
-    # OTP chặn. Phủ ca ④ không bắn (vd câu không thuộc NHÓM B nhưng model vẫn
-    # quyết gọi tool) — thiếu nhánh này thì luồng resend hợp lệ của khách sẽ bị
-    # chính ⑭ chặn nhầm.
-    if co_loi_otp_trong_luot:
-        tang_tin_hieu(_TEN_TIN_HIEU_DA_BI_OTP_CHAN, thread_id or user_id)
+    # Before this version the function had NO call site on the real path (only tests/ and eval/) —
+    # the
+    # proposition "count first, escalate to blocking when leaks are seen" was empty in production
+    # until
+    # now. Returned via the ENVELOPE (not only written to Redis) for the same reason as the three
+    # diagnostic fields below: eval calls the graph directly and Redis is per-process fakeredis, so
+    # a
+    # counter written only to Redis would be invisible to whoever is measuring.
+    # ⑭ — the SECOND evidence-producing path: this turn the model ran and a TOOL was blocked by the
+    # OTP
+    # gate. Covers the case where ④ didn't fire (e.g. a sentence outside GROUP B where the model
+    # still
+    # decided to call a tool) — without this branch, the customer's legitimate resend flow would be
+    # wrongly blocked by ⑭ itself.
+    if has_otp_error_in_turn:
+        incr_signal(_SIGNAL_OTP_BLOCKED, thread_id or user_id)
 
-    # ── 🔴 CỔNG RÀNG BUỘC CỨNG 3 · KHAI-ĐÃ-TẠO-VÉ PHẢI CÓ VÉ THẬT ──────────
-    # Sự cố 25/08, buổi chạy kịch bản: bot nói *"Đã tạo hồ sơ khiếu nại thành
-    # công với mã CMP-00003"* trong khi **0 dòng** được tạo — và `CMP-00003` là
-    # mã CÓ THẬT của một khách KHÁC. Bot không đọc trộm gì; nó bịa một chuỗi
-    # ngắn tình cờ là khoá của người khác, nên mọi lớp che PII vô can.
+    # ── 🔴 HARD-CONSTRAINT-3 GATE · A CLAIMED TICKET MUST BE A REAL TICKET ───────────
+    # Incident 25/08, during a scripted run: the bot said *"Đã tạo hồ sơ khiếu nại thành công với mã
+    # CMP-00003"* (the complaint case was created successfully with code CMP-00003) while **0 rows**
+    # were
+    # created — and `CMP-00003` was a REAL code of ANOTHER customer. The bot stole nothing; it made
+    # up a
+    # short string that happened to be someone else's key, so every PII-masking layer was
+    # irrelevant.
     #
-    # [ĐO] lượt ấy KHÔNG hỏng: so_luot_goi_model=1 · ly_do_fallback=null ·
-    # so_tool_call=0. Model chỉ KỂ CHUYỆN trong một lượt bình thường.
+    # [MEASURED] that turn did NOT fail: so_luot_goi_model=1 · ly_do_fallback=null ·
+    # so_tool_call=0. The model was just STORYTELLING in a normal turn.
     #
-    # [ĐO] vì sao lọt: O5 NHƯỜNG khi câu có kèm mã (chú thích của nó tự khai
-    # giả định *"O3 đã phủ mọi ca có mã bịa"*), mà O3 MÙ với `CMP-00003` (dấu
-    # `-` cắt dưới ngưỡng 7 ký tự liền). Khe hở nằm ĐÚNG GIỮA hai cổng — không
-    # cổng nào hỏng, sự PHÂN CÔNG giữa chúng hỏng.
-    # ⟹ **Thêm một mã giả vào câu làm nó AN TOÀN HƠN trong mắt bộ lọc.**
+    # [MEASURED] why it slipped through: O5 STEPS ASIDE when the sentence includes a code (its
+    # comment
+    # declares the assumption *"O3 already covers every fabricated-code case"*), while O3 is BLIND
+    # to
+    # `CMP-00003` (the `-` cuts it below the 7-contiguous-character threshold). The gap sits EXACTLY
+    # BETWEEN the two gates — neither gate is broken; the DIVISION OF LABOUR between them is.
+    # ⟹ **Adding a fake code to a sentence made it SAFER in the filter's eyes.**
     #
-    # 🔴 CỔNG NÀY KHÔNG KHỚP TỪ VỰNG ĐỂ ĐOÁN THẬT/GIẢ — nó đối chiếu lời khai
-    # với `ticket_id` THẬT của chính lượt này. Đó là lý do nó không thừa hưởng
-    # trần của cách khớp-từ mà `_khop_o5` đã tự khai sau ba vòng vá.
-    # Đặt TRƯỚC mọi chỗ chèn (⑧/⑨) để câu thay thế không mang theo lời khai sai.
+    # 🔴 THIS GATE DOES NOT MATCH VOCABULARY TO GUESS TRUE/FALSE — it compares the claim against this
+    # turn's REAL `ticket_id`. That is why it doesn't inherit the ceiling of word matching that
+    # `_match_o5` declared after three rounds of fixes.
+    # Placed BEFORE every insertion point (⑧/⑨) so the replacement sentence doesn't carry the false
+    # claim along.
     #
-    # 🔴 LẦN BA (05/09) — QA tái lập 2/2 lần: khách hỏi "chưa nhận được tiền",
-    # lượt CHỈ gọi `lookup_transaction` (trạng thái "thành công" phía hệ
-    # thống), model tóm tắt kết quả rồi HỎI Ý khách trước khi tạo hồ sơ ("...
-    # được không ạ?") — CHƯA hề đề xuất tạo vé lượt này. `khai_da_tao_ve()`
-    # vẫn trả `True` vì đúng CHIỀU RỦI RO ĐÃ KHAI ở đó (mã/"thành công" xét
-    # REPLY-GLOBAL): "Mã giao dịch" (mã GD, không phải mã vé) + "đã ghi nhận"
-    # (nói về TIỀN đã ghi nhận chuyển, không phải hồ sơ) rơi đúng 2 mảnh ghép
-    # của nhánh MỀM, dù không mảnh nào nói về việc TẠO HỒ SƠ thật.
+    # 🔴 THIRD TIME (05/09) — QA reproduced 2/2 times: the customer asked "chưa nhận được tiền"
+    # (money not
+    # received), the turn ONLY called `lookup_transaction` (status "success" on the system side),
+    # and
+    # the model summarised the result and then ASKED the customer before creating a case ("...được
+    # không ạ?" — is that OK?) — it had NOT proposed creating a ticket this turn at all.
+    # `claims_ticket_created()` still returned `True` because of exactly the RISK DIRECTION DECLARED
+    # there (code/"success" checked REPLY-GLOBALLY): "Mã giao dịch" (a transaction ID, not a ticket
+    # code) + "đã ghi nhận" (talking about the MONEY TRANSFER being recorded, not a case) fell
+    # exactly
+    # into the 2 pieces of the SOFT branch, though neither piece was about actually CREATING A CASE.
     #
-    # Vá bằng CỔNG CẤU TRÚC (Review đề xuất, ưu tiên hơn vá thêm từ vựng lần
-    # 3 — sợ đẻ nhánh thứ 4): chỉ hỏi `khai_da_tao_ve()` khi LƯỢT NÀY thật sự
-    # có ý định tạo vé (`create_ticket`/`request_human_handoff` xuất hiện
-    # trong `AIMessage.tool_calls` THÔ — kể cả lời gọi MỒ CÔI, xem vòng lặp
-    # phía trên). Lượt CHỈ gọi tool khác (lookup/history/policy...) không thể
-    # nào đang "khai đã tạo vé" theo đúng nghĩa ràng buộc #3 nhắm tới — dù
-    # câu chữ tình cờ khớp từ vựng. Lượt KHÔNG gọi tool nào (`co_goi_tool_
-    # luot_nay=False`, hallucination thuần) VẪN bị bắt — không nới lỏng
-    # hướng đó, chỉ thu hẹp đúng hướng vừa lộ false-positive.
+    # Fixed with a STRUCTURAL GATE (suggested by the review, preferred over a third vocabulary patch
+    # —
+    # for fear of spawning a 4th branch): `claims_ticket_created()` is only asked when THIS TURN
+    # really
+    # intends to create a ticket (`create_ticket`/`request_human_handoff` appears in the RAW
+    # `AIMessage.tool_calls` — including ORPHANED calls, see the loop above). A turn ONLY calling
+    # other
+    # tools (lookup/history/policy...) cannot possibly be "claiming a created ticket" in the sense
+    # hard
+    # constraint #3 targets — even if the wording happens to match the vocabulary. A turn calling NO
+    # tool at all (`_has_tool_call_this_turn=False`, pure hallucination) is STILL caught — no
+    # loosening
+    # in that direction, only narrowing exactly the direction that just exposed a false positive.
     #
-    # ⚠️ ĐÁNH ĐỔI ĐÃ KHAI: về lý thuyết, một lượt gọi tool KHÁC (vd lookup)
-    # RỒI ĐỘC LẬP bịa thêm "tôi cũng đã tạo vé" trong cùng câu trả lời sẽ
-    # KHÔNG bị cổng này bắt nữa. Chấp nhận vì CẢ BA false-positive thật đêm
-    # nay đều đúng khuôn "gọi tool khác, không đề xuất tạo vé" — CHƯA ai đo
-    # được ca hallucination-kèm-tool-khác nào — và MT-Z01 (ca gốc sinh ra
-    # RB3) qua đối chiếu lại của Review VẪN có `create_ticket` mồ côi trong
-    # tool_calls thô, nên vẫn bị bắt đúng bởi cổng mới.
-    _co_goi_tool_luot_nay, _co_de_xuat_tao_ve_luot_nay = _co_de_xuat_tao_ve(turn_messages)
-    _chi_tool_khong_lien_quan_tao_ve = _co_goi_tool_luot_nay and not _co_de_xuat_tao_ve_luot_nay
-    if ticket_id is None and not _chi_tool_khong_lien_quan_tao_ve and khai_da_tao_ve(reply_da_loc):
+    # ⚠️ A DECLARED TRADE-OFF: in theory, a turn calling a DIFFERENT tool (e.g. lookup) and THEN
+    # independently fabricating "I've also created a ticket" in the same reply would NO LONGER be
+    # caught
+    # by this gate. Accepted because ALL THREE real false positives that night fit exactly the
+    # pattern
+    # "called another tool, didn't propose creating a ticket" — NOBODY has measured a
+    # hallucination-with-another-tool case yet — and MT-Z01 (the original case that gave birth to
+    # RB3),
+    # re-checked by the review, STILL has an orphaned `create_ticket` in its raw tool_calls, so it
+    # is
+    # still correctly caught by the new gate.
+    _has_tool_call_this_turn, _has_ticket_proposal_this_turn = _has_ticket_proposal(turn_messages)
+    _only_non_ticket_tools = _has_tool_call_this_turn and not _has_ticket_proposal_this_turn
+    if ticket_id is None and not _only_non_ticket_tools and claims_ticket_created(filtered_reply):
         _logger.error(
             "agent_khai_tao_ve_khong_co_ve",
             extra={"user_id": user_id, "thread_id": thread_id or user_id,
-                   "so_goi_mo_coi": so_goi_mo_coi, "model": model_da_tra_loi},
+                   "so_goi_mo_coi": orphan_call_count, "model": answering_model},
         )
-        nhom_khop = list(nhom_khop) + ["RB3"]
-        reply_da_loc = _CHUA_TAO_DUOC_VE
+        matched_group = list(matched_group) + ["RB3"]
+        filtered_reply = _TICKET_NOT_CREATED_REPLY
 
-    # ── 🔴 CỔNG ÉP TRA TRƯỚC (CTC1) ─────────────────────────────────────────
-    # PO đo được: prompt.py đã dặn 3 lần, in hoa, kèm ví dụ SAI làm phản diện
-    # (dòng 15, 17-18, 41 — "gọi get_customer_history NGAY ở tin nhắn đầu nếu
-    # chưa có mã giao dịch/SĐT, KHÔNG hỏi khách trước") — model vẫn bỏ qua
-    # 29/180 ca. DẶN qua prompt là hướng đã hết room; chuyển sang ÉP ở tầng
-    # mã, cùng nguyên lý các cổng tất định phía trên (_CHUA_TAO_DUOC_VE/⑧/⑨).
+    # ── 🔴 FORCED-LOOKUP-FIRST GATE (CTC1) ──────────────────────────────────────────
+    # Measured by the PO: prompt.py already instructs it 3 times, in caps, with a WRONG example as
+    # the
+    # villain (lines 15, 17-18, 41 — "call get_customer_history IMMEDIATELY on the first message if
+    # there's no transaction ID/phone, DON'T ask the customer first") — the model still skipped it
+    # in
+    # 29/180 cases. INSTRUCTING via the prompt has run out of room; the move is to ENFORCE it at the
+    # code layer, the same principle as the deterministic gates above
+    # (_TICKET_NOT_CREATED_REPLY/⑧/⑨).
     #
-    # Điều kiện CHỈ hai vế, cố ý đơn giản (bản đầu còn đòi câu có số
-    # tiền/tên người nhận/mốc thời gian — RÚT, vì đo trên nhóm đích thật thì
-    # 12/29 ca khách chỉ tả VẤN ĐỀ ("trừ trùng 2 lần", "bấm nhầm người nhận
-    # trong danh bạ"), không cho chi tiết nhận dạng nào cả — điều kiện hẹp bỏ
-    # sót 41%. get_customer_history không cần khách cho gì thêm, gọi được
-    # ngay chỉ với user_id, nên không có lý do chính đáng nào để KHÔNG gọi ở
-    # tin nhắn khiếu nại đầu tiên):
-    #   prev_len == 0        — tin nhắn ĐẦU của thread này (đã tính sẵn ở
-    #                           đầu run_agent_turn, dùng lại, không suy đoán).
-    #   not tool_calls_out   — lượt này agent chưa gọi tool nào cả.
+    # The condition has ONLY two parts, deliberately simple (the first version also required the
+    # sentence to contain an amount/recipient name/time anchor — WITHDRAWN, because measured on the
+    # real target group, 12/29 customers only described the PROBLEM ("charged twice", "tapped the
+    # wrong
+    # recipient in my contacts") and gave no identifying details at all — the narrow condition
+    # missed
+    # 41%. get_customer_history needs nothing more from the customer and can be called right away
+    # with
+    # just the user_id, so there is no good reason NOT to call it on the first complaint message):
+    #   prev_len == 0        — the FIRST message of this thread (already computed at the start of
+    #                           run_agent_turn, reused, not guessed).
+    #   not tool_calls_out   — the agent hasn't called any tool this turn.
     #
-    # ① AN TOÀN KHI KHÔNG CHẮC: gọi qua ĐÚNG tool wrapper mà LLM vẫn dùng
-    # (build_customer_tools()["get_customer_history"].invoke(...)), KHÔNG
-    # gọi thẳng hàm thô trong src/tools/get_customer_history.py — thừa
-    # hưởng NGUYÊN VẸN kiểm OTP tươi (OTP_VIEW_MAX_MINUTES) + che PII của
-    # đường LLM thật. Cổng này vì vậy KHÔNG THỂ tự vi phạm Ràng buộc #4 dù
-    # có bug ở đây: OTP hết hạn/chưa có thì tool tự trả `status: "error"`,
-    # nhánh dưới coi như KHÔNG CHẮC và bỏ qua — KHÔNG tự chế câu trả lời từ
-    # dữ liệu không có.
+    # ① SAFE WHEN UNSURE: called through EXACTLY the tool wrapper the LLM uses
+    # (build_customer_tools()["get_customer_history"].invoke(...)), NOT the raw function in
+    # src/tools/get_customer_history.py — inheriting INTACT the OTP-freshness check
+    # (OTP_VIEW_MAX_MINUTES) + PII masking of the real LLM path. So this gate CANNOT violate
+    # Constraint
+    # #4 itself even with a bug here: with an expired/missing OTP the tool returns `status:
+    # "error"`,
+    # and the branch below treats it as UNSURE and skips — NEVER inventing an answer from data it
+    # doesn't have.
     #
-    # ② GHI VÀO KẾT QUẢ ĐO, không chỉ log: thêm đúng một phần tử vào
-    # `tool_calls_out` (cùng hình dạng {"tool_name","args","result"} như tool
-    # call thật — vì đây LÀ một tool call thật, chỉ khác ai quyết định gọi)
-    # và một mã "CTC1" vào `nhom_khop` — cả hai đã đổ thẳng vào
-    # `_kq_cuoi["tool_calls"]`/`_kq_cuoi["loc_dau_ra"]` phía dưới, không cần
-    # sửa gì thêm ở đó.
+    # ② RECORDED IN THE MEASUREMENT RESULT, not just logged: exactly one element is added to
+    # `tool_calls_out` (the same {"tool_name","args","result"} shape as a real tool call — because
+    # it
+    # IS a real tool call, only differing in who decided to make it) and a "CTC1" code to
+    # `matched_group` — both already flow straight into `_res_final["tool_calls"]`/
+    # `_res_final["loc_dau_ra"]` below, with nothing else to change there.
     #
-    # ④ KHÔNG đụng create_ticket: nhánh này chỉ có đúng MỘT lời gọi tool
-    # (get_customer_history), không nhánh nào dẫn tới tool khác — không thể
-    # vô tình đẩy nhanh việc tạo hồ sơ.
+    # ④ DOES NOT touch create_ticket: this branch has exactly ONE tool call
+    # (get_customer_history), and no branch leads to another tool — it can't accidentally hasten
+    # case
+    # creation.
     if prev_len == 0 and not tool_calls_out:
         try:
-            _cong_tools = {
+            _gate_tools = {
                 t.name: t for t in build_customer_tools(
                     session, user_id=user_id, otp_verified_at=otp_verified_at,
                     guard=guard, thread_id=thread_id or user_id,
                 )
             }
-            _cong_args = {"days": 90, "limit_transactions": 20}
-            _cong_ket_qua = _cong_tools["get_customer_history"].invoke(_cong_args)
-        except Exception:  # noqa: BLE001 — ① không chắc thì đừng chặn; lỗi ở
-            # cổng không được phép làm hỏng một lượt chat vốn dĩ đã có reply
-            # hợp lệ từ model.
+            _gate_args = {"days": 90, "limit_transactions": 20}
+            _result_gate = _gate_tools["get_customer_history"].invoke(_gate_args)
+        except Exception:  # noqa: BLE001 — ① when unsure, don't block; an error in the
+            # gate must never break a chat turn that already has a valid reply from the model.
             _logger.exception(
                 "cong_tra_truoc_loi_khi_goi_tool",
                 extra={"user_id": user_id, "thread_id": thread_id or user_id},
             )
-            _cong_ket_qua = None
-        if isinstance(_cong_ket_qua, dict) and _cong_ket_qua.get("status") != _TRANG_THAI_LOI_TOOL:
+            _result_gate = None
+        if isinstance(_result_gate, dict) and _result_gate.get("status") != _TOOL_ERROR_STATUS:
             tool_calls_out = list(tool_calls_out) + [{
                 "tool_name": "get_customer_history",
-                "args": _cong_args,
-                "result": _cong_ket_qua,
+                "args": _gate_args,
+                "result": _result_gate,
             }]
-            nhom_khop = list(nhom_khop) + ["CTC1"]
-            reply_da_loc = _cau_tra_loi_cong_tra_truoc(_cong_ket_qua)
+            matched_group = list(matched_group) + ["CTC1"]
+            filtered_reply = _gate_reply_before_lookup(_result_gate)
 
-    # ── 🔴 ADR-057 · CHUYỂN NGƯỜI SỚM cho "tầng đắt" (CD1) ────────────────
-    # 🔴 RANH GIỚI (đọc trước khi sửa): đây là quy tắc TẤT ĐỊNH ở TẦNG
-    # SERVICE — AI KHÔNG quyết định gì cả, nó vẫn chỉ điều tra và trả lời
-    # như cũ. Nhánh này CHỈ được phép làm ĐÚNG MỘT việc: bật cờ gợi ý
-    # handoff (`goi_y_handoff`, đã có sẵn — ES-xx, frontend tự render nút
-    # "gặp người thật", hệ thống chỉ ĐỀ NGHỊ). TUYỆT ĐỐI không gọi
-    # create_ticket/request_human_handoff, không tự đổi should_escalate
-    # (khoá riêng cho FS-06 — test_fraud_policy_chi_dinh_tuyen_khong_phan_quyet).
-    # Dạy AI "tự thấy khó thì chuyển" là AI TỰ ESCALATE, phạm Ràng buộc
-    # cứng #2 — đây KHÔNG làm vậy: điều kiện đọc thẳng từ DB (Complaint.type/
-    # trans_id), không giao model diễn giải "khó" là gì.
+    # ── 🔴 ADR-057 · EARLY HANDOFF for the "expensive tier" (CD1) ────────────────────
+    # 🔴 THE BOUNDARY (read before editing): this is a DETERMINISTIC rule at the SERVICE LAYER — the
+    # AI
+    # decides NOTHING; it still only investigates and answers as before. This branch may do EXACTLY
+    # ONE
+    # thing: raise the handoff-suggestion flag (`goi_y_handoff`, which already exists — ES-xx; the
+    # frontend renders a "talk to a human" button itself; the system only SUGGESTS). NEVER call
+    # create_ticket/request_human_handoff, never change should_escalate itself
+    # (reserved for FS-06 — test_fraud_policy_chi_dinh_tuyen_khong_phan_quyet).
+    # Teaching the AI "hand off when it finds things hard" would be the AI ESCALATING ITSELF,
+    # violating
+    # hard constraint #2 — this does NOT do that: the condition reads directly from the DB
+    # (Complaint.type/trans_id); the model is not asked to interpret what "hard" means.
     #
-    # Điều kiện — máy đọc được, không cần mô hình hợp tác:
-    #   complaint_type ∈ {refund, wrong_recipient}   (tầng đắt, xem ADR-057)
-    #   AND số lượt còn ở trạng thái này ≥ N          (_N_LUOT_CHUYEN_NGUOI_TANG_DAT)
-    #   AND chưa xác định được giao dịch               (Complaint.trans_id IS NULL)
+    # The condition — machine-readable, no model cooperation needed:
+    #   complaint_type ∈ {refund, wrong_recipient}   (the expensive tier, see ADR-057)
+    #   AND turns spent in this state ≥ N             (_ESCALATION_HANDOFF_TURNS)
+    #   AND the transaction is not yet identified     (Complaint.trans_id IS NULL)
     #
-    # Complaint TRA QUA `thread_id`, không qua `ticket_id` biến cục bộ ở
-    # trên — `ticket_id` chỉ khác None nếu TURN NÀY vừa tạo vé; complaint
-    # tầng đắt còn dang dở thường được tạo ở lượt TRƯỚC.
-    _tid_dat = thread_id or user_id
-    _complaint_dat = session.scalars(
+    # The Complaint is LOOKED UP VIA `thread_id`, not via the local `ticket_id` variable above —
+    # `ticket_id` is only non-None if THIS TURN just created a ticket; an unfinished expensive-tier
+    # complaint was usually created on an EARLIER turn.
+    _hit_tid = thread_id or user_id
+    _complaint_hit = session.scalars(
         select(Complaint)
-        .where(Complaint.thread_id == _tid_dat)
+        .where(Complaint.thread_id == _hit_tid)
         .order_by(Complaint.created_at.desc())
         .limit(1)
     ).first()
-    can_chuyen_nguoi_tang_dat = False
+    needs_escalation_handoff = False
     if (
-        _complaint_dat is not None
-        and _complaint_dat.type in _LOAI_KHIEU_NAI_TANG_DAT
-        and _complaint_dat.trans_id is None
+        _complaint_hit is not None
+        and _complaint_hit.type in _ESCALATING_COMPLAINT_TYPES
+        and _complaint_hit.trans_id is None
     ):
-        _luot_dat = tang_tin_hieu(_TEN_TIN_HIEU_LUOT_TANG_DAT, _tid_dat)
-        if _luot_dat >= _N_LUOT_CHUYEN_NGUOI_TANG_DAT:
-            can_chuyen_nguoi_tang_dat = True
-            nhom_khop = list(nhom_khop) + ["CD1"]
+        _turn_hit = incr_signal(_SIGNAL_ESCALATION_TURNS, _hit_tid)
+        if _turn_hit >= _ESCALATION_HANDOFF_TURNS:
+            needs_escalation_handoff = True
+            matched_group = list(matched_group) + ["CD1"]
 
-    # ⑧ · K3 — chèn SAU bộ lọc. Xem chú thích tại `_them_canh_bao_mao_danh`
-    # về lý do KHÔNG được dời lên trước.
-    reply_da_loc = _them_canh_bao_mao_danh(
-        reply_da_loc, co_loi_otp=co_loi_otp_trong_luot, ticket_id=ticket_id
+    # ⑧ · K3 — inserted AFTER the filter. See the comment on `_add_impersonation_warning` for why it
+    # must NOT be moved earlier.
+    filtered_reply = _add_impersonation_warning(
+        filtered_reply, has_otp_error=has_otp_error_in_turn, ticket_id=ticket_id
     )
 
-    # ⑨ · K2 — CÂU SÀNG LỌC LỪA ĐẢO, tất định, 0 token.
-    # Điều kiện bắn ĐỌC TỪ TẦNG NÀY, không giao model quyết: vé vừa tạo có
-    # `complaint_type == "wrong_recipient"`, và thread chưa từng được hỏi.
-    # Chuyên gia đòi hỏi ở MỌI ca chuyển nhầm — kể cả ca trông rõ ràng, vì
-    # chính ca rõ ràng mới là ca hay bị bỏ qua.
-    # Chèn SAU bộ lọc, cùng lý do ⑧ (xem chú thích ở `_them_canh_bao_mao_danh`).
-    # 🔴 ĐỔI ĐIỂM MÓC 25/08 — bản đầu bắn theo `ticket_id is not None`, tức chỉ
-    # bắn được SAU khi `create_ticket` trả về. Trong kịch bản chuyên gia, vé tạo
-    # giữa lượt 7 và 8 ⟹ câu sàng lọc xuất hiện ở LƯỢT 8, còn chuyên gia đặt nó
-    # ở LƯỢT 4. Chênh 4 lượt, và chênh đúng chiều nguy: khách đã nghe TRỌN lời
-    # khuyên chuyển-nhầm ở lượt 5-6 rồi mới bị hỏi có bị lừa không.
-    # Tôi chọn chỗ DỄ ĐO (`create_ticket` là nơi duy nhất tầng code biết chắc
-    # `complaint_type`), không chọn chỗ ĐÚNG LƯỢT. Phiếu ⑨ nói "hỏi ở MỌI ca
-    # chuyển nhầm" — nói CÓ HỎI KHÔNG, không nói HỎI Ở ĐÂU; 5 trục đặc tả cũng
-    # chấm "có hỏi", nên không cổng nào bắt được lỗi 4 lượt.
+    # ⑨ · K2 — THE SCAM-SCREENING QUESTION, deterministic, 0 tokens.
+    # The firing condition is READ AT THIS LAYER, not left to the model: the ticket just created has
+    # `complaint_type == "wrong_recipient"`, and the thread has never been asked.
+    # The expert requires it in EVERY wrong-transfer case — including obvious-looking ones, because
+    # the obvious ones are exactly the ones that get skipped.
+    # Inserted AFTER the filter, for the same reason as ⑧ (see the comment on
+    # `_add_impersonation_warning`).
+    # 🔴 HOOK MOVED 25/08 — the first version fired on `ticket_id is not None`, i.e. it could only
+    # fire
+    # AFTER `create_ticket` returned. In the expert script the ticket is created between turns 7 and
+    # 8
+    # ⟹ the screening question appeared on TURN 8, while the expert places it on TURN 4. A 4-turn
+    # gap, and in exactly the dangerous direction: the customer had already heard ALL the
+    # wrong-transfer advice on turns 5-6 before being asked whether they were scammed.
+    # I chose the spot that was EASY TO MEASURE (`create_ticket` is the only place the code layer
+    # knows
+    # `complaint_type` for sure), not the RIGHT TURN. Ticket ⑨ says "ask in EVERY wrong-transfer
+    # case"
+    # — it says WHETHER to ask, not WHERE; the 5 spec axes also score "was it asked", so no gate
+    # caught
+    # the 4-turn error.
     #
-    # 🔴 VẾ LƯỢT 8 ĐÃ BỎ HẲN, không để cả hai (điều kiện cứng của PO): hỏi khách
-    # HAI LẦN cùng một câu là hỏng theo cách khác, và nó SẼ LỌT mọi cổng hiện có
-    # vì tất cả đều chấm "có hỏi không".
+    # 🔴 THE TURN-8 BRANCH WAS DROPPED ENTIRELY, not kept alongside (the PO's hard condition): asking
+    # the
+    # customer the same question TWICE breaks things in another way, and it WOULD SLIP PAST every
+    # existing gate since they all score "was it asked".
     #
-    # ĐỊNH VỊ LƯỢT 4: đọc tín hiệu của các lượt TRƯỚC, rồi mới ghi tín hiệu lượt
-    # NÀY (thứ tự quan trọng). Lượt tra được giao dịch chỉ GHI tín hiệu; lượt kế
-    # tiếp mới hỏi ⟹ đúng lượt 4, không phải lượt 3.
-    _tid_sl = thread_id or user_id
-    if la_ca_chuyen_nham(message):
-        tang_tin_hieu(_TEN_TIN_HIEU_CA_CHUYEN_NHAM, _tid_sl)
-    _da_tra_duoc = doc_tin_hieu(_TEN_TIN_HIEU_DA_TRA_DUOC_GD, _tid_sl) not in (None, 0)
+    # LOCATING TURN 4: read the signals of EARLIER turns first, then write this turn's signal (order
+    # matters). The turn that finds the transaction only WRITES the signal; the following turn asks
+    # ⟹ exactly turn 4, not turn 3.
+    _slot_tid = thread_id or user_id
+    if is_wrong_transfer_case(message):
+        incr_signal(_SIGNAL_WRONG_TRANSFER_CASE, _slot_tid)
+    _already_found = read_signal(_SIGNAL_TXN_FOUND, _slot_tid) not in (None, 0)
     if (
-        _da_tra_duoc
-        and doc_tin_hieu(_TEN_TIN_HIEU_CA_CHUYEN_NHAM, _tid_sl) not in (None, 0)
-        and doc_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl) == 0
+        _already_found
+        and read_signal(_SIGNAL_WRONG_TRANSFER_CASE, _slot_tid) not in (None, 0)
+        and read_signal(_SIGNAL_SCREENING_ASKED, _slot_tid) == 0
     ):
-        tang_tin_hieu(_TEN_TIN_HIEU_DA_HOI_SANG_LOC, _tid_sl)
-        reply_da_loc = (reply_da_loc.rstrip() + "\n\n" + HOI_SANG_LOC_LUA_DAO).strip()
-    # Ghi SAU khi đã xét ở trên — nếu ghi trước, lượt tra-được sẽ tự thoả điều
-    # kiện và câu hỏi rơi vào lượt 3 (chung tin với bản đọc lại 5 dữ kiện),
-    # phá luôn R1 "một Ý mỗi tin".
-    if not _da_tra_duoc:
-        _ket_qua_tra_duoc = next(
+        incr_signal(_SIGNAL_SCREENING_ASKED, _slot_tid)
+        filtered_reply = (filtered_reply.rstrip() + "\n\n" + ASK_SCAM_SCREENING).strip()
+    # Written AFTER the check above — writing first would make the found-it turn satisfy the
+    # condition itself and the question would land on turn 3 (in the same message as the 5-fact
+    # read-back), also breaking R1 "one idea per message".
+    if not _already_found:
+        _found_results = next(
             (
                 c["result"] for c in tool_calls_out
                 if c.get("tool_name") == "lookup_transaction"
@@ -2470,52 +2715,64 @@ def run_agent_turn(
             ),
             None,
         )
-        if _ket_qua_tra_duoc is not None:
-            tang_tin_hieu(_TEN_TIN_HIEU_DA_TRA_DUOC_GD, _tid_sl)
-            # GATE mục 4 — lưu trans_id NGAY lúc biết nó, để lượt hỏi (⑨ ở
-            # trên, cùng lượt hoặc lượt sau) và lượt nhận câu trả lời (MẢNH 4,
-            # đầu hàm này) khớp đúng CÙNG một giao dịch. Ghi đè trans_id cũ
-            # nếu thread đang có ca chuyển nhầm THỨ HAI tra được TRƯỚC KHI ca
-            # đầu kịp hỏi-đáp xong — chấp nhận được: ⑨ chỉ hỏi MỘT câu/lượt
-            # (R1), nên tình huống này hiếm, và ca bị ghi đè vẫn tự tra lại
-            # được (`_da_tra_duoc` đã lên 1, `lookup_transaction` không gọi
-            # lại) — không mất giao dịch, chỉ có thể trả lời sàng lọc bị gán
-            # nhầm sang ca kia một lần, tự sửa ở lượt hỏi kế tiếp của ca đó.
-            _trans_id_moi_tra = _ket_qua_tra_duoc.get("trans_id")
-            if _trans_id_moi_tra:
-                luu_gia_tri(_TEN_TIN_HIEU_TRANS_ID_CHO_SANG_LOC, _tid_sl, _trans_id_moi_tra)
-    tin_hieu_lo_chi_thi_ket_qua = tin_hieu_lo_chi_thi(reply, thread_id=thread_id or user_id)
-    _kq_cuoi = {
-        "reply": reply_da_loc,
+        if _found_results is not None:
+            incr_signal(_SIGNAL_TXN_FOUND, _slot_tid)
+            # GATE item 4 — store the trans_id AS SOON AS it is known, so the asking turn (⑨ above,
+            # the
+            # same turn or the next) and the answer-receiving turn (PIECE 4, at the start of this
+            # function)
+            # match EXACTLY the same transaction. Overwriting an old trans_id when the thread has a
+            # SECOND
+            # wrong-transfer case found BEFORE the first finished its question-answer round is
+            # acceptable: ⑨
+            # only asks ONE question per turn (R1), so this situation is rare, and the overwritten
+            # case can
+            # still look itself up again (`_already_found` is already 1, `lookup_transaction` isn't
+            # called
+            # again) — no transaction is lost; at worst a screening answer gets attributed to the
+            # other case
+            # once, and it corrects itself on that case's next asking turn.
+            _newly_found_trans_id = _found_results.get("trans_id")
+            if _newly_found_trans_id:
+                store_value(_SIGNAL_TRANS_ID_PENDING_SCREENING, _slot_tid, _newly_found_trans_id)
+    instruction_leak_result = instruction_leak_signal(reply, thread_id=thread_id or user_id)
+    _res_final = {
+        "reply": filtered_reply,
         "tool_calls": tool_calls_out,
-        # GĐ3 (876a240) — model ĐÃ TRẢ LỜI thật (không phải LLM_MODEL hằng
-        # số) + MỌI model đã thử trong lượt này theo thứ tự, kể cả lần bị
-        # nhà cung cấp từ chối (nhà cung cấp tính tiền CẢ lần thất bại —
-        # "chứng từ đối soát hoá đơn" phải ghi đủ, không chỉ model cuối).
-        "model": model_da_tra_loi,
-        "models_da_thu": list(models_da_thu),
+        # Phase 3 (876a240) — the model that REALLY ANSWERED (not the constant LLM_MODEL) + EVERY
+        # model
+        # tried this turn in order, including attempts the provider rejected (providers bill FAILED
+        # attempts
+        # too — the "invoice reconciliation evidence" must record them all, not just the final
+        # model).
+        "model": answering_model,
+        "models_da_thu": list(tried_models),
         "ticket_id": ticket_id,
         "should_escalate": should_escalate,
         "usage": usage,
-        # BỐN trường CHẨN ĐOÁN (`tin_hieu_lo_chi_thi` thêm ở Luật 18). Không
-        # phải tiện tay: eval KHÔNG sinh một dòng log nào (runner gọi thẳng
-        # graph, logging_config chưa từng khởi tạo) và Redis là fakeredis
-        # per-process — nên log + bộ đếm của bộ lọc VÔ HÌNH với người đo. Thiếu
-        # chúng thì O1/O3/O4 cùng ra một câu an toàn giống hệt nhau, đúng họ
-        # "hai trạng thái đội chung một vỏ"; và trước Luật 18, mật độ liệt kê
-        # còn tệ hơn — không chỉ vô hình mà CHƯA TỪNG được tính ở đường thật.
-        "loc_dau_ra": nhom_khop,
-        "tin_hieu_lo_chi_thi": tin_hieu_lo_chi_thi_ket_qua,
-        # ES-xx -> FRONTEND render nút "gặp người thật". KHÔNG tự gọi
-        # request_human_handoff: quyền quyết định gặp người là của KHÁCH
-        # (CTRL-001 / ISO-IEC 25059), hệ thống chỉ ĐỀ NGHỊ.
-        # ADR-057 (CD1) OR vào ĐÚNG cờ có sẵn này — không cờ mới, không
-        # đường mới, chỉ thêm MỘT lý do nữa khiến hệ thống đề nghị gặp người.
-        "goi_y_handoff": bool(tin_hieu_cam_xuc) or can_chuyen_nguoi_tang_dat,
-        "duong": DUONG_DAY_DU,
-        "ly_do_fallback": None,  # TƯỜNG MINH null, KHÔNG thiếu key — thiếu key
-        # không phân biệt được với "bản cũ chưa có trường này".
-        **_reply_goc_cho_eval(reply, nhom_khop),
+        # FOUR DIAGNOSTIC fields (`tin_hieu_lo_chi_thi` — instruction-leak signal — added in Rule
+        # 18).
+        # Not a convenience: eval produces NOT A SINGLE log line (the runner calls the graph
+        # directly,
+        # logging_config is never initialised) and Redis is per-process fakeredis — so the filter's
+        # logs +
+        # counters are INVISIBLE to whoever is measuring. Without them O1/O3/O4 all produce the same
+        # identical safe sentence, exactly the "two states wearing one shell" family; and before
+        # Rule 18,
+        # listing density was even worse — not just invisible but NEVER computed on the real path.
+        "loc_dau_ra": matched_group,
+        "tin_hieu_lo_chi_thi": instruction_leak_result,
+        # ES-xx -> the FRONTEND renders a "talk to a human" button. It does NOT call
+        # request_human_handoff itself: the decision to talk to a human belongs to the CUSTOMER
+        # (CTRL-001 / ISO-IEC 25059); the system only SUGGESTS.
+        # ADR-057 (CD1) ORs into EXACTLY this existing flag — no new flag, no new path, just ONE
+        # more reason
+        # for the system to suggest a human.
+        "goi_y_handoff": bool(emotion_signal) or needs_escalation_handoff,
+        "duong": ROUTE_FULL,
+        "ly_do_fallback": None,  # EXPLICITLY null, NOT a missing key — a missing key
+        # can't be distinguished from "an old version without this field".
+        **_raw_reply_for_eval(reply, matched_group),
     }
-    _ghi_so(_kq_cuoi, thread_id, user_id)
-    return _kq_cuoi
+    _write_ledger(_res_final, thread_id, user_id)
+    return _res_final

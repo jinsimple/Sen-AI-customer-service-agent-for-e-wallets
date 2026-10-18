@@ -542,7 +542,7 @@ jobs:
     runs-on: [self-hosted, team-226]
     # 04/09 — CHUYỂN sang nightly-only (PO): job này gọi run_agent_turn()
     # trực tiếp trong tiến trình, không qua docker-compose backend, nên
-    # FIN05_CHO_PHEP_GOI_RA_NGOAI (mặc định TỪ CHỐI) chưa từng được khai ở
+    # FIN05_ALLOW_EGRESS (mặc định TỪ CHỐI) chưa từng được khai ở
     # đây — chặn 100% case từ 18/08, không phải regression. Sửa gốc (khai
     # env dưới) + đổi sang per-push→nightly cùng lúc, đúng khuôn Stage 6:
     # 120 case + functional/fraud/err là LLM-eval đắt, nondeterministic,
@@ -585,11 +585,11 @@ jobs:
       # qwen3.7-max-2026-06-08 (đã 403, ADR-058). Đổi đồng bộ với job dưới.
       LLM_MODEL: qwen3.8-flash
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-      # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
+      # 04/09 — cổng egress_gate.py mặc định TỪ CHỐI (18/08). Job này gọi
       # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
       # backend, nơi biến này CÓ khai) nên chưa từng được mở — chặn mọi case
       # từ ngày cổng ra đời, không phải regression của thay đổi nào sau này.
-      FIN05_CHO_PHEP_GOI_RA_NGOAI: "1"
+      FIN05_ALLOW_EGRESS: "1"
     steps:
       - uses: actions/checkout@v4
       # 04/09 — DevOps: nghi vấn self-hosted runner (không ephemeral) giữ
@@ -691,11 +691,11 @@ jobs:
       # để bể không cạn tức thì trong lúc chờ vá gốc.
       LLM_MODEL_POOL: qwen3.8-flash,qwen3.6-plus-2026-04-02,qwen3.6-flash-2026-04-16,qwen3.7-max-2026-06-08
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-      # 04/09 — cổng cong_ra_ngoai.py mặc định TỪ CHỐI (18/08). Job này gọi
+      # 04/09 — cổng egress_gate.py mặc định TỪ CHỐI (18/08). Job này gọi
       # run_agent_turn() trực tiếp trong tiến trình (không qua docker-compose
       # backend, nơi biến này CÓ khai) nên chưa từng được mở — chặn mọi case
       # từ ngày cổng ra đời, không phải regression của thay đổi nào sau này.
-      FIN05_CHO_PHEP_GOI_RA_NGOAI: "1"
+      FIN05_ALLOW_EGRESS: "1"
     steps:
       - uses: actions/checkout@v4
       # 04/09 — DevOps: nghi vấn self-hosted runner (không ephemeral) giữ

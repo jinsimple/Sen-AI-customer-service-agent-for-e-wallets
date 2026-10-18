@@ -78,18 +78,18 @@ def main() -> int:
     commit = git_commit()
     hashes: dict[str, str] = {}
 
-    for ten_ra, nguon in BUNDLE:
-        src = ROOT / nguon
+    for ten_ra, source in BUNDLE:
+        src = ROOT / source
         if not src.exists():
-            print(f"  BỎ QUA (thiếu): {nguon}")
+            print(f"  BỎ QUA (thiếu): {source}")
             continue
-        noi_dung = src.read_text(encoding="utf-8")
+        content_text = src.read_text(encoding="utf-8")
         h = hash_file(src)
-        hashes[nguon] = h
+        hashes[source] = h
 
         dau = (
             f"<!-- DẤU PHIÊN BẢN — sinh bởi scripts/export_project_knowledge.py\n"
-            f"     nguồn: {nguon}\n"
+            f"     nguồn: {source}\n"
             f"     hash: {h}\n"
             f"     xuất lúc: {ngay}  ·  commit: {commit}\n"
             f"     Đây là BẢN SAO. Nguồn sự thật là file trong repo.\n"
@@ -97,8 +97,8 @@ def main() -> int:
         )
         if ten_ra.endswith(".yaml"):
             dau = dau.replace("<!--", "#").replace("-->", "").replace("\n     ", "\n#   ")
-        (OUT / ten_ra).write_text(dau + noi_dung, encoding="utf-8")
-        print(f"  {ten_ra:<45} ← {nguon}  @{h}")
+        (OUT / ten_ra).write_text(dau + content_text, encoding="utf-8")
+        print(f"  {ten_ra:<45} ← {source}  @{h}")
 
     # ---- File giới thiệu dự án cho mục đích KHÁC (dựng slide, không phải làm
     # việc phát triển) — tự chứa, KHÔNG đi qua vòng lặp BUNDLE ở trên vì CỐ Ý
@@ -117,7 +117,7 @@ def main() -> int:
         print("  BỎ QUA 07 — không có gate/ (thư mục dùng-rồi-bỏ, không bắt buộc)")
 
     # ---- File đồng bộ: thứ dùng để phát hiện kho kiến thức đã cũ ----
-    bang = "\n".join(f"| `{k}` | `{v}` |" for k, v in sorted(hashes.items()))
+    table_rows = "\n".join(f"| `{k}` | `{v}` |" for k, v in sorted(hashes.items()))
     (OUT / "00-SYNC-VERSION.md").write_text(
         f"""# DẤU ĐỒNG BỘ — kho kiến thức Project "fin05"
 
@@ -130,7 +130,7 @@ Mọi chat trong Project này đang đọc bản sao được chụp tại thờ
 
 | File nguồn trong repo | Hash |
 |---|---|
-{bang}
+{table_rows}
 
 ## Cách kiểm kho kiến thức có còn mới không
 
@@ -183,9 +183,9 @@ Kho kiến thức chỉ chứa **đặc tả**, không chứa code. Cố ý:
         agent_md = ROOT / ".claude" / "agents" / f"{v}.md"
         if not agent_md.exists():
             continue
-        noi_dung = agent_md.read_text(encoding="utf-8")
-        if noi_dung.startswith("---"):
-            noi_dung = noi_dung.split("---", 2)[-1].strip()
+        content_text = agent_md.read_text(encoding="utf-8")
+        if content_text.startswith("---"):
+            content_text = content_text.split("---", 2)[-1].strip()
         (thu_muc_vai / f"{v}.md").write_text(
             f"""Bạn là vai **{v}** trong dự án FIN-05.
 
@@ -195,7 +195,7 @@ trước khi làm bất cứ việc gì.** Bắt đầu bằng `00-SYNC-VERSION.
 
 ---
 
-{noi_dung}
+{content_text}
 
 ---
 

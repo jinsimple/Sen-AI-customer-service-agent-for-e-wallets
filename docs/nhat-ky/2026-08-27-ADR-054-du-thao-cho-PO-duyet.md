@@ -97,8 +97,8 @@ của môi trường. Cờ riêng buộc người bật **gõ đúng tên nó ra
 **Vì sao TÁCH LÀM HAI:** không phải để cho gọn. Gộp một cờ **ép PO chọn "cả hai cùng bật" hoặc "cả hai
 cùng tắt"**, trong khi câu trả lời hợp lý nhất có thể là **lệch nhau**.
 
-📌 Khuôn này **không phải phát minh mới** — dự án đã dùng đúng khuôn ở `PHAN_LUONG_BAT` · `CONG_T0_BAT` ·
-`CONG_OTP_NHOM_B_BAT`.
+📌 Khuôn này **không phải phát minh mới** — dự án đã dùng đúng khuôn ở `TRIAGE_ENABLED` · `T0_GATE_ENABLED` ·
+`OTP_GATE_GROUP_B_ENABLED`.
 
 ---
 

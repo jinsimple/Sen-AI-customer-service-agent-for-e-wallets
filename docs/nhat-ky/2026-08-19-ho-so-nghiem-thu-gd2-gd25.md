@@ -179,9 +179,9 @@ truy hồi được", kèm đề nghị thay phép kiểm đồng nhất bằng 
 **Tiền đề SAI.** `38e65466e3ce` **không phải Docker image ID**:
 
 ```
-src/dau_ma_nguon.py:46   CACH_BAM = "sha256-noi-dung-src-py-da-sap-xep-12"
-src/dau_ma_nguon.py:50   bam_ma_nguon() = sha256(nội dung mọi src/**/*.py đã sắp xếp)[:12]
-src/dau_ma_nguon.py:62   DUONG_NHAN = /app/.bam_ma_nguon  ← đóng vào ảnh lúc build
+src/build_stamp.py:46   CACH_BAM = "sha256-noi-dung-src-py-da-sap-xep-12"
+src/build_stamp.py:50   bam_ma_nguon() = sha256(nội dung mọi src/**/*.py đã sắp xếp)[:12]
+src/build_stamp.py:62   DUONG_NHAN = /app/.source_hash  ← đóng vào ảnh lúc build
 ```
 
 Đó là **băm NỘI DUNG MÃ NGUỒN**, ghi vào mọi dòng `usage.jsonl` (`bam_ma_nguon` + `cach_bam`).
@@ -195,7 +195,7 @@ tính LẠI từ src/ đang nằm TRONG ảnh      : 38e65466e3ce
 tính trên HOST từ src/ của cây làm việc  : 38e65466e3ce
 ```
 
-🔴 `src/dau_ma_nguon.py` tồn tại **CHÍNH VÌ** `build_commit` đã bị chứng minh nói dối **cả hai
+🔴 `src/build_stamp.py` tồn tại **CHÍNH VÌ** `build_commit` đã bị chứng minh nói dối **cả hai
 chiều** hôm 17/08 (docstring dòng 5-14). Dự án **đã giải xong** đúng bài toán tôi tuyên bố là nó
 chưa có. Tôi bỏ qua cái nhãn dự án dựng để chống lỗi này, và với tay sang **đúng loại định danh
 mà nhãn ấy sinh ra để thay thế**.
@@ -353,7 +353,7 @@ Toàn bộ đo bằng dụng cụ của PO-agent, không dùng lại số của 
 ```
 HEAD 847e21b · cây làm việc SẠCH
 git log 1b916f1..HEAD -- src/          → RỖNG (không commit nào chạm backend src)
-băm nguồn tự tính từ src/ host          → 38e65466e3ce  == nhãn /app/.bam_ma_nguon trong ảnh
+băm nguồn tự tính từ src/ host          → 38e65466e3ce  == nhãn /app/.source_hash trong ảnh
 docker exec printenv BUILD_COMMIT       → 1b916f1
 chữ ký Bảo Mật                          → docs/security/2026-08-19-gd25-chu-ky-finding-ab.md (có, ký trên diff thật)
 số học sổ: 0+20.658+28.074+36.340+20.665 = 105.737  → khớp sổ chốt ĐÚNG TỪNG CHỮ SỐ

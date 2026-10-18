@@ -183,10 +183,10 @@ xong — giữ nguyên hiện trường là đúng.
 ## ĐÍNH CHÍNH QUYẾT ĐỊNH D — 19/08, cùng ngày (Lead rút finding 7c, PO-agent kiểm lại và rút theo)
 
 **Tiền đề của QĐ-D SAI: `38e65466e3ce` chưa bao giờ là Docker image ID.** Nó là **băm nội dung
-mã nguồn** (`src/dau_ma_nguon.py`, `CACH_BAM = sha256-noi-dung-src-py-da-sap-xep-12`) — nhãn
+mã nguồn** (`src/build_stamp.py`, `CACH_BAM = sha256-noi-dung-src-py-da-sap-xep-12`) — nhãn
 dự án TỰ DỰNG ngày 17/08 chính vì `build_commit` đã nói dối theo cả hai chiều. Phép kiểm đồng
 nhất **CHẠY ĐƯỢC và XANH** — [ĐO ĐỘC LẬP của PO-agent, thuật toán nguyên bản chạy trên host]:
-băm tự tính từ `src/` cây làm việc = `38e65466e3ce` = nhãn `/app/.bam_ma_nguon` trong ảnh đang
+băm tự tính từ `src/` cây làm việc = `38e65466e3ce` = nhãn `/app/.source_hash` trong ảnh đang
 chạy `631212bc7bdd`; `git status src/` sạch. Khớp phép đo ba-cách của Lead.
 
 **Hệ quả — rút tại gốc, không vá quanh:**
@@ -214,7 +214,7 @@ Luật W đã viết lại theo đúng phân biệt đó (STATE §7, có ghi v�
   lần này dụng cụ là người đọc).
 - PO-agent: **tiếp nhận tiền đề không kiểm rồi đúc luật trên đó trong vòng một giờ** — đúng lúc
   Luật T bảo phải soi kỹ nhất (Lead vừa qua một chuỗi tự khai lỗi). Một lần `grep 38e65466`
-  hoặc mở `dau_ma_nguon.py` là thấy. Người kiểm relay tiền đề của người bị kiểm là bỏ trạm gác.
+  hoặc mở `build_stamp.py` là thấy. Người kiểm relay tiền đề của người bị kiểm là bỏ trạm gác.
 
 🔴 Bài học giữ lại (chữ của Lead, PO-agent chuẩn y): **"Một nhãn không kèm CÁCH ĐỌC thì người
 đọc sẽ tự cấp cho nó một loại — và loại họ cấp là loại họ hay gặp nhất."** `cach_bam` tồn tại

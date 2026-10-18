@@ -100,8 +100,8 @@ TTL_TOI_DA_GIAY = 120  # instance đo phải có TTL NGẮN; 15 phút thật là
 def _giai_ma_exp(cookie_val: str) -> tuple[int, int]:
     """Trả (iat, exp) của access token trong cookie phiên."""
     d = json.loads(urllib.parse.unquote(cookie_val))
-    than = d["access_token"].split(".")[1]
-    pl = json.loads(base64.urlsafe_b64decode(than + "=" * (-len(than) % 4)))
+    body = d["access_token"].split(".")[1]
+    pl = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
     return pl["iat"], pl["exp"]
 
 
@@ -210,11 +210,11 @@ def test_hai_request_dong_thoi_trong_cua_so_gia_han_khong_giet_phien():
     _cho_toi_cua_so(exp)
 
     with ThreadPoolExecutor(max_workers=2) as ex:
-        ma = [f.result() for f in [ex.submit(_goi, c, ck), ex.submit(_goi, c, ck)]]
+        code = [f.result() for f in [ex.submit(_goi, c, ck), ex.submit(_goi, c, ck)]]
 
-    sau = [_goi(c) for _ in range(3)]
-    assert any(m == 200 for m in sau), (
-        f"PHIÊN CHẾT HẲN sau cú đua. Hai request đua: {ma}; ba lượt sau: {sau} — "
+    after = [_goi(c) for _ in range(3)]
+    assert any(m == 200 for m in after), (
+        f"PHIÊN CHẾT HẲN sau cú đua. Hai request đua: {code}; ba lượt sau: {after} — "
         "không lượt nào hồi phục. Đây là thu-hồi-family (AUTH5-03), không phải "
         "khiếm khuyết cookie-trên-response. Người dùng thật bị đăng xuất giữa phiên."
     )
@@ -234,9 +234,9 @@ def test_doi_chung_hai_request_tuan_tu_van_song():
     c, exp = _phien_moi(httpx)
     _cho_toi_cua_so(exp)
 
-    ma = [_goi(c) for _ in range(3)]
-    assert any(m == 200 for m in ma), (
-        f"Ngay cả TUẦN TỰ cũng chết: {ma}. Vấn đề KHÔNG phải đua — nó rộng hơn, "
+    code = [_goi(c) for _ in range(3)]
+    assert any(m == 200 for m in code), (
+        f"Ngay cả TUẦN TỰ cũng chết: {code}. Vấn đề KHÔNG phải đua — nó rộng hơn, "
         "và ca đua ở trên không còn quy được nhân quả."
     )
     c.close()
@@ -267,9 +267,9 @@ def test_doi_chung_handoff_ngay_sau_dang_nhap_phai_dat():
     c, exp = _phien_moi(httpx)
 
     # KHÔNG chờ — gọi ngay khi token còn tươi nguyên.
-    ma = [_goi(c) for _ in range(3)]
-    assert all(m == 200 for m in ma), (
-        f"Handoff hỏng NGAY khi phiên còn tươi: {ma}. Vậy bug KHÔNG phải hàm của "
+    code = [_goi(c) for _ in range(3)]
+    assert all(m == 200 for m in code), (
+        f"Handoff hỏng NGAY khi phiên còn tươi: {code}. Vậy bug KHÔNG phải hàm của "
         "thời gian, và hai ca đua ở trên mất khả năng quy nhân quả — điều tra lại "
         "từ đầu thay vì vá single-flight."
     )

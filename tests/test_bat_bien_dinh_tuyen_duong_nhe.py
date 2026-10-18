@@ -2,7 +2,7 @@
 
 > ⚠️ **Chạy TỪ HOST, cần `docker` CLI.**
 > ⚠️ **TỐN TIỀN** — ~14K token (lượt nhẹ 0đ, lượt đối chứng đầy đủ). Mặc định
-> TẮT, bật bằng `FIN05_CHO_PHEP_TON_TIEN=1`.
+> TẮT, bật bằng `FIN05_ALLOW_PAID_CALLS=1`.
 
     Một lượt đi ĐƯỜNG NHẸ không được tạo bản ghi nghiệp vụ nào:
         Δcomplaints = 0 · Δtickets = 0
@@ -40,7 +40,7 @@ import pytest
 
 from tests._docker_co_mat import co_docker
 from tests._dong_bang import LY_DO, dang_dong_bang
-from tests._ton_tien import duoc_phep_ton_tien, ly_do
+from tests._ton_tien import duoc_phep_ton_tien, reason_text
 
 BANG = ("complaints", "tickets")
 CT = "fin05do-backend-1"
@@ -66,7 +66,7 @@ def _stack_song() -> bool:
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(not duoc_phep_ton_tien(),
-                       reason=ly_do(14_000, "1 lượt nhẹ 0 token + 1 lượt đầy đủ")),
+                       reason=reason_text(14_000, "1 lượt nhẹ 0 token + 1 lượt đầy đủ")),
     pytest.mark.skipif(not _stack_song(),
                        reason=f"cần ngăn xếp ĐO DÙNG RIÊNG {CT} — phép đo này GHI, "
                               "không chạy trên ngăn xếp dùng chung (Luật 15)"),
@@ -74,7 +74,7 @@ pytestmark = [
 ]
 
 
-def _dem() -> dict[str, int]:
+def _counters() -> dict[str, int]:
     sql = " UNION ALL ".join(f"SELECT '{b}',count(*) FROM {b}" for b in BANG)
     r = subprocess.run(["docker", "exec", PG, "psql", "-U", "fin05", "-d", "fin05", "-tAc", sql],
                        capture_output=True, text=True, timeout=60)
@@ -82,16 +82,16 @@ def _dem() -> dict[str, int]:
     return {dg.split("|")[0]: int(dg.split("|")[1]) for dg in r.stdout.splitlines() if "|" in dg}
 
 
-def _chat(cau: str) -> dict:
-    ma = (
+def _chat(sentence: str) -> dict:
+    code = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
         "h={'Authorization':'Bearer '+r.json()['access_token']};"
-        f"r=c.post('{API}/agent/chat',json={{'message':{cau!r}}},headers=h);"
+        f"r=c.post('{API}/agent/chat',json={{'message':{sentence!r}}},headers=h);"
         "print(json.dumps({'http':r.status_code,'than':r.json()},ensure_ascii=False))"
     )
-    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", code],
                        capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, f"gọi chat hỏng: {(r.stderr or r.stdout)[-400:]}"
     return json.loads(r.stdout.strip().splitlines()[-1])
@@ -105,14 +105,14 @@ def hai_luot():
     tiêu hạn mức cho cùng một quan sát, và tệ hơn — mỗi lần bắn là một lần GHI
     vào hệ (Luật 15), nên số lần bắn phải là số ít nhất đủ dùng.
     """
-    ra = {}
-    for ten, cau in (("nhe", CAU_DON), ("day_du", CAU_NGHIEP_VU)):
-        t = _dem()
-        j = _chat(cau)
-        s = _dem()
-        ra[ten] = {"tra": j, "truoc": t, "sau": s,
+    out_items = {}
+    for name_text, sentence in (("nhe", CAU_DON), ("day_du", CAU_NGHIEP_VU)):
+        t = _counters()
+        j = _chat(sentence)
+        s = _counters()
+        out_items[name_text] = {"tra": j, "truoc": t, "sau": s,
                    "delta": {k: s[k] - t[k] for k in t}}
-    return ra
+    return out_items
 
 
 def test_luot_don_di_duong_NHE(hai_luot):

@@ -138,12 +138,12 @@ def _dong_archive(san: Path) -> list[str]:
     d = san / "archive"
     if not d.exists():
         return []
-    ra: list[str] = []
+    out_items: list[str] = []
     for f in sorted(d.glob("*.jsonl")):
         if f.name.endswith(".hong.jsonl"):
             continue
-        ra += _doc(f)
-    return ra
+        out_items += _doc(f)
+    return out_items
 
 
 def _dong_hong(san: Path) -> list[str]:
@@ -151,16 +151,16 @@ def _dong_hong(san: Path) -> list[str]:
     d = san / "archive"
     if not d.exists():
         return []
-    ra: list[str] = []
+    out_items: list[str] = []
     for f in sorted(d.glob("*.hong.jsonl")):
-        ra += _doc(f)
-    return ra
+        out_items += _doc(f)
+    return out_items
 
 
 def _thu_tu_id(f: Path) -> list[int]:
     return [
-        json.loads(dong)["id"]
-        for dong in f.read_text(encoding="utf-8").splitlines() if dong.strip()
+        json.loads(line)["id"]
+        for line in f.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
 
@@ -226,7 +226,7 @@ def test_leftover_gui_du_khong_trung_lap(tmp_path, server):
         assert r.returncode == 0, f"submit_log.py thoát {r.returncode}: {r.stderr}"
 
     arc = _dong_archive(san)
-    ids = [json.loads(dong)["id"] for dong in arc]
+    ids = [json.loads(line)["id"] for line in arc]
 
     assert len(arc) == BATCH_LIMIT + 2, (
         f"archive có {len(arc)} dòng, phải có {BATCH_LIMIT + 2}. "

@@ -165,7 +165,7 @@ mọi khác biệt dev/live nằm trong biến môi trường (12-factor, checkl
 Lead trình đúng và trình sớm: **repo KHÔNG có cost guard.** [ĐO độc lập của PO-agent, khớp Lead]
 `grep -rniE "cost_guard|budget|tran_chi|han_muc|chi_phi|spend|usd" src/` → chỉ ra
 `graph.py:155 _DAU_HIEU_HET_HAN_MUC` (nhận diện thân lỗi, chạy SAU khi đã gọi và bị từ chối) và
-hai dòng chú thích ở `config.py`. `so_usage.py` chỉ có `ghi_usage()` — **GHI, không CHẶN**.
+hai dòng chú thích ở `config.py`. `usage_ledger.py` chỉ có `ghi_usage()` — **GHI, không CHẶN**.
 `main.py` có slowapi + sliding-window + concurrency — **đều là RATE LIMIT**. `.env.production.example`
 **chưa tồn tại** (ô định-nghĩa-xong phải đọc là **TẠO MỚI**, không phải "cập nhật" — Lead sửa đúng).
 
@@ -324,7 +324,7 @@ của PO-agent) ⟹ niêm tại chỗ. **Kết luận rút ra từ nó KHÔNG đ
 | 2 | `requirements.lock.txt` **không nơi nào dùng** ⟹ 6/168 gói đã trôi | nợ, chưa làm |
 | 3 | **bí danh model trôi** (`deepseek-v4-flash`, `deepseek-v4-pro`) | ĐÃ CHẶN 19/08 (e2bebb8) |
 
-**KHÔNG mint luật mới** (§7b): hình dạng này đã có tên từ 17/08 trong docstring `src/dau_ma_nguon.py` —
+**KHÔNG mint luật mới** (§7b): hình dạng này đã có tên từ 17/08 trong docstring `src/build_stamp.py` —
 *"`commit` KHÔNG phải một hàm của `src/`, theo cả hai chiều ⟹ dùng nó làm nhãn ảnh là dùng SAI LOẠI
 ĐỊNH DANH"*. Ba ca trên là **cùng mệnh đề ấy áp cho ba loại vật khác** (ảnh nền · gói phụ thuộc ·
 model nhà cung cấp). Ghi thành CHÙM để một đợt dọn nợ sau đi cùng một sổ, không phải để cấp ký hiệu mới.
@@ -591,7 +591,7 @@ khứ**. Sửa lại tại chỗ thay vì để câu cũ đứng — bằng ch�
 
 **[ĐO Coder+Lead]** `deepseek-v4-pro-0813` trả content THẬT, 21+64=85 token, qua chung base_url
 DashScope, tắt reasoning bằng **cơ chế ĐÃ CÓ** (`graph.py:601 extra_body={"enable_thinking": False}`
-khi `SUY_LUAN_BAT=0`). Không cần nghiên cứu tham số mới.
+khi `REASONING_ENABLED=0`). Không cần nghiên cứu tham số mới.
 Sổ ping: 102 (lần 1, RÚT) + 85 (lần 2) = **187 token**, trong trần ≤10.000.
 
 **Finding "content rỗng" RÚT** — nguyên nhân là **dụng cụ đo** (ping thô tự dựng client, không đi
@@ -627,13 +627,13 @@ docker images fin05-backend → 631212bc7bdd, dựng 12:45:37 (TRƯỚC GĐ3)
 ```
 git status --porcelain
  M src/agents/graph.py · M src/agents/output_filter.py · M src/config.py
- M src/cong_ra_ngoai.py · ?? src/agents/llm_pool.py       ⟹ TOÀN BỘ CHƯA COMMIT
+ M src/egress_gate.py · ?? src/agents/llm_pool.py       ⟹ TOÀN BỘ CHƯA COMMIT
 HEAD = 4957b50  (một commit DOCS)
 ```
 
 **Vì sao hai điều này phải đọc cùng nhau:** dựng ảnh NGAY BÂY GIỜ sẽ tạo ra một ảnh mang
 `BUILD_COMMIT=4957b50` — **một commit chỉ chạm `docs/`** — trong khi ruột ảnh là code chưa ai commit.
-Đó **tái tạo CHÍNH XÁC** sự cố sinh ra `src/dau_ma_nguon.py` ngày 17/08:
+Đó **tái tạo CHÍNH XÁC** sự cố sinh ra `src/build_stamp.py` ngày 17/08:
 > *"nhãn DỊCH, mã ĐỨNG YÊN: `fin05ttl-backend-1` khai `36d6a1a` — một commit chỉ đổi `docs/`, ảnh
 > không chứa gì của nó"* — nay là chiều ngược lại, cùng một bệnh.
 

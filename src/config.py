@@ -1,7 +1,7 @@
-"""FIN-05 — cấu hình dùng chung cho DB, seed, và API.
+"""FIN-05 — shared configuration for the DB, seeding and the API.
 
-Đọc trước khi sửa: mọi đường dẫn ở đây là tương đối so với thư mục gốc repo,
-để `make db` chạy được từ bất kỳ máy nào không cần chỉnh tay.
+Read before editing: every path here is relative to the repo root,
+so `make db` runs on any machine without manual tweaks.
 """
 from __future__ import annotations
 
@@ -20,28 +20,28 @@ DATA_GENERATED_DIR = ROOT_DIR / "data" / "generated"
 EVAL_DIR = ROOT_DIR / "eval"
 
 # ---------------------------------------------------------------------------
-# DATABASE_URL — BẮT BUỘC, KHÔNG có giá trị mặc định (ADR-013).
+# DATABASE_URL — MANDATORY, with NO default value (ADR-013).
 #
-# TRƯỚC 2026-08-13 dòng này là:
+# BEFORE 2026-08-13 this line was:
 #     DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DB_PATH}")
 #
-# Fallback im lặng đó đã gây một sự cố thật mất nhiều giờ điều tra: Docker
-# stack chạy Postgres, còn mọi thứ chạy trên host (uvicorn dev, seed script,
-# load test, verify_security.sh) ÂM THẦM rơi về SQLite. Hai cửa sổ trình duyệt
-# nhìn giống hệt nhau nhưng ghi/đọc HAI DATABASE KHÁC NHAU — khách tạo ticket
-# ở bên này, CSKH bên kia vĩnh viễn không thấy, F5 bao nhiêu lần cũng vô ích.
+# That silent fallback caused a real incident that took hours to investigate: the Docker
+# stack ran Postgres, while everything running on the host (uvicorn dev, the seed script,
+# load tests, verify_security.sh) SILENTLY fell back to SQLite. Two browser windows looked
+# identical but wrote/read TWO DIFFERENT DATABASES — a customer created a ticket on one side,
+# CSKH on the other never saw it, no matter how many times they pressed F5.
 #
-# Nhãn môi trường (ADR-009) giúp PHÁT HIỆN khi đã lệch. Bỏ fallback ở đây chặn
-# từ GỐC: thiếu biến thì chết ngay lúc khởi động với thông báo rõ ràng, thay
-# vì lặng lẽ sinh ra một database thứ hai mà không ai hay biết.
+# The environment label (ADR-009) helps DETECT drift once it has happened. Removing the fallback
+# here stops it at the ROOT: a missing variable fails immediately at startup with a clear
+# message, instead of quietly spawning a second database nobody knows about.
 #
-# Đặt tường minh cho TỪNG môi trường:
+# Set explicitly for EACH environment:
 #   .env (dev/docker) : postgresql+psycopg2://...@127.0.0.1:5432/fin05
-#   CI                : sqlite:///:memory: hoặc Postgres ephemeral
-#   pytest            : tests/conftest.py tự tạo engine SQLite tạm riêng,
-#                       KHÔNG dùng biến này (xem get_engine ở dưới)
+#   CI                : sqlite:///:memory: or ephemeral Postgres
+#   pytest            : tests/conftest.py creates its own temporary SQLite engine,
+#                       does NOT use this variable (see get_engine below)
 # ---------------------------------------------------------------------------
-DB_PATH = ROOT_DIR / "data" / "app.db"  # chỉ còn dùng cho script seed cũ trỏ tay
+DB_PATH = ROOT_DIR / "data" / "app.db"  # only still used by old hand-pointed seed scripts
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError(
@@ -52,122 +52,122 @@ if not DATABASE_URL:
     )
 
 # ---------------------------------------------------------------------------
-# ĐỊNH DANH MÔI TRƯỜNG (2026-08-13) — sinh ra sau một sự cố thật, không phải
-# tính năng trang trí.
+# ENVIRONMENT IDENTITY (2026-08-13) — born from a real incident, not a decorative feature.
 #
-# Sự cố: Docker stack (Caddy :80 -> Postgres) và stack dev cục bộ
-# (next dev :3000 -> uvicorn :8010 -> SQLite) chạy SONG SONG. PO mở cửa sổ
-# khách ở `localhost` và cửa sổ CSKH ở `localhost:3000` — hai giao diện GIỐNG
-# HỆT NHAU nhưng nói chuyện với HAI DATABASE KHÁC NHAU. Khách tạo ticket vào
-# Postgres, CSKH đọc từ SQLite nên vĩnh viễn thấy 0, F5 bao nhiêu lần cũng vô
-# ích. Mất nhiều giờ điều tra vì mọi tầng code đều đúng.
+# The incident: the Docker stack (Caddy :80 -> Postgres) and the local dev stack
+# (next dev :3000 -> uvicorn :8010 -> SQLite) ran SIDE BY SIDE. The PO opened the customer
+# window at `localhost` and the CSKH window at `localhost:3000` — two IDENTICAL-looking UIs
+# talking to TWO DIFFERENT DATABASES. The customer created tickets in
+# Postgres, CSKH read from SQLite and so always saw 0, no matter how many F5s. Hours lost
+# investigating, because every layer of code was correct.
 #
-# Bài học tổng quát: môi trường VÔ HÌNH là lỗi thiết kế. Hệ thống phải TỰ KHAI
-# BÁO nó là ai — nhìn là biết, không phải suy luận từ số cổng.
+# General lesson: an INVISIBLE environment is a design flaw. The system must DECLARE
+# who it is — visible at a glance, not inferred from port numbers.
 #
-# CHỈ suy ra từ scheme + tên database. TUYỆT ĐỐI không đưa user/password/host
-# vào đây: giá trị này được trả ra qua /health (endpoint công khai).
+# Derived ONLY from the scheme + database name. NEVER include user/password/host here: this
+# value is returned via /health (a public endpoint).
 # ---------------------------------------------------------------------------
-# Fail-CLOSED, không fail-open (Bảo Mật bắt 20/08): thiếu biến này trước đây
-# rơi vào "development" — nhánh RỘNG hơn, bật `/docs`/`/redoc`/`/openapi.json`
-# (34 route kèm schema) trên MỌI ảnh quên khai APP_ENV, kể cả deploy thật theo
-# đúng `.env.example`. Đảo mặc định sang "production" (nhánh CHẶT hơn) để
-# quên khai đẩy về phía an toàn — giá đúng người trả: máy dev phải tự khai
-# `APP_ENV=development` mới có `/docs`, thay vì máy deploy quên khai mà mở
-# toang bề mặt API. KHÔNG đổi thành fail-fast (như JWT_SECRET_KEY) — chi phí
-# một biến bắt buộc lan ra mọi test/CI/lần chạy local, trong khi mặc định an
-# toàn đã cho đúng thứ cần mà không cần ép khai ở mọi nơi.
+# Fail-CLOSED, not fail-open (caught by Security 20/08): a missing variable used to fall
+# back to "development" — the LOOSER branch, enabling `/docs`/`/redoc`/`/openapi.json`
+# (34 routes with schemas) on EVERY image that forgot to set APP_ENV, including real deployments
+# following `.env.example`. The default was flipped to "production" (the STRICTER branch) so
+# forgetting pushes towards safety — the cost falls on the right party: dev machines must set
+# `APP_ENV=development` to get `/docs`, rather than a deploy machine forgetting and throwing the
+# API surface wide open. NOT made fail-fast (like JWT_SECRET_KEY) — the cost of a mandatory
+# variable would spread to every test/CI/local run, while a safe default already delivers what
+# is needed without forcing it to be set everywhere.
 APP_ENV = os.environ.get("APP_ENV", "production")
 
-# 🔴 ĐÍNH CHÍNH 05/09 — đoạn chú thích TRÊN vẫn đúng cho MỌI thứ khác đọc
-# APP_ENV (vd guard OTP_DEMO_MODE dưới đây), nhưng câu "bật /docs khi APP_ENV
-# != production" ở đó KHÔNG CÒN ĐÚNG kể từ cờ `ENABLE_API_DOCS` này — xem lý
-# do ngay dưới. Giữ nguyên đoạn cũ (Luật P — niêm tại chỗ, không xoá lịch sử
-# suy luận), chỉ đính chính điểm đã lệch.
+# 🔴 CORRECTION 05/09 — the comment ABOVE is still right for EVERYTHING else that reads
+# APP_ENV (e.g. the OTP_DEMO_MODE guard below), but its sentence "enable /docs when APP_ENV
+# != production" is NO LONGER TRUE since this `ENABLE_API_DOCS` flag — see the reasoning just
+# below. The old paragraph is kept as is (Rule P — seal in place, don't delete the reasoning
+# history); only the point that drifted is corrected.
 #
-# Production thật (VPS `home`, judge xem) cần `APP_ENV != "production"` để
-# bật `OTP_DEMO_MODE` (hiện mã OTP demo cho giám khảo) — nhưng cờ CŨ
-# (`docs_url=None if APP_ENV=="production" else "/docs"`, main.py) coi mọi
-# `APP_ENV != production` là "môi trường dev", nên bật OTP demo VÔ TÌNH mở
-# luôn `/docs`/`/redoc`/`/openapi.json` (31 route + schema tham số/xác thực)
-# ra production thật — hai quyết định KHÔNG liên quan (hiện OTP demo cho giám
-# khảo · mở tài liệu API) bị trói vào CHUNG một biến.
+# The real production (VPS `home`, viewed by the judges) needs `APP_ENV != "production"` to
+# enable `OTP_DEMO_MODE` (showing the demo OTP code to judges) — but the OLD flag
+# (`docs_url=None if APP_ENV=="production" else "/docs"`, main.py) treated every
+# `APP_ENV != production` as a "dev environment", so enabling the OTP demo ACCIDENTALLY also
+# opened `/docs`/`/redoc`/`/openapi.json` (31 routes + parameter/auth schemas)
+# on real production — two UNRELATED decisions (showing the demo OTP to judges · opening API
+# documentation) tied to ONE variable.
 #
-# Tách RIÊNG, mặc định FALSE (fail-safe OFF) — cùng khuôn OTP_DEMO_MODE:
-# quên khai thì API docs vẫn tắt, không suy luận ngầm từ APP_ENV nữa. Bật
-# tường minh bằng `ENABLE_API_DOCS=true` khi THẬT SỰ cần (dev cục bộ).
+# Split out SEPARATELY, default FALSE (fail-safe OFF) — same pattern as OTP_DEMO_MODE:
+# forgetting to set it keeps API docs off; no more implicit inference from APP_ENV. Enable it
+# explicitly with `ENABLE_API_DOCS=true` when REALLY needed (local dev).
 ENABLE_API_DOCS = os.environ.get("ENABLE_API_DOCS", "").strip().lower() in ("1", "true", "yes")
 
-# Dấu vật, do Dockerfile ARG đặt lúc build. "khong-ro" = không truyền được —
-# tự tố cáo, không im lặng giả vờ hợp lệ.
-# Phân luồng lượt chat (T1). MẶC ĐỊNH TẮT — bật là đổi hành vi sản phẩm, và
-# chưa có số nào về `f` (tỉ lệ lượt đơn thật) để biết nó đáng bao nhiêu.
-PHAN_LUONG_BAT = os.environ.get("PHAN_LUONG_BAT", "").strip().lower() in ("1", "true", "yes")
+# Build fingerprints, set by Dockerfile ARGs at build time. "khong-ro" (unknown) = couldn't be
+# passed — it gives itself away instead of silently pretending to be valid.
+# Chat-turn triage (T1). OFF BY DEFAULT — enabling it changes product behaviour, and there are
+# no numbers yet for `f` (the real share of simple turns) to know what it is worth.
+TRIAGE_ENABLED = os.environ.get("TRIAGE_ENABLED", "").strip().lower() in ("1", "true", "yes")
 
-# T0 · cổng thu-slot SAU KHI xác thực OTP (src/agents/graph.py). Cờ RIÊNG, KHÔNG
-# dùng chung `PHAN_LUONG_BAT` — hai cổng quyết định hai thứ khác nhau (T0: "lượt
-# resend-sau-OTP này có đủ thứ để thu hẹp tra cứu chưa"; T1: "lượt này cần bộ đồ
-# nghề nào"), nên phải tắt được độc lập.
+# T0 · the slot-collection gate AFTER OTP verification (src/agents/graph.py). A SEPARATE flag,
+# NOT shared with `TRIAGE_ENABLED` — the two gates decide different things (T0: "does this
+# post-OTP resend turn carry enough to narrow the lookup"; T1: "which toolkit does this turn
+# need"), so they must be switchable independently.
 #
-# 🔴 Vì sao cờ này tồn tại (Đ4, Review nêu 24/08 · phiếu "OTP trước token" ⑦):
-# TRƯỚC bản vá, T0 chạy độc lập `PHAN_LUONG_BAT` và KHÔNG có công tắc nào của
-# riêng nó. Người trực sự cố tắt `PHAN_LUONG_BAT` để chữa cháy sẽ tin rằng mọi
-# đường tất định trước LLM đã tắt — trong khi T0 VẪN CHẠY, và không tín hiệu
-# nào báo điều đó. Một công tắc mà người dùng tin là tắt-hết trong khi nó tắt
-# một nửa thì nguy hiểm hơn không có công tắc nào.
+# 🔴 Why this flag exists (Đ4, raised by the review 24/08 · "OTP before token" ticket ⑦):
+# BEFORE the fix, T0 ran independently of `TRIAGE_ENABLED` and had NO switch of its own. An
+# on-call engineer switching off `TRIAGE_ENABLED` to fight a fire would believe every
+# deterministic pre-LLM path was off — while T0 WAS STILL RUNNING, with no signal saying so. A
+# switch the user believes turns everything off while it only turns off half is more dangerous
+# than no switch at all.
 #
-# MẶC ĐỊNH BẬT — khác `PHAN_LUONG_BAT` (mặc định TẮT) CÓ CHỦ ĐÍCH: T0 hiện đang
-# chạy trên mọi ngăn, nên mặc định TẮT sẽ là một thay đổi hành vi sản phẩm lén
-# đi kèm một bản vá vận hành. Cờ này chỉ THÊM đường tắt, không đổi mặc định.
-CONG_T0_BAT = os.environ.get("CONG_T0_BAT", "1").strip().lower() in ("1", "true", "yes")
+# ON BY DEFAULT — unlike `TRIAGE_ENABLED` (OFF by default), DELIBERATELY: T0 currently runs on
+# every stack, so defaulting it OFF would be a covert product-behaviour change smuggled in with an
+# operational fix. This flag only ADDS an off switch; it doesn't change the default.
+T0_GATE_ENABLED = os.environ.get("T0_GATE_ENABLED", "1").strip().lower() in ("1", "true", "yes")
 
-# ④ · cổng OTP tất định cho khiếu nại cá nhân (NHÓM B). Công tắc RIÊNG — bài học
-# Đ4: mỗi cổng tất định phải tắt được độc lập, người trực sự cố không được tin là
-# đã tắt hết trong khi mới tắt một nửa.
+# ④ · the deterministic OTP gate for personal complaints (GROUP B). A SEPARATE switch — the
+# Đ4 lesson: every deterministic gate must be switchable independently; the on-call engineer must
+# not believe everything is off when only half is.
 #
-# 🔴 KHÔNG PHẢI LỚP BẢO MẬT. Lớp bảo mật của ràng buộc cứng 4 sống ở TẦNG TOOL
-# (`customer_tools.py`, `_OTP_REQUIRED_ERROR`/`_OTP_EXPIRED_ERROR`) và ở
-# `require_otp_verified` của route. Cổng này chỉ tránh TIÊU TOKEN cho một lượt
-# chắc chắn sẽ bị tool chặn. ⟹ Nó phải LỎNG HƠN HOẶC BẰNG tool, không bao giờ
-# chặt hơn: dùng `OTP_VIEW_MAX_MINUTES` (12h), KHÔNG dùng 15 phút của step-up.
-# Ai đọc cổng này thành cổng bảo mật rồi gỡ chốt ở tool là MỞ ràng buộc cứng 4.
+# 🔴 NOT A SECURITY LAYER. The security layer of hard constraint 4 lives at the TOOL LAYER
+# (`customer_tools.py`, `_OTP_REQUIRED_ERROR`/`_OTP_EXPIRED_ERROR`) and in the route's
+# `require_otp_verified`. This gate only avoids SPENDING TOKENS on a turn that the tool will
+# certainly block. ⟹ It must be LOOSER THAN OR EQUAL TO the tool, never stricter: it uses
+# `OTP_VIEW_MAX_MINUTES` (12h), NOT the 15-minute step-up window.
+# Anyone who reads this gate as a security gate and then removes the lock in the tool OPENS hard
+# constraint 4.
 #
-# MẶC ĐỊNH BẬT: bất biến của đợt là "không lượt nào tốn token trước khi OTP xác
-# thực xong" — một cổng mặc định TẮT không giao được bất biến đó. Khai rõ đây LÀ
-# một thay đổi hành vi sản phẩm, không phải cờ đo.
-CONG_OTP_NHOM_B_BAT = os.environ.get("CONG_OTP_NHOM_B_BAT", "1").strip().lower() in ("1", "true", "yes")
+# ON BY DEFAULT: the invariant of this round is "no turn spends tokens before OTP verification is
+# complete" — a gate that is OFF by default can't deliver that invariant. Declared clearly: this
+# IS a product-behaviour change, not a measurement flag.
+OTP_GATE_GROUP_B_ENABLED = os.environ.get("OTP_GATE_GROUP_B_ENABLED", "1").strip().lower() in ("1", "true", "yes")
 
-# T3 · công tắc suy luận của model. MẶC ĐỊNH ĐỔI 1 -> 0 ngày 18/08: đây không
-# còn là cờ ĐO, nó là bản vá cho một sản phẩm ĐANG HỎNG.
+# T3 · the model's reasoning switch. DEFAULT CHANGED 1 -> 0 on 18/08: this is no longer a
+# MEASUREMENT flag, it is the fix for a product that WAS BROKEN.
 #
-# [ĐO] cùng `qwen3.7-plus-2026-05-26`, cùng câu hỏi CSKH thật:
-#     mặc định (suy luận BẬT)   20,88s · out 1161 · suy luận 980
-#     enable_thinking=False      2,48s · out  101 · suy luận   0     ← 8,4× nhanh
-#     thinking_budget=0          HTTP 400 — đường này KHÔNG dùng được
-# [ĐO tester] một lượt agent thật: trung vị 18,6s · CHẬM NHẤT 49,1s
-# [ĐO] AGENT_TURN_TIMEOUT_SECONDS = 45,0
-# ⟹ 49,1 > 45 ⟹ câu "xem giao dịch gần đây" — câu khách CHẮC CHẮN hỏi — đang
-# rơi fallback vì hết giờ. Bật suy luận là trạng thái làm sản phẩm vượt trần.
+# [MEASURED] same `qwen3.7-plus-2026-05-26`, same real CSKH question:
+#     default (reasoning ON)    20.88s · out 1161 · reasoning 980
+#     enable_thinking=False      2.48s · out  101 · reasoning   0     ← 8.4× faster
+#     thinking_budget=0          HTTP 400 — this path is NOT usable
+# [MEASURED by tester] one real agent turn: median 18.6s · SLOWEST 49.1s
+# [MEASURED] AGENT_TURN_TIMEOUT_SECONDS = 45.0
+# ⟹ 49.1 > 45 ⟹ "show my recent transactions" — a question customers WILL ask — was
+# falling back on timeout. Reasoning ON was the state that pushed the product over the ceiling.
 #
-# 🔴 Cờ này mua TỐC ĐỘ, KHÔNG mua TOKEN. [ĐO] sổ thật 5 lượt gần nhất:
-# input 10.920–23.520 · output 236–709 ⟹ input chiếm >95% chi phí. Đòn bẩy
-# token thật nằm ở input ~14K (nhắc hệ thống + schema tool + lịch sử), là việc
-# KHÁC. Ai đọc cờ này thành "đã tối ưu chi phí" là đọc sai.
+# 🔴 This flag buys SPEED, NOT TOKENS. [MEASURED] the real ledger, last 5 turns:
+# input 10,920–23,520 · output 236–709 ⟹ input is >95% of the cost. The real token lever is the
+# ~14K input (system prompt + tool schemas + history), which is a DIFFERENT job. Anyone reading
+# this flag as "costs optimised" is misreading it.
 #
-# 🔴 KHÔNG đặt thêm biến thứ hai (`FIN05_LLM_SUY_LUAN`…) cho cùng một công tắc:
-# hai định nghĩa của cùng một vật sẽ lệch nhau, và lệch trong im lặng — cùng lý
-# do đã có `bam_ma_nguon` và `BUILD_COMMIT`. Bật lại: `SUY_LUAN_BAT=1`.
+# 🔴 DO NOT add a second variable (`FIN05_LLM_SUY_LUAN`…) for the same switch:
+# two definitions of the same thing will drift, and drift silently — the same reason
+# `hash_source` and `BUILD_COMMIT` exist. To re-enable: `REASONING_ENABLED=1`.
 #
-# ⚠️ Đọc LÚC IMPORT ⟹ đổi nó bắt buộc RECREATE container. `docker exec -e` chỉ
-# đổi tiến trình con, KHÔNG chạm uvicorn đang phục vụ.
-SUY_LUAN_BAT = os.environ.get("SUY_LUAN_BAT", "0").strip().lower() not in ("0", "false", "no")
+# ⚠️ Read AT IMPORT ⟹ changing it requires RECREATING the container. `docker exec -e` only
+# changes a child process; it doesn't touch the uvicorn already serving.
+REASONING_ENABLED = os.environ.get("REASONING_ENABLED", "0").strip().lower() not in ("0", "false", "no")
 
 BUILD_COMMIT = os.environ.get("BUILD_COMMIT") or "khong-ro"
 BUILD_AT = os.environ.get("BUILD_AT") or "khong-ro"
 
 
 def _db_identity(url: str) -> tuple[str, str]:
-    """Trả (loại_db, tên_db) từ DATABASE_URL, đã lược bỏ mọi thông tin nhạy cảm."""
+    """Returns (db_kind, db_name) from DATABASE_URL, with all sensitive information removed."""
     scheme = url.split("://", 1)[0].split("+", 1)[0] or "unknown"
     tail = url.rsplit("/", 1)[-1].split("?", 1)[0] if "/" in url else ""
     if scheme == "sqlite":
@@ -177,43 +177,42 @@ def _db_identity(url: str) -> tuple[str, str]:
 
 DB_KIND, DB_NAME = _db_identity(DATABASE_URL)
 
-# BR-13: ngưỡng N lần hỏi lại trước khi tạo ticket tra thủ công — CHƯA chốt
-# với team (business_rules.md BR-13, verified: false). Cô lập ở đây để đổi
-# một chỗ khi PO chốt.
+# BR-13: threshold N of clarifying questions before creating a manual-investigation ticket —
+# NOT YET agreed with the team (business_rules.md BR-13, verified: false). Isolated here so it
+# changes in one place when the PO decides.
 CLARIFY_QUESTION_MAX_ROUNDS = 2
 
-# BR-01/BR-02: trần pháp lý dùng để tính sla_due_at — verified: false, xem
+# BR-01/BR-02: legal ceilings used to compute sla_due_at — verified: false, see
 # data/schema/scenarios.yaml §sla.legal.
 SLA_LEGAL_BANK_BUSINESS_DAYS = 4
 SLA_LEGAL_GENERAL_DAYS = 30
 
-# BR-03: cam kết dịch vụ nội bộ (wording trả khách) — KHÔNG dùng để tính
-# sla_due_at (xem BR-04). Chỉ dùng trong câu trả lời agent.
+# BR-03: internal service commitment (wording given to customers) — NOT used to compute
+# sla_due_at (see BR-04). Only used in agent replies.
 SLA_SERVICE_FIRST_RESPONSE_HOURS = 48
 SLA_SERVICE_FRAUD_BUSINESS_DAYS = 7
 
-# Seed cố định dùng khi sinh dataset (scripts/gen_dataset.py --seed, mặc định
-# 20260802 — PRD §9). Backend cần lại giá trị này để tái tính câu trả lời bảo
-# mật demo (User.security_answer_hash = sha256(f"ans-{seed}-{user_id}")) lúc
-# xác thực OTP thật (src/auth.py) — KHÔNG lưu answer plaintext ở đâu cả, chỉ
-# tái tạo công thức để so hash, giữ đúng nguyên tắc không lưu bí mật dạng thô.
+# Fixed seed used when generating the dataset (scripts/gen_dataset.py --seed, default
+# 20260802 — PRD §9). The backend needs this value again to recompute the demo security answer
+# (User.security_answer_hash = sha256(f"ans-{seed}-{user_id}")) during real OTP verification
+# (src/auth.py) — the answer is NEVER stored in plaintext anywhere; only the formula is
+# reconstructed to compare hashes, keeping the principle of never storing secrets in raw form.
 DATASET_SEED = 20260802
 
-# Ngưỡng khoá phiên xác thực OTP sau N lần sai — dùng LẠI đúng
-# min_failed_attempts của FS-06 (data/schema/fraud_signals.yaml) để nhất quán
-# với định nghĩa "bất thường xác thực" mà fraud_engine.py đã dùng, không tự
-# đặt số riêng.
+# Threshold for locking an OTP verification session after N failures — REUSES exactly the
+# min_failed_attempts of FS-06 (data/schema/fraud_signals.yaml) for consistency with the
+# "authentication anomaly" definition fraud_engine.py already uses, rather than inventing a
+# separate number.
 OTP_MAX_FAILED_ATTEMPTS = 3
 
-# Benchmark EU/US 27/08, Phát hiện #2 — `/auth/otp/request` và
-# `/resolutions/{id}/request-approval-otp` trả thẳng `otp_code` trong response
-# body, xoá mất yếu tố "sở hữu" (PSD2 dynamic linking chỉ còn đúng trên giấy,
-# NIST 800-63B tụt AAL2 thiết kế xuống AAL1 runtime). MẶC ĐỊNH TẮT (fail-closed
-# theo đúng nguyên tắc APP_ENV ở trên) — bật tay bằng OTP_DEMO_MODE=true, và
-# KHÔNG được phép bật cùng lúc với APP_ENV=production: một máy deploy quên gỡ
-# cờ demo là lộ OTP giao dịch ra production, không phải lỗi chấp nhận được ở
-# mức "quên khai" như APP_ENV — đây fail-fast ngay lúc khởi động, không đợi
-# runtime.
+# EU/US benchmark 27/08, Finding #2 — `/auth/otp/request` and
+# `/resolutions/{id}/request-approval-otp` returned `otp_code` directly in the response body,
+# erasing the "possession" factor (PSD2 dynamic linking only true on paper, NIST 800-63B dropping
+# from designed AAL2 to runtime AAL1). OFF BY DEFAULT (fail-closed, per the APP_ENV principle
+# above) — enabled manually with OTP_DEMO_MODE=true, and NOT allowed together with
+# APP_ENV=production: a deploy machine forgetting to remove the demo flag would leak transaction
+# OTPs to production — not an acceptable "forgot to set it" mistake like APP_ENV, so this fails
+# fast at startup rather than waiting for runtime.
 OTP_DEMO_MODE = os.environ.get("OTP_DEMO_MODE", "").strip().lower() in ("1", "true", "yes")
 if OTP_DEMO_MODE and APP_ENV == "production":
     raise RuntimeError(
@@ -222,88 +221,85 @@ if OTP_DEMO_MODE and APP_ENV == "production":
         "Phát hiện #2). Tắt OTP_DEMO_MODE hoặc sửa APP_ENV cho đúng."
     )
 
-# AUTH-005/007/008 (FIN05_QA_TestCases.jsonl) — quyết định thiết kế đã chốt
-# sau khi đối chiếu chuẩn ngành (nghiên cứu 2026-08-10, xem docs/TESTING.md):
-# - Thao tác CHỈ XEM (lookup_transaction, get_customer_history — bao gồm cả
-#   xem trạng thái ticket/khiếu nại đã có, AUTH-005 nhánh (e)): áp đúng
-#   NIST SP 800-63B / OWASP ASVS 5.0 Level 2 cho phiên AAL2 — tối đa 12 giờ
-#   kể từ lúc xác thực OTP, không phân biệt còn hoạt động hay không (bản đơn
-#   giản hoá của "30 phút không hoạt động HOẶC 12 giờ tối đa" — hệ thống hiện
-#   tại là JWT stateless, không theo dõi hoạt động realtime giữa các request
-#   nên chỉ áp mốc tuyệt đối, không áp mốc "không hoạt động").
+# AUTH-005/007/008 (FIN05_QA_TestCases.jsonl) — design decisions settled after comparing
+# against industry standards (research 2026-08-10, see docs/TESTING.md):
+# - VIEW-ONLY actions (lookup_transaction, get_customer_history — including viewing the status of
+#   existing tickets/complaints, AUTH-005 branch (e)): apply exactly
+#   NIST SP 800-63B / OWASP ASVS 5.0 Level 2 for an AAL2 session — at most 12 hours
+#   from OTP verification, regardless of activity (a simplification of "30 minutes of inactivity OR
+#   a 12-hour maximum" — the current system uses stateless JWTs and doesn't track real-time
+#   activity between requests, so only the absolute limit applies, not the inactivity one).
 OTP_VIEW_MAX_MINUTES = 12 * 60
 
-# - create_ticket (dẫn tới khả năng hoàn tiền thật, hậu quả tài chính) cần
-#   xác thực TƯƠI HƠN — mô hình step-up 2 tầng theo rủi ro (chuẩn ngành: cửa
-#   sổ hiệu lực step-up phổ biến 15-60 phút, chọn mốc chặt 15 phút vì đây là
-#   hành động có hậu quả tài chính, không phải chỉ xem).
+# - create_ticket (which can lead to a real refund, a financial consequence) requires
+#   FRESHER verification — a 2-tier risk-based step-up model (industry practice: step-up validity
+#   windows are commonly 15-60 minutes; the strict 15-minute mark was chosen because this is an
+#   action with financial consequences, not merely viewing).
 OTP_STEPUP_FRESH_MINUTES = 15
 
-# AUTH5-04 (đợt nâng cấp Auth Flow, 2026-08-12) — OTP step-up RIÊNG cho
-# POST /resolutions/{id}/approve (PSD2 dynamic linking, xem AuthSession.
-# resolution_id/amount_snapshot). Ngắn hơn OTP_STEPUP_FRESH_MINUTES vì đây
-# là hành động duyệt tài chính THẬT SỰ (không phải chỉ mở khoá để thao tác
-# tiếp như create_ticket) — sếp phải xin OTP ngay sát lúc bấm duyệt.
+# AUTH5-04 (Auth Flow upgrade, 2026-08-12) — a SEPARATE step-up OTP for
+# POST /resolutions/{id}/approve (PSD2 dynamic linking, see AuthSession.
+# resolution_id/amount_snapshot). Shorter than OTP_STEPUP_FRESH_MINUTES because this is a REAL
+# financial approval (not just unlocking further actions like create_ticket) — the supervisor
+# must request the OTP right before clicking approve.
 RESOLUTION_APPROVAL_OTP_FRESH_MINUTES = 10
 
-# BR-06: định dạng masking PDPA cho thông tin bên thứ ba.
+# BR-06: PDPA masking format for third-party information.
 PHONE_MASK_VISIBLE_PREFIX = 3
 PHONE_MASK_VISIBLE_SUFFIX = 4
 BANK_ACCOUNT_MASK_VISIBLE_SUFFIX = 4
 
-# Agent (src/agents/) — PRD §15.3: ưu tiên model rẻ/nhanh cho tra cứu + phân
-# loại, phù hợp định vị "chi phí AI thấp" (Brief §3). Đổi qua env, không sửa code.
+# Agent (src/agents/) — PRD §15.3: prefer cheap/fast models for lookup + classification,
+# matching the "low AI cost" positioning (Brief §3). Changed via env, not code.
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
-# Đo đạc thật 2026-08-13 (stress /agent/chat qua Playwright repeat-each): SDK
-# openai-python mặc định KHÔNG timeout (chờ tới khi OS/socket tự đóng), và
-# ChatOpenAI mặc định `max_retries=2` — 1 lượt gọi chậm/lỗi transient có thể
-# kéo dài hàng chục giây (đã đo thấy 23-33s thật), và vì route `/agent/chat`
-# chạy sync trong threadpool, 1 request Playwright timeout bỏ dở KHÔNG huỷ
-# được lượt gọi OpenAI đang chạy phía server — nó tiếp tục chiếm 1 thread +
-# rate-limit budget, dồn lại qua nhiều test làm hàng loạt request SAU đó cũng
-# chậm theo. Set trần rõ ràng để 1 lượt gọi hỏng luôn fail nhanh, không kéo
-# theo cả chuỗi.
+# Real measurement 2026-08-13 (stressing /agent/chat via Playwright repeat-each): the
+# openai-python SDK has NO timeout by default (waiting until the OS/socket closes), and
+# ChatOpenAI defaults to `max_retries=2` — one slow/transiently failing call can drag on for tens
+# of seconds (23-33s measured), and since the `/agent/chat` route runs synchronously in the
+# threadpool, a Playwright request that times out and gives up CANNOT cancel the OpenAI call
+# still running server-side — it keeps holding a thread + rate-limit budget, piling up across
+# tests and slowing down many requests AFTER it too. An explicit ceiling makes a failing call
+# always fail fast, without dragging the whole chain with it.
 OPENAI_TIMEOUT_SECONDS = float(os.environ.get("OPENAI_TIMEOUT_SECONDS", "20"))
 OPENAI_MAX_RETRIES = int(os.environ.get("OPENAI_MAX_RETRIES", "1"))
 
-# --- NHÀ CUNG CẤP: tách CHAT khỏi EMBEDDING ------------------------------
-# Đổi nhà cung cấp bằng biến môi trường, không sửa code. Mọi biến dưới đây
-# FALLBACK về `OPENAI_*` -> không đặt gì thì hành vi y hệt trước.
+# --- PROVIDERS: CHAT separated from EMBEDDING -------------------------------
+# Switch providers via environment variables, not code. Every variable below FALLS BACK to
+# `OPENAI_*` -> setting nothing behaves exactly as before.
 #
-# VÌ SAO TÁCH LÀM HAI, không dùng một cặp base_url/key chung:
-# đổi model CHAT là đổi hành vi — đo lại được, hỏng thì thấy ngay.
-# Đổi model EMBEDDING là đổi VẬT — mọi vector trong kho thành vô nghĩa, phải
-# nạp lại toàn bộ, và mọi con số truy hồi đo trước đó bị cắt chuỗi. Hai việc
-# khác hạng, gộp một biến là mời người vận hành làm việc thứ hai trong khi họ
-# tưởng mình chỉ làm việc thứ nhất.
+# WHY SPLIT IN TWO rather than one shared base_url/key pair:
+# changing the CHAT model changes behaviour — re-measurable, failures visible immediately.
+# Changing the EMBEDDING model changes the OBJECT — every vector in the store becomes meaningless,
+# everything must be re-ingested, and every retrieval number measured before breaks its chain. Two
+# jobs of different weight; one shared variable invites an operator to do the second while
+# believing they are only doing the first.
 # ---------------------------------------------------------------------------
-# CẤM HẲN hai biến của SDK. Không suy luận về chúng — chặn chúng.
+# The two SDK variables are FORBIDDEN outright. Don't reason about them — block them.
 #
-# SDK openai tự đọc `OPENAI_BASE_URL` và `OPENAI_API_BASE` từ môi trường, và
-# chúng THẮNG CẢ `base_url=None` truyền tường minh. Đo thật:
-#     ChatOpenAI(api_key=...)                    -> dashscope-intl…/v1/
-#     ChatOpenAI(api_key=..., base_url=None)     -> dashscope-intl…/v1/
-#     OpenAIEmbeddings(api_key=..., base_url=None) -> dashscope-intl…/v1/
+# The openai SDK reads `OPENAI_BASE_URL` and `OPENAI_API_BASE` from the environment itself, and
+# they BEAT even an explicitly passed `base_url=None`. Measured:
+#     ChatOpenAI(api_key=...)                       -> dashscope-intl…/v1/
+#     ChatOpenAI(api_key=..., base_url=None)        -> dashscope-intl…/v1/
+#     OpenAIEmbeddings(api_key=..., base_url=None)  -> dashscope-intl…/v1/
 #
-# ⟹ `_khoa_cho_nha_cung_cap` bên dưới KHÔNG đủ một mình: nó hỏi "CHÚNG TA có
-# đổi đích đến không?" (`LLM_BASE_URL` có đặt không). Câu đúng là "ĐÍCH ĐẾN có
-# đổi không?" — mà đích đến là HỢP của biến của ta VÀ biến của SDK. Đặt
-# `OPENAI_BASE_URL` rồi để trống `LLM_API_KEY` là tái lập CHÍNH XÁC sự cố
-# 17/08, im lặng, không lỗi khởi động.
+# ⟹ `_key_for_provider` below is NOT enough on its own: it asks "did WE change the destination?"
+# (is `LLM_BASE_URL` set). The right question is "did the DESTINATION change?" — and the
+# destination is the UNION of our variables AND the SDK's. Setting `OPENAI_BASE_URL` and leaving
+# `LLM_API_KEY` empty reproduces EXACTLY the 17/08 incident, silently, with no startup error.
 #
-# Và đó là thao tác TRỰC GIÁC NHẤT: bảo ai đó "trỏ hệ thống sang nhà cung cấp
-# mới", thứ họ tìm đầu tiên là `OPENAI_BASE_URL`. Bản vá cũ chặn con đường CÓ
-# TÀI LIỆU; con đường trực giác vẫn mở.
+# And that is the MOST INTUITIVE move: tell someone "point the system at the new provider", and
+# the first thing they look for is `OPENAI_BASE_URL`. The old fix blocked the DOCUMENTED path;
+# the intuitive path stayed open.
 #
-# Cấm thay vì hỗ trợ: dự án đã có biến riêng cho TỪNG VAI (`LLM_*` cho chat,
-# `EMBEDDING_*` cho embedding). Biến của SDK áp cho CẢ HAI cùng lúc, nên nó chỉ
-# có thể ĐI VÒNG qua sự phân tách đó, không bao giờ phục vụ nó.
-for _bien_cam in ("OPENAI_BASE_URL", "OPENAI_API_BASE"):
-    if os.environ.get(_bien_cam):
+# Forbidden rather than supported: the project already has dedicated variables for EACH ROLE
+# (`LLM_*` for chat, `EMBEDDING_*` for embeddings). The SDK variables apply to BOTH at once, so
+# they can only ever BYPASS that separation, never serve it.
+for _forbidden_var in ("OPENAI_BASE_URL", "OPENAI_API_BASE"):
+    if os.environ.get(_forbidden_var):
         raise RuntimeError(
-            f"{_bien_cam} bị CẤM trong dự án này.\n"
+            f"{_forbidden_var} bị CẤM trong dự án này.\n"
             f"  SDK đọc nó và nó THẮNG cả base_url truyền tường minh, nên nó đổi\n"
             f"  đích đến của CẢ chat lẫn embedding cùng lúc mà không cơ chế nào\n"
             f"  của ta nhìn thấy — đúng đường đã làm rò khoá OpenAI sang bên thứ\n"
@@ -312,166 +308,168 @@ for _bien_cam in ("OPENAI_BASE_URL", "OPENAI_API_BASE"):
         )
 
 
-def _khoa_cho_nha_cung_cap(ten_khoa: str, base_url: str | None) -> str | None:
-    """Khoá chỉ được PHÉP rơi về OPENAI_API_KEY khi ĐÍCH ĐẾN vẫn là OpenAI.
+def _key_for_provider(key_label: str, base_url: str | None) -> str | None:
+    """The key may ONLY fall back to OPENAI_API_KEY when the DESTINATION is still OpenAI.
 
-    🔴 Bản đầu của tôi viết `os.environ.get("LLM_API_KEY") or OPENAI_API_KEY`
-    VÔ ĐIỀU KIỆN. Với `LLM_BASE_URL` trỏ nhà cung cấp khác mà quên điền khoá,
-    nó GỬI KHOÁ OPENAI SANG MÁY CHỦ BÊN THỨ BA. Đo thật: base_url dashscope +
-    LLM_API_KEY trống -> khoá `sk-proj…` đi tới Alibaba.
+    🔴 My first version wrote `os.environ.get("LLM_API_KEY") or OPENAI_API_KEY`
+    UNCONDITIONALLY. With `LLM_BASE_URL` pointing at another provider and the key forgotten, it
+    SENT THE OPENAI KEY TO A THIRD-PARTY SERVER. Measured: dashscope base_url +
+    empty LLM_API_KEY -> the `sk-proj…` key went to Alibaba.
 
-    Không có lỗi nào bắn ra: bên kia chỉ trả 401, người vận hành đọc "401" rồi
-    đi tìm sai chỗ, trong khi khoá production đã rời hệ thống.
+    No error fires: the other side just returns 401, the operator reads "401" and looks in the
+    wrong place, while the production key has already left the system.
 
-    Một fallback chỉ an toàn khi ĐÍCH ĐẾN không đổi. Đổi đích mà giữ fallback
-    là biến tiện lợi thành rò rỉ.
+    A fallback is only safe when the DESTINATION doesn't change. Changing the destination while
+    keeping the fallback turns a convenience into a leak.
     """
-    khoa = os.environ.get(ten_khoa)
-    if khoa:
-        return khoa
+    key_name = os.environ.get(key_label)
+    if key_name:
+        return key_name
     if base_url:
         raise RuntimeError(
-            f"Thiếu {ten_khoa} trong khi đã đặt base_url tới nhà cung cấp khác "
+            f"Thiếu {key_label} trong khi đã đặt base_url tới nhà cung cấp khác "
             f"({base_url}). KHÔNG tự dùng OPENAI_API_KEY thay thế — làm vậy là "
-            f"gửi khoá OpenAI sang máy chủ của họ. Đặt {ten_khoa} trong .env."
+            f"gửi khoá OpenAI sang máy chủ của họ. Đặt {key_label} trong .env."
         )
     return OPENAI_API_KEY
 
 
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL") or None
 
-# Kênh cho khách khi agent KHÔNG phục vụ được và ta CỐ Ý không tạo vé (lỗi nhà
-# cung cấp cần can thiệp: 401/403/400/404). Đây là lối đi duy nhất còn lại cho
-# một khách có thể đang định báo gian lận — xem chú thích ở graph.py.
+# The channel offered to customers when the agent CAN'T serve them and we DELIBERATELY don't
+# create a ticket (provider errors needing intervention: 401/403/400/404). This is the only path
+# left for a customer who may be trying to report fraud — see the comment in graph.py.
 #
-# Mặc định CỐ Ý là cụm chung chung, KHÔNG có số điện thoại: bịa một số tổng đài
-# vào câu trả lời cho khách là vi phạm ràng buộc cứng 3 theo đúng nghĩa đen —
-# khách sẽ GỌI vào đó. PO đặt `HOTLINE_CSKH` thì câu trả lời có số thật.
+# The default is DELIBERATELY a generic phrase with NO phone number: fabricating a hotline number
+# in a reply to a customer violates hard constraint 3 in the literal sense — the customer would
+# CALL it. When the PO sets `HOTLINE_CSKH`, replies carry the real number.
 _hotline = os.environ.get("HOTLINE_CSKH", "").strip()
 
-# Số có BẤM ĐƯỢC không — phép thử KHẲNG ĐỊNH, không phải danh sách chặn.
+# Is the number DIALABLE — a POSITIVE test, not a denylist.
 #
-# 17/08 PO đặt `HOTLINE_CSKH=1900-XXXX (SỐ TẠM — CHƯA CẤU HÌNH)`: cố ý không
-# bấm được, để ô đã điền mà vẫn tự khai là chưa cấu hình. Đúng cho vận hành —
-# nhưng mã cũ nội suy THẲNG giá trị đó vào câu nói với khách, tức khách sẽ đọc
-# "bạn liên hệ tổng đài chăm sóc khách hàng 1900-XXXX (SỐ TẠM — CHƯA CẤU HÌNH)".
+# 17/08 the PO set `HOTLINE_CSKH=1900-XXXX (SỐ TẠM — CHƯA CẤU HÌNH)` (temporary number — not yet
+# configured): deliberately undialable, so the field is filled yet declares itself unconfigured.
+# Right for operations — but the old code interpolated that value DIRECTLY into what the customer
+# is told, i.e. the customer would read "please contact customer service at 1900-XXXX (SỐ TẠM —
+# CHƯA CẤU HÌNH)".
 #
-# Nên chỗ này phải hỏi "giá trị này BẤM ĐƯỢC không", không phải "biến có được
-# đặt không". Một danh sách chặn ("XXXX", "TODO", "chưa cấu hình"...) sẽ hụt ở
-# placeholder thứ tư ai đó nghĩ ra; phép thử khẳng định thì không.
-_CHU_SO_TOI_THIEU = 8
+# So this place must ask "is this value DIALABLE", not "is the variable set". A denylist
+# ("XXXX", "TODO", "chưa cấu hình"...) will miss the fourth placeholder someone invents; a
+# positive test won't.
+_MIN_DIGITS = 8
 DIALABLE = bool(re.fullmatch(r"[0-9 ()+.\-]+", _hotline)) and \
-    sum(c.isdigit() for c in _hotline) >= _CHU_SO_TOI_THIEU
+    sum(c.isdigit() for c in _hotline) >= _MIN_DIGITS
 
-# Khách CHỈ thấy số khi số bấm được. Không bấm được -> lùi về cụm chung chung,
-# vì một số không gọi được còn tệ hơn không có số: nó biến "không có đường"
-# thành "một đường dẫn tới hư không", và khách tưởng mình đã có lối đi.
-KENH_HO_TRO_KHAC = (
+# The customer ONLY sees the number when it is dialable. Not dialable -> fall back to the
+# generic phrase, because an uncallable number is worse than no number: it turns "no path" into
+# "a path leading nowhere", and the customer believes they have a way forward.
+OTHER_SUPPORT_CHANNELS = (
     f"tổng đài chăm sóc khách hàng {_hotline}" if DIALABLE
     else "tổng đài chăm sóc khách hàng"
 )
-# `or OPENAI_MODEL` CÙNG HÌNH DẠNG với lỗ khoá ở trên, nhưng KHÔNG cần guard —
-# ghi ra để người đọc sau phân biệt "đã cân nhắc" với "bỏ sót": tải trọng ở đây
-# lành. Quên đặt thì ta hỏi nhà cung cấp mới một model tên "gpt-4o-mini" và
-# nhận lỗi của họ. Có tiết lộ TA DÙNG GÌ, không tiết lộ BÍ MẬT nào.
+# `or OPENAI_MODEL` has the SAME SHAPE as the key hole above, but NEEDS no guard —
+# written down so later readers can tell "considered" from "overlooked": the payload here is
+# benign. Forget to set it and we ask the new provider for a model named "gpt-4o-mini" and get
+# their error. It reveals WHAT WE USE, no SECRET.
 LLM_MODEL = os.environ.get("LLM_MODEL") or OPENAI_MODEL
-LLM_API_KEY = _khoa_cho_nha_cung_cap("LLM_API_KEY", LLM_BASE_URL)
+LLM_API_KEY = _key_for_provider("LLM_API_KEY", LLM_BASE_URL)
 
-# GĐ3 — bể model cho tính năng đổi/xoay (PO thật chốt 19/08, `876a240`).
-# Danh sách phân cách dấu phẩy, THỨ TỰ = ưu tiên xoay. Phần tử đầu PHẢI là
-# `LLM_MODEL` — không tự thêm/sắp lại: một bể không bắt đầu bằng model đang
-# ghim là đổi hành vi mặc định ÂM THẦM ngay cả khi không ai gọi tính năng xoay.
-# THIẾU biến ⟹ bể chỉ có đúng `LLM_MODEL` — hành vi cũ, một model, không xoay.
+# Phase 3 — model pool for the switch/rotate feature (fixed by the real PO 19/08, `876a240`).
+# A comma-separated list, ORDER = rotation priority. The first element MUST be
+# `LLM_MODEL` — never auto-added/reordered: a pool that doesn't start with the pinned model
+# SILENTLY changes default behaviour even when nobody uses the rotation feature.
+# MISSING variable ⟹ the pool contains only `LLM_MODEL` — the old behaviour, one model, no
+# rotation.
 _raw_pool = os.environ.get("LLM_MODEL_POOL", "").strip()
 LLM_MODEL_POOL: list[str] = (
     [m.strip() for m in _raw_pool.split(",") if m.strip()] if _raw_pool else [LLM_MODEL]
 )
-# RÚT một guard "phần tử đầu phải == LLM_MODEL" đã viết ở đây rồi tự bác:
-# [ĐO] test_llm_pool_gd3.py (QA/QC, viết từ đặc tả) đòi đổi ĐƯỢC toàn bộ bể
-# qua env mà KHÔNG cần đổi `LLM_MODEL` theo — đúng ràng buộc gốc "đổi
-# LLM_MODEL_POOL, bể đổi theo, KHÔNG CẦN đổi code/ảnh". Một guard ép đồng bộ
-# hai biến sẽ CHẶN chính kịch bản đó. `LLM_MODEL` và `LLM_MODEL_POOL` là hai
-# biến ĐỘC LẬP có chủ đích; vòng xoay đọc `LLM_MODEL_POOL`, không đọc
-# `LLM_MODEL` trực tiếp — không cần chúng khớp nhau để đúng.
+# WITHDREW a guard "first element must == LLM_MODEL" written here, then rejected it myself:
+# [MEASURED] test_llm_pool_gd3.py (QA/QC, written from the spec) requires being able to change
+# the WHOLE pool via env WITHOUT also changing `LLM_MODEL` — exactly the original constraint
+# "change LLM_MODEL_POOL, the pool follows, NO code/image change NEEDED". A guard forcing the two
+# variables into sync would BLOCK that very scenario. `LLM_MODEL` and `LLM_MODEL_POOL` are two
+# DELIBERATELY INDEPENDENT variables; the rotation reads `LLM_MODEL_POOL`, not `LLM_MODEL`
+# directly — they don't need to match to be correct.
 
-# Trần chi tiêu tối giản (PO thật chốt 19/08) — CHỈ token model CHAT (LLM), 🔴
-# KHÔNG bao gồm embedding: embedding đi CÙNG transport (cong_ra_ngoai.py) nhưng
-# KHÁC nhà cung cấp (EMBEDDING_BASE_URL != LLM_BASE_URL, xem dưới) — cộng token
-# hai nhà cung cấp vào một trần là cộng hai đơn vị khác nhau, ra một con số
-# trông hợp lệ mà không có nghĩa gì. Tên biến khai rõ giới hạn này để không ai
-# đọc nhầm thành "mọi chi tiêu" — xem cong_ra_ngoai._duoi_tran_chi_tieu_hom_nay().
-# RỖNG/THIẾU ⟹ KHÔNG giới hạn (hành vi cũ, không chặn gì thêm).
-_raw_tran = os.environ.get("TRAN_TOKEN_LLM_MOI_NGAY", "").strip()
-TRAN_TOKEN_LLM_MOI_NGAY: int | None = int(_raw_tran) if _raw_tran else None
+# Minimal spending cap (fixed by the real PO 19/08) — ONLY CHAT-model (LLM) tokens, 🔴
+# NOT embeddings: embeddings go through the SAME transport (egress_gate.py) but a DIFFERENT
+# provider (EMBEDDING_BASE_URL != LLM_BASE_URL, see below) — adding two providers' tokens into one
+# cap means adding two different units, producing a number that looks valid and means nothing.
+# The variable name states this limitation so nobody misreads it as "all spending" — see
+# egress_gate._under_daily_spend_cap().
+# EMPTY/MISSING ⟹ NO limit (the old behaviour, nothing extra blocked).
+_raw_cap = os.environ.get("LLM_DAILY_TOKEN_CAP", "").strip()
+LLM_DAILY_TOKEN_CAP: int | None = int(_raw_cap) if _raw_cap else None
 
-# Chế độ ping khai bể — "eager" gọi thử MỖI model lúc khai bể sẵn sàng (dev,
-# 0 đồng); "lazy" chỉ đánh dấu "chưa kiểm chứng", ping lần đầu model đó được
-# CHỌN (live, ping tốn tiền thật). Mặc định "eager" — đúng hành vi kiểm tra kỹ
-# hơn khi không ai khai gì, an toàn hơn nếu lỡ quên đặt trên môi trường trả tiền.
+# Pool-declaration ping mode — "eager" test-calls EVERY model when declaring the pool ready
+# (dev, 0 cost); "lazy" only marks "unverified" and pings a model the first time it is CHOSEN
+# (live, pings cost real money). Defaults to "eager" — the more thorough check when nobody sets
+# anything, safer if someone forgets to set it on a paid environment.
 MODEL_POOL_PING = os.environ.get("MODEL_POOL_PING", "eager").strip().lower()
 if MODEL_POOL_PING not in ("eager", "lazy"):
     raise RuntimeError(f"MODEL_POOL_PING phải là 'eager' hoặc 'lazy', nhận được {MODEL_POOL_PING!r}.")
 
-# Trần token sinh ra. MẶC ĐỊNH None = KHÔNG truyền tham số -> y hệt hành vi
-# hôm nay (dựa vào mặc định nhà cung cấp). CỐ Ý không đặt một con số:
-# thêm trần ở đây sẽ CẮT NGẮN câu trả lời dài đang chạy tốt, tức sửa một bug
-# chưa xảy ra bằng cách tạo một bug chắc chắn xảy ra.
+# Output token cap. DEFAULT None = the parameter is NOT passed -> exactly today's behaviour
+# (relying on the provider's default). DELIBERATELY no number:
+# adding a cap here would TRUNCATE long answers that currently work fine, i.e. fixing a bug that
+# hasn't happened by creating one that certainly will.
 #
-# Vì sao cần cái knob này: model có reasoning (Qwen) tiêu token vào phần SUY
-# NGHĨ trước khi sinh nội dung. Trần thấp -> tiêu hết vào suy nghĩ -> `content`
-# RỖNG, và KHÔNG có lỗi nào. Khi đổi sang model như vậy, đặt biến này tường
-# minh thay vì hy vọng mặc định của họ đủ.
-# ⚠️ SỐ ĐO THEO MODEL — phần suy nghĩ thầm chiếm bao nhiêu token ĐẦU RA:
+# Why this knob is needed: reasoning models (Qwen) spend tokens on THINKING before producing
+# content. A low cap -> all spent on thinking -> EMPTY `content`, with NO error. When switching to
+# such a model, set this variable explicitly rather than hoping their default is enough.
+# ⚠️ MEASURED PER MODEL — how much of the OUTPUT tokens the hidden thinking takes:
 #     qwen3.7-plus  61%        qwen3.8-max  77%
-# Càng cao thì trần này càng phải rộng. Siết nó để tiết kiệm tiền trên model
-# reasoning là mua trả-lời-rỗng: model tiêu hết trần vào suy nghĩ rồi không
-# còn chỗ sinh nội dung -> `TraLoiRongError` (graph.py). Tiết kiệm ở đây không
-# giảm chi phí suy nghĩ, nó chỉ vứt bỏ phần đã trả tiền.
+# The higher it is, the wider this cap must be. Tightening it to save money on a reasoning model
+# buys empty answers: the model spends the whole cap thinking, leaving no room for content
+# -> `EmptyReplyError` (graph.py). Saving here doesn't reduce thinking costs; it only throws away
+# what you already paid for.
 LLM_MAX_TOKENS = int(os.environ["LLM_MAX_TOKENS"]) if os.environ.get("LLM_MAX_TOKENS") else None
 
 EMBEDDING_BASE_URL = os.environ.get("EMBEDDING_BASE_URL") or None
-EMBEDDING_API_KEY = _khoa_cho_nha_cung_cap("EMBEDDING_API_KEY", EMBEDDING_BASE_URL)
+EMBEDDING_API_KEY = _key_for_provider("EMBEDDING_API_KEY", EMBEDDING_BASE_URL)
 
-# Số chunk gửi trong MỘT lời gọi embedding. LangChain mặc định 1000 — OpenAI
-# nhận, Qwen từ chối: "batch size is invalid, it should not be larger than 10".
-# Trần này KHÔNG có chuẩn chung giữa các nhà cung cấp, nên nó phải là biến.
-# Mặc định 10 khi trỏ nhà cung cấp khác (giá trị an toàn nhất đã gặp), giữ
-# nguyên mặc định thư viện cho đường OpenAI để không đổi vật.
+# Number of chunks sent in ONE embedding call. LangChain defaults to 1000 — OpenAI accepts it,
+# Qwen rejects it: "batch size is invalid, it should not be larger than 10".
+# There is NO common standard for this limit across providers, so it must be a variable.
+# Defaults to 10 when pointing at another provider (the safest value encountered), and keeps the
+# library default for the OpenAI path so the object doesn't change.
 EMBEDDING_BATCH_SIZE = int(os.environ.get("EMBEDDING_BATCH_SIZE") or (10 if EMBEDDING_BASE_URL else 0))
 
-# --- THƯỚC của eval: GHIM BẰNG HẰNG SỐ, KHÔNG theo model sản phẩm ---------
-# Một lượt adversarial có BA vai cùng gọi model:
-#     ĐỐI TƯỢNG   agent bị đo        (run_agent_turn -> LLM_MODEL)
-#     KÍCH THÍCH  kẻ tấn công giả lập (eval/_harness.py)
-#     TRỌNG TÀI   người chấm          (eval/_llm_judge.py)
-# Nếu cả ba đọc chung một biến thì đổi nhà cung cấp làm cả ba đổi cùng lúc, và
-# `96/96 -> 94/96` không quy được nhân quả: agent yếu đi, kẻ tấn công mạnh
-# lên, hay trọng tài chấm khác? Ba biến một số — đúng bẫy đã giết cặp
-# 41,4/35,7, lần này nằm trong bộ đo AN TOÀN.
+# --- The eval YARDSTICK: PINNED AS A CONSTANT, NOT tied to the product model --------
+# An adversarial turn has THREE roles calling a model:
+#     SUBJECT      the agent under test      (run_agent_turn -> LLM_MODEL)
+#     STIMULUS     the simulated attacker    (eval/_harness.py)
+#     REFEREE      the grader                (eval/_llm_judge.py)
+# If all three read one shared variable, switching providers changes all three at once, and
+# `96/96 -> 94/96` can't be attributed: did the agent get weaker, the attacker stronger, or the
+# referee grade differently? Three variables, one number — exactly the trap that killed the
+# 41.4/35.7 pair, this time inside the SAFETY measurement suite.
 #
-# CỐ Ý ghim vào chuỗi literal, KHÔNG `or OPENAI_MODEL`: cách đổi nhà cung cấp
-# tự nhiên nhất của người vận hành là sửa `OPENAI_MODEL` trong `.env`, và nếu
-# thước neo vào đó thì nó lặng lẽ đi theo vật. Thước phải đứng yên kể cả khi
-# người ta đổi vật bằng con đường mình không lường trước.
+# DELIBERATELY pinned to a literal string, NOT `or OPENAI_MODEL`: an operator's most natural way
+# of switching providers is editing `OPENAI_MODEL` in `.env`, and if the yardstick were anchored
+# to it, it would quietly follow the object. The yardstick must stay still even when people
+# change the object by a path nobody anticipated.
 #
-# Đổi thước là quyết định RIÊNG, phải cố ý đặt biến, và phải chấm lại toàn bộ.
-_THUOC_MAC_DINH = "gpt-4o-mini"
-JUDGE_MODEL = os.environ.get("EVAL_JUDGE_MODEL") or os.environ.get("JUDGE_MODEL") or _THUOC_MAC_DINH
-EVAL_SIM_MODEL = os.environ.get("EVAL_SIM_MODEL") or _THUOC_MAC_DINH
+# Changing the yardstick is a SEPARATE decision: the variable must be set deliberately, and
+# everything must be re-graded.
+_DEFAULT_MODEL = "gpt-4o-mini"
+JUDGE_MODEL = os.environ.get("EVAL_JUDGE_MODEL") or os.environ.get("JUDGE_MODEL") or _DEFAULT_MODEL
+EVAL_SIM_MODEL = os.environ.get("EVAL_SIM_MODEL") or _DEFAULT_MODEL
 
-# 1 lượt /agent/chat = 1 vòng ReAct nhiều bước (LLM sinh + gọi tool xen kẽ,
-# tới _AGENT_RECURSION_LIMIT=20 bước) — OPENAI_TIMEOUT_SECONDS ở trên chỉ
-# chặn TỪNG lượt gọi OpenAI riêng lẻ, không chặn TỔNG thời gian cả lượt chat
-# (đo thật: 1 request /agent/chat tốn 70s vì cần nhiều bước, mỗi bước gần
-# chạm trần OPENAI_TIMEOUT_SECONDS). Đây là trần TỔNG cho cả agent.invoke(),
-# xử lý giống GraphRecursionError (chuyển sang human handoff thay vì treo vô
-# thời hạn hay 500) — xem src/agents/graph.py::run_agent_turn.
+# 1 /agent/chat turn = 1 multi-step ReAct loop (LLM generation + interleaved tool calls,
+# up to _AGENT_RECURSION_LIMIT=20 steps) — OPENAI_TIMEOUT_SECONDS above only caps EACH individual
+# OpenAI call, not the TOTAL time of the chat turn (measured: one /agent/chat request took 70s
+# because it needed many steps, each nearly hitting OPENAI_TIMEOUT_SECONDS). This is the TOTAL
+# ceiling for the whole agent.invoke(), handled like GraphRecursionError (switching to human
+# handoff instead of hanging indefinitely or returning 500) — see
+# src/agents/graph.py::run_agent_turn.
 AGENT_TURN_TIMEOUT_SECONDS = float(os.environ.get("AGENT_TURN_TIMEOUT_SECONDS", "45"))
 
-# Bảo mật (src/auth.py, src/db/crypto_types.py) — KHÔNG có giá trị mặc định
-# cho 2 key này: một key đoán được/rỗng là lỗ hổng giả vờ có bảo mật, còn tệ
-# hơn không có gì (nhìn như đã ép JWT nhưng ai cũng ký giả được token). Thiếu
-# key -> lỗi ngay lúc import, không lỗi âm thầm lúc chạy.
+# Security (src/auth.py, src/db/crypto_types.py) — NO default value for these 2 keys:
+# a guessable/empty key is a hole pretending to be security, worse than nothing (it looks like
+# JWT is enforced while anyone can forge tokens). Missing key -> error immediately at import, not
+# a silent error at runtime.
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
 if not JWT_SECRET_KEY:
     raise RuntimeError(
@@ -479,25 +477,25 @@ if not JWT_SECRET_KEY:
         "python3 -c \"import secrets; print(secrets.token_urlsafe(48))\""
     )
 JWT_ALGORITHM = "HS256"
-# AUTH5-02 (đợt nâng cấp Auth Flow 2026-08-12, NIST SP 800-63B-4/PSD2) — rút
-# từ 8 giờ xuống 15 phút. Token cũ (8h, phát trước khi nâng cấp) VẪN qua được
-# _decode() bình thường tới khi hết hạn tự nhiên (không thêm field bắt buộc
-# mới vào payload) — không khoá đột ngột session đang sống (AUTH5-MIGRATE-001).
-# Đọc từ env (mặc định GIỮ NGUYÊN 15) — thêm 2026-08-16 để dựng được instance
-# test TTL ngắn. Vì sao đáng: tái lập lớp lỗi đua-refresh phải chờ tới cửa sổ
-# 120s cuối của phiên, tức ~phút 13 mỗi lần; k=10 mất hơn 2 giờ. Với TTL=1
-# phút thì k=30 gọn trong 20 phút, và test hồi quy vùng auth mới TỒN TẠI được
-# — không ai cho CI chờ 13 phút một ca.
+# AUTH5-02 (Auth Flow upgrade 2026-08-12, NIST SP 800-63B-4/PSD2) — cut from 8 hours to
+# 15 minutes. Old tokens (8h, issued before the upgrade) STILL pass
+# _decode() normally until they expire naturally (no new mandatory field was added to the
+# payload) — live sessions are not abruptly locked out (AUTH5-MIGRATE-001).
+# Read from env (default STAYS 15) — added 2026-08-16 to be able to stand up a short-TTL test
+# instance. Why it's worth it: reproducing the refresh-race bug class means waiting for the last
+# 120s window of a session, i.e. ~minute 13 every time; k=10 takes over 2 hours. With TTL=1
+# minute, k=30 fits in 20 minutes, and regression tests for the auth area can EXIST at all
+# — nobody lets CI wait 13 minutes per case.
 #
-# ⚠️ HẠ giá trị này là HẠ MỘT CONTROL BẢO MẬT (AUTH5-02, rút từ 8h xuống 15
-# phút theo NIST SP 800-63B-4/PSD2). Chỉ dùng cho instance TEST chạy dưới
-# project name RIÊNG. KHÔNG bao giờ set trên `.env` của stack thật.
+# ⚠️ LOWERING this value LOWERS A SECURITY CONTROL (AUTH5-02, cut from 8h to 15 minutes per
+# NIST SP 800-63B-4/PSD2). Only for TEST instances running under a SEPARATE project name. NEVER
+# set it in the real stack's `.env`.
 JWT_ACCESS_EXPIRE_MINUTES = int(os.environ.get("JWT_ACCESS_EXPIRE_MINUTES", "15"))
 
-# Refresh token (KHÔNG phải JWT — chuỗi ngẫu nhiên, lưu trong Redis, xem
-# src/auth.py::mint_refresh_token) — role nội bộ (cskh/supervisor/
-# partner_admin) rủi ro cao hơn nếu bị đánh cắp (chạm dữ liệu nhiều khách)
-# nên TTL ngắn hơn hẳn khách hàng (AUTH5-02B).
+# Refresh token (NOT a JWT — a random string stored in Redis, see
+# src/auth.py::mint_refresh_token) — internal roles (cskh/supervisor/
+# partner_admin) carry higher risk if stolen (they touch many customers' data), so their TTL is
+# much shorter than customers' (AUTH5-02B).
 JWT_REFRESH_EXPIRE_DAYS_CUSTOMER = 7
 JWT_REFRESH_EXPIRE_DAYS_STAFF = 1
 
@@ -508,12 +506,12 @@ if not FIELD_ENCRYPTION_KEY:
         "python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
     )
 
-# Redis (đợt nâng cấp Auth Flow, 2026-08-12) — revocation store JWT refresh
-# token + rate-limit dùng chung (login, OTP, live-chat ws-ticket/message).
-# KHÔNG có giá trị mặc định trỏ tới Redis thật (cùng nguyên tắc fail-fast như
-# JWT_SECRET_KEY ở trên) — nhưng CHO PHÉP scheme "fake://" tường minh (dùng
-# fakeredis, xem src/redis_client.py) cho CI/test không cần Redis thật, đúng
-# convention playbooks/production-packaging-checklist.md ("REDIS_URL: fake://").
+# Redis (Auth Flow upgrade, 2026-08-12) — JWT refresh-token revocation store + shared rate
+# limiting (login, OTP, live-chat ws-ticket/message).
+# NO default pointing at a real Redis (same fail-fast principle as
+# JWT_SECRET_KEY above) — but the explicit "fake://" scheme IS ALLOWED (using
+# fakeredis, see src/redis_client.py) for CI/tests that need no real Redis, per the
+# playbooks/production-packaging-checklist.md convention ("REDIS_URL: fake://").
 REDIS_URL = os.environ.get("REDIS_URL")
 if not REDIS_URL:
     raise RuntimeError(
@@ -521,102 +519,102 @@ if not REDIS_URL:
         "thật, hoặc fake://ci cho CI/test không cần Redis thật (fakeredis)."
     )
 
-# RAG chính sách/FAQ (src/rag/) — đối tác ví (role partner_admin) upload,
-# agent + CSKH tra cứu (search_policy tool, POST /policy-search).
-RAG_INDEX_DIR = ROOT_DIR / "data" / "rag_index"  # Chroma persistent store — không commit (.gitignore)
-# Đọc từ env `EMBEDDING_MODEL`. MỘT hằng số cho MỘT thứ — cố ý không thêm tên
-# thứ hai `EMBEDDING_MODEL` ở tầng Python, hai tên cho một giá trị là cách
-# chắc chắn để sau này chúng lệch nhau.
+# Policy/FAQ RAG (src/rag/) — uploaded by the e-wallet partner (role partner_admin),
+# searched by the agent + CSKH (search_policy tool, POST /policy-search).
+RAG_INDEX_DIR = ROOT_DIR / "data" / "rag_index"  # Chroma persistent store — not committed (.gitignore)
+# Read from the `EMBEDDING_MODEL` env var. ONE constant for ONE thing — deliberately no second
+# name `EMBEDDING_MODEL` at the Python layer; two names for one value is a sure way for them to
+# drift apart later.
 #
-# ⚠️ ĐỔI BIẾN NÀY = ĐỔI VẬT, và store.py CÓ RÀO (xem `_dong_dau`): dấu phiên
-# bản kho trước đây chỉ ghi `chuan_hoa`, KHÔNG ghi model. Nếu để nguyên vậy thì
-# đổi model embedding sẽ làm mọi vector lệch một vế mà `kiem` vẫn xanh —
-# search trả đủ k, kết quả sai, không triệu chứng. Đúng lớp lỗi đòn 2.
+# ⚠️ CHANGING THIS VARIABLE = CHANGING THE OBJECT, and store.py HAS A GUARD (see `_stamp`): the
+# store's version stamp used to record only `chuan_hoa` (normalisation), NOT the model. Left that
+# way, changing the embedding model would make every vector one-sidedly drift while `kiem` stayed
+# green — search returns k results, wrong ones, with no symptom. Exactly bug class #2.
 RAG_EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL") or "text-embedding-3-small"
 RAG_CHUNK_SIZE = 800
 RAG_CHUNK_OVERLAP = 150
 RAG_SEARCH_TOP_K = 4
 
-# ADR-061 (03/09) — Finding ① lớp 2: cổng abstention bằng cross-encoder rerank
-# thay vì ngưỡng khoảng cách bi-encoder đơn (đã đo và BÁC — xem ADR).
-# Cơ chế: lấy RAG_RERANK_CANDIDATE_K ứng viên từ Chroma (rộng hơn
-# RAG_SEARCH_TOP_K để không bỏ sót chunk đúng nằm ngoài top-K hẹp — ca
-# REL-IW-01 đo được 03/09 là bằng chứng: top-1 Chroma sai, nhưng top-8 có
-# chunk đúng), rerank TOÀN BỘ, chunk nào < ngưỡng bị loại, phần còn lại cắt
-# về RAG_SEARCH_TOP_K theo điểm rerank (không phải thứ tự distance cũ).
+# ADR-061 (03/09) — Finding ① layer 2: an abstention gate via cross-encoder rerank
+# instead of a single bi-encoder distance threshold (measured and REJECTED — see the ADR).
+# Mechanism: fetch RAG_RERANK_CANDIDATE_K candidates from Chroma (wider than
+# RAG_SEARCH_TOP_K so the right chunk isn't missed outside a narrow top-K — case
+# REL-IW-01 measured 03/09 is the evidence: Chroma's top-1 was wrong, but the top-8 contained the
+# right chunk), rerank ALL of them, drop chunks below the threshold, and trim the rest to
+# RAG_SEARCH_TOP_K by rerank score (not the old distance order).
 RAG_RERANK_MODEL = os.environ.get("RAG_RERANK_MODEL") or "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 RAG_RERANK_CANDIDATE_K = int(os.environ.get("RAG_RERANK_CANDIDATE_K", "8"))
-# ADR-061 cập nhật 04/09 — kiến trúc SIDECAR (đo được backend 4-5 worker nhân
-# RAM nếu load model trực tiếp trong process). Rỗng = tính năng TẮT HẲN
-# (rerank.py coi như sidecar luôn "không tới được", fallback fail-closed —
-# không phải lỗi, là trạng thái hợp lệ cho ngăn chưa bật dịch vụ này).
+# ADR-061 update 04/09 — SIDECAR architecture (measured: a 4-5 worker backend multiplies RAM
+# if the model is loaded directly in-process). Empty = feature FULLY OFF
+# (rerank.py treats the sidecar as always "unreachable", fail-closed fallback —
+# not an error, a valid state for stacks that haven't enabled this service).
 RAG_RERANK_SERVICE_URL = os.environ.get("RAG_RERANK_SERVICE_URL", "")
-# 5s → 15s (04/09, PO bắt qua log thật) — lề an toàn PHỤ, sau khi
-# `rerank_service/app.py` đã vá gốc (tải model lúc khởi động thay vì lười
-# tải ở request đầu). 15s chỉ còn phải hứng mạng chậm/tải máy tức thời
-# thật, không còn phải hứng thời gian tải model (đã chuyển ra khỏi request
-# path). Không hạ về 5s nếu chưa đo lại — 5s đã CHỨNG MINH không đủ trên VM
-# RAM mỏng của po-demo (log timeout thật 04/09).
+# 5s → 15s (04/09, caught by the PO in real logs) — a SECONDARY safety margin, after
+# `rerank_service/app.py` received the root fix (loading the model at startup instead of lazily
+# on the first request). 15s now only has to absorb genuinely slow networks/momentary machine
+# load, no longer model loading time (moved off the request path). Don't lower it back to 5s
+# without re-measuring — 5s was PROVEN insufficient on the RAM-thin po-demo VM (real timeout logs
+# 04/09).
 RAG_RERANK_TIMEOUT_S = float(os.environ.get("RAG_RERANK_TIMEOUT_S", "15"))
-# Ngưỡng đo 03/09 trên 18 ca thật (tiếng Việt, top-k→rerank): tách biệt hoàn
-# toàn, phù hợp 7.03–10.91 / không phù hợp -7.52–-0.98, giữa khe ~3.0. KHÔNG
-# tự đổi số này mà không đo lại — đúng bài học ngưỡng đơn đã thất bại một
-# lần cho hướng khác (distance bi-encoder).
+# Threshold measured 03/09 on 18 real cases (Vietnamese, top-k→rerank): fully separated,
+# relevant 7.03–10.91 / irrelevant -7.52–-0.98, gap midpoint ~3.0. DO NOT change this number
+# without re-measuring — exactly the lesson of the single threshold that already failed once in
+# another approach (bi-encoder distance).
 RAG_RERANK_THRESHOLD = float(os.environ.get("RAG_RERANK_THRESHOLD", "3.0"))
-# Ngưỡng RIÊNG cho /policy-search (CSKH đọc excerpt trực tiếp — phụ đề trang
-# tự khai "KHÔNG qua tổng hợp AI", PO thật chốt 05/09: mối lo precision
-# Finding ① [AI TRÍCH DẪN nhầm chunk sai scope vào câu KHẲNG ĐỊNH] không áp
-# dụng ở đây, con người tự đọc/tự lọc excerpt) — KHÔNG áp cho đường agent (5
-# tool `build_customer_tools`, giữ nguyên RAG_RERANK_THRESHOLD=3.0 y hệt cũ.
+# A SEPARATE threshold for /policy-search (CSKH reads excerpts directly — the page subtitle
+# states "NOT through AI synthesis"; fixed by the real PO 05/09: the precision concern of
+# Finding ① [the AI QUOTING a wrong-scope chunk inside an ASSERTION] doesn't apply here; humans
+# read/filter the excerpts themselves) — NOT applied to the agent path (the 5 tools of
+# `build_customer_tools` keep RAG_RERANK_THRESHOLD=3.0 exactly as before.
 #
-# Đo thật 05/09 trên eval/rag_policy_set.jsonl (34 ca, PO+QA dựng), dò từng
-# 0.5 điểm: -2.5 tới -2.9 cho ĐÚNG 2/28 ca lệch (cùng 1 từ khoá khó "tranh
-# chấp", KHÔNG có ca precision nào lọt — 9/9 ca rác/lạc đề/dò thông tin nội
-# bộ vẫn not_found). Từ -3.0 trở xuống, "giá vàng hôm nay bao nhiêu" (P2-01,
-# RÕ RÀNG lạc đề) bắt đầu lọt — -2.5 là điểm dừng AN TOÀN, có lề (không nằm
-# sát vách -3.0). KHÔNG hạ thêm mà chưa đo lại 34 ca.
+# Measured 05/09 on eval/rag_policy_set.jsonl (34 cases, built by PO+QA), sweeping in
+# 0.5-point steps: -2.5 to -2.9 give EXACTLY 2/28 off cases (both the same hard keyword "tranh
+# chấp" — dispute; NO precision case leaks — 9/9 garbage/off-topic/internal-probing cases stay
+# not_found). From -3.0 downwards, "giá vàng hôm nay bao nhiêu" (what's the gold price today,
+# P2-01, CLEARLY off-topic) starts leaking — -2.5 is a SAFE stopping point with margin (not right
+# against the -3.0 wall). DO NOT lower it further without re-measuring the 34 cases.
 #
-# 🔴 Review 05/09 tự đo lại 12 câu trên sidecar sống, thấy BIÊN THẬT mỏng hơn
-# số tổng (26/28+9/9) gợi ý: "phí rút"/"hạn mức" (found, đúng phía) chỉ hơn
-# ngưỡng ~0.4 điểm; "giá vàng" (garbage, đúng phía) chỉ THẤP HƠN ngưỡng ~0.4
-# điểm — khoảng cách found-ngắn-nhất↔garbage-cao-nhất chỉ ~0.8 điểm, trong
-# khi phần lớn ca khác tách nhau 3-5+ điểm. Không phải lý do bác ngưỡng này
-# (34 ca hiện có đều tách đúng phía) — nhưng biên mỏng nghĩa là một câu ngắn
-# khác phách một chút (vd "hạn mức tối đa", "phí chuyển") CÓ THỂ rơi sai phía
-# mà tập 34 ca chưa từng đo tới. Theo dõi khi có báo cáo not_found/found sai
-# mới trên câu ngắn dạng khác — đừng đo lại từ đầu, tra thẳng nhật ký này.
+# 🔴 Review 05/09 re-measured 12 queries on the live sidecar and found the REAL margin thinner
+# than the totals (26/28+9/9) suggest: "phí rút"/"hạn mức" (withdrawal fee/limit — found, right
+# side) are only ~0.4 points above the threshold; "giá vàng" (garbage, right side) is only ~0.4
+# points BELOW it — the gap between the lowest short found query and the highest garbage is only
+# ~0.8 points, while most other cases are separated by 3-5+ points. Not a reason to reject this
+# threshold (all 34 existing cases fall on the right side) — but a thin margin means another
+# slightly different short query (e.g. "hạn mức tối đa", "phí chuyển" — maximum limit, transfer
+# fee) MAY fall on the wrong side in ways the 34-case set never measured. Watch for new reports of
+# wrong not_found/found on differently phrased short queries — don't re-measure from scratch,
+# consult this log directly.
 RAG_RERANK_THRESHOLD_CSKH = float(os.environ.get("RAG_RERANK_THRESHOLD_CSKH", "-2.5"))
 MAX_UPLOAD_SIZE_MB = 10
 
-# Live chat (2026-08-11) — lớp phòng vệ THỨ 2 bên cạnh dọn phiên lúc WS ngắt
-# kết nối SẠCH (release_staff_sessions/close_customer_session_on_disconnect,
-# src/api/live_chat_ws.py): mạng rớt đột ngột/trình duyệt bị kill không gửi
-# được khung đóng kết nối, server có thể không bao giờ nhận WebSocketDisconnect
-# — phiên 'waiting' sẽ treo mãi nếu chỉ dựa vào tín hiệu disconnect. Bất kỳ
-# phiên 'waiting' nào (chưa ai nhận) quá cũ coi như khách đã rời đi từ lâu —
-# 30 phút đủ rộng để không đóng nhầm 1 khách đang chờ thật (ETA hiển thị cho
-# khách chỉ là ước tính, không có SLA cam kết cứng ở tầng live-chat).
+# Live chat (2026-08-11) — the SECOND line of defence alongside cleaning up sessions on a CLEAN
+# WS disconnect (release_staff_sessions/close_customer_session_on_disconnect,
+# src/api/live_chat_ws.py): a sudden network drop/killed browser can't send a close frame, so the
+# server may never receive WebSocketDisconnect — a 'waiting' session would hang forever if we
+# relied only on the disconnect signal. Any 'waiting' session (unclaimed) that is too old is
+# treated as the customer having left long ago — 30 minutes is wide enough not to wrongly close
+# a customer genuinely waiting (the ETA shown to customers is only an estimate; there is no hard
+# SLA commitment at the live-chat layer).
 LIVE_CHAT_STALE_WAITING_MINUTES = 30
 
 # ---------------------------------------------------------------------------
-# F-30 — LangSmith/LangChain tracing TẮT MINH THỊ (2026-08-15)
+# F-30 — LangSmith/LangChain tracing EXPLICITLY OFF (2026-08-15)
 # ---------------------------------------------------------------------------
-# Gói `langsmith` đi kèm `langchain` nên đã có sẵn trong môi trường. Tracer
-# NATIVE của LangChain bật hoàn toàn bằng biến môi trường — không cần một dòng
-# code nào — và nó gửi thẳng prompt/response lên LangSmith Cloud.
+# The `langsmith` package ships with `langchain`, so it is already in the environment.
+# LangChain's NATIVE tracer is enabled entirely via environment variables — no code needed —
+# and it sends prompts/responses straight to LangSmith Cloud.
 #
-# Vì sao đây là vấn đề riêng, không phải trùng với observability đã có: lớp
-# `_scrub_and_truncate` của dự án nằm trong callback TỰ VIẾT
-# (src/observability/langchain_callback.py). Tracer native KHÔNG gọi qua lớp
-# đó — nó là một kênh xuất dữ liệu SONG SONG, đi vòng qua toàn bộ PII
-# scrubbing, và bật được mà không để lại vết nào trong git.
+# Why this is a separate issue, not a duplicate of existing observability: the project's
+# `_scrub_and_truncate` layer lives in a HAND-WRITTEN callback
+# (src/observability/langchain_callback.py). The native tracer does NOT go through that layer —
+# it is a PARALLEL data export channel, bypassing all PII scrubbing, and it can be switched on
+# without leaving any trace in git.
 #
-# Đặt false MINH THỊ ở đây để biến một cấu-hình-NGẦM thành một quyết-định-HIỆN:
-# muốn bật thật thì phải sửa dòng này ⟹ có diff, có review, có hồ sơ theo
-# Luật 91/2025/QH15 (chuyển dữ liệu cá nhân ra ngoài — số điều cụ thể CHƯA xác
-# minh trên bản luật mới, xem docs/security/2026-08-30-niem-luat-91-2025-*.md,
-# đừng tự gán số điều cũ của NĐ 13/2023). `setdefault` chứ không gán đè: người
-# vận hành vẫn cố ý bật được bằng env var, nhưng mặc định im lặng thì không
-# bao giờ là "bật".
+# Setting false EXPLICITLY here turns an IMPLICIT configuration into a VISIBLE decision:
+# to really enable it, this line must be edited ⟹ there is a diff, a review, and a record under
+# Law 91/2025/QH15 (transferring personal data abroad — specific article numbers NOT yet verified
+# against the new law, see docs/security/2026-08-30-niem-luat-91-2025-*.md;
+# don't assign old Decree 13/2023 article numbers). `setdefault` rather than overwriting:
+# operators can still deliberately enable it via env var, but the silent default is never "on".
 os.environ.setdefault("LANGCHAIN_TRACING_V2", "false")
-os.environ.setdefault("LANGSMITH_TRACING", "false")  # tên mới của cùng cờ
+os.environ.setdefault("LANGSMITH_TRACING", "false")  # the new name of the same flag

@@ -69,8 +69,8 @@ def test_lop1_co_TAC_DUNG_client_toan_cuc_that_su_la_gia():
         "REDIS_URL có thể đúng nhưng conftest được nạp SAU module đầu tiên\n"
         "chạm src.config, nên client đã dựng xong từ giá trị cũ."
     )
-    la_gia, mo_ta = _redis_la_gia()
-    assert la_gia, f"cổng không nhận ra client này là giả: {mo_ta}"
+    la_gia, description = _redis_la_gia()
+    assert la_gia, f"cổng không nhận ra client này là giả: {description}"
 
 
 def test_lop2_cong_BAT_DUOC_mot_client_that(monkeypatch):
@@ -91,12 +91,12 @@ def test_lop2_cong_BAT_DUOC_mot_client_that(monkeypatch):
     monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
     monkeypatch.setattr(ct, "get_default_client", lambda: _ClientThat())
 
-    la_gia, mo_ta = ct._redis_la_gia()
+    la_gia, description = ct._redis_la_gia()
     assert not la_gia, (
-        f"🔴 CỔNG RỖNG — nó coi một client THẬT là bản giả: {mo_ta}\n"
+        f"🔴 CỔNG RỖNG — nó coi một client THẬT là bản giả: {description}\n"
         "Cổng này là lớp cuối chặn flushdb() lên Redis production."
     )
-    assert "redis://redis:6379/0" in mo_ta, (
-        f"cổng không nêu được REDIS_URL trong thông báo: {mo_ta!r} — "
+    assert "redis://redis:6379/0" in description, (
+        f"cổng không nêu được REDIS_URL trong thông báo: {description!r} — "
         "người gặp lỗi sẽ không biết nó đang nói về Redis nào."
     )

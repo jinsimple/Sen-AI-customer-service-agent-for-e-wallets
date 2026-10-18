@@ -62,7 +62,7 @@ _NOTE_BACKFILL_SENTINEL = (
 
 
 def _backfill_sentinel(conn) -> None:
-    ket_qua = conn.execute(
+    outcome = conn.execute(
         sa.text(
             "UPDATE resolutions SET note = :note "
             "WHERE reject_reason = 'khac' AND rejected_by = :sentinel "
@@ -70,9 +70,9 @@ def _backfill_sentinel(conn) -> None:
         ),
         {"note": _NOTE_BACKFILL_SENTINEL, "sentinel": _SENTINEL_ID},
     )
-    if ket_qua.rowcount:
+    if outcome.rowcount:
         print(
-            f"[f6a7b8c9d0e1] backfill note cho {ket_qua.rowcount} dòng sentinel "
+            f"[f6a7b8c9d0e1] backfill note cho {outcome.rowcount} dòng sentinel "
             f"({_SENTINEL_ID}) — xem docstring migration để biết vì sao đây "
             "KHÔNG phải bịa số liệu."
         )

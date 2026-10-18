@@ -57,7 +57,7 @@ LÀM SỚM, thong thả — không cần sát giờ quay
         sếp    0905000205 / TestP0Otp!2026   (KHÔNG phải Demo@123)
 
 SÁT GIỜ QUAY — bốn phép đo, ~1 phút, chạy theo thứ tự này
-  6 □ docker exec fin05-qa-stripe-backend-1 cat /app/.bam_ma_nguon
+  6 □ docker exec fin05-qa-stripe-backend-1 cat /app/.source_hash
       → PHẢI là 9c17c5684c9a. Khác ⟹ DỪNG, KHÔNG BẤM MÁY.
   7 □ Hạn mức model (lệnh ở mục bên dưới) → BA nhánh, đừng bỏ nhánh giữa:
         200 = quay được
@@ -255,7 +255,7 @@ không vì CSDL.
 □ 🔴 BẮT BUỘC, làm CUỐI CÙNG — ngay TRƯỚC khi bấm quay Cảnh 1 (kiểm ở phút chót mới có nghĩa; kiểm
   đầu buổi rồi làm việc khác nửa tiếng thì thành lời khẳng định cũ). **[Tự chạy, xác nhận khớp trước
   khi ghi vào đây]:**
-    docker exec fin05-qa-stripe-backend-1 cat /app/.bam_ma_nguon
+    docker exec fin05-qa-stripe-backend-1 cat /app/.source_hash
   → phải in đúng: `9c17c5684c9a`
   → in ra thứ KHÁC ⟹ **DỪNG, KHÔNG BẤM MÁY, báo ngay** — nghĩa là ngăn đã bị dựng lại/đổi ảnh, mọi
   cảnh trong kịch bản này (đã kiểm trên đúng băm này) không còn đảm bảo đúng như mô tả.

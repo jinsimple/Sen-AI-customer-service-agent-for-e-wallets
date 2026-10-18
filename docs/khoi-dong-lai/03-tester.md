@@ -29,7 +29,7 @@ Bạn viết `tests/`, `frontend/e2e/`, `eval/`. Bạn báo cáo về **PO-agent
 ```
 suite backend: 1 ĐỎ  ← test_thanh_phan_tai_lieu_kho::…noi_bo_da_biet ("kho rỗng")
                         CHƯA TRUY, chưa ai gán nguyên nhân. Đừng gán vội.
-23/23 invariants xanh · 3 bộ gọi LLM thật đều mặc định SKIP (FIN05_CHO_PHEP_TON_TIEN)
+23/23 invariants xanh · 3 bộ gọi LLM thật đều mặc định SKIP (FIN05_ALLOW_PAID_CALLS)
 ```
 
 ## Việc của bạn, theo thứ tự

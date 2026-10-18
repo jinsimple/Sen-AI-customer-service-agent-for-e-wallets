@@ -1,26 +1,27 @@
-"""Sliding-window rate limiter dùng chung trên Redis (đợt nâng cấp Auth Flow,
-2026-08-12) — thay `InMemoryRateLimiter` cũ (src/api/live_chat_ws.py, in-process
-dict) để rate-limit sống sót qua restart backend và nhất quán trạng thái với
-JWT revocation (cũng trên Redis, xem src/auth.py). Cùng thuật toán sliding
-window (ZSET, score=timestamp) — chỉ đổi NƠI LƯU, không đổi ngữ nghĩa.
+"""Shared sliding-window rate limiter on Redis (Auth Flow upgrade,
+2026-08-12) — replaces the old `InMemoryRateLimiter` (src/api/live_chat_ws.py, an in-process
+dict) so rate limits survive backend restarts and stay consistent with
+JWT revocation (also on Redis, see src/auth.py). Same sliding-window algorithm
+(ZSET, score=timestamp) — only WHERE it is stored changed, not the semantics.
 
-🔴 FAIL-OPEN khi Redis lỗi (24/08 — Tester tắt Redis, `/agent/chat` SẬP HẲN,
-không trả response nào, vì cả lớp này VÀ `@limiter.limit` của slowapi đều
-không che `ConnectionError`). Cùng triết lý `thread_signals.py`/`llm_pool.py`:
-đây là hạ tầng PHỤ TRỢ (chặn quá tải), không phải cửa vào — một sự cố Redis
-không được phép biến thành một sự cố toàn hệ thống. Khác `cong_ra_ngoai.py`
-(trần chi tiêu, fail-CLOSED có chủ đích vì đó là cơ chế bảo vệ TIỀN): ở đây
-mất bảo vệ-quá-tải tạm thời trong lúc Redis chết vẫn RẺ HƠN việc mọi khách
-nhận lỗi kết nối. slowapi (`src/api/main.py`, `Limiter(in_memory_fallback_
-enabled=True)`) vá lớp `@limiter.limit`; file này vá lớp gọi trực tiếp.
+🔴 FAIL-OPEN when Redis errors (24/08 — the Tester switched Redis off and `/agent/chat` WENT
+DOWN COMPLETELY, returning no response at all, because neither this class NOR slowapi's
+`@limiter.limit` handled `ConnectionError`). Same philosophy as
+`thread_signals.py`/`llm_pool.py`: this is SUPPORTING infrastructure (overload protection),
+not an entry gate — a Redis incident must not turn into a system-wide incident. Unlike
+`egress_gate.py` (spending cap, deliberately fail-CLOSED because it protects MONEY): here,
+temporarily losing overload protection while Redis is down is still CHEAPER than every
+customer getting a connection error. slowapi (`src/api/main.py`,
+`Limiter(in_memory_fallback_enabled=True)`) fixes the `@limiter.limit` layer; this file
+fixes the direct-call layer.
 
-🔴 "FAIL-OPEN" ở `RedisSlidingWindowLimiter` nghĩa là CHO QUA (không còn trần
-nào lúc Redis chết — chấp nhận được, đây là rate-limit theo TẦN SUẤT). Ở
-`RedisConcurrencyLimiter` (chặn ĐỒNG THỜI) nghĩa KHÁC — xem khối comment
-"LƯỚI DỰ PHÒNG IN-PROCESS" ngay trên lớp đó: Review 24/08 bắt bản vá đầu ở
-đây fail-open KHÔNG TRẦN, đúng lớp sinh ra để chặn "150 người cùng bấm gửi"
-lại là lớp mất hẳn khi Redis chết. Giờ fail-open CÓ TRẦN, cùng khuôn slowapi
-đã tự chọn (`in_memory_fallback_enabled` — suy yếu per-process, không mất trắng).
+🔴 "FAIL-OPEN" in `RedisSlidingWindowLimiter` means LET THROUGH (no cap at all while Redis is
+down — acceptable, this is FREQUENCY rate limiting). In `RedisConcurrencyLimiter`
+(CONCURRENCY limiting) it means something DIFFERENT — see the "IN-PROCESS FALLBACK NET"
+comment block right above that class: the 24/08 review caught the first fix here failing
+open with NO CAP, so the very layer created to stop "150 people pressing send at once"
+vanished entirely when Redis died. It now fails open WITH A CAP, the same pattern slowapi
+chose for itself (`in_memory_fallback_enabled` — weakened per process, not wiped out).
 """
 from __future__ import annotations
 
@@ -33,24 +34,24 @@ from src.redis_client import get_default_client
 
 _logger = logging.getLogger("fin05.rate_limit")
 
-# Tiền tố token của lưới dự phòng IN-PROCESS (RedisConcurrencyLimiter, xem
-# lớp dưới) — `release()` nhận biết qua tiền tố này để trả slot vào bộ đếm
-# trong RAM thay vì `zrem` một token Redis chưa từng được ghi.
-_TIEN_TO_FALLBACK = "fb:"
+# Token prefix for the IN-PROCESS fallback net (RedisConcurrencyLimiter, see the class
+# below) — `release()` recognises it by this prefix and returns the slot to the in-RAM counter
+# instead of `zrem`-ing a Redis token that was never written.
+_FALLBACK_PREFIX = "fb:"
 
 
 class RedisSlidingWindowLimiter:
-    """`name` BẮT BUỘC — mỗi limiter phải có vùng khoá Redis riêng.
+    """`name` is MANDATORY — each limiter must have its own Redis key space.
 
-    Không có tham số này thì mọi limiter dùng chung khoá `ratelimit:{key}`,
-    và vì `key` thường là `user_id`, các hạn mức KHÁC NHAU của cùng một người
-    ăn lẫn vào nhau. Đo thật (2026-08-13): khách gửi 5 tin live-chat
-    (hạn mức riêng 60 tin/giờ) rồi mở phiên chat LẦN ĐẦU (hạn mức riêng
-    5 lần/phút, chưa dùng lần nào) -> bị 429 ngay. Chiều ngược lại còn tệ
-    hơn: `zremrangebyscore` của limiter cửa sổ 60s XOÁ luôn dữ liệu trong
-    cửa sổ 3600s của limiter kia, làm hạn mức 60 tin/giờ bị vô hiệu âm thầm.
-    Bắt buộc truyền tên (không đặt mặc định) để lỗi này không quay lại qua
-    một limiter mới nào đó quên đặt tên.
+    Without this parameter every limiter shares the key `ratelimit:{key}`,
+    and since `key` is usually `user_id`, DIFFERENT limits for the same person bleed into
+    each other. Measured (2026-08-13): a customer sent 5 live-chat messages
+    (its own limit: 60 messages/hour) and then opened a chat session for the FIRST time (its
+    own limit: 5/minute, never used) -> got a 429 immediately. The reverse is even worse:
+    the 60s-window limiter's `zremrangebyscore` DELETED the data inside the other limiter's
+    3600s window, silently disabling the 60-messages/hour limit.
+    The name must be passed explicitly (no default) so this bug can't come back via some new
+    limiter that forgets to set one.
     """
 
     def __init__(self, *, max_calls: int, window_seconds: float, name: str):
@@ -59,8 +60,8 @@ class RedisSlidingWindowLimiter:
         self._name = name
 
     def allow(self, key: str) -> bool:
-        """Redis lỗi -> fail-open (`True`), log cảnh báo, KHÔNG raise — xem
-        khối comment đầu file."""
+        """Redis error -> fail-open (`True`), log a warning, NEVER raise — see the comment
+        block at the top of the file."""
         try:
             client = get_default_client()
             now = time.time()
@@ -69,19 +70,19 @@ class RedisSlidingWindowLimiter:
             client.zremrangebyscore(redis_key, 0, window_start)
             if client.zcard(redis_key) >= self._max_calls:
                 return False
-            # member phải DUY NHẤT — 2 lệnh gọi cùng 1 timestamp float (rất có
-            # thể xảy ra, đồng hồ hệ thống không đủ độ phân giải) sẽ bị ZADD gộp
-            # thành 1 member nếu chỉ dùng timestamp làm member, đếm thiếu.
+            # members must be UNIQUE — 2 calls with the same float timestamp (quite possible; the
+            # system clock's resolution isn't enough) would be merged by ZADD into
+            # 1 member if the timestamp alone were the member, under-counting.
             member = f"{now}:{secrets.token_hex(4)}"
             client.zadd(redis_key, {member: now})
             client.expire(redis_key, int(self._window_seconds) + 1)
             return True
         except Exception as e:  # noqa: BLE001
-            # 🔴 KHÔNG đặt tên `name` trong `extra=` — thuộc tính DÀNH RIÊNG của
-            # `logging.LogRecord` (tên logger), đặt trùng ném `KeyError: "Attempt
-            # to overwrite 'name'"` NGAY TRONG NHÁNH FAIL-OPEN — đúng lớp lỗi
-            # `ingest.py` đã vấp với `filename` (xem comment ở đó). Không viết
-            # bằng tay thì không bắt được: đã đo THẬT qua kịch bản Redis chết.
+            # 🔴 DO NOT use the key `name` in `extra=` — it is a RESERVED attribute of
+            # `logging.LogRecord` (the logger name); reusing it raises `KeyError: "Attempt
+            # to overwrite 'name'"` RIGHT INSIDE THE FAIL-OPEN BRANCH — exactly the bug
+            # `ingest.py` hit with `filename` (see the comment there). You can't catch this without
+            # writing it out: it was measured FOR REAL through a Redis-down scenario.
             _logger.warning(
                 "rate_limit_allow_that_bai_fail_open",
                 extra={"ten_limiter": self._name, "loi": repr(e)},
@@ -90,62 +91,61 @@ class RedisSlidingWindowLimiter:
 
 
 class RedisConcurrencyLimiter:
-    """Giới hạn số tác vụ CHẠY SONG SONG (khác rate limit: đếm tần suất).
+    """Limits the number of tasks RUNNING CONCURRENTLY (unlike a rate limit, which counts frequency).
 
-    VÌ SAO CẦN, KHÁC GÌ RATE LIMIT
-    ------------------------------
-    Rate limit chặn theo *số lần gọi trong một khoảng thời gian*. Nó KHÔNG
-    chặn được kịch bản 150 người cùng bấm gửi trong 1 giây rồi tất cả cùng
-    nằm chờ: mỗi người chỉ gọi 1 lần (không vượt rate limit nào cả) nhưng
-    150 lượt agent cùng chạy sẽ (a) vét sạch threadpool 40 luồng của
-    Starlette, (b) bắn đồng loạt vào OpenAI và ăn bão 429 vì vượt 200K TPM.
+    WHY IT IS NEEDED, HOW IT DIFFERS FROM A RATE LIMIT
+    --------------------------------------------------
+    A rate limit blocks by *number of calls within a time window*. It CANNOT stop the
+    scenario of 150 people pressing send within 1 second and all waiting together: each person
+    calls only once (no rate limit exceeded) but 150 agent turns running at once would
+    (a) exhaust Starlette's 40-thread threadpool, (b) hit OpenAI simultaneously and get
+    stormed with 429s for exceeding 200K TPM.
 
-    Đo thật 2026-08-13: 1 lượt chat = ~15.136 token, hạn mức 200.000 TPM
-    => trần lý thuyết ~13 lượt/phút cho TOÀN hệ thống. Chặn đồng thời là
-    cách biến "hỏng hỗn loạn" (429 hàng loạt, request treo) thành "hỏng có
-    kiểm soát" (báo bận rõ ràng, mời thử lại).
+    Measured 2026-08-13: 1 chat turn = ~15,136 tokens, quota 200,000 TPM
+    => a theoretical ceiling of ~13 turns/minute for the WHOLE system. Limiting concurrency
+    turns "chaotic failure" (mass 429s, hanging requests) into "controlled failure"
+    (a clear busy message, inviting a retry).
 
-    VÌ SAO DÙNG REDIS, KHÔNG DÙNG BIẾN TRONG PROCESS
-    ------------------------------------------------
-    Hạn mức TPM của OpenAI là hạn mức TOÀN CỤC cho cả tài khoản. Đếm trong
-    RAM từng process sẽ nhân hạn mức lên theo số worker — chạy 4 worker là
-    vượt trần gấp 4 lần mà mỗi worker vẫn tưởng mình đúng luật.
+    WHY REDIS, NOT AN IN-PROCESS VARIABLE
+    -------------------------------------
+    OpenAI's TPM quota is GLOBAL for the whole account. Counting in each process's RAM would
+    multiply the quota by the number of workers — running 4 workers exceeds the ceiling
+    4 times while each worker still believes it is within the rules.
 
-    CƠ CHẾ: ZSET với score = deadline. Slot tự hết hạn sau `ttl_seconds` —
-    đây là LƯỚI AN TOÀN bắt buộc: process chết giữa chừng (OOM, SIGKILL,
-    deploy) sẽ không trả slot, không có TTL thì hệ thống tự khoá vĩnh viễn
-    với 0 request chạy. TTL nên đặt LỚN HƠN timeout tác vụ (45s) để slot
-    không bị thu hồi khi tác vụ còn đang chạy hợp lệ.
+    MECHANISM: a ZSET with score = deadline. Slots expire on their own after `ttl_seconds` —
+    a MANDATORY SAFETY NET: a process dying midway (OOM, SIGKILL, deploy) will never return
+    its slot; without a TTL the system would lock itself permanently with 0 requests running.
+    The TTL should be LARGER than the task timeout (45s) so a slot is not reclaimed while its
+    task is still legitimately running.
 
-    🔴 LƯỚI DỰ PHÒNG IN-PROCESS khi Redis chết (24/08 — Review đọc `1a33239`,
-    thấy commit message làm PHẲNG một bất đối xứng: slowapi (`src/api/main.py`,
-    `in_memory_fallback_enabled=True`) khi Redis chết vẫn còn MỘT trần — rơi về
-    RAM mỗi worker, SUY YẾU chứ không mất; lớp này bản vá đầu chỉ trả sentinel
-    fail-open KHÔNG kèm trần nào — MẤT HẲN. Và đây đúng là lớp sinh ra để chặn
-    *"150 người cùng bấm gửi"* (đoạn docstring trên) — đúng kịch bản buổi test
-    150 người dùng thật PO thật đang chuẩn bị. Redis nấc một nhịp giữa buổi đó
-    thì lớp bảo vệ cho CHÍNH kịch bản ấy biến mất không còn gì thay thế.
+    🔴 IN-PROCESS FALLBACK NET when Redis dies (24/08 — the review read `1a33239` and found the
+    commit message FLATTENED an asymmetry: slowapi (`src/api/main.py`,
+    `in_memory_fallback_enabled=True`) still keeps ONE cap when Redis dies — falling back to
+    per-worker RAM, WEAKENED but not lost; the first fix of this class only returned a
+    fail-open sentinel with NO cap — LOST ENTIRELY. And this is exactly the class created to
+    stop *"150 people pressing send at once"* (docstring above) — exactly the scenario of the
+    150-real-user test the real PO was preparing. One Redis hiccup in the middle of that
+    session and the protection for THAT very scenario would vanish with nothing in its place.
 
-    Áp cùng khuôn slowapi đã tự chọn cho mình: một `threading.Lock` + dict
-    trong RAM (`_fallback_slots`, token -> deadline), CÙNG `max_concurrent`/
-    `ttl_seconds` đã khai — khi Redis sống lại, `acquire()` tự quay về ZSET.
+    The same pattern slowapi chose for itself is applied: a `threading.Lock` + an in-RAM dict
+    (`_fallback_slots`, token -> deadline), with the SAME declared `max_concurrent`/
+    `ttl_seconds` — when Redis comes back, `acquire()` automatically returns to the ZSET.
 
-    ⚠️ Review đo được (24/08): dọn rác CHỈ xảy ra ở ĐẦU mỗi lần `_fallback_
-    acquire()` kế tiếp — THỤ ĐỘNG, không có bộ quét nền theo đồng hồ. Câu
-    đúng: TTL đảm bảo rác không SỐNG QUÁ LÂU khi bị dọn, KHÔNG đảm bảo dọn
-    NGAY lúc hết hạn. `len(_fallback_slots)` có thể tạm giữ token đã hết hạn
-    cho tới lượt `acquire()` kế — không tích luỹ qua nhiều cửa sổ và không phá
-    trần (Review chứng minh), nhưng KHÔNG PHẢI "tự hết hạn giống hệt Redis".
+    ⚠️ Measured by the review (24/08): cleanup ONLY happens at the START of each subsequent
+    `_fallback_acquire()` — PASSIVE, with no clock-driven background sweeper. The accurate
+    statement: the TTL guarantees garbage doesn't LIVE TOO LONG once cleaned, NOT that it is
+    cleaned the INSTANT it expires. `len(_fallback_slots)` may temporarily hold expired tokens
+    until the next `acquire()` — it doesn't accumulate across windows and doesn't break the
+    cap (proven by the review), but it is NOT "self-expiring exactly like Redis".
 
-    🔴 ĐÁNH ĐỔI PHẢI NÓI RÕ, không để trôi: bộ đếm này là PER-PROCESS (khác
-    ZSET Redis — dùng CHUNG cho mọi worker). Server chạy N worker
-    (`docker-entrypoint.sh` — `UVICORN_WORKERS=4`) ⟹ lúc Redis chết, trần THỰC
-    TẾ toàn hệ thống là **~N × max_concurrent**, không còn là **max_concurrent
-    dùng chung** như lúc Redis sống — đúng đánh đổi "VÌ SAO DÙNG REDIS, KHÔNG
-    DÙNG BIẾN TRONG PROCESS" ở trên đã cảnh báo, giờ CHỦ ĐỘNG chấp nhận nó
-    TRONG MỘT CỬA SỔ NGẮN (lúc hạ tầng phụ trợ chết) thay vì chấp nhận nó VĨNH
-    VIỄN. Đây là SUY YẾU CÓ KIỂM SOÁT (N× trần), không phải MẤT TRẮNG (0 trần)
-    — đúng bản chất đánh đổi slowapi đã chọn, không phải một khuôn mới.
+    🔴 THE TRADE-OFF MUST BE STATED, not left implicit: this counter is PER-PROCESS (unlike
+    the Redis ZSET — SHARED by all workers). With N workers
+    (`docker-entrypoint.sh` — `UVICORN_WORKERS=4`) ⟹ while Redis is down the system's ACTUAL
+    ceiling is **~N × max_concurrent**, no longer the **shared max_concurrent** it is while
+    Redis is alive — exactly the trade-off "WHY REDIS, NOT AN IN-PROCESS VARIABLE" above
+    warned about, now ACTIVELY accepted FOR A SHORT WINDOW (while supporting infrastructure is
+    down) rather than accepted PERMANENTLY. This is CONTROLLED WEAKENING (N× cap), not TOTAL
+    LOSS (0 cap) — exactly the nature of the trade-off slowapi chose, not a new pattern.
     """
 
     def __init__(self, *, max_concurrent: int, ttl_seconds: float, name: str = "agent_turn"):
@@ -153,16 +153,16 @@ class RedisConcurrencyLimiter:
         self._ttl = ttl_seconds
         self._key = f"concurrency:{name}"
         self._fallback_lock = threading.Lock()
-        self._fallback_slots: dict[str, float] = {}  # token(có tiền tố fb:) -> deadline
+        self._fallback_slots: dict[str, float] = {}  # token (with fb: prefix) -> deadline
 
     def _fallback_acquire(self) -> str | None:
         now = time.time()
         with self._fallback_lock:
             for tok in [t for t, deadline in self._fallback_slots.items() if deadline <= now]:
-                del self._fallback_slots[tok]  # dọn THỤ ĐỘNG — chỉ chạy khi có acquire() kế tiếp gọi tới đây
+                del self._fallback_slots[tok]  # PASSIVE cleanup — only runs when the next acquire() gets here
             if len(self._fallback_slots) >= self._max:
                 return None
-            token = _TIEN_TO_FALLBACK + secrets.token_hex(8)
+            token = _FALLBACK_PREFIX + secrets.token_hex(8)
             self._fallback_slots[token] = now + self._ttl
             return token
 
@@ -171,19 +171,19 @@ class RedisConcurrencyLimiter:
             self._fallback_slots.pop(token, None)
 
     def acquire(self) -> str | None:
-        """Trả token giữ slot nếu còn chỗ, None nếu đã đầy. KHÔNG chờ, KHÔNG chặn.
+        """Returns a token holding a slot if there is room, None if full. NEVER waits, NEVER blocks.
 
-        Cố ý không xếp hàng chờ: giữ request nằm chờ trong 1 worker duy nhất
-        chính là thứ gây nghẽn dây chuyền. Trả lời "đang bận, thử lại" ngay
-        lập tức tốt hơn cho người dùng lẫn hệ thống.
+        Deliberately no queueing: holding requests waiting inside a single worker is exactly
+        what causes cascading congestion. Answering "busy, try again" immediately is better
+        for both users and the system.
 
-        Redis lỗi -> fail-open CÓ TRẦN: rơi về lưới dự phòng in-process (xem
-        khối comment trên lớp), KHÔNG raise, KHÔNG mất hẳn giới hạn.
+        Redis error -> fail-open WITH A CAP: falls back to the in-process net (see the
+        comment block above the class), NEVER raises, NEVER loses the limit entirely.
         """
         try:
             client = get_default_client()
             now = time.time()
-            client.zremrangebyscore(self._key, 0, now)  # dọn slot quá hạn
+            client.zremrangebyscore(self._key, 0, now)  # clean up expired slots
             if client.zcard(self._key) >= self._max:
                 return None
             token = secrets.token_hex(8)
@@ -198,17 +198,17 @@ class RedisConcurrencyLimiter:
             return self._fallback_acquire()
 
     def release(self, token: str | None) -> None:
-        """Luôn gọi trong `finally` — quên trả slot thì hệ thống tự bóp cổ mình.
+        """Always call in `finally` — forgetting to release a slot makes the system strangle itself.
 
-        Token fallback (tiền tố `fb:`) không ứng với khoá Redis nào — trả về
-        lưới in-process thay vì `zrem` một token Redis chưa từng ghi (chỉ ăn
-        thêm một lỗi Redis giống hệt lúc acquire). Redis lỗi Ở ĐÂY (khác lúc
-        acquire, với token Redis thật) -> log, KHÔNG raise: đang ở `finally`,
-        raise tại đây sẽ NUỐT MẤT exception gốc đang bay lên.
+        Fallback tokens (prefix `fb:`) correspond to no Redis key — they are returned to the
+        in-process net instead of `zrem`-ing a Redis token that was never written (which would
+        only add another Redis error just like at acquire time). A Redis error HERE (unlike at
+        acquire, with a real Redis token) -> log, NEVER raise: we're in `finally`, and raising
+        here would SWALLOW the original exception currently propagating.
         """
         if not token:
             return
-        if token.startswith(_TIEN_TO_FALLBACK):
+        if token.startswith(_FALLBACK_PREFIX):
             self._fallback_release(token)
             return
         try:
@@ -220,10 +220,10 @@ class RedisConcurrencyLimiter:
             )
 
     def in_flight(self) -> int:
-        """Redis lỗi -> đếm slot đang giữ ở lưới dự phòng in-process (CHỈ đúng
-        cho WORKER NÀY, không phải toàn hệ thống — xem đánh đổi per-process ở
-        khối comment trên lớp), KHÔNG còn trả `-1` mù — có số thật thì dùng
-        số thật, dù phạm vi hẹp hơn lúc Redis sống."""
+        """Redis error -> count the slots held in the in-process fallback net (correct ONLY
+        for THIS WORKER, not the whole system — see the per-process trade-off in the comment
+        block above the class), no longer a blind `-1` — when a real number exists, use it,
+        even if its scope is narrower than when Redis is alive."""
         try:
             client = get_default_client()
             client.zremrangebyscore(self._key, 0, time.time())

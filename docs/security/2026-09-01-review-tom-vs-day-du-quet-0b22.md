@@ -66,7 +66,7 @@ tách rời**. 3 ứng viên kiểm kỹ và loại vì không khớp hình dạ
 không phải bẫy).
 
 🔴 **Phạm vi CHƯA quét, khai rõ để không ai đọc thành "toàn repo sạch":** `customer_tools.py` ·
-`phan_luong.py` · `cong_ra_ngoai.py` · `pii.py` và các file lớn khác chưa chạm đêm nay. Kết quả
+`triage.py` · `egress_gate.py` · `pii.py` và các file lớn khác chưa chạm đêm nay. Kết quả
 đúng là *"4 ca trong phạm vi đã quét"*, không phải *"chỉ có 4 ca trong toàn repo"* — dừng quét ở
 đây vì hạn 24:00, không phải vì đã quét hết.
 

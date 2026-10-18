@@ -129,7 +129,7 @@ từ closure của `require_role()`, đọc `CheckConstraint` qua AST, gọi th�
 rồi so với `contracts/`. Thêm một route · đổi một guard · đổi tên một tool mà quên cập nhật contract
 ⟹ **đỏ ngay**, không ai phải nhớ nhắc ai.
 
-**Danh tính của vật đã dựng:** `src/dau_ma_nguon.py` băm nội dung mã nguồn và đóng dấu vào ảnh tại
-`/app/.bam_ma_nguon`; `frontend/src/dau_ma_nguon.mjs` làm việc tương đương cho frontend. Đối chiếu
+**Danh tính của vật đã dựng:** `src/build_stamp.py` băm nội dung mã nguồn và đóng dấu vào ảnh tại
+`/app/.source_hash`; `frontend/src/build_stamp.mjs` làm việc tương đương cho frontend. Đối chiếu
 băm host với băm trong container trả lời được câu *"ảnh đang chạy có đúng mã nguồn này không"* trong
 hai giây — `build_commit` **đã được chứng minh nói dối theo cả hai chiều**, nên không dùng.

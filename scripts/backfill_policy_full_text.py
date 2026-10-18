@@ -27,16 +27,16 @@ _BIEN_DO_DU_PHONG = 50
 def _ghep_khu_overlap(pieces: list[str]) -> str:
     if not pieces:
         return ""
-    ket_qua = pieces[0]
+    outcome = pieces[0]
     for tiep in pieces[1:]:
-        max_overlap = min(len(ket_qua), len(tiep), RAG_CHUNK_OVERLAP + _BIEN_DO_DU_PHONG)
+        max_overlap = min(len(outcome), len(tiep), RAG_CHUNK_OVERLAP + _BIEN_DO_DU_PHONG)
         do_dai_overlap = 0
         for k in range(max_overlap, 0, -1):
-            if ket_qua[-k:] == tiep[:k]:
+            if outcome[-k:] == tiep[:k]:
                 do_dai_overlap = k
                 break
-        ket_qua += tiep[do_dai_overlap:]
-    return ket_qua
+        outcome += tiep[do_dai_overlap:]
+    return outcome
 
 
 def backfill(session: Session) -> list[str]:

@@ -158,19 +158,19 @@ def _tim_corpus() -> Path | None:
 
 
 def _nap_corpus(p: Path) -> list[dict]:
-    ra = []
-    for so, dong in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
-        dong = dong.strip()
-        if not dong:
+    out_items = []
+    for number, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+        line = line.strip()
+        if not line:
             continue
         try:
-            ra.append(json.loads(dong))
+            out_items.append(json.loads(line))
         except json.JSONDecodeError as e:
             raise AssertionError(
-                f"{p.name} dòng {so} không phải JSON hợp lệ: {e}. Corpus hỏng là "
+                f"{p.name} dòng {number} không phải JSON hợp lệ: {e}. Corpus hỏng là "
                 "lỗi PHẢI ĐỎ — không được lặng lẽ bỏ qua dòng rồi đo trên mẫu số nhỏ hơn."
             ) from e
-    return ra
+    return out_items
 
 
 def _auth(role: str, user_id: str) -> dict:
@@ -214,11 +214,11 @@ def _note_trong_db(sample_db, resolution_id: str) -> str:
     """
     sample_db.expire_all()
     res = sample_db.get(Resolution, resolution_id)
-    gia_tri = getattr(res, "note", _CHUA_CO_FIELD)
-    assert gia_tri is not _CHUA_CO_FIELD, (
+    val = getattr(res, "note", _CHUA_CO_FIELD)
+    assert val is not _CHUA_CO_FIELD, (
         "`Resolution.note` chưa tồn tại — chưa đo được, KHÔNG phải đạt."
     )
-    return gia_tri or ""
+    return val or ""
 
 
 # ===========================================================================
@@ -242,8 +242,8 @@ def test_cam_chay_le_phai_kem_bo_ca_co_pii(request):
     mặt. Một dòng dặn trong docstring sẽ bị bỏ qua đúng vào lúc ai đó chạy vội
     `pytest <file này>` để xem con số.
     """
-    da_thu = {i.nodeid for i in request.session.items}
-    co_bo_pii = any(BO_CA_CO_PII in nid for nid in da_thu)
+    tried = {i.nodeid for i in request.session.items}
+    co_bo_pii = any(BO_CA_CO_PII in nid for nid in tried)
     assert co_bo_pii, (
         f"Trục đối chứng đang chạy MÀ KHÔNG có `{BO_CA_CO_PII}` trong cùng phiên.\n"
         "0/20 ở đây KHÔNG chứng minh gì cả — một bản vá gỡ sạch scrub cũng đạt "
@@ -275,9 +275,9 @@ def test_ly_do_skip_phai_that():
     """
     p = _tim_corpus()
     if p is None:
-        for ung_vien in CORPUS_UNG_VIEN:
-            assert not ung_vien.exists(), (
-                f"MÂU THUẪN: {ung_vien} TỒN TẠI nhưng bộ dò báo không có corpus. "
+        for candidate in CORPUS_UNG_VIEN:
+            assert not candidate.exists(), (
+                f"MÂU THUẪN: {candidate} TỒN TẠI nhưng bộ dò báo không có corpus. "
                 "Đường dẫn sai — bug của bộ test, không phải thiếu dữ liệu."
             )
         pytest.skip(
@@ -320,7 +320,7 @@ def _ca_corpus() -> list:
     if p is None:
         return [pytest.param(None, id="chua-co-corpus")]
 
-    ra = []
+    out_items = []
     for i, c in enumerate(_nap_corpus(p)):
         marks = []
         if c.get("ket_qua_goc") == "chan_nham":
@@ -336,8 +336,8 @@ def _ca_corpus() -> list:
                     ),
                 )
             )
-        ra.append(pytest.param(c, id=c.get("id", f"ca-{i}"), marks=marks))
-    return ra
+        out_items.append(pytest.param(c, id=c.get("id", f"ca-{i}"), marks=marks))
+    return out_items
 
 
 @pytest.mark.parametrize("ca", _ca_corpus())

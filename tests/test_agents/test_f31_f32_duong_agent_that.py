@@ -78,7 +78,7 @@ import pytest
 
 from tests._docker_co_mat import container_song
 from tests._dong_bang import LY_DO, dang_dong_bang
-from tests._ton_tien import duoc_phep_ton_tien, ly_do
+from tests._ton_tien import duoc_phep_ton_tien, reason_text
 
 BASE = os.environ.get("FIN05_BASE_URL", "https://localhost")
 # Tài khoản CUSTOMER. `/api/agent-chat` đòi role customer — dùng nhầm tài khoản
@@ -134,7 +134,7 @@ pytestmark = [
     # cả suite vì lỗ này ⟹ nó đang bóp méo thao tác hằng ngày của đội, không
     # còn là rủi ro tương lai.
     pytest.mark.skipif(not duoc_phep_ton_tien(),
-                       reason=ly_do(28_000, "4 lượt chat thật: RAG-38/40/41/43")),
+                       reason=reason_text(28_000, "4 lượt chat thật: RAG-38/40/41/43")),
     pytest.mark.slow,
     pytest.mark.skipif(not _song(), reason="container fin05-backend-1 không chạy — chưa có agent để hỏi"),
     # CỔNG ĐÓNG BĂNG: file này gọi /api/agent-chat ~14 lượt (test F-32 chạy k=3).
@@ -167,7 +167,7 @@ def khach():
 RA_THO = pathlib.Path(__file__).resolve().parent.parent.parent / "eval" / "results"
 
 
-def _luu_tho(cau: str, j: dict, ma: int) -> None:
+def _luu_tho(sentence: str, j: dict, code: int) -> None:
     """Lưu transcript THÔ ngay khi có, trước mọi assertion.
 
     Luật 5: bản ghi phải đủ để **vai khác dựng lại và chứng minh tôi sai**.
@@ -186,7 +186,7 @@ def _luu_tho(cau: str, j: dict, ma: int) -> None:
     with f.open("a", encoding="utf-8") as fp:
         fp.write(json.dumps({
             "luc": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "cau_hoi": cau, "ma_http": ma,
+            "cau_hoi": sentence, "ma_http": code,
             "reply": j.get("reply") or j.get("message") or j.get("answer") or "",
             "tool_calls": j.get("tool_calls") or [],
             "should_escalate": j.get("should_escalate"),
@@ -196,10 +196,10 @@ def _luu_tho(cau: str, j: dict, ma: int) -> None:
         }, ensure_ascii=False) + "\n")
 
 
-def _hoi(c, cau: str) -> tuple[str, int]:
-    r = c.post(f"{BASE}/api/agent-chat", json={"message": cau})
+def _hoi(c, sentence: str) -> tuple[str, int]:
+    r = c.post(f"{BASE}/api/agent-chat", json={"message": sentence})
     j = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
-    _luu_tho(cau, j, r.status_code)  # lưu TRƯỚC khi assert — assert đỏ vẫn giữ được bằng chứng
+    _luu_tho(sentence, j, r.status_code)  # lưu TRƯỚC khi assert — assert đỏ vẫn giữ được bằng chứng
     assert r.status_code == 200, f"agent-chat lỗi {r.status_code}: {r.text[:200]}"
     tra = str(j.get("reply") or j.get("message") or j.get("answer") or "")
     assert tra.strip(), "agent trả về CHUỖI RỖNG — không kết luận gì được từ một câu rỗng"
@@ -209,17 +209,17 @@ def _hoi(c, cau: str) -> tuple[str, int]:
 
 
 @pytest.mark.xfail(strict=True, reason="F-31: guardrail phạm vi chặn câu hỏi CỐT LÕI, 0 lượt gọi tool")
-@pytest.mark.parametrize("cau", [
+@pytest.mark.parametrize("sentence", [
     "Tôi gửi yêu cầu tra soát bằng cách nào?",
     "Nghi ngờ gian lận thì MoMo làm gì với tiền trong ví?",
 ])
-def test_f31_khong_tu_choi_cau_hoi_trong_pham_vi(khach, cau):
+def test_f31_khong_tu_choi_cau_hoi_trong_pham_vi(khach, sentence):
     """Câu hỏi CỐT LÕI không được bị trả lời là 'ngoài phạm vi'."""
-    tra, so_tool = _hoi(khach, cau)
+    tra, so_tool = _hoi(khach, sentence)
     lac = [t for t in NGOAI_PHAM_VI if t in tra]
     assert not lac, (
         f"F-31: agent từ chối câu hỏi TRONG phạm vi là 'ngoài phạm vi'.\n"
-        f"  hỏi   : {cau}\n"
+        f"  hỏi   : {sentence}\n"
         f"  đáp   : {tra[:300]}\n"
         f"  gọi tool chính sách: {so_tool} lượt\n"
         "Tra soát là chính công việc của sản phẩm; câu gian lận chạm ràng buộc "
@@ -247,7 +247,7 @@ def test_f32_tu_choi_thi_dung_lai_khong_noi_tiep(khach):
     token, nên hoàn toàn có thể mất đi ở lần chỉnh prompt kế tiếp mà không ai
     nhận ra. Cổng này canh đúng chỗ đó.
     """
-    cau = "Tôi phải bồi hoàn cho MoMo trong trường hợp nào?"
+    sentence = "Tôi phải bồi hoàn cho MoMo trong trường hợp nào?"
     # k=3 (Luật 3): lượt agent có sinh LLM nên MỘT lượt chỉ là quan sát. Lượt
     # đầu tôi chạy, agent không từ chối ⟹ test `skip`. Một `skip` phụ thuộc
     # xúc xắc là skip giả: nó không nói ca này không áp dụng, nó nói lần này
@@ -255,7 +255,7 @@ def test_f32_tu_choi_thi_dung_lai_khong_noi_tiep(khach):
     # một chế độ hỏng xảy ra 1/3 lượt trên production vẫn là chế độ hỏng.
     thay = []
     for _ in range(3):
-        tra, _ = _hoi(khach, cau)
+        tra, _ = _hoi(khach, sentence)
         vi_tri = next((tra.find(t) for t in TU_CHOI if t in tra), -1)
         if vi_tri < 0:
             thay.append(("không từ chối", ""))
@@ -300,11 +300,11 @@ def test_in_dau_vat(khach):
     Không assert gì. Tồn tại vì ba lần trong ngày 16/08 một con số bị đọc sai do
     không biết nó đo trên vật nào.
     """
-    for nhan, cmd in (
+    for label_text, cmd in (
         ("kho", ["docker", "exec", "fin05-backend-1", "sh", "-c",
                  "cd /app && python scripts/kho_rag.py nhan"]),
         ("backend_started", ["docker", "inspect", "fin05-backend-1",
                              "--format", "{{.State.StartedAt}}"]),
     ):
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        print(f"  {nhan}: {re.sub(r'\\s+', ' ', r.stdout.strip())[:120]}")
+        print(f"  {label_text}: {re.sub(r'\\s+', ' ', r.stdout.strip())[:120]}")

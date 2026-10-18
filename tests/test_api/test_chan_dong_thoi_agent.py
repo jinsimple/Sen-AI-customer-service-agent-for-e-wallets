@@ -134,9 +134,9 @@ def test_het_slot_tra_503_co_thong_bao_doc_duoc(client, monkeypatch):
 
     assert r.status_code == 503, f"Phải trả 503 khi quá tải, nhận {r.status_code}"
     assert r.headers.get("Retry-After"), "Thiếu Retry-After — client không biết chờ bao lâu"
-    chi_tiet = r.json().get("detail", "")
-    assert "thử lại" in chi_tiet.lower(), (
-        f"Thông báo phải hướng dẫn được người dùng, nhận: {chi_tiet!r}"
+    detail = r.json().get("detail", "")
+    assert "thử lại" in detail.lower(), (
+        f"Thông báo phải hướng dẫn được người dùng, nhận: {detail!r}"
     )
 
 

@@ -73,16 +73,16 @@ def nguon_tu_payload(tool_calls_day_du: list[dict]) -> str:
 def nap_luot_that() -> list[dict]:
     """Mọi lượt (reply, câu khách, nguồn, có thuộc mốc nền không) từ bản ghi
     đã lưu."""
-    luot: list[dict] = []
+    turn: list[dict] = []
     for f in sorted((EVAL_DIR / "results").glob("*_raw.json")):
         try:
-            ban_ghi = json.loads(f.read_text(encoding="utf-8"))
+            record_row = json.loads(f.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             continue
-        for r in ban_ghi:
+        for r in record_row:
             replies = r.get("all_agent_replies") or []
             khach = r.get("all_customer_texts") or []
-            nguon = nguon_tu_payload(r.get("tool_calls_day_du") or [])
+            source = nguon_tu_payload(r.get("tool_calls_day_du") or [])
             # "PHẢI KHÔNG ĐƯỢC CHẶN" = câu đến từ ca ĐẠT trong mốc nền. Ca ĐẠT
             # nghĩa là toàn hội thoại không vi phạm bất biến nào ⇒ mọi câu trong
             # đó đều hợp lệ. Đây là nhóm mà một lần chặn = một lần chặn nhầm,
@@ -94,21 +94,21 @@ def nap_luot_that() -> list[dict]:
             for i, rep in enumerate(replies):
                 if not (rep or "").strip():
                     continue
-                luot.append({
+                turn.append({
                     "case_id": r.get("case_id", "?"),
                     "file": f.name,
                     "luot": i + 1,
                     "reply": rep,
                     "khach": khach[i] if i < len(khach) else "",
-                    "nguon": nguon,
-                    "co_payload": bool(nguon),
+                    "nguon": source,
+                    "co_payload": bool(source),
                     "phai_khong_chan": phai_khong_chan,
                 })
-    return luot
+    return turn
 
 
 def main() -> int:
-    from src.agents.output_filter import loc_dau_ra
+    from src.agents.output_filter import filter_output
 
     # ĐÓNG DẤU HAI ĐẦU — Luật 4, và bài học đắt nhất ngày 15/08.
     #
@@ -139,9 +139,9 @@ def main() -> int:
     # end-to-end 25 ca: 20/25 bản ghi CÓ tool_calls_day_du, nhưng script vẫn
     # từ chối đo vì guard chỉ nhìn signature). Sửa: lọc theo `co_payload` của
     # TỪNG LƯỢT, không suy từ chữ ký hàm.
-    luot = [lt for lt in luot_tho if lt["co_payload"]]
-    khong_payload = len(luot_tho) - len(luot)
-    if not luot:
+    turn = [lt for lt in luot_tho if lt["co_payload"]]
+    khong_payload = len(luot_tho) - len(turn)
+    if not turn:
         print(f"CHƯA ĐO ĐƯỢC: {len(luot_tho)} lượt trong eval/results/ nhưng KHÔNG lượt "
               "nào mang payload\n(tool_calls_day_du). Cần một lượt chạy MỚI sau khi "
               "harness lưu payload — các bản ghi\ncũ hơn 15/08 sẽ mãi mãi không có "
@@ -158,15 +158,15 @@ def main() -> int:
     nhom_dem: Counter[str] = Counter()
     so_phai_khong = 0
 
-    for i, lt in enumerate(luot):
+    for i, lt in enumerate(turn):
         if lt["phai_khong_chan"]:
             so_phai_khong += 1
         # thread_id RIÊNG mỗi lượt: bộ đếm mật độ O2 gom theo thread, dùng chung
         # một thread sẽ để lượt trước ảnh hưởng lượt sau và ta không còn đo được
         # từng câu một cách độc lập.
-        moi, nhom = loc_dau_ra(
-            lt["reply"], tin_nhan_khach=lt["khach"], thread_id=f"OFFLINE-{i}",
-            nguon=lt["nguon"],
+        moi, nhom = filter_output(
+            lt["reply"], customer_message=lt["khach"], thread_id=f"OFFLINE-{i}",
+            source=lt["nguon"],
         )
         if nhom:
             nhom_dem.update(nhom)
@@ -179,7 +179,7 @@ def main() -> int:
     print("=" * 72)
     print("ĐO BỘ LỌC ĐẦU RA O1-O4 — OFFLINE, 0 TPM, TẤT ĐỊNH")
     print("=" * 72)
-    print(f"\nCorpus ĐO ĐƯỢC: {len(luot)}/{len(luot_tho)} lượt (loại {khong_payload} "
+    print(f"\nCorpus ĐO ĐƯỢC: {len(turn)}/{len(luot_tho)} lượt (loại {khong_payload} "
           "lượt không mang payload)")
     print(f"  trong đó {so_phai_khong} lượt PHẢI KHÔNG ĐƯỢC CHẶN "
           f"(từ ca ĐẠT của mốc nền {HE_THONG_MOC_NEN})")
@@ -195,13 +195,13 @@ def main() -> int:
         print(f"        {c['reply'][:150]!r}")
 
     print(f"\n── TỔNG QUAN corpus đo được {'─' * 38}")
-    print(f"  {len(chan_all)}/{len(luot)} lượt bị chặn ({len(chan_all)/len(luot)*100:.1f}%)")
+    print(f"  {len(chan_all)}/{len(turn)} lượt bị chặn ({len(chan_all)/len(turn)*100:.1f}%)")
     print(f"  Nhóm khớp: {dict(nhom_dem) or 'không nhóm nào'}")
 
-    dau_sau = dau_thuoc()
-    if dau_sau != dau_truoc:
+    trailing_marker = dau_thuoc()
+    if trailing_marker != dau_truoc:
         print(f"\n🔴 DẤU LỆCH HAI ĐẦU — LƯỢT ĐO VÔ HIỆU\n"
-              f"   trước: {dau_truoc}\n   sau:   {dau_sau}\n"
+              f"   trước: {dau_truoc}\n   sau:   {trailing_marker}\n"
               f"   Cây làm việc đổi GIỮA lượt đo. Con số trên đo hai vật khác nhau,"
               f" KHÔNG được dùng. Chạy lại khi cây đứng yên.")
         return 3

@@ -49,13 +49,13 @@ def test_transcript_route_masks_phone_and_bank_account_but_keeps_amount(sample_d
             headers={"Authorization": f"Bearer {owner_token}"},
         )
         assert resp.status_code == 200
-        noi_dung = resp.json()["messages"][0]["content"]
+        content_text = resp.json()["messages"][0]["content"]
     finally:
         app.dependency_overrides.clear()
 
-    assert "0987654321" not in noi_dung, f"Route transcript vẫn trả SĐT thô: {noi_dung!r}"
-    assert "88000000000001" not in noi_dung, f"Route transcript vẫn trả STK thô: {noi_dung!r}"
-    assert "0001" in noi_dung, f"STK phải giữ 4 số cuối sau khi che: {noi_dung!r}"
-    assert "1500000000 đồng" in noi_dung, (
-        f"Số tiền BỊ ĂN MẤT khi che ở route transcript: {noi_dung!r}"
+    assert "0987654321" not in content_text, f"Route transcript vẫn trả SĐT thô: {content_text!r}"
+    assert "88000000000001" not in content_text, f"Route transcript vẫn trả STK thô: {content_text!r}"
+    assert "0001" in content_text, f"STK phải giữ 4 số cuối sau khi che: {content_text!r}"
+    assert "1500000000 đồng" in content_text, (
+        f"Số tiền BỊ ĂN MẤT khi che ở route transcript: {content_text!r}"
     )

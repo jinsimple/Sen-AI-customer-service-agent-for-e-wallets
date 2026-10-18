@@ -1,15 +1,14 @@
-"""Chính sách kích hoạt gian lận — phạm vi MVP (Data Brief §4.5.3, PRD §5).
+"""Fraud-trigger policy — MVP scope (Data Brief §4.5.3, PRD §5).
 
-Ranh giới quan trọng nhất (§4.5.1): đây KHÔNG phải bộ luật để agent phán
-quyết có gian lận hay không — nó chỉ là điều kiện ĐỊNH TUYẾN (có escalate
-lên supervisor hay không).
+The most important boundary (§4.5.1): this is NOT a rulebook for the agent to decide
+whether fraud occurred — it is only a ROUTING condition (escalate to supervisor or not).
 
-Phạm vi rút gọn cho timeline 2 tuần/1 người: chỉ `FS-06` (rút sạch sau bất
-thường xác thực) kích hoạt escalate. `fraud_signals.yaml` vẫn giữ nguyên
-đặc tả gốc 12 tín hiệu (dataset kế thừa từ bản thiết kế đầy đủ trước đó) —
-các mã khác ngoài `FS-06` có thể vẫn xuất hiện trong `complaints.fraud_signals`
-(dữ liệu thừa, không sao) nhưng KHÔNG ảnh hưởng quyết định escalate ở đây.
-Không còn khái niệm Tầng A/Tầng B.
+Scope reduced for a 2-week / 1-person timeline: only `FS-06` (account drained right after
+an authentication anomaly) triggers escalation. `fraud_signals.yaml` keeps the original
+12-signal specification (dataset inherited from the earlier full design) —
+codes other than `FS-06` may still appear in `complaints.fraud_signals`
+(surplus data, harmless) but do NOT influence the escalation decision here.
+The Tier A/Tier B concept no longer exists.
 """
 from __future__ import annotations
 
@@ -22,8 +21,8 @@ ESCALATION_TARGET = "supervisor"
 
 class EscalationDecision(NamedTuple):
     should_escalate: bool
-    priority: str  # 'critical' hoặc "normal" (mức mặc định của complaint)
-    target: str | None  # 'supervisor' hoặc None
+    priority: str  # 'critical' or "normal" (the complaint's default level)
+    target: str | None  # 'supervisor' or None
 
 
 def evaluate_escalation(fraud_signals: list[str]) -> EscalationDecision:
@@ -32,7 +31,7 @@ def evaluate_escalation(fraud_signals: list[str]) -> EscalationDecision:
     if ESCALATING_SIGNAL in signals:
         return EscalationDecision(True, ESCALATION_PRIORITY, ESCALATION_TARGET)
 
-    # Mọi tín hiệu khác (nếu có mặt) không kích hoạt escalate ở phạm vi MVP —
-    # vẫn được ghi lại trong complaints.fraud_signals để nhân viên thấy khi
-    # mở ticket, nhưng priority giữ mức mặc định của complaint.
+    # Any other signal (if present) does not trigger escalation in the MVP scope —
+    # it is still recorded in complaints.fraud_signals so staff see it when opening
+    # the ticket, but priority stays at the complaint's default level.
     return EscalationDecision(False, "normal", None)

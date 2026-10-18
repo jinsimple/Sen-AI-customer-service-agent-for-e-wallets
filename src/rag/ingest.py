@@ -1,10 +1,10 @@
-"""Nạp 1 tài liệu chính sách/FAQ đã upload — điểm vào duy nhất gọi từ
-`POST /policy-docs` (src/api/main.py). Không viết logic parse/chia đoạn/embed
-ở đây, chỉ điều phối các bước + xử lý lỗi nhất quán.
+"""Ingest one uploaded policy/FAQ document — the single entry point, called from
+`POST /policy-docs` (src/api/main.py). No parsing/chunking/embedding logic lives here;
+it only orchestrates the steps + handles errors consistently.
 
-Thứ tự ghi: DB trước (nguồn sự thật, có thể phục hồi), Chroma sau (index phái
-sinh, xây lại được từ DB nếu cần) — lỗi ở bước embed/Chroma thì DB đã có
-PolicyDocument.status='failed' để không lặng thinh mất tài liệu.
+Write order: DB first (source of truth, recoverable), Chroma second (derived index,
+rebuildable from the DB if needed) — if the embed/Chroma step fails, the DB already holds
+PolicyDocument.status='failed', so a document is never silently lost.
 """
 from __future__ import annotations
 
@@ -31,11 +31,11 @@ def ingest_document(
     file_bytes: bytes,
     filename: str,
     uploaded_by: str,
-    nguon_nap: str = "khong_ro",
+    load_source: str = "khong_ro",
 ) -> PolicyDocument:
-    """`nguon_nap`: "upload_api" | "script_noi_bo" | "eval". Mặc định "khong_ro"
-    CỐ Ý để lộ ra: đường nạp nào chưa khai thì log tự tố cáo, thay vì im lặng
-    gán bừa một nhãn trông đúng."""
+    """`load_source`: "upload_api" | "script_noi_bo" | "eval". Default "khong_ro" (unknown)
+    ON PURPOSE: any ingestion path that hasn't declared itself gives itself away in the log,
+    instead of silently getting a plausible-looking label."""
     if not file_bytes:
         raise ToolError("File rỗng")
     if len(file_bytes) > _MAX_BYTES:
@@ -60,9 +60,9 @@ def ingest_document(
         session.flush()
         raise
 
-    # ADR-065 — lưu toàn văn GỐC TRƯỚC khi cắt (không phải sau — ghép chunk
-    # lại không tái tạo đúng văn bản vì overlap). Dùng cho trang đọc toàn
-    # văn deep-link từ /policy-search, không đổi luồng cắt/rerank hiện có.
+    # ADR-065 — store the ORIGINAL full text BEFORE chunking (not after — re-joining chunks does
+    # not reproduce the text because of overlap). Used by the full-text reading page deep-linked
+    # from /policy-search; the existing chunk/rerank flow is unchanged.
     doc.full_text = text
 
     splitter = RecursiveCharacterTextSplitter(chunk_size=RAG_CHUNK_SIZE, chunk_overlap=RAG_CHUNK_OVERLAP)
@@ -89,30 +89,30 @@ def ingest_document(
     doc.status = "indexed"
     doc.chunk_count = len(pieces)
     session.flush()
-    # F-LOG-3. Lần sự cố 16/08: access log CÓ hai dòng `POST /policy-docs`
-    # nhưng KHÔNG nói file nào — security phải suy ra từ trạng thái kho. Dòng
-    # này trả lời thẳng. `nguon` cố ý cùng tên với trường xuất-xứ-trên-chunk
-    # security đang dựng, để sau không phải đổi.
+    # F-LOG-3. Incident of 16/08: the access log HAD two `POST /policy-docs` lines
+    # but did NOT say which file — security had to infer it from the store state. This line
+    # answers it directly. `nguon` is deliberately named the same as the provenance-on-chunk
+    # field security is building, so it won't need renaming later.
     _logger.info(
         "policy_doc_nap",
         extra={
             "doc_id": doc_id,
-            # 🔴 KHÔNG được đặt tên `filename`. Đó là **thuộc tính dành riêng**
-            # của `logging.LogRecord` (Python gán = tên file NGUỒN), nên
-            # `logging/__init__.py` ném `KeyError: "Attempt to overwrite
+            # 🔴 MUST NOT be named `filename`. That is a **reserved attribute**
+            # of `logging.LogRecord` (Python sets it to the SOURCE file name), so
+            # `logging/__init__.py` raises `KeyError: "Attempt to overwrite
             # 'filename' in LogRecord"`.
             #
-            # Và log ném ⟹ REQUEST ném: một `partner_admin` tải tài liệu lên
-            # nhận **HTTP 500**, vì một cái tên trường. Không phải lỗi log.
+            # And a raising log ⟹ a raising REQUEST: a `partner_admin` uploading a document
+            # gets **HTTP 500**, because of a field name. Not a logging bug.
             #
-            # Nó im lặng tới ngày nhánh này chạy: mọi lượt log khác không có
-            # `extra=` nên không ai thấy. tester bắt được 17/08 qua 3 test đỏ
-            # trên đường tải tài liệu.
+            # It stayed silent until the day this branch ran: no other log call passed
+            # `extra=`, so nobody noticed. The tester caught it on 17/08 via 3 red tests
+            # on the document-upload path.
             "ten_tep": filename,
             "uploaded_by": uploaded_by,
             "chunk_count": len(pieces),
             "status": doc.status,
-            "nguon_nap": nguon_nap,
+            "nguon_nap": load_source,
         },
     )
     return doc

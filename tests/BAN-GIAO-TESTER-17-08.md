@@ -46,7 +46,7 @@ nhân; xem §⑥.
 
 | cờ | mặc định | tác dụng |
 |---|---|---|
-| `FIN05_CHO_PHEP_TON_TIEN=1` | **TẮT** | bật 3 bộ **gọi LLM thật**: A2 (~42K) · định tuyến (~14K) · F-31/32 (~28K) |
+| `FIN05_ALLOW_PAID_CALLS=1` | **TẮT** | bật 3 bộ **gọi LLM thật**: A2 (~42K) · định tuyến (~14K) · F-31/32 (~28K) |
 | `.DANG-DONG-BANG-LLM` (tệp ở gốc repo) | **KHÔNG tồn tại** ⟹ cổng TẮT | tạo tệp = cấm mọi test gọi model |
 | `FIN05_CHO_PHEP_EP_429=1` | TẮT | cho phép ép 429 — **đốt trần TPM dùng chung**, đừng bật khi ai đang demo |
 | `FIN05_BASE_URL` | `https://localhost` | = ngăn xếp `fin05`. `:8443` = `fin05ttl` |

@@ -77,7 +77,7 @@ from pathlib import Path
 
 import pytest
 
-from src.agents.tools.customer_tools import _phan_loai_tier
+from src.agents.tools.customer_tools import _classify_tier
 
 TIER_1 = "tier1"
 TIER_2 = "tier2"
@@ -174,15 +174,15 @@ def _nap() -> list[dict]:
             f"Corpus chưa có ở {CORPUS.relative_to(REPO)} — CHƯA ĐO ĐƯỢC, không phải đạt.",
             allow_module_level=True,
         )
-    ra = []
-    for so, dong in enumerate(CORPUS.read_text(encoding="utf-8").splitlines(), 1):
-        if not dong.strip():
+    out_items = []
+    for number, line in enumerate(CORPUS.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
             continue
         try:
-            ra.append(json.loads(dong))
+            out_items.append(json.loads(line))
         except json.JSONDecodeError as e:
-            raise AssertionError(f"{CORPUS.name} dòng {so} hỏng: {e}") from e
-    return ra
+            raise AssertionError(f"{CORPUS.name} dòng {number} hỏng: {e}") from e
+    return out_items
 
 
 CA = _nap()
@@ -198,20 +198,20 @@ def test_corpus_khong_mat_ca(capsys):
     Vế "mẫu số phải tự chứng minh" của Luật 1, áp cho dữ liệu đầu vào thay vì
     cho hệ thống: một corpus mất ca vẫn cho tỷ lệ đẹp trên phần còn lại.
     """
-    co = {c["id"] for c in CA}
-    assert len(co) == len(CA), "Có `id` TRÙNG trong corpus — mẫu số bị đếm hai lần."
+    found = {c["id"] for c in CA}
+    assert len(found) == len(CA), "Có `id` TRÙNG trong corpus — mẫu số bị đếm hai lần."
 
-    mat = ID_DA_BIET - co
+    mat = ID_DA_BIET - found
     assert not mat, (
         f"MẤT {len(mat)} ca khỏi corpus: {sorted(mat)}\n"
         "Ca biến mất là mẫu số nói dối trong im lặng. Nếu đây là xoá CÓ CHỦ ĐÍCH "
         "thì gỡ id khỏi `ID_DA_BIET` kèm lý do — đừng sửa lặng."
     )
 
-    moi = co - ID_DA_BIET
-    if moi:
+    fresh = found - ID_DA_BIET
+    if fresh:
         with capsys.disabled():
-            print(f"\n    [corpus] +{len(moi)} ca MỚI: {sorted(moi)} — cập nhật `ID_DA_BIET`")
+            print(f"\n    [corpus] +{len(fresh)} ca MỚI: {sorted(fresh)} — cập nhật `ID_DA_BIET`")
 
 
 def test_moi_ca_co_du_truong_va_ky_vong_hop_le():
@@ -220,9 +220,9 @@ def test_moi_ca_co_du_truong_va_ky_vong_hop_le():
     Nó không đỏ ở đâu cả — nó chỉ **biến mất khỏi phép đo**, đúng dạng
     `parametrize` trên danh sách rỗng: không skip, không báo, chỉ vắng mặt.
     """
-    hop_le = {"phai_bat", "khong_xoa_trang", "sach", THEO_DOI}
+    valid = {"phai_bat", "khong_xoa_trang", "sach", THEO_DOI}
     xau = [c.get("id", "?") for c in CA
-           if not {"id", "cau", "truc", "ky_vong"} <= set(c) or c["ky_vong"] not in hop_le]
+           if not {"id", "cau", "truc", "ky_vong"} <= set(c) or c["ky_vong"] not in valid]
     assert not xau, f"Ca thiếu trường hoặc `ky_vong` lạ (sẽ bị lọc im lặng): {xau}"
 
 
@@ -234,7 +234,7 @@ def test_phai_bat(ca):
     đòi tier-1 ở đây là ép nhồi mẫu vào tier xoá-trắng — đúng con đường đã đẻ
     ra F-25.
     """
-    tier = _phan_loai_tier(ca["cau"])
+    tier = _classify_tier(ca["cau"])
     assert tier in (TIER_1, TIER_2), (
         f"[{ca['id']} · trục {ca['truc']}] câu TẤN CÔNG đi thẳng qua, không tier nào: "
         f"{ca['cau']!r}"
@@ -250,7 +250,7 @@ def test_khong_bi_xoa_trang(ca):
     `EN-S01` chính là ca F-25 dịch sang tiếng Anh. Ra tier1 ⟹ lỗ đã mở lại ở
     nhánh EN.
     """
-    tier = _phan_loai_tier(ca["cau"])
+    tier = _classify_tier(ca["cau"])
     assert tier != TIER_1, (
         f"[{ca['id']} · trục {ca['truc']}] câu HỢP LỆ bị XOÁ TRẮNG: {ca['cau']!r}\n"
         "Khách hỏi và không nhận được câu trả lời. Đây là F-25 tái diễn ở nhánh EN."
@@ -266,7 +266,7 @@ def test_sach_khong_bi_dung_toi(ca):
     đúng, và một câu vô hại bị hạ cấp thành "dữ liệu tham khảo" vẫn là tín hiệu
     mẫu đang vươn quá xa.
     """
-    tier = _phan_loai_tier(ca["cau"])
+    tier = _classify_tier(ca["cau"])
     assert tier == SACH, (
         f"[{ca['id']} · trục {ca['truc']}] câu dùng hợp lệ bị xếp {tier!r}: {ca['cau']!r}"
     )
@@ -285,7 +285,7 @@ def test_bao_cao_ton_du_theo_doi(capsys):
     with capsys.disabled():
         print()
         for c in ca:
-            tier = _phan_loai_tier(c["cau"]) or "(sạch)"
+            tier = _classify_tier(c["cau"]) or "(sạch)"
             print(f"    [theo dõi] {c['id']} → {tier}  {c['cau'][:58]}")
 
 
@@ -315,7 +315,7 @@ def test_bao_cao_theo_truc(capsys):
     # tức một lỗi CHỈ nằm ở lớp báo cáo vẫn đủ sức bẻ lái cả đội.
     theo_truc: dict[str, list[str]] = {}
     for c in CA:
-        tier = _phan_loai_tier(c["cau"])
+        tier = _classify_tier(c["cau"])
         if c["ky_vong"] == THEO_DOI:
             theo_truc.setdefault(c["truc"], []).append("~")   # không chấm
             continue
@@ -354,28 +354,28 @@ def test_cong_ky_ba_nhom_cung_luc():
     lấy một nhóm rồi tuyên bố đã ký. Ba test rời phía trên giữ để **chẩn đoán**
     (biết vế nào hỏng), không thay cổng này.
     """
-    loi = []
+    err = []
 
     bat = [c for c in CA if c["ky_vong"] == "phai_bat"
-           and _phan_loai_tier(c["cau"]) in (TIER_1, TIER_2)]
+           and _classify_tier(c["cau"]) in (TIER_1, TIER_2)]
     can_bat = [c for c in CA if c["ky_vong"] == "phai_bat"]
     if len(bat) != len(can_bat):
         sot = [c["id"] for c in CA if c["ky_vong"] == "phai_bat"
-               and _phan_loai_tier(c["cau"]) not in (TIER_1, TIER_2)]
-        loi.append(f"phai_bat {len(bat)}/{len(can_bat)} — sót {sot}")
+               and _classify_tier(c["cau"]) not in (TIER_1, TIER_2)]
+        err.append(f"phai_bat {len(bat)}/{len(can_bat)} — sót {sot}")
 
     xoa_nham = [c["id"] for c in CA if c["ky_vong"] == "khong_xoa_trang"
-                and _phan_loai_tier(c["cau"]) == TIER_1]
+                and _classify_tier(c["cau"]) == TIER_1]
     if xoa_nham:
-        loi.append(f"XOÁ TRẮNG câu hợp lệ: {xoa_nham}")
+        err.append(f"XOÁ TRẮNG câu hợp lệ: {xoa_nham}")
 
     ban = [c["id"] for c in CA if c["ky_vong"] == "sach"
-           and _phan_loai_tier(c["cau"]) != SACH]
+           and _classify_tier(c["cau"]) != SACH]
     if ban:
-        loi.append(f"câu dùng hợp lệ bị đụng tới: {ban}")
+        err.append(f"câu dùng hợp lệ bị đụng tới: {ban}")
 
-    assert not loi, (
-        "Cổng ký tiếng Anh KHÔNG ĐẠT:\n  " + "\n  ".join(loi) + "\n"
+    assert not err, (
+        "Cổng ký tiếng Anh KHÔNG ĐẠT:\n  " + "\n  ".join(err) + "\n"
         "ĐỪNG sửa MỘT vế: nới mẫu để tăng độ phủ thì vế xoá-nhầm đỏ, và ngược "
         "lại. Điểm cân nằm GIỮA ba con số này, không nằm ở một con số."
     )

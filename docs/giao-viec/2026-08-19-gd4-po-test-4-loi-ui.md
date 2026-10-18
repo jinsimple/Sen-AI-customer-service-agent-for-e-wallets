@@ -505,7 +505,7 @@ lệch và đi tìm nhầm chỗ.
 
 ### Trạng thái NỬA CHỪNG còn lại sau demo — [ĐO], phải dọn trước khi làm tiếp
 ```
-.env (host)          TRAN_TOKEN_LLM_MOI_NGAY=800000     ← Coder sửa, CHƯA áp dụng
+.env (host)          LLM_DAILY_TOKEN_CAP=800000     ← Coder sửa, CHƯA áp dụng
 container đang đọc   300000                              ← hai định nghĩa một vật
 bộ đếm Redis         110.663 / 300.000 (đang chạy tiếp)
 git status           M docs/nhat-ky/so-giam-ho-anh.md   ← 5 dòng sổ Coder chưa commit

@@ -62,11 +62,11 @@ def test_lop_loi_ton_tai_va_rieng_biet():
     mà không có gì riêng thì `except Exception` ở tầng trên sẽ nuốt nó chung
     với mọi lỗi khác, và ta mất đúng khả năng phân biệt vừa dựng ra.
     """
-    ma = (
-        "from src.agents.graph import TraLoiRongError as E;"
+    code = (
+        "from src.agents.graph import EmptyReplyError as E;"
         "print(E.__name__, E.__mro__[1].__name__)"
     )
-    r = subprocess.run(["docker", "exec", "fin05-backend-1", "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", "fin05-backend-1", "python", "-c", code],
                        capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, (
         f"KHÔNG import được TraLoiRongError: {(r.stderr or r.stdout)[:300]}\n"
@@ -82,10 +82,10 @@ def test_tran_thap_thi_no_dung_lop_loi_khong_tra_ve_rong(khach_ngan_sach_thap):
     nó `skip` nếu người chạy chưa dựng môi trường đó. Đây là thiếu NĂNG LỰC
     thật (chưa có stack cấu hình sẵn), không phải skip cho qua chuyện.
     """
-    tra, ma, than = khach_ngan_sach_thap
-    assert ma != 200 or tra.strip(), (
+    tra, code, body = khach_ngan_sach_thap
+    assert code != 200 or tra.strip(), (
         "Khách nhận HTTP 200 với câu trả lời RỖNG — nhánh im lặng.\n"
-        f"  thân phản hồi: {than[:200]}\n"
+        f"  thân phản hồi: {body[:200]}\n"
         "Rỗng phải nổ thành TraLoiRongError, không được đi qua như thành công."
     )
 

@@ -88,8 +88,8 @@ def test_br11_rejected_thieu_bat_ky_truong_nao_deu_bi_db_chan(sample_db, thieu):
 
     res = _resolution_cho_ticket_moi(sample_db)
     res.status = "rejected"
-    for cot, gia_tri in day_du.items():
-        setattr(res, cot, gia_tri)
+    for column, val in day_du.items():
+        setattr(res, column, val)
 
     with pytest.raises(IntegrityError):
         sample_db.commit()
@@ -153,8 +153,8 @@ def test_br10_approved_thieu_nguoi_duyet_bi_db_chan(sample_db, thieu):
 
     res = _resolution_cho_ticket_moi(sample_db)
     res.status = "approved"
-    for cot, gia_tri in day_du.items():
-        setattr(res, cot, gia_tri)
+    for column, val in day_du.items():
+        setattr(res, column, val)
 
     with pytest.raises(IntegrityError):
         sample_db.commit()

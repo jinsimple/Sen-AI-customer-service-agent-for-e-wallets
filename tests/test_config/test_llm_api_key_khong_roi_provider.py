@@ -81,18 +81,18 @@ def _import_config_in_subprocess(env_overrides: dict[str, str]) -> subprocess.Co
 
 def test_thieu_llm_api_key_khi_base_url_tro_noi_khac_chet_ngay_luc_khoi_dong():
     """Vế ①. `LLM_BASE_URL` trỏ nhà cung cấp khác, `LLM_API_KEY` rỗng."""
-    ket_qua = _import_config_in_subprocess({
+    outcome = _import_config_in_subprocess({
         "LLM_BASE_URL": _LLM_BASE_URL_NHA_CUNG_CAP_KHAC,
         "LLM_API_KEY": "",
     })
-    assert ket_qua.returncode != 0, (
+    assert outcome.returncode != 0, (
         "import src.config phải raise NGAY khi LLM_BASE_URL trỏ nhà cung cấp "
-        f"khác mà LLM_API_KEY rỗng, không được chạy ngầm.\nstdout:\n{ket_qua.stdout}"
+        f"khác mà LLM_API_KEY rỗng, không được chạy ngầm.\nstdout:\n{outcome.stdout}"
     )
     # Đọc THÔNG ĐIỆP, không chỉ exit code (Luật A) — phải đúng LÝ DO này, không
     # phải chết vì thiếu DATABASE_URL/JWT_SECRET_KEY hay lý do khác trùng hợp.
-    assert "LLM_API_KEY" in ket_qua.stderr
-    assert _LLM_BASE_URL_NHA_CUNG_CAP_KHAC in ket_qua.stderr
+    assert "LLM_API_KEY" in outcome.stderr
+    assert _LLM_BASE_URL_NHA_CUNG_CAP_KHAC in outcome.stderr
 
 
 def test_thieu_llm_api_key_KHONG_roi_ve_openai_api_key_thay_the():
@@ -105,16 +105,16 @@ def test_thieu_llm_api_key_KHONG_roi_ve_openai_api_key_thay_the():
     ngầm) thì by construction OPENAI_API_KEY sentinel này KHÔNG BAO GIỜ có cơ
     hội được dùng — cái phải canh là ① và ② PHẢI đỏ CÙNG NHAU, không tách rời.
     Đây chính là lý do có ca đối chứng bên dưới."""
-    ket_qua = _import_config_in_subprocess({
+    outcome = _import_config_in_subprocess({
         "LLM_BASE_URL": _LLM_BASE_URL_NHA_CUNG_CAP_KHAC,
         "LLM_API_KEY": "",
         "OPENAI_API_KEY": _SENTINEL_OPENAI_API_KEY,
     })
-    assert ket_qua.returncode != 0
+    assert outcome.returncode != 0
     # Thông điệp phải tự nêu tên CẢ HAI biến — bằng chứng cơ chế BIẾT về nguy
     # cơ này (không phải chết vì lý do khác rồi tình cờ không dùng OPENAI_API_KEY).
-    assert "LLM_API_KEY" in ket_qua.stderr
-    assert "OPENAI_API_KEY" in ket_qua.stderr
+    assert "LLM_API_KEY" in outcome.stderr
+    assert "OPENAI_API_KEY" in outcome.stderr
 
 
 def test_du_llm_api_key_import_sach_ke_ca_base_url_khac_va_openai_khac_sentinel():
@@ -122,13 +122,13 @@ def test_du_llm_api_key_import_sach_ke_ca_base_url_khac_va_openai_khac_sentinel(
     import đều đỏ trên máy này (subprocess hỏng, thiếu dependency...), không
     thật sự do thiếu LLM_API_KEY. Đổi ĐÚNG MỘT biến so với hai ca trên:
     LLM_API_KEY từ rỗng sang sentinel không rỗng — mọi biến khác giữ nguyên."""
-    ket_qua = _import_config_in_subprocess({
+    outcome = _import_config_in_subprocess({
         "LLM_BASE_URL": _LLM_BASE_URL_NHA_CUNG_CAP_KHAC,
         "LLM_API_KEY": _SENTINEL_LLM_API_KEY,
         "OPENAI_API_KEY": _SENTINEL_OPENAI_API_KEY,
     })
-    assert ket_qua.returncode == 0, f"import src.config phải chạy sạch khi đủ LLM_API_KEY:\n{ket_qua.stderr}"
-    assert "IMPORT_OK" in ket_qua.stdout
+    assert outcome.returncode == 0, f"import src.config phải chạy sạch khi đủ LLM_API_KEY:\n{outcome.stderr}"
+    assert "IMPORT_OK" in outcome.stdout
 
 
 def test_llm_base_url_rong_thi_thieu_llm_api_key_KHONG_chet_hanh_vi_cu_mot_nha_cung_cap():
@@ -139,11 +139,11 @@ def test_llm_base_url_rong_thi_thieu_llm_api_key_KHONG_chet_hanh_vi_cu_mot_nha_c
     trong tệp `test_fail_fast_secrets.py` cùng thư mục — CÙNG MỘT tinh thần,
     khác biến). Đo thật lúc viết ca này (subprocess cô lập, không qua transport
     thật): `LLM_BASE_URL=""` + `LLM_API_KEY=""` ⟹ import sạch, không raise."""
-    ket_qua = _import_config_in_subprocess({
+    outcome = _import_config_in_subprocess({
         "LLM_BASE_URL": "",
         "LLM_API_KEY": "",
     })
-    assert ket_qua.returncode == 0, (
+    assert outcome.returncode == 0, (
         "Thiếu LLM_API_KEY khi LLM_BASE_URL RỖNG (chưa trỏ nhà cung cấp khác) "
-        f"không được fail-fast — đây là hành vi cũ, không phải ca ①/②.\nstderr:\n{ket_qua.stderr}"
+        f"không được fail-fast — đây là hành vi cũ, không phải ca ①/②.\nstderr:\n{outcome.stderr}"
     )

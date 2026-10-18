@@ -301,7 +301,7 @@ bằng chứng.
 | lượt | kịch bản đòi | hệ thống 24/08 | nguồn đo |
 |---|---|---|---|
 | 1 | câu chống mạo danh CSKH | **chưa có** | grep toàn `src/` |
-| 2 | hỏi thời gian + số tiền một tin | T0 hỏi "mã GD hoặc thời điểm"; R1 đang cấm gộp | `graph.py:138` · `phan_luong.py:359` |
+| 2 | hỏi thời gian + số tiền một tin | T0 hỏi "mã GD hoặc thời điểm"; R1 đang cấm gộp | `graph.py:138` · `triage.py:359` |
 | tool | truyền `amount` | tham số **có**, docstring đã ép "LUÔN truyền" | `customer_tools.py:860` |
 | 3 | che ở tầng tool | **đúng rồi** — `mask_full_name`/`mask_phone`/`mask_account_no` | `customer_tools.py:517-526` |
 | 3 | đọc lại đủ 5 dữ kiện | chưa ép | — |

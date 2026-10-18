@@ -5,7 +5,7 @@
 > lâu dài, vì `write_report()` cắt reply xuống 300 ký tự cho ca một lượt
 > (không đi nhánh "toàn bộ hội thoại"), và raw.json sẽ bị dọn theo thời gian.
 
-Cấu hình lúc chạy: `FIN05_CHO_PHEP_TON_TIEN=1` · `FIN05_CHO_PHEP_GOI_RA_NGOAI=1`
+Cấu hình lúc chạy: `FIN05_ALLOW_PAID_CALLS=1` · `FIN05_ALLOW_EGRESS=1`
 · model xoay tới bản dự phòng (`model_rotated` in ra lúc chạy B1) · sau khi vá
 bug `_add_usage` type-error (xem commit đi kèm).
 

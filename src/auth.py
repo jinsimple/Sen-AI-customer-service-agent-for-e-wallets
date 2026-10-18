@@ -1,12 +1,12 @@
-"""JWT — thay cho việc mọi route tin thẳng `user_id`/`approved_by`/... do
-client tự khai trong body (lỗ hổng mạo danh — bất kỳ ai gọi API cũng tự xưng
-là user bất kỳ). Sau khi vá: danh tính người gọi LUÔN lấy từ token đã ký,
-KHÔNG BAO GIỜ từ body request.
+"""JWT — replaces every route trusting `user_id`/`approved_by`/... declared by the client in
+the body (an impersonation hole — anyone calling the API could claim to be any user).
+After the fix: the caller's identity ALWAYS comes from the signed token,
+NEVER from the request body.
 
-Luồng: POST /auth/login xác thực phone+role → phát access_token. Mọi route
-cần danh tính khai báo `current_user: CurrentUser = Depends(get_current_user)`
-(hoặc `Depends(require_role("supervisor"))` khi cần đúng 1 role) thay vì nhận
-tham số user_id/approved_by/... từ Pydantic request body.
+Flow: POST /auth/login authenticates phone+role → issues an access_token. Every route that
+needs identity declares `current_user: CurrentUser = Depends(get_current_user)`
+(or `Depends(require_role("supervisor"))` when exactly one role is required) instead of
+accepting user_id/approved_by/... parameters from the Pydantic request body.
 """
 from __future__ import annotations
 
@@ -40,16 +40,16 @@ _STAFF_ROLES = {"cskh", "supervisor", "partner_admin"}
 class CurrentUser:
     user_id: str
     role: str
-    iat: int  # timestamp lúc đăng nhập — dùng làm mã định danh PHIÊN đăng nhập
-    # (khác lần đăng nhập khác nhau -> iat khác nhau), xem run_agent_turn()
-    # thread_id trong src/api/main.py::agent_chat.
-    otp_verified_at: int | None = None  # timestamp lúc qua /auth/otp/verify
-    # gần nhất — None nghĩa là chưa từng xác thực trong phiên này. Lưu thời
-    # điểm (không phải bool) để tính "còn tươi không" theo TỪNG loại thao tác
-    # (xem otp_fresh_within) — quyết định sau khi đối chiếu chuẩn ngành
+    iat: int  # login timestamp — used as the identifier of the login SESSION
+    # (different logins -> different iat), see run_agent_turn()
+    # thread_id in src/api/main.py::agent_chat.
+    otp_verified_at: int | None = None  # timestamp of passing /auth/otp/verify
+    # most recently — None means never verified in this session. Stores the timestamp
+    # (not a bool) so "is it still fresh" can be computed PER type of action
+    # (see otp_fresh_within) — decided after comparing against industry standards
     # NIST 800-63B/step-up authentication (docs/TESTING.md, 2026-08-10):
-    # thao tác chỉ xem chấp nhận cửa sổ dài hơn (12h) so với thao tác có hậu
-    # quả tài chính như create_ticket (15 phút, "step-up" phải tươi hơn).
+    # view-only actions accept a longer window (12h) than actions with financial consequences
+    # such as create_ticket (15 minutes — "step-up" must be fresher).
 
     def otp_fresh_within(self, max_minutes: int) -> bool:
         if self.otp_verified_at is None:
@@ -61,10 +61,10 @@ class CurrentUser:
 def create_access_token(
     *, user_id: str, role: str, otp_verified_at: dt.datetime | None = None, iat: dt.datetime | None = None
 ) -> str:
-    """`iat` truyền tay khi CẤP LẠI token lúc xác thực OTP xong (giữ nguyên
-    `iat` gốc lúc login, KHÔNG phát sinh timestamp mới) — nếu không, `iat` mới
-    sẽ đổi `thread_id` hội thoại (user_id:iat, xem src/agents/graph.py) giữa
-    chừng phiên chat, làm agent "quên" ngữ cảnh đã nói trước khi xác thực."""
+    """`iat` is passed explicitly when RE-ISSUING the token after OTP verification (keeping the
+    original login `iat`, NOT minting a new timestamp) — otherwise a new `iat` would change
+    the conversation `thread_id` (user_id:iat, see src/agents/graph.py) mid-chat, making the
+    agent "forget" the context discussed before verification."""
     now = dt.datetime.utcnow()
     payload = {
         "sub": user_id,
@@ -77,15 +77,15 @@ def create_access_token(
 
 
 # ---------------------------------------------------------------------------
-# Refresh token (AUTH5-02/02B/02C/03/03B, đợt nâng cấp Auth Flow 2026-08-12)
-# — KHÔNG phải JWT: chuỗi ngẫu nhiên (secrets.token_urlsafe, cùng pattern
-# ws-ticket đã có ở src/api/live_chat_ws.py), server lưu trạng thái trong
-# Redis (khoá theo hash — không lưu token thô, cùng nguyên tắc "không lưu bí
-# mật dạng thô" đã áp dụng cho câu trả lời bảo mật). Cho phép REVOKE thật sự
-# (JWT thuần không thu hồi được nếu không tra cứu state phía server) và ROTATE
-# + REUSE DETECTION: mỗi lần dùng phát hành token mới, token cũ dùng lại lần 2
-# coi là dấu hiệu bị đánh cắp -> thu hồi toàn bộ "family" (mọi token sinh ra
-# từ cùng 1 lần đăng nhập gốc), buộc đăng nhập lại.
+# Refresh token (AUTH5-02/02B/02C/03/03B, Auth Flow upgrade 2026-08-12)
+# — NOT a JWT: a random string (secrets.token_urlsafe, same pattern as the existing
+# ws-ticket in src/api/live_chat_ws.py); the server keeps state in
+# Redis (keyed by hash — the raw token is never stored, same "never store secrets in raw form"
+# principle applied to security answers). Enables real REVOCATION
+# (plain JWTs can't be revoked without a server-side state lookup) and ROTATION
+# + REUSE DETECTION: every use issues a new token; an old token used a second time
+# is treated as a sign of theft -> the whole "family" (every token descended from the same
+# original login) is revoked, forcing a fresh login.
 # ---------------------------------------------------------------------------
 
 
@@ -106,8 +106,8 @@ def mint_refresh_token(
     otp_verified_at: int | None,
     family_id: str | None = None,
 ) -> str:
-    """`family_id` truyền tay khi ROTATE (giữ nguyên gia đình gốc) — để trống
-    khi mint lần đầu (login/verify_otp), tự sinh family mới."""
+    """`family_id` is passed explicitly on ROTATE (keeping the original family) — leave it empty
+    on first mint (login/verify_otp) to generate a new family."""
     token = secrets.token_urlsafe(32)
     family_id = family_id or secrets.token_urlsafe(16)
     data = {
@@ -126,47 +126,47 @@ def is_family_revoked(family_id: str) -> bool:
     return get_default_client().exists(f"revoked_family:{family_id}") == 1
 
 
-# TẦNG 0 (security 2cff494) — `auth.py` trước bản này KHÔNG CÓ MỘT DÒNG LOG
-# NÀO trong 294 dòng, kể cả `revoke_family()` — tức sự kiện "refresh token bị
-# dùng lại, nghi đánh cắp, thu hồi cả phiên" bắn HOÀN TOÀN IM LẶNG.
+# TIER 0 (security 2cff494) — before this version `auth.py` had NOT A SINGLE LOG LINE
+# in its 294 lines, not even in `revoke_family()` — so the event "refresh token reused,
+# suspected theft, whole session revoked" fired COMPLETELY SILENTLY.
 #
-# Vì sao log TRƯỚC khi vá: chỉnh một control mà không quan sát được nó bắn khi
-# nào là CHỈNH MÙ. Và ngay lúc này nó còn là con MẮT để nhìn chính cái bug đang
-# truy (đua-refresh ở handoff) — không có nó thì "phiên chết" và "token bị đánh
-# cắp thật" nhìn từ ngoài giống hệt nhau.
+# Why log BEFORE fixing: tuning a control without being able to observe when it fires is
+# TUNING BLIND. And right now it is also the EYE for watching the very bug being hunted
+# (the refresh race at handoff) — without it, "session died" and "token genuinely stolen"
+# look identical from the outside.
 _logger = get_logger("fin05.auth")
 
-# Nhãn NHÁNH bắn thu hồi. Dùng contextvar thay vì thêm tham số vào
-# `revoke_family()` vì hàm đó là API công khai của module — thêm tham số bắt
-# buộc sẽ vỡ mọi call-site tương lai và cám dỗ người ta truyền bừa một chuỗi.
-# Hôm nay chỉ có MỘT nhánh (`reuse_that`); tầng 2 sẽ thêm `phat_lai_trong_grace`
-# nếu grace-window được land.
-_nhanh_thu_hoi: contextvars.ContextVar[str] = contextvars.ContextVar("nhanh_thu_hoi", default="khong_ro")
+# Label of the BRANCH that fired the revocation. A contextvar is used instead of adding a
+# parameter to `revoke_family()` because that function is the module's public API — adding a
+# mandatory parameter would break every future call site and tempt people to pass an arbitrary
+# string. Today there is only ONE branch (`reuse_that` — real reuse); tier 2 will add
+# `phat_lai_trong_grace` (re-issued within grace) if the grace window lands.
+_revoked_branch: contextvars.ContextVar[str] = contextvars.ContextVar("nhanh_thu_hoi", default="khong_ro")
 
 
 def revoke_family(family_id: str, *, role: str) -> None:
-    """Thu hồi TOÀN BỘ family — gọi khi phát hiện refresh token bị dùng lại
-    sau khi đã rotate (AUTH5-03, dấu hiệu bị đánh cắp). Key tự hết hạn theo
-    đúng TTL refresh (không cần enumerate/xoá tay từng token con)."""
+    """Revoke the WHOLE family — called when a refresh token is reused after it was already
+    rotated (AUTH5-03, a sign of theft). The key expires on its own with the refresh TTL
+    (no need to enumerate/delete each child token by hand)."""
     get_default_client().setex(f"revoked_family:{family_id}", _refresh_ttl_seconds(role), "1")
-    # WARNING chứ không INFO: đây là sự kiện bảo mật, phải nổi lên trong mọi
-    # bộ lọc mặc định. KHÔNG log token (kể cả bản băm) — family_id đủ để nối
-    # các sự kiện của cùng một phiên mà không tự tạo thêm một bí mật để rò.
+    # WARNING rather than INFO: this is a security event and must surface under every default
+    # filter. NEVER log the token (not even its hash) — family_id is enough to link the events of
+    # one session without creating yet another secret that could leak.
     _logger.warning(
         "refresh_family_revoked",
         extra={
             "su_kien": "refresh_family_revoked",
             "family_id": family_id,
             "role": role,
-            "nhanh": _nhanh_thu_hoi.get(),
+            "nhanh": _revoked_branch.get(),
         },
     )
 
 
 def rotate_refresh_token(token: str) -> dict | None:
-    """Trả None nếu token không hợp lệ/hết hạn/family đã bị thu hồi (kể cả
-    do reuse detection ở CHÍNH lần gọi này). Trả dict access_token/
-    refresh_token/user_id/role nếu hợp lệ."""
+    """Returns None if the token is invalid/expired/its family revoked (including by reuse
+    detection on THIS very call). Returns a dict with access_token/
+    refresh_token/user_id/role if valid."""
     client = get_default_client()
     key = f"refresh:{_hash_token(token)}"
     raw = client.get(key)
@@ -176,29 +176,29 @@ def rotate_refresh_token(token: str) -> dict | None:
     if is_family_revoked(data["family_id"]):
         return None
     if data.get("rotated"):
-        # AUTH5-03 — token NÀY đã được dùng để rotate trước đó, mà giờ lại bị
-        # dùng lại lần nữa -> chỉ có thể do bị sao chép/đánh cắp (client hợp
-        # pháp đã nhận token MỚI và không còn lý do gì dùng lại token cũ).
-        _nhanh_thu_hoi.set("reuse_that")
+        # AUTH5-03 — THIS token was already used for a rotation earlier, and now it is being used
+        # again -> this can only be due to copying/theft (the legitimate client already received the
+        # NEW token and has no reason to reuse the old one).
+        _revoked_branch.set("reuse_that")
         revoke_family(data["family_id"], role=data["role"])
         return None
 
-    # Đánh dấu ROTATED thay vì xoá ngay — giữ lại NGẮN (60s) đủ để bắt được
-    # request thứ 2 dùng lại (reuse), tự dọn qua TTL, không cần cron riêng.
+    # Mark as ROTATED rather than delete immediately — kept BRIEFLY (60s), long enough to catch
+    # a second request reusing it (reuse), cleaned up by TTL, no separate cron needed.
     data["rotated"] = True
     client.setex(key, 60, json.dumps(data))
-    # Log NHÁNH THÀNH CÔNG, không chỉ nhánh thu hồi — thiếu vế này thì log của
-    # tầng 0 KHÔNG định được N cho grace-window.
+    # Log the SUCCESS branch too, not just the revocation branch — without it the tier-0 logs
+    # CANNOT determine N for the grace window.
     #
-    # Lý do: N là khoảng cách giữa hai lượt refresh đua nhau, và security đã
-    # chốt N chỉ được lấy từ DẤU THỜI GIAN SERVER-SIDE (khoảng cách đo ở client
-    # là hiện vật của công cụ đo — spawn curl/tab — không phải của sản phẩm).
-    # Nhưng `revoke_family` chỉ bắn ở đứa THUA. Có một mốc thì không có khoảng
-    # cách nào để đo. Cặp `refresh_rotated` -> `refresh_family_revoked` CÙNG
-    # `family_id` mới cho ra N.
+    # Reason: N is the gap between two racing refresh calls, and security fixed that N may only
+    # be taken from SERVER-SIDE TIMESTAMPS (gaps measured on the client are artefacts of the
+    # measuring tool — spawning curl/tabs — not of the product).
+    # But `revoke_family` only fires for the LOSER. With a single timestamp there is no gap to
+    # measure. The pair `refresh_rotated` -> `refresh_family_revoked` with the SAME
+    # `family_id` is what yields N.
     #
-    # INFO chứ không WARNING: rotate thành công là chuyện bình thường xảy ra
-    # liên tục, đẩy lên WARNING là làm loãng đúng cái cảnh báo ở nhánh kia.
+    # INFO rather than WARNING: a successful rotation is a normal, constant occurrence; raising it
+    # to WARNING would dilute exactly the alert on the other branch.
     _logger.info(
         "refresh_rotated",
         extra={
@@ -231,15 +231,15 @@ def rotate_refresh_token(token: str) -> dict | None:
 
 
 def revoke_refresh_token(token: str) -> None:
-    """Logout — xoá 1 refresh token cụ thể (KHÔNG xoá cả family, chỉ phiên
-    đăng xuất hiện tại; các thiết bị khác vẫn đăng nhập bình thường)."""
+    """Logout — delete one specific refresh token (NOT the whole family, only the current
+    session logging out; other devices stay logged in normally)."""
     get_default_client().delete(f"refresh:{_hash_token(token)}")
 
 
 def set_revoked_before_now(user_id: str) -> None:
-    """AUTH5-06 — mọi access token có `iat` CŨ HƠN mốc này coi như bị thu hồi
-    ngay, không chờ hết hạn tự nhiên (xem is_access_token_revoked). Gọi lúc
-    logout/xác thực OTP xong (token mới thay thế token cũ)."""
+    """AUTH5-06 — every access token with an `iat` OLDER than this mark is treated as revoked
+    immediately, without waiting for natural expiry (see is_access_token_revoked). Called at
+    logout/after OTP verification (the new token replaces the old one)."""
     get_default_client().set(f"revoked_before:{user_id}", str(dt.datetime.utcnow().timestamp()))
 
 
@@ -274,8 +274,8 @@ def _decode(token: str) -> CurrentUser:
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> CurrentUser:
-    """Dependency dùng cho MỌI route cần biết chính xác ai đang gọi. Không
-    có header Authorization hợp lệ -> 401 ngay, không suy đoán."""
+    """Dependency for EVERY route that needs to know exactly who is calling. No valid
+    Authorization header -> 401 immediately, no guessing."""
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -286,9 +286,9 @@ def get_current_user(
 
 
 def try_decode(token: str) -> CurrentUser | None:
-    """Bản không raise của _decode — chỉ dùng cho mục đích phụ trợ (audit
-    log ghi ai gọi API), KHÔNG dùng để gác quyền. Gác quyền luôn phải qua
-    get_current_user/require_role để lỗi 401/403 trả về đúng cho client."""
+    """Non-raising version of _decode — only for auxiliary purposes (the audit log recording who
+    called the API), NEVER for authorisation. Authorisation must always go through
+    get_current_user/require_role so the right 401/403 is returned to the client."""
     try:
         return _decode(token)
     except HTTPException:
@@ -296,8 +296,8 @@ def try_decode(token: str) -> CurrentUser | None:
 
 
 def require_role(*allowed_roles: str):
-    """Factory dependency — ép đúng role thay vì tin `role` client tự khai.
-    VD: Depends(require_role("supervisor")) cho route duyệt hoàn tiền."""
+    """Factory dependency — enforces the exact role instead of trusting a client-declared `role`.
+    E.g. Depends(require_role("supervisor")) for the refund-approval route."""
 
     def _dep(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
         if current_user.role not in allowed_roles:
@@ -311,32 +311,32 @@ def require_role(*allowed_roles: str):
 
 
 def require_otp_verified(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
-    """Gác các route CHẠM dữ liệu giao dịch/tài khoản nhạy cảm (Brief §7 #4:
-    OTP phiên trước thao tác nhạy cảm — AUTH5-01, 2026-08-12: KHÔNG còn kèm
-    câu hỏi bảo mật, KBA đã bỏ khỏi vai trò authenticator). TRƯỚC bản vá này,
-    OTP chỉ là gate UI ở frontend (`ChatClient.tsx`) — backend không kiểm tra
-    gì cả, nghĩa là gọi thẳng API (curl/Postman) với JWT hợp lệ vẫn lấy được
-    dữ liệu nhạy cảm mà không cần xác thực OTP — phát hiện thật khi đối chiếu
-    bộ QA test AUTH-*. KHÔNG gắn dependency này vào toàn bộ /agent/chat (sẽ
-    chặn cả câu hỏi chung, phá AUTH-004) — chỉ gắn vào route THỰC SỰ chạm dữ
-    liệu: lookup_transaction, get_customer_history, create_ticket.
+    """Guards routes that TOUCH sensitive transaction/account data (Brief §7 #4:
+    session OTP before sensitive actions — AUTH5-01, 2026-08-12: NO LONGER paired with a
+    security question; KBA was removed as an authenticator). BEFORE this fix, OTP was only a
+    UI gate in the frontend (`ChatClient.tsx`) — the backend checked nothing, meaning a direct
+    API call (curl/Postman) with a valid JWT could still fetch sensitive data without OTP
+    verification — a real finding while cross-checking the AUTH-* QA suite. This dependency
+    is NOT attached to the whole of /agent/chat (that would block general questions too,
+    breaking AUTH-004) — only to routes that REALLY touch data:
+    lookup_transaction, get_customer_history, create_ticket.
 
-    CHỈ áp cho role `customer` — CSKH/supervisor/partner_admin không đi qua
-    luồng OTP khách hàng, danh tính của họ đã được xác lập qua đăng nhập nhân
-    viên riêng (`require_role`), không cần thêm lớp OTP (vd CSKH tra cứu
-    `lookup_transaction` khi xử lý ticket — route này cho phép mọi role).
+    Applies ONLY to the `customer` role — CSKH/supervisor/partner_admin do not go through the
+    customer OTP flow; their identity is established through a separate staff login
+    (`require_role`), so no extra OTP layer is needed (e.g. CSKH looking up
+    `lookup_transaction` while handling a ticket — that route allows every role).
 
-    Dependency này CHỈ gắn vào /tools/create_ticket (hành động có hậu quả tài
-    chính thật) nên dùng ngưỡng step-up CHẶT hơn (OTP_STEPUP_FRESH_MINUTES,
-    xem src/config.py) — quyết định AUTH-008 (2026-08-10): create_ticket cần
-    xác thực TƯƠI HƠN thao tác chỉ xem.
+    This dependency is attached ONLY to /tools/create_ticket (an action with real financial
+    consequences), so it uses a STRICTER step-up threshold (OTP_STEPUP_FRESH_MINUTES,
+    see src/config.py) — decision AUTH-008 (2026-08-10): create_ticket requires FRESHER
+    verification than view-only actions.
 
-    AUTH5-06 (2026-08-12) — thêm check revocation Ở ĐÂY (route nhạy cảm nhất
-    của khách hàng), KHÔNG áp cho toàn bộ route thường qua get_current_user —
-    quyết định có chủ đích: access token đã rất ngắn hạn (15 phút), thêm 1 lần
-    GET Redis vào MỌI request sẽ biến Redis thành single point of failure cho
-    cả hệ thống trong khi lợi ích biên rất nhỏ; route CHẠM DỮ LIỆU/TÀI CHÍNH
-    thật xứng đáng trả giá đó, route đọc thường thì không."""
+    AUTH5-06 (2026-08-12) — the revocation check is added HERE (the customer's most sensitive
+    route), NOT applied to every ordinary route via get_current_user —
+    a deliberate decision: access tokens are already very short-lived (15 minutes), and adding
+    a Redis GET to EVERY request would make Redis a single point of failure for the whole
+    system for very little marginal benefit; routes that really TOUCH DATA/MONEY are worth
+    that price, ordinary read routes are not."""
     if current_user.role == "customer" and not current_user.otp_fresh_within(OTP_STEPUP_FRESH_MINUTES):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -347,39 +347,40 @@ def require_otp_verified(current_user: CurrentUser = Depends(get_current_user)) 
     return current_user
 
 
-def require_token_chua_thu_hoi(
+def require_unrevoked_token(
     current_user: CurrentUser = Depends(get_current_user),
 ) -> CurrentUser:
-    """CHỈ kiểm token đã bị thu hồi — KHÔNG kiểm OTP tươi. Gắn được vào route
-    KHÔNG cần OTP mà vẫn chạm dữ liệu (vd `propose_resolution`).
+    """ONLY checks whether the token was revoked — does NOT check OTP freshness. Can be attached
+    to routes that DON'T need OTP but still touch data (e.g. `propose_resolution`).
 
-    🔴 VÌ SAO CẦN TÁCH RA — nguyên tắc KHÔNG SAI, CƠ CHẾ mới sai:
-    Chú thích AUTH5-06 ngay trên (`require_otp_verified`) đã cân đúng: KHÔNG áp
-    kiểm thu hồi cho MỌI request, vì thêm một lượt GET Redis vào mọi lời gọi
-    biến Redis thành single point of failure cho cả hệ thống. Chỉ route CHẠM
-    DỮ LIỆU/TÀI CHÍNH mới đáng trả giá đó. Nguyên tắc ấy đúng, và giữ nguyên.
-    [ĐO 27/08] Nhưng cơ chế thi hành nó ĐI NHỜ XE: phép kiểm thu hồi nằm BÊN
-    TRONG `require_otp_verified`, nên nó CHỈ tới được những route CẦN OTP.
-    Route chạm dữ liệu mà KHÔNG cần OTP (`propose_resolution` 11 dòng,
-    `escalate_ticket` 18 dòng, `request-approval-otp`) rơi ra ngoài — không
-    phải ai quên, mà vì cỗ xe không đi qua đó.
-    ⟹ Tách thành Depends riêng để "route nào đáng trả giá Redis" trở thành một
-    lựa chọn GẮN TƯỜNG MINH, thay vì hệ quả phụ của việc route đó có cần OTP hay không.
+    🔴 WHY IT NEEDS SEPARATING — the PRINCIPLE was not wrong, the MECHANISM was:
+    The AUTH5-06 note just above (`require_otp_verified`) weighed it correctly: DO NOT apply
+    revocation checks to EVERY request, because adding a Redis GET to every call makes Redis
+    a single point of failure for the whole system. Only routes that TOUCH DATA/MONEY are
+    worth that price. That principle is right, and it stays.
+    [MEASURED 27/08] But the mechanism enforcing it was HITCHING A RIDE: the revocation check
+    lived INSIDE `require_otp_verified`, so it ONLY reached routes that NEED OTP.
+    Data-touching routes that DON'T need OTP (`propose_resolution` 11 lines,
+    `escalate_ticket` 18 lines, `request-approval-otp`) fell outside — not because anyone
+    forgot, but because the ride never went there.
+    ⟹ Split into its own Depends so "which route is worth the Redis price" becomes an
+    EXPLICITLY ATTACHED choice, rather than a side effect of whether the route needs OTP.
 
-    🔴 VÌ SAO `require_otp_verified` KHÔNG `Depends` VÀO HÀM NÀY — đã cân và BÁC:
-    FastAPI resolve dependency TRƯỚC thân hàm ⟹ kiểm thu hồi sẽ chạy TRƯỚC kiểm
-    OTP-tươi, đảo ngược thứ tự hiện tại. Người dùng vừa BỊ THU HỒI vừa OTP CŨ
-    hôm nay nhận 403 ("cần xác thực OTP"), sau khi ghép sẽ nhận 401 ("phiên đã
-    bị thu hồi"). Cả hai đều "đúng", nhưng ĐÓ LÀ ĐỔI HÀNH VI QUAN SÁT ĐƯỢC —
-    trong khi việc này là refactor CƠ CHẾ, cố ý không đổi gì bên ngoài.
-    Nên `require_otp_verified` GIỮ NGUYÊN lời gọi nội tuyến của nó. Hai đường
-    cùng gọi một hàm thuần `is_access_token_revoked()` — trùng lặp CÓ CHỦ ĐÍCH,
-    một dòng, đổi lấy việc không đụng thứ tự lỗi của một cổng đang chạy.
+    🔴 WHY `require_otp_verified` DOES NOT `Depends` ON THIS FUNCTION — considered and REJECTED:
+    FastAPI resolves dependencies BEFORE the function body ⟹ the revocation check would run
+    BEFORE the OTP-freshness check, reversing the current order. A user who is BOTH REVOKED
+    and has a STALE OTP gets 403 ("OTP verification required") today; after merging they
+    would get 401 ("session revoked"). Both are "correct", but THAT IS AN OBSERVABLE
+    BEHAVIOUR CHANGE — whereas this is a MECHANISM refactor, deliberately changing nothing
+    externally.
+    So `require_otp_verified` KEEPS its inline call. Both paths call the same pure function
+    `is_access_token_revoked()` — DELIBERATE duplication, one line, in exchange for not
+    touching the error order of a gate that is in production.
 
-    ⚠️ CHƯA GẮN VÀO ROUTE NÀO. Việc gắn (`propose_resolution` · `escalate_ticket`
-    · `request-approval-otp`) là Bậc 1, còn chờ PO. Depends này tồn tại sẵn để
-    lúc đó chỉ cần thêm MỘT tham số, không phải chép tay phép kiểm — chép tay
-    chính là cách lỗi "đi nhờ xe" sinh ra lần đầu."""
+    ⚠️ NOT YET ATTACHED TO ANY ROUTE. Attaching it (`propose_resolution` · `escalate_ticket`
+    · `request-approval-otp`) is Tier 1, pending the PO. This Depends exists in advance so
+    that at that point only ONE parameter needs adding, rather than copy-pasting the check —
+    copy-pasting is exactly how the "hitching a ride" bug was born in the first place."""
     if is_access_token_revoked(current_user.user_id, current_user.iat):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đã bị thu hồi — đăng nhập lại"

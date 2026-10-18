@@ -12,7 +12,7 @@ import { SESSION_COOKIE, parseSessionCookie, type Session } from "@/lib/session"
  *
  * 🔴 SOẠN 25/08 — CHƯA CHẠY. Có tốn token/LLM thật (case B/C gọi model
  * thật) — cần khai trước với Lead/PO theo lớp giữ hoá đơn A3
- * (`FIN05_CHO_PHEP_TON_TIEN`), gộp vào cùng buổi trả phí với ⑬-B1/C1 theo
+ * (`FIN05_ALLOW_PAID_CALLS`), gộp vào cùng buổi trả phí với ⑬-B1/C1 theo
  * quyết định Lead 25/08. KHÔNG tự chạy file này khi chưa có xác nhận buổi
  * đã mở.
  *
@@ -88,7 +88,7 @@ test.describe("⑥ Bất biến '0 token trước OTP' — cổng ④ (NHÓM B)"
 
     const input = page.getByPlaceholder("Nhập tin nhắn...");
     // Câu khiếu nại cá nhân THẬT — cùng câu đã xác nhận đi thu_slot ở tầng
-    // phan_luong.py trong ② (eval/bo_ca_am_thu_slot_dot2.json, DOT2-DUONG-01)
+    // triage.py trong ② (eval/bo_ca_am_thu_slot_dot2.json, DOT2-DUONG-01)
     // — chọn lại để KHÔNG cần tái xác nhận thêm câu này có "là khiếu nại cá
     // nhân" hay không, giảm một biến chưa biết trong ca UI.
     await input.fill("tôi chuyển nhầm tiền cho người lạ rồi, không nhớ chuyển bao nhiêu");

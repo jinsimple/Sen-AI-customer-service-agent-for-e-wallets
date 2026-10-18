@@ -54,7 +54,7 @@ Khi có caching, `hit` đếm ở **tầng cache** — **nguồn độc lập** 
 ## 3. Mặc định của cờ — chỗ dễ sai nhất, khai trước
 
 ```
-FIN05_CHO_PHEP_GOI_RA_NGOAI khai tường minh   → theo lời khai        (1/0)
+FIN05_ALLOW_EGRESS khai tường minh   → theo lời khai        (1/0)
 không khai + đang chạy dưới pytest            → TỪ CHỐI
 không khai + còn lại                          → CHO PHÉP
 ```
@@ -78,7 +78,7 @@ giai đoạn 2 (sau dựng) đảo mặc định + compose khai =1  ⟹ phủ c�
 | # | vật | DỰ BÁO | THẬT | |
 |---|---|---|---|---|
 | 1 | băm `src/` | ĐỔI khỏi `42960d5fc61f` | `b94dc658ee66` | ✅ |
-| 2 | file `src/` đổi | **3** — 1 module mới + `graph.py` + `store.py` | 3 (`cong_ra_ngoai.py` mới · graph +8 · store +7) | ✅ |
+| 2 | file `src/` đổi | **3** — 1 module mới + `graph.py` + `store.py` | 3 (`egress_gate.py` mới · graph +8 · store +7) | ✅ |
 | 3 | `contracts/` · `check_contracts` | 0 đổi · sạch | 0 · sạch | ✅ |
 | 4 | `test_invariants.py` | **23 passed** | 23 passed | ✅ |
 | 5 | hồi quy 7 file tầng tool | **50 passed** | 50 passed | ✅ |
@@ -119,7 +119,7 @@ Nó không chỉ xác nhận chốt chặn bắn — **nó bắt được một 
 ```
 [ĐO] store.search(...) với cờ TẮT:
      nơi gọi THẤY   openai.APIConnectionError — "Connection error."
-     __cause__      src.cong_ra_ngoai.GoiRaNgoaiBiChanError
+     __cause__      src.egress_gate.GoiRaNgoaiBiChanError
      bộ đếm         bi_chan +3 · da_phat 0
 ```
 

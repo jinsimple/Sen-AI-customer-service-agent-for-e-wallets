@@ -6,8 +6,8 @@
 
 ## Trạng thái đóng, [ĐO] PO-agent 20/08
 
-- **F (chốt chặn chi phí sai tầng) — ĐÃ VÁ**, đúng cả hai việc mục F đề xuất: `src/cong_ra_ngoai.py:22`
-  tự giải thích "VÌ SAO Ở TẦNG TRANSPORT, KHÔNG Ở `_khoa_cho_nha_cung_cap()`" · `src/cong_ra_ngoai.py:355`
+- **F (chốt chặn chi phí sai tầng) — ĐÃ VÁ**, đúng cả hai việc mục F đề xuất: `src/egress_gate.py:22`
+  tự giải thích "VÌ SAO Ở TẦNG TRANSPORT, KHÔNG Ở `_khoa_cho_nha_cung_cap()`" · `src/egress_gate.py:355`
   có `so_luot_da_phat()` — bộ đếm ba rổ. Coder còn ghi lại vì sao đề xuất đầu của chính họ sai. Đóng
   đẹp hơn đề xuất gốc.
 - **G (miễn trừ OTP `search_policy` chưa khai) — phần docstring ĐÃ CÓ**, dài hơn một dòng:

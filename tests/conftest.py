@@ -125,11 +125,11 @@ def _flush_redis_between_tests():
     Cổng **nổ thay vì bỏ qua**. Bỏ qua sẽ trả lại đúng chỗ rò rỉ state mà fixture
     sinh ra để chặn, rồi ta có một suite xanh vì lý do sai.
     """
-    la_gia, mo_ta = _redis_la_gia()
+    la_gia, description = _redis_la_gia()
     if not la_gia:
         raise RuntimeError(
             "🔴 TỪ CHỐI flushdb() — Redis này KHÔNG phải bản giả.\n"
-            f"   {mo_ta}\n"
+            f"   {description}\n"
             f"   REDIS_URL lúc vào tiến trình: {_REDIS_URL_GOC or '(không đặt)'}\n"
             "   Fixture autouse này xoá SẠCH Redis trước MỖI test. Chạy nó lên\n"
             "   một Redis thật sẽ cuốn phiên đăng nhập của mọi người đang dùng\n"

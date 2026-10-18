@@ -48,11 +48,11 @@ import json
 import pytest
 
 
-def _nguon(*ket_qua: dict) -> str:
+def _nguon(*outcome: dict) -> str:
     """Dựng `nguon` đúng quy ước `_nguon_tu_payload` đã dùng ở
     `test_o_group_khong_chan_nham.py` — nối JSON của từng tool result thành
     công bằng dòng mới. Rỗng (không truyền gì) = không tool result nào."""
-    return "\n".join(json.dumps(k, ensure_ascii=False) for k in ket_qua)
+    return "\n".join(json.dumps(k, ensure_ascii=False) for k in outcome)
 
 
 def _loc_dau_ra():
@@ -60,10 +60,10 @@ def _loc_dau_ra():
     nếp đã dùng cho O1-O4. SKIP (không FAIL) nếu O5 chưa land, vì đây là
     "chưa đo được", không phải "trượt"."""
     try:
-        from src.agents.output_filter import loc_dau_ra
+        from src.agents.output_filter import filter_output
     except ImportError:
         pytest.skip("O5 (hoặc cả loc_dau_ra) chưa có trong cây làm việc — 'chưa đo được', KHÔNG phải 'đạt'.")
-    return loc_dau_ra
+    return filter_output
 
 
 _MA_THAT = "KN-3f9a1c7e4b02"  # 🔴 [ĐO 24/08] mã thật = new_id() = uuid4().hex[:12] (12 hex,
@@ -158,26 +158,26 @@ _CA_CHIEU_KHONG_CHAN = [
 # 🟢 [24/08, O5 landed a95f8f0 + d9885ca] Đã gỡ xfail(strict=True) — đo lại
 # xác nhận CẢ 3 ca dưới đây giờ bị chặn thật (XPASS trước khi gỡ). Từ đây
 # nhóm này là CỔNG HỒI QUY THẬT, không còn là bằng chứng-chờ-vá.
-@pytest.mark.parametrize("cid,reply,nguon,ghi_chu", _CA_CHIEU_BAT, ids=[c[0] for c in _CA_CHIEU_BAT])
-def test_o5_phai_chan(cid, reply, nguon, ghi_chu):
+@pytest.mark.parametrize("cid,reply,source,ghi_chu", _CA_CHIEU_BAT, ids=[c[0] for c in _CA_CHIEU_BAT])
+def test_o5_phai_chan(cid, reply, source, ghi_chu):
     """Chiều bắt-bịa (spec §3) — MỌI ca ở đây PHẢI bị bộ lọc xoá/thay."""
-    loc_dau_ra = _loc_dau_ra()
-    moi, nhom = loc_dau_ra(reply, tin_nhan_khach="", thread_id=f"O5-BAT-{cid}", nguon=nguon)
-    assert moi != reply, (
+    filter_output = _loc_dau_ra()
+    fresh, phrase_group = filter_output(reply, customer_message="", thread_id=f"O5-BAT-{cid}", source=source)
+    assert fresh != reply, (
         f"[{cid}] Hoàn-tất-giả LỌT bộ lọc, không bị chặn.\n"
-        f"  reply: {reply!r}\n  nguon: {nguon!r}\n  lý do ca này phải chặn: {ghi_chu}"
+        f"  reply: {reply!r}\n  nguon: {source!r}\n  lý do ca này phải chặn: {ghi_chu}"
     )
 
 
-@pytest.mark.parametrize("cid,reply,nguon,ghi_chu", _CA_CHIEU_KHONG_CHAN, ids=[c[0] for c in _CA_CHIEU_KHONG_CHAN])
-def test_o5_khong_duoc_chan_nham(cid, reply, nguon, ghi_chu):
+@pytest.mark.parametrize("cid,reply,source,ghi_chu", _CA_CHIEU_KHONG_CHAN, ids=[c[0] for c in _CA_CHIEU_KHONG_CHAN])
+def test_o5_khong_duoc_chan_nham(cid, reply, source, ghi_chu):
     """Chiều không-chặn-nhầm (spec §3) — vế PO-agent nhấn mạnh là KHÓ HƠN
     O4, vì miền vé NGƯỢC miền refund: agent ĐƯỢC LỆNH xác nhận thật."""
-    loc_dau_ra = _loc_dau_ra()
-    moi, nhom = loc_dau_ra(reply, tin_nhan_khach="", thread_id=f"O5-KHONGCHAN-{cid}", nguon=nguon)
-    assert moi == reply, (
-        f"[{cid}] Câu ĐÚNG bị chặn NHẦM — nhóm bị gán: {nhom!r}\n"
-        f"  reply: {reply!r}\n  nguon: {nguon!r}\n  lý do ca này KHÔNG được chặn: {ghi_chu}"
+    filter_output = _loc_dau_ra()
+    fresh, phrase_group = filter_output(reply, customer_message="", thread_id=f"O5-KHONGCHAN-{cid}", source=source)
+    assert fresh == reply, (
+        f"[{cid}] Câu ĐÚNG bị chặn NHẦM — nhóm bị gán: {phrase_group!r}\n"
+        f"  reply: {reply!r}\n  nguon: {source!r}\n  lý do ca này KHÔNG được chặn: {ghi_chu}"
     )
 
 
@@ -194,12 +194,12 @@ def test_o5_da_bi_chan_boi_o3_khong_phai_o5(cid, cap):
     dài mã thật. Gán nhầm công cho O5 (chưa tồn tại) sẽ che mất sự thật cơ
     chế chặn đến từ O3 (`nhom == ['O3']`) — assert cả hai vế để không lẫn
     'bị chặn' với 'bị chặn bởi đúng cơ chế đang muốn đo'."""
-    loc_dau_ra = _loc_dau_ra()
-    reply, nguon = cap
-    moi, nhom = loc_dau_ra(reply, tin_nhan_khach="", thread_id=f"O5-O3-{cid}", nguon=nguon)
-    assert moi != reply, f"[{cid}] Đã hết bị chặn (trước đo là CÓ chặn) — hồi quy ở O3? nhom={nhom!r}"
-    assert nhom == ["O3"], (
-        f"[{cid}] Cơ chế chặn ĐỔI KHÁC trước đây (từng là O3 đơn độc) — nhom hiện tại: {nhom!r}. "
+    filter_output = _loc_dau_ra()
+    reply, source = cap
+    fresh, phrase_group = filter_output(reply, customer_message="", thread_id=f"O5-O3-{cid}", source=source)
+    assert fresh != reply, f"[{cid}] Đã hết bị chặn (trước đo là CÓ chặn) — hồi quy ở O3? nhom={phrase_group!r}"
+    assert phrase_group == ["O3"], (
+        f"[{cid}] Cơ chế chặn ĐỔI KHÁC trước đây (từng là O3 đơn độc) — nhom hiện tại: {phrase_group!r}. "
         "Nếu O5 vừa land và giờ CŨNG khớp, cập nhật ghi chú này (không còn là 'O3 bắt hộ' nữa)."
     )
 
@@ -224,12 +224,12 @@ def test_o5_cau_hoi_mo_huong_khach_do_khong_assert():
 
     Luật M (đo cả hai bản rồi chọn, đừng đoán trước) — KHÔNG assert cứng ở
     đây, chỉ IN kết quả để Coder/PO-agent đối chiếu khi đo hai bản thật."""
-    loc_dau_ra = _loc_dau_ra()
+    filter_output = _loc_dau_ra()
     reply = "Hồ sơ đã được tạo, CSKH sẽ liên hệ trong 24h."
-    moi, nhom = loc_dau_ra(reply, tin_nhan_khach="", thread_id="O5-HUONGKHACH", nguon=_KHONG_CO_TOOL)
-    ket_qua = "CHẶN" if moi != reply else "KHÔNG CHẶN"
+    fresh, phrase_group = filter_output(reply, customer_message="", thread_id="O5-HUONGKHACH", source=_KHONG_CO_TOOL)
+    outcome = "CHẶN" if fresh != reply else "KHÔNG CHẶN"
     print(
         f"\n  [O5 câu hỏi mở §4 — hướng khách] reply không nêu 'bạn/anh/chị' tường minh"
-        f" → kết quả bộ lọc hiện tại: {ket_qua} (nhóm={nhom!r})\n"
+        f" → kết quả bộ lọc hiện tại: {outcome} (nhóm={phrase_group!r})\n"
         "  Không assert cứng — quyết định 2 hay 3 yếu tố thuộc Coder/PO-agent sau khi đo cả hai bản."
     )

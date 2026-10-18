@@ -12,13 +12,13 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Băm nguồn frontend — cùng vai trò với /app/.bam_ma_nguon của backend
-# (src/dau_ma_nguon.py): danh tính CỦA ẢNH là nội dung src/, không phải
-# BUILD_COMMIT/image ID (xem src/dau_ma_nguon.py — build_commit đã bị chứng
+# Băm nguồn frontend — cùng vai trò với /app/.source_hash của backend
+# (src/build_stamp.py): danh tính CỦA ẢNH là nội dung src/, không phải
+# BUILD_COMMIT/image ID (xem src/build_stamp.py — build_commit đã bị chứng
 # minh nói dối theo cả hai chiều 17/08). Phải chạy TRƯỚC `npm run build` vì
 # `output: "standalone"` xoá hẳn frontend/src/ khỏi stage runner — không tính
 # băm được ở đó như phía backend, nên đóng nhãn ngay tại đây rồi copy sang.
-RUN node src/dau_ma_nguon.mjs > /app/.bam_ma_nguon && cat /app/.bam_ma_nguon
+RUN node src/build_stamp.mjs > /app/.source_hash && cat /app/.source_hash
 
 # BACKEND_URL không cần lúc build — server-api.ts đọc process.env lúc request
 # chạy thật (route handler server-side), không phải lúc `next build`.
@@ -47,7 +47,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=appuser:appgroup /app/.next/standalone ./
 COPY --from=builder --chown=appuser:appgroup /app/.next/static ./.next/static
-COPY --from=builder /app/.bam_ma_nguon ./.bam_ma_nguon
+COPY --from=builder /app/.source_hash ./.source_hash
 
 USER appuser
 EXPOSE 3000

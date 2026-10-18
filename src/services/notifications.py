@@ -1,13 +1,13 @@
-"""ADR-063 — chuông thông báo: fan-out + đọc/đánh dấu đã đọc.
+"""ADR-063 — notification bell: fan-out + read/mark-as-read.
 
-Fan-out: MỘT hàng Notification/người nhận, tạo trong CÙNG transaction với sự
-kiện gốc (tạo vé/đề xuất/duyệt/từ chối) — không `session.commit()` ở đây,
-caller chịu trách nhiệm commit; vé rollback thì thông báo rollback theo,
-không có thông báo "ma" cho sự kiện chưa từng xảy ra thật.
+Fan-out: ONE Notification row per recipient, created in the SAME transaction as the
+originating event (ticket created/proposal/approval/rejection) — no `session.commit()`
+here, the caller commits; if the ticket rolls back the notification rolls back with it,
+so there are no "ghost" notifications for events that never really happened.
 
-Cô lập theo người nhận (chống BOLA): MỌI hàm đọc/ghi trạng thái đọc ở dưới
-đều lọc `recipient_user_id == user_id` ngay trong câu SQL — không đọc rồi so
-sánh sau, để không có đường nào lộ thông báo của người khác qua timing/lỗi.
+Recipient isolation (anti-BOLA): EVERY read/mark-read function below filters
+`recipient_user_id == user_id` inside the SQL itself — never read-then-compare, so there is
+no path that leaks someone else's notifications via timing/errors.
 """
 from __future__ import annotations
 
@@ -47,29 +47,29 @@ def fan_out(
     return ids
 
 
-def notify_ve_moi(session: Session, *, ticket_id: str) -> list[str]:
-    """Vé mới tạo — báo TOÀN BỘ CSKH (vé là kho chung, chưa ai nhận)."""
+def notify_new_ticket(session: Session, *, ticket_id: str) -> list[str]:
+    """New ticket created — notify ALL CSKH agents (the ticket pool is shared, unclaimed)."""
     cskh_ids = list(session.scalars(select(User.user_id).where(User.role == "cskh")).all())
     return fan_out(session, event_type="ve_moi", ticket_id=ticket_id, recipient_user_ids=cskh_ids)
 
 
-def notify_cho_duyet(session: Session, *, ticket_id: str) -> list[str]:
-    """Resolution chuyển pending_approval — báo TOÀN BỘ Sếp (ai duyệt cũng được)."""
+def notify_pending_approval(session: Session, *, ticket_id: str) -> list[str]:
+    """Resolution moved to pending_approval — notify ALL supervisors (any of them may approve)."""
     sup_ids = list(session.scalars(select(User.user_id).where(User.role == "supervisor")).all())
     return fan_out(session, event_type="cho_duyet", ticket_id=ticket_id, recipient_user_ids=sup_ids)
 
 
-def notify_da_quyet_dinh(
+def notify_decided(
     session: Session, *, ticket_id: str, cskh_user_id: str, approved: bool
 ) -> list[str]:
-    """Sếp duyệt/từ chối — báo NGƯỢC đúng 1 CSKH đã đề xuất (Resolution.created_by)."""
+    """Supervisor approved/rejected — notify BACK exactly the 1 CSKH agent who proposed it (Resolution.created_by)."""
     event_type = "da_duyet" if approved else "da_tu_choi"
     return fan_out(
         session, event_type=event_type, ticket_id=ticket_id, recipient_user_ids=[cskh_user_id]
     )
 
 
-def dem_chua_doc(session: Session, *, user_id: str) -> int:
+def count_unread(session: Session, *, user_id: str) -> int:
     return (
         session.scalar(
             select(func.count())
@@ -80,7 +80,7 @@ def dem_chua_doc(session: Session, *, user_id: str) -> int:
     )
 
 
-def liet_ke(session: Session, *, user_id: str, limit: int = 50) -> list[Notification]:
+def listing(session: Session, *, user_id: str, limit: int = 50) -> list[Notification]:
     return list(
         session.scalars(
             select(Notification)
@@ -91,11 +91,11 @@ def liet_ke(session: Session, *, user_id: str, limit: int = 50) -> list[Notifica
     )
 
 
-def danh_dau_da_doc(session: Session, *, user_id: str, notification_id: str, now: dt.datetime | None = None) -> bool:
-    """True nếu đánh dấu được — False nếu không tồn tại HOẶC không thuộc
-    `user_id` (hai trường hợp gộp CHUNG một kết quả, có chủ đích: phân biệt
-    "không có" với "không phải của bạn" sẽ lộ cho client dò được thông báo
-    người khác có tồn tại hay không — đúng loại rò IDOR tinh vi)."""
+def mark_read(session: Session, *, user_id: str, notification_id: str, now: dt.datetime | None = None) -> bool:
+    """True if marked — False if it does not exist OR does not belong to
+    `user_id` (both cases deliberately collapse into ONE result: distinguishing
+    "doesn't exist" from "not yours" would let a client probe whether other users'
+    notifications exist — exactly the subtle kind of IDOR leak)."""
     n = session.get(Notification, notification_id)
     if n is None or n.recipient_user_id != user_id:
         return False
@@ -104,15 +104,15 @@ def danh_dau_da_doc(session: Session, *, user_id: str, notification_id: str, now
     return True
 
 
-def danh_dau_tat_ca_da_doc(session: Session, *, user_id: str, now: dt.datetime | None = None) -> int:
+def mark_all_read(session: Session, *, user_id: str, now: dt.datetime | None = None) -> int:
     now = now or dt.datetime.utcnow()
-    chua_doc = session.scalars(
+    unread = session.scalars(
         select(Notification).where(
             Notification.recipient_user_id == user_id, Notification.read_at.is_(None)
         )
     ).all()
-    for n in chua_doc:
+    for n in unread:
         n.read_at = now
-    if chua_doc:
+    if unread:
         session.flush()
-    return len(chua_doc)
+    return len(unread)

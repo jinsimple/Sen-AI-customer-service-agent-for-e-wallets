@@ -38,8 +38,8 @@ Sự kiện của tôi là **một dòng một REQUEST HTTP** — khác hạt, k
 một con số **không phải số lượt, cũng không phải số request**, và nó **trông hợp lệ**. Dự án đã trả
 giá cho `4%` (13/370) và cho `so_luot_goi_model = 0`.
 
-⟹ File riêng `cong_ra_ngoai.jsonl`, **cùng volume**. Nhưng **dùng lại đúng hàm ghi** của
-`so_usage.py` (thêm tham số `duong`), **không viết writer thứ hai**: nó đã có sẵn hai tính chất khó
+⟹ File riêng `egress_ledger.jsonl`, **cùng volume**. Nhưng **dùng lại đúng hàm ghi** của
+`usage_ledger.py` (thêm tham số `duong`), **không viết writer thứ hai**: nó đã có sẵn hai tính chất khó
 làm lại đúng — *không bao giờ làm hỏng lượt vì lỗi ghi sổ*, và *cảnh báo MỘT lần thay vì mỗi lượt*.
 Hai định nghĩa của cùng một vật sẽ lệch trong im lặng.
 
@@ -57,7 +57,7 @@ KHÔNG ghi   query string · thân request · khoá · nội dung khách
 
 | # | vật | DỰ BÁO | THẬT | |
 |---|---|---|---|---|
-| 1 | file `src/` đổi | **2** — `cong_ra_ngoai.py` + `so_usage.py` | 2 | ✅ |
+| 1 | file `src/` đổi | **2** — `egress_gate.py` + `usage_ledger.py` | 2 | ✅ |
 | 2 | `contracts/` · `check_contracts` | 0 đổi · sạch | 0 · sạch | ✅ |
 | 3 | `test_invariants.py` | **23 passed** | 23 passed | ✅ |
 | 4 | suite `not security_finding` | **0 failed** | **577 passed, 0 failed** | ✅ |

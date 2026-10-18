@@ -200,7 +200,7 @@ trần trên tổng không ràng buộc được khi đơn vị nguyên tử kh�
 ### Sự cố sau đó — trần chi tiêu DEV vượt thật, chặn demo PO thật, đã xử lý khẩn
 
 Sau khi cổng nghiệm thu chính xanh, hoạt động tích luỹ trong ngày (bao gồm cả sổ đo GĐ4) đẩy bộ đếm
-`fin05:chi_tieu_llm_token:20260819` **vượt trần `TRAN_TOKEN_LLM_MOI_NGAY=300.000`** đúng lúc PO thật
+`fin05:chi_tieu_llm_token:20260819` **vượt trần `LLM_DAILY_TOKEN_CAP=300.000`** đúng lúc PO thật
 sắp vào demo trực tiếp. Xử lý theo hai bước:
 
 1. **Đóng băng khẩn toàn đội** (Luật U rút gọn, 5/5 vai xác nhận không ai đang chạm ngăn xếp) — thao
@@ -340,7 +340,7 @@ cho thẻ giao dịch (Coder tự quyết, không có phiên UX-UI hoạt độn
 |---|---|---|
 | **Lỗi 5** (§10, route CSKH đọc transcript) | ADR-044 nháp xong, BOLA guard đã soi (Bảo Mật, `43bc113`), PII không còn phụ thuộc (checkpoint lưu bản đã scrub) — **CHƯA CÓ CODE** | Chuyến kế tiếp, cần PO thật duyệt contract MỘT LẦN trước khi Coder chạm route |
 | Trần mỗi-lần-chạy cho runner E2E | luật đã đúc (mục 4), chưa thi hành | Đợt nghiệm thu kế tiếp |
-| Băm-nguồn cho frontend (như `dau_ma_nguon.py` của backend) | đề xuất của Coder, chưa làm | Không gấp, ghi nợ |
+| Băm-nguồn cho frontend (như `build_stamp.py` của backend) | đề xuất của Coder, chưa làm | Không gấp, ghi nợ |
 | Benchmark chi phí model D' đầy đủ (embedding có bị D' ảnh hưởng không) | chưa đo | Chưa gấp |
 | Lỗi 4 (đổi nhãn tiếng Việt) | rủi ro thấp, chưa cần đổi ngay | Theo dõi, làm khi có case thật lọt ra UI |
 | 🔴 **Giả thuyết câu "không tự quyết hoàn tiền" bị bỏ khỏi câu chào** | ghi thành giả thuyết cần đo (mục 8b), không phải bug | Đợt test 150 khách — quan sát điểm thất vọng có tập trung ở vế từ chối hoàn tiền không |

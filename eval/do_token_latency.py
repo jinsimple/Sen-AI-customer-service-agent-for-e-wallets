@@ -178,9 +178,9 @@ def mo_otp(c) -> bool:
     return True
 
 
-def mot_luot(c, cau: str) -> dict:
+def mot_luot(c, sentence: str) -> dict:
     t0 = time.perf_counter()
-    r = c.post(f"{BASE}/api/agent-chat", json={"message": cau})
+    r = c.post(f"{BASE}/api/agent-chat", json={"message": sentence})
     giay = time.perf_counter() - t0
     if r.status_code != 200:
         return {"loi": f"HTTP {r.status_code}: {r.text[:120]}", "giay": giay}
@@ -245,13 +245,13 @@ def main() -> None:
     print("-" * 74)
     ket = []
     for d in lenh:
-        luot = thu[d["id"]]
-        loi = [x["loi"] for x in luot if "loi" in x]
-        if loi:
-            print(f"{d['id']:<4}{d['nhom']:<6}   KHÔNG ĐO ĐƯỢC: {loi[0]}")
-            ket.append({**d, "khong_do_duoc": loi[0]})
+        turn = thu[d["id"]]
+        err = [x["loi"] for x in turn if "loi" in x]
+        if err:
+            print(f"{d['id']:<4}{d['nhom']:<6}   KHÔNG ĐO ĐƯỢC: {err[0]}")
+            ket.append({**d, "khong_do_duoc": err[0]})
             continue
-        g = lambda k: [x[k] for x in luot if x.get(k) is not None]  # noqa: E731
+        g = lambda k: [x[k] for x in turn if x.get(k) is not None]  # noqa: E731
         tv = lambda k: statistics.median(g(k)) if g(k) else None    # noqa: E731
         # `so` chịu được None: nhà cung cấp KHÁC trả bộ trường KHÁC. Đo được
         # 17/08: OpenAI có `cached_input_tokens`, và mã cũ ném TypeError nếu
@@ -261,7 +261,7 @@ def main() -> None:
         so = lambda k, r=0: ("–" if tv(k) is None else f"{tv(k):,.{r}f}")  # noqa: E731
         print(f"{d['id']:<4}{d['nhom']:<6}{so('giay',1):>7}{so('vao'):>9}"
               f"{so('ra'):>7}{so('cache'):>8}{so('tool'):>6}"
-              f"  {'✓' if any(x['ve'] for x in luot) else ''}")
+              f"  {'✓' if any(x['ve'] for x in turn) else ''}")
         thieu = [k for k in ("vao", "ra", "cache") if tv(k) is None]
         if thieu:
             print(f"      ⚠️  usage KHÔNG có trường {thieu} — nhà cung cấp này không trả."
@@ -270,7 +270,7 @@ def main() -> None:
             print(f"      dải vào {min(g('vao')):,.0f}–{max(g('vao')):,.0f}"
                   f"  ·  dải giây {min(g('giay')):.1f}–{max(g('giay')):.1f}"
                   f"  ·  tool {min(g('tool'))}–{max(g('tool'))}")
-        ket.append({**d, "luot": luot, "tv_vao": tv("vao"), "tv_giay": tv("giay")})
+        ket.append({**d, "luot": turn, "tv_vao": tv("vao"), "tv_giay": tv("giay")})
     c.close()
 
     do_duoc = [k for k in ket if "khong_do_duoc" not in k]

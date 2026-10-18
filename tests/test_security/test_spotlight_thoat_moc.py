@@ -53,28 +53,28 @@ def _than(da_boc: str) -> str:
     return s[i + 1 : j] if i != -1 and j > i else s
 
 
-@pytest.mark.parametrize("ten", TEN_DOC)
-def test_ten_ben_thu_ba_khong_thoat_duoc_moc(ten: str):
+@pytest.mark.parametrize("name_text", TEN_DOC)
+def test_ten_ben_thu_ba_khong_thoat_duoc_moc(name_text: str):
     """Sau khi bọc, THÂN dữ liệu không được còn ký hiệu mốc THÔ nào."""
-    from src.agents.spotlight import danh_dau_ngan
+    from src.agents.spotlight import mark_as_data_short
 
-    da_boc = danh_dau_ngan(ten, nguon="ten_ben_thu_ba")
-    than = _than(da_boc)
+    da_boc = mark_as_data_short(name_text, source="ten_ben_thu_ba")
+    body = _than(da_boc)
 
-    con_lai = [k for k in (MOC_MO, MOC_DONG) if k in than]
+    con_lai = [k for k in (MOC_MO, MOC_DONG) if k in body]
     assert not con_lai, (
         f"Nội dung THOÁT ĐƯỢC MỐC: còn {con_lai} trong phần thân.\n"
-        f"  đầu vào : {ten!r}\n"
+        f"  đầu vào : {name_text!r}\n"
         f"  đã bọc  : {da_boc!r}\n"
-        f"  phần thân: {than!r}\n"
+        f"  phần thân: {body!r}\n"
         "Ký hiệu mốc đến từ dữ liệu phải bị thay bằng ký hiệu trơ trước khi bọc "
         "— nếu không, dữ liệu tự quyết định ranh giới của chính nó và phần sau "
         "mốc đóng sẽ đứng ngang hàng với chỉ thị hệ thống."
     )
 
 
-@pytest.mark.parametrize("ten", TEN_DOC)
-def test_noi_dung_van_con_doc_duoc_sau_khi_vo_hieu_hoa(ten: str):
+@pytest.mark.parametrize("name_text", TEN_DOC)
+def test_noi_dung_van_con_doc_duoc_sau_khi_vo_hieu_hoa(name_text: str):
     """Mặt NGƯỢC — vô hiệu hoá không được xoá trắng nội dung.
 
     Bắt buộc phải có: cách "sửa" dễ nhất là strip sạch mọi ký tự lạ, và khi đó
@@ -84,11 +84,11 @@ def test_noi_dung_van_con_doc_duoc_sau_khi_vo_hieu_hoa(ten: str):
     Chỉ đòi phần chữ cái đầu tiên còn nguyên — không ràng buộc cách hàm chọn
     ký hiệu trơ (đó là quyền của coder).
     """
-    from src.agents.spotlight import danh_dau_ngan
+    from src.agents.spotlight import mark_as_data_short
 
-    da_boc = danh_dau_ngan(ten, nguon="ten_ben_thu_ba")
+    da_boc = mark_as_data_short(name_text, source="ten_ben_thu_ba")
     assert "Trang" in da_boc, (
-        f"Nội dung bị xoá mất khi vô hiệu hoá mốc: {ten!r} -> {da_boc!r}. "
+        f"Nội dung bị xoá mất khi vô hiệu hoá mốc: {name_text!r} -> {da_boc!r}. "
         "Bảo vệ ranh giới không được đánh đổi bằng việc mất dữ liệu nghiệp vụ."
     )
 
@@ -100,7 +100,7 @@ def test_ten_binh_thuong_khong_bi_dong_den():
     trên — cùng nguyên tắc "chỉ đo cái chặn mà không đo cái chặn nhầm" đã áp
     cho BR-12 và MT-Z.
     """
-    from src.agents.spotlight import danh_dau_ngan
+    from src.agents.spotlight import mark_as_data_short
 
-    da_boc = danh_dau_ngan("Nguyễn Thị Trang", nguon="ten_ben_thu_ba")
+    da_boc = mark_as_data_short("Nguyễn Thị Trang", source="ten_ben_thu_ba")
     assert "Nguyễn Thị Trang" in da_boc, f"Tên sạch bị biến dạng: {da_boc!r}"

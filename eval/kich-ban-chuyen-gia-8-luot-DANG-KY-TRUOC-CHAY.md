@@ -362,13 +362,13 @@ mục cổng an toàn ngay dưới.
 1. PO báo cả đội, dựng lại `fin05-dot-otp`.
 2. Chạy cổng so-băm-tệp (cây làm việc ↔ container — PO đang dựng, cùng chỗ với
    `eval/doi_soat_usage_log.py`) — phải KHỚP CẢ BA tệp (`prompt.py`, `graph.py`,
-   `phan_luong.py` tối thiểu) trước khi đi tiếp. **Cổng nhãn-build-vs-`/app/src` cũ
+   `triage.py` tối thiểu) trước khi đi tiếp. **Cổng nhãn-build-vs-`/app/src` cũ
    KHÔNG đủ** — nó không bắt được ảnh tụt lại sau repo, chỉ bắt được ai sửa file bên
    trong container.
 3. **🔴 Kiểm CỜ ĐANG BẬT — độc lập với bước 2, KHÔNG thay thế nhau** (phát hiện PO
    25/08): đọc `env` THẬT trong tiến trình đang phục vụ (`docker exec <container> env`
-   hoặc tương đương), xác nhận `PHAN_LUONG_BAT=1` VÀ `CONG_T0_BAT=1` tường minh.
-   `src/config.py` đặt `PHAN_LUONG_BAT` **mặc định TẮT** khi không set biến môi trường
+   hoặc tương đương), xác nhận `TRIAGE_ENABLED=1` VÀ `T0_GATE_ENABLED=1` tường minh.
+   `src/config.py` đặt `TRIAGE_ENABLED` **mặc định TẮT** khi không set biến môi trường
    — một ảnh dựng "sạch" không khai cờ sẽ khiến cổng định tuyến (trung tâm cả đợt này)
    im lặng không chạy, không cảnh báo gì. Ảnh đúng mã (bước 2 xanh) mà cờ tắt thì mã
    **có mặt nhưng không chạy** — trông y hệt mã hỏng. Đây chính là lỗi khiến mẫu số lưu
@@ -399,7 +399,7 @@ Trong lúc chạy:
 ## ③ Kết quả thật — ĐÃ CHẠY 25/08
 
 Chạy trọn 8 lượt qua UI thật (`fin05-dot-otp`, ảnh băm `85eec2e1a652`, cờ
-`PHAN_LUONG_BAT=CONG_T0_BAT=CONG_OTP_NHOM_B_BAT=1` — cả hai phép kiểm PO yêu cầu đều
+`TRIAGE_ENABLED=T0_GATE_ENABLED=OTP_GATE_GROUP_B_ENABLED=1` — cả hai phép kiểm PO yêu cầu đều
 xanh trước khi chạy). Thread `USR-0145:1787645373`. Không sập — memory backend đỉnh
 `1,573GiB` (tăng so nền `749MiB`, KHÔNG chạm mức từng gây OOM `~1,48GiB` lần trước, vẫn
 đáng theo dõi cho buổi sau). Transcript đầy đủ (response JSON từng lượt):

@@ -105,16 +105,16 @@ def test_guard_trang_khop_authority_matrix(vai, trang, phien_theo_vai):
     - Contract cho phép mà trang chặn  -> chức năng chết âm thầm (2 lần đã xảy ra).
     - Contract cấm mà trang cho vào    -> lỗ hổng phân quyền.
     """
-    cho_phep = _cho_phep(trang, vai)
+    permitted = _cho_phep(trang, vai)
     resp = phien_theo_vai[vai].get(f"{BASE}{trang}")
     vao_duoc = resp.status_code == 200
-    dich = resp.headers.get("location", "")
+    dest = resp.headers.get("location", "")
 
-    if cho_phep:
+    if permitted:
         assert vao_duoc, (
             f"'{vai}' PHẢI vào được {trang} theo contract "
             f"({TRANG_THEO_ROUTE[trang]} cho {ROLES_ROUTE[TRANG_THEO_ROUTE[trang]]}), "
-            f"nhưng bị chặn: HTTP {resp.status_code} -> {dich or '(không rõ)'}. "
+            f"nhưng bị chặn: HTTP {resp.status_code} -> {dest or '(không rõ)'}. "
             f"Đây là lớp lỗi 'guard frontend hẹp hơn contract'."
         )
     else:

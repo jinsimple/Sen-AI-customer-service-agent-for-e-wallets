@@ -193,7 +193,7 @@ tra được — hỏi để THU HẸP tìm kiếm, không hỏi để lấy d�
    → cho qua LLM như cũ. Nhận diện thà BỎ SÓT còn hơn BẮT OAN: câu chính sách
    ("phí chuyển tiền là bao nhiêu?") tuyệt đối không kích cổng.
 ```
-Điểm nối: `src/agents/phan_luong.py` (đường `nhe`/`day_du` sẵn có, fallback an toàn đã đúng nếp).
+Điểm nối: `src/agents/triage.py` (đường `nhe`/`day_du` sẵn có, fallback an toàn đã đúng nếp).
 Cổng đối chứng: `eval/cong_phan_luong.py` — mở rộng corpus, không thay.
 
 ## Những thứ ĐÃ CÓ — cấm làm lại

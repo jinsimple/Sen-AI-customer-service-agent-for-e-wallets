@@ -44,9 +44,9 @@ PII_NGUOI_KHAC = {
 }
 
 
-def _quet(noi_dung: str, can_tim: dict[str, str]) -> list[str]:
+def _quet(content_text: str, can_tim: dict[str, str]) -> list[str]:
     """Trả danh sách nhãn PII tìm thấy nguyên văn trong chuỗi."""
-    return [nhan for nhan, gia_tri in can_tim.items() if gia_tri and gia_tri in noi_dung]
+    return [label_text for label_text, val in can_tim.items() if val and val in content_text]
 
 
 # ===========================================================================
@@ -100,23 +100,23 @@ def test_lookup_transaction_khong_tra_ve_pii_cua_chinh_khach(sample_db):
     gì cả, chỉ đọc rồi nhắc lại. Đúng nguyên tắc tối thiểu hoá dữ liệu của
     OWASP LLM02:2025.
     """
-    ket_qua = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
-    noi_dung = json.dumps(ket_qua, ensure_ascii=False)
+    outcome = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
+    content_text = json.dumps(outcome, ensure_ascii=False)
 
-    lot = _quet(noi_dung, PII_KHACH)
+    lot = _quet(content_text, PII_KHACH)
     assert not lot, (
         f"Kết quả lookup_transaction chứa PII nguyên văn của khách: {lot}\n"
-        f"Payload: {noi_dung[:400]}\n"
+        f"Payload: {content_text[:400]}\n"
         "→ Bút danh hoá trước khi đưa vào hội thoại gửi LLM."
     )
 
 
 def test_get_customer_history_khong_tra_ve_pii(sample_db):
-    ket_qua = _goi_tool(sample_db, "get_customer_history", {"days": 90})
-    noi_dung = json.dumps(ket_qua, ensure_ascii=False)
-    lot = _quet(noi_dung, PII_KHACH)
+    outcome = _goi_tool(sample_db, "get_customer_history", {"days": 90})
+    content_text = json.dumps(outcome, ensure_ascii=False)
+    lot = _quet(content_text, PII_KHACH)
     assert not lot, (
-        f"get_customer_history chứa PII nguyên văn: {lot}\n{noi_dung[:400]}"
+        f"get_customer_history chứa PII nguyên văn: {lot}\n{content_text[:400]}"
     )
 
 
@@ -126,12 +126,12 @@ def test_get_customer_history_khong_tra_ve_pii(sample_db):
 
 def test_van_giu_nguyen_viec_che_thong_tin_ben_thu_ba(sample_db):
     """BR-06 đã che tên/SĐT/STK bên thứ ba — vá PII chính chủ KHÔNG được làm hỏng."""
-    ket_qua = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
-    noi_dung = json.dumps(ket_qua, ensure_ascii=False)
-    lot = _quet(noi_dung, PII_NGUOI_KHAC)
+    outcome = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
+    content_text = json.dumps(outcome, ensure_ascii=False)
+    lot = _quet(content_text, PII_NGUOI_KHAC)
     assert not lot, (
         f"RÒ RỈ BÊN THỨ BA: {lot} — đây là vi phạm PDPA nghiêm trọng hơn cả PII "
-        f"chính chủ, vì khách không có quyền biết thông tin người khác.\n{noi_dung[:400]}"
+        f"chính chủ, vì khách không có quyền biết thông tin người khác.\n{content_text[:400]}"
     )
 
 
@@ -141,12 +141,12 @@ def test_du_lieu_nghiep_vu_van_con_du_de_agent_lam_viec(sample_db):
     Đây là test đối trọng: chống bản vá quá tay kiểu "che sạch cho an toàn"
     rồi agent không còn dữ liệu nào để trả lời khách.
     """
-    ket_qua = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
-    assert ket_qua.get("status") in ("found", "not_found", "multiple_matches"), (
-        f"Tool hỏng sau khi che PII: {ket_qua}"
+    outcome = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
+    assert outcome.get("status") in ("found", "not_found", "multiple_matches"), (
+        f"Tool hỏng sau khi che PII: {outcome}"
     )
-    if ket_qua.get("status") == "found":
-        txn = ket_qua.get("transaction") or {}
+    if outcome.get("status") == "found":
+        txn = outcome.get("transaction") or {}
         assert txn.get("amount") is not None, "Mất số tiền — agent không còn gì để đối chiếu"
         assert txn.get("trans_id") or txn.get("id"), "Mất mã giao dịch — không trích dẫn được"
 
@@ -163,13 +163,13 @@ def test_khong_con_duong_nao_khac_dua_pii_len_llm():
     """
     from pathlib import Path
 
-    goc = Path(__file__).resolve().parent.parent.parent
-    nghi_van = re.compile(r"(customer_name|full_name|\.phone)\s*[,)=]")
+    original = Path(__file__).resolve().parent.parent.parent
+    suspicion = re.compile(r"(customer_name|full_name|\.phone)\s*[,)=]")
     vi_pham = []
-    for p in (goc / "src" / "agents").rglob("*.py"):
-        for i, dong in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
-            if nghi_van.search(dong) and "# PII-OK:" not in dong:
-                vi_pham.append(f"{p.relative_to(goc)}:{i}: {dong.strip()[:90]}")
+    for p in (original / "src" / "agents").rglob("*.py"):
+        for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+            if suspicion.search(line) and "# PII-OK:" not in line:
+                vi_pham.append(f"{p.relative_to(original)}:{i}: {line.strip()[:90]}")
     assert not vi_pham, (
         "Có chỗ đưa PII vào tầng agent (nơi dữ liệu rời hệ thống lên LLM):\n  "
         + "\n  ".join(vi_pham)
@@ -194,10 +194,10 @@ from src.observability.pii import scrub_pii  # noqa: E402
 
 def test_dau_vao_che_ho_ten_va_sdt_khach_tu_go():
     """Khách tự khai PII trong tin nhắn -> phải bị che trước khi rời hệ thống."""
-    goc = "mình là Bách, sđt 0987654321, bị trừ tiền 2 lần"
-    sach = scrub_pii(goc, muc_dich="model_input")
-    assert "0987654321" not in sach, f"SĐT lọt lên LLM: {sach}"
-    assert "Bách" not in sach, f"Họ tên lọt lên LLM: {sach}"
+    original = "mình là Bách, sđt 0987654321, bị trừ tiền 2 lần"
+    clean_text = scrub_pii(original, purpose="model_input")
+    assert "0987654321" not in clean_text, f"SĐT lọt lên LLM: {clean_text}"
+    assert "Bách" not in clean_text, f"Họ tên lọt lên LLM: {clean_text}"
 
 
 def test_dau_vao_giu_nguyen_du_lieu_nghiep_vu():
@@ -213,10 +213,10 @@ def test_dau_vao_giu_nguyen_du_lieu_nghiep_vu():
         ("tôi chuyển 5000000 hôm qua", "5000000"),
         ("chuyển nhầm 270k cho bạn", "270k"),
     ]
-    for goc, phai_con in truong_hop:
-        sach = scrub_pii(goc, muc_dich="model_input")
-        assert phai_con in sach, (
-            f"Che quá tay — mất dữ liệu nghiệp vụ {phai_con!r}\n  gốc:  {goc}\n  sau: {sach}"
+    for original, phai_con in truong_hop:
+        clean_text = scrub_pii(original, purpose="model_input")
+        assert phai_con in clean_text, (
+            f"Che quá tay — mất dữ liệu nghiệp vụ {phai_con!r}\n  gốc:  {original}\n  sau: {clean_text}"
         )
 
 
@@ -227,9 +227,9 @@ def test_dai_tu_nhan_xung_khong_bi_coi_la_ten_nguoi():
     5tr cho số [VN_PHONE]" — agent mất luôn thông tin ai là người chuyển.
     """
     for dai_tu in ("tôi", "mình", "em", "anh", "chị"):
-        cau = f"{dai_tu} bị trừ tiền 2 lần"
-        sach = scrub_pii(cau, muc_dich="model_input")
-        assert sach.startswith(dai_tu), f"Đại từ {dai_tu!r} bị che nhầm: {sach}"
+        sentence = f"{dai_tu} bị trừ tiền 2 lần"
+        clean_text = scrub_pii(sentence, purpose="model_input")
+        assert clean_text.startswith(dai_tu), f"Đại từ {dai_tu!r} bị che nhầm: {clean_text}"
 
 
 def test_duong_gui_llm_that_su_di_qua_scrub():
@@ -241,9 +241,9 @@ def test_duong_gui_llm_that_su_di_qua_scrub():
     """
     from pathlib import Path
 
-    goc = Path(__file__).resolve().parent.parent.parent
-    src = (goc / "src" / "agents" / "graph.py").read_text(encoding="utf-8")
-    assert "scrub_pii(message, muc_dich=" in src, (
+    original = Path(__file__).resolve().parent.parent.parent
+    src = (original / "src" / "agents" / "graph.py").read_text(encoding="utf-8")
+    assert "scrub_pii(message, purpose=" in src, (
         "Tin nhắn khách KHÔNG còn đi qua scrub_pii trước khi vào HumanMessage — "
         "PII khách tự gõ sẽ rời hệ thống nguyên văn."
     )
@@ -258,10 +258,10 @@ def test_duong_gui_llm_that_su_di_qua_scrub():
 # Agent không cần chúng: build_customer_tools đóng cứng user_id qua closure.
 
 def test_dinh_danh_truc_tiep_bi_che_truoc_khi_len_llm(sample_db):
-    ket_qua = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
-    noi_dung = json.dumps(ket_qua, ensure_ascii=False)
-    assert "USR-A" not in noi_dung, f"user_id lọt lên LLM: {noi_dung[:300]}"
-    assert "900000000001" not in noi_dung, f"wallet_id lọt nguyên văn: {noi_dung[:300]}"
+    outcome = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
+    content_text = json.dumps(outcome, ensure_ascii=False)
+    assert "USR-A" not in content_text, f"user_id lọt lên LLM: {content_text[:300]}"
+    assert "900000000001" not in content_text, f"wallet_id lọt nguyên văn: {content_text[:300]}"
 
 
 def test_che_dinh_danh_khong_pha_lop_chan_tra_cheo_atlas_001(sample_db):
@@ -281,19 +281,19 @@ def test_che_dinh_danh_khong_pha_lop_chan_tra_cheo_atlas_001(sample_db):
 
     otp = dt.datetime.utcnow().timestamp()
     tools = {t.name: t for t in build_customer_tools(sample_db, user_id="USR-CSKH", otp_verified_at=otp)}
-    ket_qua = tools["lookup_transaction"].invoke({"trans_id": "TXN-0001"})
+    outcome = tools["lookup_transaction"].invoke({"trans_id": "TXN-0001"})
 
-    assert ket_qua.get("status") != "found", (
+    assert outcome.get("status") != "found", (
         "USR-CSKH (không phải bên nào của giao dịch) vẫn tra ra được — lớp chặn "
         "ATLAS-001 đã hỏng.\n"
         "Nguyên nhân thường gặp: che wallet_id TRƯỚC khi _enforce_requester_is_party chạy.\n"
-        f"Kết quả: {json.dumps(ket_qua, ensure_ascii=False)[:300]}"
+        f"Kết quả: {json.dumps(outcome, ensure_ascii=False)[:300]}"
     )
 
 
 def test_chinh_chu_van_tra_duoc_giao_dich_cua_minh(sample_db):
     """Đối trọng cho test trên — che định danh không được chặn nhầm chính chủ."""
-    ket_qua = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
-    assert ket_qua.get("status") == "found", (
-        f"Chính chủ USR-A KHÔNG tra được giao dịch của mình — che quá tay: {ket_qua}"
+    outcome = _goi_tool(sample_db, "lookup_transaction", {"trans_id": "TXN-0001"})
+    assert outcome.get("status") == "found", (
+        f"Chính chủ USR-A KHÔNG tra được giao dịch của mình — che quá tay: {outcome}"
     )

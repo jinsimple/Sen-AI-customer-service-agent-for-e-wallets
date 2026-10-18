@@ -21,7 +21,7 @@ import pathlib
 
 import pytest
 
-from src.agents.phan_luong import la_khieu_nai_ca_nhan
+from src.agents.triage import is_personal_complaint
 from src.agents.tools.customer_tools import _otp_fresh
 
 SRC = pathlib.Path(__file__).resolve().parent.parent / "src"
@@ -35,7 +35,7 @@ FILE_DINH_NGHIA = SRC / "agents" / "graph.py"
 # 1. la_khieu_nai_ca_nhan — hộp đen, dùng lại corpus đã có nguồn gốc rõ
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("cau,mong", [
+@pytest.mark.parametrize("sentence,mong", [
     # Dương — khiếu nại cá nhân THẬT (nguồn: eval/bo_ca_am_thu_slot_dot2.json
     # DOT2-DUONG-01, đã xác nhận đi thu_slot trên phan_luong() thật 25/08).
     ("tôi chuyển nhầm tiền cho người lạ rồi, không nhớ chuyển bao nhiêu", True),
@@ -45,11 +45,11 @@ FILE_DINH_NGHIA = SRC / "agents" / "graph.py"
     ("Phí chuyển tiền trong ví là bao nhiêu vậy?", False),
     ("tôi cần rút tiền, thủ tục thế nào", False),
 ])
-def test_la_khieu_nai_ca_nhan_phan_biet_dung_khieu_nai_voi_cau_hoi_chinh_sach(cau, mong):
+def test_la_khieu_nai_ca_nhan_phan_biet_dung_khieu_nai_voi_cau_hoi_chinh_sach(sentence, mong):
     """Cổng ④ chỉ được bắn cho khiếu nại cá nhân (Q1) — câu hỏi chính sách
     chung phải đi qua KHÔNG bị OTP chặn."""
-    assert la_khieu_nai_ca_nhan(cau) is mong, (
-        f"la_khieu_nai_ca_nhan({cau!r}) = {not mong}, mong {mong}"
+    assert is_personal_complaint(sentence) is mong, (
+        f"la_khieu_nai_ca_nhan({sentence!r}) = {not mong}, mong {mong}"
     )
 
 
@@ -87,13 +87,13 @@ def _tim_call_sites(cay: ast.AST, duong_dan: str) -> list[tuple[int, list[str]]]
           — hình dạng THẬT đang dùng ở `src/api/main.py` hôm nay. Bỏ sót
           nhánh (b) thì bất biến này MÙ với chính call site duy nhất nó
           phải canh."""
-    ket_qua = []
+    outcome = []
     for node in ast.walk(cay):
         if not isinstance(node, ast.Call):
             continue
         if _goi_truc_tiep(node):
             ten_kw = [kw.arg for kw in node.keywords if kw.arg]
-            ket_qua.append((node.lineno, ten_kw))
+            outcome.append((node.lineno, ten_kw))
             continue
         # (b) run_agent_turn nằm TRẦN trong danh sách đối số của call này
         co_ten_tran = any(
@@ -101,8 +101,8 @@ def _tim_call_sites(cay: ast.AST, duong_dan: str) -> list[tuple[int, list[str]]]
         )
         if co_ten_tran:
             ten_kw = [kw.arg for kw in node.keywords if kw.arg]
-            ket_qua.append((node.lineno, ten_kw))
-    return ket_qua
+            outcome.append((node.lineno, ten_kw))
+    return outcome
 
 
 def test_moi_call_site_production_truyen_otp_verified_at_tuong_minh():
@@ -117,8 +117,8 @@ def test_moi_call_site_production_truyen_otp_verified_at_tuong_minh():
         if p == FILE_DINH_NGHIA:
             continue
         cay = ast.parse(p.read_text(encoding="utf-8"), filename=str(p))
-        for dong, kw in _tim_call_sites(cay, str(p)):
-            tat_ca.append((str(p.relative_to(SRC.parent)), dong, kw))
+        for line, kw in _tim_call_sites(cay, str(p)):
+            tat_ca.append((str(p.relative_to(SRC.parent)), line, kw))
 
     # Luật A (đối chứng THUẬN): cổng phải KÊU khi thứ nó canh KHÔNG CÒN TỒN
     # TẠI — nếu quét ra 0 call site, bất biến "mọi call site đều đúng" đạt

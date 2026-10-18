@@ -4,7 +4,7 @@ chatbot-1A-1B.md`, PO thật duyệt 24/08). Viết TRƯỚC khi Coder vá promp
 
 > ⚠️ **Chạy TỪ HOST, cần `docker` CLI.** Điều khiển container qua `docker
 > exec`, giống `test_a2_dong_y_truoc_khi_tao_ve.py`.
-> ⚠️ **TỐN TIỀN** — 6 lượt LLM. Mặc định TẮT, bật bằng `FIN05_CHO_PHEP_TON_TIEN=1`.
+> ⚠️ **TỐN TIỀN** — 6 lượt LLM. Mặc định TẮT, bật bằng `FIN05_ALLOW_PAID_CALLS=1`.
 
 ## Năm luật, cách đo — quyết định của tester (Luật 7: công cụ đo là vùng này)
 
@@ -43,7 +43,7 @@ import pytest
 
 from tests._docker_co_mat import container_song
 from tests._dong_bang import LY_DO, dang_dong_bang
-from tests._ton_tien import duoc_phep_ton_tien, ly_do
+from tests._ton_tien import duoc_phep_ton_tien, reason_text
 
 CT = "fin05do-backend-1"
 API = "http://localhost:8010"
@@ -68,7 +68,7 @@ _TU_GIO_CHINH_XAC = re.compile(r"\bmấy giờ\b|\bgiờ nào\b|\bphút nào\b|\
 _MOC_NEO_TG = ("hôm nay", "hôm qua", "hôm trước", "sáng", "chiều", "tối", "gần đây", "tuần này", "tuần trước")
 
 # 🔴 [ĐO 24/08] Câu HỎI của LLM luôn có dấu `?`; câu YÊU CẦU tất định của
-# `thu_slot` (`phan_luong.py::HOI_THIEU_CA_HAI`/`HOI_THIEU_SO_TIEN`) là câu
+# `thu_slot` (`triage.py::HOI_THIEU_CA_HAI`/`HOI_THIEU_SO_TIEN`) là câu
 # ĐỀ NGHỊ, không có `?` — "Dạ bạn cho mình xin ... giúp mình nhé." R3 từng
 # SKIP oan vì bộ dò cũ chỉ nhận dạng `?`, mù hoàn toàn với phong cách này.
 # `thu_slot` là đường THẬT của sản phẩm (không phải giả định lý thuyết) nên
@@ -120,7 +120,7 @@ def _song() -> bool:
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(not duoc_phep_ton_tien(),
-                       reason=ly_do(90_000, "6 lượt chat thật qua /agent/chat, R1-R5")),
+                       reason=reason_text(90_000, "6 lượt chat thật qua /agent/chat, R1-R5")),
     pytest.mark.skipif(not _song(), reason=f"cần ngăn xếp ĐO DÙNG RIÊNG {CT} (Luật 15)"),
     pytest.mark.skipif(dang_dong_bang(), reason=LY_DO),
 ]
@@ -137,7 +137,7 @@ def _login() -> str:
     lượt ĐẦU của một hội thoại rỗng). Đồng thời thiếu OTP-xác-thực khiến các
     tool tra dữ liệu bị `_OTP_REQUIRED_ERROR` — dùng lại NGUYÊN đường chính
     danh của `test_a2_dong_y_truoc_khi_tao_ve.py::_login()`."""
-    ma = (
+    code = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"r=c.post('{API}/auth/login',json={{'phone':'0387000001','password':'Demo@123'}});"
@@ -149,7 +149,7 @@ def _login() -> str:
         "assert r.json().get('otp_verified') is True, 'OTP verify thất bại: '+r.text;"
         "print(r.json()['access_token'])"
     )
-    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", code],
                        capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, f"đăng nhập/OTP hỏng: {(r.stderr or r.stdout)[-400:]}"
     return r.stdout.strip().splitlines()[-1]
@@ -164,7 +164,7 @@ def _login() -> str:
 _LOG_REPLY = pathlib.Path(__file__).resolve().parent.parent / "eval" / "results" / "1a_reply_log.jsonl"
 
 
-def _ghi_log_reply(cau: str, reply: dict) -> None:
+def _ghi_log_reply(sentence: str, reply: dict) -> None:
     """Ghi TOÀN VĂN `reply["reply"]` — KHÔNG cắt. Thông điệp lỗi trong assertion
     được phép cắt ngắn để đọc trên terminal (`[:200]`/`[:300]`...); kho lưu ở
     đây là NGUỒN GỐC trước khi bất kỳ ai cắt gì — hai việc tách nhau, đừng gộp."""
@@ -173,29 +173,29 @@ def _ghi_log_reply(cau: str, reply: dict) -> None:
     with open(_LOG_REPLY, "a", encoding="utf-8") as f:
         f.write(json.dumps({
             "ts": dt.datetime.now(dt.UTC).isoformat(),
-            "ca": ten_ca, "cau": cau, "reply": reply["reply"], "tool": reply["tool"],
+            "ca": ten_ca, "cau": sentence, "reply": reply["reply"], "tool": reply["tool"],
             "chep_tay": False,  # True chỉ khi backfill thủ công từ hội thoại — xem README kho
         }, ensure_ascii=False) + "\n")
 
 
-def _chat(cau: str, token: str, thread: str) -> dict:
+def _chat(sentence: str, token: str, thread: str) -> dict:
     # `thread_id` vẫn gửi trong body — vô hại, nhưng nối lượt thật = dùng LẠI
     # cùng `token` (xem `_login()`), không phải cùng biến `thread` truyền tay.
-    ma = (
+    code = (
         "import httpx,json;"
         "c=httpx.Client(timeout=300);"
         f"h={{'Authorization':'Bearer '+{token!r}}};"
-        f"r=c.post('{API}/agent/chat',json={{'message':{cau!r},'thread_id':{thread!r}}},headers=h);"
+        f"r=c.post('{API}/agent/chat',json={{'message':{sentence!r},'thread_id':{thread!r}}},headers=h);"
         "print(json.dumps({'http':r.status_code,'than':r.json()},ensure_ascii=False))"
     )
-    r = subprocess.run(["docker", "exec", CT, "python", "-c", ma],
+    r = subprocess.run(["docker", "exec", CT, "python", "-c", code],
                        capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, f"gọi chat hỏng: {(r.stderr or r.stdout)[-400:]}"
     j = json.loads(r.stdout.strip().splitlines()[-1])
-    ket_qua = {"tra": j, "reply": j["than"].get("reply") or "",
+    outcome = {"tra": j, "reply": j["than"].get("reply") or "",
                "tool": [x.get("tool_name") for x in (j["than"].get("tool_calls") or [])]}
-    _ghi_log_reply(cau, ket_qua)
-    return ket_qua
+    _ghi_log_reply(sentence, outcome)
+    return outcome
 
 
 def _thread() -> str:

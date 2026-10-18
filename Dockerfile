@@ -125,9 +125,9 @@ COPY . .
 # đúng lúc cần nó nhất.
 #
 # Sửa tận gốc thay vì fail-closed trên tham số: BỎ tham số. Không còn gì để
-# quên truyền. Dùng lại chính `bam_ma_nguon()` nên ảnh và runtime không thể
+# quên truyền. Dùng lại chính `hash_source()` nên ảnh và runtime không thể
 # dùng hai thuật toán khác nhau.
-RUN python -c "import sys; sys.path.insert(0,'/app'); from src.dau_ma_nguon import bam_ma_nguon; open('/app/.bam_ma_nguon','w').write(bam_ma_nguon())"  && cat /app/.bam_ma_nguon
+RUN python -c "import sys; sys.path.insert(0,'/app'); from src.build_stamp import hash_source; open('/app/.source_hash','w').write(hash_source())"  && cat /app/.source_hash
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh && mkdir -p /app/data /app/logs

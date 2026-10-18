@@ -62,11 +62,11 @@ def doi_hoi_eval() -> None:
         pytest.skip(LY_DO, allow_module_level=True)
 
 
-def doi_hoi_tep(*ten: str) -> pathlib.Path:
+def doi_hoi_tep(*name_text: str) -> pathlib.Path:
     """Như trên, nhưng cho một tệp cụ thể trong `eval/`. Trả về đường dẫn."""
     doi_hoi_eval()
-    p = THU_MUC_EVAL.joinpath(*ten)
+    p = THU_MUC_EVAL.joinpath(*name_text)
     if not p.exists():
-        pytest.skip(f"{LY_DO}\n(thiếu cụ thể: eval/{'/'.join(ten)})",
+        pytest.skip(f"{LY_DO}\n(thiếu cụ thể: eval/{'/'.join(name_text)})",
                     allow_module_level=True)
     return p

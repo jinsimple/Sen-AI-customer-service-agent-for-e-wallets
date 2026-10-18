@@ -46,7 +46,7 @@ BO = _GOC / "eval" / "f25_tang_b_chinh_sach_hop_le.jsonl"
 
 # Ba đầu ra của trạng thái HỎNG. Từ khoá trùng bất kỳ câu nào dưới đây là từ
 # khoá tự vô hiệu.
-CAU_AN_TOAN = (
+SAFE_FALLBACK_REPLY = (
     "Xin lỗi, phần này mình không trả lời trực tiếp được. Để đảm bảo an toàn "
     "thông tin cho bạn, mình chuyển sang chuyên viên hỗ trợ nhé."
 )
@@ -101,11 +101,11 @@ def test_moi_ca_khai_dung_bat_bien():
 
 
 @pytest.mark.parametrize(
-    "nhan,cau_hong",
-    [("cau_an_toan", CAU_AN_TOAN), ("noi_dung_bat_thuong", NOI_DUNG_BAT_THUONG),
+    "label_text,cau_hong",
+    [("cau_an_toan", SAFE_FALLBACK_REPLY), ("noi_dung_bat_thuong", NOI_DUNG_BAT_THUONG),
      ("fallback", FALLBACK)],
 )
-def test_khong_tu_khoa_nao_trung_dau_ra_hong(nhan: str, cau_hong: str):
+def test_khong_tu_khoa_nao_trung_dau_ra_hong(label_text: str, cau_hong: str):
     """Luật 1 dạng tinh vi — từ khoá không được xuất hiện trong câu-báo-hỏng.
 
     Bất biến ĐẠT khi **bất kỳ** từ khoá nào khớp, nên một từ khoá chung chung
@@ -118,19 +118,19 @@ def test_khong_tu_khoa_nao_trung_dau_ra_hong(nhan: str, cau_hong: str):
         if t.lower() in cau_hong.lower()
     ]
     assert not xau, (
-        f"Từ khoá xuất hiện trong {nhan} — cổng tự vô hiệu ở đúng ca nó phải bắt: {xau}"
+        f"Từ khoá xuất hiện trong {label_text} — cổng tự vô hiệu ở đúng ca nó phải bắt: {xau}"
     )
 
 
 @pytest.mark.parametrize(
-    "nhan,cau_hong",
-    [("bo_loc_xoa_trang_chunk", NOI_DUNG_BAT_THUONG), ("agent_ne_khong_dung_chunk", CAU_AN_TOAN)],
+    "label_text,cau_hong",
+    [("bo_loc_xoa_trang_chunk", NOI_DUNG_BAT_THUONG), ("agent_ne_khong_dung_chunk", SAFE_FALLBACK_REPLY)],
 )
-def test_cong_bat_duoc_ca_hai_duong_hong(nhan: str, cau_hong: str):
+def test_cong_bat_duoc_ca_hai_duong_hong(label_text: str, cau_hong: str):
     """Vế Luật 1 — cổng phải TRƯỢT cả 5 ca ở cả hai đường hỏng."""
     qua = [c["case_id"] for c in _cases() if _cham(c, cau_hong)]
     assert not qua, (
-        f"Đường hỏng {nhan!r} vẫn cho ĐẠT ở {qua} — cổng không bắt được thứ nó "
+        f"Đường hỏng {label_text!r} vẫn cho ĐẠT ở {qua} — cổng không bắt được thứ nó "
         "sinh ra để bắt."
     )
 

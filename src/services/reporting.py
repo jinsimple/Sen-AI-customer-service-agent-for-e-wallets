@@ -1,6 +1,6 @@
-"""US-018 — báo cáo vận hành. PRD §12: "Số liệu khớp dữ liệu ticket thật,
-không phải ước lượng" — mọi số ở đây tính trực tiếp từ DB tại thời điểm gọi,
-không cache, không giá trị mẫu."""
+"""US-018 — operational report. PRD §12: "Figures match real ticket data, not
+estimates" — every number here is computed directly from the DB at call time,
+no cache, no sample values."""
 from __future__ import annotations
 
 import datetime as dt
@@ -34,10 +34,11 @@ def build_summary(
         if ticket_ids
         else []
     )
-    # Đề xuất trong bảng resolutions LUÔN do CSKH tạo (propose_resolution KHÔNG
-    # nằm trong 5 tool AI được gọi — contracts/agent-tools.yaml — ràng buộc
-    # cứng 2, AI không vượt cấp/không tự đề xuất). "% đề xuất AI được duyệt"
-    # từng gán nhầm hành động này cho AI; đổi nhãn ở tầng hiển thị, số không đổi.
+    # Proposals in the resolutions table are ALWAYS created by CSKH (propose_resolution
+    # is NOT one of the 5 tools the AI may call — contracts/agent-tools.yaml — hard
+    # constraint 2: the AI never escalates itself / never proposes on its own). "% of AI
+    # proposals approved" once misattributed this action to the AI; the label was fixed at the
+    # display layer, the number is unchanged.
     decided = [r for r in resolutions if r.status in ("approved", "rejected")]
     approved = [r for r in decided if r.status == "approved"]
     pct_ai_proposal_approved = round(100 * len(approved) / len(decided), 1) if decided else None
@@ -59,7 +60,8 @@ def build_summary(
     )
     pct_escalated = round(100 * len(escalated_ticket_ids) / total_tickets, 1) if total_tickets else None
 
-    # Phân bố theo complaint gắn với đúng tập ticket đang xét trong kỳ (join qua complaint_id).
+    # Distribution by complaint, tied to exactly the set of tickets in scope for the period (joined
+    # via complaint_id).
     complaint_ids = {t.complaint_id for t in tickets}
     complaints = (
         session.scalars(select(Complaint).where(Complaint.complaint_id.in_(complaint_ids))).all()
@@ -76,13 +78,13 @@ def build_summary(
         "date_from": date_from.isoformat() if date_from else None,
         "date_to": date_to.isoformat() if date_to else None,
         "total_tickets": total_tickets,
-        # "Thời gian xử lý TB" là CYCLE TIME (tạo vé → sếp duyệt), GỒM CẢ thời
-        # gian vé nằm chờ trong hàng đợi — không phải AHT (thời gian NGƯỜI thao
-        # tác thật). DB không có mốc "CSKH bắt đầu làm" (không claimed_at/
-        # work_started_at nào trên Ticket/Resolution — chỉ có created_at của vé
-        # và approved_at của quyết định), nên AHT KHÔNG đo được từ dữ liệu hiện
-        # có — trả None + lý do tường minh, KHÔNG suy diễn hay để trống (trống
-        # bị đọc thành 0, "chưa đo được" thì không).
+        # "Average handling time" is CYCLE TIME (ticket created → supervisor approval),
+        # INCLUDING time the ticket sat in the queue — not AHT (actual HUMAN handling time).
+        # The DB has no "CSKH started working" timestamp (no claimed_at/
+        # work_started_at on Ticket/Resolution — only the ticket's created_at
+        # and the decision's approved_at), so AHT CANNOT be measured from current data
+        # — return None + an explicit reason, NEVER infer it or leave it blank (blank is
+        # read as 0; "not measurable yet" is not).
         "avg_processing_hours": avg_processing_hours,
         "avg_processing_hours_n": len(durations_hours),
         "aht_hours": None,
