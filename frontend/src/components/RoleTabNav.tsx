@@ -4,37 +4,39 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/lib/session";
+import { useI18n } from "@/lib/i18n/client";
+import type { DictKey } from "@/lib/i18n/dict";
 
-const TABS: Record<Role, { href: string; label: string }[]> = {
-  customer: [{ href: "/chat", label: "Trợ lý AI" }],
+const TABS: Record<Role, { href: string; label: DictKey }[]> = {
+  customer: [{ href: "/chat", label: "nav.chat" }],
   cskh: [
-    { href: "/dashboard", label: "Hàng chờ" },
+    { href: "/dashboard", label: "nav.queue" },
     // /tickets/[id] không có mục riêng — vào từ hàng chờ
-    { href: "/policy-lookup", label: "Tra cứu chính sách" },
-    { href: "/report", label: "Báo cáo vận hành" },
+    { href: "/policy-lookup", label: "nav.policyLookup" },
+    { href: "/report", label: "nav.report" },
   ],
   supervisor: [
-    { href: "/approve", label: "Phê duyệt" },
+    { href: "/approve", label: "nav.approve" },
     // [04/09] Tách khỏi trang Phê duyệt — PO đo thật đông CSKH làm bảng
     // chật trang duyệt. Bảng/cơ chế presence giữ nguyên, chỉ đổi chỗ.
-    { href: "/cskh-online", label: "CSKH online" },
+    { href: "/cskh-online", label: "nav.agentsOnline" },
     // ADR-064 (b) — Sếp cần xem TẤT CẢ ticket (không riêng hàng chờ duyệt)
     // để quản lý. `GET /tickets` vốn đã trả toàn bộ cho supervisor, đây chỉ
     // là lối vào UI, không đổi quyền/contract.
-    { href: "/quan-ly-ticket", label: "Quản lý ticket" },
-    { href: "/report", label: "Báo cáo vận hành" },
+    { href: "/quan-ly-ticket", label: "nav.ticketAdmin" },
+    { href: "/report", label: "nav.report" },
     // Sếp cũng cần tra chính sách khi quyết định — backend /policy-search đã
     // mở cho supervisor sẵn trong authority-matrix, chỉ thiếu lối vào ở nav.
-    { href: "/policy-lookup", label: "Tra cứu chính sách" },
+    { href: "/policy-lookup", label: "nav.policyLookup" },
   ],
-  partner_admin: [{ href: "/knowledge", label: "Chính sách & FAQ" }],
+  partner_admin: [{ href: "/knowledge", label: "nav.knowledge" }],
 };
 
-const GROUP_LABEL: Record<Role, string> = {
-  customer: "Khách hàng",
-  cskh: "CSKH",
-  supervisor: "Sếp",
-  partner_admin: "Đối tác ví",
+const GROUP_LABEL: Record<Role, DictKey> = {
+  customer: "role.customer",
+  cskh: "role.cskh",
+  supervisor: "role.supervisor",
+  partner_admin: "role.partner_admin",
 };
 
 // [polish trước quay 04/09] PO bắt qua ảnh chụp: vào `/tickets/{id}` từ Hàng
@@ -52,6 +54,7 @@ const NHO_TAB_KEY = (role: Role) => `fin05_tab_gan_nhat:${role}`;
 
 export default function RoleTabNav({ role }: { role: Role }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const tabs = TABS[role] ?? [];
   const isTicketDetail = pathname.startsWith("/tickets/");
 
@@ -83,12 +86,12 @@ export default function RoleTabNav({ role }: { role: Role }) {
   return (
     <nav className="tabnav">
       <div className="tabgroup">
-        <span className="tabgroup-label">{GROUP_LABEL[role]}</span>
+        <span className="tabgroup-label">{t(GROUP_LABEL[role])}</span>
         {tabs.map((tab) => {
           const active = pathname.startsWith(tab.href) || (isTicketDetail && tabGanNhat === tab.href);
           return (
             <Link key={tab.href} href={tab.href} className={`tab-btn${active ? " active" : ""}`}>
-              {tab.label}
+              {t(tab.label)}
             </Link>
           );
         })}

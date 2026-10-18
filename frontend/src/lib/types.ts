@@ -425,3 +425,112 @@ export interface StaffPresenceItem {
   online: boolean;
   so_ve_dang_xu_ly: number;
 }
+
+// ── English display labels (portfolio edition) ────────────────────────────────────────────────────
+// Same rule as above: display layer only, wire values stay as they are. `Record<Union, string>` so a
+// missing English label is a build error. Look-ups go through `labelOf(MAP, key, lang)`, which finds
+// the English twin by the identity of the Vietnamese map.
+export const COMPLAINT_TYPE_LABEL_EN: Record<ComplaintType, string> = {
+  wrong_recipient: "Wrong recipient",
+  money_not_received: "Money not received",
+  double_charge: "Charged twice",
+  refund: "Refund",
+  other: "Other (general support request)",
+};
+
+export const SCOPE_LABEL_EN: Record<Scope, string> = {
+  internal_wallet: "Wallet-to-wallet",
+  from_bank: "From bank",
+  to_bank: "To bank",
+  unknown: "Not determined",
+};
+
+export const PRIORITY_LABEL_EN: Record<Priority, string> = {
+  low: "Low",
+  normal: "Normal",
+  high: "High",
+  critical: "Critical",
+};
+
+export const RESOLUTION_STATUS_LABEL_EN: Record<ResolutionStatus, string> = {
+  draft: "Draft — not submitted",
+  pending_approval: "Awaiting supervisor",
+  approved: "Approved by supervisor",
+  rejected: "Rejected by supervisor",
+};
+
+export const ACTION_TYPE_LABEL_EN: Record<ActionType, string> = {
+  refund_to_wallet: "Refund to wallet",
+  refund_to_bank: "Refund to bank account",
+  ledger_adjustment: "Ledger adjustment",
+  no_action: "No action (complaint unfounded)",
+  manual_review: "Needs further manual review",
+};
+
+export const TX_STATUS_LABEL_EN: Record<TransactionStatus, string> = {
+  success: "Successful",
+  processing: "Processing",
+  pending: "Pending",
+  failed: "Failed",
+  refunded: "Refunded",
+  on_hold: "On hold",
+};
+
+export const TOOL_NAME_LABEL_EN: Record<string, string> = {
+  lookup_transaction: "Look up transaction",
+  get_customer_history: "Look up customer history",
+  create_ticket: "Create complaint case",
+  search_policy: "Search policy",
+  request_human_handoff: "Request a human agent",
+  propose_resolution: "Propose resolution",
+  escalate_ticket: "Escalate case",
+};
+
+export const REJECT_REASON_LABEL_EN: Record<RejectReason, string> = {
+  sai_so_lieu: "Wrong figures (amount/transaction ID/time don't match)",
+  sai_phan_loai: "Wrong classification (complaint type or transaction scope)",
+  thieu_can_cu: "Insufficient evidence, cannot be supplemented",
+  sai_chinh_sach: "Contrary to current rules/policy",
+  trung_case: "Duplicate — handled in another ticket",
+  khach_rut: "Customer withdrew the complaint",
+  khac: "Other reason",
+};
+
+export const HITL_STATUS_LABEL_EN: Record<HitlStatus, string> = {
+  pending: "Awaiting support agent",
+  approved: "Approved",
+  rejected: "Rejected",
+  need_more_info: "Needs more investigation",
+};
+
+export const NOTIFICATION_EVENT_LABEL_EN: Record<NotificationEventType, string> = {
+  ve_moi: "New ticket",
+  cho_duyet: "Proposal awaiting approval",
+  da_duyet: "Proposal approved",
+  da_tu_choi: "Proposal rejected",
+};
+
+const EN_TWIN = new Map<object, Record<string, string>>([
+  [COMPLAINT_TYPE_LABEL, COMPLAINT_TYPE_LABEL_EN],
+  [SCOPE_LABEL, SCOPE_LABEL_EN],
+  [PRIORITY_LABEL, PRIORITY_LABEL_EN],
+  [RESOLUTION_STATUS_LABEL, RESOLUTION_STATUS_LABEL_EN],
+  [ACTION_TYPE_LABEL, ACTION_TYPE_LABEL_EN],
+  [TX_STATUS_LABEL, TX_STATUS_LABEL_EN],
+  [TOOL_NAME_LABEL, TOOL_NAME_LABEL_EN],
+  [REJECT_REASON_LABEL, REJECT_REASON_LABEL_EN],
+  [HITL_STATUS_LABEL, HITL_STATUS_LABEL_EN],
+  [NOTIFICATION_EVENT_LABEL, NOTIFICATION_EVENT_LABEL_EN],
+]);
+
+/** Display label for `key` in `lang`. Returns undefined for unknown keys so callers keep their
+ *  existing `?? rawValue` fallbacks. */
+export function labelOf<K extends string>(
+  map: Record<K, string>,
+  key: K | string | null | undefined,
+  lang: "vi" | "en" = "vi",
+): string | undefined {
+  if (key == null) return undefined;
+  const src = lang === "en" ? EN_TWIN.get(map) ?? map : map;
+  return (src as Record<string, string>)[key];
+}

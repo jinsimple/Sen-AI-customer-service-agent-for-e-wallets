@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
 
 /**
  * Ô nhập mã OTP 6 số dùng chung — tách ra từ `ChatClient.tsx` (luồng khách,
@@ -31,6 +32,7 @@ export default function OtpInput({
   // chặn ký tự mới (đã đạt maxLength), onChange không bắn, không tự nhảy ô.
   // onFocus bôi đen nội dung cũ để gõ đè luôn thay thế được, dù gõ theo thứ
   // tự nào hay quay lại ô đã điền.
+  const { t } = useI18n();
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -80,7 +82,7 @@ export default function OtpInput({
       )}
       {!error && !canSubmit && !checking && digits.some(Boolean) && (
         <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
-          Nhập đủ 6 số OTP để tiếp tục.
+          {t("otp.needSix")}
         </div>
       )}
       {trailing ? (
@@ -90,7 +92,7 @@ export default function OtpInput({
             disabled={!canSubmit}
             onClick={() => onSubmit(digits.join(""))}
           >
-            {checking ? "Đang xác thực..." : "Xác nhận"}
+            {checking ? t("common.verifying") : t("common.confirm")}
           </button>
           {trailing}
         </div>
@@ -101,7 +103,7 @@ export default function OtpInput({
           disabled={!canSubmit}
           onClick={() => onSubmit(digits.join(""))}
         >
-          {checking ? "Đang xác thực..." : "Xác nhận"}
+          {checking ? t("common.verifying") : t("common.confirm")}
         </button>
       )}
     </>

@@ -8,6 +8,7 @@ import {
   HITL_STATUS_LABEL,
   PRIORITY_LABEL,
   SCOPE_LABEL,
+  labelOf,
   type ComplaintType,
   type HitlStatus,
   type Priority,
@@ -16,6 +17,7 @@ import {
   type TicketSummary,
 } from "@/lib/types";
 import { formatDateTime, formatSlaRemaining } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/client";
 import type { Role } from "@/lib/session";
 
 // [polish trước quay 04/09] Bảng ticket + bộ lọc dùng CHUNG cho /dashboard
@@ -50,6 +52,7 @@ function toIsoOrUndefined(localValue: string): string | undefined {
 const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionProps>(
   function TicketListSection({ role, pollMs }, ref) {
     const router = useRouter();
+    const { t: tr, lang } = useI18n();
 
     const [complaintType, setComplaintType] = useState<ComplaintType | "">("");
     const [scope, setScope] = useState<Scope | "">("");
@@ -87,8 +90,8 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
           setTickets(res.items);
           setTotal(res.total);
         })
-        .catch((e) => setError(e.message ?? "Không tải được danh sách ticket"));
-    }, [complaintType, scope, priority, hitlStatus, slaAfterLocal, slaBeforeLocal, page, pageSize]);
+        .catch((e) => setError(e.message ?? tr("tls.loadError")));
+    }, [complaintType, scope, priority, hitlStatus, slaAfterLocal, slaBeforeLocal, page, pageSize, tr]);
 
     useEffect(() => {
       load();
@@ -128,7 +131,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
         setClaiming(ticketId);
         claimTicket(ticketId)
           .then(load)
-          .catch((err) => setError(err.message ?? "Không nhận được vé"))
+          .catch((err) => setError(err.message ?? tr("tls.claimError")))
           .finally(() => setClaiming(null));
       },
       [load]
@@ -174,62 +177,62 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
     return (
       <>
         <div className="card tls-filter-panel" style={{ marginBottom: 16 }}>
-          <div className="card-title">Bộ lọc</div>
+          <div className="card-title">{tr("tls.filters")}</div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end", marginTop: 10 }}>
             <div>
-              <label htmlFor="tls-complaint-type" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Loại KN</label>
+              <label htmlFor="tls-complaint-type" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{tr("tls.type")}</label>
               <select
                 id="tls-complaint-type"
                 value={complaintType}
                 onChange={(e) => setFilterAndResetPage(setComplaintType)(e.target.value as ComplaintType | "")}
               >
-                <option value="">Tất cả</option>
+                <option value="">{tr("tls.all")}</option>
                 {(Object.keys(COMPLAINT_TYPE_LABEL) as ComplaintType[]).map((k) => (
-                  <option key={k} value={k}>{COMPLAINT_TYPE_LABEL[k]}</option>
+                  <option key={k} value={k}>{labelOf(COMPLAINT_TYPE_LABEL, k, lang)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="tls-scope" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Phạm vi</label>
+              <label htmlFor="tls-scope" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{tr("tls.scope")}</label>
               <select
                 id="tls-scope"
                 value={scope}
                 onChange={(e) => setFilterAndResetPage(setScope)(e.target.value as Scope | "")}
               >
-                <option value="">Tất cả</option>
+                <option value="">{tr("tls.all")}</option>
                 {(Object.keys(SCOPE_LABEL) as Scope[]).map((k) => (
-                  <option key={k} value={k}>{SCOPE_LABEL[k]}</option>
+                  <option key={k} value={k}>{labelOf(SCOPE_LABEL, k, lang)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="tls-priority" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Ưu tiên</label>
+              <label htmlFor="tls-priority" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{tr("tls.priority")}</label>
               <select
                 id="tls-priority"
                 value={priority}
                 onChange={(e) => setFilterAndResetPage(setPriority)(e.target.value as Priority | "")}
               >
-                <option value="">Tất cả</option>
+                <option value="">{tr("tls.all")}</option>
                 {(Object.keys(PRIORITY_LABEL) as Priority[]).map((k) => (
-                  <option key={k} value={k}>{PRIORITY_LABEL[k]}</option>
+                  <option key={k} value={k}>{labelOf(PRIORITY_LABEL, k, lang)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="tls-hitl-status" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Trạng thái</label>
+              <label htmlFor="tls-hitl-status" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{tr("tls.status")}</label>
               <select
                 id="tls-hitl-status"
                 value={hitlStatus}
                 onChange={(e) => setFilterAndResetPage(setHitlStatus)(e.target.value as HitlStatus | "")}
               >
-                <option value="">Tất cả</option>
+                <option value="">{tr("tls.all")}</option>
                 {(Object.keys(HITL_STATUS_LABEL) as HitlStatus[]).map((k) => (
-                  <option key={k} value={k}>{HITL_STATUS_LABEL[k]}</option>
+                  <option key={k} value={k}>{labelOf(HITL_STATUS_LABEL, k, lang)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="tls-sla-after" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>SLA từ</label>
+              <label htmlFor="tls-sla-after" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{tr("tls.slaFrom")}</label>
               <input
                 id="tls-sla-after"
                 type="datetime-local"
@@ -238,7 +241,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
               />
             </div>
             <div>
-              <label htmlFor="tls-sla-before" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>SLA đến</label>
+              <label htmlFor="tls-sla-before" style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{tr("tls.slaTo")}</label>
               <input
                 id="tls-sla-before"
                 type="datetime-local"
@@ -248,28 +251,27 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
             </div>
             {hasServerFilter && (
               <span className="btn-clear-filter" onClick={clearFilters}>
-                Xoá bộ lọc
+                {tr("tls.clearFilters")}
               </span>
             )}
           </div>
         </div>
 
         <p className="dim" style={{ fontSize: 12, marginBottom: 8 }}>
-          Bộ lọc ở trên áp dụng trên TOÀN BỘ ticket khớp ({total} vé). Hai chip và ô tìm bên dưới CHỈ lọc trong trang
-          đang xem ({tickets?.length ?? 0} vé).
+          {tr("tls.filterNote", { total, page: tickets?.length ?? 0 })}
         </p>
         <div className="filter-bar">
           <span
             className={`filter-chip${showPartnerOnly ? " active" : ""}`}
             onClick={() => setShowPartnerOnly((v) => !v)}
           >
-            Chờ đối tác NH (trang này)
+            {tr("tls.chipPartner")}
           </span>
           <span
             className={`filter-chip${showHandoffOnly ? " active" : ""}`}
             onClick={() => setShowHandoffOnly((v) => !v)}
           >
-            Khách yêu cầu người thật (trang này)
+            {tr("tls.chipHandoff")}
           </span>
           <div className="search-box">
             <svg className="icon icon-sm" viewBox="0 0 24 24">
@@ -277,7 +279,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
               <path d="M21 21l-4-4" />
             </svg>
             <input
-              placeholder="Tìm theo mã ticket, mã khiếu nại, tên khách (trang này)..."
+              placeholder={tr("tls.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -290,21 +292,21 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
           <table className="table table-cards-mobile">
             <thead>
               <tr>
-                <th>STT</th>
-                <th>Mã ticket</th>
-                <th>Khách hàng</th>
-                <th>Loại KN</th>
-                <th>Phạm vi</th>
-                <th>Ưu tiên</th>
-                <th>Trạng thái</th>
+                <th>{tr("tls.colNo")}</th>
+                <th>{tr("tls.colTicket")}</th>
+                <th>{tr("tls.colCustomer")}</th>
+                <th>{tr("tls.type")}</th>
+                <th>{tr("tls.scope")}</th>
+                <th>{tr("tls.priority")}</th>
+                <th>{tr("tls.status")}</th>
                 <th>SLA</th>
-                <th>Cập nhật</th>
-                <th>Thao tác</th>
+                <th>{tr("tls.colUpdated")}</th>
+                <th>{tr("tls.colActions")}</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((t) => {
-                const sla = formatSlaRemaining(t.sla_due_at);
+                const sla = formatSlaRemaining(t.sla_due_at, lang);
                 const rowClass = t.priority === "critical" ? "row-critical" : sla.overdue ? "row-warning" : "";
                 return (
                   <tr
@@ -312,33 +314,33 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
                     className={`clickable ${rowClass}`}
                     onClick={() => router.push(`/tickets/${t.ticket_id}`)}
                   >
-                    <td className="tls-stt" data-label="STT">{sttTheoTicketId.get(t.ticket_id)}</td>
-                    <td className="mono" data-label="Mã ticket">{t.ticket_id}</td>
-                    <td className="tls-col-khach" data-label="Khách hàng">
+                    <td className="tls-stt" data-label={tr("tls.colNo")}>{sttTheoTicketId.get(t.ticket_id)}</td>
+                    <td className="mono" data-label={tr("tls.colTicket")}>{t.ticket_id}</td>
+                    <td className="tls-col-khach" data-label={tr("tls.colCustomer")}>
                       <span className="tls-ten" title={t.customer_name ?? "—"}>{t.customer_name ?? "—"}</span>
-                      {t.human_handoff_requested && <span className="badge badge-warning">Yêu cầu người thật</span>}
+                      {t.human_handoff_requested && <span className="badge badge-warning">{tr("tls.handoffBadge")}</span>}
                     </td>
-                    <td className="tls-col-loai-kn" data-label="Loại KN" title={t.complaint_type ? COMPLAINT_TYPE_LABEL[t.complaint_type] : "—"}>
-                      {t.complaint_type ? COMPLAINT_TYPE_LABEL[t.complaint_type] : "—"}
+                    <td className="tls-col-loai-kn" data-label={tr("tls.type")} title={t.complaint_type ? labelOf(COMPLAINT_TYPE_LABEL, t.complaint_type, lang) : "—"}>
+                      {t.complaint_type ? labelOf(COMPLAINT_TYPE_LABEL, t.complaint_type, lang) : "—"}
                     </td>
-                    <td className="tls-nowrap" data-label="Phạm vi">
-                      <span className="badge badge-neutral">{t.scope ? SCOPE_LABEL[t.scope] : "—"}</span>
+                    <td className="tls-nowrap" data-label={tr("tls.scope")}>
+                      <span className="badge badge-neutral">{t.scope ? labelOf(SCOPE_LABEL, t.scope, lang) : "—"}</span>
                     </td>
-                    <td className="tls-nowrap" data-label="Ưu tiên">
+                    <td className="tls-nowrap" data-label={tr("tls.priority")}>
                       {t.priority === "critical" ? (
                         <span className="badge badge-critical">
                           <span className="dot dot-pulse" />
-                          Khẩn cấp
+                          {labelOf(PRIORITY_LABEL, "critical", lang)}
                         </span>
                       ) : t.priority === "high" ? (
-                        <span className="status-dot dot-warning">Cao</span>
+                        <span className="status-dot dot-warning">{labelOf(PRIORITY_LABEL, "high", lang)}</span>
                       ) : (
-                        <span className="status-dot">Bình thường</span>
+                        <span className="status-dot">{labelOf(PRIORITY_LABEL, "normal", lang)}</span>
                       )}
                     </td>
-                    <td className="tls-nowrap" data-label="Trạng thái">
+                    <td className="tls-nowrap" data-label={tr("tls.status")}>
                       {t.hitl_status === "rejected" ? (
-                        <span className="badge badge-danger">{HITL_STATUS_LABEL[t.hitl_status]}</span>
+                        <span className="badge badge-danger">{labelOf(HITL_STATUS_LABEL, t.hitl_status, lang)}</span>
                       ) : (
                         <span
                           className={`status-dot ${
@@ -349,17 +351,17 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
                                 : ""
                           }`}
                         >
-                          {HITL_STATUS_LABEL[t.hitl_status]}
+                          {labelOf(HITL_STATUS_LABEL, t.hitl_status, lang)}
                         </span>
                       )}
                     </td>
                     <td className="mono tls-nowrap" style={{ fontSize: 12 }} data-label="SLA">
                       {sla.label}
                     </td>
-                    <td className="faint tls-nowrap" style={{ fontSize: 12 }} data-label="Cập nhật">
-                      {formatDateTime(t.created_at)}
+                    <td className="faint tls-nowrap" style={{ fontSize: 12 }} data-label={tr("tls.colUpdated")}>
+                      {formatDateTime(t.created_at, lang)}
                     </td>
-                    <td className="tls-col-thao-tac" data-label="Thao tác">
+                    <td className="tls-col-thao-tac" data-label={tr("tls.colActions")}>
                       {/* ADR-064(b), PO chốt UX 04/09 — nút CHỈ hiện cho cskh +
                           vé còn trong pool; vé đã claim → badge cho mọi vai.
                           [polish 04/09, PO bắt ragged] tách khỏi ô Mã ticket —
@@ -372,10 +374,10 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
                           disabled={claiming === t.ticket_id}
                           onClick={(e) => handleClaim(t.ticket_id, e)}
                         >
-                          {claiming === t.ticket_id ? "Đang nhận…" : "Nhận vé"}
+                          {claiming === t.ticket_id ? tr("tls.claiming") : tr("tls.claim")}
                         </button>
                       ) : t.claimed_by !== null ? (
-                        <span className="badge badge-neutral">Đã nhận</span>
+                        <span className="badge badge-neutral">{tr("tls.claimed")}</span>
                       ) : null}
                     </td>
                   </tr>
@@ -384,7 +386,7 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
               {tickets && filtered.length === 0 && (
                 <tr>
                   <td colSpan={10} className="dim" style={{ textAlign: "center", padding: 24 }}>
-                    Không có ticket nào khớp bộ lọc.
+                    {tr("tls.noMatch")}
                   </td>
                 </tr>
               )}
@@ -399,21 +401,21 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
               style={page <= 1 ? { opacity: 0.5, pointerEvents: "none" } : undefined}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              ← Trước
+              {tr("tls.prev")}
             </span>
             <span className="dim" style={{ fontSize: 13 }}>
-              Trang {page}/{totalPages} — tổng {total} vé khớp bộ lọc
+              {tr("tls.pageInfo", { page, pages: totalPages, total })}
             </span>
             <span
               className="btn btn-outline btn-sm"
               style={page >= totalPages ? { opacity: 0.5, pointerEvents: "none" } : undefined}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
-              Sau →
+              {tr("tls.next")}
             </span>
           </div>
           <div className="flex center-y" style={{ gap: 6 }}>
-            <label htmlFor="tls-page-size" className="dim" style={{ fontSize: 13 }}>Số dòng/trang</label>
+            <label htmlFor="tls-page-size" className="dim" style={{ fontSize: 13 }}>{tr("tls.pageSize")}</label>
             <select
               id="tls-page-size"
               value={pageSize}

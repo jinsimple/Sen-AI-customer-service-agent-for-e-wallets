@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
 
 /**
  * Nhãn định danh môi trường — hiện ở topbar VÀ ở màn hình đăng nhập.
@@ -39,6 +40,7 @@ const MAU: Record<string, { nen: string; chu: string }> = {
 
 export default function EnvBadge({ compact = false }: { compact?: boolean }) {
   const [info, setInfo] = useState<EnvInfo | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     fetch("/api/env-info", { cache: "no-store" })
@@ -57,17 +59,15 @@ export default function EnvBadge({ compact = false }: { compact?: boolean }) {
   // Nhãn ngắn gọn nhưng ĐỦ để phân biệt 2 stack: loại DB + tên DB.
   // `sqlite/app.db` vs `postgresql/fin05` — nhìn phát biết ngay.
   const nhan = khongKetNoi
-    ? "KHÔNG NỐI ĐƯỢC BACKEND"
+    ? t("env.unreachable")
     : `${info.env.toUpperCase()} · ${info.db_kind}/${info.db_name}`;
 
   return (
     <span
       title={
         khongKetNoi
-          ? `Không gọi được ${info.backend}/health — kiểm tra backend đã chạy chưa.`
-          : `Môi trường: ${info.env}\nDatabase: ${info.db_kind} / ${info.db_name}\nBackend: ${info.backend}\n\n` +
-            "Hai cửa sổ trình duyệt PHẢI hiện cùng một nhãn. Khác nhãn = đang ở hai " +
-            "hệ thống khác nhau với hai database khác nhau (xem ADR-009)."
+          ? t("env.unreachableTitle", { backend: info.backend })
+          : t("env.title", { env: info.env, kind: info.db_kind, name: info.db_name, backend: info.backend })
       }
       style={{
         display: "inline-flex",

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { roleHome, type Role } from "@/lib/session";
+import { useI18n } from "@/lib/i18n/client";
 
 // Dùng CHUNG cho /login (khách hàng) và /dang-nhap-noi-bo (CSKH/sếp/đối tác) —
 // tách TRANG, không tách CƠ CHẾ (PO chốt 26/08). Cả hai gọi đúng một endpoint,
@@ -17,6 +18,7 @@ import { roleHome, type Role } from "@/lib/session";
 // ĐÓNG. Gửi sai `gate` không đi vòng qua được gì, chỉ tự làm mình bị từ chối.
 export function useLoginForm(gate: "customer" | "internal") {
   const router = useRouter();
+  const { t } = useI18n();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,16 +38,16 @@ export function useLoginForm(gate: "customer" | "internal") {
       });
       const body = await res.json();
       if (!res.ok) {
-        setError(body.detail ?? "Số điện thoại hoặc mật khẩu không đúng.");
+        setError(body.detail ?? t("login.errWrong"));
         return;
       }
       router.push(roleHome(body.role as Role));
       router.refresh();
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Máy chủ phản hồi quá lâu (>10s) — thử lại giúp mình nhé.");
+        setError(t("login.errTimeout"));
       } else {
-        setError("Không kết nối được máy chủ — kiểm tra backend đã chạy chưa (make run).");
+        setError(t("login.errNetwork"));
       }
     } finally {
       clearTimeout(timeoutId);

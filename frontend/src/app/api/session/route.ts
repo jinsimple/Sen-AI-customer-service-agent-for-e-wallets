@@ -8,6 +8,8 @@ import {
   type Session,
 } from "@/lib/session";
 import { BACKEND_URL } from "@/lib/server-api";
+import { translate } from "@/lib/i18n/core";
+import { getLang } from "@/lib/i18n/server";
 
 // Gọi backend server-side (không CORS) rồi set cookie httpOnly — theo đúng
 // khuyến nghị Next.js: "Cookies should be set on the server to prevent
@@ -21,7 +23,7 @@ import { BACKEND_URL } from "@/lib/server-api";
 // Chặn SAU khi xác thực mật khẩu đúng — sai mật khẩu không học được gì; đúng
 // mật khẩu thì thêm một câu cũng không mất gì (PO). Cùng MỘT câu lỗi cho mọi
 // lý do bị từ chối ở bước này — không khai vai ra màn hình.
-const WRONG_GATE_MESSAGE = "Tài khoản này không đăng nhập tại đây. Vui lòng dùng cổng dành cho nhân viên.";
+const wrongGateMessage = async () => translate(await getLang(), "err.wrongGate");
 
 function gateRejects(gate: Gate, role: string) {
   if (gate === "customer") return role !== "customer";
@@ -37,7 +39,8 @@ export async function POST(req: Request) {
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: "Đăng nhập thất bại" }));
+    const loginFailed = translate(await getLang(), "err.loginFailed");
+    const body = await res.json().catch(() => ({ detail: loginFailed }));
     return NextResponse.json({ detail: body.detail }, { status: res.status });
   }
 
@@ -53,7 +56,7 @@ export async function POST(req: Request) {
   // phiên (không set cookie, tokens backend vừa phát ra chết theo request
   // này). Trả 403 chung chung, không nói vai thật là gì.
   if (gateRejects(gate, user.role)) {
-    return NextResponse.json({ detail: WRONG_GATE_MESSAGE }, { status: 403 });
+    return NextResponse.json({ detail: (await wrongGateMessage()) }, { status: 403 });
   }
 
   const session: Session = { ...user, phone, role: user.role as Session["role"] };

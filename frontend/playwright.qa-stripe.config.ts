@@ -12,6 +12,9 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   use: {
+    // Portfolio edition: the UI follows Accept-Language when no `lang` cookie is set. The suites
+    // assert Vietnamese copy, so pin the browser locale.
+    locale: "vi-VN",
     baseURL: "https://localhost:59443",
     ignoreHTTPSErrors: true,
     trace: "retain-on-failure",

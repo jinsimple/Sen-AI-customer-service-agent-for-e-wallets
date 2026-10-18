@@ -2,6 +2,8 @@ import "server-only";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { parseSessionCookie, SESSION_COOKIE, sessionCookieMaxAgeSeconds, type Session } from "@/lib/session";
+import { translate } from "@/lib/i18n/core";
+import { getLang } from "@/lib/i18n/server";
 
 /**
  * Lớp gọi FastAPI THẬT — chỉ được import từ Route Handler (`app/api/**\/route.ts`),
@@ -168,7 +170,7 @@ export async function backendFetch<T>(
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new ServerApiError(504, "Backend phản hồi quá lâu — thử lại giúp mình nhé.");
+      throw new ServerApiError(504, translate(await getLang(), "err.backendTimeout"));
     }
     throw err;
   } finally {
@@ -189,13 +191,15 @@ export async function backendFetch<T>(
       // thành "[object Object]" trên màn hình khách (QA-05, biên bản 13/08,
       // bắt được ở /api/otp/verify lẫn /api/resolutions/.../approve).
       if (Array.isArray(body.detail)) {
+        const lang = await getLang();
+        const invalid = translate(lang, "err.invalid");
         detail = body.detail
           .map((d: { loc?: unknown[]; msg?: string }) => {
             const field = Array.isArray(d.loc) ? d.loc.slice(1).join(".") : "";
-            return field ? `${field}: ${d.msg ?? "không hợp lệ"}` : d.msg ?? "không hợp lệ";
+            return field ? `${field}: ${d.msg ?? invalid}` : d.msg ?? invalid;
           })
           .join("; ");
-        detail = `Dữ liệu gửi lên chưa hợp lệ — ${detail}`;
+        detail = translate(lang, "err.invalidPayload", { detail });
       } else {
         detail = body.detail ?? body.error ?? JSON.stringify(body);
       }
@@ -233,6 +237,6 @@ export function proxyErrorResponse(e: unknown): NextResponse {
 /** Hàm, không phải hằng số — mỗi lần gọi phải tạo Response mới. Response chỉ
  * đọc/gửi được 1 lần; nếu dùng chung 1 instance cho nhiều request đồng thời
  * sẽ lỗi khó dò. */
-export function unauthorized(): NextResponse {
-  return NextResponse.json({ detail: "Chưa đăng nhập" }, { status: 401 });
+export async function unauthorized(): Promise<NextResponse> {
+  return NextResponse.json({ detail: translate(await getLang(), "err.notLoggedIn") }, { status: 401 });
 }

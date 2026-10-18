@@ -5,9 +5,11 @@ import { getServerSession } from "@/lib/session-server";
 import { LAST_GATE_COOKIE, loginPathForGate } from "@/lib/session";
 import TopbarActions from "@/components/TopbarActions";
 import RoleTabNav from "@/components/RoleTabNav";
+import { getT } from "@/lib/i18n/server";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
+  const { t } = await getT();
   // Cùng bản vá "ngõ cụt đăng xuất" ở proxy.ts — trong luồng bình thường
   // proxy đã chặn trước khi tới đây, chỗ này là phòng vệ đúp để không lệch
   // hành vi nếu matcher proxy đổi sau này. Xem lib/session.ts::LAST_GATE_COOKIE.
@@ -25,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               đó là câu quảng cáo, người ĐÃ đăng nhập không cần nghe lại ở
               mọi trang, mọi lượt — thuộc landing, không thuộc khung app. */}
           <div className="brand-text">
-            <b>Sen — Trợ lý CSKH ví điện tử</b>
+            <b>{t("app.brand")}</b>
           </div>
         </Link>
         <TopbarActions fullName={session.full_name} role={session.role} />
@@ -37,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           công khai. PO thật đã ra lệnh sửa mã dự án cùng ngày — cả đội đi sửa TÀI
           LIỆU và không ai sửa chỗ này. Mã đúng: P-226 (khớp git remote, xem
           CLAUDE.md §8: dòng ghi P-121 là SAI, đã đính chính 18/08). */}
-      <footer className="foot">FIN-05 · P-226 — AI 20K Build Phase Cohort 3</footer>
+      <footer className="foot">{t("app.footer")}</footer>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { I18nProvider } from "@/lib/i18n/client";
+import { getLang, getT } from "@/lib/i18n/server";
 
 // 🔴 ĐỔI 25/08 — Nunito -> Inter. Không phải chuyện gu.
 // Nunito là phông BO TRÒN, thân thiện — đúng cho app trẻ em / học tập. Đây là
@@ -23,15 +25,18 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "Sen — Trợ lý CSKH ví điện tử",
-  description: "FIN-05 — AI Agent CSKH xử lý khiếu nại giao dịch ví điện tử",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return { title: t("app.metaTitle"), description: t("app.metaDescription") };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const lang = await getLang();
   return (
-    <html lang="vi" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body>{children}</body>
+    <html lang={lang} className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body>
+        <I18nProvider lang={lang}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

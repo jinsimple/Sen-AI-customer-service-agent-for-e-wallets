@@ -11,6 +11,9 @@ import {
   submitChatCsat,
 } from "@/lib/api";
 import { useLiveChatSocket, type LiveChatContext, type LiveChatEvent } from "@/lib/useLiveChatSocket";
+import { COMPLAINT_TYPE_LABEL, SCOPE_LABEL, labelOf } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/client";
+import { docLang, translate } from "@/lib/i18n/core";
 
 // Live chat (2026-08-11) — panel dùng CHUNG cho cả khách hàng (trang /chat)
 // và CSKH/sếp (panel trong TicketDetailClient), tái dùng NGUYÊN class CSS đã
@@ -34,6 +37,7 @@ interface LocalMessage {
 }
 
 export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: LiveChatPanelProps) {
+  const { t, lang } = useI18n();
   const isStaff = viewerRole !== "customer";
   const [wsTicket, setWsTicket] = useState<string | null>(null);
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
@@ -153,7 +157,7 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
         // hiện thật 2026-08-11: OTP-gate cũ chặn ngầm route này, khách bấm
         // "gặp người thật" xong không thấy gì xảy ra, tưởng tính năng hỏng.
         if (!cancelled) {
-          setLoadError(e instanceof Error ? e.message : "Không mở được phiên chat trực tiếp.");
+          setLoadError(e instanceof Error ? e.message : translate(docLang(), "live.openError"));
         }
       }
     })();
@@ -170,7 +174,7 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
       // Kết quả thật (context/claimedByMe) tới qua push WS "claim_success",
       // không set state trực tiếp ở đây — tránh 2 nguồn sự thật lệch nhau.
     } catch {
-      setMessages((prev) => [...prev, { key: `claim-err-${Date.now()}`, role: "system", content: "Phiên chat này vừa có chuyên viên khác nhận." }]);
+      setMessages((prev) => [...prev, { key: `claim-err-${Date.now()}`, role: "system", content: t("live.claimedByOther") }]);
       setWaitingUnclaimed(false);
     }
   };
@@ -207,7 +211,15 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
   };
 
   const connectionLabel =
-    status === "connecting" ? "Đang kết nối..." : status === "open" ? "Đã kết nối" : status === "closed" ? "Mất kết nối" : status === "error" ? "Lỗi kết nối" : "";
+    status === "connecting"
+      ? t("live.connecting")
+      : status === "open"
+        ? t("live.connected")
+        : status === "closed"
+          ? t("live.disconnected")
+          : status === "error"
+            ? t("live.connError")
+            : "";
 
   if (loadError) {
     return (
@@ -222,37 +234,39 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
       <div className="chat-head">
         <div className="chat-avatar">{isStaff ? "K" : "CS"}</div>
         <div>
-          <div className="name">{isStaff ? "Chat trực tiếp với khách" : "Chat trực tiếp với CSKH"}</div>
+          <div className="name">{isStaff ? t("live.withCustomer") : t("live.withAgent")}</div>
           <div className="status">{connectionLabel}</div>
         </div>
       </div>
 
       {isStaff && context && (
         <div className="bubble-cite" style={{ margin: "8px 0" }}>
-          Ngữ cảnh AI đã điều tra: {context.complaint?.type ?? "—"} · {context.complaint?.scope ?? "—"} · trans_id: {context.complaint?.trans_id ?? "chưa xác định"}
+          {t("live.aiContext")} {labelOf(COMPLAINT_TYPE_LABEL, context.complaint?.type, lang) ?? context.complaint?.type ?? "—"} ·{" "}
+          {labelOf(SCOPE_LABEL, context.complaint?.scope, lang) ?? context.complaint?.scope ?? "—"} · trans_id:{" "}
+          {context.complaint?.trans_id ?? t("live.undetermined")}
           {context.customer && (
             <>
               {" · "}
-              {context.customer.full_name} · SĐT: <strong>{context.customer.phone}</strong>
+              {context.customer.full_name} · {t("live.phone")} <strong>{context.customer.phone}</strong>
             </>
           )}
         </div>
       )}
       {isStaff && sessionClosed && (
         <div className="note" style={{ marginBottom: 8 }}>
-          Phiên chat đã kết thúc — đây là lịch sử. Nếu cần hỗ trợ thêm, liên hệ khách qua số điện thoại ở trên.
+          {t("live.ended")}
         </div>
       )}
 
       {isStaff && waitingUnclaimed && (
         <button className="btn btn-primary" onClick={handleClaim} style={{ marginBottom: 8 }}>
-          Nhận phiên chat này
+          {t("live.claim")}
         </button>
       )}
 
       {isStaff && claimedByMe && !sessionClosed && (
         <button className="btn btn-outline" onClick={handleClose} style={{ marginBottom: 8 }}>
-          Kết thúc chat
+          {t("live.end")}
         </button>
       )}
 
@@ -278,7 +292,7 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
         <div className="chat-input">
           <input
             key={inputResetKey}
-            placeholder={isStaff && !claimedByMe ? "Nhận phiên chat để bắt đầu trả lời" : "Nhập tin nhắn..."}
+            placeholder={isStaff && !claimedByMe ? t("live.claimToReply") : t("live.typeMessage")}
             value={input}
             disabled={isStaff && !claimedByMe}
             onChange={(e) => setInput(e.target.value)}
@@ -291,14 +305,14 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
             maxLength={4000}
           />
           <button className="btn btn-primary" onClick={handleSend} disabled={isStaff && !claimedByMe}>
-            Gửi
+            {t("live.send")}
           </button>
         </div>
       )}
 
       {!isStaff && sessionClosed && !csatSubmitted && (
         <div style={{ marginTop: 12 }}>
-          <div className="status">Đánh giá chất lượng hỗ trợ:</div>
+          <div className="status">{t("live.rate")}</div>
           <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
             {[1, 2, 3, 4, 5].map((score) => (
               <span key={score} className="chip" onClick={() => handleCsat(score)}>
@@ -308,7 +322,7 @@ export default function LiveChatPanel({ ticketId, viewerRole, viewerUserId }: Li
           </div>
         </div>
       )}
-      {csatSubmitted && <div className="status" style={{ marginTop: 8 }}>Cảm ơn bạn đã đánh giá!</div>}
+      {csatSubmitted && <div className="status" style={{ marginTop: 8 }}>{t("live.thanks")}</div>}
     </div>
   );
 }

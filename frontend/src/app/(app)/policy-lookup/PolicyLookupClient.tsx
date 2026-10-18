@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { ApiError, searchPolicy } from "@/lib/api";
 import type { PolicySearchResultItem } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/client";
 
 export default function PolicyLookupClient() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PolicySearchResultItem[] | null>(null);
   const [searched, setSearched] = useState(false);
@@ -21,7 +23,7 @@ export default function PolicyLookupClient() {
       setResults(res.results);
       setSearched(true);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Tra cứu thất bại");
+      setError(e instanceof ApiError ? e.message : t("policyLookup.failed"));
       setResults(null);
     } finally {
       setLoading(false);
@@ -31,11 +33,10 @@ export default function PolicyLookupClient() {
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Webapp CSKH · Tra cứu chính sách</span>
-        <h1>Tra cứu chính sách & FAQ</h1>
+        <span className="eyebrow">{t("policyLookup.eyebrow")}</span>
+        <h1>{t("policyLookup.title")}</h1>
         <p className="sub">
-          Tìm nhanh nội dung chính sách/FAQ mới nhất do đối tác ví cập nhật — hữu ích khi xử lý ticket
-          cần đối chiếu quy định. Kết quả là đoạn trích nguyên văn, không qua tổng hợp AI.
+          {t("policyLookup.sub")}
         </p>
       </div>
 
@@ -43,12 +44,12 @@ export default function PolicyLookupClient() {
         <form onSubmit={handleSearch} className="flex gap-sm wrap center-y">
           <input
             style={{ flex: 1, minWidth: 260 }}
-            placeholder="Vd: phí rút tiền, thời gian hoàn tiền double_charge..."
+            placeholder={t("policyLookup.placeholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <button className="btn btn-gold" type="submit" disabled={loading}>
-            {loading ? "Đang tìm…" : "Tìm kiếm"}
+            {loading ? t("policyLookup.searching") : t("policyLookup.search")}
           </button>
         </form>
       </div>
@@ -58,7 +59,7 @@ export default function PolicyLookupClient() {
       {searched && !error && (
         <div className="section" style={{ marginTop: 24 }}>
           {results?.length === 0 ? (
-            <div className="dim">Chưa tìm thấy tài liệu chính sách nào khớp với câu hỏi này.</div>
+            <div className="dim">{t("policyLookup.none")}</div>
           ) : (
             <div className="flex-col gap-md">
               {results?.map((r, i) => (
@@ -73,7 +74,7 @@ export default function PolicyLookupClient() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Xem toàn văn ↗
+                      {t("policyLookup.fullText")}
                     </a>
                   </div>
                   <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{r.text}</p>

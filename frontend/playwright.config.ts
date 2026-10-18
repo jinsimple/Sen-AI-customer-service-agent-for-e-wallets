@@ -61,6 +61,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["html", { open: "never" }]] : "list",
   use: {
+    // Portfolio edition: the UI follows Accept-Language when no `lang` cookie is set. The suites
+    // assert Vietnamese copy, so pin the browser locale.
+    locale: "vi-VN",
     baseURL: "http://localhost:3000",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

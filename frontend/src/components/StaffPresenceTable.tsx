@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, listStaffPresence } from "@/lib/api";
 import type { StaffPresenceItem } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/client";
 
 // ADR-063 — bảng "CSKH nào đang online" + số vé đang xử lý, CHỈ Sếp xem
 // (route /presence/staff ép role ở tầng backend — component này không tự
@@ -13,6 +14,7 @@ import type { StaffPresenceItem } from "@/lib/types";
 const POLL_MS = 20_000;
 
 export default function StaffPresenceTable() {
+  const { t } = useI18n();
   const [items, setItems] = useState<StaffPresenceItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +26,7 @@ export default function StaffPresenceTable() {
           if (!huy) setItems(r.items);
         })
         .catch((e) => {
-          if (!huy) setError(e instanceof ApiError ? e.message : "Không tải được danh sách CSKH");
+          if (!huy) setError(e instanceof ApiError ? e.message : t("presence.loadError"));
         });
     }
     tai();
@@ -33,7 +35,7 @@ export default function StaffPresenceTable() {
       huy = true;
       clearInterval(id);
     };
-  }, []);
+  }, [t]);
 
   if (error) return <div className="note" style={{ borderColor: "var(--danger)" }}>{error}</div>;
 
@@ -47,16 +49,16 @@ export default function StaffPresenceTable() {
 
   return (
     <div className="card" style={{ marginBottom: 20 }}>
-      <div className="card-title" style={{ marginBottom: 10 }}>CSKH đang online</div>
-      {items === null && <div className="dim">Đang tải…</div>}
-      {items !== null && items.length === 0 && <div className="dim">Chưa có CSKH nào trong hệ thống.</div>}
+      <div className="card-title" style={{ marginBottom: 10 }}>{t("presence.title")}</div>
+      {items === null && <div className="dim">{t("common.loading")}</div>}
+      {items !== null && items.length === 0 && <div className="dim">{t("presence.empty")}</div>}
       {items !== null && items.length > 0 && (
         <table className="table">
           <thead>
             <tr>
-              <th>Nhân viên</th>
-              <th>Trạng thái</th>
-              <th>Số vé đang xử lý</th>
+              <th>{t("presence.colStaff")}</th>
+              <th>{t("presence.colStatus")}</th>
+              <th>{t("presence.colTickets")}</th>
             </tr>
           </thead>
           <tbody>
@@ -65,7 +67,7 @@ export default function StaffPresenceTable() {
                 <td>{it.full_name}</td>
                 <td>
                   <span className={`badge ${it.online ? "badge-success" : "badge-neutral"}`}>
-                    {it.online ? "Đang online" : "Offline"}
+                    {it.online ? t("presence.online") : t("presence.offline")}
                   </span>
                 </td>
                 <td>{it.so_ve_dang_xu_ly}</td>

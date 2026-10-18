@@ -2,6 +2,8 @@
 
 import { useLoginForm } from "@/lib/useLoginForm";
 import EnvBadge from "@/components/EnvBadge";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/lib/i18n/client";
 
 // Đăng nhập bằng mật khẩu thật (quyết định 2026-08-12, thay luồng phone+role
 // chọn tay trước đó) — vai trò giờ lấy từ RESPONSE của server (user tìm
@@ -17,6 +19,7 @@ const CUSTOMER_PHONE = "0974000145";
 
 export default function LoginPage() {
   const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm("customer");
+  const { t } = useI18n();
 
   return (
     <main style={{ maxWidth: 1000, margin: "48px auto", padding: "0 20px" }}>
@@ -24,8 +27,8 @@ export default function LoginPage() {
         <div className="login-brand">
           <div>
             <div className="mark">S</div>
-            <h2>Sen — Trợ lý CSKH ví điện tử</h2>
-            <p>Điều tra khiếu nại giao dịch bằng AI, quyết định cuối cùng luôn thuộc về con người.</p>
+            <h2>{t("app.brand")}</h2>
+            <p>{t("clogin.tagline")}</p>
           </div>
           <div className="trustlist">
             <div>
@@ -42,7 +45,7 @@ export default function LoginPage() {
                   THỊ — kiểm được bằng mắt: "T. H. Ngân 058***0135" trên ảnh
                   sản phẩm), khớp nguyên văn câu đã duyệt trên landing. Copy
                   nguyên văn marketing, không tự viết lại. */}
-              <span>Thông tin của người khác trong giao dịch được che trước khi hiển thị. Phần suy luận của mô hình đi qua nhà cung cấp đã khai báo, và hệ thống có sẵn cơ chế chuyển đổi nhà cung cấp.</span>
+              <span>{t("clogin.trustMasking")}</span>
             </div>
             <div>
               <svg className="icon" viewBox="0 0 24 24">
@@ -58,13 +61,13 @@ export default function LoginPage() {
                   thuẫn với ô "Mật khẩu" tự tan vì câu chuẩn nói "mật khẩu VÍ",
                   đã khác ô đăng nhập ứng dụng. Câu chuẩn trần, nguyên văn
                   marketing, giống hệt cả ba nơi. */}
-              <span>Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.</span>
+              <span>{t("common.neverAsk")}</span>
             </div>
             <div>
               <svg className="icon" viewBox="0 0 24 24">
                 <path d="M4 6h16M4 12h16M4 18h10" />
               </svg>
-              <span>Mọi phê duyệt hoàn tiền được ghi log — truy vết được ai, khi nào, căn cứ gì.</span>
+              <span>{t("clogin.trustAudit")}</span>
             </div>
           </div>
         </div>
@@ -72,14 +75,15 @@ export default function LoginPage() {
         <form className="login-form" onSubmit={handleSubmit}>
           {/* Nhãn môi trường ngay tại màn đăng nhập — đúng thời điểm cần biết
               mình sắp đăng nhập vào hệ thống/database nào. Xem ADR-009. */}
-          <div style={{ marginBottom: 14 }}>
+          <div style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
             <EnvBadge />
+            <LanguageToggle />
           </div>
-          <h3>Chào bạn 👋</h3>
-          <p className="sub">Đăng nhập để tiếp tục với trợ lý AI của ví — vài giây thôi.</p>
+          <h3>{t("clogin.hello")}</h3>
+          <p className="sub">{t("clogin.sub")}</p>
 
           <div className={`field${error ? " field-error" : ""}`} style={{ marginTop: 0 }}>
-            <label>Số điện thoại</label>
+            <label>{t("login.phone")}</label>
             <input
               type="tel"
               placeholder="09xx xxx xxx"
@@ -90,7 +94,7 @@ export default function LoginPage() {
           </div>
 
           <div className={`field${error ? " field-error" : ""}`}>
-            <label>Mật khẩu</label>
+            <label>{t("login.password")}</label>
             <input
               type="password"
               placeholder="••••••••"
@@ -110,7 +114,7 @@ export default function LoginPage() {
           </div>
 
           <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 20 }} disabled={loading}>
-            {loading ? "Đang đăng nhập…" : "Đăng nhập"}
+            {loading ? t("login.submitting") : t("login.submit")}
             <svg className="icon" viewBox="0 0 24 24">
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
@@ -121,13 +125,13 @@ export default function LoginPage() {
               <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z" />
             </svg>
             <div>
-              <b>Demo:</b> tài khoản khách hàng bên dưới dùng mật khẩu{" "}
+              <b>Demo:</b> {t("clogin.demoNote")}{" "}
               <span className="mono">{DEMO_PASSWORD}</span>.
             </div>
           </div>
 
           <div className="field" style={{ marginTop: 20 }}>
-            <label>Đăng nhập nhanh (demo)</label>
+            <label>{t("clogin.quickLogin")}</label>
             <div className="flex gap-sm wrap" style={{ marginTop: 7 }}>
               <button
                 type="button"
@@ -135,7 +139,7 @@ export default function LoginPage() {
                 disabled={loading}
                 onClick={() => void doLogin(CUSTOMER_PHONE, DEMO_PASSWORD)}
               >
-                Khách hàng — {CUSTOMER_PHONE}
+                {t("clogin.quickCustomer", { phone: CUSTOMER_PHONE })}
               </button>
             </div>
           </div>

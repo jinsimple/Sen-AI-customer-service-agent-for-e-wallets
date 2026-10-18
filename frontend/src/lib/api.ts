@@ -20,6 +20,7 @@ import type {
 } from "@/lib/types";
 import type { LiveChatContext } from "@/lib/useLiveChatSocket";
 import { LAST_GATE_COOKIE, loginPathForGate } from "@/lib/session";
+import { docLang, translate } from "@/lib/i18n/core";
 
 // Client Component gọi các route nội bộ /api/* (BFF, xem frontend/src/app/api/)
 // — KHÔNG bao giờ gọi thẳng FastAPI. Route nội bộ đọc JWT từ cookie httpOnly
@@ -74,7 +75,7 @@ function dieuHuongKhiHetPhien() {
   window.location.href = loginPathForGate(goiY);
 }
 
-const PHIEN_HET_HAN_MESSAGE = "Phiên làm việc đã hết hạn — mời bạn đăng nhập lại.";
+const phienHetHanMessage = () => translate(docLang(), "err.sessionExpired");
 
 async function request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = init ?? {};
@@ -89,7 +90,7 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new ApiError(0, `Máy chủ phản hồi quá lâu (>${Math.round(timeoutMs / 1000)}s) — thử lại giúp mình nhé.`);
+      throw new ApiError(0, translate(docLang(), "err.timeout", { s: Math.round(timeoutMs / 1000) }));
     }
     throw err;
   } finally {
@@ -109,7 +110,7 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
     }
     if (res.status === 401) {
       dieuHuongKhiHetPhien();
-      throw new ApiError(401, PHIEN_HET_HAN_MESSAGE);
+      throw new ApiError(401, phienHetHanMessage());
     }
     throw new ApiError(res.status, detail);
   }
@@ -140,7 +141,7 @@ async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
     res = await fetch(path, { method: "POST", body: formData, signal: controller.signal });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
-      throw new ApiError(0, `Máy chủ phản hồi quá lâu (>${Math.round(DEFAULT_TIMEOUT_MS / 1000)}s) — thử lại giúp mình nhé.`);
+      throw new ApiError(0, translate(docLang(), "err.timeout", { s: Math.round(DEFAULT_TIMEOUT_MS / 1000) }));
     }
     throw err;
   } finally {
@@ -160,7 +161,7 @@ async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
     }
     if (res.status === 401) {
       dieuHuongKhiHetPhien();
-      throw new ApiError(401, PHIEN_HET_HAN_MESSAGE);
+      throw new ApiError(401, phienHetHanMessage());
     }
     throw new ApiError(res.status, detail);
   }

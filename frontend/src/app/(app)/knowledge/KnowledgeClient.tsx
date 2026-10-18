@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError, deletePolicyDoc, listPolicyDocs, uploadPolicyDoc } from "@/lib/api";
 import type { PolicyDocument } from "@/lib/types";
 import { formatDateTime } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/client";
+import type { DictKey } from "@/lib/i18n/dict";
 
-const STATUS_LABEL: Record<PolicyDocument["status"], string> = {
-  processing: "Đang xử lý",
-  indexed: "Đã lập chỉ mục",
-  failed: "Lỗi",
+const STATUS_LABEL: Record<PolicyDocument["status"], DictKey> = {
+  processing: "kb.status.processing",
+  indexed: "kb.status.indexed",
+  failed: "kb.status.failed",
 };
 
 const STATUS_BADGE: Record<PolicyDocument["status"], string> = {
@@ -18,6 +20,7 @@ const STATUS_BADGE: Record<PolicyDocument["status"], string> = {
 };
 
 export default function KnowledgeClient() {
+  const { t, lang } = useI18n();
   const [docs, setDocs] = useState<PolicyDocument[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -29,7 +32,7 @@ export default function KnowledgeClient() {
     try {
       setDocs(await listPolicyDocs());
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Không tải được danh sách tài liệu");
+      setError(e instanceof ApiError ? e.message : t("kb.loadError"));
     }
   }
 
@@ -48,7 +51,7 @@ export default function KnowledgeClient() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Upload thất bại");
+      setError(e instanceof ApiError ? e.message : t("kb.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -60,7 +63,7 @@ export default function KnowledgeClient() {
       await deletePolicyDoc(docId);
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Xoá thất bại");
+      setError(e instanceof ApiError ? e.message : t("kb.deleteFailed"));
     } finally {
       setBusyId(null);
     }
@@ -69,37 +72,36 @@ export default function KnowledgeClient() {
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Webapp Đối tác ví · RAG chính sách/FAQ</span>
-        <h1>Chính sách & FAQ</h1>
+        <span className="eyebrow">{t("kb.eyebrow")}</span>
+        <h1>{t("kb.title")}</h1>
         <p className="sub">
-          Tài liệu tải lên ở đây được AI agent dùng để trả lời khách hàng và giúp CSKH tra cứu nhanh —
-          hỗ trợ .md/.txt/.pdf/.docx (không hỗ trợ .doc cũ). Nội dung được mã hoá khi lưu trữ.
+          {t("kb.sub")}
         </p>
       </div>
 
       {error && <div className="note" style={{ borderColor: "var(--danger)" }}>{error}</div>}
 
       <div className="card">
-        <div className="card-title">Tải tài liệu mới</div>
+        <div className="card-title">{t("kb.uploadTitle")}</div>
         <form onSubmit={handleUpload} className="flex gap-sm wrap center-y" style={{ marginTop: 12 }}>
           <input ref={fileInputRef} type="file" accept=".md,.txt,.pdf,.docx" required />
           <button className="btn btn-gold" type="submit" disabled={uploading}>
-            {uploading ? "Đang tải lên…" : "Tải lên"}
+            {uploading ? t("kb.uploading") : t("kb.upload")}
           </button>
         </form>
       </div>
 
       <div className="section" style={{ marginTop: 30 }}>
-        <div className="section-title">Tài liệu đã tải lên</div>
+        <div className="section-title">{t("kb.listTitle")}</div>
         <div className="card scroll-x" style={{ padding: 0 }}>
           <table className="table">
             <thead>
               <tr>
-                <th>Tên file</th>
-                <th>Người tải lên</th>
-                <th>Thời gian</th>
-                <th>Trạng thái</th>
-                <th>Số đoạn</th>
+                <th>{t("kb.colFile")}</th>
+                <th>{t("kb.colUploader")}</th>
+                <th>{t("kb.colTime")}</th>
+                <th>{t("kb.colStatus")}</th>
+                <th>{t("kb.colChunks")}</th>
                 <th></th>
               </tr>
             </thead>
@@ -108,9 +110,9 @@ export default function KnowledgeClient() {
                 <tr key={d.doc_id}>
                   <td>{d.filename}</td>
                   <td>{d.uploaded_by_name ?? "—"}</td>
-                  <td className="mono" style={{ fontSize: 12 }}>{formatDateTime(d.uploaded_at)}</td>
+                  <td className="mono" style={{ fontSize: 12 }}>{formatDateTime(d.uploaded_at, lang)}</td>
                   <td>
-                    <span className={`badge ${STATUS_BADGE[d.status]}`}>{STATUS_LABEL[d.status]}</span>
+                    <span className={`badge ${STATUS_BADGE[d.status]}`}>{t(STATUS_LABEL[d.status])}</span>
                     {d.status === "failed" && d.error_message && (
                       <div className="dim" style={{ fontSize: 11, marginTop: 4 }}>{d.error_message}</div>
                     )}
@@ -122,7 +124,7 @@ export default function KnowledgeClient() {
                       disabled={busyId === d.doc_id}
                       onClick={() => handleDelete(d.doc_id)}
                     >
-                      Xoá
+                      {t("kb.delete")}
                     </button>
                   </td>
                 </tr>
@@ -130,7 +132,7 @@ export default function KnowledgeClient() {
               {docs?.length === 0 && (
                 <tr>
                   <td colSpan={6} className="dim" style={{ textAlign: "center", padding: 20 }}>
-                    Chưa có tài liệu nào.
+                    {t("kb.empty")}
                   </td>
                 </tr>
               )}

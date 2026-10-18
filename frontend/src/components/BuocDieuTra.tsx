@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { formatDateTime } from "@/lib/format";
 import { traiPayload, type DongHienThi } from "@/lib/timeline-format";
-import { TOOL_NAME_LABEL } from "@/lib/types";
+import { TOOL_NAME_LABEL, labelOf } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/client";
 
 // UI-01 — MỘT bước trong "Nhật ký điều tra", hiển thị cho NGƯỜI đọc.
 //
@@ -40,10 +41,11 @@ function Dong({ d }: { d: DongHienThi }) {
 }
 
 function Khoi({ tieuDe, payload }: { tieuDe: string; payload: unknown }) {
+  const { lang } = useI18n();
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{tieuDe}</div>
-      {traiPayload(payload).map((d, i) => (
+      {traiPayload(payload, 0, "", lang).map((d, i) => (
         <Dong key={i} d={d} />
       ))}
     </div>
@@ -61,6 +63,7 @@ function Khoi({ tieuDe, payload }: { tieuDe: string; payload: unknown }) {
 const NGUONG_DONG = 12;
 
 function KetQuaDai({ dong }: { dong: DongHienThi[] }) {
+  const { t } = useI18n();
   const [moHet, setMoHet] = useState(false);
   const hien = moHet ? dong : dong.slice(0, NGUONG_DONG);
   const con = dong.length - hien.length;
@@ -76,7 +79,7 @@ function KetQuaDai({ dong }: { dong: DongHienThi[] }) {
           className="dim"
           style={{ fontSize: 11, marginTop: 4, background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}
         >
-          Xem thêm {con} dòng
+          {t("step.showMore", { n: con })}
         </button>
       )}
       {moHet && dong.length > NGUONG_DONG && (
@@ -86,7 +89,7 @@ function KetQuaDai({ dong }: { dong: DongHienThi[] }) {
           className="dim"
           style={{ fontSize: 11, marginTop: 4, background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}
         >
-          Thu gọn
+          {t("step.collapse")}
         </button>
       )}
     </>
@@ -94,6 +97,7 @@ function KetQuaDai({ dong }: { dong: DongHienThi[] }) {
 }
 
 export default function BuocDieuTra({ log }: { log: Log }) {
+  const { t, lang } = useI18n();
   const [moKyThuat, setMoKyThuat] = useState(false);
 
   // Ba ca `null` GỘP LÀM MỘT nhãn ở v1 (không có bản ghi · tool timeout · tra
@@ -106,7 +110,7 @@ export default function BuocDieuTra({ log }: { log: Log }) {
   return (
     <div className="trail-step" key={log.step_no}>
       <span className="trail-tool">
-        {TOOL_NAME_LABEL[log.tool_called] ?? log.tool_called}
+        {labelOf(TOOL_NAME_LABEL, log.tool_called, lang) ?? log.tool_called}
         {/* Tên kỹ thuật giữ lại dạng chữ nhỏ: đây là màn nội bộ, người điều
             tra vẫn cần đối chiếu tên tool thật khi đọc log backend. */}
         <span className="dim" style={{ fontSize: 11, marginLeft: 6, fontWeight: 400 }}>
@@ -114,20 +118,20 @@ export default function BuocDieuTra({ log }: { log: Log }) {
         </span>
       </span>
 
-      <Khoi tieuDe="Đã hỏi" payload={log.tool_input} />
+      <Khoi tieuDe={t("step.asked")} payload={log.tool_input} />
 
       <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>Kết quả</div>
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{t("step.result")}</div>
         {biChanOtp ? (
           <div className="dim" style={{ fontSize: 13, fontStyle: "italic" }}>
-            Bị chặn — cần xác thực OTP phiên trước khi tra cứu
+            {t("step.blockedOtp")}
           </div>
         ) : ketQuaTrong ? (
           <div className="dim" style={{ fontSize: 13, fontStyle: "italic" }}>
-            Không tra được dữ liệu
+            {t("step.noData")}
           </div>
         ) : (
-          <KetQuaDai dong={traiPayload(log.tool_result)} />
+          <KetQuaDai dong={traiPayload(log.tool_result, 0, "", lang)} />
         )}
       </div>
 
@@ -138,7 +142,7 @@ export default function BuocDieuTra({ log }: { log: Log }) {
           trên là tiện ích đọc, KHÔNG thay thế nó. Mặc định ĐÓNG. */}
       <details open={moKyThuat} onToggle={(e) => setMoKyThuat((e.target as HTMLDetailsElement).open)}>
         <summary className="dim" style={{ fontSize: 11, cursor: "pointer", marginTop: 6 }}>
-          Xem dữ liệu kỹ thuật
+          {t("step.technical")}
         </summary>
         <pre
           style={{
@@ -153,7 +157,7 @@ export default function BuocDieuTra({ log }: { log: Log }) {
         </pre>
       </details>
 
-      <div className="trail-time">{formatDateTime(log.created_at)}</div>
+      <div className="trail-time">{formatDateTime(log.created_at, lang)}</div>
     </div>
   );
 }

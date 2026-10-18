@@ -4,17 +4,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import BannerLechVai from "@/components/BannerLechVai";
 import OtpInput from "@/components/OtpInput";
 import { ApiError, agentChat, getCustomerHistory, requestLiveChatWsTicket, requestOtp, verifyOtp } from "@/lib/api";
-import { COMPLAINT_TYPE_LABEL, type ComplaintType, type CustomerHistory } from "@/lib/types";
+import { COMPLAINT_TYPE_LABEL, labelOf, type ComplaintType, type CustomerHistory } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/client";
+import { docLang, translate } from "@/lib/i18n/core";
+import type { DictKey } from "@/lib/i18n/dict";
+import { rich } from "@/lib/i18n/rich";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { useLiveChatSocket, type LiveChatEvent } from "@/lib/useLiveChatSocket";
 
 // Complaint.status (khác Ticket.hitl_status) — trong dataset/pipeline hiện
 // tại chỉ dùng "investigating"/"resolved", nhưng không có CHECK constraint
 // ràng buộc ở DB nên fallback về đúng chuỗi gốc nếu gặp giá trị lạ.
-const COMPLAINT_STATUS_LABEL: Record<string, string> = {
-  investigating: "Đang xử lý",
-  resolved: "Đã giải quyết",
-  rejected: "Đã từ chối",
+const COMPLAINT_STATUS_LABEL: Record<string, DictKey> = {
+  investigating: "chat.cstatus.investigating",
+  resolved: "chat.cstatus.resolved",
+  rejected: "chat.cstatus.rejected",
 };
 
 const COMPLAINT_CHIPS: { value: ComplaintType; label: string; starter: string }[] = [
@@ -122,6 +126,7 @@ function RailCardGatedByOtp({
   thongDiepChuaXacThuc: string;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   if (!otpVerified) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -129,7 +134,7 @@ function RailCardGatedByOtp({
           {thongDiepChuaXacThuc}
         </div>
         <button className="btn btn-outline btn-sm" type="button" onClick={onXacThuc}>
-          Xác thực ngay
+          {t("chat.verifyNow")}
         </button>
       </div>
     );
@@ -158,6 +163,7 @@ export default function ChatClient({
   // UI-02 — vai của phiên hiện tại KHÔNG khớp màn này. Đặt từ phản hồi 403 của
   // API chứ không đọc lúc render: tab đang mở không điều hướng lần nào, nên
   // guard route (`proxy.ts`) không bao giờ chạy — 403 là tín hiệu DUY NHẤT.
+  const { t, lang } = useI18n();
   const [vaiLech, setVaiLech] = useState<string | null>(null);
   const [history, setHistory] = useState<CustomerHistory | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -227,7 +233,7 @@ export default function ChatClient({
       // theo yêu cầu trực tiếp của PO thật cùng ngày, muộn hơn: giữ đúng
       // "trợ lý AI" bắt buộc + đường vào nhanh, bỏ phần diễn giải tra-được/
       // không-quyết dài dòng).
-      text: "Chào bạn, mình là Sen — trợ lý AI của ví. Mình có thể hỗ trợ bạn những thông tin về ví điện tử, truy vấn các giao dịch và những vấn đề liên quan đến chuyển tiền. Bạn có thể gõ trực tiếp câu hỏi, hoặc bấm \"Báo lỗi giao dịch này\" ở một giao dịch cụ thể bên trái.",
+      text: translate(docLang(), "chat.greeting"),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -276,7 +282,7 @@ export default function ChatClient({
       // chính khách vừa mất kết nối rồi phía server tự đóng — xem
       // close_customer_session_on_disconnect) — quay lại nói chuyện với Sen,
       // KHÔNG để khách gõ tiếp vào 1 phiên đã chết trong im lặng.
-      setMessages((prev) => [...prev, { id: nid(), from: "system", text: "Phiên chat trực tiếp đã kết thúc. Bạn có thể tiếp tục hỏi Sen." }]);
+      setMessages((prev) => [...prev, { id: nid(), from: "system", text: translate(docLang(), "chat.liveEnded") }]);
       setLiveChatSessionId(null);
       setLiveChatWsTicket(null);
       setLiveChatTicketId(null);
@@ -335,7 +341,7 @@ export default function ChatClient({
       });
       setStage("otp");
     } catch {
-      push({ id: nid(), from: "bot", text: "Không xin được mã OTP lúc này, bạn thử lại giúp mình nhé." });
+      push({ id: nid(), from: "bot", text: t("chat.otpRequestFailed") });
       setStage("chat");
     }
   }
@@ -344,8 +350,10 @@ export default function ChatClient({
     c: (typeof COMPLAINT_CHIPS)[number],
     tx: NonNullable<CustomerHistory["recent_transactions"]>[number]
   ) {
-    const label = `${c.label} — giao dịch ${tx.trans_id}`;
-    const starter = `${c.starter} Giao dịch liên quan: ${tx.trans_id} (${formatMoney(tx.amount)} lúc ${formatDateTime(tx.created_at)}).`;
+    const chipLabel = labelOf(COMPLAINT_TYPE_LABEL, c.value, lang) ?? c.label;
+    const label = t("chat.complaintLabel", { label: chipLabel, id: tx.trans_id });
+    // Sent to the agent — always Vietnamese (see COMPLAINT_CHIPS).
+    const starter = `${c.starter} Giao dịch liên quan: ${tx.trans_id} (${formatMoney(tx.amount, "vi")} lúc ${formatDateTime(tx.created_at, "vi")}).`;
     push({ id: nid(), from: "user", text: label });
     if (otpVerifiedRef.current) {
       void sendToAgent(starter, { echoAsUser: false });
@@ -354,7 +362,7 @@ export default function ChatClient({
     push({
       id: nid(),
       from: "bot",
-      text: `Mình hiểu bạn đang lo vì ${c.label.toLowerCase()} — để bảo vệ tài khoản của bạn, mình cần xác thực nhanh trước khi tra cứu nhé.`,
+      text: t("chat.needOtpFor", { label: lang === "en" ? chipLabel : chipLabel.toLowerCase() }),
     });
     pendingStarterRef.current = starter;
     void beginOtpFlow();
@@ -370,7 +378,7 @@ export default function ChatClient({
       setMessages((prev) =>
         prev.map((m) =>
           m.id === msgId && m.from === "otp"
-            ? { ...m, checking: false, error: e instanceof ApiError ? e.message : "Xác thực thất bại, thử lại." }
+            ? { ...m, checking: false, error: e instanceof ApiError ? e.message : t("chat.otpFailed") }
             : m
         )
       );
@@ -391,12 +399,12 @@ export default function ChatClient({
       // đặt `pendingStarterRef` (chip startComplaint · otpStaleCall giữa
       // hội thoại · touchedSensitiveData) — không phân biệt nguồn, cùng một
       // ý nghĩa "khách vừa xác thực xong, đây là câu cần model xử lý lại".
-      push({ id: nid(), from: "bot", text: "Xác thực thành công — để mình tra ngay giúp bạn." });
+      push({ id: nid(), from: "bot", text: t("chat.otpOkLookup") });
       void sendToAgent(starter, { echoAsUser: false, vuaXacThucDeGuiLai: true });
     } else {
       // Phản ứng (gõ tự do, agent vừa lỡ chạm dữ liệu nhạy cảm) — không có
       // gì phải gửi lại, chỉ mở lại chat.
-      push({ id: nid(), from: "bot", text: "Xác thực thành công — bạn tiếp tục hỏi mình nhé." });
+      push({ id: nid(), from: "bot", text: t("chat.otpOkContinue") });
       setStage("chat");
     }
   }
@@ -408,8 +416,8 @@ export default function ChatClient({
     push({
       id: nid(),
       from: "bot",
-      text: `Bạn muốn báo vấn đề gì với giao dịch ${formatMoney(tx.amount)} lúc ${formatDateTime(tx.created_at)} này?`,
-      chips: COMPLAINT_CHIPS.map((c) => ({ label: c.label, onClick: () => startComplaint(c, tx) })),
+      text: t("chat.whichProblem", { amount: formatMoney(tx.amount, lang), time: formatDateTime(tx.created_at, lang) }),
+      chips: COMPLAINT_CHIPS.map((c) => ({ label: labelOf(COMPLAINT_TYPE_LABEL, c.value, lang) ?? c.label, onClick: () => startComplaint(c, tx) })),
     });
   }
 
@@ -426,7 +434,7 @@ export default function ChatClient({
         from: "bot",
         text: result.reply,
         cite: result.tool_calls.length
-          ? `nguồn: ${result.tool_calls.map((c) => c.tool_name).join(" → ")}`
+          ? t("chat.source", { tools: result.tool_calls.map((c) => c.tool_name).join(" → ") })
           : undefined,
       });
       if (result.ticket_id) {
@@ -490,7 +498,7 @@ export default function ChatClient({
         push({
           id: nid(),
           from: "bot",
-          text: "Để tiếp tục thao tác này, mình cần bạn xác thực lại OTP phiên làm việc nhé.",
+          text: t("chat.reverifyOtp"),
         });
         pendingStarterRef.current = text;
         void beginOtpFlow();
@@ -506,7 +514,7 @@ export default function ChatClient({
         push({
           id: nid(),
           from: "bot",
-          text: "Mình vừa cần tra thông tin liên quan tới giao dịch/tài khoản của bạn — xác thực nhanh OTP phiên làm việc để tiếp tục nhé.",
+          text: t("chat.needOtpSensitive"),
         });
         // Lỗi 1 (PO thật 19/08): thiếu dòng này làm câu khách vừa hỏi bị MẤT
         // sau khi xác thực xong — bắt gõ lại đúng lúc khách đang bực. Cùng
@@ -549,7 +557,7 @@ export default function ChatClient({
       push({
         id: nid(),
         from: "bot",
-        text: e instanceof ApiError ? `Có lỗi: ${e.message}` : "Có lỗi khi kết nối trợ lý, thử lại giúp mình nhé.",
+        text: e instanceof ApiError ? t("chat.errorPrefix", { msg: e.message }) : t("chat.connectError"),
       });
       setStage("chat");
     }
@@ -588,8 +596,8 @@ export default function ChatClient({
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Trợ lý AI cho khách hàng</span>
-        <h1>Trợ lý AI</h1>
+        <span className="eyebrow">{t("chat.eyebrow")}</span>
+        <h1>{t("chat.title")}</h1>
         {/* 27/08 — Marketing (p-226-17) đổi: câu cũ là phát biểu TUYỆT ĐỐI,
             cùng hình dạng lỗi vừa vá ở /login, và ĐÃ TỪNG SAI THẬT (ca bot
             báo "đã tạo hồ sơ" trong khi không tạo, mã hồ sơ thuộc khách
@@ -598,7 +606,7 @@ export default function ChatClient({
             DUY NHẤT thật sự tuyệt đối — ép ở CheckConstraint DB, không phải
             hành vi mô hình. Copy nguyên văn marketing, không tự viết lại. */}
         <p className="sub">
-          Trợ lý AI — Sen tra cứu từ hệ thống trước khi trả lời, và nói rõ khi không tra được. Mọi đề xuất đều có người kiểm trước khi thành quyết định.
+          {t("chat.sub")}
         </p>
       </div>
 
@@ -613,7 +621,7 @@ export default function ChatClient({
           tăng `lanThuLai` -> effect chạy lại thật. */}
       {loiKetNoiChat && (
         <div role="alert" className="note" style={{ margin: "10px 0" }}>
-          Không mở được kết nối chat trực tiếp.{" "}
+          {t("chat.liveConnectError")}{" "}
           <button
             type="button"
             onClick={() => {
@@ -622,7 +630,7 @@ export default function ChatClient({
             }}
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline", font: "inherit", color: "inherit", fontWeight: 600 }}
           >
-            Thử lại
+            {t("chat.retry")}
           </button>
         </div>
       )}
@@ -630,7 +638,7 @@ export default function ChatClient({
       <div className="chat-shell">
         <div className="chat-rail">
           <div className="card">
-            <div className="rail-title">Giao dịch gần đây</div>
+            <div className="rail-title">{t("chat.recentTx")}</div>
             {/* V6 (hotfix 14/08, PO thật quyết đổi chính sách): chưa xác thực OTP
                 thì KHÔNG hiện danh sách giao dịch. Đây là gate ở TẦNG HIỂN THỊ —
                 route đọc phía backend giữ nguyên theo contract hiện hành
@@ -640,9 +648,9 @@ export default function ChatClient({
             <RailCardGatedByOtp
               otpVerified={otpVerified}
               onXacThuc={() => void beginOtpFlow()}
-              thongDiepChuaXacThuc="Xác thực OTP để xem giao dịch gần đây"
+              thongDiepChuaXacThuc={t("chat.otpToSeeTx")}
             >
-              {history?.recent_transactions.length === 0 && <div className="dim" style={{ fontSize: 12 }}>Chưa có giao dịch.</div>}
+              {history?.recent_transactions.length === 0 && <div className="dim" style={{ fontSize: 12 }}>{t("chat.noTx")}</div>}
               {/* PO thật 19/08 (mục 12): rail là MỘT cột — danh sách giao dịch
                   nở đầy sau OTP đẩy thẻ "Lịch sử khiếu nại" trôi khỏi màn
                   hình. Cuộn nội bộ thay vì đảo thứ tự 2 thẻ (đơn giản hơn, ít
@@ -654,13 +662,13 @@ export default function ChatClient({
                 {history?.recent_transactions.map((tx) => (
                   <div className="txn-item" key={tx.trans_id}>
                     <div className="txn-top">
-                      <span>{tx.direction === "out" ? "Chuyển đi" : "Nhận vào"}</span>
-                      <span className="txn-amount">{formatMoney(tx.amount)}</span>
+                      <span>{tx.direction === "out" ? t("chat.out") : t("chat.in")}</span>
+                      <span className="txn-amount">{formatMoney(tx.amount, lang)}</span>
                     </div>
-                    <div className="txn-meta">{formatDateTime(tx.created_at)} · {tx.trans_id}</div>
+                    <div className="txn-meta">{formatDateTime(tx.created_at, lang)} · {tx.trans_id}</div>
                     <button className="txn-report" onClick={() => reportFromRail(tx)} type="button">
                       <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M4 4v16l4-4h12V4H4z" /></svg>
-                      Báo lỗi giao dịch này
+                      {t("chat.reportTx")}
                     </button>
                   </div>
                 ))}
@@ -668,7 +676,7 @@ export default function ChatClient({
             </RailCardGatedByOtp>
           </div>
           <div className="card">
-            <div className="rail-title">Lịch sử khiếu nại của bạn</div>
+            <div className="rail-title">{t("chat.complaintHistory")}</div>
             {/* Lỗi 12 (PO thật 19/08, Lead [ĐO]): CÙNG lớp lỗi "chính sách
                 đúng, áp thiếu một nhánh" đã vá 3 lần khác trong ngày — cổng
                 OTP V6 áp cho thẻ giao dịch nhưng SÓT thẻ này. Dùng CHUNG
@@ -677,17 +685,17 @@ export default function ChatClient({
             <RailCardGatedByOtp
               otpVerified={otpVerified}
               onXacThuc={() => void beginOtpFlow()}
-              thongDiepChuaXacThuc="Xác thực OTP để xem lịch sử khiếu nại"
+              thongDiepChuaXacThuc={t("chat.otpToSeeComplaints")}
             >
-              {history?.complaints.length === 0 && <div className="dim" style={{ fontSize: 12 }}>Chưa có khiếu nại nào.</div>}
+              {history?.complaints.length === 0 && <div className="dim" style={{ fontSize: 12 }}>{t("chat.noComplaints")}</div>}
               {history?.complaints.map((c) => (
                 <div className="hist-item" key={c.complaint_id} style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
                   <div className="flex between center-y" style={{ width: "100%" }}>
                     <span className="id">{c.complaint_id}</span>
-                    <span className="badge badge-neutral">{COMPLAINT_STATUS_LABEL[c.status] ?? c.status}</span>
+                    <span className="badge badge-neutral">{COMPLAINT_STATUS_LABEL[c.status] ? t(COMPLAINT_STATUS_LABEL[c.status]) : c.status}</span>
                   </div>
                   <div className="dim" style={{ fontSize: 11 }}>
-                    {COMPLAINT_TYPE_LABEL[c.type]} · {formatDateTime(c.created_at)}
+                    {labelOf(COMPLAINT_TYPE_LABEL, c.type, lang)} · {formatDateTime(c.created_at, lang)}
                   </div>
                 </div>
               ))}
@@ -699,7 +707,7 @@ export default function ChatClient({
           <div className="chat-head">
             <div className="chat-avatar">S</div>
             <div>
-              <div className="name">Sen AI · Trợ lý CSKH</div>
+              <div className="name">{t("chat.botName")}</div>
               <div className="status">
                 <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
                 {phone}
@@ -735,7 +743,7 @@ export default function ChatClient({
                     <div className="bubble bubble-bot">
                       <div className="otp-meta">
                         <span>
-                          Mã OTP phiên làm việc (mô phỏng — gửi tới {phone}): <strong>{m.demoOtpCode}</strong>
+                          {t("chat.demoOtp", { phone })} <strong>{m.demoOtpCode}</strong>
                         </span>
                       </div>
                       <OtpInput
@@ -773,7 +781,7 @@ export default function ChatClient({
           <div className="chat-input">
             <input
               key={inputResetKey}
-              placeholder={inputEnabled ? "Nhập tin nhắn..." : "Chọn một lựa chọn phía trên để tiếp tục"}
+              placeholder={inputEnabled ? t("chat.typeMessage") : t("chat.pickOption")}
               value={input}
               disabled={!inputEnabled}
               onChange={(e) => setInput(e.target.value)}
@@ -788,14 +796,14 @@ export default function ChatClient({
               disabled={!inputEnabled}
               onClick={handleSend}
               type="button"
-              aria-label="Gửi tin nhắn"
+              aria-label={t("chat.sendAria")}
             >
               <svg className="icon" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
             </button>
           </div>
           <div className="chat-disclaimer">
             <svg className="icon icon-sm" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></svg>
-            Sen không bao giờ hỏi mật khẩu ví hay mã OTP giao dịch của bạn.
+            {t("common.neverAsk")}
           </div>
           {/* Thông báo xử lý dữ liệu — bản demo dùng dữ liệu mô phỏng, nhưng
               người test là NGƯỜI THẬT gõ chữ thật, nên vẫn cần cho họ biết nội
@@ -804,43 +812,48 @@ export default function ChatClient({
               đọc rồi thì người ta không gõ số điện thoại thật. Xem ADR-011. */}
           <div className="chat-disclaimer" style={{ paddingTop: 0 }}>
             <svg className="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5h.01" /></svg>
-            Bản demo dùng dữ liệu mô phỏng — vui lòng <strong>không nhập thông tin cá nhân thật</strong>.
-            Nội dung chat được xử lý bởi AI của nhà cung cấp nước ngoài.
+            {rich(t("chat.demoData"))}
           </div>
         </div>
 
         <div className="chat-rail" style={{ display: "flex", flexDirection: "column" }}>
           <div className="card">
-            <div className="rail-title">Trạng thái</div>
+            <div className="rail-title">{t("chat.statusTitle")}</div>
             {!lastTicket ? (
-              <div className="dim" style={{ fontSize: 12 }}>Chưa có yêu cầu nào trong phiên này.</div>
+              <div className="dim" style={{ fontSize: 12 }}>{t("chat.noRequest")}</div>
             ) : (
               <div className="stepper">
                 <div className="step">
                   <div className="step-dot done"><svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg></div>
-                  <div className="step-body"><div className="step-label">Tiếp nhận &amp; xác thực</div></div>
+                  <div className="step-body"><div className="step-label">{t("chat.stepIntake")}</div></div>
                 </div>
                 <div className="step">
                   <div className="step-dot done"><svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg></div>
-                  <div className="step-body"><div className="step-label">Tra cứu &amp; điều tra</div></div>
+                  <div className="step-body"><div className="step-label">{t("chat.stepInvestigate")}</div></div>
                 </div>
                 <div className="step">
                   <div className="step-dot current" />
                   <div className="step-body">
-                    <div className="step-label">Chờ CSKH tiếp nhận {lastTicket.should_escalate && <span className="badge badge-critical" style={{ marginLeft: 4 }}>khẩn</span>}</div>
+                    <div className="step-label">{t("chat.stepAwaitAgent")} {lastTicket.should_escalate && <span className="badge badge-critical" style={{ marginLeft: 4 }}>{t("chat.urgent")}</span>}</div>
                     <div className="step-note mono">{lastTicket.ticket_id}</div>
                   </div>
                 </div>
-                <div className="step"><div className="step-dot pending" /><div className="step-body"><div className="step-label">Chờ Sếp phê duyệt</div></div></div>
-                <div className="step"><div className="step-dot pending" /><div className="step-body"><div className="step-label">Hoàn tất</div></div></div>
+                <div className="step"><div className="step-dot pending" /><div className="step-body"><div className="step-label">{t("chat.stepAwaitSupervisor")}</div></div></div>
+                <div className="step"><div className="step-dot pending" /><div className="step-body"><div className="step-label">{t("chat.stepDone")}</div></div></div>
               </div>
             )}
           </div>
           {liveChatTicketId && (
             <div className="card" style={{ marginTop: 12 }}>
-              <div className="rail-title">Chat trực tiếp CSKH</div>
+              <div className="rail-title">{t("chat.liveTitle")}</div>
               <div className="dim" style={{ fontSize: 12 }}>
-                {liveChatStatus === "connecting" ? "Đang kết nối..." : liveChatStatus === "open" ? "Đã kết nối" : liveChatStatus === "closed" ? "Mất kết nối" : "Lỗi kết nối"}
+                {liveChatStatus === "connecting"
+                  ? t("live.connecting")
+                  : liveChatStatus === "open"
+                    ? t("live.connected")
+                    : liveChatStatus === "closed"
+                      ? t("live.disconnected")
+                      : t("live.connError")}
               </div>
             </div>
           )}

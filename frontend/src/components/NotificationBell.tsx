@@ -9,7 +9,9 @@ import {
   markNotificationRead,
   presenceHeartbeat,
 } from "@/lib/api";
-import { COMPLAINT_TYPE_LABEL, NOTIFICATION_EVENT_LABEL, PRIORITY_LABEL, SCOPE_LABEL, type NotificationItem } from "@/lib/types";
+import { COMPLAINT_TYPE_LABEL, NOTIFICATION_EVENT_LABEL, PRIORITY_LABEL, SCOPE_LABEL, labelOf, type NotificationItem } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/client";
+import type { TFn } from "@/lib/i18n/core";
 import { formatSlaRemaining } from "@/lib/format";
 
 // ADR-063 — MVP polling ~20s (WebSocket là đợt nâng cấp sau, KHÔNG làm ở
@@ -18,16 +20,17 @@ import { formatSlaRemaining } from "@/lib/format";
 // heartbeat"), không tự ý tách thành 2 interval riêng.
 const POLL_MS = 20_000;
 
-function thoiGianTuongDoi(iso: string): string {
+function thoiGianTuongDoi(iso: string, t: TFn): string {
   const giay = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (giay < 60) return "vừa xong";
-  if (giay < 3600) return `${Math.floor(giay / 60)} phút trước`;
-  if (giay < 86400) return `${Math.floor(giay / 3600)} giờ trước`;
-  return `${Math.floor(giay / 86400)} ngày trước`;
+  if (giay < 60) return t("time.justNow");
+  if (giay < 3600) return t("time.minutesAgo", { n: Math.floor(giay / 60) });
+  if (giay < 86400) return t("time.hoursAgo", { n: Math.floor(giay / 3600) });
+  return t("time.daysAgo", { n: Math.floor(giay / 86400) });
 }
 
 export default function NotificationBell() {
   const router = useRouter();
+  const { t, lang } = useI18n();
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[] | null>(null);
@@ -91,7 +94,7 @@ export default function NotificationBell() {
         className="user-menu-trigger notif-bell-trigger"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={unreadCount > 0 ? `${unreadCount} thông báo chưa đọc` : "Thông báo"}
+        aria-label={unreadCount > 0 ? t("notif.unreadAria", { n: unreadCount }) : t("notif.title")}
         onClick={() => setOpen((v) => !v)}
       >
         <svg className="icon icon-sm" viewBox="0 0 24 24">
@@ -103,15 +106,15 @@ export default function NotificationBell() {
       {open && (
         <div className="user-menu-dropdown notif-dropdown" role="menu">
           <div className="notif-dropdown-header">
-            <b>Thông báo</b>
+            <b>{t("notif.title")}</b>
             {unreadCount > 0 && (
               <button type="button" className="notif-mark-all" onClick={() => void onMarkAllRead()}>
-                Đánh dấu tất cả đã đọc
+                {t("notif.markAll")}
               </button>
             )}
           </div>
-          {items === null && <div className="notif-empty">Đang tải…</div>}
-          {items !== null && items.length === 0 && <div className="notif-empty">Chưa có thông báo nào.</div>}
+          {items === null && <div className="notif-empty">{t("common.loading")}</div>}
+          {items !== null && items.length === 0 && <div className="notif-empty">{t("notif.empty")}</div>}
           {items !== null &&
             items.map((item) => (
               <button
@@ -120,7 +123,7 @@ export default function NotificationBell() {
                 className={`notif-item${item.read_at ? "" : " notif-item-unread"}`}
                 onClick={() => void onItemClick(item)}
               >
-                <span className="notif-item-label">{NOTIFICATION_EVENT_LABEL[item.event_type]}</span>
+                <span className="notif-item-label">{labelOf(NOTIFICATION_EVENT_LABEL, item.event_type, lang)}</span>
                 <span className="notif-item-ticket">{item.ticket_id}</span>
                 {/* [polish trước quay 04/09] loại/phạm vi/ưu tiên/SLA — non-PII,
                     join-tại-lúc-đọc (xem GET /notifications, main.py). Có thể
@@ -129,21 +132,21 @@ export default function NotificationBell() {
                     hiện "—" rối mắt trên một panel vốn đã chật. */}
                 {item.complaint_type && (
                   <span className="notif-item-meta" style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
-                    <span className="badge badge-neutral">{COMPLAINT_TYPE_LABEL[item.complaint_type]}</span>
-                    {item.scope && <span className="badge badge-neutral">{SCOPE_LABEL[item.scope]}</span>}
+                    <span className="badge badge-neutral">{labelOf(COMPLAINT_TYPE_LABEL, item.complaint_type, lang)}</span>
+                    {item.scope && <span className="badge badge-neutral">{labelOf(SCOPE_LABEL, item.scope, lang)}</span>}
                     {item.priority === "critical" ? (
-                      <span className="badge badge-critical">{PRIORITY_LABEL[item.priority]}</span>
+                      <span className="badge badge-critical">{labelOf(PRIORITY_LABEL, item.priority, lang)}</span>
                     ) : item.priority && item.priority !== "normal" ? (
-                      <span className="badge badge-warning">{PRIORITY_LABEL[item.priority]}</span>
+                      <span className="badge badge-warning">{labelOf(PRIORITY_LABEL, item.priority, lang)}</span>
                     ) : null}
                     {item.sla_due_at && (
                       <span className="mono" style={{ color: "var(--text-dim)" }}>
-                        {formatSlaRemaining(item.sla_due_at).label}
+                        {formatSlaRemaining(item.sla_due_at, lang).label}
                       </span>
                     )}
                   </span>
                 )}
-                <span className="notif-item-time">{thoiGianTuongDoi(item.created_at)}</span>
+                <span className="notif-item-time">{thoiGianTuongDoi(item.created_at, t)}</span>
               </button>
             ))}
         </div>

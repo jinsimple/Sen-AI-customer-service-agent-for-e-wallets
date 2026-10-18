@@ -2,6 +2,9 @@
 
 import { useLoginForm } from "@/lib/useLoginForm";
 import EnvBadge from "@/components/EnvBadge";
+import LanguageToggle from "@/components/LanguageToggle";
+import { useI18n } from "@/lib/i18n/client";
+import type { DictKey } from "@/lib/i18n/dict";
 
 // Cổng NỘI BỘ — CSKH · sếp phê duyệt · đối tác ví. Quyết định 26/08: tách
 // TRANG khỏi /login (khách hàng), KHÔNG tách CƠ CHẾ — dùng chung
@@ -32,23 +35,25 @@ import EnvBadge from "@/components/EnvBadge";
 // khác số điện thoại. Không phải mặc định của toàn hệ thống, chỉ áp cho
 // ngăn `po-demo` đêm quay video 01/09.
 const MAT_KHAU_QUAY_VIDEO = "Demo@123";
-const QUICK_LOGIN_ACCOUNTS: { label: string; phone: string; password: string }[] = [
-  { label: "CSKH", phone: "0353000201", password: MAT_KHAU_QUAY_VIDEO },
-  { label: "Sếp", phone: "0905000205", password: MAT_KHAU_QUAY_VIDEO },
-  { label: "Đối tác ví", phone: "0900000001", password: MAT_KHAU_QUAY_VIDEO },
+const QUICK_LOGIN_ACCOUNTS: { label: DictKey; phone: string; password: string }[] = [
+  { label: "role.cskh", phone: "0353000201", password: MAT_KHAU_QUAY_VIDEO },
+  { label: "role.supervisor", phone: "0905000205", password: MAT_KHAU_QUAY_VIDEO },
+  { label: "role.partner_admin", phone: "0900000001", password: MAT_KHAU_QUAY_VIDEO },
 ];
 
 export default function LoginNoiBoPage() {
   const { phone, setPhone, password, setPassword, error, loading, doLogin, handleSubmit } = useLoginForm("internal");
+  const { t } = useI18n();
 
   return (
     <main style={{ maxWidth: 420, margin: "80px auto", padding: "0 20px" }}>
       <div className="card" style={{ padding: 36 }}>
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <EnvBadge />
+          <LanguageToggle />
         </div>
-        <h3>Đăng nhập nội bộ</h3>
-        <p className="sub">Dành cho nhân viên CSKH, sếp phê duyệt và đối tác ví.</p>
+        <h3>{t("slogin.title")}</h3>
+        <p className="sub">{t("slogin.sub")}</p>
 
         {process.env.NEXT_PUBLIC_QUICK_LOGIN === "true" && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -61,7 +66,7 @@ export default function LoginNoiBoPage() {
                 disabled={loading}
                 onClick={() => doLogin(acc.phone, acc.password)}
               >
-                {acc.label}
+                {t(acc.label)}
               </button>
             ))}
           </div>
@@ -69,7 +74,7 @@ export default function LoginNoiBoPage() {
 
         <form onSubmit={handleSubmit}>
           <div className={`field${error ? " field-error" : ""}`}>
-            <label>Số điện thoại</label>
+            <label>{t("login.phone")}</label>
             <input
               type="tel"
               placeholder="09xx xxx xxx"
@@ -80,7 +85,7 @@ export default function LoginNoiBoPage() {
           </div>
 
           <div className={`field${error ? " field-error" : ""}`}>
-            <label>Mật khẩu</label>
+            <label>{t("login.password")}</label>
             <input
               type="password"
               placeholder="••••••••"
@@ -100,7 +105,7 @@ export default function LoginNoiBoPage() {
           </div>
 
           <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 20 }} disabled={loading}>
-            {loading ? "Đang đăng nhập…" : "Đăng nhập"}
+            {loading ? t("login.submitting") : t("login.submit")}
           </button>
         </form>
       </div>

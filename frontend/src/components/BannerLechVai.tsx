@@ -1,6 +1,9 @@
 "use client";
 
 import { roleHome, type Role } from "@/lib/session";
+import { useI18n } from "@/lib/i18n/client";
+import type { DictKey } from "@/lib/i18n/dict";
+import { rich } from "@/lib/i18n/rich";
 
 // UI-02 — băng báo LỆCH VAI.
 //
@@ -20,11 +23,11 @@ import { roleHome, type Role } from "@/lib/session";
 // của bản vá là biến một lỗi khó hiểu thành một hướng dẫn — không phải cho
 // phép hai vai cùng sống trong một trình duyệt.
 
-const TEN_VAI: Record<string, string> = {
-  customer: "Khách hàng",
-  cskh: "Nhân viên CSKH",
-  supervisor: "Cấp duyệt",
-  partner_admin: "Đối tác ví",
+const TEN_VAI: Record<string, DictKey> = {
+  customer: "wrongRole.customer",
+  cskh: "wrongRole.cskh",
+  supervisor: "wrongRole.supervisor",
+  partner_admin: "wrongRole.partner_admin",
 };
 
 export default function BannerLechVai({
@@ -34,8 +37,9 @@ export default function BannerLechVai({
   vaiHienTai: string;
   vaiCanCo: string;
 }) {
-  const ten = TEN_VAI[vaiHienTai] ?? vaiHienTai;
-  const tenCan = TEN_VAI[vaiCanCo] ?? vaiCanCo;
+  const { t } = useI18n();
+  const ten = TEN_VAI[vaiHienTai] ? t(TEN_VAI[vaiHienTai]) : vaiHienTai;
+  const tenCan = TEN_VAI[vaiCanCo] ? t(TEN_VAI[vaiCanCo]) : vaiCanCo;
   const ve = roleHome(vaiHienTai as Role);
 
   return (
@@ -52,17 +56,15 @@ export default function BannerLechVai({
         lineHeight: 1.6,
       }}
     >
-      <strong>Bạn đang đăng nhập bằng tài khoản {ten}.</strong>
+      <strong>{t("wrongRole.loggedInAs", { role: ten })}</strong>
       <div style={{ marginTop: 4 }}>
-        Màn hình này dành cho <strong>{tenCan}</strong>. Nhiều khả năng bạn vừa đăng nhập
-        vai khác ở một tab khác trong cùng trình duyệt — mỗi trình duyệt chỉ giữ được
-        một phiên.
+        {rich(t("wrongRole.thisScreen", { role: tenCan }))}
       </div>
       <div style={{ marginTop: 6 }}>
-        Muốn dùng song song hai vai: mở <strong>cửa sổ ẩn danh</strong> cho vai thứ hai.
+        {rich(t("wrongRole.incognito"))}
       </div>
       <a href={ve} style={{ display: "inline-block", marginTop: 10, fontWeight: 600 }}>
-        → Về màn hình của {ten}
+        {t("wrongRole.back", { role: ten })}
       </a>
     </div>
   );

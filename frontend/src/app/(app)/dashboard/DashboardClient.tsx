@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { listWaitingChatSessions, requestStaffWsTicket } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/client";
 import { useLiveChatSocket, type LiveChatEvent } from "@/lib/useLiveChatSocket";
 import type { Role } from "@/lib/session";
 import TicketListSection, { type TicketListSectionHandle } from "@/components/TicketListSection";
@@ -26,6 +27,7 @@ interface WaitingChatSession {
 // RIÊNG của CSKH: banner khách chờ chat trực tiếp + WS staff ticket.
 export default function DashboardClient({ role }: { role: Role }) {
   const router = useRouter();
+  const { t, lang } = useI18n();
   const [waitingChats, setWaitingChats] = useState<WaitingChatSession[]>([]);
   const ticketSectionRef = useRef<TicketListSectionHandle>(null);
 
@@ -87,11 +89,10 @@ export default function DashboardClient({ role }: { role: Role }) {
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Webapp CSKH</span>
-        <h1>Hàng chờ ticket</h1>
+        <span className="eyebrow">{t("eyebrow.cskh")}</span>
+        <h1>{t("queue.title")}</h1>
         <p className="sub">
-          Lọc/sắp xếp theo trạng thái và ưu tiên để xử lý đúng case cấp bách trước. Case nghi gian lận
-          (tín hiệu FS-06) nổi bật rõ hơn ticket thường.
+          {t("queue.sub")}
         </p>
       </div>
 
@@ -99,15 +100,15 @@ export default function DashboardClient({ role }: { role: Role }) {
         <div className="card" style={{ marginBottom: 18, borderColor: "var(--warning)" }}>
           <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span className="dot dot-pulse" style={{ background: "var(--warning)" }} />
-            Khách đang chờ chat trực tiếp ({waitingChats.length})
+            {t("queue.waitingChats", { n: waitingChats.length })}
           </div>
           <div className="flex-col gap-sm" style={{ marginTop: 10 }}>
             {waitingChats.map((s) => (
               <div key={s.chat_session_id} className="flex between center-y">
                 <span className="mono" style={{ fontSize: 13 }}>{s.ticket_id}</span>
-                <span className="faint" style={{ fontSize: 12 }}>Chờ từ {formatDateTime(s.started_at)}</span>
+                <span className="faint" style={{ fontSize: 12 }}>{t("queue.waitingSince", { time: formatDateTime(s.started_at, lang) })}</span>
                 <span className="btn btn-primary" onClick={() => router.push(`/tickets/${s.ticket_id}`)}>
-                  Mở &amp; nhận
+                  {t("queue.openClaim")}
                 </span>
               </div>
             ))}

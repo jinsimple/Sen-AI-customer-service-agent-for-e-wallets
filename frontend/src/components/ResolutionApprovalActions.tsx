@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { ApiError, approveResolution, rejectResolution, requestResolutionApprovalOtp } from "@/lib/api";
-import { REJECT_REASON_LABEL, type RejectReason } from "@/lib/types";
+import { REJECT_REASON_LABEL, labelOf, type RejectReason } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/client";
+import { rich } from "@/lib/i18n/rich";
 import OtpInput from "@/components/OtpInput";
 
-const REJECT_REASONS = (Object.keys(REJECT_REASON_LABEL) as RejectReason[]).map((value) => ({
-  value,
-  label: REJECT_REASON_LABEL[value],
-}));
+const REJECT_REASON_VALUES = Object.keys(REJECT_REASON_LABEL) as RejectReason[];
 
 /**
  * Cụm nút duyệt/từ chối MỘT đề xuất, kèm bước xin OTP.
@@ -38,6 +37,7 @@ export default function ResolutionApprovalActions({
   onDone: () => void | Promise<void>;
   onError: (msg: string) => void;
 }) {
+  const { t, lang } = useI18n();
   const [busy, setBusy] = useState(false);
   // ADR-060 (03/09) — `otpCode` chỉ khác `undefined` khi backend đang chạy
   // OTP_DEMO_MODE (route /request-approval-otp gate ở main.py:998, KHÔNG
@@ -58,7 +58,7 @@ export default function ResolutionApprovalActions({
       setOtp({ sessionId: res.session_id, otpCode: res.otp_code });
       setOtpError(null);
     } catch (e) {
-      onError(e instanceof ApiError ? e.message : "Không xin được mã OTP duyệt");
+      onError(e instanceof ApiError ? e.message : t("approval.otpRequestFailed"));
     } finally {
       setBusy(false);
     }
@@ -73,7 +73,7 @@ export default function ResolutionApprovalActions({
       setOtp(null);
       await onDone();
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Duyệt thất bại";
+      const msg = e instanceof ApiError ? e.message : t("approval.approveFailed");
       setOtpError(msg);
       onError(msg);
     } finally {
@@ -90,7 +90,7 @@ export default function ResolutionApprovalActions({
       setReason("");
       await onDone();
     } catch (e) {
-      onError(e instanceof ApiError ? e.message : "Từ chối thất bại");
+      onError(e instanceof ApiError ? e.message : t("approval.rejectFailed"));
     } finally {
       setBusy(false);
     }
@@ -100,11 +100,11 @@ export default function ResolutionApprovalActions({
     return (
       <div className="note callout-gold approval-otp-row" style={{ marginTop: 16 }}>
         <div>
-          Nhập mã OTP xác nhận duyệt (còn hiệu lực 10 phút, chỉ dùng được cho đúng đề xuất này):
+          {t("approval.enterOtp")}
         </div>
         {otp.otpCode && (
           <div className="otp-meta">
-            Mã OTP duyệt (mô phỏng): <strong>{otp.otpCode}</strong>
+            {t("approval.demoOtp")} <strong>{otp.otpCode}</strong>
           </div>
         )}
         <OtpInput
@@ -114,7 +114,7 @@ export default function ResolutionApprovalActions({
           onSubmit={(otpCode) => void handleConfirmApprove(otpCode)}
           trailing={
             <button className="btn btn-outline btn-sm" disabled={busy} onClick={() => setOtp(null)}>
-              Huỷ
+              {t("common.cancel")}
             </button>
           }
         />
@@ -126,11 +126,11 @@ export default function ResolutionApprovalActions({
     return (
       <div className="note" style={{ marginTop: 16 }}>
         <div className="field" style={{ marginTop: 0 }}>
-          <label>Lý do từ chối</label>
+          <label>{t("approval.rejectReason")}</label>
           <select value={reason} onChange={(e) => setReason(e.target.value)}>
-            <option value="">— chọn lý do —</option>
-            {REJECT_REASONS.map((r) => (
-              <option key={r.value} value={r.value}>{r.label}</option>
+            <option value="">{t("approval.chooseReason")}</option>
+            {REJECT_REASON_VALUES.map((value) => (
+              <option key={value} value={value}>{labelOf(REJECT_REASON_LABEL, value, lang)}</option>
             ))}
           </select>
         </div>
@@ -139,16 +139,15 @@ export default function ResolutionApprovalActions({
             biệt "sửa được" với "sai hẳn" trong chính dữ liệu dùng để học. */}
         {reason === "thieu_can_cu" && (
           <div className="dim" style={{ fontSize: 12, marginTop: 8 }}>
-            Nếu CSKH có thể bổ sung được căn cứ, hãy dùng <b>Yêu cầu điều tra thêm</b> ở
-            màn chi tiết ticket thay vì từ chối — chỉ từ chối khi không thể bổ sung.
+            {rich(t("approval.insufficientHint"))}
           </div>
         )}
         <div className="flex gap-sm wrap" style={{ marginTop: 12 }}>
           <button className="btn btn-danger-outline" disabled={busy || !reason} onClick={handleReject}>
-            Xác nhận từ chối
+            {t("approval.confirmReject")}
           </button>
           <button className="btn btn-outline" disabled={busy} onClick={() => { setChonLyDo(false); setReason(""); }}>
-            Huỷ
+            {t("common.cancel")}
           </button>
         </div>
       </div>
@@ -159,11 +158,11 @@ export default function ResolutionApprovalActions({
     <div className="flex gap-sm wrap" style={{ marginTop: 16 }}>
       <button className="btn btn-success" disabled={busy} onClick={handleRequestApprovalOtp}>
         <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
-        Duyệt
+        {t("approval.approve")}
       </button>
       <button className="btn btn-danger-outline" disabled={busy} onClick={() => setChonLyDo(true)}>
         <svg className="icon icon-sm" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
-        Từ chối
+        {t("approval.reject")}
       </button>
     </div>
   );

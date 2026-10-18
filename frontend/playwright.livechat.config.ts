@@ -25,6 +25,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["html", { open: "never", outputFolder: "playwright-report-livechat" }]] : "list",
   use: {
+    // Portfolio edition: the UI follows Accept-Language when no `lang` cookie is set. The suites
+    // assert Vietnamese copy, so pin the browser locale.
+    locale: "vi-VN",
     baseURL: "https://localhost",
     // Caddy tự cấp chứng chỉ NỘI BỘ khi SITE_DOMAIN=localhost (mặc định
     // docker-compose.yml) — không phải Let's Encrypt thật, trình duyệt thật

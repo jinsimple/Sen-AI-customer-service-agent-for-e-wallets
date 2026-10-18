@@ -191,6 +191,18 @@ button{ font-family:inherit; }
    y hệt nhau dù hậu quả khác hẳn) + .who-pill (viền/nền/bo góc như nút,
    KHÔNG bấm được — nói dối về khả năng tương tác) bằng một nút người dùng
    có menu thả xuống. Xem TopbarActions.tsx. */
+/* Portfolio edition — EN | VI segmented language switch. See LanguageToggle.tsx. */
+.lang-toggle{
+  display:flex; align-items:center; border:1px solid var(--border-strong); border-radius:999px;
+  overflow:hidden; font-size:var(--fs-12);
+}
+.lang-toggle-btn{
+  background:transparent; border:none; color:var(--text-dim); padding:5px 10px; cursor:pointer;
+  font-weight:600; letter-spacing:.02em; transition:background .15s ease, color .15s ease;
+}
+.lang-toggle-btn:hover{ background:var(--surface-2); }
+.lang-toggle-btn.active{ background:var(--navy); color:#fff; }
+
 .user-menu{ position:relative; }
 .user-menu-trigger{
   display:flex; align-items:center; gap:8px; background:var(--surface-2); color:var(--text);

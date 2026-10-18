@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import EnvBadge from "./EnvBadge";
 import NotificationBell from "./NotificationBell";
+import LanguageToggle from "./LanguageToggle";
+import { useI18n } from "@/lib/i18n/client";
 
 // 26/08 — chuẩn ngành: gom nút theme + viên tên (who-pill, trông như nút
 // nhưng KHÔNG bấm được) + nút đăng xuất thành MỘT nút người dùng có menu thả
@@ -25,6 +27,7 @@ function chuCaiTenGoi(fullName: string): string {
 
 export default function TopbarActions({ fullName, role }: { fullName: string; role: string }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -76,7 +79,8 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
     router.refresh();
   }
 
-  const roleLabel = role === "cskh" ? "CSKH" : role === "supervisor" ? "Sếp" : role === "partner_admin" ? "Đối tác ví" : "Khách hàng";
+  const roleLabel =
+    role === "cskh" ? t("role.cskh") : role === "supervisor" ? t("role.supervisor") : role === "partner_admin" ? t("role.partner_admin") : t("role.customer");
   const items = itemRefs.current;
 
   function onTriggerKeyDown(e: React.KeyboardEvent) {
@@ -107,6 +111,7 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
       {/* Nhãn môi trường đứng ĐẦU TIÊN, trước mọi thứ khác — nếu 2 cửa sổ
           hiện 2 nhãn khác nhau thì biết ngay đang lệch stack. Xem ADR-009. */}
       <EnvBadge compact />
+      <LanguageToggle />
       {/* ADR-063 — CHỈ cskh/supervisor có vé để nhận thông báo (customer/
           partner_admin không nằm trong luồng chuông). Đặt TRƯỚC user-menu
           — "trên-trái cạnh tên nhân viên" đúng brief. */}
@@ -150,7 +155,7 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
                   <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
                 )}
               </svg>
-              {theme === "dark" ? "Chế độ sáng" : "Chế độ tối"}
+              {theme === "dark" ? t("menu.lightMode") : t("menu.darkMode")}
             </button>
             <div className="user-menu-divider" />
             <button
@@ -167,7 +172,7 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
                 <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
                 <path d="M16 17l5-5-5-5M21 12H9" />
               </svg>
-              Đăng xuất
+              {t("menu.logout")}
             </button>
           </div>
         )}

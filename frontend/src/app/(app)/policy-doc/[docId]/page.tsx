@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { ApiError, getPolicyDoc } from "@/lib/api";
 import type { PolicyDocFullText } from "@/lib/types";
+import { useI18n } from "@/lib/i18n/client";
 import { blockOverlapsHighlight, splitPolicyDocBlocks } from "@/lib/policyDocBlocks";
 
 // ADR-065 (05/09) — deep-link "Xem toàn văn" từ /policy-lookup, mở TAB MỚI.
@@ -18,6 +19,7 @@ import { blockOverlapsHighlight, splitPolicyDocBlocks } from "@/lib/policyDocBlo
 // đổi từ tô THEO KÝ TỰ sang tô THEO KHỐI giao với [highlight.start, end)
 // (tự hết dính dòng luôn, vì mục dính đuôi giờ đã tách khối riêng).
 export default function PolicyDocPage() {
+  const { t } = useI18n();
   const { docId } = useParams<{ docId: string }>();
   const searchParams = useSearchParams();
   const chunkId = searchParams.get("chunk_id") ?? undefined;
@@ -29,8 +31,8 @@ export default function PolicyDocPage() {
   useEffect(() => {
     getPolicyDoc(docId, chunkId)
       .then(setDoc)
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Không tải được tài liệu"));
-  }, [docId, chunkId]);
+      .catch((e) => setError(e instanceof ApiError ? e.message : t("policyDoc.loadError")));
+  }, [docId, chunkId, t]);
 
   const blocks = useMemo(() => {
     if (!doc?.full_text) return [];
@@ -53,7 +55,7 @@ export default function PolicyDocPage() {
   if (error) {
     return (
       <div className="page-head">
-        <h1>Không mở được tài liệu</h1>
+        <h1>{t("policyDoc.cantOpen")}</h1>
         <p className="sub">{error}</p>
       </div>
     );
@@ -62,7 +64,7 @@ export default function PolicyDocPage() {
   if (!doc) {
     return (
       <div className="page-head">
-        <p className="sub">Đang tải…</p>
+        <p className="sub">{t("common.loading")}</p>
       </div>
     );
   }
@@ -70,10 +72,10 @@ export default function PolicyDocPage() {
   if (doc.full_text === null) {
     return (
       <div className="page-head">
-        <span className="eyebrow">Webapp CSKH · Tài liệu chính sách</span>
+        <span className="eyebrow">{t("policyDoc.eyebrow")}</span>
         <h1>{doc.filename}</h1>
         <p className="sub">
-          Tài liệu này chưa có bản toàn văn để hiển thị — vui lòng dùng đoạn trích ở kết quả tra cứu.
+          {t("policyDoc.noFullText")}
         </p>
       </div>
     );
@@ -82,9 +84,9 @@ export default function PolicyDocPage() {
   return (
     <>
       <div className="page-head">
-        <span className="eyebrow">Webapp CSKH · Tài liệu chính sách</span>
+        <span className="eyebrow">{t("policyDoc.eyebrow")}</span>
         <h1 className="mono" style={{ fontSize: 20 }}>{doc.filename}</h1>
-        <p className="sub">Toàn văn tài liệu — đoạn trích khớp câu tra cứu được tô sáng bên dưới, nếu có.</p>
+        <p className="sub">{t("policyDoc.sub")}</p>
       </div>
 
       <div className="card" style={{ lineHeight: 1.7 }}>
