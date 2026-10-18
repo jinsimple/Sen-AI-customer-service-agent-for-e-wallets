@@ -1,7 +1,7 @@
 # FIN-05 — Project Brief
 ## AI Agent CSKH Ví điện tử & Xử lý Khiếu nại Giao dịch
 
-**Phiên bản:** 2.1 · **Đội:** T226 (Nhóm 226, AI 20K Build Phase, Cohort 3) · **PO & Thực hiện:** Đào Ngọc Bích · **Mentor:** Đặng Hải Lộc · **Đối tác đồng hành:** ZaloPay (cung cấp góc nhìn nghiệp vụ thực tế, phản hồi demo — PO đã gặp 2 lần)   
+**Phiên bản:** 2.1 · **Đội:** T226 (Nhóm 226, AI 20K Build Phase, Cohort 3) · **PO & Thực hiện:** Đào Ngọc Bích · **Mentor:** Đặng Hải Lộc · **Góc nhìn nghiệp vụ:** phản hồi không chính thức từ các chuyên gia trong ngành ví điện tử Việt Nam (không có hợp tác chính thức)   
 
 ---
 

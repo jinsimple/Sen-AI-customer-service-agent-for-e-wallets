@@ -20,7 +20,7 @@ qua người duyệt.
 Câu định vị: **"Agent điều tra. Người quyết định. Mọi con số truy được về nguồn."**
 
 **Bối cảnh:** AI 20K Build Phase, Cohort 3 (Vingroup × VinUni). PO & thực hiện: Đào Ngọc Bích.
-Mentor: Đặng Hải Lộc. Đối tác nghiệp vụ: ZaloPay (góc nhìn nghiệp vụ thật, phản hồi demo).
+Mentor: Đặng Hải Lộc. Góc nhìn nghiệp vụ: phản hồi không chính thức từ các chuyên gia trong ngành ví điện tử Việt Nam (không có hợp tác chính thức).
 
 ---
 

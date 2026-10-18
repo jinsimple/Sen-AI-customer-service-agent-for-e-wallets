@@ -1,95 +1,100 @@
 # Architecture — FIN-05
 
+> *[Bản tiếng Việt của tài liệu này không tồn tại riêng — nội dung gốc đã được dịch trực tiếp vào
+> đây.]*
+
 ## System Overview
 
-FIN-05 là AI Agent CSKH ví điện tử theo kiến trúc **3 lớp + guardrails tất định**: Next.js
-(BFF pattern — trình duyệt không bao giờ cầm JWT backend) → FastAPI → LangGraph agent gọi 5 tool
-tra cứu vào PostgreSQL thật. Nguyên tắc xuyên suốt: **AI điều tra — con người quyết định — mọi
-con số có vết**. Mọi lớp an toàn (che PII, chặn bịa số, chống injection, maker-checker) là **luật
-tất định ngoài LLM**, phần lớn được ép ở tầng database bằng CHECK constraint, và toàn bộ cấu trúc
-được canh bởi `tests/test_invariants.py` — bộ test introspect app đang chạy thật và so với
-`contracts/` (nguồn sự thật), đỏ là build hỏng.
+FIN-05 is an AI agent for e-wallet customer support, built on a **3-layer architecture plus
+deterministic guardrails**: Next.js (BFF pattern — the browser never holds the backend's JWT) →
+FastAPI → a LangGraph agent calling 5 tools that query a real PostgreSQL database. The principle
+running through all of it: **the AI investigates — a human decides — every figure is traceable**.
+Every safety layer (PII masking, anti-fabrication, injection resistance, maker-checker
+separation) is a **deterministic rule outside the LLM**, mostly enforced at the database layer by
+a CHECK constraint, and the whole structure is guarded by `tests/test_invariants.py` — a test
+suite that introspects the real running app and compares it against `contracts/` (the source of
+truth); red means the build is broken.
 
 ## Architecture Diagram
 
 ```mermaid
 graph TB
-    KH([Khách hàng]) --> CADDY
-    NV([CSKH / Sếp duyệt]) --> CADDY
-    PA([Đối tác ví]) --> CADDY
+    KH([Customer]) --> CADDY
+    NV([Support agent / Supervisor]) --> CADDY
+    PA([Wallet partner]) --> CADDY
     CF[Cloudflare Tunnel<br/>app.adaptivealgo.uk] --> CADDY
 
-    subgraph Docker["Docker Compose (chỉ Caddy mở cổng ra ngoài)"]
-        CADDY[Caddy<br/>reverse proxy · TLS] --> FE[Next.js Frontend<br/>BFF — session cookie,<br/>JWT không rời server]
-        FE -->|REST nội bộ| BE[FastAPI Backend :8010]
+    subgraph Docker["Docker Compose (only Caddy exposes a port externally)"]
+        CADDY[Caddy<br/>reverse proxy · TLS] --> FE[Next.js Frontend<br/>BFF — session cookie,<br/>JWT never leaves the server]
+        FE -->|internal REST| BE[FastAPI Backend :8010]
 
-        BE --> AUTH[Auth<br/>OTP phiên · JWT ·<br/>refresh rotation AUTH5-03 ·<br/>OTP step-up theo đề xuất]
-        BE --> AGENT[LangGraph Agent<br/>bể 4 model xoay · ReAct · temp 0.2]
-        BE --> HITL[HITL Routes<br/>ticket → đề xuất → duyệt]
+        BE --> AUTH[Auth<br/>session OTP · JWT ·<br/>refresh rotation AUTH5-03 ·<br/>per-proposal step-up OTP]
+        BE --> AGENT[LangGraph Agent<br/>pool of 4 rotating models · ReAct · temp 0.2]
+        BE --> HITL[HITL Routes<br/>ticket → proposal → approval]
 
-        AGENT -->|"gọi tool DƯỚI DANH NGHĨA customer<br/>(ràng buộc cứng 2)"| TOOLS[5 tool:<br/>lookup_transaction · get_customer_history ·<br/>create_ticket · search_policy ·<br/>request_human_handoff]
+        AGENT -->|"calls tools UNDER THE CUSTOMER'S IDENTITY<br/>(hard constraint 2)"| TOOLS[5 tools:<br/>lookup_transaction · get_customer_history ·<br/>create_ticket · search_policy ·<br/>request_human_handoff]
 
-        subgraph GUARD["Guardrails TẤT ĐỊNH (ngoài LLM)"]
-            G1[Che PII trước khi lên LLM<br/>Presidio + spaCy NER + regex]
-            G2[Spotlighting — dữ liệu untrusted<br/>được đánh dấu LÀ-DỮ-LIỆU,<br/>phân tier injection]
-            G3[Lọc đầu ra O1-O4 + origin-rule:<br/>số agent nói PHẢI truy về tool result]
+        subgraph GUARD["DETERMINISTIC Guardrails (outside the LLM)"]
+            G1[PII masked before reaching the LLM<br/>Presidio + spaCy NER + regex]
+            G2[Spotlighting — untrusted data is<br/>tagged AS-DATA,<br/>injection trust-tiering]
+            G3[Output filters O1-O4 + origin-rule:<br/>every figure the agent states MUST trace to a tool result]
         end
         TOOLS --- G1
         TOOLS --- G2
         AGENT --- G3
 
-        TOOLS --> PG[(PostgreSQL<br/>EncryptedText at-rest ·<br/>CHECK: maker-checker BR-12,<br/>reject-reason BR-11, note INV-17)]
-        TOOLS --> RAG[(ChromaDB<br/>RAG chính sách —<br/>trích nguyên văn kèm nguồn)]
-        BE --> REDIS[(Redis<br/>vé WS dùng-1-lần · rate limit ·<br/>đếm tín hiệu theo thread TTL 2h)]
-        BE -.->|OTel spans<br/>đã scrub| JAEGER[Jaeger]
+        TOOLS --> PG[(PostgreSQL<br/>EncryptedText at rest ·<br/>CHECK: maker-checker BR-12,<br/>reject-reason BR-11, note INV-17)]
+        TOOLS --> RAG[(ChromaDB<br/>policy RAG —<br/>verbatim excerpt with a source citation)]
+        BE --> REDIS[(Redis<br/>single-use WS tickets · rate limiting ·<br/>per-thread signal counting, 2h TTL)]
+        BE -.->|OTel spans<br/>already scrubbed| JAEGER[Jaeger]
     end
 ```
 
-## Data Flow — hai luồng chính
+## Data Flow — the two main paths
 
-### 1. Lượt chat khiếu nại (đường AI)
-
-```
-Khách gõ → BFF (cookie → JWT) → FastAPI → scrub PII → LangGraph agent
-  → tool (danh nghĩa customer, mask theo BR-06) → Postgres
-  → reply → lọc đầu ra O1-O4 + origin-rule (số không truy được về tool result thì chặn)
-  → envelope (kèm tool_calls, tin_hieu, goi_y_handoff) → BFF → khách
-Mỗi bước tool ghi investigation_logs → tool_result_id → truy vết được toàn chuỗi
-```
-
-### 2. Vòng đời HITL (đường con người — AI không có mặt ở khâu quyết)
+### 1. A complaint-chat turn (the AI path)
 
 ```
-Agent/khách tạo ticket → hàng chờ CSKH (điều tra, KHÔNG duyệt được — authority-matrix)
-  → CSKH trình đề xuất (propose_resolution, cited_tool_result_ids bắt buộc)
-  → Sếp mở CHI TIẾT, đọc investigation trail → duyệt/từ chối + OTP step-up gắn đúng đề xuất
-  → CHECK constraint tầng DB: người tạo ≠ người duyệt (BR-12) — SQL tay cũng không lách
-  → từ chối bắt buộc kèm lý do có cấu trúc (BR-11) + note đã scrub (INV-17)
+Customer types → BFF (cookie → JWT) → FastAPI → PII scrub → LangGraph agent
+  → tool call (under the customer's identity, masked per BR-06) → Postgres
+  → reply → output filters O1-O4 + origin-rule (a figure that can't be traced to a tool result is blocked)
+  → envelope (with tool_calls, signals, a handoff suggestion) → BFF → customer
+Every tool step is logged to investigation_logs → tool_result_id → the whole chain is traceable
 ```
 
-## Các quyết định kiến trúc then chốt (chi tiết: `docs/DECISIONS.md`, 46 ADR)
+### 2. The HITL lifecycle (the human path — the AI has no presence in the decision step)
 
-| Quyết định | Vì sao |
+```
+Agent/customer creates a ticket → the support queue (investigate, CANNOT approve — authority-matrix)
+  → a support agent submits a proposal (propose_resolution, cited_tool_result_ids required)
+  → the supervisor opens the DETAIL view, reads the investigation trail → approves/rejects + step-up OTP bound to that exact proposal
+  → a DB-layer CHECK constraint: the proposer ≠ the approver (BR-12) — not even a raw SQL write can route around it
+  → a rejection requires a structured reason (BR-11) + a scrubbed note (INV-17)
+```
+
+## Key architectural decisions (details: `docs/DECISIONS.md`, 64 ADRs)
+
+| Decision | Why |
 |---|---|
-| Contracts-first: `contracts/` là nguồn sự thật, test bất biến introspect app thật | Đổi route/guard/tool mà quên cập nhật contract → đỏ ngay, không ai phải nhớ |
-| AI gọi tool dưới danh nghĩa customer, không có role riêng | AI không thể vượt cấp — escalate chỉ qua tầng service (FS-06) hoặc CSKH |
-| BFF pattern: JWT sống ở server Next.js, browser chỉ có session cookie | Thu hẹp bề mặt XSS/token-theft |
-| Guardrails tất định thay vì "nhờ LLM tự kiểm" | Test được, giải thích được, không nhiễu; LLM sai thì lưới ngoài vẫn chặn |
-| Tín hiệu cảm xúc ES-xx vào envelope, KHÔNG vào prompt (ADR-022) | Agent không phát biểu kết luận tâm lý về khách; sai thì rẻ (khách bỏ qua nút) |
-| Mã hoá at-rest (Fernet) cho lời khai khách, che-lúc-xuất thay vì che-lúc-ghi (ADR-025) | Lời khai là bằng chứng tranh chấp — hệ thống tự sửa chữ là mất giá trị chứng cứ |
-| Refresh token dùng-một-lần + reuse-detection thu hồi family (AUTH5-03) | Chống trộm token; đang bổ sung observability + single-flight (điều tra 16/08) |
+| Contracts-first: `contracts/` is the source of truth, with an invariant test that introspects the real app | Changing a route/guard/tool and forgetting to update the contract turns red immediately — no one has to remember to check |
+| The AI calls tools under the customer's identity, with no role of its own | The AI cannot escalate its own privileges — escalation only happens through the service layer (FS-06) or a support agent |
+| BFF pattern: the JWT lives on the Next.js server, the browser only holds a session cookie | Narrows the XSS/token-theft attack surface |
+| Deterministic guardrails instead of "ask the LLM to police itself" | Testable, explainable, no added noise; if the LLM gets it wrong, the outer net still catches it |
+| Emotion signals (ES-xx) go into the envelope, NEVER into the prompt (ADR-022) | The agent never states a psychological conclusion about the customer; a wrong signal is cheap to recover from (the customer just ignores a button) |
+| At-rest encryption (Fernet) for the customer's own statement, masked at display time rather than at write time (ADR-025) | A customer's statement is dispute evidence — a system that silently "corrects" it destroys its evidentiary value |
+| A use-once refresh token + reuse-detection that revokes the whole token family (AUTH5-03) | Defends against token theft; observability + a single-flight lock were added later (see the Aug 16 investigation) |
 
 ## Tech Stack
 
-| Layer | Công nghệ |
+| Layer | Technology |
 |---|---|
-| LLM (chat) | **Bể 4 model, hạ tầng tự xoay** (ADR-043) — `qwen3.7-plus-2026-05-26` · `deepseek-v4-pro-0813` · `deepseek-v4-flash-0731` · `deepseek-v3.2`, qua DashScope. 🔴 **Tên GHIM có mốc ngày — bí danh trôi bị TỪ CHỐI lúc khởi động** (ADR-043). `temperature=0.2`. Xoay CHỈ khi lỗi hạng hết-hạn-mức; `429` KHÔNG xoay. *(Bản 16/08 ghi `GPT-4o-mini` — sai từ 19/08, sửa 20/08.)* |
-| LLM (embedding) | `text-embedding-3-small` qua **OpenAI** — [ĐO] `EMBEDDING_BASE_URL=None`. **Hai nhà cung cấp khác nhau cho chat và embedding**, cố ý tách để một bên cạn hạn mức không kéo bên kia. |
-| Agent | LangGraph + LangChain (ReAct, 5 tool). Checkpoint: **`PostgresSaver`** với pool riêng (ADR-014) — state ra ngoài tiến trình để scale ngang được. `MemorySaver` **chỉ** là nhánh dự phòng khi `DB_KIND != postgresql` (test/SQLite); `graph.py` log cảnh báo *"thấy dòng này ở production là SAI"*. |
+| LLM (chat) | **A pool of 4 models, rotated automatically by the infrastructure** (ADR-043) — `qwen3.7-plus-2026-05-26` · `deepseek-v4-pro-0813` · `deepseek-v4-flash-0731` · `deepseek-v3.2`, via DashScope. 🔴 **Names are PINNED with a date — a drifting alias is REJECTED at startup** (ADR-043). `temperature=0.2`. Rotates ONLY on a quota-exhausted error class; a `429` does NOT trigger rotation. |
+| LLM (embedding) | `text-embedding-3-small` via **OpenAI** — [measured] `EMBEDDING_BASE_URL=None`. **Two different providers for chat and embedding**, deliberately separated so one running out of quota doesn't drag the other down with it. |
+| Agent | LangGraph + LangChain (ReAct, 5 tools). Checkpointing: **`PostgresSaver`** with its own connection pool (ADR-014) — state lives outside the process so it can scale horizontally. `MemorySaver` is **only** a fallback branch when `DB_KIND != postgresql` (tests/SQLite); `graph.py` logs a warning: *"seeing this line in production is a bug"*. |
 | Backend | FastAPI + Uvicorn · SQLAlchemy · Alembic |
-| Frontend | Next.js 14 (App Router, BFF) · WebSocket live-chat |
-| Data | PostgreSQL (prod) / SQLite (dev-nhanh) · Redis (fakeredis cho CI) · ChromaDB |
-| An toàn | Presidio + spaCy NER · bộ lọc O1-O4 tự viết · argon2 password · Fernet field-encryption |
+| Frontend | Next.js 16 (App Router, BFF) · WebSocket live chat |
+| Data | PostgreSQL (prod) / SQLite (fast local dev) · Redis (fakeredis for CI) · ChromaDB |
+| Security | Presidio + spaCy NER · a hand-written O1-O4 filter · argon2 passwords · Fernet field-level encryption |
 | Observability | OpenTelemetry (GenAI semantic conventions) + Jaeger · structured JSON logs |
-| Deploy | Docker multi-stage · Caddy · Cloudflare Tunnel (home-server, 0đ/tháng) |
+| Deploy | Multi-stage Docker · Caddy · Cloudflare Tunnel (a home server, $0/month) |
 | CI | GitHub Actions: invariants · contract-drift · lint+test · appsec · security-findings-gate |

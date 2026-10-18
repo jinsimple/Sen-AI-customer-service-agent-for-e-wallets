@@ -12,7 +12,7 @@
 **FIN-05 — AI Agent hỗ trợ CSKH ví điện tử xử lý khiếu nại giao dịch**
 
 Đội T226 · AI 20K Build Phase, Cohort 3 (Vingroup × VinUni)
-PO & thực hiện: Đào Ngọc Bích · Mentor: Đặng Hải Lộc · Đối tác nghiệp vụ: ZaloPay
+PO & thực hiện: Đào Ngọc Bích · Mentor: Đặng Hải Lộc · Góc nhìn nghiệp vụ: phản hồi không chính thức từ các chuyên gia trong ngành ví điện tử Việt Nam (không có hợp tác chính thức)
 
 > **Nói:** Một câu định vị sản phẩm — *"Agent điều tra khiếu nại. Agent không bao giờ quyết định."*
 > Dừng một nhịp. Câu đó là toàn bộ thiết kế.

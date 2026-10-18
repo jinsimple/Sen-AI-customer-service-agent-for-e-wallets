@@ -125,7 +125,7 @@ Kịch bản này thiết kế theo phong cách trực quan, ít chữ (chỉ ke
 
 ### Slide 1: Bức tranh tương phản
 - **Chữ:** 15 tỷ GD không tiền mặt. 4.6 triệu cảnh báo gian lận. "Sự cố không có giờ hành chính".
-- **Chữ:** 15 tỷ GD không tiền mặt. "Sự cố không có giờ hành chính". *Nỗi đau được xác nhận trực tiếp từ: PO ZaloPay, GĐ Chi nhánh Ngân hàng, BA VNPT Money.*
+- **Chữ:** 15 tỷ GD không tiền mặt. "Sự cố không có giờ hành chính". *Nỗi đau được xác nhận qua phản hồi không chính thức từ các chuyên gia trong ngành ví điện tử và một GĐ Chi nhánh Ngân hàng — không phải hợp tác chính thức.*
 - **Prompt tạo ảnh AI:** A highly cinematic, photorealistic image of a frustrated young person looking at their glowing smartphone screen in a completely dark bedroom at 2:00 AM. In the background, subtly out of focus, glowing digital financial charts and data streams float in the air, representing massive digital transaction volumes. Neon blue and orange color palette, dramatic lighting.
 ### Slide 2: Đồng hồ pháp lý vs Quỹ lương
 - **Chữ:** Đồng hồ pháp lý chạy 24/7. Đội ngũ thì không.
@@ -197,7 +197,7 @@ nguồn; 786 thực chất là số bản ghi dữ liệu cá nhân đã vá mã
 
 ### Slide 10: Ưu điểm & Thách thức
 - **Chữ:** Sức mạnh bảo mật vs. Giới hạn thực tế (chưa cắm trực tiếp Core Banking).
-- **Chữ:** Sức mạnh: Luồng nghiệp vụ chuẩn được thẩm định bởi chuyên gia ZaloPay & VNPT Money. Thách thức: Chưa cắm trực tiếp Core Banking thật.
+- **Chữ:** Sức mạnh: Luồng nghiệp vụ chuẩn được góp ý không chính thức bởi các chuyên gia trong ngành ví điện tử Việt Nam. Thách thức: Chưa cắm trực tiếp Core Banking thật.
 - **Prompt tạo ảnh AI:** A visually striking glowing balance scale. On one side, a heavy, secure metallic lock (security). On the other, a digital bridge that is still under construction, representing the missing core banking integration.
 
 ### Slide 10b (THÊM MỚI — nên có): Đo cái gì, và chưa đo được cái gì
@@ -239,7 +239,7 @@ tin một đội **biết rõ mình chưa đo được gì** hơn một đội c
 | 208 người · 60.001 giao dịch | môi trường seed `DATASET_SEED=20260802` |
 | 4,8% làm méo tiếng Việt | `python3 eval/do_bop_meo_pii.py`, chạy 30/08 |
 | Luật 91/2025 · NĐ 356/2025 | PDF ký số VPCP: `datafiles.chinhphu.vn/cpp/files/vbpq/2025/7/91qh.signed.pdf` |
-| ZaloPay đối tác đồng hành | `FIN05-Brief.md` — PO đã gặp 2 lần |
+| Góc nhìn nghiệp vụ từ chuyên gia ngành ví điện tử | `FIN05-Brief.md` — phản hồi không chính thức |
 
 **Bốn câu KHÔNG được nói, kể cả khi bị dồn:**
 1. *"0% ảo giác"* / bất kỳ tỉ lệ tuyệt đối nào — nói **cơ chế truy vết**, không nói tỉ lệ.
@@ -273,7 +273,7 @@ tin một đội **biết rõ mình chưa đo được gì** hơn một đội c
   > cảm. Chúng tôi **chưa** đối chiếu xong danh mục Đ.2.3 nên chưa khẳng định mình thuộc diện
   > nào — và chúng tôi không lập kế hoạch dựa trên việc được miễn."*
 
-  Vì sao hạ giọng dù hướng suy luận có thể đúng: trước ZaloPay/VNPT, **khẳng định chắc một điều
+  Vì sao hạ giọng dù hướng suy luận có thể đúng: trước chuyên gia ngành, **khẳng định chắc một điều
   mình chưa tra là rủi ro lớn hơn hẳn việc nói thẳng là chưa tra.** Câu cũ còn tự mâu thuẫn với
   hồ sơ pháp lý của chính ta — vốn ghi *"CÓ THỂ thuộc diện loại trừ, KHÔNG dùng như lối thoát
   chắc chắn"*.
