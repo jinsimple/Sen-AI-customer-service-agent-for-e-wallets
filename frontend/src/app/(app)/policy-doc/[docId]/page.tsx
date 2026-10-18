@@ -7,17 +7,18 @@ import type { PolicyDocFullText } from "@/lib/types";
 import { useI18n } from "@/lib/i18n/client";
 import { blockOverlapsHighlight, splitPolicyDocBlocks } from "@/lib/policyDocBlocks";
 
-// ADR-065 (05/09) — deep-link "Xem toàn văn" từ /policy-lookup, mở TAB MỚI.
-// Tự cuộn + tô sáng đúng đoạn đã khớp khi có `chunk_id` — tài liệu 1 đoạn
-// (FAQ ngắn) hiện thẳng toàn văn, không cần cuộn (đoạn tô sáng = gần hết
-// trang, scrollIntoView vẫn chạy đúng, chỉ không có gì để cuộn tới thêm).
+// ADR-065 (Sep 5) — the "View full text" deep-link from /policy-lookup, opened in a NEW TAB.
+// Auto-scrolls to and highlights the matched excerpt when a `chunk_id` is present — a one-paragraph
+// document (short FAQ) just shows its full text with nothing to scroll to (the highlighted span is
+// nearly the whole page; scrollIntoView still runs correctly, there's just nowhere further to
+// scroll).
 //
-// [polish 05/09, PO bắt qua ảnh chụp] `full_text` đọc thô từ docx: heading
-// MỤC/ĐIỀU dính đuôi câu trước (không xuống dòng), đổ thẳng vào 1 khối
-// `pre-wrap` làm cả trang thành MỘT đoạn văn phẳng. `splitPolicyDocBlocks`
-// (lib/policyDocBlocks.ts) tách thành khối heading/url/đoạn văn — tô sáng
-// đổi từ tô THEO KÝ TỰ sang tô THEO KHỐI giao với [highlight.start, end)
-// (tự hết dính dòng luôn, vì mục dính đuôi giờ đã tách khối riêng).
+// [polish Sep 5, caught by the PO from a screenshot] `full_text` is read raw from the docx: a
+// SECTION/ARTICLE heading sticks to the end of the previous sentence (no line break), and dumping
+// it straight into one `pre-wrap` block turns the whole page into a single flat paragraph.
+// `splitPolicyDocBlocks` (lib/policyDocBlocks.ts) splits it into heading/url/paragraph blocks —
+// highlighting switched from a CHARACTER-RANGE match to a BLOCK overlapping [highlight.start, end)
+// (which also fixes the sticking, since the stuck heading is now its own block).
 export default function PolicyDocPage() {
   const { t } = useI18n();
   const { docId } = useParams<{ docId: string }>();
@@ -39,8 +40,18 @@ export default function PolicyDocPage() {
     return splitPolicyDocBlocks(doc.full_text).filter((b) => b.type !== "blank");
   }, [doc]);
 
-  // Chỉ số khối tô sáng ĐẦU TIÊN — tính TRƯỚC lúc render (không mutate biến
-  // trong lúc .map(), React Compiler coi đó là vi phạm thuần khiết render).
+  // ADR-065 (Sep 5) — the "View full text" deep-link from /policy-lookup, opened in a NEW TAB.
+  // Auto-scrolls to and highlights the matched excerpt when a `chunk_id` is present — a
+  // one-paragraph document (short FAQ) just shows its full text with nothing to scroll to (the
+  // highlighted span is nearly the whole page; scrollIntoView still runs correctly, there's just
+  // nowhere further to scroll).
+  //
+  // [polish Sep 5, caught by the PO from a screenshot] `full_text` is read raw from the docx: a
+  // SECTION/ARTICLE heading sticks to the end of the previous sentence (no line break), and dumping
+  // it straight into one `pre-wrap` block turns the whole page into a single flat paragraph.
+  // `splitPolicyDocBlocks` (lib/policyDocBlocks.ts) splits it into heading/url/paragraph blocks —
+  // highlighting switched from a CHARACTER-RANGE match to a BLOCK overlapping [highlight.start,
+  // end) (which also fixes the sticking, since the stuck heading is now its own block).
   const firstHighlightIndex = useMemo(() => {
     if (!doc?.highlight) return -1;
     return blocks.findIndex((b) => blockOverlapsHighlight(b, doc.highlight!.start, doc.highlight!.end));

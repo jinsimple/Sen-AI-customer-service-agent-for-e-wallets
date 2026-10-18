@@ -5,12 +5,13 @@ import { ApiError, listStaffPresence } from "@/lib/api";
 import type { StaffPresenceItem } from "@/lib/types";
 import { useI18n } from "@/lib/i18n/client";
 
-// ADR-063 — bảng "CSKH nào đang online" + số vé đang xử lý, CHỈ Sếp xem
-// (route /presence/staff ép role ở tầng backend — component này không tự
-// kiểm quyền, chỉ hiển thị). Poll cùng nhịp 20s với chuông (POLL_MS) — hai
-// nơi định nghĩa riêng CÓ CHỦ ĐÍCH: bảng này và chuông là 2 mối quan tâm
-// độc lập (một cái Sếp mới cần, một cái mọi nhân viên cần), gộp interval
-// dùng chung sẽ ép hai component không liên quan phải biết về nhau.
+// ADR-063 — the "which support agents are online" table plus their ticket counts, viewable by the
+// SUPERVISOR ONLY (the /presence/staff route enforces the role at the backend layer — this
+// component doesn't check permissions itself, it only displays). Polls at the same 20s cadence as
+// the notification bell (POLL_MS) — defined separately in both places ON PURPOSE: this table and
+// the bell are two INDEPENDENT concerns (one only the supervisor needs, the other every staff
+// member needs); sharing one interval would force two unrelated components to know about each
+// other.
 const POLL_MS = 20_000;
 
 export default function StaffPresenceTable() {
@@ -39,9 +40,9 @@ export default function StaffPresenceTable() {
 
   if (error) return <div className="note" style={{ borderColor: "var(--danger)" }}>{error}</div>;
 
-  // [04/09] Sắp xếp mặc định PO chốt: online lên đầu, trong mỗi nhóm xếp
-  // theo số vé đang xử lý giảm dần — ai đông việc nổi lên trước để dễ nhìn
-  // phân bổ. Chỉ sắp xếp hiển thị, không đổi dữ liệu/API.
+  // [Sep 4] Default sort the PO decided on: online first, within each group sorted by descending
+  // ticket count — whoever is busiest surfaces first for easier workload visibility. Display-only
+  // sorting, doesn't change the data/API.
   const sapXep = items === null ? null : [...items].sort((a, b) => {
     if (a.online !== b.online) return a.online ? -1 : 1;
     return b.so_ve_dang_xu_ly - a.so_ve_dang_xu_ly;

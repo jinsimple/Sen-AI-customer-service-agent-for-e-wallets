@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Live chat (2026-08-11) — kết nối WebSocket TRỰC TIẾP tới Caddy -> backend
-// (route /ws/live-chat, xem Caddyfile) bằng vé dùng-1-lần mint qua BFF
-// (lib/api.ts::requestLiveChatWsTicket/requestStaffWsTicket) — KHÔNG qua
-// BFF cho chính kết nối WS (browser không gắn được Authorization header vào
-// `new WebSocket()`, và JWT thật không bao giờ nhét vào query param). URL
-// dùng CÙNG origin với trang hiện tại (window.location.host) — Caddy phục
-// vụ cả frontend lẫn /ws/live-chat dưới 1 domain, trình duyệt không cần và
-// không được biết địa chỉ backend thật (giữ nguyên bất biến BFF).
+// Live chat (2026-08-11) — a WebSocket connection DIRECTLY to Caddy -> backend (route
+// /ws/live-chat, see the Caddyfile) using a single-use ticket minted through the BFF
+// (lib/api.ts::requestLiveChatWsTicket/requestStaffWsTicket) — NOT through the BFF for the WS
+// connection itself (the browser can't attach an Authorization header to `new WebSocket()`, and a
+// real JWT must never go into a query param). The URL uses the SAME origin as the current page
+// (window.location.host) — Caddy serves both the frontend and /ws/live-chat under 1 domain, so the
+// browser doesn't need to, and must not, know the real backend address (keeping the BFF invariant
+// intact).
 
 export interface LiveChatContext {
   ticket: { ticket_id: string; hitl_status: string; sla_due_at: string; human_handoff_requested: boolean };
@@ -44,9 +44,9 @@ export type LiveChatEvent =
 export type LiveChatStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export function useLiveChatSocket(wsTicket: string | null, onEvent: (event: LiveChatEvent) => void) {
-  // "connecting" là giá trị SUY RA (không setState trong effect — tránh
-  // cascading render, xem react-hooks/set-state-in-effect): còn "idle" mà đã
-  // có wsTicket nghĩa là đang trong quá trình mở kết nối.
+  // "connecting" is a DERIVED value (no setState inside the effect — to avoid a cascading render,
+  // see react-hooks/set-state-in-effect): "idle" while a wsTicket already exists means a connection
+  // is in the process of opening.
   const [rawStatus, setRawStatus] = useState<Exclude<LiveChatStatus, "connecting">>("idle");
   const status: LiveChatStatus = wsTicket && rawStatus === "idle" ? "connecting" : rawStatus;
   const wsRef = useRef<WebSocket | null>(null);

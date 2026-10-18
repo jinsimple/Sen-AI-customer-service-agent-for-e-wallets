@@ -5,17 +5,17 @@ import { useRouter } from "next/navigation";
 import { roleHome, type Role } from "@/lib/session";
 import { useI18n } from "@/lib/i18n/client";
 
-// Dùng CHUNG cho /login (khách hàng) và /dang-nhap-noi-bo (CSKH/sếp/đối tác) —
-// tách TRANG, không tách CƠ CHẾ (PO chốt 26/08). Cả hai gọi đúng một endpoint,
-// vai trò luôn lấy từ RESPONSE server tra qua phone — không có tham số nào ở
-// đây quyết định QUYỀN người dùng nhận được.
+// Shared by /login (customer) and /dang-nhap-noi-bo (support/supervisor/partner) — split the PAGE,
+// not the MECHANISM (PO decision, Aug 26). Both call the same endpoint; the role always comes from
+// the server's RESPONSE looked up by phone — no parameter here decides what PERMISSIONS the user
+// gets.
 //
-// `gate` (26/08, PO đảo quyết định "cứ cho vào") là NGOẠI LỆ có chủ đích và
-// hẹp: nó CHỈ có thể khiến đăng nhập THẤT BẠI THÊM (route /api/session so vai
-// server trả về với gate, từ chối nếu lệch — xem route.ts), không bao giờ
-// giúp thành công thêm hay đổi vai nhận được. Không phải "tham số quyết định
-// quyền" mà dự án đã cấm (12/08) — đó là tham số MỞ quyền; đây là tham số chỉ
-// ĐÓNG. Gửi sai `gate` không đi vòng qua được gì, chỉ tự làm mình bị từ chối.
+// `gate` (Aug 26, PO reversed the earlier "just let them in" call) is a deliberate, narrow
+// EXCEPTION: it can ONLY make a login FAIL FURTHER (route /api/session compares the role the server
+// returned against the gate and rejects on a mismatch — see route.ts), never help it succeed
+// further or change which role is granted. It is not the "parameter that decides permissions" the
+// project banned (Aug 12) — that would be a parameter that OPENS permissions; this one only CLOSES.
+// Sending the wrong `gate` can't route around anything, it can only get the sender rejected.
 export function useLoginForm(gate: "customer" | "internal") {
   const router = useRouter();
   const { t } = useI18n();

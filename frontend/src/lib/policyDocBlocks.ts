@@ -1,37 +1,37 @@
-// ADR-065 polish (05/09, PO bắt qua ảnh chụp buổi quay) — `full_text` đọc từ
-// docx qua trích xuất thô: heading MỤC/ĐIỀU thường DÍNH ĐUÔI ngay sau câu
-// cuối của mục trước, KHÔNG xuống dòng (vd thật, MoMo_FAQ_Giao_dich.docx:
-// "...giao dịch sẽ không thành công.67. Cách rút tiền từ MoMo về ngân hàng
-// đã liên kết\n") — hiện thẳng `full_text` vào 1 khối `pre-wrap` làm cả
-// trang thành 1 đoạn văn phẳng, mục sau dính đuôi mục trước.
+// ADR-065 polish (Sep 5, caught by the PO from a shoot screenshot) — `full_text` is read from the
+// docx via raw extraction: a SECTION/ARTICLE heading often STICKS right onto the end of the
+// previous section's last sentence, with NO line break (real example, MoMo_FAQ_Giao_dich.docx:
+// "...the transaction will fail.67. How to withdraw from MoMo to a linked bank account\n") —
+// dumping `full_text` straight into one `pre-wrap` block turns the whole page into one flat
+// paragraph, each section stuck to the previous one's tail.
 //
-// Module này CHỈ tính TOẠ ĐỘ khối (start/end trong CHÍNH `full_text` GỐC,
-// không cắt/nối chuỗi) — cố ý không mutate text để offset `highlight` từ
-// backend (ADR-065 gốc) vẫn đúng nguyên, không cần tính lại.
+// This module ONLY computes block COORDINATES (start/end within the ORIGINAL `full_text` itself, no
+// slicing/joining of strings) — deliberately not mutating the text so the backend's `highlight`
+// offset (original ADR-065) stays exactly correct, with no recomputation needed.
 export type PolicyDocBlockType = "heading" | "url" | "para" | "blank";
 
 export interface PolicyDocBlock {
   type: PolicyDocBlockType;
-  text: string; // đã trim, chỉ dùng để RENDER — toạ độ start/end vẫn trỏ vào full_text GỐC
+  text: string; // already trimmed, used ONLY for RENDERING — the start/end coordinates still point into the ORIGINAL full_text
   start: number;
   end: number;
 }
 
-// Dấu câu kết thúc câu, NGAY SAU đó là số-thứ-tự (FAQ "67. " hoặc ToS
-// "1.1. ") rồi tới CHỮ HOA — dấu hiệu THẬT của một heading bị dính đuôi
-// (không phải số tiền "30.000.000đ", vì dạng đó không có khoảng trắng sau
-// dấu chấm cuối cùng). `\p{Lu}` (Unicode uppercase) thay vì liệt kê tay
-// từng chữ hoa có dấu tiếng Việt — liệt kê tay dễ sót, `\p{Lu}` đúng với
-// MỌI chữ hoa Unicode (Á/Đ/Ơ/Ư... đều thuộc nhóm Lu).
-// `(?<!\d)` chặn TỰ KHỚP NHẦM bên trong số nhiều cấp kiểu ToS "1.1." — không
-// có nó, regex đọc "1" + "." (giữa) + "1. " làm một heading giả, cắt "1.1."
-// làm đôi thành "1." + "1. ...". Dấu câu kết câu THẬT không bao giờ đứng
-// ngay sau một chữ số của CHÍNH số thứ tự đó.
+// An end-of-sentence punctuation mark, IMMEDIATELY FOLLOWED by a list number (FAQ "67. " or a ToS
+// "1.1. ") and then an UPPERCASE letter — the REAL signature of a heading stuck to a tail (not a
+// monetary amount like "30,000,000đ", because that form has no space after its final dot). `\p{Lu}`
+// (Unicode uppercase) instead of hand-listing every accented Vietnamese uppercase letter — a hand
+// list is easy to miss some; `\p{Lu}` matches EVERY Unicode uppercase letter (Á/Đ/Ơ/Ư... are all in
+// the Lu category).
+// `(?<!\d)` blocks a FALSE SELF-MATCH inside a multi-level ToS number like "1.1." — without it, the
+// regex would read "1" + "." (middle) + "1. " as a fake heading, splitting "1.1." in two as "1." +
+// "1. ...". A REAL end-of-sentence mark never sits right after a digit that is part of that very
+// list number.
 const GLUED_HEADING_RE = /(?<!\d)[.!?](\d+(?:\.\d+)*\.\s+)(?=\p{Lu})/gu;
-// Heading đã đứng riêng 1 dòng (không cần dính-đuôi) — FAQ "N. câu hỏi",
-// ToS "N.N. tên điều khoản". Không phân biệt được với mục con đánh số bên
-// trong 1 câu trả lời (chấp nhận — mục con được tô đậm hơi thừa, KHÔNG phải
-// lỗi "dính chữ" PO bắt, đổi đánh đổi này lấy quy tắc đơn giản/dễ soát).
+// A heading that's already on its own line (doesn't need the stuck-tail fix) — FAQ "N. question",
+// ToS "N.N. clause name". Can't be told apart from a numbered sub-item inside one answer (accepted
+// — the sub-item gets bolded a bit more than it should, NOT the "stuck text" bug the PO caught;
+// this trade-off buys a simpler, easier-to-audit rule).
 const HEADING_LINE_RE = /^\d+(?:\.\d+)*\.\s+\S/;
 const URL_LINE_RE = /^https?:\/\//;
 
@@ -43,9 +43,10 @@ export function splitPolicyDocBlocks(fullText: string): PolicyDocBlock[] {
     idx = fullText.indexOf("\n", idx + 1);
   }
   for (const m of fullText.matchAll(GLUED_HEADING_RE)) {
-    // m.index trỏ vào dấu câu kết câu — điểm chẻ NGAY SAU dấu đó (đầu số
-    // thứ tự), không lấy theo group 1 (offset của group lệch khỏi m.index
-    // tuỳ độ dài phần khớp trước nó, dùng m.index + 1 vì dấu câu luôn 1 ký tự).
+    // m.index points at the end-of-sentence punctuation — the split point is RIGHT AFTER that mark
+    // (the start of the list number), not taken from group 1 (a group's offset drifts from m.index
+    // depending on the length of whatever matched before it; using m.index + 1 because the
+    // punctuation mark is always exactly 1 character).
     boundaries.add(m.index + 1);
   }
 
@@ -65,9 +66,11 @@ export function splitPolicyDocBlocks(fullText: string): PolicyDocBlock[] {
   return blocks;
 }
 
-/** Khối có giao với [hlStart, hlEnd) hay không — dùng interval overlap
- * chuẩn, không đòi khớp tuyệt đối (offset highlight từ backend tính trên
- * đúng 1 chunk, có thể lệch vài ký tự khỏi ranh giới khối do trim). */
+/**
+ * Whether a block overlaps [hlStart, hlEnd) — using a standard interval overlap, not requiring an
+ * exact match (the backend computes the highlight offset against exactly 1 chunk, which can drift a
+ * few characters from the block boundary due to trimming).
+ */
 export function blockOverlapsHighlight(block: PolicyDocBlock, hlStart: number, hlEnd: number): boolean {
   return block.end > hlStart && block.start < hlEnd;
 }

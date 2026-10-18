@@ -11,18 +11,17 @@ import { BACKEND_URL } from "@/lib/server-api";
 import { translate } from "@/lib/i18n/core";
 import { getLang } from "@/lib/i18n/server";
 
-// Gọi backend server-side (không CORS) rồi set cookie httpOnly — theo đúng
-// khuyến nghị Next.js: "Cookies should be set on the server to prevent
-// client-side tampering" (docs/01-app/02-guides/authentication.md). Token
-// JWT backend phát ra cũng chỉ nằm trong cookie httpOnly này — trình duyệt
-// không bao giờ đọc được, chỉ route handler server-side dùng lại (BFF).
-// 26/08 — PO chốt: chặn nhân viên đăng nhập ở /login (cổng khách) và ngược
-// lại. KHÔNG phải cổng bảo mật — vai vẫn 100% lấy từ RESPONSE backend, `gate`
-// chỉ có thể làm ĐĂNG NHẬP THẤT BẠI THÊM, không bao giờ giúp thành công thêm
-// (ai gửi sai `gate` chỉ tự làm mình bị từ chối, không đi vòng qua được gì).
-// Chặn SAU khi xác thực mật khẩu đúng — sai mật khẩu không học được gì; đúng
-// mật khẩu thì thêm một câu cũng không mất gì (PO). Cùng MỘT câu lỗi cho mọi
-// lý do bị từ chối ở bước này — không khai vai ra màn hình.
+// Call the backend server-side (no CORS), then set an httpOnly cookie — per Next.js's own
+// recommendation: "Cookies should be set on the server to prevent client-side tampering"
+// (docs/01-app/02-guides/authentication.md). The JWT the backend issues also lives only in this
+// httpOnly cookie — the browser never reads it, only the server-side route handler reuses it (BFF).
+// Aug 26 — PO decision: block staff from logging in at /login (the customer gate) and vice versa.
+// NOT a security gate — the role still comes 100% from the backend's RESPONSE; `gate` can only make
+// a login FAIL FURTHER, never help it succeed (sending the wrong `gate` only gets the sender
+// rejected, it can't route around anything). The block happens AFTER the password is verified
+// correct — a wrong password teaches an attacker nothing extra; a correct password plus one more
+// sentence costs nothing (PO). One and the same error message for every reason this step rejects —
+// never reveal the real role on screen.
 const wrongGateMessage = async () => translate(await getLang(), "err.wrongGate");
 
 function gateRejects(gate: Gate, role: string) {
@@ -52,9 +51,9 @@ export async function POST(req: Request) {
     refresh_token: string;
   };
 
-  // Mật khẩu đã đúng (backend vừa xác nhận) — nhưng sai cổng. KHÔNG lập
-  // phiên (không set cookie, tokens backend vừa phát ra chết theo request
-  // này). Trả 403 chung chung, không nói vai thật là gì.
+  // The password was correct (the backend just confirmed it) — but the wrong gate. Don't establish
+  // a session (no cookie set; the tokens the backend just issued die with this request). Return a
+  // generic 403 without revealing the real role.
   if (gateRejects(gate, user.role)) {
     return NextResponse.json({ detail: (await wrongGateMessage()) }, { status: 403 });
   }
@@ -66,26 +65,26 @@ export async function POST(req: Request) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    // AUTH5-02/02B — cookie sống theo TTL refresh_token (7 ngày khách hàng,
-    // 1 ngày role nội bộ), KHÔNG còn khớp trực tiếp JWT_ACCESS_EXPIRE_MINUTES
-    // (chỉ 15 phút) — middleware.ts tự làm mới access_token bên trong cookie
-    // này trước khi hết hạn, khách không bị đăng xuất sau 15 phút.
+    // AUTH5-02/02B — the cookie's lifetime now follows the refresh_token's TTL (7 days for
+    // customers, 1 day for internal roles), no longer matching JWT_ACCESS_EXPIRE_MINUTES directly
+    // (only 15 minutes) — middleware.ts refreshes the access_token inside this cookie before it
+    // expires, so customers aren't logged out after 15 minutes.
     maxAge: sessionCookieMaxAgeSeconds(session.role),
   });
 
-  // Cookie gợi ý cổng — xem chú thích tại khai báo LAST_GATE_COOKIE
-  // (lib/session.ts) để biết vì sao KHÔNG httpOnly và KHÔNG xoá khi đăng
-  // xuất. `gate` ở đây chính là tham số client đã gửi (đã qua gateRejects()
-  // ở trên — tới được dòng này nghĩa là gate khớp role thật).
+  // The gate-hint cookie — see the comment at LAST_GATE_COOKIE's declaration (lib/session.ts) for
+  // why it is NOT httpOnly and is NOT cleared on logout. `gate` here is exactly the parameter the
+  // client sent (already passed through gateRejects() above — reaching this line means the gate
+  // matches the real role).
   //
-  // 🔴 [ĐO 27/08] Review + p-226-f0: TTL ban đầu ghim CỐ ĐỊNH 30 ngày —
-  // không bám vào vòng đời thật nào (refresh_token nhân viên chỉ 1 ngày,
-  // khách 7 ngày). Sau 1 ngày, nhân viên BẮT BUỘC đăng nhập lại dù cookie
-  // gợi ý còn hay không — nó chỉ CHỌN CỔNG, không thay được đăng nhập, nên
-  // 29 ngày còn lại của hằng số cũ không phục vụ ca dùng hợp lệ nào, chỉ để
-  // lại dấu vết thừa trên máy trạm. Dùng LẠI sessionCookieMaxAgeSeconds(role)
-  // — đã tồn tại, đã đúng theo vai — để mai đổi vòng đời phiên thì cookie
-  // gợi ý tự đi theo, không phải nhớ đồng bộ một hằng số riêng.
+  // 🔴 [measured Aug 27] Review + p-226-f0: the original TTL was pinned at a FIXED 30 days — not
+  // tied to any real lifecycle (staff refresh_token is only 1 day, customer 7 days). After 1 day,
+  // staff are FORCED to log in again regardless of whether the hint cookie is still there — it only
+  // PICKS THE GATE, it can't substitute for logging in, so the remaining 29 days of the old
+  // constant served no valid use case, just left an extra trace on the workstation. Reuse
+  // sessionCookieMaxAgeSeconds(role) — it already exists, already correct per role — so that if the
+  // session lifecycle changes tomorrow, the hint cookie follows automatically instead of needing a
+  // separately remembered constant kept in sync.
   const gateThat: Gate = gate === "internal" ? "internal" : "customer";
   store.set(LAST_GATE_COOKIE, gateThat, {
     httpOnly: false,
@@ -94,8 +93,8 @@ export async function POST(req: Request) {
     maxAge: sessionCookieMaxAgeSeconds(session.role),
   });
 
-  // Trả về client KHÔNG kèm access_token/refresh_token — client chỉ cần
-  // biết đăng nhập xong và role gì để điều hướng, token ở lại phía server.
+  // Return to the client WITHOUT access_token/refresh_token — the client only needs to know that
+  // login succeeded and which role, to navigate; the tokens stay on the server.
   const { access_token: _accessToken, refresh_token: _refreshToken, ...publicSession } = session;
   return NextResponse.json(publicSession);
 }
@@ -111,11 +110,10 @@ export async function DELETE() {
     }
   })() : null;
 
-  // AUTH5-06 (đợt nâng cấp Auth Flow 2026-08-12) — đăng xuất giờ THẬT SỰ thu
-  // hồi JWT ở backend (POST /auth/logout), không còn CHỈ xoá cookie phía
-  // frontend như trước (đúng phát hiện đã ghi trong
-  // tests/test_security/test_jwt_revocation.py). Best-effort — lỗi mạng lúc
-  // gọi backend không được chặn việc xoá cookie phía trình duyệt.
+  // AUTH5-06 (Auth Flow upgrade, Aug 12, 2026) — logout now ACTUALLY revokes the JWT on the backend
+  // (POST /auth/logout), not just clearing the frontend cookie as before (per the finding recorded
+  // in tests/test_security/test_jwt_revocation.py). Best-effort — a network error calling the
+  // backend must not block clearing the browser's cookie.
   if (session?.access_token && session?.refresh_token) {
     try {
       await fetch(`${BACKEND_URL}/auth/logout`, {

@@ -4,15 +4,16 @@ import "./globals.css";
 import { I18nProvider } from "@/lib/i18n/client";
 import { getLang, getT } from "@/lib/i18n/server";
 
-// 🔴 ĐỔI 25/08 — Nunito -> Inter. Không phải chuyện gu.
-// Nunito là phông BO TRÒN, thân thiện — đúng cho app trẻ em / học tập. Đây là
-// sản phẩm TÀI CHÍNH xử lý khiếu nại tiền, và phông đang nói sai về sản phẩm
-// TRƯỚC CẢ KHI người ta đọc nội dung. Inter là grotesque trung tính, gần SF Pro
-// của Apple nhất trong số phông miễn phí.
-// 🔴 `subsets` PHẢI có "vietnamese": thiếu nó thì đúng những chữ CÓ DẤU âm thầm
-// rơi về phông hệ thống — chữ nhảy phông GIỮA CÂU, tệ hơn hẳn giữ Nunito.
-// Bỏ weight 800: [ĐO] 9 chỗ dùng, mà đã có 600 và 700 thì 800 không thêm bậc
-// nào, chỉ thêm nhiễu.
+// 🔴 CHANGED Aug 25 — Nunito -> Inter. Not a matter of taste.
+// Nunito is a ROUNDED, friendly typeface — right for a kids'/learning app. This is a FINANCIAL
+// product handling money complaints, and the font was saying the wrong thing about the product
+// BEFORE anyone even reads the content. Inter is a neutral grotesque, the closest free font to
+// Apple's SF Pro.
+// 🔴 `subsets` MUST include "vietnamese": without it, exactly the ACCENTED characters silently fall
+// back to the system font — characters jumping typeface MID-SENTENCE, worse than just keeping
+// Nunito.
+// Dropped weight 800: [measured] 9 places use it, but with 600 and 700 already present, 800 adds no
+// extra step, only noise.
 const inter = Inter({
   variable: "--font-ui",
   subsets: ["latin", "vietnamese"],

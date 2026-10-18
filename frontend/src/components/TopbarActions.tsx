@@ -7,18 +7,18 @@ import NotificationBell from "./NotificationBell";
 import LanguageToggle from "./LanguageToggle";
 import { useI18n } from "@/lib/i18n/client";
 
-// 26/08 — chuẩn ngành: gom nút theme + viên tên (who-pill, trông như nút
-// nhưng KHÔNG bấm được) + nút đăng xuất thành MỘT nút người dùng có menu thả
-// xuống. EnvBadge KHÔNG đụng — cố ý nổi bật nhất thanh đầu (ADR-009), không
-// cào bằng chung nhóm "tiện ích".
+// Aug 26 — industry convention: merge the theme button + the name pill (who-pill, which looked like
+// a button but was NOT clickable) + the logout button into ONE user menu button with a dropdown.
+// EnvBadge is left untouched — deliberately the most prominent thing in the topbar (ADR-009), not
+// lumped into a generic "utilities" group.
 //
-// Đăng xuất tách khỏi nhóm trên bằng đường kẻ + màu --danger — trước đó nó
-// dùng CHUNG class "theme-toggle" với nút đổi theme, trông giống hệt nhau dù
-// hậu quả khác hẳn (một cái đổi màu nền, một cái KẾT THÚC PHIÊN LÀM VIỆC).
+// Logout is set apart from the group above by a divider + the --danger colour — it used to SHARE
+// the "theme-toggle" class with the theme-switch button, looking identical despite very different
+// consequences (one changes a background colour, the other ENDS THE WORKING SESSION).
 
-// Quy ước gọi tên người Việt: gọi bằng TÊN (từ cuối), không bằng HỌ — "chị
-// Anh", không phải "chị Hồ". Phòng tên rỗng/một từ/khoảng trắng thừa vì đây
-// là chữ hiện ở MỌI màn của MỌI vai, không được phép vỡ.
+// Vietnamese naming convention: address people by their GIVEN name (the last word), not their
+// family name — "chị Anh", not "chị Hồ". Guards against an empty/one-word/extra-whitespace name
+// because this text appears on EVERY screen for EVERY role and must never break.
 function chuCaiTenGoi(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -64,13 +64,12 @@ export default function TopbarActions({ fullName, role }: { fullName: string; ro
     localStorage.setItem("fin05-theme", next);
   }
 
-  // 27/08 — PO báo: đăng xuất LUÔN đá về /login (cổng khách), kể cả với
-  // nhân viên. Vì gate là mỗi cổng CHỈ CHẤP NHẬN đúng vai của mình
-  // (useLoginForm.ts, server so gate với role và TỪ CHỐI nếu lệch — xem
-  // route.ts::gateRejects), nhân viên bị đá sang /login là NGÕ CỤT: không tự
-  // đăng nhập lại được ở đó, và trang công khai "/" cũng không có đường nào
-  // dẫn tới /dang-nhap-noi-bo. Component này đã nhận `role` sẵn (dùng cho
-  // roleLabel ngay dưới) — chỉ là chỗ điều hướng không tra nó trước khi đó.
+  // Aug 27 — PO reported: logout ALWAYS redirects to /login (the customer gate), even for staff.
+  // Because each gate ONLY ACCEPTS its own role (useLoginForm.ts; the server compares the gate to
+  // the role and REJECTS on a mismatch — see route.ts::gateRejects), staff being sent to /login is
+  // a DEAD END: they can't log back in there, and the public "/" page has no path leading to
+  // /dang-nhap-noi-bo either. This component already receives `role` (used for roleLabel right
+  // below) — the navigation here simply wasn't reading it beforehand.
   const loginPath = role === "customer" ? "/login" : "/dang-nhap-noi-bo";
 
   async function logout() {

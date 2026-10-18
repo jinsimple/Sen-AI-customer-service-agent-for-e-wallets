@@ -22,10 +22,10 @@ import type { LiveChatContext } from "@/lib/useLiveChatSocket";
 import { LAST_GATE_COOKIE, loginPathForGate } from "@/lib/session";
 import { docLang, translate } from "@/lib/i18n/core";
 
-// Client Component gọi các route nội bộ /api/* (BFF, xem frontend/src/app/api/)
-// — KHÔNG bao giờ gọi thẳng FastAPI. Route nội bộ đọc JWT từ cookie httpOnly
-// phía server rồi mới gọi backend thật, nên trình duyệt không cần và không
-// được biết địa chỉ/token của FastAPI.
+// A Client Component calls the internal /api/* routes (BFF, see frontend/src/app/api/) — NEVER
+// FastAPI directly. The internal route reads the JWT from the server-side httpOnly cookie before
+// calling the real backend, so the browser doesn't need to, and must not, know FastAPI's
+// address/token.
 
 export class ApiError extends Error {
   status: number;
@@ -35,38 +35,37 @@ export class ApiError extends Error {
   }
 }
 
-// Timeout mặc định 60s — UX-01 (FIN05-QA-Test-Report.md): mọi hành động
-// async (gửi chat, duyệt case...) phải có trần thời gian rõ ràng, KHÔNG bao
-// giờ treo vô hạn (cùng gốc với BUG-01 ở trang login, nhưng request() này là
-// điểm dùng chung cho agentChat/approveResolution/... nên sửa 1 chỗ áp dụng
-// hết). 60s (không phải 10s như login) vì agentChat gọi LLM thật, đã đo thực
-// tế có lượt cần 15-20s+ khi tải cao — timeout phải đủ rộng để không huỷ
-// nhầm request đang chạy đúng, chỉ chặn trường hợp treo thật sự.
+// Default timeout 60s — UX-01 (FIN05-QA-Test-Report.md): every async action (sending a chat
+// message, approving a case...) must have a clear time cap, NEVER hang forever (same root cause as
+// BUG-01 on the login page, but this request() is the shared choke point for
+// agentChat/approveResolution/..., so fixing it once covers all of them). 60s (not 10s like login)
+// because agentChat calls a real LLM, and turns measured in practice have taken 15-20s+ under load
+// — the timeout must be generous enough not to cancel a request that's running correctly, only to
+// catch a genuine hang.
 const DEFAULT_TIMEOUT_MS = 60_000;
 
-// 27/08 [ĐO] p-226-f0: 401 từ BFF (server-api.ts::backendFetch, sau khi ĐÃ
-// thử làm mới token và cũng hỏng) PHẦN LỚN nghĩa là "phiên không còn hiệu
-// lực" — KHÔNG bao giờ dùng cho lỗi nghiệp vụ dạng payload 200 (OTP hết
-// tươi/thiếu OTP nằm TRONG /api/agent-chat, xem ChatClient.tsx::
-// OTP_EXPIRED_LOAI — chưa từng là status HTTP 401). An toàn để đá NGAY về
-// đúng cổng thay vì để từng trang tự bắt raw error rồi hiện nguyên văn cho
-// khách (đúng gốc PO báo: "chat với chat bot báo lỗi — đăng xuất ra vào lại
-// thì ok", vì trước đây không nơi nào tự dọn cookie chết/tự điều hướng, chỉ
-// nút Đăng xuất làm việc đó).
+// 27/08 [measured] p-226-f0: a 401 from the BFF (server-api.ts::backendFetch, AFTER it already
+// tried refreshing the token and that also failed) MOSTLY means "the session is no longer valid" —
+// NEVER used for a business-logic error shaped as a 200 payload (an expired/missing OTP lives
+// INSIDE /api/agent-chat, see ChatClient.tsx::OTP_EXPIRED_LOAI — it has never been an HTTP 401
+// status). Safe to redirect STRAIGHT to the right gate instead of leaving every page to catch the
+// raw error and show it verbatim to the customer (the exact root cause the PO reported: "chatting
+// with the chat bot shows an error — logging out and back in fixes it", because nothing used to
+// clean up a dead cookie or redirect on its own; only the Logout button did that).
 //
-// ✅ [27/08] NGOẠI LỆ ĐÃ BIẾN MẤT Ở GỐC, không phải được xử lý gọn hơn.
-// Trước đây `/auth/otp/verify` trả 401 cho SAI MÃ OTP — đi qua đúng
-// `backendFetch` nên vẫn 401 sau refresh (refresh THÀNH CÔNG vì token còn
-// sống; mã OTP mới là thứ sai) ⟹ khách gõ nhầm sáu số bị đá về /login, mất
-// luôn phiên đang sống. Không có field cấu trúc nào để bám, nên bản vá đầu
-// phải KHỚP CHUỖI — trái chính nguyên tắc dự án đã viết ra ở ChatClient.tsx
-// ("ưu tiên status, tín hiệu MẠNH thuộc hợp đồng HTTP, hơn khớp câu chữ").
-// Backend nay trả 400 cho ca đó (main.py, "Mã OTP không đúng") ⟹ 401 lại có
-// ĐÚNG MỘT nghĩa trên mọi route: phiên không dùng được nữa.
-// 🔴 ĐỪNG thêm lại một ngoại lệ ở đây. Nếu một route mới trả 401 cho lỗi
-// KHÔNG phải "phiên chết", sửa ROUTE ĐÓ — đừng dạy hàm này thêm một biệt lệ.
-// Một ngoại lệ ở tầng này rẻ lúc viết và đắt mãi về sau: nó biến một quy tắc
-// đọc-là-hiểu thành một quy tắc phải-tra-danh-sách.
+// ✅ [27/08] AN EXCEPTION THAT DISAPPEARED AT THE ROOT, not one handled more cleanly.
+// `/auth/otp/verify` used to return 401 for a WRONG OTP CODE — going through the same
+// `backendFetch`, it stayed 401 after a refresh (the refresh SUCCEEDED because the token was still
+// alive; the new OTP code was what was wrong) ⟹ a customer who mistyped six digits got kicked to
+// /login, losing an otherwise-live session. There was no structured field to key off, so the first
+// patch had to MATCH THE STRING — against the project's own stated principle in ChatClient.tsx
+// ("prefer status, a STRONG signal that's part of the HTTP contract, over matching wording"). The
+// backend now returns 400 for that case (main.py, "Incorrect OTP code") ⟹ 401 again has EXACTLY ONE
+// meaning across every route: the session can no longer be used.
+// 🔴 DON'T add another exception here. If a new route returns 401 for an error that is NOT "the
+// session died", fix THAT ROUTE — don't teach this function another special case. An exception at
+// this layer is cheap to write and expensive forever after: it turns a read-and-understand rule
+// into a look-it-up-in-a-list rule.
 
 function dieuHuongKhiHetPhien() {
   if (typeof document === "undefined") return;
@@ -100,10 +99,10 @@ async function request<T>(path: string, init?: RequestInit & { timeoutMs?: numbe
     let detail = res.statusText;
     try {
       const body = await res.json();
-      // Phòng vệ đúp: BFF (server-api.ts::backendFetch) đã chuẩn hoá lỗi 429
-      // rate-limit về {"detail": ...}, nhưng vẫn giữ nhánh {"error": ...} ở
-      // đây phòng trường hợp lỗi đến từ route Next.js khác chưa qua chuẩn
-      // hoá đó — tránh lặp lại đúng bug đã tìm thấy (hiện JSON thô cho khách).
+      // Double defence: the BFF (server-api.ts::backendFetch) already normalises a 429 rate-limit
+      // error into {"detail": ...}, but the {"error": ...} branch is kept here in case an error
+      // arrives from a different Next.js route that hasn't gone through that normalisation — to
+      // avoid repeating exactly the bug already found (showing raw JSON to the customer).
       detail = body.detail ?? body.error ?? JSON.stringify(body);
     } catch {
       // giữ statusText nếu body không phải JSON
@@ -130,9 +129,9 @@ function del<T>(path: string): Promise<T> {
   return request<T>(path, { method: "DELETE" });
 }
 
-// Upload file — KHÔNG dùng request() vì hàm đó luôn ép Content-Type:
-// application/json; multipart cần fetch tự tính boundary từ FormData. Vẫn áp
-// timeout riêng — file lớn/mạng chậm cũng không được treo vô hạn (UX-01).
+// File upload — doesn't use request() because that function always forces Content-Type:
+// application/json; multipart needs fetch to compute its own boundary from FormData. Still applies
+// its own timeout — a large file/slow network must not hang forever either (UX-01).
 async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
@@ -151,10 +150,10 @@ async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
     let detail = res.statusText;
     try {
       const body = await res.json();
-      // Phòng vệ đúp: BFF (server-api.ts::backendFetch) đã chuẩn hoá lỗi 429
-      // rate-limit về {"detail": ...}, nhưng vẫn giữ nhánh {"error": ...} ở
-      // đây phòng trường hợp lỗi đến từ route Next.js khác chưa qua chuẩn
-      // hoá đó — tránh lặp lại đúng bug đã tìm thấy (hiện JSON thô cho khách).
+      // Double defence: the BFF (server-api.ts::backendFetch) already normalises a 429 rate-limit
+      // error into {"detail": ...}, but the {"error": ...} branch is kept here in case an error
+      // arrives from a different Next.js route that hasn't gone through that normalisation — to
+      // avoid repeating exactly the bug already found (showing raw JSON to the customer).
       detail = body.detail ?? body.error ?? JSON.stringify(body);
     } catch {
       // giữ statusText nếu body không phải JSON
@@ -169,7 +168,7 @@ async function uploadFile<T>(path: string, formData: FormData): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
-// /tools/* — agent/khách gọi để điều tra
+// /tools/* — called by the agent/customer for investigation
 // ---------------------------------------------------------------------------
 
 export function lookupTransaction(params: {
@@ -186,7 +185,7 @@ export function getCustomerHistory(params: { days?: number; limit_transactions?:
 }
 
 // ---------------------------------------------------------------------------
-// /agent/chat — AI agent thật (LangGraph), chỉ phục vụ role=customer
+// /agent/chat — the real AI agent (LangGraph), serves role=customer only
 // ---------------------------------------------------------------------------
 
 export function agentChat(params: { message: string; vua_xac_thuc_de_gui_lai?: boolean }) {
@@ -194,9 +193,9 @@ export function agentChat(params: { message: string; vua_xac_thuc_de_gui_lai?: b
 }
 
 // ---------------------------------------------------------------------------
-// /auth/otp/* — OTP phiên làm việc + câu hỏi bảo mật THẬT ở backend (src/
-// auth.py::require_otp_verified). verifyOtp() không trả access_token về đây
-// — route /api/otp/verify tự cập nhật cookie httpOnly server-side.
+// /auth/otp/* — the session OTP + the REAL security question on the backend
+// (src/auth.py::require_otp_verified). verifyOtp() doesn't return access_token here — the
+// /api/otp/verify route updates the httpOnly cookie server-side on its own.
 // ---------------------------------------------------------------------------
 
 export function requestOtp() {
@@ -231,12 +230,12 @@ export function escalateTicket(params: { ticket_id: string; target: string; reas
 }
 
 // ---------------------------------------------------------------------------
-// /tickets* — đọc, dùng cho UI CSKH/sếp
+// /tickets* — reads, used by the support/supervisor UI
 // ---------------------------------------------------------------------------
 
-// [polish trước quay 04/09] `limit` cũ đã bỏ ở backend (xem main.py) — phân
-// trang thật thay thế. `page_size` giới hạn 30/50/100 khớp PO chốt, không
-// nhận số tuỳ ý (backend 422 nếu sai, nhưng chặn từ type ở đây rẻ hơn).
+// [polish before the Sep 4 shoot] The old `limit` was dropped on the backend (see main.py) — real
+// pagination replaces it. `page_size` is capped at 30/50/100 per the PO's decision, no arbitrary
+// number accepted (the backend 422s if it's wrong, but blocking it at the type here is cheaper).
 export function listTickets(
   params?: TicketListFilters & { page?: number; page_size?: TicketPageSize }
 ) {
@@ -256,12 +255,12 @@ export function getTicketDetail(ticketId: string) {
   return get<TicketDetail>(`/api/tickets/${ticketId}`);
 }
 
-// ADR-044 — CSKH đọc hội thoại bot↔khách của vé mình xử lý.
+// ADR-044 — a support agent reads the bot↔customer conversation of the ticket they're handling.
 export function getTicketTranscript(ticketId: string) {
   return get<TicketTranscript>(`/api/tickets/${ticketId}/transcript`);
 }
 
-// ADR-064(b) — "Nhận vé" chủ động, CHỈ cskh (backend 403 cho vai khác).
+// ADR-064(b) — an active "Claim ticket", support agent ONLY (the backend 403s for any other role).
 export function claimTicket(ticketId: string) {
   return post<{ ticket_id: string; claimed_by: string; claimed_at: string }>(
     `/api/tickets/${ticketId}/claim`,
@@ -277,16 +276,16 @@ export function requestMoreInfo(ticketId: string, params: { note?: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// /resolutions — hàng chờ phê duyệt cho Sếp
+// /resolutions — the supervisor's approval queue
 // ---------------------------------------------------------------------------
 
 export function listResolutions(status: string = "pending_approval") {
   return get<ResolutionListItem[]>(`/api/resolutions?status=${encodeURIComponent(status)}`);
 }
 
-// AUTH5-04 (đợt nâng cấp Auth Flow 2026-08-12) — sếp phải xin OTP RIÊNG cho
-// đúng resolution_id này trước, rồi mới approveResolution() được (gắn với
-// đúng số tiền tại thời điểm xin — đổi số tiền sau đó buộc xin lại).
+// AUTH5-04 (Auth Flow upgrade, 2026-08-12) — the supervisor must request a SEPARATE OTP for this
+// exact resolution_id first, then approveResolution() becomes possible (bound to the exact amount
+// at the moment it was requested — changing the amount afterwards forces requesting it again).
 export function requestResolutionApprovalOtp(resolutionId: string) {
   return post<{ session_id: string; resolution_id: string; otp_code: string; note: string }>(
     `/api/resolutions/${resolutionId}/request-approval-otp`
@@ -301,7 +300,8 @@ export function approveResolution(resolutionId: string, sessionId: string, otpCo
 }
 
 export function rejectResolution(resolutionId: string, reason: RejectReason) {
-  // ADR-019 — `reason` bắt buộc, backend chặn ở CẢ schema lẫn CHECK constraint.
+  // ADR-019 — `reason` is required; the backend enforces it at BOTH the schema and the CHECK
+  // constraint.
   return post<{ resolution_id: string; status: string; reject_reason: string; rejected_by: string }>(
     `/api/resolutions/${resolutionId}/reject`,
     { reason }
@@ -321,8 +321,8 @@ export function getReportSummary(params?: { date_from?: string; date_to?: string
 }
 
 // ---------------------------------------------------------------------------
-// /policy-docs, /policy-search — RAG chính sách/FAQ (partner_admin quản lý,
-// CSKH tra cứu, agent khách hàng dùng qua tool search_policy phía backend)
+// /policy-docs, /policy-search — the policy/FAQ RAG (managed by partner_admin, looked up by support
+// agents, used by the customer agent via the backend's search_policy tool)
 // ---------------------------------------------------------------------------
 
 export function listPolicyDocs() {
@@ -343,17 +343,17 @@ export function searchPolicy(query: string) {
   return post<PolicySearchResult>("/api/policy-search", { query });
 }
 
-// ADR-065 (05/09) — deep-link đọc toàn văn cho 1 kết quả /policy-search.
+// ADR-065 (Sep 5) — the deep-link that reads the full text for one /policy-search result.
 export function getPolicyDoc(docId: string, chunkId?: string) {
   const qs = chunkId ? `?chunk_id=${encodeURIComponent(chunkId)}` : "";
   return get<PolicyDocFullText>(`/api/policy-doc/${docId}${qs}`);
 }
 
 // ---------------------------------------------------------------------------
-// /live-chat — chat 2 chiều thời gian thực với CSKH (2026-08-11), nâng cấp
-// CTRL-001 (ticket-flag bất đồng bộ) lên WebSocket thật. Vé (ws_ticket) mint
-// qua route BFF này rồi dùng để mở kết nối `new WebSocket(...)` TRỰC TIẾP
-// (không qua BFF — xem useLiveChatSocket.ts) tới Caddy -> backend.
+// /live-chat — real-time two-way chat with a support agent (2026-08-11), upgrading CTRL-001 (an
+// asynchronous ticket flag) to a real WebSocket. A ticket (ws_ticket) is minted through this BFF
+// route, then used to open a `new WebSocket(...)` connection DIRECTLY (not through the BFF — see
+// useLiveChatSocket.ts) to Caddy -> backend.
 // ---------------------------------------------------------------------------
 
 export function requestLiveChatWsTicket(ticketId: string) {
@@ -371,10 +371,10 @@ export function listWaitingChatSessions() {
 }
 
 export function getChatSessionByTicket(ticketId: string) {
-  // context (2026-08-11) — trả kèm LUÔN, kể cả phiên đã 'closed', để CSKH mở
-  // lại ticket sau khi khách đã thoát chat vẫn thấy SĐT để liên hệ lại
-  // (trước đây context chỉ đẩy qua WS lúc claim, phiên đã đóng không claim
-  // được nữa nên không bao giờ nhận được).
+  // context (2026-08-11) — ALWAYS returned, even for a 'closed' session, so a support agent
+  // reopening a ticket after the customer has left the chat still sees the phone number to reach
+  // back out (previously, context was only pushed over the WS at claim time; a closed session can
+  // no longer be claimed, so it would never be received).
   return get<{
     chat_session: { chat_session_id: string; status: string; claimed_by: string | null } | null;
     context: LiveChatContext | null;
@@ -404,7 +404,7 @@ export function submitChatCsat(chatSessionId: string, score: number) {
   );
 }
 
-// ADR-063 — Chuông thông báo.
+// ADR-063 — the notification bell.
 export function listNotifications() {
   return get<{ items: NotificationItem[] }>("/api/notifications");
 }

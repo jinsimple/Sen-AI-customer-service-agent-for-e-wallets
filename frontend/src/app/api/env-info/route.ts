@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 
 /**
- * Định danh môi trường (2026-08-13) — trả về stack này đang nói chuyện với
- * BACKEND nào và DATABASE nào.
+ * Environment identity (Aug 13, 2026) — reports which BACKEND and which DATABASE this stack is
+ * talking to.
  *
- * Sinh ra sau sự cố thật: Docker stack (Caddy :80 → Postgres) và stack dev cục
- * bộ (next dev :3000 → uvicorn :8010 → SQLite) chạy song song. Hai cửa sổ trình
- * duyệt GIỐNG HỆT NHAU nhưng khác database — khách tạo ticket vào Postgres,
- * CSKH đọc từ SQLite nên vĩnh viễn thấy 0. Xem ADR-009.
+ * Born from a real incident: the Docker stack (Caddy :80 → Postgres) and the local dev stack (next
+ * dev :3000 → uvicorn :8010 → SQLite) were running side by side. Two IDENTICAL-LOOKING browser
+ * windows but different databases — the customer's ticket went into Postgres, the support agent
+ * read from SQLite and permanently saw 0. See ADR-009.
  *
- * KHÔNG cần đăng nhập: chỉ trả scheme + tên DB (không có host/user/mật khẩu),
- * và phải xem được ngay ở màn hình /login — đúng lúc người dùng cần biết mình
- * đang đăng nhập vào đâu.
+ * No login required: it only returns the scheme + DB name (no host/user/password), and must be
+ * visible right on the /login screen — exactly when the user needs to know which backend they're
+ * logging into.
  */
 export async function GET() {
   const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8010";
@@ -26,22 +26,22 @@ export async function GET() {
       env: data.env ?? "unknown",
       db_kind: data.db_kind ?? "unknown",
       db_name: data.db_name ?? "unknown",
-      // Dấu vật — hỏi được TỪ NGOÀI production đang chạy bản nào.
+      // A fingerprint — lets you ask, FROM OUTSIDE, which build production is running.
       build_commit: data.build_commit ?? "khong-ro",
       build_at: data.build_at ?? "khong-ro",
       backend: backendUrl,
     });
   } catch {
-    // Không ném lỗi ra UI — nhãn môi trường là thông tin phụ trợ, hỏng nó
-    // KHÔNG được làm hỏng trang. Trả trạng thái "không rõ" để badge hiện
-    // cảnh báo thay vì biến mất im lặng (biến mất = quay lại đúng vấn đề
-    // môi trường vô hình mà cơ chế này sinh ra để chặn).
+    // Don't let an error bubble up to the UI — the environment label is supporting information;
+    // breaking it must NOT break the page. Return an "unknown" state so the badge shows a warning
+    // instead of silently disappearing (disappearing would be exactly the invisible-environment
+    // problem this mechanism exists to block).
     return NextResponse.json({
       env: "unreachable",
       db_kind: "unknown",
       db_name: "unknown",
-      // Không với tới backend thì KHÔNG BIẾT nó bản nào — nói "khong-ro",
-      // tuyệt đối không đoán bằng giá trị của lần gọi trước.
+      // Can't reach the backend ⟹ we DON'T KNOW which build it is — say "not-determined", never
+      // guess using the value from the previous call.
       build_commit: "khong-ro",
       build_at: "khong-ro",
       backend: backendUrl,

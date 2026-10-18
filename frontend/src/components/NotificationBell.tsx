@@ -14,10 +14,10 @@ import { useI18n } from "@/lib/i18n/client";
 import type { TFn } from "@/lib/i18n/core";
 import { formatSlaRemaining } from "@/lib/format";
 
-// ADR-063 — MVP polling ~20s (WebSocket là đợt nâng cấp sau, KHÔNG làm ở
-// đây). Gộp heartbeat presence CÙNG vòng poll unread-count — một chu kỳ,
-// hai việc, đúng khuôn thiết kế đã chốt ("poll unread-count gộp cùng vòng
-// heartbeat"), không tự ý tách thành 2 interval riêng.
+// ADR-063 — MVP polling, ~20s (WebSocket is a later upgrade, NOT done here). The presence heartbeat
+// is folded INTO the same unread-count poll loop — one cycle, two jobs, matching the agreed design
+// ("fold the unread-count poll into the heartbeat loop") rather than splitting it into two separate
+// intervals on a whim.
 const POLL_MS = 20_000;
 
 function thoiGianTuongDoi(iso: string, t: TFn): string {
@@ -69,8 +69,8 @@ export default function NotificationBell() {
   async function onItemClick(item: NotificationItem) {
     setOpen(false);
     if (!item.read_at) {
-      // Cập nhật UI NGAY (không đợi round-trip) — đánh dấu đọc thật chạy nền,
-      // lỗi mạng ở bước này không nên chặn việc điều hướng tới vé.
+      // Update the UI RIGHT AWAY (don't wait for the round trip) — marking it read for real runs in
+      // the background; a network error at this step shouldn't block navigating to the ticket.
       setUnreadCount((n) => Math.max(0, n - 1));
       markNotificationRead(item.notification_id).catch(() => {});
     }

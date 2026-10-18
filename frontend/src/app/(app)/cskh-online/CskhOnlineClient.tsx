@@ -3,9 +3,9 @@
 import StaffPresenceTable from "@/components/StaffPresenceTable";
 import { useI18n } from "@/lib/i18n/client";
 
-// [04/09] Tách khỏi trang Phê duyệt sang tab riêng — PO đo thật: đông CSKH
-// làm bảng chật chỗ trang duyệt. Bảng + cơ chế presence/heartbeat giữ
-// NGUYÊN (StaffPresenceTable.tsx), đây chỉ đổi CHỖ hiển thị.
+// [Sep 4] Split out of the Approvals page into its own tab — measured by the PO: a crowded roster
+// of support agents was cramping the approvals page. The table and the presence/heartbeat mechanism
+// are UNCHANGED (StaffPresenceTable.tsx); only its display location moved.
 export default function CskhOnlineClient() {
   const { t } = useI18n();
   return (

@@ -5,16 +5,16 @@ import EnvBadge from "@/components/EnvBadge";
 import LanguageToggle from "@/components/LanguageToggle";
 import { useI18n } from "@/lib/i18n/client";
 
-// Đăng nhập bằng mật khẩu thật (quyết định 2026-08-12, thay luồng phone+role
-// chọn tay trước đó) — vai trò giờ lấy từ RESPONSE của server (user tìm
-// được qua phone trong DB), không còn do người dùng tự chọn trước khi gửi.
+// Log in with a real password (decision 2026-08-12, replacing the earlier phone+manual-role-pick
+// flow) — the role now comes from the server's RESPONSE (the user found by phone in the DB), no
+// longer chosen by the user before submitting.
 //
-// 26/08 — tách trang: đây là cổng CÔNG KHAI cho khách hàng (nối từ trang
-// quảng cáo). Cổng nội bộ (CSKH/sếp/đối tác ví) ở /dang-nhap-noi-bo, KHÔNG
-// nối từ đây — xem lib/useLoginForm.ts để biết cơ chế xác thực dùng chung.
+// Aug 26 — split the page: this is the PUBLIC gate for customers (linked from the marketing page).
+// The internal gate (support/supervisor/wallet partner) is at /dang-nhap-noi-bo, NOT linked from
+// here — see lib/useLoginForm.ts for the shared authentication mechanism.
 const DEMO_PASSWORD = "Demo@123";
-// Demo 15/08: trỏ USR-0145 (0974000145) chứ không phải USR-0001 — đây là
-// user có dữ liệu khớp kịch bản demo.
+// Demo, Aug 15: points at USR-0145 (0974000145) rather than USR-0001 — this user has data matching
+// the demo script.
 const CUSTOMER_PHONE = "0974000145";
 
 export default function LoginPage() {

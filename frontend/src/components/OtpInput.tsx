@@ -4,11 +4,11 @@ import { useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n/client";
 
 /**
- * Ô nhập mã OTP 6 số dùng chung — tách ra từ `ChatClient.tsx` (luồng khách,
- * đợt vá `bdaf17e` 31/08) để dùng lại được ở `ResolutionApprovalActions.tsx`
- * (luồng sếp duyệt). Component KHÔNG tự biết mã OTP là gì — chỉ thu thập 6
- * số người dùng gõ rồi gọi `onSubmit`, đúng mô hình "khách/sếp tự nhận mã
- * qua kênh khác (SMS/CSDL), gõ tay vào đây" — không có đường nào tự điền sẵn.
+ * A shared 6-digit OTP input — split out of `ChatClient.tsx` (customer flow, patch `bdaf17e`, Aug
+ * 31) to be reused in `ResolutionApprovalActions.tsx` (supervisor-approval flow). The component
+ * doesn't itself know what the OTP is — it only collects the 6 digits the user types and calls
+ * `onSubmit`, matching the model "customer/supervisor receives the code through another channel
+ * (SMS/DB), types it in here" — there is no path that pre-fills it.
  */
 export default function OtpInput({
   disabled,
@@ -21,17 +21,17 @@ export default function OtpInput({
   checking: boolean;
   error: string | null;
   onSubmit: (otpCode: string) => void;
-  // [05/09, PO chốt] Tuỳ chọn — nút PHỤ đặt CÙNG HÀNG với "Xác nhận" (vd
-  // "Huỷ" ở luồng Sếp duyệt, ResolutionApprovalActions.tsx). KHÔNG truyền
-  // (mặc định, luồng khách ChatClient.tsx) ⟹ render nút Xác nhận Y HỆT
-  // trước khi có prop này — luồng khách byte-identical, rủi ro = 0.
+  // [Sep 5, PO decision] Optional — a SECONDARY button placed on the SAME ROW as "Confirm" (e.g.
+  // "Cancel" in the supervisor-approval flow, ResolutionApprovalActions.tsx). NOT passed (the
+  // default, the customer flow in ChatClient.tsx) ⟹ renders the Confirm button EXACTLY as before
+  // this prop existed — the customer flow is byte-identical, zero risk.
   trailing?: React.ReactNode;
 }) {
-  // Controlled (không thao tác DOM tay) — bắt buộc để gõ ĐÈ lên ô đã có sẵn
-  // số hoạt động đúng: input maxLength=1 chưa được bôi đen thì trình duyệt
-  // chặn ký tự mới (đã đạt maxLength), onChange không bắn, không tự nhảy ô.
-  // onFocus bôi đen nội dung cũ để gõ đè luôn thay thế được, dù gõ theo thứ
-  // tự nào hay quay lại ô đã điền.
+  // Controlled (no manual DOM manipulation) — required so typing OVER an already-filled digit works
+  // correctly: an input with maxLength=1 that isn't selected blocks a new character (maxLength
+  // already reached), onChange never fires, and it never auto-advances to the next box. onFocus
+  // selects the existing content so typing always overwrites it, regardless of typing order or
+  // jumping back to an already-filled box.
   const { t } = useI18n();
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const refs = useRef<Array<HTMLInputElement | null>>([]);

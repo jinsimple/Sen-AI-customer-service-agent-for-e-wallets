@@ -7,8 +7,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!session) return unauthorized();
 
   const { id } = await params;
-  // AUTH5-04 — session_id/otp_code bắt buộc, xin qua POST
-  // .../request-approval-otp trước (xem TicketDetailClient.tsx).
+  // AUTH5-04 — session_id/otp_code are required; requested beforehand via POST
+  // .../request-approval-otp (see TicketDetailClient.tsx).
   const { session_id, otp_code } = await req.json();
   try {
     const data = await backendFetch(

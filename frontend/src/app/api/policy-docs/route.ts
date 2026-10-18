@@ -18,9 +18,9 @@ export async function POST(req: Request) {
   const session = await getServerSession();
   if (!session) return unauthorized();
 
-  // Nhận multipart từ trình duyệt rồi forward NGUYÊN FormData sang FastAPI —
-  // không đọc/parse lại nội dung file ở tầng này (backendFetch tự bỏ
-  // Content-Type mặc định khi thấy body là FormData, xem lib/server-api.ts).
+  // Receive multipart from the browser and forward the FormData AS-IS to FastAPI — don't read/parse
+  // the file content at this layer (backendFetch drops the default Content-Type itself when the
+  // body is FormData, see lib/server-api.ts).
   const formData = await req.formData();
   try {
     const data = await backendFetch("/policy-docs", session.access_token, {

@@ -3,10 +3,11 @@
 import TicketListSection from "@/components/TicketListSection";
 import { useI18n } from "@/lib/i18n/client";
 
-// ADR-064 (b — Sếp thấy TẤT CẢ, không đổi phạm vi quyền hiện có) — tách khỏi
-// /dashboard (CSKH) thay vì tái dùng thẳng: trang đó còn WS chờ chat trực
-// tiếp/nhận live-chat — việc VẬN HÀNH của CSKH, không phải việc QUẢN LÝ của
-// Sếp. Bảng+bộ lọc+phân trang dùng chung qua TicketListSection (04/09).
+// ADR-064 (b — the supervisor sees EVERYTHING, no change to the existing permission scope) — split
+// out of /dashboard (support) instead of reusing it directly: that page also carries the WS
+// connection for live chat requests/claims — an OPERATIONAL concern for support, not a MANAGEMENT
+// concern for the supervisor. Table + filters + pagination are shared through TicketListSection
+// (Sep 4).
 export default function QuanLyTicketClient() {
   const { t } = useI18n();
   return (

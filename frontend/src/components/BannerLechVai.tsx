@@ -5,23 +5,21 @@ import { useI18n } from "@/lib/i18n/client";
 import type { DictKey } from "@/lib/i18n/dict";
 import { rich } from "@/lib/i18n/rich";
 
-// UI-02 — băng báo LỆCH VAI.
+// UI-02 — the WRONG-ROLE banner.
 //
-// Bug PO gặp giữa demo mentor: đăng nhập CSKH trong CÙNG trình duyệt đè phiên
-// khách (kiến trúc BFF cố ý dùng MỘT cookie phiên). Tab chat khách vẫn mở, gõ
-// tiếp -> `/agent/chat` trả 403 `"Cần role thuộc ['customer'], tài khoản hiện
-// tại là cskh"` -> câu đó rơi thẳng vào khung chat dưới dạng "Có lỗi: …" giữa
-// buổi demo.
+// Bug the PO hit during a mentor demo: logging in as a support agent in the SAME browser overwrites
+// the customer's session (the BFF architecture deliberately uses ONE session cookie). The
+// customer's chat tab is still open; typing again -> `/agent/chat` returns a 403 `"Requires role in
+// ['customer'], current account is cskh"` -> that sentence falls straight into the chat window as
+// "Error: …" in the middle of the demo.
 //
-// VÌ SAO VÁ Ở CLIENT chứ không ở guard route: `proxy.ts` CÓ chặn theo vai
-// (`ROLE_PREFIXES`) và redirect đúng — nhưng nó chỉ chạy khi có ĐIỀU HƯỚNG.
-// Tab đang mở không điều hướng lần nào; 403 tới từ lời gọi API. Guard route
-// không bao giờ nhìn thấy ca này.
+// WHY THE FIX LIVES IN THE CLIENT rather than a guard route: `proxy.ts` DOES block by role
+// (`ROLE_PREFIXES`) and redirects correctly — but it only runs on NAVIGATION. The already-open tab
+// never navigates; the 403 comes from an API call. The guard route never sees this case.
 //
-// KHÔNG đổi cơ chế phiên: một-cookie-một-phiên là thiết kế BFF có chủ đích
-// (token không bao giờ rời server, trình duyệt chỉ giữ cookie httpOnly). Việc
-// của bản vá là biến một lỗi khó hiểu thành một hướng dẫn — không phải cho
-// phép hai vai cùng sống trong một trình duyệt.
+// Does NOT change the session mechanism: one-cookie-one-session is a deliberate BFF design (the
+// token never leaves the server, the browser only holds an httpOnly cookie). The patch's job is to
+// turn a confusing error into a direction — not to let two roles live in one browser at once.
 
 const TEN_VAI: Record<string, DictKey> = {
   customer: "wrongRole.customer",

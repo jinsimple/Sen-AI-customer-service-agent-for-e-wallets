@@ -13,10 +13,10 @@ import {
 } from "@/lib/types";
 import { useI18n } from "@/lib/i18n/client";
 
-// KHÔNG dùng token thương hiệu (--navy/--gold) — thương hiệu là MỘT màu để
-// đồng bộ, biểu đồ phân loại cần các màu TÁCH XA nhau để phân biệt. Đổi bộ
-// màu thương hiệu (tím → lục → Stripe) từng làm 2/4 cột trùng màu vì cả hai
-// đọc chung token. --chart-1..4 độc lập, chọn từ bảng colorblind-safe.
+// Deliberately NOT using brand tokens (--navy/--gold) — the brand is ONE colour for consistency,
+// while a categorical chart needs colours that are FAR APART to tell apart. Switching the brand
+// palette (purple → green → Stripe) once made 2 of 4 columns the same colour because both read the
+// same token. --chart-1..4 are independent, picked from a colorblind-safe palette.
 const BAR_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 
 function BarList({ data, labels }: { data: Record<string, number>; labels: Record<string, string> }) {
@@ -45,7 +45,8 @@ function BarList({ data, labels }: { data: Record<string, number>; labels: Recor
   );
 }
 
-// B3 — mẫu số nhỏ dưới mỗi %, cùng khuôn cho mọi ô KPI phần trăm trong trang.
+// B3 — a small denominator under every %, the same pattern for every percentage KPI tile on the
+// page.
 function MauSo({ n, d }: { n: number; d: number }) {
   return (
     <div className="kpi-trend mono" style={{ marginTop: 2 }}>

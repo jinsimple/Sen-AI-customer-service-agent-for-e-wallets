@@ -10,9 +10,9 @@ import { getT } from "@/lib/i18n/server";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
   const { t } = await getT();
-  // Cùng bản vá "ngõ cụt đăng xuất" ở proxy.ts — trong luồng bình thường
-  // proxy đã chặn trước khi tới đây, chỗ này là phòng vệ đúp để không lệch
-  // hành vi nếu matcher proxy đổi sau này. Xem lib/session.ts::LAST_GATE_COOKIE.
+  // Same patch as the "logout dead end" in proxy.ts — in the normal flow, proxy already blocks
+  // before reaching here; this is a second line of defence so behaviour doesn't drift if the proxy
+  // matcher changes later. See lib/session.ts::LAST_GATE_COOKIE.
   if (!session) {
     const goiY = (await cookies()).get(LAST_GATE_COOKIE)?.value;
     redirect(loginPathForGate(goiY));

@@ -4,29 +4,28 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/client";
 
 /**
- * Nhãn định danh môi trường — hiện ở topbar VÀ ở màn hình đăng nhập.
+ * Environment-identity label — shown in the topbar AND on the login screen.
  *
- * VÌ SAO CÓ FILE NÀY (đọc kỹ trước khi định gỡ cho "gọn giao diện"):
- * ngày 2026-08-13, Docker stack (cổng 80 → Postgres) và stack dev cục bộ
- * (cổng 3000 → SQLite) chạy song song. PO mở cửa sổ khách ở `localhost` và
- * cửa sổ CSKH ở `localhost:3000`. Hai giao diện GIỐNG HỆT NHAU nhưng là hai
- * hệ thống khác nhau với hai database khác nhau: khách tạo ticket vào
- * Postgres, CSKH đọc từ SQLite nên vĩnh viễn thấy 0 ticket, F5 bao nhiêu lần
- * cũng vô ích. Mất nhiều giờ điều tra trong khi mọi tầng code đều đúng.
+ * WHY THIS FILE EXISTS (read carefully before "tidying up the UI" by removing it):
+ * on 2026-08-13, the Docker stack (port 80 → Postgres) and the local dev stack (port 3000 → SQLite)
+ * were running side by side. The PO had a customer window open at `localhost` and a support-agent
+ * window at `localhost:3000`. The two UIs looked IDENTICAL but were two different systems with two
+ * different databases: the customer's ticket went into Postgres, the support agent read from SQLite
+ * and permanently saw 0 tickets, no amount of refreshing helped. Hours of investigation while every
+ * layer of code was correct.
  *
- * Nhãn này làm cho môi trường TỰ KHAI BÁO: nhìn là biết, không phải suy luận
- * từ số cổng trên thanh địa chỉ. Hai cửa sổ khác nhãn = biết ngay đang lệch
- * stack, không cần điều tra.
+ * This label makes the environment SELF-DECLARE: look and know, instead of inferring it from the
+ * port number in the address bar. Two windows with different labels = you immediately know you're
+ * looking at two different stacks, no investigation needed.
  *
- * Nhãn TỰ ẨN khi `env === "production"` — người dùng thật không cần thấy.
+ * The label HIDES ITSELF when `env === "production"` — real users don't need to see it.
  *
- * [03/09, ADR-060] `NEXT_PUBLIC_HIDE_ENV_BADGE` — cờ build-time RIÊNG, mặc
- * định tắt, cùng khuôn `NEXT_PUBLIC_QUICK_LOGIN`. Vì sao cần thêm thay vì
- * đổi `APP_ENV`: badge và guard fail-fast ở `config.py:199` cùng đọc CHÍNH
- * XÁC một biến `APP_ENV`, nên đổi `APP_ENV` để bật OTP_DEMO_MODE cho quay
- * video Cảnh 6 sẽ LÀM HIỆN LẠI badge — đúng thứ cần ẩn. Cờ này tách hai mối
- * quan tâm ra, không đụng `config.py`. Production không set cờ ⟹ hành vi cũ
- * y hệt, không hồi quy.
+ * [Sep 3, ADR-060] `NEXT_PUBLIC_HIDE_ENV_BADGE` — a SEPARATE build-time flag, off by default, same
+ * pattern as `NEXT_PUBLIC_QUICK_LOGIN`. Why a new flag instead of changing `APP_ENV`: the badge and
+ * the fail-fast guard in `config.py:199` both read the EXACT same `APP_ENV` variable, so changing
+ * `APP_ENV` to enable OTP_DEMO_MODE for the Scene 6 video shoot would make the badge REAPPEAR —
+ * exactly what needs hiding. This flag separates the two concerns without touching `config.py`.
+ * Production leaves the flag unset ⟹ identical old behaviour, no regression.
  */
 
 type EnvInfo = { env: string; db_kind: string; db_name: string; backend: string };
@@ -56,8 +55,8 @@ export default function EnvBadge({ compact = false }: { compact?: boolean }) {
   const mau = MAU[info.env] ?? MAU.development;
   const khongKetNoi = info.env === "unreachable";
 
-  // Nhãn ngắn gọn nhưng ĐỦ để phân biệt 2 stack: loại DB + tên DB.
-  // `sqlite/app.db` vs `postgresql/fin05` — nhìn phát biết ngay.
+  // Short label, but ENOUGH to tell the two stacks apart: DB kind + DB name. `sqlite/app.db` vs
+  // `postgresql/fin05` — recognisable at a glance.
   const nhan = khongKetNoi
     ? t("env.unreachable")
     : `${info.env.toUpperCase()} · ${info.db_kind}/${info.db_name}`;

@@ -25,12 +25,11 @@ export default function ApproveClient() {
   }
 
   useEffect(() => {
-    // Không gọi load() trực tiếp — load() setState (setError) ĐỒNG BỘ ở
-    // dòng đầu tiên (trước await nào), react-hooks/set-state-in-effect coi
-    // đó là setState đồng bộ trong effect. Đẩy lời gọi ra khỏi lượt đồng bộ
-    // hiện tại (microtask) — đúng tinh thần .then()-chain dashboard/page.tsx
-    // đã dùng, nhưng vẫn giữ được load() dạng async/await tái dùng ở nơi
-    // khác (handleApprove...).
+    // Don't call load() directly — load()'s setState (setError) runs SYNCHRONOUSLY on the first
+    // line (before any await), which react-hooks/set-state-in-effect treats as a synchronous
+    // setState inside an effect. Push the call out of the current synchronous turn (microtask) —
+    // same spirit as the .then()-chain dashboard/page.tsx already uses, while keeping load() as
+    // async/await for reuse elsewhere (handleApprove...).
     void Promise.resolve().then(load);
   }, []);
 

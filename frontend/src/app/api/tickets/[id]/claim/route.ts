@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session-server";
 import { backendFetch, proxyErrorResponse, unauthorized } from "@/lib/server-api";
 
-// ADR-064(b) — "Nhận vé" chủ động, không body (POST /tickets/{id}/claim
-// backend chỉ cần ticket_id qua path + current_user qua token).
+// ADR-064(b) — an active "claim ticket" with no body (POST /tickets/{id}/claim on the backend only
+// needs the ticket_id via the path and current_user via the token).
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession();
   if (!session) return unauthorized();

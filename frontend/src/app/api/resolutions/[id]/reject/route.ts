@@ -7,8 +7,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!session) return unauthorized();
 
   const { id } = await params;
-  // ADR-019 — body mang `reason` bắt buộc; route này trước đây không đọc body
-  // nên phải chuyển tiếp, nếu không backend luôn nhận 422 thiếu trường.
+  // ADR-019 — the body must carry `reason`; this route previously didn't read the body, so it must
+  // be forwarded, or the backend always gets a 422 for the missing field.
   const body = await req.json();
   try {
     const data = await backendFetch(

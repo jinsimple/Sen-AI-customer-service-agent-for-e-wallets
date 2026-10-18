@@ -1,28 +1,28 @@
-// Khớp response thật của src/api/schemas.py + src/api/main.py (backend FastAPI).
+// Matches the real response shape of src/api/schemas.py + src/api/main.py (the FastAPI backend).
 
-// "other" (CTRL-001, 2026-08-11) — khách yêu cầu gặp người thật không kèm
-// mô tả khớp 1 trong 4 loại khiếu nại giao dịch cụ thể.
+// "other" (CTRL-001, 2026-08-11) — the customer asks for a human without a description matching one
+// of the 4 specific transaction-complaint types.
 export type ComplaintType = "wrong_recipient" | "money_not_received" | "double_charge" | "refund" | "other";
-// "unknown" — VALID_SCOPES (create_ticket.py) cho phép, khách không xác
-// định được sau CLARIFY_QUESTION_MAX_ROUNDS + 1 câu hỏi phạm vi (2026-08-11).
-// Thiếu nhánh này trước đây khiến SCOPE_LABEL[scope] trả `undefined`, badge
-// render RỖNG (không lỗi console, chỉ im lặng mất chữ) — bắt được khi soi
-// ảnh chụp panel thông báo đợt polish 04/09, không phải lỗi MỚI của đợt này.
+// "unknown" — VALID_SCOPES (create_ticket.py) allows it; the customer couldn't be determined after
+// CLARIFY_QUESTION_MAX_ROUNDS + 1 scope question (2026-08-11). Missing this branch used to make
+// SCOPE_LABEL[scope] return `undefined`, rendering the badge EMPTY (no console error, just silently
+// missing text) — caught by inspecting a screenshot of the notification panel during the Sep 4
+// polish, not a NEW bug from this round.
 export type Scope = "internal_wallet" | "from_bank" | "to_bank" | "unknown";
 export type Priority = "low" | "normal" | "high" | "critical";
 export type HitlStatus = "pending" | "approved" | "rejected" | "need_more_info";
 export type PartnerWaitStatus = "n/a" | "waiting" | "overdue" | "responded";
 export type ResolutionStatus = "draft" | "pending_approval" | "approved" | "rejected";
-// Khớp CHECK constraint ck_resolutions_action_type + contract
-// resolution-state-machine.yaml. Là union (không phải string) để bảng nhãn
-// bên dưới bắt buộc phủ đủ — thiếu một giá trị là lỗi lúc build.
+// Matches the CHECK constraint ck_resolutions_action_type + the resolution-state-machine.yaml
+// contract. A union (not a string) so the label table below is forced to cover every value —
+// missing one is a build-time error.
 export type ActionType =
   | "refund_to_wallet"
   | "refund_to_bank"
   | "ledger_adjustment"
   | "no_action"
   | "manual_review";
-// Sáu giá trị đang có THẬT trong bảng transactions (đếm từ DB 14/08).
+// The six values REALLY present in the transactions table (counted from the DB, Aug 14).
 export type TransactionStatus =
   | "success"
   | "processing"
@@ -96,15 +96,15 @@ export interface TicketSummary {
   fraud_signals: string[];
   customer_name: string | null;
   human_handoff_requested: boolean;
-  // ADR-064(b) — null = còn trong pool (CSKH thấy nút "Nhận vé"). Có giá
-  // trị: với cskh LUÔN là chính mình (backend đã lọc), với supervisor có
-  // thể là bất kỳ ai (route đó không lọc).
+  // ADR-064(b) — null = still in the pool (support agents see the "Claim" button). A value: for a
+  // support agent it is ALWAYS themselves (the backend already filters), for a supervisor it can be
+  // anyone (that route doesn't filter).
   claimed_by: string | null;
 }
 
-// [polish trước quay 04/09] GET /tickets đổi từ mảng trần sang trang có phân
-// trang thật — `total` là tổng số vé KHỚP BỘ LỌC hiện tại (không phải tổng
-// toàn hệ thống), dùng để tính số trang.
+// [polish before the Sep 4 shoot] GET /tickets switched from a bare array to real pagination —
+// `total` is the total number of tickets MATCHING the current filter (not the system-wide total),
+// used to compute the page count.
 export interface TicketPageResponse {
   items: TicketSummary[];
   total: number;
@@ -160,10 +160,10 @@ export interface TicketDetail {
   }[];
 }
 
-// ADR-044 — GET /tickets/{ticket_id}/transcript. `transcript`/`chi_so_bang_giao`
-// đi CÙNG NHAU: null khi không tra được (kèm `ly_do`), mảng khi có. UI dùng
-// `chi_so_bang_giao` để vẽ vạch phân cách NGAY SAU lượt đó (0-based, null =
-// hội thoại chưa từng gọi request_human_handoff — không có vạch).
+// ADR-044 — GET /tickets/{ticket_id}/transcript. `transcript`/`chi_so_bang_giao` travel TOGETHER:
+// null when it can't be looked up (with a `ly_do`), an array when it can. The UI uses
+// `chi_so_bang_giao` to draw the divider RIGHT AFTER that turn (0-based, null = the conversation
+// never called request_human_handoff — no divider).
 export interface TicketTranscript {
   transcript: { vai: "khach" | "bot"; noi_dung: string; co_goi_tool: boolean }[] | null;
   ly_do: string | null;
@@ -187,11 +187,11 @@ export interface ResolutionListItem {
   approved_at: string | null;
 }
 
-// B1-B3 (20/08) — mọi % PHẢI đi kèm mẫu số (n): "0,4%" trên mẫu số 3 không
-// phát biểu được gì, người xem không có cách nào biết trừ khi thấy n. AHT
-// (thời gian NGƯỜI thao tác) KHÁC avg_processing_hours (cycle time, gồm cả
-// thời gian nằm chờ) — DB chưa có mốc bắt đầu thao tác nên `aht_hours` luôn
-// null, kèm lý do tường minh thay vì để trống (trống bị đọc thành 0).
+// B1-B3 (Aug 20) — every % MUST come with its denominator (n): "0.4%" on a denominator of 3 states
+// nothing; the viewer has no way to know unless they see n. AHT (actual HUMAN handling time) is
+// DIFFERENT from avg_processing_hours (cycle time, which includes waiting time) — the DB has no
+// "work started" timestamp yet, so `aht_hours` is always null, with an explicit reason attached
+// instead of being left blank (a blank gets read as 0).
 export interface ReportSummary {
   date_from: string | null;
   date_to: string | null;
@@ -249,18 +249,18 @@ export interface CustomerHistory {
   tool_result_id: string;
 }
 
-// Nhãn hiển thị (14/08). BA NGUYÊN TẮC, đừng phá:
-//  - CHỈ dịch ở tầng hiển thị. Giá trị gửi/nhận qua API và lưu DB vẫn là
-//    chuỗi tiếng Anh gốc — chúng bị CHECK constraint + INV-12 canh.
-//  - Nhãn của `action_type`/`status` chép theo `mo_ta` trong
-//    contracts/resolution-state-machine.yaml, KHÔNG tự sáng tác.
-//  - `Record<Union, string>` cố ý: thêm giá trị mới vào union mà quên nhãn
-//    là TypeScript báo lỗi lúc build, không phải lỗi âm thầm trên UI.
+// Display labels (Aug 14). THREE PRINCIPLES, don't break them:
+//  - Translate ONLY at the display layer. Values sent/received over the API and stored in the DB
+//    stay the original English strings — guarded by a CHECK constraint + INV-12.
+//  - `action_type`/`status` labels are copied from `mo_ta` in
+//    contracts/resolution-state-machine.yaml, never made up.
+//  - `Record<Union, string>` is deliberate: adding a new value to the union while forgetting its
+//    label is a TypeScript build-time error, not a silent UI bug.
 export const RESOLUTION_STATUS_LABEL: Record<ResolutionStatus, string> = {
   draft: "Nháp — chưa trình",
-  // mệnh đề đầu của mo_ta trong contract ("Đã gửi, chờ sếp duyệt. CỔNG
-  // BẮT BUỘC trước mọi hành động tiền.") — rút ngắn cho vừa badge, không
-  // phải nhãn tự đặt.
+  // The opening clause of the contract's `mo_ta` ("Submitted, awaiting supervisor approval. A
+  // MANDATORY GATE before any money-touching action.") — shortened to fit a badge, not a label
+  // invented from scratch.
   pending_approval: "Chờ sếp duyệt",
   approved: "Sếp đã duyệt",
   rejected: "Sếp từ chối",
@@ -274,10 +274,9 @@ export const ACTION_TYPE_LABEL: Record<ActionType, string> = {
   manual_review: "Cần người xem xét thủ công thêm",
 };
 
-// Trạng thái giao dịch KHÔNG có trong contract — nhãn dưới đây do tech-lead
-// đề xuất, chờ PO duyệt trước khi merge đợt 2. Sáu giá trị lấy từ dữ liệu
-// THẬT trong DB, không phải từ trí nhớ: success · processing · failed ·
-// refunded · pending · on_hold.
+// A transaction status NOT in the contract — the labels below are the tech lead's proposal, pending
+// PO approval before merging in round 2. The six values come from REAL data in the DB, not from
+// memory: success · processing · failed · refunded · pending · on_hold.
 export const TX_STATUS_LABEL: Record<TransactionStatus, string> = {
   success: "Thành công",
   processing: "Đang xử lý",
@@ -287,10 +286,10 @@ export const TX_STATUS_LABEL: Record<TransactionStatus, string> = {
   on_hold: "Đang tạm giữ",
 };
 
-// Tên tool trong Investigation trail. Record<string, string> (KHÔNG phải
-// union) có chủ đích: danh sách tool do backend quyết (contracts/
-// agent-tools.yaml), tool mới xuất hiện thì trail vẫn hiện tên kỹ thuật gốc
-// thay vì vỡ build hay hiện rỗng — nơi gọi dùng `?? log.tool_called`.
+// Tool names in the Investigation trail. `Record<string, string>` (NOT a union) is deliberate: the
+// tool list is decided by the backend (contracts/agent-tools.yaml); a new tool shows up and the
+// trail still displays its raw technical name instead of breaking the build or rendering empty —
+// call sites use `?? log.tool_called`.
 export const TOOL_NAME_LABEL: Record<string, string> = {
   lookup_transaction: "Tra cứu giao dịch",
   get_customer_history: "Tra cứu lịch sử khách",
@@ -301,9 +300,9 @@ export const TOOL_NAME_LABEL: Record<string, string> = {
   escalate_ticket: "Chuyển cấp xử lý",
 };
 
-// ADR-019 — nhãn lấy đúng theo `mo_ta` trong contract v2.1.0, KHÔNG sáng tác.
-// Thứ tự: 4 giá trị `la_tin_hieu_hoc=true` (lỗi của đề xuất) trước, rồi tới
-// nhóm không phải lỗi — để sếp thấy nhóm hay dùng nhất lên đầu.
+// ADR-019 — labels taken exactly from `mo_ta` in contract v2.1.0, never invented. Order: the 4
+// values with `la_tin_hieu_hoc=true` (a fault of the proposal) come first, then the non-fault group
+// — so the supervisor sees the most commonly used group at the top.
 export type RejectReason =
   | "sai_so_lieu"
   | "sai_phan_loai"
@@ -341,18 +340,18 @@ export interface AgentChatResult {
   tool_calls: AgentToolCall[];
   ticket_id: string | null;
   should_escalate: boolean | null;
-  // ④ (25/08) — NHÃN đường đi của lượt, do backend ghi (src/agents/graph.py).
-  // Client CHỈ đọc giá trị "can_otp": cổng OTP tất định đã chặn lượt này trước
-  // khi chạm model.
+  // ④ (Aug 25) — the LABEL for which path a turn took, written by the backend
+  // (src/agents/graph.py). The client ONLY reads the "can_otp" value: the deterministic OTP gate
+  // blocked this turn before it ever reached the model.
   //
-  // 🔴 VÌ SAO PHẢI CÓ KHOÁ NÀY, không đọc câu chữ `reply`: hai đường kích hộp
-  // thoại OTP sẵn có ở ChatClient.tsx đều dò trong `tool_calls`/`ticket_id` —
-  // mà MỌI đường 0-token của backend đều trả `tool_calls: []`, `ticket_id: null`.
-  // Thiếu khoá này thì khách đọc "xác thực nhé" rồi không có gì mở ra: ngõ cụt.
-  // Cùng lý do `loai:"otp_het_tuoi"` ra đời ở GĐ2.5 — client không được nhận
-  // diện trạng thái bằng chuỗi tiếng Việt có thể sửa văn phong.
+  // 🔴 WHY THIS KEY MUST EXIST, instead of reading the `reply` text: both OTP-dialog triggers
+  // already in ChatClient.tsx probe `tool_calls`/`ticket_id` — and EVERY 0-token backend path
+  // returns `tool_calls: []`, `ticket_id: null`. Without this key, the customer reads "please
+  // verify" and nothing opens: a dead end. The same reason `loai:"otp_het_tuoi"` ("otp-expired")
+  // was created in phase 2.5 — the client must never recognise state by matching a Vietnamese
+  // string whose wording could change.
   //
-  // Optional: các ảnh backend cũ chưa gửi trường này.
+  // Optional: older backend images don't send this field yet.
   duong?: string | null;
 }
 
@@ -372,13 +371,13 @@ export interface PolicySearchResultItem {
   text: string;
   source_filename: string;
   doc_id: string;
-  // ADR-065 (05/09) — dùng dựng link deep-link "Xem toàn văn".
+  // ADR-065 (Sep 5) — used to build the "View full text" deep-link.
   chunk_id: string;
 }
 
-// ADR-065 — GET /policy-doc/{doc_id}. `highlight` null khi không xác định
-// được vị trí tô sáng (chunk_id sai/không khớp/tài liệu chưa có full_text) —
-// FE vẫn hiện toàn văn, chỉ không tô sáng/cuộn, không phải lỗi.
+// ADR-065 — GET /policy-doc/{doc_id}. `highlight` is null when the highlight position couldn't be
+// determined (wrong/non-matching chunk_id, or the document has no full_text yet) — the frontend
+// still shows the full text, just without highlighting/scrolling; this is not an error.
 export interface PolicyDocFullText {
   doc_id: string;
   filename: string;
@@ -392,14 +391,14 @@ export interface PolicySearchResult {
   tool_result_id: string;
 }
 
-// ADR-063 — Chuông thông báo. Nội dung CHỈ event_type + ticket_id — KHÔNG số
-// tiền/PII/SĐT (ràng buộc cứng #3 + PDPA, ép ở cả tầng backend lẫn type này).
+// ADR-063 — the notification bell. Content is ONLY event_type + ticket_id — NO amounts/PII/phone
+// numbers (hard constraint #3 + PDPA, enforced at both the backend layer and this type).
 export type NotificationEventType = "ve_moi" | "cho_duyet" | "da_duyet" | "da_tu_choi";
 
-// [polish trước quay 04/09] 4 trường thêm — join-tại-lúc-đọc từ Ticket/
-// Complaint hiện có (KHÔNG snapshot lúc fan-out, vì ưu tiên có thể đổi SAU
-// khi noti đã tạo — vd `_nang_uu_tien_theo_cam_xuc`). Vẫn chỉ non-PII, cùng
-// ràng buộc cứng #3 như comment trên.
+// [polish before the Sep 4 shoot] 4 added fields — joined AT READ TIME from the existing
+// Ticket/Complaint (NOT a snapshot taken at fan-out time, because priority can change AFTER the
+// notification was created — e.g. `_nang_uu_tien_theo_cam_xuc` (sentiment-based
+// re-prioritisation)). Still non-PII only, the same hard constraint #3 as the comment above.
 export interface NotificationItem {
   notification_id: string;
   event_type: NotificationEventType;

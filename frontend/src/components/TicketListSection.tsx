@@ -20,18 +20,18 @@ import { formatDateTime, formatSlaRemaining } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/client";
 import type { Role } from "@/lib/session";
 
-// [polish trước quay 04/09] Bảng ticket + bộ lọc dùng CHUNG cho /dashboard
-// (CSKH) và /quan-ly-ticket (Sếp) — hai trang trước đó gần như copy-paste
-// nguyên khối này (250 dòng), tách ra một nơi để sửa 1 lần không lệch 2 nơi.
+// [polish before the Sep 4 shoot] The ticket table + filters shared by /dashboard (support) and
+// /quan-ly-ticket (supervisor) — the two pages had previously almost copy-pasted this whole block
+// (250 lines); split out into one place so a fix doesn't drift between the two.
 //
-// 5 tiêu chí complaint_type/scope/priority/status/SLA lọc Ở SERVER (query
-// param GET /tickets, kết hợp AND) vì phải đúng trên TOÀN BỘ tập khớp bộ lọc,
-// không chỉ trang đang xem. "Chờ đối tác NH"/"Khách yêu cầu người thật" và ô
-// tìm theo mã/tên vẫn lọc phía CLIENT, CHỈ trong trang hiện tại — hai tiêu
-// chí đó không có tham số server tương ứng (logic partner_wait_status kết
-// hợp hitl_status, và human_handoff_requested không nằm trong yêu cầu PO đợt
-// này) — nhãn ghi rõ "(trang này)" để không lặp lại lỗi đọc nhầm % Lead bắt
-// 20/08 (đếm trên cửa sổ giới hạn rồi tưởng là tổng).
+// The 5 criteria complaint_type/scope/priority/status/SLA filter ON THE SERVER (query params to GET
+// /tickets, combined with AND) because they must hold over the WHOLE matching set, not just the
+// page being viewed. "Awaiting bank partner"/"Customer asked for a human" and the ID/name search
+// box still filter on the CLIENT, ONLY within the current page — those two criteria have no
+// corresponding server parameter (partner_wait_status combines with hitl_status in logic, and
+// human_handoff_requested wasn't part of this round's PO ask) — the label spells out "(this page)"
+// so it doesn't repeat the misreading the Lead caught on Aug 20 (counting over a limited window and
+// mistaking it for the total).
 export interface TicketListSectionHandle {
   refresh: () => void;
 }
@@ -105,9 +105,9 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
 
     useImperativeHandle(ref, () => ({ refresh: load }), [load]);
 
-    // Đổi bộ lọc/kích thước trang → quay về trang 1, tránh đứng ở trang 7
-    // trong khi bộ lọc mới chỉ còn 2 trang (offset vượt total, trả mảng rỗng
-    // trông như "hết ticket" trong khi chỉ là lệch trang).
+    // Changing a filter/page size → jump back to page 1, to avoid being stuck on page 7 while the
+    // new filter only leaves 2 pages (offset past the total, returning an empty array that looks
+    // like "no more tickets" when it's really just a stale page).
     const setFilterAndResetPage = useCallback(<T,>(setter: (v: T) => void) => {
       return (v: T) => {
         setter(v);
@@ -137,12 +137,12 @@ const TicketListSection = forwardRef<TicketListSectionHandle, TicketListSectionP
       [load]
     );
 
-    // [polish trước quay 04/09] STT toàn cục theo phân trang (PO chốt: trang
-    // 2, page_size 50 → STT 51-100, KHÔNG lặp lại 1-50) — chỉ số tính trên VỊ
-    // TRÍ TRONG TRANG ĐÃ FETCH (`tickets`), không phải trên `filtered` (2 chip
-    // page-scoped + ô tìm phía dưới không được làm STT "nhảy số" liên tục,
-    // đúng ngữ nghĩa "đây là dòng thứ mấy của TRANG này", không phải "thứ mấy
-    // trong kết quả còn lại sau khi lọc thêm tại trình duyệt").
+    // [polish before the Sep 4 shoot] Row number is global across pagination (PO decision: page 2,
+    // page_size 50 → rows 51-100, NOT repeating 1-50) — the index is computed from the POSITION
+    // WITHIN THE FETCHED PAGE (`tickets`), not from `filtered` (the 2 page-scoped chips + the
+    // search box below must not make the row number "jump around" continuously; the correct meaning
+    // is "which row is this within THIS PAGE", not "which row among what's left after filtering
+    // further in the browser").
     const sttTheoTicketId = useMemo(() => {
       const m = new Map<string, number>();
       (tickets ?? []).forEach((t, i) => m.set(t.ticket_id, (page - 1) * pageSize + i + 1));

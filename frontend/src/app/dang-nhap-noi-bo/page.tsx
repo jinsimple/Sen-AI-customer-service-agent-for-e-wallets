@@ -6,34 +6,33 @@ import LanguageToggle from "@/components/LanguageToggle";
 import { useI18n } from "@/lib/i18n/client";
 import type { DictKey } from "@/lib/i18n/dict";
 
-// Cổng NỘI BỘ — CSKH · sếp phê duyệt · đối tác ví. Quyết định 26/08: tách
-// TRANG khỏi /login (khách hàng), KHÔNG tách CƠ CHẾ — dùng chung
-// lib/useLoginForm.ts, vai trò vẫn lấy từ RESPONSE server qua phone, không
-// có ô chọn vai nào ở đây. Trang này CỐ Ý không nối từ landing page/`/login`
-// — không phải bảo mật thật (đoán được URL vẫn vào), chỉ bớt một lời mời cho
-// người lạ. Giọng: công cụ, gọn — khác hẳn tông "mời gọi" của /login.
+// The INTERNAL gate — support agent · supervisor approval · wallet partner. Aug 26 decision: split
+// the PAGE from /login (customer), not the MECHANISM — it shares lib/useLoginForm.ts, and the role
+// still comes from the server's RESPONSE looked up by phone; there is no role picker here. This
+// page is DELIBERATELY not linked from the landing page or `/login` — not real security (the URL is
+// still reachable if guessed), just one fewer invitation to a stranger. Tone: utilitarian, terse —
+// unlike /login's "welcoming" tone.
 //
-// 🔴 [ĐO 26/08] KHÔNG đăng nhập nhanh, KHÔNG in mật khẩu demo, KHÔNG danh
-// sách số điện thoại nhân viên — dù chỉ ở /login (khách) việc này an toàn
-// (tài khoản khách sinh ra để phát cho người lạ), ở ĐÂY nó là rò rỉ thật:
-// route này CÔNG KHAI (PUBLIC_PATHS) + số điện thoại sếp phê duyệt hiện sẵn
-// + mật khẩu chung in thẳng ⟹ bất kỳ ai mở trang là đăng nhập được vai
-// supervisor, duyệt được hoàn tiền. Ba quyết định RIÊNG LẺ đều hợp lý (trang
-// đăng nhập phải công khai · nút nhanh tiện demo · mật khẩu chung tiện test)
-// — cộng lại thành một cửa mở. Trang nội bộ phải trông như một ô đăng nhập
-// trống, không kể gì về chính nó (không cả gợi ý "liên hệ quản trị" — gợi ý
-// đó đã xác nhận "đây là cổng có tài khoản thật phía sau"). Nhân viên tự gõ
-// số và mật khẩu của mình — họ biết, không cần trang nhắc.
-// 🔴 NGOẠI LỆ có chủ đích, hẹp, cho quyết định CẤM ở comment trên (26/08) —
-// KHÔNG đảo quyết định đó. Cờ build-time `NEXT_PUBLIC_QUICK_LOGIN`, mặc định
-// TẮT, cùng khuôn `OTP_DEMO_MODE`: Next.js thay `NEXT_PUBLIC_*` LÚC BUILD nên
-// không đặt cờ = ba tài khoản dưới KHÔNG tồn tại trong bundle gửi trình
-// duyệt, không phải chỉ ẩn UI. Dùng cho ĐÚNG một lần quay video demo 01/09,
-// build riêng tag `quay-video`, KHÔNG đè `latest`. PO thật chốt qua Lead.
-// PO thật đã đồng bộ CSDL `po-demo` 01/09 tối: cả ba tài khoản dưới dùng
-// CHUNG một mật khẩu (của CSKH, có backup hash cũ, đảo ngược được) — chỉ
-// khác số điện thoại. Không phải mặc định của toàn hệ thống, chỉ áp cho
-// ngăn `po-demo` đêm quay video 01/09.
+// 🔴 [measured Aug 26] NO quick login, NO printed demo password, NO list of staff phone numbers —
+// even though doing this on /login (customer) is safe (customer accounts exist to be handed to
+// strangers), HERE it is a real leak: this route is PUBLIC (PUBLIC_PATHS) + the supervisor-approval
+// phone number shown right there + a shared password printed in plain sight ⟹ anyone who opens the
+// page can log in as supervisor and approve refunds. Three decisions that are each reasonable on
+// their own (the login page must be public · a quick-login button is convenient for demos · a
+// shared password is convenient for testing) add up to one open door. The internal page must look
+// like an empty login box that reveals nothing about itself (not even a "contact your admin" hint —
+// that hint itself confirms "there is a real gate with real accounts behind this"). Staff type
+// their own phone number and password — they know it; the page doesn't need to remind them.
+// 🔴 A deliberate, narrow EXCEPTION to the ban above (Aug 26) — this does NOT reverse that
+// decision. Build-time flag `NEXT_PUBLIC_QUICK_LOGIN`, OFF by default, same pattern as
+// `OTP_DEMO_MODE`: Next.js substitutes `NEXT_PUBLIC_*` AT BUILD TIME, so leaving the flag unset
+// means the three accounts below don't exist in the bundle sent to the browser — not just hidden in
+// the UI. Used for EXACTLY one demo video recording on Sep 1, built on a separate `quay-video` tag,
+// never overwriting `latest`. Approved by the real PO via the Lead.
+// The real PO synced the `po-demo` database on the night of Sep 1: all three accounts below SHARE
+// one password (the support agent's, with an old reversible backup hash) — only the phone number
+// differs. Not a system-wide default; it applies only to the `po-demo` environment for the Sep 1
+// video shoot.
 const MAT_KHAU_QUAY_VIDEO = "Demo@123";
 const QUICK_LOGIN_ACCOUNTS: { label: DictKey; phone: string; password: string }[] = [
   { label: "role.cskh", phone: "0353000201", password: MAT_KHAU_QUAY_VIDEO },

@@ -11,22 +11,23 @@ const TABS: Record<Role, { href: string; label: DictKey }[]> = {
   customer: [{ href: "/chat", label: "nav.chat" }],
   cskh: [
     { href: "/dashboard", label: "nav.queue" },
-    // /tickets/[id] không có mục riêng — vào từ hàng chờ
+    // /tickets/[id] has no tab of its own — reached from the queue
     { href: "/policy-lookup", label: "nav.policyLookup" },
     { href: "/report", label: "nav.report" },
   ],
   supervisor: [
     { href: "/approve", label: "nav.approve" },
-    // [04/09] Tách khỏi trang Phê duyệt — PO đo thật đông CSKH làm bảng
-    // chật trang duyệt. Bảng/cơ chế presence giữ nguyên, chỉ đổi chỗ.
+    // [Sep 4] Split out of the Approvals page — measured by the PO: a crowded roster of support
+    // agents was cramping the approvals page. The table/presence mechanism is unchanged, only its
+    // location moved.
     { href: "/cskh-online", label: "nav.agentsOnline" },
-    // ADR-064 (b) — Sếp cần xem TẤT CẢ ticket (không riêng hàng chờ duyệt)
-    // để quản lý. `GET /tickets` vốn đã trả toàn bộ cho supervisor, đây chỉ
-    // là lối vào UI, không đổi quyền/contract.
+    // ADR-064 (b) — the supervisor needs to see ALL tickets (not just the approval queue) to
+    // manage. `GET /tickets` already returns everything for a supervisor; this is just a UI entry
+    // point, no change to permissions/contract.
     { href: "/quan-ly-ticket", label: "nav.ticketAdmin" },
     { href: "/report", label: "nav.report" },
-    // Sếp cũng cần tra chính sách khi quyết định — backend /policy-search đã
-    // mở cho supervisor sẵn trong authority-matrix, chỉ thiếu lối vào ở nav.
+    // The supervisor also needs to look up policy when deciding — the backend /policy-search is
+    // already open to supervisors in the authority-matrix, only the nav entry point was missing.
     { href: "/policy-lookup", label: "nav.policyLookup" },
   ],
   partner_admin: [{ href: "/knowledge", label: "nav.knowledge" }],
@@ -39,17 +40,16 @@ const GROUP_LABEL: Record<Role, DictKey> = {
   partner_admin: "role.partner_admin",
 };
 
-// [polish trước quay 04/09] PO bắt qua ảnh chụp: vào `/tickets/{id}` từ Hàng
-// chờ/Quản lý ticket/Phê duyệt thì KHÔNG tab nào sáng — trang đó không có
-// href riêng trong TABS (khai từ 26/08: "vào từ hàng chờ", chấp nhận lúc đó,
-// nay PO muốn sửa). CSKH chỉ có 1 lối vào ticket (Hàng chờ) nên trỏ thẳng;
-// Sếp có 2 lối (Quản lý ticket/Phê duyệt) nên phải NHỚ lối vào GẦN NHẤT —
-// dùng sessionStorage (không phải state/URL param, vì cả router.push lẫn
-// next/link ở 4 nơi khác nhau đều dẫn vào đây, sửa tận gốc ở component nav
-// rẻ hơn sửa từng call site) ghi MỖI LẦN trang đứng đúng trên 1 tab của
-// chính vai đó, đọc lại khi đang ở `/tickets/`. Cold start (mở thẳng link vé
-// chưa từng ghé tab nào trong phiên) → không tab nào sáng, giữ nguyên hành
-// vi cũ, không tệ hơn trước.
+// [polish before the Sep 4 shoot] Caught by the PO from a screenshot: landing on `/tickets/{id}`
+// from Queue/Ticket management/Approvals lit up NO tab — that page has no href of its own in TABS
+// (noted since Aug 26: "reached from the queue", accepted at the time, now the PO wants it fixed).
+// A support agent has only 1 way into a ticket (Queue), so it can point there directly; a
+// supervisor has 2 ways (Ticket management/Approvals), so it must REMEMBER the MOST RECENT entry
+// point — using sessionStorage (not state/a URL param, since router.push and next/link are both
+// used from 4 different places leading here; fixing it once in the nav component is cheaper than
+// fixing every call site), written EVERY TIME the page is standing on one of that role's own tabs,
+// and read back while on `/tickets/`. Cold start (opening a ticket link directly, having never
+// visited a tab this session) → no tab lights up, same as the old behaviour, no worse than before.
 const NHO_TAB_KEY = (role: Role) => `fin05_tab_gan_nhat:${role}`;
 
 export default function RoleTabNav({ role }: { role: Role }) {
@@ -62,26 +62,26 @@ export default function RoleTabNav({ role }: { role: Role }) {
   useEffect(() => {
     const matched = tabs.find((t) => pathname.startsWith(t.href));
     if (matched) {
-      // Ghi ra sessionStorage (hệ thống ngoài) — không cần setState ở nhánh
-      // này, vì `active` bên dưới đã tính đúng qua `pathname.startsWith`
-      // trực tiếp, không phụ thuộc tabGanNhat khi đang ĐỨNG TRÊN một tab thật.
+      // Writing to sessionStorage (an external system) — no setState needed on this branch, because
+      // `active` below is already computed correctly via `pathname.startsWith` directly, and
+      // doesn't depend on tabGanNhat while STANDING ON a real tab.
       sessionStorage.setItem(NHO_TAB_KEY(role), matched.href);
     } else if (isTicketDetail) {
-      // Nhánh DUY NHẤT cần đọc lại state từ hệ thống ngoài (sessionStorage) —
-      // đúng khuôn "subscribe cập nhật từ external system" mà effect sinh ra
-      // để làm, không tính vào tổng lời gọi setState-trong-effect cần tránh.
+      // The ONE branch that needs to read state back from an external system (sessionStorage) —
+      // exactly the "subscribe to an update from an external system" pattern an effect exists for,
+      // and doesn't count toward the setState-in-effect calls to avoid.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTabGanNhat(sessionStorage.getItem(NHO_TAB_KEY(role)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, role]);
 
-  // 26/08 — chuẩn ngành: một hàng chỉ có ĐÚNG MỘT tab không phải điều hướng,
-  // nó là một nhãn chiếm trọn một hàng khung. customer/partner_admin chỉ có
-  // 1 màn nên KHÔNG render hàng này — cskh/supervisor (nhiều tab) giữ nguyên.
-  // `?? []` phòng TABS[role] undefined (vai lạ) làm nổ .length ở layout —
-  // vỡ TOÀN TRANG thay vì chỉ ẩn tab, dù hôm nay vai luôn là 1-trong-4 giá
-  // trị hợp lệ từ session đã lọc.
+  // Aug 26 — industry convention: a row holds EXACTLY ONE non-navigating tab as a label that fills
+  // the whole row. customer/partner_admin have only 1 screen, so this row is NOT rendered for them
+  // — cskh/supervisor (multiple tabs) keep it as is. `?? []` guards against TABS[role] being
+  // undefined (an unknown role), which would blow up `.length` in the layout — breaking the WHOLE
+  // PAGE instead of just hiding a tab, even though today the role is always one of 4 valid values
+  // from an already-filtered session.
   if (tabs.length <= 1) return null;
   return (
     <nav className="tabnav">

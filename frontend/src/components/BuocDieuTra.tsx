@@ -6,16 +6,16 @@ import { traiPayload, type DongHienThi } from "@/lib/timeline-format";
 import { TOOL_NAME_LABEL, labelOf } from "@/lib/types";
 import { useI18n } from "@/lib/i18n/client";
 
-// UI-01 — MỘT bước trong "Nhật ký điều tra", hiển thị cho NGƯỜI đọc.
+// UI-01 — ONE step in the "investigation log", shown to a HUMAN reader.
 //
-// DÙNG CHUNG cho cskh và supervisor — CÓ CHỦ ĐÍCH. Sếp duyệt dựa trên đúng
-// thứ CSKH nhìn thấy; hai vai nhìn hai bản khác nhau là mầm của "tôi thấy
-// khác cơ" giữa lúc tranh luận một quyết định hoàn tiền.
+// SHARED between support agent and supervisor — DELIBERATELY. The supervisor approves based on
+// exactly what the support agent saw; two roles seeing two different versions is the seed of "I saw
+// something different" in the middle of a refund-decision argument.
 //
-// KHÔNG có nút sao chép / xuất — cho cả `agent_note` lẫn expander JSON.
-// `agent_note` chưa qua scrub, chưa có trần độ dài, chưa có cờ (S-02, chờ B3);
-// một trường tự do chưa che cộng với một nút copy là bề mặt TRÍCH XUẤT HÀNG
-// LOẠT. Người cần đối chiếu vẫn bôi đen chép tay được — chậm hơn đúng mức.
+// NO copy / export button — for either `agent_note` or the JSON expander. `agent_note` is not
+// scrubbed, has no length cap, no flag yet (S-02, pending B3); a free-text field that's not masked
+// plus a copy button is a BULK-EXFILTRATION surface. Anyone who needs to copy it can still select
+// and copy by hand — slower, as it should be.
 
 type Log = {
   step_no: number;
@@ -52,14 +52,13 @@ function Khoi({ tieuDe, payload }: { tieuDe: string; payload: unknown }) {
   );
 }
 
-// Kết quả tra cứu lịch sử khách có thể ra HÀNG TRĂM dòng (đo thật trên dữ
-// liệu demo: một bước `get_customer_history` trải ra 144 dòng). Đổ hết ra màn
-// hình là phá đúng tiêu chí nghiệm thu "CSKH đọc một bước là hiểu".
+// A customer-history lookup can produce HUNDREDS of rows (measured on demo data: one
+// `get_customer_history` step spans 144 rows). Dumping it all onto the screen breaks the exact
+// acceptance criterion "a support agent reads one step and understands it".
 //
-// Cắt hiển thị, KHÔNG cắt dữ liệu: phần còn lại mở ra bằng một cú bấm, và bản
-// đầy đủ vẫn nằm nguyên trong expander "dữ liệu kỹ thuật". Không tóm tắt,
-// không chọn lọc "dòng quan trọng" — chọn hộ là lớp DIỄN GIẢI, thứ ràng buộc
-// cứng 3 cấm ở đây.
+// Cut the DISPLAY, not the DATA: the rest opens with one click, and the full version still sits
+// intact inside the "technical data" expander. No summarising, no picking "the important rows" —
+// picking for the reader is the INTERPRETATION layer, which hard constraint 3 forbids here.
 const NGUONG_DONG = 12;
 
 function KetQuaDai({ dong }: { dong: DongHienThi[] }) {
@@ -100,10 +99,10 @@ export default function BuocDieuTra({ log }: { log: Log }) {
   const { t, lang } = useI18n();
   const [moKyThuat, setMoKyThuat] = useState(false);
 
-  // Ba ca `null` GỘP LÀM MỘT nhãn ở v1 (không có bản ghi · tool timeout · tra
-  // được nhưng rỗng) — chấp nhận có ý thức, ghi ở đây để không ai đọc timeline
-  // rồi kết luận "hệ thống không có dữ liệu" khi thật ra lượt tra đã hỏng.
-  // `ly_do_fallback` tách được nếu về sau cần.
+  // Three `null` cases LUMPED INTO one label in v1 (no record logged · tool timeout · looked up but
+  // empty) — a conscious trade-off, noted here so no one reads the timeline and concludes "the
+  // system has no data" when actually the lookup itself failed. `ly_do_fallback` (fallback reason)
+  // can be split out later if needed.
   const ketQuaTrong = log.tool_result === null || log.tool_result === undefined;
   const biChanOtp = ketQuaTrong && log.tool_result_id === null;
 

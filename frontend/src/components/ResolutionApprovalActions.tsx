@@ -10,23 +10,23 @@ import OtpInput from "@/components/OtpInput";
 const REJECT_REASON_VALUES = Object.keys(REJECT_REASON_LABEL) as RejectReason[];
 
 /**
- * Cụm nút duyệt/từ chối MỘT đề xuất, kèm bước xin OTP.
+ * The approve/reject button cluster for ONE proposal, with the OTP step.
  *
- * Tách ra dùng chung (hotfix 2, 14/08) vì cụm này giờ xuất hiện ở HAI nơi:
- * hàng chờ `/approve` và chi tiết ticket. Copy-paste hai bản là cách chắc
- * chắn nhất để một ngày nào đó chỉ một bản được vá — mà đây là đường đi tới
- * hành động chạm tiền, chỗ ít được phép lệch nhau nhất.
+ * Split out for reuse (hotfix 2, Aug 14) because this cluster now appears in TWO places: the
+ * `/approve` queue and the ticket detail screen. Copy-pasting two copies is the surest way for only
+ * one copy to get patched one day — and this is the path to an action that touches money, the place
+ * least allowed to drift apart.
  *
- * AUTH5-04: duyệt cần OTP RIÊNG cho ĐÚNG resolution_id đang duyệt (PSD2
- * dynamic linking, gắn với đúng số tiền tại thời điểm xin mã).
+ * AUTH5-04: approving needs a SEPARATE OTP for the EXACT resolution_id being approved (PSD2 dynamic
+ * linking, bound to the exact amount at the time the code was requested).
  *
- * Hotfix P0 31/08: đợt vá `bdaf17e` ngừng trả `otp_code` qua response body
- * (OTP_DEMO_MODE mặc định tắt) — sếp giờ phải TỰ gõ mã nhận qua kênh khác,
- * dùng chung `OtpInput` với luồng khách (xem `@/components/OtpInput.tsx`).
+ * P0 hotfix, Aug 31: patch `bdaf17e` stopped returning `otp_code` in the response body
+ * (OTP_DEMO_MODE off by default) — the supervisor now has to TYPE the code received through another
+ * channel themselves, sharing `OtpInput` with the customer flow (see `@/components/OtpInput.tsx`).
  *
- * Component này KHÔNG tự kiểm quyền: nơi gọi phải tự bảo đảm chỉ render cho
- * supervisor. Quyền thật vẫn do backend ép (require_role + OTP), UI chỉ phản
- * chiếu cho đúng authority-matrix.
+ * This component does NOT check permissions itself: the caller must ensure it only renders for a
+ * supervisor. Real enforcement still comes from the backend (require_role + OTP); the UI only
+ * mirrors the authority-matrix correctly.
  */
 export default function ResolutionApprovalActions({
   resolutionId,
@@ -39,15 +39,15 @@ export default function ResolutionApprovalActions({
 }) {
   const { t, lang } = useI18n();
   const [busy, setBusy] = useState(false);
-  // ADR-060 (03/09) — `otpCode` chỉ khác `undefined` khi backend đang chạy
-  // OTP_DEMO_MODE (route /request-approval-otp gate ở main.py:998, KHÔNG
-  // đụng ở đây). Production không bật cờ ⟹ trường này luôn undefined ⟹ dòng
-  // hiện mã bên dưới không render — soi gương đúng cách ChatClient hiện
-  // demoOtpCode cho OTP đăng nhập, không phát minh cơ chế mới.
+  // ADR-060 (Sep 3) — `otpCode` is only something other than `undefined` when the backend is
+  // running OTP_DEMO_MODE (gated at the /request-approval-otp route, main.py:998, untouched here).
+  // Production doesn't set that flag ⟹ this field is always undefined ⟹ the line showing the code
+  // below doesn't render — mirroring exactly how ChatClient shows demoOtpCode for the login OTP, no
+  // new mechanism invented.
   const [otp, setOtp] = useState<{ sessionId: string; otpCode?: string } | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
-  // ADR-019 — từ chối phải kèm lý do có cấu trúc, nên nút "Từ chối" mở form
-  // chọn lý do trước, không gửi thẳng như trước.
+  // ADR-019 — a rejection must carry a structured reason, so the "Reject" button now opens a
+  // reason-picker form first instead of submitting directly as before.
   const [chonLyDo, setChonLyDo] = useState(false);
   const [reason, setReason] = useState("");
 

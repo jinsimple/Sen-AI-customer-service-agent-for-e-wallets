@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session-server";
 import { backendFetch, proxyErrorResponse, unauthorized } from "@/lib/server-api";
 
-// Proxy thẳng /auth/otp/request (backend) — không cần cập nhật cookie ở đây
-// (chưa có gì đổi về danh tính, chỉ mới xin mã OTP). access_token vẫn ở lại
-// server, route này chỉ chuyển tiếp phần công khai (otp_code mô phỏng, câu
-// hỏi bảo mật) cho client hiển thị.
+// Plain proxy to /auth/otp/request (backend) — no cookie update needed here (nothing about identity
+// changes yet, this is just requesting an OTP). access_token stays on the server; this route only
+// forwards the public part (simulated otp_code, security question) for the client to display.
 export async function POST() {
   const session = await getServerSession();
   if (!session) return unauthorized();

@@ -10,40 +10,41 @@ import {
   type Session,
 } from "@/lib/session";
 
-// US-001 AC: "khách hàng không vào được dashboard CSKH kể cả sửa URL trực
-// tiếp" — chặn ở proxy (Next.js 16 đổi tên từ middleware, chức năng như cũ),
-// không chỉ ẩn UI. Đây là optimistic check (chỉ đọc cookie, không gọi DB) —
-// đủ cho demo vì không có dữ liệu nhạy cảm nào trả trực tiếp từ proxy.
+// US-001 AC: "a customer can't reach the support dashboard even by editing the URL directly" —
+// blocked at the proxy (Next.js 16's renamed middleware, same function), not just hidden in the UI.
+// This is an optimistic check (it only reads the cookie, no DB call) — enough for a demo, since no
+// sensitive data is ever returned directly from the proxy.
 const ROLE_PREFIXES: Record<Role, string[]> = {
   customer: ["/chat"],
-  // /report: contract cho phép (GET /reports/summary roles [cskh, supervisor])
-  // nhưng frontend đang chặt hơn — CSKH bị đá về /dashboard. Đây là LẦN THỨ HAI
-  // cùng lớp lỗi "guard frontend hẹp hơn contract" (lần một: sếp + /policy-lookup,
-  // d0baf35). Tester đang viết test quét cả ma trận role×route để lần ba bị máy bắt.
-  // /policy-doc: deep-link "Xem toàn văn" từ /policy-lookup (ADR-065, 05/09)
-  // — mở qua link, KHÔNG có tab nav riêng, cùng khuôn /tickets/{id}. CA THỨ
-  // SÁU cùng lớp lỗi "route mới quên khai ở đây" nếu bỏ sót (5 lần trước:
-  // /policy-lookup, /dashboard, /report, /cskh-online, /quan-ly-ticket) —
-  // khai NGAY lúc thêm route, không đợi ai bấm hỏng mới phát hiện.
+  // /report: the contract allows it (GET /reports/summary roles [cskh, supervisor]) but the
+  // frontend is stricter — a support agent gets kicked to /dashboard. This is the SECOND occurrence
+  // of the same bug class "the frontend guard is narrower than the contract" (the first: supervisor
+  // + /policy-lookup, d0baf35). The tester is writing a test that scans the whole role×route matrix
+  // so a third occurrence gets caught by a machine.
+  // /policy-doc: the "View full text" deep-link from /policy-lookup (ADR-065, Sep 5) — opened via a
+  // link, with NO nav tab of its own, same pattern as /tickets/{id}. The SIXTH occurrence of the
+  // same bug class "a new route forgot to declare itself here" if missed (5 earlier ones:
+  // /policy-lookup, /dashboard, /report, /cskh-online, /quan-ly-ticket) — declared RIGHT AWAY when
+  // the route is added, instead of waiting for someone to click something broken.
   cskh: ["/dashboard", "/tickets", "/policy-lookup", "/policy-doc", "/report"],
-  // /policy-lookup: sếp cũng cần tra chính sách khi quyết định duyệt. Thiếu
-  // tiền tố này thì proxy đá thẳng về roleHome() = /approve, nên bấm vào tab
-  // trông như tab hỏng (QA đo được 14/08). Backend đã cho phép sẵn —
-  // authority-matrix: POST /policy-search roles [cskh, supervisor].
-  // /dashboard: sếp xem được hàng chờ CSKH theo contract hiện hành
-  // (GET /tickets: cskh, supervisor). Đây là ca thứ BA cùng lớp lỗi
-  // "guard frontend hẹp hơn contract" — bộ quét ma trận role×route của
-  // tester là thứ chặn ca thứ tư.
-  // /cskh-online: tab mới tách khỏi /approve (04/09) — thiếu tiền tố này ở
-  // đây là CA THỨ TƯ cùng lớp lỗi "route mới không có mặt trong allowlist
-  // riêng của proxy" (khác nhánh contract-backend, đã xảy ra 3 lần trước:
-  // /policy-lookup, /dashboard, /report). Route không gọi API nào ngoài
-  // /presence/staff (đã cho phép supervisor sẵn trong authority-matrix).
-  // /quan-ly-ticket (ADR-064 b): tab MỚI tách từ /approve theo cùng khuôn
-  // /cskh-online — CA THỨ NĂM nhắc lại đúng lớp lỗi "route mới quên khai ở
-  // đây" nếu bỏ sót (4 lần trước: /policy-lookup, /dashboard, /report,
-  // /cskh-online). Route không mở API mới — /quan-ly-ticket chỉ gọi lại
-  // GET /tickets đã cho phép supervisor sẵn trong authority-matrix.
+  // /policy-lookup: a supervisor also needs to look up policy when deciding on an approval. Without
+  // this prefix, the proxy redirects straight to roleHome() = /approve, so clicking the tab looks
+  // like a broken tab (QA measured this, Aug 14). The backend already allows it — authority-matrix:
+  // POST /policy-search roles [cskh, supervisor].
+  // /dashboard: a supervisor can view the support queue under the current contract (GET /tickets:
+  // cskh, supervisor). This is the THIRD occurrence of the same bug class "the frontend guard is
+  // narrower than the contract" — the tester's role×route matrix scanner is what will catch a
+  // fourth occurrence.
+  // /cskh-online: a new tab split off from /approve (Sep 4) — missing this prefix here would be the
+  // FOURTH occurrence of the bug class "a new route is missing from the proxy's own allowlist" (a
+  // different branch from the contract-backend one, which has already happened 3 times:
+  // /policy-lookup, /dashboard, /report). The route calls no API beyond /presence/staff (already
+  // allowed for a supervisor in the authority-matrix).
+  // /quan-ly-ticket (ADR-064 b): a NEW tab split off from /approve following the same pattern as
+  // /cskh-online — the FIFTH repeat of exactly the "a new route forgot to declare itself here" bug
+  // class if missed (4 earlier ones: /policy-lookup, /dashboard, /report, /cskh-online). The route
+  // opens no new API — /quan-ly-ticket only calls the GET /tickets already allowed for a supervisor
+  // in the authority-matrix.
   supervisor: [
     "/approve", "/cskh-online", "/quan-ly-ticket", "/report", "/tickets",
     "/policy-lookup", "/policy-doc", "/dashboard",
@@ -51,73 +52,68 @@ const ROLE_PREFIXES: Record<Role, string[]> = {
   partner_admin: ["/knowledge"],
 };
 
-// 26/08 — landing đã dọn từ /gioi-thieu VỀ "/" (thiết kế Lead, soát bởi
-// Review). "/" KHÔNG nằm trong mảng này — nó có nhánh khớp CHÍNH XÁC riêng
-// ở dưới (`pathname === "/"`), CỐ Ý tách khỏi PUBLIC_PATHS vì matcher ở đây
-// là `khopTienTo` (tiền tố + ranh giới "/"), và "/" + ranh giới sẽ khớp MỌI
-// path — gộp vào đây là mở toang /dashboard, /approve... /dang-nhap-noi-bo
-// vẫn ở đây: route công khai thật (trang đăng nhập nội bộ), không phải
-// landing.
+// Aug 26 — the landing page was moved from /gioi-thieu BACK to "/" (Lead's design, reviewed). "/"
+// is NOT in this array — it has its own EXACT-match branch further down (`pathname === "/"`),
+// DELIBERATELY kept out of PUBLIC_PATHS because the matcher here is `khopTienTo` (prefix + a "/"
+// boundary), and "/" plus a boundary would match EVERY path — folding it in here would throw
+// /dashboard, /approve... wide open. /dang-nhap-noi-bo stays here: a genuinely public route (the
+// internal login page), not the landing page.
 const PUBLIC_PATHS = ["/login", "/dang-nhap-noi-bo"];
 
-// Review (p-226-8b, 26/08): `startsWith` thô khớp theo TIỀN TỐ KÝ TỰ, không
-// theo ranh giới segment — "/dashboard".startsWith cũng đúng với
-// "/dashboard-admin". Hai chỗ dùng nó (PUBLIC_PATHS bên dưới VÀ
-// ROLE_PREFIXES) đều dính cùng lỗi hình dạng: ai đặt tên route mới trùng
-// tiền tố một route đã cho phép là vô tình mở/leo thang quyền, không cần sửa
-// gì khác. Một hàm khớp có ranh giới (chính xác HOẶC tiền tố + "/") đóng cả
-// hai chỗ cùng lúc, không phải nhớ mà tránh.
+// Review (p-226-8b, Aug 26): a raw `startsWith` matches by CHARACTER PREFIX, not by segment
+// boundary — "/dashboard".startsWith also matches "/dashboard-admin". The two places that use it
+// (PUBLIC_PATHS below AND ROLE_PREFIXES) share the same shape of bug: whoever names a new route
+// sharing a prefix with an already-allowed route accidentally opens up or escalates permissions,
+// with no other change needed. One boundary-aware match function (exact OR prefix + "/") closes
+// both spots at once, instead of relying on memory to avoid it.
 function khopTienTo(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
-// 27/08 — Marketing dựng /cho-khach-hang: trang "chống lừa đảo" (kiểm chứng
-// "Sen có bao giờ hỏi mã OTP không?"). Đây là NHÓM THỨ BA, khác bản chất với
-// PUBLIC_PATHS — PUBLIC_PATHS đá người ĐÃ đăng nhập về roleHome (đúng cho
-// /login), còn trang này phải đọc được ngay cả khi khách ĐANG đăng nhập và
-// đang hoảng, không được redirect theo BẤT KỲ chiều nào. Không nhét vào
-// PUBLIC_PATHS như một ngoại lệ — hành vi khác bản chất thì phải là nhóm
-// khác, không phải một cờ rẽ nhánh trong nhóm cũ.
+// Aug 27 — Marketing built /cho-khach-hang: an "anti-scam" page (confirming "does Sen ever ask for
+// an OTP code?"). This is a THIRD, different group from PUBLIC_PATHS in nature — PUBLIC_PATHS
+// redirects an ALREADY-logged-in user to roleHome (correct for /login), while this page must be
+// readable even while a customer is CURRENTLY logging in and panicking, with no redirect in EITHER
+// direction. It isn't folded into PUBLIC_PATHS as an exception — behaviour that's different in
+// nature belongs in a different group, not a branching flag inside the old one.
 const ALWAYS_PUBLIC_PATHS = ["/cho-khach-hang"];
 
-// AUTH5-02 (đợt nâng cấp Auth Flow, 2026-08-12) — access_token giờ chỉ sống
-// 15 phút (JWT_ACCESS_EXPIRE_MINUTES, src/config.py). Nếu không có gì chủ
-// động làm mới, MỌI request sau 15 phút sẽ 401 và người dùng bị đăng xuất
-// giữa chừng — không chấp nhận được cho 1 phiên demo/UAT thật. `proxy.ts` là
-// file DUY NHẤT được phép theo quy ước Next.js 16 (không thể thêm
-// middleware.ts riêng) nên logic làm mới token GỘP CHUNG vào đây, chạy
-// TRƯỚC logic redirect theo role — áp dụng cho CẢ page lẫn route /api/* (BFF
-// đọc access_token từ cookie), không loại trừ /api như nhánh redirect bên
-// dưới. Docs Next.js cảnh báo proxy "không dùng cho slow data fetching/
-// session management đầy đủ" — ở đây CHỈ gọi fetch khi token gần hết hạn
-// (không phải mọi request), chấp nhận đánh đổi vì kiến trúc BFF của dự án
-// không có chỗ nào khác chạy được trước ~30 route handler mà không sửa lại
-// từng route.
+// AUTH5-02 (Auth Flow upgrade, 2026-08-12) — access_token now lives only 15 minutes
+// (JWT_ACCESS_EXPIRE_MINUTES, src/config.py). Without something actively refreshing it, EVERY
+// request after 15 minutes 401s and the user gets logged out mid-session — not acceptable for a
+// real demo/UAT session. `proxy.ts` is the ONE file Next.js 16's convention allows (a separate
+// middleware.ts can't be added), so the token-refresh logic is FOLDED IN HERE, running BEFORE the
+// role-redirect logic — applied to BOTH pages and /api/* routes (the BFF reads access_token from
+// the cookie), with no /api exclusion unlike the redirect branch below. Next.js's docs warn that
+// proxy "shouldn't be used for slow data fetching/full session management" — here it ONLY calls
+// fetch when the token is close to expiring (not on every request); accepted as a trade-off because
+// this project's BFF architecture has nowhere else that runs before ~30 route handlers without
+// editing every route individually.
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8010";
 const REFRESH_MARGIN_SECONDS = 120;
 
-// 27/08 [ĐO] p-226-dc: thêm ảnh thật vào landing (`/landing/*.png`) rồi phát
-// hiện file đó (VÀ mọi file có sẵn từ trước trong `public/` — đo được cả
-// `/next.svg`, `/file.svg` mặc định của Next) bị đá về /login cho khách
-// CHƯA đăng nhập — matcher chỉ loại trừ `_next/*`/`favicon`, không loại trừ
-// phần còn lại của `public/`. Lỗi CÓ SẴN TỪ TRƯỚC, không phải do ảnh mới gây
-// ra — ảnh mới chỉ là request đầu tiên chạm đúng lớp lỗi này.
+// 27/08 [measured] p-226-dc: adding real images to the landing page (`/landing/*.png`) surfaced
+// that file (AND every file already in `public/` beforehand — this measured even Next's own default
+// `/next.svg`, `/file.svg`) getting redirected to /login for a customer who is NOT logged in — the
+// matcher only excludes `_next/*`/favicon, not the rest of `public/`. The bug was ALREADY THERE
+// BEFOREHAND, not caused by the new images — the new images were just the first request to hit this
+// exact bug class.
 //
-// 🔴 [ĐO 27/08] Review (p-226-8b): bản vá ĐẦU dùng regex theo ĐUÔI FILE —
-// SAI, vì nó test trên pathname mà không phân biệt "file tĩnh thật trong
-// public/" với "route App Router có segment ĐỘNG mà giá trị tham số tình cờ
-// khớp đuôi". Cụ thể: `/tickets/[id]` (chỉ cskh/supervisor được vào theo
-// ROLE_PREFIXES) — khách gọi `/tickets/x.json` sẽ khớp regex đuôi `.json` ở
-// NGAY DÒNG ĐẦU, bỏ qua hẳn khối kiểm vai bên dưới, RENDER được vỏ trang
-// (dữ liệu thật vẫn an toàn vì backend tự kiểm role riêng — nhưng đây vẫn
-// trái nguyên văn US-001 AC ở đầu file: chặn ở proxy, không chỉ ẩn UI).
-// Đuôi file KHÔNG PHẢI bất biến an toàn khi hệ có route động — ALLOWLIST
-// THEO ĐƯỜNG DẪN THẬT thì có, vì nó không suy luận từ HÌNH DẠNG chuỗi (có
-// dấu chấm hay không) mà từ DANH SÁCH asset thật đang tồn tại. Đổi lại dùng
-// `khopTienTo` (đã có sẵn, cùng cơ chế PUBLIC_PATHS/ALWAYS_PUBLIC_PATHS bên
-// dưới) trên đúng các thư mục asset tĩnh thật — `public/` ở dự án này gần
-// như không đổi, chi phí nhớ thêm 1 dòng khi thêm thư mục asset mới THẤP
-// HƠN HẲN rủi ro một regex đuôi file mở lại khe US-001.
+// 🔴 [measured Aug 27] Review (p-226-8b): the FIRST patch used a regex on the FILE EXTENSION —
+// WRONG, because it tests the pathname without telling apart "a real static file in public/" from
+// "an App Router route with a DYNAMIC segment whose parameter value happens to match the
+// extension". Specifically: `/tickets/[id]` (only cskh/supervisor may enter, per ROLE_PREFIXES) — a
+// customer calling `/tickets/x.json` would match the `.json` extension regex on the VERY FIRST
+// LINE, skipping the role check below entirely, and get the page shell RENDERED (the real data
+// stays safe because the backend checks the role itself separately — but this still contradicts the
+// literal US-001 AC at the top of the file: blocked at the proxy, not just hidden in the UI). A
+// file extension is NOT a safe invariant once the system has dynamic routes — an ALLOWLIST OF REAL
+// PATHS is, because it doesn't infer from the SHAPE of a string (whether it has a dot) but from the
+// LIST of asset files that actually exist. Switched to using `khopTienTo` (already in place, the
+// same mechanism as PUBLIC_PATHS/ALWAYS_PUBLIC_PATHS below) on the exact real static-asset
+// directories — `public/` in this project barely changes, and the cost of remembering one extra
+// line when adding a new asset folder is FAR LOWER than the risk of a file-extension regex
+// reopening the US-001 gap.
 const STATIC_ASSET_PATHS = ["/landing", "/file.svg", "/vercel.svg", "/next.svg", "/globe.svg", "/window.svg"];
 
 export async function proxy(req: NextRequest) {
@@ -130,46 +126,47 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // GIA HẠN PHIÊN ĐÃ CHUYỂN KHỎI ĐÂY -> `lib/server-api.ts::backendFetch`.
+  // SESSION REFRESH MOVED OUT OF HERE -> `lib/server-api.ts::backendFetch`.
   //
-  // Vì sao gỡ chứ không sửa: proxy VẪN gọi được `/auth/refresh` (đo được ở
-  // backend, tầng-0 xác nhận rotate thành công) nhưng cookie nó đặt bằng
-  // `NextResponse.cookies.set()` KHÔNG BAO GIỜ rời server — 0 header
-  // `set-cookie` trên CẢ đường trang lẫn `/api`, trong khi ca đối chứng
-  // `/api/session` (dùng `cookies()` của next/headers) cho đúng 1 header.
+  // Why removed rather than fixed: proxy CAN still call `/auth/refresh` (confirmed on the backend,
+  // layer-0 confirms the rotation succeeded) but the cookie it sets with
+  // `NextResponse.cookies.set()` NEVER leaves the server — 0 `set-cookie` headers on EITHER the
+  // page path or `/api`, while the control case `/api/session` (using `cookies()` from
+  // next/headers) produces exactly 1 header.
   //
-  // Hậu quả khi còn để ở đây: token được xoay ở server, browser không biết,
-  // request kế cầm lại refresh token CŨ ĐÃ ROTATE -> AUTH5-03 -> thu hồi cả
-  // family -> chết phiên. Một cơ chế "gia hạn" mà mỗi lần chạy lại giết phiên.
+  // Consequence of leaving it here: the token is rotated on the server, the browser never learns
+  // it, the next request carries the OLD, ALREADY-ROTATED refresh token -> AUTH5-03 -> the whole
+  // family is revoked -> the session dies. A "refresh" mechanism that kills the session every time
+  // it runs.
   //
-  // Đã loại trừ: hồi quy UI-01 · sai vị trí file · sai tên export · sai mẫu
-  // code (cả ba khớp docs Next 16.3.0 từng điểm) · dependency drift (ba image
-  // cùng Node v20.20.2 + Next 16.3.0 + manifest rỗng). Không phải lỗi cấu
-  // hình sửa được — nên chuyển sang đường ĐÃ CHỨNG MINH EGRESS ĐƯỢC.
+  // Ruled out: a UI-01 regression · wrong file location · wrong export name · wrong code pattern
+  // (all three match the Next 16.3.0 docs point for point) · dependency drift (all three images
+  // share Node v20.20.2 + Next 16.3.0 + an empty manifest). Not a fixable configuration mistake —
+  // so moved to the path PROVEN TO EGRESS CORRECTLY.
   const session = parseSessionCookie(req.cookies.get(SESSION_COOKIE)?.value);
 
-  // Header request ĐÃ VÁ — để route handler chạy TRONG CHÍNH request này đọc
-  // được access_token mới, chứ không phải chỉ browser nhận nó ở lượt sau.
+  // The request header is ALREADY PATCHED — so a route handler running WITHIN THIS SAME request
+  // reads the new access_token, not just the browser receiving it on the next turn.
   //
-  // ĐÂY LÀ BUG, KHÔNG PHẢI TỐI ƯU. Bản trước ghi comment "Vẫn phải áp dụng
-  // withRefreshedCookie() để route handler thấy access_token ĐÃ được làm mới"
-  // — phát biểu đúng CÁI Ý ĐỊNH mà code không đạt được: `res.cookies.set()`
-  // đặt cookie lên RESPONSE (đường về browser), còn route handler đọc cookie
-  // từ REQUEST, nơi vẫn là token cũ. Người review đọc comment sẽ gật đầu.
+  // THIS IS A BUG, NOT AN OPTIMISATION. The previous version had a comment saying "Still need to
+  // apply withRefreshedCookie() so the route handler sees the REFRESHED access_token" — correctly
+  // stating the INTENT that the code failed to achieve: `res.cookies.set()` sets a cookie on the
+  // RESPONSE (the path back to the browser), while a route handler reads a cookie from the REQUEST,
+  // which still holds the old token. A reviewer reading that comment would nod along.
   //
-  // Hậu quả đo được: sau khi token hết hạn, request ĐẦU TIÊN vẫn 401 dù
-  // refresh đã thành công ngay trong request đó; request thứ hai mới 200.
-  // Nhẹ khi người dùng bấm lại — CHẾT khi tầng UI chỉ thử đúng một lần
-  // (`liveChatConnectStartedRef`, ca demo của PO).
+  // The measured consequence: right after the token expired, the FIRST request still 401s even
+  // though the refresh succeeded within that very request; only the second request gets 200. Mild
+  // when the user just clicks again — FATAL when a UI layer tries exactly once
+  // (`liveChatConnectStartedRef`, the PO's demo case).
 
-  // /api/* — route handler BFF tự đọc cookie + tự trả unauthorized(), không
-  // cần logic redirect theo role ở đây (đó là cho page).
+  // /api/* — the BFF route handler reads the cookie itself and returns unauthorized() itself, no
+  // need for role-redirect logic here (that's for a page).
   //
-  // HAI vế, thiếu vế nào cũng hỏng một nửa:
-  //   `NextResponse.next()` -> route handler TRONG request
-  //       này thấy token mới  (vế trước đây THIẾU)
-  //   `withRefreshedCookie(...)`                 -> browser nhận token mới cho
-  //       các request SAU
+  // TWO halves, and missing either one breaks it halfway:
+  //   `NextResponse.next()` -> a route handler WITHIN this request
+  //       sees the new token (this half was PREVIOUSLY MISSING)
+  //   `withRefreshedCookie(...)` -> the browser gets the new token for
+  //       SUBSEQUENT requests
   if (pathname.startsWith("/api")) {
     return NextResponse.next();
   }
@@ -178,12 +175,11 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Nhánh khớp CHÍNH XÁC, CỐ Ý tách khỏi PUBLIC_PATHS (xem comment ở khai
-  // báo mảng đó) — "/" giờ là landing công khai, không phải logic xác thực
-  // thuần tuý nữa. Có phiên -> vẫn về màn theo vai, KHÔNG ĐỔI GÌ so với
-  // trước (0 thay đổi bề mặt auth cho người đã đăng nhập). Không phiên ->
-  // ĐỔI: cho render (trang quảng cáo tại app/page.tsx), không còn redirect
-  // "/login" nữa.
+  // An EXACT-match branch, DELIBERATELY kept apart from PUBLIC_PATHS (see the comment at that
+  // array's declaration) — "/" is now the public landing page, no longer pure authentication logic.
+  // With a session -> still goes to the role's home screen, NO CHANGE from before (0 change to the
+  // auth surface for an already-logged-in user). Without a session -> CHANGED: let it render (the
+  // marketing page at app/page.tsx), no longer redirecting to "/login".
   if (pathname === "/") {
     if (session) return NextResponse.redirect(new URL(roleHome(session.role), req.url));
     return NextResponse.next();
@@ -196,11 +192,11 @@ export async function proxy(req: NextRequest) {
   }
 
   if (!session) {
-    // 27/08 — PO báo: nhân viên hết phiên luôn bị đá về /login (cổng khách),
-    // NGÕ CỤT vì gate ở đó từ chối vai nội bộ. Không có `session` ở đây nghĩa
-    // là không còn vai nào để tra (cookie phiên đã mất/hỏng) — dùng cookie
-    // gợi ý cổng (LAST_GATE_COOKIE, ghi lúc đăng nhập, sống dài hơn session
-    // thật) làm dự phòng thay vì mặc định luôn /login. Xem lib/session.ts.
+    // Aug 27 — PO reported: staff whose session expired always got sent to /login (the customer
+    // gate), a DEAD END because that gate rejects internal roles. Having no `session` here means
+    // there's no role left to look up (the session cookie is lost/broken) — use the gate-hint
+    // cookie (LAST_GATE_COOKIE, written at login, outliving the real session) as a fallback instead
+    // of always defaulting to /login. See lib/session.ts.
     const goiY = req.cookies.get(LAST_GATE_COOKIE)?.value;
     return NextResponse.redirect(new URL(loginPathForGate(goiY), req.url));
   }

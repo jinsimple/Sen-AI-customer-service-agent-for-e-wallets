@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/session-server";
 import { backendFetch, proxyErrorResponse, unauthorized } from "@/lib/server-api";
 
-// ADR-065 (05/09) — deep-link đọc toàn văn cho kết quả /policy-search.
+// ADR-065 (Sep 5) — deep-link that reads the full text for a /policy-search result.
 export async function GET(req: Request, { params }: { params: Promise<{ docId: string }> }) {
   const session = await getServerSession();
   if (!session) return unauthorized();

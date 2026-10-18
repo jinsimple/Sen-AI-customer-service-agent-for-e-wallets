@@ -4,11 +4,10 @@ import { getServerSession } from "@/lib/session-server";
 import { backendFetch, proxyErrorResponse, unauthorized } from "@/lib/server-api";
 import { SESSION_COOKIE, sessionCookieMaxAgeSeconds, type Session } from "@/lib/session";
 
-// Backend cấp JWT MỚI (otp_verified=true) sau khi xác thực đúng — cookie
-// httpOnly phải được CẬP NHẬT ở đây (route handler, không phải Server
-// Component — xem docs cookies() "Setting cookies is not supported during
-// Server Component rendering"). Client KHÔNG BAO GIỜ thấy access_token mới,
-// chỉ nhận {ok:true} — đúng nguyên tắc BFF đã áp dụng cho toàn bộ session.
+// The backend issues a NEW JWT (otp_verified=true) once verification succeeds — the httpOnly cookie
+// must be UPDATED here (the route handler, not a Server Component — see the cookies() docs:
+// "Setting cookies is not supported during Server Component rendering"). The client NEVER sees the
+// new access_token, only {ok:true} — the same BFF rule applied to the whole session.
 export async function POST(req: Request) {
   const session = await getServerSession();
   if (!session) return unauthorized();
@@ -21,9 +20,8 @@ export async function POST(req: Request) {
       { method: "POST", body: JSON.stringify({ session_id, otp_code }) }
     );
 
-    // AUTH5-02 — verify_otp cũng cấp refresh_token MỚI (family mới, xem
-    // src/api/main.py::verify_otp) — phải cập nhật cả 2 field, không chỉ
-    // access_token như trước.
+    // AUTH5-02 — verify_otp also issues a NEW refresh_token (a new family, see
+    // src/api/main.py::verify_otp) — both fields must be updated, not just access_token as before.
     const updated: Session = { ...session, access_token: data.access_token, refresh_token: data.refresh_token };
     const store = await cookies();
     store.set(SESSION_COOKIE, JSON.stringify(updated), {
