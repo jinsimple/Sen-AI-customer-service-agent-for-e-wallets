@@ -1,212 +1,176 @@
-# FIN-05 — AI Agent for E-Wallet Customer Support
+# Sen — an AI customer-service agent for e-wallets
 
-> *[Bản tiếng Việt / Vietnamese version →](README.vi.md)*
+**Sen investigates transaction disputes but never decides on money.** It looks up the real transaction, classifies the complaint and drafts an evidence-backed proposal. A support agent verifies it. Only a supervisor can approve it.
 
-> An AI agent that helps e-wallet customer-support teams handle transaction complaints:
-> **it investigates through tools, classifies the complaint, and proposes an evidence-backed
-> resolution — and it never decides anything itself.** Every money-touching action goes through
-> human approval (HITL), every figure the agent states traces back to a real tool call, and both
-> rules are enforced at the database layer and guarded by 23 automated invariant tests.
-
-**Author:** Đào Ngọc Bích — sole engineer, product owner, and architect · **Mentor:** Đặng Hải
-Lộc · **Domain input:** informal feedback from domain advisors in the Vietnamese e-wallet
-industry (no formal partnership) · **Origin:** built solo end-to-end for AI 20K Build Phase
-(Cohort 3), later cleaned up into this public portfolio edition
-
-**Live demo:** https://app.adaptivealgo.uk *(home server + Cloudflare Tunnel — see the
-[deployment notes](docs/giao-viec/2026-08-15-chay-that-tai-nha-windows-tunnel.md), in Vietnamese)*
+[Live demo](https://app.adaptivealgo.uk/) · [Architecture](ARCHITECTURE.md) · [Case study](CASE-STUDY.md) · [Decisions summary](docs/DECISIONS-SUMMARY.md) · [Quality report](docs/QUALITY-REPORT.md) · [Evidence from real runs](eval/EVAL-EVIDENCE.md) · [Tiếng Việt](README.vi.md)
 
 ---
 
-## Architecture in 30 seconds
+## English summary
 
-An LLM — **a pool of 4 models the system rotates through automatically** (`qwen3.8-plus` plus
-three `deepseek` variants, via DashScope, see ADR-043) — is orchestrated with **LangGraph**
-(ReAct, 5 tools that query a real database) · policy RAG runs on **ChromaDB** (verbatim excerpts
-with a source citation, never an AI summary) · **every safety layer is a deterministic rule
-outside the model**: PII is masked before anything reaches the LLM (Presidio + spaCy NER), the
-agent is blocked from fabricating numbers (an origin-rule — every figure must trace back to a
-tool result), prompt-injection defences (spotlighting + a trust-tier system), and maker-checker
-separation enforced by a database CHECK constraint. Details: [ARCHITECTURE.md](ARCHITECTURE.md).
+E-wallet support teams handle disputes such as "I sent money to the wrong person", "I was charged twice" or "my refund never arrived". The work is repetitive to investigate, but every answer touches someone's money.
 
-## Key features (verified by real runs, not just described)
+Sen takes the investigation part. A customer chats with the agent. The agent calls five tools against a real database (transaction lookup, customer history, ticket creation, policy search, human handoff), asks only for what is missing, and creates a ticket with the evidence attached. It cannot approve, refund, adjust a balance or lock a wallet. The system has no code path that does any of these things.
 
-**Investigation & conversation**
-- The agent investigates a complaint through **5 tools backed by a real database**, classifies
-  it (4 complaint types × 3 transaction scopes), and proposes a resolution — **it never decides**.
-  Approval is a human's job (the supervisor).
-- **Anti-fabrication (origin-rule):** every amount/status the agent states must trace back to a
-  tool result; a transaction ID that doesn't exist gets a flat *"I couldn't find that"*, never a
-  made-up answer.
-- **Automatic handoff to a human:** `request_human_handoff` opens a live chat and creates/
-  escalates a ticket.
+The rule that shaped the whole design is **"AI never decides on money"**:
 
-**Policy lookup (RAG)** — ADR-061/062/065
-- Returns **verbatim excerpts with a source citation**, never an AI summary; scoped filtering +
-  cross-encoder reranking (a sidecar service, **fails closed** to `not_found` if the sidecar is
-  down).
-- Handles **both short keywords** ("withdrawal fee", "refund") **and full sentences**; irrelevant/
-  garbage input ("zzzqwx", "what's the weather") correctly returns *"not found"* (precision is
-  preserved, not forced to answer something).
-- **"View full text" deep link** (ADR-065): clicking a result opens the full document in a new
-  tab, **auto-scrolled and highlighted** to the matched excerpt.
+1. The **AI** investigates and proposes.
+2. A **support agent** verifies the case and submits a proposal. Support agents cannot approve.
+3. A **supervisor** is the only role that can approve, for every transaction type, with a step-up OTP bound to that proposal.
 
-**Support queue & role-scoped access** — ADR-063/064
-- **New-ticket notification bell** — fanned out to whichever support agents are currently
-  online, with the complaint type · scope · priority · SLA attached; paired with a **"who's
-  online" table** for the supervisor.
-- A support agent **only sees unclaimed tickets plus their own**; an active, idempotent **"Claim"**
-  button. A supervisor sees **everything** (an ID-based access attempt on someone else's ticket
-  gets a 404, not a 403 — it doesn't even reveal the ticket exists).
-- Ticket table: **real pagination** (30/50/100 rows) + a **genuine server-side AND filter** across
-  5 criteria (a real SQL WHERE clause) + a row-number column.
+Every number the agent states must trace back to a tool result. If it cannot find something, it says so.
 
-**Safety — deterministic rules outside the model**
-- HITL: only a supervisor can approve a refund/balance adjustment, for **every** transaction
-  scope (enforced by a database CHECK constraint).
-- PII is masked before reaching the LLM · step-up OTP for consequential actions · flagging
-  suspected fraud is **never** wired directly to locking a wallet.
-- A guardrail blocks the AI from falsely claiming *"ticket created"* — it only fires when a turn
-  genuinely intended to create one.
+## How it was built
 
-## Running it locally
+- Built solo in about **four weeks** (first commit Aug 9, last commit Sep 5, 2026, per the git history) by **Đào Ngọc Bích** as product owner, architect and final quality gate. *[CHƯA XÁC MINH: the author describes this as three weeks; the commit history spans 27 days. Pick one wording.]*
+- **Discovery:** informal feedback from domain advisors in the Vietnamese e-wallet industry (no formal partnership), plus benchmarking of public help-center pages and fee schedules of domestic wallets (MoMo, ZaloPay, VNPay; see `FIN05-Data-Brief.md`). *[CHƯA XÁC MINH: number and format of interviews with support staff; the repository contains no interview notes.]*
+- **Specification:** a PRD with 18 user stories (`FIN05-PRD.md`), a written project constitution ([CLAUDE.md](CLAUDE.md)) and 64 architecture decision records ([docs/DECISIONS.md](docs/DECISIONS.md)).
+- **Execution:** I orchestrated a team of role-specialised AI coding agents (Claude Code sessions: tech lead, tester, security, DevOps, critic, product-owner agent). Each session had its own write zone; I reviewed and accepted or rejected their output.
+- **Quality:** an AI-generated automated test suite built from a test matrix I defined (598 test functions, 38 Playwright specs), plus hand-tested scenarios. *[CHƯA XÁC MINH: that the hand-tested scenarios came from real support-staff cases; the repo has `docs/kich-ban-chuyen-gia-cskh-chuyen-nham-tien.md` and `eval/bo_ca_kich_ban_chuyen_gia.jsonl`, but their origin is not recorded.]*
 
-### Option 1 — Docker (the full stack, close to production)
+## Architecture
 
-```bash
-git clone <your-fork-url> && cd FIN05-portfolio
-cp .env.example .env        # fill in OPENAI_API_KEY + generate 2 secrets (see table below)
-docker compose up -d        # backend + frontend + postgres + redis + caddy + jaeger
-# wait ~1 minute, check with: docker ps → backend should be "healthy"
-# open https://localhost (self-signed cert — accept the browser warning)
+```mermaid
+flowchart LR
+    C([Customer]) --> A
+    subgraph SEN["Sen"]
+        A["Agent<br/>LangChain create_agent on LangGraph<br/>5 tools · ReAct loop"]
+        G["Deterministic guardrails<br/>PII masking · origin-rule · spotlighting<br/>output filters"]
+        R[("Policy RAG<br/>ChromaDB + cross-encoder")]
+        D[("PostgreSQL<br/>CHECK constraints")]
+        A --- G
+        A -->|tools, as the customer| D
+        A --> R
+    end
+    A -->|ticket with evidence| S([Support agent<br/>investigates, cannot approve])
+    S -->|proposal| V([Supervisor<br/>approves with step-up OTP])
+    V -.->|decision recorded, no money moved by the system| D
 ```
 
-### Option 2 — Dev mode (backend/frontend run separately, hot-reload)
+Details, data flow and the tech stack: [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Safety by design
+
+The safety rules are deterministic code outside the model, and most are enforced in the database. They do not depend on the prompt.
+
+| Rule | Where it is enforced |
+|---|---|
+| Only a supervisor can approve, for every scope | Role matrix in `contracts/authority-matrix.yaml`, checked by `tests/test_invariants.py` against the running app; `CHECK` constraint on `resolutions` |
+| The proposer cannot approve their own proposal (maker-checker) | `ck_resolutions_maker_checker_br12` (migration `d4e5f6a7b8c9`), ADR-020 |
+| Every figure the agent states traces to a tool result | `tool_result_id` → `investigation_logs` → `resolutions.cited_tool_result_ids`; output filter in `src/agents/output_filter.py` |
+| PII is masked before text reaches the LLM | `scrub_pii` in `src/agents/` and `src/api/main.py` |
+| Untrusted text (policy excerpts, transaction notes) cannot give orders | Spotlighting in `src/agents/spotlight.py`; tool results are treated as data |
+| Approval records a decision, nothing more | `approve_resolution` (`src/api/main.py`) writes a status. No code in `src/` changes a balance or locks a wallet |
+| Fraud flag is not a wallet lock | The two are separate actions; no code connects them (constraint 5 in [CLAUDE.md](CLAUDE.md)) |
+
+## Evaluation
+
+All suites below are in `eval/`. Counts were re-measured by counting lines in each file.
+
+| Suite | File | Cases | What it checks |
+|---|---|---|---|
+| Golden set | `eval/golden_set.jsonl` | 120 | Business scenarios: classification, lookup, ticket flow |
+| Retrieval golden set | `eval/golden_set_truy_hoi.jsonl` | 60 | Policy retrieval, with and without accents; includes questions that should not be in the store |
+| Adversarial (single-turn) | `eval/adversarial_set.jsonl` | 46 | Prompt injection, fake-admin pressure to force approval, and other attacks |
+| Adversarial (multi-turn) | `eval/adversarial_multiturn_set.jsonl` | 20 | Attacks spread across several turns |
+| Policy RAG | `eval/rag_policy_set.jsonl` | 34 | Context precision / recall of policy search |
+| Functional QA | `eval/functional_qa_set.jsonl` | 24 | Functional behaviour |
+| LLM-judge set | `eval/llm_judge_set.jsonl` | 14 | Tone and wording that rules cannot grade |
+| Origin-rule corpus | `eval/corpus_origin_rule.jsonl` | 14 | Anti-fabrication filter |
+| Fairness | `eval/fairness_qa_set.jsonl` | 8 | Same complaint phrased in different tones and personas must be handled the same way |
+| Others (command set, F25, handoff, fraud, expert scenario, error) | `eval/*.jsonl` | 20 | Small targeted sets |
+| **Held-out set** | `eval/heldout_set.jsonl` | sealed | **Sealed. Run once, near the end. Not used for tuning.** |
+
+Models: **the agent runs on Qwen through DashScope** (default `qwen3.8-flash`, rotation pool set by `LLM_MODEL_POOL`, ADR-043/058/059). **The judge and the attacker simulator run on OpenAI** (`gpt-4o-mini`, pinned in `src/config.py` and overridable with `EVAL_JUDGE_MODEL`). The grader is deliberately a different model from the agent, so a change in the agent does not change the yardstick.
+
+### Results
+
+*Intentionally left blank. To be filled after the suites are re-run and exported from LangSmith.* `[CHƯA XÁC MINH]`
+
+| Suite | Cases | Pass rate | Date | Judge model |
+|---|---|---|---|---|
+|  |  |  |  |  |
+
+Not LangSmith-based today: the repository switches LangSmith tracing **off** on purpose (`src/config.py`, to keep prompts from leaving the system). Runtime tracing uses OpenTelemetry and Jaeger.
+
+## Cost and latency
+
+| Measurement | Value | Source |
+|---|---|---|
+| Greeting on the deterministic fast path | 0 tokens, 0.01–0.06 s | `scripts/BAN-GIAO-coder-2026-08-17.md` (measured Aug 17, small sample) |
+| Same greeting through the full model path | 6,216 input tokens, 8.7 s | same file (single request) |
+| Median per conversation / per turn on `qwen3.8-flash` | ~44k tokens / ~4.8 s over 246 conversations | `[CHƯA XÁC MINH]` — not found in the repository; waiting for the quality report |
+
+## Lessons learned and known limitations
+
+Five incidents that were diagnosed and fixed (each is in the decision log or in code comments):
+
+1. **The agent claimed "ticket created" when none was.** Fixed with deterministic detection of ticket intent (ADR-049) and a two-step `create_ticket` that summarises first and creates second (ADR-051).
+2. **The judge ran on the wrong model for 10 days.** A missing base-URL default let CI grade with `gpt-4o-mini` while the agent was assumed to be on Qwen. The judge and simulator are now pinned to explicit literals, and the compose file carries the base URL (`src/config.py`, `docker-compose.yml`).
+3. **Policy retrieval was sensitive to how a question was phrased.** `[CHƯA XÁC MINH: no written evidence found in the repo]` The abstention gate moved to a cross-encoder reranker that fails closed (ADR-061).
+4. **"Refund" was confused with cashback.** The prompt now separates a refund that was promised from money the customer is simply waiting to receive (`src/agents/prompt.py`).
+5. **Keyword blocking missed text typed without accents.** The injection matcher now compares both accented and accent-stripped forms (`_strip_diacritics` in `src/agents/tools/customer_tools.py`).
+
+What does not exist yet:
+
+- **No self-learning.** The agent does not update itself from feedback.
+- **No LLM-based RAGAS run.** There is a deterministic context precision/recall baseline on 34 cases (`eval/results/rag_context_precision_recall_baseline.json`) and MRR/NDCG helpers in `eval/benchmark.py`. The averages in that baseline are low on some axes and are reported as measured.
+- **No real-user data.** The 60,000 transactions and 200 customers are synthetic (`data/generated/`, seeded generator).
+- **No MCP.** The agent uses ordinary tool calling.
+
+## Tech stack
+
+Only items verified in the code or in `requirements.txt`:
+
+| Layer | Technology |
+|---|---|
+| Agent | LangChain 1.3 `create_agent` on LangGraph 1.2, `PostgresSaver` checkpointing |
+| LLM | Qwen via DashScope (OpenAI-compatible API), model rotation pool |
+| RAG | ChromaDB 1.5, OpenAI `text-embedding-3-small`, cross-encoder `mmarco-mMiniLMv2-L12-H384-v1` in a sidecar service |
+| Privacy | Presidio + spaCy NER, hand-written O1–O4 output filters, Fernet field encryption |
+| Backend | FastAPI, SQLAlchemy, Alembic, PostgreSQL, Redis |
+| Frontend | Next.js 16 (App Router, BFF pattern), WebSocket live chat, English/Vietnamese toggle |
+| Observability | OpenTelemetry, Jaeger, structured logs |
+| Delivery | Docker Compose, Caddy, Cloudflare Tunnel, GitHub Actions (14 jobs in `ci.yml`) |
+
+## Quick start
+
+Docker (full stack):
+
+```bash
+git clone https://github.com/jinsimple/Sen---AI-customer-service-agent-for-e-wallets.git
+cd Sen---AI-customer-service-agent-for-e-wallets
+cp .env.example .env        # set JWT_SECRET_KEY, FIELD_ENCRYPTION_KEY, LLM_API_KEY / OPENAI_API_KEY
+docker compose up -d        # backend, frontend, postgres, redis, rerank, caddy, jaeger
+# open https://localhost (self-signed certificate)
+```
+
+Dev mode:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-make db          # generates data + builds the schema + seeds it (60k transactions, 200 customers)
-make demo-data   # sample scenarios for the Dashboard/Approve screens
-
-make run         # FastAPI backend on :8010
-
-cd frontend && npm install && npm run dev   # Next.js frontend on :3000
+make db            # generate synthetic data, build the schema, seed
+make demo-data     # sample scenarios for the dashboards
+make run           # FastAPI on :8010
+cd frontend && npm install && npm run dev   # Next.js on :3000
 ```
 
-## Environment variables
-
-The app **fails fast if a required secret is missing** — there's no `changeme`-style default.
-
-| Variable | Required | Notes |
-|---|---|---|
-| `JWT_SECRET_KEY` | ✅ | Generate with `openssl rand -hex 32` |
-| `FIELD_ENCRYPTION_KEY` | ✅ | A Fernet key, generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. ⚠️ Encrypts chat transcripts/account numbers/complaint descriptions at rest — **lose the key and that data is gone for good**; moving to a new machine means carrying it over unchanged. |
-| `REDIS_URL` | ✅ | `redis://localhost:6379/0` · tests/CI use `fake://ci` (fakeredis, no real Redis needed) |
-| `OPENAI_API_KEY` | ✅ (to run the agent) | |
-| `DATABASE_URL` | — | Defaults to SQLite for dev; Docker uses Postgres (already set in the compose file) |
-| `LLM_MODEL_POOL` | — | **The pool of models the infrastructure rotates through** when one runs out of quota (ADR-043). Comma-separated list. If unset, only `LLM_MODEL` is used, with no rotation |
-| `LLM_MODEL` | — | The chat model currently in use. **This is the real operational variable** |
-| `APP_ENV` | `production` | 🔴 Defaults **fail-safe**: if unset, `/docs`, `/openapi.json`, and `/redoc` are all DISABLED. Set to `development` to re-enable them while working locally |
-| `OPENAI_MODEL` | `gpt-4o-mini` | Now only the **final fallback** for `LLM_MODEL` |
-| `JWT_ACCESS_EXPIRE_MINUTES` | — | Defaults to 15 |
-| `CLOUDFLARE_TUNNEL_TOKEN` | only the `home` profile | For a home-server deploy; fails fast in `scripts/deploy_home.*` |
-| `AI_LOG_SERVER` / `AI_LOG_API_KEY` | — | Submits an AI-usage log to the cohort's grading server (a pre-push hook) — **not relevant outside the original cohort program; safe to leave unset** |
-| `SSL_CERT_FILE` | — | ⚠️ **Machine-specific** (a certifi path from the original Mac) — do NOT carry this over to another machine |
-
-## Demo accounts (shared password `Demo@123`)
-
-| Role | Phone | Sees |
-|---|---|---|
-| Customer | `0974000145` | AI assistant chat, live chat with a human |
-| Support agent | `0353000201` | Ticket queue, investigation timeline — **no approval button** |
-| Supervisor | `0905000205` | Approvals + per-proposal step-up OTP |
-| Wallet partner | `0900000001` | Manages the RAG policy library — can't touch money or customer data |
-
-> To use two roles on the same machine: the customer role in a normal window, the staff role in
-> a **private/incognito window** (one browser = one login session).
-
-## Example conversations (verified against real runs — see
-[eval/EVAL-EVIDENCE.md](eval/EVAL-EVIDENCE.md))
-
-The product's customers are Vietnamese, so the agent converses in Vietnamese — these are real
-logged conversations, kept as-is with an English gloss of what happened:
-
-```text
-minh chuyen 171k cho ban hom 1/8 luc 12:47 ma ban bao chua nhan duoc
-("I sent my friend 171k on Aug 1 at 12:47 and they say they haven't received it")
-→ finds the 1 correct transaction among 9 with the same amount, disambiguated by timestamp
-
-kiem tra giup gd TXN20260623999901, toi chuyen ma khong thay trong lich su
-("please check transaction TXN20260623999901, I sent it but don't see it in my history")
-→ the ID doesn't exist: the agent says plainly "I couldn't find that", fabricating nothing
-
-Trừ một lần đã xót, đây trừ tận hai lần 852k, quá đáng thật.
-("Getting charged once already hurt, and now I've been charged 852k TWICE — that's too much.")
-→ acknowledges the frustration first, then lists the 2 matching transactions 37 seconds apart
-
-dung roi, 2 giao dich 852.000d luc 11:31 ngay 30/06 do, tao ho so giup minh
-("yes, those two 852,000₫ transactions at 11:31 on June 30, please file a complaint for me")
-→ creates a ticket into the support queue; the agent only PROPOSES — approval is a human's job
-
-cho tôi gặp người thật
-("let me talk to a real person")
-→ calls request_human_handoff, creates/escalates a ticket and opens a live-chat channel
-```
-
-## Testing
+Tests:
 
 ```bash
-pytest tests/test_invariants.py -v        # the 5 hard constraints, 23 tests — introspects the real running app
-python scripts/check_contracts.py         # detects drift against contracts/
-pytest tests/ -m "not security_finding"   # the full backend suite (**109 files · 598 test functions**, measured Oct 18)
-python eval/run_golden_set.py             # business-scenario cases (calls the real LLM)
-python eval/run_adversarial_set.py        # adversarial/attack cases
+pytest tests/test_invariants.py -v        # 23 invariant tests against the running app
+python scripts/check_contracts.py         # drift against contracts/
+pytest tests/ -m "not security_finding"   # backend suite (598 test functions in 111 files)
 ```
 
-Frontend E2E: **38 Playwright specs** (`frontend/e2e/`) — run against the real UI, asserting on
-the rendered DOM.
+Required secrets and the full variable list: [`.env.example`](.env.example). The app refuses to start if a required secret is missing.
 
-CI (GitHub Actions, `.github/workflows/ci.yml`) — **14 jobs**: invariants · contract-drift ·
-lint+test · appsec · security-findings-gate · migration-chain · …
+**Demo access:** the live demo has a customer account for trying the chat. Staff and supervisor accounts are not published here; ask the author. `[CHƯA XÁC MINH: whether the live site still accepts the shared seed password for staff roles]`
 
-🔴 **A note on the CI badge, so a red run isn't misread as a broken build:**
-- **8 jobs run for real**, on a self-hosted runner.
-- **6 `ubuntu-latest` jobs don't run at all** — the cohort GitHub org's shared-runner billing is
-  blocked. The tell: `runner_name` is **empty**, `steps = 0`, and it fails in **0 seconds**. They
-  render identically red to an actual failing test, which is misleading if you only look at the
-  color.
-- **`security-findings-gate` is red by design** — it stays red for as long as a P0 security
-  finding is open, as an intentional reminder, not a bug.
-- Occasional transient infra blips (a network drop during `pip install`, a port clash on a
-  shared runner).
+## Provenance
 
-## Structure & further reading
-
-```
-contracts/        ← SOURCE OF TRUTH: 42 routes × role · the HITL state machine · the 5 AI tools
-src/agents/       ← the LangGraph agent + its 5 tools + guardrails (spotlighting, O1-O4, origin-rule)
-src/api/          ← FastAPI (BFF-first, rate-limited, step-up OTP)
-frontend/         ← Next.js (BFF pattern — the browser never holds the backend's JWT)
-tests/            ← 109 test files + tests/test_invariants.py (red = the build is broken)
-eval/             ← golden/adversarial/heldout sets + evidence from real runs
-docs/DECISIONS.md ← 64 ADRs — every decision with its reasoning and why the alternatives were rejected
-docs/STATE.md     ← the project's living status, updated at the end of every working session
-```
-
-Further reading: [docs/en/](docs/en/) (English index + glossary) ·
-[CASE-STUDY.md](CASE-STUDY.md) · [ARCHITECTURE.md](ARCHITECTURE.md) ·
-[README.vi.md](README.vi.md) (original Vietnamese README, more detail on the product itself)
-
-## About this repository
-
-This is a personal portfolio edition of a project originally built solo for **AI 20K Build
-Phase, Cohort 3** (Vingroup × VinUni), where I held both the product-owner and engineering-lead
-roles and coordinated a team of role-specialised Claude Code sessions (tech-lead · tester ·
-security · DevOps · critic · PO-agent) against a shared written constitution
-([CLAUDE.md](CLAUDE.md)). The commit history here is real and unedited; identifiers, comments,
-and this front-door documentation were translated to English and a few names were anonymised for
-a public audience, but the code, tests, and decisions themselves are untouched.
+Originally built during the VinUniversity / Vingroup AI 20K Build Phase (Cohort 3), team T226, mentor Đặng Hải Lộc. This repository is the author's portfolio copy with the full commit history. Identifiers, comments and front-door documentation were translated to English for this edition. The Vietnamese README is in [README.vi.md](README.vi.md).
 
 ## License
 
