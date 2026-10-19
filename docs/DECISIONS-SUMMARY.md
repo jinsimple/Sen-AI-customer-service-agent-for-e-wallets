@@ -55,12 +55,13 @@ Each entry also answers the interview question "what did you decide, and what di
 - **Trade-off.** Availability over reproducibility. ADR-059 later admitted that the 31 Aug benchmark ran on `qwen3.8-flash`, an alias with no date, and that the "pinned names only" guard promised by ADR-043 was never coded. The ADR corrects the record instead of editing the earlier one and lists the fix as open debt.
 - **Enforced by.** `src/agents/llm_pool.py`; the judge model is pinned separately in `src/config.py` so the yardstick does not move when the agent's model does.
 
-## 8. ADR-051 (with ADR-049) — Ticket creation in two steps: approved, not yet implemented
+## 8. ADR-051 (with ADR-049) — Ticket creation in two steps
 
 - **Context.** The agent sometimes said "I created a ticket" when it had not, or created one too early on a vague message.
-- **Decision.** ADR-049 detects "the customer asked for a ticket" deterministically. ADR-051 splits `create_ticket` into two calls: first return a six-field summary built in code from the model's own arguments, then create the ticket only after the customer confirms. Both were approved by the product owner on Aug 25.
-- **Trade-off.** One extra turn for the customer, in exchange for nothing being created before they agree and a summary the model cannot embellish. It tightens the human-in-the-loop rule.
-- **Status, stated plainly.** The decision and the contract (`contracts/agent-tools.yaml` v2.2.0, input `xac_nhan`) exist. The `create_ticket` tool in `src/agents/tools/customer_tools.py` has no such parameter, and the invariant suite only compares tool *names*, so it cannot see the gap. The contract file itself warns about this hole. What does run today is the output filter that checks "ticket created" claims against the database and swaps in a fixed reply when none exists. `[CHƯA XÁC MINH]` whether the two-step flow was dropped or is pending.
+- **Decision.** ADR-049 detects "the customer asked for a ticket" deterministically. ADR-051 splits `create_ticket` into two calls: first return a summary built in code from the model's own arguments, then create the ticket only after the customer confirms. Both were approved by the product owner on Aug 25.
+- **Trade-off.** One extra turn for the customer, in exchange for nothing being created before they agree and a summary the model cannot embellish. The decision log estimates about +10,400 tokens per ticket for the extra model round.
+- **Status, stated plainly.** The decision and the contract existed for weeks before the code did; the invariant suite compared only tool *names*, so it could not see that `create_ticket` lacked `xac_nhan`. This has since been implemented at tool level (step 2 needs a same-thread signal holding a hash of the summarised fields; single use; OTP gate on both steps) and INV-09b now compares every tool's parameters with the contract. Still open: the contract's "returns a formatted string under `return_direct`" part, and a golden-set re-run with a live model, because the prompt changed. `[CHƯA XÁC MINH]`
+- **Enforced by.** `src/agents/tools/customer_tools.py`; `tests/test_agents/test_create_ticket_two_phase.py` (13 tests); `tests/test_invariants.py::test_inv09b_parametros_de_cada_tool_khop_contract`.
 
 ## 9. ADR-056 — Move a rule from the prompt into code
 

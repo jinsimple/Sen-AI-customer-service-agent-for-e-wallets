@@ -86,6 +86,6 @@ The axis codes are the case groups of `eval/rag_policy_set.jsonl`; their descrip
 - No post-fix full re-run of golden and adversarial sets is recorded in the repo.
 - No LLM-based RAGAS metrics; only the deterministic baseline above.
 - No LangSmith dataset or evaluator in the repo (tracing is disabled on purpose). The Results table in the README is empty until a re-run is exported.
-- `create_ticket` two-step confirmation (ADR-051) is approved and in the contract, but not in the tool code.
+- `create_ticket` two-step confirmation (ADR-051) is now implemented at tool level and covered by offline tests, but the prompt changed with it and no live-model re-run exists yet; the contract's `return_direct` string output is not implemented.
 - The model alias `qwen3.8-flash` has no date pin, so the Aug 31 numbers may not be reproducible later (ADR-059).
 - All data is synthetic; there are no real-user conversations.
