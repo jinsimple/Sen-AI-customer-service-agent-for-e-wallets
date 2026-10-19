@@ -79,7 +79,7 @@ All suites below are in `eval/`. Counts were re-measured by counting lines in ea
 | Origin-rule corpus | `eval/corpus_origin_rule.jsonl` | 14 | Anti-fabrication filter |
 | Fairness | `eval/fairness_qa_set.jsonl` | 8 | Same complaint phrased in different tones and personas must be handled the same way |
 | Others (command set, F25, handoff, fraud, expert scenario, error) | `eval/*.jsonl` | 20 | Small targeted sets |
-| Held-out set | `eval/heldout_set.jsonl` | 60 (contents not published here) | Held back from tuning. The Aug 31 benchmark ran golden 120 + held-out 60 + adversarial 66 = 246 cases (ADR-059). `[CHƯA XÁC MINH: the project notes also call this set "sealed, run once"; confirm whether that single run was the Aug 31 one and whether a fresh unseen set will be added.]` |
+| Held-out set | `eval/heldout_set.jsonl` | 60 (contents not published here) | Held back from tuning, then **used once in the Aug 31 benchmark** (golden 120 + held-out 60 + adversarial 66 = 246 cases, ADR-059). The benchmark README treats it as spent. A fresh unseen set would be needed for another overfitting check. |
 
 Models: **the agent runs on Qwen through DashScope** (default `qwen3.8-flash`, rotation pool set by `LLM_MODEL_POOL`, ADR-043/058/059). **The judge and the attacker simulator run on OpenAI** (`gpt-4o-mini`, pinned in `src/config.py` and overridable with `EVAL_JUDGE_MODEL`). The grader is deliberately a different model from the agent, so a change in the agent does not change the yardstick.
 
