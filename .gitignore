@@ -101,3 +101,11 @@ eval/goi_30_nhan_MAY.json
 # 6 tệp gốc đã `git rm --cached` cùng đợt — dòng này CHỈ chặn từ nay,
 # KHÔNG viết lại lịch sử (PO thật chốt 01/09).
 eval/results/render_that_*
+
+# Database dumps and local DB files (a 24 MB dump once reached a public repo by accident)
+*.dump
+*.db
+*.db-*
+*.sql.gz
+fin05_backup*
+fin05-backup*

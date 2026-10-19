@@ -20,6 +20,10 @@ The rule that shaped the whole design is **"AI never decides on money"**:
 
 Every number the agent states must trace back to a tool result. If it cannot find something, it says so.
 
+![Customer chat with Sen: the complaint is investigated, a ticket is created and the status panel shows it waiting for a support agent, with the supervisor approval step still ahead](docs/assets/customer-chat.png)
+
+*The customer chat (Vietnamese UI, synthetic data). The right-hand panel shows the ticket waiting for a support agent; "Awaiting supervisor approval" is still ahead. The UI has an EN/VI toggle.*
+
 ## How it was built
 
 - Built solo in about **four weeks** (first commit Aug 9, last commit Sep 5, 2026, per the git history) by **Đào Ngọc Bích** as product owner, architect and final quality gate. *[CHƯA XÁC MINH: the author describes this as three weeks; the commit history spans 27 days. Pick one wording.]*
@@ -132,7 +136,11 @@ Only items verified in the code or in `requirements.txt`:
 | Backend | FastAPI, SQLAlchemy, Alembic, PostgreSQL, Redis |
 | Frontend | Next.js 16 (App Router, BFF pattern), WebSocket live chat, English/Vietnamese toggle |
 | Observability | OpenTelemetry, Jaeger, structured logs |
-| Delivery | Docker Compose, Caddy, Cloudflare Tunnel, GitHub Actions (14 jobs in `ci.yml`) |
+| Delivery | Docker Compose, Caddy, Cloudflare Tunnel, GitHub Actions (14 jobs in `ci.yml`; see the CI note below) |
+
+## CI note
+
+The workflows in `.github/workflows/` were written for a self-hosted runner (`self-hosted`, label `team-226`) that belonged to the original cohort organisation. In this personal copy those jobs have no runner and stay "queued", so the Actions tab does not show a pass or fail. 11 of the 14 jobs target self-hosted runners and 3 nightly jobs target `ubuntu-latest` (`grep -n runs-on .github/workflows/ci.yml`). Run the same checks locally with the commands in Quick start.
 
 ## Quick start
 
