@@ -34,6 +34,8 @@ Thumbs.db
 # byte-identical theo seed 20260802).
 data/*
 !data/raw/
+# Third-party PDFs are not redistributed (see data/raw/SOURCES.md)
+data/raw/*.pdf
 !data/schema/
 !data/generated/
 data/generated/*
