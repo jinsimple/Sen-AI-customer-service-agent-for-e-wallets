@@ -20,6 +20,9 @@ from __future__ import annotations
 
 import datetime as dt
 import functools
+import hashlib
+import hmac
+import json
 import logging
 import re
 import threading
@@ -34,9 +37,13 @@ from src.agents.spotlight import mark_as_data, mark_as_data_short
 from src.config import OTP_STEPUP_FRESH_MINUTES, OTP_VIEW_MAX_MINUTES
 from src.db.models import Transaction
 from src.rag.search import search_policy_text
-from src.services.complaint_intake import create_ticket_with_fraud_check, flag_human_handoff
+from src.services.complaint_intake import MAX_DESCRIPTION_CHARS, create_ticket_with_fraud_check, flag_human_handoff
 from src.services.thread_signals import read_or_unknown as _read_signal
+from src.services.thread_signals import read_value as _read_signal_value
+from src.services.thread_signals import reset as _reset_signal
+from src.services.thread_signals import store_value as _store_signal_value
 from src.tools.base import ToolError
+from src.tools.create_ticket import VALID_COMPLAINT_TYPES, VALID_SCOPES
 from src.tools.get_customer_history import get_customer_history as _get_customer_history
 from src.tools.lookup_transaction import is_party_to_transaction
 from src.tools.lookup_transaction import lookup_transaction as _lookup_transaction
@@ -664,6 +671,109 @@ _SCREENING_INCOMPLETE_ERROR = {
     ),
 }
 
+# ---------------------------------------------------------------------------
+# ADR-051 — create_ticket in TWO STEPS. Step 1 (`xac_nhan=False`) creates nothing and returns a summary
+# that CODE builds from the call's own arguments; step 2 (`xac_nhan=True`) creates the ticket, and ONLY
+# if the summary for exactly these fields was already produced earlier in the SAME thread.
+# ---------------------------------------------------------------------------
+# Thread signal (thread_signals.py pattern): the value is a SHA-256 over the summary fields, so a
+# model that calls `xac_nhan=True` straight away — or after changing any field the customer saw —
+# finds no matching signal and is refused. Consumed (reset) after a successful creation, which also
+# closes the "customer agrees twice" branch. Redis unavailable ⟹ read returns None ⟹ refused
+# (fail-closed, like the screening gate above).
+_SIGNAL_TICKET_SUMMARY_SENT = "tom_tat_ve_da_gui"
+
+_TICKET_SUMMARY_NOT_SENT_ERROR = {
+    "status": "error",
+    "loai": "chua_gui_tom_tat",
+    "message": (
+        "Chưa thể tạo hồ sơ: khách chưa được xem bản tóm tắt khớp đúng các thông tin này. Gọi lại "
+        "create_ticket với xac_nhan=false, đưa NGUYÊN VĂN bản tóm tắt cho khách và hỏi khách có đồng ý "
+        "không; chỉ gọi xac_nhan=true ở lượt sau khi khách đồng ý, với đúng các tham số đã tóm tắt."
+    ),
+}
+
+_COMPLAINT_TYPE_LABEL_VI = {
+    "wrong_recipient": "Chuyển nhầm",
+    "money_not_received": "Tiền chưa về",
+    "double_charge": "Trừ tiền 2 lần",
+    "refund": "Hoàn tiền",
+    "other": "Khác (yêu cầu hỗ trợ chung)",
+}
+_SCOPE_LABEL_VI = {
+    "internal_wallet": "Nội bộ ví",
+    "from_bank": "Từ ngân hàng vào ví",
+    "to_bank": "Từ ví ra ngân hàng",
+    "unknown": "Chưa xác định",
+}
+_NOT_DETERMINED_VI = "chưa xác định"
+
+
+def _ticket_summary_fields(
+    session: Session,
+    *,
+    user_id: str,
+    complaint_type: str,
+    scope: str,
+    trans_id: str | None,
+    description_raw: str,
+) -> dict[str, str | int | None]:
+    """The six fields the customer must see and agree to, derived ONLY from the call arguments and
+    the customer's OWN transaction row (amount and time come from the database, never from the model).
+    Raises ToolError for input the ticket could not be created with anyway, so a summary is never
+    shown for a ticket that would be rejected in step 2."""
+    if complaint_type not in VALID_COMPLAINT_TYPES:
+        raise ToolError(f"complaint_type không hợp lệ: {complaint_type}")
+    if scope not in VALID_SCOPES:
+        raise ToolError(f"scope không hợp lệ: {scope}")
+    if not description_raw or not description_raw.strip():
+        raise ToolError("description_raw không được để trống")
+    if len(description_raw) > MAX_DESCRIPTION_CHARS:
+        raise ToolError(f"description_raw vượt {MAX_DESCRIPTION_CHARS} ký tự")
+
+    amount: int | None = None
+    occurred_at: str | None = None
+    if trans_id is not None:
+        found = _lookup_transaction(
+            session, only_callers_transactions=True, trans_id=trans_id, requesting_user_id=user_id
+        )
+        if found.get("status") != "found":
+            raise ToolError(
+                f"trans_id không tra được cho khách này: {trans_id} — nếu không tra ra giao dịch, "
+                "gọi lại với trans_id=None thay vì đoán một mã"
+            )
+        txn = found["transaction"]
+        amount, occurred_at = txn.get("amount"), txn.get("created_at")
+    return {
+        "complaint_type": complaint_type,
+        "scope": scope,
+        "trans_id": trans_id,
+        "amount": amount,
+        "occurred_at": occurred_at,
+        "description_raw": description_raw,
+    }
+
+
+def _ticket_summary_digest(fields: dict, otp_disclosed: bool) -> str:
+    """Digest of the six displayed fields PLUS `otp_disclosed`. The flag is not shown in the summary but
+    raises priority, so changing it between the two steps must also invalidate the signal."""
+    canonical = json.dumps({**fields, "otp_disclosed": bool(otp_disclosed)}, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _render_ticket_summary(fields: dict) -> str:
+    """The customer-facing summary, built in code: deterministic, cannot be embellished by the model."""
+    amount = fields["amount"]
+    lines = [
+        f"1. Loại khiếu nại: {_COMPLAINT_TYPE_LABEL_VI[fields['complaint_type']]}",
+        f"2. Phạm vi giao dịch: {_SCOPE_LABEL_VI[fields['scope']]}",
+        f"3. Mã giao dịch: {fields['trans_id'] or _NOT_DETERMINED_VI}",
+        f"4. Số tiền: {f'{amount:,}'.replace(',', '.') + 'đ' if amount is not None else _NOT_DETERMINED_VI}",
+        f"5. Thời điểm giao dịch: {fields['occurred_at'] or _NOT_DETERMINED_VI}",
+        f"6. Nội dung khách mô tả: {fields['description_raw']}",
+    ]
+    return "\n".join(lines)
+
 
 # ---------------------------------------------------------------------------
 # ANTI-LIVELOCK INVARIANT — "same tool + same args + same error ⟹ the second time, STOP."
@@ -959,10 +1069,17 @@ def build_customer_tools(
         description_raw: str,
         trans_id: str | None = None,
         otp_disclosed: bool = False,
+        xac_nhan: bool = False,
     ) -> dict:
         """Tạo ticket khiếu nại chuyển cho chuyên viên CSKH — bước CUỐI CÙNG
-        của quy trình, gọi ĐÚNG MỘT LẦN cho mỗi khiếu nại, sau khi đã xác
-        định rõ:
+        của quy trình, gồm HAI THÌ (mỗi khiếu nại tạo ĐÚNG MỘT vé):
+        - Thì 1 (xac_nhan=false, mặc định): KHÔNG tạo gì, chỉ trả "tom_tat" do
+          hệ thống dựng. Đưa NGUYÊN VĂN bản tóm tắt cho khách, hỏi khách có đồng
+          ý tạo hồ sơ không, rồi DỪNG lượt đó.
+        - Thì 2 (xac_nhan=true): chỉ gọi ở lượt SAU, khi khách đã đồng ý rõ
+          ràng, với ĐÚNG các tham số đã tóm tắt (đổi bất kỳ tham số nào thì phải
+          quay lại thì 1).
+        Trước khi gọi, đã xác định rõ:
         - complaint_type: đúng 1 trong wrong_recipient (chuyển nhầm),
           money_not_received (tiền chưa về), double_charge (trừ 2 lần),
           refund (hoàn tiền).
@@ -977,7 +1094,7 @@ def build_customer_tools(
           KHÔNG bịa một mã giao dịch.
         - otp_disclosed: true CHỈ KHI khách tự kể đã đưa mã OTP/mã xác thực
           cho người khác (không phải chỉ nhắc tới từ "OTP").
-        Sau khi tạo xong, báo cho khách bằng lời tự nhiên: đã tạo hồ sơ, BẮT
+        Sau khi tạo xong (thì 2), báo cho khách bằng lời tự nhiên: đã tạo hồ sơ, BẮT
         BUỘC nêu nguyên văn mã ticket ("ticket_id") — không nói mơ hồ "đã tạo
         hồ sơ" mà thiếu mã. CSKH sẽ tiếp nhận, KHÔNG tự hứa hoàn tiền hay mốc
         thời gian không có trong kết quả tool."""
@@ -985,6 +1102,40 @@ def build_customer_tools(
             return _OTP_REQUIRED_ERROR
         if not _otp_fresh(otp_verified_at, OTP_STEPUP_FRESH_MINUTES):
             return _OTP_EXPIRED_ERROR
+        # ADR-051 — the OTP gate above applies to BOTH steps (constraint ③: step 1 is a security
+        # question too). Everything below the summary step is reached only by step 2.
+        _summary_thread = thread_id or user_id
+        try:
+            _summary_fields = _ticket_summary_fields(
+                session,
+                user_id=user_id,
+                complaint_type=complaint_type,
+                scope=scope,
+                trans_id=trans_id,
+                description_raw=description_raw,
+            )
+        except ToolError as e:
+            return {"status": "error", "message": str(e)}
+        _digest = _ticket_summary_digest(_summary_fields, otp_disclosed)
+        if not xac_nhan:
+            # Step 1. Creates NOTHING and carries NO `ticket_id` on purpose (constraint ②): the
+            # ticket-claim guards in graph.py (RB3, ⑧, ⑨, investigation logs) all key on that field.
+            _store_signal_value(_SIGNAL_TICKET_SUMMARY_SENT, _summary_thread, _digest)
+            return {
+                "status": "summary",
+                "buoc": 1,
+                "da_tao_ticket": False,
+                "tom_tat": _render_ticket_summary(_summary_fields),
+                "huong_dan": (
+                    "Chưa tạo hồ sơ. Đưa nguyên văn tom_tat cho khách và hỏi khách có đồng ý tạo hồ sơ "
+                    "không. Chỉ gọi lại với xac_nhan=true ở lượt sau khi khách đồng ý."
+                ),
+            }
+        # Step 2 — refused unless the summary for EXACTLY these fields was produced earlier in this
+        # thread (constraint 5). `read_value` returns None on a Redis error ⟹ refused (fail-closed).
+        _sent_digest = _read_signal_value(_SIGNAL_TICKET_SUMMARY_SENT, _summary_thread)
+        if not _sent_digest or not hmac.compare_digest(str(_sent_digest), _digest):
+            return _TICKET_SUMMARY_NOT_SENT_ERROR
         # GATE item 4 (04/09) — only applies to wrong-transfer cases WITH a trans_id (a specific
         # transaction found); trans_id=None stays UNGATED, matching the scope of the original ⑨/K2
         # mechanism (the question only fires once a transaction has been found — extending the gate
@@ -1001,7 +1152,7 @@ def build_customer_tools(
             if not _already_screened:
                 return _SCREENING_INCOMPLETE_ERROR
         try:
-            return create_ticket_with_fraud_check(
+            _created = create_ticket_with_fraud_check(
                 session,
                 user_id=user_id,
                 complaint_type=complaint_type,
@@ -1013,6 +1164,9 @@ def build_customer_tools(
             )
         except ToolError as e:
             return {"status": "error", "message": str(e)}
+        # Single use: consuming the signal also closes the "customer agrees twice" branch.
+        _reset_signal(_SIGNAL_TICKET_SUMMARY_SENT, _summary_thread)
+        return _created
 
     @tool
     @_locked

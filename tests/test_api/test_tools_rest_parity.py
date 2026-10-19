@@ -166,9 +166,13 @@ def test_create_ticket_rest_and_ai_both_accept_fresh_otp(client, sample_db):
 
     fresh_ts = (dt.datetime.utcnow() - dt.timedelta(minutes=1)).timestamp()
     tools = {t.name: t for t in build_customer_tools(sample_db, user_id="USR-A", otp_verified_at=fresh_ts)}
-    ai_result = tools["create_ticket"].invoke(
-        {"complaint_type": "money_not_received", "scope": "internal_wallet", "description_raw": "test AI"}
-    )
+    # ADR-051: the AI path creates a ticket in TWO steps (summary, then confirmation). The REST route
+    # above stays one-shot — it is the support/API path, not the customer-facing agent.
+    args = {"complaint_type": "money_not_received", "scope": "internal_wallet", "description_raw": "test AI"}
+    summary = tools["create_ticket"].invoke(args)
+    assert summary.get("status") == "summary", summary
+    assert "ticket_id" not in summary
+    ai_result = tools["create_ticket"].invoke({**args, "xac_nhan": True})
     assert ai_result.get("status") != "error", ai_result
     assert "ticket_id" in ai_result
 

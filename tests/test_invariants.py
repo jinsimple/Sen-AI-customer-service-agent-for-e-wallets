@@ -609,6 +609,67 @@ def test_inv09_danh_sach_tool_khop_code_dang_chay(tools_contract):
     )
 
 
+def _live_tool_inputs() -> dict[str, dict[str, dict]]:
+    """name -> {param -> {"type": ..., "required": bool, "default": ...}} read from the REAL tool
+    schemas that are sent to the model (the pydantic args schema langchain derives from the signature).
+    """
+    from unittest.mock import MagicMock
+
+    from src.agents.tools.customer_tools import build_customer_tools
+
+    out: dict[str, dict[str, dict]] = {}
+    for tool in build_customer_tools(MagicMock(), user_id="USR-TEST", otp_verified_at=None):
+        schema = tool.args_schema.model_json_schema()
+        required = set(schema.get("required", []))
+        params: dict[str, dict] = {}
+        for pname, prop in schema.get("properties", {}).items():
+            variants = prop.get("anyOf") or [prop]
+            kinds = sorted(v["type"] for v in variants if v.get("type") and v.get("type") != "null")
+            params[pname] = {
+                "type": kinds[0] if len(kinds) == 1 else "/".join(kinds),
+                "required": pname in required,
+                "default": prop.get("default"),
+            }
+        out[tool.name] = params
+    return out
+
+
+def test_inv09b_parametros_de_cada_tool_khop_contract(tools_contract):
+    """INV-09b · the tool contract must match the live tool PARAMETERS, not only the tool NAMES.
+
+    Why this exists: INV-09 only compares names. `contracts/agent-tools.yaml` v2.2.0 (ADR-051) declared a
+    new input `xac_nhan` on `create_ticket` and the gate stayed green while the code never had it — the
+    contract file itself recorded that hole ("no gate stands behind this"). This test closes it: for every
+    tool, the set of input names, each input's type, and its required flag must be identical in the
+    contract and in the schema the model actually receives. A declared `default` is compared too.
+    """
+    live = _live_tool_inputs()
+    err: list[str] = []
+    for name, spec in tools_contract["tools"].items():
+        declared = spec.get("input", {}) or {}
+        actual = live.get(name, {})
+        missing = sorted(set(declared) - set(actual))
+        extra = sorted(set(actual) - set(declared))
+        if missing:
+            err.append(f"{name}: contract declares input(s) the code does NOT accept: {missing}")
+        if extra:
+            err.append(f"{name}: code accepts input(s) missing from the contract: {extra}")
+        for pname in sorted(set(declared) & set(actual)):
+            d, a = declared[pname], actual[pname]
+            if d.get("type") != a["type"]:
+                err.append(f"{name}.{pname}: type contract={d.get('type')!r} code={a['type']!r}")
+            if bool(d.get("required", False)) != a["required"]:
+                err.append(f"{name}.{pname}: required contract={bool(d.get('required', False))} code={a['required']}")
+            if "default" in d and d["default"] != a["default"]:
+                err.append(f"{name}.{pname}: default contract={d['default']!r} code={a['default']!r}")
+
+    assert not err, (
+        "Tool contract and code disagree on parameters:\n  "
+        + "\n  ".join(err)
+        + "\n→ Follow CLAUDE.md §3 (contract → ADR → PO approval → check_contracts --update → code)."
+    )
+
+
 def test_inv08_khong_tool_bi_cam_nao_ton_tai(tools_contract):
     """INV-08 · tools in forbidden_tools must not appear in any form."""
     cam = {f["ten"] for f in tools_contract["forbidden_tools"]}
