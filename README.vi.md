@@ -1,6 +1,6 @@
 # FIN-05 — AI Agent CSKH Ví điện tử
 
-> *[English version →](README.md)*
+> *[English version →](README.md)* — bản tiếng Anh là bản chính, đã kiểm chứng với mã nguồn; bản này giữ nội dung gốc, một số mục có thể cũ hơn.
 
 > AI Agent hỗ trợ chăm sóc khách hàng ví điện tử, xử lý khiếu nại giao dịch: **điều tra qua
 > tool, phân loại, đề xuất hướng xử lý có căn cứ — và KHÔNG BAO GIỜ tự quyết định.** Mọi hành
@@ -17,7 +17,7 @@
 
 ## Kiến trúc 30 giây
 
-LLM **bể 4 model tự xoay** (`qwen3.8-plus` · 3 bản `deepseek`, qua DashScope — ADR-043) điều phối bằng **LangGraph** (ReAct, 5 tool tra cứu DB thật) · RAG chính sách
+LLM **Qwen qua DashScope, xoay trong một bể model cấu hình bằng `LLM_MODEL_POOL`** (mặc định `qwen3.8-flash` — ADR-043/058/059) điều phối bằng **LangGraph** (ReAct, 5 tool tra cứu DB thật) · RAG chính sách
 trên **ChromaDB** (trích nguyên văn kèm nguồn, không tổng hợp AI) · **mọi lớp an toàn là luật tất
 định ngoài model**: che PII trước khi lên LLM (Presidio + spaCy NER), chặn bịa số (origin-rule —
 số phải truy về tool result), chống prompt-injection (spotlighting + phân tier), maker-checker ép
@@ -132,9 +132,9 @@ cho tôi gặp người thật
 ```bash
 pytest tests/test_invariants.py -v        # 5 ràng buộc cứng, 23 test — introspect app THẬT
 python scripts/check_contracts.py         # phát hiện artifact lệch contracts/
-pytest tests/ -m "not security_finding"   # toàn bộ backend (**110 file · 598 hàm test**, đo 05/09)
-python eval/run_golden_set.py             # 120 case nghiệp vụ (gọi OpenAI thật)
-python eval/run_adversarial_set.py        # 45+ case tấn công
+pytest tests/ -m "not security_finding"   # toàn bộ backend (**111 file · 598 hàm test**, đếm lại 19/10)
+python eval/run_golden_set.py             # 120 case nghiệp vụ (agent chạy Qwen; chấm điểm bằng OpenAI gpt-4o-mini)
+python eval/run_adversarial_set.py        # 46 case tấn công đơn lượt (+20 nhiều lượt)
 ```
 
 Frontend E2E: **38 spec Playwright** (`frontend/e2e/`) — chạy trên UI thật, đo DOM.
@@ -159,9 +159,9 @@ contracts/        ← NGUỒN SỰ THẬT: 42 route × role · state machine HIT
 src/agents/       ← LangGraph agent + 5 tool + guardrails (spotlighting, O1-O4, origin-rule)
 src/api/          ← FastAPI (BFF-first, rate-limit, OTP step-up)
 frontend/         ← Next.js (BFF pattern — browser không bao giờ cầm JWT backend)
-tests/            ← 110 file test + tests/test_invariants.py (đỏ = build hỏng)
+tests/            ← 111 file test + tests/test_invariants.py (đỏ = build hỏng)
 eval/             ← golden/adversarial/heldout set + bằng chứng chạy thật
-docs/DECISIONS.md ← 65 ADR — mọi quyết định kèm lý do và lý-do-bác-phương-án-khác
+docs/DECISIONS.md ← 64 ADR — mọi quyết định kèm lý do và lý-do-bác-phương-án-khác
 docs/STATE.md     ← trạng thái sống của dự án, cập nhật mỗi phiên làm việc
 ```
 
