@@ -139,8 +139,8 @@ Only items verified in the code or in `requirements.txt`:
 Docker (full stack):
 
 ```bash
-git clone https://github.com/jinsimple/Sen---AI-customer-service-agent-for-e-wallets.git
-cd Sen---AI-customer-service-agent-for-e-wallets
+git clone https://github.com/jinsimple/Sen-AI-customer-service-agent-for-e-wallets.git
+cd Sen-AI-customer-service-agent-for-e-wallets
 cp .env.example .env        # set JWT_SECRET_KEY, FIELD_ENCRYPTION_KEY, LLM_API_KEY / OPENAI_API_KEY
 docker compose up -d        # backend, frontend, postgres, redis, rerank, caddy, jaeger
 # open https://localhost (self-signed certificate)
