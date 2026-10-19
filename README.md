@@ -79,7 +79,7 @@ All suites below are in `eval/`. Counts were re-measured by counting lines in ea
 | Origin-rule corpus | `eval/corpus_origin_rule.jsonl` | 14 | Anti-fabrication filter |
 | Fairness | `eval/fairness_qa_set.jsonl` | 8 | Same complaint phrased in different tones and personas must be handled the same way |
 | Others (command set, F25, handoff, fraud, expert scenario, error) | `eval/*.jsonl` | 20 | Small targeted sets |
-| **Held-out set** | `eval/heldout_set.jsonl` | sealed | **Sealed. Run once, near the end. Not used for tuning.** |
+| Held-out set | `eval/heldout_set.jsonl` | 60 (contents not published here) | Held back from tuning. The Aug 31 benchmark ran golden 120 + held-out 60 + adversarial 66 = 246 cases (ADR-059). `[CHƯA XÁC MINH: the project notes also call this set "sealed, run once"; confirm whether that single run was the Aug 31 one and whether a fresh unseen set will be added.]` |
 
 Models: **the agent runs on Qwen through DashScope** (default `qwen3.8-flash`, rotation pool set by `LLM_MODEL_POOL`, ADR-043/058/059). **The judge and the attacker simulator run on OpenAI** (`gpt-4o-mini`, pinned in `src/config.py` and overridable with `EVAL_JUDGE_MODEL`). The grader is deliberately a different model from the agent, so a change in the agent does not change the yardstick.
 
@@ -99,7 +99,7 @@ Not LangSmith-based today: the repository switches LangSmith tracing **off** on 
 |---|---|---|
 | Greeting on the deterministic fast path | 0 tokens, 0.01–0.06 s | `scripts/BAN-GIAO-coder-2026-08-17.md` (measured Aug 17, small sample) |
 | Same greeting through the full model path | 6,216 input tokens, 8.7 s | same file (single request) |
-| Median per conversation / per turn on `qwen3.8-flash` | ~44k tokens / ~4.8 s over 246 conversations | `[CHƯA XÁC MINH]` — not found in the repository; waiting for the quality report |
+| Median per conversation / per turn on `qwen3.8-flash` | ~44k tokens / ~4.8 s | `[CHƯA XÁC MINH]` — the 246-case figure matches the Aug 31 benchmark size in ADR-059, but the token and latency medians are not in the repository; waiting for the quality report |
 
 ## Lessons learned and known limitations
 
@@ -117,6 +117,7 @@ What does not exist yet:
 - **No LLM-based RAGAS run.** There is a deterministic context precision/recall baseline on 34 cases (`eval/results/rag_context_precision_recall_baseline.json`) and MRR/NDCG helpers in `eval/benchmark.py`. The averages in that baseline are low on some axes and are reported as measured.
 - **No real-user data.** The 60,000 transactions and 200 customers are synthetic (`data/generated/`, seeded generator).
 - **No MCP.** The agent uses ordinary tool calling.
+- **Model alias is not date-pinned.** `qwen3.8-flash` has no date suffix, so the provider could change it silently and the Aug 31 numbers would stop being reproducible. ADR-059 records this as open technical debt and the guard that ADR-043 promised was never added.
 
 ## Tech stack
 
