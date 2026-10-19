@@ -29,7 +29,7 @@ graph TB
         FE -->|internal REST| BE[FastAPI Backend :8010]
 
         BE --> AUTH[Auth<br/>session OTP · JWT ·<br/>refresh rotation AUTH5-03 ·<br/>per-proposal step-up OTP]
-        BE --> AGENT[LangGraph Agent<br/>pool of 4 rotating models · ReAct · temp 0.2]
+        BE --> AGENT[LangGraph Agent<br/>rotating model pool · ReAct · temp 0.2]
         BE --> HITL[HITL Routes<br/>ticket → proposal → approval]
 
         AGENT -->|"calls tools UNDER THE CUSTOMER'S IDENTITY<br/>(hard constraint 2)"| TOOLS[5 tools:<br/>lookup_transaction · get_customer_history ·<br/>create_ticket · search_policy ·<br/>request_human_handoff]
@@ -88,7 +88,7 @@ Agent/customer creates a ticket → the support queue (investigate, CANNOT appro
 
 | Layer | Technology |
 |---|---|
-| LLM (chat) | **A pool of 4 models, rotated automatically by the infrastructure** (ADR-043) — `qwen3.7-plus-2026-05-26` · `deepseek-v4-pro-0813` · `deepseek-v4-flash-0731` · `deepseek-v3.2`, via DashScope. 🔴 **Names are PINNED with a date — a drifting alias is REJECTED at startup** (ADR-043). `temperature=0.2`. Rotates ONLY on a quota-exhausted error class; a `429` does NOT trigger rotation. |
+| LLM (chat) | **Qwen via DashScope** (OpenAI-compatible API). Default `qwen3.8-flash` (ADR-058/059); the infrastructure rotates inside a pool set by `LLM_MODEL_POOL` when a model's quota runs out (ADR-043). A drifting alias is better pinned with a date; `temperature=0.2`. Rotation happens ONLY on a quota-exhausted error class; a `429` does not rotate. Judge and attacker-simulator for evaluation run on OpenAI `gpt-4o-mini`, pinned in `src/config.py`. |
 | LLM (embedding) | `text-embedding-3-small` via **OpenAI** — [measured] `EMBEDDING_BASE_URL=None`. **Two different providers for chat and embedding**, deliberately separated so one running out of quota doesn't drag the other down with it. |
 | Agent | LangGraph + LangChain (ReAct, 5 tools). Checkpointing: **`PostgresSaver`** with its own connection pool (ADR-014) — state lives outside the process so it can scale horizontally. `MemorySaver` is **only** a fallback branch when `DB_KIND != postgresql` (tests/SQLite); `graph.py` logs a warning: *"seeing this line in production is a bug"*. |
 | Backend | FastAPI + Uvicorn · SQLAlchemy · Alembic |
